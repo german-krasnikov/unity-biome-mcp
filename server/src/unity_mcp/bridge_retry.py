@@ -7,11 +7,11 @@ path could silently bypass the safety gate (C1 / A1).
 """
 import asyncio
 import time
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass
 
-from .bridge_reload_state import DomainReloadTracker
-from .compile_state import CompileStateProbe
+from .bridge_reload_state import DomainReloadTracker  # noqa: TC001
+from .compile_state import CompileStateProbe  # noqa: TC001
 
 
 @dataclass

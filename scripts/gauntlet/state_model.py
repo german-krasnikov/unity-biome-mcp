@@ -1,6 +1,5 @@
 """Seeded legal-transition generation and deterministic repro minimization."""
 
-from __future__ import annotations
 
 import random
 from dataclasses import dataclass, field

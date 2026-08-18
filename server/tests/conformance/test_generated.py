@@ -5,7 +5,6 @@ Requires: conformance_worker fixture (see conftest.py), YAML files in generated/
 
 Markers: live + conformance (inherited via pytestmark).
 """
-from __future__ import annotations
 
 import pathlib
 from typing import Any

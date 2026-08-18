@@ -1,5 +1,4 @@
 """T19: checkpoint_tool MCP tool unit tests (no Unity, no TCP)."""
-from __future__ import annotations
 
 import uuid
 from pathlib import Path

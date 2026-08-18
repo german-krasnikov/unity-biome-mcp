@@ -287,7 +287,7 @@ async def test_send_wakes_early_when_concurrent_reconnect_sets_gate():
             bridge._reader = reader
             bridge._reload_gate.set()
 
-        asyncio.ensure_future(_set_gate_later())
+        asyncio.create_task(_set_gate_later())
 
     with patch("asyncio.open_connection", return_value=(reader, writer)), \
          patch.object(bridge, "close", new=reconnecting_close):

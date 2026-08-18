@@ -1,6 +1,5 @@
 """Shared identities and limits for release package inspection."""
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 

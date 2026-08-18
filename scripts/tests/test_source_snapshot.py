@@ -1,6 +1,5 @@
 """Tests for materializing an exact, overlay-free Git source snapshot."""
 
-from __future__ import annotations
 
 import subprocess
 import sys

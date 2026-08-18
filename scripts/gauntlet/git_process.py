@@ -1,6 +1,5 @@
 """Fail-closed Git process boundary for source evidence."""
 
-from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING

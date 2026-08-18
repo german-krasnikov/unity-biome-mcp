@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 """TCP fault-injection proxy for MCP server resilience testing.
 

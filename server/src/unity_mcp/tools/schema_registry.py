@@ -2,7 +2,6 @@
 
 Module-level singleton `_registry` is used by server.py to capture + resolve.
 """
-from __future__ import annotations
 
 STUB_SCHEMA: dict = {"type": "object", "properties": {}, "additionalProperties": False}
 

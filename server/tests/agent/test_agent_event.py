@@ -1,5 +1,4 @@
 """Tests for AgentEvent + ProviderCapabilities models (T12)."""
-from __future__ import annotations
 
 import json
 import uuid

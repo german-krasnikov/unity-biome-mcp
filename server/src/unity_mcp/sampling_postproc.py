@@ -5,7 +5,6 @@ intent tools, do_intent executor.
 
 Pure functions, no state, no I/O, no async.
 """
-from __future__ import annotations
 
 import re
 from typing import Literal

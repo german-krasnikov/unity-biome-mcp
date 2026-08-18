@@ -1,5 +1,4 @@
 """Tests for CodexAcpAdapter — mocked CliSession, no Unity. (10 tests)"""
-from __future__ import annotations
 
 import json
 import os

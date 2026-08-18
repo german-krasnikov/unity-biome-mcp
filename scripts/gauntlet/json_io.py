@@ -1,6 +1,5 @@
 """Small atomic JSON primitives shared by release evidence artifacts."""
 
-from __future__ import annotations
 
 import json
 import math

@@ -1,6 +1,5 @@
 """Policy-bound pytest profile selection and strict result assessment."""
 
-from __future__ import annotations
 
 import stat
 from pathlib import Path, PurePosixPath

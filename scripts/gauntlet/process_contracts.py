@@ -1,6 +1,5 @@
 """Typed contracts and validation for supervised process execution."""
 
-from __future__ import annotations
 
 import math
 import stat

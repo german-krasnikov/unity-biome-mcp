@@ -16,7 +16,7 @@ def infer_primitive(name: str) -> str | None:
     return None
 
 
-def infer_parent(ctx: "SessionContext") -> str | None:
+def infer_parent(ctx: SessionContext) -> str | None:
     if len(ctx.recent_creates) < 3:
         return None
     parents = [c[2] for c in ctx.recent_creates if c[2]]

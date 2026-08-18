@@ -3,7 +3,6 @@
 Draws numbered circles at top-left of each rect, 2px stroke box,
 8-color palette cycling by index. Collision avoidance via diagonal push.
 """
-from __future__ import annotations
 
 import re
 

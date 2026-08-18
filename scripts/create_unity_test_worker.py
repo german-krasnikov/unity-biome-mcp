@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 """Create a disposable Unity 6000.0 / built-in UTF 1.6 test worker snapshot."""
 
-from __future__ import annotations
 
 import argparse
 import hashlib
 import json
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -196,7 +195,7 @@ def create_worker(
         marker: dict[str, object] = {
             "schema_version": 1,
             "disposable": True,
-            "created_utc": datetime.now(timezone.utc).isoformat(),
+            "created_utc": datetime.now(UTC).isoformat(),
             "source_project_sha256": _hash_tree(source),
             "source_repository_sha256": hashlib.sha256(
                 (

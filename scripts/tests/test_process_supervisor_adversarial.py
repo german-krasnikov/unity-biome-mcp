@@ -1,6 +1,5 @@
 """Adversarial process escapes and post-launch fault injection."""
 
-from __future__ import annotations
 
 import os
 import sys

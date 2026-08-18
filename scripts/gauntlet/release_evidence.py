@@ -1,6 +1,5 @@
-from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from gauntlet.evidence_schema import (
@@ -24,7 +23,7 @@ if TYPE_CHECKING:
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def build_conformance_evidence(
@@ -260,7 +259,7 @@ def validate_release_evidence_bundle(
     if missing:
         raise EvidenceError(f"missing profile evidence: {', '.join(missing)}")
 
-    current_time = now or datetime.now(timezone.utc)
+    current_time = now or datetime.now(UTC)
     if current_time.tzinfo is None:
         raise EvidenceError("current time must include a timezone")
 

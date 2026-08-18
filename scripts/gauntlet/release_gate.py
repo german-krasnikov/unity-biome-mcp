@@ -1,6 +1,5 @@
 """One fail-closed decision over policy, artifacts, harness, and evidence."""
 
-from __future__ import annotations
 
 import stat
 from dataclasses import dataclass

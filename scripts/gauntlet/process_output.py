@@ -1,6 +1,5 @@
 """Bounded output collection for supervised subprocesses."""
 
-from __future__ import annotations
 
 import hashlib
 import threading

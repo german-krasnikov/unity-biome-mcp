@@ -2,7 +2,7 @@
 import asyncio
 import json
 import os
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable  # noqa: TC003
 
 _FULL_SUPPORTED: frozenset[str] = frozenset({
     "get_hierarchy", "get_component", "inspect", "get_object_detail",

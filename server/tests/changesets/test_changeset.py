@@ -1,5 +1,4 @@
 """T15 ChangeSet model unit tests (18 tests)."""
-from __future__ import annotations
 
 import json
 import tempfile

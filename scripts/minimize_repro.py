@@ -9,7 +9,6 @@ Usage:
     python scripts/minimize_repro.py trace.jsonl --output minimal.jsonl --fail-on-cmd get_hierarchy
     python scripts/minimize_repro.py trace.jsonl --output minimal.jsonl --fail-fn my_check.py
 """
-from __future__ import annotations
 
 import argparse
 import importlib.util

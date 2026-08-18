@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Write built-player PlayTest evidence for CI artifacts."""
 
-from __future__ import annotations
 
 import argparse
 import sys

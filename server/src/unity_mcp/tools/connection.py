@@ -1,4 +1,4 @@
-from mcp.server.fastmcp import Context
+from mcp.server.fastmcp import Context  # noqa: TC002 — fastmcp eval_str=True requires runtime
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ._annotations import RO as _RO

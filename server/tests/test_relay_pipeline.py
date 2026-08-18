@@ -78,10 +78,10 @@ def _texts(lines: list[str]) -> list[str]:
 
 async def wait_for_events(relay: ChatRelay, after: int = -1, timeout: float = 2.0) -> list[str]:
     """Poll _cmd_events, accumulating until terminal turn_completed or error event or timeout."""
-    deadline = asyncio.get_event_loop().time() + timeout
+    deadline = asyncio.get_running_loop().time() + timeout
     all_lines: list[str] = []
     current_after = after
-    while asyncio.get_event_loop().time() < deadline:
+    while asyncio.get_running_loop().time() < deadline:
         resp = await relay._cmd_events({"after_seq": current_after, "timeout_ms": 200})
         batch = event_lines(resp)
         if batch:

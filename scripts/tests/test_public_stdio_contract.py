@@ -1,6 +1,5 @@
 """Public console-entry MCP contracts against an independent scripted peer."""
 
-from __future__ import annotations
 
 import asyncio
 import json

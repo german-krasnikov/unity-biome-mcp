@@ -1,12 +1,9 @@
 """T15: Append-only JSONL journal per session. Dedup by operation_id."""
-from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from .changeset import ChangeOperation, ChangeSet
+from .changeset import ChangeOperation, ChangeSet  # noqa: TC001
 
 
 class ChangeSetJournal:

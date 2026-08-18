@@ -1,6 +1,5 @@
 """Portable, collision-free archive path contracts."""
 
-from __future__ import annotations
 
 import unicodedata
 from pathlib import PurePosixPath

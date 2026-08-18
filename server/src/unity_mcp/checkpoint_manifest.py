@@ -1,17 +1,12 @@
 """T19: scan_manifest(), current_hash(), detect_conflicts() — pure file I/O, no state."""
-from __future__ import annotations
 
 import contextlib
+from collections.abc import Iterable  # noqa: TC003
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from .changeset import ContentRef
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
-
-    from .changeset_store import ContentStore
-    from .checkpoint import ConflictInfo, FileManifest
+from .changeset_store import ContentStore  # noqa: TC001
+from .checkpoint import ConflictInfo, FileManifest  # noqa: TC001
 
 
 def scan_manifest(paths: Iterable[str], store: ContentStore) -> FileManifest:

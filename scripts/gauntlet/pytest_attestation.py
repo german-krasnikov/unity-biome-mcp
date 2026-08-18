@@ -1,6 +1,5 @@
 """Pytest plugin that binds final collected leaves to a reviewed scenario manifest."""
 
-from __future__ import annotations
 
 import os
 import stat

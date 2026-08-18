@@ -15,7 +15,7 @@
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.12) | 5762 | 0 | 3 | 5765 | ✅ |
+| Python Server (3.14) | 5762 | 0 | 3 | 5765 | ✅ |
 | Python Install | 76 | 0 | 0 | 76 | ✅ |
 | Python Scripts | 939 | 0 | 0 | 939 | ✅ |
 | C# EditMode (Linux) | 8191 | 0 | 175 | 8366 | ✅ |

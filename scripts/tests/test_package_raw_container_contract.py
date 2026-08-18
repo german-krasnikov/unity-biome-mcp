@@ -1,6 +1,5 @@
 """Raw-byte release archive contracts missed by high-level readers."""
 
-from __future__ import annotations
 
 import gzip
 import io

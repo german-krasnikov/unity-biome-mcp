@@ -6,7 +6,7 @@ All C# strings are centralised here; test file has zero inline C#.
 Reflection-free: uses MCPChatWindow.Test* public API (MCPChatWindow.TestInspect.cs)
 so the execute_code security scanner sees no blocked patterns.
 """
-from __future__ import annotations
+from tests.live._markers import strip_markers
 
 # Window type — fully-qualified for Roslyn snippets.
 _T    = "UnityMCP.Editor.Chat.MCPChatWindow"
@@ -248,10 +248,10 @@ IS_IMAGE_EXT_EMPTY = f'return {_T}.TestIsImageExtension(string.Empty);'
 # ── Python async helpers ─────────────────────────────────────────────────────
 
 async def exec_ok(bridge, code: str) -> str:
-    """Send execute_code, assert ok=True, return data string."""
+    """Send execute_code, assert ok=True, return data string (markers stripped)."""
     r = await bridge.send("execute_code", {"code": code})
     assert r.get("ok"), f"execute_code failed: {r.get('err') or r.get('data')}"
-    return r.get("data", "")
+    return strip_markers(str(r.get("data", "")))
 
 
 async def open_window(bridge) -> str:

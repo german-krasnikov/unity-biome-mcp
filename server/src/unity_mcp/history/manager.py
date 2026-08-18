@@ -1,22 +1,17 @@
 """T23: HistoryManager — route events to HistoryStore."""
-from __future__ import annotations
 
 import contextlib
 import uuid
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from datetime import UTC, datetime
+from pathlib import Path  # noqa: TC003
 
+from ..agent_event import AgentEvent  # noqa: TC001
 from .models import EXCLUDED_KINDS, ConversationHeader
 from .store import HistoryStore
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from ..agent_event import AgentEvent
-
 
 def _utcnow() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 class HistoryManager:

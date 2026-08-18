@@ -1,5 +1,4 @@
 """T21: brief_build MCP tool — project context snapshot."""
-from __future__ import annotations
 
 from ._annotations import RO as _RO
 from ._common import bind

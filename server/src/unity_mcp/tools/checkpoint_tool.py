@@ -1,9 +1,8 @@
 """T19: checkpoint_create, checkpoint_restore MCP tools."""
-from __future__ import annotations
 
 import contextlib
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ._annotations import DEL as _DEL
 from ._annotations import RW as _RW
@@ -85,7 +84,7 @@ async def checkpoint_create(paths: str = "") -> str:
         manifest=manifest,
         undo_group_id=group_id,
         domain_stamp=domain_stamp,
-        created_at=datetime.now(timezone.utc).isoformat(),
+        created_at=datetime.now(UTC).isoformat(),
         finalized_at=None,
     )
     cp_store.save(cp)

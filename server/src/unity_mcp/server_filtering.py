@@ -3,13 +3,13 @@
 Pure, stateless helpers. State (_disabled_tools_cache, _refresh_tools_lock)
 lives in server.py so tests can mutate srv._disabled_tools_cache directly.
 """
+import asyncio  # noqa: TC003
 import contextlib
 import logging
 import os
 import socket
 import weakref
 from pathlib import Path  # noqa: F401  # re-exported; tests mock unity_mcp.server_filtering.Path
-from typing import TYPE_CHECKING
 
 from .constants import DEFAULT_PORT
 from .lockfile import is_pid_alive as _is_pid_alive
@@ -18,9 +18,6 @@ from .paths import ports_dir as _ports_dir
 from .tools.gating import _CORE_TOOLS, filter_by_tier, get_catalog
 from .tools.schema_registry import STUB_SCHEMA
 from .tools.schema_registry import _registry as _schema_registry
-
-if TYPE_CHECKING:
-    import asyncio
 
 # Core tools keep full schemas; all others get stub schema on ListTools.
 _SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = frozenset({
@@ -83,7 +80,7 @@ def _strip_deferred_schemas(tools: list) -> list:
     return tools
 
 
-_push_catalog_lock: "asyncio.Lock | None" = None
+_push_catalog_lock: asyncio.Lock | None = None
 
 
 async def push_catalog(bridge_) -> None:

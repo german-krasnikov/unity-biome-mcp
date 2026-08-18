@@ -20,7 +20,7 @@ The package currently includes:
 2. Select **MCP > Install AI Skills**.
 3. Leave **Overwrite existing files** disabled for the first installation.
 4. Enable **Run Codex sync after install** when this project uses Codex. This
-   optional step requires Python 3.10 or newer on the `PATH` visible to Unity
+   optional step requires Python 3.14 or newer on the `PATH` visible to Unity
    (`python3` on macOS/Linux or `python` on Windows).
 5. Select **Install**, review the log, then select **Finish**.
 6. Start the client from the Unity project. Codex normally detects skill

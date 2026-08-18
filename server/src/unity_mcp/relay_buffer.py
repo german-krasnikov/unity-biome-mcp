@@ -33,7 +33,7 @@ class RelayBuffer:
                 await asyncio.wait_for(self._new_data.wait(),
                                        timeout=timeout_ms / 1000)
                 lines = [b for b in self._buf if b.seq > after_seq]
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 pass
         return "".join(f"{b.seq}\n{b.text}\n" for b in lines)
 

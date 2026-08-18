@@ -19,7 +19,7 @@ _FAILURE_HEADER = "## Script Compilation Error for:"
 _SECTION_BOUNDARIES = ("##### ", "## ", "*** ")
 
 
-def get_editor_log_path(env_override: str | None = None) -> "Path | None":
+def get_editor_log_path(env_override: str | None = None) -> Path | None:
     """Return Editor.log path. env_override or UNITY_MCP_EDITOR_LOG env wins.
 
     When env override points to a non-existent path, warns to stderr (user explicitly
@@ -47,7 +47,7 @@ def get_editor_log_path(env_override: str | None = None) -> "Path | None":
     return p if p.exists() else None
 
 
-def parse_compile_errors_from_log(log_path: Path, max_bytes: int = 256_000) -> "list[str]":
+def parse_compile_errors_from_log(log_path: Path, max_bytes: int = 256_000) -> list[str]:
     """Read FULL log file, find LATEST Csc FAILURE block, return error lines.
 
     Anchors on '## Script Compilation Error for:' (Unity 6 Bee failure marker).
@@ -88,7 +88,7 @@ def parse_compile_errors_from_log(log_path: Path, max_bytes: int = 256_000) -> "
     return _collect_errors(output_content)
 
 
-def _parse_legacy_format(text: str) -> "list[str]":
+def _parse_legacy_format(text: str) -> list[str]:
     """Fallback: parse old-format logs without the ## Script Compilation Error header.
 
     rfind picks the LAST ExitCode block — on legacy single-assembly Csc that's the only
@@ -115,7 +115,7 @@ def _parse_legacy_format(text: str) -> "list[str]":
     return _collect_errors(after[output_start + len(_OUTPUT_MARKER):])
 
 
-def _collect_errors(output_content: str) -> "list[str]":
+def _collect_errors(output_content: str) -> list[str]:
     """Extract CS error lines from an Output block body."""
     errors: list[str] = []
     for line in output_content.splitlines():
@@ -135,7 +135,7 @@ def _collect_errors(output_content: str) -> "list[str]":
     return errors
 
 
-def _collect_strong_broken(text_before_header: str) -> "list[str]":
+def _collect_strong_broken(text_before_header: str) -> list[str]:
     """Check for STRONG_BROKEN signal before the failure header."""
     for line in text_before_header.splitlines():
         if _STRONG_BROKEN in line:
@@ -252,7 +252,7 @@ def classify_failure_currency(text: str, build_failure: BuildFailure) -> str:
 # G32 — get_editor_prev_log_path (sibling to get_editor_log_path)
 # ---------------------------------------------------------------------------
 
-def get_editor_prev_log_path(env_override: str | None = None) -> "Path | None":
+def get_editor_prev_log_path(env_override: str | None = None) -> Path | None:
     """Return Editor-prev.log path for forensic incident lookup (M4).
 
     Mirrors get_editor_log_path but resolves to Editor-prev.log.

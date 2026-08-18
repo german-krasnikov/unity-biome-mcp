@@ -690,7 +690,7 @@ async def test_cancelled_error_closes_writer(mock_connection):
         bridge = UnityBridge(probe=idle_probe)
         await bridge.connect()
 
-        task = asyncio.ensure_future(bridge.send("test", {}, timeout=60.0))
+        task = asyncio.create_task(bridge.send("test", {}, timeout=60.0))
         await asyncio.sleep(0)   # let task reach the await inside lock
         await asyncio.sleep(0)
         task.cancel()
@@ -715,7 +715,7 @@ async def test_cancelled_error_reraises(mock_connection):
         bridge = UnityBridge(probe=idle_probe)
         await bridge.connect()
 
-        task = asyncio.ensure_future(bridge.send("test", {}, timeout=60.0))
+        task = asyncio.create_task(bridge.send("test", {}, timeout=60.0))
         await asyncio.sleep(0)
         await asyncio.sleep(0)
         task.cancel()

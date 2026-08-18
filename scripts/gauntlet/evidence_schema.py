@@ -1,9 +1,8 @@
-from __future__ import annotations
 
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from gauntlet.package_contracts import (
@@ -215,4 +214,4 @@ def parse_timestamp(value: object) -> datetime:
         raise EvidenceError("created_at must be an RFC3339 timestamp") from exc
     if parsed.tzinfo is None:
         raise EvidenceError("created_at must include a timezone")
-    return parsed.astimezone(timezone.utc)
+    return parsed.astimezone(UTC)

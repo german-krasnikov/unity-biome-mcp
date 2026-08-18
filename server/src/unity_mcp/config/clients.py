@@ -2,7 +2,7 @@
 import os
 import pathlib
 import sys
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass, field
 
 

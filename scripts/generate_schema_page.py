@@ -8,7 +8,6 @@ Usage:
   # With pre-built reports:
   python scripts/generate_schema_page.py --tools reports/tools.json --scores reports/toolsmith.json --out docs/tools-schema/index.md
 """
-from __future__ import annotations
 
 import argparse
 import json

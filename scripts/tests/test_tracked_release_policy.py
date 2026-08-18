@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 import re
 import sys
@@ -40,8 +39,8 @@ def test_tracked_release_policy_defines_public_and_unity_profiles() -> None:
     policy = load_release_policy(POLICY)
 
     assert tuple(profile.profile_id for profile in policy.active_profiles) == (
-        "public-stdio-linux-py312",
-        "unity-editor-macos-py312",
+        "public-stdio-linux-py314",
+        "unity-editor-macos-py314",
     )
     assert policy.active_profiles[0].required_workers == 0
     assert policy.active_profiles[1].required_workers == 1

@@ -1,6 +1,5 @@
 """POSIX process-group ownership used by the trusted harness."""
 
-from __future__ import annotations
 
 import os
 import signal

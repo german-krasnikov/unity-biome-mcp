@@ -64,7 +64,7 @@ class HeartbeatMixin:
         if self._heartbeat_task is not None and not self._heartbeat_task.done():
             return
         self._heartbeat_interval = interval
-        self._heartbeat_task = asyncio.ensure_future(self._heartbeat_loop(interval))
+        self._heartbeat_task = asyncio.get_running_loop().create_task(self._heartbeat_loop(interval))
 
     def stop_heartbeat(self) -> None:
         if self._heartbeat_task is not None:
@@ -187,7 +187,7 @@ class HeartbeatMixin:
                 await self.close()
             self._ping_failures = 0
             self._ping_stall_failures = 0
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Timeout = Unity alive but unresponsive (App Nap / heavy compile).
             # Apply stall counter — don't close prematurely.
             self._ping_failures += 1

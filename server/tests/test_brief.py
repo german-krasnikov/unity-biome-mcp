@@ -1,5 +1,4 @@
 """T21: AttachmentSlot, ContextBrief value object unit tests."""
-from __future__ import annotations
 
 from unity_mcp.brief import AttachmentSlot, ContextBrief, _estimate_tokens
 

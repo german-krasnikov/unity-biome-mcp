@@ -1,5 +1,4 @@
 """Wire-level tests for TCP response format contracts (no Unity required)."""
-from __future__ import annotations
 
 import pytest
 

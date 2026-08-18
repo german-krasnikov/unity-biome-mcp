@@ -14,7 +14,7 @@ succeeds (ExitCode=0 would be the last ExitCode, giving a false-negative).
 The errors live in the ##### Output block BEFORE the header (lines 79707-79733 in real log).
 """
 
-from typing import TYPE_CHECKING
+from pathlib import Path  # noqa: TC003
 
 from .editor_log_freshness import (  # noqa: F401 — re-export
     check_dll_freshness,
@@ -35,9 +35,6 @@ from .editor_log_wedge import (  # noqa: F401 — re-export
     detect_wedge,
 )
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
 # Module-level cached state for centralized corroboration
 _cor_project_path = None
 _cor_log_path = None
@@ -47,10 +44,10 @@ _cor_source_files = None  # RC-4: scoped list (excludes Chat/Tests asmdefs)
 
 def corroborate_compile_status(
     csharp_response: str,
-    project_path: "Path | None" = None,
-    log_path: "Path | None" = None,
-    source_dirs: "list[Path] | None" = None,
-    source_files: "list[Path] | None" = None,
+    project_path: Path | None = None,
+    log_path: Path | None = None,
+    source_dirs: list[Path] | None = None,
+    source_files: list[Path] | None = None,
     compile_status: str = "",
 ) -> str:
     """Corroborate a "clean" C# response against Editor.log.
@@ -110,7 +107,7 @@ def corroborate_compile_status(
     return csharp_response
 
 
-def init_corroboration(port: "int | None" = None) -> None:
+def init_corroboration(port: int | None = None) -> None:
     """Autodetect + cache project/log paths and scoped plugin source files once at startup.
 
     UNITY_MCP_PROJECT_PATH override wins over port-file autodetect.

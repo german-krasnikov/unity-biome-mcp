@@ -7,7 +7,6 @@ Each case in ROUND_TRIP_CASES defines:
 check_fn signature: (resp: dict, ns: str) -> bool
 Prerequisites (object creation) are handled by _setup_prerequisites.
 """
-from __future__ import annotations
 
 import pytest
 

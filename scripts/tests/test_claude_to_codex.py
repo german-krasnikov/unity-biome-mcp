@@ -1,6 +1,5 @@
 """Regression tests for ClientSkills Claude -> Codex conversion."""
 
-from __future__ import annotations
 
 import importlib.util
 import sys

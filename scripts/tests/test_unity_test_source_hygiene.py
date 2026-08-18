@@ -1,6 +1,5 @@
 """Repository-wide source gates for the canonical Unity test architecture."""
 
-from __future__ import annotations
 
 import pathlib
 import re

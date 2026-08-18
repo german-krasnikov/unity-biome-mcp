@@ -93,7 +93,7 @@ class CliSession:
         try:
             self._proc.terminate()
             await asyncio.wait_for(self._proc.wait(), timeout=KILL_WAIT)
-        except (asyncio.TimeoutError, ProcessLookupError):
+        except (TimeoutError, ProcessLookupError):
             with contextlib.suppress(ProcessLookupError):
                 self._proc.kill()
 
@@ -114,7 +114,7 @@ class CliSession:
         try:
             data = await asyncio.wait_for(self._proc.stderr.read(max_bytes), timeout=timeout)
             return data.decode("utf-8", errors="replace").strip()
-        except (asyncio.TimeoutError, Exception):
+        except (TimeoutError, Exception):
             return ""
 
     @property

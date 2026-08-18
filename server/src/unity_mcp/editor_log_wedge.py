@@ -20,13 +20,13 @@ class WedgeReport:
     kind: str                         # 'build-failed-wedge' | 'stale-cache'
     cs_errors: list[str] = field(default_factory=list)
     failed_dlls: list[str] = field(default_factory=list)
-    log_path: "Path | None" = None
+    log_path: Path | None = None
 
 
 def detect_wedge(
-    log_path: "Path | None" = None,
-    project_path: "Path | None" = None,
-) -> "WedgeReport | None":
+    log_path: Path | None = None,
+    project_path: Path | None = None,
+) -> WedgeReport | None:
     """Pure disk authority: detect a reload wedge without needing TCP.
 
     M4: consults BOTH Editor.log AND Editor-prev.log; takes the most-recent
@@ -48,7 +48,7 @@ def detect_wedge(
     best_text: str | None = None
     best_path: Path | None = None
 
-    def _read(p: "Path | None") -> "tuple[str, Path] | None":
+    def _read(p: Path | None) -> tuple[str, Path] | None:
         if p is None or not p.exists():
             return None
         try:

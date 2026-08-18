@@ -1,6 +1,5 @@
 """Adversarial source and policy binding tests for the release gate."""
 
-from __future__ import annotations
 
 import json
 import subprocess

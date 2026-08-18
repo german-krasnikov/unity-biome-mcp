@@ -5,7 +5,7 @@ Pure stdlib (pathlib only) — no intra-package imports.
 from pathlib import Path
 
 
-def find_plugin_source_files(plugin_dir: "Path | None" = None) -> "list[Path]":
+def find_plugin_source_files(plugin_dir: Path | None = None) -> list[Path]:
     """Return .cs files under plugin_dir that belong ONLY to UnityMCP.Editor assembly.
 
     Excludes .cs files under any directory that contains a .asmdef whose stem is
@@ -35,7 +35,7 @@ def find_plugin_source_files(plugin_dir: "Path | None" = None) -> "list[Path]":
     return result
 
 
-def find_plugin_source_dir() -> "list[Path] | None":
+def find_plugin_source_dir() -> list[Path] | None:
     """Return [repo/unity-plugin] if it exists and contains .cs files; else None.
 
     Walks up from this file: server/src/unity_mcp/editor_log.py → parents[3] = repo root.
@@ -51,10 +51,10 @@ def find_plugin_source_dir() -> "list[Path] | None":
 
 def check_dll_freshness(
     project_path: Path,
-    source_dirs: "list[Path] | None" = None,
+    source_dirs: list[Path] | None = None,
     grace_s: float = 10.0,
-    source_files: "list[Path] | None" = None,
-) -> "bool | None":
+    source_files: list[Path] | None = None,
+) -> bool | None:
     """Compare UnityMCP.Editor.dll mtime vs plugin .cs files.
 
     source_files (preferred): explicit list of .cs files — no rglob of foreign asmdefs.

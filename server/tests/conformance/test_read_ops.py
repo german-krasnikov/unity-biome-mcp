@@ -1,5 +1,4 @@
 """Gate 2: Read Operations — verify read-only MCP commands return valid data."""
-from __future__ import annotations
 
 import pytest
 

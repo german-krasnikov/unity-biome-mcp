@@ -1,6 +1,5 @@
 """Typed artifact-manifest contracts shared by producers and gates."""
 
-from __future__ import annotations
 
 import os
 import stat

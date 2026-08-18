@@ -1,5 +1,4 @@
 """Wire-level tests for the batch command protocol (no Unity required)."""
-from __future__ import annotations
 
 import pytest
 

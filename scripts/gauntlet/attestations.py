@@ -1,6 +1,5 @@
 """Content-addressed release evidence and strict runtime receipts."""
 
-from __future__ import annotations
 
 import hashlib
 import os

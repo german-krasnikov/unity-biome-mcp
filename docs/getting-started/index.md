@@ -16,7 +16,7 @@ then return here for the appropriate first-connection check.
 - `uvx`, provided by [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - An MCP-compatible client, or a supported CLI for [MCP Chat](../chat/index.md)
 
-The server package requires Python 3.10 or later, but `uvx` downloads and
+The server package requires Python 3.14 or later, but `uvx` downloads and
 manages it for the standard package flow. Install Python separately only for a
 local source checkout or manual Python execution.
 

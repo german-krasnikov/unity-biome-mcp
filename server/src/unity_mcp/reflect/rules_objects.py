@@ -1,6 +1,6 @@
 """Reflection rules for object-mutation commands."""
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable  # noqa: TC003
 
 from . import Mismatch, _parse_snapshot, _values_close, register_rule
 from .factory import _has_error

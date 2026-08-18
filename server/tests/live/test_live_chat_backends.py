@@ -6,7 +6,6 @@ pytest tests/live/test_live_chat_backends.py -m live_cli -v
 Each test makes ~1 real API call (~$0.001-0.01).
 Requires the respective CLI tool installed and a valid API key.
 """
-from __future__ import annotations
 
 import shutil
 

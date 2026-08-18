@@ -4,7 +4,6 @@ Called once per tool — zero cost at runtime.
 Transforms: additionalProperties injection, param description injection.
 anyOf, integer→number, and default type inference are intentionally NOT transformed per architect spec.
 """
-from __future__ import annotations
 
 from ._param_descriptions import _COMMON, PARAM_DESCRIPTIONS, PARAM_SCHEMA_EXTRAS
 

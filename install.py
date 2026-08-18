@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unity Biome MCP installer. stdlib only, Python 3.10+."""
+"""Unity Biome MCP installer. stdlib only, Python 3.14+."""
 import argparse
 import json
 import re

@@ -1,9 +1,8 @@
 """Reusable, coherent release-evidence bundle for gate integration tests."""
 
-from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from gauntlet.artifacts import build_artifact_manifest, write_artifact_manifest
@@ -112,7 +111,7 @@ def prepare_bundle(
     }
     paths.update(write_player_playtest_evidence_set(bundle, head_sha))
     paths["head"].write_text(head_sha, encoding="ascii")
-    finished_at = datetime.now(timezone.utc).isoformat()
+    finished_at = datetime.now(UTC).isoformat()
     write_attested_junit(
         paths["junit"],
         zip(profile.scenario_ids, profile.pytest_node_ids, strict=True),

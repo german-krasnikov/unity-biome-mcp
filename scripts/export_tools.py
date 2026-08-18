@@ -5,7 +5,6 @@ Usage:
     python scripts/export_tools.py --format mcplint           # bare array, stdout
     python scripts/export_tools.py --format toolsmith --out tools.json
 """
-from __future__ import annotations
 
 import json
 import pathlib

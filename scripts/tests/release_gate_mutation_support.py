@@ -1,6 +1,5 @@
 """Content-addressed mutation helpers for release-gate negative tests."""
 
-from __future__ import annotations
 
 import hashlib
 import json

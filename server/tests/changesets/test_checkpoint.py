@@ -1,5 +1,4 @@
 """T19: Checkpoint value objects unit tests (checkpoint.py)."""
-from __future__ import annotations
 
 import dataclasses
 

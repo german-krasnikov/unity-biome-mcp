@@ -1,5 +1,4 @@
 """Tests for pipe_parser.parse_pipe_string() — pure function, no mocks. (17 tests)"""
-from __future__ import annotations
 
 from unity_mcp.adapters.pipe_parser import parse_pipe_string
 from unity_mcp.adapters.protocol import EventContext

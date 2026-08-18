@@ -1,7 +1,6 @@
-from __future__ import annotations
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -238,7 +237,7 @@ def test_release_bundle_rejects_wrong_worker_requirement() -> None:
 
 
 def test_release_bundle_rejects_stale_or_future_evidence() -> None:
-    now = datetime(2026, 8, 9, 12, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 8, 9, 12, 0, tzinfo=UTC)
     stale = _valid_evidence(created_at="2026-08-08T11:59:59Z")
     future = _valid_evidence(created_at="2026-08-09T12:06:00Z")
     kwargs = {

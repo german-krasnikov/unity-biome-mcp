@@ -1,6 +1,5 @@
 """Adversarial package-identity regressions at the release boundary."""
 
-from __future__ import annotations
 
 import base64
 import csv

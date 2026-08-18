@@ -32,7 +32,7 @@ Inspect scenes, edit GameObjects, run playtests, and capture results through str
 Requirements: Unity 6 (`6000.0` or newer), Git 2.14+ on `PATH`, and
 [uv](https://docs.astral.sh/uv/). The MCP server does not need a separate Python
 installation when it runs through `uvx`; optional Codex skill synchronization
-requires Python 3.10 or newer on `PATH`. See the full
+requires Python 3.14 or newer on `PATH`. See the full
 [Getting Started prerequisites](docs/getting-started/index.md#prerequisites).
 
 ### 1. Install uv
@@ -112,7 +112,9 @@ See [Getting Started](docs/getting-started/index.md) for recovery steps and plat
 <details>
 <summary>Local development installation</summary>
 
-Requirements for a source checkout: Git and Python 3.10 or newer.
+Requirements for a source checkout: Git and Python 3.14 or newer.
+
+> **Upgrading from older Python:** Install Python 3.14 via `brew install python@3.14` (macOS), your system package manager (Linux), or [python.org](https://www.python.org/downloads/) (Windows). Then run `python install.py update` to recreate the virtual environment.
 
 ```bash
 git clone https://github.com/german-krasnikov/unity-biome-mcp.git

@@ -1,6 +1,5 @@
 """Cross-file coherence tests for one profile evidence bundle."""
 
-from __future__ import annotations
 
 import hashlib
 import sys

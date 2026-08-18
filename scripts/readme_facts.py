@@ -12,11 +12,15 @@ Pure stdlib, no pip deps.
 """
 import ast
 import json
-import pathlib
 import re
 import subprocess
 import sys
+import tomllib
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pathlib
 
 
 def _find_pytest_python(repo_root: pathlib.Path) -> str:
@@ -25,14 +29,6 @@ def _find_pytest_python(repo_root: pathlib.Path) -> str:
     if venv_python.exists():
         return str(venv_python)
     return sys.executable
-
-try:
-    import tomllib  # Python 3.11+
-except ImportError:
-    try:
-        import tomli as tomllib  # type: ignore[no-redef]
-    except ImportError:
-        tomllib = None  # type: ignore[assignment]
 
 
 # ---------------------------------------------------------------------------
@@ -231,9 +227,6 @@ def read_server_version(pyproject: pathlib.Path) -> str | None:
     """
     if not pyproject.exists():
         return None
-    if tomllib is None:
-        m = re.search(r'^version\s*=\s*"([^"]+)"', pyproject.read_text(), re.MULTILINE)
-        return m.group(1) if m else None
     with open(pyproject, "rb") as f:
         data = tomllib.load(f)
     return data.get("project", {}).get("version")

@@ -1,6 +1,5 @@
 """Fail-closed validation for built-player PlayTest CI evidence."""
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

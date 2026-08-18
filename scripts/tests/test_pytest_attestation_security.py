@@ -1,6 +1,5 @@
 """Fail-closed interpreter and marker tests for pytest attestation."""
 
-from __future__ import annotations
 
 import os
 import subprocess

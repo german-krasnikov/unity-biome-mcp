@@ -3,7 +3,6 @@
 Catches REPORT-class seams where C# batch drops commands or miscounts results.
 All tests use on_error=continue (default) so result.n == n_sent invariant holds.
 """
-from __future__ import annotations
 
 import pytest
 

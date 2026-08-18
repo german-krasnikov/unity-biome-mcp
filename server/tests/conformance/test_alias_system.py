@@ -1,5 +1,4 @@
 """Gate 5: Alias System — resolution and status checks."""
-from __future__ import annotations
 
 import pytest
 

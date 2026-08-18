@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Read-only monitor for likely stuck Unity MCP processes, locks and ports."""
 
-from __future__ import annotations
 
 import argparse
 import json

@@ -1,6 +1,6 @@
 """Reflection rules for runtime / UI mutation commands."""
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable  # noqa: TC003
 
 from . import Mismatch, _values_close, register_rule
 

@@ -8,7 +8,6 @@ G28: multi-block currency — only post-last-success block is current.
 G32: Windows prev-log path.
 G33: partial reload (started, no Mono-success) → current.
 """
-from __future__ import annotations
 
 import sys
 import tempfile

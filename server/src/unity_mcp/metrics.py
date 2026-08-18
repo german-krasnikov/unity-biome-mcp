@@ -10,7 +10,7 @@ import os
 import statistics
 import time
 from collections import defaultdict, deque
-from collections.abc import Iterator
+from collections.abc import Iterator  # noqa: TC003
 from contextlib import contextmanager, suppress
 
 from .metrics_report import _p95

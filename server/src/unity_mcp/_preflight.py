@@ -6,7 +6,7 @@ importing anything from this package here would defeat its own purpose.
 import importlib.util
 import sys
 
-_MIN_PYTHON = (3, 10)
+_MIN_PYTHON = (3, 14)
 _FIX_HINT = (
     "uvx --reinstall --from "
     "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp"
@@ -20,7 +20,7 @@ def run_preflight() -> None:
         needed = ".".join(str(p) for p in _MIN_PYTHON)
         print(
             f"UNITY-BIOME-MCP-FATAL: Python {found} found, need >={needed} "
-            f"| fix: use a newer interpreter, e.g. uvx --python 3.12 --from "
+            f"| fix: use a newer interpreter, e.g. uvx --python 3.14 --from "
             f"git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server unity-biome-mcp",
             file=sys.stderr,
         )

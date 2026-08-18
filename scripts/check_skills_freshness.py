@@ -2,7 +2,6 @@
 
 stdlib only. Run via: python scripts/check_skills_freshness.py [--strict]
 """
-from __future__ import annotations
 
 import argparse
 import re

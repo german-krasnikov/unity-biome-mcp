@@ -74,7 +74,7 @@ async def test_step(path: str, position: str,
 test_step.__test__ = False  # prevent pytest from collecting as test
 
 
-def _normalize_defs(defs: "str | None") -> "str | None":
+def _normalize_defs(defs: str | None) -> str | None:
     """Normalize defs: strip comments, ensure VAL prefix, return None if empty."""
     if not defs:
         return defs
@@ -104,14 +104,14 @@ def _compress_report(report: str) -> str:
     return '\n'.join(keep) if len(keep) > 1 else keep[0]
 
 
-async def run_playtest(script: "str | None" = None, timeout: float = 120.0,
+async def run_playtest(script: str | None = None, timeout: float = 120.0,
                        abort_on_fail: bool = False,
-                       defs: "str | None" = None,
-                       path: "str | None" = None,
+                       defs: str | None = None,
+                       path: str | None = None,
                        snapshot_on_failure: bool = False,
                        fresh: bool = False,
-                       before_hook: "str | None" = None,
-                       after_hook: "str | None" = None) -> str:
+                       before_hook: str | None = None,
+                       after_hook: str | None = None) -> str:
     """[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`).
     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |
     ASSERT_CONSOLE_CLEAN [IGNORE "pat"] | SNAPSHOT queries | INVOKE path comp method args |
@@ -230,8 +230,8 @@ def _is_playtest_pass(result: str) -> bool:
 
 
 async def run_playtest_suite(
-    pattern: "str | None" = None,
-    suite_path: "str | None" = None,
+    pattern: str | None = None,
+    suite_path: str | None = None,
     timeout_per_test: float = 120.0,
     stop_on_fail: bool = False,
     stop_after: bool = True,
@@ -420,8 +420,8 @@ def _format_suite_report(results, total_elapsed):
 
 
 async def lint_playtest(
-    path: "str | None" = None,
-    script: "str | None" = None,
+    path: str | None = None,
+    script: str | None = None,
 ) -> str:
     """Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list.
     Checks: $alias resolution, deprecated ALIAS, unimplemented steps, missing ASSERT_CONSOLE_CLEAN.
@@ -466,8 +466,8 @@ async def export_playtest_aliases_to_defs(
     return await _send("export_playtest_aliases_to_defs", _args(asset=asset, defs=defs))
 
 
-async def lint_playtest_suite(pattern: "str | None" = None,
-                              suite_path: "str | None" = None) -> str:
+async def lint_playtest_suite(pattern: str | None = None,
+                              suite_path: str | None = None) -> str:
     """Read-only preflight check across multiple .playtest files.
     pattern: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list.
     suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment).
@@ -507,7 +507,7 @@ async def resolve_scene_refs(refs: str, fields: str | None = None) -> str:
     return await _send("resolve_scene_refs", _args(refs=refs, fields=fields), timeout=15.0)
 
 
-async def lint_scene_refs(path: "str | None" = None, snippet: "str | None" = None) -> str:
+async def lint_scene_refs(path: str | None = None, snippet: str | None = None) -> str:
     """Read-only linter for scene references in DSL scripts or batch commands.
     path: project-relative path to .playtest file.
     snippet: inline DSL or batch commands to lint (mutually exclusive with path).
@@ -520,8 +520,8 @@ async def lint_scene_refs(path: "str | None" = None, snippet: "str | None" = Non
     return await _send("lint_scene_refs", _args(path=path, snippet=snippet), timeout=30.0)
 
 
-async def runtime_snapshot(type: str, name: "str | None" = None,
-                           component: "str | None" = None, compress: bool = False) -> str:
+async def runtime_snapshot(type: str, name: str | None = None,
+                           component: str | None = None, compress: bool = False) -> str:
     """Snapshot all runtime objects of a given component type. Returns per-object field dump.
     type: component type name (e.g. 'Rigidbody', 'EnemyController').
     name: optional name substring filter.

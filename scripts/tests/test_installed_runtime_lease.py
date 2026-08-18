@@ -1,6 +1,5 @@
 """Installed Python runtime contract for public MCP stdio."""
 
-from __future__ import annotations
 
 import asyncio
 import hashlib

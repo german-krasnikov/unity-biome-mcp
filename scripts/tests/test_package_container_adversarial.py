@@ -1,6 +1,5 @@
 """Container-framing and portable-install regressions for release packages."""
 
-from __future__ import annotations
 
 import gzip
 import io

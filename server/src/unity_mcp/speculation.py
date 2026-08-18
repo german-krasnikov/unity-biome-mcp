@@ -3,7 +3,7 @@
 Enable with UNITY_MCP_SPECULATION=1.
 """
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass
 
 from .console_levels import PROBLEM_LEVELS

@@ -1,6 +1,5 @@
 """Source-backed contracts for the public Markdown documentation."""
 
-from __future__ import annotations
 
 import ast
 import re

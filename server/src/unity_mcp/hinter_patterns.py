@@ -1,7 +1,7 @@
 """Pattern data for ToolHinter — predicates, match tables, and static lookup data."""
 import os
-from collections import deque
-from collections.abc import Callable
+from collections import deque  # noqa: TC003
+from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass
 
 
@@ -15,7 +15,7 @@ class Call:
 @dataclass(frozen=True)
 class Pattern:
     id: str
-    predicate: Callable[[deque, "Call"], bool]
+    predicate: Callable[[deque, Call], bool]
     suggested_cmd: str
     hint: str
     trigger_cmd: str

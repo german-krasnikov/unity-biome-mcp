@@ -1,5 +1,4 @@
 """Unit tests for minimize_repro.py delta-debugger."""
-from __future__ import annotations
 
 import sys
 from pathlib import Path

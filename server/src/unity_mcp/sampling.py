@@ -102,7 +102,7 @@ class SamplingService:
             else:
                 METRICS.inc("sampling.fail")
             return result
-        except asyncio.TimeoutError:
+        except TimeoutError:
             METRICS.inc("sampling.timeout")
             proc.kill()
             with contextlib.suppress(asyncio.TimeoutError, Exception):

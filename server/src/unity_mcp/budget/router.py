@@ -1,6 +1,6 @@
 """Adaptive routing: decide skip/run based on budget + priority + hit rate."""
 import os
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass
 
 

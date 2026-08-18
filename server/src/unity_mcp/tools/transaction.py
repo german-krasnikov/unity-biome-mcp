@@ -3,7 +3,6 @@
 scene_change_plan  — compile/console/target pre-flight, returns plan_id
 apply_scene_change — execute batch mutations with post-verify and save
 """
-from __future__ import annotations
 
 import hashlib
 import re

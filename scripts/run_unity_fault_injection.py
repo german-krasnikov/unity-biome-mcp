@@ -6,7 +6,6 @@ ordinary failed UTF leaf, its paired canary passes, and both durable runs finish
 with complete evidence under their exact request_id/run_id identities.
 """
 
-from __future__ import annotations
 
 import argparse
 import asyncio
@@ -229,7 +228,7 @@ async def verified_port(
             if actual == project.resolve():
                 return port
             errors.append(f"{port}: serves {actual}")
-        except (OSError, ConnectionError, asyncio.TimeoutError, FaultLaneError) as error:  # noqa: PERF203
+        except (TimeoutError, OSError, ConnectionError, FaultLaneError) as error:  # noqa: PERF203
             errors.append(f"{port}: {type(error).__name__}: {error}")
     raise FaultLaneError(
         f"No responsive MCP endpoint belongs to {project}: " + "; ".join(errors)
@@ -253,7 +252,7 @@ async def wait_for_verified_port(
                 requested_port,
                 timeout=max(0.05, min(10.0, remaining)),
             )
-        except (OSError, ConnectionError, asyncio.TimeoutError, FaultLaneError) as error:
+        except (TimeoutError, OSError, ConnectionError, FaultLaneError) as error:
             last_error = f"{type(error).__name__}: {error}"
         await asyncio.sleep(
             min(poll_interval, max(0.0, deadline - time.monotonic()))
@@ -281,7 +280,7 @@ async def read_with_rediscovery(
                 errors.append(f"{port}: serves {actual}")
                 continue
             return await call(port, command, args)
-        except (OSError, ConnectionError, asyncio.TimeoutError, TransportUncertain) as error:
+        except (TimeoutError, OSError, ConnectionError, TransportUncertain) as error:
             errors.append(f"{port}: {type(error).__name__}")
     raise ConnectionError(
         f"No current worker endpoint answered {command}: " + ", ".join(errors)
@@ -320,12 +319,7 @@ async def resolve_run_id(
                         candidate = await call(
                             port, "run_tests", resume_args, timeout=30.0
                         )
-                    except (
-                        OSError,
-                        ConnectionError,
-                        asyncio.TimeoutError,
-                        TransportUncertain,
-                    ):
+                    except (TimeoutError, OSError, ConnectionError, TransportUncertain):
                         candidate = ""
                     continued = correlated_status(candidate, request_id)
                     if continued is not None and continued[1]["run_id"] != last_run_id:
@@ -340,7 +334,7 @@ async def resolve_run_id(
                 "resolve_test_request",
                 {"request_id": request_id},
             )
-        except (OSError, ConnectionError, asyncio.TimeoutError):
+        except (TimeoutError, OSError, ConnectionError):
             candidate = ""
         await asyncio.sleep(min(poll_interval, max(0.0, deadline - time.monotonic())))
     raise FaultLaneError(
@@ -376,7 +370,7 @@ async def wait_for_terminal(
                     return snapshot
         except json.JSONDecodeError as error:
             raise FaultLaneError(f"Invalid get_test_run JSON: {error}") from error
-        except (OSError, ConnectionError, asyncio.TimeoutError):
+        except (TimeoutError, OSError, ConnectionError):
             pass
         await asyncio.sleep(poll_interval)
     raise FaultLaneError(
@@ -637,7 +631,7 @@ def main() -> int:
     try:
         asyncio.run(run(parse_args()))
         return 0
-    except (FaultLaneError, OSError, asyncio.TimeoutError) as error:
+    except (TimeoutError, FaultLaneError, OSError) as error:
         print(f"FAULT LANE FAILED: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:

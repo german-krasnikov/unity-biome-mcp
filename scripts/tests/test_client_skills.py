@@ -1,6 +1,5 @@
 """Structural and source-of-truth checks for shipped client skills and agents."""
 
-from __future__ import annotations
 
 import ast
 import importlib.util

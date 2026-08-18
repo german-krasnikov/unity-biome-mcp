@@ -1,6 +1,5 @@
 """Strict source and wheel entry-point projections."""
 
-from __future__ import annotations
 
 import configparser
 import io

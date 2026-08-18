@@ -5,7 +5,6 @@ fail-closed boundary: missing leaves, malformed counters, and ambiguous outcomes
 are evidence errors rather than empty success results.
 """
 
-from __future__ import annotations
 
 import os
 import stat

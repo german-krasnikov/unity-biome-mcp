@@ -1,6 +1,5 @@
 """Semantic and archive-safety checks for staged wheel and UPM artifacts."""
 
-from __future__ import annotations
 
 import gzip
 import hashlib

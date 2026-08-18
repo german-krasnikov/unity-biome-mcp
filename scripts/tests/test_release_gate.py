@@ -1,6 +1,5 @@
 """End-to-end regressions for the fail-closed release evidence gate."""
 
-from __future__ import annotations
 
 import json
 import sys

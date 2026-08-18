@@ -1,6 +1,5 @@
 """Install verified Unity package artifacts into a disposable worker snapshot."""
 
-from __future__ import annotations
 
 import shutil
 from dataclasses import dataclass

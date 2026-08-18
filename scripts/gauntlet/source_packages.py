@@ -1,14 +1,9 @@
 """Parse package identities from the exact observed release source tree."""
 
-from __future__ import annotations
 
+import tomllib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-
-try:
-    import tomllib
-except ImportError:  # pragma: no cover - Python 3.10 compatibility
-    import tomli as tomllib
 
 from gauntlet.json_io import JsonFileError, parse_json_object
 from gauntlet.package_contracts import (

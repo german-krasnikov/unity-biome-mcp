@@ -122,7 +122,7 @@ async def test_watchdog_cancel_stops_task():
     send = AsyncMock(return_value="")
     wd = ProactiveWatchdog(send)
     # Manually set a long-running task
-    wd._task = asyncio.get_event_loop().create_task(asyncio.sleep(10))
+    wd._task = asyncio.get_running_loop().create_task(asyncio.sleep(10))
     assert not wd._task.done()
     await wd.cancel()
     assert wd._task.done()
@@ -140,7 +140,7 @@ async def test_watchdog_cancel_already_done_is_noop():
     """cancel() on an already-done task should be safe."""
     send = AsyncMock(return_value="")
     wd = ProactiveWatchdog(send)
-    wd._task = asyncio.get_event_loop().create_task(asyncio.sleep(0))
+    wd._task = asyncio.get_running_loop().create_task(asyncio.sleep(0))
     await asyncio.sleep(0)  # schedule
     await asyncio.sleep(0)  # run
     assert wd._task.done()

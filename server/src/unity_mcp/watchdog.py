@@ -5,7 +5,7 @@ Enable with UNITY_MCP_WATCHDOG=1.
 import asyncio
 import contextlib
 import time
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003
 
 from .console_levels import PROBLEM_LEVELS
 from .middleware_types import is_write

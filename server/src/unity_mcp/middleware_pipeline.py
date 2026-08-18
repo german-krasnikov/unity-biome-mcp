@@ -2,7 +2,7 @@
 import asyncio
 import os
 import time
-from typing import TYPE_CHECKING, Optional
+from typing import Any, TYPE_CHECKING
 
 from mcp.server.fastmcp.exceptions import ToolError
 
@@ -28,7 +28,7 @@ def _hook_track_hierarchy_call(cmd: str, args: dict, result: str, mw) -> str:
     return result
 
 
-def wrap_send(send_fn, mw: Optional["Middleware"] = None):
+def wrap_send(send_fn, mw: Any = None):
     """Return a wrapped _send that runs all middleware checks."""
     from .middleware import Middleware as _Middleware
     if mw is None:

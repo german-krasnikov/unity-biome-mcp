@@ -5,7 +5,7 @@ Zero overhead on success path. NO retry inside ladder.
 """
 import inspect
 import os
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003
 from typing import Any
 
 from .metrics import METRICS

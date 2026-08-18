@@ -1,6 +1,5 @@
 """Independent Git and tracked-input observations for release gates."""
 
-from __future__ import annotations
 
 import hashlib
 import stat

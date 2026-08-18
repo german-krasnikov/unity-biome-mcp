@@ -8,7 +8,7 @@ import pytest
 def test_run_preflight_python_too_old_exits_2_with_fatal_line(monkeypatch, capsys):
     from unity_mcp import _preflight
 
-    monkeypatch.setattr(sys, "version_info", (3, 9, 0))
+    monkeypatch.setattr(sys, "version_info", (3, 13, 0))
     with pytest.raises(SystemExit) as exc_info:
         _preflight.run_preflight()
 

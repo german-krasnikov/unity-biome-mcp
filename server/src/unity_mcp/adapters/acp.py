@@ -1,23 +1,18 @@
 """AcpAgentAdapter: runs a CLI subprocess in ACP output mode."""
-from __future__ import annotations
 
 import contextlib
 import json
 import os
 import uuid
+from collections.abc import AsyncIterator  # noqa: TC003
 from dataclasses import replace
-from typing import TYPE_CHECKING
 
 from ..agent_event import AgentEvent, ProviderCapabilities
 from ..backend_def import BackendDef, sanitize_extra_args
 from ..cli_session import CliSession, SessionMeta
+from ..permission_broker import PermissionBroker  # noqa: TC001
 from .acp_parser import parse_acp_line
 from .protocol import EventContext
-
-if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
-
-    from ..permission_broker import PermissionBroker
 
 _ACP_FORMAT_FLAG  = "--format"
 _ACP_FORMAT_VALUE = "acp"

@@ -1,5 +1,4 @@
 """Gate 1: Connection + Identity — basic TCP roundtrip and identity checks."""
-from __future__ import annotations
 
 import pytest
 

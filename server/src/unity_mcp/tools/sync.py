@@ -35,7 +35,7 @@ _RECOVERY_POLL    = 1.0   # interval between MVID re-checks during recovery
 async def _timed_send(send, cmd: str, args: dict, deadline: float) -> str:
     remaining = deadline - time.monotonic()
     if remaining <= 0:
-        raise asyncio.TimeoutError(f"deadline passed before {cmd}")
+        raise TimeoutError(f"deadline passed before {cmd}")
     return await asyncio.wait_for(send(cmd, args), timeout=remaining)
 
 
@@ -48,7 +48,7 @@ def _reset_bump_used() -> None:
     _bump_used = False
 
 
-async def _attempt_recovery(send, mvid_pre: str, send_reload=None, deadline: float = 0) -> "str | None":
+async def _attempt_recovery(send, mvid_pre: str, send_reload=None, deadline: float = 0) -> str | None:
     """Fire force_refresh, poll MVID up to _RECOVERY_TIMEOUT seconds.
 
     Returns None if MVID delta detected (healed), else the REIMPORT-NEEDED verdict.
@@ -66,7 +66,7 @@ async def _attempt_recovery(send, mvid_pre: str, send_reload=None, deadline: flo
         await asyncio.sleep(_RECOVERY_POLL)
         try:
             status = await _timed_send(send, "sync_status", {}, recovery_deadline)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             break
         except (ConnectionError, DomainReloadError):
             continue
@@ -94,7 +94,7 @@ async def _attempt_recovery(send, mvid_pre: str, send_reload=None, deadline: flo
 
 # Path to plugin package.json — resolved relative to this file's repo root.
 # None when running as installed package (no sibling unity-plugin dir).
-def _package_json_path() -> "Path | None":
+def _package_json_path() -> Path | None:
     repo_root = Path(__file__).resolve().parents[4]
     pkg = repo_root / "unity-plugin" / "package.json"
     return pkg if pkg.exists() else None
@@ -195,7 +195,7 @@ async def sync_unity(
 
         try:
             status = await _timed_send(_send, "sync_status", {}, deadline)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return (f"STOP: reload did not converge in {timeout:.0f}s — Unity may be unfocused "
                     "or compile is wedged; check get_compile_errors")
         except (ConnectionError, DomainReloadError):

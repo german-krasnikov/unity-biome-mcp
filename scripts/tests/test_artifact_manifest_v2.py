@@ -1,6 +1,5 @@
 """Artifact manifest v2 contracts for the complete released product."""
 
-from __future__ import annotations
 
 import base64
 import csv

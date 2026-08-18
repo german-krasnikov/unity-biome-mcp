@@ -1,5 +1,4 @@
 """TDD tests for scripts/check_skills_freshness.py — Red phase first."""
-from __future__ import annotations
 
 import importlib.util
 import pathlib

@@ -9,7 +9,6 @@ Additive gates — only enabled ones run:
 
 Returns PASS when all enabled gates pass, FAIL at the first gate that fails.
 """
-from __future__ import annotations
 
 import json
 import re

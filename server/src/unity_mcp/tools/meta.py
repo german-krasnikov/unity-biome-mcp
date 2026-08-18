@@ -3,7 +3,8 @@
 Moved out of server.py's composition root (M2) into the standard
 register(mcp, send, args) pattern used by every other tools/*.py module.
 """
-from mcp.server.fastmcp import Context
+
+from mcp.server.fastmcp import Context  # noqa: TC002 — fastmcp eval_str=True requires runtime
 
 from ..doctor import format_report, run_doctor
 from ..llm_config import apply_config, parse_tcp_config

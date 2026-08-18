@@ -1,6 +1,5 @@
 """Archive-member safety checks and normalized logical-content hashing."""
 
-from __future__ import annotations
 
 import hashlib
 import stat

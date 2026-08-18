@@ -1,6 +1,5 @@
 """Derive profile results from immutable JUnit, journal, and receipt bytes."""
 
-from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING

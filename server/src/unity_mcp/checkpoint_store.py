@@ -1,18 +1,14 @@
 """T19: CheckpointStore — save, load, list, and evict checkpoint metadata."""
-from __future__ import annotations
 
 import contextlib
 import json
 import os
 import time
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from datetime import UTC, datetime
+from pathlib import Path  # noqa: TC003
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from .changeset_store import ContentStore
-    from .checkpoint import Checkpoint, CheckpointState
+from .changeset_store import ContentStore  # noqa: TC001
+from .checkpoint import Checkpoint, CheckpointState  # noqa: TC001
 
 
 class CheckpointStore:
@@ -68,7 +64,7 @@ class CheckpointStore:
             domain_stamp=cp.domain_stamp,
             created_at=cp.created_at,
             finalized_at=cp.finalized_at if state not in ("restored", "failed", "expired")
-                         else datetime.now(timezone.utc).isoformat(),
+                         else datetime.now(UTC).isoformat(),
         )
         self.save(updated)
 

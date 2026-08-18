@@ -1,5 +1,4 @@
 """Fixtures for stateful Hypothesis tests."""
-from __future__ import annotations
 
 import pytest_asyncio
 

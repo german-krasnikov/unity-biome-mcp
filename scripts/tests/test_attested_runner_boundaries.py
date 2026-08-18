@@ -1,6 +1,5 @@
 """Portable process-boundary tests for the attested pytest runner."""
 
-from __future__ import annotations
 
 import sys
 from pathlib import Path

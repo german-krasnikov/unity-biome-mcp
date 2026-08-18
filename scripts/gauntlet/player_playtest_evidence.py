@@ -1,6 +1,5 @@
 """Evidence producer for built-player PlayTest CI receipts."""
 
-from __future__ import annotations
 
 import hashlib
 import re

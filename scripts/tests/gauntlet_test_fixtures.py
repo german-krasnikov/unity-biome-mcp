@@ -1,6 +1,5 @@
 """Neutral package and evidence fixtures shared by Gauntlet unit tests."""
 
-from __future__ import annotations
 
 import base64
 import csv

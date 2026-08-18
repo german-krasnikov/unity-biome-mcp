@@ -1,6 +1,5 @@
 """Canonical package-content digests derived from an exact Git commit."""
 
-from __future__ import annotations
 
 import hashlib
 import subprocess

@@ -467,7 +467,7 @@ def _args(**kwargs) -> dict:
 async def lifespan(app):
     global slot, manager, _middleware, _wrapped_send, _budget_tracker, _budget_router
     # Register loop + task so the SIGTERM handler can cancel us and find the lock.
-    _sigterm_state["loop"] = asyncio.get_event_loop()
+    _sigterm_state["loop"] = asyncio.get_running_loop()
     _sigterm_state["task"] = asyncio.current_task()
     unity_port = await _discover_port_with_retry()
     cleanup_stale_locks(port=unity_port)
@@ -568,11 +568,11 @@ async def lifespan(app):
                 if now - _last_refresh_ts < 30.0:
                     return
                 _last_refresh_ts = now
-                asyncio.ensure_future(_refresh_tools_cache(slot.bridge))
-                asyncio.ensure_future(_warm_alias_cache(slot.bridge))
-                asyncio.ensure_future(_warm_cmd_flags(slot.bridge))
-                asyncio.ensure_future(_push_catalog(slot.bridge))
-                asyncio.ensure_future(_refresh_resources(slot.bridge))
+                asyncio.create_task(_refresh_tools_cache(slot.bridge))
+                asyncio.create_task(_warm_alias_cache(slot.bridge))
+                asyncio.create_task(_warm_cmd_flags(slot.bridge))
+                asyncio.create_task(_push_catalog(slot.bridge))
+                asyncio.create_task(_refresh_resources(slot.bridge))
             slot.add_reconnect_callback(_on_reconnect)
             slot.add_reconnect_callback(_sync_reset_bump)
             # gating.reset() is intentionally NOT wired here — automatic heartbeat

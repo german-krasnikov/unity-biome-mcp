@@ -1,5 +1,4 @@
 """Tests for generate_schema_page.py."""
-from __future__ import annotations
 
 import json
 import sys

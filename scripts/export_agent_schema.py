@@ -4,7 +4,6 @@ Usage:
     python scripts/export_agent_schema.py --write   # generate + commit schema
     python scripts/export_agent_schema.py --check   # CI drift detection (read-only)
 """
-from __future__ import annotations
 
 import argparse
 import json

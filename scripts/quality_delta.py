@@ -3,7 +3,6 @@
 Mode A: compute + write (default)
 Mode B: --append latest to history
 """
-from __future__ import annotations
 
 import argparse
 import contextlib

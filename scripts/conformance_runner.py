@@ -6,7 +6,6 @@ Usage:
     python scripts/conformance_runner.py --port 9500 --project /path --second-port 9548
     python scripts/conformance_runner.py --port 9500 --project /path --markers "conformance and not cross_project"
 """
-from __future__ import annotations
 
 import argparse
 import os

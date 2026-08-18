@@ -1,5 +1,4 @@
 """T21: AttachmentKind, AttachmentSlot, ContextBrief — immutable value objects. No I/O."""
-from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass

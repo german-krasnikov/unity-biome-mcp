@@ -1,12 +1,9 @@
 """T16: snapshot_file() — read file, store blob, return ContentRef. Pure, no side effects."""
-from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from .changeset import ContentRef
-    from .changeset_store import ContentStore
+from .changeset import ContentRef  # noqa: TC001
+from .changeset_store import ContentStore  # noqa: TC001
 
 
 def snapshot_file(path: str, store: ContentStore) -> ContentRef | None:

@@ -1,6 +1,5 @@
 """Disposable tracked source inputs for release-gate tests."""
 
-from __future__ import annotations
 
 import json
 import os

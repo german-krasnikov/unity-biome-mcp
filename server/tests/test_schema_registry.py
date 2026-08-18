@@ -1,8 +1,5 @@
 """Tests for SchemaRegistry — capture/get_full/format_text."""
-from typing import Optional
-
-
-def _make_schema(props: Optional[dict] = None, required: Optional[list] = None) -> dict:
+def _make_schema(props: dict | None = None, required: list | None = None) -> dict:
     schema = {"type": "object"}
     if props:
         schema["properties"] = props

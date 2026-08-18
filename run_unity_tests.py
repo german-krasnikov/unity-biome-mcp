@@ -11,7 +11,6 @@ resolves the same request_id. A request-only ``prepared`` intent is resumed
 with the same immutable identity and payload; a dispatched run is never resent.
 """
 
-from __future__ import annotations
 
 import argparse
 import asyncio

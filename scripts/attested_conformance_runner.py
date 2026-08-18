@@ -6,7 +6,6 @@ runtime/worker producers wrap it, its output is compatibility evidence and is
 not sufficient for a release decision.
 """
 
-from __future__ import annotations
 
 import argparse
 import os

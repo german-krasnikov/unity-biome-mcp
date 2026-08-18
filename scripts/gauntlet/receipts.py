@@ -1,9 +1,8 @@
-from __future__ import annotations
 
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
 from gauntlet.json_io import JsonFileError, parse_json_object
@@ -32,7 +31,7 @@ class JournalError(ValueError):
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_bytes(value: object) -> bytes:

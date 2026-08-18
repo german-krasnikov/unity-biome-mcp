@@ -9,7 +9,6 @@ import socket
 import struct
 import time
 import uuid
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -17,7 +16,8 @@ from .constants import DEFAULT_PORT, SESSION_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
-import contextlib
+import contextlib  # noqa: E402
+from collections.abc import Callable  # noqa: TC003
 
 from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, RELOAD_BACKOFF_S, HeartbeatMixin
 from unity_mcp.bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
@@ -307,9 +307,9 @@ class UnityBridge(HeartbeatMixin):
         if len(payload) > 10_000_000:
             raise ConnectionError(f"Outbound payload too large: {len(payload)} bytes (max 10MB)")
         session_deadline = time.monotonic() + SESSION_TIMEOUT
-        future: asyncio.Future = asyncio.get_event_loop().create_future()
+        future: asyncio.Future = asyncio.get_running_loop().create_future()
         if self._queue_consumer_task is None or self._queue_consumer_task.done():
-            self._queue_consumer_task = asyncio.ensure_future(self._queue_consumer())
+            self._queue_consumer_task = asyncio.create_task(self._queue_consumer())
         await self._send_queue.put((cmd, payload, msg_id, timeout, session_deadline, operation_id, future))
         try:
             return await future
@@ -385,9 +385,7 @@ class UnityBridge(HeartbeatMixin):
                     except asyncio.CancelledError:
                         await self.close()
                         raise
-            except (ConnectionRefusedError, asyncio.TimeoutError, ConnectionError,
-                    asyncio.IncompleteReadError, OSError, json.JSONDecodeError,
-                    RuntimeError) as e:
+            except (TimeoutError, ConnectionRefusedError, ConnectionError, asyncio.IncompleteReadError, OSError, json.JSONDecodeError, RuntimeError) as e:
                 if isinstance(e, DomainReloadError):
                     self._reload.mark()
                 elif isinstance(e, asyncio.TimeoutError) and delivery == DeliveryState.SENT and self._reload.is_active():
@@ -534,7 +532,7 @@ class UnityBridge(HeartbeatMixin):
         try:
             payload = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
             response = json.loads(payload.decode("utf-8"))
-        except (asyncio.TimeoutError, OSError, EOFError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        except (TimeoutError, OSError, EOFError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise _CandidateIdentityError(
                 f"Unity on port {port} did not return a valid project identity"
             ) from exc

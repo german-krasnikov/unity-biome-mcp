@@ -1,5 +1,4 @@
 """T22: ProfilerProvider unit tests (no Unity, no TCP)."""
-from __future__ import annotations
 
 from unittest.mock import AsyncMock
 

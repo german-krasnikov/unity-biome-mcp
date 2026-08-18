@@ -1,16 +1,12 @@
 """ClaudeAcpAdapter: claude-agent-acp subprocess in ACP output mode."""
-from __future__ import annotations
 
 import tempfile
-from typing import TYPE_CHECKING
 
 from .. import mcp_config_writer
+from ..backend_def import ClaudeAcpDef  # noqa: TC001
+from ..cli_session import SessionMeta  # noqa: TC001
+from ..permission_broker import PermissionBroker  # noqa: TC001
 from .acp import AcpAgentAdapter
-
-if TYPE_CHECKING:
-    from ..backend_def import ClaudeAcpDef
-    from ..cli_session import SessionMeta
-    from ..permission_broker import PermissionBroker
 
 
 def _build_claude_acp_argv(meta: SessionMeta) -> list[str]:

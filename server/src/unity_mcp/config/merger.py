@@ -1,10 +1,10 @@
 """Patch only <root_key>[SERVER_NAME] in an existing config file."""
 import json
 import os
-import pathlib
+import pathlib  # noqa: TC003
 import re
 import shutil
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003
 
 # Our MCP server name (config key). "unity-biome-mcp" — one "mcp", and distinct from
 # the foreign bare [mcp_servers.unity] (CoplayDev) that the TOML strip removes.

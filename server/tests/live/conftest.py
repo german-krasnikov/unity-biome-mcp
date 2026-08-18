@@ -19,14 +19,7 @@ from tests.live.unity_state_owner import (
     UnityStateSnapshot,
     build_ownership_plan,
 )
-
-
-def strip_markers(text: str) -> str:
-    """Strip middleware suffixes appended to responses."""
-    text = re.sub(r'\n?\[confidence: [\d.]+\].*$', '', text, flags=re.DOTALL).strip()
-    text = re.sub(r'\n?⚠ CONSOLE ERRORS:\n.*$', '', text, flags=re.DOTALL).strip()
-    text = re.sub(r'\n?\[next: [^\]]+\]', '', text).strip()
-    return text
+from tests.live._markers import strip_markers  # noqa: F401 — re-exported for test imports
 
 LIVE_HOST = os.environ.get("UNITY_MCP_HOST", "127.0.0.1")
 LIVE_PORT = int(os.environ.get("UNITY_MCP_PORT", "9500"))
@@ -245,7 +238,7 @@ def _response_data(result, operation: str) -> str:
         raise AssertionError(
             f"{operation} failed: {result.get('err') or result.get('data') or result!r}"
         )
-    return str(result.get("data", ""))
+    return strip_markers(str(result.get("data", "")))
 
 
 async def _execute_checked(bridge: UnityBridge, code: str, operation: str) -> str:

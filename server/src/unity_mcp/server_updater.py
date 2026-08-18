@@ -107,7 +107,7 @@ class ServerUpdater:
             )
             code = await asyncio.wait_for(proc.wait(), timeout=300)
             return code == 0
-        except asyncio.TimeoutError:
+        except TimeoutError:
             proc.kill()
             logger.error("uvx reinstall timed out after 300s")
             return False

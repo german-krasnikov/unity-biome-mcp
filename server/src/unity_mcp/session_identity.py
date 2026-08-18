@@ -1,5 +1,4 @@
 """Chat session identity: immutable value object + atomic context-file writer."""
-from __future__ import annotations
 
 import contextlib
 import hashlib
@@ -9,11 +8,8 @@ import sys
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from datetime import UTC, datetime
+from pathlib import Path  # noqa: TC003
 
 
 @dataclass(frozen=True)
@@ -60,7 +56,7 @@ def new_session_identity(
         internal_session_id = str(uuid.uuid4()),
         conversation_id     = conversation_id,
         token_hash_prefix   = _token_hash_prefix(session_token_hex),
-        started_at_utc      = datetime.now(timezone.utc).isoformat(),
+        started_at_utc      = datetime.now(UTC).isoformat(),
         backend             = backend,
         mode                = mode,
         mcp_port            = mcp_port,

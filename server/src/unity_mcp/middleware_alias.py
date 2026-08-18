@@ -13,7 +13,7 @@ _SIGIL_RE = re.compile(r"^\$([A-Za-z_][A-Za-z0-9_]*)$")
 _COMMA_KEYS = frozenset({"paths", "queries", "checks_before", "checks_after"})
 
 
-def parse_aliases_from_hierarchy(text: str) -> "dict[str, str] | None":
+def parse_aliases_from_hierarchy(text: str) -> dict[str, str] | None:
     """Parse '--- ALIASES ---' block from get_hierarchy response.
 
     Returns dict of {name: pipe_path} or None if no block found.
@@ -39,7 +39,7 @@ def parse_aliases_from_hierarchy(text: str) -> "dict[str, str] | None":
     return result
 
 
-def resolve_aliases_in_args(args: dict, cache: "dict[str, str]") -> dict:
+def resolve_aliases_in_args(args: dict, cache: dict[str, str]) -> dict:
     """Replace $name in arg values with cached aliases.
 
     Whole-value match only: "$hp" resolves; "/prefix/$hp" does NOT (use a full-path VAL).
@@ -84,7 +84,7 @@ def strip_alias_block(text: str) -> str:
     return result.strip("\n") if result else result
 
 
-def parse_aliases_from_get_aliases(text: str) -> "dict[str, str]":
+def parse_aliases_from_get_aliases(text: str) -> dict[str, str]:
     """Parse bare name=value lines from get_aliases response.
 
     get_aliases returns lines without the --- ALIASES --- header/footer.
@@ -105,7 +105,7 @@ def parse_aliases_from_get_aliases(text: str) -> "dict[str, str]":
     return result
 
 
-def _resolve_one(val: str, key: str, cache: "dict[str, str]") -> str:
+def _resolve_one(val: str, key: str, cache: dict[str, str]) -> str:
     """Resolve a single potential $name token against the alias cache."""
     m = _SIGIL_RE.match(val)
     if not m:

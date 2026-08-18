@@ -3,7 +3,6 @@
 _COMMON:            cross-tool param descriptions (fallback).
 PARAM_DESCRIPTIONS: per-tool overrides (key = fn.__name__).
 """
-from __future__ import annotations
 
 # Cross-tool params — used as fallback when tool-specific entry is absent.
 _COMMON: dict[str, str] = {

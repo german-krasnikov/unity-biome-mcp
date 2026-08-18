@@ -1,6 +1,5 @@
 """Bounded process-group ownership with fail-closed residual detection."""
 
-from __future__ import annotations
 
 import os
 import secrets

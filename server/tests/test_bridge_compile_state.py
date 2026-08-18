@@ -8,7 +8,6 @@ import asyncio
 import json
 import struct
 import time
-from typing import Optional
 from unittest.mock import AsyncMock, Mock, patch, MagicMock
 
 import pytest
@@ -43,7 +42,7 @@ def _make_ok_response(msg_id="0001"):
 
 
 def _make_probe(busy: bool = False, remaining: float = 5.0,
-                 strong_busy: Optional[bool] = None, has_project: bool = True):
+                 strong_busy: bool | None = None, has_project: bool = True):
     probe = Mock(spec=CompileStateProbe)
     probe.is_unity_busy.return_value = busy
     probe.estimated_remaining_s.return_value = remaining

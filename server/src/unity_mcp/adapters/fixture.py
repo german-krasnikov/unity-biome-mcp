@@ -3,11 +3,11 @@
 No process management. Used exclusively for offline TDD.
 """
 import json
-from collections.abc import AsyncIterator
-from pathlib import Path
+from collections.abc import AsyncIterator  # noqa: TC003
+from pathlib import Path  # noqa: TC003
 
 from ..agent_event import AgentEvent, ProviderCapabilities
-from ..cli_session import SessionMeta
+from ..cli_session import SessionMeta  # noqa: TC001
 
 
 class FixtureAdapter:

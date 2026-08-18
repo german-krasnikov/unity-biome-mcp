@@ -1,6 +1,5 @@
 """Adversarial stability checks for bounded release-artifact observations."""
 
-from __future__ import annotations
 
 import os
 import sys
@@ -22,10 +21,9 @@ from gauntlet_test_fixtures import write_release_artifacts
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-    from typing import BinaryIO
+    from typing import BinaryIO, Self
 
     from gauntlet.artifact_contracts import ArtifactManifest
-    from typing_extensions import Self
 
 
 class _AfterReadStream:

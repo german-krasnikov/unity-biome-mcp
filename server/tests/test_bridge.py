@@ -713,7 +713,7 @@ async def test_heartbeat_immediate_close_on_domain_reload_error():
 async def test_start_heartbeat_restarts_dead_task():
     """start_heartbeat() starts a new task when old one is done."""
     bridge = UnityBridge(port=9500)
-    bridge._heartbeat_task = asyncio.ensure_future(asyncio.sleep(0))
+    bridge._heartbeat_task = asyncio.create_task(asyncio.sleep(0))
     await asyncio.sleep(0.01)
     assert bridge._heartbeat_task.done()
     bridge.start_heartbeat()
@@ -1197,7 +1197,7 @@ async def test_send_with_retry_exhausted_raises():
                         with pytest.raises((RuntimeError, ConnectionError)):
                             await bridge._send_with_retry(
                                 "ping", payload, "0001", 5.0,
-                                asyncio.get_event_loop().time() + 30.0
+                                asyncio.get_running_loop().time() + 30.0
                             )
 
 

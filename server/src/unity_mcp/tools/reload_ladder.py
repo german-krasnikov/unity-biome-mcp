@@ -4,14 +4,11 @@ import contextlib
 import json
 import logging
 import time
-from typing import TYPE_CHECKING
+from collections.abc import Awaitable, Callable  # noqa: TC003
+from pathlib import Path  # noqa: TC003
 
 from unity_mcp.bridge_socket import frame_read, frame_write
 from unity_mcp.tools.diagnose import _DiagnoseFields, _parse_diagnose, _verdict
-
-if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
-    from pathlib import Path
 
 log = logging.getLogger("unity_mcp.reload_ladder")
 
@@ -19,8 +16,8 @@ _T1_POLL_S: float = 40.0
 _T4_POLL_S: float = 45.0
 _POLL_INTERVAL_S: float = 1.0
 _T2_SLEEP_S: float = 8.0
-_T1_MAX_POLLS: "int | None" = None
-_T4_MAX_POLLS: "int | None" = None
+_T1_MAX_POLLS: int | None = None
+_T4_MAX_POLLS: int | None = None
 _BROKEN_DOMAIN = "_BROKEN_DOMAIN_"  # M2: delta but new domain is broken
 _DEAD_MSG   = "MANUAL-REQUIRED: both ports dead — Unity unreachable, Reimport All manually"
 _BROKEN_MSG = "REIMPORT-NEEDED: new domain loaded but compile failed — reimport package"
@@ -32,14 +29,14 @@ def _is_clean(f: _DiagnoseFields) -> bool:
 def _extract_main_mvid(f: _DiagnoseFields) -> str:
     return f.main_mvid or ""  # F3/F5: heal proof compares main_mvid, not reload mvid
 
-def _tier_result(label: str, baseline: str, new_mvid: "str | None") -> "str | None":
+def _tier_result(label: str, baseline: str, new_mvid: str | None) -> str | None:
     if new_mvid is _BROKEN_DOMAIN: return _BROKEN_MSG
     return f"HEALED: {label} mvid {baseline}→{new_mvid}" if new_mvid else None
 
 
 async def _poll_mvid_delta(send, baseline: str, timeout_s: float,
-                           max_polls: "int | None" = None,
-                           cs_grace: int = 1) -> "str | None":
+                           max_polls: int | None = None,
+                           cs_grace: int = 1) -> str | None:
     """Poll diagnose until main_mvid changes. Returns new MVID, _BROKEN_DOMAIN, or None.
 
     cs_grace: number of CS-error polls to tolerate before early-exit (default 1).
@@ -75,20 +72,20 @@ async def _poll_mvid_delta(send, baseline: str, timeout_s: float,
         await asyncio.sleep(_POLL_INTERVAL_S)
 
 
-async def _t1(send, baseline: str) -> "str | None":
+async def _t1(send, baseline: str) -> str | None:
     try:
         await send("force_refresh", {})
     except (ConnectionError, OSError):
         return None
     return await _poll_mvid_delta(send, baseline, _T1_POLL_S, _T1_MAX_POLLS)
 
-async def _t2(send, baseline: str) -> "str | None":
+async def _t2(send, baseline: str) -> str | None:
     with contextlib.suppress(ConnectionError, OSError):
         await send("recompile", {})
     await asyncio.sleep(_T2_SLEEP_S)
     return await _t1(send, baseline)
 
-async def _t3(send, baseline: str, bump_file: "Path | None") -> "str | None":
+async def _t3(send, baseline: str, bump_file: Path | None) -> str | None:
     """Transient version bump. Always reverts bump_file.
     When bump_file is None (production install), triggers sync resolve instead."""
     if bump_file is None:
@@ -120,14 +117,14 @@ async def _t3(send, baseline: str, bump_file: "Path | None") -> "str | None":
     return new_mvid
 
 async def _t4(send, baseline: str,
-              runner: "Callable[[str], Awaitable[int]] | None") -> "tuple[str | None, bool]":
+              runner: Callable[[str], Awaitable[int]] | None) -> tuple[str | None, bool]:
     """Returns (mvid_or_sentinel, accessibility_ok)."""
     if runner is None: return None, True
     if await runner("activate") != 0: return None, False
     if await runner("cmd-r") == 1002: return None, False
     return await _poll_mvid_delta(send, baseline, _T4_POLL_S, _T4_MAX_POLLS), True
 
-async def _t2_5_guard_check(send) -> "bool | None":
+async def _t2_5_guard_check(send) -> bool | None:
     """Probe SessionState to detect ReloadGuard wedge. Returns True=wedged, False=clear, None=unknown."""
     try:
         code = 'UnityEditor.SessionState.GetBool("MCP_ReloadGuardLocked", false).ToString();'
@@ -140,7 +137,7 @@ async def _t2_5_guard_check(send) -> "bool | None":
         return None
 
 
-async def _t5(send, baseline: str) -> "str | None":
+async def _t5(send, baseline: str) -> str | None:
     try:
         await send("force_play_stop", {})  # server-side play+stop via delayCall (allowedDuringCompile)
     except (ConnectionError, OSError):
@@ -177,8 +174,8 @@ async def _send_with_fallback(send_main, send_reload, cmd: str, args: dict) -> s
         return await send_reload(cmd, args)
 
 
-async def run_ladder(send, *, send_reload=None, bump_file: "Path | None" = None,
-                     osascript_runner: "Callable[[str], Awaitable[int]] | None" = None,
+async def run_ladder(send, *, send_reload=None, bump_file: Path | None = None,
+                     osascript_runner: Callable[[str], Awaitable[int]] | None = None,
                      play_stop_consent: bool = False, start_tier: int = 1) -> str:
     """Escalation ladder T0→T5. start_tier=2 skips T1 (caller did force_refresh)."""
     main_dead = False

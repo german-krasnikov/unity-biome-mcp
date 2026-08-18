@@ -1,10 +1,9 @@
 """T15: ChangeSet, ChangeOperation, ContentRef — immutable value objects. No I/O."""
-from __future__ import annotations
 
 import hashlib
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 OperationKind = Literal["create", "modify", "delete"]
@@ -46,7 +45,7 @@ class ChangeOperation:
             before_ref=ContentRef.of(receipt.get("before")),
             after_ref=ContentRef.of(receipt.get("after")),
             reversible=bool(receipt.get("rev", True)),
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
 
 

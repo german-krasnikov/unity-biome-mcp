@@ -1,11 +1,10 @@
 """Strict reviewed contract catalog for deterministic Gauntlet scenarios."""
 
-from __future__ import annotations
 
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
@@ -41,12 +40,12 @@ class CatalogError(ValueError):
     """Raised when a reviewed contract manifest is incomplete or unsafe."""
 
 
-class CatalogScope(str, Enum):
+class CatalogScope(StrEnum):
     BUILTIN = "builtin"
     PLUGIN = "plugin"
 
 
-class RetryPolicy(str, Enum):
+class RetryPolicy(StrEnum):
     BLIND_SAFE = "blind_safe"
     RECONCILE = "reconcile"
     NEVER = "never"
