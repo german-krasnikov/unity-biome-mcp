@@ -1,13 +1,13 @@
 # Quality Report
 
-> Auto-generated on **2026-08-18** from commit `3244c0b` (v1.42.0)
+> Auto-generated on **2026-08-18** from commit `f6b523e` (v1.42.1)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.42.0 |
-| Commit | `3244c0b` |
+| Version | v1.42.1 |
+| Commit | `f6b523e` |
 | Date | 2026-08-18 |
 | MCP Tools | 160 |
 
@@ -15,7 +15,7 @@
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.14) | 5788 | 0 | 3 | 5791 | ✅ |
+| Python Server (3.14) | 5812 | 0 | 3 | 5815 | ✅ |
 | Python Install | 79 | 0 | 0 | 79 | ✅ |
 | Python Scripts | 939 | 0 | 0 | 939 | ✅ |
 | C# EditMode (Linux) | 8191 | 0 | 175 | 8366 | ✅ |
