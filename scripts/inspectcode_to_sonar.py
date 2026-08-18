@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Convert JetBrains InspectCode XML to SonarQube Generic Issue JSON (new format).
+"""Convert JetBrains InspectCode XML to SonarQube Generic Issue JSON.
 
 Replaces dotnet-reqube which fails on Linux due to Windows-style path handling.
-Outputs the new Clean Code format (rules + impacts) to avoid SonarCloud deprecation warnings.
 
 Usage: python scripts/inspectcode_to_sonar.py inspectcode-report.xml -o sonarqube.json [--base-dir unity-test-project]
 """
@@ -12,36 +11,23 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path, PurePosixPath, PureWindowsPath
 
-# These TypeIds indicate reliability bugs, not code smells
 _BUG_IDS = re.compile(
     r"PossibleNullReferenceException|NullableWarningSuppressionIsUsed"
     r"|CSharpErrors|CSharpWarnings"
     r"|AccessToDisposedClosure|PossibleMultipleEnumeration"
 )
 
-# Pure style/formatting noise — skip entirely
 _NOISE_IDS = re.compile(
     r"^(Arrange|Typo)|Spaces|Indent|LineBreaks|Style|BadSymbol"
     r"|ArgumentsStyle|BuiltInTypeReference"
 )
 
-_RAW_SEV_TO_IMPACT = {
-    "ERROR":      ("RELIABILITY",    "HIGH"),
-    "WARNING":    ("MAINTAINABILITY","MEDIUM"),
-    "SUGGESTION": ("MAINTAINABILITY","LOW"),
-    "HINT":       ("MAINTAINABILITY","INFO"),
+_SEVERITY_MAP = {
+    "ERROR": "CRITICAL",
+    "WARNING": "MAJOR",
+    "SUGGESTION": "MINOR",
+    "HINT": "INFO",
 }
-
-
-def _classify(type_id: str, raw_severity: str) -> tuple[str, list[dict]]:
-    """Return (cleanCodeAttribute, impacts) for a rule."""
-    sq, sev = _RAW_SEV_TO_IMPACT.get(raw_severity, ("MAINTAINABILITY", "MEDIUM"))
-    attr = "CONVENTIONAL"
-    if _BUG_IDS.search(type_id):
-        sq = "RELIABILITY"
-        sev = "HIGH" if raw_severity in ("WARNING", "ERROR") else "MEDIUM"
-        attr = "COMPLETE"
-    return attr, [{"softwareQuality": sq, "severity": sev}]
 
 
 def convert(xml_path: str, base_dir: str = "") -> dict:
@@ -54,30 +40,19 @@ def convert(xml_path: str, base_dir: str = "") -> dict:
         raw_sev = t.get("Severity", "WARNING")
         if _NOISE_IDS.search(tid):
             continue
-        attr, impacts = _classify(tid, raw_sev)
+        is_bug = bool(_BUG_IDS.search(tid))
         type_map[tid] = {
-            "name": t.get("Description") or tid,
-            "cleanCodeAttribute": attr,
-            "impacts": impacts,
+            "description": t.get("Description") or tid,
+            "severity": _SEVERITY_MAP.get(raw_sev, "MAJOR"),
+            "type": "BUG" if is_bug else "CODE_SMELL",
         }
-
-    rules = [
-        {
-            "id": tid,
-            "name": info["name"],
-            "engineId": "inspectcode",
-            "cleanCodeAttribute": info["cleanCodeAttribute"],
-            "impacts": info["impacts"],
-        }
-        for tid, info in type_map.items()
-    ]
 
     issues = []
     for project in root.findall(".//Issues/Project"):
         for issue in project.findall("Issue"):
             type_id = issue.get("TypeId", "unknown")
             if type_id not in type_map:
-                continue  # filtered noise or unknown rule
+                continue
 
             raw_path = issue.get("File", "")
             path = str(PurePosixPath(PureWindowsPath(raw_path)))
@@ -92,19 +67,20 @@ def convert(xml_path: str, base_dir: str = "") -> dict:
                     except ValueError:
                         pass
 
-            line = max(1, int(issue.get("Line", "1") or "1"))
-            msg = issue.get("Message", type_map[type_id]["name"])
-
+            info = type_map[type_id]
             issues.append({
+                "engineId": "inspectcode",
                 "ruleId": type_id,
+                "severity": info["severity"],
+                "type": info["type"],
                 "primaryLocation": {
-                    "message": msg,
+                    "message": issue.get("Message") or info["description"],
                     "filePath": path,
-                    "textRange": {"startLine": line},
+                    "textRange": {"startLine": max(1, int(issue.get("Line", "1") or "1"))},
                 },
             })
 
-    return {"rules": rules, "issues": issues}
+    return {"issues": issues}
 
 
 def main() -> int:
@@ -122,7 +98,7 @@ def main() -> int:
 
     result = convert(args.input, args.base_dir)
     Path(args.output).write_text(json.dumps(result, indent=2), encoding="utf-8")
-    print(f"Converted {len(result['issues'])} issues → {args.output} ({len(result['rules'])} rules)")
+    print(f"Converted {len(result['issues'])} issues → {args.output}")
     return 0
 
 
