@@ -33,12 +33,15 @@ _RAW_SEV_TO_IMPACT = {
 }
 
 
-def _impacts(type_id: str, raw_severity: str) -> list[dict]:
+def _classify(type_id: str, raw_severity: str) -> tuple[str, list[dict]]:
+    """Return (cleanCodeAttribute, impacts) for a rule."""
     sq, sev = _RAW_SEV_TO_IMPACT.get(raw_severity, ("MAINTAINABILITY", "MEDIUM"))
+    attr = "CONVENTIONAL"
     if _BUG_IDS.search(type_id):
         sq = "RELIABILITY"
         sev = "HIGH" if raw_severity in ("WARNING", "ERROR") else "MEDIUM"
-    return [{"softwareQuality": sq, "severity": sev}]
+        attr = "COMPLETE"
+    return attr, [{"softwareQuality": sq, "severity": sev}]
 
 
 def convert(xml_path: str, base_dir: str = "") -> dict:
@@ -51,13 +54,21 @@ def convert(xml_path: str, base_dir: str = "") -> dict:
         raw_sev = t.get("Severity", "WARNING")
         if _NOISE_IDS.search(tid):
             continue
+        attr, impacts = _classify(tid, raw_sev)
         type_map[tid] = {
             "name": t.get("Description", tid),
-            "impacts": _impacts(tid, raw_sev),
+            "cleanCodeAttribute": attr,
+            "impacts": impacts,
         }
 
     rules = [
-        {"id": tid, "name": info["name"], "engineId": "inspectcode", "impacts": info["impacts"]}
+        {
+            "id": tid,
+            "name": info["name"],
+            "engineId": "inspectcode",
+            "cleanCodeAttribute": info["cleanCodeAttribute"],
+            "impacts": info["impacts"],
+        }
         for tid, info in type_map.items()
     ]
 
