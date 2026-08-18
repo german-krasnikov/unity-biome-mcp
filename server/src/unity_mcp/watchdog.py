@@ -71,5 +71,5 @@ class ProactiveWatchdog:
     async def cancel(self) -> None:
         if self._task and not self._task.done():
             self._task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, asyncio.TimeoutError, Exception):
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await asyncio.wait_for(self._task, 2.0)

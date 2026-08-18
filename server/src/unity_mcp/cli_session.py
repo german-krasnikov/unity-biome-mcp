@@ -74,7 +74,7 @@ class CliSession:
         data = (line + "\n").encode("utf-8")
         self._proc.stdin.write(data)
         # data was already written; kernel buffer full — continue
-        with contextlib.suppress(asyncio.TimeoutError):
+        with contextlib.suppress(TimeoutError):
             await asyncio.wait_for(self._proc.stdin.drain(), timeout=5.0)
 
     async def read_stdout_line(self) -> str | None:
@@ -104,7 +104,7 @@ class CliSession:
     async def wait(self, timeout: float = 2.0) -> None:
         """Wait for the process to exit so returncode is populated (avoids EOF/returncode race)."""
         if self._proc is not None:
-            with contextlib.suppress(asyncio.TimeoutError):
+            with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(self._proc.wait(), timeout=timeout)
 
     async def drain_stderr(self, max_bytes: int = 2048, timeout: float = 1.0) -> str:

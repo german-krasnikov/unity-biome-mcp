@@ -2,7 +2,7 @@
 import asyncio
 import os
 import time
-from typing import Any, TYPE_CHECKING
+from typing import Any
 
 from mcp.server.fastmcp.exceptions import ToolError
 
@@ -17,9 +17,6 @@ from .middleware_types import (
     WRITE_CMDS,
 )
 from .prefetch_cache import GATE_PRIORS
-
-if TYPE_CHECKING:
-    from .middleware import Middleware
 
 
 @register_post("get_hierarchy")

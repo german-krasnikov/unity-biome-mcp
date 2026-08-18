@@ -5,7 +5,6 @@ decide(), hint-path Unity 'retry' JSON sentinel via allow_hint_retry()) behind
 one is_retry_safe gate, closing the class of bug where a second ad-hoc retry
 path could silently bypass the safety gate (C1 / A1).
 """
-import asyncio
 import time
 from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass
@@ -36,7 +35,7 @@ class RetryPolicy:
         if time.monotonic() >= session_deadline:
             return False, 0.0, "deadline"
 
-        if isinstance(error, (TimeoutError, asyncio.TimeoutError)) and not self.is_retry_safe(cmd):
+        if isinstance(error, TimeoutError) and not self.is_retry_safe(cmd):
             return False, 0.0, "unsafe_to_retry"
 
         if isinstance(error, DomainReloadError):

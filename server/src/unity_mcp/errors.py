@@ -28,7 +28,7 @@ def classify_failure(exc: Exception, probe_busy: bool, remaining: float) -> Unit
         if probe_busy:
             return UnityError("Unity compiling", "compiling", True, int(remaining), exc_name)
         return UnityError("Unity not running", "disconnected", False, 0, exc_name)
-    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
+    if isinstance(exc, TimeoutError):
         if probe_busy:
             return UnityError("Unity busy", "frozen", True, min(30, int(remaining)), exc_name)
         return UnityError("Unity not responding", "frozen", False, 0, exc_name)

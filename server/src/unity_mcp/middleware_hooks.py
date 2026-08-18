@@ -2,10 +2,7 @@
 
 import inspect
 from collections.abc import Callable
-from typing import Any, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .middleware import Middleware
+from typing import Any
 
 PostHookFn = Callable[..., str]
 POST_HOOKS: dict[str, list[PostHookFn]] = {}

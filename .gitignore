@@ -100,6 +100,7 @@ unity-test-project/sysinfo.txt
 unity-test-project/Packages/packages-lock.json
 unity-test-project/InitTestScene*.unity*
 unity-test-project/Assets/InitTestScene*.unity*
+unity-test-project/Assets/TestsTemp/
 
 # Secrets
 .env*

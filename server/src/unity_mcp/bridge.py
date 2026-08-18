@@ -388,7 +388,7 @@ class UnityBridge(HeartbeatMixin):
             except (TimeoutError, ConnectionRefusedError, ConnectionError, asyncio.IncompleteReadError, OSError, json.JSONDecodeError, RuntimeError) as e:
                 if isinstance(e, DomainReloadError):
                     self._reload.mark()
-                elif isinstance(e, asyncio.TimeoutError) and delivery == DeliveryState.SENT and self._reload.is_active():
+                elif isinstance(e, TimeoutError) and delivery == DeliveryState.SENT and self._reload.is_active():
                     # P-183: read timeout after payload delivered → Unity was processing
                     # the command (not reloading). Clear stale reload flag so next
                     # send() isn't immediately blocked by DomainReloadError.
@@ -417,7 +417,7 @@ class UnityBridge(HeartbeatMixin):
                     jitter = random.uniform(0, delay * 0.1)
                     if reason == "domain_reload":
                         self._reload_gate.clear()
-                        with contextlib.suppress(asyncio.TimeoutError):
+                        with contextlib.suppress(TimeoutError):
                             await asyncio.wait_for(
                                 self._reload_gate.wait(), timeout=delay + jitter)
                     else:

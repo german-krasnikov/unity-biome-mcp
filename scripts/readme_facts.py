@@ -12,15 +12,12 @@ Pure stdlib, no pip deps.
 """
 import ast
 import json
+import pathlib  # noqa: TC003
 import re
 import subprocess
 import sys
 import tomllib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import pathlib
 
 
 def _find_pytest_python(repo_root: pathlib.Path) -> str:
