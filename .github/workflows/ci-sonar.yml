@@ -107,40 +107,50 @@ jobs:
       - name: Install dotnet-sonarscanner
         run: dotnet tool install --global dotnet-sonarscanner
 
-      - name: Deduplicate .sln
+      - name: Deduplicate .sln and create sonar.sln at repo root
         run: |
           SLN=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*.sln" 2>/dev/null | head -1)
           if [ -n "$SLN" ]; then
-            python3 scripts/dedup_sln.py "$SLN" "${SLN%.sln}-dedup.sln"
+            DEDUP="${SLN%.sln}-dedup.sln"
+            python3 scripts/dedup_sln.py "$SLN" "$DEDUP"
+            # Copy UnityMCP .csproj files to repo root so Sonar module base dir = repo root.
+            # Unity puts .csproj in unity-test-project/ but sources are in unity-plugin/Editor/.
+            # When base dir = unity-test-project/, Roslyn file paths (unity-plugin/Editor/*.cs)
+            # fall outside the module scope → scanner reports "no MAIN files" → text-mode only.
+            # Copying to repo root fixes the base dir mismatch.
+            python3 scripts/create_sonar_sln.py "$DEDUP" sonar.sln
+          else
+            echo "::warning::No .sln found — C# Roslyn analysis will be skipped"
           fi
-
-      - name: Hide sonar-project.properties
-        run: mv sonar-project.properties sonar-project.properties.bak
 
       - name: SonarScanner begin
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # sonar-project.properties supplies sonar.sources, sonar.exclusions, etc.
+          # Only auth/host must come from env; everything else lives in the properties file.
           dotnet sonarscanner begin \
             /k:"german-krasnikov_unity-biome-mcp" \
             /o:"german-krasnikov" \
             /d:sonar.token="${SONAR_TOKEN}" \
-            /d:sonar.host.url="https://sonarcloud.io" \
-            /d:sonar.python.version="3.10,3.11,3.12" \
-            /d:sonar.python.coverage.reportPaths="server/coverage.xml"
+            /d:sonar.host.url="https://sonarcloud.io"
 
       - name: Build C# solution
         run: |
-          SLN=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*-dedup.sln" 2>/dev/null | head -1)
-          if [ -z "$SLN" ]; then
-            SLN=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*.sln" 2>/dev/null | head -1)
-          fi
-          if [ -n "$SLN" ]; then
-            echo "Building: $SLN"
-            dotnet build "$SLN" || echo "::warning::Build had errors (partial C# analysis)"
+          # Prefer sonar.sln (plugin .csproj files relocated to repo root for correct Sonar
+          # module base dirs). Fall back to the Unity-generated dedup .sln if absent.
+          if [ -f sonar.sln ]; then
+            echo "Building: sonar.sln"
+            dotnet build sonar.sln || echo "::warning::Build had errors (partial C# analysis)"
           else
-            echo "::warning::No .sln found"
+            SLN=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*-dedup.sln" 2>/dev/null | head -1)
+            if [ -n "$SLN" ]; then
+              echo "Building: $SLN (fallback)"
+              dotnet build "$SLN" || echo "::warning::Build had errors (partial C# analysis)"
+            else
+              echo "::warning::No .sln found"
+            fi
           fi
         continue-on-error: true
 
@@ -149,7 +159,3 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
-
-      - name: Restore sonar-project.properties
-        if: always()
-        run: mv sonar-project.properties.bak sonar-project.properties 2>/dev/null || true
