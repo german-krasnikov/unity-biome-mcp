@@ -27,8 +27,8 @@ jobs:
     outputs:
       csharp: ${{ steps.filter.outputs.csharp }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -39,9 +39,9 @@ jobs:
   python-coverage:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -59,7 +59,7 @@ jobs:
             sed -i 's|filename="src/|filename="server/src/|g' server/coverage.xml
           fi
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: coverage-xml
           path: server/coverage.xml
@@ -70,11 +70,11 @@ jobs:
     needs: [changes]
     if: needs.changes.outputs.csharp == 'true'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check InspectCode cache
         id: ic-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: sonarqube-csharp.json
           key: inspectcode-${{ hashFiles('unity-plugin/**/*.cs', 'scripts/inspectcode_to_sonar.py') }}
@@ -84,20 +84,20 @@ jobs:
         id: upm-path
         run: echo "path=$HOME/.cache/Unity/upm" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: steps.ic-cache.outputs.cache-hit != 'true'
         with:
           path: ${{ steps.upm-path.outputs.path }}
           key: upm-Linux-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
           restore-keys: upm-Linux-
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: steps.ic-cache.outputs.cache-hit != 'true'
         with:
           path: ~/.dotnet/tools
           key: dotnet-tools-jb-${{ runner.os }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         if: steps.ic-cache.outputs.cache-hit != 'true'
         with:
           path: ~/.cache/jb-inspectcode
@@ -130,7 +130,7 @@ jobs:
           project-path: unity-test-project
           args: -batchmode -nographics -executeMethod Packages.Rider.Editor.RiderScriptEditor.SyncSolution -quit
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         if: steps.ic-cache.outputs.cache-hit != 'true'
         with:
           dotnet-version: '8.0.x'
@@ -161,7 +161,7 @@ jobs:
           fi
           echo "Final: $(wc -c < sonarqube-csharp.json) bytes, $(python3 -c "import json; d=json.load(open('sonarqube-csharp.json')); print(len(d.get('issues',[])), 'issues,', len(d.get('rules',[])), 'rules')")"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: csharp-issues
           path: sonarqube-csharp.json
@@ -175,23 +175,23 @@ jobs:
       needs.python-coverage.result == 'success' &&
       (needs.csharp-inspect.result == 'success' || needs.csharp-inspect.result == 'skipped')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: coverage-xml
           path: server
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: csharp-issues
           path: .
         continue-on-error: true
 
       - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@v3
+        uses: SonarSource/sonarcloud-github-action@v5
         with:
           args: >
             ${{ hashFiles('sonarqube-csharp.json') != '' && '-Dsonar.externalIssuesReportPaths=sonarqube-csharp.json' || '' }}
