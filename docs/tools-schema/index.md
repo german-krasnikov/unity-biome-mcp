@@ -197,7 +197,7 @@ Check alias table health: loaded/empty/stale, sources, and total alias count.
 
 🟢 89/100 · Risk: 🟢 low
 
-LOD group coverage + occlusion culling analysis.     focus: lod|culling|occlusion|null=all.
+LOD group coverage + occlusion culling analysis. focus: lod|culling|occlusion|null=all.
 
 **Parameters:**
 
@@ -247,7 +247,7 @@ LOD group coverage + occlusion culling analysis.     focus: lod|culling|occlusio
 
 🟡 71/100 · Risk: 🟡 medium
 
-Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this).     action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path).     clip=clip name, keys='t:0 v:(0,0,0); t:1 v:(0,2,0)', property=e.g. localPosition.x.     component_type: Unity component to animate (default: Transform). Examples: Light, Camera, Rigidbody.     binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root.     tangent: tangent mode for keyframes: auto (default) | smooth | linear | constant.     function_name: method name for add_event. int_param/float_param/string_param: event parameters.
+Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this). action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path). clip=clip name, keys='t:0 v:(0,0,0); t:1 v:(0,2,0)', property=e.g. localPosition.x. component_type: Unity component to animate (default: Transform). Examples: Light, Camera, Rigidbody. binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root. tangent: tangent mode for keyframes: auto (default) | smooth | linear | constant. function_name: method name for add_event. int_param/float_param/string_param: event parameters.
 
 **Parameters:**
 
@@ -470,7 +470,7 @@ Animate GameObject properties via AnimationClip. Use when you need to read or au
 
 🟡 60/100 · Risk: 🔴 high
 
-Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param.     params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'.     conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState).     blend_type: 1d|2d_simple|2d_freeform|2d_cartesian|direct.     param/param_y: blend parameters (auto-created as float if missing).     children: '(1D) Idle:0; Walk:0.5; Run:1' or '(2D) Idle:0,0; Walk:0,1'.     edit_action: add_child|remove_child|set_thresholds|set_param|set_type.     layer: layer index (int) for add_state/add_transition/set_default, or name/index string for CRUD ops.     weight: defaultWeight for add_layer/set_layer_weight (0.0–1.0).     blending: Override|Additive for add_layer/set_layer_blending.     value: speed multiplier for set_state_speed. avatar_path: asset path for set_avatar.
+Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param. params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'. conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState). blend_type: 1d|2d_simple|2d_freeform|2d_cartesian|direct. param/param_y: blend parameters (auto-created as float if missing). children: '(1D) Idle:0; Walk:0.5; Run:1' or '(2D) Idle:0,0; Walk:0,1'. edit_action: add_child|remove_child|set_thresholds|set_param|set_type. layer: layer index (int) for add_state/add_transition/set_default, or name/index string for CRUD ops. weight: defaultWeight for add_layer/set_layer_weight (0.0–1.0). blending: Override|Additive for add_layer/set_layer_blending. value: speed multiplier for set_state_speed. avatar_path: asset path for set_avatar.
 
 **Parameters:**
 
@@ -526,7 +526,7 @@ Animator Controller — state machine. Modifies animator assets. No confirmation
 - **info**: Parameter 'avatar_path' has no description.
 - **warning**: outputSchema is missing.
 - **warning**: Tool appears destructive but lacks destructiveHint=true.
-- **warning**: Tool card is about 3683 characters.
+- **warning**: Tool card is about 3643 characters.
 
 </details>
 
@@ -823,7 +823,7 @@ Animator Controller — state machine. Modifies animator assets. No confirmation
 
 🟢 81/100 · Risk: 🟡 medium
 
-Convert NL intent to Unity Animator Controller setup via DSL.      dry_run=True returns the batch plan without executing it.
+Convert NL intent to Unity Animator Controller setup via DSL.  dry_run=True returns the batch plan without executing it.
 
 **Parameters:**
 
@@ -885,7 +885,7 @@ Convert NL intent to Unity Animator Controller setup via DSL.      dry_run=True 
 
 🟢 84/100 · Risk: 🔴 high
 
-Execute scene mutations with atomic apply, post-verify, and optional save.     1. Validate plan_id exists and not expired (TTL 600s)     2. Reject empty input and commands outside the Unity-Undo-safe scene allowlist     3. Execute an atomic, stop-on-error batch     4. On batch failure/rollback: stop without verification or save     5. If verify: require clean references and console before save     6. If save: save only after a successful batch and verification     7. Return applied, verified, and saved states separately     Allowed commands: attach_uitk, auto_wire, autofit_collider, create_object,     create_ui, delete_object, manage_component, rename_object, set_active,     set_parent, set_property, set_property_delta, set_rect, set_sibling_index,     unwire_event, wire_event. Use batch for all other command types.
+Execute scene mutations with atomic apply, post-verify, and optional save. 1. Validate plan_id exists and not expired (TTL 600s) 2. Reject empty input and commands outside the Unity-Undo-safe scene allowlist 3. Execute an atomic, stop-on-error batch 4. On batch failure/rollback: stop without verification or save 5. If verify: require clean references and console before save 6. If save: save only after a successful batch and verification 7. Return applied, verified, and saved states separately Allowed commands: attach_uitk, auto_wire, autofit_collider, create_object, create_ui, delete_object, manage_component, rename_object, set_active, set_parent, set_property, set_property_delta, set_rect, set_sibling_index, unwire_event, wire_event. Use batch for all other command types.
 
 **Parameters:**
 
@@ -953,7 +953,7 @@ Execute scene mutations with atomic apply, post-verify, and optional save.     1
 
 🟢 92/100 · Risk: 🟡 medium
 
-Apply a scene template (.cs file from .claude/templates/).     params: comma-separated key=value pairs for ${key} replacement.     Example: apply_template('level_setup', 'player_pos=(0,0,0),count=3')
+Apply a scene template (.cs file from .claude/templates/). params: comma-separated key=value pairs for ${key} replacement. Example: apply_template('level_setup', 'player_pos=(0,0,0),count=3')
 
 **Parameters:**
 
@@ -1013,7 +1013,7 @@ Apply a scene template (.cs file from .claude/templates/).     params: comma-sep
 
 🟢 93/100 · Risk: 🟢 low
 
-Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).      Routes to deterministic tool plans for common patterns,     uses Haiku summarization for complex multi-tool results.
+Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).  Routes to deterministic tool plans for common patterns, uses Haiku summarization for complex multi-tool results.
 
 **Parameters:**
 
@@ -1058,7 +1058,7 @@ Answer a read-only question about the Unity scene (AI-routed, not interactive �
 
 🟢 93/100 · Risk: 🟢 low
 
-Show a question card in Unity chat; wait for user answer (interactive UI — use `ask` for read-only AI scene questions instead).      questions: JSON array matching AskUserQuestion schema:       [{"question":"...","header":"...","options":[{"label":"..."}],"multiSelect":false}]     Returns JSON map of question→answer (or free text if Other field used).     Use this instead of AskUserQuestion for in-Unity interactive prompts.
+Show a question card in Unity chat; wait for user answer (interactive UI — use `ask` for read-only AI scene questions instead).  questions: JSON array matching AskUserQuestion schema:   [{"question":"...","header":"...","options":[{"label":"..."}],"multiSelect":false}] Returns JSON map of question→answer (or free text if Other field used). Use this instead of AskUserQuestion for in-Unity interactive prompts.
 
 **Parameters:**
 
@@ -1339,7 +1339,7 @@ Asset database. Creates, moves, or deletes assets. No confirmation required. act
 
 🟡 76/100 · Risk: 🔴 high
 
-Attach UIDocument to a GameObject (use for UI Toolkit runtime panels).     Side effect: mutates the scene by adding one Undo-recorded UIDocument after validating     every supplied asset; it does not create UXML or PanelSettings assets.     path: scene path to the target GameObject.     uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted).     panel_settings: optional Assets/ path to a PanelSettings asset; omitted leaves the field unset.     sort_order: UIDocument.sortingOrder (default 0).     err: if UIDocument already present — remove it first or use inspect_uitk/uitk_element.
+Attach UIDocument to a GameObject (use for UI Toolkit runtime panels). Side effect: mutates the scene by adding one Undo-recorded UIDocument after validating every supplied asset; it does not create UXML or PanelSettings assets. path: scene path to the target GameObject. uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted). panel_settings: optional Assets/ path to a PanelSettings asset; omitted leaves the field unset. sort_order: UIDocument.sortingOrder (default 0). err: if UIDocument already present — remove it first or use inspect_uitk/uitk_element.
 
 **Parameters:**
 
@@ -1429,7 +1429,7 @@ Attach UIDocument to a GameObject (use for UI Toolkit runtime panels).     Side 
 
 🟢 95/100 · Risk: 🟢 low
 
-Analyze recent Unity errors and ask MCP client sampling for a fix suggestion.     This read-only tool does not edit files or apply the suggested change.
+Analyze recent Unity errors and ask MCP client sampling for a fix suggestion. This read-only tool does not edit files or apply the suggested change.
 
 <details>
 <summary>1 quality issues</summary>
@@ -1444,7 +1444,7 @@ Analyze recent Unity errors and ask MCP client sampling for a fix suggestion.   
 
 🟢 89/100 · Risk: 🔴 high
 
-Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required.     dry_run=true previews without applying. Returns wired/ambiguous/no-match summary.
+Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required. dry_run=true previews without applying. Returns wired/ambiguous/no-match summary.
 
 **Parameters:**
 
@@ -1553,7 +1553,7 @@ Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule.
 
 🟢 85/100 · Risk: 🟢 low
 
-Block until Unity finishes compiling + reloading, then return compile errors.     Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'.     Handles domain reload disconnects transparently. timeout=0 → immediate check, no loop.     Epoch-aware via sync_status when available (+10 from MAJOR-1); falls back to compile_status.
+Block until Unity finishes compiling + reloading, then return compile errors. Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'. Handles domain reload disconnects transparently. timeout=0 → immediate check, no loop. Epoch-aware via sync_status when available (+10 from MAJOR-1); falls back to compile_status.
 
 **Parameters:**
 
@@ -1597,7 +1597,7 @@ Block until Unity finishes compiling + reloading, then return compile errors.   
 
 🟢 92/100 · Risk: 🟢 low
 
-Bake operations.     target: lighting|occlusion.     action (lighting): start(default)|status|cancel|clear|settings.     action (occlusion): start(default)|status|clear.     Poll status after start — lighting bake is async.
+Bake operations. target: lighting|occlusion. action (lighting): start(default)|status|cancel|clear|settings. action (occlusion): start(default)|status|clear. Poll status after start — lighting bake is async.
 
 **Parameters:**
 
@@ -1733,7 +1733,7 @@ Execute multiple commands in one call. Use for 2+ ops — reads AND writes. comm
 
 🟢 82/100 · Risk: 🔴 high
 
-Use to get a snapshot of project state before starting work.     Returns compact text block with requested context within token budget.     kinds: comma-separated subset of: console, compile_errors, hierarchy, selection, profiler     budget: max token estimate (default 2000; 1 token ≈ 4 chars)
+Use to get a snapshot of project state before starting work. Returns compact text block with requested context within token budget. kinds: comma-separated subset of: console, compile_errors, hierarchy, selection, profiler budget: max token estimate (default 2000; 1 token ≈ 4 chars)
 
 **Parameters:**
 
@@ -1800,7 +1800,7 @@ Returns Haiku cost: session/cap/day/skipped features. Text format.
 
 🟢 90/100 · Risk: 🟡 medium
 
-Build player. action: build.     target: StandaloneWindows64|StandaloneOSX|Android|iOS|WebGL (default: active).     scenes: comma-sep asset paths (default: Build Settings list).     path: output path (default: Builds/<target>).     dev: development build flag.
+Build player. action: build. target: StandaloneWindows64|StandaloneOSX|Android|iOS|WebGL (default: active). scenes: comma-sep asset paths (default: Build Settings list). path: output path (default: Builds/<target>). dev: development build flag.
 
 **Parameters:**
 
@@ -2038,7 +2038,7 @@ Create a named Undo checkpoint. Use before major scene changes. Allows rollback 
 
 🟡 78/100 · Risk: 🟡 medium
 
-Create a durable checkpoint before an agent turn.     paths: comma-separated file paths to snapshot. Empty = open dirty scenes.
+Create a durable checkpoint before an agent turn. paths: comma-separated file paths to snapshot. Empty = open dirty scenes.
 
 **Parameters:**
 
@@ -2084,7 +2084,7 @@ Create a durable checkpoint before an agent turn.     paths: comma-separated fil
 
 🟢 91/100 · Risk: 🟡 medium
 
-Restore files to their pre-turn state.     Tries Unity Undo first when domain stamp matches; falls back to file restore.     MVP: after_refs always empty — no ChangeSet-based conflict detection yet.
+Restore files to their pre-turn state. Tries Unity Undo first when domain stamp matches; falls back to file restore. MVP: after_refs always empty — no ChangeSet-based conflict detection yet.
 
 **Parameters:**
 
@@ -2137,7 +2137,7 @@ Restore files to their pre-turn state.     Tries Unity Undo first when domain st
 
 🟢 86/100 · Risk: 🟡 medium
 
-Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile.     file_path: Assets-relative. new_content: full file. Returns OK preflight (ms) / ERR preflight + diagnostics / [ROSLYN UNAVAILABLE].
+Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile. file_path: Assets-relative. new_content: full file. Returns OK preflight (ms) / ERR preflight + diagnostics / [ROSLYN UNAVAILABLE].
 
 **Parameters:**
 
@@ -2191,7 +2191,7 @@ Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — cat
 
 🟢 92/100 · Risk: 🟡 medium
 
-Configure multiple objects at once.     Format: /Path component.prop=value [...] per line.     Example:     /NPC1 Transform.m_LocalPosition=(1,0,0) Health.maxHp=100     /NPC2 Transform.m_LocalPosition=(3,0,0)
+Configure multiple objects at once. Format: /Path component.prop=value [...] per line. Example: /NPC1 Transform.m_LocalPosition=(1,0,0) Health.maxHp=100 /NPC2 Transform.m_LocalPosition=(3,0,0)
 
 **Parameters:**
 
@@ -2237,7 +2237,7 @@ Configure multiple objects at once.     Format: /Path component.prop=value [...]
 
 🟢 88/100 · Risk: 🟢 low
 
-Create a console watermark. Returns mark_id encoding current timestamp.     Pass to get_console_since() to retrieve only logs after this point.     Pure Python — no TCP call.
+Create a console watermark. Returns mark_id encoding current timestamp. Pass to get_console_since() to retrieve only logs after this point. Pure Python — no TCP call.
 
 **Parameters:**
 
@@ -2614,7 +2614,7 @@ Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Togg
 
 🟢 80/100 · Risk: 🟡 medium
 
-AI-assisted scene debug: gather diagnostic context based on symptom (not compile/reload — use `diagnose` for that; not runtime state — use `debug_animator` or `debug_physics`).      symptom: Natural language description ("enemy doesn't move", "button not clickable")     path: Optional target object path ("/Enemy_01")     gather: Override comma-separated batch-safe tool names ("inspect,get_console")      Returns structured diagnostic text for LLM analysis.
+AI-assisted scene debug: gather diagnostic context based on symptom (not compile/reload — use `diagnose` for that; not runtime state — use `debug_animator` or `debug_physics`).  symptom: Natural language description ("enemy doesn't move", "button not clickable") path: Optional target object path ("/Enemy_01") gather: Override comma-separated batch-safe tool names ("inspect,get_console")  Returns structured diagnostic text for LLM analysis.
 
 **Parameters:**
 
@@ -2675,7 +2675,7 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
 
 🟢 89/100 · Risk: 🟡 medium
 
-[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile).     path: scene path to GameObject with Animator component.
+[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile). path: scene path to GameObject with Animator component.
 
 **Parameters:**
 
@@ -2721,7 +2721,7 @@ AI-assisted scene debug: gather diagnostic context based on symptom (not compile
 
 🟢 83/100 · Risk: 🟡 medium
 
-[Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (use `debug` for scene; `diagnose` for compile).     path: scene path to GameObject.     radius: overlap sphere radius for nearby detection (default 5m).
+[Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (use `debug` for scene; `diagnose` for compile). path: scene path to GameObject. radius: overlap sphere radius for nearby detection (default 5m).
 
 **Parameters:**
 
@@ -2846,7 +2846,7 @@ Delete GameObject by instance ID or scene path. Deletes scene objects. No confir
 
 🟢 87/100 · Risk: 🟢 low
 
-Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`.      prev_mvid: MVID from before a sync operation. When provided, enables STALE-DOMAIN     detection (unchanged MVID after intended recompile). Pass '' for standalone probing.      expected_compile: True when a compile was explicitly triggered (default).     False for Bee cache-hit / will_compile=false / reverted-edit probes — prevents     false STALE-DOMAIN on legitimately-frozen MVID (A5/G27).      Returns: CLEAN-LIVE / FAIL:<CS> / STALE-DOMAIN / WEDGE-ENGINE / WEDGE-STATE /              BUILD-FAILED-WEDGE / STALE-CACHE / TESTS-INVISIBLE / REBUILDING /              NO-OP / UNKNOWN
+Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`.  prev_mvid: MVID from before a sync operation. When provided, enables STALE-DOMAIN detection (unchanged MVID after intended recompile). Pass '' for standalone probing.  expected_compile: True when a compile was explicitly triggered (default). False for Bee cache-hit / will_compile=false / reverted-edit probes — prevents false STALE-DOMAIN on legitimately-frozen MVID (A5/G27).  Returns: CLEAN-LIVE / FAIL:<CS> / STALE-DOMAIN / WEDGE-ENGINE / WEDGE-STATE /          BUILD-FAILED-WEDGE / STALE-CACHE / TESTS-INVISIBLE / REBUILDING /          NO-OP / UNKNOWN
 
 **Parameters:**
 
@@ -2897,7 +2897,7 @@ Read Unity compile/reload fact-signals atomically; returns typed verdict. For sc
 
 🟢 85/100 · Risk: 🟢 low
 
-Find and enable tools by category.     Canonical 10: SCENE, COMPONENTS, ASSETS, UGUI, UITOOLKIT, MEDIA,     VERIFY, RUNTIME, TESTS, SYSTEM.     include_legacy=True adds legacy aliases (object, animation, etc.).     structured=True adds surface/mutability info. enable=False to browse only.
+Find and enable tools by category. Canonical 10: SCENE, COMPONENTS, ASSETS, UGUI, UITOOLKIT, MEDIA, VERIFY, RUNTIME, TESTS, SYSTEM. include_legacy=True adds legacy aliases (object, animation, etc.). structured=True adds surface/mutability info. enable=False to browse only.
 
 **Parameters:**
 
@@ -2969,7 +2969,7 @@ Find and enable tools by category.     Canonical 10: SCENE, COMPONENTS, ASSETS, 
 
 🟢 83/100 · Risk: 🟡 medium
 
-Convert natural language intent into Unity scene operations. Use when scene structure unknown or task is ambiguous. NOT for targeted mutations on known objects — use batch directly.      Haiku generates a batch DSL plan, which is validated then executed.     dry_run=True returns the plan without executing it.
+Convert natural language intent into Unity scene operations. Use when scene structure unknown or task is ambiguous. NOT for targeted mutations on known objects — use batch directly.  Haiku generates a batch DSL plan, which is validated then executed. dry_run=True returns the plan without executing it.
 
 **Parameters:**
 
@@ -3068,7 +3068,7 @@ Run health diagnostics. fix=True removes safe stale port/lock files.
 
 🟢 87/100 · Risk: 🟡 medium
 
-Editor state/control. action: state|play|pause|stop|select|project_path.     select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC").
+Editor state/control. action: state|play|pause|stop|select|project_path. select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC").
 
 **Parameters:**
 
@@ -3141,7 +3141,7 @@ Editor state/control. action: state|play|pause|stop|select|project_path.     sel
 
 🟢 83/100 · Risk: 🔴 high
 
-Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.     Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed.     Bare statements are auto-wrapped in a static class — no boilerplate needed.     Example: "var go = new GameObject(\"Test\"); return go.name;"
+Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile. Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed. Bare statements are auto-wrapped in a static class — no boilerplate needed. Example: "var go = new GameObject(\"Test\"); return go.name;"
 
 **Parameters:**
 
@@ -3197,7 +3197,7 @@ Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.     Se
 
 🟢 85/100 · Risk: 🟡 medium
 
-Export PlaytestConfig.asset aliases to a readable .defs text file.     asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).     defs: project-relative output path (default: Assets/PlaytestDefs/farm_core.defs).
+Export PlaytestConfig.asset aliases to a readable .defs text file. asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset). defs: project-relative output path (default: Assets/PlaytestDefs/farm_core.defs).
 
 **Parameters:**
 
@@ -3415,7 +3415,7 @@ Unity version, platform, render pipeline, scripting backend, and optional packag
 
 🟡 79/100 · Risk: 🟡 medium
 
-Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,     play mode, scene open/save, selection. Returns chronological event list or NO_CHANGES.
+Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo, play mode, scene open/save, selection. Returns chronological event list or NO_CHANGES.
 
 **Parameters:**
 
@@ -3460,7 +3460,7 @@ Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo, 
 
 🟢 95/100 · Risk: 🟢 low
 
-Return the current ChangeSet: accumulated mutations this session.     Use after any mutation sequence to review what changed.
+Return the current ChangeSet: accumulated mutations this session. Use after any mutation sequence to review what changed.
 
 <details>
 <summary>1 quality issues</summary>
@@ -3490,7 +3490,7 @@ Compilation errors with file:line:column. Not lost on Console.Clear(). Structure
 
 🟢 83/100 · Risk: 🟡 medium
 
-Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N.     fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name.     full=True: bypass distillation, return raw response. compress=True: strip default values before transfer.     component: alias for type= (backward-compat with set_property naming). type= wins when both provided.
+Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N. fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name. full=True: bypass distillation, return raw response. compress=True: strip default values before transfer. component: alias for type= (backward-compat with set_property naming). type= wins when both provided.
 
 **Parameters:**
 
@@ -3733,7 +3733,7 @@ Recent console logs. For C# compile errors use get_compile_errors instead. keywo
 
 🟢 84/100 · Risk: 🟢 low
 
-Console entries after the watermark created by console_mark().     mark_id: string from console_mark() or bare float timestamp.     level: optional filter ('error,exception,assert').     keyword: case-insensitive substring filter.     count_only: return match count as string.     count: max entries to return (default 500).
+Console entries after the watermark created by console_mark(). mark_id: string from console_mark() or bare float timestamp. level: optional filter ('error,exception,assert'). keyword: case-insensitive substring filter. count_only: return match count as string. count: max entries to return (default 500).
 
 **Parameters:**
 
@@ -3836,7 +3836,7 @@ List enabled tool names, comma-separated.
 
 🟢 88/100 · Risk: 🟢 low
 
-Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed.     include: narrow output — e.g. 'gc' for GC stats only.
+Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed. include: narrow output — e.g. 'gc' for GC stats only.
 
 **Parameters:**
 
@@ -4001,7 +4001,7 @@ Scene hierarchy as text tree. For finding specific object by name/type use searc
 
 🟢 88/100 · Risk: 🟢 low
 
-Memory snapshot.     include: all|textures|meshes|audio|gc — narrow the asset-type breakdown.
+Memory snapshot. include: all|textures|meshes|audio|gc — narrow the asset-type breakdown.
 
 **Parameters:**
 
@@ -4424,7 +4424,7 @@ Return the durable JSON snapshot for one exact test run.
 
 🟢 90/100 · Risk: 🟡 medium
 
-List all UnityEvent persistent listeners in the active scene.     path: optional scene-path prefix filter (e.g. '/UI' to scan only the UI subtree).
+List all UnityEvent persistent listeners in the active scene. path: optional scene-path prefix filter (e.g. '/UI' to scan only the UI subtree).
 
 **Parameters:**
 
@@ -4489,7 +4489,7 @@ Get all active watches and recent log entries.
 
 🟢 90/100 · Risk: 🟢 low
 
-Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all).     find_type: component type to find — populates paths automatically (replaces explicit paths).     fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation. compress=True: strip default values before transfer.
+Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all). find_type: component type to find — populates paths automatically (replaces explicit paths). fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation. compress=True: strip default values before transfer.
 
 **Parameters:**
 
@@ -4595,7 +4595,7 @@ Get components for multiple objects at once. paths: comma-separated. components:
 
 🟢 87/100 · Risk: 🟡 medium
 
-Inspect the VisualElement tree of a UIDocument panel     (UI Toolkit only — use `get_component` for UIDocument component fields,     use `get_hierarchy` for the scene GameObject tree,     use `create_ui` for uGUI Canvas elements).     Returns compact text tree with ~N refids; pass ~N to uitk_element as selector.     path: scene path to UIDocument GameObject (e.g. /HUD), or 'scene' to list all.     depth: max traversal depth (default 4; use selector to focus a subtree).     selector: start tree from first matching element (name, .class, TypeName, ~refid).     filter: show only elements whose name or classes contain this substring.     show_unity_private: show #unity-* prefixed elements normally hidden by default.     show_style: include non-default computed style values per element.
+Inspect the VisualElement tree of a UIDocument panel (UI Toolkit only — use `get_component` for UIDocument component fields, use `get_hierarchy` for the scene GameObject tree, use `create_ui` for uGUI Canvas elements). Returns compact text tree with ~N refids; pass ~N to uitk_element as selector. path: scene path to UIDocument GameObject (e.g. /HUD), or 'scene' to list all. depth: max traversal depth (default 4; use selector to focus a subtree). selector: start tree from first matching element (name, .class, TypeName, ~refid). filter: show only elements whose name or classes contain this substring. show_unity_private: show #unity-* prefixed elements normally hidden by default. show_style: include non-default computed style values per element.
 
 **Parameters:**
 
@@ -4715,7 +4715,7 @@ Inspect the VisualElement tree of a UIDocument panel     (UI Toolkit only — us
 
 🟢 83/100 · Risk: 🟡 medium
 
-[Play Mode] Call public method on a component via reflection.     args: comma-separated values matching method parameters.     Example: invoke_method('/Player', 'PlayerController', 'MoveTo', '10,0,5')
+[Play Mode] Call public method on a component via reflection. args: comma-separated values matching method parameters. Example: invoke_method('/Player', 'PlayerController', 'MoveTo', '10,0,5')
 
 **Parameters:**
 
@@ -4786,7 +4786,7 @@ Inspect the VisualElement tree of a UIDocument panel     (UI Toolkit only — us
 
 🟢 84/100 · Risk: 🔴 high
 
-Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list.     Checks: $alias resolution, deprecated ALIAS, unimplemented steps, missing ASSERT_CONSOLE_CLEAN.     path: project-relative path to .playtest file.     script: inline DSL (mutually exclusive with path).
+Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list. Checks: $alias resolution, deprecated ALIAS, unimplemented steps, missing ASSERT_CONSOLE_CLEAN. path: project-relative path to .playtest file. script: inline DSL (mutually exclusive with path).
 
 **Parameters:**
 
@@ -4851,7 +4851,7 @@ Static validation for playtest DSL. Read-only — no scene changes. Returns warn
 
 🟢 88/100 · Risk: 🟡 medium
 
-Read-only preflight check across multiple .playtest files.     pattern: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list.     suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment).     Returns: aggregated lint report, one block per file.
+Read-only preflight check across multiple .playtest files. pattern: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list. suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment). Returns: aggregated lint report, one block per file.
 
 **Parameters:**
 
@@ -4915,7 +4915,7 @@ Read-only preflight check across multiple .playtest files.     pattern: glob pat
 
 🟢 89/100 · Risk: 🔴 high
 
-Read-only linter for scene references in DSL scripts or batch commands.     path: project-relative path to .playtest file.     snippet: inline DSL or batch commands to lint (mutually exclusive with path).     Checks: unresolved aliases, embedded aliases, missing objects, ambiguous names.     Returns: 'OK: no issues' or severity-tagged issues (ERROR/WARN) with file:line:token.
+Read-only linter for scene references in DSL scripts or batch commands. path: project-relative path to .playtest file. snippet: inline DSL or batch commands to lint (mutually exclusive with path). Checks: unresolved aliases, embedded aliases, missing objects, ambiguous names. Returns: 'OK: no issues' or severity-tagged issues (ERROR/WARN) with file:line:token.
 
 **Parameters:**
 
@@ -4979,7 +4979,7 @@ Read-only linter for scene references in DSL scripts or batch commands.     path
 
 🟢 90/100 · Risk: 🟡 medium
 
-Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Use when clicks miss or UI appears broken.     Returns compact text: 'ok: 0 issues' or newline-separated warnings.     root: scene path to root GameObject to scan (default: scan all loaded scenes).
+Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Use when clicks miss or UI appears broken. Returns compact text: 'ok: 0 issues' or newline-separated warnings. root: scene path to root GameObject to scan (default: scan all loaded scenes).
 
 **Parameters:**
 
@@ -5029,7 +5029,7 @@ Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Us
 
 🟢 89/100 · Risk: 🟡 medium
 
-Validate a UXML or USS file for structural errors and broken references     (use `get_compile_errors` for C# compile errors,     use `verify_after_change` for multi-gate scene verification after mutations).     Checks: A1 malformed UXML; A2 broken <Style src>; A3 missing <Template src>;     A4 unnamed interactive elements; A5 duplicate USS selectors; A6 empty USS rules.     fix: reserved for compatibility. True is unsupported and never changes the file.     path: Assets/ path to UXML or USS file.
+Validate a UXML or USS file for structural errors and broken references (use `get_compile_errors` for C# compile errors, use `verify_after_change` for multi-gate scene verification after mutations). Checks: A1 malformed UXML; A2 broken <Style src>; A3 missing <Template src>; A4 unnamed interactive elements; A5 duplicate USS selectors; A6 empty USS rules. fix: reserved for compatibility. True is unsupported and never changes the file. path: Assets/ path to UXML or USS file.
 
 **Parameters:**
 
@@ -5108,7 +5108,7 @@ List Unity connection status.
 
 🟢 86/100 · Risk: 🟡 medium
 
-Read persistent listeners on a UnityEvent field. Use after wire_event to verify.     Returns listener details: target path, method name, call state, arg type/value.     event: serialized field name — same as wire_event 'event' param (e.g. 'onClick').
+Read persistent listeners on a UnityEvent field. Use after wire_event to verify. Returns listener details: target path, method name, call state, arg type/value. event: serialized field name — same as wire_event 'event' param (e.g. 'onClick').
 
 **Parameters:**
 
@@ -5510,7 +5510,7 @@ Material asset management (for quick color change use `set_material`). action: c
 
 🟢 88/100 · Risk: 🟢 low
 
-Material/texture scene-wide audit.     action: summary|materials|textures|duplicates|compression|recommendations.     platform: Android|iOS|Standalone|Default (for compression check).
+Material/texture scene-wide audit. action: summary|materials|textures|duplicates|compression|recommendations. platform: Android|iOS|Standalone|Default (for compression check).
 
 **Parameters:**
 
@@ -5644,7 +5644,7 @@ Execute or list Unity Editor menu items. action: execute|list. execute: run menu
 
 🟢 81/100 · Risk: 🟡 medium
 
-[Play Mode] Move character to position and wait for arrival.     path: scene path to GO with movement component.     position: x,y,z (e.g. '5,0,-3'). Returns 'arrived' or 'blocked'.
+[Play Mode] Move character to position and wait for arrival. path: scene path to GO with movement component. position: x,y,z (e.g. '5,0,-3'). Returns 'arrived' or 'blocked'.
 
 **Parameters:**
 
@@ -5707,7 +5707,7 @@ Execute or list Unity Editor menu items. action: execute|list. execute: run menu
 
 🟡 70/100 · Risk: 🔴 high
 
-NavMesh queries and management. Bakes or clears NavMesh data for bake/clear actions. No confirmation required. action: sample|path|raycast|bake|status|clear|get_settings|set_settings.     sample: find nearest walkable point to center.     path: calculate path from from_pos to to.     raycast: NavMesh raycast from from_pos toward to.     bake: build NavMesh (NavMeshSurface components or legacy NavMeshBuilder).     status: triangulation stats (triangles, vertices, areas).     clear: remove all baked NavMesh data.     get_settings: list all NavMesh agent type settings.     set_settings: update NavMeshSurface agent params (agentRadius/agentHeight/agentClimb/agentSlope).
+NavMesh queries and management. Bakes or clears NavMesh data for bake/clear actions. No confirmation required. action: sample|path|raycast|bake|status|clear|get_settings|set_settings. sample: find nearest walkable point to center. path: calculate path from from_pos to to. raycast: NavMesh raycast from from_pos toward to. bake: build NavMesh (NavMeshSurface components or legacy NavMeshBuilder). status: triangulation stats (triangles, vertices, areas). clear: remove all baked NavMesh data. get_settings: list all NavMesh agent type settings. set_settings: update NavMeshSurface agent params (agentRadius/agentHeight/agentClimb/agentSlope).
 
 **Parameters:**
 
@@ -5922,7 +5922,7 @@ Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/A
 
 🟢 88/100 · Risk: 🔴 high
 
-Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove.     list: all installed packages.     search: query required.     add: name required, version optional.     remove: name required.
+Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove. list: all installed packages. search: query required. add: name required, version optional. remove: name required.
 
 **Parameters:**
 
@@ -6136,7 +6136,7 @@ Particle System. action: get|create|set|apply|play|stop|pause. module=main|emiss
 
 🟡 76/100 · Risk: 🟢 low
 
-Handle Claude permission prompts via MCP.      Registered as --permission-prompt-tool so Claude routes all permission     checks here instead of blocking on stdin.
+Handle Claude permission prompts via MCP.  Registered as --permission-prompt-tool so Claude routes all permission checks here instead of blocking on stdin.
 
 **Parameters:**
 
@@ -6246,7 +6246,7 @@ Highlight object in Hierarchy and Project, and select it.
 
 🟢 81/100 · Risk: 🔴 high
 
-Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate.     edit: asset_path + component + prop + value (set property on prefab asset).     edit: asset_path + add_component or remove_component (manage components).     save: path (scene) + asset_path [+ mode: new|overwrite (default)].     revert: scope: object (default)|children.     get_overrides: format: text (default)|structured.     create_variant: base_path + variant_path.     instantiate: asset_path (instantiate prefab into active scene).
+Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate. edit: asset_path + component + prop + value (set property on prefab asset). edit: asset_path + add_component or remove_component (manage components). save: path (scene) + asset_path [+ mode: new|overwrite (default)]. revert: scope: object (default)|children. get_overrides: format: text (default)|structured. create_variant: base_path + variant_path. instantiate: asset_path (instantiate prefab into active scene).
 
 **Parameters:**
 
@@ -6467,7 +6467,7 @@ Prefab. Creates or modifies prefab assets. No confirmation required. action: sav
 
 🟡 69/100 · Risk: 🟢 low
 
-Profile CPU/GPU/memory over time.     action: start|stop|status|analyze|compare|list_sessions     mode: burst (auto-stop after duration) | manual (explicit stop) | triggered (on spike)     focus: narrow analyze output to gc|rendering|physics|cpu
+Profile CPU/GPU/memory over time. action: start|stop|status|analyze|compare|list_sessions mode: burst (auto-stop after duration) | manual (explicit stop) | triggered (on spike) focus: narrow analyze output to gc|rendering|physics|cpu
 
 **Parameters:**
 
@@ -6562,7 +6562,7 @@ Profile CPU/GPU/memory over time.     action: start|stop|status|analyze|compare|
 
 🟢 86/100 · Risk: 🔴 high
 
-Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input.     tags set: prop=remove value=<tag> to remove; else adds.     quality set prop=currentLevel: calls SetQualityLevel().     player set prop=ScriptingBackend: needs build_target (Standalone|iOS|Android|etc) + value (Mono2x|IL2CPP).
+Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input. tags set: prop=remove value=<tag> to remove; else adds. quality set prop=currentLevel: calls SetQualityLevel(). player set prop=ScriptingBackend: needs build_target (Standalone|iOS|Android|etc) + value (Mono2x|IL2CPP).
 
 **Parameters:**
 
@@ -6672,7 +6672,7 @@ Project settings. Modifies project settings when action=set. No confirmation req
 
 🟢 93/100 · Risk: 🟡 medium
 
-[Play Mode] Snapshot multiple game values in one call.     queries: comma-separated 'path|component|field_or_method' triplets.     Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')
+[Play Mode] Snapshot multiple game values in one call. queries: comma-separated 'path|component|field_or_method' triplets. Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')
 
 **Parameters:**
 
@@ -6891,7 +6891,7 @@ References. action: get|find_to|remap. get: outgoing refs. find_to: reverse sear
 
 🟢 82/100 · Risk: 🔴 high
 
-Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required.      vertices: CSV polygon 'x1,z1;x2,z2;...' (>=3 pairs).     dry_run: True = list objects that WOULD be deleted (safe default). False = delete them.     filter: optional name-pattern substring; only matching objects are affected.     cap: max objects processed (default 50, hard max 200).
+Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required.  vertices: CSV polygon 'x1,z1;x2,z2;...' (>=3 pairs). dry_run: True = list objects that WOULD be deleted (safe default). False = delete them. filter: optional name-pattern substring; only matching objects are affected. cap: max objects processed (default 50, hard max 200).
 
 **Parameters:**
 
@@ -6981,7 +6981,7 @@ Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summar
 
 🟢 87/100 · Risk: 🟡 medium
 
-Rename a GameObject. Returns new scene path after rename.     path: current scene path, $hexId (e.g. $3E8) or #instanceID (legacy). name: new name (non-empty).     Note: all subsequent MCP calls must use the new path.
+Rename a GameObject. Returns new scene path after rename. path: current scene path, $hexId (e.g. $3E8) or #instanceID (legacy). name: new name (non-empty). Note: all subsequent MCP calls must use the new path.
 
 **Parameters:**
 
@@ -7036,7 +7036,7 @@ Rename a GameObject. Returns new scene path after rename.     path: current scen
 
 🟢 90/100 · Risk: 🟡 medium
 
-Rendering analysis.     action: stats|materials|shaders|lights|batching|overdraw|audit|compare             |frame_debug|shadow_audit|probe_audit|light_optimize     stats: draw calls, batches, tris, verts, set-pass from UnityStats.     batching: SRP Batcher / static / dynamic / GPU instancing analysis.     audit: full rendering health check (all sections, brief).     compare: diff against last baseline snapshot.     frame_debug: per-draw-call data via FrameDebugger reflection (pauses rendering briefly).     detail: brief (default) | full.  path: optional subtree root.
+Rendering analysis. action: stats|materials|shaders|lights|batching|overdraw|audit|compare         |frame_debug|shadow_audit|probe_audit|light_optimize stats: draw calls, batches, tris, verts, set-pass from UnityStats. batching: SRP Batcher / static / dynamic / GPU instancing analysis. audit: full rendering health check (all sections, brief). compare: diff against last baseline snapshot. frame_debug: per-draw-call data via FrameDebugger reflection (pauses rendering briefly). detail: brief (default) | full.  path: optional subtree root.
 
 **Parameters:**
 
@@ -7131,7 +7131,7 @@ Rendering analysis.     action: stats|materials|shaders|lights|batching|overdraw
 
 🟢 93/100 · Risk: 🟡 medium
 
-Read-only scene reference resolver.     refs: comma-separated list of $alias, /path, or t:Type tokens.     fields: optional comma-separated field names to check existence on matched component.     Returns one tab-aligned line per ref: OK|MISS|AMB + path + details.
+Read-only scene reference resolver. refs: comma-separated list of $alias, /path, or t:Type tokens. fields: optional comma-separated field names to check existence on matched component. Returns one tab-aligned line per ref: OK|MISS|AMB + path + details.
 
 **Parameters:**
 
@@ -7281,7 +7281,7 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 
 🟡 75/100 · Risk: 🔴 high
 
-[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`).     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |     ASSERT_CONSOLE_CLEAN [IGNORE "pat"] | SNAPSHOT queries | INVOKE path comp method args |     SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t |     ASSERT_CTA VISIBLE|CLICKABLE | VAL name query | TELEPORT path x,y,z |     ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | INVARIANT query op value |     SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f |     CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED.     defs: inline VAL definitions prepended to script.     abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown.
+[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`). Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value | ASSERT_CONSOLE_CLEAN [IGNORE "pat"] | SNAPSHOT queries | INVOKE path comp method args | SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t | ASSERT_CTA VISIBLE|CLICKABLE | VAL name query | TELEPORT path x,y,z | ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | INVARIANT query op value | SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f | CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED. defs: inline VAL definitions prepended to script. abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown.
 
 **Parameters:**
 
@@ -7418,7 +7418,7 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 
 🟡 73/100 · Risk: 🔴 high
 
-Run multiple .playtest files sequentially and return a compact matrix.     Side effects: auto_play/restart_between may enter or restart Play Mode;     stop_after exits Play Mode. No confirmation is requested.     pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,              or newline-separated list of project-relative paths.     suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment).     Exactly one of pattern or suite_path must be provided.     stop_on_fail=True: abort suite after first failure.     stop_after=True: exit Play Mode when suite completes.     auto_play=True: enter Play Mode automatically if not already playing.     restart_between=True: stop+play between each file to reset runtime state;     with auto_play=True, also resets an already-running editor before file one.     Lifecycle commands must return successfully and reach their observed state.     A failed transition stops the suite and is reported as a failed row.     Empty matches return a failing SUITE: 0/0 report.     Output: SUITE: X/Y passed (Zs) + per-file line + full failure details.
+Run multiple .playtest files sequentially and return a compact matrix. Side effects: auto_play/restart_between may enter or restart Play Mode; stop_after exits Play Mode. No confirmation is requested. pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,          or newline-separated list of project-relative paths. suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment). Exactly one of pattern or suite_path must be provided. stop_on_fail=True: abort suite after first failure. stop_after=True: exit Play Mode when suite completes. auto_play=True: enter Play Mode automatically if not already playing. restart_between=True: stop+play between each file to reset runtime state; with auto_play=True, also resets an already-running editor before file one. Lifecycle commands must return successfully and reach their observed state. A failed transition stops the suite and is reported as a failed row. Empty matches return a failing SUITE: 0/0 report. Output: SUITE: X/Y passed (Zs) + per-file line + full failure details.
 
 **Parameters:**
 
@@ -7519,7 +7519,7 @@ Run multiple .playtest files sequentially and return a compact matrix.     Side 
 
 🟡 74/100 · Risk: 🟡 medium
 
-Dispatch Unity tests and return their durable identity immediately.      A successful response is     ``tests-started|request_id=...|run_id=...|utf_guid=...|state=dispatched``.     If transport fails after dispatch may have happened, the result is     ``START-UNKNOWN`` with the same request_id; resolve it instead of retrying     with a new identity.
+Dispatch Unity tests and return their durable identity immediately.  A successful response is ``tests-started|request_id=...|run_id=...|utf_guid=...|state=dispatched``. If transport fails after dispatch may have happened, the result is ``START-UNKNOWN`` with the same request_id; resolve it instead of retrying with a new identity.
 
 **Parameters:**
 
@@ -7594,7 +7594,7 @@ Dispatch Unity tests and return their durable identity immediately.      A succe
 
 🟡 68/100 · Risk: 🔴 high
 
-Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required.      Transport failures and domain reloads do not erase the last snapshot. A     caller timeout is observational only: it returns ``TIMEOUT`` with request,     run and snapshot data and never marks the Unity run complete.
+Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required.  Transport failures and domain reloads do not erase the last snapshot. A caller timeout is observational only: it returns ``TIMEOUT`` with request, run and snapshot data and never marks the Unity run complete.
 
 **Parameters:**
 
@@ -7678,7 +7678,7 @@ Dispatch tests and wait for the exact run to become terminal. Dispatches test ru
 
 🟢 89/100 · Risk: 🟢 low
 
-Snapshot all runtime objects of a given component type. Returns per-object field dump.     type: component type name (e.g. 'Rigidbody', 'EnemyController').     name: optional name substring filter.     component: component type to serialize (defaults to type).     compress: strip default-value fields to reduce response size.
+Snapshot all runtime objects of a given component type. Returns per-object field dump. type: component type name (e.g. 'Rigidbody', 'EnemyController'). name: optional name substring filter. component: component type to serialize (defaults to type). compress: strip default-value fields to reduce response size.
 
 **Parameters:**
 
@@ -7775,7 +7775,7 @@ Save current scene state to .claude/session-context.json for cold-start recovery
 
 🟢 90/100 · Risk: 🟡 medium
 
-Save a learned skill (C# code or batch commands) for reuse across sessions.     name: skill identifier. description: what it does. code: C# or batch commands.
+Save a learned skill (C# code or batch commands) for reuse across sessions. name: skill identifier. description: what it does. code: C# or batch commands.
 
 **Parameters:**
 
@@ -7908,7 +7908,7 @@ Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas
 
 🟢 88/100 · Risk: 🟡 medium
 
-Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy.     path: required for open/open_additive/close/set_active/save_copy. For save,     omit it to save to the current path; an untitled scene requires a path.     scene: save/discard/save_copy target when multiple scenes loaded (identifies by name).     save_copy: writes current dirty state to path as backup; active scene reference unchanged.     include_unsaved: always True — save_copy always captures current in-memory state.
+Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy. path: required for open/open_additive/close/set_active/save_copy. For save, omit it to save to the current path; an untitled scene requires a path. scene: save/discard/save_copy target when multiple scenes loaded (identifies by name). save_copy: writes current dirty state to path as backup; active scene reference unchanged. include_unsaved: always True — save_copy always captures current in-memory state.
 
 **Parameters:**
 
@@ -7989,7 +7989,7 @@ Scene management. action: new|open|save|discard|open_additive|close|set_active|l
 
 🟢 81/100 · Risk: 🟡 medium
 
-Pre-flight + plan for safe scene edit.     1. Check Play Mode — reject if playing (mutations blocked)     2. Check compile clean     3. Check console for errors     4. Resolve targets via resolve_scene_refs     5. Take checkpoint     6. Return plan_id + baseline status
+Pre-flight + plan for safe scene edit. 1. Check Play Mode — reject if playing (mutations blocked) 2. Check compile clean 3. Check console for errors 4. Resolve targets via resolve_scene_refs 5. Take checkpoint 6. Return plan_id + baseline status
 
 **Parameters:**
 
@@ -8066,7 +8066,7 @@ Compare scene with last snapshot. First call saves snapshot. Returns diff: added
 
 🟢 84/100 · Risk: 🟡 medium
 
-Read/write scene environment: ambient light, fog, skybox, reflections.     action: get|set. set requires prop and value.     Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,     ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance,     reflectionIntensity, reflectionBounces, subtractiveShadowColor, defaultReflectionResolution.
+Read/write scene environment: ambient light, fog, skybox, reflections. action: get|set. set requires prop and value. Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor, ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance, reflectionIntensity, reflectionBounces, subtractiveShadowColor, defaultReflectionResolution.
 
 **Parameters:**
 
@@ -8139,7 +8139,7 @@ Read/write scene environment: ambient light, fog, skybox, reflections.     actio
 
 🟢 88/100 · Risk: 🟢 low
 
-Scene hierarchy/health audit.     focus: all | hierarchy | naming | duplicates | origins | missing | empty | disabled     Returns severity-tagged findings: CRITICAL/WARNING/INFO/OK per check.
+Scene hierarchy/health audit. focus: all | hierarchy | naming | duplicates | origins | missing | empty | disabled Returns severity-tagged findings: CRITICAL/WARNING/INFO/OK per check.
 
 **Parameters:**
 
@@ -8183,7 +8183,7 @@ Scene hierarchy/health audit.     focus: all | hierarchy | naming | duplicates |
 
 🟡 65/100 · Risk: 🟡 medium
 
-Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), raw=True forces path.     camera: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game. angle (single_view): front|left|top|iso|ex,ey,ez.     zoom: higher=closer. angles: per-view Euler "ex,ey,ez|..." (_=skip). supersample 1-4. offset/fixed_size: framing.     highlight: paths[:#RRGGBB] for bbox. show_colliders: wireframes.     annotation_id: frame + highlight annotation by id (auto sets camera=annotation_frame).     warn:ScreenSpaceOverlay canvas not captured in Edit Mode (bypasses camera pipeline).     Workarounds: switch to ScreenSpace-Camera, use Play Mode, or camera=scene_view.
+Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), raw=True forces path. camera: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game. angle (single_view): front|left|top|iso|ex,ey,ez. zoom: higher=closer. angles: per-view Euler "ex,ey,ez|..." (_=skip). supersample 1-4. offset/fixed_size: framing. highlight: paths[:#RRGGBB] for bbox. show_colliders: wireframes. annotation_id: frame + highlight annotation by id (auto sets camera=annotation_frame). warn:ScreenSpaceOverlay canvas not captured in Edit Mode (bypasses camera pipeline). Workarounds: switch to ScreenSpace-Camera, use Play Mode, or camera=scene_view.
 
 **Parameters:**
 
@@ -8215,7 +8215,7 @@ Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), 
 - **warning**: Numeric parameter 'width' has no bounds.
 - **warning**: Numeric parameter 'height' has no bounds.
 - **warning**: outputSchema is missing.
-- **warning**: Tool card is about 3481 characters.
+- **warning**: Tool card is about 3457 characters.
 
 </details>
 
@@ -8502,7 +8502,7 @@ Save screenshot as baseline for visual regression. name: file-safe identifier.
 
 🟡 68/100 · Risk: 🟡 medium
 
-Compare current screenshot with saved baseline.     mode: auto (pixel->escalate), pixel (local), structural (general),           targeted (needs question=), ui_layout|animation|color|position|regression.     Model-assisted modes require configured sampling. Cached by image hashes.
+Compare current screenshot with saved baseline. mode: auto (pixel->escalate), pixel (local), structural (general),       targeted (needs question=), ui_layout|animation|color|position|regression. Model-assisted modes require configured sampling. Cached by image hashes.
 
 **Parameters:**
 
@@ -8731,7 +8731,7 @@ ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fie
 
 🟢 89/100 · Risk: 🟡 medium
 
-Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces.     root: scope search to subtree (path or None for whole scene).     limit: max results (default 50; 0=unlimited).     scene: filter to a single scene by name (multi-scene only).
+Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces. root: scope search to subtree (path or None for whole scene). limit: max results (default 50; 0=unlimited). scene: filter to a single scene by name (multi-scene only).
 
 **Parameters:**
 
@@ -8812,7 +8812,7 @@ Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=b
 
 🟢 83/100 · Risk: 🟢 low
 
-Audit [SerializeField] rename safety.     type: fully-qualified or simple component type name (e.g. 'MyNamespace.PlayerStats').     old_field: field name as it exists in serialized assets.     new_field: renamed field name in current C# source.     include: comma-separated scan targets (prefabs,scenes,scriptable_objects).     Returns: has_formerly_serialized_as, stale_assets, safe_to_remove_attribute, recommended_actions.
+Audit [SerializeField] rename safety. type: fully-qualified or simple component type name (e.g. 'MyNamespace.PlayerStats'). old_field: field name as it exists in serialized assets. new_field: renamed field name in current C# source. include: comma-separated scan targets (prefabs,scenes,scriptable_objects). Returns: has_formerly_serialized_as, stale_assets, safe_to_remove_attribute, recommended_actions.
 
 **Parameters:**
 
@@ -8937,7 +8937,7 @@ Set GameObject active/inactive.
 
 🟢 83/100 · Risk: 🟡 medium
 
-Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line).     Features: visual_verify, screenshot_describe, visual_diff, do_intent, ui_intent, vfx_intent, animator_intent, summarize, distiller.
+Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line). Features: visual_verify, screenshot_describe, visual_diff, do_intent, ui_intent, vfx_intent, animator_intent, summarize, distiller.
 
 **Parameters:**
 
@@ -9123,7 +9123,7 @@ Reparent existing GameObject. parent=null → move to scene root. world_position
 
 🟡 77/100 · Risk: 🟡 medium
 
-Set multiple properties on ONE object. For multiple objects, use configure_objects instead.     Format: component.prop=value per line or semicolon-separated.     Example: Transform.m_LocalPosition=(1,0,0);Rigidbody.mass=5
+Set multiple properties on ONE object. For multiple objects, use configure_objects instead. Format: component.prop=value per line or semicolon-separated. Example: Transform.m_LocalPosition=(1,0,0);Rigidbody.mass=5
 
 **Parameters:**
 
@@ -9179,7 +9179,7 @@ Set multiple properties on ONE object. For multiple objects, use configure_objec
 
 🟡 76/100 · Risk: 🟡 medium
 
-Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`).     find_type: component type — bulk-sets prop on all matching objects without specifying paths.     For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), $hexId (e.g. $3E8) or #instanceID (legacy), or 'null'. dry_run=True shows what would change without applying.     ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'.
+Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`). find_type: component type — bulk-sets prop on all matching objects without specifying paths. For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), $hexId (e.g. $3E8) or #instanceID (legacy), or 'null'. dry_run=True shows what would change without applying. ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'.
 
 **Parameters:**
 
@@ -9564,7 +9564,7 @@ Set sibling index of a GameObject within its parent. index=0 moves to first chil
 
 🟢 83/100 · Risk: 🟡 medium
 
-Create+configure multiple objects in one call.     One per line: name [primitive=X] [parent=Y] [pos=(x,y,z)] [components=A,B]     Example: NPC1 primitive=Capsule pos=(1,0,0) components=Health
+Create+configure multiple objects in one call. One per line: name [primitive=X] [parent=Y] [pos=(x,y,z)] [components=A,B] Example: NPC1 primitive=Capsule pos=(1,0,0) components=Health
 
 **Parameters:**
 
@@ -9611,7 +9611,7 @@ Create+configure multiple objects in one call.     One per line: name [primitive
 
 🔴 59/100 · Risk: 🔴 high
 
-Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network.     action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional).     For material shader assignment use `material` tool instead.
+Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network. action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional). For material shader assignment use `material` tool instead.
 
 **Parameters:**
 
@@ -9671,7 +9671,7 @@ Read or write shader assets (.shader / .shadergraph). Creates or modifies shader
 - **info**: Parameter 'v_gap' has no description.
 - **warning**: outputSchema is missing.
 - **warning**: Tool appears destructive but lacks destructiveHint=true.
-- **warning**: Tool card is about 4022 characters.
+- **warning**: Tool card is about 4014 characters.
 
 </details>
 
@@ -10049,7 +10049,7 @@ Build scene objects from natural language description using MCP sampling + execu
 
 🟢 85/100 · Risk: 🟡 medium
 
-Capture or compare object state.      path: Object path ("/Enemy_01")     label: Snapshot label ("before", "after")     compare: Label to diff against (empty = capture only)      Returns:         Capture: "snapshot 'label' saved (N fields)"         Compare: structured diff or error if compare label missing
+Capture or compare object state.  path: Object path ("/Enemy_01") label: Snapshot label ("before", "after") compare: Label to diff against (empty = capture only)  Returns:     Capture: "snapshot 'label' saved (N fields)"     Compare: structured diff or error if compare label missing
 
 **Parameters:**
 
@@ -10111,7 +10111,7 @@ Capture or compare object state.      path: Object path ("/Enemy_01")     label:
 
 🟢 85/100 · Risk: 🟡 medium
 
-Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon.     nearest: find closest object (optionally filtered by component name).     in_front_of: position in front of object at distance.     objects_in_radius: list all objects within radius. path is optional when center='x,y,z' is given.     bounds_info: detailed bounds/dimensions of object.     raycast: cast ray from path/pos to target, returns hits sorted by distance.     spatial_map: ASCII grid map of objects in XZ plane. cell_size in meters.     objects_in_polygon: objects whose XZ pivot is inside a polygon. Provide either     vertices='x1,z1;x2,z2;...' (>=3 pairs) or a previously defined region_id;     supplied vertices are always validated. cap=max results (default 50).
+Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon. nearest: find closest object (optionally filtered by component name). in_front_of: position in front of object at distance. objects_in_radius: list all objects within radius. path is optional when center='x,y,z' is given. bounds_info: detailed bounds/dimensions of object. raycast: cast ray from path/pos to target, returns hits sorted by distance. spatial_map: ASCII grid map of objects in XZ plane. cell_size in meters. objects_in_polygon: objects whose XZ pivot is inside a polygon. Provide either vertices='x1,z1;x2,z2;...' (>=3 pairs) or a previously defined region_id; supplied vertices are always validated. cap=max results (default 50).
 
 **Parameters:**
 
@@ -10310,7 +10310,7 @@ Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|rayca
 
 🟢 85/100 · Risk: 🟡 medium
 
-Overwrite PlaytestConfig.asset aliases from a .defs text file.     defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs).     asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).     Invalidates AliasExpander cache after sync. Not allowed in Play Mode.
+Overwrite PlaytestConfig.asset aliases from a .defs text file. defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs). asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset). Invalidates AliasExpander cache after sync. Not allowed in Play Mode.
 
 **Parameters:**
 
@@ -10363,7 +10363,7 @@ Overwrite PlaytestConfig.asset aliases from a .defs text file.     defs: project
 
 🟡 73/100 · Risk: 🟡 medium
 
-Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to live.      resolve=True: call Client.Resolve() first (use after package.json change).     bump=True: atomically increment plugin patch version BEFORE sync, implies resolve=True.     Returns: 'sync clean' / compile errors / timeout message.
+Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to live.  resolve=True: call Client.Resolve() first (use after package.json change). bump=True: atomically increment plugin patch version BEFORE sync, implies resolve=True. Returns: 'sync clean' / compile errors / timeout message.
 
 **Parameters:**
 
@@ -10423,7 +10423,7 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
 
 🟡 71/100 · Risk: 🟡 medium
 
-[Play Mode] Move character, snapshot state before/after, check console.     checks_before/after: comma-separated 'path|component|field' triplets.     Returns structured BEFORE/MOVE/AFTER/CONSOLE report.
+[Play Mode] Move character, snapshot state before/after, check console. checks_before/after: comma-separated 'path|component|field' triplets. Returns structured BEFORE/MOVE/AFTER/CONSOLE report.
 
 **Parameters:**
 
@@ -10510,7 +10510,7 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
 
 🟡 64/100 · Risk: 🟡 medium
 
-Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that).     action: get | create | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview.     track=track name. index=target position for reorder_track. offset=time shift for duplicate_clip. value=offset mode (auto|transform|scene) for set_track_offset.
+Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that). action: get | create | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview. track=track name. index=target position for reorder_track. offset=time shift for duplicate_clip. value=offset mode (auto|transform|scene) for set_track_offset.
 
 **Parameters:**
 
@@ -10558,7 +10558,7 @@ Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic
 - **info**: Parameter 'clip_in' has no description.
 - **info**: Parameter 'offset' has no description.
 - **warning**: outputSchema is missing.
-- **warning**: Tool card is about 2882 characters.
+- **warning**: Tool card is about 2874 characters.
 
 </details>
 
@@ -10804,7 +10804,7 @@ Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic
 
 🟢 85/100 · Risk: 🟡 medium
 
-Move or copy a GameObject to another loaded scene. action: move|copy.     target_scene: destination scene name. Omit = same scene (copy = duplicate).     parent: target parent path in destination scene.     world_position_stays: preserve world transform (default True).
+Move or copy a GameObject to another loaded scene. action: move|copy. target_scene: destination scene name. Omit = same scene (copy = duplicate). parent: target parent path in destination scene. world_position_stays: preserve world transform (default True).
 
 **Parameters:**
 
@@ -10894,7 +10894,7 @@ Move or copy a GameObject to another loaded scene. action: move|copy.     target
 
 🟢 82/100 · Risk: 🟡 medium
 
-Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.      template: hud|menu|dialog|grid. dry_run=True skips execution.
+Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.  template: hud|menu|dialog|grid. dry_run=True skips execution.
 
 **Parameters:**
 
@@ -10976,7 +10976,7 @@ Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.      template: 
 
 🟢 80/100 · Risk: 🔴 high
 
-Mutate or query a VisualElement in a UIDocument     (use inspect_uitk to find elements first, then pass ~N ref for zero-token addressing;     use set_property for serialized component fields on the UIDocument GameObject;     use create_ui for uGUI Canvas elements).     action: query (find elements) | get (read value/text) | set_style | add_class | remove_class | get_style | enable | disable.     Element addressing priority: ref (~N from inspect_uitk) → name → selector (CSS class/type).     path: scene path to UIDocument GameObject (e.g. /HUD).     ref: ~N refid from inspect_uitk (highest priority, stale after re-inspect or domain reload).     selector: CSS selector — .class-name, TypeName, or element name.     name: element name (equivalent to bare name in selector).     value: value to write (for set_style/add_class).     property: CSS property name for set_style/get_style.     class_name: USS class name for add_class/remove_class (no leading dot).     warn: set_style/add_class/remove_class/enable/disable in Play Mode — change not persisted.
+Mutate or query a VisualElement in a UIDocument (use inspect_uitk to find elements first, then pass ~N ref for zero-token addressing; use set_property for serialized component fields on the UIDocument GameObject; use create_ui for uGUI Canvas elements). action: query (find elements) | get (read value/text) | set_style | add_class | remove_class | get_style | enable | disable. Element addressing priority: ref (~N from inspect_uitk) → name → selector (CSS class/type). path: scene path to UIDocument GameObject (e.g. /HUD). ref: ~N refid from inspect_uitk (highest priority, stale after re-inspect or domain reload). selector: CSS selector — .class-name, TypeName, or element name. name: element name (equivalent to bare name in selector). value: value to write (for set_style/add_class). property: CSS property name for set_style/get_style. class_name: USS class name for add_class/remove_class (no leading dot). warn: set_style/add_class/remove_class/enable/disable in Play Mode — change not persisted.
 
 **Parameters:**
 
@@ -11131,7 +11131,7 @@ Mutate or query a VisualElement in a UIDocument     (use inspect_uitk to find el
 
 🟡 67/100 · Risk: 🔴 high
 
-Read or edit a UXML or USS asset file.     action=read is read-only. Side effect: every other action may create, replace, import,     or restore a project file; review the target path before calling it.     (UI Toolkit only — use `asset` for other Unity asset types,     use `inspect_uitk` to inspect the live VisualElement tree at runtime,     use `attach_uitk` to wire a UIDocument to a GameObject).     action=read: return the file's UTF-8 text verbatim (no normalization).     action=write: full file replace; validates and triggers AssetDatabase.ImportAsset.     action=create_uxml: new UXML file with minimal template; content optional.     action=create_uss: new empty USS file; content optional.     action=set-attr: set attribute on UXML element by name (selector=name, attr=attr, value=val).     action=add-class|remove-class: manage USS class on UXML element by name.     action=add-element: append child (parent=name, tag=ui:Label, attrs='k=v ...').     action=remove-element: delete UXML element and children by name.     action=set-rule: set CSS property in USS rule; creates rule if selector absent.     action=remove-rule: delete USS rule block by exact selector string.     action=revert: restore file to state before last write (single-level, cleared on domain reload).     path: Assets/ path to .uxml or .uss file. Library/ and Packages/ are rejected.
+Read or edit a UXML or USS asset file. action=read is read-only. Side effect: every other action may create, replace, import, or restore a project file; review the target path before calling it. (UI Toolkit only — use `asset` for other Unity asset types, use `inspect_uitk` to inspect the live VisualElement tree at runtime, use `attach_uitk` to wire a UIDocument to a GameObject). action=read: return the file's UTF-8 text verbatim (no normalization). action=write: full file replace; validates and triggers AssetDatabase.ImportAsset. action=create_uxml: new UXML file with minimal template; content optional. action=create_uss: new empty USS file; content optional. action=set-attr: set attribute on UXML element by name (selector=name, attr=attr, value=val). action=add-class|remove-class: manage USS class on UXML element by name. action=add-element: append child (parent=name, tag=ui:Label, attrs='k=v ...'). action=remove-element: delete UXML element and children by name. action=set-rule: set CSS property in USS rule; creates rule if selector absent. action=remove-rule: delete USS rule block by exact selector string. action=revert: restore file to state before last write (single-level, cleared on domain reload). path: Assets/ path to .uxml or .uss file. Library/ and Packages/ are rejected.
 
 **Parameters:**
 
@@ -11164,7 +11164,7 @@ Read or edit a UXML or USS asset file.     action=read is read-only. Side effect
 - **info**: Parameter 'attrs' has no description.
 - **warning**: outputSchema is missing.
 - **warning**: Tool appears destructive but lacks destructiveHint=true.
-- **warning**: Tool card is about 2977 characters.
+- **warning**: Tool card is about 2905 characters.
 
 </details>
 
@@ -11328,7 +11328,7 @@ Read or edit a UXML or USS asset file.     action=read is read-only. Side effect
 
 🟡 79/100 · Risk: 🔴 high
 
-Generate a UXML + USS file pair from a natural-language UI description.     Side effect: unless dry_run=True, writes both project assets; attach_to also adds a     UIDocument scene component. Completed steps are not rolled back if a later     step fails. Failure output distinguishes retained files, confirmed Unity     auto-reverts, and attempted files whose cleanup is uncertain. Without     template, invokes     configured Claude sampling and may     consume provider quota. For uGUI use ui_intent.     template: hud|menu|dialog|settings|editor_window bypasses Haiku entirely.     name: base filename (e.g. "InventoryPanel" → InventoryPanel.uxml + .uss).     path: output folder, default "Assets/UI".     attach_to: scene path to UIDocument GameObject to wire after creation.     dry_run: return UXML+USS text without writing files.
+Generate a UXML + USS file pair from a natural-language UI description. Side effect: unless dry_run=True, writes both project assets; attach_to also adds a UIDocument scene component. Completed steps are not rolled back if a later step fails. Failure output distinguishes retained files, confirmed Unity auto-reverts, and attempted files whose cleanup is uncertain. Without template, invokes configured Claude sampling and may consume provider quota. For uGUI use ui_intent. template: hud|menu|dialog|settings|editor_window bypasses Haiku entirely. name: base filename (e.g. "InventoryPanel" → InventoryPanel.uxml + .uss). path: output folder, default "Assets/UI". attach_to: scene path to UIDocument GameObject to wire after creation. dry_run: return UXML+USS text without writing files.
 
 **Parameters:**
 
@@ -11426,7 +11426,7 @@ Generate a UXML + USS file pair from a natural-language UI description.     Side
 
 🟢 83/100 · Risk: 🟡 medium
 
-Undo the last N AI turns in the Unity Undo stack. Default: 1.     warn: file-system operations (asset creation/deletion via asset tool) are     not reversed by undo. Only scene-object and component mutations are undoable.
+Undo the last N AI turns in the Unity Undo stack. Default: 1. warn: file-system operations (asset creation/deletion via asset tool) are not reversed by undo. Only scene-object and component mutations are undoable.
 
 **Parameters:**
 
@@ -11471,7 +11471,7 @@ Undo the last N AI turns in the Unity Undo stack. Default: 1.     warn: file-sys
 
 🟢 86/100 · Risk: 🔴 high
 
-Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required.     index: remove specific entry (0-based). Omit to clear all.
+Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required. index: remove specific entry (0-based). Omit to clear all.
 
 **Parameters:**
 
@@ -11608,7 +11608,7 @@ Execute a previously saved skill. params: comma-separated key=value for substitu
 
 🟢 86/100 · Risk: 🟡 medium
 
-Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed.     defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs).     asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).     Returns 'ok: N aliases in sync' when identical, or a diff report.
+Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed. defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs). asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset). Returns 'ok: N aliases in sync' when identical, or a diff report.
 
 **Parameters:**
 
@@ -11660,7 +11660,7 @@ Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/cha
 
 🟢 82/100 · Risk: 🟡 medium
 
-Validate all ObjectReference fields under path recursively.     Returns [ERROR]/[MISSING] for broken refs. Summary: "N ERROR, M OK".     Use depth=1 for quick top-level scan, depth=3-5 for full subtree.     verbose=True also shows [OK] lines (off by default to save tokens).     ignore_optional=True skips fields marked [Optional] (reduces noise).
+Validate all ObjectReference fields under path recursively. Returns [ERROR]/[MISSING] for broken refs. Summary: "N ERROR, M OK". Use depth=1 for quick top-level scan, depth=3-5 for full subtree. verbose=True also shows [OK] lines (off by default to save tokens). ignore_optional=True skips fields marked [Optional] (reduces noise).
 
 **Parameters:**
 
@@ -11780,7 +11780,7 @@ Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance m
 
 🟡 64/100 · Risk: 🔴 high
 
-Single verification gate after code/scene changes.     Gates are additive — only enabled ones run:     1. await_compile (always)     2. get_compile_errors (always)     3. get_console_since mark_id (if mark_id provided)     4. run_tests_wait mode filter (if run_tests_mode provided)     5. run_playtest_suite paths (if playtests provided)     Returns PASS only when ALL enabled gates pass.     Failure includes which gate failed and recommended next command.
+Single verification gate after code/scene changes. Gates are additive — only enabled ones run: 1. await_compile (always) 2. get_compile_errors (always) 3. get_console_since mark_id (if mark_id provided) 4. run_tests_wait mode filter (if run_tests_mode provided) 5. run_playtest_suite paths (if playtests provided) Returns PASS only when ALL enabled gates pass. Failure includes which gate failed and recommended next command.
 
 **Parameters:**
 
@@ -11873,7 +11873,7 @@ Single verification gate after code/scene changes.     Gates are additive — on
 
 🟡 74/100 · Risk: 🟡 medium
 
-Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: particle|auto (shader/material not yet implemented). dry_run=True skips execution.
+Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.  kind: particle|auto (shader/material not yet implemented). dry_run=True skips execution.
 
 **Parameters:**
 
@@ -11944,7 +11944,7 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
 
 🟡 69/100 · Risk: 🟡 medium
 
-[Play Mode] Poll field until it matches value (or timeout).     Python timeout = Unity timeout + 5s buffer.     abort_on_fail=True: stops Play Mode on timeout.
+[Play Mode] Poll field until it matches value (or timeout). Python timeout = Unity timeout + 5s buffer. abort_on_fail=True: stops Play Mode on timeout.
 
 **Parameters:**
 
@@ -12038,7 +12038,7 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
 
 🟡 68/100 · Risk: 🔴 high
 
-[Play Mode] Manage watches. Registers or removes watches. No confirmation required. action: add|remove|clear|reset.     add: needs path/component/field. condition: '< 10','> 0','== null'.     trigger_action: 'log' or 'pause'. remove/reset: needs watch_id.
+[Play Mode] Manage watches. Registers or removes watches. No confirmation required. action: add|remove|clear|reset. add: needs path/component/field. condition: '< 10','> 0','== null'. trigger_action: 'log' or 'pause'. remove/reset: needs watch_id.
 
 **Parameters:**
 
@@ -12141,7 +12141,7 @@ Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.      kind: 
 
 🟡 77/100 · Risk: 🔴 high
 
-Wire UnityEvent persistent listener. Mutates scene. No confirmation required.     path: object with the event. component: type owning the event field.     event: serialized field name (e.g. 'onClick', '_onComplete').     target: scene path or asset path. Auto-resolves component owning the method.     method: method name (e.g. 'SetActive', 'Play').     arg_type: void|bool|int|float|string|object.     arg_value: required when arg_type != void. For object: scene path or asset path.     target_component_type: narrow component search to this type (e.g. 'Animator').     parameter_types: comma-separated param types to resolve overloads (e.g. 'string').
+Wire UnityEvent persistent listener. Mutates scene. No confirmation required. path: object with the event. component: type owning the event field. event: serialized field name (e.g. 'onClick', '_onComplete'). target: scene path or asset path. Auto-resolves component owning the method. method: method name (e.g. 'SetActive', 'Play'). arg_type: void|bool|int|float|string|object. arg_value: required when arg_type != void. For object: scene path or asset path. target_component_type: narrow component search to this type (e.g. 'Animator'). parameter_types: comma-separated param types to resolve overloads (e.g. 'string').
 
 **Parameters:**
 
