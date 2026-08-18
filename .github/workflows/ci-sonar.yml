@@ -8,6 +8,7 @@ on:
       - "unity-plugin/**"
       - "sonar-project.properties"
       - ".github/workflows/ci-sonar.yml"
+      - "scripts/dedup_sln.py"
   pull_request:
     branches: [master]
     paths:
@@ -50,22 +51,10 @@ jobs:
           path: server/coverage.xml
           retention-days: 1
 
-  sonar-unified:
+  csharp-inspect:
     runs-on: ubuntu-latest
-    needs: python-coverage
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: coverage-xml
-          path: server
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
 
       - name: Set UPM cache path
         id: upm-path
@@ -104,57 +93,48 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Install dotnet-sonarscanner
-        run: dotnet tool install --global dotnet-sonarscanner
-
-      - name: Deduplicate .sln
+      - name: Run InspectCode (SARIF)
         run: |
+          dotnet tool install -g JetBrains.ReSharper.GlobalTools
           SLN=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*.sln" 2>/dev/null | head -1)
           if [ -n "$SLN" ]; then
-            python3 scripts/dedup_sln.py "$SLN" "${SLN%.sln}-dedup.sln"
-          fi
-
-      - name: SonarScanner begin
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          dotnet sonarscanner begin \
-            /k:"german-krasnikov_unity-biome-mcp" \
-            /o:"german-krasnikov" \
-            /d:sonar.token="${SONAR_TOKEN}" \
-            /d:sonar.host.url="https://sonarcloud.io" \
-            /d:sonar.python.version="3.10,3.11,3.12" \
-            /d:sonar.python.coverage.reportPaths="server/coverage.xml"
-
-      - name: Create sonar.sln at repo root
-        run: |
-          DEDUP=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*-dedup.sln" 2>/dev/null | head -1)
-          if [ -n "$DEDUP" ]; then
-            python3 scripts/create_sonar_sln.py "$DEDUP" sonar.sln
-          fi
-
-      - name: Build C# solution
-        run: |
-          if [ -f sonar.sln ]; then
-            echo "Building: sonar.sln"
-            dotnet build sonar.sln || echo "::warning::Build had errors (partial C# analysis)"
+            jb inspectcode "$SLN" \
+              --output=inspectcode-report.json \
+              --format=Json \
+              --severity=WARNING \
+              --no-build \
+              --no-swea 2>&1 | tail -5
           else
-            SLN=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*-dedup.sln" -o -name "*.sln" 2>/dev/null | head -1)
-            if [ -n "$SLN" ]; then
-              echo "Building: $SLN (fallback)"
-              dotnet build "$SLN" || echo "::warning::Build had errors"
-            else
-              echo "::warning::No .sln found"
-            fi
+            echo '[]' > inspectcode-report.json
           fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inspectcode-report
+          path: inspectcode-report.json
+          retention-days: 1
+
+  sonar-scan:
+    runs-on: ubuntu-latest
+    needs: [python-coverage, csharp-inspect]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage-xml
+          path: server
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: inspectcode-report
+          path: .
         continue-on-error: true
 
-      - name: Clean sonar .csproj from repo root
-        run: rm -f sonar-*.csproj sonar.sln
-
-      - name: SonarScanner end
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v3
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: dotnet sonarscanner end /d:sonar.token="${SONAR_TOKEN}"
