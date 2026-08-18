@@ -91,15 +91,13 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: |
-            6.0.x
-            8.0.x
+          dotnet-version: '8.0.x'
 
       - name: Run InspectCode and convert to SonarQube format
         run: |
           dotnet tool install -g JetBrains.ReSharper.GlobalTools
-          dotnet tool install -g dotnet-reqube
           SLN=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*.sln" 2>/dev/null | head -1)
+          SLN_DIR=$(dirname "$SLN")
           if [ -n "$SLN" ]; then
             jb inspectcode "$SLN" \
               --output=inspectcode-report.xml \
@@ -107,27 +105,14 @@ jobs:
               --severity=WARNING \
               --no-build \
               --no-swea 2>&1 | tail -5
-            echo "InspectCode report size: $(wc -c < inspectcode-report.xml) bytes"
-            dotnet-reqube -i inspectcode-report.xml -o sonarqube-csharp.json 2>&1 || true
-            echo "ReQube output files:"
-            ls -la sonarqube-csharp*.json 2>/dev/null || echo "No sonarqube-csharp files found"
-            # reqube with sln may produce per-project files; merge if needed
-            if [ ! -f sonarqube-csharp.json ] && ls sonarqube-csharp-*.json 1>/dev/null 2>&1; then
-              python3 -c "
-          import json, glob
-          merged = []
-          for f in sorted(glob.glob('sonarqube-csharp-*.json')):
-              data = json.loads(open(f).read())
-              merged.extend(data.get('issues', []))
-          json.dump({'issues': merged}, open('sonarqube-csharp.json', 'w'))
-          print(f'Merged {len(merged)} issues from {len(glob.glob(\"sonarqube-csharp-*.json\"))} files')
-          "
-            fi
+            echo "InspectCode report: $(wc -c < inspectcode-report.xml) bytes"
+            python3 scripts/inspectcode_to_sonar.py inspectcode-report.xml \
+              -o sonarqube-csharp.json --base-dir "$SLN_DIR"
           fi
           if [ ! -f sonarqube-csharp.json ]; then
             echo '{"issues":[]}' > sonarqube-csharp.json
           fi
-          echo "Final artifact size: $(wc -c < sonarqube-csharp.json) bytes"
+          echo "Final: $(wc -c < sonarqube-csharp.json) bytes, $(python3 -c "import json; print(len(json.load(open('sonarqube-csharp.json'))['issues']),'issues')")"
 
       - uses: actions/upload-artifact@v4
         with:
