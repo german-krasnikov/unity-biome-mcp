@@ -22,12 +22,26 @@ _SKIP_RE = re.compile(r"TestProject|PlayerPlaytest|Runtime\.TestHelpers$")
 _PROJECT_LINE = re.compile(
     r'Project\("[^"]+"\)\s*=\s*"([^"]+)",\s*"([^"]+)",\s*"([^"]+)"'
 )
+_UNITY_MCP_REF = re.compile(r'(<ProjectReference\s+Include=")UnityMCP\.')
+_BARE_REF = re.compile(r'(<ProjectReference\s+Include=")(?!sonar-)([^/\\][^"]*\.csproj")')
 _SLN_HEADER = """\
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 """
+
+
+def _patch_project_refs(content: str, sln_dir: Path) -> str:
+    """Fix ProjectReference paths in a copied .csproj so it resolves from repo root.
+
+    - UnityMCP.X.csproj → sonar-UnityMCP.X.csproj  (copies now live at root)
+    - bare Unity package refs → sln_dir/X.csproj     (still live in unity-test-project/)
+    """
+    content = _UNITY_MCP_REF.sub(r"\1sonar-UnityMCP.", content)
+    rel = sln_dir.as_posix() + "/"
+    content = _BARE_REF.sub(lambda m: m.group(1) + rel + m.group(2), content)
+    return content
 
 
 def main(dedup_sln: str, output_sln: str = "sonar.sln") -> int:
@@ -49,6 +63,10 @@ def main(dedup_sln: str, output_sln: str = "sonar.sln") -> int:
             continue
         dest = root / f"sonar-{name}.csproj"
         shutil.copy2(src, dest)
+        dest.write_text(
+            _patch_project_refs(dest.read_text(encoding="utf-8"), sln_dir),
+            encoding="utf-8",
+        )
         projects.append((name, dest.name, guid))
         print(f"  {src.name} -> {dest.name}")
 
