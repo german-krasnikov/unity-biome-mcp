@@ -150,6 +150,9 @@ jobs:
           fi
         continue-on-error: true
 
+      - name: Clean sonar .csproj from repo root
+        run: rm -f sonar-*.csproj sonar.sln
+
       - name: SonarScanner end
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
