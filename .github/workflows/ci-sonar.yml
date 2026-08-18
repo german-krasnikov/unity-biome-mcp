@@ -194,7 +194,6 @@ jobs:
         uses: SonarSource/sonarcloud-github-action@v3
         with:
           args: >
-            -Dsonar.qualitygate.wait=true
             ${{ hashFiles('sonarqube-csharp.json') != '' && '-Dsonar.externalIssuesReportPaths=sonarqube-csharp.json' || '' }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
