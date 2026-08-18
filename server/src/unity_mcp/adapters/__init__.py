@@ -1,5 +1,4 @@
 """Public API for the adapters package."""
-from __future__ import annotations
 
 from .fixture import FixtureAdapter
 from .protocol import AgentAdapter, EventContext

@@ -5,7 +5,6 @@ fallback validates substring-of-original to prevent hallucinations.
 
 Pure stateless transform — caller owns cache, focus tracking, scheduling.
 """
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass

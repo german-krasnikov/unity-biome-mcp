@@ -1,19 +1,15 @@
 """Content-addressed release evidence and strict runtime receipts."""
 
-from __future__ import annotations
 
 import hashlib
 import os
 import stat
+from collections.abc import Mapping  # noqa: TC003
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING
 
 from gauntlet.json_io import JsonFileError, parse_json_object
 from gauntlet.receipts import content_hash
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 _MAX_EVIDENCE_BYTES = 16 * 1024 * 1024
 _REF_KEYS = {"path", "sha256", "size_bytes"}

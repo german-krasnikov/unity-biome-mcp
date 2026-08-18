@@ -1,5 +1,4 @@
 """T16: snapshot_file() unit tests (4 tests)."""
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

@@ -5,6 +5,7 @@ Replaces dotnet-reqube which fails on Linux due to Windows-style path handling.
 
 Usage: python scripts/inspectcode_to_sonar.py inspectcode-report.xml -o sonarqube.json [--base-dir unity-test-project]
 """
+import contextlib
 import json
 import re
 import sys
@@ -62,10 +63,8 @@ def convert(xml_path: str, base_dir: str = "") -> dict:
                 elif path.startswith("../"):
                     path = str((Path(base_dir) / path).resolve().relative_to(Path.cwd()))
                 elif Path(path).is_absolute():
-                    try:
+                    with contextlib.suppress(ValueError):
                         path = str(Path(path).relative_to(Path(base_dir).resolve().parent))
-                    except ValueError:
-                        pass
 
             info = type_map[type_id]
             issues.append({

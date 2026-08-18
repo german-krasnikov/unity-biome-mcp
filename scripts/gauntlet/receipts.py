@@ -1,16 +1,13 @@
-from __future__ import annotations
 
 import hashlib
 import json
 import os
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from collections.abc import Callable, Mapping  # noqa: TC003
+from datetime import UTC, datetime
+from pathlib import Path  # noqa: TC003
+from typing import Any
 
 from gauntlet.json_io import JsonFileError, parse_json_object
-
-if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
-    from pathlib import Path
 
 _GENESIS_HASH = "0" * 64
 _EVENT_FIELDS = frozenset(
@@ -32,7 +29,7 @@ class JournalError(ValueError):
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_bytes(value: object) -> bytes:

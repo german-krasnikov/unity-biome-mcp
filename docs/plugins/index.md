@@ -11,7 +11,7 @@ scene changes, use the existing tools or `execute_code` instead.
 ## Prerequisites
 
 - Unity Biome MCP installed in the target Unity 6 project
-- Python 3.10 or newer for plugin development
+- Python 3.14 or newer for plugin development
 - an Editor folder or Unity package for the C# integration
 
 ## 1. Create the Python Package
@@ -34,7 +34,7 @@ Declare the server package and plugin entry point:
 [project]
 name = "my-unity-plugin"
 version = "0.1.0"
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 dependencies = ["unity-biome-mcp"]
 
 [project.entry-points."unity_mcp.plugins"]

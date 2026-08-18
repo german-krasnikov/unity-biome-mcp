@@ -1197,7 +1197,13 @@ async def test_watchdog_task_stored(running_relay):
 # ─── C3: resolve_binary is async ────────────────────────────────────────────
 
 async def test_resolve_binary_does_not_block_event_loop():
-    """C3: resolve_binary must be awaitable and not block other tasks."""
+    """C3: resolve_binary offloads shell lookup to asyncio.to_thread (non-blocking).
+
+    Uses a spy instead of a concurrent task: Python 3.14's scheduler may process
+    thread-completion callbacks before pending tasks, making the timing-based
+    assertion racy.  Verifying that to_thread is called proves the same thing
+    (the call is awaitable and never blocks the event loop) without clock deps.
+    """
     from dataclasses import dataclass as _dc
     from unity_mcp.backend_def import BackendDef
 
@@ -1208,15 +1214,18 @@ async def test_resolve_binary_does_not_block_event_loop():
         has_resume: bool = False
         def build_args(self, **_): return [], {}, []
 
-    ran = asyncio.Event()
+    to_thread_called = False
+    _real = asyncio.to_thread
 
-    async def background():
-        ran.set()
+    async def _spy(func, *args, **kwargs):
+        nonlocal to_thread_called
+        to_thread_called = True
+        return await _real(func, *args, **kwargs)
 
-    task = asyncio.create_task(background())
-    result = await _NeverFound().resolve_binary()
-    assert ran.is_set()   # must be set before await task — proves concurrent execution
-    await task
+    with patch("asyncio.to_thread", _spy):
+        result = await _NeverFound().resolve_binary()
+
+    assert to_thread_called, "resolve_binary must offload to asyncio.to_thread"
     assert result is None
 
 

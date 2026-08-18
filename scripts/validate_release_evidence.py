@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Validate exact release artifacts and conformance evidence."""
 
-from __future__ import annotations
 
 import argparse
 import sys

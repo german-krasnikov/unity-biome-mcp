@@ -12,7 +12,6 @@ Control and trace traffic stays under ``Library`` so no source or package file i
 changed while UTF is executing.
 """
 
-from __future__ import annotations
 
 import argparse
 import asyncio
@@ -346,12 +345,7 @@ async def _wait_for_worker_disconnect(
             ).resolve()
             if actual != project.resolve():
                 return
-        except (
-            OSError,
-            ConnectionError,
-            asyncio.TimeoutError,
-            durable.RunnerError,
-        ):
+        except (TimeoutError, OSError, ConnectionError, durable.RunnerError):
             return
         await asyncio.sleep(min(poll_interval, max(0.0, deadline - time.monotonic())))
     raise TimeoutError(
@@ -374,12 +368,7 @@ async def _wait_for_replacement_port(
             advertised = durable.advertised_ports(project, None)
             if expected_port in advertised:
                 return await durable.verified_port(project, expected_port)
-        except (
-            OSError,
-            ConnectionError,
-            asyncio.TimeoutError,
-            durable.RunnerError,
-        ) as error:
+        except (TimeoutError, OSError, ConnectionError, durable.RunnerError) as error:
             last_error = f"{type(error).__name__}: {error}"
         await asyncio.sleep(min(poll_interval, max(0.0, deadline - time.monotonic())))
     raise TimeoutError(
@@ -772,12 +761,7 @@ async def _run_scenario_once(
             initial = await durable.call(
                 initial_port, "run_tests", command_args, timeout=30.0
             )
-        except (
-            OSError,
-            ConnectionError,
-            asyncio.TimeoutError,
-            durable.TransportUncertain,
-        ):
+        except (TimeoutError, OSError, ConnectionError, durable.TransportUncertain):
             print("    start ACK uncertain; resolving the original request_id")
 
         run_id = await durable.resolve_run_id(
@@ -947,7 +931,7 @@ def main() -> int:
     except TimeoutError as error:
         print(f"TIMEOUT: {error}", file=sys.stderr)
         return 2
-    except (AcceptanceError, OSError, asyncio.TimeoutError) as error:
+    except (AcceptanceError, OSError) as error:
         print(f"FAILED: {error}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:

@@ -1,5 +1,4 @@
 """Tests for FixtureAdapter — replays T12 JSONL fixtures. (7 tests)"""
-from __future__ import annotations
 
 from pathlib import Path
 

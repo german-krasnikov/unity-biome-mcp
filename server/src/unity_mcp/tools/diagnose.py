@@ -17,15 +17,12 @@ Sends the diagnose TCP command, parses the text wire-format, applies the
 
 Priority order: first match wins (see _verdict).
 """
-from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+
+from unity_mcp.editor_log import WedgeReport  # noqa: TC001
 
 from ._common import bind
-
-if TYPE_CHECKING:
-    from unity_mcp.editor_log import WedgeReport
 
 _send = None
 

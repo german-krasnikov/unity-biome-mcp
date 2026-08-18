@@ -1,6 +1,5 @@
 """Strict outer-container framing for release archives."""
 
-from __future__ import annotations
 
 import struct
 import zlib

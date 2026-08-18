@@ -98,7 +98,7 @@ async def test_suspend_returns_false_if_reconnected_during_teardown():
 async def test_suspend_aborts_when_queue_nonempty():
     """Queue non-empty → returns False, state unchanged."""
     bridge = _connected_bridge()
-    future = asyncio.get_event_loop().create_future()
+    future = asyncio.get_running_loop().create_future()
     await bridge._send_queue.put(("ping", b"x", "001", 30.0, 0.0, "op", future))
 
     result = await bridge.suspend()
@@ -135,7 +135,7 @@ async def test_suspend_race_request_arrives_before_lock():
     await hold.wait()
 
     # Enqueue an item while the lock is held by the other task
-    future = asyncio.get_event_loop().create_future()
+    future = asyncio.get_running_loop().create_future()
     await bridge._send_queue.put(("ping", b"x", "001", 30.0, 0.0, "op", future))
 
     # suspend() must wait for the lock, then see the non-empty queue
@@ -288,7 +288,7 @@ async def test_schedule_dormant_toctou_guard(monkeypatch):
     mock_slot = MagicMock()
     mock_slot.bridge = bridge_mock
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
     monkeypatch.setattr(srv, "_sigterm_state", {"loop": loop})
     monkeypatch.setattr(srv, "_last_useful_activity", time.monotonic())  # just now
     monkeypatch.setattr(srv, "slot", mock_slot)

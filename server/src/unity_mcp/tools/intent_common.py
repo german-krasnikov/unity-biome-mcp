@@ -1,5 +1,6 @@
 """Shared DSL utilities for Tier B intent tools."""
-from collections.abc import Callable
+
+from collections.abc import Callable  # noqa: TC003
 
 from mcp.server.fastmcp.exceptions import ToolError
 

@@ -1,5 +1,4 @@
 """Fixtures for seam tests: SeamWorker + seam_bridge + seam_worker."""
-from __future__ import annotations
 
 import os
 import re

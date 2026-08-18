@@ -1,7 +1,7 @@
 """Shared collapse of a raw Unity bridge dict into (text, ok)."""
 
 
-def unwrap_bridge_result(result: dict) -> "tuple[str, bool]":
+def unwrap_bridge_result(result: dict) -> tuple[str, bool]:
     """Collapse {"ok":bool,"data":...,"err":...,"file":...} into (text, ok).
 
     ok=True: text is data, or "Data saved to: <file>" when file is present

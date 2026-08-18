@@ -966,7 +966,7 @@ async def test_timed_send_cancels_slow_send():
     from unity_mcp.tools.sync import _timed_send as timed_send
 
     async def slow_send(cmd, args):
-        fut = asyncio.get_event_loop().create_future()
+        fut = asyncio.get_running_loop().create_future()
         await fut  # never resolves
 
     t0 = time.monotonic()

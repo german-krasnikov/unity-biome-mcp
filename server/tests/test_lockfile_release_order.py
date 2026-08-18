@@ -1,6 +1,5 @@
 """Portable lockfile release-order regressions."""
 
-from __future__ import annotations
 
 from typing import TYPE_CHECKING
 

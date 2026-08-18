@@ -1,14 +1,10 @@
-from __future__ import annotations
 
+from collections.abc import Mapping  # noqa: TC003
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
+from enum import StrEnum
 
 
-class EffectDomain(str, Enum):
+class EffectDomain(StrEnum):
     """State domains a public operation may affect."""
 
     PURE_READ = "pure_read"
@@ -21,7 +17,7 @@ class EffectDomain(str, Enum):
     EXTERNAL_SERVICE = "external_service"
 
 
-class Verdict(str, Enum):
+class Verdict(StrEnum):
     PASS = "pass"
     FAIL = "fail"
     BLOCKED = "blocked"

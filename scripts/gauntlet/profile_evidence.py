@@ -1,9 +1,9 @@
 """Derive profile results from immutable JUnit, journal, and receipt bytes."""
 
-from __future__ import annotations
 
+from collections.abc import Mapping  # noqa: TC003
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from pathlib import Path  # noqa: TC003
 
 from gauntlet.attestations import (
     AttestationError,
@@ -11,16 +11,11 @@ from gauntlet.attestations import (
     parse_receipt_bytes,
     read_verified_file,
 )
+from gauntlet.evidence_schema import ProfileRequirement  # noqa: TC001
 from gauntlet.journal_validation import validate_terminal_journal
 from gauntlet.junit import JUnitError, JUnitResult, parse_attested_pytest_junit_bytes
 from gauntlet.package_contracts import UNITY_UPM_ARTIFACT_TYPES
 from gauntlet.receipts import JournalError, verify_journal_bytes
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
-    from pathlib import Path
-
-    from gauntlet.evidence_schema import ProfileRequirement
 
 _ARTIFACT_KEYS = {"junit", "journal", "runtime", "workers", "cleanup"}
 

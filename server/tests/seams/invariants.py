@@ -6,7 +6,6 @@ Each function tests one seam class:
   assert_surface_consistency   — tool reachable both direct and via batch
   assert_composition           — N-step composition preserves coherent state
 """
-from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field

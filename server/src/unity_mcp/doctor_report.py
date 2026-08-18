@@ -1,5 +1,4 @@
 """Human-readable report formatting for doctor check results."""
-from __future__ import annotations
 
 from dataclasses import dataclass
 

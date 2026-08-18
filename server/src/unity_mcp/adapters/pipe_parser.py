@@ -5,7 +5,7 @@ Stateless. Never raises. Unknown prefixes return [].
 import json
 
 from ..agent_event import AgentEvent
-from .protocol import EventContext
+from .protocol import EventContext  # noqa: TC001
 
 
 def _make_event(kind: str, payload: dict, ctx: EventContext) -> AgentEvent:

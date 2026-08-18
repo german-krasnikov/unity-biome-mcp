@@ -1,5 +1,4 @@
 """Gate 7: Error Recovery — graceful error handling and state safety."""
-from __future__ import annotations
 
 import pytest
 

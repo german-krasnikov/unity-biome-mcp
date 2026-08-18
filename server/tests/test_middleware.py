@@ -1093,7 +1093,7 @@ async def test_reset_session_cancels_bg_tasks():
     async def long_running():
         await _asyncio.sleep(9999)
 
-    task = _asyncio.ensure_future(long_running())
+    task = _asyncio.create_task(long_running())
     mw._bg_tasks.add(task)
 
     mw.reset_session()

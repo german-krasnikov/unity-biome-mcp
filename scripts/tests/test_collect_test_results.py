@@ -1,5 +1,4 @@
 """Tests for collect_test_results.py."""
-from __future__ import annotations
 
 import json
 import subprocess

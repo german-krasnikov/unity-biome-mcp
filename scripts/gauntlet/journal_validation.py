@@ -1,9 +1,8 @@
 """Semantic and terminal validation for hash-chained Gauntlet journals."""
 
-from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from gauntlet.receipts import JournalError, content_hash
@@ -136,7 +135,7 @@ def _validate_timestamps(events: list[dict[str, Any]]) -> None:
             raise JournalError("journal timestamp must be RFC3339") from exc
         if parsed.tzinfo is None:
             raise JournalError("journal timestamp must include a timezone")
-        current = parsed.astimezone(timezone.utc)
+        current = parsed.astimezone(UTC)
         if previous is not None and current < previous:
             raise JournalError("journal timestamps are not monotonic")
         previous = current

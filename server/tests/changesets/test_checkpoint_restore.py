@@ -1,5 +1,4 @@
 """T19: checkpoint_restore unit tests."""
-from __future__ import annotations
 
 from pathlib import Path
 

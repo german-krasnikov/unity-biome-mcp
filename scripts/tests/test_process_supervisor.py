@@ -1,19 +1,15 @@
 """Behavioral tests for bounded POSIX process-group ownership."""
 
-from __future__ import annotations
 
 import hashlib
 import os
 import sys
 import threading
 import time
+from collections.abc import Callable  # noqa: TC003
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 POSIX_ONLY = pytest.mark.skipif(
     os.name != "posix",

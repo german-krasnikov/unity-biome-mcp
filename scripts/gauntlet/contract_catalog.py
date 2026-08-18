@@ -1,21 +1,19 @@
 """Strict reviewed contract catalog for deterministic Gauntlet scenarios."""
 
-from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import (
+    Mapping,
+    Set,  # noqa: TC003
+)
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
+from pathlib import Path  # noqa: TC003
 from types import MappingProxyType
-from typing import TYPE_CHECKING
 
 from gauntlet.json_io import JsonFileError, load_json_object, parse_json_object
 from gauntlet.model import Contract, EffectDomain
 from gauntlet.receipts import content_hash
-
-if TYPE_CHECKING:
-    from collections.abc import Set
-    from pathlib import Path
 
 _ROOT_KEYS = {
     "schema_version",
@@ -41,12 +39,12 @@ class CatalogError(ValueError):
     """Raised when a reviewed contract manifest is incomplete or unsafe."""
 
 
-class CatalogScope(str, Enum):
+class CatalogScope(StrEnum):
     BUILTIN = "builtin"
     PLUGIN = "plugin"
 
 
-class RetryPolicy(str, Enum):
+class RetryPolicy(StrEnum):
     BLIND_SAFE = "blind_safe"
     RECONCILE = "reconcile"
     NEVER = "never"

@@ -3,7 +3,7 @@ import asyncio
 import json
 import sys
 from contextlib import asynccontextmanager, suppress
-from pathlib import Path
+from pathlib import Path  # noqa: TC003
 
 from .bridge_socket import frame_read_with_timeout, frame_write
 from .constants import DEFAULT_PORT
@@ -28,13 +28,13 @@ def _lock_dir() -> Path:
 
 async def check_python_version() -> CheckResult:
     major, minor = sys.version_info[:2]
-    ok = (major, minor) >= (3, 10)
+    ok = (major, minor) >= (3, 14)
     detail = f"{major}.{minor}.{sys.version_info[2]}"
     return CheckResult(
         name="python_version",
         ok=ok,
-        detail=detail if ok else f"{detail} (need ≥3.10)",
-        fix_cmd="" if ok else "Install Python 3.10+",
+        detail=detail if ok else f"{detail} (need ≥3.14)",
+        fix_cmd="" if ok else "Install Python 3.14+",
     )
 
 
@@ -150,7 +150,7 @@ async def check_tcp_connection(port: int = 0) -> CheckResult:
             f"Cannot connect to :{port} — Unity Biome MCP plugin not running",
             fix_cmd=USER_MESSAGES["disconnected"],
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         return CheckResult(
             "tcp_connection", False,
             f"Timeout connecting to :{port}",

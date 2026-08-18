@@ -1,6 +1,5 @@
 """CLI integration tests for policy-bound exact conformance execution."""
 
-from __future__ import annotations
 
 import subprocess
 import sys

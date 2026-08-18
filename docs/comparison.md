@@ -35,7 +35,7 @@ versions, deployment models, safety controls, and workflows.
   [pixel baselines with optional semantic comparison](tools/screenshots.md#screenshot_compare),
   and a broad local Unity tool surface.
 - **Snapshot:** [Unity 6000.0](https://github.com/german-krasnikov/unity-biome-mcp/blob/master/unity-plugin/package.json);
-  [160 registered tools](assets/_meta.json); Python 3.10+ through `uv`;
+  [160 registered tools](assets/_meta.json); Python 3.14+ through `uv`;
   [MIT](https://github.com/german-krasnikov/unity-biome-mcp/blob/master/LICENSE).
 - **Relevant constraint:** Unity 6 and a Python/`uv` server. Semantic comparison
   requires a configured Claude CLI and LLM budget. Remote transport and MCP in a

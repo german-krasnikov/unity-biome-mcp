@@ -9,17 +9,13 @@ Usage:
     python scripts/minimize_repro.py trace.jsonl --output minimal.jsonl --fail-on-cmd get_hierarchy
     python scripts/minimize_repro.py trace.jsonl --output minimal.jsonl --fail-fn my_check.py
 """
-from __future__ import annotations
 
 import argparse
 import importlib.util
 import json
 import sys
+from collections.abc import Callable  # noqa: TC003
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 
 def load_steps(path: str) -> list[dict]:

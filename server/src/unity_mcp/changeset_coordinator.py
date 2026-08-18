@@ -1,15 +1,11 @@
 """T15: ChangeSet coordinator — module-level singleton for session lifecycle."""
-from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from collections.abc import Callable  # noqa: TC003
+from datetime import UTC, datetime
+from pathlib import Path  # noqa: TC003
 
 from .changeset import ChangeOperation, ChangeSet, ContentRef
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-    from pathlib import Path
 
 
 class ChangeSetCoordinator:
@@ -60,7 +56,7 @@ class ChangeSetCoordinator:
             before_ref=before_ref,
             after_ref=after_ref,
             reversible=True,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
         )
         self._current.operations.append(op)
         if self._journal is not None:
@@ -70,7 +66,7 @@ class ChangeSetCoordinator:
         if self._current is None:
             return
         self._current.status = "finalized"
-        self._current.finalized_at = datetime.now(timezone.utc).isoformat()
+        self._current.finalized_at = datetime.now(UTC).isoformat()
 
     def get_current(self) -> ChangeSet | None:
         return self._current
@@ -83,7 +79,7 @@ class ChangeSetCoordinator:
         cs = ChangeSet(
             changeset_id=str(uuid.uuid4()),
             session_id=session_id,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
         )
         self._current = cs
 

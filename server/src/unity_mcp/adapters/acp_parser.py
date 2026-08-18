@@ -2,15 +2,11 @@
 
 Stateless. Never raises. Unknown types return [].
 """
-from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING
 
 from ..agent_event import AgentEvent
-
-if TYPE_CHECKING:
-    from .protocol import EventContext
+from .protocol import EventContext  # noqa: TC001
 
 
 def _make(kind: str, payload: dict, ctx: EventContext) -> AgentEvent:

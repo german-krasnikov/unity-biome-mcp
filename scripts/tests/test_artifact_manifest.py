@@ -1,6 +1,5 @@
 """Artifact identity tests for build-once/test-once/publish-once releases."""
 
-from __future__ import annotations
 
 import json
 import sys

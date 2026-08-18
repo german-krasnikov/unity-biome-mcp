@@ -1,10 +1,10 @@
 """Reusable, coherent release-evidence bundle for gate integration tests."""
 
-from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
-from typing import TYPE_CHECKING
+from collections.abc import Callable  # noqa: TC003
+from datetime import UTC, datetime
+from pathlib import Path  # noqa: TC003
 
 from gauntlet.artifacts import build_artifact_manifest, write_artifact_manifest
 from gauntlet.attestations import build_file_reference, build_receipt
@@ -22,10 +22,6 @@ from player_playtest_gate_test_support import (
     write_player_playtest_evidence_set,
 )
 from release_source_test_support import HARNESS_LOCK_RELATIVE, prepare_source
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-    from pathlib import Path
 
 VERSION = "1.27.0"
 RUN_ID = "run-release-gate"
@@ -112,7 +108,7 @@ def prepare_bundle(
     }
     paths.update(write_player_playtest_evidence_set(bundle, head_sha))
     paths["head"].write_text(head_sha, encoding="ascii")
-    finished_at = datetime.now(timezone.utc).isoformat()
+    finished_at = datetime.now(UTC).isoformat()
     write_attested_junit(
         paths["junit"],
         zip(profile.scenario_ids, profile.pytest_node_ids, strict=True),

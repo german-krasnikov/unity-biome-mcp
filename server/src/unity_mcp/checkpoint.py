@@ -1,11 +1,9 @@
 """T19: Checkpoint, FileManifest, ConflictInfo — immutable value objects. No I/O."""
-from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
-if TYPE_CHECKING:
-    from .changeset import ContentRef
+from .changeset import ContentRef  # noqa: TC001
 
 CheckpointState = Literal["preparing", "ready", "restored", "failed", "expired"]
 

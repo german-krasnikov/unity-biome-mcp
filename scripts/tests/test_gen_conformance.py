@@ -2,7 +2,6 @@
 
 No Unity, no unity_mcp import — tests inject FakeConformanceToolSchema directly.
 """
-from __future__ import annotations
 
 import pathlib
 import sys

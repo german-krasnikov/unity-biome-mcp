@@ -1,11 +1,10 @@
 """Tests for deferred/lazy schema loading (F4)."""
 import os
 from types import SimpleNamespace
-from typing import Optional
 from unittest.mock import AsyncMock, patch, MagicMock
 
 
-def _tool(name: str, description: str = "desc", input_schema: Optional[dict] = None):
+def _tool(name: str, description: str = "desc", input_schema: dict | None = None):
     t = SimpleNamespace(
         name=name,
         description=description,

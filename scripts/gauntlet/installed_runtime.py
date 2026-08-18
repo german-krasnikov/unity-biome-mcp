@@ -1,6 +1,5 @@
 """Install and prove the Python MCP runtime from one staged wheel."""
 
-from __future__ import annotations
 
 import hashlib
 import json

@@ -37,7 +37,7 @@ class CostTracker:
         except (OSError, json.JSONDecodeError, UnicodeDecodeError):
             return {}
 
-    def _save(self) -> "tuple[bool, str]":
+    def _save(self) -> tuple[bool, str]:
         """Atomic write with per-PID tmp + fcntl. Returns (success, reason_if_failed)."""
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)

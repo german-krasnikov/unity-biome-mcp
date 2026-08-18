@@ -1,6 +1,5 @@
 """Fail-closed source-to-wheel metadata contract regressions."""
 
-from __future__ import annotations
 
 import struct
 import sys
@@ -39,7 +38,7 @@ def _project(**overrides: object) -> dict[str, object]:
         "license": {"text": "MIT"},
         "authors": [{"name": "Release Bot", "email": "release@example.invalid"}],
         "classifiers": ["Programming Language :: Python :: 3"],
-        "requires-python": ">=3.10",
+        "requires-python": ">=3.14",
         "dependencies": ["demo>=1"],
         "optional-dependencies": {"dev": ["pytest>=8"]},
         "urls": {"Homepage": "https://example.invalid/project"},
@@ -59,7 +58,7 @@ def _metadata(*extra_headers: str, body: str = "") -> object:
         "Author-email: Release Bot <release@example.invalid>",
         "License: MIT",
         "Classifier: Programming Language :: Python :: 3",
-        "Requires-Python: >=3.10",
+        "Requires-Python: >=3.14",
         "Requires-Dist: demo>=1",
         "Provides-Extra: dev",
         "Requires-Dist: pytest>=8; extra == 'dev'",

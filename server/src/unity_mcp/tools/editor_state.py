@@ -3,7 +3,6 @@
 C# format: "playing:True\\npaused:False\\ncompiling:False\\nscene:SceneName"
 Use these helpers instead of inline substring checks across the codebase.
 """
-from __future__ import annotations
 
 
 def parse_editor_field(state: str | None, field: str) -> str | None:

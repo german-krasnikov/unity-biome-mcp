@@ -1,5 +1,4 @@
 """T16: get_changeset MCP tool unit tests (5 tests)."""
-from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 

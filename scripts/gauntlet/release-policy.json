@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "policy_version": "1.0.0",
-  "activation_product_version": "1.41.0",
+  "activation_product_version": "1.42.0",
   "harness_lock_path": "server/uv.lock",
   "contract_catalog_path": "scripts/gauntlet/contracts.json",
   "contract_catalog_sha": "64a553fb93035458d9b2d5f39f6d4501a0ed053d3f44ecaafdcb40101d2bdbde",
@@ -12,11 +12,11 @@
   ],
   "profiles": [
     {
-      "id": "public-stdio-linux-py312",
+      "id": "public-stdio-linux-py314",
       "active": true,
       "driver": "public_stdio",
       "os": "linux",
-      "python": "3.12",
+      "python": "3.14",
       "unity": null,
       "plugin_scope": "none",
       "required_workers": 0,
@@ -40,11 +40,11 @@
       "max_age_seconds": 86400
     },
     {
-      "id": "unity-editor-macos-py312",
+      "id": "unity-editor-macos-py314",
       "active": true,
       "driver": "unity_editor",
       "os": "macos",
-      "python": "3.12",
+      "python": "3.14",
       "unity": "6000.0.65f1",
       "plugin_scope": "exact",
       "required_workers": 1,

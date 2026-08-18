@@ -1,15 +1,11 @@
 """Fail-closed validation for built-player PlayTest CI evidence."""
 
-from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Sequence  # noqa: TC003
+from pathlib import Path  # noqa: TC003
 
 from gauntlet.json_io import JsonFileError, load_json_object
 from gauntlet.receipts import content_hash
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-    from pathlib import Path
 
 REQUIRED_MATRICES = ("Linux", "macOS", "Windows")
 _EXPECTED_FAILURE_STEPS = (

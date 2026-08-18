@@ -1,16 +1,12 @@
 """Regression tests for ClientSkills Claude -> Codex conversion."""
 
-from __future__ import annotations
 
 import importlib.util
+import pathlib  # noqa: TC003
 import sys
 from textwrap import dedent
-from typing import TYPE_CHECKING
 
 import pytest
-
-if TYPE_CHECKING:
-    import pathlib
 
 
 def load_converter(repo_root: pathlib.Path):

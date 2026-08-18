@@ -1,13 +1,10 @@
 """T21: ContextBuilder + built-in AttachmentProviders — provider-neutral context assembly."""
-from __future__ import annotations
 
 import asyncio
-from typing import TYPE_CHECKING, Protocol
+from collections.abc import Awaitable, Callable  # noqa: TC003
+from typing import Protocol
 
 from .brief import PRIORITY_RANK, AttachmentKind, AttachmentSlot, ContextBrief, Priority
-
-if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
 
 _PROVIDER_TIMEOUT = 5.0
 

@@ -1,17 +1,12 @@
 """Install verified Unity package artifacts into a disposable worker snapshot."""
 
-from __future__ import annotations
 
 import shutil
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from pathlib import Path  # noqa: TC003
 
+from gauntlet.artifact_contracts import ArtifactManifest  # noqa: TC001
 from gauntlet.artifacts import ArtifactError, load_artifact_manifest, verify_artifact_files
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from gauntlet.artifact_contracts import ArtifactManifest
 
 
 class WorkerArtifactError(RuntimeError):

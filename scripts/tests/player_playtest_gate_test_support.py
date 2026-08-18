@@ -1,12 +1,8 @@
-from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from pathlib import Path  # noqa: TC003
 
 from gauntlet.receipts import content_hash
 from gauntlet_test_fixtures import write_json
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 PLAYER_MATRICES = ("Linux", "macOS", "Windows")
 SUCCESS_STEPS = 14

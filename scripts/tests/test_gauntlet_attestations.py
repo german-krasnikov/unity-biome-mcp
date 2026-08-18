@@ -1,6 +1,5 @@
 """Tests for content-addressed runtime, worker, and cleanup evidence."""
 
-from __future__ import annotations
 
 import json
 import sys

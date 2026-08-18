@@ -68,9 +68,9 @@ async def test_slow_server_response():
     bridge = UnityBridge(port=port)
     await bridge.connect()
 
-    start = asyncio.get_event_loop().time()
+    start = asyncio.get_running_loop().time()
     result = await bridge.send("slow_cmd", {})
-    elapsed = asyncio.get_event_loop().time() - start
+    elapsed = asyncio.get_running_loop().time() - start
 
     assert result["data"] == "slow_response"
     assert elapsed >= 0.5

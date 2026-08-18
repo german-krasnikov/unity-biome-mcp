@@ -5,7 +5,7 @@ Bumps only the patch component: 0.20.3 → 0.20.4.
 """
 import json
 import os
-from pathlib import Path
+from pathlib import Path  # noqa: TC003
 
 
 def _bump_str(version: str) -> str:

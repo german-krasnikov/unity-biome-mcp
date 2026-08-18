@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Run live MCP conformance on disposable Unity projects in hosted CI."""
 
-from __future__ import annotations
 
 import argparse
 import sys

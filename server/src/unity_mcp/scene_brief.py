@@ -3,7 +3,7 @@
 Enable: UNITY_MCP_SCENE_BRIEF=1
 """
 import os
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable  # noqa: TC003
 
 from .console_levels import PROBLEM_LEVELS
 

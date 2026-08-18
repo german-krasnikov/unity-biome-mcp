@@ -1,5 +1,4 @@
 """Wire-level fault injection tests using MitmProxy (no Unity required)."""
-from __future__ import annotations
 
 import pytest
 

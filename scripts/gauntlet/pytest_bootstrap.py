@@ -1,17 +1,13 @@
 """Isolated pytest bootstrap with pre-imported trusted plugins."""
 
-from __future__ import annotations
 
 import sys
+from collections.abc import Sequence  # noqa: TC003
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio.plugin as asyncio_plugin
 import pytest_timeout as timeout_plugin
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 
 def main(argv: Sequence[str] | None = None) -> int:

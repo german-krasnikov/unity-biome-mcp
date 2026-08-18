@@ -1,5 +1,4 @@
 """MITM proxy for wire-level fault injection tests."""
-from __future__ import annotations
 
 import asyncio
 import json

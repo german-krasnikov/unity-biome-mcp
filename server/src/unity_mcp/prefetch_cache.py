@@ -3,14 +3,10 @@ results when agent's next call matches a prior write's mandated read.
 
 Pure heuristic, $0 cost, deterministic. Default-on, opt-out via UNITY_MCP_PREFETCH_CACHE=0.
 """
-from __future__ import annotations
 
 import time
 from collections import OrderedDict
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003
 
 # Verification gates per CLAUDE.md — write CMD → predicted next read CMD+args
 # After write succeeds, fire the predicted read in BACKGROUND, populate cache.

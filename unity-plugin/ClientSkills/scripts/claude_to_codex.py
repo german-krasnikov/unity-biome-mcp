@@ -15,7 +15,6 @@ The converter keeps instruction bodies intact except for Codex-local path
 references, and normalizes the wrapper metadata Codex expects.
 """
 
-from __future__ import annotations
 
 import argparse
 import filecmp

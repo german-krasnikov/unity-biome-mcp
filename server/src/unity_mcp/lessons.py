@@ -8,7 +8,7 @@ import json
 import os
 import time
 from dataclasses import asdict, dataclass
-from pathlib import Path
+from pathlib import Path  # noqa: TC003
 
 
 @dataclass

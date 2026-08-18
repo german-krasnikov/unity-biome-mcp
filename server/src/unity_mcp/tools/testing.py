@@ -387,7 +387,7 @@ async def run_tests_wait(
                 resolved = await asyncio.wait_for(
                     resolve_test_request(stable_request_id), timeout=remaining
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 break
             except Exception:
                 resolved = ""
@@ -417,7 +417,7 @@ async def run_tests_wait(
                             ),
                             timeout=remaining,
                         )
-                    except asyncio.TimeoutError:
+                    except TimeoutError:
                         break
                     except Exception:
                         resumed = ""
@@ -453,7 +453,7 @@ async def run_tests_wait(
                 current = await asyncio.wait_for(
                     get_test_run(run_id), timeout=remaining
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 break
             except Exception:
                 current = ""

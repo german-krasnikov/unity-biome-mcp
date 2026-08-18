@@ -1,5 +1,4 @@
 """T23: ConversationHeader + EXCLUDED_KINDS unit tests."""
-from __future__ import annotations
 
 
 def test_roundtrip(tmp_path):

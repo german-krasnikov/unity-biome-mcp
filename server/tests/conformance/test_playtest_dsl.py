@@ -1,5 +1,4 @@
 """Gate 4: Playtest DSL — static validation without Play Mode."""
-from __future__ import annotations
 
 import pytest
 

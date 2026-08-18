@@ -1,10 +1,10 @@
 """AgentAdapter Protocol + EventContext dataclass."""
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator  # noqa: TC003
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from ..agent_event import AgentEvent, ProviderCapabilities
-from ..cli_session import SessionMeta
+from ..agent_event import AgentEvent, ProviderCapabilities  # noqa: TC001
+from ..cli_session import SessionMeta  # noqa: TC001
 
 
 @runtime_checkable

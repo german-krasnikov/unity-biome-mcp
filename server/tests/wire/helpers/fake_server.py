@@ -1,5 +1,4 @@
 """FakeUnityServer: in-process TCP server speaking the 4-byte-prefix JSON protocol."""
-from __future__ import annotations
 
 import asyncio
 import json

@@ -1,6 +1,5 @@
 """Same-user process inventory for fail-closed residual detection."""
 
-from __future__ import annotations
 
 import ctypes
 import os

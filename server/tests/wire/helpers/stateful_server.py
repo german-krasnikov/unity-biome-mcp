@@ -1,5 +1,4 @@
 """StatefulUnityPeer + StatefulFakeServer: in-memory object registry for Hypothesis tests."""
-from __future__ import annotations
 
 import dataclasses
 from pathlib import Path

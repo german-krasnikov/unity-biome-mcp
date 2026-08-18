@@ -1,13 +1,12 @@
 """Tests for idempotentHint on write tools that are safe to repeat."""
 import pytest
-from typing import Optional
 from mcp.types import ToolAnnotations
 from unity_mcp.tools import objects, scene, asset, ui, connection, runtime
 from unity_mcp.tools import console, testing, editor_control, screenshot, spatial
 from unity_mcp.tools import metrics_tool, profiling
 
 
-def _get_annotation(module, fn_name: str) -> Optional[ToolAnnotations]:
+def _get_annotation(module, fn_name: str) -> ToolAnnotations | None:
     """Extract the _RW_IDEM / _RW / _RO constant used in register() for a given function."""
     import ast, inspect, textwrap
     src = inspect.getsource(module)

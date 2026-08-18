@@ -1,6 +1,5 @@
 """Small atomic JSON primitives shared by release evidence artifacts."""
 
-from __future__ import annotations
 
 import json
 import math
@@ -8,10 +7,7 @@ import os
 import stat
 import tempfile
 from contextlib import suppress
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from pathlib import Path  # noqa: TC003 — runtime: used in function bodies + PEP 649 annotations
 
 
 class JsonFileError(ValueError):

@@ -1,5 +1,4 @@
 """Tests for AcpAgentAdapter — mocked CliSession, no Unity. (14 tests)"""
-from __future__ import annotations
 
 import json
 from pathlib import Path

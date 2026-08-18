@@ -18,7 +18,7 @@ class ScreenshotDescriber:
         self,
         path: str,
         prompt_key: str,
-        scene_fp: "str | None",
+        scene_fp: str | None,
         *,
         mark: bool = False,
         rects: list | None = None,

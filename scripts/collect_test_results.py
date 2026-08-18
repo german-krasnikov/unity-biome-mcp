@@ -6,13 +6,12 @@ Format:
 
 Usage:
   # From pytest junitxml:
-  python scripts/collect_test_results.py --add-pytest reports/junit.xml --suite "Python 3.12" --platform linux --out docs/quality/data/tests.json
+  python scripts/collect_test_results.py --add-pytest reports/junit.xml --suite "Python 3.14" --platform linux --out docs/quality/data/tests.json
   # From Unity test results XML:
   python scripts/collect_test_results.py --add-nunit reports/editmode.xml --suite "C# EditMode (Linux)" --platform linux --out docs/quality/data/tests.json
   # Manual entry:
-  python scripts/collect_test_results.py --add-manual --suite "Python 3.12" --passed 4886 --failed 0 --skipped 3 --platform linux --out docs/quality/data/tests.json
+  python scripts/collect_test_results.py --add-manual --suite "Python 3.14" --passed 4886 --failed 0 --skipped 3 --platform linux --out docs/quality/data/tests.json
 """
-from __future__ import annotations
 
 import argparse
 import json

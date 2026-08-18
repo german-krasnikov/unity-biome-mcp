@@ -1,19 +1,17 @@
 """Canonical package-content digests derived from an exact Git commit."""
 
-from __future__ import annotations
 
 import hashlib
 import subprocess
-from pathlib import PurePosixPath
-from typing import TYPE_CHECKING
+from collections.abc import Mapping  # noqa: TC003
+from pathlib import (
+    Path,  # noqa: TC003
+    PurePosixPath,
+)
 
 from gauntlet.git_process import git_command, git_environment
 from gauntlet.package_archive_members import content_digest
 from gauntlet.package_contracts import MemberFingerprint
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
-    from pathlib import Path
 
 _MAX_MEMBERS = 20_000
 _MAX_MEMBER_BYTES = 256 * 1024 * 1024

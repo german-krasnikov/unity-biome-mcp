@@ -1,15 +1,12 @@
 """T19: restore_files() — write before-state blobs back to disk. Atomic writes."""
-from __future__ import annotations
 
 import contextlib
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from .changeset_store import ContentStore
-    from .checkpoint import ConflictInfo, FileManifest
+from .changeset_store import ContentStore  # noqa: TC001
+from .checkpoint import ConflictInfo, FileManifest  # noqa: TC001
 
 
 @dataclass

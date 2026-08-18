@@ -3,7 +3,6 @@
 No Unity Editor required — all transport is in-process TCP against StatefulFakeServer.
 Hypothesis shrinks failing sequences to minimal reproductions automatically.
 """
-from __future__ import annotations
 
 import asyncio
 

@@ -32,7 +32,7 @@ Inspect scenes, edit GameObjects, run playtests, and capture results through str
 Requirements: Unity 6 (`6000.0` or newer), Git 2.14+ on `PATH`, and
 [uv](https://docs.astral.sh/uv/). The MCP server does not need a separate Python
 installation when it runs through `uvx`; optional Codex skill synchronization
-requires Python 3.10 or newer on `PATH`. See the full
+requires Python 3.14 or newer on `PATH`. See the full
 [Getting Started prerequisites](docs/getting-started/index.md#prerequisites).
 
 ### 1. Install uv
@@ -112,7 +112,9 @@ See [Getting Started](docs/getting-started/index.md) for recovery steps and plat
 <details>
 <summary>Local development installation</summary>
 
-Requirements for a source checkout: Git and Python 3.10 or newer.
+Requirements for a source checkout: Git and Python 3.14 or newer.
+
+> **Upgrading from older Python:** Install Python 3.14 via `brew install python@3.14` (macOS), your system package manager (Linux), or [python.org](https://www.python.org/downloads/) (Windows). Then run `python install.py update` to recreate the virtual environment.
 
 ```bash
 git clone https://github.com/german-krasnikov/unity-biome-mcp.git
@@ -220,7 +222,7 @@ Codex synchronization.
 The values below are generated from registrations, pytest collection, Unity test discovery or source scanning, and package metadata. They are discovery counts, not a claim that every test was executed in the current checkout.
 
 <!-- README_STATS_START -->
-<img src="docs/assets/stats.svg" width="100%" alt="160 registered MCP tools. Test inventory: 14287 entries: 5765 regular Python, 511 Python stress, 634 live Python, and 7377 Unity source attributes. Unity count source: static source scan. Server package version: v1.41.0.">
+<img src="docs/assets/stats.svg" width="100%" alt="160 registered MCP tools. Test inventory: 14313 entries: 5791 regular Python, 511 Python stress, 634 live Python, and 7377 Unity source attributes. Unity count source: static source scan. Server package version: v1.42.0.">
 <!-- README_STATS_END -->
 
 ## Unity MCP Product Comparison
@@ -241,7 +243,7 @@ and records constraints as well as strengths.
 ## Recent Changes
 
 <!-- CHANGELOG_START -->
-**Current release: v1.41.0 (2026-08-17).** [Read the full changelog.](CHANGELOG.md)
+**Current release: v1.42.0 (2026-08-18).** [Read the full changelog.](CHANGELOG.md)
 <!-- CHANGELOG_END -->
 
 ## Contributing

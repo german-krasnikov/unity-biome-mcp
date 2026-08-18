@@ -1,5 +1,4 @@
 """Tests for acp_parser.parse_acp_line() — pure function, no mocks. (11 tests)"""
-from __future__ import annotations
 
 import json
 from pathlib import Path

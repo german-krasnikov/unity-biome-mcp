@@ -1,16 +1,11 @@
 """CodexAcpAdapter: Codex subprocess in ACP output mode."""
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
 
 from .. import mcp_config_writer
+from ..backend_def import CodexDef  # noqa: TC001
+from ..cli_session import SessionMeta  # noqa: TC001
 from ..config.merger import SERVER_NAME as _SERVER_NAME
+from ..permission_broker import PermissionBroker  # noqa: TC001
 from .acp import _ACP_FORMAT_FLAG, _ACP_FORMAT_VALUE, AcpAgentAdapter
-
-if TYPE_CHECKING:
-    from ..backend_def import CodexDef
-    from ..cli_session import SessionMeta
-    from ..permission_broker import PermissionBroker
 
 _MCP_STARTUP_TIMEOUT_SEC = 30
 

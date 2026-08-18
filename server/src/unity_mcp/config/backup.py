@@ -1,5 +1,5 @@
 """Timestamped backup for config files."""
-import pathlib
+import pathlib  # noqa: TC003
 import shutil
 from datetime import datetime
 

@@ -1,5 +1,4 @@
 """T16: get_changeset MCP tool — returns current ChangeSet as token-efficient text."""
-from __future__ import annotations
 
 
 async def get_changeset() -> str:

@@ -1,16 +1,12 @@
 """T23: HistoryStore — append events to JSONL, write meta atomically."""
-from __future__ import annotations
 
 import contextlib
 import json
 import os
-from typing import TYPE_CHECKING
+from pathlib import Path  # noqa: TC003
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-    from ..agent_event import AgentEvent
-    from .models import ConversationHeader
+from ..agent_event import AgentEvent  # noqa: TC001
+from .models import ConversationHeader  # noqa: TC001
 
 
 class HistoryStore:

@@ -1,5 +1,4 @@
 """Single-slot Unity connection holder. One bridge, optional port switch."""
-import asyncio
 
 from .bridge import UnityBridge
 from .constants import DEFAULT_PORT
@@ -63,7 +62,7 @@ class ConnectionSlot:
             self._host = host
             self._bridge.start_heartbeat()
             return f"Connected to Unity on port {port}"
-        except (OSError, asyncio.TimeoutError):
+        except (TimeoutError, OSError):
             return f"Registered Unity on port {port} (not yet available)"
 
     async def close(self):

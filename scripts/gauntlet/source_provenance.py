@@ -1,14 +1,13 @@
 """Independent Git and tracked-input observations for release gates."""
 
-from __future__ import annotations
 
 import hashlib
 import stat
 import subprocess
+from collections.abc import Mapping, Sequence  # noqa: TC003
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from types import MappingProxyType
-from typing import TYPE_CHECKING
 
 from gauntlet.git_process import git_command, git_environment
 from gauntlet.receipts import content_hash
@@ -16,9 +15,6 @@ from gauntlet.source_package_contents import (
     SourcePackageContentError,
     observe_package_content_digests,
 )
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
 
 _MAX_SOURCE_INPUT_BYTES = 32 * 1024 * 1024
 

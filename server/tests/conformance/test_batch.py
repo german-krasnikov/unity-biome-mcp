@@ -1,5 +1,4 @@
 """Gate 6: Batch Operations — multi-command execution."""
-from __future__ import annotations
 
 import pytest
 

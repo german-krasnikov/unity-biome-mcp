@@ -6,15 +6,11 @@ auto-resolve if margin >= 2. Else block with candidate listing.
 # TODO(Cycle 5b): wire to resolve_path_live in middleware.py — when candidates > 1,
 # call Disambiguator.decide(query, candidates); on None block with format_block().
 """
-from __future__ import annotations
 
+from collections import deque  # noqa: TC003
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 from .utils import _levenshtein
-
-if TYPE_CHECKING:
-    from collections import deque
 
 
 @dataclass

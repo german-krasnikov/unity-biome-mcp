@@ -1,5 +1,4 @@
 """T19: CheckpointStore unit tests."""
-from __future__ import annotations
 
 import json
 import os

@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 from conformance.workers import ConformanceWorker, _parse_status
 

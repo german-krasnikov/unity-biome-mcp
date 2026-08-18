@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Unity Biome MCP installer. stdlib only, Python 3.10+."""
+"""Unity Biome MCP installer. stdlib only, Python 3.14+."""
+import sys
+if sys.version_info < (3, 14):
+    sys.exit(f"Python 3.14+ required, got {sys.version.split()[0]}\n  Download: https://python.org/downloads/")
 import argparse
 import json
 import re
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.resolve()

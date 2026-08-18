@@ -6,7 +6,6 @@ Usage:
     python scripts/gen_gauntlet_contracts.py --diff        # exit 2 if output differs
     python scripts/gen_gauntlet_contracts.py --output PATH # write to custom path
 """
-from __future__ import annotations
 
 import argparse
 import hashlib

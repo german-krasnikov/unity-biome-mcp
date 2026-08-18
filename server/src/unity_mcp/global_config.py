@@ -20,7 +20,7 @@ class GlobalConfig:
     _from_file: bool = field(default=False, repr=False)
 
     @classmethod
-    def load(cls) -> "GlobalConfig":
+    def load(cls) -> GlobalConfig:
         """Load config from disk. Never raises — returns defaults on any error."""
         try:
             data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))

@@ -1,7 +1,7 @@
 """MCP Resources — live Unity context exposed as resource URIs."""
 import asyncio
 import time
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003
 
 from .console_levels import PROBLEM_LEVELS
 

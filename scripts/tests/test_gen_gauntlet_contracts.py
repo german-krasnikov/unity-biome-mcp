@@ -2,7 +2,6 @@
 
 No Unity, no live deps — uses injected data directly.
 """
-from __future__ import annotations
 
 import pathlib
 import sys

@@ -2,7 +2,6 @@
 
 Functions that don't reference patchable config imports live here.
 """
-import argparse
 import json
 import platform
 import re
@@ -11,11 +10,15 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import argparse
 
 # ── pure helpers ──────────────────────────────────────────────────────────────
 
 def check_python() -> bool:
-    return sys.version_info >= (3, 10)
+    return sys.version_info >= (3, 14)
 
 
 def venv_python(server_dir: Path) -> Path:
@@ -82,7 +85,7 @@ def setup_env(server_dir: Path, codex_dir: Path, codex_config: Path, ui,
               force_recreate: bool = False) -> None:
     if not check_python():
         sys.exit(
-            f"Python 3.10+ required, got {sys.version.split()[0]}\n"
+            f"Python 3.14+ required, got {sys.version.split()[0]}\n"
             "  Download: https://python.org/downloads/\n"
             "  Windows tip: check 'Add Python to PATH' during install"
         )
@@ -133,7 +136,7 @@ def cmd_doctor(server_dir: Path, codex_config: Path, mcp_json: Path, ui,
         (ui.ok if result else ui.fail)(f"{label}{suffix}")
 
     ui.box(["Unity Biome MCP doctor"])
-    _check("Python >= 3.10", check_python(), sys.version.split()[0])
+    _check("Python >= 3.14", check_python(), sys.version.split()[0])
     _check("uv found", shutil.which("uv") is not None)
     _check("uvx found", shutil.which("uvx") is not None)
     _check("git found", shutil.which("git") is not None)

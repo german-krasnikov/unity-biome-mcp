@@ -3,10 +3,10 @@
 import html
 import json
 import os
-import pathlib
+import pathlib  # noqa: TC003
 import re
 import xml.etree.ElementTree as ET
-from collections.abc import Mapping
+from collections.abc import Mapping  # noqa: TC003
 
 _MARKER_NAME = r"[A-Z][A-Z0-9_]*"
 _MARKER_TOKEN_RE = re.compile(

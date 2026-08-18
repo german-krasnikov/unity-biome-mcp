@@ -1,16 +1,12 @@
 """Source-backed contracts for the public Markdown documentation."""
 
-from __future__ import annotations
 
 import ast
 import re
 import unicodedata
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from pathlib import Path  # noqa: TC003
 from urllib.parse import unquote
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 LINK_RE = re.compile(r"(?<!!)\[[^\]]*\]\(([^)]+)\)")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")

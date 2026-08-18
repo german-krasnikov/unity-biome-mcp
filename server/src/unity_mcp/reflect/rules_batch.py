@@ -1,6 +1,6 @@
 """Reflection rules for batch commands — parse sub-ops, cap warnings at 3."""
 import re
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable  # noqa: TC003
 
 from ..utils import parse_kv_line
 from . import Mismatch, register_rule

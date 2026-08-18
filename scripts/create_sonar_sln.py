@@ -40,8 +40,7 @@ def _patch_project_refs(content: str, sln_dir: Path) -> str:
     """
     content = _UNITY_MCP_REF.sub(r"\1sonar-UnityMCP.", content)
     rel = sln_dir.as_posix() + "/"
-    content = _BARE_REF.sub(lambda m: m.group(1) + rel + m.group(2), content)
-    return content
+    return _BARE_REF.sub(lambda m: m.group(1) + rel + m.group(2), content)
 
 
 def main(dedup_sln: str, output_sln: str = "sonar.sln") -> int:

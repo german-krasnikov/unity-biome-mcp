@@ -1,7 +1,6 @@
-from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING, Protocol
+from typing import Protocol
 
 from gauntlet.model import (
     Contract,
@@ -12,10 +11,10 @@ from gauntlet.model import (
     ToolResult,
     Verdict,
 )
-from gauntlet.receipts import content_hash
-
-if TYPE_CHECKING:
-    from gauntlet.receipts import ReceiptJournal
+from gauntlet.receipts import (
+    ReceiptJournal,  # noqa: TC001
+    content_hash,
+)
 
 
 class ScenarioDriver(Protocol):

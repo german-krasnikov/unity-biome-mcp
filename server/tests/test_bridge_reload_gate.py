@@ -49,7 +49,7 @@ async def test_reload_gate_early_wakeup_on_reconnect():
         await asyncio.sleep(0.01)  # much less than the 2s timeout below
         bridge._reload_gate.set()
 
-    asyncio.ensure_future(set_gate_after_short_delay())
+    asyncio.create_task(set_gate_after_short_delay())
 
     # wait_for with 2s timeout — should complete well before that via gate.set()
     import time

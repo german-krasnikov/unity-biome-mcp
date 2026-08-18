@@ -1,6 +1,5 @@
 """Materialize an overlay-free source tree from one exact Git commit."""
 
-from __future__ import annotations
 
 import shutil
 import stat

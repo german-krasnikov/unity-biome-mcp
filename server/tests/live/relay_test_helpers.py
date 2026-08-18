@@ -1,12 +1,11 @@
 """Shared helpers and fixtures for relay-based live tests."""
-from __future__ import annotations
 
 import asyncio
 import json
 import os
 import struct
 import sys
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import pytest
 

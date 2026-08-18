@@ -1,6 +1,5 @@
 """End-to-end tests for exact policy-bound pytest collection."""
 
-from __future__ import annotations
 
 import os
 import subprocess

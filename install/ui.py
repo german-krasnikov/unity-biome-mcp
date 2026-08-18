@@ -108,7 +108,7 @@ class Spinner:
             i += 1
             self._stop.wait(_FRAME_MS)
 
-    def __enter__(self) -> "Spinner":
+    def __enter__(self) -> Spinner:
         self._thread = threading.Thread(target=self._run, daemon=True)
         self._thread.start()
         return self

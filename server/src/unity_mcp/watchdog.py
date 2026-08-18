@@ -5,7 +5,7 @@ Enable with UNITY_MCP_WATCHDOG=1.
 import asyncio
 import contextlib
 import time
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003
 
 from .console_levels import PROBLEM_LEVELS
 from .middleware_types import is_write
@@ -71,5 +71,5 @@ class ProactiveWatchdog:
     async def cancel(self) -> None:
         if self._task and not self._task.done():
             self._task.cancel()
-            with contextlib.suppress(asyncio.CancelledError, asyncio.TimeoutError, Exception):
+            with contextlib.suppress(asyncio.CancelledError, Exception):
                 await asyncio.wait_for(self._task, 2.0)

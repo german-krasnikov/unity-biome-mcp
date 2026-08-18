@@ -1,6 +1,5 @@
 """Neutral package and evidence fixtures shared by Gauntlet unit tests."""
 
-from __future__ import annotations
 
 import base64
 import csv
@@ -10,14 +9,11 @@ import io
 import json
 import tarfile
 import zipfile
-from typing import TYPE_CHECKING
+from collections.abc import Callable, Iterable, Mapping  # noqa: TC003
+from pathlib import Path  # noqa: TC003
 from xml.sax.saxutils import quoteattr
 
 from gauntlet.receipts import ReceiptJournal, content_hash
-
-if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Mapping
-    from pathlib import Path
 
 
 def write_wheel(

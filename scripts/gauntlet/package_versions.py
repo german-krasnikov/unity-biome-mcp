@@ -1,6 +1,5 @@
 """Shared strict semantic-version validation for release packages."""
 
-from __future__ import annotations
 
 import re
 

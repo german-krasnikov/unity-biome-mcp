@@ -4,7 +4,6 @@ The model is deliberately independent from pytest and the TCP bridge so its
 diff and cleanup decisions can be unit tested without a running Editor.
 """
 
-from __future__ import annotations
 
 from dataclasses import dataclass, field
 import base64

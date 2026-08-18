@@ -1,16 +1,13 @@
 """Typed contracts and validation for supervised process execution."""
 
-from __future__ import annotations
 
 import math
 import stat
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from gauntlet.process_inventory import ProcessIdentity
+from gauntlet.process_inventory import ProcessIdentity  # noqa: TC001
 
 
 class ProcessSupervisionError(RuntimeError):

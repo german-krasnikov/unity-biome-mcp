@@ -1,15 +1,11 @@
 """Portable, collision-free archive path contracts."""
 
-from __future__ import annotations
 
 import unicodedata
+from collections.abc import Iterable  # noqa: TC003
 from pathlib import PurePosixPath
-from typing import TYPE_CHECKING
 
 from gauntlet.package_contracts import PackageArchiveError
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
 
 _WINDOWS_FORBIDDEN = frozenset('<>:"\\|?*')
 _WINDOWS_RESERVED = frozenset(

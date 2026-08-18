@@ -1,6 +1,6 @@
 """Executor for do() tool — runs batch + 1 retry on partial failure."""
 import re
-from collections.abc import Callable
+from collections.abc import Callable  # noqa: TC003
 
 from ..sampling_postproc import normalize
 from .validator import validate_plan

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Synchronize the Unity package changelog from the canonical root changelog."""
 
-from __future__ import annotations
 
 import argparse
 import os

@@ -1,5 +1,4 @@
 """T16: ContentStore — content-addressed blob store, capped at max_bytes."""
-from __future__ import annotations
 
 import os
 from pathlib import Path

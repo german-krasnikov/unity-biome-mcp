@@ -1,16 +1,15 @@
 """Public console-entry MCP contracts against an independent scripted peer."""
 
-from __future__ import annotations
 
 import asyncio
 import json
 import os
 import sys
 import time
+from collections.abc import AsyncIterator  # noqa: TC003
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
@@ -22,9 +21,6 @@ from unity_mcp import __version__
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from gauntlet.fake_unity_peer import ScriptedUnityPeer
-
-if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
 
 pytestmark = [pytest.mark.asyncio, pytest.mark.timeout(30)]
 

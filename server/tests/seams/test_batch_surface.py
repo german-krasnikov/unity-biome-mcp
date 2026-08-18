@@ -7,7 +7,6 @@ Test failure = C# CommandRouter has no handler for a tool that claims
 batch-callable status. Tool-level errors (wrong args, missing object)
 are acceptable — they prove the handler exists.
 """
-from __future__ import annotations
 
 import pytest
 

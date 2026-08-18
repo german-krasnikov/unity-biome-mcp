@@ -1,13 +1,9 @@
 """Seeded legal-transition generation and deterministic repro minimization."""
 
-from __future__ import annotations
 
 import random
+from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 
 class ModelError(ValueError):

@@ -130,7 +130,7 @@ async def test_queue_consumer_cancelled_error_propagates():
     """
     bridge = _make_bridge()
     # Start consumer directly — it blocks waiting on the empty queue.
-    consumer = asyncio.ensure_future(bridge._queue_consumer())
+    consumer = asyncio.create_task(bridge._queue_consumer())
     await asyncio.sleep(0)  # yield so consumer enters await get()
 
     consumer.cancel()

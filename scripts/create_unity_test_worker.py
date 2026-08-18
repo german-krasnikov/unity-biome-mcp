@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 """Create a disposable Unity 6000.0 / built-in UTF 1.6 test worker snapshot."""
 
-from __future__ import annotations
 
 import argparse
 import hashlib
 import json
 import shutil
 import subprocess
-from datetime import datetime, timezone
+from collections.abc import Mapping  # noqa: TC003
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from gauntlet.worker_artifacts import WorkerArtifactError, install_worker_artifacts
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE_PROJECT = REPO_ROOT / "unity-test-project"
@@ -196,7 +192,7 @@ def create_worker(
         marker: dict[str, object] = {
             "schema_version": 1,
             "disposable": True,
-            "created_utc": datetime.now(timezone.utc).isoformat(),
+            "created_utc": datetime.now(UTC).isoformat(),
             "source_project_sha256": _hash_tree(source),
             "source_repository_sha256": hashlib.sha256(
                 (

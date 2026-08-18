@@ -100,7 +100,7 @@ async def test_parent_death_stops_heartbeat_no_systemexit():
 async def test_single_ppid_mismatch_does_not_stop():
     """Single mismatch within grace — heartbeat keeps running."""
     bridge = _make_bridge_mixin()
-    bridge._heartbeat_task = asyncio.ensure_future(asyncio.sleep(999))
+    bridge._heartbeat_task = asyncio.create_task(asyncio.sleep(999))
 
     fake_original = os.getppid() + 9999
     with patch.object(hb_module, "_ORIGINAL_PPID", fake_original), \

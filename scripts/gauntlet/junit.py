@@ -5,16 +5,12 @@ fail-closed boundary: missing leaves, malformed counters, and ambiguous outcomes
 are evidence errors rather than empty success results.
 """
 
-from __future__ import annotations
 
 import os
 import stat
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from pathlib import Path  # noqa: TC003
 
 _OUTCOME_TAGS = frozenset({"failure", "error", "skipped"})
 _SUITE_METADATA_TAGS = frozenset({"properties", "system-out", "system-err"})

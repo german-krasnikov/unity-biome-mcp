@@ -1,10 +1,9 @@
 """Policy-bound pytest profile selection and strict result assessment."""
 
-from __future__ import annotations
 
 import stat
+from collections.abc import Sequence  # noqa: TC003
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING
 
 from gauntlet.junit import (
     JUnitError,
@@ -15,9 +14,6 @@ from gauntlet.junit import (
 from gauntlet.pytest_attestation import ScenarioBinding
 from gauntlet.release_policy import PolicyError, ProfilePolicy, parse_release_policy
 from gauntlet.source_provenance import SourceProvenanceError, observe_source_checkout
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 
 class AttestedConformanceError(ValueError):

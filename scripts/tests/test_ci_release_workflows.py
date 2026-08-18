@@ -1,4 +1,3 @@
-from __future__ import annotations
 
 from pathlib import Path
 
@@ -46,7 +45,7 @@ def test_conformance_workflow_runs_tracked_attested_public_profile() -> None:
     assert "attested-public-stdio:" in text
     assert "scripts/attested_conformance_runner.py" in text
     assert "--policy scripts/gauntlet/release-policy.json" in text
-    assert "--profile public-stdio-linux-py312" in text
+    assert "--profile public-stdio-linux-py314" in text
 
 
 def test_conformance_workflow_runs_hosted_disposable_unity_workers() -> None:

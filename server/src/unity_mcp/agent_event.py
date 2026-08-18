@@ -1,8 +1,7 @@
 """Canonical AgentEvent model + ProviderCapabilities for relay metadata."""
-from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Literal, get_args
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -49,7 +48,7 @@ class AgentEvent(BaseModel):
     turn_id:         int             = 0
     sequence:        int             = 0   # monotonic within session, set by emitter
     timestamp:       str             = Field(
-        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+        default_factory=lambda: datetime.now(UTC).isoformat()
     )
     kind:            str             = ""  # one of _ALL_KINDS, or unknown future kind
     payload:         dict[str, Any]  = Field(default_factory=dict)
@@ -84,3 +83,9 @@ class ProviderCapabilities(BaseModel):
                 "has_agent_mode": "agent" in probe.get("has_modes", []),
             },
         )
+
+
+# Remove pydantic helpers from module namespace — get_type_hints() would try to
+# resolve their pydantic-internal annotations (FieldInfo, JsonValue) in this
+# module's globals and fail. They're not re-exported from here.
+del ConfigDict, Field

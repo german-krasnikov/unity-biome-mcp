@@ -1,10 +1,8 @@
 """Helper: annotate before/after images with SoM circles, call sampling."""
 import os
 import tempfile
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from ..sampling import SamplingService
+from ..sampling import SamplingService  # noqa: TC001
 
 
 async def diff_with_annotation(
@@ -13,7 +11,7 @@ async def diff_with_annotation(
     rects: list,
     rects_after: list | None,
     prompt: str,
-    sampling: "SamplingService",
+    sampling: SamplingService,
     feature: str,
 ) -> str | None:
     """Annotate both frames with SoM circles, call sampling, cleanup."""

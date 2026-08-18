@@ -1,6 +1,5 @@
 """Strict WHEEL metadata and filename-tag coherence checks."""
 
-from __future__ import annotations
 
 from email.parser import BytesParser
 from itertools import product

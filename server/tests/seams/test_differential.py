@@ -3,7 +3,6 @@
 Uses distinct namespaced prefixes (seq_ vs bat_) to avoid needing undo —
 two independent object sets are created and compared structurally.
 """
-from __future__ import annotations
 
 import pytest
 

@@ -1,5 +1,4 @@
 """Gate 3: Write Operations — mutations verified by independent readback."""
-from __future__ import annotations
 
 import pytest
 

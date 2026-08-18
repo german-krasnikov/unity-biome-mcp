@@ -1,12 +1,11 @@
 """Build-once artifact identity manifests for release evidence."""
 
-from __future__ import annotations
 
 import hashlib
 import re
 import stat
+from collections.abc import Mapping  # noqa: TC003
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from gauntlet.artifact_contracts import (
     ArtifactError,
@@ -27,9 +26,6 @@ from gauntlet.package_contracts import (
 )
 from gauntlet.package_versions import is_strict_semver
 from gauntlet.receipts import content_hash
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 _ROOT_KEYS = {"schema_version", "head_sha", "product_version", "artifacts", "manifest_sha"}
 _ARTIFACT_KEYS = {

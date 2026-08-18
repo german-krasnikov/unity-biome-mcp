@@ -4,14 +4,10 @@ Used by CostTracker to serialize multi-process writes to budget.json.
 Blocking exclusive lock held briefly per write. Sentinel .lock file
 approach: never locks the data file itself, preventing data corruption.
 """
-from __future__ import annotations
 
 import sys
 from contextlib import contextmanager, suppress
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from pathlib import Path  # noqa: TC003
 
 
 @contextmanager

@@ -1,6 +1,5 @@
 """Primitive and cross-field validators for release policy JSON."""
 
-from __future__ import annotations
 
 import re
 from pathlib import PurePosixPath

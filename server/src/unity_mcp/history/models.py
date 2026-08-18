@@ -1,5 +1,4 @@
 """T23: ConversationHeader value object + EXCLUDED_KINDS."""
-from __future__ import annotations
 
 from dataclasses import dataclass
 

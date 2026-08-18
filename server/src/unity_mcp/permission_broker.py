@@ -3,7 +3,6 @@
 Used by permission_prompt_tool to enforce chat mode restrictions.
 External MCP clients (no UNITY_MCP_CHAT_MODE env var) bypass all enforcement.
 """
-from __future__ import annotations
 
 import logging
 import os

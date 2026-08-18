@@ -1,7 +1,7 @@
-from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import TYPE_CHECKING
+from collections.abc import Mapping, Sequence  # noqa: TC003
+from datetime import UTC, datetime, timedelta
+from pathlib import Path  # noqa: TC003
 
 from gauntlet.evidence_schema import (
     SCHEMA_VERSION,
@@ -15,16 +15,11 @@ from gauntlet.evidence_schema import (
     validate_shape_and_hash,
 )
 from gauntlet.json_io import JsonFileError, atomic_write_json, load_json_object
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
-    from pathlib import Path
-
-    from gauntlet.profile_evidence import DerivedProfileEvidence
+from gauntlet.profile_evidence import DerivedProfileEvidence  # noqa: TC001
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
 
 def build_conformance_evidence(
@@ -260,7 +255,7 @@ def validate_release_evidence_bundle(
     if missing:
         raise EvidenceError(f"missing profile evidence: {', '.join(missing)}")
 
-    current_time = now or datetime.now(timezone.utc)
+    current_time = now or datetime.now(UTC)
     if current_time.tzinfo is None:
         raise EvidenceError("current time must include a timezone")
 
