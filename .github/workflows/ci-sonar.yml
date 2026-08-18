@@ -106,13 +106,28 @@ jobs:
               --format=Xml \
               --severity=WARNING \
               --no-build \
-              --no-swea \
-              --absolute-paths 2>&1 | tail -5
-            dotnet-reqube -i inspectcode-report.xml -o "${GITHUB_WORKSPACE}/sonarqube-csharp.json" || true
+              --no-swea 2>&1 | tail -5
+            echo "InspectCode report size: $(wc -c < inspectcode-report.xml) bytes"
+            dotnet-reqube -i inspectcode-report.xml -o sonarqube-csharp.json 2>&1 || true
+            echo "ReQube output files:"
+            ls -la sonarqube-csharp*.json 2>/dev/null || echo "No sonarqube-csharp files found"
+            # reqube with sln may produce per-project files; merge if needed
+            if [ ! -f sonarqube-csharp.json ] && ls sonarqube-csharp-*.json 1>/dev/null 2>&1; then
+              python3 -c "
+          import json, glob
+          merged = []
+          for f in sorted(glob.glob('sonarqube-csharp-*.json')):
+              data = json.loads(open(f).read())
+              merged.extend(data.get('issues', []))
+          json.dump({'issues': merged}, open('sonarqube-csharp.json', 'w'))
+          print(f'Merged {len(merged)} issues from {len(glob.glob(\"sonarqube-csharp-*.json\"))} files')
+          "
+            fi
           fi
-          if [ ! -f "${GITHUB_WORKSPACE}/sonarqube-csharp.json" ]; then
-            echo '{"issues":[]}' > "${GITHUB_WORKSPACE}/sonarqube-csharp.json"
+          if [ ! -f sonarqube-csharp.json ]; then
+            echo '{"issues":[]}' > sonarqube-csharp.json
           fi
+          echo "Final artifact size: $(wc -c < sonarqube-csharp.json) bytes"
 
       - uses: actions/upload-artifact@v4
         with:
