@@ -13,7 +13,8 @@ import sys
 
 
 def dedup_sln(input_path: str, output_path: str) -> int:
-    text = open(input_path, encoding="utf-8-sig").read()
+    with open(input_path, encoding="utf-8-sig") as f:
+        text = f.read()
     lines = text.split("\n")
     seen: set[str] = set()
     out: list[str] = []
@@ -35,7 +36,8 @@ def dedup_sln(input_path: str, output_path: str) -> int:
         if not skip:
             out.append(line)
 
-    open(output_path, "w", encoding="utf-8").write("\n".join(out))
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write("\n".join(out))
     print(f"Deduplicated: {len(seen)} unique projects, {removed} duplicates removed")
     return removed
 
