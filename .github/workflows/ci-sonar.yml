@@ -125,6 +125,7 @@ jobs:
             /o:"german-krasnikov" \
             /d:sonar.token="${SONAR_TOKEN}" \
             /d:sonar.host.url="https://sonarcloud.io" \
+            /d:sonar.projectBaseDir="." \
             /d:sonar.python.version="3.10,3.11,3.12" \
             /d:sonar.python.coverage.reportPaths="server/coverage.xml" \
             /d:sonar.sources="server/src/unity_mcp,unity-plugin/Editor,unity-plugin-reload/Editor" \
@@ -134,14 +135,31 @@ jobs:
             /d:sonar.sourceEncoding="UTF-8" \
             /d:sonar.cs.file.suffixes=".cs"
 
-      - name: Build C# solution
+      - name: Build C# projects
+        working-directory: unity-test-project
         run: |
-          SLN=$(find unity-test-project unity-test-project-ro -maxdepth 1 -name "*.sln" 2>/dev/null | head -1)
-          if [ -n "$SLN" ]; then
-            dotnet build "$SLN"
-          else
-            echo "::warning::No .sln found; C# analysis will be limited"
-          fi
+          BUILT=0
+          for proj in \
+            UnityMCP.Editor.csproj \
+            UnityMCP.Editor.Tests.csproj \
+            UnityMCP.Editor.Wizard.csproj \
+            UnityMCP.Editor.Chat.CLI.csproj \
+            UnityMCP.Editor.Chat.Parsers.csproj \
+            UnityMCP.Editor.Chat.View.csproj \
+            UnityMCP.Editor.TestSupport.csproj \
+            UnityMCP.Editor.Chat.Tests.CLI.csproj \
+            UnityMCP.Editor.Chat.Tests.View.csproj \
+            UnityMCP.Editor.Wizard.Tests.csproj \
+            UnityMCP.Reload.csproj \
+            UnityMCP.Reload.Tests.csproj; do
+            if [ -f "$proj" ]; then
+              echo "Building $proj..."
+              dotnet build "$proj" --no-restore 2>&1 | tail -3
+              BUILT=$((BUILT + 1))
+            fi
+          done
+          echo "Built $BUILT projects"
+          [ "$BUILT" -gt 0 ] || echo "::warning::No .csproj files found"
         continue-on-error: true
 
       - name: SonarScanner end
