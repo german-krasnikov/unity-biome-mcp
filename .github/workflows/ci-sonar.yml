@@ -142,7 +142,7 @@ jobs:
         uses: SonarSource/sonarcloud-github-action@v3
         with:
           args: >
-            -Dsonar.externalIssuesReportPaths=sonarqube-csharp.json
+            ${{ hashFiles('sonarqube-csharp.json') != '' && '-Dsonar.externalIssuesReportPaths=sonarqube-csharp.json' || '' }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
