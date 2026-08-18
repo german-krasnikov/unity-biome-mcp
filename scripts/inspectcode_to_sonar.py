@@ -70,15 +70,16 @@ def convert(xml_path: str, base_dir: str = "") -> dict:
 
             raw_path = issue.get("File", "")
             path = str(PurePosixPath(PureWindowsPath(raw_path)))
-            if base_dir and path.startswith(base_dir + "/"):
-                path = path[len(base_dir) + 1:]
-            elif path.startswith("../"):
-                path = str(PurePosixPath(base_dir, path).resolve().relative_to(Path.cwd()))
-            elif Path(path).is_absolute() and base_dir:
-                try:
-                    path = str(PurePosixPath(path).relative_to(Path(base_dir).resolve().parent))
-                except ValueError:
-                    pass
+            if base_dir:
+                if path.startswith(base_dir + "/"):
+                    path = path[len(base_dir) + 1:]
+                elif path.startswith("../"):
+                    path = str((Path(base_dir) / path).resolve().relative_to(Path.cwd()))
+                elif Path(path).is_absolute():
+                    try:
+                        path = str(Path(path).relative_to(Path(base_dir).resolve().parent))
+                    except ValueError:
+                        pass
 
             line = max(1, int(issue.get("Line", "1") or "1"))
             msg = issue.get("Message", type_map[type_id]["name"])
