@@ -1,17 +1,14 @@
 
 import hashlib
 import json
+from collections.abc import Mapping  # noqa: TC003
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 
 from gauntlet.package_contracts import (
     PUBLIC_STDIO_ARTIFACT_TYPES,
     UNITY_EDITOR_ARTIFACT_TYPES,
 )
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 SCHEMA_VERSION = 4
 EVIDENCE_KEYS = frozenset(

@@ -1,6 +1,7 @@
 
+from collections.abc import Mapping, Sequence  # noqa: TC003
 from datetime import UTC, datetime, timedelta
-from typing import TYPE_CHECKING
+from pathlib import Path  # noqa: TC003
 
 from gauntlet.evidence_schema import (
     SCHEMA_VERSION,
@@ -14,12 +15,7 @@ from gauntlet.evidence_schema import (
     validate_shape_and_hash,
 )
 from gauntlet.json_io import JsonFileError, atomic_write_json, load_json_object
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
-    from pathlib import Path
-
-    from gauntlet.profile_evidence import DerivedProfileEvidence
+from gauntlet.profile_evidence import DerivedProfileEvidence  # noqa: TC001
 
 
 def _utc_now() -> str:

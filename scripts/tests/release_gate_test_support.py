@@ -2,8 +2,9 @@
 
 
 import hashlib
+from collections.abc import Callable  # noqa: TC003
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from pathlib import Path  # noqa: TC003
 
 from gauntlet.artifacts import build_artifact_manifest, write_artifact_manifest
 from gauntlet.attestations import build_file_reference, build_receipt
@@ -21,10 +22,6 @@ from player_playtest_gate_test_support import (
     write_player_playtest_evidence_set,
 )
 from release_source_test_support import HARNESS_LOCK_RELATIVE, prepare_source
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-    from pathlib import Path
 
 VERSION = "1.27.0"
 RUN_ID = "run-release-gate"

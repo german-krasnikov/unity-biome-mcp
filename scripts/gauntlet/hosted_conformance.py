@@ -5,13 +5,10 @@ import socket
 import subprocess
 import sys
 import time
+from collections.abc import Mapping  # noqa: TC003
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from create_unity_test_worker import BOOTSTRAP_SCENE, WorkerCreationError, create_worker
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

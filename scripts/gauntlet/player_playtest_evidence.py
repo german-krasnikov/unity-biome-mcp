@@ -5,15 +5,12 @@ import hashlib
 import re
 import stat
 import xml.etree.ElementTree as ET
-from typing import TYPE_CHECKING
+from collections.abc import Iterable  # noqa: TC003
+from pathlib import Path  # noqa: TC003
 
 from gauntlet.artifact_contracts import ArtifactError, read_stable_artifact
 from gauntlet.json_io import JsonFileError, parse_json_object
 from gauntlet.receipts import content_hash
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
-    from pathlib import Path
 
 _SHA_PATTERN = re.compile(r"^[0-9a-f]+$")
 _MAX_RECEIPT_BYTES = 16 * 1024 * 1024

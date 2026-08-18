@@ -3,15 +3,12 @@
 
 import hashlib
 import json
-from typing import TYPE_CHECKING
+from collections.abc import Callable  # noqa: TC003
+from pathlib import Path  # noqa: TC003
 
 from gauntlet.attestations import build_file_reference, build_receipt
 from gauntlet.evidence_schema import evidence_hash
 from gauntlet_test_fixtures import write_json
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-    from pathlib import Path
 
 
 def mutate_evidence(path: Path, mutate: Callable[[dict[str, object]], None]) -> None:

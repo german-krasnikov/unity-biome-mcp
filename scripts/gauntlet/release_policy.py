@@ -1,7 +1,7 @@
 
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from pathlib import Path  # noqa: TC003
 
 from gauntlet.evidence_schema import ProfileRequirement
 from gauntlet.json_io import JsonFileError, load_json_object, parse_json_object
@@ -23,8 +23,6 @@ from gauntlet.policy_fields import (
 )
 from gauntlet.receipts import content_hash
 
-if TYPE_CHECKING:
-    from pathlib import Path
 _ROOT_KEYS = {
     "schema_version",
     "policy_version",

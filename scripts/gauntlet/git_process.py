@@ -2,10 +2,7 @@
 
 
 import os
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from pathlib import Path  # noqa: TC003
 
 
 def git_command(root: Path, *arguments: str) -> list[str]:

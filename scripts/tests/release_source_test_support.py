@@ -5,15 +5,12 @@ import json
 import os
 import subprocess
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from pathlib import Path  # noqa: TC003
 
 from gauntlet.contract_catalog import ContractCatalog, load_contract_catalog
 from gauntlet.package_contracts import PACKAGE_CONTENT_ROOTS, PACKAGE_SOURCE_PATHS
 from gauntlet.release_policy import ReleasePolicy, load_release_policy
 from gauntlet.source_provenance import SourceObservation, observe_source_checkout
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 POLICY_RELATIVE = "scripts/gauntlet/release-policy.json"
 CATALOG_RELATIVE = "scripts/gauntlet/contracts.json"

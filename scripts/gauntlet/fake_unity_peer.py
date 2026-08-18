@@ -6,10 +6,7 @@ import json
 import struct
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from pathlib import Path  # noqa: TC003
 
 _MAX_FRAME_BYTES = 10_000_000
 

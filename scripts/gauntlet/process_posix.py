@@ -5,10 +5,8 @@ import os
 import signal
 import subprocess
 import time
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from gauntlet.process_supervisor import ProcessSpec
+from gauntlet.process_contracts import ProcessSpec  # noqa: TC001
 
 _POLL_SECONDS = 0.01
 

@@ -3,11 +3,11 @@
 
 import os
 import secrets
+import subprocess  # noqa: TC003
 import threading
 import time
 from collections import Counter
 from dataclasses import replace
-from typing import TYPE_CHECKING
 
 from gauntlet.process_contracts import (
     CleanupSummary,
@@ -32,9 +32,6 @@ from gauntlet.process_output import (
     finish_collectors as _finish_collectors,
 )
 from gauntlet.process_posix import PosixProcessError, cleanup_posix, group_exists, launch_posix
-
-if TYPE_CHECKING:
-    import subprocess
 
 _POLL_SECONDS = 0.01
 _RESIDUAL_SAMPLE_SECONDS = 0.05

@@ -14,11 +14,8 @@ import argparse
 import importlib.util
 import json
 import sys
+from collections.abc import Callable  # noqa: TC003
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 
 def load_steps(path: str) -> list[dict]:

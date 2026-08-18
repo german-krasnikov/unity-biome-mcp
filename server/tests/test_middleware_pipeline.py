@@ -1,8 +1,89 @@
 """Tests for wrap_send dict-response extraction — specifically the file+data path."""
 import os
 import pytest
-from unittest.mock import AsyncMock, patch
-from unity_mcp.middleware_pipeline import wrap_send
+from unittest.mock import AsyncMock, MagicMock, patch
+from unity_mcp.middleware_pipeline import wrap_send, _strip_flags, _check_prefetch_and_circuit
+
+
+# ── _strip_flags ──────────────────────────────────────────────────────────────
+
+def test_strip_flags_removes_all_internal_flags():
+    """_strip_flags must remove all 5 internal marker flags from args."""
+    args = {
+        "_no_reflect": True,
+        "_no_distill": False,
+        "_explicit_path": True,
+        "_no_validate": True,
+        "_no_strip": False,
+        "path": "/Obj",
+        "value": "42",
+    }
+    clean, flags = _strip_flags(args)
+    for key in ("_no_reflect", "_no_distill", "_explicit_path", "_no_validate", "_no_strip"):
+        assert key not in clean
+    assert clean == {"path": "/Obj", "value": "42"}
+
+
+def test_strip_flags_populates_flags_dict():
+    """_strip_flags must return flags dict with all 5 keys as bools."""
+    args = {"_no_reflect": True, "_no_distill": False}
+    _, flags = _strip_flags(args)
+    assert flags["_no_reflect"] is True
+    assert flags["_no_distill"] is False
+    assert flags["_no_strip"] is False  # default when absent
+
+
+def test_strip_flags_passes_through_non_internal_keys():
+    """Non-internal keys must be preserved unchanged."""
+    args = {"path": "/A", "component": "Rigidbody", "_no_strip": True}
+    clean, _ = _strip_flags(args)
+    assert "path" in clean
+    assert "component" in clean
+
+
+# ── _check_prefetch_and_circuit ───────────────────────────────────────────────
+
+def _make_mw_stub(*, circuit_open=False, prefetch_hit=None):
+    """Build minimal mw stub for _check_prefetch_and_circuit."""
+    mw = MagicMock()
+    mw._prefetch_cache = None
+    mw.circuit.allow_request.return_value = not circuit_open
+    mw.circuit.remaining.return_value = 4
+    mw.circuit.state = object()
+    mw.circuit.HALF_OPEN = object()  # different object → not half_open
+    return mw
+
+
+def test_check_prefetch_circuit_open_returns_string():
+    """When circuit is OPEN, must return ⚡ Circuit OPEN string."""
+    mw = _make_mw_stub(circuit_open=True)
+    result = _check_prefetch_and_circuit("ping", {}, mw)
+    assert result is not None
+    assert "Circuit OPEN" in result
+
+
+def test_check_prefetch_circuit_closed_returns_none():
+    """When circuit is closed and no cache, must return None to continue."""
+    mw = _make_mw_stub(circuit_open=False)
+    result = _check_prefetch_and_circuit("ping", {}, mw)
+    assert result is None
+
+
+def test_check_prefetch_cache_hit_returns_cached():
+    """When prefetch cache has a hit, must return the cached string."""
+    from unittest.mock import MagicMock
+    from unity_mcp.middleware_types import _READ_CACHEABLE
+    mw = MagicMock()
+    mw.circuit.allow_request.return_value = True
+    mw.circuit.state = object()
+    mw.circuit.HALF_OPEN = object()
+    mw._prefetch_cache = MagicMock()
+    mw._prefetch_cache.get.return_value = "cached hierarchy data"
+    # Use a known cacheable command
+    cmd = next(iter(_READ_CACHEABLE))
+    result = _check_prefetch_and_circuit(cmd, {}, mw)
+    assert result is not None
+    assert "cached hierarchy data" in result
 
 
 # ── Item 2: guards see ORIGINAL cmd, speculation sees REROUTED cmd ────────────

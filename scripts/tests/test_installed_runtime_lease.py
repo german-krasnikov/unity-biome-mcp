@@ -10,10 +10,10 @@ import shutil
 import subprocess
 import sys
 import time
+from collections.abc import AsyncIterator  # noqa: TC003
 from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 import pytest
 import pytest_asyncio
@@ -32,9 +32,6 @@ from gauntlet.installed_runtime import (  # noqa: E402
     install_python_wheel_runtime,
     public_stdio_environment,
 )
-
-if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
 
 PYPROJECT = REPO / "server" / "pyproject.toml"
 

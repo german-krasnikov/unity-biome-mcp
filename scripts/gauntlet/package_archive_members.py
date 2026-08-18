@@ -3,15 +3,13 @@
 
 import hashlib
 import stat
+import tarfile  # noqa: TC003
 import zipfile
-from typing import TYPE_CHECKING, BinaryIO
+from typing import BinaryIO
 
 from gauntlet.package_contracts import MemberFingerprint, PackageArchiveError
 from gauntlet.package_paths import validate_logical_paths, validate_member_tree
 from gauntlet.receipts import content_hash
-
-if TYPE_CHECKING:
-    import tarfile
 
 _MAX_ARCHIVE_MEMBERS = 20_000
 _MAX_EXPANDED_BYTES = 1024 * 1024 * 1024

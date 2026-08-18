@@ -7,14 +7,11 @@ import hashlib
 import json
 import shutil
 import subprocess
+from collections.abc import Mapping  # noqa: TC003
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from gauntlet.worker_artifacts import WorkerArtifactError, install_worker_artifacts
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE_PROJECT = REPO_ROOT / "unity-test-project"

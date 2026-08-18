@@ -13,9 +13,9 @@ import stat
 import subprocess
 import sys
 import tempfile
+from collections.abc import Sequence  # noqa: TC003
 from contextlib import suppress
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING
 
 from gauntlet.attested_conformance import (
     AttestedConformanceError,
@@ -24,12 +24,8 @@ from gauntlet.attested_conformance import (
     profile_bindings,
 )
 from gauntlet.pytest_attestation import write_attestation_manifest
+from gauntlet.release_policy import ProfilePolicy  # noqa: TC002
 from gauntlet.source_snapshot import SourceSnapshotError, materialize_source_snapshot
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-    from gauntlet.release_policy import ProfilePolicy
 
 
 def _parser() -> argparse.ArgumentParser:

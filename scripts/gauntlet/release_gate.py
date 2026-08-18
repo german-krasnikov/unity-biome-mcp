@@ -2,12 +2,16 @@
 
 
 import stat
+from collections.abc import Sequence  # noqa: TC003
 from dataclasses import dataclass
-from pathlib import PurePosixPath
-from typing import TYPE_CHECKING
+from pathlib import (
+    Path,  # noqa: TC003
+    PurePosixPath,
+)
 
 from gauntlet.artifacts import (
     ArtifactError,
+    ArtifactManifest,  # noqa: TC001
     load_artifact_manifest,
     verify_artifact_files,
 )
@@ -29,20 +33,18 @@ from gauntlet.release_evidence import (
     validate_evidence_matches_artifacts,
     validate_release_evidence_bundle,
 )
-from gauntlet.release_policy import PolicyError, load_release_policy, parse_release_policy
+from gauntlet.release_policy import (
+    PolicyError,
+    ReleasePolicy,  # noqa: TC001
+    load_release_policy,
+    parse_release_policy,
+)
 from gauntlet.source_packages import (
     SourcePackageError,
     SourcePackageIdentity,
     parse_source_package_identities,
 )
 from gauntlet.source_provenance import SourceProvenanceError, observe_source_checkout
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-    from pathlib import Path
-
-    from gauntlet.artifacts import ArtifactManifest
-    from gauntlet.release_policy import ReleasePolicy
 
 
 class GateError(ValueError):

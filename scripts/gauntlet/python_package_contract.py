@@ -2,7 +2,7 @@
 
 
 import re
-from typing import TYPE_CHECKING
+from email.message import Message  # noqa: TC003
 
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
@@ -11,9 +11,6 @@ from packaging.utils import canonicalize_name
 from gauntlet.package_contracts import PackageArchiveError
 from gauntlet.python_entry_points import parse_entry_points, source_entry_points
 from gauntlet.receipts import content_hash
-
-if TYPE_CHECKING:
-    from email.message import Message
 
 _SOURCE_KEYS = frozenset(
     {

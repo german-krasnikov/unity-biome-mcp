@@ -2,14 +2,12 @@
 import hashlib
 import json
 import os
+from collections.abc import Callable, Mapping  # noqa: TC003
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from pathlib import Path  # noqa: TC003
+from typing import Any
 
 from gauntlet.json_io import JsonFileError, parse_json_object
-
-if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
-    from pathlib import Path
 
 _GENESIS_HASH = "0" * 64
 _EVENT_FIELDS = frozenset(

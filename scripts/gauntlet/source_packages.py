@@ -2,8 +2,8 @@
 
 
 import tomllib
+from collections.abc import Mapping  # noqa: TC003
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from gauntlet.json_io import JsonFileError, parse_json_object
 from gauntlet.package_contracts import (
@@ -14,10 +14,6 @@ from gauntlet.package_contracts import (
 from gauntlet.package_versions import is_strict_semver
 from gauntlet.python_package_contract import source_python_contract
 from gauntlet.receipts import content_hash
-
-if TYPE_CHECKING:
-    from collections.abc import Mapping
-
 
 
 class SourcePackageError(ValueError):

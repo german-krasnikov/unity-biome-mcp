@@ -1155,3 +1155,88 @@ async def test_t5_max_polls_none_respects_deadline_not_count():
 
     assert poll_calls, "T5 must call _poll_mvid_delta"
     assert poll_calls[-1] is None, f"T5 must use max_polls=None, got: {poll_calls[-1]!r}"
+
+
+# ── _probe_diagnose helper ────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_probe_diagnose_main_success():
+    """Main send succeeds → returns (raw, False)."""
+    raw = _diag_frozen(MVID_A)
+    send = AsyncMock(return_value=raw)
+    result = await _ladder._probe_diagnose(send, None)
+    assert result == (raw, False)
+
+
+@pytest.mark.asyncio
+async def test_probe_diagnose_main_fails_reload_succeeds():
+    """Main raises, reload succeeds → returns (raw, True)."""
+    raw = _diag_frozen(MVID_A)
+    send = AsyncMock(side_effect=ConnectionError("main dead"))
+    send_reload = AsyncMock(return_value=raw)
+    result = await _ladder._probe_diagnose(send, send_reload)
+    assert result == (raw, True)
+
+
+@pytest.mark.asyncio
+async def test_probe_diagnose_both_fail():
+    """Both ports dead → returns _DEAD_MSG."""
+    send = AsyncMock(side_effect=ConnectionError("main dead"))
+    send_reload = AsyncMock(side_effect=OSError("reload dead"))
+    result = await _ladder._probe_diagnose(send, send_reload)
+    assert result == _ladder._DEAD_MSG
+
+
+@pytest.mark.asyncio
+async def test_probe_diagnose_main_fails_no_reload():
+    """Main fails, no reload channel → returns _DEAD_MSG."""
+    send = AsyncMock(side_effect=ConnectionError("main dead"))
+    result = await _ladder._probe_diagnose(send, None)
+    assert result == _ladder._DEAD_MSG
+
+
+# ── _handle_guard_wedge helper ────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_handle_guard_wedge_guard_false_returns_none():
+    """Guard not wedged (False) → returns None to continue T3/T4."""
+    with patch.object(_ladder, "_t2_5_guard_check", AsyncMock(return_value=False)):
+        result = await _ladder._handle_guard_wedge(AsyncMock(), MVID_A, False)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_handle_guard_wedge_guard_none_returns_none():
+    """Guard unknown (None) → returns None to continue T3/T4."""
+    with patch.object(_ladder, "_t2_5_guard_check", AsyncMock(return_value=None)):
+        result = await _ladder._handle_guard_wedge(AsyncMock(), MVID_A, False)
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_handle_guard_wedge_wedged_no_consent():
+    """Guard wedged, no consent → returns GUARD-WEDGED string."""
+    with patch.object(_ladder, "_t2_5_guard_check", AsyncMock(return_value=True)):
+        result = await _ladder._handle_guard_wedge(AsyncMock(), MVID_A, False)
+    assert result is not None
+    assert "GUARD-WEDGED" in result
+
+
+@pytest.mark.asyncio
+async def test_handle_guard_wedge_wedged_consent_t5_fails():
+    """Guard wedged, consent given, T5 fails → returns MANUAL-REQUIRED."""
+    with patch.object(_ladder, "_t2_5_guard_check", AsyncMock(return_value=True)), \
+         patch.object(_ladder, "_t5", AsyncMock(return_value=None)):
+        result = await _ladder._handle_guard_wedge(AsyncMock(), MVID_A, True)
+    assert result is not None
+    assert "MANUAL-REQUIRED" in result
+
+
+@pytest.mark.asyncio
+async def test_handle_guard_wedge_wedged_consent_t5_heals():
+    """Guard wedged, consent given, T5 heals → returns HEALED string."""
+    with patch.object(_ladder, "_t2_5_guard_check", AsyncMock(return_value=True)), \
+         patch.object(_ladder, "_t5", AsyncMock(return_value=MVID_B)):
+        result = await _ladder._handle_guard_wedge(AsyncMock(), MVID_A, True)
+    assert result is not None
+    assert "HEALED" in result

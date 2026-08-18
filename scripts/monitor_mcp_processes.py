@@ -7,12 +7,9 @@ import json
 import os
 import re
 import subprocess
+from collections.abc import Iterable  # noqa: TC003
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
 
 
 @dataclass(frozen=True)

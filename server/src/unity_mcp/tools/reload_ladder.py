@@ -174,21 +174,50 @@ async def _send_with_fallback(send_main, send_reload, cmd: str, args: dict) -> s
         return await send_reload(cmd, args)
 
 
-async def run_ladder(send, *, send_reload=None, bump_file: Path | None = None,
-                     osascript_runner: Callable[[str], Awaitable[int]] | None = None,
-                     play_stop_consent: bool = False, start_tier: int = 1) -> str:
-    """Escalation ladder T0→T5. start_tier=2 skips T1 (caller did force_refresh)."""
-    main_dead = False
+async def _probe_diagnose(send, send_reload) -> tuple[str, bool] | str:
+    """T0 probe — try main then reload channel.
+
+    Returns (raw, main_dead) on success, or _DEAD_MSG string when both ports fail.
+    """
     try:
-        raw = await send("diagnose", {})
+        return await send("diagnose", {}), False
     except (ConnectionError, OSError):
         if send_reload is None:
             return _DEAD_MSG
         try:
-            raw = await send_reload("diagnose", {})
-            main_dead = True
+            return await send_reload("diagnose", {}), True
         except (ConnectionError, OSError):
             return _DEAD_MSG
+
+
+async def _handle_guard_wedge(eff, baseline: str, play_stop_consent: bool) -> str | None:
+    """T2.5 guard check — if wedged, escalate to T5, skipping T3/T4.
+
+    Returns a result string if the guard path handles escalation, None to continue.
+    """
+    guard_wedged = await _t2_5_guard_check(eff)
+    if not guard_wedged:  # False or None → continue to T3/T4
+        return None
+    log.warning("T2.5: ReloadGuard wedged — skipping T3/T4, escalating to T5")
+    if not play_stop_consent:
+        return (
+            "GUARD-WEDGED: ReloadGuard is locked. "
+            "T3/T4 cannot help. Set play_stop_consent=True or wait 120s for watchdog."
+        )
+    return (
+        _tier_result("T5-guard", baseline, await _t5(eff, baseline))
+        or "MANUAL-REQUIRED: guard wedged and T5 failed"
+    )
+
+
+async def run_ladder(send, *, send_reload=None, bump_file: Path | None = None,
+                     osascript_runner: Callable[[str], Awaitable[int]] | None = None,
+                     play_stop_consent: bool = False, start_tier: int = 1) -> str:
+    """Escalation ladder T0→T5. start_tier=2 skips T1 (caller did force_refresh)."""
+    probe = await _probe_diagnose(send, send_reload)
+    if isinstance(probe, str):
+        return probe
+    raw, main_dead = probe
 
     fields = _parse_diagnose(raw)
     baseline = _extract_main_mvid(fields)
@@ -196,7 +225,7 @@ async def run_ladder(send, *, send_reload=None, bump_file: Path | None = None,
         return "REIMPORT-NEEDED: main_mvid absent — main asmdef not loaded"
     if _is_clean(fields):
         return f"CLEAN: already live mvid={baseline}"
-    eff = send_reload if main_dead else send  # m1
+    eff = send_reload if main_dead else send
 
     if start_tier <= 1:
         v = _tier_result("T1", baseline, await _t1(eff, baseline))
@@ -204,14 +233,9 @@ async def run_ladder(send, *, send_reload=None, bump_file: Path | None = None,
     v = _tier_result("T2", baseline, await _t2(eff, baseline))
     if v: return v
 
-    # T2.5: guard check — if wedged, skip T3/T4 (they can't break the lock)
-    guard_wedged = await _t2_5_guard_check(eff)
-    if guard_wedged is True:  # None = unknown → don't skip T3/T4
-        log.warning("T2.5: ReloadGuard wedged — skipping T3/T4, escalating to T5")
-        if not play_stop_consent:
-            return "GUARD-WEDGED: ReloadGuard is locked. T3/T4 cannot help. Set play_stop_consent=True or wait 120s for watchdog."
-        v = _tier_result("T5-guard", baseline, await _t5(eff, baseline))
-        return v or "MANUAL-REQUIRED: guard wedged and T5 failed"
+    guard = await _handle_guard_wedge(eff, baseline, play_stop_consent)
+    if guard is not None:
+        return guard
 
     if not main_dead:
         v = _tier_result("T3", baseline, await _t3(eff, baseline, bump_file))

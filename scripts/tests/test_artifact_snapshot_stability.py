@@ -3,8 +3,9 @@
 
 import os
 import sys
+from collections.abc import Callable  # noqa: TC003
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import BinaryIO, Self  # noqa: TC003
 
 import pytest
 
@@ -12,18 +13,13 @@ TESTS = Path(__file__).resolve().parent
 sys.path.insert(0, str(TESTS.parent))
 sys.path.insert(0, str(TESTS))
 
+from gauntlet.artifact_contracts import ArtifactManifest  # noqa: TC002
 from gauntlet.artifacts import (
     ArtifactError,
     build_artifact_manifest,
     verify_artifact_files,
 )
 from gauntlet_test_fixtures import write_release_artifacts
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-    from typing import BinaryIO, Self
-
-    from gauntlet.artifact_contracts import ArtifactManifest
 
 
 class _AfterReadStream:

@@ -3,12 +3,9 @@
 
 import os
 import stat
+from collections.abc import Sequence  # noqa: TC003
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-    from pathlib import Path
+from pathlib import Path  # noqa: TC003
 
 
 class ArtifactError(ValueError):

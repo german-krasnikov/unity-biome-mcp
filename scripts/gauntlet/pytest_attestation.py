@@ -5,9 +5,9 @@ import os
 import stat
 import sys
 from collections import Counter
+from collections.abc import Sequence  # noqa: TC003
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import TYPE_CHECKING
 
 import pytest
 
@@ -20,9 +20,6 @@ from gauntlet.policy_fields import (
     require_scenario_ids,
 )
 from gauntlet.receipts import JournalError, content_hash
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 _ROOT_KEYS = {"schema_version", "profile", "scenarios"}
 _SCENARIO_KEYS = {"id", "pytest_node_id"}

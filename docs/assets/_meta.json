@@ -1,7 +1,7 @@
 {
   "tools": 160,
-  "tests_total": 14298,
-  "tests_python": 5776,
+  "tests_total": 14313,
+  "tests_python": 5791,
   "tests_stress": 511,
   "tests_unity": 7377,
   "tests_unity_source": "static_grep",
