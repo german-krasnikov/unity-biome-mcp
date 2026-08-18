@@ -67,9 +67,10 @@ class CompileStateProbe:
         s.settimeout(1.0)
         try:
             s.connect(("127.0.0.1", self._port))
-            return False  # TCP responds = not in startup window
         except OSError:
             return True   # TCP not yet up = genuinely starting
+        else:
+            return False  # TCP responds = not in startup window
         finally:
             with contextlib.suppress(OSError): s.close()
 

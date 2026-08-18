@@ -385,7 +385,7 @@ class UnityBridge(HeartbeatMixin):
                     except asyncio.CancelledError:
                         await self.close()
                         raise
-            except (TimeoutError, ConnectionRefusedError, ConnectionError, asyncio.IncompleteReadError, OSError, json.JSONDecodeError, RuntimeError) as e:
+            except (OSError, asyncio.IncompleteReadError, json.JSONDecodeError, RuntimeError) as e:
                 if isinstance(e, DomainReloadError):
                     self._reload.mark()
                 elif isinstance(e, TimeoutError) and delivery == DeliveryState.SENT and self._reload.is_active():
@@ -532,7 +532,7 @@ class UnityBridge(HeartbeatMixin):
         try:
             payload = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
             response = json.loads(payload.decode("utf-8"))
-        except (TimeoutError, OSError, EOFError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        except (OSError, EOFError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise _CandidateIdentityError(
                 f"Unity on port {port} did not return a valid project identity"
             ) from exc

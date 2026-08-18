@@ -60,7 +60,7 @@ def _apply_gating(tools: list) -> list:
     return filter_by_tier(tools)
 
 
-def _strip_deferred_schemas(tools: list) -> list:
+def _strip_deferred_schemas(tools: list) -> None:
     """Replace inputSchema + shorten description of non-core tools, unless
     UNITY_MCP_FULL_SCHEMAS=1.
 
@@ -72,12 +72,11 @@ def _strip_deferred_schemas(tools: list) -> list:
     install_list_tools_filter), so resolve_tool_schema still serves the untruncated text.
     """
     if os.environ.get("UNITY_MCP_FULL_SCHEMAS", "0") == "1":
-        return tools
+        return
     for t in tools:
         if t.name not in _SCHEMA_KEEP_FULL:
             t.inputSchema = STUB_SCHEMA
             t.description = _short_description(t.description)
-    return tools
 
 
 _push_catalog_lock: asyncio.Lock | None = None
@@ -117,7 +116,8 @@ def filter_tools(tools: list, disabled: set | None) -> list:
     result = _apply_gating(tools)
     if disabled is not None:
         result = [t for t in result if t.name not in disabled or t.name in _CORE_TOOLS]
-    return _strip_deferred_schemas(result)
+    _strip_deferred_schemas(result)
+    return result
 
 
 
