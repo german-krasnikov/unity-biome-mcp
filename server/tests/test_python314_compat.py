@@ -91,7 +91,7 @@ class TestPython314Compliance:
                 if not callable(obj) or not hasattr(obj, "__annotations__"):
                     continue
                 try:
-                    typing.get_type_hints(obj)
+                    typing.get_type_hints(obj, include_extras=True)
                 except Exception as e:
                     failures.append(f"{info.name}.{name}: {e}")
         assert not failures, "Annotation resolution failures:\n" + "\n".join(failures)

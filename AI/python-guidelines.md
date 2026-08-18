@@ -14,8 +14,12 @@ Definitive reference for this project. Fence tests in `tests/test_python314_comp
 | **NEVER** `from __future__ import annotations` | Makes annotations strings — incompatible with PEP 649 deferred code model |
 | Runtime import for any type that appears in a signature | `get_type_hints()` evaluates the code object; type must be in scope |
 | `TYPE_CHECKING` blocks: **ONLY** for genuine circular imports | Any annotation-referenced type not under TYPE_CHECKING must be a runtime import |
-| Circular import only — use `param: "ClassName"  # noqa: UP037` | String literal escapes PEP 649 evaluation; noqa suppresses UP037 |
+| Circular import only — use `param: "ClassName"  # noqa: UP037` | String literal defers evaluation past module load — type must still be importable when `get_type_hints()` is called |
 | pydantic / MCP SDK call `get_type_hints()` at runtime | ALL annotation types must resolve — no exceptions |
+
+**PEP 749 / `annotationlib` (3.14):** for circular-import cases, prefer
+`annotationlib.get_annotations(obj, format=Format.FORWARDREF)` — resolves annotations without
+importing the referenced type, eliminating the circular dependency entirely.
 
 **ruff TC rules (TC001/TC002/TC003): NEVER auto-apply.**
 
@@ -39,8 +43,8 @@ the import line — never move the import.
 | `asyncio.get_event_loop()` | `asyncio.get_running_loop()` | deprecated |
 | `asyncio.ensure_future()` | `asyncio.create_task()` | deprecated |
 | `asyncio.iscoroutinefunction()` | `inspect.iscoroutinefunction()` | **removed** in 3.14 |
-| `asyncio.TimeoutError` | `TimeoutError` | builtin alias removed in 3.11 |
-| `loop.run_until_complete()` | `asyncio.Runner` | managed lifecycle (3.12) |
+| `asyncio.TimeoutError` | `TimeoutError` | merged into builtin `TimeoutError` in 3.11 — use builtin directly |
+| `loop.run_until_complete()` | `asyncio.Runner` | managed lifecycle (3.11) |
 
 ```python
 # TaskGroup — preferred over gather()
@@ -53,6 +57,19 @@ async with asyncio.TaskGroup() as tg:
 async with asyncio.timeout(5.0):
     result = await slow_operation()
 ```
+
+**When all tasks must complete regardless of individual failure:** `gather(return_exceptions=True)` is
+still correct — TaskGroup cancels siblings on first failure and is not a replacement here.
+
+**`asyncio.eager_task_factory` (3.12):** `loop.set_task_factory(asyncio.eager_task_factory)` — reduces
+per-task overhead for coroutines that don't yield immediately.
+
+**`asyncio.QueueShutDown` (3.13):** raised when `Queue.shutdown()` is called — use for clean
+producer-consumer teardown instead of sentinel values.
+
+**Cancellation rules:**
+- Never swallow `CancelledError` — always re-raise or let it propagate
+- Use `asyncio.shield(coro)` when a subtask must survive parent cancellation
 
 ---
 
@@ -69,8 +86,25 @@ async with asyncio.timeout(5.0):
 | `class Status(str, Enum)` | `class Status(StrEnum)` (3.11) |
 | `typing.List / Dict / Callable` | `list / dict / collections.abc.Callable` |
 
+**Bounded/constrained generics (3.12):** `def foo[T: SomeClass]()` — bound; `def foo[T: (int, str)]()` — constraint union.
+
+**`TypeIs` (PEP 742, 3.13):** narrower than `TypeGuard` — narrows both the `True` and `False` branches.
+Prefer over `TypeGuard` for type-predicate functions.
+
+**`ReadOnly` for TypedDict (PEP 705, 3.13):** `from typing import ReadOnly` — mark individual TypedDict
+fields as immutable without subclassing.
+
+**`warnings.deprecated` (PEP 702, 3.13):** `@warnings.deprecated("Use bar() instead")` — emits
+`DeprecationWarning` on use; works on functions, methods, and classes.
+
+**Protocol vs ABC:** use `Protocol` for external boundaries and mocking (duck-typing, no inheritance
+required); use `ABC` when you need instantiation enforcement or mixin behavior.
+
+**`collections.abc` preferred imports:** `Callable`, `Sequence`, `Mapping`, `Iterator`, `Generator`,
+`Awaitable`, `Coroutine` — all from `collections.abc`, not `typing`.
+
 Still in `typing`: `Any`, `Literal`, `Protocol`, `TypeVar`, `ClassVar`, `Final`,
-`TYPE_CHECKING`, `overload`, `runtime_checkable`, `Self`, `override`.
+`TYPE_CHECKING`, `overload`, `runtime_checkable`, `Self`, `override`, `TypeIs`, `ReadOnly`.
 
 ---
 
@@ -101,6 +135,7 @@ try:
 except* ValueError as eg:
     for exc in eg.exceptions:
         logger.error(exc)
+    raise  # never swallow — re-raise the ExceptionGroup
 
 # Context enrichment — add_note() before re-raise
 try:
@@ -123,14 +158,21 @@ Never swallow exceptions inside TaskGroup — they form ExceptionGroups that mus
 | `os.path.join / exists / dirname` | `pathlib.Path` everywhere |
 | `class Status(str, Enum)` | `class Status(StrEnum)` (3.11) |
 
+**`tomllib` caveats:** read-only (no write support); requires `open(..., "rb")` binary mode. For writing
+TOML use `tomli-w` or a compatible library.
+
 ---
 
 ## G: Stability & Reliability
 
 - `asyncio.TaskGroup` — structured concurrency; cancellation never leaks tasks
+- **TaskGroup cascade:** one task failure cancels ALL sibling tasks. Don't group independent work that
+  should complete regardless of peer failures — use `gather(return_exceptions=True)` instead.
 - `asyncio.timeout()` scopes — not `wait_for` — for timeout boundaries
 - `contextlib.aclosing()` — wraps async generators that must be explicitly closed
 - `filterwarnings = ["error::DeprecationWarning"]` in pytest — catch deprecations as failures
+- **Third-party exemption:** add `"ignore::DeprecationWarning:third_party_lib"` to suppress warnings
+  from external packages you don't control.
 
 ---
 
@@ -138,8 +180,8 @@ Never swallow exceptions inside TaskGroup — they form ExceptionGroups that mus
 
 - `Protocol` over ABC — structural typing; mock by duck-typing, no inheritance required
 - Fence tests in `test_python314_compat.py` scan the codebase for anti-patterns
-- `test_all_annotations_resolve` calls `typing.get_type_hints()` on every public callable —
-  catches TYPE_CHECKING regressions before pydantic/MCP SDK does at runtime
+- `test_all_annotations_resolve` calls `typing.get_type_hints(obj, include_extras=True)` on every
+  public callable — catches TYPE_CHECKING regressions before pydantic/MCP SDK does at runtime
 - `AsyncMock` for async callables; compatible with TaskGroup patterns
 
 ---
@@ -163,12 +205,14 @@ Never swallow exceptions inside TaskGroup — they form ExceptionGroups that mus
 target-version = "py314"
 
 [tool.ruff.lint]
-# TC001/TC002/TC003 — NEVER in --unsafe-fixes; breaks PEP 649 annotation resolution
+# TC001/TC002/TC003 — never auto-apply; breaks PEP 649 annotation resolution
 # Suppress false positives with # noqa: TC001 on the import line
+ignore = ["TC001", "TC002", "TC003"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"      # pytest-asyncio >= 1.3.0 required
 filterwarnings = ["error::DeprecationWarning"]
 ```
 
-ruff summary: `--fix` is safe; `--unsafe-fixes` is dangerous specifically for TC001–TC003.
+ruff summary: `--fix` is safe; `--unsafe-fixes` is dangerous — most critically for this project
+due to TC001–TC003 silently moving runtime imports to TYPE_CHECKING.
