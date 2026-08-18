@@ -108,10 +108,10 @@ jobs:
               --no-build \
               --no-swea \
               --absolute-paths 2>&1 | tail -5
-            dotnet-reqube -i inspectcode-report.xml -o sonarqube-csharp.json || true
+            dotnet-reqube -i inspectcode-report.xml -o "${GITHUB_WORKSPACE}/sonarqube-csharp.json" || true
           fi
-          if [ ! -f sonarqube-csharp.json ]; then
-            echo '{"issues":[]}' > sonarqube-csharp.json
+          if [ ! -f "${GITHUB_WORKSPACE}/sonarqube-csharp.json" ]; then
+            echo '{"issues":[]}' > "${GITHUB_WORKSPACE}/sonarqube-csharp.json"
           fi
 
       - uses: actions/upload-artifact@v4
