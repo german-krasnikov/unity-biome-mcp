@@ -56,7 +56,7 @@ def convert(xml_path: str, base_dir: str = "") -> dict:
             continue
         attr, impacts = _classify(tid, raw_sev)
         type_map[tid] = {
-            "name": t.get("Description", tid),
+            "name": t.get("Description") or tid,
             "cleanCodeAttribute": attr,
             "impacts": impacts,
         }
