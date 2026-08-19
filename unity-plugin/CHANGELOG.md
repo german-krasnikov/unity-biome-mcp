@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Unity 6.4–6.5 compatibility:** Add `ObjectIdCompat` bridge for instance-ID → EntityId API migration; add `UIPanelHost` abstraction to support both `UIDocument` (6.0–6.3) and `PanelRenderer` (6.4+)
+- **Playtest DSL:** Accept `|PanelRenderer|` and `|UI|` component tokens in paths; normalize to `|UIDocument|` at parse time for version-independent scripts
+- **Diagnose output:** Reorder fields to place multiline `all_errors=` last; add `substate=`, `port=`, `port_fallback=` for clearer agent diagnostics
+- **DiagnoseCommand:** Optimize asmdef lookup with `ScanAssets` and `ScanPackages` seams to reduce O(N*M) scans to O(N+M)
+
 ## [v1.43.0] — 2026-08-19
 
 ### Fixed

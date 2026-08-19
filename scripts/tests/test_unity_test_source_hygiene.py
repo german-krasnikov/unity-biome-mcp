@@ -47,12 +47,25 @@ def _relative(path: pathlib.Path) -> str:
     return path.relative_to(REPO_ROOT).as_posix()
 
 
+_ALLOWED_VERSION_SHIM_FILES = frozenset(
+    {
+        "unity-plugin/Editor/Chat/CLI/SceneHeaderContextMenu.cs",
+        "unity-plugin/Editor/ObjectIdCompat.cs",
+        "unity-plugin/Editor/Tests/ObjectIdCompatTests.cs",
+        "unity-plugin/Editor/Tests/UIToolkit/AttachUITKTests.cs",
+        "unity-plugin/Editor/Tests/UIToolkit/UIPanelHostTests.cs",
+        "unity-plugin/Editor/UIPanelHost.cs",
+    }
+)
+
+
 def test_unity_source_has_no_version_branch_compatibility_shims() -> None:
     pattern = re.compile(r"\bUNITY_[0-9_]+_OR_NEWER\b")
     offenders = [
         _relative(path)
         for path in _sources(CSHARP_ROOTS)
         if pattern.search(_code(path))
+        and _relative(path) not in _ALLOWED_VERSION_SHIM_FILES
     ]
     assert offenders == []
 
