@@ -65,8 +65,10 @@ namespace UnityMCP.Editor.Tests
             // Double-red:
             // 1. Change "no UIDocument" to "error" → fails
             // 2. Delete ListAllUIDocuments → NullRef or wrong output → RED
-            Assert.That(result, Does.Contain("no UIDocument").Or.Contain("[UIDocument]"),
-                "Expected either 'no UIDocument found' or a list of UIDocument paths");
+            Assert.That(result,
+                Does.Contain("no UIDocument").Or.Contain("no UI host")
+                    .Or.Contain("[UIDocument]").Or.Contain("[PanelRenderer]"),
+                "Expected no-host message or host listing");
         }
 
         // Test 2: path="scene" → same list-all path as null
@@ -74,8 +76,10 @@ namespace UnityMCP.Editor.Tests
         public async Task InspectUITK_ScenePath_CallsListAllDocuments()
         {
             var result = UIHelper.InspectUITK("scene", 4, null, null, false, false);
-            Assert.That(result, Does.Contain("no UIDocument").Or.Contain("[UIDocument]"),
-                "path='scene' should trigger ListAllUIDocuments");
+            Assert.That(result,
+                Does.Contain("no UIDocument").Or.Contain("no UI host")
+                    .Or.Contain("[UIDocument]").Or.Contain("[PanelRenderer]"),
+                "path='scene' should trigger ListAllUIHosts");
         }
 
         // Test 3: invalid path → err: path not found

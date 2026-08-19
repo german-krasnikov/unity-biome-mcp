@@ -123,6 +123,13 @@ it is not a durable version-control mechanism.
 - Asset assignment is all-or-nothing: invalid supplied assets do not leave a
   partially configured component.
 
+**Unity 6.4+ PanelRenderer:** On Unity 6000.4 and later, the handler may add a
+`PanelRenderer` component instead of `UIDocument` depending on the target
+GameObject configuration. This detail is transparent to the user — the tool
+succeeds when a compatible UI host is present. The actual component type is
+determined at runtime by `UIPanelHost.CreateHost()` based on the active Unity
+version.
+
 ### `uitk_intent`
 
 The signature is:
@@ -150,14 +157,27 @@ does not claim rollback. `dry_run=True` writes and attaches nothing.
 
 ## Playtest addressing
 
-The playtest DSL can address a `UIDocument` and then an element and field with
-the normal pipe syntax:
+The playtest DSL can address a `UIDocument` (or `PanelRenderer` on Unity 6.4+)
+and then an element and field with the normal pipe syntax:
 
 ```text
 VAL $hud /Player/HUD|UIDocument
 FILL $hud|input-name "Player1"
 FOCUS $hud|input-name
 ASSERT $hud|score-label|text == "0"
+```
+
+The parser normalizes both `|PanelRenderer|` and `|UI|` tokens to the internal
+`|UIDocument|` representation at parse time. This allows the DSL to reference
+either component type consistently:
+
+```text
+# Both work on Unity 6.4+:
+CLICK /UIRoot|PanelRenderer|start-button
+CLICK /UIRoot|UI|settings-button
+# Normalized to UIDocument internally:
+CLICK /UIRoot|UIDocument|start-button
+CLICK /UIRoot|UIDocument|settings-button
 ```
 
 The parser/executor contract is documented in `AI/playtest-dsl.md`; UI code

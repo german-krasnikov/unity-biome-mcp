@@ -24,7 +24,7 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(objectId.WireValue.StartsWith("-"));
             Assert.IsTrue(ulong.TryParse(objectId.WireValue, out _));
             Assert.AreSame(go, objectId.Resolve());
-            Assert.AreEqual(unchecked((ulong)(long)go.GetInstanceID()), objectId.RawValue);
+            Assert.AreEqual(ObjectIdCompat.GetRawId(go), objectId.RawValue);
         }
 
         [TestCase("18446744073709551615")]
@@ -118,12 +118,12 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void HexRef_NegativeId_MasksTo32Bit()
+        public void HexRef_NegativeId_PreservesFullBits()
         {
-            // -12345 as unsigned 64-bit, lower 32 bits = 0xFFFFCFC7
+            // -12345 as unsigned 64-bit = 0xFFFFFFFFFFFFCFC7
             var wire = unchecked((ulong)(long)(-12345)).ToString(System.Globalization.CultureInfo.InvariantCulture);
             Assert.IsTrue(TransientObjectId.TryParse(wire, out var id));
-            Assert.AreEqual("$FFFFCFC7", id.HexRef);
+            Assert.AreEqual("$FFFFFFFFFFFFCFC7", id.HexRef);
         }
 
         [Test]
@@ -134,8 +134,8 @@ namespace UnityMCP.Editor.Tests
             StringAssert.StartsWith("$", id.HexRef);
             // All chars after $ must be uppercase hex digits
             var hexPart = id.HexRef.Substring(1);
-            Assert.IsTrue(hexPart.Length > 0 && hexPart.Length <= 8,
-                $"HexRef '{id.HexRef}' must be 1-8 hex chars after $");
+            Assert.IsTrue(hexPart.Length > 0 && hexPart.Length <= 16,
+                $"HexRef '{id.HexRef}' must be 1-16 hex chars after $");
             foreach (var c in hexPart)
                 Assert.IsTrue((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'),
                     $"Non-hex char '{c}' in '{id.HexRef}'");

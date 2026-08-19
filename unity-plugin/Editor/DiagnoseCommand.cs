@@ -92,9 +92,6 @@ namespace UnityMCP.Editor
             // BuildFailure.reload_failed; this C# signal lets Python consume it via wire format.
             sb.AppendLine($"reload_failed={DetectReloadFailed().ToString().ToLower()}");
 
-            // all_errors= — FIX-1: cross-asmdef compile errors with explicit CS codes
-            sb.AppendLine($"all_errors={SessionState.GetString(SyncHelper.AllAsmErrKey, "")}");
-
             // substate= / port= / port_fallback= — WP8 Gap 4: status UX signals for agent diagnosis
             var subState = MCPStatusModel.GetSubState(
                 isCompiling:   MCPServer.IsReallyCompiling,
@@ -104,6 +101,10 @@ namespace UnityMCP.Editor
             sb.AppendLine($"substate={subState}");
             sb.AppendLine($"port={MCPServer.ServerPort}");
             sb.AppendLine($"port_fallback={MCPServer._portFallback.ToString().ToLower()}");
+
+            // all_errors= — FIX-1: cross-asmdef compile errors with explicit CS codes
+            // LAST field: multiline block must not be followed by single-line fields (Issue #53 Fix B)
+            sb.AppendLine($"all_errors={SessionState.GetString(SyncHelper.AllAsmErrKey, "")}");
 
             return sb.ToString().TrimEnd();
         }
@@ -126,18 +127,25 @@ namespace UnityMCP.Editor
         static string BuildDllFreshness()
         {
             var projectPath = UnityEngine.Application.dataPath;
-            // Library/ScriptAssemblies is sibling of Assets (dataPath ends in /Assets)
             var projectRoot = Path.GetDirectoryName(projectPath) ?? "";
-            var libPath = Path.Combine(projectRoot, "Library", "ScriptAssemblies");
-            var sbDlls = new StringBuilder();
+            var libPath     = Path.Combine(projectRoot, "Library", "ScriptAssemblies");
 
+            // Single scan for Assets/ and Packages/ — O(N+M) total, not O(N*M) (Issue #53 Fix C)
+            var assetsMap = ScanAssets(projectPath);
+            var pkgsMap   = ScanPackages();
+
+            var sbDlls = new StringBuilder();
             foreach (var dllName in GetKnownDlls())
             {
                 var asmName = Path.GetFileNameWithoutExtension(dllName);
                 var dllPath = Path.Combine(libPath, dllName);
-                var srcDir  = FindAsmdefDir(projectPath, asmName);
-                var token   = GetDllFreshnessToken(dllPath, srcDir);
-                var mtime   = File.Exists(dllPath)
+
+                string srcDir;
+                if (!assetsMap.TryGetValue(asmName, out srcDir))
+                    pkgsMap.TryGetValue(asmName, out srcDir);
+
+                var token = GetDllFreshnessToken(dllPath, srcDir ?? "");
+                var mtime = File.Exists(dllPath)
                     ? new FileInfo(dllPath).LastWriteTimeUtc.Ticks : 0L;
 
                 if (sbDlls.Length > 0) sbDlls.Append(',');
@@ -192,6 +200,36 @@ namespace UnityMCP.Editor
             }
             return null;
         };
+
+        // Seam: scan Assets/ for all .asmdef files → name→dir map. Injectable for NUnit.
+        // Production impl: one Directory.GetFiles call covering all of Assets/.
+        internal static Func<string, System.Collections.Generic.Dictionary<string, string>> ScanAssets =
+            (dataPath) =>
+            {
+                var map = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                try
+                {
+                    foreach (var f in Directory.GetFiles(dataPath, "*.asmdef", SearchOption.AllDirectories))
+                        map[Path.GetFileNameWithoutExtension(f)] = Path.GetDirectoryName(f) ?? "";
+                }
+                catch (Exception) { }
+                return map;
+            };
+
+        // Seam: scan Packages/ for all .asmdef assets → name→dir map. Injectable for NUnit.
+        // Production impl: one AssetDatabase.FindAssets call (in-memory index, fast).
+        internal static Func<System.Collections.Generic.Dictionary<string, string>> ScanPackages =
+            () =>
+            {
+                var map = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                var guids = AssetDatabase.FindAssets("t:asmdef", new[] { "Packages" });
+                foreach (var guid in guids)
+                {
+                    var vp = AssetDatabase.GUIDToAssetPath(guid);
+                    map[Path.GetFileNameWithoutExtension(vp)] = Path.GetDirectoryName(Path.GetFullPath(vp)) ?? "";
+                }
+                return map;
+            };
 
         // Find the directory containing <asmName>.asmdef by scanning under dataPath.
         // Falls back to FindInPackages for file: UPM packages outside Assets/.

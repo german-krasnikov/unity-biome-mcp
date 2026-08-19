@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.44.0] — 2026-08-19
+
+### Fixed
+
+- **Unity 6.4–6.5 compatibility:** Add `ObjectIdCompat` bridge for instance-ID → EntityId API migration; add `UIPanelHost` abstraction to support both `UIDocument` (6.0–6.3) and `PanelRenderer` (6.4+)
+- **Playtest DSL:** Accept `|PanelRenderer|` and `|UI|` component tokens in paths; normalize to `|UIDocument|` at parse time for version-independent scripts
+- **Diagnose output:** Reorder fields to place multiline `all_errors=` last; add `substate=`, `port=`, `port_fallback=` for clearer agent diagnostics
+- **DiagnoseCommand:** Optimize asmdef lookup with `ScanAssets` and `ScanPackages` seams to reduce O(N*M) scans to O(N+M)
+
 ## [v1.43.0] — 2026-08-19
 
 ### Fixed
@@ -3453,7 +3462,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.43.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.44.0...HEAD
+[v1.44.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.43.0...v1.44.0
 [v1.43.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.1...v1.43.0
 [v1.42.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.0...v1.42.1
 [v1.42.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.41.0...v1.42.0

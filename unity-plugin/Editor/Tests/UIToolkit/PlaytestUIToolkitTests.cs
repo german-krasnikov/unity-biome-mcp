@@ -127,5 +127,60 @@ namespace UnityMCP.Editor.Tests
             Assert.That(step.Path,  Is.EqualTo("/Player/Input"),   "path stored verbatim");
             Assert.That(step.Value, Is.EqualTo("hello"),           "value stored");
         }
+
+        // ── Issue #54: NormalizeUIHostPath ─────────────────────────────────────
+
+        // 11. |PanelRenderer| token normalized to |UIDocument| at parse time.
+        [Test]
+        public void NormalizeUIHostPath_PanelRenderer_NormalizedToUIDocument()
+        {
+            var result = PlaytestParser.NormalizeUIHostPath("/HUD|PanelRenderer|btn");
+            Assert.That(result, Is.EqualTo("/HUD|UIDocument|btn"));
+        }
+
+        // 12. |UI| token normalized to |UIDocument| at parse time.
+        [Test]
+        public void NormalizeUIHostPath_UI_NormalizedToUIDocument()
+        {
+            var result = PlaytestParser.NormalizeUIHostPath("/HUD|UI|btn");
+            Assert.That(result, Is.EqualTo("/HUD|UIDocument|btn"));
+        }
+
+        // 13. Plain uGUI paths must not be affected.
+        [Test]
+        public void NormalizeUIHostPath_PlainPath_Unchanged()
+        {
+            var result = PlaytestParser.NormalizeUIHostPath("/Player|Health|hp");
+            Assert.That(result, Is.EqualTo("/Player|Health|hp"),
+                "uGUI paths must not be intercepted by normalization");
+        }
+
+        // 14. CLICK with PanelRenderer path: after normalization the step path contains |UIDocument|.
+        [Test]
+        public void Click_PanelRendererPath_StepPathContainsUIDocumentToken()
+        {
+            var step = PlaytestParser.Parse("CLICK /HUD|PanelRenderer|btn").Steps[0];
+            Assert.That(step.Path, Does.Contain("|UIDocument|"),
+                "PanelRenderer token must be normalized to UIDocument");
+            Assert.That(step.Path, Does.Not.Contain("|PanelRenderer|"),
+                "PanelRenderer token must not remain in stored path");
+        }
+
+        // 15. ResolveQuery: 4-segment PanelRenderer path normalizes comp to UIDocument.
+        [Test]
+        public void ResolveQuery_PanelRendererToken_NormalizesToUIDocument()
+        {
+            var (path, comp, field) = PlaytestParser.ResolveQuery("/HUD|PanelRenderer|health-label|text", null);
+            Assert.That(comp,  Is.EqualTo("UIDocument"), "comp must be normalized to UIDocument");
+            Assert.That(field, Is.EqualTo("health-label|text"), "field packs selector|veField");
+        }
+
+        // 16. ResolveQuery: 4-segment |UI| alias also normalizes to UIDocument.
+        [Test]
+        public void ResolveQuery_UIAlias_NormalizesToUIDocument()
+        {
+            var (path, comp, field) = PlaytestParser.ResolveQuery("/HUD|UI|health-label|text", null);
+            Assert.That(comp, Is.EqualTo("UIDocument"), "UI alias must normalize to UIDocument");
+        }
     }
 }

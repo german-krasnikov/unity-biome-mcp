@@ -85,6 +85,8 @@ by runtime boundary:
 | `unity-plugin/Editor/CommandOptions.cs` | Internal structured registration options behind the public bool overloads. |
 | `unity-plugin/Editor/PluginRegistry.cs` and `IMCPPlugin.cs` | C# plugin discovery and registration contract. |
 | `unity-plugin/Editor/SyncHelper.cs` | Epoch-based compile/reload state machine used by `sync_unity`. |
+| `unity-plugin/Editor/ObjectIdCompat.cs` | Platform compat bridge for Unity 6.0–6.3 (instance-ID) and 6.4+ (EntityId) object identity APIs. |
+| `unity-plugin/Editor/UIPanelHost.cs` | Compat layer for `UIDocument` (Unity 6.0) and `PanelRenderer` (Unity 6.4+); used by playtest UI commands and intent tools. |
 | `unity-plugin/Editor/PlaytestParser.cs` and `PlaytestRunner*.cs` | Playtest DSL parsing and execution. |
 | `unity-plugin/Editor/Chat/` | In-Unity chat presentation and relay integration. |
 | `unity-plugin/Editor/Tests/` | EditMode and PlayMode implementation fixtures. |

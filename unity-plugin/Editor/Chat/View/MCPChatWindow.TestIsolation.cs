@@ -58,7 +58,7 @@ namespace UnityMCP.Editor.Chat
         private sealed class TestIsolationScope : IDisposable
         {
             private readonly TestIsolationScope _previous;
-            private readonly Dictionary<int, MCPChatWindow> _baselineWindows;
+            private readonly HashSet<MCPChatWindow> _baselineWindows;
             private readonly Func<string, IChatBackend> _backendFactory;
             private readonly Func<string, string> _colorResolver;
             private readonly Action<ChipData> _addToContext;
@@ -76,8 +76,7 @@ namespace UnityMCP.Editor.Chat
             {
                 _previous = previous;
                 OwnerId = ownerId;
-                _baselineWindows = CurrentWindows().ToDictionary(
-                    window => window.GetInstanceID(), window => window);
+                _baselineWindows = new HashSet<MCPChatWindow>(CurrentWindows());
                 _backendFactory = BackendFactoryForTest;
                 _colorResolver = ChipPillFactory.ColorResolver;
                 _addToContext = ChipPillFactory.AddToContextAction;
@@ -105,7 +104,7 @@ namespace UnityMCP.Editor.Chat
                 var currentWindows = Array.Empty<MCPChatWindow>();
                 TryRestore(() => currentWindows = CurrentWindows().ToArray(), errors);
                 foreach (var window in currentWindows.Where(window =>
-                             !_baselineWindows.ContainsKey(window.GetInstanceID())))
+                             !_baselineWindows.Contains(window)))
                 {
                     TryRestore(() =>
                     {
@@ -117,7 +116,7 @@ namespace UnityMCP.Editor.Chat
                     }, errors);
                 }
 
-                foreach (var baseline in _baselineWindows.Values)
+                foreach (var baseline in _baselineWindows)
                 {
                     if (baseline == null)
                         errors.Add(new InvalidOperationException(

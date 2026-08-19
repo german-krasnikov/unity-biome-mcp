@@ -44,6 +44,23 @@ SceneName:/RootObj|Component|field # works with component paths too
 
 Only the rightmost `/` before the path body is split by the parser. Slashes inside brackets or escaped with `\` are preserved.
 
+### Component Tokens (UIDocument, PanelRenderer, UI)
+
+When accessing UI element properties, the component token identifies the host:
+
+```text
+ASSERT /UIRoot|UIDocument|element|text == "Label"       # explicit UIDocument
+ASSERT /UIRoot|PanelRenderer|element|text == "Label"    # PanelRenderer (Unity 6.4+)
+ASSERT /UIRoot|UI|element|text == "Label"               # generic UI (normalized to UIDocument)
+```
+
+All three forms `|UIDocument|`, `|PanelRenderer|`, and `|UI|` resolve to the
+same internal representation at parse time. This allows playtest scripts to
+reference UI hosts compatibly across Unity versions:
+
+- Unity 6.0–6.3 use only `UIDocument`; `|PanelRenderer|` and `|UI|` are normalized to `|UIDocument|`
+- Unity 6.4+ may have either component; the parser accepts all three forms and selects the correct host at runtime
+
 ### Parser Internals
 
 - **SplitTokens**: Bracket/quote-aware tokenizer. Ignores spaces inside:
@@ -51,6 +68,7 @@ Only the rightmost `/` before the path body is split by the parser. Slashes insi
   - Square brackets: `[content/with/slashes]`
   - Backslash escapes: `\"` and `\[` inside quotes; `\/` and `\\` in paths
 - **ParseQOV** (Query-Operator-Value): Scans tokens for operators (`==`, `!=`, `>`, `<`, `>=`, `<=`), extracts query/op/value. Empty op = bool shorthand (e.g., `ASSERT $flag` = `ASSERT $flag == True`)
+- **NormalizeUIHostPath**: Replaces `|PanelRenderer|` and `|UI|` tokens with `|UIDocument|` to unify host reference syntax across versions
 
 ## Setup and Teardown Blocks
 

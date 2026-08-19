@@ -867,3 +867,71 @@ async def test_diagnose_stale_cache_verdict_for_stale_dll_after_clean_compile():
         result = await _d.diagnose()
     assert result.startswith("STALE-CACHE"), f"stale dll + idle compile → STALE-CACHE, got: {result!r}"
     assert "reimport" in result.lower(), f"STALE-CACHE must include reimport hint, got: {result!r}"
+
+
+# ---------------------------------------------------------------------------
+# Issue #53 — WP8 tail fields must not leak into all_errors=
+# ---------------------------------------------------------------------------
+
+WP8_PAYLOAD = """\
+mvid=60d2de34-f1b2-4c3d-a5e6-789012345678
+stamp=60d2de34-f1b2-4c3d-a5e6-789012345678:639169455305003280
+compile=idle|8.2
+sync=ready  epoch=3
+iscompiling=false  cn_active=false  started=false  stamp_frozen=false
+isReallyCompiling=false
+dlls=UnityMCP.Editor:639169455305003280:fresh
+errors=
+log=clean
+main_mvid=60d2de34-f1b2-4c3d-a5e6-789012345678
+reload_failed=false
+all_errors=
+substate=None
+port=9500
+port_fallback=false"""
+
+
+def test_parse_diagnose_empty_all_errors():
+    """all_errors= followed by substate=/port=/port_fallback= must NOT be captured.
+
+    RED before _KNOWN_KEYS fix: all_errors will be 'substate=None\\nport=9500\\nport_fallback=false'.
+    GREEN after adding the three keys.
+    """
+    f = _d._parse_diagnose(WP8_PAYLOAD)
+    assert f.all_errors == "", (
+        f"all_errors must be empty, got: {f.all_errors!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_verdict_clean_project():
+    """Full WP8 wire payload on a clean project → CLEAN-LIVE, never FAIL:unknown.
+
+    RED before Cycle 1 fix: returns FAIL:unknown.
+    GREEN after fix.
+    """
+    _d._send = _make_send(WP8_PAYLOAD)
+    result = await _d.diagnose()
+    assert result == "CLEAN-LIVE", (
+        f"Clean project with WP8 fields must be CLEAN-LIVE, got: {result!r}"
+    )
+
+
+def test_all_errors_with_real_error_preserved():
+    """Real CS error in all_errors= must survive after _KNOWN_KEYS fix.
+
+    This test is GREEN before AND after the fix — it guards against regression
+    where the fix might accidentally suppress real errors.
+    """
+    payload = (
+        "mvid=abc\nstamp=abc:1\ncompile=idle-failed|1.0\n"
+        "sync=failed  epoch=1\niscompiling=false  cn_active=false  started=false  stamp_frozen=false\n"
+        "isReallyCompiling=false\ndlls=X:0:fresh\nerrors=\nlog=clean\n"
+        "main_mvid=abc\nreload_failed=false\n"
+        "all_errors=MyAssembly:CS0117:File.cs:1: error CS0117: blah\n"
+        "substate=None\nport=9500\nport_fallback=false"
+    )
+    f = _d._parse_diagnose(payload)
+    assert "CS0117" in f.all_errors, f"CS error must remain in all_errors: {f.all_errors!r}"
+    v = _d._verdict(f)
+    assert v.startswith("FAIL:CS0117"), f"Must be FAIL:CS0117, got {v!r}"

@@ -26,12 +26,13 @@ namespace UnityMCP.Editor
         internal static TransientObjectId FromObject(Object value)
         {
             if (value == null) return None;
-            return new TransientObjectId(unchecked((ulong)(long)value.GetInstanceID()));
+            return new TransientObjectId(ObjectIdCompat.GetRawId(value));
         }
 
-        // New: AI-facing $HEX ref — uppercase hex of lower 32 bits, no leading zeros.
+        // AI-facing $HEX ref — full 64-bit uppercase hex, no leading zeros.
         // Disjoint from RefManager $a-$zz (lowercase) and #RRGGBBAA color syntax.
-        internal string HexRef => "$" + ((uint)RawValue).ToString("X", CultureInfo.InvariantCulture);
+        // TryParse handles both legacy 8-char (32-bit) and current up-to-16-char (64-bit) hex.
+        internal string HexRef => "$" + RawValue.ToString("X", CultureInfo.InvariantCulture);
 
         internal static string GetWireValue(Object value) => FromObject(value).WireValue;
         internal static string GetHexRef(Object value) => FromObject(value).HexRef;
@@ -80,7 +81,7 @@ namespace UnityMCP.Editor
         internal Object Resolve()
         {
             if (IsNone) return null;
-            return EditorUtility.InstanceIDToObject(unchecked((int)RawValue));
+            return ObjectIdCompat.ResolveObject(RawValue);
         }
 
         internal static Object Resolve(string value)
@@ -88,7 +89,7 @@ namespace UnityMCP.Editor
 
         internal static bool HasSerializedReference(SerializedProperty property)
         {
-            return property.objectReferenceInstanceIDValue != 0;
+            return ObjectIdCompat.HasSerializedReference(property);
         }
 
         public bool Equals(TransientObjectId other) => RawValue == other.RawValue;

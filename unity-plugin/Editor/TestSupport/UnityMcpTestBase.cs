@@ -49,7 +49,7 @@ namespace UnityMCP.Editor.Testing
         private IDisposable _relayIsolation;
         private IDisposable _relaySpawnIsolation;
         private int _previewSceneCountBaseline;
-        private HashSet<int> _editorWindowBaseline;
+        private HashSet<EditorWindow> _editorWindowBaseline;
         private bool _isolationActive;
         private bool _cleanupStarted;
 
@@ -115,9 +115,8 @@ namespace UnityMCP.Editor.Testing
                 _reloadGuardIsolation = ReloadGuard.BeginTestIsolation(
                     new IsolatedReloadGuardOps(), isolationOwnerId);
                 _chatWindowIsolation = MCPChatWindow.BeginTestIsolation(isolationOwnerId);
-                _editorWindowBaseline = new HashSet<int>(
-                    Resources.FindObjectsOfTypeAll<EditorWindow>()
-                             .Select(w => w.GetInstanceID()));
+                _editorWindowBaseline = new HashSet<EditorWindow>(
+                    Resources.FindObjectsOfTypeAll<EditorWindow>());
             }
             catch (Exception setupError)
             {
@@ -550,7 +549,7 @@ namespace UnityMCP.Editor.Testing
             if (_editorWindowBaseline == null) return;
             foreach (var w in Resources.FindObjectsOfTypeAll<EditorWindow>())
             {
-                if (w == null || _editorWindowBaseline.Contains(w.GetInstanceID())) continue;
+                if (w == null || _editorWindowBaseline.Contains(w)) continue;
                 try { w.Close(); }
                 catch (Exception) { /* m_Parent null — window was never shown */ }
                 if (w != null) UnityEngine.Object.DestroyImmediate(w);
@@ -613,7 +612,7 @@ namespace UnityMCP.Editor.Testing
             if ((!string.IsNullOrEmpty(ownedScene.path) &&
                  string.Equals(ownedScene.path, runScenePath,
                      StringComparison.OrdinalIgnoreCase)) ||
-                (runScene.IsValid() && runScene.handle == ownedScene.handle))
+                (runScene.IsValid() && runScene == ownedScene))
                 throw new InvalidOperationException(
                     "A fixture cannot take ownership of the run-level scene transaction.");
 
@@ -1077,7 +1076,7 @@ namespace UnityMCP.Editor.Testing
 
                 var currentActive = SceneManager.GetActiveScene();
                 if (restored.isDirty || restored.GetRootGameObjects().Length != 0 ||
-                    (currentActive.handle != restored.handle &&
+                    (currentActive != restored &&
                      !SceneManager.SetActiveScene(restored)))
                     throw new InvalidOperationException(
                         $"Could not restore clean managed test scene '{ownedPath}'.");

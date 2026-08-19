@@ -452,5 +452,83 @@ namespace UnityMCP.Editor.Tests
             }
             finally { DiagnoseCommand.FindInPackages = originalSeam; }
         }
+
+        // Issue #53 Fix B: all_errors= must be emitted AFTER substate=/port=/port_fallback=
+        [Test]
+        public void DiagnoseCommand_AllErrors_IsLastField()
+        {
+            var result = DiagnoseCommand.Execute("{}");
+            var lines = result.Split('\n');
+            int substateIdx  = System.Array.FindIndex(lines, l => l.TrimEnd().StartsWith("substate="));
+            int portIdx      = System.Array.FindIndex(lines, l => l.TrimEnd().StartsWith("port=") &&
+                                                                  !l.TrimEnd().StartsWith("port_fallback="));
+            int allErrorsIdx = System.Array.FindIndex(lines, l => l.TrimEnd().StartsWith("all_errors="));
+
+            Assert.GreaterOrEqual(substateIdx, 0, "substate= must be present in wire output");
+            Assert.GreaterOrEqual(portIdx, 0,     "port= must be present in wire output");
+            Assert.GreaterOrEqual(allErrorsIdx, 0,"all_errors= must be present in wire output");
+
+            Assert.Greater(allErrorsIdx, substateIdx,
+                "all_errors= must come AFTER substate= (protocol contract)");
+            Assert.Greater(allErrorsIdx, portIdx,
+                "all_errors= must come AFTER port= (protocol contract)");
+        }
+
+        // Issue #53 Fix C: BuildDllFreshness must scan Assets/ exactly once (not N times)
+        [Test]
+        public void BuildDllFreshness_ScanOnce()
+        {
+            int callCount = 0;
+            var originalScan = DiagnoseCommand.ScanAssets;
+            var originalPkgs = DiagnoseCommand.ScanPackages;
+            try
+            {
+                DiagnoseCommand.ScanAssets  = (_) => { callCount++; return new System.Collections.Generic.Dictionary<string, string>(); };
+                DiagnoseCommand.ScanPackages = ()  => new System.Collections.Generic.Dictionary<string, string>();
+
+                DiagnoseCommand.Execute("{}");
+
+                Assert.AreEqual(1, callCount,
+                    "ScanAssets must be called exactly once regardless of assembly count");
+            }
+            finally
+            {
+                DiagnoseCommand.ScanAssets  = originalScan;
+                DiagnoseCommand.ScanPackages = originalPkgs;
+            }
+        }
+
+        // Issue #53 Fix C: BuildDllFreshness must complete in <500ms with seam (scan-once path)
+        [Test]
+        public void BuildDllFreshness_Performance()
+        {
+            // Build a 150-entry fake map — simulates large project
+            var fakeMap = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            using var scope = new TempDirScope("McpPerfTest");
+            for (int i = 0; i < 150; i++)
+                fakeMap[$"FakeAsm{i}"] = scope.Path;
+
+            var originalScan = DiagnoseCommand.ScanAssets;
+            var originalPkgs = DiagnoseCommand.ScanPackages;
+            try
+            {
+                DiagnoseCommand.ScanAssets  = (_) => fakeMap;
+                DiagnoseCommand.ScanPackages = ()  => new System.Collections.Generic.Dictionary<string, string>();
+
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                DiagnoseCommand.Execute("{}");
+                sw.Stop();
+
+                // 500ms is generous to handle slow CI disk I/O for real DLL mtime checks.
+                // On fast dev machines this should be <100ms.
+                Assert.Less(sw.ElapsedMilliseconds, 500,
+                    $"BuildDllFreshness must complete in <500ms with scan-once seam, took {sw.ElapsedMilliseconds}ms");
+            }
+            finally
+            {
+                DiagnoseCommand.ScanAssets  = originalScan;
+                DiagnoseCommand.ScanPackages = originalPkgs;
+            }
+        }
     }
 }

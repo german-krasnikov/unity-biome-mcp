@@ -1,0 +1,211 @@
+name: Unity Version Compatibility
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "unity-plugin/**"
+      - ".github/workflows/unity-compat.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: unity-compat-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  compat:
+    name: "${{ matrix.label }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── Phase 1: boundary versions ──────────────────────────
+          - unity-version: '6000.0.65f1'
+            label: 'Unity 6.0 — baseline (#else branches)'
+            test-mode: full
+            phase: 1
+
+          # ── All minor versions (latest patch from unity.com/releases) ─
+          - unity-version: '6000.1.17f1'
+            label: 'Unity 6.1 — compile check'
+            test-mode: compile
+            phase: 1
+
+          - unity-version: '6000.2.15f1'
+            label: 'Unity 6.2 — compile check'
+            test-mode: compile
+            phase: 1
+
+          - unity-version: '6000.3'
+            label: 'Unity 6.3 LTS — compile check'
+            test-mode: compile
+            phase: 1
+
+          - unity-version: '6000.4'
+            label: 'Unity 6.4 — deprecation boundary'
+            test-mode: targeted
+            phase: 1
+
+          - unity-version: '6000.5'
+            label: 'Unity 6.5 — EntityId hard error (#if branches)'
+            test-mode: full
+            phase: 1
+
+          - unity-version: '6000.7.0a4'
+            label: 'Unity 6.7 Alpha — forward compat'
+            test-mode: compile
+            phase: 1
+
+          # ── Unity 7 ───────────────────────────────────────────────
+          # Uncomment when available:
+          # - unity-version: '7000.0.0f1'
+          #   label: 'Unity 7.0 — forward compat'
+          #   test-mode: full
+          #   phase: 1
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Create artifacts directory
+        run: mkdir -p artifacts
+
+      - name: Set UPM cache path
+        id: upm-path
+        run: echo "path=$HOME/.cache/Unity/upm" >> "$GITHUB_OUTPUT"
+
+      - name: Cache UPM packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ steps.upm-path.outputs.path }}
+          key: upm-compat-${{ matrix.unity-version }}-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
+          restore-keys: |
+            upm-compat-${{ matrix.unity-version }}-
+
+      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
+        id: unity-setup
+        timeout-minutes: 30
+        continue-on-error: true
+        with:
+          unity-version: ${{ matrix.unity-version }}
+          build-targets: StandaloneLinux64
+          cache-installation: true
+          hub-version: '3.19.5'  # pin: 3.20.0 regresses /opt/unityhub/unityhub path on Linux (issue #57)
+
+      - name: Skip if Unity setup failed
+        if: steps.unity-setup.outcome == 'failure'
+        run: |
+          echo "::warning::Unity ${{ matrix.unity-version }} setup failed (CDN/infra). Skipping."
+          exit 0
+
+      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
+        if: steps.unity-setup.outcome != 'failure'
+        with:
+          license: 'Personal'
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+
+      # ── Compile-only: open project, exit if no errors ──────────
+      - name: Compile check
+        if: matrix.test-mode == 'compile' && steps.unity-setup.outcome != 'failure'
+        uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
+        with:
+          build-target: StandaloneLinux64
+          editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
+          project-path: unity-test-project
+          args: >
+            -batchmode
+            -nographics
+            -quit
+            -logFile ${{ github.workspace }}/artifacts/unity.log
+
+      # ── Targeted: run only compat-specific tests ───────────────
+      - name: Targeted compat tests
+        if: matrix.test-mode == 'targeted' && steps.unity-setup.outcome != 'failure'
+        uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
+        with:
+          build-target: StandaloneLinux64
+          editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
+          project-path: unity-test-project
+          args: >
+            -batchmode
+            -nographics
+            -runTests
+            -testPlatform EditMode
+            -testFilter "ObjectIdCompat|UIPanelHost|DiagnoseCommand"
+            -testResults ${{ github.workspace }}/artifacts/compat-results.xml
+            -logFile ${{ github.workspace }}/artifacts/unity.log
+
+      # ── Full: run entire EditMode suite ────────────────────────
+      - name: Full EditMode tests
+        if: matrix.test-mode == 'full' && steps.unity-setup.outcome != 'failure'
+        uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
+        with:
+          build-target: StandaloneLinux64
+          editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
+          project-path: unity-test-project
+          args: >
+            -batchmode
+            -nographics
+            -runTests
+            -testPlatform EditMode
+            -testResults ${{ github.workspace }}/artifacts/editmode-results.xml
+            -logFile ${{ github.workspace }}/artifacts/unity.log
+
+      - name: Check test results exist
+        id: check-results
+        if: always() && matrix.test-mode != 'compile'
+        shell: bash
+        run: |
+          for f in artifacts/*-results.xml; do
+            [ -f "$f" ] && echo "exists=true" >> "$GITHUB_OUTPUT" && exit 0
+          done
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+
+      - uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2  # v3.0.0
+        if: always() && steps.check-results.outputs.exists == 'true'
+        with:
+          name: "NUnit — ${{ matrix.label }}"
+          path: artifacts/*-results.xml
+          reporter: dotnet-nunit
+
+      - name: Write job summary
+        if: always()
+        shell: bash
+        env:
+          LABEL: ${{ matrix.label }}
+          MODE: ${{ matrix.test-mode }}
+        run: |
+          echo "## $LABEL" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$MODE" = "compile" ]; then
+            echo "✅ Compile check passed" >> "$GITHUB_STEP_SUMMARY"
+          else
+            xml=$(find artifacts -name '*-results.xml' -type f | head -1)
+            if [ -f "$xml" ]; then
+              python3 -c "
+          import xml.etree.ElementTree as ET
+          r = ET.parse('$xml').getroot()
+          p, f, s, t = r.get('passed','?'), r.get('failed','?'), r.get('skipped','?'), r.get('total','?')
+          icon = '✅' if int(r.get('failed','1')) == 0 else '❌'
+          print(f'{icon} Passed: **{p}** | Failed: **{f}** | Skipped: {s} | Total: {t}')
+          " >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: always()
+        with:
+          name: compat-${{ matrix.unity-version }}
+          path: artifacts/
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: failure()
+        with:
+          name: unity-log-${{ matrix.unity-version }}
+          path: artifacts/unity.log
