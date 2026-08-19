@@ -46,21 +46,14 @@ jobs:
             test-mode: full
             phase: 1
 
-          # ── Intermediate versions (compile-only) ────────────────
-          - unity-version: '6000.1'
-            label: 'Unity 6.1 — compile check'
-            test-mode: compile
-            phase: 1
-
-          - unity-version: '6000.2'
-            label: 'Unity 6.2 — compile check'
-            test-mode: compile
-            phase: 1
-
-          - unity-version: '6000.3'
-            label: 'Unity 6.3 — last pre-deprecation'
-            test-mode: compile
-            phase: 1
+          # ── Intermediate versions (compile-only, EOL — optional) ─
+          # 6000.1 and 6000.2 are EOL; buildalon may not have images.
+          # 6000.3 LTS available but buildalon CDN flaky for it.
+          # Uncomment when buildalon stabilizes:
+          # - unity-version: '6000.3'
+          #   label: 'Unity 6.3 LTS — compile check'
+          #   test-mode: compile
+          #   phase: 1
 
           # ── Unity 7 ───────────────────────────────────────────────
           # Uncomment when buildalon image is available:
