@@ -46,34 +46,28 @@ jobs:
             test-mode: full
             phase: 1
 
-          # ── Phase 2: intermediate versions (compile-only) ──────
-          # Uncomment when ready to expand the matrix:
-          #
-          # - unity-version: '6000.1.0f1'
-          #   label: 'Unity 6.1 — compile check'
-          #   test-mode: compile
-          #   phase: 2
-          #
-          # - unity-version: '6000.2.0f1'
-          #   label: 'Unity 6.2 — compile check'
-          #   test-mode: compile
-          #   phase: 2
-          #
-          # - unity-version: '6000.3.0f1'
-          #   label: 'Unity 6.3 — last pre-deprecation'
-          #   test-mode: compile
-          #   phase: 2
-          #
-          # - unity-version: '6000.4.0f1'
-          #   label: 'Unity 6.4 — PanelRenderer + EntityId warns'
-          #   test-mode: targeted
-          #   phase: 2
-          #
-          # ── Phase 3: Unity 7 (when available) ──────────────────
+          # ── Intermediate versions (compile-only) ────────────────
+          - unity-version: '6000.1.0f1'
+            label: 'Unity 6.1 — compile check'
+            test-mode: compile
+            phase: 1
+
+          - unity-version: '6000.2.0f1'
+            label: 'Unity 6.2 — compile check'
+            test-mode: compile
+            phase: 1
+
+          - unity-version: '6000.3.0f1'
+            label: 'Unity 6.3 — last pre-deprecation'
+            test-mode: compile
+            phase: 1
+
+          # ── Unity 7 ───────────────────────────────────────────────
+          # Uncomment when buildalon image is available:
           # - unity-version: '7000.0.0f1'
           #   label: 'Unity 7.0 — forward compat'
           #   test-mode: full
-          #   phase: 3
+          #   phase: 1
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
