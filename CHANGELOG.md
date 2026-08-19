@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.43.0] — 2026-08-19
+
 ### Fixed
 
 - Close 27 Python issues from SonarCloud top-100 remediation:
@@ -3451,7 +3453,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.1...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.43.0...HEAD
+[v1.43.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.1...v1.43.0
 [v1.42.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.0...v1.42.1
 [v1.42.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.41.0...v1.42.0
 [v1.41.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.40.0...v1.41.0
