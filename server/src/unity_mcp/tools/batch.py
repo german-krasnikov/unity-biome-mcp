@@ -78,50 +78,53 @@ def _check_completeness(commands: str, result: str) -> str:
     return result
 
 
-async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
-                atomic: bool = False, validate_aliases: bool = False) -> str:
-    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75). atomic: on failure, reverts prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain. PREFER over individual tool calls."""
+def _preprocess_continue_mode(commands: str) -> tuple[str, list[str], list[int]]:
+    """Filter/validate commands for on_error=continue. Returns (commands, pre_errors, orig_indices)."""
     pre_errors: list[str] = []
-    # Unity indexes parsed commands from zero after ignoring blank/comment lines.
-    # Keep the original command ordinal so Python-side filtering does not change
-    # the indices reported to callers.
     orig_indices: list[int] = []
-    if on_error == "continue":
-        clean: list[str] = []
-        command_index = 0
-        for line in commands.splitlines():
-            stripped_line = line.strip()
-            if not stripped_line or stripped_line.startswith("#"):
-                clean.append(line)
-                continue
-            i = command_index
-            command_index += 1
-            cmd = stripped_line.split()[0]
-            if cmd in _dsl_tools:
-                pre_errors.append(f"[{i}] err: '{cmd}' requires typed MCP tool, not batch")
-                continue
-            spec = _SPECS.get(cmd)
-            if spec and spec.direct_only:
-                pre_errors.append(f"[{i}] err: '{cmd}' is direct-only; call it as a typed MCP tool, not in batch")
-                continue
-            clean.append(_strip_python_params(line))
-            orig_indices.append(i)
-        if pre_errors and not clean:
-            raise ToolError("\n".join(pre_errors))
-        commands = "\n".join(clean)
-    else:
-        stripped: list[str] = []
-        for line in commands.splitlines():
-            cmd = line.strip().split()[0] if line.strip() else ""
-            if cmd in _dsl_tools:
-                raise ToolError(f"{cmd} requires typed MCP tool (Python DSL expansion), not batch")
-            spec = _SPECS.get(cmd)
-            if spec and spec.direct_only:
-                raise ToolError(f"'{cmd}' is direct-only; call it as a typed MCP tool, not in batch")
-            stripped.append(_strip_python_params(line))
-        commands = "\n".join(stripped)
-    timeout_ms = max(1000, int((timeout - 5) * 1000))
-    args = {"commands": commands}
+    clean: list[str] = []
+    command_index = 0
+    for line in commands.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            clean.append(line)
+            continue
+        i = command_index
+        command_index += 1
+        cmd = stripped.split()[0]
+        if cmd in _dsl_tools:
+            pre_errors.append(f"[{i}] err: '{cmd}' requires typed MCP tool, not batch")
+            continue
+        spec = _SPECS.get(cmd)
+        if spec and spec.direct_only:
+            pre_errors.append(f"[{i}] err: '{cmd}' is direct-only; call it as a typed MCP tool, not in batch")
+            continue
+        clean.append(_strip_python_params(line))
+        orig_indices.append(i)
+    if pre_errors and not clean:
+        raise ToolError("\n".join(pre_errors))
+    return "\n".join(clean), pre_errors, orig_indices
+
+
+def _preprocess_stop_mode(commands: str) -> str:
+    """Validate commands for on_error=stop. Raises ToolError on first DSL/direct-only hit."""
+    stripped_lines: list[str] = []
+    for line in commands.splitlines():
+        cmd = line.strip().split()[0] if line.strip() else ""
+        if cmd in _dsl_tools:
+            raise ToolError(f"{cmd} requires typed MCP tool (Python DSL expansion), not batch")
+        spec = _SPECS.get(cmd)
+        if spec and spec.direct_only:
+            raise ToolError(f"'{cmd}' is direct-only; call it as a typed MCP tool, not in batch")
+        stripped_lines.append(_strip_python_params(line))
+    return "\n".join(stripped_lines)
+
+
+def _build_send_args(
+    commands: str, on_error: str, timeout_ms: int, atomic: bool, validate_aliases: bool
+) -> dict:
+    """Build TCP args dict, omitting default/falsy values."""
+    args: dict = {"commands": commands}
     if on_error != "continue":
         args["on_error"] = on_error
     # 25000 is C#'s own hardcoded internal batch-executor default (NOT Python's
@@ -136,16 +139,42 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
         args["atomic"] = "true"
     if validate_aliases:
         args["validate_aliases"] = "true"
+    return args
+
+
+def _remap_indices(match: re.Match, orig_indices: list[int]) -> str:
+    """Remap a Unity-side zero-based index to original command ordinal."""
+    n = int(match.group(1))
+    return f"[{orig_indices[n]}]" if 0 <= n < len(orig_indices) else match.group(0)
+
+
+def _merge_pre_errors(result: str, pre_errors: list[str], orig_indices: list[int]) -> str:
+    """Prepend Python-side pre_errors to Unity result and remap indices."""
+    if orig_indices:
+        result = re.sub(
+            r'(?m)^\[(\d+)\]',
+            lambda m: _remap_indices(m, orig_indices),
+            result,
+        )
+    result = _add_preflight_errors_to_summary(result, len(pre_errors))
+    return "\n".join(pre_errors) + "\n" + result
+
+
+async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
+                atomic: bool = False, validate_aliases: bool = False) -> str:
+    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75). atomic: on failure, reverts prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain. PREFER over individual tool calls."""
+    pre_errors: list[str] = []
+    orig_indices: list[int] = []
+    if on_error == "continue":
+        commands, pre_errors, orig_indices = _preprocess_continue_mode(commands)
+    else:
+        commands = _preprocess_stop_mode(commands)
+    timeout_ms = max(1000, int((timeout - 5) * 1000))
+    args = _build_send_args(commands, on_error, timeout_ms, atomic, validate_aliases)
     result = await _send("batch", args, timeout=timeout)
     result = _check_completeness(commands, result)
     if pre_errors:
-        if orig_indices:
-            def _remap(m):
-                n = int(m.group(1))
-                return f"[{orig_indices[n]}]" if 0 <= n < len(orig_indices) else m.group(0)
-            result = re.sub(r'(?m)^\[(\d+)\]', _remap, result)
-        result = _add_preflight_errors_to_summary(result, len(pre_errors))
-        return "\n".join(pre_errors) + "\n" + result
+        return _merge_pre_errors(result, pre_errors, orig_indices)
     return result
 
 

@@ -76,7 +76,7 @@ class HeartbeatMixin:
             try:
                 await self._heartbeat_tick(interval)
             except asyncio.CancelledError:  # noqa: PERF203
-                return
+                raise
             except Exception:
                 # Safety net: never let heartbeat task die silently.
                 await asyncio.sleep(5.0)
@@ -86,86 +86,131 @@ class HeartbeatMixin:
         # Parent death: stop heartbeat after grace period expires.
         # Never raise SystemExit/BaseException from a background task — it kills
         # the anyio task group, closing stdio → -32000 for any in-flight MCP call.
-        if os.getppid() != _ORIGINAL_PPID:
-            self._ppid_mismatch_count += 1  # kept for diagnostics
-            if self._orphan_detected_at is None:
-                self._orphan_detected_at = time.monotonic()
-            from .global_config import GlobalConfig
-            cfg = GlobalConfig.load()
-            terminate_orphan, _ = cfg.effective_terminate_orphan()
-            if not terminate_orphan:
-                return  # permanent bridge mode — never self-terminate
-            grace_s, _ = cfg.effective_orphan_grace_s()
-            if time.monotonic() - self._orphan_detected_at >= grace_s:
-                _schedule_hard_exit()
-                self.stop_heartbeat()
+        if self._check_orphan():
             return
-        self._ppid_mismatch_count = 0
-        self._orphan_detected_at = None
         if not self.connected:
-            import unity_mcp.bridge as _bm  # lazy to avoid circular at module level
-            # DORMANT: intentional TCP close — heartbeat must not attempt reconnect.
-            if self._state == _bm.BridgeState.DORMANT:
-                return
-            # Track cumulative disconnected time for startup-grace deadline.
-            if self._reconnect_started_at is None:
-                self._reconnect_started_at = time.monotonic()
-            # Hard deadline uses a separate clock — set once, never reset while busy.
-            if getattr(self, "_hard_deadline_started_at", None) is None:
-                self._hard_deadline_started_at = time.monotonic()
-
-            busy = self._probe_busy()
-            if busy:
-                self._reconnect_started_at = time.monotonic()
-            reload_active = self._reload.is_active()
-            if reload_active and not busy:
-                wait = RELOAD_BACKOFF_S
-                self._reconnect_backoff = min(self._reconnect_backoff, RELOAD_BACKOFF_S)
-            elif busy:
-                wait = 5.0
-            else:
-                wait = 2.0
-            await asyncio.sleep(wait)
-
-            elapsed = time.monotonic() - self._reconnect_started_at
-            hard_elapsed = time.monotonic() - self._hard_deadline_started_at
-
-            # P7: hard deadline — latches even while busy; prevents eternal reconnect loop.
-            if hard_elapsed > HARD_DEADLINE_S:
-                self._startup_grace_expired = True
-                if hasattr(self, "_on_unavailable") and self._on_unavailable:
-                    self._on_unavailable()
-                return
-
-            # Check grace deadline: if elapsed > STARTUP_GRACE_S and not busy,
-            # stop silently looping — next send() will surface the STOP error.
-            if elapsed > _bm.STARTUP_GRACE_S and not busy:
-                self._startup_grace_expired = True
-                return
-
-            if self._reconnect_cooldown_ok():
-                if self._reload.is_active() and self._probe_busy():
-                    return
-                # A2: arm cooldown BEFORE attempt — success and failure both count.
-                self._last_reconnect_at = time.monotonic()
-                async with self._lock:
-                    if self.connected:
-                        return
-                    try:
-                        from unity_mcp.metrics import METRICS
-                        await self._reconnect()
-                        METRICS.inc("reconnect.heartbeat")
-                        self._ping_failures = 0
-                        # B1: success — reset backoff for fast recovery after Unity returns.
-                        self._reconnect_backoff = BACKOFF_MIN_S
-                    except Exception:
-                        # B1: failure — double backoff (exponential dampening).
-                        # N3: cap AFTER jitter so result never exceeds BACKOFF_MAX_S.
-                        self._reconnect_backoff = min(
-                            self._reconnect_backoff * 2 * (1.0 + random.uniform(-0.1, 0.1)),
-                            BACKOFF_MAX_S,
-                        )
+            await self._tick_disconnected()
             return
+        await self._tick_connected(interval)
+
+    def _check_orphan(self) -> bool:
+        """Return True if parent died (tick should abort). Resets counters on live parent."""
+        if os.getppid() == _ORIGINAL_PPID:
+            self._ppid_mismatch_count = 0
+            self._orphan_detected_at = None
+            return False
+        self._ppid_mismatch_count += 1  # kept for diagnostics
+        if self._orphan_detected_at is None:
+            self._orphan_detected_at = time.monotonic()
+        from .global_config import GlobalConfig
+        cfg = GlobalConfig.load()
+        terminate_orphan, _ = cfg.effective_terminate_orphan()
+        if not terminate_orphan:
+            return True  # permanent bridge mode — never self-terminate
+        grace_s, _ = cfg.effective_orphan_grace_s()
+        if time.monotonic() - self._orphan_detected_at >= grace_s:
+            _schedule_hard_exit()
+            self.stop_heartbeat()
+        return True
+
+    def _init_reconnect_timers(self) -> None:
+        """Set reconnect and hard-deadline clocks on first disconnected tick."""
+        if self._reconnect_started_at is None:
+            self._reconnect_started_at = time.monotonic()
+        # Hard deadline uses a separate clock — set once, never reset while busy.
+        if getattr(self, "_hard_deadline_started_at", None) is None:
+            self._hard_deadline_started_at = time.monotonic()
+
+    def _check_hard_deadline(self) -> bool:
+        """Return True and mark grace expired if hard deadline elapsed."""
+        hard_elapsed = time.monotonic() - self._hard_deadline_started_at
+        if hard_elapsed <= HARD_DEADLINE_S:
+            return False
+        # P7: hard deadline — latches even while busy; prevents eternal reconnect loop.
+        self._startup_grace_expired = True
+        if hasattr(self, "_on_unavailable") and self._on_unavailable:
+            self._on_unavailable()
+        return True
+
+    async def _try_reconnect(self) -> None:
+        """Attempt reconnect if cooldown elapsed and not actively reloading."""
+        if not self._reconnect_cooldown_ok():
+            return
+        if self._reload.is_active() and self._probe_busy():
+            return
+        # A2: arm cooldown BEFORE attempt — success and failure both count.
+        self._last_reconnect_at = time.monotonic()
+        async with self._lock:
+            if self.connected:
+                return
+            try:
+                from unity_mcp.metrics import METRICS
+                await self._reconnect()
+                METRICS.inc("reconnect.heartbeat")
+                self._ping_failures = 0
+                # B1: success — reset backoff for fast recovery after Unity returns.
+                self._reconnect_backoff = BACKOFF_MIN_S
+            except Exception:
+                # B1: failure — double backoff (exponential dampening).
+                # N3: cap AFTER jitter so result never exceeds BACKOFF_MAX_S.
+                self._reconnect_backoff = min(
+                    self._reconnect_backoff * 2 * (1.0 + random.uniform(-0.1, 0.1)),
+                    BACKOFF_MAX_S,
+                )
+
+    async def _tick_disconnected(self) -> None:
+        """Handle one heartbeat tick when not connected."""
+        import unity_mcp.bridge as _bm  # lazy to avoid circular at module level
+        # DORMANT: intentional TCP close — heartbeat must not attempt reconnect.
+        if self._state == _bm.BridgeState.DORMANT:
+            return
+        self._init_reconnect_timers()
+        busy = self._probe_busy()
+        if busy:
+            self._reconnect_started_at = time.monotonic()
+        reload_active = self._reload.is_active()
+        if reload_active and not busy:
+            self._reconnect_backoff = min(self._reconnect_backoff, RELOAD_BACKOFF_S)
+            wait = RELOAD_BACKOFF_S
+        elif busy:
+            wait = 5.0
+        else:
+            wait = 2.0
+        await asyncio.sleep(wait)
+
+        if self._check_hard_deadline():
+            return
+        elapsed = time.monotonic() - self._reconnect_started_at
+        # Check grace deadline: if elapsed > STARTUP_GRACE_S and not busy,
+        # stop silently looping — next send() will surface the STOP error.
+        if elapsed > _bm.STARTUP_GRACE_S and not busy:
+            self._startup_grace_expired = True
+            return
+        await self._try_reconnect()
+
+    async def _handle_ping_timeout(self) -> None:
+        """Handle TimeoutError from ping: apply stall counter, close only when dead or stalled."""
+        # Timeout = Unity alive but unresponsive (App Nap / heavy compile).
+        self._ping_failures += 1
+        if self._ping_failures < 3:
+            return
+        if self._probe.is_process_dead():
+            async with self._lock:
+                await self.close()
+            self._ping_failures = 0
+            self._ping_stall_failures = 0
+        else:
+            self._ping_stall_failures += 1
+            logger.warning("Unity ping stall #%d (process alive)", self._ping_stall_failures)
+            self._ping_failures = 0
+            if self._ping_stall_failures >= 6:
+                logger.error("Unity unreachable for 6 stall windows (~6 min) — closing")
+                async with self._lock:
+                    await self.close()
+                self._ping_stall_failures = 0
+
+    async def _tick_connected(self, interval: float) -> None:
+        """Handle one heartbeat tick when connected: sleep then probe with a ping."""
         await asyncio.sleep(interval)
         if self._lock.locked():
             return
@@ -188,24 +233,7 @@ class HeartbeatMixin:
             self._ping_failures = 0
             self._ping_stall_failures = 0
         except TimeoutError:
-            # Timeout = Unity alive but unresponsive (App Nap / heavy compile).
-            # Apply stall counter — don't close prematurely.
-            self._ping_failures += 1
-            if self._ping_failures >= 3:
-                if self._probe.is_process_dead():
-                    async with self._lock:
-                        await self.close()
-                    self._ping_failures = 0
-                    self._ping_stall_failures = 0
-                else:
-                    self._ping_stall_failures += 1
-                    logger.warning("Unity ping stall #%d (process alive)", self._ping_stall_failures)
-                    self._ping_failures = 0
-                    if self._ping_stall_failures >= 6:
-                        logger.error("Unity unreachable for 6 stall windows (~6 min) — closing")
-                        async with self._lock:
-                            await self.close()
-                        self._ping_stall_failures = 0
+            await self._handle_ping_timeout()
         except Exception:
             # Connection error (ConnectionReset, IncompleteRead, OSError, etc.)
             # = dead TCP, not App Nap. Close immediately and reconnect.

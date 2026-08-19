@@ -75,14 +75,16 @@ async def _rule_create_object(
     parent = args.get("parent", "")
 
     # Parse "Created <name> at <path>" or "Created <path>"
-    m = re.search(r"Created\s+.+?\s+at\s+(.+?)(?:\s+\[|\Z)", response)
+    # S6019/S8786: use \S[^\n]* instead of lazy .+? to avoid reluctant quantifiers
+    m = re.search(r"Created\s+\S[^\n]*\s+at\s+(\S[^\n]*)", response)
     if not m:
         m2 = re.search(r"^Created\s+(\S+)", response, re.MULTILINE)
         if not m2:
             return None
         path = m2.group(1)
     else:
-        path = m.group(1)
+        # Strip optional bracket metadata suffix e.g. " [inst=12345]"
+        path = re.sub(r"\s+\[[^\n]*", "", m.group(1))
 
     if name and not path.endswith(f"/{name}"):
         return Mismatch(f"create_object: path '{path}' does not end with /{name}")

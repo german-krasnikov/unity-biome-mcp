@@ -153,11 +153,11 @@ def _fresh_edit_mode_error(data: str | None) -> str | None:
 
 def _broken_reference_count(data: str) -> int | None:
     """Parse current and legacy validate_references summaries; None means unchecked."""
-    current = re.search(r"(\d+)\s+ERROR\b", data or "", re.IGNORECASE)
+    current = re.search(r"(\d+)[ \t]+ERROR\b", data or "", re.IGNORECASE)
     if current:
-        missing = re.search(r"(\d+)\s+MISSING\b", data or "", re.IGNORECASE)
+        missing = re.search(r"(\d+)[ \t]+MISSING\b", data or "", re.IGNORECASE)
         return int(current.group(1)) + (int(missing.group(1)) if missing else 0)
-    legacy = re.search(r"(\d+)\s+broken\b", data or "", re.IGNORECASE)
+    legacy = re.search(r"(\d+)[ \t]+broken\b", data or "", re.IGNORECASE)
     return int(legacy.group(1)) if legacy else None
 
 
@@ -219,6 +219,84 @@ async def scene_change_plan(
     return f"plan_id={plan_id}\ngoal={goal}\ncompile=clean\nconsole_errors=0{resolved_str}"
 
 
+async def _guard_edit_mode() -> str | None:
+    """Return error reason if not in Edit Mode; None = safe to proceed."""
+    try:
+        editor_state = await _send("editor", {"action": "state"})
+        return _fresh_edit_mode_error(editor_state)
+    except Exception as exc:
+        return f"editor state check failed ({type(exc).__name__})"
+
+
+async def _execute_atomic_batch(commands: str) -> tuple[str, str]:
+    """Return (state, batch_data). state ∈ {APPLIED, FAILED, ROLLED_BACK}."""
+    batch_exception = False
+    try:
+        batch_data = await _send("batch", {
+            "commands": commands,
+            "atomic": "true",
+            "on_error": "stop",
+        })
+    except Exception as exc:
+        batch_exception = True
+        batch_data = str(exc)
+    state = _batch_state(batch_data or "")
+    if batch_exception and state == "APPLIED":
+        state = "FAILED"
+    return state, batch_data
+
+
+async def _verify_scene(plan_id: str) -> tuple[str, str, bool]:
+    """Return (refs_status, console_status, verification_ok)."""
+    try:
+        target_path = _plans[plan_id].get("targets", "")
+        vr_args = {"path": target_path} if target_path else {}
+        refs_data = await _send("validate_references", vr_args)
+        broken = _broken_reference_count(refs_data)
+        if broken is None:
+            return "\nrefs=unchecked (unrecognized response)", "", False
+        if broken:
+            return f"\nrefs=BROKEN ({broken} broken)", "", False
+
+        plan = _plans[plan_id]
+        since = max(0.0, _time.time() - plan.get("created_at", _time.time()))
+        console_data = await _send("get_console", {"level": "error,exception", "since": since})
+        console_lines = [ln for ln in console_data.splitlines() if ln.strip()]
+        if len(console_lines) == 1 and console_lines[0].strip().lower() == "no logs":
+            console_lines = []
+        errs = len(console_lines)
+        console_status = f"\nconsole={'clean' if errs == 0 else f'{errs} errors'}"
+        return "\nrefs=ok (0 broken)", console_status, errs == 0
+    except Exception as e:
+        return f"\nrefs=unchecked ({type(e).__name__})", "", False
+
+
+async def _save_scene() -> str:
+    """Execute scene save and return saved_status string."""
+    try:
+        await _send("scene", {"action": "save"})
+        # Verify dirty=false — Unity may not clear synchronously if Undo group is open (P-414)
+        status = await _send("get_status", {})
+        dirty_after = any(ln.strip() == "dirty=True" for ln in status.splitlines())
+        clean_after = any(ln.strip() == "dirty=False" for ln in status.splitlines())
+        if dirty_after:
+            return "\nsaved=PARTIAL dirty=true"
+        if clean_after:
+            return "\nsaved=true dirty=false"
+        return "\nsaved=true dirty=unknown"
+    except Exception as e:
+        return f"\nsaved=FAILED ({type(e).__name__})"
+
+
+def _not_sent_response(reason: str) -> str:
+    return (
+        "state=FAILED\n"
+        f"mutations=not attempted ({reason})\n"
+        "verified=false (batch was not sent)\n"
+        "saved=false"
+    )
+
+
 async def apply_scene_change(
     plan_id: str,
     commands: str,
@@ -244,45 +322,17 @@ async def apply_scene_change(
 
     rejection = _preflight_atomic_commands(commands)
     if rejection:
-        return (
-            "state=FAILED\n"
-            f"mutations=not attempted ({rejection})\n"
-            "verified=false (batch was not sent)\n"
-            "saved=false"
-        )
+        return _not_sent_response(rejection)
 
     # A plan is only a snapshot. Re-check immediately before transport so an
     # Edit→Play transition between planning and applying cannot mutate runtime
     # state. Missing, malformed, or failed state responses are not proof of
     # Edit Mode and therefore fail closed.
-    try:
-        editor_state = await _send("editor", {"action": "state"})
-        state_error = _fresh_edit_mode_error(editor_state)
-    except Exception as exc:
-        state_error = f"editor state check failed ({type(exc).__name__})"
+    state_error = await _guard_edit_mode()
     if state_error:
-        return (
-            "state=FAILED\n"
-            f"mutations=not attempted ({state_error})\n"
-            "verified=false (batch was not sent)\n"
-            "saved=false"
-        )
+        return _not_sent_response(state_error)
 
-    # Execute batch. BatchHelper's real rollback marker is ATOMIC_ROLLBACK.
-    batch_exception = False
-    try:
-        batch_data = await _send("batch", {
-            "commands": commands,
-            "atomic": "true",
-            "on_error": "stop",
-        })
-    except Exception as exc:
-        batch_exception = True
-        batch_data = str(exc)
-
-    state = _batch_state(batch_data or "")
-    if batch_exception and state == "APPLIED":
-        state = "FAILED"
+    state, batch_data = await _execute_atomic_batch(commands)
     if state != "APPLIED":
         return (
             f"state={state}\n"
@@ -295,56 +345,18 @@ async def apply_scene_change(
     console_status = ""
     verification_ok = not verify
     if verify:
-        try:
-            target_path = _plans[plan_id].get("targets", "")
-            vr_args = {"path": target_path} if target_path else {}
-            refs_data = await _send("validate_references", vr_args)
-            broken = _broken_reference_count(refs_data)
-            if broken is None:
-                refs_status = "\nrefs=unchecked (unrecognized response)"
-            elif broken:
-                refs_status = f"\nrefs=BROKEN ({broken} broken)"
-            else:
-                refs_status = "\nrefs=ok (0 broken)"
+        refs_status, console_status, verification_ok = await _verify_scene(plan_id)
 
-            if broken == 0:
-                plan = _plans[plan_id]
-                since = max(0.0, _time.time() - plan.get("created_at", _time.time()))
-                console_data = await _send("get_console", {"level": "error,exception", "since": since})
-                console_lines = [ln for ln in console_data.splitlines() if ln.strip()]
-                if len(console_lines) == 1 and console_lines[0].strip().lower() == "no logs":
-                    console_lines = []
-                errs = len(console_lines)
-                console_status = f"\nconsole={'clean' if errs == 0 else f'{errs} errors'}"
-                verification_ok = errs == 0
-        except Exception as e:
-            refs_status = f"\nrefs=unchecked ({type(e).__name__})"
-            console_status = ""
-            verification_ok = False
-
-    verified_status = (
-        "\nverified=true" if verify and verification_ok
-        else "\nverified=false" if verify
-        else "\nverified=skipped"
-    )
+    if verify and verification_ok:
+        verified_status = "\nverified=true"
+    elif verify:
+        verified_status = "\nverified=false"
+    else:
+        verified_status = "\nverified=skipped"
 
     # Save only when verification passed, or when the caller explicitly skipped it.
-    saved_status = ""
     if save and verification_ok:
-        try:
-            await _send("scene", {"action": "save"})
-            # Verify dirty=false — Unity may not clear synchronously if Undo group is open (P-414)
-            status = await _send("get_status", {})
-            dirty_after = any(ln.strip() == "dirty=True" for ln in status.splitlines())
-            clean_after = any(ln.strip() == "dirty=False" for ln in status.splitlines())
-            if dirty_after:
-                saved_status = "\nsaved=PARTIAL dirty=true"
-            elif clean_after:
-                saved_status = "\nsaved=true dirty=false"
-            else:
-                saved_status = "\nsaved=true dirty=unknown"
-        except Exception as e:
-            saved_status = f"\nsaved=FAILED ({type(e).__name__})"
+        saved_status = await _save_scene()
     elif save:
         saved_status = "\nsaved=false (verification failed)"
     else:

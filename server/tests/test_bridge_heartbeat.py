@@ -224,6 +224,14 @@ async def test_close_skips_stop_heartbeat_when_called_from_heartbeat_task():
             pass
 
 
+async def test_heartbeat_loop_reraises_cancelled_error():
+    """S7497: CancelledError inside heartbeat loop must propagate, not be swallowed."""
+    bridge = UnityBridge("127.0.0.1", 9999)
+    with patch.object(bridge, "_heartbeat_tick", new=AsyncMock(side_effect=asyncio.CancelledError())):
+        with pytest.raises(asyncio.CancelledError):
+            await bridge._heartbeat_loop(1.0)
+
+
 # ---------------------------------------------------------------------------
 # MAJOR #2: _ping_stall_failures не сбрасывается
 # ---------------------------------------------------------------------------

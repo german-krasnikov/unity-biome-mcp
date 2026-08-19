@@ -195,6 +195,13 @@ async def _pre_tcp_guards(
     return cmd, args, resolve_marker, inferred_tags
 
 
+def _on_send_failure(mw, probe_active: bool) -> None:
+    """Record circuit failure and release probe slot when active."""
+    mw.circuit.record_failure()
+    if probe_active:
+        mw.circuit.release_probe()
+
+
 async def _execute_cmd(
     cmd: str, args: dict, send_fn, mw: Any,
     timeout: float, probe_active: bool, no_strip: bool = False,
@@ -208,9 +215,7 @@ async def _execute_cmd(
         try:
             await send_fn("ping", {}, timeout=3.0)
         except Exception:
-            mw.circuit.record_failure()
-            if probe_active:
-                mw.circuit.release_probe()
+            _on_send_failure(mw, probe_active)
             raise
 
     from .metrics import METRICS
@@ -220,9 +225,7 @@ async def _execute_cmd(
             result = await send_fn(cmd, args, timeout=timeout)
     except Exception:
         METRICS.inc(f"cmd.{cmd}.fail")
-        mw.circuit.record_failure()
-        if probe_active:
-            mw.circuit.release_probe()
+        _on_send_failure(mw, probe_active)
         raise
     mw.circuit.record_success()
     mw._last_success = time.time()

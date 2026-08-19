@@ -82,6 +82,14 @@ class SamplingService:
 
     async def _run_inner(self, args: list, timeout: float) -> str | None:
         from .metrics import METRICS
+
+        async def _terminate_process(proc) -> None:
+            if proc.returncode is not None:
+                return
+            proc.kill()
+            with contextlib.suppress(Exception):
+                await asyncio.wait_for(proc.wait(), 2.0)
+
         METRICS.inc("sampling.calls")
         try:
             proc = await asyncio.create_subprocess_exec(
@@ -104,19 +112,16 @@ class SamplingService:
             return result
         except TimeoutError:
             METRICS.inc("sampling.timeout")
+            # Kill unconditionally on timeout regardless of returncode
             proc.kill()
             with contextlib.suppress(Exception):
                 await asyncio.wait_for(proc.wait(), 2.0)
             return None
-        except BaseException as e:
-            if proc.returncode is None:
-                try:
-                    proc.kill()
-                    await asyncio.wait_for(proc.wait(), 2.0)
-                except BaseException:
-                    pass
-            if isinstance(e, asyncio.CancelledError):
-                raise
+        except asyncio.CancelledError:
+            await _terminate_process(proc)
+            raise
+        except Exception:
+            await _terminate_process(proc)
             METRICS.inc("sampling.fail")
             return None
 

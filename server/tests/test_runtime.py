@@ -820,6 +820,38 @@ async def test_run_playtest_suite_auto_play_cleanup_on_send_error(monkeypatch):
     assert stop_called, "DEF-1: Play Mode not stopped after auto_play + send error"
 
 
+@pytest.mark.asyncio
+async def test_run_playtest_suite_cancel_during_run_stops_play_mode(monkeypatch):
+    """Runtime: cancellation should still run stop transition before propagating."""
+    from unity_mcp.tools import runtime
+    import asyncio as _asyncio
+
+    calls: list[tuple[str, dict]] = []
+
+    async def fake_send(cmd, args, **kw):
+        calls.append((cmd, args))
+        if cmd == "list_playtest_files":
+            return "a.playtest"
+        if cmd == "editor" and args.get("action") == "stop":
+            return "ok"
+        if cmd == "run_playtest":
+            await _asyncio.sleep(10)
+            return "PLAYTEST: 1/1 (0.1s) OK"
+        raise AssertionError(f"unexpected command: {cmd} {args}")
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+
+    task = _asyncio.create_task(runtime.run_playtest_suite("a.playtest", stop_after=True))
+    await _asyncio.sleep(0.05)
+    task.cancel()
+
+    with pytest.raises(_asyncio.CancelledError):
+        await task
+
+    assert any(cmd == "editor" and args.get("action") == "stop" for cmd, args in calls)
+
+
 # ── Bug 1 regression: _is_playtest_pass redundant-or fix (SonarCloud S1871) ───
 
 def test_is_playtest_pass_empty_string_returns_false():

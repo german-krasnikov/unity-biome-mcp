@@ -224,6 +224,29 @@ def test_read_pid_from_port_file_cyrillic_path_does_not_crash(tmp_path):
         assert read_pid_from_port_file(9500) == 99999
 
 
+def test_read_pid_from_port_file_ignores_blank_project_path(tmp_path):
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    expected_project = tmp_path / "ExpectedProject"
+    expected_project.mkdir()
+
+    # C# format with empty ProjectPath line must never be treated as a match for project-aware lookup.
+    (ports_dir / "1111.port").write_text(
+        "9600\n\nExpectedProject\n",
+        encoding="utf-8",
+    )
+    # Keep a valid alternative so caller-side port fallback still has a deterministic target.
+    (ports_dir / "2222.port").write_text(
+        "9601\n/some/other/project\nOtherProject\n",
+        encoding="utf-8",
+    )
+
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True), \
+         patch("os.getcwd", return_value=str(expected_project)):
+        assert read_pid_from_port_file(9600, project_path=expected_project) is None
+
+
 # ---------------------------------------------------------------------------
 # read_project_path_from_port_file
 # ---------------------------------------------------------------------------

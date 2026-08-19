@@ -172,7 +172,7 @@ class PathResolverMixin:
             result = await send_fn("search_scene", {"query": f"name {leaf}"})
             search_ok = True
             candidates = [
-                re.sub(r"\s+[#$&].*", "", line).strip()
+                re.sub(r"\s+[#$&][^\n]*", "", line).strip()  # S8786: [^\n]* avoids super-linear
                 for line in result.strip().split("\n")
                 if line.strip() and leaf.lower() in line.lower()
             ]

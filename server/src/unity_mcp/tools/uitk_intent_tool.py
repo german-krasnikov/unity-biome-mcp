@@ -376,6 +376,55 @@ def _intent_failure(
     return "\n".join(lines)
 
 
+async def _get_dsl_data(intent: str, name: str, path: str) -> dict:
+    """Generate DSL via sampling, validate, retry once on error."""
+    raw = await _sampling.generate(_make_prompt(intent, name, path), feature="uitk_intent")
+    if not raw:
+        raise ToolError("Haiku unavailable (set UNITY_MCP_VISUAL_VERIFY=1)")
+    data = parse_uitk_dsl(strip_fences(raw))
+    err = validate_uitk_dsl(data)
+    if not err:
+        return data
+    raw2 = await _sampling.generate(
+        _make_prompt(intent, name, path, error=err), feature="uitk_intent"
+    )
+    if not raw2:
+        raise ToolError("Haiku unavailable on retry")
+    data = parse_uitk_dsl(strip_fences(raw2))
+    err2 = validate_uitk_dsl(data)
+    if err2:
+        raise ToolError(f"DSL validation failed after retry: {err2}")
+    return data
+
+
+async def _uitk_run_step(
+    command: str,
+    args: dict,
+    label: str,
+    completed: list[str],
+    total_ops: int,
+    processed_files: list[str],
+    file_path: str | None = None,
+) -> None:
+    """Execute one uitk pipeline step; append results or raise ToolError."""
+    try:
+        result = await _send(command, args)
+    except Exception as exc:
+        raise ToolError(_intent_failure(
+            label, f"{type(exc).__name__}: {exc}",
+            completed, total_ops, processed_files, file_path,
+        )) from None
+    error = _result_error(result)
+    if error:
+        raise ToolError(_intent_failure(
+            label, error, completed, total_ops, processed_files, file_path,
+            attempted_file_auto_reverted=_confirms_auto_revert(error),
+        ))
+    completed.append(label)
+    if file_path:
+        processed_files.append(file_path)
+
+
 async def uitk_intent(
     intent: str,
     name: str,
@@ -404,21 +453,7 @@ async def uitk_intent(
             raise ToolError(f"Unknown template '{template}'. Valid: {', '.join(_TEMPLATES)}")
         data = parse_uitk_dsl(dsl)
     else:
-        raw = await _sampling.generate(_make_prompt(intent, name, path), feature="uitk_intent")
-        if not raw:
-            raise ToolError("Haiku unavailable (set UNITY_MCP_VISUAL_VERIFY=1)")
-        data = parse_uitk_dsl(strip_fences(raw))
-        err = validate_uitk_dsl(data)
-        if err:
-            raw2 = await _sampling.generate(
-                _make_prompt(intent, name, path, error=err), feature="uitk_intent"
-            )
-            if not raw2:
-                raise ToolError("Haiku unavailable on retry")
-            data = parse_uitk_dsl(strip_fences(raw2))
-            err2 = validate_uitk_dsl(data)
-            if err2:
-                raise ToolError(f"DSL validation failed after retry: {err2}")
+        data = await _get_dsl_data(intent, name, path)
 
     if not data["tree"]:
         raise ToolError("DSL produced no nodes")
@@ -436,52 +471,19 @@ async def uitk_intent(
     completed: list[str] = []
     processed_files: list[str] = []
 
-    async def run_step(command: str, args: dict, label: str, file_path: str | None = None) -> None:
-        try:
-            result = await _send(command, args)
-        except Exception as exc:
-            raise ToolError(_intent_failure(
-                label,
-                f"{type(exc).__name__}: {exc}",
-                completed,
-                total_ops,
-                processed_files,
-                file_path,
-            )) from None
-        error = _result_error(result)
-        if error:
-            raise ToolError(_intent_failure(
-                label,
-                error,
-                completed,
-                total_ops,
-                processed_files,
-                file_path,
-                attempted_file_auto_reverted=_confirms_auto_revert(error),
-            ))
-        completed.append(label)
-        if file_path:
-            processed_files.append(file_path)
-
     # R04: USS must be written before UXML (so <Style src> import works)
-    await run_step(
-        "uitk_file",
-        {"action": "create_uss", "path": uss_path, "content": uss_str},
-        "create_uss",
-        uss_path,
+    await _uitk_run_step(
+        "uitk_file", {"action": "create_uss", "path": uss_path, "content": uss_str},
+        "create_uss", completed, total_ops, processed_files, uss_path,
     )
-    await run_step(
-        "uitk_file",
-        {"action": "create_uxml", "path": uxml_path, "content": uxml_str},
-        "create_uxml",
-        uxml_path,
+    await _uitk_run_step(
+        "uitk_file", {"action": "create_uxml", "path": uxml_path, "content": uxml_str},
+        "create_uxml", completed, total_ops, processed_files, uxml_path,
     )
-
     if attach_to:
-        await run_step(
-            "attach_uitk",
-            {"path": attach_to, "uxml": uxml_path},
-            "attach_uitk",
+        await _uitk_run_step(
+            "attach_uitk", {"path": attach_to, "uxml": uxml_path},
+            "attach_uitk", completed, total_ops, processed_files,
         )
 
     lines = [

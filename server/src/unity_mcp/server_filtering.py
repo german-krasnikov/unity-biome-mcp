@@ -12,6 +12,7 @@ import weakref
 from pathlib import Path  # noqa: F401  # re-exported; tests mock unity_mcp.server_filtering.Path
 
 from .constants import DEFAULT_PORT
+from .lockfile import _read_port_file_lines
 from .lockfile import is_pid_alive as _is_pid_alive
 from .paths import iter_port_files as _iter_port_files
 from .paths import ports_dir as _ports_dir
@@ -182,7 +183,10 @@ def read_unity_port(skip_probe: bool = False) -> int | None:
     candidates = []
     for f in _iter_port_files(glob_pattern, _ports_dir()):
         try:
-            lines = f.read_text(encoding="utf-8", errors="replace").strip().split("\n")
+            lines = _read_port_file_lines(f, max_lines=3)
+            if not lines:
+                # Transient-empty or malformed — skip safely without deleting.
+                continue
             port = int(lines[0])
             pid = int(f.stem)
             if not _is_pid_alive(pid):
@@ -218,7 +222,7 @@ def read_unity_port(skip_probe: bool = False) -> int | None:
         _, port, project, pid, _ = candidates[0]
 
     logging.getLogger("unity_mcp").info(
-        "Auto-discovered Unity '%s' on port %d (pid %d)", project, port, pid)
+        "Auto-discovered Unity MCP on port %d (pid %d)", port, pid)
     return port
 
 

@@ -161,6 +161,115 @@ def _fail(gate: str, detail: str, skipped: list[str]) -> str:
     return "\n".join(lines)
 
 
+# --- Gate helpers (each runs one gate; returns (label, fail_msg)) ---
+
+async def _gate_compile(timeout: float, skip: list[str]) -> tuple[str, str]:
+    compile_timeout = min(timeout, 120.0)
+    try:
+        result = await _ci.await_compile(timeout=compile_timeout)
+        if _is_compile_clean(result):
+            return "compile", ""
+        return "", _fail("await_compile", result, skip)
+    except Exception as e:
+        return "", _fail("await_compile", str(e), skip)
+
+
+async def _gate_errors(skip: list[str]) -> tuple[str, str]:
+    try:
+        errors = await _con.get_compile_errors()
+        if _is_errors_clean(errors):
+            return "errors_clean", ""
+        return "", _fail("get_compile_errors", errors, skip)
+    except Exception as e:
+        return "", _fail("get_compile_errors", str(e), skip)
+
+
+async def _gate_console(mark_id: str, skip: list[str]) -> tuple[str, str]:
+    try:
+        result = await _con.get_console_since(mark_id, level="error,exception,assert")
+        if result.startswith("err: overflow:"):
+            return "", _fail("console_overflow", result, skip)
+        filtered = _DROPPED_RE.sub("", result).strip()
+        if filtered and filtered != "no logs":
+            return "", _fail("console_since", result, skip)
+        return "console_clean", ""
+    except Exception as e:
+        return "", _fail("console_since", str(e), skip)
+
+
+async def _gate_tests(
+    run_tests_mode: str, test_filter: str, timeout: float, skip: list[str]
+) -> tuple[str, str]:
+    test_result = await _test.run_tests_wait(
+        mode=run_tests_mode, filter=test_filter, timeout=timeout
+    )
+    if _is_tests_pass(test_result):
+        return f"tests({_extract_ratio(test_result)})", ""
+    classes = re.findall(r"^FAIL\s+(\w+)", test_result, re.MULTILINE)
+    rec = f'run_tests_wait mode="{run_tests_mode}"'
+    if classes:
+        rec += f' filter="{"|".join(dict.fromkeys(classes))}"'
+    first_line = test_result.split("\n")[0]
+    return "", _fail("tests", f"{first_line}\n  recommended: {rec}", skip)
+
+
+async def _gate_playtests(playtests: str, restart_between: bool) -> tuple[str, str]:
+    try:
+        result = await _rt.run_playtest_suite(
+            playtests, auto_play=restart_between, restart_between=restart_between
+        )
+    except Exception as e:
+        return "", _fail("playtests", f"{type(e).__name__}: {e}", [])
+    if _is_suite_pass(result):
+        return f"playtests({_extract_ratio(result)})", ""
+    return "", _fail("playtests", result, [])
+
+
+async def _run_gates(
+    mark_id: str,
+    run_tests_mode: str,
+    test_filter: str,
+    playtests: str,
+    timeout: float,
+    restart_between: bool,
+    optional_gates: list[str],
+) -> tuple[list[str], str]:
+    """Run all enabled gates in order. Returns (passed_labels, fail_msg)."""
+    passed: list[str] = []
+
+    label, err = await _gate_compile(timeout, optional_gates)
+    if err:
+        return passed, err
+    passed.append(label)
+
+    label, err = await _gate_errors(optional_gates)
+    if err:
+        return passed, err
+    passed.append(label)
+
+    if mark_id:
+        skip = [g for g in optional_gates if g != "console"]
+        label, err = await _gate_console(mark_id, skip)
+        if err:
+            return passed, err
+        passed.append(label)
+
+    if run_tests_mode:
+        skip = ["playtests"] if playtests else []
+        label, err = await _gate_tests(run_tests_mode, test_filter, timeout, skip)
+        if err:
+            return passed, err
+        passed.append(label)
+
+    if playtests:
+        label, err = await _gate_playtests(playtests, restart_between)
+        if err:
+            return passed, err
+        passed.append(label)
+
+    return passed, ""
+
+
 async def verify_after_change(
     changed_files: str = "",
     test_filter: str = "",
@@ -179,90 +288,19 @@ async def verify_after_change(
     5. run_playtest_suite paths (if playtests provided)
     Returns PASS only when ALL enabled gates pass.
     Failure includes which gate failed and recommended next command."""
-    passed: list[str] = []
-
-    # Determine which optional gates are enabled (for skip reporting)
-    optional_gates: list[str] = []
-    if mark_id:
-        optional_gates.append("console")
-    if run_tests_mode:
-        optional_gates.append("tests")
-    if playtests:
-        optional_gates.append("playtests")
-
-    # Gate 1: await_compile
-    compile_timeout = min(timeout, 120.0)
-    try:
-        compile_result = await _ci.await_compile(timeout=compile_timeout)
-        if _is_compile_clean(compile_result):
-            passed.append("compile")
-        else:
-            return _fail("await_compile", compile_result, optional_gates)
-    except Exception as e:
-        return _fail("await_compile", str(e), optional_gates)
-
-    # Gate 2: get_compile_errors
-    try:
-        errors = await _con.get_compile_errors()
-        if _is_errors_clean(errors):
-            passed.append("errors_clean")
-        else:
-            return _fail("get_compile_errors", errors, optional_gates)
-    except Exception as e:
-        return _fail("get_compile_errors", str(e), optional_gates)
-
-    # Gate 3: console since mark_id (optional)
-    remaining_optional = list(optional_gates)
-    if mark_id:
-        remaining_optional = [g for g in optional_gates if g != "console"]
-        try:
-            console_result = await _con.get_console_since(
-                mark_id, level="error,exception,assert"
-            )
-            if console_result.startswith("err: overflow:"):
-                return _fail("console_overflow", console_result, remaining_optional)
-            filtered = _DROPPED_RE.sub("", console_result).strip()
-            if filtered and filtered != "no logs":
-                return _fail("console_since", console_result, remaining_optional)
-            passed.append("console_clean")
-        except Exception as e:
-            return _fail("console_since", str(e), remaining_optional)
-
-    # Gate 4: run_tests_wait (optional)
-    if run_tests_mode:
-        remaining_optional = ["playtests"] if playtests else []
-        test_result = await _test.run_tests_wait(
-            mode=run_tests_mode,
-            filter=test_filter,
-            timeout=timeout,
-        )
-        if _is_tests_pass(test_result):
-            passed.append(f"tests({_extract_ratio(test_result)})")
-        else:
-            classes = re.findall(r"^FAIL\s+(\w+)", test_result, re.MULTILINE)
-            rec = f'run_tests_wait mode="{run_tests_mode}"'
-            if classes:
-                rec += f' filter="{"|".join(dict.fromkeys(classes))}"'
-            first_line = test_result.split("\n")[0]
-            return _fail("tests", f"{first_line}\n  recommended: {rec}", remaining_optional)
-
-    # Gate 5: run_playtest_suite (optional)
-    if playtests:
-        try:
-            # The suite owns and verifies the initial clean stop/play transition
-            # when both options are true; do not duplicate a best-effort stop here.
-            suite_result = await _rt.run_playtest_suite(
-                playtests,
-                auto_play=restart_between,
-                restart_between=restart_between,
-            )
-        except Exception as e:
-            return _fail("playtests", f"{type(e).__name__}: {e}", [])
-        if _is_suite_pass(suite_result):
-            passed.append(f"playtests({_extract_ratio(suite_result)})")
-        else:
-            return _fail("playtests", suite_result, [])
-
+    optional_gates = [
+        g for g, flag in [
+            ("console", mark_id),
+            ("tests", run_tests_mode),
+            ("playtests", playtests),
+        ]
+        if flag
+    ]
+    passed, err = await _run_gates(
+        mark_id, run_tests_mode, test_filter, playtests, timeout, restart_between, optional_gates
+    )
+    if err:
+        return err
     skipped = [g for g in _ALL_OPTIONAL if g not in set(optional_gates)]
     suffix = f" | SKIPPED: {', '.join(skipped)}" if skipped else ""
     return f"PASS({len(passed)}/{_TOTAL_GATES}): " + " + ".join(passed) + suffix

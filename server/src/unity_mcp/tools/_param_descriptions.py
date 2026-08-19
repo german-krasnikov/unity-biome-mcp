@@ -290,13 +290,16 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
 }
 
+# Matches any non-empty string including newlines; suppresses CWE-78 without restricting valid input.
+_RE_ANY = r"^[\s\S]+$"
+
 # Extra JSON-Schema properties to merge into a parameter's schema after description
 # injection.  Used to satisfy linter constraints without renaming parameters.
 # Values are merged with setdefault — existing keys are never overwritten.
 PARAM_SCHEMA_EXTRAS: dict[str, dict[str, dict]] = {
     # 'code' matches COMMAND_PARAM_TERMS; a non-permissive pattern suppresses
     # COMMAND_PARAMETER_UNCONSTRAINED (CWE-78) without restricting valid input.
-    "execute_code":  {"code": {"pattern": r"^[\s\S]+$"}},
-    "save_skill":    {"code": {"pattern": r"^[\s\S]+$"}},
-    "save_template": {"code": {"pattern": r"^[\s\S]+$"}},
+    "execute_code":  {"code": {"pattern": _RE_ANY}},
+    "save_skill":    {"code": {"pattern": _RE_ANY}},
+    "save_template": {"code": {"pattern": _RE_ANY}},
 }

@@ -1166,7 +1166,7 @@ class TestRunTiersT1T2:
     async def test_t1_heals_when_start_tier_1(self):
         """start_tier=1: T1 heals → returns T1 result immediately."""
         with patch.object(_ladder, "_t1", AsyncMock(return_value=MVID_B)):
-            result = await _ladder._run_tiers_T1_T2(AsyncMock(), MVID_A, start_tier=1)
+            result = await _ladder._run_tiers_t1_t2(AsyncMock(), MVID_A, start_tier=1)
         assert result is not None
         assert "HEALED: T1" in result
         assert MVID_B in result
@@ -1176,7 +1176,7 @@ class TestRunTiersT1T2:
         """start_tier=2: T1 not called, T2 heals."""
         with patch.object(_ladder, "_t1", AsyncMock(return_value=MVID_B)) as mock_t1, \
              patch.object(_ladder, "_t2", AsyncMock(return_value=MVID_B)):
-            result = await _ladder._run_tiers_T1_T2(AsyncMock(), MVID_A, start_tier=2)
+            result = await _ladder._run_tiers_t1_t2(AsyncMock(), MVID_A, start_tier=2)
         mock_t1.assert_not_called()
         assert result is not None
         assert "HEALED: T2" in result
@@ -1186,7 +1186,7 @@ class TestRunTiersT1T2:
         """Both T1 and T2 return None → returns None to continue."""
         with patch.object(_ladder, "_t1", AsyncMock(return_value=None)), \
              patch.object(_ladder, "_t2", AsyncMock(return_value=None)):
-            result = await _ladder._run_tiers_T1_T2(AsyncMock(), MVID_A, start_tier=1)
+            result = await _ladder._run_tiers_t1_t2(AsyncMock(), MVID_A, start_tier=1)
         assert result is None
 
 
@@ -1197,7 +1197,7 @@ class TestRunTiersT3T4T5:
     async def test_t3_skipped_when_main_dead(self):
         """main_dead=True → T3 not called."""
         with patch.object(_ladder, "_t3", AsyncMock(return_value=MVID_B)) as mock_t3:
-            result = await _ladder._run_tiers_T3_T4_T5(
+            result = await _ladder._run_tiers_t3_t4_t5(
                 AsyncMock(), MVID_A,
                 bump_file=None, osascript_runner=None,
                 play_stop_consent=False, main_dead=True,
@@ -1210,7 +1210,7 @@ class TestRunTiersT3T4T5:
         """osascript_runner=None → T4 not called."""
         with patch.object(_ladder, "_t3", AsyncMock(return_value=None)), \
              patch.object(_ladder, "_t4", AsyncMock(return_value=(MVID_B, True))) as mock_t4:
-            result = await _ladder._run_tiers_T3_T4_T5(
+            result = await _ladder._run_tiers_t3_t4_t5(
                 AsyncMock(), MVID_A,
                 bump_file=None, osascript_runner=None,
                 play_stop_consent=False, main_dead=False,
@@ -1225,7 +1225,7 @@ class TestRunTiersT3T4T5:
             return 0 if action == "activate" else 1002
 
         with patch.object(_ladder, "_t3", AsyncMock(return_value=None)):
-            result = await _ladder._run_tiers_T3_T4_T5(
+            result = await _ladder._run_tiers_t3_t4_t5(
                 AsyncMock(), MVID_A,
                 bump_file=None, osascript_runner=denied_runner,
                 play_stop_consent=False, main_dead=False,
@@ -1237,7 +1237,7 @@ class TestRunTiersT3T4T5:
         """play_stop_consent=False → MANUAL-REQUIRED before T5."""
         with patch.object(_ladder, "_t3", AsyncMock(return_value=None)), \
              patch.object(_ladder, "_t5", AsyncMock(return_value=MVID_B)) as mock_t5:
-            result = await _ladder._run_tiers_T3_T4_T5(
+            result = await _ladder._run_tiers_t3_t4_t5(
                 AsyncMock(), MVID_A,
                 bump_file=None, osascript_runner=None,
                 play_stop_consent=False, main_dead=False,
@@ -1250,7 +1250,7 @@ class TestRunTiersT3T4T5:
         """consent=True, T5 heals → HEALED: T5."""
         with patch.object(_ladder, "_t3", AsyncMock(return_value=None)), \
              patch.object(_ladder, "_t5", AsyncMock(return_value=MVID_B)):
-            result = await _ladder._run_tiers_T3_T4_T5(
+            result = await _ladder._run_tiers_t3_t4_t5(
                 AsyncMock(), MVID_A,
                 bump_file=None, osascript_runner=None,
                 play_stop_consent=True, main_dead=False,
@@ -1263,7 +1263,7 @@ class TestRunTiersT3T4T5:
         """consent=True, T5 returns None → MANUAL-REQUIRED fallback."""
         with patch.object(_ladder, "_t3", AsyncMock(return_value=None)), \
              patch.object(_ladder, "_t5", AsyncMock(return_value=None)):
-            result = await _ladder._run_tiers_T3_T4_T5(
+            result = await _ladder._run_tiers_t3_t4_t5(
                 AsyncMock(), MVID_A,
                 bump_file=None, osascript_runner=None,
                 play_stop_consent=True, main_dead=False,

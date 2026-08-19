@@ -1,3 +1,4 @@
+import asyncio
 import errno
 import pytest
 from unittest.mock import AsyncMock, call, patch, MagicMock
@@ -1135,16 +1136,47 @@ async def test_search_no_scene_omitted(mock_bridge):
 
 
 # ---------------------------------------------------------------------------
-# PY2.test.1: _send_raw CancelledError → ToolError
+# PY2.test.1: _send_raw CancelledError должен пробрасываться выше
 # ---------------------------------------------------------------------------
 
-async def test_send_raw_cancelled_error_raises_tool_error(mock_bridge):
-    """CancelledError from bridge.send → ToolError('Operation cancelled')."""
+async def test_send_raw_cancelled_error_bubbles_up(mock_bridge):
+    """CancelledError from bridge.send must propagate (cooperative cancellation)."""
     import asyncio
     from unity_mcp.server import _send_raw
     mock_bridge.send = AsyncMock(side_effect=asyncio.CancelledError())
-    with pytest.raises(ToolError, match="Operation cancelled"):
+    with pytest.raises(asyncio.CancelledError):
         await _send_raw("ping", {})
+
+
+async def test_spawn_reconnect_task_holds_task_reference_until_done(monkeypatch):
+    """_spawn_reconnect_task must keep created reconnect task in module-level set."""
+    import unity_mcp.server as srv
+
+    created = []
+    start_event = asyncio.Event()
+
+    async def slow_coro():
+        start_event.set()
+        await asyncio.Event().wait()
+
+    orig_create_task = srv.asyncio.create_task
+
+    def fake_create_task(coro):
+        task = orig_create_task(coro)
+        created.append(task)
+        return task
+
+    monkeypatch.setattr(srv.asyncio, "create_task", fake_create_task)
+
+    srv._spawn_reconnect_task(slow_coro())
+    await start_event.wait()
+    task = created[0]
+    assert task in srv._reconnect_bg_tasks
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert task not in srv._reconnect_bg_tasks
 
 
 # ---------------------------------------------------------------------------

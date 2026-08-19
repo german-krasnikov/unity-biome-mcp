@@ -2,6 +2,8 @@
 
 All rules are fail-open: return None on unexpected response format.
 """
+import inspect
+
 from . import Mismatch, ReflectFn, register_rule
 
 _ERROR_TOKENS = ("Error:", "Failed", "err:", "Exception")
@@ -12,8 +14,8 @@ def _has_error(response: str) -> bool:
 
 
 def _make_no_error_fn(cmd: str) -> ReflectFn:
-    """Create an unregistered no-error check function."""
-    async def _rule(args: dict, response: str, send_fn) -> Mismatch | None:
+    """Create an unregistered no-error check function (sync — no I/O needed)."""
+    def _rule(args: dict, response: str, send_fn) -> Mismatch | None:  # S7503: sync
         if _has_error(response):
             return Mismatch(f"{cmd}: error in response: {response[:80]!r}")
         return None
@@ -24,7 +26,7 @@ def make_ok_rule(cmd: str, ok_tokens: tuple[str, ...]) -> None:
     """Register rule that checks one of ok_tokens in response (case-insensitive).
     Fail-open when response contains an error token.
     """
-    async def _rule(args: dict, response: str, send_fn) -> Mismatch | None:
+    def _rule(args: dict, response: str, send_fn) -> Mismatch | None:  # S7503: sync
         if _has_error(response):
             return None
         low = response.lower()
@@ -40,15 +42,17 @@ def make_no_error_rule(cmd: str) -> None:
 
 
 def make_action_guard(
-    cmd: str, read_actions: frozenset[str], inner: ReflectFn
+    _cmd: str, read_actions: frozenset[str], inner: ReflectFn  # S1172: _cmd unused
 ) -> ReflectFn:
     """Wrap inner rule: skip (return None) when action in read_actions.
     Does NOT register — caller must call register_rule separately.
+    Supports both sync and async inner rules.
     """
     async def _guarded(args: dict, response: str, send_fn) -> Mismatch | None:
         if args.get("action", "") in read_actions:
             return None
-        return await inner(args, response, send_fn)
+        raw = inner(args, response, send_fn)
+        return await raw if inspect.isawaitable(raw) else raw
     return _guarded
 
 

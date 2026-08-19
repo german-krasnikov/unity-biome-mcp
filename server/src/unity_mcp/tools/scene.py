@@ -1,5 +1,8 @@
+import asyncio
+import contextlib
 import os
 import re
+import shutil
 import time
 
 from mcp.server.fastmcp.exceptions import ToolError
@@ -13,10 +16,60 @@ _OBJECT_REF = r'(?:&[0-9A-Za-z]+|#[^\s]+)'
 _RE_SLOT = re.compile(rf'slot_\d+\s+\[\]\s+{_OBJECT_REF}')
 _RE_POINT = re.compile(rf'point_\d+\s+\[\]\s+{_OBJECT_REF}')
 _RE_MESH = re.compile(rf'\[MeshFilter,MeshRenderer\]\s+{_OBJECT_REF}')
-_RE_TREE_PREFIX = re.compile(r'(?:(?:│  |   ))*(?:├─ |└─ )')
+_RE_TREE_PREFIX = re.compile(r'(?:(?:│ {2}| {3}))*(?:├─ |└─ )')
 
 _send = None
 _args = None
+_path_locks: dict[str, asyncio.Lock] = {}
+
+
+def _session_context_path() -> str:
+    return os.path.join(os.getcwd(), ".claude", "session-context.json")
+
+
+def _read_file(path: str) -> str:
+    with open(path, encoding="utf-8") as f:
+        return f.read()
+
+
+def _write_file_atomic(path: str, content: str) -> None:
+    parent = os.path.dirname(path) or "."
+    os.makedirs(parent, exist_ok=True)
+    tmp_path = f"{path}.{os.getpid()}.{time.time_ns()}.tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        f.write(content)
+        f.flush()
+        os.fsync(f.fileno())
+    try:
+        os.replace(tmp_path, path)
+    except OSError:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_path)
+        raise
+
+
+def _copy_file_atomic(src: str, dst: str) -> None:
+    parent = os.path.dirname(dst) or "."
+    os.makedirs(parent, exist_ok=True)
+    tmp_path = f"{dst}.{os.getpid()}.{time.time_ns()}.tmp"
+    try:
+        with open(src, "rb") as src_file, open(tmp_path, "wb") as dst_file:
+            shutil.copyfileobj(src_file, dst_file)
+            dst_file.flush()
+            os.fsync(dst_file.fileno())
+        os.replace(tmp_path, dst)
+    except OSError:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_path)
+        raise
+
+
+def _path_lock(path: str) -> asyncio.Lock:
+    lock = _path_locks.get(path)
+    if lock is None:
+        lock = asyncio.Lock()
+        _path_locks[path] = lock
+    return lock
 
 
 def _indent_key(line: str) -> tuple[str, int, str]:
@@ -153,11 +206,11 @@ async def save_session() -> str:
     """Save current scene state to .claude/session-context.json for cold-start recovery."""
     _guard_read_only("save_session")
     hierarchy = await _send("get_hierarchy", {"summary": "true"})
-    path = os.path.join(os.getcwd(), ".claude", "session-context.json")
+    path = _session_context_path()
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(f"{time.time()}\n=== hierarchy ===\n{hierarchy}\n")
+        payload = f"{time.time()}\n=== hierarchy ===\n{hierarchy}\n"
+        async with _path_lock(path):
+            await asyncio.to_thread(_write_file_atomic, path, payload)
     except OSError as e:
         return f"Failed to save session: {e}"
     return f"Session saved to {path}"
@@ -165,16 +218,16 @@ async def save_session() -> str:
 
 async def load_session() -> str:
     """Load previous session context beside the current hierarchy."""
-    path = os.path.join(os.getcwd(), ".claude", "session-context.json")
-    if not os.path.exists(path):
-        return "No previous session found."
-    try:
-        with open(path, encoding="utf-8") as f:
-            content = f.read()
-        ts_str, _, hier = content.partition("\n=== hierarchy ===\n")
-        ts = float(ts_str.strip())
-    except (OSError, ValueError):
-        return "Session file corrupt or unreadable"
+    path = _session_context_path()
+    async with _path_lock(path):
+        if not os.path.exists(path):
+            return "No previous session found."
+        try:
+            content = await asyncio.to_thread(_read_file, path)
+            ts_str, _, hier = content.partition("\n=== hierarchy ===\n")
+            ts = float(ts_str.strip())
+        except (OSError, ValueError):
+            return "Session file corrupt or unreadable"
     current = await _send("get_hierarchy", {"summary": "true"})
     label = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts))
     return f"Previous ({label}):\n{hier.strip()}\n\nCurrent:\n{current}"
@@ -183,16 +236,15 @@ async def load_session() -> str:
 async def screenshot_baseline(name: str = "default", width: int = 640, height: int = 480,
                                camera: str | None = None) -> str:
     """Save screenshot as baseline for visual regression. name: file-safe identifier."""
-    import shutil
     name = _safe_baseline_name(name)
     result = await _send("screenshot", _args(width=width, height=height, camera=camera))
     if "Data saved to:" not in result:
         return result
     src = _extract_saved_path(result)
     baseline_dir = os.path.join(os.getcwd(), ".claude", "baselines")
-    os.makedirs(baseline_dir, exist_ok=True)
     baseline_path = os.path.join(baseline_dir, f"{name}.png")
-    shutil.copy2(src, baseline_path)
+    async with _path_lock(baseline_path):
+        await asyncio.to_thread(_copy_file_atomic, src, baseline_path)
     return f"Baseline saved: {baseline_path}"
 
 

@@ -2,8 +2,7 @@
 import json
 import os
 import pytest
-from unittest.mock import AsyncMock, patch
-from unity_mcp.tools.skills import save_skill, use_skill, list_skills
+from unity_mcp.tools.skills import apply_template, list_skills, save_skill, save_template, use_skill
 
 
 @pytest.fixture
@@ -130,3 +129,77 @@ async def test_use_skill_vector_param(skills_dir, mock_bridge):
     code = mock_bridge.send.call_args[0][1]["code"]
     assert "(0,5,0)" in code
     assert "Enemy" in code
+
+
+async def test_skills_file_operations_use_async_threading(monkeypatch, tmp_path):
+    """skill file reads/writes must not run on the main async event loop."""
+    import unity_mcp.tools.skills as skills_mod
+
+    calls: list[str] = []
+
+    async def fake_to_thread(func, *args, **kwargs):
+        calls.append(func.__name__)
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(skills_mod.asyncio, "to_thread", fake_to_thread)
+    monkeypatch.setattr(skills_mod, "_skills_dir", lambda: str(tmp_path))
+
+    orig_send, orig_args = skills_mod._send, skills_mod._args
+    async def fake_send(cmd, args=None):
+        return {"ok": True, "data": "ok"}
+
+    skills_mod._send = fake_send
+    skills_mod._args = lambda **kwargs: kwargs
+    try:
+        await save_skill("threaded", "description", "set_property a=b")
+        await use_skill("threaded")
+        await list_skills()
+    finally:
+        skills_mod._send = orig_send
+        skills_mod._args = orig_args
+
+    assert "_read_json" in calls
+    assert "_write_json" in calls
+
+
+async def test_template_operations_use_async_threading(monkeypatch, tmp_path):
+    """template file reads/writes must use asyncio.to_thread too."""
+    import unity_mcp.tools.skills as skills_mod
+
+    orig_getcwd = skills_mod.os.getcwd
+    orig_to_thread = skills_mod.asyncio.to_thread
+    calls: list[str] = []
+
+    async def fake_to_thread(func, *args, **kwargs):
+        calls.append(func.__name__)
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(skills_mod.os, "getcwd", lambda: str(tmp_path))
+    monkeypatch.setattr(skills_mod.asyncio, "to_thread", fake_to_thread)
+
+    template_dir = tmp_path / ".claude" / "templates"
+    template_dir.mkdir(parents=True)
+    template_path = template_dir / "hello.cs"
+    template_path.write_text("Debug.Log(\"x\");", encoding="utf-8")
+
+    orig_send, orig_args = skills_mod._send, skills_mod._args
+    sent: list[tuple] = []
+
+    async def fake_send(cmd, args=None):
+        sent.append((cmd, args))
+        return "ok"
+
+    skills_mod._send = fake_send
+    skills_mod._args = lambda **kwargs: kwargs
+    try:
+        await apply_template("hello")
+        await save_template("greet", "Debug.Log(\"y\");")
+    finally:
+        skills_mod._send = orig_send
+        skills_mod._args = orig_args
+        skills_mod.os.getcwd = orig_getcwd
+        skills_mod.asyncio.to_thread = orig_to_thread
+
+    assert "_read_text" in calls
+    assert "_write_text" in calls
+    assert sent and sent[0][0] == "execute_code"

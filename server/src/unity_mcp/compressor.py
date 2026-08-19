@@ -64,6 +64,16 @@ def project_fields(text: str, fields: str) -> str:
     return result
 
 
+def _next_content_is_header_or_eof(lines: list[str], j: int) -> bool:
+    """Skip blank lines from j; return True if next non-blank is a header or EOF."""
+    while j < len(lines) and not lines[j].strip():
+        j += 1
+    if j >= len(lines):
+        return True
+    s = lines[j].strip()
+    return s.startswith("[") and s.endswith("]")
+
+
 def collapse_empty_sections(text: str) -> str:
     """Remove [Header] section lines whose body is empty (next line is another header or EOF)."""
     lines = text.splitlines()
@@ -72,17 +82,9 @@ def collapse_empty_sections(text: str) -> str:
     while i < len(lines):
         line = lines[i]
         stripped = line.strip()
-        if stripped.startswith("[") and stripped.endswith("]") and stripped != "---":
-            # Look ahead: skip blank lines, check if next non-blank is another header or EOF
-            j = i + 1
-            while j < len(lines) and not lines[j].strip():
-                j += 1
-            next_stripped = lines[j].strip() if j < len(lines) else ""
-            is_empty = (j >= len(lines) or
-                        (next_stripped.startswith("[") and next_stripped.endswith("]")))
-            if is_empty:
-                i += 1
-                continue
+        if stripped.startswith("[") and stripped.endswith("]") and stripped != "---" and _next_content_is_header_or_eof(lines, i + 1):
+            i += 1
+            continue
         result.append(line)
         i += 1
     return "\n".join(result)
