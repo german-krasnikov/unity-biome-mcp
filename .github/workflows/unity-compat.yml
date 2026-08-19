@@ -83,12 +83,20 @@ jobs:
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
         timeout-minutes: 30
+        continue-on-error: true
         with:
           unity-version: ${{ matrix.unity-version }}
           build-targets: StandaloneLinux64
           cache-installation: true
 
+      - name: Skip if Unity setup failed
+        if: steps.unity-setup.outcome == 'failure'
+        run: |
+          echo "::warning::Unity ${{ matrix.unity-version }} setup failed (CDN/infra). Skipping."
+          exit 0
+
       - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
+        if: steps.unity-setup.outcome != 'failure'
         with:
           license: 'Personal'
           username: ${{ secrets.UNITY_EMAIL }}
@@ -96,7 +104,7 @@ jobs:
 
       # ── Compile-only: open project, exit if no errors ──────────
       - name: Compile check
-        if: matrix.test-mode == 'compile'
+        if: matrix.test-mode == 'compile' && steps.unity-setup.outcome != 'failure'
         uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         with:
           build-target: StandaloneLinux64
@@ -110,7 +118,7 @@ jobs:
 
       # ── Targeted: run only compat-specific tests ───────────────
       - name: Targeted compat tests
-        if: matrix.test-mode == 'targeted'
+        if: matrix.test-mode == 'targeted' && steps.unity-setup.outcome != 'failure'
         uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         with:
           build-target: StandaloneLinux64
@@ -127,7 +135,7 @@ jobs:
 
       # ── Full: run entire EditMode suite ────────────────────────
       - name: Full EditMode tests
-        if: matrix.test-mode == 'full'
+        if: matrix.test-mode == 'full' && steps.unity-setup.outcome != 'failure'
         uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         with:
           build-target: StandaloneLinux64
