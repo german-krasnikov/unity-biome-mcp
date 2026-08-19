@@ -435,7 +435,7 @@ async def uitk_intent(
 ) -> str:
     """Generate a UXML + USS file pair from a natural-language UI description.
     Side effect: unless dry_run=True, writes both project assets; attach_to also adds a
-    UIDocument scene component. Completed steps are not rolled back if a later
+    UIDocument or PanelRenderer scene component. Completed steps are not rolled back if a later
     step fails. Failure output distinguishes retained files, confirmed Unity
     auto-reverts, and attempted files whose cleanup is uncertain. Without
     template, invokes
@@ -444,7 +444,7 @@ async def uitk_intent(
     template: hud|menu|dialog|settings|editor_window bypasses Haiku entirely.
     name: base filename (e.g. "InventoryPanel" → InventoryPanel.uxml + .uss).
     path: output folder, default "Assets/UI".
-    attach_to: scene path to UIDocument GameObject to wire after creation.
+    attach_to: scene path to UIDocument or PanelRenderer GameObject to wire after creation.
     dry_run: return UXML+USS text without writing files.
     """
     if template:

@@ -19,12 +19,12 @@ async def inspect_uitk(
     show_unity_private: bool | None = None,
     show_style: bool | None = None,
 ) -> str:
-    """Inspect the VisualElement tree of a UIDocument panel
+    """Inspect the VisualElement tree of a UIDocument or PanelRenderer panel
     (UI Toolkit only — use `get_component` for UIDocument component fields,
     use `get_hierarchy` for the scene GameObject tree,
     use `create_ui` for uGUI Canvas elements).
     Returns compact text tree with ~N refids; pass ~N to uitk_element as selector.
-    path: scene path to UIDocument GameObject (e.g. /HUD), or 'scene' to list all.
+    path: scene path to UIDocument or PanelRenderer GameObject (e.g. /HUD), or 'scene' to list all.
     depth: max traversal depth (default 4; use selector to focus a subtree).
     selector: start tree from first matching element (name, .class, TypeName, ~refid).
     filter: show only elements whose name or classes contain this substring.
@@ -64,13 +64,13 @@ async def uitk_element(
     property: str | None = None,
     class_name: str | None = None,
 ) -> str:
-    """Mutate or query a VisualElement in a UIDocument
+    """Mutate or query a VisualElement in a UIDocument or PanelRenderer host
     (use inspect_uitk to find elements first, then pass ~N ref for zero-token addressing;
     use set_property for serialized component fields on the UIDocument GameObject;
     use create_ui for uGUI Canvas elements).
     action: query (find elements) | get (read value/text) | set_style | add_class | remove_class | get_style | enable | disable.
     Element addressing priority: ref (~N from inspect_uitk) → name → selector (CSS class/type).
-    path: scene path to UIDocument GameObject (e.g. /HUD).
+    path: scene path to UIDocument or PanelRenderer GameObject (e.g. /HUD).
     ref: ~N refid from inspect_uitk (highest priority, stale after re-inspect or domain reload).
     selector: CSS selector — .class-name, TypeName, or element name.
     name: element name (equivalent to bare name in selector).
@@ -91,14 +91,14 @@ async def attach_uitk(
     panel_settings: str | None = None,
     sort_order: int | None = None,
 ) -> str:
-    """Attach UIDocument to a GameObject (use for UI Toolkit runtime panels).
+    """Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for UI Toolkit runtime panels).
     Side effect: mutates the scene by adding one Undo-recorded UIDocument after validating
     every supplied asset; it does not create UXML or PanelSettings assets.
     path: scene path to the target GameObject.
     uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted).
     panel_settings: optional Assets/ path to a PanelSettings asset; omitted leaves the field unset.
-    sort_order: UIDocument.sortingOrder (default 0).
-    err: if UIDocument already present — remove it first or use inspect_uitk/uitk_element.
+    sort_order: UIDocument.sortingOrder (default 0; ignored on Unity 6.4+ PanelRenderer).
+    err: if UIDocument or PanelRenderer already present — remove it first or use inspect_uitk/uitk_element.
     """
     return await _send("attach_uitk", _args(
         path=path, uxml=uxml, panel_settings=panel_settings, sort_order=sort_order,

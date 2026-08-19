@@ -139,15 +139,13 @@ namespace UnityMCP.Editor.Tests
             var marker = new GameObject("existing-preview-scene-proof");
             SceneManager.MoveGameObjectToScene(marker, preview);
             var previewCountBefore = EditorSceneManager.previewSceneCount;
-            var previewHandle = preview.handle;
-            var rootIdsBefore = preview.GetRootGameObjects()
-                .Select(root => root.GetInstanceID())
-                .ToArray();
+            var previewScene = preview;
+            var rootsBefore = preview.GetRootGameObjects().ToArray();
 
             var ordinaryScenes = OrdinarySceneInventory.CaptureLoaded(
                 "test inventory encountered an invalid or unloaded scene");
-            Assert.That(ordinaryScenes.Any(scene => scene.handle == previewHandle), Is.False);
-            Assert.That(ordinaryScenes.Any(scene => scene.handle == activeBefore.handle), Is.True);
+            Assert.That(ordinaryScenes.Any(scene => scene == previewScene), Is.False);
+            Assert.That(ordinaryScenes.Any(scene => scene == activeBefore), Is.True);
             Assert.DoesNotThrow(() =>
                 UnityTestRunEnvironmentController.RequireMainStage("start"));
             Assert.DoesNotThrow(ResetManagedTestScene,
@@ -156,12 +154,10 @@ namespace UnityMCP.Editor.Tests
             Assert.That(EditorSceneManager.previewSceneCount, Is.EqualTo(previewCountBefore));
             Assert.That(preview.IsValid() && preview.isLoaded, Is.True);
             Assert.That(EditorSceneManager.IsPreviewScene(preview), Is.True);
-            Assert.That(preview.handle, Is.EqualTo(previewHandle));
-            CollectionAssert.AreEqual(rootIdsBefore, preview.GetRootGameObjects()
-                .Select(root => root.GetInstanceID())
-                .ToArray());
-            Assert.That(marker.scene.handle, Is.EqualTo(previewHandle));
-            Assert.That(SceneManager.GetActiveScene().handle, Is.EqualTo(activeBefore.handle));
+            Assert.That(preview, Is.EqualTo(previewScene));
+            CollectionAssert.AreEquivalent(rootsBefore, preview.GetRootGameObjects().ToArray());
+            Assert.That(marker.scene, Is.EqualTo(previewScene));
+            Assert.That(SceneManager.GetActiveScene(), Is.EqualTo(activeBefore));
         }
 
         [Test]
@@ -232,7 +228,7 @@ namespace UnityMCP.Editor.Tests
                 store, tamperedRunId, DateTime.UtcNow.ToString("O")));
 
             var sceneAfter = SceneManager.GetActiveScene();
-            Assert.That(sceneAfter.handle, Is.EqualTo(sceneBefore.handle));
+            Assert.That(sceneAfter, Is.EqualTo(sceneBefore));
             Assert.That(sceneAfter.path, Is.EqualTo(activeRunScenePath));
             Assert.That(sceneAfter.isDirty, Is.EqualTo(dirtyBefore));
             CollectionAssert.AreEqual(rootsBefore, sceneAfter.GetRootGameObjects());

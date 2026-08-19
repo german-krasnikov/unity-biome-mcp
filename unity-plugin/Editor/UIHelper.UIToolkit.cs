@@ -21,13 +21,18 @@ namespace UnityMCP.Editor
                                          string filter, bool includeInternal, bool showStyle)
         {
             if (string.IsNullOrEmpty(path) || path == "scene")
-                return ListAllUIDocuments();
+                return ListAllUIHosts();
 
-            UIDocument doc;
-            try { doc = ResolveUIDocument(path); }
-            catch (Exception ex) { return ex.Message; }   // err: already formatted
+            VisualElement root;
+            try
+            {
+                var go = ComponentSerializer.FindObject(path);
+                if (go == null) return $"err: path not found: {path}";
+                root = UIPanelHost.ResolveRoot(go);
+            }
+            catch (Exception ex) { return ex.Message; }
 
-            return _uitkSerializer.Serialize(doc.rootVisualElement, depth, selector,
+            return _uitkSerializer.Serialize(root, depth, selector,
                                              filter, includeInternal, showStyle);
         }
 
@@ -44,13 +49,14 @@ namespace UnityMCP.Editor
                                           string value, string property, string className)
         {
             // For query action with no path, use selector/name to find across root
-            UIDocument doc = null;
+            GameObject hostGo = null;
             VisualElement root = null;
             if (!string.IsNullOrEmpty(path))
             {
-                try { doc = ResolveUIDocument(path); }
+                hostGo = ComponentSerializer.FindObject(path);
+                if (hostGo == null) return $"err: path not found: {path}";
+                try { root = UIPanelHost.ResolveRoot(hostGo); }
                 catch (Exception ex) { return ex.Message; }
-                root = doc.rootVisualElement;
             }
 
             // action=query: multi-element search
@@ -85,12 +91,12 @@ namespace UnityMCP.Editor
             string result = action switch
             {
                 "get"          => UitkGet(ve, property),
-                "set_style"    => UitkSetStyle(doc?.gameObject, ve, property, value),
-                "add_class"    => UitkClassOp(doc?.gameObject, ve, true, className),
-                "remove_class" => UitkClassOp(doc?.gameObject, ve, false, className),
+                "set_style"    => UitkSetStyle(hostGo, ve, property, value),
+                "add_class"    => UitkClassOp(hostGo, ve, true, className),
+                "remove_class" => UitkClassOp(hostGo, ve, false, className),
                 "get_style"    => UitkGetStyle(ve, property),
-                "enable"       => UitkSetEnabled(doc?.gameObject, ve, true),
-                "disable"      => UitkSetEnabled(doc?.gameObject, ve, false),
+                "enable"       => UitkSetEnabled(hostGo, ve, true),
+                "disable"      => UitkSetEnabled(hostGo, ve, false),
                 _              => $"err: unknown action \"{action}\". Valid: query get set_style add_class remove_class get_style enable disable",
             };
 
@@ -113,8 +119,8 @@ namespace UnityMCP.Editor
             if (go == null)
                 return $"err: path not found: {path}";
 
-            if (go.GetComponent<UIDocument>() != null)
-                return $"err: {path} already has UIDocument. Remove it first or use inspect_uitk.";
+            if (UIPanelHost.HasHost(go))
+                return $"err: {path} already has a UI host component. Remove it first or use inspect_uitk.";
 
             VisualTreeAsset vta = null;
             if (!string.IsNullOrEmpty(uxmlPath))
@@ -133,18 +139,14 @@ namespace UnityMCP.Editor
             }
 
             // Resolve every supplied asset before the single scene mutation. Invalid input
-            // must never leave a partially configured UIDocument behind.
-            var doc = Undo.AddComponent<UIDocument>(go);
-            doc.visualTreeAsset = vta;
-            doc.panelSettings = settings;
-            doc.sortingOrder = sortingOrder;
-            EditorUtility.SetDirty(doc);
-
+            // must never leave a partially configured component behind.
             var uxmlHint = !string.IsNullOrEmpty(uxmlPath) ? $" (vta={uxmlPath})" : " (no vta)";
             var psHint = settings != null
                 ? $" ps={panelSettings}"
                 : " warn:panelSettings=null — UI Toolkit will not render; supply panel_settings param";
-            return $"ok: UIDocument added to {path}{uxmlHint}{psHint}";
+
+            var hostLabel = UIPanelHost.CreateHost(go, vta, settings, sortingOrder);
+            return $"ok: {hostLabel} added to {path}{uxmlHint}{psHint}";
         }
 
         // ── Phase 2 private helpers ──────────────────────────────────────────────
@@ -277,39 +279,22 @@ namespace UnityMCP.Editor
 
         // ── Private helpers ──────────────────────────────────────────────────────
 
-        private static string ListAllUIDocuments()
+        private static string ListAllUIHosts()
         {
-            var docs = UnityEngine.Object.FindObjectsByType<UIDocument>(FindObjectsSortMode.None);
-            if (docs.Length == 0) return "no UIDocument found in open scenes";
             var sb = new StringBuilder();
-            foreach (var doc in docs)
+            foreach (var (go, label, rootNull) in UIPanelHost.FindAllHosts())
             {
-                var goPath  = ComponentSerializer.GetPath(doc.gameObject);
-                var nullHint = doc.rootVisualElement == null
-                    ? " (null — Edit Mode without RunInEditMode)"
+                var goPath = ComponentSerializer.GetPath(go);
+                var nullHint = rootNull
+                    ? (label == "[UIDocument]"
+                        ? " (null — Edit Mode without RunInEditMode)"
+                        : " (null — panel not active)")
                     : "";
-                sb.AppendLine($"{goPath} [UIDocument]{nullHint}");
+                sb.AppendLine($"{goPath} {label}{nullHint}");
             }
+            if (sb.Length == 0)
+                return "no UI host (UIDocument or PanelRenderer) found in open scenes";
             return sb.ToString().TrimEnd();
-        }
-
-        // Resolves path → UIDocument. Throws with "err:"-prefixed message on failure.
-        private static UIDocument ResolveUIDocument(string path)
-        {
-            var go = ComponentSerializer.FindObject(path);
-            if (go == null)
-                throw new ArgumentException($"err: path not found: {path}");
-
-            var doc = go.GetComponent<UIDocument>();
-            if (doc == null)
-                throw new ArgumentException($"err: no UIDocument component on {path}");
-
-            if (doc.rootVisualElement == null)
-                throw new InvalidOperationException(
-                    $"err: UIDocument.rootVisualElement is null in Edit Mode. " +
-                    $"Enable RunInEditMode on the UIDocument, or enter Play Mode, then retry.");
-
-            return doc;
         }
     }
 }

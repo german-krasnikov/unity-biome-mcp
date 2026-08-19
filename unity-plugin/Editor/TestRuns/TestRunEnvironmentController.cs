@@ -168,7 +168,7 @@ namespace UnityMCP.Editor.TestRuns
 
             if ((!restoreSingleUntitled && paths.Count == 0) || !active.IsValid() ||
                 !active.isLoaded || EditorSceneManager.IsPreviewScene(active) ||
-                !baselineScenes.Exists(scene => scene.handle == active.handle))
+                !baselineScenes.Exists(scene => scene == active))
                 throw new InvalidOperationException("no valid named baseline scene is open");
 
             var initialAssetCleanup = TestRunAssetOwnership.CleanupForRun(runId, "");
@@ -301,7 +301,7 @@ namespace UnityMCP.Editor.TestRuns
                 }
                 var currentActive = SceneManager.GetActiveScene();
                 if (!active.IsValid() || !active.isLoaded ||
-                    (currentActive.handle != active.handle &&
+                    (currentActive != active &&
                      !SceneManager.SetActiveScene(active)))
                     throw new InvalidOperationException(
                         "could not restore active scene: " + environment.active_scene_path);
@@ -429,7 +429,7 @@ namespace UnityMCP.Editor.TestRuns
                 throw new InvalidOperationException(
                     "direct UTF EditMode isolation requires exactly one bootstrap scene");
             var bootstrap = SceneManager.GetActiveScene();
-            if (bootstrap.handle != bootstrapScenes[0].handle ||
+            if (bootstrap != bootstrapScenes[0] ||
                 !HasExactUtf16BootstrapFingerprint(bootstrap))
                 throw new InvalidOperationException(
                     "direct UTF EditMode RunStarted did not expose the exact clean UTF 1.6 bootstrap");
@@ -538,7 +538,7 @@ namespace UnityMCP.Editor.TestRuns
                 "an invalid or unloaded scene prevents disposable-worker bootstrap");
             if (startupScenes.Count != 1) return;
             var startup = startupScenes[0];
-            if (SceneManager.GetActiveScene().handle != startup.handle ||
+            if (SceneManager.GetActiveScene() != startup ||
                 !string.IsNullOrEmpty(startup.path))
                 return;
 
@@ -691,7 +691,7 @@ namespace UnityMCP.Editor.TestRuns
             Vector3 expectedPosition,
             Quaternion expectedRotation)
         {
-            return root != null && root.scene.handle == scene.handle &&
+            return root != null && root.scene == scene &&
                    string.Equals(root.name, expectedName, StringComparison.Ordinal) &&
                    root.CompareTag(expectedTag) && root.layer == 0 && root.activeSelf &&
                    !root.isStatic && root.hideFlags == HideFlags.None &&

@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -14,12 +15,10 @@ namespace UnityMCP.Editor
         // field:    text | value | visible | display | enabledSelf | enabledInHierarchy | class | width | height.
         internal static string ReadValue(GameObject go, string selector, string field)
         {
-            var doc = go.GetComponent<UIDocument>();
-            if (doc == null) return $"err: no UIDocument on {go.name}";
-            if (doc.rootVisualElement == null)
-                return "err: rootVisualElement is null (Edit Mode without RunInEditMode)";
-
-            var el = FindElement(doc.rootVisualElement, selector);
+            VisualElement root;
+            try { root = UIPanelHost.ResolveRoot(go); }
+            catch (Exception ex) { return ex.Message; }
+            var el = FindElement(root, selector);
             if (el == null)
                 return $"err: no element matches '{selector}' in {go.name}. " +
                        $"Call inspect_uitk(path=\"{ComponentSerializer.GetPath(go)}\") to list available names.";
@@ -27,10 +26,12 @@ namespace UnityMCP.Editor
             return ReadProperty(el, field);
         }
 
-        internal static bool IsElementEnabled(UIDocument doc, string selector)
+        internal static bool IsElementEnabled(GameObject go, string selector)
         {
-            if (doc?.rootVisualElement == null) return false;
-            var el = FindElement(doc.rootVisualElement, selector);
+            VisualElement root;
+            try { root = UIPanelHost.ResolveRoot(go); }
+            catch { return false; }
+            var el = FindElement(root, selector);
             return el?.enabledInHierarchy ?? false;
         }
 
@@ -38,9 +39,10 @@ namespace UnityMCP.Editor
         // M4 fix: Toggle uses SetValueWithoutNotify + ChangeEvent, NOT clickable.Invoke().
         internal static bool SimulateClick(GameObject go, string selector)
         {
-            var doc = go.GetComponent<UIDocument>();
-            if (doc?.rootVisualElement == null) return false;
-            var el = FindElement(doc.rootVisualElement, selector);
+            VisualElement root;
+            try { root = UIPanelHost.ResolveRoot(go); }
+            catch { return false; }
+            var el = FindElement(root, selector);
             if (el == null) return false;
 
             if (el is Button btn)
@@ -75,9 +77,10 @@ namespace UnityMCP.Editor
         // Phase 2: FILL /go|UIDocument|selector value="text"
         internal static bool FillText(GameObject go, string selector, string value)
         {
-            var doc = go.GetComponent<UIDocument>();
-            if (doc?.rootVisualElement == null) return false;
-            var el = FindElement(doc.rootVisualElement, selector);
+            VisualElement root;
+            try { root = UIPanelHost.ResolveRoot(go); }
+            catch { return false; }
+            var el = FindElement(root, selector);
             if (el is TextField tf)
             {
                 tf.SetValueWithoutNotify(value);
@@ -89,9 +92,10 @@ namespace UnityMCP.Editor
         // Phase 2: FOCUS /go|UIDocument|selector
         internal static bool FocusElement(GameObject go, string selector)
         {
-            var doc = go.GetComponent<UIDocument>();
-            if (doc?.rootVisualElement == null) return false;
-            var el = FindElement(doc.rootVisualElement, selector);
+            VisualElement root;
+            try { root = UIPanelHost.ResolveRoot(go); }
+            catch { return false; }
+            var el = FindElement(root, selector);
             if (el == null) return false;
             el.Focus();
             return true;

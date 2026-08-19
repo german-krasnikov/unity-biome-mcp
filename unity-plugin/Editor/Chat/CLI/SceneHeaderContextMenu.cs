@@ -15,7 +15,18 @@ namespace UnityMCP.Editor.Chat
         internal static Func<int, string> ScenePathFinder = FindScenePath;
 
         static SceneHeaderContextMenu()
-            => EditorApplication.hierarchyWindowItemOnGUI += OnHierarchyItemGUI;
+        {
+#if UNITY_6000_4_OR_NEWER
+            EditorApplication.hierarchyWindowItemByEntityIdOnGUI += OnHierarchyItemGUIByEntityId;
+#else
+            EditorApplication.hierarchyWindowItemOnGUI += OnHierarchyItemGUI;
+#endif
+        }
+
+#if UNITY_6000_4_OR_NEWER
+        private static void OnHierarchyItemGUIByEntityId(EntityId entityId, Rect selectionRect)
+            => OnHierarchyItemGUI(unchecked((int)EntityId.ToULong(entityId)), selectionRect);
+#endif
 
         internal static void OnHierarchyItemGUI(int instanceId, Rect selectionRect)
         {

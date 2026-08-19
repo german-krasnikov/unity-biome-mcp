@@ -50,7 +50,8 @@ class _DiagnoseFields:
 
 _KNOWN_KEYS = frozenset(
     ["mvid=", "stamp=", "compile=", "sync=", "iscompiling=", "dlls=", "errors=", "log=",
-     "main_mvid=", "reload_failed=", "all_errors=", "isReallyCompiling="]
+     "main_mvid=", "reload_failed=", "all_errors=", "isReallyCompiling=",
+     "substate=", "port=", "port_fallback="]
 )
 
 # Guard-reject signal substrings (Unity is compiling, guard blocked the command)

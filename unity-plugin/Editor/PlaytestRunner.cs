@@ -503,16 +503,11 @@ namespace UnityMCP.Editor
             var go = ComponentSerializer.FindObject(path);
             if (go == null) throw new ArgumentException($"Object not found: {path}");
 
-            // UIDocument (Variant B): comp="UIDocument", field packed as "selector|veField"
+            // UIDocument (Variant B): comp="UIDocument", field packed as "selector|veField".
+            // UIPanelHost.ResolveRoot is called inside UIElementHelper.ReadValue — supports both
+            // UIDocument (6.0) and PanelRenderer (6.4+) transparently.
             if (comp == "UIDocument")
             {
-                var doc = go.GetComponent<UnityEngine.UIElements.UIDocument>();
-                if (doc == null)
-                    throw new ArgumentException(
-                        $"err: '{path}' has no UIDocument component. For uGUI use: {path}|<Component>|<field>.");
-                if (doc.rootVisualElement == null)
-                    throw new ArgumentException(
-                        "err: UIDocument.rootVisualElement is null in Edit Mode. Enter Play Mode or enable RunInEditMode.");
                 var veParts = field.Split('|');
                 var selector = veParts[0];
                 var veField = veParts.Length > 1 ? veParts[1] : "";

@@ -44,23 +44,26 @@ namespace UnityMCP.Editor.Tests
             return AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(assetPath);
         }
 
-        // Test 1: bare GO gets UIDocument added
+        // Test 1: bare GO gets UIDocument (or PanelRenderer on 6.4+) added
         [Test]
         public async Task AttachUITK_BareGO_AddsUIDocumentComponent()
         {
             var path = ComponentSerializer.GetPath(_testGO);
             var result = UIHelper.AttachUITK(path, null, null, 0);
 
-            // Must succeed and GO must have UIDocument
-            // Double-red:
-            // 1. Change Assert.That check to "fail" → assertion fails
-            // 2. Remove Undo.AddComponent in AttachUITK → null → RED
             Assert.That(result, Does.StartWith("ok:"),
-                "Expected ok: response when UIDocument successfully added");
+                "Expected ok: response when UI host component successfully added");
+#if UNITY_6000_4_OR_NEWER
+            Assert.That(_testGO.GetComponent<PanelRenderer>(), Is.Not.Null,
+                "On 6.4+, attach_uitk must add PanelRenderer");
+            Assert.That(_testGO.GetComponent<UIDocument>(), Is.Null,
+                "On 6.4+, UIDocument must not be added");
+#else
             Assert.That(_testGO.GetComponent<UIDocument>(), Is.Not.Null,
                 "UIDocument must be present after AttachUITK");
             Assert.That(_testGO.GetComponent<UIDocument>().visualTreeAsset, Is.Null);
             Assert.That(_testGO.GetComponent<UIDocument>().panelSettings, Is.Null);
+#endif
         }
 
         // Test 2: duplicate guard — GO already has UIDocument
@@ -72,11 +75,8 @@ namespace UnityMCP.Editor.Tests
 
             var result = UIHelper.AttachUITK(path, null, null, 0);
 
-            // Double-red:
-            // 1. Change check to Does.StartWith("ok:") → passes when it should fail
-            // 2. Remove the duplicate guard in AttachUITK → returns ok: → RED
-            Assert.That(result, Does.StartWith("err:").And.Contains("already has UIDocument"),
-                "Must return err: when UIDocument already present");
+            Assert.That(result, Does.StartWith("err:").And.Contains("already has a UI host component"),
+                "Must return err: when a UI host is already present");
         }
 
         // Test 3: missing path → err
@@ -134,11 +134,18 @@ namespace UnityMCP.Editor.Tests
                 ComponentSerializer.GetPath(_testGO), uxmlPath, panelPath, 17);
 
             Assert.That(result, Does.StartWith("ok:"));
+#if UNITY_6000_4_OR_NEWER
+            var renderer = _testGO.GetComponent<PanelRenderer>();
+            Assert.That(renderer, Is.Not.Null, "On 6.4+ expect PanelRenderer");
+            Assert.That(renderer.visualTreeAsset, Is.SameAs(uxml));
+            Assert.That(renderer.panelSettings, Is.SameAs(panel));
+#else
             var document = _testGO.GetComponent<UIDocument>();
             Assert.That(document, Is.Not.Null);
             Assert.That(document.visualTreeAsset, Is.SameAs(uxml));
             Assert.That(document.panelSettings, Is.SameAs(panel));
             Assert.That(document.sortingOrder, Is.EqualTo(17));
+#endif
         }
 
         // U11: When panelSettings arg is omitted, ok response includes warn:panelSettings=null
@@ -157,22 +164,54 @@ namespace UnityMCP.Editor.Tests
                 "Response must contain warn:panelSettings=null when no PanelSettings provided");
         }
 
-        // Test 5: Undo restores state — UIDocument removed after undo
+        // Test 5: Undo restores state — UIDocument/PanelRenderer removed after undo
         [Test]
         public async Task AttachUITK_UndoCreatesRestorePoint()
         {
             var path = ComponentSerializer.GetPath(_testGO);
             UIHelper.AttachUITK(path, null, null, 0);
-            Assert.That(_testGO.GetComponent<UIDocument>(), Is.Not.Null,
-                "UIDocument must be present after AttachUITK");
+            Assert.That(UIPanelHost.HasHost(_testGO), Is.True,
+                "A UI host must be present after AttachUITK");
 
             Undo.PerformUndo();
 
-            // Double-red:
-            // 1. Invert assertion → fails when UIDocument is absent after undo
-            // 2. Use AddComponent instead of Undo.AddComponent → undo doesn't remove it → RED
-            Assert.That(_testGO.GetComponent<UIDocument>(), Is.Null,
-                "UIDocument must be absent after Undo — Undo.AddComponent must have been used");
+            Assert.That(UIPanelHost.HasHost(_testGO), Is.False,
+                "UI host must be absent after Undo — Undo.AddComponent must have been used");
         }
+
+        // Test: new duplicate guard message text
+        [Test]
+        public void AttachUITK_AlreadyHasUIDocument_ReturnsErrWithNewText()
+        {
+            var go = TrackOwnedObject(new GameObject("AttachUITK_DupGuard"));
+            go.AddComponent<UIDocument>();
+            var path = ComponentSerializer.GetPath(go);
+            var result = UIHelper.AttachUITK(path, null, null, 0);
+            Assert.That(result, Does.StartWith("err:"));
+            Assert.That(result, Does.Contain("already has a UI host component"));
+        }
+
+#if UNITY_6000_4_OR_NEWER
+        [Test]
+        public void AttachUITK_AlreadyHasPanelRenderer_ReturnsError()
+        {
+            var go = TrackOwnedObject(new GameObject("AttachUITK_PRDupGuard"));
+            go.AddComponent<PanelRenderer>();
+            var path = ComponentSerializer.GetPath(go);
+            var result = UIHelper.AttachUITK(path, null, null, 0);
+            Assert.That(result, Does.StartWith("err:"));
+            Assert.That(result, Does.Contain("already has a UI host component"));
+        }
+
+        [Test]
+        public void AttachUITK_SortingOrderNonZero_ResponseContainsWarn()
+        {
+            var go = TrackOwnedObject(new GameObject("AttachUITK_SortWarn"));
+            var path = ComponentSerializer.GetPath(go);
+            var result = UIHelper.AttachUITK(path, null, null, 5);
+            Assert.That(result, Does.Contain("warn: sorting_order ignored"),
+                "Non-zero sorting_order must warn user when PanelRenderer used");
+        }
+#endif
     }
 }
