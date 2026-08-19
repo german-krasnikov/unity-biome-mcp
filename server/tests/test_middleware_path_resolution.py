@@ -125,6 +125,15 @@ async def test_resolve_path_live_strips_combined_suffix(mw):
     assert path == "/Root/Player"
 
 
+async def test_resolve_path_live_strips_hash_with_long_suffix(mw):
+    """S8786 fix: \\s+[#$&][^\\n]* instead of .* — verify long suffix stripped correctly."""
+    mw.known_paths = {"/Root/Other"}
+    long_meta = "#inst=" + "x" * 500
+    send_fn = AsyncMock(return_value=f"/Root/Player {long_meta}")
+    path, _ = await mw.resolve_path_live("/Player", send_fn)
+    assert path == "/Root/Player"
+
+
 async def test_resolve_path_live_bracket_name_leaf_extracted_correctly(mw):
     """P2: rsplit('/') was bracket-blind — leaf of '/Root/[Zone_A/B]' should be '[Zone_A/B]'."""
     mw.known_paths = {"/Root/Other"}

@@ -55,24 +55,36 @@ class CompileStateProbe:
         """
         if self._port is None:
             return False
+
         if read_state_for_port(self._port) is not None:
             return False
+
         pid = read_pid_from_port_file(self._port)
         if pid is None or not is_pid_alive(pid):
             return False
+
         # State absent + PID alive: verify TCP not already responding.
         # If TCP responds, state file failed to write — Unity is ready.
         import socket as _socket
-        s = _socket.socket()
-        s.settimeout(1.0)
+
+        startup = False
+        sock = None
         try:
-            s.connect(("127.0.0.1", self._port))
+            sock = _socket.socket()
+            sock.settimeout(1.0)
+            try:
+                sock.connect(("127.0.0.1", self._port))
+            except OSError:
+                startup = True
         except OSError:
-            return True   # TCP not yet up = genuinely starting
-        else:
-            return False  # TCP responds = not in startup window
+            # Socket setup/probe failure means no reliable startup signal.
+            return False
         finally:
-            with contextlib.suppress(OSError): s.close()
+            if sock is not None:
+                with contextlib.suppress(Exception):
+                    sock.close()
+
+        return startup
 
     def has_strong_busy_signal(self) -> bool:
         """State file (authoritative) → startup window → lock file.

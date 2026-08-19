@@ -326,6 +326,7 @@ class UnityBridge(HeartbeatMixin):
                     await self._send_queue.get()
                 )
             except asyncio.CancelledError:
+                logger.debug("queue consumer cancelled while waiting for next item")
                 raise
             try:
                 result = await self._send_with_retry(cmd, payload, msg_id, timeout, deadline, op_id)

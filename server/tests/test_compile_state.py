@@ -455,6 +455,16 @@ def test_is_startup_tcp_probe_not_called_when_state_file_present():
     mock_socket.assert_not_called()  # TCP probe never reached
 
 
+def test_is_startup_tcp_probe_setup_failure_returns_false():
+    """If socket creation/probe fails, classify as not-startup instead of raising."""
+    with patch("unity_mcp.compile_state.read_state_for_port", return_value=None), \
+         patch("unity_mcp.compile_state.read_pid_from_port_file", return_value=12345), \
+         patch("unity_mcp.compile_state.is_pid_alive", return_value=True), \
+         patch("socket.socket", side_effect=OSError("cannot open socket")):
+        probe = CompileStateProbe(port=9500)
+        assert probe.is_startup_in_progress() is False
+
+
 def test_is_startup_no_port_returns_false():
     """port=None → False always (no TCP probe)."""
     probe = CompileStateProbe(port=None)

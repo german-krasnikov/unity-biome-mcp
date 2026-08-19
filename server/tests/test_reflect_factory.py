@@ -1,4 +1,5 @@
 """TDD tests for reflect/factory.py — make_ok_rule, make_no_error_rule, make_action_guard."""
+import inspect
 import pytest
 
 from unity_mcp.reflect import _RULES, Mismatch
@@ -8,101 +9,129 @@ from unity_mcp.reflect import _RULES, Mismatch
 _PFX = "_trf_"   # test reflect factory prefix
 
 
+# ── S7503: async without await (factory inner rules must be sync) ─────────────
+
+def test_make_no_error_fn_inner_rule_is_sync():
+    """S7503 fix: _make_no_error_fn closure must not be async (no await inside)."""
+    from unity_mcp.reflect.factory import _make_no_error_fn
+    rule = _make_no_error_fn("_sonar_s7503_noerr")
+    assert not inspect.iscoroutinefunction(rule)
+
+
+def test_make_ok_rule_inner_rule_is_sync():
+    """S7503 fix: make_ok_rule inner closure must not be async (no await inside)."""
+    from unity_mcp.reflect.factory import make_ok_rule
+    cmd = "_sonar_s7503_ok"
+    make_ok_rule(cmd, ("ok",))
+    rule = _RULES[cmd]
+    assert not inspect.iscoroutinefunction(rule)
+
+
+# ── S1172: unused 'cmd' parameter in make_action_guard ───────────────────────
+
+def test_make_action_guard_first_param_is_underscore_prefixed():
+    """S1172 fix: unused first param renamed to _cmd (underscore = intentionally unused)."""
+    import inspect as _inspect
+    from unity_mcp.reflect.factory import make_action_guard
+    params = list(_inspect.signature(make_action_guard).parameters.keys())
+    assert params[0].startswith("_"), f"First param '{params[0]}' should start with '_' to mark as unused"
+
+
 # ── make_ok_rule ──────────────────────────────────────────────────────────────
 
-async def test_make_ok_rule_happy_path():
+def test_make_ok_rule_happy_path():
     from unity_mcp.reflect.factory import make_ok_rule
     cmd = f"{_PFX}ok_happy"
     make_ok_rule(cmd, ("reverted", "nothing"))
     rule = _RULES[cmd]
-    result = await rule({}, "reverted 1 turn(s)", None)
+    result = rule({}, "reverted 1 turn(s)", None)  # sync rule — no await
     assert result is None
 
 
-async def test_make_ok_rule_mismatch():
+def test_make_ok_rule_mismatch():
     from unity_mcp.reflect.factory import make_ok_rule
     cmd = f"{_PFX}ok_miss"
     make_ok_rule(cmd, ("reverted", "nothing"))
     rule = _RULES[cmd]
-    result = await rule({}, "some unrelated response", None)
+    result = rule({}, "some unrelated response", None)
     assert isinstance(result, Mismatch)
     assert "reverted" in result.msg or "nothing" in result.msg
 
 
-async def test_make_ok_rule_fail_open_on_error():
+def test_make_ok_rule_fail_open_on_error():
     """When C# returns an error, ok_rule returns None (fail-open)."""
     from unity_mcp.reflect.factory import make_ok_rule
     cmd = f"{_PFX}ok_err"
     make_ok_rule(cmd, ("reverted",))
     rule = _RULES[cmd]
-    result = await rule({}, "Error: operation failed", None)
+    result = rule({}, "Error: operation failed", None)
     assert result is None
 
 
-async def test_make_ok_rule_fail_open_on_failed():
+def test_make_ok_rule_fail_open_on_failed():
     from unity_mcp.reflect.factory import make_ok_rule
     cmd = f"{_PFX}ok_failed"
     make_ok_rule(cmd, ("reverted",))
     rule = _RULES[cmd]
-    result = await rule({}, "Failed to find object", None)
+    result = rule({}, "Failed to find object", None)
     assert result is None
 
 
-async def test_make_ok_rule_case_insensitive():
+def test_make_ok_rule_case_insensitive():
     """Token check is case-insensitive."""
     from unity_mcp.reflect.factory import make_ok_rule
     cmd = f"{_PFX}ok_case"
     make_ok_rule(cmd, ("OK",))
     rule = _RULES[cmd]
-    result = await rule({}, "ok", None)
+    result = rule({}, "ok", None)
     assert result is None
 
 
 # ── make_no_error_rule ────────────────────────────────────────────────────────
 
-async def test_make_no_error_rule_clean_response():
+def test_make_no_error_rule_clean_response():
     from unity_mcp.reflect.factory import make_no_error_rule
     cmd = f"{_PFX}noerr_clean"
     make_no_error_rule(cmd)
     rule = _RULES[cmd]
-    result = await rule({}, "Moved /Obj → Scene2", None)
+    result = rule({}, "Moved /Obj → Scene2", None)  # sync rule — no await
     assert result is None
 
 
-async def test_make_no_error_rule_error_token():
+def test_make_no_error_rule_error_token():
     from unity_mcp.reflect.factory import make_no_error_rule
     cmd = f"{_PFX}noerr_err"
     make_no_error_rule(cmd)
     rule = _RULES[cmd]
-    result = await rule({}, "Error: object not found", None)
+    result = rule({}, "Error: object not found", None)
     assert isinstance(result, Mismatch)
 
 
-async def test_make_no_error_rule_failed_token():
+def test_make_no_error_rule_failed_token():
     from unity_mcp.reflect.factory import make_no_error_rule
     cmd = f"{_PFX}noerr_fail"
     make_no_error_rule(cmd)
     rule = _RULES[cmd]
-    result = await rule({}, "Failed to process", None)
+    result = rule({}, "Failed to process", None)
     assert isinstance(result, Mismatch)
 
 
-async def test_make_no_error_rule_exception_token():
+def test_make_no_error_rule_exception_token():
     from unity_mcp.reflect.factory import make_no_error_rule
     cmd = f"{_PFX}noerr_exc"
     make_no_error_rule(cmd)
     rule = _RULES[cmd]
-    result = await rule({}, "Exception: NullRef", None)
+    result = rule({}, "Exception: NullRef", None)
     assert isinstance(result, Mismatch)
 
 
-async def test_make_no_error_rule_empty_response():
+def test_make_no_error_rule_empty_response():
     """Empty response is not an error — silent."""
     from unity_mcp.reflect.factory import make_no_error_rule
     cmd = f"{_PFX}noerr_empty"
     make_no_error_rule(cmd)
     rule = _RULES[cmd]
-    result = await rule({}, "", None)
+    result = rule({}, "", None)
     assert result is None
 
 

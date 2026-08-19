@@ -2,6 +2,7 @@
 
 On mismatch, returns Mismatch(msg). Silent on match or no rule.
 """
+import inspect
 import math
 import re
 from collections.abc import Awaitable, Callable
@@ -101,7 +102,8 @@ async def reflect(
         METRICS.inc("reflect.skipped_no_rule")
         return None
     try:
-        result = await rule(args, response, send_fn)
+        raw = rule(args, response, send_fn)
+        result = await raw if inspect.isawaitable(raw) else raw
         if result is not None:
             METRICS.inc("reflect.mismatch")
         return result

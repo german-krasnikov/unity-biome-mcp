@@ -38,6 +38,7 @@ def _handle_sigterm(signum, frame) -> None:
 _last_useful_activity: float = time.monotonic()
 _last_transport_activity: float = time.monotonic()
 _in_flight_count: int = 0
+_reconnect_bg_tasks: set[asyncio.Task] = set()
 
 
 def _touch_useful_activity() -> None:
@@ -392,6 +393,31 @@ def _stdio_alive() -> bool:
         return time.monotonic() - _stdio_last_confirmed < _STDIO_GRACE_S
 
 
+def _check_read_only(cmd: str, args: dict) -> None:
+    """Raise ToolError when the server is in read-only mode and cmd is a write."""
+    if os.environ.get("UNITY_MCP_READ_ONLY", "0") != "1":
+        return
+    from .middleware_types import is_write
+    if is_write(cmd, args):
+        raise ToolError(
+            f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
+        )
+
+
+def _classify_connection_error(e: Exception, probe) -> object | None:
+    """Return a UnityError classification for a connection exception, or None."""
+    ue = getattr(e, "unity_error", None)
+    if ue is not None:
+        return ue
+    try:
+        from .errors import classify_failure
+        probe_busy = probe.has_strong_busy_signal() if probe else False
+        rem = probe.estimated_remaining_s() if probe else 0.0
+        return classify_failure(e, probe_busy, rem)
+    except Exception:
+        return None
+
+
 async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
     if slot is None:
         raise ToolError("Server not initialized. Restart MCP server (/mcp).")
@@ -406,12 +432,7 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
         raise ToolError(
             "[TRANSPORT_DEAD] stdio transport closed — restart the MCP server (/mcp)"
         )
-    if os.environ.get("UNITY_MCP_READ_ONLY", "0") == "1":
-        from .middleware_types import is_write
-        if is_write(cmd, args):
-            raise ToolError(
-                f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
-            )
+    _check_read_only(cmd, args)
     bridge = slot.bridge
     if bridge is None:
         raise ToolError("No Unity connection configured. Use reconnect_unity(port).")
@@ -421,17 +442,9 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
     try:
         result = await bridge.send(cmd, args, timeout=timeout)
     except asyncio.CancelledError:
-        raise ToolError("Operation cancelled. Retry the command.") from None
+        raise
     except (ConnectionError, TimeoutError, OSError) as e:
-        ue = getattr(e, "unity_error", None)
-        if ue is None:
-            try:
-                from .errors import classify_failure
-                probe_busy = probe.has_strong_busy_signal() if probe else False
-                rem = probe.estimated_remaining_s() if probe else 0.0
-                ue = classify_failure(e, probe_busy, rem)
-            except Exception:
-                ue = None
+        ue = _classify_connection_error(e, probe)
         if ue is not None:
             raise ToolError(
                 f"[UNITY_UNAVAILABLE] state={ue.unity_state} transient={ue.is_transient} "
@@ -444,6 +457,13 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
     if not ok:
         raise ToolError(text)
     return text
+
+
+def _spawn_reconnect_task(task_coro):
+    """Run reconnect helper task with a hard reference until completion (S7502)."""
+    task = asyncio.create_task(task_coro)
+    _reconnect_bg_tasks.add(task)
+    task.add_done_callback(_reconnect_bg_tasks.discard)
 
 
 async def _send(cmd: str, args: dict, timeout: float = 0) -> str:
@@ -568,11 +588,11 @@ async def lifespan(app):
                 if now - _last_refresh_ts < 30.0:
                     return
                 _last_refresh_ts = now
-                asyncio.create_task(_refresh_tools_cache(slot.bridge))
-                asyncio.create_task(_warm_alias_cache(slot.bridge))
-                asyncio.create_task(_warm_cmd_flags(slot.bridge))
-                asyncio.create_task(_push_catalog(slot.bridge))
-                asyncio.create_task(_refresh_resources(slot.bridge))
+                _spawn_reconnect_task(_refresh_tools_cache(slot.bridge))
+                _spawn_reconnect_task(_warm_alias_cache(slot.bridge))
+                _spawn_reconnect_task(_warm_cmd_flags(slot.bridge))
+                _spawn_reconnect_task(_push_catalog(slot.bridge))
+                _spawn_reconnect_task(_refresh_resources(slot.bridge))
             slot.add_reconnect_callback(_on_reconnect)
             slot.add_reconnect_callback(_sync_reset_bump)
             # gating.reset() is intentionally NOT wired here — automatic heartbeat

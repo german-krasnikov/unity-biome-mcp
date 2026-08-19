@@ -21,19 +21,24 @@ class FixtureAdapter:
         return self._caps
 
     async def start(self, meta: SessionMeta) -> None:
-        pass
+        # Fixture playback is offline and already deterministic; no runtime process.
+        return None
 
     async def prompt(self, text: str, turn_id: int) -> None:
-        pass
+        # Prompt text is not executed for fixture mode; events are replayed as-is.
+        return None
 
     async def cancel(self) -> None:
-        pass
+        # Cancellation is replay-driven only; the fixture file remains unchanged.
+        return None
 
     async def set_mode(self, mode: str) -> None:
-        pass
+        # Mode is fixed in fixture fixtures; runtime adapters implement switching.
+        return None
 
     async def close(self) -> None:
-        pass
+        # Explicit close is a no-op for file-backed replay adapters.
+        return None
 
     async def events(self) -> AsyncIterator[AgentEvent]:
         for line in self._path.read_text(encoding="utf-8").splitlines():

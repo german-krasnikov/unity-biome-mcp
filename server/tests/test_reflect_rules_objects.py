@@ -86,6 +86,26 @@ async def test_create_object_path_with_spaces_mismatch():
 
 # ── Bug #4/#7: delete_object and set_active error responses ──────────────────
 
+async def test_create_object_trailing_newline_captures_path():
+    """Trailing newline in response: old (.+?)(?:\\s+\\[|\\Z) fails; new regex handles it."""
+    result = await _r(
+        "create_object",
+        {"name": "Cube"},
+        "Created Cube at /Root/Cube\n",
+    )
+    assert result is None
+
+
+async def test_create_object_bracket_metadata_stripped():
+    """Path with '[metadata]' suffix: old regex stops at ' [', new also stops and strips."""
+    result = await _r(
+        "create_object",
+        {"name": "Cube"},
+        "Created Cube at /Root/Cube [inst=12345]",
+    )
+    assert result is None
+
+
 async def test_delete_object_error_response_mismatch():
     """Error response for delete_object → Mismatch (not None)."""
     result = await _r(

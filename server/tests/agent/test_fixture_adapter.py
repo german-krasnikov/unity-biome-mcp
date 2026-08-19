@@ -69,3 +69,18 @@ async def test_fixture_adapter_all_14_fixtures_parseable():
 async def test_fixture_adapter_satisfies_protocol():
     adapter = FixtureAdapter(_FIXTURES / "normal-turn.jsonl")
     assert isinstance(adapter, AgentAdapter)
+
+
+async def test_fixture_adapter_lifecycle_methods_are_noops():
+    adapter = FixtureAdapter(_FIXTURES / "normal-turn.jsonl")
+    assert await adapter.start(type("meta", (), {"mode": "read"})()) is None
+    assert await adapter.prompt("hello", turn_id=1) is None
+    assert await adapter.cancel() is None
+    assert await adapter.set_mode("agent") is None
+    assert await adapter.close() is None
+
+
+async def test_fixture_adapter_events_streams_every_valid_line():
+    events = [e async for e in FixtureAdapter(_FIXTURES / "utf8-payloads.jsonl").events()]
+    assert events
+    assert events[0].schema_version == 1

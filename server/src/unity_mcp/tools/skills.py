@@ -1,8 +1,10 @@
 """Persistent reusable-code library: learned skills + scene templates."""
+import asyncio
 import json
 import os
 import re
 import time
+from pathlib import Path
 
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
@@ -15,6 +17,44 @@ _args = None
 
 def _skills_dir():
     return os.path.join(os.getcwd(), ".claude", "skills", "learned")
+
+
+def _read_json(path: str) -> dict:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _write_json(path: str, data: dict) -> None:
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = Path(f"{path}.{os.getpid()}.{time.time_ns()}.tmp")
+    try:
+        with tmp.open("w", encoding="utf-8") as f:
+            f.write(json.dumps(data, ensure_ascii=False))
+            f.flush()
+            os.fsync(f.fileno())
+        tmp.replace(p)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def _read_text(path: str) -> str:
+    return Path(path).read_text(encoding="utf-8")
+
+
+def _write_text(path: str, data: str) -> None:
+    p = Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = Path(f"{path}.{os.getpid()}.{time.time_ns()}.tmp")
+    try:
+        with tmp.open("w", encoding="utf-8") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        tmp.replace(p)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        raise
 
 
 def _safe_name(name: str) -> str:
@@ -32,12 +72,11 @@ async def save_skill(name: str, description: str, code: str) -> str:
     name: skill identifier. description: what it does. code: C# or batch commands."""
     _guard_read_only("save_skill")
     name = _safe_name(name)
-    os.makedirs(_skills_dir(), exist_ok=True)
+    path = os.path.join(_skills_dir(), f"{name}.json")
     skill = {"name": name, "description": description, "code": code,
              "kind": _detect_kind(code),
              "created": time.strftime("%Y-%m-%d %H:%M"), "used_count": 0}
-    with open(os.path.join(_skills_dir(), f"{name}.json"), "w", encoding="utf-8") as f:
-        json.dump(skill, f, ensure_ascii=False)
+    await asyncio.to_thread(_write_json, path, skill)
     return f"Skill saved: {name} — {description}"
 
 
@@ -47,8 +86,7 @@ async def use_skill(name: str, params: str | None = None) -> str:
     path = os.path.join(_skills_dir(), f"{name}.json")
     if not os.path.exists(path):
         return await list_skills()
-    with open(path, encoding="utf-8") as f:
-        skill = json.load(f)
+    skill = await asyncio.to_thread(_read_json, path)
     code = skill["code"]
     if params:
         for pair in re.split(r",(?![^(]*\))", params):
@@ -58,8 +96,7 @@ async def use_skill(name: str, params: str | None = None) -> str:
                 code = code.replace(f"${{{k.strip()}}}", v.strip())
     skill["used_count"] = skill.get("used_count", 0) + 1
     skill["last_used"] = time.strftime("%Y-%m-%d %H:%M")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(skill, f, ensure_ascii=False)
+    await asyncio.to_thread(_write_json, path, skill)
     if skill.get("kind", _detect_kind(code)) == "csharp":
         return await _send("execute_code", {"code": code, "undo_label": f"skill:{name}"})
     return await _send("batch", {"commands": code})
@@ -73,8 +110,7 @@ async def list_skills() -> str:
     for fname in sorted(os.listdir(_skills_dir())):
         if not fname.endswith(".json"):
             continue
-        with open(os.path.join(_skills_dir(), fname), encoding="utf-8") as fh:
-            s = json.load(fh)
+        s = await asyncio.to_thread(_read_json, os.path.join(_skills_dir(), fname))
         skills.append(f"{s['name']} [{s.get('kind', '?')}]: {s['description']} (used {s.get('used_count', 0)}x)")
     return "\n".join(skills) if skills else "No skills saved yet. Use save_skill to create one."
 
@@ -91,8 +127,7 @@ async def apply_template(name: str, params: str | None = None) -> str:
             available = [f[:-3] for f in os.listdir(template_dir) if f.endswith(".cs")]
             return f"Template '{name}' not found. Available: {', '.join(available) or 'none'}"
         return f"No templates directory. Create .claude/templates/{name}.cs"
-    with open(path, encoding="utf-8") as f:
-        code = f.read()
+    code = await asyncio.to_thread(_read_text, path)
     if params:
         # Split on commas not inside parentheses
         for pair in re.split(r",(?![^(]*\))", params):
@@ -108,10 +143,8 @@ async def save_template(name: str, code: str) -> str:
     _guard_read_only("save_template")
     name = _safe_name(name)
     template_dir = os.path.join(os.getcwd(), ".claude", "templates")
-    os.makedirs(template_dir, exist_ok=True)
     path = os.path.join(template_dir, f"{name}.cs")
-    with open(path, "w", encoding="utf-8") as f:
-        f.write(code)
+    await asyncio.to_thread(_write_text, path, code)
     return f"Template saved: {path}"
 
 

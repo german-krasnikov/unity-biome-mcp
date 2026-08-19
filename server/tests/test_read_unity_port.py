@@ -1,7 +1,9 @@
 """Tests for _read_unity_port — filesystem/env/PID mocking only, no global state leaks."""
 import os
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from unity_mcp.server import _read_unity_port
 
 
@@ -192,6 +194,83 @@ def test_malformed_port_file_skipped(monkeypatch, tmp_path):
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
     # int(lines[0]) where lines[0]="broken" → ValueError → skip
+    assert _read_unity_port() == 9500
+
+
+def test_malformed_blank_second_line_does_not_shift_fields(monkeypatch, tmp_path):
+    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    cwd = tmp_path / "GoodProject"
+    cwd_matches = cwd / "Assets"
+    bad = ports_dir / "1111.port"
+    bad.write_text(f"9600\n\n{cwd}\nProjectName\n", encoding="utf-8")
+    _make_port_file_with_path(ports_dir, pid=2222, port=9601, project_path=str(tmp_path / "OtherProject"), mtime=2000.0)
+    os.utime(bad, (1000.0, 1000.0))
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.setattr("os.getcwd", lambda: str(cwd_matches))
+    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+    # Without index shifting, the malformed file should lose cwd matching and fallback to 9601.
+    assert _read_unity_port() == 9601
+
+
+def test_blank_second_line_with_project_dir_falls_back_to_latest_valid_port(monkeypatch, tmp_path):
+    """Project-aware selection never uses a blank second line as a real project path."""
+    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+
+    bad_project = str(tmp_path / "ExpectedProject")
+    good_project = str(tmp_path / "FreshProject")
+    bad = ports_dir / "1111.port"
+    good = ports_dir / "2222.port"
+
+    bad.write_text(f"9600\n\n{bad_project}\nBadProject\n", encoding="utf-8")
+    good.write_text(f"9601\n{good_project}\nGoodProject\n", encoding="utf-8")
+    os.utime(bad, (1000.0, 1000.0))
+    os.utime(good, (2000.0, 2000.0))
+
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.setattr("os.getcwd", lambda: bad_project)
+    monkeypatch.setenv("UNITY_MCP_PROJECT_DIR", good_project)
+    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+
+    # Blank 2nd line should be treated as invalid; fallback must pick 9601.
+    assert _read_unity_port() == 9601
+
+
+def test_empty_port_line_is_skipped(monkeypatch, tmp_path):
+    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    bad = ports_dir / "1234.port"
+    bad.write_text(f"\n{tmp_path / 'Project'}\nMyProject\n", encoding="utf-8")
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+    assert _read_unity_port() == 9500
+
+
+def test_oversized_port_line_is_skipped(monkeypatch, tmp_path):
+    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    oversized = "9" * 80
+    bad = ports_dir / "1234.port"
+    bad.write_text(f"{oversized}\n/some/project\nMyProject\n", encoding="utf-8")
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+    assert _read_unity_port() == 9500
+
+
+def test_partial_port_file_is_skipped(monkeypatch, tmp_path):
+    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    bad = ports_dir / "1234.port"
+    bad.write_bytes(("9500\n" + ("x" * 9000)).encode("utf-8"))
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
     assert _read_unity_port() == 9500
 
 

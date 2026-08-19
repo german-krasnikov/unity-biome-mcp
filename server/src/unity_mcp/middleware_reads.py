@@ -116,6 +116,14 @@ class MiddlewareReadsMixin:
 
     # ── Feature: Play Mode Auto-Routing ──────────────────────────────────────
 
+    def _apply_non_editor_play_state(self, result: str) -> None:
+        """Update play state from non-editor result, respecting TTL."""
+        now = _time.monotonic()
+        if now - self._play_state_ts > _NON_EDITOR_PLAY_TTL:
+            self._play_state_known = True
+            self.is_playing = _is_play_mode(result) or _is_paused(result)
+            self._play_state_ts = now
+
     def track_editor_state(self, cmd: str, result: str, args: dict | None = None) -> None:
         """Update is_playing from editor responses (state AND action results)."""
         if cmd in ("recompile", "scene") and self.schema_cache is not None:
@@ -138,11 +146,7 @@ class MiddlewareReadsMixin:
             return  # editor branch complete
         # Non-editor: update from any response containing `playing:` field, with TTL
         if _parse_editor_field(result, "playing") is not None:
-            now = _time.monotonic()
-            if now - self._play_state_ts > _NON_EDITOR_PLAY_TTL:
-                self._play_state_known = True
-                self.is_playing = _is_play_mode(result) or _is_paused(result)
-                self._play_state_ts = now
+            self._apply_non_editor_play_state(result)
 
     def reroute_cmd(self, cmd: str, args: dict) -> tuple[str, dict]:
         """Rewrite set_property↔set_runtime_property based on play mode."""

@@ -22,6 +22,9 @@ _IS_WIN = sys.platform == "win32"
 _LOCK_OFFSET = 1024
 
 _OPEN_FLAGS = os.O_RDWR | os.O_CREAT | getattr(os, "O_CLOEXEC", 0)
+_MAX_PORT_FILE_BYTES = 8 * 1024
+_MAX_PORT_TEXT_BYTES = 64
+_MAX_PROJECT_PATH_BYTES = 8192
 
 # Maps fd → lock file path for cleanup in release_lock
 _lock_paths: dict[int, str] = {}
@@ -89,6 +92,42 @@ def _read_pid_from_fd(fd: int) -> int | None:
         return int(data)
     except ValueError:
         return None
+
+
+def _read_port_file_lines(path: Path, max_lines: int = 3) -> list[str]:
+    """Read a bounded head of a port file (defense against oversized inputs).
+
+    This parser preserves empty lines in their original positions so downstream
+    `project_path` / `project` extraction remains index-stable.
+    """
+    try:
+        file_size = path.stat().st_size
+    except OSError:
+        return []
+    if file_size > _MAX_PORT_FILE_BYTES:
+        return []
+
+    try:
+        with path.open("rb") as fd:
+            data = fd.read(_MAX_PORT_FILE_BYTES)
+    except OSError:
+        return []
+    if not data:
+        return []
+
+    # Preserve empty lines for index-stable access. Split at line boundaries only.
+    raw_lines = data.split(b"\n")
+    if max_lines > 0:
+        raw_lines = raw_lines[:max_lines]
+
+    out = []
+    for idx, raw_line in enumerate(raw_lines):
+        if idx == 0 and len(raw_line) > _MAX_PORT_TEXT_BYTES:
+            return []
+        if idx > 0 and len(raw_line) > _MAX_PROJECT_PATH_BYTES:
+            return []
+        out.append(raw_line.decode("utf-8", errors="replace").rstrip("\r"))
+    return out
 
 
 def is_pid_alive(pid: int | None) -> bool:
@@ -201,13 +240,14 @@ def read_pid_from_port_file(
     candidates: list[tuple[float, int]] = []
     for f in _iter_port_files("*.port", _ports_dir()):
         try:
-            lines = f.read_text(encoding="utf-8", errors="replace").strip().split("\n")
-            if int(lines[0]) != port:
+            lines = _read_port_file_lines(f, max_lines=2)
+            if len(lines) < 1 or int(lines[0]) != port:
                 continue
             if expected_project is not None:
-                if len(lines) < 2 or not lines[1].strip():
+                if len(lines) < 2:
                     continue
-                if _canonical_project_path(lines[1].strip()) != expected_project:
+                project_line = lines[1].strip()
+                if not project_line or _canonical_project_path(project_line) != expected_project:
                     continue
             pid = int(f.stem)
             if is_pid_alive(pid):
@@ -248,16 +288,15 @@ def cleanup_stale_port_files(tcp_probe: bool = False) -> int:
                     cleaned += 1
                     continue
                 if tcp_probe:
-                    try:
-                        content = f.read_text(encoding="utf-8", errors="replace")
-                        port = int(content.split("\n")[0])
-                        if not _tcp_probe(port):
-                            f.unlink()
-                            cleaned += 1
-                    except (ValueError, OSError):
-                        pass
+                    lines = _read_port_file_lines(f, max_lines=1)
+                    if not lines:
+                        continue
+                    port = int(lines[0])
+                    if not _tcp_probe(port):
+                        f.unlink()
+                        cleaned += 1
             except (ValueError, OSError):
-                continue
+                pass
     return cleaned
 
 
@@ -273,7 +312,9 @@ def read_reload_port() -> int | None:
             pid = int(f.stem)
             if not is_pid_alive(pid):
                 continue
-            lines = f.read_text(encoding="utf-8").strip().split("\n")
+            lines = _read_port_file_lines(f, max_lines=2)
+            if not lines:
+                continue
             port = int(lines[0])
             project_path = lines[1].strip() if len(lines) > 1 else ""
             candidates.append((f.stat().st_mtime, port, project_path))
@@ -308,12 +349,15 @@ def read_project_path_from_port_file(port: int) -> Path | None:
     for f in _iter_port_files("*.port", _ports_dir()):
         try:
             pid = int(f.stem)
-            lines = f.read_text(encoding="utf-8", errors="replace").strip().split("\n")
-            if int(lines[0]) != port or len(lines) < 2:
+            lines = _read_port_file_lines(f, max_lines=2)
+            if len(lines) < 2 or int(lines[0]) != port:
                 continue
             if not is_pid_alive(pid):
                 continue
-            p = Path(lines[1])
+            project_path = lines[1].strip()
+            if not project_path:
+                continue
+            p = Path(project_path)
             if p.exists():
                 return p
         except (ValueError, IndexError, OSError):

@@ -210,7 +210,7 @@ async def _handle_guard_wedge(eff, baseline: str, play_stop_consent: bool) -> st
     )
 
 
-async def _run_tiers_T1_T2(eff, baseline: str, start_tier: int) -> str | None:
+async def _run_tiers_t1_t2(eff, baseline: str, start_tier: int) -> str | None:
     """Run T1 (if start_tier ≤ 1) then T2. Return result string or None to continue."""
     if start_tier <= 1:
         v = _tier_result("T1", baseline, await _t1(eff, baseline))
@@ -220,7 +220,7 @@ async def _run_tiers_T1_T2(eff, baseline: str, start_tier: int) -> str | None:
     return None
 
 
-async def _run_tiers_T3_T4_T5(
+async def _run_tiers_t3_t4_t5(
     eff, baseline: str, bump_file: Path | None,
     osascript_runner: Callable[[str], Awaitable[int]] | None,
     play_stop_consent: bool, main_dead: bool,
@@ -258,13 +258,13 @@ async def run_ladder(send, *, send_reload=None, bump_file: Path | None = None,
         return f"CLEAN: already live mvid={baseline}"
     eff = send_reload if main_dead else send
 
-    v = await _run_tiers_T1_T2(eff, baseline, start_tier)
+    v = await _run_tiers_t1_t2(eff, baseline, start_tier)
     if v: return v
 
     guard = await _handle_guard_wedge(eff, baseline, play_stop_consent)
     if guard is not None:
         return guard
 
-    return await _run_tiers_T3_T4_T5(
+    return await _run_tiers_t3_t4_t5(
         eff, baseline, bump_file, osascript_runner, play_stop_consent, main_dead
     )

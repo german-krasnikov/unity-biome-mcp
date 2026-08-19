@@ -229,6 +229,103 @@ def _is_playtest_pass(result: str) -> bool:
     return not re.search(r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT)\b", result)
 
 
+async def _setup_auto_play(restart_between: bool) -> tuple[bool, list]:
+    """Enter Play Mode for a suite run. Returns (success, error_rows)."""
+    try:
+        playing = await _read_play_state()
+        # restart_between promises an isolated first file too when the
+        # suite owns Play Mode and Unity was already running.
+        if restart_between and playing:
+            await _transition_play_state(False)
+            playing = False
+        if not playing:
+            await _transition_play_state(True)
+        return True, []
+    except Exception as exc:
+        raw = f"PLAYTEST: 0/1 ERROR: startup failed: {type(exc).__name__}: {exc}"
+        return False, [("<suite startup>", raw, 0.0, False)]
+
+
+async def _resolve_file_list(
+    pattern: str | None, suite_path: str | None
+) -> tuple[list[str], str | None]:
+    """Return (file_list, empty_reason). Can raise on IO errors (e.g. FileNotFoundError)."""
+    if suite_path:
+        import pathlib as _pathlib
+        file_list = [
+            line.strip()
+            for line in _pathlib.Path(suite_path).read_text(encoding="utf-8").splitlines()
+            if line.strip() and not line.strip().startswith("#")
+        ]
+        return (file_list, None) if file_list else ([], "no files in suite")
+    if pattern is None:
+        raise ValueError("pattern is required")
+    if "*" in pattern or "?" in pattern:
+        file_list_raw = await _send("list_playtest_files", _args(pattern=pattern), timeout=10.0)
+        if file_list_raw.lower().startswith(("err:", "error:")):
+            return [], file_list_raw.strip()
+        if file_list_raw.strip().lower() == "no files":
+            return [], "no files matched"
+        return [f.strip() for f in file_list_raw.strip().split("\n") if f.strip()], None
+    sep = "," if "," in pattern else "\n"
+    file_list = [f.strip() for f in pattern.split(sep) if f.strip()]
+    return (file_list, None) if file_list else ([], "no files matched")
+
+
+async def _run_single_file(
+    filepath: str, timeout_per_test: float
+) -> tuple[str, str, float, bool]:
+    """Run one .playtest file and return (filepath, raw, elapsed, passed)."""
+    import time as _time
+    t0 = _time.monotonic()
+    try:
+        raw = await _send(
+            "run_playtest",
+            _args(path=filepath, timeout=str(timeout_per_test), abort_on_fail=None),
+            timeout=timeout_per_test + _TCP_PLAYTEST_BUFFER,
+        )
+    except Exception as exc:
+        # P-336: capture network/timeout exceptions as failed results
+        raw = f"PLAYTEST: 0/0 ERROR: {type(exc).__name__}: {exc}"
+    elapsed = _time.monotonic() - t0
+    return filepath, raw, elapsed, _is_playtest_pass(raw)
+
+
+async def _suite_body(
+    pattern: str | None,
+    suite_path: str | None,
+    auto_play: bool,
+    restart_between: bool,
+    timeout_per_test: float,
+    stop_on_fail: bool,
+) -> tuple[list, str | None]:
+    """Execute suite: setup, resolve files, run loop. Returns (results, empty_reason)."""
+    if auto_play:
+        success, startup_rows = await _setup_auto_play(restart_between)
+        if not success:
+            return startup_rows, None
+
+    file_list, empty_reason = await _resolve_file_list(pattern, suite_path)
+    if empty_reason is not None:
+        return [], empty_reason
+
+    results: list = []
+    for filepath in file_list:
+        if restart_between and results:  # not before first file
+            try:
+                await _transition_play_state(False)
+                await _transition_play_state(True)
+            except Exception as exc:
+                raw = f"PLAYTEST: 0/1 ERROR: restart failed: {type(exc).__name__}: {exc}"
+                results.append((filepath, raw, 0.0, False))
+                break
+        row = await _run_single_file(filepath, timeout_per_test)
+        results.append(row)
+        if stop_on_fail and not row[3]:
+            break
+    return results, None
+
+
 async def run_playtest_suite(
     pattern: str | None = None,
     suite_path: str | None = None,
@@ -260,106 +357,23 @@ async def run_playtest_suite(
         raise ValueError("pattern or suite_path required")
 
     import time as _time
-    results = []
     suite_start = _time.monotonic()
-    empty_reason = None
-    primary_error = None
-
+    results: list = []
+    empty_reason: str | None = None
+    primary_error: Exception | None = None
+    cleanup_error: Exception | None = None
     try:
-        if auto_play:
-            try:
-                playing = await _read_play_state()
-                # restart_between promises an isolated first file too when the
-                # suite owns Play Mode and Unity was already running.
-                if restart_between and playing:
-                    await _transition_play_state(False)
-                    playing = False
-                if not playing:
-                    await _transition_play_state(True)
-            except Exception as exc:
-                raw = f"PLAYTEST: 0/1 ERROR: startup failed: {type(exc).__name__}: {exc}"
-                results.append(("<suite startup>", raw, 0.0, False))
-
-        if not results:
-            if suite_path:
-                import pathlib as _pathlib
-                file_list = [
-                    line.strip()
-                    for line in _pathlib.Path(suite_path).read_text(
-                        encoding="utf-8"
-                    ).splitlines()
-                    if line.strip() and not line.strip().startswith("#")
-                ]
-                if not file_list:
-                    empty_reason = "no files in suite"
-            elif "*" in pattern or "?" in pattern:
-                file_list_raw = await _send(
-                    "list_playtest_files", _args(pattern=pattern), timeout=10.0
-                )
-                if file_list_raw.lower().startswith(("err:", "error:")):
-                    empty_reason = file_list_raw.strip()
-                    file_list = []
-                elif file_list_raw.strip().lower() == "no files":
-                    empty_reason = "no files matched"
-                    file_list = []
-                else:
-                    file_list = [
-                        file_path.strip()
-                        for file_path in file_list_raw.strip().split("\n")
-                        if file_path.strip()
-                    ]
-            else:
-                sep = "," if "," in pattern else "\n"
-                file_list = [
-                    file_path.strip()
-                    for file_path in pattern.split(sep)
-                    if file_path.strip()
-                ]
-
-            if not file_list and empty_reason is None:
-                empty_reason = "no files matched"
-
-            if empty_reason is None:
-                for filepath in file_list:
-                    if restart_between and results:  # not before first file
-                        try:
-                            await _transition_play_state(False)
-                            await _transition_play_state(True)
-                        except Exception as exc:
-                            raw = (
-                                "PLAYTEST: 0/1 ERROR: restart failed: "
-                                f"{type(exc).__name__}: {exc}"
-                            )
-                            results.append((filepath, raw, 0.0, False))
-                            break
-                    t0 = _time.monotonic()
-                    try:
-                        raw = await _send(
-                            "run_playtest",
-                            _args(
-                                path=filepath,
-                                timeout=str(timeout_per_test),
-                                abort_on_fail=None,
-                            ),
-                            timeout=timeout_per_test + _TCP_PLAYTEST_BUFFER,
-                        )
-                    except Exception as exc:
-                        # P-336: capture network/timeout exceptions as failed results
-                        raw = f"PLAYTEST: 0/0 ERROR: {type(exc).__name__}: {exc}"
-                    elapsed = _time.monotonic() - t0
-                    passed = _is_playtest_pass(raw)
-                    results.append((filepath, raw, elapsed, passed))
-                    if stop_on_fail and not passed:
-                        break
-    except BaseException as exc:
+        results, empty_reason = await _suite_body(
+            pattern, suite_path, auto_play, restart_between, timeout_per_test, stop_on_fail
+        )
+    except Exception as exc:
         primary_error = exc
-
-    cleanup_error = None
-    if stop_after:
-        try:
-            await _transition_play_state(False)
-        except Exception as exc:
-            cleanup_error = exc
+    finally:
+        if stop_after:
+            try:
+                await _transition_play_state(False)
+            except Exception as exc:
+                cleanup_error = exc
 
     if primary_error is not None:
         if cleanup_error is not None and hasattr(primary_error, "add_note"):
