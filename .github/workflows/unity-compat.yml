@@ -36,28 +36,28 @@ jobs:
             test-mode: full
             phase: 1
 
-          - unity-version: '6000.4.0f1'
+          - unity-version: '6000.4'
             label: 'Unity 6.4 — deprecation boundary'
             test-mode: targeted
             phase: 1
 
-          - unity-version: '6000.5.3f1'
+          - unity-version: '6000.5'
             label: 'Unity 6.5 — EntityId hard error (#if branches)'
             test-mode: full
             phase: 1
 
           # ── Intermediate versions (compile-only) ────────────────
-          - unity-version: '6000.1.0f1'
+          - unity-version: '6000.1'
             label: 'Unity 6.1 — compile check'
             test-mode: compile
             phase: 1
 
-          - unity-version: '6000.2.0f1'
+          - unity-version: '6000.2'
             label: 'Unity 6.2 — compile check'
             test-mode: compile
             phase: 1
 
-          - unity-version: '6000.3.0f1'
+          - unity-version: '6000.3'
             label: 'Unity 6.3 — last pre-deprecation'
             test-mode: compile
             phase: 1
