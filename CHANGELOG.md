@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Close 27 Python issues from SonarCloud top-100 remediation:
+  - **Complexity (S3776 ×10):** Extract helpers in `bridge_heartbeat` (57→5), `runtime` (69→10), `transaction` (43→7), `batch` (41→3), `verify` (33→4), `server` (26→12), `uitk_intent_tool` (25→15), `middleware_pipeline` (18→13), `compressor` (16→8), `middleware_reads` (16→13)
+  - **Regex (S8786 ×5, S6019, S6326 ×2):** Fix backtracking in `rules_objects`, `middleware_paths`, `transaction`; replace repeated spaces with quantifiers in `scene`
+  - **Style/correctness:** Rename snake_case (S1542 ×2), add logging to empty except (S2737), extract duplicate literal (S1192), remove unused async (S7503 ×2), prefix unused param (S1172), remove redundant parens (S1110), narrow bare except (S5754), flatten nested ternary (S3358)
+  - **Correctness (not in top-100):** CancelledError propagation in `bridge_heartbeat`, `server`, `sampling`; atomic file writes in `skills/scene`; bounded I/O in `lockfile`, `server_filtering`; task GC in `server`
+- Add 35 new unit tests for extracted complexity-reduction helpers and regex fixes
+
 ## [v1.42.1] — 2026-08-18
 
 ### Fixed
