@@ -30,7 +30,7 @@ jobs:
   inspect:
     name: InspectCode
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
@@ -47,7 +47,7 @@ jobs:
 
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
-        timeout-minutes: 15
+        timeout-minutes: 60
         with:
           unity-version: 6000.0.65f1
           build-targets: StandaloneLinux64
