@@ -1,8 +1,6 @@
-using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.TestTools;
 using UnityMCP.Editor.Testing;
 using Object = UnityEngine.Object;
 
@@ -31,11 +29,8 @@ namespace UnityMCP.Editor.Tests
             var so = TrackOwnedObject(ScriptableObject.CreateInstance<ScriptableObject>());
             var sp = new SerializedObject(so);
             var prop = sp.FindProperty("m_Name");
-            // Accessing objectReferenceInstanceIDValue on a non-pptr property logs a Unity Error.
-            // On Unity 6000.4+ the EntityId path does not log an error.
-#if !UNITY_6000_4_OR_NEWER
-            LogAssert.Expect(LogType.Error, new Regex("pptr", RegexOptions.IgnoreCase));
-#endif
+            // HasSerializedReference guards propertyType first on all Unity versions,
+            // so no Error is emitted even on pre-6000.4 builds.
             var result = ObjectIdCompat.HasSerializedReference(prop);
             Assert.That(result, Is.False, "string property should not be an object reference");
         }

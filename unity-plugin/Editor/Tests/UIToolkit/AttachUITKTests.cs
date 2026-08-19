@@ -53,7 +53,7 @@ namespace UnityMCP.Editor.Tests
 
             Assert.That(result, Does.StartWith("ok:"),
                 "Expected ok: response when UI host component successfully added");
-#if UNITY_6000_4_OR_NEWER
+#if UNITY_6000_5_OR_NEWER
             Assert.That(_testGO.GetComponent<PanelRenderer>(), Is.Not.Null,
                 "On 6.4+, attach_uitk must add PanelRenderer");
             Assert.That(_testGO.GetComponent<UIDocument>(), Is.Null,
@@ -134,7 +134,7 @@ namespace UnityMCP.Editor.Tests
                 ComponentSerializer.GetPath(_testGO), uxmlPath, panelPath, 17);
 
             Assert.That(result, Does.StartWith("ok:"));
-#if UNITY_6000_4_OR_NEWER
+#if UNITY_6000_5_OR_NEWER
             var renderer = _testGO.GetComponent<PanelRenderer>();
             Assert.That(renderer, Is.Not.Null, "On 6.4+ expect PanelRenderer");
             Assert.That(renderer.visualTreeAsset, Is.SameAs(uxml));
@@ -191,7 +191,7 @@ namespace UnityMCP.Editor.Tests
             Assert.That(result, Does.Contain("already has a UI host component"));
         }
 
-#if UNITY_6000_4_OR_NEWER
+#if UNITY_6000_5_OR_NEWER
         [Test]
         public void AttachUITK_AlreadyHasPanelRenderer_ReturnsError()
         {

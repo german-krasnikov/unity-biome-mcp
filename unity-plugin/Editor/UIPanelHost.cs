@@ -7,11 +7,11 @@ using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor
 {
-    // Compat layer for UIDocument (Unity 6.0) and PanelRenderer (Unity 6.4+).
+    // Compat layer for UIDocument (Unity 6.0) and PanelRenderer (Unity 6.5+).
     // #if guards are contained here; all callers use the clean API below.
     internal static class UIPanelHost
     {
-#if UNITY_6000_4_OR_NEWER
+#if UNITY_6000_5_OR_NEWER
         private static readonly PropertyInfo _rootProp =
             typeof(PanelRenderer).GetProperty("rootVisualElement",
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -23,7 +23,7 @@ namespace UnityMCP.Editor
         internal static VisualElement ResolveRoot(GameObject go)
         {
             var doc = go.GetComponent<UIDocument>();
-#if UNITY_6000_4_OR_NEWER
+#if UNITY_6000_5_OR_NEWER
             var renderer = go.GetComponent<PanelRenderer>();
             if (doc != null && renderer != null)
                 throw new InvalidOperationException(
@@ -65,7 +65,7 @@ namespace UnityMCP.Editor
         // True if the GameObject has any UI host component.
         internal static bool HasHost(GameObject go)
             => go.GetComponent<UIDocument>() != null
-#if UNITY_6000_4_OR_NEWER
+#if UNITY_6000_5_OR_NEWER
                || go.GetComponent<PanelRenderer>() != null
 #endif
                ;
@@ -74,7 +74,7 @@ namespace UnityMCP.Editor
         internal static string HostLabel(GameObject go)
         {
             if (go.GetComponent<UIDocument>() != null) return "[UIDocument]";
-#if UNITY_6000_4_OR_NEWER
+#if UNITY_6000_5_OR_NEWER
             if (go.GetComponent<PanelRenderer>() != null) return "[PanelRenderer]";
 #endif
             return "[no UI host]";
@@ -84,13 +84,13 @@ namespace UnityMCP.Editor
         // Returns "UIDocument" or "PanelRenderer[<warn line>]" — caller prepends "ok: ... added to".
         internal static string CreateHost(GameObject go, VisualTreeAsset vta, PanelSettings ps, int sortingOrder)
         {
-#if UNITY_6000_4_OR_NEWER
+#if UNITY_6000_5_OR_NEWER
             var renderer = Undo.AddComponent<PanelRenderer>(go);
             renderer.visualTreeAsset = vta;
             renderer.panelSettings = ps;
             EditorUtility.SetDirty(renderer);
             var orderHint = sortingOrder != 0
-                ? "\nwarn:sorting_order ignored with PanelRenderer — use PanelSettings.sortingOrder"
+                ? "\nwarn: sorting_order ignored with PanelRenderer — use PanelSettings.sortingOrder"
                 : "";
             return $"PanelRenderer{orderHint}";
 #else
@@ -109,7 +109,7 @@ namespace UnityMCP.Editor
         {
             foreach (var doc in UnityEngine.Object.FindObjectsByType<UIDocument>(FindObjectsSortMode.None))
                 yield return (doc.gameObject, "[UIDocument]", doc.rootVisualElement == null);
-#if UNITY_6000_4_OR_NEWER
+#if UNITY_6000_5_OR_NEWER
             foreach (var r in UnityEngine.Object.FindObjectsByType<PanelRenderer>(FindObjectsSortMode.None))
             {
                 bool rootNull = true;

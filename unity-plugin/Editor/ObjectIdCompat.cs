@@ -22,7 +22,8 @@ namespace UnityMCP.Editor
             => rawId == 0UL ? null : EditorUtility.EntityIdToObject(EntityId.FromULong(rawId));
 
         internal static bool HasSerializedReference(SerializedProperty property)
-            => property.objectReferenceEntityIdValue != EntityId.None;
+            => property.propertyType == SerializedPropertyType.ObjectReference
+               && property.objectReferenceEntityIdValue != EntityId.None;
 #else
         internal static ulong GetRawId(Object obj)
             => obj == null ? 0UL : unchecked((ulong)(long)obj.GetInstanceID());
@@ -32,7 +33,8 @@ namespace UnityMCP.Editor
                : EditorUtility.InstanceIDToObject(unchecked((int)rawId));
 
         internal static bool HasSerializedReference(SerializedProperty property)
-            => property.objectReferenceInstanceIDValue != 0;
+            => property.propertyType == SerializedPropertyType.ObjectReference
+               && property.objectReferenceInstanceIDValue != 0;
 #endif
     }
 }

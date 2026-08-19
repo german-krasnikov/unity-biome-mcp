@@ -55,6 +55,8 @@ _ALLOWED_VERSION_SHIM_FILES = frozenset(
         "unity-plugin/Editor/Tests/UIToolkit/AttachUITKTests.cs",
         "unity-plugin/Editor/Tests/UIToolkit/UIPanelHostTests.cs",
         "unity-plugin/Editor/UIPanelHost.cs",
+        "unity-plugin/Editor/Tests/InputNormalizerAudioLightAliasTests.cs",
+        "unity-plugin/Editor/Tests/TestRunnerTests.cs",
     }
 )
 

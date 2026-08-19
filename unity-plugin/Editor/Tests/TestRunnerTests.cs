@@ -255,7 +255,11 @@ namespace UnityMCP.Editor.Tests
 
             Assert.IsNotEmpty(fingerprint.ProjectIdentity);
             StringAssert.Contains(":", fingerprint.EditorProcessIdentity);
+#if UNITY_6000_5_OR_NEWER
+            Assert.AreEqual("1.7.0", fingerprint.UtfVersion);
+#else
             Assert.AreEqual("1.6.0", fingerprint.UtfVersion);
+#endif
             Assert.IsTrue(File.Exists(fingerprint.AssemblyPath), fingerprint.Error);
             Assert.IsTrue(File.Exists(fingerprint.SourcePath), fingerprint.Error);
             if (Application.isBatchMode && !fingerprint.IsCoherent)

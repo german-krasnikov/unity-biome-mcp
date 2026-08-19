@@ -77,7 +77,7 @@ namespace UnityMCP.Editor.Chat
                 if (linkified != lbl.text || alreadyLinked)
                 {
                     bool textMutated = linkified != lbl.text;
-                    if (textMutated) { lbl.text = linkified; lbl.MarkDirtyText(); }
+                    if (textMutated) { lbl.text = linkified; lbl.MarkDirtyRepaint(); }
                     // Unity bug UUM-142829: ATGFindIntersectingLink throws null-ref when link events
                     // fire before ATG buffer repopulates AFTER a .text mutation. Only disable
                     // selection when we mutated the text — labels with only pre-existing markdown

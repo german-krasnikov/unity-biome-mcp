@@ -122,7 +122,11 @@ namespace UnityMCP.Editor.Tests
         public void NormalizeProperty_CookieSize_ReturnsCookieSize()
         {
             var so = new SerializedObject(_go.AddComponent<Light>());
+#if UNITY_6000_5_OR_NEWER
+            Assert.AreEqual("cookieSize", InputNormalizer.NormalizeProperty("cookieSize", so));
+#else
             Assert.AreEqual("m_CookieSize", InputNormalizer.NormalizeProperty("cookieSize", so));
+#endif
         }
 
         [Test]

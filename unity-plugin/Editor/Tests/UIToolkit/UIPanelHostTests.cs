@@ -83,7 +83,7 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNull(result);
         }
 
-#if UNITY_6000_4_OR_NEWER
+#if UNITY_6000_5_OR_NEWER
         // Verify reflection cache is non-null on 6.4+ — if null, PanelRenderer paths silently fail.
         [Test]
         public void ReflectionCache_IsNotNull_On_6000_4()
