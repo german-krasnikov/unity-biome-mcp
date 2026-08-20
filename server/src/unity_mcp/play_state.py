@@ -40,6 +40,9 @@ class PlayReadinessTracker:
 
     def update(self, state_str: str | None) -> None:
         """Parse an editor state string and update internal PlayState."""
+        if state_str is None:  # Bug 2: guard against TCP failures destroying state
+            return
+
         playing_raw = (parse_editor_field(state_str, "playing") or "").lower()
         playing = playing_raw == "true"
 
@@ -50,7 +53,10 @@ class PlayReadinessTracker:
         if parse_editor_field(state_str, "world_ready") is not None:
             self._has_world_ready_field = True
 
-        new_epoch = epoch if epoch is not None else self._state.epoch
+        # Bug 3: ignore stale epoch — never allow epoch to go backward
+        new_epoch = self._state.epoch
+        if epoch is not None and epoch >= self._state.epoch:
+            new_epoch = epoch
 
         # Authoritative if world_ready field present, else fallback for old Unity
         ready = playing and world_ready if self._has_world_ready_field else playing
@@ -62,6 +68,7 @@ class PlayReadinessTracker:
         timeout: float,
         poll: Callable[[], Awaitable[None]],
         interval: float = 0.1,
+        expected_epoch: int | None = None,  # Bug 4: epoch guard
     ) -> None:
         """Wait until ready=True, calling poll() between state checks.
 
@@ -70,19 +77,35 @@ class PlayReadinessTracker:
 
         poll: async callable that should trigger a state update (e.g. fetch editor state)
         interval: sleep between polls (seconds)
+        expected_epoch: if set, only accept ready signals from this epoch
         """
-        if self._state.ready:
+        def _ready() -> bool:
+            return self._state.ready and (
+                expected_epoch is None or self._state.epoch == expected_epoch
+            )
+
+        def _timeout_error() -> TimeoutError:
+            return TimeoutError(
+                f"play readiness timeout after {timeout}s "
+                f"(playing={self._state.playing}, epoch={self._state.epoch})"
+            )
+
+        if _ready():
             return
 
         deadline = time.monotonic() + timeout
         while True:
-            await poll()
-            if self._state.ready:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise _timeout_error()
+            try:
+                await asyncio.wait_for(poll(), timeout=remaining)  # Bug 1: bound poll()
+            except asyncio.TimeoutError:
+                raise _timeout_error()
+            if _ready():
                 return
-            if time.monotonic() >= deadline:
-                raise TimeoutError(
-                    f"play readiness timeout after {timeout}s "
-                    f"(playing={self._state.playing}, epoch={self._state.epoch})"
-                )
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise _timeout_error()
             if interval > 0:
-                await asyncio.sleep(interval)
+                await asyncio.sleep(min(interval, remaining))

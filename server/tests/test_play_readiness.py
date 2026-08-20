@@ -1,5 +1,6 @@
 """Tests for play-readiness epoch tracking (MCP-LIFE-004)."""
 import asyncio
+import time
 import pytest
 from unittest.mock import AsyncMock, patch
 from unity_mcp.play_state import PlayReadinessTracker, PlayState
@@ -182,3 +183,67 @@ async def test_wait_for_play_state_waits_for_world_ready(mock_bridge):
     assert len(state_calls) >= 2, (
         f"Expected >=2 state polls (to wait for world_ready), got {len(state_calls)}: {state_calls}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Bug fixes: state-machine reliability (Bugs 1-4)
+# ---------------------------------------------------------------------------
+
+def test_update_none_state_preserves_current():
+    """Bug 2: update(None) must not destroy current play state."""
+    tracker = PlayReadinessTracker()
+    tracker.update("playing:True\nplay_epoch:2\nworld_ready:True")
+    assert tracker.state.playing is True
+    assert tracker.state.epoch == 2
+
+    tracker.update(None)
+
+    assert tracker.state.playing is True
+    assert tracker.state.epoch == 2
+    assert tracker.state.ready is True
+
+
+def test_update_stale_epoch_ignored():
+    """Bug 3: a response with a lower epoch must not overwrite the current epoch."""
+    tracker = PlayReadinessTracker()
+    tracker.update("playing:True\nplay_epoch:2\nworld_ready:True")
+    assert tracker.state.epoch == 2
+
+    tracker.update("playing:True\nplay_epoch:1\nworld_ready:True")
+
+    assert tracker.state.epoch == 2
+
+
+async def test_wait_for_ready_respects_timeout():
+    """Bug 1: a blocking poll() must not prevent the timeout from firing."""
+    tracker = PlayReadinessTracker()
+    tracker.update("playing:True\nplay_epoch:1\nworld_ready:False")
+
+    async def hanging_poll():
+        await asyncio.sleep(100)  # simulates a stuck TCP call
+
+    start = time.monotonic()
+    with pytest.raises(TimeoutError, match="play readiness"):
+        # Outer guard: if the fix is missing, the inner asyncio.sleep(100) would
+        # block the test for ~5s (then the outer wait_for cancels); elapsed > 1s → FAIL.
+        await asyncio.wait_for(
+            tracker.wait_for_ready(timeout=0.1, poll=hanging_poll, interval=0.0),
+            timeout=5.0,
+        )
+    elapsed = time.monotonic() - start
+    assert elapsed < 1.0, f"timeout took {elapsed:.2f}s — poll() was not bounded by wait_for"
+
+
+async def test_wait_for_ready_rejects_stale_epoch():
+    """Bug 4: ready signals from a different epoch must not satisfy wait_for_ready."""
+    tracker = PlayReadinessTracker()
+    tracker.update("playing:True\nplay_epoch:1\nworld_ready:True")
+    assert tracker.state.ready is True
+    assert tracker.state.epoch == 1
+
+    async def poll():
+        pass  # never advances to epoch 2
+
+    # expected_epoch=2 — epoch=1 ready signals must be ignored
+    with pytest.raises(TimeoutError, match="play readiness"):
+        await tracker.wait_for_ready(timeout=0.05, poll=poll, interval=0.01, expected_epoch=2)
