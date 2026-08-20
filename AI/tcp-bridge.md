@@ -112,6 +112,17 @@ Current invariants:
 - Reconnect candidates must prove the expected project and protocol version.
   A live PID/port pin is reused only while it still identifies that project;
   refusal or identity mismatch returns to project-aware discovery.
+- **EditorIdentity (MCP-SESS-024):** Immutable project_id + project_path captured
+  on first successful handshake; raises SessionIdentityMismatch if a reconnect
+  lands on a different project. Prevents silent cross-project mutation.
+- **CommandLedger (MCP-TRANS-008):** Persistent op_id → (status, result) tracking
+  survives transport disconnect and caller timeout. Callers query `get_command_status(op_id)`
+  after a disconnect to determine if a command was accepted by Unity before the drop.
+  CommandStatus FSM: NOT_FOUND → SENT → ACCEPTED → COMPLETED|FAILED. TTL-based
+  cleanup (300s) prevents unbounded memory growth.
+- **CapacityBusyError (MCP-CAP-025):** Typed rejection when Unity TCP server is
+  at MaxClients capacity; includes retry_after_seconds hint and capacity/active counts.
+  Non-retryable: close the connection gracefully and retry at a higher level.
 - Sockets use `TCP_NODELAY` and `SO_KEEPALIVE`. `close()` atomically detaches the
   reader/writer and uses the platform-appropriate shutdown direction.
 

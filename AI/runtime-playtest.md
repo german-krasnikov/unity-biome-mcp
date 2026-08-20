@@ -8,6 +8,21 @@ Mode. `run_playtest_suite(auto_play=True)` can enter Play Mode itself. Static
 tools such as `lint_playtest`, `lint_playtest_suite`,
 `validate_playtest_aliases`, `resolve_scene_refs`, and `lint_scene_refs` do not.
 
+## Play Mode Readiness (MCP-LIFE-004)
+
+**PlayReadinessTracker:** Waits for actual world readiness, not just `playing=True`.
+Modern Unity sends `play_epoch` (increments each Play Mode enter) and `world_ready`
+(true after first scene frame). Playtest execution uses `_enter_fresh_play()` which
+calls `wait_for_ready()` before dispatching the first step. This prevents stale
+frame-0 state corruption.
+
+Backward compat: if Unity doesn't send world_ready, `ready = playing`.
+
+**Handshake contract:** `playing=true + epoch=N + world_ready=true` is the
+authoritative ready state. If either playing or world_ready is false, the state
+is not ready even if epoch advanced. On Play Mode exit, playing drops to false
+and ready follows immediately.
+
 ## invoke_method(path, component, method, args="")
 
 **Purpose:** Call an instance or static component method via reflection at

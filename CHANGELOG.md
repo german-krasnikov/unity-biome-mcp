@@ -12,6 +12,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Protocol reliability & lifecycle fencing (MCP-TRANS-008, MCP-SESS-024, MCP-LIFE-004, MCP-SUITE-006):**
+  - CommandLedger + CommandStatus FSM: durable op_id tracking survives transport disconnect
+  - EditorIdentity + SessionIdentityMismatch: enforce same-project reconnection
+  - CapacityBusyError: typed rejection when Unity TCP slots full
+  - PlayReadinessTracker: epoch + world_ready handshake for robust Play Mode entry
+  - _enter_fresh_play gate with wait_for_ready: playtest execution waits for actual world readiness
+  - FailureCategory enum + categorize_failure: typed protocol-level failure diagnostics
+  - TestRunHandle + TestRunRegistry: durable in-memory test run metadata persists across transport disconnect
+  - SuiteVerdict + format_layered_verdict: separate inner (assertion) from outer (lifecycle) verdicts
+  - MCPFeedbackFixture: 10 C# components + 5 EditMode tests + 11 PlayTest DSL files for conformance
+
+### Changed
+
+- CommandRouter.dedup_applied flag: explicit dedup tracking for idempotency verification
+- ToolSpec.plane property: computed from direct_only + unity_transport
+- Generation-aware compile fence in code_intel.py: prevent stale Symbol detection across compile
+- SCENE_STATE_NEUTRAL_WRITES middleware: mark playtest fixture writes with neutral semantics
+- verify_after_change suite passthrough: test suites can use verify gates without stopping Play
+
 ## [v1.44.0] — 2026-08-19
 
 ### Fixed

@@ -196,6 +196,25 @@ effects may remain. See [`batch.md`](batch.md).
 Higher-level scene transactions must use their explicit allowlist and
 verification contract; they do not make arbitrary commands transactional.
 
+## Failure Handling
+
+**FailureCategory (MCP-DIAG-009):** Typed protocol-level cause classification
+for command failures. Categories:
+
+- `TRANSPORT_CLOSED` — Connection lost before response
+- `CAPACITY_BUSY` — Unity TCP server at MaxClients capacity (retryable)
+- `SESSION_MISMATCH` — Reconnect landed on different project
+- `TIMEOUT` — Operation exceeded deadline
+- `COMPILE_PENDING` — Compile or domain reload blocked the operation
+- `PLAY_NOT_READY` — Play Mode readiness check failed
+- `PROTOCOL_ERROR` — JSON/frame malformation
+- `COMMAND_NOT_FOUND` — Tool name not recognized
+- `UNKNOWN` — Unmapped exception
+
+Use `categorize_failure(exc)` to convert exceptions to typed (category, detail)
+tuples. This is distinct from `classify_failure()` which builds human-focused
+messages for chat; categorization is machine-readable for routing and retry logic.
+
 ## Compile and Reload
 
 Agents call the public `sync_unity` wrapper after external code or package
