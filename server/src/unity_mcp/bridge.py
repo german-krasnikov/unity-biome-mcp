@@ -483,6 +483,7 @@ class UnityBridge(HeartbeatMixin):
             except (OSError, asyncio.IncompleteReadError, json.JSONDecodeError, RuntimeError) as e:
                 if isinstance(e, DomainReloadError):
                     self._reload.mark()
+                    self._probe.mark_recompile_issued()
                 elif isinstance(e, TimeoutError) and delivery == DeliveryState.SENT and self._reload.is_active():
                     # P-183: read timeout after payload delivered → Unity was processing
                     # the command (not reloading). Clear stale reload flag so next

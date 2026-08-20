@@ -10,6 +10,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
 ## [v1.45.0] — 2026-08-20
 
 ### Added
@@ -3483,7 +3485,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.44.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.45.0...HEAD
+[v1.45.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.44.0...v1.45.0
 [v1.44.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.43.0...v1.44.0
 [v1.43.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.1...v1.43.0
 [v1.42.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.0...v1.42.1
