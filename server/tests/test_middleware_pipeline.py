@@ -343,3 +343,110 @@ async def test_reflect_lines_preserved_when_distill_strips(monkeypatch):
         )
     finally:
         _reflect_mod.reflect = _orig
+
+
+# ── Bug 1: No false circuit-success on pre-TCP guard early exit ───────────────
+
+async def test_circuit_halfopen_pretcp_guard_no_false_success(monkeypatch):
+    """HALF_OPEN circuit + pre-TCP guard early exit must NOT call circuit.record_success.
+
+    Regression: when probe_active=True and a guard (e.g. check_retry) returned a string
+    early, the pipeline falsely called circuit.record_success(), transitioning the
+    circuit to CLOSED — even though no actual TCP communication happened.
+    """
+    monkeypatch.setenv("UNITY_MCP_VALIDATE", "0")
+    monkeypatch.setenv("UNITY_MCP_REFLECT", "0")
+    monkeypatch.setenv("UNITY_MCP_PREFETCH_CACHE", "0")
+
+    from unity_mcp.middleware import Middleware, wrap_send as mw_wrap_send
+
+    mw = Middleware()
+    mw.circuit._probe_in_flight = True  # simulate HALF_OPEN probe in flight
+
+    success_calls = []
+    mw.circuit.record_success = lambda: success_calls.append(1)
+
+    # Force pre-TCP early exit: check_retry returns a block string (no TCP happens)
+    mw.check_retry = lambda cmd, args: "duplicate — retry blocked"
+
+    async def fake_send(cmd, args, timeout=30.0):
+        return "ok"
+
+    wrapped = mw_wrap_send(fake_send, mw)
+    result = await wrapped("get_hierarchy", {})
+
+    assert len(success_calls) == 0, (
+        f"circuit.record_success must NOT be called on pre-TCP guard early exit; "
+        f"called {len(success_calls)} time(s). Result: {result!r}"
+    )
+
+
+async def test_circuit_halfopen_tcp_success_closes_circuit(monkeypatch):
+    """HALF_OPEN circuit + successful TCP dispatch must call circuit.record_success.
+
+    Positive case: when the request actually reaches Unity and succeeds, the circuit
+    probe is resolved correctly.
+    """
+    monkeypatch.setenv("UNITY_MCP_VALIDATE", "0")
+    monkeypatch.setenv("UNITY_MCP_REFLECT", "0")
+    monkeypatch.setenv("UNITY_MCP_PREFETCH_CACHE", "0")
+
+    from unity_mcp.middleware import Middleware, wrap_send as mw_wrap_send
+
+    mw = Middleware()
+    mw.circuit._probe_in_flight = True  # simulate HALF_OPEN probe in flight
+
+    success_calls = []
+    mw.circuit.record_success = lambda: success_calls.append(1)
+
+    # No early exit — command flows through to TCP
+    mw.check_retry = lambda cmd, args: None
+
+    async def fake_send(cmd, args, timeout=30.0):
+        return {"ok": True, "data": "ok"}
+
+    wrapped = mw_wrap_send(fake_send, mw)
+    await wrapped("get_hierarchy", {})
+
+    assert len(success_calls) >= 1, (
+        "circuit.record_success must be called after successful TCP dispatch"
+    )
+
+
+# ── Bug 2: check_read_only must run before check_retry ───────────────────────
+
+async def test_readonly_guard_runs_before_retry_cache(monkeypatch):
+    """check_read_only must reject mutating commands before check_retry caches them.
+
+    Regression: check_retry ran before check_read_only, poisoning the retry cache
+    with commands that were never actually sent (later blocked by read-only mode).
+    After the fix, check_read_only fires first and check_retry is never reached.
+    """
+    monkeypatch.setenv("UNITY_MCP_VALIDATE", "0")
+    monkeypatch.setenv("UNITY_MCP_REFLECT", "0")
+    monkeypatch.setenv("UNITY_MCP_PREFETCH_CACHE", "0")
+
+    from mcp.server.fastmcp.exceptions import ToolError
+    from unity_mcp.middleware import Middleware, wrap_send as mw_wrap_send
+
+    mw = Middleware()
+
+    retry_calls = []
+    original_check_retry = mw.check_retry
+    mw.check_retry = lambda cmd, args: (retry_calls.append(cmd), original_check_retry(cmd, args))[1]
+
+    # Read-only mode active for this command
+    mw.check_read_only = lambda cmd, args: "read-only mode active"
+
+    async def fake_send(cmd, args, timeout=30.0):
+        return "ok"
+
+    wrapped = mw_wrap_send(fake_send, mw)
+    with pytest.raises(ToolError):
+        await wrapped("set_property", {"path": "/A", "prop": "x", "value": "1",
+                                       "_no_validate": True})
+
+    assert len(retry_calls) == 0, (
+        f"check_retry must NOT be called when check_read_only blocks first; "
+        f"check_retry was called with: {retry_calls}"
+    )
