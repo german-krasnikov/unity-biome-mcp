@@ -67,6 +67,31 @@ async def _rule_set_active(
 
 # ── create_object ─────────────────────────────────────────────────────────────
 
+def _extract_created_path(response: str) -> str | None:
+    """Parse 'Created <name> at <path>' or 'Created <path>' — O(n), no backtracking.
+
+    Replaces S8786-flagged regex `\\S[^\\n]*\\s+at\\s+` which was O(n²) due to
+    overlapping quantifiers ([^\\n]* and \\s+ both matching space characters).
+    """
+    for line in response.splitlines():
+        stripped = line.lstrip()
+        if not stripped.startswith("Created "):
+            continue
+        rest = stripped[8:]  # skip "Created "
+        if not rest or rest[0].isspace():
+            continue  # require non-space first char (mirrors original \S)
+        at_idx = rest.find(" at ")
+        if at_idx >= 0:
+            raw = rest[at_idx + 4:]
+            # Strip optional bracket metadata suffix e.g. " [inst=12345]"
+            bracket = raw.find(" [")
+            return (raw[:bracket] if bracket >= 0 else raw).strip()
+        # Fallback: single-word path "Created /path/to/obj"
+        parts = rest.split()
+        return parts[0] if parts else None
+    return None
+
+
 @register_rule("create_object")
 async def _rule_create_object(
     args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
@@ -74,17 +99,9 @@ async def _rule_create_object(
     name = args.get("name", "")
     parent = args.get("parent", "")
 
-    # Parse "Created <name> at <path>" or "Created <path>"
-    # S6019/S8786: use \S[^\n]* instead of lazy .+? to avoid reluctant quantifiers
-    m = re.search(r"Created\s+\S[^\n]*\s+at\s+(\S[^\n]*)", response)
-    if not m:
-        m2 = re.search(r"^Created\s+(\S+)", response, re.MULTILINE)
-        if not m2:
-            return None
-        path = m2.group(1)
-    else:
-        # Strip optional bracket metadata suffix e.g. " [inst=12345]"
-        path = re.sub(r"\s+\[[^\n]*", "", m.group(1))
+    path = _extract_created_path(response)
+    if path is None:
+        return None
 
     if name and not path.endswith(f"/{name}"):
         return Mismatch(f"create_object: path '{path}' does not end with /{name}")

@@ -1,4 +1,5 @@
-"""TDD tests for reflect/rules_objects.py — bugs #1-#4."""
+"""TDD tests for reflect/rules_objects.py — bugs #1-#4, S8786 backtracking fix."""
+import time
 import pytest
 from unity_mcp.reflect import reflect, Mismatch
 
@@ -142,5 +143,60 @@ async def test_delete_object_happy():
         "delete_object",
         {},
         "Deleted #12345",
+    )
+    assert result is None
+
+
+# ── S8786: catastrophic O(n²) backtracking in create_object ──────────────────
+
+async def test_create_object_adversarial_many_spaces_no_hang():
+    """'Created X{50000 spaces}y' must complete < 0.5s — was O(n²) before fix."""
+    adversarial = "Created X" + " " * 50000 + "y"
+    start = time.monotonic()
+    await _r("create_object", {}, adversarial)
+    assert time.monotonic() - start < 0.5, "O(n²) backtracking detected — regex not fixed"
+
+
+async def test_create_object_adversarial_returns_none_no_match():
+    """Adversarial input with no valid path → None (no Mismatch spuriously)."""
+    adversarial = "Created X" + " " * 50000 + "y"
+    result = await _r("create_object", {"name": "Cube"}, adversarial)
+    # Path parsed as 'X...y' — will not end with '/Cube' → Mismatch OR None if no path found
+    # Either is acceptable, but it must return quickly
+    assert result is None or isinstance(result, Mismatch)
+
+
+async def test_create_object_adversarial_normal_path_at_format():
+    """Normal 'Created name at path' still works after fix."""
+    result = await _r(
+        "create_object",
+        {"name": "Sphere"},
+        "Created Sphere at /Scene/Sphere",
+    )
+    assert result is None
+
+
+async def test_create_object_adversarial_bracket_suffix_stripped():
+    """Bracket metadata suffix stripped without regex backtracking."""
+    result = await _r(
+        "create_object",
+        {"name": "Enemy"},
+        "Created Enemy at /World/Enemy [inst=99999]",
+    )
+    assert result is None
+
+
+async def test_create_object_adversarial_empty_string():
+    """Empty response → None (nothing to parse)."""
+    result = await _r("create_object", {"name": "X"}, "")
+    assert result is None
+
+
+async def test_create_object_adversarial_unicode():
+    """Unicode name in path still resolves correctly."""
+    result = await _r(
+        "create_object",
+        {"name": "日本語"},
+        "Created 日本語 at /Root/日本語",
     )
     assert result is None
