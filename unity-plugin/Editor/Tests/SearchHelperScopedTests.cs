@@ -157,6 +157,42 @@ namespace UnityMCP.Editor.Tests
                 StringAssert.DoesNotContain(sceneName, result);
         }
 
+        // Scenario 22: search result ID must use &N format, not $HEX
+        // Before fix: TransientObjectId.GetHexRef returns "$FFA9FF16" → FAIL
+        // After fix: RefManager.Assign returns "&1" → PASS
+        [Test]
+        public void Search_Result_UsesCompressedRefFormat()
+        {
+            var go = new GameObject("IDFmt_Test");
+            try
+            {
+                var result = SearchHelper.Search("IDFmt_Test");
+                var lines = result.Split('\n');
+                var line = System.Array.Find(lines, l => l.Contains("IDFmt_Test"));
+                Assert.IsNotNull(line, "should find the object line");
+                var parts = line.Trim().Split(' ');
+                Assert.GreaterOrEqual(parts.Length, 2, "line must have path and ref");
+                var idPart = parts[1];
+                Assert.IsTrue(idPart.StartsWith("&"), $"ID must use &N format, got: {idPart}");
+                Assert.IsFalse(idPart.StartsWith("$"), "ID must not use $HEX format");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        // Scenario 23: same object found by search and RefManager returns same &N ref
+        [Test]
+        public void Search_Result_RefMatchesHierarchyRef()
+        {
+            var go = new GameObject("IDConsist_Test");
+            try
+            {
+                var expectedRef = RefManager.Assign(go);
+                var result = SearchHelper.Search("IDConsist_Test");
+                StringAssert.Contains(expectedRef, result);
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
         // Scenario 21: overflow value is exact total-minus-limit (single-pass correctness).
         // Root(1) + Child1 + Child2 + Ov0..Ov4 = 8 total matches; limit=3 → overflow=5.
         [Test]

@@ -30,6 +30,8 @@ namespace UnityMCP.Editor
             var stage = PrefabStageUtility.GetCurrentPrefabStage();
             if (stage != null)
                 sb.AppendLine($"prefab:{stage.assetPath}");
+            sb.AppendLine($"play_epoch:{PlayModeEpochTracker.Epoch}");
+            sb.AppendLine($"world_ready:{PlayModeEpochTracker.WorldReady}");
             return sb.ToString().TrimEnd();
         }
 

@@ -322,6 +322,41 @@ namespace UnityMCP.Editor.Tests
             StringAssert.DoesNotContain("Did you mean", result.Warnings[0]);
         }
 
+        // ── #1b $sigil strict mode ────────────────────────────────────────────────
+
+        [Test]
+        public void Parse_UnresolvedSigil_StrictMode_IsError()
+        {
+            var result = PlaytestParser.Parse("ASSERT $typo == 1", strict: true);
+            Assert.IsNotNull(result.Errors, "strict mode must put unresolved sigil in Errors");
+            StringAssert.Contains("$typo", result.Errors[0]);
+            Assert.IsNull(result.Warnings, "strict mode must not duplicate in Warnings");
+        }
+
+        [Test]
+        public void Parse_UnresolvedSigil_NonStrictMode_IsWarning()
+        {
+            var result = PlaytestParser.Parse("ASSERT $typo == 1");
+            Assert.IsNotNull(result.Warnings);
+            Assert.IsNull(result.Errors, "non-strict must never produce Errors");
+        }
+
+        [Test]
+        public void Parse_ResolvedSigil_StrictMode_NoError()
+        {
+            var result = PlaytestParser.Parse("VAL $hp /Player|Health|value\nASSERT $hp == 100", strict: true);
+            Assert.IsNull(result.Errors);
+            Assert.IsNull(result.Warnings);
+        }
+
+        [Test]
+        public void Parse_MultipleUnresolvedSigils_StrictMode_AllInErrors()
+        {
+            var result = PlaytestParser.Parse("ASSERT $a == 1\nASSERT $b == 2", strict: true);
+            Assert.IsNotNull(result.Errors);
+            Assert.AreEqual(2, result.Errors.Count);
+        }
+
         // ── #7 SET_DEFAULT_TIMEOUT ───────────────────────────────────────────────
 
         [Test]
@@ -441,6 +476,60 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(StepType.Invoke, first.Type);
             Assert.AreEqual("42 true", first.Args,
                 "G2: INVOKE_REPEAT must capture all args after method name, space-joined");
+        }
+
+        // ── INVOKE-038: single / no-arg edge cases ────────────────────────────
+
+        [Test]
+        public void Parse_Invoke_SingleArg_Preserved()
+        {
+            // INVOKE-038: single arg after method name must be stored as-is.
+            var r = PlaytestParser.Parse("INVOKE /Obj Comp Method arg1");
+            Assert.AreEqual("arg1", r.Steps[0].Args,
+                "INVOKE-038: single arg must be stored intact");
+        }
+
+        [Test]
+        public void Parse_Invoke_MultiToken_PreservesWhitespaceTail()
+        {
+            // INVOKE-038: three args joined with spaces — regression guard.
+            var r = PlaytestParser.Parse("INVOKE /Obj Comp Method arg1 arg2 arg3");
+            Assert.AreEqual("arg1 arg2 arg3", r.Steps[0].Args,
+                "INVOKE-038: all arg tokens must be space-joined");
+        }
+
+        [Test]
+        public void Parse_Invoke_NoArgs_EmptyString()
+        {
+            // INVOKE-038: no args after method name → Args is null or empty.
+            var r = PlaytestParser.Parse("INVOKE /Obj Comp Method");
+            Assert.IsTrue(string.IsNullOrEmpty(r.Steps[0].Args),
+                "INVOKE-038: no args → Args must be null or empty");
+        }
+
+        // ── DSL-012: alias-expanded paths in ASSERT_ONE_ACTIVE ───────────────
+
+        [Test]
+        public void Parse_AssertOneActive_WithAliases_ExpandsToFullPaths()
+        {
+            // DSL-012: VAL aliases expand before parsing; all paths in Queries must be resolved.
+            var script = "VAL $a /X\nVAL $b /Y\nASSERT_ONE_ACTIVE $a $b";
+            var r = PlaytestParser.Parse(script);
+            var step = r.Steps[0];
+            Assert.AreEqual(StepType.AssertOneActive, step.Type);
+            CollectionAssert.AreEqual(new[] { "/X", "/Y" }, step.Queries,
+                "DSL-012: alias-expanded paths must appear in Queries");
+        }
+
+        [Test]
+        public void Parse_AssertOneActive_MixedAliasAndLiteral_AllResolved()
+        {
+            // DSL-012: alias + literal paths both appear in Queries unchanged.
+            var script = "VAL $a /X\nASSERT_ONE_ACTIVE $a /Y";
+            var r = PlaytestParser.Parse(script);
+            var step = r.Steps[0];
+            CollectionAssert.AreEqual(new[] { "/X", "/Y" }, step.Queries,
+                "DSL-012: mixed alias and literal paths must both be in Queries");
         }
     }
 }

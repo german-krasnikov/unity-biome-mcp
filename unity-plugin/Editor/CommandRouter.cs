@@ -443,7 +443,8 @@ namespace UnityMCP.Editor
                 CodeExecutor.Execute(beforeHook, "MCP before_hook");
 
             var inner = new TaskCompletionSource<string>();
-            PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure, fresh);
+            PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure, fresh,
+                strict: pathArg != null);
 
             if (!string.IsNullOrEmpty(afterHook))
             {
@@ -615,6 +616,8 @@ namespace UnityMCP.Editor
                 CommandRegistry.GetAllCommands().Where(c => CommandRegistry.IsMutating(c)).OrderBy(c => c)));
             sb.AppendLine("runtime_cmds:" + string.Join(",",
                 CommandRegistry.GetAllCommands().Where(c => CommandRegistry.IsRuntime(c)).OrderBy(c => c)));
+            sb.AppendLine($"plugin_version:{BiomeVersion.Plugin}");
+            sb.AppendLine($"protocol:{BiomeVersion.Protocol}");
             return sb.ToString().TrimEnd();
         }
 

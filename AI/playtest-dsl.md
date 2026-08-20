@@ -320,7 +320,7 @@ ASSERT_FRAMES_STATIC idle
 
 ### ASSERT_ONE_ACTIVE
 
-Verify that exactly one GameObject in a list is active.
+Verify that exactly one GameObject in a list is active in the hierarchy (inclusive of parent state).
 
 ```
 ASSERT_ONE_ACTIVE /Cam_Intro /Cam_Menu /Cam_Game
@@ -328,7 +328,7 @@ ASSERT_ONE_ACTIVE /Cam_Intro /Cam_Menu /Cam_Game
 
 **Syntax:** `ASSERT_ONE_ACTIVE path1 path2 [path3 ...]`
 
-At least two paths are required. Missing objects count as inactive.
+At least two paths are required. Missing objects count as inactive. Uses `GameObject.activeInHierarchy`, which returns true only if the object and all its parents are active; it differs from `activeSelf` (object's own state, ignoring parents).
 
 ---
 
@@ -803,6 +803,33 @@ TELEPORT Boss $pos      → reads enemy position each time this step runs
 - Collected in Phase 1.1; `PlaytestVarRegistry` holds bindings and expands per-step
 
 **Use case:** values that change during the script (dynamic positions, live health values).
+
+---
+
+### Sigil Resolution and Error Handling
+
+During parsing (Phase 0.7), `$sigil` tokens are matched against defined VAL and VAR names.
+Unresolved sigils trigger different behavior based on the source:
+
+- **File-based .playtest**: strict mode enabled → unresolved `$sigil` **fatal error** (ParseResult.Errors list) blocks execution
+- **Inline script= parameter**: lenient mode → unresolved `$sigil` **warning** (ParseResult.Warnings list) logged but allows continuation
+
+This prevents silent failures in saved fixtures (which are often used for conformance and regression testing)
+while permitting exploratory inline scripts to degrade gracefully. Both modes suggest the closest matching VAL/VAR name.
+
+Example (strict mode rejects):
+```
+VAL $player /Player
+ASSERT $palyer == true   # Fatal: unresolved $palyer (did you mean $player?)
+```
+
+Example (lenient mode warns but runs):
+```
+run_playtest(script="""
+VAL $player /Player
+ASSERT $palyer == true   # Warning: unresolved $palyer
+""")
+```
 
 ---
 

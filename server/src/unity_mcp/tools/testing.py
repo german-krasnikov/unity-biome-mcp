@@ -8,6 +8,8 @@ import re
 import uuid
 from typing import Any
 
+from mcp.server.fastmcp.exceptions import ToolError
+
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
@@ -259,8 +261,6 @@ def _terminal_snapshot_error(
 
 async def _preflight() -> str | None:
     """Return a BLOCKED verdict, or None when dispatch may proceed."""
-    from mcp.server.fastmcp.exceptions import ToolError as _ToolError
-
     max_retries = 2
     recoverable = ("FAIL:stale-dll", "FAIL:unknown", "STALE-CACHE", "STALE-TRANSIENT")
     try:
@@ -279,7 +279,7 @@ async def _preflight() -> str | None:
             with contextlib.suppress(Exception):
                 await _send("force_refresh", {})
             await asyncio.sleep(10)
-    except _ToolError:
+    except ToolError:
         raise
     except Exception:
         # Diagnose is advisory. Dispatch still has its own fail-closed checks in Unity.
@@ -370,7 +370,7 @@ async def run_tests(
             except (TypeError, ValueError):
                 expected_count = None
             if expected_count == 0:
-                return "BLOCKED: Empty manifest: no tests match filter"
+                raise ToolError("BLOCKED: Empty manifest: no tests match filter")
             handle = _registry.register(correlated["run_id"], stable_request_id)
             if expected_count is not None:
                 handle.expected_count = expected_count
@@ -390,11 +390,10 @@ async def run_tests_wait(
     Transport failures and domain reloads do not erase the last snapshot. A
     caller timeout is observational only: it returns ``TIMEOUT`` with request,
     run and snapshot data and never marks the Unity run complete.
+    on_timeout: result starts with TIMEOUT|request_id=...|run_id=... — use run_id to resume polling via get_test_run without re-dispatching.
     """
     stable_request_id = request_id or _new_request_id()
     started = await run_tests(mode, filter or None, request_id=stable_request_id)
-    if started.startswith("BLOCKED:"):
-        return started
 
     correlated = _parse_correlated_start(started, stable_request_id)
     known_run_id = correlated["run_id"] if correlated is not None else ""

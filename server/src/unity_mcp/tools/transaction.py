@@ -328,7 +328,14 @@ async def apply_scene_change(
     # Edit→Play transition between planning and applying cannot mutate runtime
     # state. Missing, malformed, or failed state responses are not proof of
     # Edit Mode and therefore fail closed.
-    state_error = await _guard_edit_mode()
+    # Also capture pre-existing dirty flag to warn of foreign dirty state in receipt.
+    try:
+        _editor_state = await _send("editor", {"action": "state"})
+        state_error = _fresh_edit_mode_error(_editor_state)
+        preexisting_dirty = _parse_editor_field(_editor_state, "dirty") == "True"
+    except Exception as exc:
+        state_error = f"editor state check failed ({type(exc).__name__})"
+        preexisting_dirty = False
     if state_error:
         return _not_sent_response(state_error)
 
@@ -362,9 +369,10 @@ async def apply_scene_change(
     else:
         saved_status = "\nunsaved=true"
 
+    dirty_warning = "\nforeign_dirty:true" if preexisting_dirty else ""
     return (
         f"state={state}\nmutations=ok ({batch_data or ''})"
-        f"{refs_status}{console_status}{verified_status}{saved_status}"
+        f"{refs_status}{console_status}{verified_status}{saved_status}{dirty_warning}"
     )
 
 

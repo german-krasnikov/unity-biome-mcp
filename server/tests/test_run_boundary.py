@@ -4,6 +4,9 @@ expected_count enrichment in get_test_run, uncorrelated result detection."""
 import json
 from unittest.mock import AsyncMock, patch
 
+import pytest
+from mcp.server.fastmcp.exceptions import ToolError
+
 import unity_mcp.tools.testing as testing
 from unity_mcp.tools.run_handle import TestRunRegistry
 
@@ -42,7 +45,7 @@ async def test_run_tests_ack_includes_expected_count():
 
 
 async def test_run_boundary_zero_expected_is_error():
-    """ACK with expected_count=0 returns error; run is never registered."""
+    """ACK with expected_count=0 raises ToolError; run is never registered."""
     registry = TestRunRegistry()
     with (
         patch.object(testing, "_send", AsyncMock(return_value=_ack(0))),
@@ -50,9 +53,9 @@ async def test_run_boundary_zero_expected_is_error():
         patch.object(testing, "_preflight", AsyncMock(return_value=None)),
         patch.object(testing, "resolve_test_request", AsyncMock(return_value="none")),
     ):
-        result = await testing.run_tests(mode="EditMode", request_id=REQUEST_ID)
+        with pytest.raises(ToolError, match="Empty manifest"):
+            await testing.run_tests(mode="EditMode", request_id=REQUEST_ID)
 
-    assert "Empty manifest" in result or result.startswith("BLOCKED:")
     assert registry.get(RUN_ID) is None
 
 

@@ -12,6 +12,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.47.0] — 2026-08-20
+
+### Fixed
+
+- **Protocol audit coverage — 4 defects + 7 critical gaps + 120 tests:**
+  - **Playtest DSL correctness:** ASSERT_ONE_ACTIVE now checks activeInHierarchy (inclusive parent state) instead of activeSelf; strict mode for saved .playtest files raises fatal error on unresolved `$sigil` (file-based=strict, inline=lenient) — prevents silent failures in released fixtures
+  - **Media and ref consistency:** Screenshot filenames include GUID to prevent collisions; search_scene returns compressed `&N` refs (numeric ID) instead of `$HEX` format
+  - **Transaction safety:** Detect pre-existing dirty state in apply_scene_change before mutation; Undo group capture is now infallible
+  - **Test filter robustness:** Zero-match filters raise ToolError with isError=true instead of silent empty results
+  - **Version tracking:** BiomeVersion.cs centralizes Plugin (semantic) and Protocol (numeric) constants; mcp_status now exposes plugin_version + protocol_version + python_version for cross-version diagnostics
+  - **Play Mode lifecycle:** PlayModeEpochTracker (new component) emits monotonic play_epoch and world_ready flag; world_ready becomes true after first EditorApplication.update (post-Awake/Start) for robust readiness gating
+  - **Regression guard rewrites:** 3 defective guards (RG-06, RG-07, RG-10) rewritten for correctness; 8 atomic regression contract tests added; cross-project reconnect atomicity validated
+- **Test infrastructure:** 14 new Python test modules (67 functions covering protocol contracts, edge cases, lifecycle fences, and schema validation); 9 new C# test files (30+ methods for parser provenance, console capture boundaries, command-router enforcement, and overload selection). Total: Python suite 6577/6577 passed.
+
 ## [v1.46.1] — 2026-08-20
 
 ### Fixed
@@ -3521,7 +3535,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.1...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.0...HEAD
+[v1.47.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.1...v1.47.0
 [v1.46.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.0...v1.46.1
 [v1.46.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.45.0...v1.46.0
 [v1.45.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.44.0...v1.45.0

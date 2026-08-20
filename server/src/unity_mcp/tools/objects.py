@@ -73,7 +73,8 @@ async def set_property(path: str | None = None, component: str = "", prop: str =
     """Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`).
     find_type: component type — bulk-sets prop on all matching objects without specifying paths.
     For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), $hexId (e.g. $3E8) or #instanceID (legacy), or 'null'. dry_run=True shows what would change without applying.
-    ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'."""
+    ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'.
+    effects: mutates scene via SerializedObject, creates an undo entry. Verify with get_component after."""
     if value is not None:
         value = _normalize_value(value)
         if ref_component_type and "::" not in str(value):
