@@ -67,12 +67,14 @@ def _parse(pipe: str, ctx: EventContext) -> list[AgentEvent]:  # noqa: PLR0912
             args = json.loads(args_raw) if args_raw else {}
         except json.JSONDecodeError:
             args = {}
+        if not isinstance(args, dict):
+            args = {}
         return [_make_event("tool_call_started", {"name": name, "id": id_, "args": args}, ctx)]
 
     if prefix == "tr":
         segs   = rest.split("|", 2)
         id_    = segs[0] if len(segs) > 0 else ""
-        ok_str = segs[1] if len(segs) > 1 else "true"
+        ok_str = (segs[1] if len(segs) > 1 else "true").strip()
         result = segs[2] if len(segs) > 2 else ""
         if ok_str.lower() == "true":
             return [_make_event("tool_call_completed", {"id": id_, "result": result}, ctx)]
@@ -80,9 +82,12 @@ def _parse(pipe: str, ctx: EventContext) -> list[AgentEvent]:  # noqa: PLR0912
 
     if prefix == "d":
         segs = rest.split("|", 3)
-        cost = float(segs[1]) if len(segs) > 1 and segs[1] else 0.0
-        inp  = int(segs[2])   if len(segs) > 2 and segs[2] else 0
-        out  = int(segs[3])   if len(segs) > 3 and segs[3] else 0
+        try:
+            cost = float(segs[1]) if len(segs) > 1 and segs[1] else 0.0
+            inp  = int(segs[2])   if len(segs) > 2 and segs[2] else 0
+            out  = int(segs[3])   if len(segs) > 3 and segs[3] else 0
+        except ValueError:
+            return []
         return [
             _make_event("cost_update", {"cost_usd": cost, "input_tokens": inp, "output_tokens": out}, ctx),
             _make_event("turn_completed", {}, ctx),
@@ -97,6 +102,8 @@ def _parse(pipe: str, ctx: EventContext) -> list[AgentEvent]:  # noqa: PLR0912
             inp = json.loads(inp_raw) if inp_raw else {}
         except json.JSONDecodeError:
             inp = {}
+        if not isinstance(inp, dict):
+            inp = {}
         return [_make_event("permission_requested",
                             {"tool_name": tool_name, "request_id": rid, "input": inp}, ctx)]
 
@@ -107,6 +114,8 @@ def _parse(pipe: str, ctx: EventContext) -> list[AgentEvent]:  # noqa: PLR0912
         try:
             inp = json.loads(inp_raw) if inp_raw else {}
         except json.JSONDecodeError:
+            inp = {}
+        if not isinstance(inp, dict):
             inp = {}
         return [_make_event("permission_requested",
                             {"request_id": rid, "input": inp, "is_ask_user": True}, ctx)]

@@ -1,6 +1,6 @@
-"""Tests for pipe_parser.parse_pipe_string() — pure function, no mocks. (17 tests)"""
+"""Tests for pipe_parser.parse_pipe_string() — pure function, no mocks. (21 tests)"""
 
-from unity_mcp.adapters.pipe_parser import parse_pipe_string
+from unity_mcp.adapters.pipe_parser import _parse, parse_pipe_string
 from unity_mcp.adapters.protocol import EventContext
 
 
@@ -138,3 +138,29 @@ def test_parse_tp_prefix_returns_warning_with_progress():
 def test_parse_conversation_id_attached():
     evts = parse_pipe_string("t|hello", _ctx(conversation_id="conv-42"))
     assert evts[0].conversation_id == "conv-42"
+
+
+# Bug 1: json.loads() returning non-dict must be coerced to {}
+def test_tc_handler_null_json_skipped():
+    evts = parse_pipe_string("tc|my_tool|id-1|null", _ctx())
+    assert len(evts) == 1
+    assert evts[0].payload["args"] == {}
+
+
+def test_tc_handler_array_json_skipped():
+    evts = parse_pipe_string("tc|my_tool|id-1|[]", _ctx())
+    assert len(evts) == 1
+    assert evts[0].payload["args"] == {}
+
+
+# Bug 2: malformed numeric segments in d| must not raise inside _parse
+def test_d_handler_malformed_float_skipped():
+    result = _parse("d||notanumber|100|50", _ctx())
+    assert result == []
+
+
+# Bug 3: trailing whitespace in ok_str must not cause false negative
+def test_tr_handler_whitespace_ok_stripped():
+    evts = parse_pipe_string("tr|id-1|true |result", _ctx())
+    assert len(evts) == 1
+    assert evts[0].kind == "tool_call_completed"
