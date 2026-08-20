@@ -184,6 +184,63 @@ async def test_retry_includes_retry_op_id():
 # Test 3 — DeliveryState enum is exported from bridge module
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# MCP-IDEMP-026: Op-ID-only dedup — no payload-similarity suppression
+# ---------------------------------------------------------------------------
+
+async def test_different_op_ids_same_payload_both_execute():
+    """Identical cmd+args must produce distinct op_ids — no payload-based dedup on Python side."""
+    bridge = _make_bridge()
+    op_ids: list[str] = []
+
+    async def capture(cmd, payload, msg_id, timeout, deadline, operation_id=""):
+        data = json.loads(payload.decode("utf-8"))
+        op_ids.append(data["op_id"])
+        return {"id": msg_id, "ok": True, "data": "ok"}
+
+    bridge._send_with_retry = capture
+
+    await bridge.send("set_property", {"path": "/Cube", "value": 42})
+    await bridge.send("set_property", {"path": "/Cube", "value": 42})  # identical args
+
+    assert len(set(op_ids)) == 2, f"Same payload must yield distinct op_ids; got {op_ids}"
+
+
+async def test_same_op_id_returns_cached_result():
+    """CommandLedger records COMPLETED with result after send(); get_command_status reflects it."""
+    from unity_mcp.bridge import CommandStatus
+    bridge = _make_bridge()
+    captured_op: list[str] = []
+
+    async def capture(cmd, payload, msg_id, timeout, deadline, operation_id=""):
+        captured_op.append(operation_id)
+        return {"id": msg_id, "ok": True, "data": "cached-value"}
+
+    bridge._send_with_retry = capture
+    await bridge.send("set_property", {"path": "/Cube", "value": 42})
+
+    op_id = captured_op[0]
+    status, result = bridge.get_command_status(op_id)
+    assert status == CommandStatus.COMPLETED
+    assert result is not None
+    assert result.get("data") == "cached-value"
+
+
+async def test_dedup_applied_flag_present():
+    """dedup_applied flag returned by C# passes through bridge dict unchanged."""
+    bridge = _make_bridge()
+
+    async def return_dedup(cmd, payload, msg_id, timeout, deadline, operation_id=""):
+        return {"id": msg_id, "ok": True, "data": "original", "dedup_applied": True}
+
+    bridge._send_with_retry = return_dedup
+    result = await bridge.send("set_property", {"path": "/Cube", "value": 42})
+
+    assert result.get("dedup_applied") is True, (
+        "dedup_applied flag from C# response must be preserved in bridge output"
+    )
+
+
 def test_delivery_state_enum_exported():
     """DeliveryState must be importable from unity_mcp.bridge and have UNSENT/SENT/DELIVERED/FAILED.
 

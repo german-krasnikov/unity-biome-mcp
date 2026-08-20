@@ -1,0 +1,4 @@
+INCLUDE common.defs
+INVOKE /Fixture/State FixtureState ResetState
+WAIT 15
+ASSERT $state == 100

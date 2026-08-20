@@ -1,0 +1,5 @@
+INCLUDE common.defs
+ASSERT $state == 102
+INVOKE /Fixture/State FixtureState CompleteAfterSeconds 0.1
+WAIT_UNTIL $completed == True TIMEOUT 5
+ASSERT $completed == True

@@ -53,8 +53,11 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/src/unity_mcp/tools/tool_specs.py` | Tool metadata source for category, mutability, timeout, visibility, runtime, and direct-only behavior. |
 | `server/src/unity_mcp/tools/gating.py` | Session visibility categories and plugin category registration. |
 | `server/src/unity_mcp/tools/schema_registry.py` | Deferred public schema lookup. |
-| `server/src/unity_mcp/bridge.py` | TCP request lifecycle and reconnect behavior. |
+| `server/src/unity_mcp/tools/run_handle.py` | Durable test run metadata (TestRunHandle, TestRunRegistry); persists across transport disconnect. |
+| `server/src/unity_mcp/bridge.py` | TCP request lifecycle, reconnect behavior, CommandLedger, and EditorIdentity. |
 | `server/src/unity_mcp/connection_slot.py` | Active Unity connection ownership. |
+| `server/src/unity_mcp/play_state.py` | Play Mode readiness tracking (PlayReadinessTracker) with epoch and world_ready handshake. |
+| `server/src/unity_mcp/suite_verdict.py` | Test suite verdict separation (inner assertion verdicts vs. outer lifecycle verdicts). |
 | `server/src/unity_mcp/middleware.py` | Middleware state and feature composition. |
 | `server/src/unity_mcp/middleware_pipeline.py` | Ordered pre-call, dispatch, and post-call pipeline. |
 | `server/src/unity_mcp/middleware_types.py` | Source-derived read/write/runtime classification and conditional action rules. |

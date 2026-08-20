@@ -32,3 +32,16 @@ def is_compiling(state: str | None) -> bool:
 def is_paused(state: str | None) -> bool:
     """Return True if editor is paused (paused:True in state response)."""
     return (parse_editor_field(state, "paused") or "").lower() == "true"
+
+
+def parse_play_epoch(state: str | None) -> int | None:
+    """Extract play_epoch integer from state, None if absent or non-numeric."""
+    val = parse_editor_field(state, "play_epoch")
+    if val and val.isdigit():
+        return int(val)
+    return None
+
+
+def parse_world_ready(state: str | None) -> bool:
+    """Return True if world_ready:True in state (first frame completed)."""
+    return (parse_editor_field(state, "world_ready") or "").lower() == "true"

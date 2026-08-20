@@ -357,6 +357,42 @@ namespace UnityMCP.Editor.Tests
             }
         }
 
+        // MCP-CAP-025: when all slots are occupied, TryAdd returns false.
+        // Existing entries must remain intact — CountActive must equal MaxClients.
+        [Test]
+        public void ExistingClients_SurviveCapacityRejection()
+        {
+            var slot = new ClientSlot();
+            using var lifetime = new CancellationTokenSource();
+            // Fill all slots
+            var clients = new System.Collections.Generic.List<(TcpClient, CancellationTokenSource)>();
+            for (int i = 0; i < ClientSlot.MaxClients; i++)
+            {
+                var c = new TcpClient();
+                var handle = slot.Add(c, lifetime.Token);
+                clients.Add((c, handle.clientCts));
+            }
+            try
+            {
+                // One more must be rejected
+                using var extra = new TcpClient();
+                bool added = slot.TryAdd(extra, lifetime.Token,
+                    out _, out _, out var extraCts);
+                Assert.IsFalse(added, "Slot must reject when at capacity");
+                extraCts?.Dispose();
+
+                // All original clients still active
+                Assert.AreEqual(ClientSlot.MaxClients, slot.CountActive(),
+                    "Existing clients must not be affected by capacity rejection");
+            }
+            finally
+            {
+                lifetime.Cancel();
+                slot.DisconnectAll();
+                foreach (var (c, cts) in clients) { c.Dispose(); cts.Dispose(); }
+            }
+        }
+
         // DisconnectEntry with stale generation is a no-op; CTS and state are untouched.
         [Test]
         public void DisconnectEntry_StaleGeneration_IsNoOp()

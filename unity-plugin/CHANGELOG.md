@@ -12,6 +12,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.45.0] — 2026-08-20
+
+### Added
+
+- **Protocol reliability & lifecycle fencing (MCP-TRANS-008, MCP-SESS-024, MCP-LIFE-004, MCP-SUITE-006):**
+  - CommandLedger + CommandStatus FSM: durable op_id tracking survives transport disconnect
+  - EditorIdentity + SessionIdentityMismatch: enforce same-project reconnection
+  - CapacityBusyError: typed rejection when Unity TCP slots full
+  - PlayReadinessTracker: epoch + world_ready handshake for robust Play Mode entry
+  - _enter_fresh_play gate with wait_for_ready: playtest execution waits for actual world readiness
+  - FailureCategory enum + categorize_failure: typed protocol-level failure diagnostics
+  - TestRunHandle + TestRunRegistry: durable in-memory test run metadata persists across transport disconnect
+  - SuiteVerdict + format_layered_verdict: separate inner (assertion) from outer (lifecycle) verdicts
+  - MCPFeedbackFixture: 10 C# components + 5 EditMode tests + 11 PlayTest DSL files for conformance
+
+### Changed
+
+- CommandRouter.dedup_applied flag: explicit dedup tracking for idempotency verification
+- ToolSpec.plane property: computed from direct_only + unity_transport
+- Generation-aware compile fence in code_intel.py: prevent stale Symbol detection across compile
+- SCENE_STATE_NEUTRAL_WRITES middleware: mark playtest fixture writes with neutral semantics
+- verify_after_change suite passthrough: test suites can use verify gates without stopping Play
+
 ## [v1.44.0] — 2026-08-19
 
 ### Fixed
@@ -3462,7 +3485,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.44.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.45.0...HEAD
+[v1.45.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.44.0...v1.45.0
 [v1.44.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.43.0...v1.44.0
 [v1.43.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.1...v1.43.0
 [v1.42.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.42.0...v1.42.1

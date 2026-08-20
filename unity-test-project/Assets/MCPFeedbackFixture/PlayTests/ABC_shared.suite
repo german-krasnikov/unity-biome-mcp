@@ -1,0 +1,5 @@
+# restart_between: false
+# Shared-state chain: A sets state=101, B increments to 102, C completes async
+Assets/MCPFeedbackFixture/PlayTests/A_shared_setup.playtest
+Assets/MCPFeedbackFixture/PlayTests/B_shared_continue.playtest
+Assets/MCPFeedbackFixture/PlayTests/C_shared_finish.playtest

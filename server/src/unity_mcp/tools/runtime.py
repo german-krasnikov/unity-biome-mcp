@@ -8,6 +8,7 @@ from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 from .editor_state import parse_editor_field as _editor_field
+from .editor_state import parse_world_ready as _parse_world_ready
 
 _send = None
 _args = None
@@ -15,8 +16,12 @@ _args = None
 _TCP_POLL_BUFFER = 5.0
 _TCP_STEP_BUFFER = 10.0
 _TCP_PLAYTEST_BUFFER = 20.0
+# _PLAY_STATE_POLLS is a shared budget: covers waiting for playing=True AND
+# (when world_ready is present) waiting for world_ready=True in the same loop.
 _PLAY_STATE_POLLS = 15
 _PLAY_STATE_POLL_INTERVAL = 1.0
+_FRESH_READINESS_TIMEOUT = 30.0
+_FRESH_POLL_INTERVAL = 0.2
 
 
 async def invoke_method(path: str, component: str, method: str, args: str = "") -> str:
@@ -104,6 +109,45 @@ def _compress_report(report: str) -> str:
     return '\n'.join(keep) if len(keep) > 1 else keep[0]
 
 
+async def _enter_fresh_play() -> None:
+    """For fresh=True: stop existing Play Mode if needed, enter Play, wait for world readiness.
+
+    Uses PlayReadinessTracker (MCP-LIFE-005) so world_ready is respected before returning.
+    Raises TimeoutError if readiness not reached within _FRESH_READINESS_TIMEOUT.
+    """
+    from ..play_state import PlayReadinessTracker
+
+    # Stop if currently in Play Mode
+    state_str = await _send("editor", _args(action="state"), timeout=5.0)
+    playing = _editor_field(state_str, "playing")
+    if playing and playing.lower() == "true":
+        response = await _send("editor", _args(action="stop"), timeout=10.0)
+        error = _editor_command_error("stop", response)
+        if error:
+            raise RuntimeError(error)
+
+    # No stop-completion wait here: PlayReadinessTracker's timeout absorbs any
+    # remaining teardown time so entering play immediately is safe.
+    # Enter Play Mode
+    response = await _send("editor", _args(action="play"), timeout=5.0)
+    error = _editor_command_error("play", response)
+    if error:
+        raise RuntimeError(error)
+
+    # Wait for world readiness via PlayReadinessTracker
+    tracker = PlayReadinessTracker()
+
+    async def _poll() -> None:
+        s = await _send("editor", _args(action="state"), timeout=5.0)
+        tracker.update(s)
+
+    await tracker.wait_for_ready(
+        timeout=_FRESH_READINESS_TIMEOUT,
+        poll=_poll,
+        interval=_FRESH_POLL_INTERVAL,
+    )
+
+
 async def run_playtest(script: str | None = None, timeout: float = 120.0,
                        abort_on_fail: bool = False,
                        defs: str | None = None,
@@ -126,13 +170,19 @@ async def run_playtest(script: str | None = None, timeout: float = 120.0,
         raise ValueError("script and path are mutually exclusive")
     if not script and not path:
         raise ValueError("script or path required")
-    _fresh = "true" if fresh else None
+    # MCP-LIFE-005: handle fresh lifecycle on Python side (stop→play→wait_for_ready)
+    if fresh:
+        try:
+            await _enter_fresh_play()
+        except TimeoutError:
+            return f"Play Mode entered but world not ready within {_FRESH_READINESS_TIMEOUT}s"
+    # lifecycle handled above; not passed to C#
     if path:
         raw = await _send("run_playtest", _args(
             path=path, timeout=str(timeout),
             abort_on_fail="true" if abort_on_fail else None,
             snapshot_on_failure="true" if snapshot_on_failure else None,
-            fresh=_fresh,
+            fresh=None,
             before_hook=before_hook, after_hook=after_hook,
             defs=_normalize_defs(defs), _explicit_path="true"),
                           timeout=timeout + _TCP_PLAYTEST_BUFFER)
@@ -145,7 +195,7 @@ async def run_playtest(script: str | None = None, timeout: float = 120.0,
             script=script, timeout=str(timeout),
             abort_on_fail="true" if abort_on_fail else None,
             snapshot_on_failure="true" if snapshot_on_failure else None,
-            fresh=_fresh,
+            fresh=None,
             before_hook=before_hook, after_hook=after_hook),
                           timeout=timeout + _TCP_PLAYTEST_BUFFER)
     compressed = _compress_report(raw)
@@ -187,7 +237,13 @@ async def _read_play_state() -> bool:
 
 
 async def _wait_for_play_state(expected: bool, action: str) -> None:
-    """Poll boundedly until Unity proves the requested Play Mode state."""
+    """Poll boundedly until Unity proves the requested Play Mode state.
+
+    When entering Play Mode (expected=True) and Unity sends world_ready, also
+    waits for world_ready:True — prevents run_playtest from racing against the
+    first frame completing (MCP-LIFE-004).
+    Backward compat: if world_ready is absent, proceeds on playing:True alone.
+    """
     last_state = None
     for attempt in range(_PLAY_STATE_POLLS):
         state = await _send("editor", _args(action="state"), timeout=5.0)
@@ -195,10 +251,18 @@ async def _wait_for_play_state(expected: bool, action: str) -> None:
         playing = _editor_field(state, "playing")
         if playing is None or playing.lower() not in ("true", "false"):
             raise RuntimeError(f"editor state missing playing:true|false: {state!r}")
-        if (playing.lower() == "true") == expected:
-            return
-        if attempt + 1 < _PLAY_STATE_POLLS:
-            await asyncio.sleep(_PLAY_STATE_POLL_INTERVAL)
+        play_reached = (playing.lower() == "true") == expected
+        if not play_reached:
+            if attempt + 1 < _PLAY_STATE_POLLS:
+                await asyncio.sleep(_PLAY_STATE_POLL_INTERVAL)
+            continue
+        # Play state reached. If entering Play and world_ready field is present,
+        # keep polling until world_ready:True (first frame done).
+        if expected and _editor_field(state, "world_ready") is not None and not _parse_world_ready(state):
+                if attempt + 1 < _PLAY_STATE_POLLS:
+                    await asyncio.sleep(_PLAY_STATE_POLL_INTERVAL)
+                continue
+        return
     target = "Play Mode" if expected else "Edit Mode"
     raise RuntimeError(
         f"editor {action} did not reach {target} after {_PLAY_STATE_POLLS} polls; "
@@ -218,15 +282,19 @@ async def _transition_play_state(expected: bool) -> None:
 
 
 def _is_playtest_pass(result: str) -> bool:
-    """Require a non-empty, complete PLAYTEST ratio and no failure signals."""
-    first_line = result.splitlines()[0] if result else ""
-    match = re.match(r"PLAYTEST:\s*(\d+)\s*/\s*(\d+)\b", first_line)
-    if not match:
-        return False
-    passed, total = (int(match.group(1)), int(match.group(2)))
-    if total <= 0 or passed != total:
-        return False
-    return not re.search(r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT)\b", result)
+    """Require a non-empty, complete PLAYTEST ratio and no failure signals.
+
+    Scans all lines so that prepended middleware warnings (e.g. ⚡ consecutive
+    write guard) do not mask a genuine PLAYTEST: X/Y line (MCP-GUARD-007).
+    """
+    for line in (result.splitlines() if result else []):
+        match = re.match(r"PLAYTEST:\s*(\d+)\s*/\s*(\d+)\b", line)
+        if match:
+            passed, total = int(match.group(1)), int(match.group(2))
+            if total <= 0 or passed != total:
+                return False
+            return not re.search(r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT)\b", result)
+    return False
 
 
 async def _setup_auto_play(restart_between: bool) -> tuple[bool, list]:
@@ -292,24 +360,27 @@ async def _run_single_file(
 
 
 async def _suite_body(
+    results: list,        # accumulated in place — mutations survive timeout cancel
+    file_list_out: list,  # resolved file list stored here — survives timeout cancel
     pattern: str | None,
     suite_path: str | None,
     auto_play: bool,
     restart_between: bool,
     timeout_per_test: float,
     stop_on_fail: bool,
-) -> tuple[list, str | None]:
-    """Execute suite: setup, resolve files, run loop. Returns (results, empty_reason)."""
+) -> str | None:
+    """Execute suite: setup, resolve files, run loop. Returns empty_reason or None."""
     if auto_play:
         success, startup_rows = await _setup_auto_play(restart_between)
         if not success:
-            return startup_rows, None
+            results.extend(startup_rows)
+            return None
 
     file_list, empty_reason = await _resolve_file_list(pattern, suite_path)
+    file_list_out[:] = file_list  # persist for timeout reporting before the loop
     if empty_reason is not None:
-        return [], empty_reason
+        return empty_reason
 
-    results: list = []
     for filepath in file_list:
         if restart_between and results:  # not before first file
             try:
@@ -323,7 +394,7 @@ async def _suite_body(
         results.append(row)
         if stop_on_fail and not row[3]:
             break
-    return results, None
+    return None
 
 
 async def run_playtest_suite(
@@ -334,6 +405,7 @@ async def run_playtest_suite(
     stop_after: bool = True,
     auto_play: bool = False,
     restart_between: bool = False,
+    suite_timeout: float = 300.0,
 ) -> str:
     """Run multiple .playtest files sequentially and return a compact matrix.
     Side effects: auto_play/restart_between may enter or restart Play Mode;
@@ -347,10 +419,11 @@ async def run_playtest_suite(
     auto_play=True: enter Play Mode automatically if not already playing.
     restart_between=True: stop+play between each file to reset runtime state;
     with auto_play=True, also resets an already-running editor before file one.
+    suite_timeout: total suite wall-clock deadline in seconds (default 300s).
     Lifecycle commands must return successfully and reach their observed state.
     A failed transition stops the suite and is reported as a failed row.
     Empty matches return a failing SUITE: 0/0 report.
-    Output: SUITE: X/Y passed (Zs) + per-file line + full failure details."""
+    Output: SUITE: X/Y passed (Zs) terminal:true play_stopped:true/false + per-file lines."""
     if pattern and suite_path:
         raise ValueError("pattern and suite_path are mutually exclusive")
     if not pattern and not suite_path:
@@ -359,19 +432,28 @@ async def run_playtest_suite(
     import time as _time
     suite_start = _time.monotonic()
     results: list = []
+    file_list_resolved: list = []
     empty_reason: str | None = None
     primary_error: Exception | None = None
     cleanup_error: Exception | None = None
+    timed_out = False
+    play_stopped = False
+
     try:
-        results, empty_reason = await _suite_body(
-            pattern, suite_path, auto_play, restart_between, timeout_per_test, stop_on_fail
+        empty_reason = await asyncio.wait_for(
+            _suite_body(results, file_list_resolved, pattern, suite_path,
+                        auto_play, restart_between, timeout_per_test, stop_on_fail),
+            timeout=suite_timeout,
         )
+    except TimeoutError:
+        timed_out = True
     except Exception as exc:
         primary_error = exc
     finally:
         if stop_after:
             try:
                 await _transition_play_state(False)
+                play_stopped = True
             except Exception as exc:
                 cleanup_error = exc
 
@@ -390,6 +472,15 @@ async def run_playtest_suite(
         )
         results.append(("<suite cleanup>", raw, 0.0, False))
 
+    # On timeout, mark unexecuted files as TIMED_OUT so the report is complete.
+    if timed_out and file_list_resolved:
+        executed = {row[0] for row in results if not row[0].startswith("<suite ")}
+        results.extend(
+            (filepath, "PLAYTEST: 0/0 TIMED_OUT", 0.0, False)
+            for filepath in file_list_resolved
+            if filepath not in executed
+        )
+
     elapsed = _time.monotonic() - suite_start
     if empty_reason is not None:
         cleanup_detail = ""
@@ -398,23 +489,36 @@ async def run_playtest_suite(
                 "\nFAIL suite cleanup: "
                 f"{type(cleanup_error).__name__}: {cleanup_error}"
             )
+        flags = f" terminal:true play_stopped:{str(play_stopped).lower()}"
+        if timed_out:
+            flags += " timed_out:true"
         return (
-            f"SUITE: 0/0 passed ({elapsed:.1f}s)\n"
+            f"SUITE: 0/0 passed ({elapsed:.1f}s){flags}\n"
             f"FAIL suite input: {empty_reason}{cleanup_detail}"
         )
 
-    return _format_suite_report(results, elapsed)
+    from ..suite_verdict import compute_suite_verdict, format_layered_verdict
+    report = _format_suite_report(results, elapsed, play_stopped=play_stopped, timed_out=timed_out)
+    layered = format_layered_verdict(compute_suite_verdict(results))
+    return report + "\n" + layered
 
 
 run_playtest_suite.__test__ = False  # prevent pytest from collecting as test
 
 
-def _format_suite_report(results, total_elapsed):
-    """Compact matrix: OK → one line. FAIL → one line with step info + full block."""
+def _format_suite_report(results, total_elapsed, play_stopped=True, timed_out=False):
+    """Compact matrix: OK → one line. FAIL → one line with step info + full block.
+
+    Header always includes terminal:true, play_stopped:<true/false> for machine parsing.
+    On timeout, also includes timed_out:true.
+    """
     import re as _re
     passed_count = sum(1 for _, _, _, ok in results if ok)
     total = len(results)
-    lines = [f"SUITE: {passed_count}/{total} passed ({total_elapsed:.1f}s)"]
+    flags = f" terminal:true play_stopped:{str(play_stopped).lower()}"
+    if timed_out:
+        flags += " timed_out:true"
+    lines = [f"SUITE: {passed_count}/{total} passed ({total_elapsed:.1f}s){flags}"]
     failures = []
     for filepath, raw, elapsed, ok in results:
         name = filepath.rsplit("/", 1)[-1]

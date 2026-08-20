@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from unity_mcp.bridge import BridgeState, UnityBridge
+from unity_mcp.bridge import BridgeState, CommandLedger, UnityBridge
 from unity_mcp.bridge_reload_state import DomainReloadTracker
 
 
@@ -73,6 +73,8 @@ class _StubBridge(UnityBridge):
         # P-092: queue fields (see maintenance note above)
         self._send_queue: asyncio.Queue = asyncio.Queue()
         self._queue_consumer_task = None
+        # MCP-TRANS-008: command ledger (see maintenance note above)
+        self._ledger = CommandLedger()
 
     @property
     def connected(self) -> bool:

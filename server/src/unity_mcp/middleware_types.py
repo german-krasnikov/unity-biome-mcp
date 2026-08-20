@@ -44,7 +44,14 @@ WRITE_CMDS.add("navmesh")
 # These commands require write authorization because they create project-local
 # artifacts, but they do not change Unity scene state. Keep that distinction
 # explicit for scene-cache invalidation and scene-mutation guidance.
-SCENE_STATE_NEUTRAL_WRITES: frozenset[str] = frozenset({"screenshot"})
+# run_playtest / run_playtest_suite execute in Play Mode; Edit Mode scene state
+# is unchanged, so they must not count against the consecutive-write guard
+# (MCP-GUARD-007).
+SCENE_STATE_NEUTRAL_WRITES: frozenset[str] = frozenset({
+    "screenshot",
+    "run_playtest",
+    "run_playtest_suite",
+})
 
 # editor actions that are reads; all others (play/stop/pause/step/select) are writes
 _EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})

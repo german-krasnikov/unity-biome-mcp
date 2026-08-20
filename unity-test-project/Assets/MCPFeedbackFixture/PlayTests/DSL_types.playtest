@@ -1,0 +1,9 @@
+INCLUDE common.defs
+VAR $runtime_progress @/Fixture/Async|FixtureAsyncState|Progress
+INVOKE /Fixture/Async FixtureAsyncState StartOperation 0.5
+WAIT_UNTIL $runtime_progress >= 0.5 TIMEOUT 5
+INVOKE /Fixture/State FixtureState ResetState
+ASSERT $state == 100
+ASSERT $boot_ready
+ASSERT /Fixture/Active/A|activeSelf
+ASSERT /Fixture/Active/B|activeSelf == False

@@ -82,5 +82,29 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(0, _registry.Count,
                 "Evict must remove all entries past their TTL.");
         }
+
+        // MCP-IDEMP-026: dedup must be ONLY by caller-supplied op_id — no payload similarity.
+
+        [Test]
+        public void SamePayload_DifferentOpIds_BothExecute()
+        {
+            // Two commands with identical cached-result strings but different op_ids
+            // must both be registered — no payload-based dedup.
+            const string result = "{\"ok\":true,\"data\":\"same payload\"}";
+            Assert.IsTrue(_registry.TryRegister("op-idemp-1", result));
+            Assert.IsTrue(_registry.TryRegister("op-idemp-2", result),
+                "Different op_ids with identical payloads must both register — dedup is op_id-only.");
+        }
+
+        [Test]
+        public void SameOpId_ReturnsCachedResult()
+        {
+            const string result = "{\"ok\":true,\"data\":\"cached\"}";
+            _registry.TryRegister("op-cached", result);
+
+            var retrieved = _registry.TryGetResult("op-cached");
+            Assert.AreEqual(result, retrieved,
+                "TryGetResult must return the stored result for a known op_id.");
+        }
     }
 }

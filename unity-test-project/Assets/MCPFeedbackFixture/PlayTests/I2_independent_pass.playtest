@@ -1,0 +1,6 @@
+INCLUDE common.defs
+INVOKE /Fixture/State FixtureState ResetState
+INVOKE /Fixture/State FixtureState Record hello,world,42
+ASSERT $last_first == hello
+ASSERT $last_second == world
+ASSERT $last_int == 42

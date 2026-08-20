@@ -46,9 +46,11 @@ namespace UnityMCP.Editor
 #endif
                 if (!slot.TryAdd(client, token, out var idx, out var gen, out var clientCts))
                 {
-                    try { client.Close(); } catch { }
-                    MainThreadDispatcher.Enqueue(() =>
-                        Debug.LogWarning($"{BiomeLabel.Tag} {label} rejected connection: client capacity exceeded"));
+                    // MCP-CAP-025: send typed rejection before closing so Python gets a
+                    // machine-readable CapacityBusyError instead of EOF/unusable state.
+                    var active = slot.CountActive();
+                    var lbl0 = label;
+                    _ = RejectCapacityAsync(client, slot, active, lbl0);
                     continue;
                 }
                 slot.SetEntryEndpoint(idx, gen, client.Client.RemoteEndPoint?.ToString() ?? "unknown");
@@ -110,6 +112,34 @@ namespace UnityMCP.Editor
             $"\"version\":\"{JsonHelper.EscapeJson(ver)}\"," +
             $"\"projectPath\":\"{JsonHelper.EscapeJson(projPath)}\"," +
             $"\"projectId\":\"{JsonHelper.EscapeJson(MCPServer._cachedProjectId)}\"}}";
+
+        // MCP-CAP-025: typed rejection sent to clients that arrive when all slots are full.
+        // Python discriminant: error == "CLIENT_CAPACITY_BUSY" → raises CapacityBusyError → retried.
+        // internal so unit tests can verify the response format without a live TCP connection.
+        internal static string BuildCapacityRejectionResponse(int capacity, int active) =>
+            $"{{\"error\":\"CLIENT_CAPACITY_BUSY\",\"capacity\":{capacity},\"active\":{active},\"retry_after_seconds\":5}}";
+
+        // Fire-and-forget: send typed capacity rejection, then close.
+        // Existing connected clients are never touched here.
+        private static async Task RejectCapacityAsync(TcpClient client, ClientSlot slot,
+            int active, string label)
+        {
+            try
+            {
+                using (client)
+                {
+                    var json = BuildCapacityRejectionResponse(ClientSlot.MaxClients, active);
+                    await SendAsync(client.GetStream(), json, CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            catch { }
+            finally
+            {
+                var lbl = label;
+                MainThreadDispatcher.Enqueue(() =>
+                    Debug.LogWarning($"{BiomeLabel.Tag} {lbl} rejected connection: client capacity exceeded ({active}/{ClientSlot.MaxClients})"));
+            }
+        }
 
 
 

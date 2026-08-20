@@ -12,9 +12,11 @@ from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
+from .run_handle import TestRunRegistry
 
 _send = None
 _args = None
+_registry = TestRunRegistry()
 
 # STALE-DOMAIN: defensive -- unreachable with expected_compile=False, guards
 # future callers that change diagnose semantics.
@@ -31,6 +33,24 @@ _TERMINAL_OUTCOMES = {
     "passed", "failed", "cancelled", "incomplete", "invalid", "dispatch_failed",
 }
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
+
+
+def _try_update_handle_from_result(run_id: str, result: str) -> None:
+    """Parse result JSON and update registry handle state if terminal."""
+    handle = _registry.get(run_id)
+    if handle is None:
+        return
+    try:
+        snapshot = json.loads(result)
+    except (TypeError, ValueError):
+        return
+    if not isinstance(snapshot, dict) or snapshot.get("state") != "terminal":
+        return
+    expected = snapshot.get("expected_count")
+    ec = expected if isinstance(expected, int) and not isinstance(expected, bool) else None
+    outcome = snapshot.get("outcome", "")
+    state = "passed" if outcome == "passed" else "failed" if outcome in ("failed", "dispatch_failed") else "cancelled" if outcome == "cancelled" else "completed"
+    handle.update(state, result=result, expected_count=ec)
 
 
 def _new_request_id() -> str:
@@ -341,7 +361,19 @@ async def run_tests(
     except Exception as exc:
         return _unknown_start(stable_request_id, type(exc).__name__)
 
-    if _parse_correlated_start(result, stable_request_id) is not None:
+    correlated = _parse_correlated_start(result, stable_request_id)
+    if correlated is not None:
+        if not _is_recoverable_prepared(result, correlated):
+            ec_raw = correlated.get("expected_count", "")
+            try:
+                expected_count: int | None = int(ec_raw) if ec_raw else None
+            except (TypeError, ValueError):
+                expected_count = None
+            if expected_count == 0:
+                return "BLOCKED: Empty manifest: no tests match filter"
+            handle = _registry.register(correlated["run_id"], stable_request_id)
+            if expected_count is not None:
+                handle.expected_count = expected_count
         return result
     return _unknown_start(stable_request_id, "invalid-ack")
 
@@ -497,6 +529,7 @@ async def run_tests_wait(
                             f"|reason={terminal_error}"
                             f"|snapshot={_compact_snapshot(current)}"
                         )
+                    _try_update_handle_from_result(run_id, current)
                     return _compact_snapshot(current)
 
         if attempt + 1 < attempts:
@@ -518,7 +551,33 @@ async def resolve_test_request(request_id: str) -> str:
 
 async def get_test_run(run_id: str) -> str:
     """Return the durable JSON snapshot for one exact test run."""
-    return await _send("get_test_run", {"run_id": run_id})
+    handle = _registry.get(run_id)
+    if handle is not None and handle.result is not None:
+        return handle.result  # cached terminal result
+
+    result = await _send("get_test_run", {"run_id": run_id})
+
+    if handle is None and result in ("none", "null", ""):
+        return f"NOT_FOUND|run_id={run_id}"
+
+    try:
+        data = json.loads(result)
+        if isinstance(data, dict):
+            result_run_id = data.get("run_id")
+            if result_run_id is not None and result_run_id != run_id:
+                return f"UNCORRELATED|run_id={run_id}|result_run_id={result_run_id}"
+            if (
+                handle is not None
+                and handle.expected_count is not None
+                and "expected_count" not in data
+            ):
+                data["expected_count"] = handle.expected_count
+                result = json.dumps(data, separators=(",", ":"))
+    except (TypeError, ValueError):
+        pass
+
+    _try_update_handle_from_result(run_id, result)
+    return result
 
 
 async def cancel_test_run(run_id: str) -> str:

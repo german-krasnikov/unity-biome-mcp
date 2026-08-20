@@ -19,6 +19,12 @@ Every Unity fixture inherits the narrowest supported base:
 | `SceneCleanTestBase` | Scene tests that also detect leaked root objects |
 | `MultiSceneTestBase` | Additive and multi-scene behavior |
 
+**MCPFeedbackFixture** (`unity-test-project/Assets/MCPFeedbackFixture/`): Conformance test
+fixture with 10 C# components (FixtureState, FixtureMover, FixtureReceiver, FixtureId, etc.),
+5 EditMode tests (FastPass, FastFail, LongPass, CompileGenerationVisible, ReferenceGraphRoundTrip),
+11 PlayTest DSL files, 4 suite definitions, and shared definitions. Use this fixture as the
+protocol compliance baseline.
+
 Use native NUnit/UTF attributes such as `[TestFixture]`, `[Test]`, `[SetUp]`,
 and `[TearDown]`. Do not introduce aliases for discovery or lifecycle.
 
@@ -100,6 +106,12 @@ Only explicit fault and reload lanes create a disposable project copy.
 Every run is identified by `request_id`, `run_id`, and `utf_guid`. A disconnect,
 caller timeout, partial aggregate, or uncorrelated latest result is not a
 verdict. Only a reconciled terminal snapshot for the exact run is evidence.
+
+**Test Run Durability (MCP-TRANS-008, MCP-SUITE-006):** TestRunHandle + TestRunRegistry
+provide in-memory metadata persistence so run state survives transport disconnect and
+caller timeout. The bridge CommandLedger tracks op_id → delivery state for command-level
+idempotency. SuiteVerdict separates inner (per-file assertion) verdicts from outer
+(lifecycle/transport) verdicts so cleanup failures do not mask passing test results.
 
 The low-level `run_tests` protocol is dispatch, not completion. Resolve
 `START-UNKNOWN` with the original `request_id`. A correlated `state=prepared`

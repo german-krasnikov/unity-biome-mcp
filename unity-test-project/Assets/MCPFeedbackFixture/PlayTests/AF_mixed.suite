@@ -1,0 +1,4 @@
+# restart_between: false
+# Mixed: A passes (state=101), F intentionally fails (asserts 999 != 100)
+Assets/MCPFeedbackFixture/PlayTests/A_shared_setup.playtest
+Assets/MCPFeedbackFixture/PlayTests/F_independent_fail.playtest

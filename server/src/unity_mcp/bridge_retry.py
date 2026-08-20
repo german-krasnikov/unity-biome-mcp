@@ -25,15 +25,19 @@ class RetryPolicy:
         """Exception-path decision. Same contract/return shape as the former
         UnityBridge.should_retry() -- (should_retry, delay_s, reason)."""
         from .bridge_socket import DomainReloadError  # local import avoids cycle
-
-        if isinstance(error, DomainReloadError):
-            self.probe.mark_recompile_issued()
-            self.reload.mark()
+        from .errors import CapacityBusyError  # local import avoids cycle
 
         if attempt >= self.max_retries:
             return False, 0.0, "max_retries"
         if time.monotonic() >= session_deadline:
             return False, 0.0, "deadline"
+
+        if isinstance(error, CapacityBusyError):
+            return True, error.retry_after_seconds, "capacity_busy"
+
+        if isinstance(error, DomainReloadError):
+            self.probe.mark_recompile_issued()
+            self.reload.mark()
 
         if isinstance(error, TimeoutError) and not self.is_retry_safe(cmd):
             return False, 0.0, "unsafe_to_retry"
