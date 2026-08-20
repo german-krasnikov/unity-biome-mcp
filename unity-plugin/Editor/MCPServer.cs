@@ -293,7 +293,7 @@ namespace UnityMCP.Editor
                 const int maxAttempts = 6;  // Windows TIME_WAIT can last 2+ minutes; more retries reduce fallback risk
                 const int retryDelayMs = 600;
 #else
-                const int maxAttempts = 4;
+                const int maxAttempts = 6;  // macOS/Linux: match Windows budget (5 same-port + 1 fallback)
                 const int retryDelayMs = 400;
 #endif
                 for (int attempt = 0; attempt < maxAttempts; attempt++)

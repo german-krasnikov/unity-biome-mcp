@@ -9,7 +9,7 @@ import sys
 import time
 from pathlib import Path
 
-from .lockfile import is_pid_alive, _read_ppid_from_lock_path
+from .lockfile import _read_ppid_from_lock_path, is_pid_alive
 from .paths import unity_mcp_dir
 
 log = logging.getLogger("unity_mcp.server_control")
@@ -113,7 +113,7 @@ def evict_duplicate_servers(lock_dir: Path | None = None) -> int:
 
     for entry in list_servers(lock_dir):
         pid = entry["pid"]
-        if pid == self_pid or pid == parent_pid:
+        if pid in (self_pid, parent_pid):
             continue
 
         lock_path = entry.get("lock_path")
