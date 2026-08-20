@@ -1,0 +1,13 @@
+VAL $state /Fixture/State|FixtureState|Value
+VAL $completed /Fixture/State|FixtureState|Completed
+VAL $counter /Fixture/State|FixtureState|MutationCounter
+VAL $last_method /Fixture/State|FixtureState|LastMethod
+VAL $last_first /Fixture/State|FixtureState|LastFirstArgument
+VAL $last_second /Fixture/State|FixtureState|LastSecondArgument
+VAL $last_int /Fixture/State|FixtureState|LastIntegerArgument
+VAL $accepted /Fixture/Receiver|FixtureReceiver|AcceptedCount
+VAL $last_id /Fixture/Receiver|FixtureReceiver|LastAcceptedId
+VAL $boot_ready /Fixture/BootGate|FixtureBootGate|Ready
+VAL $async_progress /Fixture/Async|FixtureAsyncState|Progress
+VAL $async_running /Fixture/Async|FixtureAsyncState|IsRunning
+VAL $frame_count /Fixture/FramePulse|FixtureFramePulse|FrameCount

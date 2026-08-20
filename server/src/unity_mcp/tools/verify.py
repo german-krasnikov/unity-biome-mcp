@@ -213,10 +213,15 @@ async def _gate_tests(
     return "", _fail("tests", f"{first_line}\n  recommended: {rec}", skip)
 
 
-async def _gate_playtests(playtests: str, restart_between: bool) -> tuple[str, str]:
+async def _gate_playtests(
+    playtests: str, auto_play: bool, restart_between: bool, suite_timeout: float
+) -> tuple[str, str]:
     try:
         result = await _rt.run_playtest_suite(
-            playtests, auto_play=restart_between, restart_between=restart_between
+            playtests,
+            auto_play=auto_play,
+            restart_between=restart_between,
+            suite_timeout=suite_timeout,
         )
     except Exception as e:
         return "", _fail("playtests", f"{type(e).__name__}: {e}", [])
@@ -231,7 +236,9 @@ async def _run_gates(
     test_filter: str,
     playtests: str,
     timeout: float,
+    auto_play: bool,
     restart_between: bool,
+    suite_timeout: float,
     optional_gates: list[str],
 ) -> tuple[list[str], str]:
     """Run all enabled gates in order. Returns (passed_labels, fail_msg)."""
@@ -262,7 +269,7 @@ async def _run_gates(
         passed.append(label)
 
     if playtests:
-        label, err = await _gate_playtests(playtests, restart_between)
+        label, err = await _gate_playtests(playtests, auto_play, restart_between, suite_timeout)
         if err:
             return passed, err
         passed.append(label)
@@ -277,7 +284,9 @@ async def verify_after_change(
     playtests: str = "",
     mark_id: str = "",
     timeout: float = 300.0,
+    auto_play: bool = False,
     restart_between: bool = False,
+    suite_timeout: float = 300.0,
 ) -> str:
     """Single verification gate after code/scene changes.
     Gates are additive — only enabled ones run:
@@ -297,7 +306,8 @@ async def verify_after_change(
         if flag
     ]
     passed, err = await _run_gates(
-        mark_id, run_tests_mode, test_filter, playtests, timeout, restart_between, optional_gates
+        mark_id, run_tests_mode, test_filter, playtests, timeout,
+        auto_play, restart_between, suite_timeout, optional_gates,
     )
     if err:
         return err

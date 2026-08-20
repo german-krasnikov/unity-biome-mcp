@@ -210,12 +210,38 @@ async def test_run_playtest_snapshot_on_failure_default_omits(mock_bridge):
 
 # ── #14A: fresh mode ──────────────────────────────────────────────────────────
 
-async def test_run_playtest_fresh_passes_param(mock_bridge):
-    """fresh=True passes fresh=true to C# bridge."""
-    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
-    await run_playtest("ASSERT_CONSOLE_CLEAN", fresh=True)
-    sent = mock_bridge.send.call_args[0][1]
-    assert sent.get("fresh") == "true"
+@pytest.mark.asyncio
+async def test_run_playtest_fresh_passes_param(monkeypatch):
+    """fresh=True: Python handles lifecycle; does NOT pass fresh to C#."""
+    from unity_mcp.tools import runtime
+
+    playing = False
+    calls = []
+
+    async def fake_send(cmd, args, **kw):
+        nonlocal playing
+        calls.append((cmd, args.copy()))
+        if cmd == "editor":
+            action = args.get("action")
+            if action == "play":
+                playing = True
+                return "entered"
+            if action == "state":
+                return f"playing:{playing}\nplay_epoch:1\nworld_ready:{playing}"
+        if cmd == "run_playtest":
+            return "PLAYTEST: 1/1 (0.1s) OK"
+        return "ok"
+
+    monkeypatch.setattr(runtime, "_send", fake_send)
+    monkeypatch.setattr(runtime, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+
+    await runtime.run_playtest("ASSERT_CONSOLE_CLEAN", fresh=True)
+
+    playtest_calls = [(cmd, a) for cmd, a in calls if cmd == "run_playtest"]
+    assert len(playtest_calls) == 1
+    assert "fresh" not in playtest_calls[0][1], "fresh must not be forwarded to C#"
+    editor_actions = [a.get("action") for cmd, a in calls if cmd == "editor"]
+    assert "play" in editor_actions
 
 
 async def test_run_playtest_fresh_default_omits(mock_bridge):

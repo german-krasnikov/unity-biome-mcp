@@ -38,6 +38,7 @@ from unity_mcp.metrics import METRICS
 # Re-export so existing `from .bridge import DomainReloadError` keeps working
 __all__ = [
     "UnityBridge", "DomainReloadError", "BridgeState", "DeliveryState",
+    "CommandStatus", "CommandLedger", "EditorIdentity",
     "MIN_RECONNECT_INTERVAL", "DOMAIN_RELOAD_EXPIRY_S",
     "_apply_socket_options",
     "_TCP_KEEPALIVE_DARWIN", "_TCP_KEEPINTVL_DARWIN",
@@ -123,8 +124,86 @@ class DeliveryState(enum.Enum):
     FAILED = "failed"       # error before or after write
 
 
+class CommandStatus(enum.Enum):
+    """Persistent lifecycle state for a single op_id in the CommandLedger."""
+    NOT_FOUND = "not_found"    # op_id unknown (never sent or TTL expired)
+    SENT = "sent"              # queued but not yet written to TCP
+    ACCEPTED = "accepted"      # TCP write committed; Unity may have received it
+    COMPLETED = "completed"    # response received (success or Unity-level error)
+    FAILED = "failed"          # terminal transport error; no response
+
+
+@dataclass
+class _LedgerEntry:
+    status: CommandStatus
+    result: dict | None = None
+    ts: float = 0.0
+
+    def __post_init__(self):
+        if self.ts == 0.0:
+            self.ts = time.monotonic()
+
+
+_STATUS_ORDER = {
+    CommandStatus.NOT_FOUND: 0,
+    CommandStatus.SENT: 1,
+    CommandStatus.ACCEPTED: 2,
+    CommandStatus.COMPLETED: 3,
+    CommandStatus.FAILED: 3,  # same level as COMPLETED (both terminal)
+}
+
+
+class CommandLedger:
+    """Asyncio-safe (single event-loop thread) dict-backed ledger tracking op_id → (status, result).
+
+    TTL-based cleanup prevents unbounded memory growth.
+    Lives on the bridge instance; survives close/reconnect cycles.
+    """
+    TTL = 300.0  # seconds; matches DedupRegistry.TtlSeconds on C# side
+
+    def __init__(self) -> None:
+        self._store: dict[str, _LedgerEntry] = {}
+
+    def record(self, op_id: str, status: CommandStatus,
+               result: dict | None = None) -> None:
+        """Upsert entry; never regresses status (forward-only)."""
+        if not op_id:
+            return
+        existing = self._store.get(op_id)
+        if existing and _STATUS_ORDER.get(status, 0) < _STATUS_ORDER.get(existing.status, 0):
+            return  # never regress
+        self._store[op_id] = _LedgerEntry(
+            status=status,
+            result=result if result is not None else (existing.result if existing else None),
+            ts=existing.ts if existing else time.monotonic(),
+        )
+        self._evict()
+
+    def get(self, op_id: str) -> tuple[CommandStatus, dict | None]:
+        entry = self._store.get(op_id)
+        if entry is None:
+            return CommandStatus.NOT_FOUND, None
+        if time.monotonic() - entry.ts > self.TTL:
+            del self._store[op_id]
+            return CommandStatus.NOT_FOUND, None
+        return entry.status, entry.result
+
+    def _evict(self) -> None:
+        cutoff = time.monotonic() - self.TTL
+        stale = [k for k, v in self._store.items() if v.ts < cutoff]
+        for k in stale:
+            del self._store[k]
+
+
 class _CandidateIdentityError(ConnectionError):
     """A TCP endpoint answered, but could not prove it is the intended Editor."""
+
+
+@dataclass(frozen=True)
+class EditorIdentity:
+    """Immutable editor identity captured on first successful handshake (MCP-SESS-024)."""
+    project_id: str
+    project_path: str
 
 
 class UnityBridge(HeartbeatMixin):
@@ -190,6 +269,10 @@ class UnityBridge(HeartbeatMixin):
         self._started_at_utc: str = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         # T19: stable project identity extracted from C# client_hello (cloudProjectId or sha256[:12])
         self._project_id: str | None = None
+        # MCP-SESS-024: immutable editor identity; None until first handshake
+        self._editor_identity: EditorIdentity | None = None
+        # MCP-TRANS-008: persistent command ledger (survives reconnect)
+        self._ledger: CommandLedger = CommandLedger()
 
     @property
     def _startup_grace_expired(self) -> bool:
@@ -213,6 +296,14 @@ class UnityBridge(HeartbeatMixin):
         """Stable project identity from C# client_hello (cloudProjectId or sha256[:12]).
         None until first successful handshake with a C# plugin that sends projectId."""
         return self._project_id
+
+    def get_command_status(self, op_id: str) -> tuple[CommandStatus, dict | None]:
+        """Query the fate of a command by its op_id (MCP-TRANS-008).
+
+        Returns (CommandStatus, cached_result). Callers use this after a transport
+        disconnect to determine if the command was accepted by Unity before the drop.
+        """
+        return self._ledger.get(op_id)
 
     def _build_hello(self, msg_id: str) -> bytes:
         """Build a client_hello JSON frame for the combined handshake."""
@@ -300,6 +391,7 @@ class UnityBridge(HeartbeatMixin):
         self._counter += 1
         msg_id = f"{self._counter:04x}"
         operation_id = str(uuid.uuid4())  # P-322: idempotency key for dedup
+        self._ledger.record(operation_id, CommandStatus.SENT)  # MCP-TRANS-008
         payload = json.dumps(
             {"id": msg_id, "cmd": cmd, "args": args, "op_id": operation_id},
             ensure_ascii=False,
@@ -330,6 +422,7 @@ class UnityBridge(HeartbeatMixin):
                 raise
             try:
                 result = await self._send_with_retry(cmd, payload, msg_id, timeout, deadline, op_id)
+                self._ledger.record(op_id, CommandStatus.COMPLETED, result)  # MCP-TRANS-008
                 if not future.done():
                     future.set_result(result)
             except asyncio.CancelledError:
@@ -344,10 +437,10 @@ class UnityBridge(HeartbeatMixin):
 
     async def _send_with_retry(self, cmd: str, payload: bytes,
                                msg_id: str, timeout: float, session_deadline: float,
-                               operation_id: str = "") -> dict:
+                               op_id: str = "") -> dict:
         """Send cmd with retry loop.
 
-        operation_id (P-322): UUID included in payload as op_id so C# can dedup
+        op_id (P-322): UUID included in payload as op_id so C# can dedup
         retries. On retry after a SENT state (write OK, read failed) the payload
         is rebuilt with 'retry_op_id' so Unity knows to check its dedup registry.
         """
@@ -380,6 +473,7 @@ class UnityBridge(HeartbeatMixin):
                     frame_write(self._writer, payload)
                     await self._writer.drain()
                     delivery = DeliveryState.SENT  # P-322: write committed
+                    self._ledger.record(op_id, CommandStatus.ACCEPTED)  # MCP-TRANS-008
                     try:
                         result = await asyncio.wait_for(
                             self._read_response(), timeout=timeout)
@@ -411,9 +505,9 @@ class UnityBridge(HeartbeatMixin):
                     attempt += 1
                     # P-322: if payload was already written (SENT), the retry must carry
                     # retry_op_id so C# DedupRegistry can detect and suppress re-execution.
-                    if delivery == DeliveryState.SENT and operation_id:
+                    if delivery == DeliveryState.SENT and op_id:
                         raw = json.loads(payload.decode("utf-8"))
-                        raw["retry_op_id"] = operation_id
+                        raw["retry_op_id"] = op_id
                         payload = json.dumps(raw, ensure_ascii=False).encode("utf-8")
                     jitter = random.uniform(0, delay * 0.1)
                     if reason == "domain_reload":
@@ -424,6 +518,7 @@ class UnityBridge(HeartbeatMixin):
                     else:
                         await asyncio.sleep(delay + jitter)
                     continue
+                self._ledger.record(op_id, CommandStatus.FAILED)  # MCP-TRANS-008
                 raise ConnectionError(self._describe_failure(cmd, e)) from e
 
             if result.get("id") != msg_id:
@@ -508,6 +603,29 @@ class UnityBridge(HeartbeatMixin):
         """Canonicalize a Unity project path without requiring it to exist."""
         return os.path.normcase(os.path.realpath(os.path.abspath(os.fspath(path))))
 
+    def _capture_or_check_identity(self, project_id: str, project_path: str) -> None:
+        """Capture editor identity on first handshake; raise on mismatch (MCP-SESS-024)."""
+        from .errors import SessionIdentityMismatch
+        new = EditorIdentity(project_id=project_id, project_path=project_path)
+        if self._editor_identity is None:
+            self._editor_identity = new
+            return
+        stored = self._editor_identity
+        # Primary: compare project_id when both sides have it
+        if stored.project_id and new.project_id:
+            if stored.project_id != new.project_id:
+                raise SessionIdentityMismatch(
+                    f"Reconnect rejected: project changed from "
+                    f"{stored.project_id!r} to {new.project_id!r}"
+                )
+            return
+        # Fallback: path comparison when project_id is absent
+        if stored.project_path and new.project_path and stored.project_path != new.project_path:
+            raise SessionIdentityMismatch(
+                f"Reconnect rejected: project path changed from "
+                f"{stored.project_path!r} to {new.project_path!r}"
+            )
+
     @staticmethod
     async def _close_candidate(writer) -> None:
         writer.close()
@@ -586,6 +704,15 @@ class UnityBridge(HeartbeatMixin):
             if hello.get("ev") == "going_away":
                 raise DomainReloadError("Unity going_away during reconnect")
 
+            if hello.get("error") == "CLIENT_CAPACITY_BUSY":
+                from .errors import CapacityBusyError
+                raise CapacityBusyError(
+                    f"Unity at capacity: {hello.get('active', '?')}/{hello.get('capacity', '?')} clients",
+                    retry_after_seconds=float(hello.get("retry_after_seconds", 5.0)),
+                    capacity=int(hello.get("capacity", 0)),
+                    active=int(hello.get("active", 0)),
+                )
+
             if hello.get("ok") and hello.get("helloVersion"):
                 # New C#: combined response contains version + projectPath — 1 roundtrip.
                 if self._expected_project_path is not None:
@@ -604,6 +731,14 @@ class UnityBridge(HeartbeatMixin):
                 project_id = hello.get("projectId", "")
                 if isinstance(project_id, str) and project_id.strip():
                     self._project_id = project_id.strip()
+                # MCP-SESS-024: capture/enforce editor identity on every handshake
+                _pid = project_id.strip() if isinstance(project_id, str) else ""
+                _raw_path = hello.get("projectPath", "") or ""
+                _canon = (
+                    self._canonical_project_path(_raw_path.strip())
+                    if _raw_path.strip() else ""
+                )
+                self._capture_or_check_identity(project_id=_pid, project_path=_canon)
                 await self._check_version_from_hello(hello)
             else:
                 # Old C#: hello returned ok:false — fallback to project check + get_version.

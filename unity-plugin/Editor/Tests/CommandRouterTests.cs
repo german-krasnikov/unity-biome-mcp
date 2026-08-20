@@ -295,6 +295,40 @@ namespace UnityMCP.Editor.Tests
             }
         }
 
+        // MCP-IDEMP-026: cached response must include dedup_applied:true for transparency.
+        [Test]
+        public void Process_RetryOpId_ResponseHasDedupAppliedFlag()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            var previousDedup = CommandRouter._dedupRegistry;
+            CommandRouter._dedupRegistry = new DedupRegistry();
+            CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsPlayMode = () => false;
+            try
+            {
+                CommandRegistry.Register("test_dedup_flag_cmd", _ => "flag_result",
+                    required: "", optional: "");
+
+                // First call — executes and registers op_id → result.
+                CommandRouter.Process(
+                    "{\"id\":\"fl-1\",\"cmd\":\"test_dedup_flag_cmd\",\"op_id\":\"op-dedup-flag\",\"args\":{}}");
+
+                // Retry via retry_op_id — must return cached result with dedup_applied:true.
+                var retry = CommandRouter.Process(
+                    "{\"id\":\"fl-2\",\"cmd\":\"test_dedup_flag_cmd\",\"retry_op_id\":\"op-dedup-flag\",\"args\":{}}");
+
+                StringAssert.Contains("\"dedup_applied\":true", retry,
+                    $"Cached response must include dedup_applied:true; got: {retry}");
+            }
+            finally
+            {
+                CommandRouter._dedupRegistry = previousDedup;
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
+                CommandRegistry.RestoreForTest(snapshot);
+            }
+        }
+
         [Test]
         public void Process_BatchTimeoutSummary_ReturnsFailureResponse()
         {

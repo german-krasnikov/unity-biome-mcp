@@ -1,0 +1,5 @@
+# restart_between: true
+# Independent tests — each owns its setup, Play Mode restarted between files
+Assets/MCPFeedbackFixture/PlayTests/I1_independent_pass.playtest
+Assets/MCPFeedbackFixture/PlayTests/I2_independent_pass.playtest
+Assets/MCPFeedbackFixture/PlayTests/I3_independent_pass.playtest

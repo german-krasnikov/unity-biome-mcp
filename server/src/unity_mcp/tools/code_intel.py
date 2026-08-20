@@ -64,11 +64,70 @@ def _parse_sync_status(status: str) -> tuple[int, str, str, str]:
         return 0, "idle", "", ""
 
 
-async def await_compile(timeout: float = 60.0) -> str:
+def _parse_generation(status: str) -> int | None:
+    """Extract gen=N from pipe-delimited status. Returns None if absent or non-numeric."""
+    val = parse_pipe_fields(status).get("gen")
+    if val and val.isdigit():
+        return int(val)
+    return None
+
+
+async def _await_compile_generation(timeout: float, expected_generation: int) -> str:
+    """Generation-aware compile fence: waits until gen >= expected_generation completes.
+
+    Polls sync_status for gen=N field. If Unity doesn't report gen (old plugin),
+    returns clean immediately (no generation info available).
+    """
+    from .. import editor_log
+
+    deadline = time.monotonic() + timeout
+    current_gen: int | None = None
+
+    while True:
+        if time.monotonic() > deadline:
+            gen_str = str(current_gen) if current_gen is not None else "unknown"
+            return (
+                f"Compile generation {expected_generation} not reached within "
+                f"{timeout:.0f}s (current: {gen_str})"
+            )
+
+        try:
+            raw = await _send("sync_status", {})
+        except Exception:
+            await asyncio.sleep(1)
+            continue
+
+        gen = _parse_generation(raw)
+        if gen is not None:
+            current_gen = gen
+
+        _, state, _, _ = _parse_sync_status(raw)
+
+        if state in ("idle", "ready"):
+            if current_gen is None:
+                # No gen info from Unity (old plugin) → fall back: return clean
+                errors = await editor_log.get_corroborated_errors(_send, compile_status="idle")
+                return errors if errors else "compile clean (no gen info)"
+            if current_gen < expected_generation:
+                # Compile not triggered for target gen yet — keep waiting
+                await asyncio.sleep(1)
+                continue
+            # gen >= expected and compile done
+            errors = await editor_log.get_corroborated_errors(_send, compile_status="idle")
+            return errors if errors else f"compile clean (gen {current_gen})"
+
+        # state = compiling/reloading — keep polling
+        await asyncio.sleep(1)
+
+
+async def await_compile(timeout: float = 60.0, expected_generation: int | None = None) -> str:
     """Block until Unity finishes compiling + reloading, then return compile errors.
     Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'.
     Handles domain reload disconnects transparently. timeout=0 → immediate check, no loop.
     Epoch-aware via sync_status when available (+10 from MAJOR-1); falls back to compile_status."""
+    if expected_generation is not None:
+        return await _await_compile_generation(timeout, expected_generation)
+
     async def _get_errors(compile_status: str = "") -> str:
         # Sentinel-strip lives in get_corroborated_errors (P3 DRY).
         from .. import editor_log

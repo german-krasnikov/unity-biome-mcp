@@ -1,0 +1,5 @@
+# restart_between: false
+# Long-running chain: A+B set state, L waits 15s, asserts state unchanged
+Assets/MCPFeedbackFixture/PlayTests/A_shared_setup.playtest
+Assets/MCPFeedbackFixture/PlayTests/B_shared_continue.playtest
+Assets/MCPFeedbackFixture/PlayTests/L_long_pass.playtest

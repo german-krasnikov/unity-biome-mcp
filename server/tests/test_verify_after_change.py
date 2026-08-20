@@ -373,7 +373,7 @@ async def test_verify_restart_between_delegates_verified_reset_to_suite():
         result = await _v.verify_after_change(playtests="t.playtest", restart_between=True)
     assert "PASS" in result
     suite_mock.assert_awaited_once_with(
-        "t.playtest", auto_play=True, restart_between=True
+        "t.playtest", auto_play=False, restart_between=True, suite_timeout=300.0
     )
 
 
@@ -389,7 +389,7 @@ async def test_verify_restart_between_false_forwards_no_lifecycle_ownership():
         result = await _v.verify_after_change(playtests="t.playtest", restart_between=False)
     assert "PASS" in result
     suite_mock.assert_awaited_once_with(
-        "t.playtest", auto_play=False, restart_between=False
+        "t.playtest", auto_play=False, restart_between=False, suite_timeout=300.0
     )
 
 

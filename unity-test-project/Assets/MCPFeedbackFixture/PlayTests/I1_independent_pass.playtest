@@ -1,0 +1,6 @@
+INCLUDE common.defs
+INVOKE /Fixture/State FixtureState ResetState
+ASSERT $state == 100
+INVOKE /Fixture/State FixtureState Increment
+ASSERT $state == 101
+ASSERT $counter == 1

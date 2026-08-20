@@ -31,6 +31,17 @@ class ToolSpec:
     direct_only: bool = False
     unity_transport: bool = False
 
+    @property
+    def plane(self) -> str:
+        """Execution plane: 'python' if handled in MCP server, 'unity' if dispatched to Unity TCP.
+
+        Derived from existing fields — direct_only=True with unity_transport=False means
+        the MCP wrapper handles the call entirely in Python without touching the TCP bridge.
+        """
+        if self.direct_only and not self.unity_transport:
+            return "python"
+        return "unity"
+
 
 DEFAULT_TIMEOUT: float = 30.0
 

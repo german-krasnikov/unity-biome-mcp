@@ -63,5 +63,26 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("id\"1", JsonHelper.ExtractString(resp, "id"));
             Assert.AreEqual("/path/\"proj\"", JsonHelper.ExtractString(resp, "projectPath"));
         }
+
+        // BuildCapacityRejectionResponse: Python discriminant is error==CLIENT_CAPACITY_BUSY.
+        // All three numeric fields must be present so Python can extract retry_after_seconds.
+        [Test]
+        public void BuildCapacityRejectionResponse_ContainsRequiredFields()
+        {
+            string resp = ClientConnectionHandler.BuildCapacityRejectionResponse(8, 8);
+            Assert.AreEqual("CLIENT_CAPACITY_BUSY", JsonHelper.ExtractString(resp, "error"),
+                $"error field missing or wrong: {resp}");
+            Assert.IsTrue(resp.Contains("\"capacity\":8"), $"capacity field missing: {resp}");
+            Assert.IsTrue(resp.Contains("\"active\":8"), $"active field missing: {resp}");
+            Assert.IsTrue(resp.Contains("\"retry_after_seconds\":"), $"retry_after_seconds missing: {resp}");
+        }
+
+        [Test]
+        public void BuildCapacityRejectionResponse_ActiveLessThanCapacity()
+        {
+            string resp = ClientConnectionHandler.BuildCapacityRejectionResponse(8, 3);
+            Assert.IsTrue(resp.Contains("\"capacity\":8"), $"capacity wrong: {resp}");
+            Assert.IsTrue(resp.Contains("\"active\":3"), $"active wrong: {resp}");
+        }
     }
 }

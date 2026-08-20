@@ -1,6 +1,25 @@
 """Structured error classification for Unity connection failures."""
 import asyncio
+import enum
 from dataclasses import dataclass
+
+
+class SessionIdentityMismatch(ConnectionError):
+    """Non-retryable: reconnect landed on a different Unity Editor or project (MCP-SESS-024)."""
+
+
+class CapacityBusyError(ConnectionError):
+    """Retryable: Unity TCP server is at MaxClients capacity (MCP-CAP-025).
+
+    Sent by Unity with typed JSON before closing the connection gracefully.
+    """
+
+    def __init__(self, message: str, retry_after_seconds: float = 5.0,
+                 capacity: int = 0, active: int = 0) -> None:
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds
+        self.capacity = capacity
+        self.active = active
 
 
 @dataclass
@@ -10,6 +29,37 @@ class UnityError:
     is_transient: bool
     retry_after_seconds: int
     original_exception: str
+
+
+class FailureCategory(enum.Enum):
+    """Typed protocol-level cause for a command failure (MCP-DIAG-009)."""
+    TRANSPORT_CLOSED = "transport_closed"
+    CAPACITY_BUSY = "capacity_busy"
+    SESSION_MISMATCH = "session_mismatch"
+    TIMEOUT = "timeout"
+    COMPILE_PENDING = "compile_pending"
+    PLAY_NOT_READY = "play_not_ready"
+    PROTOCOL_ERROR = "protocol_error"
+    COMMAND_NOT_FOUND = "command_not_found"
+    UNKNOWN = "unknown"
+
+
+def categorize_failure(exc: Exception) -> tuple[FailureCategory, str]:
+    """Map an exception to a typed FailureCategory and human-readable detail.
+
+    Returns (category, detail) where category is machine-readable and detail
+    is a human-readable description of the failure cause.
+    """
+    # Check subclasses before base classes (MRO-safe order)
+    if isinstance(exc, CapacityBusyError):
+        return FailureCategory.CAPACITY_BUSY, str(exc)
+    if isinstance(exc, SessionIdentityMismatch):
+        return FailureCategory.SESSION_MISMATCH, str(exc)
+    if isinstance(exc, (asyncio.TimeoutError, TimeoutError)):
+        return FailureCategory.TIMEOUT, str(exc) or "Operation timed out"
+    if isinstance(exc, ConnectionError):
+        return FailureCategory.TRANSPORT_CLOSED, str(exc)
+    return FailureCategory.UNKNOWN, str(exc)
 
 
 def classify_failure(exc: Exception, probe_busy: bool, remaining: float) -> UnityError:

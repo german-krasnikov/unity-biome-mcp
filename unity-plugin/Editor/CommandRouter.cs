@@ -150,9 +150,12 @@ namespace UnityMCP.Editor
                     var cachedResult = _dedupRegistry.TryGetResult(retryOpId);
                     if (cachedResult != null)
                     {
-                        if (cachedResult.StartsWith("{"))
-                            return cachedResult;
-                        return JsonHelper.FormatResponse(id, true, cachedResult, null);
+                        // P-322 / MCP-IDEMP-026: inject dedup_applied flag for transparency.
+                        var dedupJson = cachedResult.StartsWith("{")
+                            ? cachedResult
+                            : JsonHelper.FormatResponse(id, true, cachedResult, null);
+                        UnityEngine.Debug.Assert(dedupJson.EndsWith("}"), $"Unexpected JSON tail in dedup response: ...{dedupJson[^Math.Min(20, dedupJson.Length)..]}");
+                        return dedupJson.Substring(0, dedupJson.Length - 1) + ",\"dedup_applied\":true}";
                     }
                 }
 
