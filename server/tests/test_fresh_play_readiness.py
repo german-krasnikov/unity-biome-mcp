@@ -91,8 +91,9 @@ async def test_fresh_true_timeout_returns_typed_error(monkeypatch):
 
     result = await runtime.run_playtest("ASSERT_CONSOLE_CLEAN", fresh=True)
 
-    # Must return typed error string, not raise
-    assert "not ready" in result.lower(), f"Expected 'not ready' in result; got: {result!r}"
+    # Must return structured error, not raise
+    assert "error" in result.lower(), f"Expected 'error' in result; got: {result!r}"
+    assert result.startswith("PLAYTEST:"), f"Expected PLAYTEST format; got: {result!r}"
     # Must NOT be a passing playtest result
     assert "PLAYTEST: 1/1" not in result
 
