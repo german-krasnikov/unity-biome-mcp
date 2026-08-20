@@ -100,8 +100,8 @@ class PlayReadinessTracker:
                 raise _timeout_error()
             try:
                 await asyncio.wait_for(poll(), timeout=remaining)  # Bug 1: bound poll()
-            except asyncio.TimeoutError:
-                raise _timeout_error()
+            except TimeoutError:
+                raise _timeout_error() from None
             if _ready():
                 return
             remaining = deadline - time.monotonic()

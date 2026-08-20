@@ -16,7 +16,7 @@ from .lockfile import _read_port_file_lines
 from .lockfile import is_pid_alive as _is_pid_alive
 from .paths import iter_port_files as _iter_port_files
 from .paths import ports_dir as _ports_dir
-from .tools.gating import TIER1, _CORE_TOOLS, filter_by_tier, get_catalog
+from .tools.gating import _CORE_TOOLS, TIER1, filter_by_tier, get_catalog
 from .tools.schema_registry import STUB_SCHEMA
 from .tools.schema_registry import _registry as _schema_registry
 
