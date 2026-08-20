@@ -43,8 +43,8 @@ namespace UnityMCP.Editor.Wizard
             Run(projectRoot, port, version);
         }
 
-        // Testable core — no Unity API except Debug.LogWarning (always called synchronously
-        // on the main thread via delayCall, never after ConfigureAwait(false)).
+        // Testable core — uses EditorPrefs via AgentConfigPrefs when enabledKeys is null.
+        // Always called synchronously on the main thread via delayCall.
         // enabledKeys: injected by tests; null means read from AgentConfigPrefs (production path).
         internal static void Run(string projectRoot, int port, string version,
             IEnumerable<string> enabledKeys = null)

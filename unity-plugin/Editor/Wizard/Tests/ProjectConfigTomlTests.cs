@@ -130,5 +130,13 @@ namespace UnityMCP.Editor.Tests
             var adopted = ProjectConfigToml.Adopt(text, "1.2.3");
             Assert.AreEqual(EntryState.OwnedCurrent, ProjectConfigToml.Classify(adopted, 9500, "1.2.3"));
         }
+
+        [Test]
+        public void Adopt_LegacyUnityMcpSection_AddsCommentMarker()
+        {
+            var text = "[mcp_servers.unity-mcp]\ncommand = 'uvx'\n";
+            var result = ProjectConfigToml.Adopt(text, "2.0.0");
+            Assert.AreEqual("2.0.0", ProjectConfigToml.ExtractMarkerVersion(result));
+        }
     }
 }

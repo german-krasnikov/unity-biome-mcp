@@ -67,8 +67,11 @@ def write_lock_metadata(fd: int, metadata: dict) -> None:
     pid_end = pid_data.find("\n")
     if pid_end < 0:
         pid_end = len(pid_data)
-    os.lseek(fd, pid_end + 1, os.SEEK_SET)
-    os.write(fd, (json.dumps(metadata, ensure_ascii=False) + "\n").encode())
+    meta_start = pid_end + 1
+    os.lseek(fd, meta_start, os.SEEK_SET)
+    payload = (json.dumps(metadata, ensure_ascii=False) + "\n").encode()
+    os.write(fd, payload)
+    os.ftruncate(fd, meta_start + len(payload))
 
 
 def _read_ppid_from_lock_path(lock_path: Path) -> int | None:
