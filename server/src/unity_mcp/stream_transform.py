@@ -114,16 +114,16 @@ def _handle_stream_event(obj: dict, acc: _ToolCallAcc) -> list[str]:
         dt = d.get("type", "")
         if dt == "thinking_delta":
             if acc.thinking_active:
-                acc.thinking_parts.append(d.get("thinking", ""))
+                acc.thinking_parts.append(d.get("thinking") or "")
             return []
         if dt == "text_delta":
             if acc.active or acc.muted:
                 if acc.muted and acc.result_id:
-                    acc.result_parts.append(d.get("text", ""))
+                    acc.result_parts.append(d.get("text") or "")
                 return []
-            return [f"t|{d.get('text', '')}"]
+            return [f"t|{d.get('text') or ''}"]
         if dt == "input_json_delta":
-            acc.args.append(d.get("partial_json", ""))
+            acc.args.append(d.get("partial_json") or "")
         return []
 
     if et == "content_block_stop":
@@ -197,7 +197,7 @@ def _transform_codex_line(line: str, acc: _ToolCallAcc) -> list[str]:
             id_ = item.get("id", "")
             result = item.get("result") or {}
             content = result.get("content") or []
-            text = " ".join(c.get("text", "") for c in content if c.get("type") == "text")
+            text = " ".join(c.get("text") or "" for c in content if c.get("type") == "text")
             ok = item.get("status", "") != "error"
             return [f"tr|{id_}|{'true' if ok else 'false'}|{text[:_MAX_TOOL_RESULT_LEN]}"] if id_ else []
         return []
