@@ -43,3 +43,21 @@ def test_run_post_hooks_async_hook():
 
     result = asyncio.run(run_post_hooks("asynccmd", {}, "base", None))
     assert result == "base-async"
+
+
+def test_run_post_hooks_failing_hook_no_propagation():
+    """A failing hook must not abort subsequent hooks (isolation)."""
+    calls: list[str] = []
+
+    @register_post("testcmd")
+    def h1(cmd, args, result, mw):
+        raise ValueError("hook failed")
+
+    @register_post("testcmd")
+    def h2(cmd, args, result, mw):
+        calls.append("h2")
+        return result + "-h2"
+
+    result = asyncio.run(run_post_hooks("testcmd", {}, "base", None))
+    assert "h2" in calls, "second hook must still run after first raises"
+    assert result == "base-h2"

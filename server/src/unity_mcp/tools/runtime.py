@@ -175,7 +175,7 @@ async def run_playtest(script: str | None = None, timeout: float = 120.0,
         try:
             await _enter_fresh_play()
         except TimeoutError:
-            return f"Play Mode entered but world not ready within {_FRESH_READINESS_TIMEOUT}s"
+            return f"PLAYTEST: 0/1 ERROR: timeout entering Play Mode after {_FRESH_READINESS_TIMEOUT}s"
     # lifecycle handled above; not passed to C#
     if path:
         raw = await _send("run_playtest", _args(
