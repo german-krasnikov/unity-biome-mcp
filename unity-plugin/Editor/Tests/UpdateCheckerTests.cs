@@ -36,6 +36,46 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void ForceCheckAsync_WhenIsCheckingStuck_ResetsAndStartsNewRequest()
+        {
+            using (UpdateChecker.BeginTestIsolation())
+            {
+                UpdateChecker.SetStateForTest(null, true, null);
+
+                UpdateChecker.ForceCheckAsync();
+
+                Assert.IsTrue(UpdateChecker.IsChecking);
+                Assert.IsNotNull(UpdateChecker.ActiveRequestForTest);
+            }
+        }
+
+        [Test]
+        public void ForceCheckAsync_SetsTimeoutOnRequest()
+        {
+            using (UpdateChecker.BeginTestIsolation())
+            {
+                UpdateChecker.ForceCheckAsync();
+
+                Assert.AreEqual(15, UpdateChecker.ActiveRequestForTest.timeout);
+            }
+        }
+
+        [Test]
+        public void ForceCheckAsync_CancelsStaleRequest_BeforeStarting()
+        {
+            using (UpdateChecker.BeginTestIsolation())
+            {
+                var staleRequest = UnityWebRequest.Get("https://example.invalid/stale");
+                UpdateChecker.SetStateForTest(null, true, null, staleRequest);
+
+                UpdateChecker.ForceCheckAsync();
+
+                Assert.IsNotNull(UpdateChecker.ActiveRequestForTest);
+                Assert.AreNotSame(staleRequest, UpdateChecker.ActiveRequestForTest);
+            }
+        }
+
+        [Test]
         public void TestIsolation_NestedScope_RestoresExactOuterState()
         {
             var outerRequest = UnityWebRequest.Get("https://example.invalid/update-check");

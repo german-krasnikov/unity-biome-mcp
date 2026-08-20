@@ -81,6 +81,7 @@ namespace UnityMCP.Editor
         public static void ForceCheckAsync()
         {
             var context = CurrentContext;
+            CancelActiveCheck(context);
             context.AvailableVersion = null;
             context.LastError = null;
             FetchFromNetwork(context);
@@ -91,6 +92,7 @@ namespace UnityMCP.Editor
             if (context.IsChecking) return;
             context.IsChecking = true;
             var req = UnityWebRequest.Get(ReleasesUrl);
+            req.timeout = 15;
             context.ActiveRequest = req;
             req.SetRequestHeader("User-Agent", "unity-biome-mcp-update-checker");
             req.SendWebRequest().completed += _ => OnResponse(context, req);
