@@ -25,7 +25,7 @@ namespace UnityMCP.Editor.Chat.CLI
 
         private static string ComputeProjectId()
         {
-            var cloudId = UnityEditor.PlayerSettings.cloudProjectId;
+            var cloudId = UnityEditor.CloudProjectSettings.projectId;
             if (!string.IsNullOrEmpty(cloudId)) return cloudId;
             var root = Path.GetFullPath(
                 Path.Combine(UnityEngine.Application.dataPath, ".."));

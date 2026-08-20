@@ -554,7 +554,7 @@ namespace UnityMCP.Editor
         // T19: stable project identity — main-thread-only (PlayerSettings + Application APIs).
         internal static string GetStableProjectId()
         {
-            var cloudId = UnityEditor.PlayerSettings.cloudProjectId;
+            var cloudId = UnityEditor.CloudProjectSettings.projectId;
             if (!string.IsNullOrEmpty(cloudId)) return cloudId;
             var path = System.IO.Path.GetFullPath(
                 System.IO.Path.Combine(Application.dataPath, ".."));

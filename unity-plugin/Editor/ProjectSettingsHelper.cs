@@ -196,7 +196,7 @@ namespace UnityMCP.Editor
                     throw new System.Exception($"Invalid build_target '{buildTargetStr}'. Valid: {string.Join(", ", System.Enum.GetNames(typeof(BuildTargetGroup)))}");
                 if (!System.Enum.TryParse(value, ignoreCase: true, out ScriptingImplementation backend))
                     throw new System.Exception($"Invalid ScriptingBackend '{value}'. Valid: Mono2x, IL2CPP, WinRTDotNET");
-                PlayerSettings.SetScriptingBackend(group, backend);
+                PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.FromBuildTargetGroup(group), backend);
                 return "ok";
             }
             return SetViaReflection(typeof(PlayerSettings), prop, value);
