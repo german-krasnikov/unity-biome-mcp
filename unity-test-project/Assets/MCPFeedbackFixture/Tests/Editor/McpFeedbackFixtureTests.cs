@@ -22,15 +22,15 @@ namespace McpFeedbackFixture.Tests
             Assert.Pass();
         }
 
-        // AT-10 — negative path validation
-        [Test]
+        // AT-10 — negative path validation (explicit: only run when selected by name)
+        [Test, Explicit("Intentionally failing fixture for AT-10 verdict testing")]
         public void FastFail()
         {
             Assert.Fail("intentional_fixture_fail");
         }
 
-        // MCP-UTF-001, AT-06 — timeout testing
-        [Test]
+        // MCP-UTF-001, AT-06 — timeout testing (explicit: long-running, run by name)
+        [Test, Explicit("Long-running fixture for timeout testing")]
         [Timeout(30000)]
         public async Task LongPass()
         {
