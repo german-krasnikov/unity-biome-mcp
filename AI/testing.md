@@ -21,7 +21,7 @@ Every Unity fixture inherits the narrowest supported base:
 
 **MCPFeedbackFixture** (`unity-test-project/Assets/MCPFeedbackFixture/`): Conformance test
 fixture with 10 C# components (FixtureState, FixtureMover, FixtureReceiver, FixtureId, etc.),
-5 EditMode tests (FastPass, FastFail, LongPass, CompileGenerationVisible, ReferenceGraphRoundTrip),
+5 EditMode tests (Baseline_RunIdentityEmit_Succeeds, Baseline_IntentionalFail_ForVerdictValidation, LongPass, CompileGenerationVisible, ReferenceGraphRoundTrip),
 11 PlayTest DSL files, 4 suite definitions, and shared definitions. Use this fixture as the
 protocol compliance baseline.
 
