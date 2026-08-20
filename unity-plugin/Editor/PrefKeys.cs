@@ -37,5 +37,8 @@ namespace UnityMCP.Editor
         public const string ShowLastCommand  = "UnityMCP_ShowLastCommand";
         public const string TerminateOrphan  = "UnityMCP_TerminateOrphan";
         public const string OrphanGraceMin   = "UnityMCP_OrphanGraceMin";
+
+        // Agent config writing — EditorPrefs (comma-separated key list, e.g. "claude-code,cursor")
+        public const string EnabledAgentConfigs = "UnityMCP_EnabledAgentConfigs";
     }
 }
