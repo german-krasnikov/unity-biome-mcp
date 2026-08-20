@@ -151,6 +151,10 @@ async def _pre_tcp_guards(
     flags = ctx.flags
 
     # Pre-call checks — guards see ORIGINAL cmd/args (before any rerouting)
+    ro_block = mw.check_read_only(cmd, args)
+    if ro_block:
+        raise ToolError(ro_block)
+
     retry_warn = mw.check_retry(cmd, args)
     if retry_warn:
         return retry_warn
@@ -158,10 +162,6 @@ async def _pre_tcp_guards(
     pm_block = mw.check_play_mode_required(cmd)
     if pm_block:
         return pm_block
-
-    ro_block = mw.check_read_only(cmd, args)
-    if ro_block:
-        raise ToolError(ro_block)
 
     # Play mode auto-routing — AFTER guards so they see original cmd
     cmd, args = mw.reroute_cmd(cmd, args)
@@ -438,8 +438,6 @@ def wrap_send(send_fn, mw: Any = None):
 
         pre = await _pre_tcp_guards(cmd, args, mw, send_fn, ctx)
         if isinstance(pre, str):
-            if probe_active:
-                mw.circuit.record_success()
             return pre
         cmd, args, resolve_marker, inferred_tags = pre
 

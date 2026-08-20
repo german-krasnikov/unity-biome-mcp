@@ -57,7 +57,7 @@ namespace UnityMCP.Editor.RegionTool
             return false;
         }
 
-        public Polygon2D? Finalize()
+        public Polygon2D? Build()
         {
             if (_radius < 0.01f) return null;
             return new Polygon2D(BuildCircle(_center, _radius, _segments));

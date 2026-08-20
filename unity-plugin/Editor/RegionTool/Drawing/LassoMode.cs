@@ -42,7 +42,7 @@ namespace UnityMCP.Editor.RegionTool
             return false;
         }
 
-        public Polygon2D? Finalize()
+        public Polygon2D? Build()
         {
             if (_points.Count < 3) return null;
             return new Polygon2D(_points.ToArray());

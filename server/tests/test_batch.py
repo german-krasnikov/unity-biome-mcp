@@ -350,3 +350,22 @@ def test_check_completeness_counts_skip():
     cmds = "a\nb\nc\nd\ne"
     result = _check_completeness(cmds, "ok:1 err:1 skip:3")
     assert "[BATCH_INCOMPLETE" not in result
+
+
+def test_strip_python_params_removes_known_keys():
+    """_strip_python_params removes Python-only params, keeps C# params."""
+    from unity_mcp.tools.batch import _strip_python_params
+    result = _strip_python_params("get_component path=/A type=Transform full=true")
+    assert "full=" not in result
+    assert "path=/A" in result
+    assert "type=Transform" in result
+
+
+def test_strip_python_params_preserves_quoted_values():
+    """Bug 3: quoted values with spaces must not leave dangling tokens after stripping."""
+    from unity_mcp.tools.batch import _strip_python_params
+    result = _strip_python_params('get_component path=/A type=Transform full="some value"')
+    assert "full=" not in result
+    assert 'value"' not in result  # dangling token from partial \S+ match
+    assert "path=/A" in result
+    assert "type=Transform" in result

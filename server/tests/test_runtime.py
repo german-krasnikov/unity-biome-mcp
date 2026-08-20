@@ -252,6 +252,20 @@ async def test_run_playtest_fresh_default_omits(mock_bridge):
     assert "fresh" not in sent
 
 
+@pytest.mark.asyncio
+async def test_run_playtest_fresh_timeout_returns_structured(monkeypatch):
+    """TimeoutError from _enter_fresh_play must produce a PLAYTEST: structured result."""
+    from unity_mcp.tools import runtime
+
+    async def fake_enter_fresh_play():
+        raise TimeoutError("world not ready")
+
+    monkeypatch.setattr(runtime, "_enter_fresh_play", fake_enter_fresh_play)
+
+    result = await runtime.run_playtest("ASSERT_CONSOLE_CLEAN", fresh=True)
+    assert result.startswith("PLAYTEST:"), f"expected PLAYTEST: prefix, got: {result!r}"
+
+
 # ── #14B: restart_between ──────────────────────────────────────────────────────
 
 async def test_run_playtest_suite_restart_between(monkeypatch):

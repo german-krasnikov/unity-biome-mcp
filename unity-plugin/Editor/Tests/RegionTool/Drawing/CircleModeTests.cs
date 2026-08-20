@@ -94,49 +94,49 @@ namespace UnityMCP.Editor.Tests.RegionTool
             Assert.IsTrue(_mode.IsComplete);
         }
 
-        // ── Finalize ────────────────────────────────────────────────────────────
+        // ── Build ───────────────────────────────────────────────────────────────
 
         [Test]
-        public void Finalize_ZeroRadius_ReturnsNull()
+        public void Build_ZeroRadius_ReturnsNull()
         {
             _mode.Begin(Vector2.zero, false);
             _mode.OnEvent(MakeMouseUp(), Vector2.zero);
-            var result = _mode.Finalize();
+            var result = _mode.Build();
             Assert.IsNull(result);
         }
 
         [Test]
-        public void Finalize_ValidRadius_ReturnsPolygon()
+        public void Build_ValidRadius_ReturnsPolygon()
         {
             var mode = new CircleMode(segments: 16);
             mode.Begin(Vector2.zero, false);
             mode.OnEvent(MakeDrag(), new Vector2(5f, 0f));
             mode.OnEvent(MakeMouseUp(), new Vector2(5f, 0f));
-            var result = mode.Finalize();
+            var result = mode.Build();
             Assert.IsNotNull(result);
             Assert.AreEqual(16, result!.Value.Vertices.Length);
         }
 
         [Test]
-        public void Finalize_Area_ApproximatesPiRSquared()
+        public void Build_Area_ApproximatesPiRSquared()
         {
             var mode = new CircleMode(segments: 24);
             mode.Begin(Vector2.zero, false);
             mode.OnEvent(MakeDrag(), new Vector2(5f, 0f));
             mode.OnEvent(MakeMouseUp(), new Vector2(5f, 0f));
-            var polygon = mode.Finalize()!.Value;
+            var polygon = mode.Build()!.Value;
             float expected = Mathf.PI * 25f; // π*r²
             Assert.AreEqual(expected, polygon.Area(), expected * 0.05f); // within 5%
         }
 
         [Test]
-        public void Finalize_RoundTrip_CsvPreservesVertexCount()
+        public void Build_RoundTrip_CsvPreservesVertexCount()
         {
             var mode = new CircleMode(segments: 16);
             mode.Begin(Vector2.zero, false);
             mode.OnEvent(MakeDrag(), new Vector2(3f, 0f));
             mode.OnEvent(MakeMouseUp(), new Vector2(3f, 0f));
-            var polygon = mode.Finalize()!.Value;
+            var polygon = mode.Build()!.Value;
             var csv = polygon.ToCsv();
             var restored = Polygon2D.FromCsv(csv);
             Assert.AreEqual(polygon.Vertices.Length, restored.Vertices.Length);

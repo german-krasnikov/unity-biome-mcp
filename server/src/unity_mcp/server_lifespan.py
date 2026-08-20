@@ -84,14 +84,25 @@ def init_budget(mw: Middleware | None) -> tuple:
     return tracker, router
 
 
-def wire_circuit_breaker(mw: Middleware | None, bridge) -> None:
-    """Wire compile-state probe into middleware circuit breaker."""
-    if mw is None or bridge is None:
+def wire_circuit_breaker(mw: Middleware | None, bridge_or_getter) -> None:
+    """Wire compile-state probe into middleware circuit breaker.
+
+    bridge_or_getter: either a UnityBridge instance (legacy) or a callable that
+    returns the current bridge.  Use a getter (e.g. ``lambda: slot.bridge``) so
+    the closure always evaluates the *live* bridge after a reconnect instead of
+    the stale one captured at wire time.
+    """
+    if mw is None or bridge_or_getter is None:
         return
-    probe = getattr(bridge, "_probe", None)
-    if probe is None:
-        return
+
+    def _get_bridge():
+        return bridge_or_getter() if callable(bridge_or_getter) else bridge_or_getter
+
     def ready_fn() -> bool:
+        bridge = _get_bridge()
+        probe = getattr(bridge, "_probe", None)
+        if probe is None:
+            return True
         return not probe.has_strong_busy_signal()
 
     mw._circuit_ready_fn = ready_fn

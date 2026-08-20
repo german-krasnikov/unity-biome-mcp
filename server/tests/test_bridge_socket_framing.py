@@ -73,10 +73,54 @@ async def test_frame_read_normal():
 
 
 async def test_frame_read_zero_length():
-    """Zero-length frame returns b"" — no guard in frame_read itself."""
-    reader = _make_reader(struct.pack("!I", 0), b"")
+    """Zero-length frame is rejected by the frame size guard."""
+    reader = asyncio.StreamReader()
+    reader.feed_data(struct.pack("!I", 0))
+    reader.feed_eof()
+    with pytest.raises(ConnectionError):
+        await frame_read(reader)
+
+
+# ── size guard (OOM protection) ───────────────────────────────────────────────
+
+async def test_frame_read_rejects_zero_length():
+    reader = asyncio.StreamReader()
+    reader.feed_data(struct.pack("!I", 0))
+    reader.feed_eof()
+    with pytest.raises(ConnectionError, match="Frame size"):
+        await frame_read(reader)
+
+
+async def test_frame_read_rejects_oversized():
+    reader = asyncio.StreamReader()
+    reader.feed_data(struct.pack("!I", 10_000_001))
+    reader.feed_eof()
+    with pytest.raises(ConnectionError, match="Frame size"):
+        await frame_read(reader)
+
+
+async def test_frame_read_accepts_max_valid():
+    payload = b"x" * 10_000_000
+    reader = asyncio.StreamReader()
+    reader.feed_data(struct.pack("!I", len(payload)) + payload)
+    reader.feed_eof()
     result = await frame_read(reader)
-    assert result == b""
+    assert result == payload
+
+
+async def test_frame_read_accepts_small():
+    reader = asyncio.StreamReader()
+    reader.feed_data(struct.pack("!I", 5) + b"hello")
+    reader.feed_eof()
+    assert await frame_read(reader) == b"hello"
+
+
+async def test_frame_read_with_timeout_rejects_oversized():
+    reader = asyncio.StreamReader()
+    reader.feed_data(struct.pack("!I", 10_000_001))
+    reader.feed_eof()
+    with pytest.raises(ConnectionError, match="Frame size"):
+        await frame_read_with_timeout(reader, timeout=1.0)
 
 
 async def test_frame_read_header_incomplete_raises():

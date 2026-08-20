@@ -920,6 +920,48 @@ def test_circuit_ready_fn_exception_falls_through_to_cooldown():
     assert not cb.allow_request()
 
 
+def test_circuit_probe_refreshed_after_reconnect():
+    """wire_circuit_breaker must read the probe from the CURRENT bridge on every call.
+
+    Bug: the original implementation captured bridge._probe once at wire time.
+    After reconnect a new bridge is created, but the closure still references the
+    stale probe — so circuit-ready evaluation uses a dead bridge's state.
+    Fix: accept a callable (bridge getter) so ready_fn resolves the bridge lazily.
+    """
+    from unity_mcp.middleware import Middleware
+    from unity_mcp.server_lifespan import wire_circuit_breaker
+
+    class FakeProbe:
+        def __init__(self, busy: bool) -> None:
+            self._busy = busy
+        def has_strong_busy_signal(self) -> bool:
+            return self._busy
+
+    class FakeBridge:
+        def __init__(self, busy: bool) -> None:
+            self._probe = FakeProbe(busy)
+
+    old_bridge = FakeBridge(busy=False)
+    new_bridge = FakeBridge(busy=True)
+
+    # Simulate a connection slot that yields the current bridge.
+    current: list = [old_bridge]
+    def get_bridge():
+        return current[0]
+
+    mw = Middleware()
+    wire_circuit_breaker(mw, get_bridge)
+
+    # Before reconnect: old bridge not busy → circuit reports ready.
+    assert mw.circuit._is_ready_fn() is True
+
+    # Simulate reconnect: slot now holds the new bridge.
+    current[0] = new_bridge
+
+    # After reconnect: new bridge IS busy → circuit reports not ready.
+    assert mw.circuit._is_ready_fn() is False
+
+
 async def test_prefetch_cache_hit_served_when_circuit_open():
     """PrefetchCache hit for a cacheable read must be served even when the circuit is OPEN."""
     from unity_mcp.prefetch_cache import PrefetchCache

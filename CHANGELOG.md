@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.46.1] — 2026-08-20
+
+### Fixed
+
+- **SonarCloud reliability improvement (36 Python + 6 critical, 15 C# static analysis):**
+  - **Protocol & transport (Python):** Frame size guard (10MB OOM prevention), concurrent connect() race with asyncio.Lock, CancelledError bridge leak cleanup, JSON dict validation in _read_response, reload mark deduplication, ledger close() drain tracking
+  - **Correctness guards (Python):** PlayReadinessTracker null state/epoch regression/timeout, circuit-success false positive on pre-TCP guard exit, stream_transform 5 null-value handling fixes, pipe_parser non-dict JSON/float ValueError/whitespace, ui_intent cellSize crash/duplicate names/unqualified parent, batch timeout + quoted params, regex dead-code elimination
+  - **Advanced fixes (Python):** Eliminate O(n²) regex backtracking in create_object (S8786), circuit probe refresh on reconnect, schema set derivation from specs, post-hook exception isolation, acp type narrowing (S5655), structured PLAYTEST timeout format on runtime error
+  - **C# static analysis:** Remove async from 22 test methods (CS1998), rename Finalize()→Build() in drawing modes (CS0465), migrate 8 deprecated Unity APIs to 6.0 equivalents (CS0618), log empty catches instead of swallowing, resolve 3 test regressions from fixes
+  - **Test infrastructure:** Conformance fixture tests renamed to descriptive names (Baseline_RunIdentityEmit_Succeeds, Baseline_IntentionalFail_ForVerdictValidation, etc.); PLAYTEST DSL timeout assertion updated
+  - New 28 unit tests covering reliability fixes, regression guards, and edge cases
+
 ## [v1.46.0] — 2026-08-20
 
 ### Added
@@ -3509,7 +3521,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.1...HEAD
+[v1.46.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.0...v1.46.1
 [v1.46.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.45.0...v1.46.0
 [v1.45.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.44.0...v1.45.0
 [v1.44.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.43.0...v1.44.0

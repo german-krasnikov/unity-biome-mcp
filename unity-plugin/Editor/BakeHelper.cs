@@ -64,11 +64,13 @@ namespace UnityMCP.Editor
 
         static string GetLightingSettings()
         {
-            return $"bakeMode:{LightmapEditorSettings.mixedBakeMode}\n" +
-                   $"lightmapResolution:{LightmapEditorSettings.bakeResolution}\n" +
-                   $"maxAtlasSize:{LightmapEditorSettings.maxAtlasSize}\n" +
-                   $"bounces:{LightmapEditorSettings.bounces}\n" +
-                   $"filteringMode:{LightmapEditorSettings.filteringMode}";
+            if (!Lightmapping.TryGetLightingSettings(out var ls))
+                return "err:no_lighting_settings";
+            return $"bakeMode:{ls.mixedBakeMode}\n" +
+                   $"lightmapResolution:{ls.lightmapResolution}\n" +
+                   $"maxAtlasSize:{ls.lightmapMaxSize}\n" +
+                   $"bounces:{ls.maxBounces}\n" +
+                   $"filteringMode:{ls.filteringMode}";
         }
 
         // ── occlusion ─────────────────────────────────────────────────────────

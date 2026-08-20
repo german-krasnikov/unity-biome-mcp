@@ -85,8 +85,8 @@ class AcpAgentAdapter:
             self._session = None
 
     async def set_mode(self, mode: str) -> None:
-        if self._meta is not None:
-            await self.start(replace(self._meta, mode=mode))
+        if (meta := self._meta) is not None:
+            await self.start(replace(meta, mode=mode))
 
     async def close(self) -> None:
         await self.cancel()

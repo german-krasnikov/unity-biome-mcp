@@ -1108,3 +1108,65 @@ def test_tool_error_empty_body_emits_event():
         acc,
     )
     assert result == ["tr|tu-err|false|"]
+
+# ── null-value robustness (Bugs A-E) ─────────────────────────────────────────
+
+def _stream_event(event: dict) -> str:
+    return json.dumps({"type": "stream_event", "event": event})
+
+
+def test_handle_stream_event_thinking_null_no_crash():
+    """Bug A: thinking_delta with null 'thinking' must not crash on join."""
+    acc = _ToolCallAcc()
+    # start thinking block
+    _transform_line(_stream_event({"type": "content_block_start", "content_block": {"type": "thinking"}}), acc)
+    # delta with explicit null
+    _transform_line(_stream_event({"type": "content_block_delta", "delta": {"type": "thinking_delta", "thinking": None}}), acc)
+    # stop — joins thinking_parts; must not TypeError
+    result = _transform_line(_stream_event({"type": "content_block_stop"}), acc)
+    assert result == []  # empty thinking produces no output
+
+
+def test_handle_stream_event_text_null_no_literal_none():
+    """Bug B: text_delta with null 'text' must not produce 't|None'."""
+    acc = _ToolCallAcc()
+    result = _transform_line(_stream_event({"type": "content_block_delta", "delta": {"type": "text_delta", "text": None}}), acc)
+    assert result == ["t|"]
+    assert "None" not in result[0]
+
+
+def test_handle_stream_event_tool_result_text_null_no_crash():
+    """Bug C: text_delta inside tool_result block with null text must not crash on join."""
+    acc = _ToolCallAcc()
+    _transform_line(_stream_event({"type": "content_block_start", "content_block": {"type": "tool_result", "tool_use_id": "tu-1", "is_error": False}}), acc)
+    _transform_line(_stream_event({"type": "content_block_delta", "delta": {"type": "text_delta", "text": None}}), acc)
+    result = _transform_line(_stream_event({"type": "content_block_stop"}), acc)
+    # join must not TypeError; empty text → no tr event
+    assert all("None" not in r for r in result)
+
+
+def test_handle_stream_event_partial_json_null_no_crash():
+    """Bug D: input_json_delta with null 'partial_json' must not crash on join."""
+    acc = _ToolCallAcc()
+    _transform_line(_stream_event({"type": "content_block_start", "content_block": {"type": "tool_use", "name": "foo", "id": "tc-1"}}), acc)
+    _transform_line(_stream_event({"type": "content_block_delta", "delta": {"type": "input_json_delta", "partial_json": None}}), acc)
+    # stop — calls complete_args() which joins args; must not TypeError
+    result = _transform_line(_stream_event({"type": "content_block_stop"}), acc)
+    assert any(r.startswith("tc|foo") for r in result)
+
+
+def test_codex_content_text_null_no_crash():
+    """Bug E: Codex mcp_tool_call result with null 'text' in content must not crash."""
+    line = json.dumps({
+        "type": "item.completed",
+        "item": {
+            "type": "mcp_tool_call",
+            "id": "tc-codex-1",
+            "status": "success",
+            "result": {
+                "content": [{"type": "text", "text": None}]
+            },
+        },
+    })
+    result = _transform_codex_line(line, _ToolCallAcc())
+    assert all("None" not in r for r in result)

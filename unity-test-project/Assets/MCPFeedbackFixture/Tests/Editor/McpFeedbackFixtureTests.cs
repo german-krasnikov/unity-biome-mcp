@@ -11,11 +11,11 @@ using UnityMCP.Editor.Testing;
 namespace McpFeedbackFixture.Tests
 {
     [TestFixture]
-    public class McpFeedbackFixtureTests : UnityMcpTestBase
+    public class ConformanceBaselineTests : UnityMcpTestBase
     {
         // AT-01/MCP-UTF-001/002 — baseline run identity emit
         [Test]
-        public void FastPass()
+        public void Baseline_RunIdentityEmit_Succeeds()
         {
             var runId = Guid.NewGuid().ToString("N").Substring(0, 8);
             TestContext.WriteLine($"fixture_run_id={runId}");
@@ -24,7 +24,7 @@ namespace McpFeedbackFixture.Tests
 
         // AT-10 — negative path validation (explicit: only run when selected by name)
         [Test, Explicit("Intentionally failing fixture for AT-10 verdict testing")]
-        public void FastFail()
+        public void Baseline_IntentionalFail_ForVerdictValidation()
         {
             Assert.Fail("intentional_fixture_fail");
         }

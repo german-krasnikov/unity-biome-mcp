@@ -113,10 +113,19 @@ def _node_path(node: dict, name_map: dict) -> str:
 
 
 def build_ui_batch(nodes: list[dict], parent: str | None) -> list[str]:
+    # Bug 3: detect duplicate names early
+    names = [n["name"] for n in nodes]
+    dupes = {n for n in names if names.count(n) > 1}
+    if dupes:
+        raise ValueError(f"Duplicate node names: {', '.join(sorted(dupes))}")
     name_map = {n["name"]: n for n in nodes}
+    # Bug 2: pre-build full path map for parent resolution
+    path_map = {n["name"]: _node_path(n, name_map) for n in nodes}
     lines = []
     for node in nodes:
-        elem_parent = node.get("parent") or parent
+        raw_parent = node.get("parent") or parent
+        # Resolve unqualified DSL parent names to full paths
+        elem_parent = path_map.get(raw_parent, raw_parent) if raw_parent else None
         attrs = node["attrs"]
         # create_ui call
         create_args = {"type": node["type"].capitalize(), "name": node["name"]}
@@ -183,7 +192,9 @@ def build_ui_batch(nodes: list[dict], parent: str | None) -> list[str]:
             # G7: Grid-only attrs
             if layout_comp == "GridLayoutGroup":
                 if "cellSize" in attrs:
-                    w, h = attrs["cellSize"].split(",", 1)
+                    parts = attrs["cellSize"].split(",", 1)
+                    w = parts[0].strip()
+                    h = parts[1].strip() if len(parts) > 1 else w
                     lines.append(build_batch_line("set_property", path=node_path,
                                                   component=layout_comp, prop="m_CellSize",
                                                   value=f"({w.strip()},{h.strip()})"))

@@ -1,5 +1,4 @@
 // Session 9: UIElementHelper — Phase 2 SimulateClick, FillText, FocusElement tests.
-using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -24,7 +23,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 1: FindElement by name returns the correct element
         [Test]
-        public async Task FindElement_ByName_ReturnsCorrectElement()
+        public void FindElement_ByName_ReturnsCorrectElement()
         {
             // Directly test UIElementHelper internal via reflection isn't needed;
             // test the public API: ReadValue with a standalone root via a local helper.
@@ -46,7 +45,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 2: FindElement by CSS class returns first match
         [Test]
-        public async Task FindElement_ByClass_ReturnsFirst()
+        public void FindElement_ByClass_ReturnsFirst()
         {
             var root = new VisualElement { name = "root" };
             var label = new Label { name = "hp-label" };
@@ -62,7 +61,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 3: non-existent selector returns null (no exception)
         [Test]
-        public async Task FindElement_NotFound_DoesNotThrow()
+        public void FindElement_NotFound_DoesNotThrow()
         {
             var root = new VisualElement { name = "root" };
             VisualElement found = null;
@@ -79,7 +78,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 4: ReadProperty "text" returns TextElement.text
         [Test]
-        public async Task ReadProperty_TextElement_ReturnsText()
+        public void ReadProperty_TextElement_ReturnsText()
         {
             var root = new VisualElement { name = "root" };
             var label = new Label { name = "score", text = "42" };
@@ -94,7 +93,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 5: display style none → "none"
         [Test]
-        public async Task ReadProperty_Display_StyleNoneYieldsNone()
+        public void ReadProperty_Display_StyleNoneYieldsNone()
         {
             var root = new VisualElement { name = "root" };
             var el = new VisualElement { name = "panel" };
@@ -110,7 +109,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 6: SimulateClick on Button invokes clickable
         [Test]
-        public async Task SimulateClick_Button_InvokesAction()
+        public void SimulateClick_Button_InvokesAction()
         {
             var go = new GameObject("ClickGO");
             TrackOwnedObject(go);
@@ -132,7 +131,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 7: FillText on TextField sets value
         [Test]
-        public async Task FillText_TextField_SetsValue()
+        public void FillText_TextField_SetsValue()
         {
             var tf = new TextField { name = "input" };
             tf.SetValueWithoutNotify("hello");
@@ -146,7 +145,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 8: Toggle M4 fix — SetValueWithoutNotify not clickable.Invoke
         [Test]
-        public async Task Toggle_M4Fix_SetValueWithoutNotify_NotClickableInvoke()
+        public void Toggle_M4Fix_SetValueWithoutNotify_NotClickableInvoke()
         {
             var tg = new Toggle { name = "myToggle" };
             tg.SetValueWithoutNotify(false);

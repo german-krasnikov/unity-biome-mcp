@@ -35,10 +35,6 @@ class RetryPolicy:
         if isinstance(error, CapacityBusyError):
             return True, error.retry_after_seconds, "capacity_busy"
 
-        if isinstance(error, DomainReloadError):
-            self.probe.mark_recompile_issued()
-            self.reload.mark()
-
         if isinstance(error, TimeoutError) and not self.is_retry_safe(cmd):
             return False, 0.0, "unsafe_to_retry"
 

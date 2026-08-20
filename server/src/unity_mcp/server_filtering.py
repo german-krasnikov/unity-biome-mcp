@@ -16,28 +16,19 @@ from .lockfile import _read_port_file_lines
 from .lockfile import is_pid_alive as _is_pid_alive
 from .paths import iter_port_files as _iter_port_files
 from .paths import ports_dir as _ports_dir
-from .tools.gating import _CORE_TOOLS, filter_by_tier, get_catalog
+from .tools.gating import _CORE_TOOLS, TIER1, filter_by_tier, get_catalog
 from .tools.schema_registry import STUB_SCHEMA
 from .tools.schema_registry import _registry as _schema_registry
 
-# Core tools keep full schemas; all others get stub schema on ListTools.
+# All TIER1/core tools get full schemas (auto-derived from _SPECS — no manual drift).
+# Only non-tier1 exceptions need explicit listing here.
 _SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = frozenset({
-    "run_playtest", "run_playtest_suite", "run_tests", "run_tests_wait",
-    "resolve_tool_schema", "discover_tools",
-    # MCP091-004 / MCP091-012: required-param TIER1 direct_only tools
-    "get_console_since", "scene", "await_compile", "console_mark", "screenshot",
-    # MCP091-PARTIAL: additional TIER1 tools with required params
-    "compile_preflight", "search_scene", "set_active", "set_parent", "validate_references",
-    # MCP091: sync_unity missing — must expose schema so resolve/bump params are visible
-    "sync_unity",
-    # B3: MEDIA tools with required params (path, action) must not receive stub schema
+    # B3: MEDIA tools with required params (path, action) not yet promoted to tier1
     "timeline", "animation", "animator",
     # B4: SYSTEM tool with label param; sub-agents need full schema to construct calls
     "checkpoint",
-    # Step 1: intent tools promoted to tier1 — must expose full schema
-    "ui_intent", "vfx_intent", "uitk_intent",
 })
-_SCHEMA_KEEP_FULL: frozenset[str] = _CORE_TOOLS | _SCHEMA_KEEP_FULL_EXTRA
+_SCHEMA_KEEP_FULL: frozenset[str] = frozenset(TIER1) | _SCHEMA_KEEP_FULL_EXTRA
 
 # Non-core tool descriptions are truncated to this length in the initial
 # ListTools response; full text remains available via resolve_tool_schema.
