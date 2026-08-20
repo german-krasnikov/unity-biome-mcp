@@ -373,3 +373,51 @@ def test_startcorner_upperleft_maps_to_0():
     sc_lines = [l for l in lines if "m_StartCorner" in l]
     assert sc_lines, f"Expected m_StartCorner set_property, got: {lines}"
     assert "value=0" in sc_lines[0], sc_lines[0]
+
+
+# ---------------------------------------------------------------------------
+# Bug fixes: cellSize crash + duplicate names + unqualified parent
+# ---------------------------------------------------------------------------
+
+def test_build_ui_batch_cellsize_single_value_no_crash():
+    """Bug 1: cellSize=80 (single value) must not crash and use 80 for both W and H."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  grid G dir=grid cellSize=80"
+    nodes = parse_ui_dsl(dsl)
+    lines = build_ui_batch(nodes, parent=None)
+    cs_lines = [l for l in lines if "m_CellSize" in l]
+    assert cs_lines, f"Expected m_CellSize set_property, got: {lines}"
+    assert "value=(80,80)" in cs_lines[0], cs_lines[0]
+
+
+def test_build_ui_batch_cellsize_normal_pair():
+    """Bug 1 regression: cellSize=80,60 must still work → value=(80,60)."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  grid G dir=grid cellSize=80,60"
+    nodes = parse_ui_dsl(dsl)
+    lines = build_ui_batch(nodes, parent=None)
+    cs_lines = [l for l in lines if "m_CellSize" in l]
+    assert cs_lines
+    assert "value=(80,60)" in cs_lines[0], cs_lines[0]
+
+
+def test_build_ui_batch_duplicate_names_detected():
+    """Bug 3: two nodes named 'Panel' must raise ValueError with 'Duplicate' in message."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  panel Panel\n  panel Panel"
+    nodes = parse_ui_dsl(dsl)
+    with pytest.raises(ValueError, match="[Dd]uplicate"):
+        build_ui_batch(nodes, parent=None)
+
+
+def test_build_ui_batch_unqualified_parent_resolved():
+    """Bug 2: child create_ui must use full path of parent, not bare name."""
+    from unity_mcp.tools.ui_intent_tool import parse_ui_dsl, build_ui_batch
+    dsl = "canvas Canvas\n  panel HUD\n    image HealthBar"
+    nodes = parse_ui_dsl(dsl)
+    lines = build_ui_batch(nodes, parent=None)
+    create_lines = [l for l in lines if "create_ui" in l and "HealthBar" in l]
+    assert create_lines, f"Expected create_ui for HealthBar, got: {lines}"
+    assert "parent=/Canvas/HUD" in create_lines[0], (
+        f"Expected full path parent=/Canvas/HUD, got: {create_lines[0]}"
+    )
