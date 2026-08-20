@@ -113,5 +113,22 @@ namespace UnityMCP.Editor.Tests
             var result = ProjectConfigToml.Classify(existing, 9500, "1.2.3");
             Assert.AreEqual(EntryState.Foreign, result);
         }
+
+        [Test]
+        public void Adopt_AddsCommentMarker()
+        {
+            var text = "[mcp_servers.unity-biome-mcp]\ncommand = 'uvx'\n";
+            var result = ProjectConfigToml.Adopt(text, "1.2.3");
+            Assert.AreEqual("1.2.3", ProjectConfigToml.ExtractMarkerVersion(result));
+        }
+
+        [Test]
+        public void ClassifyAfterAdopt_ReturnsOwnedCurrent()
+        {
+            var text = "[mcp_servers.unity-biome-mcp]\ncommand = 'uvx'\n\n"
+                + "[mcp_servers.unity-biome-mcp.env]\nUNITY_MCP_PORT = '9500'\n";
+            var adopted = ProjectConfigToml.Adopt(text, "1.2.3");
+            Assert.AreEqual(EntryState.OwnedCurrent, ProjectConfigToml.Classify(adopted, 9500, "1.2.3"));
+        }
     }
 }

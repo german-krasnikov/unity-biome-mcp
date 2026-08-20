@@ -99,15 +99,33 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Run_FileWithForeignUnityMcpEntry_SkipsFile_LeavesContentUntouched()
+        public void Run_FileWithForeignUnityMcpEntry_AdoptsEntry_AddsVersionMarker()
         {
+            // Adoption: foreign entry gets "_v" marker inserted; custom content preserved.
             var path = Path.Combine(_tmpDir, ".mcp.json");
             var handWritten = "{\"mcpServers\":{\"unity-mcp\":{\"command\":\"custom\"}}}";
             File.WriteAllText(path, handWritten);
 
             ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3");
 
-            Assert.AreEqual(handWritten, File.ReadAllText(path));
+            var content = File.ReadAllText(path);
+            StringAssert.Contains("\"_v\": \"1.2.3\"", content);
+            StringAssert.Contains("custom", content);
+        }
+
+        [Test]
+        public void WriteOne_Foreign_AdoptsEntryInsteadOfSkipping()
+        {
+            var path = Path.Combine(_tmpDir, ".mcp.json");
+            var handWritten = "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"custom\"}}}";
+            File.WriteAllText(path, handWritten);
+
+            ProjectConfigWriter.WriteOne(_tmpDir, ProjectConfigTargets.All[0], 9500, "1.2.3",
+                WizardConfigWriter.GitInstallUrlFor("1.2.3"));
+
+            var content = File.ReadAllText(path);
+            StringAssert.Contains("\"_v\": \"1.2.3\"", content);
+            StringAssert.Contains("custom", content);
         }
 
         [Test]

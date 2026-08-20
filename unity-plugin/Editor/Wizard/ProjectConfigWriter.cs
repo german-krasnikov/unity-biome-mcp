@@ -66,7 +66,15 @@ namespace UnityMCP.Editor.Wizard
                 if (state == EntryState.OwnedCurrent) return; // no-op, cheapest path
                 if (state == EntryState.Foreign)
                 {
-                    Debug.LogWarning($"unity-biome-mcp: {target.RelativePath} has a hand-edited unity-biome-mcp entry — skipping.");
+                    Debug.Log($"{BiomeLabel.Tag} Adopting hand-edited entry in {target.RelativePath} (adding version marker).");
+                    var adopted = target.IsToml
+                        ? ProjectConfigToml.Adopt(existingText, version)
+                        : ProjectConfigFormats.Adopt(existingText, version);
+                    if (ReferenceEquals(adopted, existingText)) return; // entry not found — leave intact
+                    var adoptTmp = path + ".tmp";
+                    File.WriteAllText(adoptTmp, adopted, new UTF8Encoding(false));
+                    if (exists) File.Delete(path);
+                    File.Move(adoptTmp, path);
                     return;
                 }
 

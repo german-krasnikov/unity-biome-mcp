@@ -54,6 +54,20 @@ namespace UnityMCP.Editor.Wizard
             return m.Success ? int.Parse(m.Groups[1].Value) : (int?)null;
         }
 
+        /// <summary>
+        /// Insert a "_v" marker into a Foreign entry without rewriting any other content.
+        /// After this call, Classify() returns OwnedCurrent for the given version.
+        /// Returns the original reference unchanged when no unity-biome-mcp entry is found.
+        /// </summary>
+        internal static string Adopt(string existingText, string version)
+        {
+            if (!FindOurEntry(existingText, out _, out var end)) return existingText;
+            var insertAt = end - 1; // index of closing }
+            return existingText.Substring(0, insertAt).TrimEnd()
+                + ",\n      \"_v\": \"" + version + "\"\n    }"
+                + existingText.Substring(end);
+        }
+
         internal static EntryState Classify(string existingText, int port, string version)
         {
             if (string.IsNullOrEmpty(existingText) ||
