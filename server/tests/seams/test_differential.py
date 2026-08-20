@@ -22,7 +22,8 @@ async def test_batch_vs_sequential_create_identical_hierarchy(seam_bridge, seam_
     # Batch path
     batch_cmds = "\n".join(f"create_object name={n}" for n in bat_names)
     resp = await seam_bridge.send("batch", {"commands": batch_cmds})
-    text = resp.get("data", "")
+    assert resp.get("ok"), f"batch create failed: {resp.get('err', resp)}"
+    text = resp.get("data", "") or resp.get("err", "")
     assert "err:" not in text, f"batch create had errors: {text[:200]}"
 
     # Both sets of objects must be present in hierarchy
@@ -34,9 +35,9 @@ async def test_batch_vs_sequential_create_identical_hierarchy(seam_bridge, seam_
     for seq_n, bat_n in zip(seq_names, bat_names):
         seq_resp = await seam_bridge.send("get_component", {"path": f"/{seq_n}", "type": "Transform"})
         bat_resp = await seam_bridge.send("get_component", {"path": f"/{bat_n}", "type": "Transform"})
-        assert seq_resp.get("ok") == bat_resp.get("ok"), (
-            f"batch/sequential create differ in get_component ok: "
-            f"{seq_n}={seq_resp.get('ok')} vs {bat_n}={bat_resp.get('ok')}"
+        assert bat_resp.get("ok"), (
+            f"batch-created object get_component failed: "
+            f"{bat_n} err={bat_resp.get('err', bat_resp)}"
         )
 
 
