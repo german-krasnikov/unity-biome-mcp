@@ -131,5 +131,31 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("other-tool", result);
             StringAssert.Contains("\"_v\": \"2.0.0\"", result);
         }
+
+        [Test]
+        public void Adopt_NoEntry_ReturnsOriginalText()
+        {
+            var text = "{\"mcpServers\":{}}";
+            var result = ProjectConfigFormats.Adopt(text, "1.2.3");
+            Assert.IsTrue(ReferenceEquals(result, text));
+        }
+
+        [Test]
+        public void Adopt_AddsMissingMarker_LeavesOtherContentIntact()
+        {
+            var text = "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"uvx\","
+                + "\"env\":{\"UNITY_MCP_NO_GATING\":\"1\"}}}}";
+            var result = ProjectConfigFormats.Adopt(text, "1.2.3");
+            StringAssert.Contains("\"_v\": \"1.2.3\"", result);
+            StringAssert.Contains("UNITY_MCP_NO_GATING", result);
+        }
+
+        [Test]
+        public void ClassifyAfterAdopt_ReturnsOwnedCurrent()
+        {
+            var text = "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"uvx\"}}}";
+            var adopted = ProjectConfigFormats.Adopt(text, "1.2.3");
+            Assert.AreEqual(EntryState.OwnedCurrent, ProjectConfigFormats.Classify(adopted, 9500, "1.2.3"));
+        }
     }
 }

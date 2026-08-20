@@ -67,8 +67,24 @@ def write_lock_metadata(fd: int, metadata: dict) -> None:
     pid_end = pid_data.find("\n")
     if pid_end < 0:
         pid_end = len(pid_data)
-    os.lseek(fd, pid_end + 1, os.SEEK_SET)
-    os.write(fd, (json.dumps(metadata, ensure_ascii=False) + "\n").encode())
+    meta_start = pid_end + 1
+    os.lseek(fd, meta_start, os.SEEK_SET)
+    payload = (json.dumps(metadata, ensure_ascii=False) + "\n").encode()
+    os.write(fd, payload)
+    os.ftruncate(fd, meta_start + len(payload))
+
+
+def _read_ppid_from_lock_path(lock_path: Path) -> int | None:
+    """Read ppid from lockfile metadata. None if absent or unreadable."""
+    try:
+        fd = os.open(str(lock_path), os.O_RDONLY)
+        try:
+            meta = read_lock_metadata(fd)
+            return meta.get("ppid") if meta else None
+        finally:
+            os.close(fd)
+    except (OSError, ValueError):
+        return None
 
 
 def read_lock_metadata(fd: int) -> dict | None:
@@ -172,6 +188,7 @@ def acquire_lock(lock_dir=None, port: int = DEFAULT_PORT,
         raise RuntimeError(f"Cannot acquire exclusive lock for port {port} (PID {os.getpid()} already holds it)") from None
 
     _write_pid(fd)
+    write_lock_metadata(fd, {"ppid": os.getppid()})
     if metadata is not None:
         write_lock_metadata(fd, metadata)
     _lock_paths[fd] = str(lock_file)

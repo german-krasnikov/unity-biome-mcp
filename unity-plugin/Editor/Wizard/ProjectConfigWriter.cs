@@ -2,6 +2,7 @@
 // currently resolved port + installed package version. See
 // Plans/Install/11-phase1a-design.md for the full design.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -42,14 +43,39 @@ namespace UnityMCP.Editor.Wizard
             Run(projectRoot, port, version);
         }
 
-        // Testable core — no Unity API except Debug.LogWarning (always called synchronously
-        // on the main thread via delayCall, never after ConfigureAwait(false)).
-        internal static void Run(string projectRoot, int port, string version)
+        // Testable core — uses EditorPrefs via AgentConfigPrefs when enabledKeys is null.
+        // Always called synchronously on the main thread via delayCall.
+        // enabledKeys: injected by tests; null means read from AgentConfigPrefs (production path).
+        internal static void Run(string projectRoot, int port, string version,
+            IEnumerable<string> enabledKeys = null)
         {
+            if (enabledKeys == null)
+            {
+                if (AgentConfigPrefs.IsFirstRun)
+                    AgentConfigPrefs.InitializeFromDetected(AgentConfigPrefs.DetectInstalled());
+                enabledKeys = AgentConfigPrefs.GetEnabledKeys();
+            }
+
+            var keys = new HashSet<string>(enabledKeys);
             var gitUrl = WizardConfigWriter.GitInstallUrlFor(version);
-            foreach (var target in ProjectConfigTargets.All)
+            var active = GetActiveTargets(projectRoot, keys).ToList();
+            foreach (var target in active)
                 WriteOne(projectRoot, target, port, version, gitUrl);
-            GitignorePatcher.Apply(projectRoot, ProjectConfigTargets.All.Select(t => t.RelativePath));
+            GitignorePatcher.Apply(projectRoot, active.Select(t => t.RelativePath));
+        }
+
+        // Pure helper: include target if its file already exists (migration) OR its key
+        // is in enabledKeys (user opted in). No Unity API, no EditorPrefs.
+        internal static IEnumerable<ProjectConfigTarget> GetActiveTargets(
+            string projectRoot, HashSet<string> enabledKeys)
+        {
+            foreach (var target in ProjectConfigTargets.All)
+            {
+                if (File.Exists(Path.Combine(projectRoot, target.RelativePath)))
+                    { yield return target; continue; }
+                if (enabledKeys != null && enabledKeys.Contains(target.Key))
+                    yield return target;
+            }
         }
 
         internal static void WriteOne(string projectRoot, ProjectConfigTarget target, int port, string version, string gitUrl)
@@ -66,7 +92,15 @@ namespace UnityMCP.Editor.Wizard
                 if (state == EntryState.OwnedCurrent) return; // no-op, cheapest path
                 if (state == EntryState.Foreign)
                 {
-                    Debug.LogWarning($"unity-biome-mcp: {target.RelativePath} has a hand-edited unity-biome-mcp entry — skipping.");
+                    Debug.Log($"{BiomeLabel.Tag} Adopting hand-edited entry in {target.RelativePath} (adding version marker).");
+                    var adopted = target.IsToml
+                        ? ProjectConfigToml.Adopt(existingText, version)
+                        : ProjectConfigFormats.Adopt(existingText, version);
+                    if (ReferenceEquals(adopted, existingText)) return; // entry not found — leave intact
+                    var adoptTmp = path + ".tmp";
+                    File.WriteAllText(adoptTmp, adopted, new UTF8Encoding(false));
+                    if (exists) File.Delete(path);
+                    File.Move(adoptTmp, path);
                     return;
                 }
 

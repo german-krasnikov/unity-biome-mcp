@@ -9,7 +9,7 @@ import sys
 import time
 from pathlib import Path
 
-from .lockfile import is_pid_alive
+from .lockfile import _read_ppid_from_lock_path, is_pid_alive
 from .paths import unity_mcp_dir
 
 log = logging.getLogger("unity_mcp.server_control")
@@ -98,6 +98,46 @@ def stop_server(
             return True
         time.sleep(0.1)
     return False
+
+
+def evict_duplicate_servers(lock_dir: Path | None = None) -> int:
+    """Kill duplicate or orphaned MCP server processes.
+
+    Duplicate: same parent PID as us (restarted by same Claude Code instance).
+    Orphan: parent PID is dead.
+    Never kills self or parent. Returns count of processes signaled.
+    """
+    self_pid = os.getpid()
+    parent_pid = os.getppid()
+    count = 0
+
+    for entry in list_servers(lock_dir):
+        pid = entry["pid"]
+        if pid in (self_pid, parent_pid):
+            continue
+
+        lock_path = entry.get("lock_path")
+        if not lock_path:
+            continue
+
+        ppid = _read_ppid_from_lock_path(Path(lock_path))
+
+        should_kill = False
+        if ppid == parent_pid:
+            log.info("evicting duplicate server pid=%d (same parent %d)", pid, parent_pid)
+            should_kill = True
+        elif ppid is not None and not is_pid_alive(ppid):
+            log.info("evicting orphaned server pid=%d (dead parent %d)", pid, ppid)
+            should_kill = True
+
+        if should_kill:
+            try:
+                _send_stop(pid, lock_path, 5.0, None, None)
+                count += 1
+            except Exception:
+                log.warning("failed to stop pid=%d", pid, exc_info=True)
+
+    return count
 
 
 def _send_stop(pid, lock_path, timeout, signal_override, kill_fn):

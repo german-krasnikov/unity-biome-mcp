@@ -65,6 +65,22 @@ namespace UnityMCP.Editor.Wizard
             return m.Success ? int.Parse(m.Groups[1].Value) : (int?)null;
         }
 
+        /// <summary>
+        /// Insert the version marker comment before the section header of a Foreign entry.
+        /// After this call, Classify() returns OwnedCurrent when the existing entry's port matches.
+        /// Returns the original reference unchanged when no unity-biome-mcp section is found.
+        /// </summary>
+        internal static string Adopt(string existingText, string version)
+        {
+            var m = Regex.Match(existingText,
+                @"\[mcp_servers\.unity-(?:biome-mcp|mcp)\]",
+                RegexOptions.Multiline);
+            if (!m.Success) return existingText;
+            var insertAt = m.Index;
+            var comment = $"# {PermissionConfig.SERVER_NAME} generated v{version}\n";
+            return existingText.Substring(0, insertAt) + comment + existingText.Substring(insertAt);
+        }
+
         internal static EntryState Classify(string existingText, int port, string version)
         {
             if (string.IsNullOrEmpty(existingText) ||

@@ -29,7 +29,7 @@ def test_acquire_creates_per_pid_file(tmp_path):
     fd = acquire_lock(lock_dir=tmp_path, port=9500)
     expected = tmp_path / f"server-9500-{os.getpid()}.lock"
     assert expected.exists()
-    assert int(expected.read_text(encoding="utf-8").strip()) == os.getpid()
+    assert int(expected.read_text(encoding="utf-8").splitlines()[0]) == os.getpid()
     release_lock(fd)
 
 
@@ -84,7 +84,7 @@ def test_acquire_after_release(tmp_path):
     release_lock(fd1)
     fd2 = acquire_lock(lock_dir=tmp_path, port=9500)
     lock_file = tmp_path / f"server-9500-{os.getpid()}.lock"
-    assert int(lock_file.read_text(encoding="utf-8").strip()) == os.getpid()
+    assert int(lock_file.read_text(encoding="utf-8").splitlines()[0]) == os.getpid()
     release_lock(fd2)
 
 
@@ -575,13 +575,15 @@ def test_write_lock_metadata_appends_json_on_line2(tmp_path):
 
 
 def test_read_lock_metadata_returns_none_when_absent(tmp_path):
-    """read_lock_metadata returns None when no JSON on line 2."""
+    """read_lock_metadata returns None when line 2 has no JSON (raw file)."""
     from unity_mcp.lockfile import read_lock_metadata
-    fd = acquire_lock(lock_dir=tmp_path, port=9500)
+    f = tmp_path / "bare.lock"
+    f.write_text("12345\n", encoding="utf-8")
+    fd = os.open(str(f), os.O_RDWR)
     try:
         assert read_lock_metadata(fd) is None
     finally:
-        release_lock(fd)
+        os.close(fd)
 
 
 def test_acquire_lock_with_metadata_writes_json(tmp_path):
@@ -594,3 +596,34 @@ def test_acquire_lock_with_metadata_writes_json(tmp_path):
         assert result == meta
     finally:
         release_lock(fd)
+
+
+# ---------------------------------------------------------------------------
+# PPID metadata in lockfile
+# ---------------------------------------------------------------------------
+
+def test_acquire_lock_writes_ppid(tmp_path):
+    """acquire_lock always writes ppid on line 2 so eviction can read it."""
+    from unity_mcp.lockfile import _read_ppid_from_lock_path
+    fd = acquire_lock(lock_dir=tmp_path, port=9500)
+    lock_path = tmp_path / f"server-9500-{os.getpid()}.lock"
+    try:
+        assert _read_ppid_from_lock_path(lock_path) == os.getppid()
+    finally:
+        release_lock(fd)
+
+
+def test_read_ppid_missing_returns_none(tmp_path):
+    """_read_ppid_from_lock_path returns None when line 2 has no JSON."""
+    from unity_mcp.lockfile import _read_ppid_from_lock_path
+    f = tmp_path / "server-9500-11111.lock"
+    f.write_text("11111\n", encoding="utf-8")
+    assert _read_ppid_from_lock_path(f) is None
+
+
+def test_read_ppid_corrupt_returns_none(tmp_path):
+    """_read_ppid_from_lock_path returns None when line 2 is not valid JSON."""
+    from unity_mcp.lockfile import _read_ppid_from_lock_path
+    f = tmp_path / "server-9500-11111.lock"
+    f.write_text("11111\nnot-valid-json\n", encoding="utf-8")
+    assert _read_ppid_from_lock_path(f) is None

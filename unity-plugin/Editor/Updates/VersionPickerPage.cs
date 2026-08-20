@@ -65,9 +65,25 @@ namespace UnityMCP.Editor
             if (!coherent)
             {
                 var alignBtn = BiomeUI.SecondaryButton(
-                    $"Align Both to v{current}",
-                    () => AlignBoth(current));
+                    $"Align Both to v{current}", null);
                 scroll.Add(alignBtn);
+                alignBtn.clicked += () =>
+                {
+                    bool ok = EditorUtility.DisplayDialog(
+                        "Align Both to v" + current,
+                        $"Install plugin v{current} via UPM and pin the per-project server to v{current}?",
+                        "Align Both", "Cancel");
+                    if (!ok) return;
+                    alignBtn.SetEnabled(false);
+                    alignBtn.text = "Aligning...";
+                    UpmPluginUpdater.Update(current, success =>
+                    {
+                        alignBtn.SetEnabled(true);
+                        alignBtn.text = $"Align Both to v{current}";
+                        EditorUtility.DisplayDialog("Align",
+                            success ? "Done." : "UPM failed — check Console.", "OK");
+                    });
+                };
             }
 
             return page;
@@ -128,18 +144,6 @@ namespace UnityMCP.Editor
                 EditorUtility.DisplayDialog("Roll Back",
                     success ? "Done." : "UPM failed — check Console.", "OK");
             });
-        }
-
-        private static void AlignBoth(string version)
-        {
-            bool ok = EditorUtility.DisplayDialog(
-                "Align Both to v" + version,
-                $"Install plugin v{version} via UPM and pin the per-project server to v{version}?",
-                "Align Both", "Cancel");
-            if (!ok) return;
-            // Server pin re-syncs automatically on the post-update domain reload
-            // (ProjectConfigWriter, version-scoped guard).
-            UpmPluginUpdater.Update(version);
         }
     }
 }

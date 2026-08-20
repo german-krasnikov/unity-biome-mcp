@@ -1,5 +1,7 @@
 // TDD: UpmPluginUpdater — basic contract tests.
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -33,6 +35,24 @@ namespace UnityMCP.Editor.Tests
         {
             var url = UpmPluginUpdater.BuildUrl("unity-plugin", "1.0.0");
             StringAssert.Contains("?path=", url);
+        }
+
+        [Test]
+        public void Update_NullVersion_InvokesCallbackFalse()
+        {
+            bool? result = null;
+            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("No version specified"));
+            UpmPluginUpdater.Update(null, success => result = success);
+            Assert.AreEqual(false, result);
+        }
+
+        [Test]
+        public void Update_EmptyVersion_InvokesCallbackFalse()
+        {
+            bool? result = null;
+            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("No version specified"));
+            UpmPluginUpdater.Update("", success => result = success);
+            Assert.AreEqual(false, result);
         }
     }
 }

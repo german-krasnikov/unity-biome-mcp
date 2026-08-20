@@ -293,7 +293,7 @@ namespace UnityMCP.Editor
                 const int maxAttempts = 6;  // Windows TIME_WAIT can last 2+ minutes; more retries reduce fallback risk
                 const int retryDelayMs = 600;
 #else
-                const int maxAttempts = 4;
+                const int maxAttempts = 6;  // macOS/Linux: match Windows budget (5 same-port + 1 fallback)
                 const int retryDelayMs = 400;
 #endif
                 for (int attempt = 0; attempt < maxAttempts; attempt++)
@@ -529,7 +529,7 @@ namespace UnityMCP.Editor
         // ── Tier 4b: status response format ──────────────────────────────────
 
         // synced by sync_versions.py — do not edit manually
-        internal static string PluginVersion => "1.45.0";
+        internal static string PluginVersion => "1.46.0";
 
         internal static string BuildVersionString(string stamp, string pluginVersion)
         {
