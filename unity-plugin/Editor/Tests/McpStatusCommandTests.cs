@@ -9,6 +9,7 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            RegisterCleanup(() => CommandRegistry.InitDefaults());
             CommandRegistry.Clear();
             CommandRegistry.InitDefaults();
         }

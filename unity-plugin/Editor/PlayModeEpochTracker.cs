@@ -46,6 +46,15 @@ namespace UnityMCP.Editor
             EditorApplication.update -= WaitForFirstFrame;
         }
 
+        /// <summary>Restore to specific state. Test seam — call from RegisterCleanup only.</summary>
+        internal static void RestoreForTest(int epoch, bool worldReady)
+        {
+            System.Threading.Volatile.Write(ref _epoch, epoch);
+            _worldReady = worldReady;
+            _waitingForFirstFrame = false;
+            EditorApplication.update -= WaitForFirstFrame;
+        }
+
         /// <summary>Reset to initial state. Test seam — call from [SetUp] only.</summary>
         internal static void ResetForTest()
         {

@@ -8,7 +8,13 @@ namespace UnityMCP.Editor.Tests
     public class PlayModeEpochTrackerTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
-        public void SetUp() => PlayModeEpochTracker.ResetForTest();
+        public void SetUp()
+        {
+            var savedEpoch = PlayModeEpochTracker.Epoch;
+            var savedWorldReady = PlayModeEpochTracker.WorldReady;
+            RegisterCleanup(() => PlayModeEpochTracker.RestoreForTest(savedEpoch, savedWorldReady));
+            PlayModeEpochTracker.ResetForTest();
+        }
 
         [Test]
         public void Epoch_InitiallyZero()

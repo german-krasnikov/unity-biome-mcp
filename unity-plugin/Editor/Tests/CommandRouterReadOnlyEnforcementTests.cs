@@ -1,31 +1,25 @@
 // TDD: CommandRouter ReadOnly enforcement — uniform blocking of specific mutation commands.
 // MCP-RO-030: complements CommandRouterReadOnlyTests with focused per-command coverage.
-using System;
 using NUnit.Framework;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CommandRouterReadOnlyEnforcementTests : SceneTestBase
+    public class CommandRouterReadOnlyEnforcementTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        private Func<bool> _savedIsReadOnly;
-        private Func<bool> _savedIsPlayMode;
-
         [SetUp]
         public void SetUpReadOnly()
         {
-            _savedIsReadOnly = CommandRouter.IsReadOnly;
-            _savedIsPlayMode = CommandRouter.IsPlayMode;
+            var savedIsReadOnly = CommandRouter.IsReadOnly;
+            var savedIsPlayMode = CommandRouter.IsPlayMode;
+            RegisterCleanup(() =>
+            {
+                CommandRouter.IsReadOnly = savedIsReadOnly;
+                CommandRouter.IsPlayMode = savedIsPlayMode;
+            });
             // EditMode tests run without Play Mode — guard against CheckGuards' PlayMode check
             // firing before the ReadOnly check for mutating commands.
             CommandRouter.IsPlayMode = () => false;
-        }
-
-        [TearDown]
-        public void TearDownReadOnly()
-        {
-            CommandRouter.IsReadOnly = _savedIsReadOnly;
-            CommandRouter.IsPlayMode = _savedIsPlayMode;
         }
 
         // MCP-RO-030 (Test 7): set_property is a mutating command — must be blocked when
