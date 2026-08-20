@@ -49,7 +49,7 @@ namespace UnityMCP.Editor.RegionTool
             return false;
         }
 
-        public Polygon2D? Finalize()
+        public Polygon2D? Build()
         {
             var a = _start;
             var b = _current;

@@ -121,34 +121,34 @@ namespace UnityMCP.Editor.Tests.RegionTool
             Assert.IsFalse(_mode.IsActive);
         }
 
-        // ── Finalize ────────────────────────────────────────────────────────────
+        // ── Build ───────────────────────────────────────────────────────────────
 
         [Test]
-        public void Finalize_AfterClose_ReturnsPolygon()
+        public void Build_AfterClose_ReturnsPolygon()
         {
             _mode.Begin(Vector2.zero, false);
             _mode.OnEvent(MakeMouseDown(), new Vector2(5f, 0f));
             _mode.OnEvent(MakeMouseDown(), new Vector2(5f, 5f));
             _mode.OnEvent(MakeMouseDown(), new Vector2(0.1f, 0.1f));
-            Assert.IsNotNull(_mode.Finalize());
+            Assert.IsNotNull(_mode.Build());
         }
 
         [Test]
-        public void Finalize_DropsCursorPreviewPoint()
+        public void Build_DropsCursorPreviewPoint()
         {
             _mode.Begin(Vector2.zero, false);
             _mode.OnEvent(MakeMouseDown(), new Vector2(5f, 0f));
             _mode.OnEvent(MakeMouseDown(), new Vector2(5f, 5f));
             _mode.OnEvent(MakeMouseDown(), new Vector2(0.1f, 0.1f)); // close
-            Assert.AreEqual(3, _mode.Finalize()!.Value.Vertices.Length);
+            Assert.AreEqual(3, _mode.Build()!.Value.Vertices.Length);
         }
 
         [Test]
-        public void Finalize_LessThan3Vertices_ReturnsNull()
+        public void Build_LessThan3Vertices_ReturnsNull()
         {
             _mode.Begin(Vector2.zero, false);
             _mode.OnEvent(MakeMouseDown(), new Vector2(5f, 0f));
-            Assert.IsNull(_mode.Finalize());
+            Assert.IsNull(_mode.Build());
         }
 
         // ── Grid snap ───────────────────────────────────────────────────────────
@@ -160,7 +160,7 @@ namespace UnityMCP.Editor.Tests.RegionTool
             _mode.OnEvent(MakeMouseDown(), new Vector2(4.8f, 0.2f));
             _mode.OnEvent(MakeMouseDown(), new Vector2(4.9f, 4.7f));
             _mode.OnEvent(MakeMouseDown(), new Vector2(0.1f, 0.1f)); // close
-            var result = _mode.Finalize()!.Value;
+            var result = _mode.Build()!.Value;
             foreach (var v in result.Vertices)
             {
                 Assert.AreEqual(0f, v.x % 0.5f, 0.001f, $"x={v.x} not snapped");

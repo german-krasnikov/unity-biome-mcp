@@ -106,37 +106,37 @@ namespace UnityMCP.Editor.Tests.RegionTool
             Assert.IsTrue(_mode.IsComplete);
         }
 
-        // ── Finalize ────────────────────────────────────────────────────────────
+        // ── Build ───────────────────────────────────────────────────────────────
 
         [Test]
-        public void Finalize_LessThan3Points_ReturnsNull()
+        public void Build_LessThan3Points_ReturnsNull()
         {
             _mode.Begin(new Vector2(0f, 0f), false);
             _mode.OnEvent(MakeEvent(EventType.MouseDrag), new Vector2(1f, 0f));
-            var result = _mode.Finalize();
+            var result = _mode.Build();
             Assert.IsNull(result);
         }
 
         [Test]
-        public void Finalize_Exactly3Points_ReturnsPolygon()
+        public void Build_Exactly3Points_ReturnsPolygon()
         {
             _mode.Begin(new Vector2(0f, 0f), false);
             _mode.OnEvent(MakeEvent(EventType.MouseDrag), new Vector2(5f, 0f));
             _mode.OnEvent(MakeEvent(EventType.MouseDrag), new Vector2(5f, 5f));
             _mode.OnEvent(MakeEvent(EventType.MouseUp), Vector2.zero);
-            var result = _mode.Finalize();
+            var result = _mode.Build();
             Assert.IsNotNull(result);
         }
 
         [Test]
-        public void Finalize_ManyPoints_ReturnsRawPolygon()
+        public void Build_ManyPoints_ReturnsRawPolygon()
         {
             _mode.Begin(new Vector2(0f, 0f), false);
             for (int i = 1; i <= 20; i++)
                 _mode.OnEvent(MakeEvent(EventType.MouseDrag), new Vector2(i * 0.5f, 0.001f * i));
             _mode.OnEvent(MakeEvent(EventType.MouseDrag), new Vector2(10f, 5f));
             _mode.OnEvent(MakeEvent(EventType.MouseUp), Vector2.zero);
-            var result = _mode.Finalize();
+            var result = _mode.Build();
             Assert.IsNotNull(result);
             // LassoMode returns raw polygon — simplification is SceneRegionTool's job
             Assert.GreaterOrEqual(result.Value.Vertices.Length, 3);

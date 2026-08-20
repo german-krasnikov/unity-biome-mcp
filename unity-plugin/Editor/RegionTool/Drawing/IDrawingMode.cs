@@ -24,7 +24,7 @@ namespace UnityMCP.Editor.RegionTool
         bool IsActive { get; }
 
         // Produce final polygon. Returns null if < 3 valid vertices.
-        Polygon2D? Finalize();
+        Polygon2D? Build();
 
         void Reset();
 
@@ -56,7 +56,7 @@ namespace UnityMCP.Editor.RegionTool
 
     /// <summary>
     /// Lightweight drawing mode for annotation primitives (Point, Polyline, Measurement).
-    /// Unlike IDrawingMode, Finalize() is not required — use FinalizedPoints instead.
+    /// Unlike IDrawingMode, Build() is not required — use FinalizedPoints instead.
     /// </summary>
     internal interface IAnnotationMode
     {

@@ -27,7 +27,7 @@ namespace UnityMCP.Editor.RegionTool
         DrawingModeId  _modeId;
         bool           _gridSnap;
 
-        Polygon2D? _rawPolygon;   // full-fidelity after Finalize()
+        Polygon2D? _rawPolygon;   // full-fidelity after Build()
         Polygon2D? _polygon;      // simplified for display + commit
         GameObject[] _matchedObjects;
         Vector2      _cursorXZ;
@@ -161,7 +161,7 @@ namespace UnityMCP.Editor.RegionTool
 
         void FinalizeDrawing()
         {
-            var raw = _activeMode.Finalize();
+            var raw = _activeMode.Build();
             if (raw == null || raw.Value.Vertices.Length < 3 || raw.Value.Area() < 0.01f)
             { CancelToIdle(); return; }
 

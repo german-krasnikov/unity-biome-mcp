@@ -77,55 +77,55 @@ namespace UnityMCP.Editor.Tests.RegionTool
             Assert.IsTrue(_mode.IsComplete);
         }
 
-        // ── Finalize ────────────────────────────────────────────────────────────
+        // ── Build ───────────────────────────────────────────────────────────────
 
         [Test]
-        public void Finalize_Returns4VertexPolygon()
+        public void Build_Returns4VertexPolygon()
         {
             _mode.Begin(new Vector2(0f, 0f), false);
             _mode.OnEvent(MakeDrag(), new Vector2(3f, 4f));
             _mode.OnEvent(MakeMouseUp(), new Vector2(3f, 4f));
-            var result = _mode.Finalize();
+            var result = _mode.Build();
             Assert.IsNotNull(result);
             Assert.AreEqual(4, result.Value.Vertices.Length);
         }
 
         [Test]
-        public void Finalize_CCW_Winding()
+        public void Build_CCW_Winding()
         {
             // BL(0,0) → BR(3,0) → TR(3,4) → TL(0,4): CCW = positive area
             _mode.Begin(new Vector2(0f, 0f), false);
             _mode.OnEvent(MakeDrag(), new Vector2(3f, 4f));
             _mode.OnEvent(MakeMouseUp(), new Vector2(3f, 4f));
-            var polygon = _mode.Finalize()!.Value;
+            var polygon = _mode.Build()!.Value;
             Assert.Greater(polygon.SignedArea(), 0f, "Expected CCW (positive signed area)");
         }
 
         [Test]
-        public void Finalize_CorrectArea()
+        public void Build_CorrectArea()
         {
             _mode.Begin(new Vector2(0f, 0f), false);
             _mode.OnEvent(MakeDrag(), new Vector2(3f, 4f));
             _mode.OnEvent(MakeMouseUp(), new Vector2(3f, 4f));
-            var polygon = _mode.Finalize()!.Value;
+            var polygon = _mode.Build()!.Value;
             Assert.AreEqual(12f, polygon.Area(), 0.01f);
         }
 
         [Test]
-        public void Finalize_Degenerate_SameCorners_ReturnsNull()
+        public void Build_Degenerate_SameCorners_ReturnsNull()
         {
             _mode.Begin(new Vector2(2f, 2f), false);
             _mode.OnEvent(MakeMouseUp(), new Vector2(2f, 2f));
-            var result = _mode.Finalize();
+            var result = _mode.Build();
             Assert.IsNull(result);
         }
 
         [Test]
-        public void Finalize_TinyArea_ReturnsNull()
+        public void Build_TinyArea_ReturnsNull()
         {
             _mode.Begin(new Vector2(0f, 0f), false);
             _mode.OnEvent(MakeMouseUp(), new Vector2(0.005f, 0.005f));
-            var result = _mode.Finalize();
+            var result = _mode.Build();
             Assert.IsNull(result);
         }
 
@@ -138,7 +138,7 @@ namespace UnityMCP.Editor.Tests.RegionTool
             _mode.Begin(new Vector2(0.7f, 0.7f), gridSnap: true);
             _mode.OnEvent(MakeDrag(), new Vector2(2.3f, 2.3f));
             _mode.OnEvent(MakeMouseUp(), new Vector2(2.3f, 2.3f));
-            var result = _mode.Finalize();
+            var result = _mode.Build();
             Assert.IsNotNull(result);
             // All vertices should be multiples of 0.5
             foreach (var v in result!.Value.Vertices)
@@ -153,7 +153,7 @@ namespace UnityMCP.Editor.Tests.RegionTool
         {
             _mode.Begin(new Vector2(0.7f, 0.3f), gridSnap: false);
             _mode.OnEvent(MakeMouseUp(), new Vector2(3.2f, 4.6f));
-            var result = _mode.Finalize();
+            var result = _mode.Build();
             Assert.IsNotNull(result);
             // At least one vertex should have fractional coordinates
             bool hasFractional = false;
