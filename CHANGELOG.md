@@ -12,6 +12,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Selective Agent Config Writing:**
+  - AgentConfigPrefs: EditorPrefs-backed storage layer for enabled agent keys; first-run auto-detects installed agents from home-dir config directory
+  - AgentConfigSettingsPanel: New toggles in MCP Status window "Agent Configs" foldout; persists immediately to EditorPrefs
+- **Agent Config Adoption:**
+  - ProjectConfigFormats.Adopt() and ProjectConfigToml.Adopt(): Hand-edited entries without version marker now adopted by surgically inserting "_v" marker, preserving all user content (custom args, env vars)
+
+### Changed
+
+- **Update Flow Reliability:**
+  - UpdateChecker.ForceCheckAsync(): Cancels stale requests before fetching from network; UnityWebRequest.timeout set to 15s to prevent indefinite hangs
+  - UpmPluginUpdater.Update(): Added 120s timeout guard in Poll and PollReload lambdas; _timeProvider seam for testing
+  - VersionPickerPage Align button: Shows "Aligning..." spinner during UPM resolution, disables interaction, displays result dialog; removes standalone AlignBoth method
+  - ProjectConfigWriter.Run(): Filters targets by enabled agent keys from AgentConfigPrefs; existing config files always updated (migration safety)
+
+### Fixed
+
+- **Domain Reload Port Stability:**
+  - Python server now evicts duplicate (same-ppid) and orphaned MCP server processes at startup, preventing 7+ minute lingering after domain reload
+  - MCPServer bind retry count increased from 4 to 6 on macOS/Linux to match Windows budget; total same-port retry wait increases from 2.4s to 6.0s for better socket state recovery
+
 ## [v1.45.0] — 2026-08-20
 
 ### Added
