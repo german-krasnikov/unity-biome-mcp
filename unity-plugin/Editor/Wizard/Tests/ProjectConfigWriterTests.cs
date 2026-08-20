@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using NUnit.Framework;
@@ -23,10 +24,21 @@ namespace UnityMCP.Editor.Tests
             });
         }
 
-        [Test]
-        public void Run_FreshProjectDir_CreatesAllSixTargetFiles()
+        // --- helpers ---
+
+        private static HashSet<string> AllKeys()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3");
+            var keys = new HashSet<string>();
+            foreach (var t in ProjectConfigTargets.All) keys.Add(t.Key);
+            return keys;
+        }
+
+        // --- filtering tests (new) ---
+
+        [Test]
+        public void Run_WithAllKeysEnabled_CreatesAllSixTargetFiles()
+        {
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", AllKeys());
 
             foreach (var target in ProjectConfigTargets.All)
                 Assert.IsTrue(File.Exists(Path.Combine(_tmpDir, target.RelativePath)),
@@ -34,10 +46,84 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Run_WithNoEnabledKeys_WritesNoNewFiles()
+        {
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string>());
+
+            foreach (var target in ProjectConfigTargets.All)
+                Assert.IsFalse(File.Exists(Path.Combine(_tmpDir, target.RelativePath)),
+                    $"{target.RelativePath} should NOT have been created");
+        }
+
+        [Test]
+        public void Run_WithEnabledKeySubset_WritesOnlyThoseFiles()
+        {
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+
+            Assert.IsTrue(File.Exists(Path.Combine(_tmpDir, ".mcp.json")));
+            Assert.IsFalse(File.Exists(Path.Combine(_tmpDir, ".cursor/mcp.json")));
+        }
+
+        [Test]
+        public void Run_ExistingFileNotInEnabledSet_StillUpdatesFile()
+        {
+            // Pre-create .cursor/mcp.json with old version — not in enabled set
+            var cursorDir = Path.Combine(_tmpDir, ".cursor");
+            Directory.CreateDirectory(cursorDir);
+            var cursorPath = Path.Combine(cursorDir, "mcp.json");
+            File.WriteAllText(cursorPath,
+                "{\"mcpServers\":{\"unity-mcp\":{\"command\":\"uvx\",\"_v\":\"0.0.1\"}}}");
+
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+
+            // file-exists bypass: cursor file must still be updated
+            var content = File.ReadAllText(cursorPath);
+            StringAssert.Contains("\"_v\": \"1.2.3\"", content);
+        }
+
+        [Test]
+        public void GetActiveTargets_FileExistsNotEnabled_IncludesTarget()
+        {
+            var cursorDir = Path.Combine(_tmpDir, ".cursor");
+            Directory.CreateDirectory(cursorDir);
+            File.WriteAllText(Path.Combine(cursorDir, "mcp.json"), "{}");
+
+            var enabled = new HashSet<string>(); // cursor not enabled
+            var active = new List<ProjectConfigTarget>(
+                ProjectConfigWriter.GetActiveTargets(_tmpDir, enabled));
+
+            Assert.IsTrue(active.Exists(t => t.Key == "cursor"),
+                "cursor should be included because file exists");
+        }
+
+        [Test]
+        public void GetActiveTargets_FileAbsentNotEnabled_ExcludesTarget()
+        {
+            var enabled = new HashSet<string>(); // nothing enabled, no files
+            var active = new List<ProjectConfigTarget>(
+                ProjectConfigWriter.GetActiveTargets(_tmpDir, enabled));
+
+            Assert.IsFalse(active.Exists(t => t.Key == "cursor"),
+                "cursor should be excluded — file absent, not enabled");
+        }
+
+        [Test]
+        public void Run_UpdatesGitignore_WithOnlyActiveTargetPaths()
+        {
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+
+            var gitignore = File.ReadAllText(Path.Combine(_tmpDir, ".gitignore"));
+            StringAssert.Contains(".mcp.json", gitignore);
+            StringAssert.DoesNotContain(".cursor/mcp.json", gitignore);
+        }
+
+        // --- original tests (updated to inject enabledKeys for isolation) ---
+
+        [Test]
         public void Run_FreshProjectDir_EachFileContainsCurrentVersion()
         {
             // JSON entries no longer contain port (discovery via .port files); TOML still does.
-            ProjectConfigWriter.Run(_tmpDir, 9501, "1.2.3");
+            ProjectConfigWriter.Run(_tmpDir, 9501, "1.2.3", AllKeys());
 
             foreach (var target in ProjectConfigTargets.All)
             {
@@ -57,7 +143,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_ExistingOwnedCurrentFile_DoesNotRewrite()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3");
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
             var path = Path.Combine(_tmpDir, ".mcp.json");
             // Sentinel proves no rewrite happened — a rewrite would regenerate fresh
             // content and silently drop this, whereas plain string equality against
@@ -65,7 +151,7 @@ namespace UnityMCP.Editor.Tests
             File.AppendAllText(path, "\n// sentinel-untouched\n");
             var before = File.ReadAllText(path);
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3");
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
             var after = File.ReadAllText(path);
 
             Assert.AreEqual(before, after);
@@ -82,7 +168,7 @@ namespace UnityMCP.Editor.Tests
                 "{\"mcpServers\":{\"other-tool\":{\"command\":\"x\"},"
                 + "\"unity-mcp\":{\"command\":\"uvx\",\"_v\":\"1.0.0\"}}}");
 
-            ProjectConfigWriter.Run(_tmpDir, 9600, "1.0.0");
+            ProjectConfigWriter.Run(_tmpDir, 9600, "1.0.0", new HashSet<string>());
 
             var content = File.ReadAllText(path);
             StringAssert.Contains("other-tool", content);
@@ -91,8 +177,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_VersionChanged_RewritesFile()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.0.0");
-            ProjectConfigWriter.Run(_tmpDir, 9500, "2.0.0");
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.0.0", new HashSet<string> { "claude-code" });
+            ProjectConfigWriter.Run(_tmpDir, 9500, "2.0.0", new HashSet<string> { "claude-code" });
 
             var content = File.ReadAllText(Path.Combine(_tmpDir, ".mcp.json"));
             StringAssert.Contains("\"_v\": \"2.0.0\"", content);
@@ -106,7 +192,7 @@ namespace UnityMCP.Editor.Tests
             var handWritten = "{\"mcpServers\":{\"unity-mcp\":{\"command\":\"custom\"}}}";
             File.WriteAllText(path, handWritten);
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3");
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string>());
 
             var content = File.ReadAllText(path);
             StringAssert.Contains("\"_v\": \"1.2.3\"", content);
@@ -137,7 +223,8 @@ namespace UnityMCP.Editor.Tests
 
             try
             {
-                Assert.DoesNotThrow(() => ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3"));
+                Assert.DoesNotThrow(() =>
+                    ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", AllKeys()));
             }
             finally
             {
@@ -149,7 +236,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_UpdatesGitignore_WithAllSixPaths()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3");
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", AllKeys());
 
             var gitignore = File.ReadAllText(Path.Combine(_tmpDir, ".gitignore"));
             foreach (var target in ProjectConfigTargets.All)
@@ -159,11 +246,11 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_GitignoreAlreadyPatched_SecondRunNoOp()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3");
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", AllKeys());
             var path = Path.Combine(_tmpDir, ".gitignore");
             var before = File.ReadAllText(path);
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3");
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", AllKeys());
             var after = File.ReadAllText(path);
 
             Assert.AreEqual(before, after);
@@ -172,7 +259,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_EmptyVersionString_FallsBackToUnpinnedGitInstallUrl()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "");
+            ProjectConfigWriter.Run(_tmpDir, 9500, "", new HashSet<string> { "claude-code" });
 
             var content = File.ReadAllText(Path.Combine(_tmpDir, ".mcp.json"));
             StringAssert.Contains(WizardConfigWriter.GitInstallUrl, content);
