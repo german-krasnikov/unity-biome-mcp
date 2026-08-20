@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.47.0] — 2026-08-20
+
 ### Fixed
 
 - **Protocol audit coverage — 4 defects + 7 critical gaps + 120 tests:**
@@ -3533,7 +3535,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.1...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.0...HEAD
+[v1.47.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.1...v1.47.0
 [v1.46.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.0...v1.46.1
 [v1.46.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.45.0...v1.46.0
 [v1.45.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.44.0...v1.45.0
