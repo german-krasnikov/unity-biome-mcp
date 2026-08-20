@@ -137,10 +137,10 @@ class CommandStatus(enum.Enum):
 class _LedgerEntry:
     status: CommandStatus
     result: dict | None = None
-    ts: float = 0.0
+    ts: float | None = None
 
     def __post_init__(self):
-        if self.ts == 0.0:
+        if self.ts is None:
             self.ts = time.monotonic()
 
 

@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from unity_mcp.bridge import UnityBridge, _CandidateIdentityError
+from unity_mcp.bridge import UnityBridge, _CandidateIdentityError, _LedgerEntry, CommandStatus
 from helpers import make_writer, make_idle_probe, ping_response, reconnect_preamble
 
 
@@ -1220,3 +1220,27 @@ async def test_verify_candidate_eof_raises_identity_error():
         with patch("unity_mcp.bridge.frame_write"):
             with pytest.raises(_CandidateIdentityError):
                 await bridge._verify_candidate_project(reader, writer, 9500)
+
+
+# --- _LedgerEntry sentinel tests (S1244 fix) ---
+
+def test_ledger_entry_explicit_zero_ts_preserved():
+    """ts=0.0 must not be overwritten — epoch-0 is a legitimate value."""
+    entry = _LedgerEntry(status=CommandStatus.SENT, ts=0.0)
+    assert entry.ts == 0.0
+
+
+def test_ledger_entry_auto_ts_set_when_none():
+    """Explicit ts=None triggers auto-fill with monotonic time."""
+    entry = _LedgerEntry(status=CommandStatus.SENT, ts=None)
+    assert entry.ts is not None
+    assert entry.ts > 0
+
+
+def test_ledger_entry_auto_ts_set_when_omitted():
+    """Omitting ts (default None) triggers auto-fill with monotonic time."""
+    import time
+    before = time.monotonic()
+    entry = _LedgerEntry(status=CommandStatus.SENT)
+    assert entry.ts is not None
+    assert entry.ts >= before
