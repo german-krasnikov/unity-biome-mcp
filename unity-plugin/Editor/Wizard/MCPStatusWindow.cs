@@ -129,6 +129,12 @@ namespace UnityMCP.Editor
             root.Add(row);
             root.Add(row2);
             root.Add(maintenance);
+
+            var agentConfigsFold = new Foldout { text = "Agent Configs", value = false };
+            agentConfigsFold.AddToClassList("mcp-maintenance");
+            agentConfigsFold.Add(AgentConfigSettingsPanel.Build());
+            root.Add(agentConfigsFold);
+
             root.Add(_updateLabel);
             BuildServerListSection(root);
             root.Add(changelogFold);
