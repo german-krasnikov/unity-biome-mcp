@@ -312,7 +312,8 @@ namespace UnityMCP.Editor
             {
                 if (!MCPServer._shuttingDown && !clientToken.IsCancellationRequested)
                 {
-                    var msg = e.Message; MainThreadDispatcher.Enqueue(() => Debug.LogError($"{BiomeLabel.Tag} Client error: {msg}"));
+                    // Log at Info level — "connection reset by peer" on test teardown is expected, not an error.
+                    var msg = e.Message; MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} Client disconnect: {msg}"));
                 }
             }
             finally
