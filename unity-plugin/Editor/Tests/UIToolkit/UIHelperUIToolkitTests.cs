@@ -1,5 +1,4 @@
 // Session 5: UIHelper.UIToolkit.cs — partial UIHelper read tools tests.
-using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEngine.UIElements;
 
@@ -58,7 +57,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 1: path=null → ListAllUIDocuments → "no UIDocument" when scene is empty
         [Test]
-        public async Task InspectUITK_NullPath_NoDocuments_ReturnsNoUIDocumentMessage()
+        public void InspectUITK_NullPath_NoDocuments_ReturnsNoUIDocumentMessage()
         {
             var result = UIHelper.InspectUITK(null, 4, null, null, false, false);
             // In a test scene with no UIDocuments, must report none found.
@@ -73,7 +72,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 2: path="scene" → same list-all path as null
         [Test]
-        public async Task InspectUITK_ScenePath_CallsListAllDocuments()
+        public void InspectUITK_ScenePath_CallsListAllDocuments()
         {
             var result = UIHelper.InspectUITK("scene", 4, null, null, false, false);
             Assert.That(result,
@@ -84,7 +83,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 3: invalid path → err: path not found
         [Test]
-        public async Task InspectUITK_InvalidPath_ReturnsErrMessage()
+        public void InspectUITK_InvalidPath_ReturnsErrMessage()
         {
             var result = UIHelper.InspectUITK("/NonExistent/Object", 4, null, null, false, false);
             Assert.That(result, Does.StartWith("err:"),
@@ -96,7 +95,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 4: LintUITK with null path → err: path is required
         [Test]
-        public async Task LintUITK_NullPath_ReturnsErrMessage()
+        public void LintUITK_NullPath_ReturnsErrMessage()
         {
             var result = UIHelper.LintUITK(null, false);
             Assert.That(result, Does.StartWith("err:"),
@@ -108,7 +107,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 5: LintUITK with non-existent file → err: file not found
         [Test]
-        public async Task LintUITK_NonExistentFile_ReturnsErrMessage()
+        public void LintUITK_NonExistentFile_ReturnsErrMessage()
         {
             var result = UIHelper.LintUITK("/nonexistent/file.uxml", false);
             Assert.That(result, Does.StartWith("err:"),

@@ -1,6 +1,5 @@
 // Session 9: AttachUITK — add UIDocument component to a GameObject.
 using System.IO;
-using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -15,7 +14,7 @@ namespace UnityMCP.Editor.Tests
         private GameObject _testGO;
 
         [SetUp]
-        public async Task SetUpTest()
+        public void SetUpTest()
         {
             TestPaths.EnsureFolder(AssetFolder);
             TrackOwnedAsset(AssetFolder);
@@ -46,7 +45,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 1: bare GO gets UIDocument (or PanelRenderer on 6.4+) added
         [Test]
-        public async Task AttachUITK_BareGO_AddsUIDocumentComponent()
+        public void AttachUITK_BareGO_AddsUIDocumentComponent()
         {
             var path = ComponentSerializer.GetPath(_testGO);
             var result = UIHelper.AttachUITK(path, null, null, 0);
@@ -68,7 +67,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 2: duplicate guard — GO already has UIDocument
         [Test]
-        public async Task AttachUITK_AlreadyHasUIDocument_ReturnsError()
+        public void AttachUITK_AlreadyHasUIDocument_ReturnsError()
         {
             Undo.AddComponent<UIDocument>(_testGO);
             var path = ComponentSerializer.GetPath(_testGO);
@@ -81,7 +80,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 3: missing path → err
         [Test]
-        public async Task AttachUITK_MissingPath_ReturnsError()
+        public void AttachUITK_MissingPath_ReturnsError()
         {
             var result = UIHelper.AttachUITK("/NonExistentPath/GO", null, null, 0);
 
@@ -94,7 +93,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 4: missing uxml path → err
         [Test]
-        public async Task AttachUITK_MissingUxmlPath_ReturnsError()
+        public void AttachUITK_MissingUxmlPath_ReturnsError()
         {
             var path = ComponentSerializer.GetPath(_testGO);
             var result = UIHelper.AttachUITK(path, "Assets/NonExistent/HUD.uxml", null, 0);
@@ -109,7 +108,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public async Task AttachUITK_MissingPanelSettings_ReturnsErrorWithoutMutation()
+        public void AttachUITK_MissingPanelSettings_ReturnsErrorWithoutMutation()
         {
             var path = ComponentSerializer.GetPath(_testGO);
             var result = UIHelper.AttachUITK(path, null,
@@ -121,7 +120,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public async Task AttachUITK_ValidAssets_AssignsExactReferencesAndSortingOrder()
+        public void AttachUITK_ValidAssets_AssignsExactReferencesAndSortingOrder()
         {
             var uxmlPath = AssetFolder + "/Document.uxml";
             var panelPath = AssetFolder + "/PanelSettings.asset";
@@ -150,7 +149,7 @@ namespace UnityMCP.Editor.Tests
 
         // U11: When panelSettings arg is omitted, ok response includes warn:panelSettings=null
         [Test]
-        public async Task AttachUITK_NoPanelSettings_WarnsSuffix()
+        public void AttachUITK_NoPanelSettings_WarnsSuffix()
         {
             // Double-red:
             // 1. Change "warn:panelSettings=null" to "warn:nothere" → assertion fails
@@ -166,7 +165,7 @@ namespace UnityMCP.Editor.Tests
 
         // Test 5: Undo restores state — UIDocument/PanelRenderer removed after undo
         [Test]
-        public async Task AttachUITK_UndoCreatesRestorePoint()
+        public void AttachUITK_UndoCreatesRestorePoint()
         {
             var path = ComponentSerializer.GetPath(_testGO);
             UIHelper.AttachUITK(path, null, null, 0);
