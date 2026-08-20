@@ -7,7 +7,7 @@ hide:
 
 > **160 registered tools** — auto-generated from server tool definitions.
 
-> Quality: **83.8/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
+> Quality: **83.7/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
 
 ## Overview
 
@@ -23,11 +23,11 @@ hide:
 | [`ask`](#ask) | 🟢 93/100 | 🟢 low | Answer a read-only question about the Unity scene (AI-routed, not interactive... |
 | [`ask_user`](#ask_user) | 🟢 93/100 | 🟢 low | Show a question card in Unity chat; wait for user answer (interactive UI — us... |
 | [`asset`](#asset) | 🟡 74/100 | 🔴 high | Asset database. Creates, moves, or deletes assets. No confirmation required. ... |
-| [`attach_uitk`](#attach_uitk) | 🟡 76/100 | 🔴 high | Attach UIDocument to a GameObject (use for UI Toolkit runtime panels). |
+| [`attach_uitk`](#attach_uitk) | 🟡 76/100 | 🔴 high | Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for U... |
 | [`auto_fix`](#auto_fix) | 🟢 95/100 | 🟢 low | Analyze recent Unity errors and ask MCP client sampling for a fix suggestion. |
 | [`auto_wire`](#auto_wire) | 🟢 89/100 | 🔴 high | Fill null ObjectReference fields on a GameObject by matching field name or ty... |
 | [`autofit_collider`](#autofit_collider) | 🟢 82/100 | 🟡 medium | Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule. |
-| [`await_compile`](#await_compile) | 🟢 85/100 | 🟢 low | Block until Unity finishes compiling + reloading, then return compile errors. |
+| [`await_compile`](#await_compile) | 🟢 84/100 | 🟢 low | Block until Unity finishes compiling + reloading, then return compile errors. |
 | [`bake`](#bake) | 🟢 92/100 | 🟢 low | Bake operations. |
 | [`batch`](#batch) | 🟢 83/100 | 🔴 high | Execute multiple commands in one call. Use for 2+ ops — reads AND writes. com... |
 | [`brief_build`](#brief_build) | 🟢 82/100 | 🔴 high | Use to get a snapshot of project state before starting work. |
@@ -80,7 +80,7 @@ hide:
 | [`get_unity_events`](#get_unity_events) | 🟢 90/100 | 🟡 medium | List all UnityEvent persistent listeners in the active scene. |
 | [`get_watches`](#get_watches) | 🟢 95/100 | 🟢 low | Get all active watches and recent log entries. |
 | [`inspect`](#inspect) | 🟢 90/100 | 🟢 low | Get components for multiple objects at once. paths: comma-separated. componen... |
-| [`inspect_uitk`](#inspect_uitk) | 🟢 87/100 | 🟡 medium | Inspect the VisualElement tree of a UIDocument panel |
+| [`inspect_uitk`](#inspect_uitk) | 🟢 87/100 | 🟡 medium | Inspect the VisualElement tree of a UIDocument or PanelRenderer panel |
 | [`invoke_method`](#invoke_method) | 🟢 83/100 | 🟡 medium | [Play Mode] Call public method on a component via reflection. |
 | [`lint_playtest`](#lint_playtest) | 🟢 84/100 | 🔴 high | Static validation for playtest DSL. Read-only — no scene changes. Returns war... |
 | [`lint_playtest_suite`](#lint_playtest_suite) | 🟢 88/100 | 🟡 medium | Read-only preflight check across multiple .playtest files. |
@@ -120,7 +120,7 @@ hide:
 | [`resolve_test_request`](#resolve_test_request) | 🟢 93/100 | 🟢 low | Resolve a possibly lost start ACK without dispatching another test run. |
 | [`resolve_tool_schema`](#resolve_tool_schema) | 🟢 92/100 | 🟢 low | Return full parameter schemas for deferred tools. tools=comma-separated names. |
 | [`run_playtest`](#run_playtest) | 🟡 75/100 | 🔴 high | [Play Mode] Execute a playtest DSL script. Returns structured report (for NUn... |
-| [`run_playtest_suite`](#run_playtest_suite) | 🟡 73/100 | 🔴 high | Run multiple .playtest files sequentially and return a compact matrix. |
+| [`run_playtest_suite`](#run_playtest_suite) | 🟡 67/100 | 🔴 high | Run multiple .playtest files sequentially and return a compact matrix. |
 | [`run_tests`](#run_tests) | 🟡 74/100 | 🟡 medium | Dispatch Unity tests and return their durable identity immediately. |
 | [`run_tests_wait`](#run_tests_wait) | 🟡 68/100 | 🔴 high | Dispatch tests and wait for the exact run to become terminal. Dispatches test... |
 | [`runtime_snapshot`](#runtime_snapshot) | 🟢 89/100 | 🟢 low | Snapshot all runtime objects of a given component type. Returns per-object fi... |
@@ -159,7 +159,7 @@ hide:
 | [`timeline`](#timeline) | 🟡 64/100 | 🟡 medium | Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinema... |
 | [`transfer_object`](#transfer_object) | 🟢 85/100 | 🟡 medium | Move or copy a GameObject to another loaded scene. action: move|copy. |
 | [`ui_intent`](#ui_intent) | 🟢 82/100 | 🟡 medium | Convert NL intent to Unity UI hierarchy. Templates bypass Haiku. |
-| [`uitk_element`](#uitk_element) | 🟢 80/100 | 🔴 high | Mutate or query a VisualElement in a UIDocument |
+| [`uitk_element`](#uitk_element) | 🟢 80/100 | 🔴 high | Mutate or query a VisualElement in a UIDocument or PanelRenderer host |
 | [`uitk_file`](#uitk_file) | 🟡 67/100 | 🔴 high | Read or edit a UXML or USS asset file. |
 | [`uitk_intent`](#uitk_intent) | 🟡 79/100 | 🔴 high | Generate a UXML + USS file pair from a natural-language UI description. |
 | [`undo_last`](#undo_last) | 🟢 83/100 | 🟡 medium | Undo the last N AI turns in the Unity Undo stack. Default: 1. |
@@ -168,7 +168,7 @@ hide:
 | [`validate_playtest_aliases`](#validate_playtest_aliases) | 🟢 86/100 | 🟡 medium | Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/... |
 | [`validate_references`](#validate_references) | 🟢 82/100 | 🟡 medium | Validate all ObjectReference fields under path recursively. |
 | [`validate_triggers`](#validate_triggers) | 🟢 83/100 | 🟡 medium | Check 3D trigger/collider overlaps. Warns if triggers closer than min_distanc... |
-| [`verify_after_change`](#verify_after_change) | 🟡 64/100 | 🔴 high | Single verification gate after code/scene changes. |
+| [`verify_after_change`](#verify_after_change) | 🔴 57/100 | 🔴 high | Single verification gate after code/scene changes. |
 | [`vfx_intent`](#vfx_intent) | 🟡 74/100 | 🟡 medium | Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely. |
 | [`wait_until`](#wait_until) | 🟡 69/100 | 🟡 medium | [Play Mode] Poll field until it matches value (or timeout). |
 | [`watch`](#watch) | 🟡 68/100 | 🔴 high | [Play Mode] Manage watches. Registers or removes watches. No confirmation req... |
@@ -1339,7 +1339,7 @@ Asset database. Creates, moves, or deletes assets. No confirmation required. act
 
 🟡 76/100 · Risk: 🔴 high
 
-Attach UIDocument to a GameObject (use for UI Toolkit runtime panels). Side effect: mutates the scene by adding one Undo-recorded UIDocument after validating every supplied asset; it does not create UXML or PanelSettings assets. path: scene path to the target GameObject. uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted). panel_settings: optional Assets/ path to a PanelSettings asset; omitted leaves the field unset. sort_order: UIDocument.sortingOrder (default 0). err: if UIDocument already present — remove it first or use inspect_uitk/uitk_element.
+Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for UI Toolkit runtime panels). Side effect: mutates the scene by adding one Undo-recorded UIDocument after validating every supplied asset; it does not create UXML or PanelSettings assets. path: scene path to the target GameObject. uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted). panel_settings: optional Assets/ path to a PanelSettings asset; omitted leaves the field unset. sort_order: UIDocument.sortingOrder (default 0; ignored on Unity 6.4+ PanelRenderer). err: if UIDocument or PanelRenderer already present — remove it first or use inspect_uitk/uitk_element.
 
 **Parameters:**
 
@@ -1551,7 +1551,7 @@ Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule.
 
 ### `await_compile`
 
-🟢 85/100 · Risk: 🟢 low
+🟢 84/100 · Risk: 🟢 low
 
 Block until Unity finishes compiling + reloading, then return compile errors. Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'. Handles domain reload disconnects transparently. timeout=0 → immediate check, no loop. Epoch-aware via sync_status when available (+10 from MAJOR-1); falls back to compile_status.
 
@@ -1559,13 +1559,15 @@ Block until Unity finishes compiling + reloading, then return compile errors. Us
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `expected_generation` | any |  |  |
 | `timeout` | number |  | Seconds before giving up (default varies per tool) (default: `60.0`) |
 
 <details>
-<summary>3 quality issues</summary>
+<summary>4 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
 - **warning**: Numeric parameter 'timeout' has no bounds.
+- **info**: Parameter 'expected_generation' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -1581,6 +1583,18 @@ Block until Unity finishes compiling + reloading, then return compile errors. Us
       "title": "Timeout",
       "type": "number",
       "description": "Seconds before giving up (default varies per tool)"
+    },
+    "expected_generation": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expected Generation"
     }
   },
   "title": "await_compileArguments",
@@ -4595,7 +4609,7 @@ Get components for multiple objects at once. paths: comma-separated. components:
 
 🟢 87/100 · Risk: 🟡 medium
 
-Inspect the VisualElement tree of a UIDocument panel (UI Toolkit only — use `get_component` for UIDocument component fields, use `get_hierarchy` for the scene GameObject tree, use `create_ui` for uGUI Canvas elements). Returns compact text tree with ~N refids; pass ~N to uitk_element as selector. path: scene path to UIDocument GameObject (e.g. /HUD), or 'scene' to list all. depth: max traversal depth (default 4; use selector to focus a subtree). selector: start tree from first matching element (name, .class, TypeName, ~refid). filter: show only elements whose name or classes contain this substring. show_unity_private: show #unity-* prefixed elements normally hidden by default. show_style: include non-default computed style values per element.
+Inspect the VisualElement tree of a UIDocument or PanelRenderer panel (UI Toolkit only — use `get_component` for UIDocument component fields, use `get_hierarchy` for the scene GameObject tree, use `create_ui` for uGUI Canvas elements). Returns compact text tree with ~N refids; pass ~N to uitk_element as selector. path: scene path to UIDocument or PanelRenderer GameObject (e.g. /HUD), or 'scene' to list all. depth: max traversal depth (default 4; use selector to focus a subtree). selector: start tree from first matching element (name, .class, TypeName, ~refid). filter: show only elements whose name or classes contain this substring. show_unity_private: show #unity-* prefixed elements normally hidden by default. show_style: include non-default computed style values per element.
 
 **Parameters:**
 
@@ -7416,9 +7430,9 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 
 ### `run_playtest_suite`
 
-🟡 73/100 · Risk: 🔴 high
+🟡 67/100 · Risk: 🔴 high
 
-Run multiple .playtest files sequentially and return a compact matrix. Side effects: auto_play/restart_between may enter or restart Play Mode; stop_after exits Play Mode. No confirmation is requested. pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,          or newline-separated list of project-relative paths. suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment). Exactly one of pattern or suite_path must be provided. stop_on_fail=True: abort suite after first failure. stop_after=True: exit Play Mode when suite completes. auto_play=True: enter Play Mode automatically if not already playing. restart_between=True: stop+play between each file to reset runtime state; with auto_play=True, also resets an already-running editor before file one. Lifecycle commands must return successfully and reach their observed state. A failed transition stops the suite and is reported as a failed row. Empty matches return a failing SUITE: 0/0 report. Output: SUITE: X/Y passed (Zs) + per-file line + full failure details.
+Run multiple .playtest files sequentially and return a compact matrix. Side effects: auto_play/restart_between may enter or restart Play Mode; stop_after exits Play Mode. No confirmation is requested. pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,          or newline-separated list of project-relative paths. suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment). Exactly one of pattern or suite_path must be provided. stop_on_fail=True: abort suite after first failure. stop_after=True: exit Play Mode when suite completes. auto_play=True: enter Play Mode automatically if not already playing. restart_between=True: stop+play between each file to reset runtime state; with auto_play=True, also resets an already-running editor before file one. suite_timeout: total suite wall-clock deadline in seconds (default 300s). Lifecycle commands must return successfully and reach their observed state. A failed transition stops the suite and is reported as a failed row. Empty matches return a failing SUITE: 0/0 report. Output: SUITE: X/Y passed (Zs) terminal:true play_stopped:true/false + per-file lines.
 
 **Parameters:**
 
@@ -7430,10 +7444,11 @@ Run multiple .playtest files sequentially and return a compact matrix. Side effe
 | `stop_after` | boolean |  |  (default: `True`) |
 | `stop_on_fail` | boolean |  |  (default: `False`) |
 | `suite_path` | any |  |  |
+| `suite_timeout` | number |  |  (default: `300.0`) |
 | `timeout_per_test` | number |  |  (default: `120.0`) |
 
 <details>
-<summary>11 quality issues</summary>
+<summary>13 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
 - **info**: Parameter 'pattern' has no description.
@@ -7444,6 +7459,8 @@ Run multiple .playtest files sequentially and return a compact matrix. Side effe
 - **info**: Parameter 'stop_after' has no description.
 - **info**: Parameter 'auto_play' has no description.
 - **info**: Parameter 'restart_between' has no description.
+- **info**: Parameter 'suite_timeout' has no description.
+- **warning**: Numeric parameter 'suite_timeout' has no bounds.
 - **warning**: outputSchema is missing.
 - **warning**: Tool appears destructive but lacks destructiveHint=true.
 
@@ -7503,6 +7520,11 @@ Run multiple .playtest files sequentially and return a compact matrix. Side effe
       "default": false,
       "title": "Restart Between",
       "type": "boolean"
+    },
+    "suite_timeout": {
+      "default": 300.0,
+      "title": "Suite Timeout",
+      "type": "number"
     }
   },
   "title": "run_playtest_suiteArguments",
@@ -10976,7 +10998,7 @@ Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.  template: hud|
 
 🟢 80/100 · Risk: 🔴 high
 
-Mutate or query a VisualElement in a UIDocument (use inspect_uitk to find elements first, then pass ~N ref for zero-token addressing; use set_property for serialized component fields on the UIDocument GameObject; use create_ui for uGUI Canvas elements). action: query (find elements) | get (read value/text) | set_style | add_class | remove_class | get_style | enable | disable. Element addressing priority: ref (~N from inspect_uitk) → name → selector (CSS class/type). path: scene path to UIDocument GameObject (e.g. /HUD). ref: ~N refid from inspect_uitk (highest priority, stale after re-inspect or domain reload). selector: CSS selector — .class-name, TypeName, or element name. name: element name (equivalent to bare name in selector). value: value to write (for set_style/add_class). property: CSS property name for set_style/get_style. class_name: USS class name for add_class/remove_class (no leading dot). warn: set_style/add_class/remove_class/enable/disable in Play Mode — change not persisted.
+Mutate or query a VisualElement in a UIDocument or PanelRenderer host (use inspect_uitk to find elements first, then pass ~N ref for zero-token addressing; use set_property for serialized component fields on the UIDocument GameObject; use create_ui for uGUI Canvas elements). action: query (find elements) | get (read value/text) | set_style | add_class | remove_class | get_style | enable | disable. Element addressing priority: ref (~N from inspect_uitk) → name → selector (CSS class/type). path: scene path to UIDocument or PanelRenderer GameObject (e.g. /HUD). ref: ~N refid from inspect_uitk (highest priority, stale after re-inspect or domain reload). selector: CSS selector — .class-name, TypeName, or element name. name: element name (equivalent to bare name in selector). value: value to write (for set_style/add_class). property: CSS property name for set_style/get_style. class_name: USS class name for add_class/remove_class (no leading dot). warn: set_style/add_class/remove_class/enable/disable in Play Mode — change not persisted.
 
 **Parameters:**
 
@@ -11328,7 +11350,7 @@ Read or edit a UXML or USS asset file. action=read is read-only. Side effect: ev
 
 🟡 79/100 · Risk: 🔴 high
 
-Generate a UXML + USS file pair from a natural-language UI description. Side effect: unless dry_run=True, writes both project assets; attach_to also adds a UIDocument scene component. Completed steps are not rolled back if a later step fails. Failure output distinguishes retained files, confirmed Unity auto-reverts, and attempted files whose cleanup is uncertain. Without template, invokes configured Claude sampling and may consume provider quota. For uGUI use ui_intent. template: hud|menu|dialog|settings|editor_window bypasses Haiku entirely. name: base filename (e.g. "InventoryPanel" → InventoryPanel.uxml + .uss). path: output folder, default "Assets/UI". attach_to: scene path to UIDocument GameObject to wire after creation. dry_run: return UXML+USS text without writing files.
+Generate a UXML + USS file pair from a natural-language UI description. Side effect: unless dry_run=True, writes both project assets; attach_to also adds a UIDocument or PanelRenderer scene component. Completed steps are not rolled back if a later step fails. Failure output distinguishes retained files, confirmed Unity auto-reverts, and attempted files whose cleanup is uncertain. Without template, invokes configured Claude sampling and may consume provider quota. For uGUI use ui_intent. template: hud|menu|dialog|settings|editor_window bypasses Haiku entirely. name: base filename (e.g. "InventoryPanel" → InventoryPanel.uxml + .uss). path: output folder, default "Assets/UI". attach_to: scene path to UIDocument or PanelRenderer GameObject to wire after creation. dry_run: return UXML+USS text without writing files.
 
 **Parameters:**
 
@@ -11778,7 +11800,7 @@ Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance m
 
 ### `verify_after_change`
 
-🟡 64/100 · Risk: 🔴 high
+🔴 57/100 · Risk: 🔴 high
 
 Single verification gate after code/scene changes. Gates are additive — only enabled ones run: 1. await_compile (always) 2. get_compile_errors (always) 3. get_console_since mark_id (if mark_id provided) 4. run_tests_wait mode filter (if run_tests_mode provided) 5. run_playtest_suite paths (if playtests provided) Returns PASS only when ALL enabled gates pass. Failure includes which gate failed and recommended next command.
 
@@ -11786,16 +11808,18 @@ Single verification gate after code/scene changes. Gates are additive — only e
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
+| `auto_play` | boolean |  |  (default: `False`) |
 | `changed_files` | string |  |  (default: ``) |
 | `mark_id` | string |  |  (default: ``) |
 | `playtests` | string |  |  (default: ``) |
 | `restart_between` | boolean |  |  (default: `False`) |
 | `run_tests_mode` | string |  |  (default: ``) |
+| `suite_timeout` | number |  |  (default: `300.0`) |
 | `test_filter` | string |  |  (default: ``) |
 | `timeout` | number |  | Seconds before giving up (default varies per tool) (default: `300.0`) |
 
 <details>
-<summary>16 quality issues</summary>
+<summary>19 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
@@ -11811,7 +11835,10 @@ Single verification gate after code/scene changes. Gates are additive — only e
 - **info**: Parameter 'mark_id' has no description.
 - **info**: Free-form string parameter 'mark_id' has no maxLength.
 - **warning**: Numeric parameter 'timeout' has no bounds.
+- **info**: Parameter 'auto_play' has no description.
 - **info**: Parameter 'restart_between' has no description.
+- **info**: Parameter 'suite_timeout' has no description.
+- **warning**: Numeric parameter 'suite_timeout' has no bounds.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -11853,10 +11880,20 @@ Single verification gate after code/scene changes. Gates are additive — only e
       "type": "number",
       "description": "Seconds before giving up (default varies per tool)"
     },
+    "auto_play": {
+      "default": false,
+      "title": "Auto Play",
+      "type": "boolean"
+    },
     "restart_between": {
       "default": false,
       "title": "Restart Between",
       "type": "boolean"
+    },
+    "suite_timeout": {
+      "default": 300.0,
+      "title": "Suite Timeout",
+      "type": "number"
     }
   },
   "title": "verify_after_changeArguments",

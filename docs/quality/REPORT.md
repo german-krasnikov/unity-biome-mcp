@@ -1,32 +1,32 @@
 # Quality Report
 
-> Auto-generated on **2026-08-19** from commit `084eb68` (v1.43.0)
+> Auto-generated on **2026-08-20** from commit `e0ddb79` (v1.45.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.43.0 |
-| Commit | `084eb68` |
-| Date | 2026-08-19 |
+| Version | v1.45.0 |
+| Commit | `e0ddb79` |
+| Date | 2026-08-20 |
 | MCP Tools | 160 |
 
 ## Test Results
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.14) | 5836 | 0 | 3 | 5839 | ✅ |
+| Python Server (3.14) | 5926 | 0 | 3 | 5929 | ✅ |
 | Python Install | 79 | 0 | 0 | 79 | ✅ |
 | Python Scripts | 939 | 0 | 0 | 939 | ✅ |
-| C# EditMode (Linux) | 8191 | 0 | 175 | 8366 | ✅ |
-| C# EditMode (Windows) | 8077 | 0 | 289 | 8366 | ✅ |
-| C# EditMode (macOS) | 8191 | 0 | 175 | 8366 | ✅ |
+| C# EditMode (Linux) | 8213 | 0 | 175 | 8388 | ✅ |
+| C# EditMode (Windows) | 8099 | 0 | 289 | 8388 | ✅ |
+| C# EditMode (macOS) | 8213 | 0 | 175 | 8388 | ✅ |
 
 ## Tool Quality
 
 | Linter | Errors | Warnings | Score |
 |--------|--------|----------|-------|
-| mcp-tool-card-linter | 0 | 412 | 83.81/100 |
+| mcp-tool-card-linter | 0 | 414 | 83.72/100 |
 
 ### Per-Tool Scores
 
@@ -35,12 +35,13 @@
 
 | Tool | Score | Errors | Warnings | Risk |
 |------|-------|--------|----------|------|
+| `verify_after_change` | 57 | 0 | 6 | high |
 | `shader` | 59 | 0 | 4 | high |
 | `animator` | 60 | 0 | 4 | high |
 | `timeline` | 64 | 0 | 4 | medium |
-| `verify_after_change` | 64 | 0 | 5 | high |
 | `create_ui` | 65 | 0 | 5 | medium |
 | `screenshot` | 65 | 0 | 7 | medium |
+| `run_playtest_suite` | 67 | 0 | 5 | high |
 | `uitk_file` | 67 | 0 | 5 | high |
 | `run_tests_wait` | 68 | 0 | 6 | high |
 | `screenshot_compare` | 68 | 0 | 5 | medium |
@@ -51,7 +52,6 @@
 | `animation` | 71 | 0 | 3 | medium |
 | `test_step` | 71 | 0 | 4 | medium |
 | `set_rect` | 72 | 0 | 4 | medium |
-| `run_playtest_suite` | 73 | 0 | 4 | high |
 | `sync_unity` | 73 | 0 | 5 | medium |
 | `asset` | 74 | 0 | 3 | high |
 | `run_tests` | 74 | 0 | 5 | medium |
@@ -107,13 +107,13 @@
 | `use_skill` | 83 | 0 | 3 | medium |
 | `validate_triggers` | 83 | 0 | 3 | medium |
 | `apply_scene_change` | 84 | 0 | 2 | high |
+| `await_compile` | 84 | 0 | 3 | low |
 | `create_object` | 84 | 0 | 3 | medium |
 | `get_console_since` | 84 | 0 | 2 | low |
 | `lint_playtest` | 84 | 0 | 3 | high |
 | `menu` | 84 | 0 | 3 | medium |
 | `scene_environment` | 84 | 0 | 3 | medium |
 | `scriptable_object` | 84 | 0 | 3 | medium |
-| `await_compile` | 85 | 0 | 3 | low |
 | `discover_tools` | 85 | 0 | 2 | low |
 | `export_playtest_aliases_to_defs` | 85 | 0 | 2 | medium |
 | `fingerprint` | 85 | 0 | 3 | medium |
