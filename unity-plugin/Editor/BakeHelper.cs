@@ -69,7 +69,7 @@ namespace UnityMCP.Editor
             return $"bakeMode:{ls.mixedBakeMode}\n" +
                    $"lightmapResolution:{ls.lightmapResolution}\n" +
                    $"maxAtlasSize:{ls.lightmapMaxSize}\n" +
-                   $"bounces:{ls.bounces}\n" +
+                   $"bounces:{ls.maxBounces}\n" +
                    $"filteringMode:{ls.filteringMode}";
         }
 

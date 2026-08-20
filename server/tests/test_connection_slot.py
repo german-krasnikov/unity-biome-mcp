@@ -1,4 +1,5 @@
 import asyncio
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from helpers import make_mock_bridge
 
@@ -229,3 +230,92 @@ async def test_connect_failure_preserves_old_port():
 
     assert s.port == 9500, "slot.port must preserve old value on failed connect"
     assert "not yet available" in result
+
+
+# ── Race condition / CancelledError fixes ────────────────────────────────────
+
+async def test_concurrent_connect_only_one_bridge():
+    """Two concurrent connect() calls must create exactly one bridge (lock guard)."""
+    from unity_mcp.connection_slot import ConnectionSlot
+
+    started = asyncio.Event()
+    go = asyncio.Event()
+
+    async def slow_connect(*_):
+        started.set()
+        await go.wait()
+
+    bridge_instances = []
+
+    def make_bridge(h, p, **kw):
+        b = make_mock_bridge()
+        b.connect = AsyncMock(side_effect=slow_connect)
+        bridge_instances.append(b)
+        return b
+
+    with patch("unity_mcp.connection_slot.UnityBridge", side_effect=make_bridge):
+        s = ConnectionSlot()
+        t1 = asyncio.create_task(s.connect(9500))
+        await started.wait()              # t1 holds lock, waiting inside connect()
+        t2 = asyncio.create_task(s.connect(9500))
+        await asyncio.sleep(0)            # let t2 try to acquire lock
+        go.set()                          # release t1
+        await asyncio.gather(t1, t2)
+
+    assert len(bridge_instances) == 1, f"Expected 1 bridge, got {len(bridge_instances)}"
+    assert s.bridge is bridge_instances[0]
+
+
+async def test_cancelled_connect_cleans_up_bridge():
+    """CancelledError during connect() must close bridge and leave self._bridge=None."""
+    from unity_mcp.connection_slot import ConnectionSlot
+
+    async def hang(*_):
+        await asyncio.sleep(100)
+
+    b = make_mock_bridge()
+    b.connect = AsyncMock(side_effect=hang)
+
+    with patch("unity_mcp.connection_slot.UnityBridge", return_value=b):
+        s = ConnectionSlot()
+        task = asyncio.create_task(s.connect(9500))
+        await asyncio.sleep(0)   # let task enter connect()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    assert s.bridge is None, "Cancelled connect must not leave orphaned bridge"
+    b.close.assert_awaited()
+
+
+async def test_connect_after_lock_skip_if_already_connected():
+    """Second concurrent connect() skips when first has already set the bridge."""
+    from unity_mcp.connection_slot import ConnectionSlot
+
+    started = asyncio.Event()
+    go = asyncio.Event()
+
+    async def slow_connect(*_):
+        started.set()
+        await go.wait()
+
+    bridge_instances = []
+
+    def make_bridge(h, p, **kw):
+        b = make_mock_bridge()
+        b.connect = AsyncMock(side_effect=slow_connect)
+        bridge_instances.append(b)
+        return b
+
+    with patch("unity_mcp.connection_slot.UnityBridge", side_effect=make_bridge):
+        s = ConnectionSlot()
+        t1 = asyncio.create_task(s.connect(9500))
+        await started.wait()
+        t2 = asyncio.create_task(s.connect(9500))
+        await asyncio.sleep(0)
+        go.set()
+        await asyncio.gather(t1, t2)
+
+    # Only the first bridge was created; second task reused it
+    assert len(bridge_instances) == 1
+    assert s.bridge is bridge_instances[0]
