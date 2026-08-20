@@ -43,11 +43,16 @@ def test_allow_hint_retry_delegates_to_is_retry_safe():
     assert policy.allow_hint_retry("create_object") is False
 
 
-def test_decide_marks_reload_tracker_on_domain_reload_error():
+def test_decide_does_not_mark_reload_tracker_on_domain_reload_error():
+    """RetryPolicy.decide() is a pure decision function — it does not call mark().
+
+    Mark side-effects are the caller's responsibility (UnityBridge.should_retry).
+    Double-marking was the bug: both _send_with_retry and RetryPolicy called mark().
+    """
     tracker = DomainReloadTracker()
     probe = Mock(mark_recompile_issued=Mock())
     policy = RetryPolicy(probe=probe, reload=tracker,
                           is_retry_safe=lambda cmd: True, max_retries=3)
     policy.decide(DomainReloadError("test"), attempt=0,
                   session_deadline=time.monotonic() + 60, cmd="x")
-    assert tracker.is_active() is True
+    assert tracker.is_active() is False  # decide() no longer marks; should_retry() does

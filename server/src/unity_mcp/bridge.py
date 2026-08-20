@@ -369,6 +369,8 @@ class UnityBridge(HeartbeatMixin):
         if isinstance(error, DomainReloadError):
             self._state = BridgeState.DOMAIN_RELOADING
             self._reconnect_backoff = RELOAD_BACKOFF_S  # fast reconnect for expected reloads
+            self._reload.mark()
+            self._probe.mark_recompile_issued()
         return self._retry_policy.decide(error, attempt, session_deadline, cmd=cmd)
 
     def _probe_busy(self) -> bool:
@@ -481,10 +483,7 @@ class UnityBridge(HeartbeatMixin):
                         await self.close()
                         raise
             except (OSError, asyncio.IncompleteReadError, json.JSONDecodeError, RuntimeError) as e:
-                if isinstance(e, DomainReloadError):
-                    self._reload.mark()
-                    self._probe.mark_recompile_issued()
-                elif isinstance(e, TimeoutError) and delivery == DeliveryState.SENT and self._reload.is_active():
+                if isinstance(e, TimeoutError) and delivery == DeliveryState.SENT and self._reload.is_active():
                     # P-183: read timeout after payload delivered → Unity was processing
                     # the command (not reloading). Clear stale reload flag so next
                     # send() isn't immediately blocked by DomainReloadError.
@@ -595,6 +594,10 @@ class UnityBridge(HeartbeatMixin):
             )
         payload = await self._reader.readexactly(length)
         data = json.loads(payload.decode("utf-8"))
+        if not isinstance(data, dict):
+            raise ConnectionError(
+                f"Protocol desync: expected JSON object (dict), got non-dict {type(data).__name__} — reconnecting"
+            )
         if data.get("ev") == "going_away":
             raise DomainReloadError(f"Unity domain reload: {data.get('reason', 'unknown')}")
         return data
@@ -924,7 +927,8 @@ class UnityBridge(HeartbeatMixin):
                     await task
             while not self._send_queue.empty():
                 try:
-                    *_, future = self._send_queue.get_nowait()
+                    cmd, payload, msg_id, timeout, deadline, op_id, future = self._send_queue.get_nowait()
+                    self._ledger.record(op_id, CommandStatus.FAILED)
                     if not future.done():
                         future.set_exception(ConnectionError("Bridge closed"))
                 except asyncio.QueueEmpty:  # noqa: PERF203
