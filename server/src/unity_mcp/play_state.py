@@ -8,7 +8,10 @@ Backward compat: if Unity doesn't send play_epoch/world_ready, ready = playing.
 import asyncio
 import time
 from dataclasses import dataclass
-from collections.abc import Callable, Awaitable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 from .tools.editor_state import parse_editor_field, parse_play_epoch, parse_world_ready
 
@@ -49,12 +52,8 @@ class PlayReadinessTracker:
 
         new_epoch = epoch if epoch is not None else self._state.epoch
 
-        if self._has_world_ready_field:
-            # Authoritative: ready only when playing + world first frame done
-            ready = playing and world_ready
-        else:
-            # Fallback for old Unity: ready = playing (no world_ready protocol)
-            ready = playing
+        # Authoritative if world_ready field present, else fallback for old Unity
+        ready = playing and world_ready if self._has_world_ready_field else playing
 
         self._state = PlayState(playing=playing, epoch=new_epoch, ready=ready)
 

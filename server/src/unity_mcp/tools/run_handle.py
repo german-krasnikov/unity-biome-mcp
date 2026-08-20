@@ -35,9 +35,8 @@ class TestRunHandle:
             self.result = result
         if expected_count is not None:
             self.expected_count = expected_count
-        if state in ("completed", "passed", "failed", "cancelled"):
-            if self._completed_at is None:
-                self._completed_at = time.monotonic()
+        if state in ("completed", "passed", "failed", "cancelled") and self._completed_at is None:
+            self._completed_at = time.monotonic()
 
 
 class TestRunRegistry:

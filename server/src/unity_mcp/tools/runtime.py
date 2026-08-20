@@ -258,8 +258,7 @@ async def _wait_for_play_state(expected: bool, action: str) -> None:
             continue
         # Play state reached. If entering Play and world_ready field is present,
         # keep polling until world_ready:True (first frame done).
-        if expected and _editor_field(state, "world_ready") is not None:
-            if not _parse_world_ready(state):
+        if expected and _editor_field(state, "world_ready") is not None and not _parse_world_ready(state):
                 if attempt + 1 < _PLAY_STATE_POLLS:
                     await asyncio.sleep(_PLAY_STATE_POLL_INTERVAL)
                 continue
@@ -446,7 +445,7 @@ async def run_playtest_suite(
                         auto_play, restart_between, timeout_per_test, stop_on_fail),
             timeout=suite_timeout,
         )
-    except asyncio.TimeoutError:
+    except TimeoutError:
         timed_out = True
     except Exception as exc:
         primary_error = exc
@@ -476,9 +475,11 @@ async def run_playtest_suite(
     # On timeout, mark unexecuted files as TIMED_OUT so the report is complete.
     if timed_out and file_list_resolved:
         executed = {row[0] for row in results if not row[0].startswith("<suite ")}
-        for filepath in file_list_resolved:
-            if filepath not in executed:
-                results.append((filepath, "PLAYTEST: 0/0 TIMED_OUT", 0.0, False))
+        results.extend(
+            (filepath, "PLAYTEST: 0/0 TIMED_OUT", 0.0, False)
+            for filepath in file_list_resolved
+            if filepath not in executed
+        )
 
     elapsed = _time.monotonic() - suite_start
     if empty_reason is not None:
