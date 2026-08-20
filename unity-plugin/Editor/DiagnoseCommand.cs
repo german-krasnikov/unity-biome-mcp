@@ -212,7 +212,7 @@ namespace UnityMCP.Editor
                     foreach (var f in Directory.GetFiles(dataPath, "*.asmdef", SearchOption.AllDirectories))
                         map[Path.GetFileNameWithoutExtension(f)] = Path.GetDirectoryName(f) ?? "";
                 }
-                catch (Exception) { }
+                catch (Exception ex) { UnityEngine.Debug.LogWarning($"[UnityMCP] ScanAssets failed: {ex.Message}"); }
                 return map;
             };
 

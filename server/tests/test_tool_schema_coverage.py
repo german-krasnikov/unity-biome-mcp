@@ -206,6 +206,21 @@ def test_schema_keep_full_includes_wave2_tools():
             f"'{name}' must be in _SCHEMA_KEEP_FULL (MCP091-004/012)"
 
 
+def test_schema_keep_full_matches_specs():
+    """All TIER1/core tools from _SPECS must be in _SCHEMA_KEEP_FULL automatically.
+
+    Prevents drift where a new tier1 tool is added to _SPECS but forgotten in the
+    hand-maintained _SCHEMA_KEEP_FULL_EXTRA, causing it to receive stub schema.
+    """
+    from unity_mcp.server_filtering import _SCHEMA_KEEP_FULL
+    from unity_mcp.tools.gating import TIER1
+    missing = TIER1 - _SCHEMA_KEEP_FULL
+    assert not missing, (
+        f"TIER1 tools missing from _SCHEMA_KEEP_FULL: {sorted(missing)}\n"
+        "Derive _SCHEMA_KEEP_FULL from TIER1 instead of hand-editing _SCHEMA_KEEP_FULL_EXTRA"
+    )
+
+
 def test_fastmcp_get_console_since_schema_has_mark_id():
     assert "mark_id" in _props("get_console_since"), \
         "FastMCP must expose 'mark_id' in get_console_since schema"

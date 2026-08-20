@@ -50,7 +50,7 @@ namespace UnityMCP.Editor
                     // machine-readable CapacityBusyError instead of EOF/unusable state.
                     var active = slot.CountActive();
                     var lbl0 = label;
-                    _ = RejectCapacityAsync(client, slot, active, lbl0);
+                    _ = RejectCapacityAsync(client, active, lbl0);
                     continue;
                 }
                 slot.SetEntryEndpoint(idx, gen, client.Client.RemoteEndPoint?.ToString() ?? "unknown");
@@ -121,7 +121,7 @@ namespace UnityMCP.Editor
 
         // Fire-and-forget: send typed capacity rejection, then close.
         // Existing connected clients are never touched here.
-        private static async Task RejectCapacityAsync(TcpClient client, ClientSlot slot,
+        private static async Task RejectCapacityAsync(TcpClient client,
             int active, string label)
         {
             try
@@ -132,7 +132,7 @@ namespace UnityMCP.Editor
                     await SendAsync(client.GetStream(), json, CancellationToken.None).ConfigureAwait(false);
                 }
             }
-            catch { }
+            catch (Exception ex) { Debug.LogWarning($"{BiomeLabel.Tag} RejectCapacityAsync error: {ex.Message}"); }
             finally
             {
                 var lbl = label;

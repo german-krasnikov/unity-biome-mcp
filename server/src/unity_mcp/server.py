@@ -605,7 +605,7 @@ async def lifespan(app):
             # from tools/connection.py:reconnect_unity() instead.
             if _middleware is not None:
                 slot.add_reconnect_callback(_middleware.reset_session)
-                wire_circuit_breaker(_middleware, active)
+                wire_circuit_breaker(_middleware, lambda: slot.bridge)
             active.start_heartbeat()
             active._on_transport_activity = _touch_transport_activity
         yield
