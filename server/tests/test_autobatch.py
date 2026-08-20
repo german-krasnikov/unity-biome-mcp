@@ -267,3 +267,24 @@ async def test_g11_setup_objects_regular_parent_unaffected(mock_send):
     cmds = _batch_cmds(mock_send)
     assert "/Root/Child" in cmds, "Normal parent should still produce /Root/Child path"
     assert "/#" not in cmds, "No instance-ID-like paths for a normal parent"
+
+
+async def test_autobatch_setup_uses_batch_timeout(mock_send):
+    """Bug 2: autobatch must pass timeout= to _send to avoid indefinite hangs."""
+    from unity_mcp.tools.autobatch import setup_objects
+    await setup_objects("MyObj")
+    assert mock_send.call_args.kwargs.get("timeout") == 75.0
+
+
+async def test_autobatch_set_properties_uses_batch_timeout(mock_send):
+    """Bug 2: set_properties must pass timeout= to _send."""
+    from unity_mcp.tools.autobatch import set_properties
+    await set_properties("/NPC1", "Transform.m_LocalPosition=(1,0,0)")
+    assert mock_send.call_args.kwargs.get("timeout") == 75.0
+
+
+async def test_autobatch_configure_objects_uses_batch_timeout(mock_send):
+    """Bug 2: configure_objects must pass timeout= to _send."""
+    from unity_mcp.tools.autobatch import configure_objects
+    await configure_objects("/NPC1 Transform.m_LocalPosition=(1,0,0)")
+    assert mock_send.call_args.kwargs.get("timeout") == 75.0

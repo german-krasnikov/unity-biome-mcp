@@ -22,7 +22,6 @@ _PYTHON_ONLY_PARAMS: dict[str, set[str]] = {
     "inspect": {"full"},
 }
 
-_STRIP_RE = re.compile(r'\b({keys})=\S+\s*')
 _SUMMARY_RE = re.compile(
     r"(?m)^ok:(?P<ok>\d+)(?: err:(?P<err>\d+))?"
     r"(?: skip:(?P<skip>\d+))?"
@@ -40,7 +39,7 @@ def _strip_python_params(line: str) -> str:
         return line
     rest = parts[1]
     for p in params_to_strip:
-        rest = re.sub(rf'\b{p}=\S+\s*', '', rest)
+        rest = re.sub(rf'\b{p}=(?:"[^"]*"|\'[^\']*\'|\S+)\s*', '', rest)
     return f"{cmd} {rest}".rstrip()
 
 

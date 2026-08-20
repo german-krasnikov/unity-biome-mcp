@@ -66,7 +66,7 @@ async def setup_objects(specs: str) -> str:
         return "No valid object specs found"
 
     lines.append(f"inspect paths={','.join(full_paths)} components=Transform")
-    return await _send("batch", {"commands": "\n".join(lines), "on_error": "continue"})
+    return await _send("batch", {"commands": "\n".join(lines), "on_error": "continue"}, timeout=75.0)
 
 
 async def set_properties(path: str, props: str) -> str:
@@ -93,7 +93,7 @@ async def set_properties(path: str, props: str) -> str:
         return "No valid property pairs found"
 
     lines.extend(f"get_component path={path} type={comp}" for comp in sorted(components))
-    return await _send("batch", {"commands": "\n".join(lines), "on_error": "continue"})
+    return await _send("batch", {"commands": "\n".join(lines), "on_error": "continue"}, timeout=75.0)
 
 
 async def configure_objects(config: str) -> str:
@@ -131,7 +131,7 @@ async def configure_objects(config: str) -> str:
         return "No valid config lines found"
 
     lines.append(f"inspect paths={','.join(sorted(paths))}")
-    return await _send("batch", {"commands": "\n".join(lines), "on_error": "continue"})
+    return await _send("batch", {"commands": "\n".join(lines), "on_error": "continue"}, timeout=75.0)
 
 
 def register(mcp, send, args):
