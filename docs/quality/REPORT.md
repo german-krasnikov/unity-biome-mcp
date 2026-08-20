@@ -1,13 +1,13 @@
 # Quality Report
 
-> Auto-generated on **2026-08-20** from commit `18a8812` (v1.46.1)
+> Auto-generated on **2026-08-20** from commit `aad4887` (v1.47.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.46.1 |
-| Commit | `18a8812` |
+| Version | v1.47.0 |
+| Commit | `aad4887` |
 | Date | 2026-08-20 |
 | MCP Tools | 160 |
 
@@ -15,7 +15,7 @@
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.14) | 5986 | 0 | 3 | 5989 | ✅ |
+| Python Server (3.14) | 6064 | 0 | 3 | 6067 | ✅ |
 | Python Install | 79 | 0 | 0 | 79 | ✅ |
 | Python Scripts | 939 | 0 | 0 | 939 | ✅ |
 | C# EditMode (Linux) | 8243 | 0 | 179 | 8422 | ✅ |

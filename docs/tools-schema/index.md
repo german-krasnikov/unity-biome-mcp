@@ -96,7 +96,7 @@ hide:
 | [`manage_component`](#manage_component) | 🟡 77/100 | 🔴 high | Add or remove a component. Mutates scene. No confirmation required. action: '... |
 | [`material`](#material) | 🟡 78/100 | 🟡 medium | Material asset management (for quick color change use `set_material`). action... |
 | [`material_audit`](#material_audit) | 🟢 88/100 | 🟢 low | Material/texture scene-wide audit. |
-| [`mcp_status`](#mcp_status) | 🟢 95/100 | 🟢 low | Compact MCP status: scene, dirty, play/compile state, port, alias count. |
+| [`mcp_status`](#mcp_status) | 🟢 95/100 | 🟢 low | Compact MCP status: scene, dirty, play/compile state, port, alias count, vers... |
 | [`menu`](#menu) | 🟢 84/100 | 🟡 medium | Execute or list Unity Editor menu items. action: execute|list. execute: run m... |
 | [`move_to`](#move_to) | 🟢 81/100 | 🟡 medium | [Play Mode] Move character to position and wait for arrival. |
 | [`navmesh_query`](#navmesh_query) | 🟡 70/100 | 🔴 high | NavMesh queries and management. Bakes or clears NavMesh data for bake/clear a... |
@@ -5582,7 +5582,7 @@ Material/texture scene-wide audit. action: summary|materials|textures|duplicates
 
 🟢 95/100 · Risk: 🟢 low
 
-Compact MCP status: scene, dirty, play/compile state, port, alias count.
+Compact MCP status: scene, dirty, play/compile state, port, alias count, version.
 
 <details>
 <summary>1 quality issues</summary>
@@ -7616,7 +7616,7 @@ Dispatch Unity tests and return their durable identity immediately.  A successfu
 
 🟡 68/100 · Risk: 🔴 high
 
-Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required.  Transport failures and domain reloads do not erase the last snapshot. A caller timeout is observational only: it returns ``TIMEOUT`` with request, run and snapshot data and never marks the Unity run complete.
+Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required.  Transport failures and domain reloads do not erase the last snapshot. A caller timeout is observational only: it returns ``TIMEOUT`` with request, run and snapshot data and never marks the Unity run complete. on_timeout: result starts with TIMEOUT|request_id=...|run_id=... — use run_id to resume polling via get_test_run without re-dispatching.
 
 **Parameters:**
 
@@ -9201,7 +9201,7 @@ Set multiple properties on ONE object. For multiple objects, use configure_objec
 
 🟡 76/100 · Risk: 🟡 medium
 
-Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`). find_type: component type — bulk-sets prop on all matching objects without specifying paths. For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), $hexId (e.g. $3E8) or #instanceID (legacy), or 'null'. dry_run=True shows what would change without applying. ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'.
+Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`). find_type: component type — bulk-sets prop on all matching objects without specifying paths. For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), $hexId (e.g. $3E8) or #instanceID (legacy), or 'null'. dry_run=True shows what would change without applying. ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'. effects: mutates scene via SerializedObject, creates an undo entry. Verify with get_component after.
 
 **Parameters:**
 
