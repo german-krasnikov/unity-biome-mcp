@@ -27,7 +27,7 @@ namespace UnityMCP.Editor
             var sb = new StringBuilder();
             foreach (var go in results)
             {
-                sb.Append(ComponentSerializer.GetPath(go)).Append(' ').Append(TransientObjectId.GetHexRef(go));
+                sb.Append(ComponentSerializer.GetPath(go)).Append(' ').Append(RefManager.Assign(go));
                 var compNames = new List<string>();
                 foreach (var c in go.GetComponents<Component>())
                     if (c != null && !(c is Transform)) compNames.Add(c.GetType().Name);

@@ -723,6 +723,82 @@ namespace UnityMCP.Editor.Tests
             }
         }
 
+        // ── #8b ASSERT_ONE_ACTIVE — parent-inactive truth table ──────────────────────
+
+        [Test]
+        public void AssertOneActive_ActiveChildWithInactiveParent_IsNotCounted()
+        {
+            var parent = new GameObject("OAD_Parent"); parent.SetActive(false);
+            var child  = new GameObject("OAD_Child");
+            child.transform.SetParent(parent.transform);
+            child.SetActive(true); // activeSelf=true, activeInHierarchy=false
+            try
+            {
+                var step = new PlaytestStep
+                {
+                    Type = StepType.AssertOneActive,
+                    Queries = new[] { "/OAD_Parent/OAD_Child" },
+                    RawLine = "ASSERT_ONE_ACTIVE /OAD_Parent/OAD_Child"
+                };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+                Assert.AreEqual(0, passed, "child with inactive parent must not be counted as active");
+                Assert.AreEqual(1, failed);
+                StringAssert.Contains("FAIL", results[0]);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(parent);
+            }
+        }
+
+        [Test]
+        public void AssertOneActive_ExactlyOneChildActiveInHierarchy_Passes()
+        {
+            var parent = new GameObject("OAE_Parent");
+            var childA = new GameObject("OAE_ChildA"); childA.transform.SetParent(parent.transform); childA.SetActive(true);
+            var childB = new GameObject("OAE_ChildB"); childB.transform.SetParent(parent.transform); childB.SetActive(false);
+            try
+            {
+                var step = new PlaytestStep
+                {
+                    Type = StepType.AssertOneActive,
+                    Queries = new[] { "/OAE_Parent/OAE_ChildA", "/OAE_Parent/OAE_ChildB" },
+                    RawLine = "ASSERT_ONE_ACTIVE /OAE_Parent/OAE_ChildA /OAE_Parent/OAE_ChildB"
+                };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+                Assert.AreEqual(1, passed);
+                Assert.AreEqual(0, failed);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(parent); }
+        }
+
+        [Test]
+        public void AssertOneActive_DeepNesting_GrandparentInactive_NoneAreCounted()
+        {
+            var gp    = new GameObject("OAF_GP"); gp.SetActive(false);
+            var p     = new GameObject("OAF_P");  p.transform.SetParent(gp.transform); p.SetActive(true);
+            var child = new GameObject("OAF_C");  child.transform.SetParent(p.transform); child.SetActive(true);
+            try
+            {
+                var step = new PlaytestStep
+                {
+                    Type = StepType.AssertOneActive,
+                    Queries = new[] { "/OAF_GP/OAF_P/OAF_C" },
+                    RawLine = "ASSERT_ONE_ACTIVE /OAF_GP/OAF_P/OAF_C"
+                };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+                Assert.AreEqual(0, passed, "grandchild with inactive grandparent must not be counted");
+                Assert.AreEqual(1, failed);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(gp); }
+        }
+
         [Test]
         public void Assert_WithExplicitTimeout_EntersWaitingPoll_NotDone()
         {
@@ -920,6 +996,18 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(1f, Time.timeScale);
             Assert.AreEqual(0, PlaytestMonitorRegistry.ActiveCount);
             Assert.IsFalse(PlaytestRunner.ShouldStartFreshLoad);
+        }
+
+        // ── Strict mode: abort on Errors ─────────────────────────────────────────
+
+        [Test]
+        public async Task Run_StrictMode_UnresolvedSigil_ReturnsParseError()
+        {
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run("ASSERT $badref == 1", 5f, tcs, strict: true);
+            var result = await tcs.Task;
+            StringAssert.StartsWith("PARSE ERROR:", result);
+            StringAssert.Contains("$badref", result);
         }
 
         private sealed class StubMonitor : IPlaytestMonitor

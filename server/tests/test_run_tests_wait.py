@@ -6,6 +6,7 @@ import time
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from mcp.server.fastmcp.exceptions import ToolError
 
 import unity_mcp.tools.testing as testing
 
@@ -177,14 +178,14 @@ async def test_timeout_is_nonterminal_and_keeps_identity_and_last_snapshot():
 @pytest.mark.asyncio
 async def test_blocked_preflight_is_propagated_without_polling():
     async def blocked(mode, filter=None, request_id=None):
-        return "BLOCKED: FAIL:CS0117 -- fix domain state before running tests"
+        raise ToolError("BLOCKED: FAIL:CS0117 -- fix domain state before running tests")
 
     poll = AsyncMock()
     with patch.object(testing, "run_tests", blocked), \
          patch.object(testing, "get_test_run", poll):
-        result = await testing.run_tests_wait(request_id=REQUEST_ID)
+        with pytest.raises(ToolError, match="BLOCKED"):
+            await testing.run_tests_wait(request_id=REQUEST_ID)
 
-    assert result.startswith("BLOCKED:")
     poll.assert_not_awaited()
 
 

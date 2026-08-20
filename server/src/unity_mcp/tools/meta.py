@@ -72,8 +72,10 @@ async def alias_status() -> str:
 
 
 async def mcp_status() -> str:
-    """Compact MCP status: scene, dirty, play/compile state, port, alias count."""
-    return await _send("get_status", {})
+    """Compact MCP status: scene, dirty, play/compile state, port, alias count, version."""
+    from .. import __version__
+    cs_status = await _send("get_status", {})
+    return f"{cs_status}\npython_version={__version__}"
 
 
 async def release_smoke() -> str:

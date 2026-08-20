@@ -58,7 +58,7 @@ namespace UnityMCP.Editor
                 return fullPath;
             }
             CleanupScreenshots();
-            var path = Path.Combine(ScreenshotsDir, $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{prefix}.png");
+            var path = Path.Combine(ScreenshotsDir, $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}_{prefix}_{Guid.NewGuid():N}.png");
             File.WriteAllBytes(path, pngData);
             return path;
         }

@@ -575,7 +575,7 @@ namespace UnityMCP.Editor
                         foreach (var qPath in step.Queries)
                         {
                             var go = ComponentSerializer.FindObject(qPath);
-                            if (go != null && go.activeSelf)
+                            if (go != null && go.activeInHierarchy)
                             {
                                 activeCount++;
                                 firstActive = firstActive ?? qPath;

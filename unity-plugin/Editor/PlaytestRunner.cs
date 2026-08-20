@@ -20,7 +20,8 @@ namespace UnityMCP.Editor
         }
 
         public static void Run(string script, float globalTimeout, TaskCompletionSource<string> tcs,
-            bool abortOnFail = false, bool snapshotOnFailure = false, bool fresh = false)
+            bool abortOnFail = false, bool snapshotOnFailure = false, bool fresh = false,
+            bool strict = false)
         {
             if (_isRunning) { tcs.TrySetResult("ERROR: Playtest already running. Wait for completion."); return; }
             _freshMode = fresh;
@@ -51,7 +52,7 @@ namespace UnityMCP.Editor
             int teardownStartIdx = 0;  // inclusive; 0 = no teardown (set after building combined list)
             try
             {
-                parseResult = PlaytestParser.Parse(resolvedScript);
+                parseResult = PlaytestParser.Parse(resolvedScript, strict: strict);
                 // Build combined list: [setup | main | teardown]
                 var setupSteps    = parseResult.SetupSteps    ?? new List<PlaytestStep>();
                 var mainSteps     = parseResult.Steps;
@@ -78,6 +79,13 @@ namespace UnityMCP.Editor
             if (parseResult.Warnings != null)
                 foreach (var w in parseResult.Warnings)
                     Debug.LogWarning($"[Playtest] {w}");
+
+            if (parseResult.Errors != null)
+            {
+                CompleteRunCleanup();
+                tcs.TrySetResult($"PARSE ERROR: {string.Join("; ", parseResult.Errors)}");
+                return;
+            }
 
             if (steps.Count == 0)
             {

@@ -182,5 +182,41 @@ namespace UnityMCP.Editor.Tests
             var shortPng = new byte[10]; // < 24 bytes required
             Assert.Throws<ArgumentException>(() => ScreenshotCapture.ReadPngDimensions(shortPng));
         }
+
+        // ── MCP-MEDIA-010: filename collision prevention ──────────────────────
+
+        [Test]
+        public void WritePng_RapidCaptures_AllFilenamesUnique()
+        {
+            var paths = new System.Collections.Generic.HashSet<string>();
+            try
+            {
+                for (int i = 0; i < 5; i++)
+                    paths.Add(FileOutputHelper.WritePng(new byte[] { 137, 80 }, "rapid_test"));
+                Assert.AreEqual(5, paths.Count, "each WritePng call must produce a unique filename");
+            }
+            finally
+            {
+                foreach (var p in paths)
+                    try { File.Delete(p); } catch { }
+            }
+        }
+
+        [Test]
+        public void WritePng_FilenameFormat_StillHasDateAndPngExtension()
+        {
+            string path = null;
+            try
+            {
+                path = FileOutputHelper.WritePng(new byte[] { 137, 80 }, "format_check");
+                var name = Path.GetFileName(path);
+                StringAssert.StartsWith(System.DateTime.Now.ToString("yyyy-MM-dd"), name);
+                StringAssert.EndsWith(".png", name);
+            }
+            finally
+            {
+                if (path != null) try { File.Delete(path); } catch { }
+            }
+        }
     }
 }

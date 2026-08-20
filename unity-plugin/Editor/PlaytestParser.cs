@@ -95,6 +95,9 @@ namespace UnityMCP.Editor
         public Dictionary<string, string> VarDefs;
         /// <summary>Non-fatal parse warnings (e.g. unresolved $sigil typos). Null if none.</summary>
         public List<string> Warnings;
+        /// <summary>Fatal parse errors that block execution (e.g. unresolved sigil in strict mode).
+        /// Non-null means PlaytestRunner must abort before executing any steps.</summary>
+        public List<string> Errors;
         /// <summary>VAL definitions keyed by name (without $). Null if none declared.</summary>
         public Dictionary<string, string> ValDefs;
         public bool HasGlobalAbort { get; set; }
@@ -141,7 +144,7 @@ namespace UnityMCP.Editor
             "FILL", "FOCUS"
         };
 
-        public static ParseResult Parse(string script, IncludeResolver resolver = null)
+        public static ParseResult Parse(string script, IncludeResolver resolver = null, bool strict = false)
         {
             var rawLines = script.Split('\n');
 
@@ -1045,6 +1048,7 @@ namespace UnityMCP.Editor
 
             // Phase 0.8: warn on unresolved $sigils (always — even without any VAL/VAR defs)
             List<string> warnings = collisionWarnings.Count > 0 ? collisionWarnings : null;
+            List<string> errors = null;
             foreach (var expandedLine in lines)
             {
                 var lt = expandedLine.Trim();
@@ -1055,11 +1059,19 @@ namespace UnityMCP.Editor
                     var sigil = m.Groups[1].Value;
                     if (!vals.ContainsKey(sigil) && !varDefs.ContainsKey(sigil))
                     {
-                        warnings = warnings ?? new List<string>();
                         var _candidates = vals.Keys.Concat(varDefs.Keys);
                         var _suggestion = StringDistance.ClosestMatch(sigil, _candidates);
                         var _hint = _suggestion != null ? $" Did you mean ${_suggestion}?" : " (typo in VAL/VAR name?)";
-                        warnings.Add($"Unresolved $sigil: ${sigil}{_hint}");
+                        if (strict)
+                        {
+                            errors = errors ?? new List<string>();
+                            errors.Add($"Unresolved $sigil: ${sigil}{_hint}");
+                        }
+                        else
+                        {
+                            warnings = warnings ?? new List<string>();
+                            warnings.Add($"Unresolved $sigil: ${sigil}{_hint}");
+                        }
                     }
                 }
             }
@@ -1072,6 +1084,7 @@ namespace UnityMCP.Editor
                 VarDefs = varDefs.Count > 0 ? varDefs : null,
                 ValDefs = vals.Count > 0 ? vals : null,
                 Warnings = warnings,
+                Errors = errors,
                 HasGlobalAbort = hasGlobalAbort,
                 DefaultTimeout = defaultTimeout
             };
