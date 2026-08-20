@@ -4,6 +4,8 @@ import socket
 import struct
 import sys
 
+MAX_FRAME_BYTES = 10_000_000
+
 _TCP_KEEPALIVE_DARWIN = 0x10
 _TCP_KEEPINTVL_DARWIN = 0x101
 _TCP_KEEPCNT_DARWIN   = 0x102
@@ -53,10 +55,16 @@ def frame_write(writer: asyncio.StreamWriter, payload: bytes) -> None:
     writer.write(struct.pack("!I", len(payload)) + payload)
 
 
+def _check_frame_length(length: int) -> None:
+    if length == 0 or length > MAX_FRAME_BYTES:
+        raise ConnectionError(f"Frame size {length} outside valid range (1..{MAX_FRAME_BYTES})")
+
+
 async def frame_read(reader: asyncio.StreamReader) -> bytes:
     """Read a framed message: 4-byte length prefix then payload."""
     header = await reader.readexactly(4)
     length = struct.unpack("!I", header)[0]
+    _check_frame_length(length)
     return await reader.readexactly(length)
 
 
@@ -64,4 +72,5 @@ async def frame_read_with_timeout(reader: asyncio.StreamReader, timeout: float) 
     """Read a framed message with per-read timeouts."""
     header = await asyncio.wait_for(reader.readexactly(4), timeout=timeout)
     length = struct.unpack("!I", header)[0]
+    _check_frame_length(length)
     return await asyncio.wait_for(reader.readexactly(length), timeout=timeout)
