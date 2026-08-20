@@ -1,7 +1,10 @@
 """Tests for unity_mcp.server_control — list and stop server processes."""
+import json
 import os
 import signal
+import subprocess
 import sys
+import time
 from pathlib import Path
 from unittest.mock import call
 
@@ -13,6 +16,12 @@ import pytest
 def _make_lockfile(lock_dir: Path, port: int, pid: int) -> Path:
     f = lock_dir / f"server-{port}-{pid}.lock"
     f.write_text(f"{pid}\n", encoding="utf-8")
+    return f
+
+
+def _make_lockfile_with_meta(lock_dir: Path, port: int, pid: int, meta: dict) -> Path:
+    f = lock_dir / f"server-{port}-{pid}.lock"
+    f.write_text(f"{pid}\n{json.dumps(meta)}\n", encoding="utf-8")
     return f
 
 
@@ -337,3 +346,120 @@ def test_sigterm_handler_idempotent(monkeypatch):
 
     assert released == []
     assert exit_calls == []
+
+
+# ── evict_duplicate_servers ───────────────────────────────────────────────────
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX real-kill test")
+def test_evict_kills_same_ppid_process(tmp_path):
+    """Process whose lockfile ppid == our ppid is signaled and dies."""
+    from unity_mcp.server_control import evict_duplicate_servers
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        _make_lockfile_with_meta(tmp_path, 9500, proc.pid, {"ppid": os.getppid()})
+        count = evict_duplicate_servers(lock_dir=tmp_path)
+        assert count == 1
+        deadline = time.monotonic() + 6.0
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                break
+            time.sleep(0.1)
+        assert proc.poll() is not None, "Duplicate process should have been killed"
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+
+
+def test_evict_leaves_different_ppid_alive(tmp_path, monkeypatch):
+    """Process whose lockfile ppid is alive but != our ppid is NOT killed."""
+    from unity_mcp import server_control
+    from unity_mcp.server_control import evict_duplicate_servers
+
+    stop_calls = []
+    monkeypatch.setattr(server_control, "_send_stop", lambda *a: stop_calls.append(a[0]))
+
+    fake_pid = 55555
+    alive_ppid = os.getpid()  # alive, but != os.getppid()
+    _make_lockfile_with_meta(tmp_path, 9500, fake_pid, {"ppid": alive_ppid})
+    # Both the process PID and its ppid are alive — neither orphan nor duplicate
+    monkeypatch.setattr(server_control, "is_pid_alive",
+                        lambda p: p in {fake_pid, alive_ppid})
+
+    count = evict_duplicate_servers(lock_dir=tmp_path)
+    assert count == 0
+    assert fake_pid not in stop_calls
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX real-kill test")
+def test_evict_kills_orphaned_process(tmp_path):
+    """Process whose lockfile ppid is dead is treated as orphan and killed."""
+    from unity_mcp.server_control import evict_duplicate_servers
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        _make_lockfile_with_meta(tmp_path, 9500, proc.pid, {"ppid": 99999})
+        count = evict_duplicate_servers(lock_dir=tmp_path)
+        assert count == 1
+        deadline = time.monotonic() + 6.0
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                break
+            time.sleep(0.1)
+        assert proc.poll() is not None, "Orphaned process should have been killed"
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait()
+
+
+def test_evict_skips_self_and_parent(tmp_path, monkeypatch):
+    """evict_duplicate_servers never signals self or parent, even with matching ppid."""
+    from unity_mcp import server_control
+    from unity_mcp.server_control import evict_duplicate_servers
+
+    stop_calls = []
+    monkeypatch.setattr(server_control, "_send_stop", lambda *a: stop_calls.append(a[0]))
+    monkeypatch.setattr(server_control, "is_pid_alive", lambda p: True)
+
+    _make_lockfile_with_meta(tmp_path, 9500, os.getpid(), {"ppid": os.getppid()})
+    _make_lockfile_with_meta(tmp_path, 9500, os.getppid(), {"ppid": os.getppid()})
+
+    count = evict_duplicate_servers(lock_dir=tmp_path)
+    assert count == 0
+    assert stop_calls == []
+
+
+def test_evict_no_metadata_skips_gracefully(tmp_path, monkeypatch):
+    """Lock file with no JSON on line 2 is skipped without error."""
+    from unity_mcp import server_control
+    from unity_mcp.server_control import evict_duplicate_servers
+
+    stop_calls = []
+    monkeypatch.setattr(server_control, "_send_stop", lambda *a: stop_calls.append(a[0]))
+
+    fake_pid = 55556
+    monkeypatch.setattr(server_control, "is_pid_alive", lambda p: p == fake_pid)
+    (tmp_path / f"server-9500-{fake_pid}.lock").write_text(f"{fake_pid}\n", encoding="utf-8")
+
+    count = evict_duplicate_servers(lock_dir=tmp_path)
+    assert count == 0
+    assert stop_calls == []
+
+
+def test_evict_returns_count(tmp_path, monkeypatch):
+    """Return value equals the number of processes successfully signaled."""
+    from unity_mcp import server_control
+    from unity_mcp.server_control import evict_duplicate_servers
+
+    stop_calls = []
+    monkeypatch.setattr(server_control, "_send_stop", lambda *a: stop_calls.append(a[0]))
+
+    parent_pid = os.getppid()
+    pids = [55557, 55558]
+    for pid in pids:
+        _make_lockfile_with_meta(tmp_path, 9500, pid, {"ppid": parent_pid})
+    monkeypatch.setattr(server_control, "is_pid_alive", lambda p: p in pids)
+
+    count = evict_duplicate_servers(lock_dir=tmp_path)
+    assert count == 2
+    assert set(stop_calls) == set(pids)

@@ -71,6 +71,19 @@ def write_lock_metadata(fd: int, metadata: dict) -> None:
     os.write(fd, (json.dumps(metadata, ensure_ascii=False) + "\n").encode())
 
 
+def _read_ppid_from_lock_path(lock_path: Path) -> int | None:
+    """Read ppid from lockfile metadata. None if absent or unreadable."""
+    try:
+        fd = os.open(str(lock_path), os.O_RDONLY)
+        try:
+            meta = read_lock_metadata(fd)
+            return meta.get("ppid") if meta else None
+        finally:
+            os.close(fd)
+    except (OSError, ValueError):
+        return None
+
+
 def read_lock_metadata(fd: int) -> dict | None:
     """Read JSON metadata from line 2 of the lockfile. Returns None if absent/corrupt."""
     os.lseek(fd, 0, os.SEEK_SET)
@@ -172,6 +185,7 @@ def acquire_lock(lock_dir=None, port: int = DEFAULT_PORT,
         raise RuntimeError(f"Cannot acquire exclusive lock for port {port} (PID {os.getpid()} already holds it)") from None
 
     _write_pid(fd)
+    write_lock_metadata(fd, {"ppid": os.getppid()})
     if metadata is not None:
         write_lock_metadata(fd, metadata)
     _lock_paths[fd] = str(lock_file)

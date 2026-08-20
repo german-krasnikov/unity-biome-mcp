@@ -490,6 +490,8 @@ async def lifespan(app):
     _sigterm_state["loop"] = asyncio.get_running_loop()
     _sigterm_state["task"] = asyncio.current_task()
     unity_port = await _discover_port_with_retry()
+    from .server_control import evict_duplicate_servers as _evict
+    _evict()
     cleanup_stale_locks(port=unity_port)
     from .lockfile import cleanup_stale_port_files as _cleanup_ports
     _cleanup_ports(tcp_probe=True)
@@ -563,6 +565,7 @@ async def lifespan(app):
             with contextlib.suppress(Exception):
                 write_lock_metadata(lock_fd, {
                     "v": 2,
+                    "ppid": os.getppid(),
                     "lockToken": active.lock_token,
                     "sessionId": active.session_id,
                     "role": os.environ.get("UNITY_MCP_CLIENT") or "mcp",
