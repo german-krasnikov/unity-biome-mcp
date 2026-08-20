@@ -152,8 +152,15 @@ Do not duplicate a category already applied by an attribute such as
 
 ## Test Layers
 
-The repository uses two specialized test layers to verify protocol contracts and
+The repository uses specialized test layers to verify protocol contracts and
 conformance invariants:
+
+**Regression guard tests** (`server/tests/test_regression_guards.py` and v1.46+ audit
+coverage suite) — Named guards RG-01 through RG-11 prevent specific confirmed bugs from
+reoccurring; each guard documents the prior break and its fix. Audit coverage tests
+validate protocol lifecycle fences (session identity, command durability, Play Mode
+readiness), edge cases (console overflow, zero-match filters, pre-existing dirty state),
+and schema prerequisites. All are CI-safe. ~14 new Python modules + 557-line guards suite.
 
 **Seam tests** (`server/tests/seams/`, markers: `live + conformance`) — Live
 round-trip conformance tests that verify batch completeness, surface consistency,

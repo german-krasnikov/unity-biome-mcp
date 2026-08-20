@@ -228,6 +228,22 @@ details, not the public agent workflow. `sync_unity` is mutating because import,
 compile, optional package resolution, and optional version bump can change
 project or Editor state. See [`reload-reference.md`](reload-reference.md).
 
+## Lifecycle Support
+
+**Version tracking:** `BiomeVersion.cs` is the single source of truth for version
+constants — Plugin (semantic version matching `package.json`) and Protocol (numeric
+version matching `server/src/unity_mcp/bridge.py PROTOCOL_VERSION`). `mcp_status`
+exposes both plus `python_version` for cross-language version diagnostics and
+pre-release compatibility checks.
+
+**Play Mode readiness:** `PlayModeEpochTracker` ([InitializeOnLoad]) tracks a
+monotonic `play_epoch` (incremented on each `EnteredPlayMode` callback) and a
+`world_ready` flag that becomes true after the first `EditorApplication.update`
+fires in Play Mode (post-Awake/Start completion). This is the robust gate for
+playtest setup phases; it replaces heuristic frame waits. `PlayReadinessTracker`
+on the Python side queries both to implement the `wait_for_ready` fence in
+`_enter_fresh_play`.
+
 ## Playtest Execution
 
 `PlaytestParser` converts the DSL to a `ParseResult`; `PlaytestRunner` executes
