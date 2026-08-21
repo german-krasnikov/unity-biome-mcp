@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.IO;
 using NUnit.Framework;
+using UnityEditor;
 using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Tests
@@ -249,6 +251,31 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("auto_layout:", report);
             StringAssert.Contains("nodes repositioned", report);
             StringAssert.Contains("overlaps resolved", report);
+        }
+
+        // ── _importAsset seam ─────────────────────────────────────────────────
+
+        [Test]
+        public void SGWriteAndImport_UsesDefaultOptions_NotForceUpdate()
+        {
+            // Arrange: spy on _importAsset; provide content via read seam.
+            ImportAssetOptions? captured = null;
+            var prev = ShaderGraphHelper._importAsset;
+            ShaderGraphHelper._importAsset = (_, opts) => captured = opts;
+            RegisterCleanup(() => ShaderGraphHelper._importAsset = prev);
+
+            var tempPath = Path.Combine(Path.GetTempPath(), "biome_sg_seam_test.shadergraph");
+            RegisterCleanup(() => { if (File.Exists(tempPath)) File.Delete(tempPath); });
+
+            SetReadSeam(NodeBlock("n1", "T.SomeNode", "Foo", 0, 0, 200, 100));
+
+            // Act: SetLayout goes through SGWriteAndImport (no _layoutWriteOverride set).
+            ShaderGraphHelper.SetLayout(tempPath, "[n1] SomeNode \"Foo\" @ 100,100 200x100");
+
+            // Assert
+            Assert.IsTrue(captured.HasValue, "_importAsset seam must be called on the write path");
+            Assert.AreEqual(ImportAssetOptions.Default, captured.Value,
+                "SGWriteAndImport must use ImportAssetOptions.Default, not ForceUpdate");
         }
     }
 }

@@ -302,7 +302,7 @@ namespace UnityMCP.Editor
         {
             if (_layoutWriteOverride != null) { _layoutWriteOverride(path, content); return; }
             File.WriteAllText(path, content);
-            try { AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate); }
+            try { _importAsset(path, ImportAssetOptions.Default); }
             catch (Exception ex) { Debug.LogWarning($"ShaderGraph import warning for '{path}': {ex.Message}"); }
         }
 
