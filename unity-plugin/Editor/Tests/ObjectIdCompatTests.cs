@@ -47,6 +47,7 @@ namespace UnityMCP.Editor.Tests
             Assert.That(ObjectIdCompat.ResolveObject(0UL), Is.Null);
         }
 
+#if !UNITY_6000_4_OR_NEWER
         [Test]
         public void GetRawId_FitsIn32BitRange()
         {
@@ -68,5 +69,6 @@ namespace UnityMCP.Editor.Tests
             Assert.That(hexPart.Length, Is.LessThanOrEqualTo(8),
                 $"HexRef hex part must be ≤ 8 chars on pre-6000.4 — got '{hexRef}'");
         }
+#endif
     }
 }

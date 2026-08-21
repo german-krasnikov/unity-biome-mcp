@@ -8,6 +8,34 @@ The canonical Unity test project uses Unity `6000.0.65f1` and the Editor's
 built-in Unity Test Framework `1.6.0`. Product code, fixtures, and runners target
 the Unity `6000.0` contract; do not add newer-Unity compatibility branches.
 
+## Version-Specific Assertions
+
+When production code uses `#if UNITY_6000_4_OR_NEWER` (or similar preprocessor
+guards) to change behavior between Unity versions, tests asserting that
+behavior MUST use matching guards. Without them the test passes locally on
+6000.0 but fails on CI compat matrices (6000.4, 6000.5, etc.).
+
+```csharp
+// WRONG — will fail on Unity 6.4+ where EntityId produces true 64-bit values
+[Test]
+public void RawId_FitsIn32Bits()
+{
+    Assert.LessOrEqual(ObjectIdCompat.GetRawId(go), uint.MaxValue);
+}
+
+// RIGHT — guarded to match the production #if branch
+#if !UNITY_6000_4_OR_NEWER
+[Test]
+public void RawId_FitsIn32Bits()
+{
+    Assert.LessOrEqual(ObjectIdCompat.GetRawId(go), uint.MaxValue);
+}
+#endif
+```
+
+Rule: every assertion whose expected value depends on a compile-time Unity
+version flag must be wrapped in the same `#if` guard as the production code.
+
 ## C# Fixtures
 
 Every Unity fixture inherits the narrowest supported base:
