@@ -14,15 +14,10 @@ namespace UnityMCP.TestProject.SceneObject
         [SetUp]
         public void SetUp()
         {
-            _root = new GameObject("ClassifyRoot");
+            _root = TrackOwnedObject(new GameObject("ClassifyRoot"));
             _child = new GameObject("ClassifyChild");
             _child.transform.SetParent(_root.transform);
-            _external = new GameObject("ClassifyExternal");
-            RegisterCleanup(() =>
-            {
-                Object.DestroyImmediate(_root);
-                Object.DestroyImmediate(_external);
-            });
+            _external = TrackOwnedObject(new GameObject("ClassifyExternal"));
         }
 
         [Test]

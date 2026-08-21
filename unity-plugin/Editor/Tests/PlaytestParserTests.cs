@@ -134,37 +134,29 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ResolveQuery_WithConfig_UsesAliasWhenFound()
         {
-            var config = ScriptableObject.CreateInstance<PlaytestConfig>();
-            try
+            var config = TrackOwnedObject(ScriptableObject.CreateInstance<PlaytestConfig>());
+            config.aliases.Add(new QueryAlias
             {
-                config.aliases.Add(new QueryAlias
-                {
-                    alias = "hp",
-                    path = "/Player",
-                    component = "Health",
-                    field = "current"
-                });
+                alias = "hp",
+                path = "/Player",
+                component = "Health",
+                field = "current"
+            });
 
-                var (path, comp, field) = PlaytestParser.ResolveQuery("hp", config);
-                Assert.AreEqual("/Player", path);
-                Assert.AreEqual("Health", comp);
-                Assert.AreEqual("current", field);
-            }
-            finally { UnityEngine.Object.DestroyImmediate(config); }
+            var (path, comp, field) = PlaytestParser.ResolveQuery("hp", config);
+            Assert.AreEqual("/Player", path);
+            Assert.AreEqual("Health", comp);
+            Assert.AreEqual("current", field);
         }
 
         [Test]
         public void ResolveQuery_WithConfig_FallsBackToPipeWhenAliasNotFound()
         {
-            var config = ScriptableObject.CreateInstance<PlaytestConfig>();
-            try
-            {
-                var (path, comp, field) = PlaytestParser.ResolveQuery("/X|Y|Z", config);
-                Assert.AreEqual("/X", path);
-                Assert.AreEqual("Y", comp);
-                Assert.AreEqual("Z", field);
-            }
-            finally { UnityEngine.Object.DestroyImmediate(config); }
+            var config = TrackOwnedObject(ScriptableObject.CreateInstance<PlaytestConfig>());
+            var (path, comp, field) = PlaytestParser.ResolveQuery("/X|Y|Z", config);
+            Assert.AreEqual("/X", path);
+            Assert.AreEqual("Y", comp);
+            Assert.AreEqual("Z", field);
         }
 
         // ── Parse: ASSERT line ───────────────────────────────────────────────────

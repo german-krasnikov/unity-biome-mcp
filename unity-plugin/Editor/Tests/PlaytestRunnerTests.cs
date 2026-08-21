@@ -26,67 +26,37 @@ namespace UnityMCP.Editor.Tests
         public void ResolveCharacterPath_ConfigPath_TakesPriorityOverScene()
         {
             // Config with characterPath="/Hero" overrides scene search
-            var config = ScriptableObject.CreateInstance<PlaytestConfig>();
+            var config = TrackOwnedObject(ScriptableObject.CreateInstance<PlaytestConfig>());
             config.characterPath = "/Hero";
-            var go = new GameObject("Player"); // scene has Player but config wins
-            try
-            {
-                var result = PlaytestRunner.ResolveCharacterPath(config);
-                Assert.AreEqual("/Hero", result);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(go);
-                UnityEngine.Object.DestroyImmediate(config);
-            }
+            TrackOwnedObject(new GameObject("Player")); // scene has Player but config wins
+            var result = PlaytestRunner.ResolveCharacterPath(config);
+            Assert.AreEqual("/Hero", result);
         }
 
         [Test]
         public void ResolveCharacterPath_NoConfig_PlayerInScene_ReturnsSlashPlayer()
         {
-            var go = new GameObject("Player");
-            try
-            {
-                var result = PlaytestRunner.ResolveCharacterPath(null);
-                Assert.AreEqual("/Player", result);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(go);
-            }
+            TrackOwnedObject(new GameObject("Player"));
+            var result = PlaytestRunner.ResolveCharacterPath(null);
+            Assert.AreEqual("/Player", result);
         }
 
         [Test]
         public void ResolveCharacterPath_NoConfig_CharacterInScene_ReturnsSlashCharacter()
         {
-            var go = new GameObject("Character");
-            try
-            {
-                var result = PlaytestRunner.ResolveCharacterPath(null);
-                Assert.AreEqual("/Character", result);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(go);
-            }
+            TrackOwnedObject(new GameObject("Character"));
+            var result = PlaytestRunner.ResolveCharacterPath(null);
+            Assert.AreEqual("/Character", result);
         }
 
         [Test]
         public void ResolveCharacterPath_EmptyConfigPath_FallsBackToSceneSearch()
         {
-            var config = ScriptableObject.CreateInstance<PlaytestConfig>();
+            var config = TrackOwnedObject(ScriptableObject.CreateInstance<PlaytestConfig>());
             config.characterPath = ""; // empty — should fall through to scene search
-            var go = new GameObject("Player");
-            try
-            {
-                var result = PlaytestRunner.ResolveCharacterPath(config);
-                Assert.AreEqual("/Player", result);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(go);
-                UnityEngine.Object.DestroyImmediate(config);
-            }
+            TrackOwnedObject(new GameObject("Player"));
+            var result = PlaytestRunner.ResolveCharacterPath(config);
+            Assert.AreEqual("/Player", result);
         }
 
         // ── BuildReport ───────────────────────────────────────────────────────
@@ -269,33 +239,26 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void AdvanceDecision_GlobalAbortAfterOrdinaryFailedStep_AbortsRun()
         {
-            var go = new GameObject("AbortPolicyTarget");
-            try
+            TrackOwnedObject(new GameObject("AbortPolicyTarget"));
+            var step = new PlaytestStep
             {
-                var step = new PlaytestStep
-                {
-                    Type = StepType.Assert,
-                    Query = "/AbortPolicyTarget|activeSelf",
-                    Op = "==",
-                    Value = "false"
-                };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
+                Type = StepType.Assert,
+                Query = "/AbortPolicyTarget|activeSelf",
+                Op = "==",
+                Value = "false"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
 
-                PlaytestRunner.ExecuteSyncStep(
-                    step, null, results, ref passed, ref failed, stepIdx: 0);
-                var decision = PlaytestRunner.DetermineStepAdvance(
-                    globalAbort: true, failedBeforeStep: 0, failedAfterStep: failed,
-                    nextStepIndex: 1, setupEndIndex: 0, teardownStartIndex: 2);
+            PlaytestRunner.ExecuteSyncStep(
+                step, null, results, ref passed, ref failed, stepIdx: 0);
+            var decision = PlaytestRunner.DetermineStepAdvance(
+                globalAbort: true, failedBeforeStep: 0, failedAfterStep: failed,
+                nextStepIndex: 1, setupEndIndex: 0, teardownStartIndex: 2);
 
-                Assert.AreEqual(1, failed);
-                StringAssert.Contains("FAIL", results[0]);
-                Assert.AreEqual(PlaytestRunner.StepAdvanceDecision.AbortRun, decision);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(go);
-            }
+            Assert.AreEqual(1, failed);
+            StringAssert.Contains("FAIL", results[0]);
+            Assert.AreEqual(PlaytestRunner.StepAdvanceDecision.AbortRun, decision);
         }
 
         [Test]
@@ -497,68 +460,58 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ReadValue_activeSelf_ReturnsTrue_WhenActive()
         {
-            var go = new GameObject("RVTest_P1");
+            var go = TrackOwnedObject(new GameObject("RVTest_P1"));
             go.SetActive(true);
-            try { Assert.AreEqual("true", PlaytestRunner.ReadValue("/RVTest_P1", "activeSelf", "")); }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            Assert.AreEqual("true", PlaytestRunner.ReadValue("/RVTest_P1", "activeSelf", ""));
         }
 
         [Test]
         public void ReadValue_activeSelf_ReturnsFalse_WhenInactive()
         {
-            var go = new GameObject("RVTest_P2");
+            var go = TrackOwnedObject(new GameObject("RVTest_P2"));
             go.SetActive(false);
-            try { Assert.AreEqual("false", PlaytestRunner.ReadValue("/RVTest_P2", "activeSelf", "")); }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            Assert.AreEqual("false", PlaytestRunner.ReadValue("/RVTest_P2", "activeSelf", ""));
         }
 
         [Test]
         public void ReadValue_active_Alias_Works()
         {
-            var go = new GameObject("RVTest_P3");
+            var go = TrackOwnedObject(new GameObject("RVTest_P3"));
             go.SetActive(true);
-            try { Assert.AreEqual("true", PlaytestRunner.ReadValue("/RVTest_P3", "active", "")); }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            Assert.AreEqual("true", PlaytestRunner.ReadValue("/RVTest_P3", "active", ""));
         }
 
         [Test]
         public void ReadValue_GameObjectActiveSelf_Form2_Works()
         {
-            var go = new GameObject("RVTest_P4");
+            var go = TrackOwnedObject(new GameObject("RVTest_P4"));
             go.SetActive(false);
-            try { Assert.AreEqual("false", PlaytestRunner.ReadValue("/RVTest_P4", "GameObject", "activeSelf")); }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            Assert.AreEqual("false", PlaytestRunner.ReadValue("/RVTest_P4", "GameObject", "activeSelf"));
         }
 
         [Test]
         public void ReadValue_tag_ReturnsTag()
         {
-            var go = new GameObject("RVTest_P5");
-            try { Assert.AreEqual("Untagged", PlaytestRunner.ReadValue("/RVTest_P5", "tag", "")); }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            TrackOwnedObject(new GameObject("RVTest_P5"));
+            Assert.AreEqual("Untagged", PlaytestRunner.ReadValue("/RVTest_P5", "tag", ""));
         }
 
         [Test]
         public void ReadValue_layer_ReturnsLayerInt()
         {
-            var go = new GameObject("RVTest_P6");
+            var go = TrackOwnedObject(new GameObject("RVTest_P6"));
             go.layer = 3;
-            try { Assert.AreEqual("3", PlaytestRunner.ReadValue("/RVTest_P6", "layer", "")); }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            Assert.AreEqual("3", PlaytestRunner.ReadValue("/RVTest_P6", "layer", ""));
         }
 
         [Test]
         public void ReadValue_activeInHierarchy_ReturnsFalse_WhenParentInactive()
         {
-            var parent = new GameObject("RVTest_Parent7");
+            var parent = TrackOwnedObject(new GameObject("RVTest_Parent7"));
             var child = new GameObject("RVTest_Child7");
             child.transform.SetParent(parent.transform);
             parent.SetActive(false);
-            try
-            {
-                Assert.AreEqual("false", PlaytestRunner.ReadValue("/RVTest_Parent7/RVTest_Child7", "activeInHierarchy", ""));
-            }
-            finally { UnityEngine.Object.DestroyImmediate(parent); }
+            Assert.AreEqual("false", PlaytestRunner.ReadValue("/RVTest_Parent7/RVTest_Child7", "activeInHierarchy", ""));
         }
 
         // ── ResolveVirtualField (Wave 3 #11) ────────────────────────────────
@@ -566,57 +519,41 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ResolveVirtualField_RigidbodySpeed_ReturnsParsableFloat()
         {
-            var go = new GameObject("VF_RB");
+            var go = TrackOwnedObject(new GameObject("VF_RB"));
             go.AddComponent<Rigidbody>();
-            try
-            {
-                var result = PlaytestRunner.ReadValue("/VF_RB", "Rigidbody", "speed");
-                Assert.DoesNotThrow(() => float.Parse(result, System.Globalization.CultureInfo.InvariantCulture),
-                    $"speed must be a parseable float, got: {result}");
-            }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            var result = PlaytestRunner.ReadValue("/VF_RB", "Rigidbody", "speed");
+            Assert.DoesNotThrow(() => float.Parse(result, System.Globalization.CultureInfo.InvariantCulture),
+                $"speed must be a parseable float, got: {result}");
         }
 
         [Test]
         public void ResolveVirtualField_Rigidbody2DSpeed_ReturnsParsableFloat()
         {
-            var go = new GameObject("VF_RB2D");
+            var go = TrackOwnedObject(new GameObject("VF_RB2D"));
             go.AddComponent<Rigidbody2D>();
-            try
-            {
-                var result = PlaytestRunner.ReadValue("/VF_RB2D", "Rigidbody2D", "speed");
-                Assert.DoesNotThrow(() => float.Parse(result, System.Globalization.CultureInfo.InvariantCulture),
-                    $"speed must be a parseable float, got: {result}");
-            }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            var result = PlaytestRunner.ReadValue("/VF_RB2D", "Rigidbody2D", "speed");
+            Assert.DoesNotThrow(() => float.Parse(result, System.Globalization.CultureInfo.InvariantCulture),
+                $"speed must be a parseable float, got: {result}");
         }
 
         [Test]
         public void ResolveVirtualField_AnimatorCurrentState_NoneWhenNotPlaying()
         {
-            var go = new GameObject("VF_ANIM");
+            var go = TrackOwnedObject(new GameObject("VF_ANIM"));
             go.AddComponent<Animator>(); // no controller — GetCurrentAnimatorClipInfo returns empty
-            try
-            {
-                var result = PlaytestRunner.ReadValue("/VF_ANIM", "Animator", "currentState");
-                Assert.AreEqual("none", result);
-            }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            var result = PlaytestRunner.ReadValue("/VF_ANIM", "Animator", "currentState");
+            Assert.AreEqual("none", result);
         }
 
         [Test]
         public void ResolveVirtualField_UnknownField_FallsThroughToRealProperty()
         {
-            var go = new GameObject("VF_FALLTHROUGH");
+            var go = TrackOwnedObject(new GameObject("VF_FALLTHROUGH"));
             go.AddComponent<Rigidbody>();
-            try
-            {
-                // 'useGravity' is a real Rigidbody property — must not be swallowed by virtual resolver
-                var result = PlaytestRunner.ReadValue("/VF_FALLTHROUGH", "Rigidbody", "useGravity");
-                Assert.IsNotNull(result);
-                StringAssert.IsMatch("(?i)true|false", result);
-            }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            // 'useGravity' is a real Rigidbody property — must not be swallowed by virtual resolver
+            var result = PlaytestRunner.ReadValue("/VF_FALLTHROUGH", "Rigidbody", "useGravity");
+            Assert.IsNotNull(result);
+            StringAssert.IsMatch("(?i)true|false", result);
         }
 
         // TODO: WAIT_UNTIL _waitPollErrors counter needs a tick harness to test properly;
@@ -643,84 +580,59 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void AssertOneActive_ExactlyOneActive_Passes()
         {
-            var a = new GameObject("OAA_A"); a.SetActive(true);
-            var b = new GameObject("OAA_B"); b.SetActive(false);
-            var c = new GameObject("OAA_C"); c.SetActive(false);
-            try
+            var a = TrackOwnedObject(new GameObject("OAA_A")); a.SetActive(true);
+            var b = TrackOwnedObject(new GameObject("OAA_B")); b.SetActive(false);
+            var c = TrackOwnedObject(new GameObject("OAA_C")); c.SetActive(false);
+            var step = new PlaytestStep
             {
-                var step = new PlaytestStep
-                {
-                    Type = StepType.AssertOneActive,
-                    Queries = new[] { "/OAA_A", "/OAA_B", "/OAA_C" },
-                    RawLine = "ASSERT_ONE_ACTIVE /OAA_A /OAA_B /OAA_C"
-                };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
-                Assert.AreEqual(1, passed);
-                Assert.AreEqual(0, failed);
-                StringAssert.Contains("PASS", results[0]);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(a);
-                UnityEngine.Object.DestroyImmediate(b);
-                UnityEngine.Object.DestroyImmediate(c);
-            }
+                Type = StepType.AssertOneActive,
+                Queries = new[] { "/OAA_A", "/OAA_B", "/OAA_C" },
+                RawLine = "ASSERT_ONE_ACTIVE /OAA_A /OAA_B /OAA_C"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+            Assert.AreEqual(1, passed);
+            Assert.AreEqual(0, failed);
+            StringAssert.Contains("PASS", results[0]);
         }
 
         [Test]
         public void AssertOneActive_TwoActive_Fails()
         {
-            var a = new GameObject("OAB_A"); a.SetActive(true);
-            var b = new GameObject("OAB_B"); b.SetActive(true);
-            try
+            var a = TrackOwnedObject(new GameObject("OAB_A")); a.SetActive(true);
+            var b = TrackOwnedObject(new GameObject("OAB_B")); b.SetActive(true);
+            var step = new PlaytestStep
             {
-                var step = new PlaytestStep
-                {
-                    Type = StepType.AssertOneActive,
-                    Queries = new[] { "/OAB_A", "/OAB_B" },
-                    RawLine = "ASSERT_ONE_ACTIVE /OAB_A /OAB_B"
-                };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
-                Assert.AreEqual(0, passed);
-                Assert.AreEqual(1, failed);
-                StringAssert.Contains("FAIL", results[0]);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(a);
-                UnityEngine.Object.DestroyImmediate(b);
-            }
+                Type = StepType.AssertOneActive,
+                Queries = new[] { "/OAB_A", "/OAB_B" },
+                RawLine = "ASSERT_ONE_ACTIVE /OAB_A /OAB_B"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+            Assert.AreEqual(0, passed);
+            Assert.AreEqual(1, failed);
+            StringAssert.Contains("FAIL", results[0]);
         }
 
         [Test]
         public void AssertOneActive_AllInactive_Fails()
         {
-            var a = new GameObject("OAC_A"); a.SetActive(false);
-            var b = new GameObject("OAC_B"); b.SetActive(false);
-            try
+            var a = TrackOwnedObject(new GameObject("OAC_A")); a.SetActive(false);
+            var b = TrackOwnedObject(new GameObject("OAC_B")); b.SetActive(false);
+            var step = new PlaytestStep
             {
-                var step = new PlaytestStep
-                {
-                    Type = StepType.AssertOneActive,
-                    Queries = new[] { "/OAC_A", "/OAC_B" },
-                    RawLine = "ASSERT_ONE_ACTIVE /OAC_A /OAC_B"
-                };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
-                Assert.AreEqual(0, passed);
-                Assert.AreEqual(1, failed);
-                StringAssert.Contains("FAIL", results[0]);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(a);
-                UnityEngine.Object.DestroyImmediate(b);
-            }
+                Type = StepType.AssertOneActive,
+                Queries = new[] { "/OAC_A", "/OAC_B" },
+                RawLine = "ASSERT_ONE_ACTIVE /OAC_A /OAC_B"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+            Assert.AreEqual(0, passed);
+            Assert.AreEqual(1, failed);
+            StringAssert.Contains("FAIL", results[0]);
         }
 
         // ── #8b ASSERT_ONE_ACTIVE — parent-inactive truth table ──────────────────────
@@ -728,75 +640,60 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void AssertOneActive_ActiveChildWithInactiveParent_IsNotCounted()
         {
-            var parent = new GameObject("OAD_Parent"); parent.SetActive(false);
+            var parent = TrackOwnedObject(new GameObject("OAD_Parent")); parent.SetActive(false);
             var child  = new GameObject("OAD_Child");
             child.transform.SetParent(parent.transform);
             child.SetActive(true); // activeSelf=true, activeInHierarchy=false
-            try
+            var step = new PlaytestStep
             {
-                var step = new PlaytestStep
-                {
-                    Type = StepType.AssertOneActive,
-                    Queries = new[] { "/OAD_Parent/OAD_Child" },
-                    RawLine = "ASSERT_ONE_ACTIVE /OAD_Parent/OAD_Child"
-                };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
-                Assert.AreEqual(0, passed, "child with inactive parent must not be counted as active");
-                Assert.AreEqual(1, failed);
-                StringAssert.Contains("FAIL", results[0]);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(parent);
-            }
+                Type = StepType.AssertOneActive,
+                Queries = new[] { "/OAD_Parent/OAD_Child" },
+                RawLine = "ASSERT_ONE_ACTIVE /OAD_Parent/OAD_Child"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+            Assert.AreEqual(0, passed, "child with inactive parent must not be counted as active");
+            Assert.AreEqual(1, failed);
+            StringAssert.Contains("FAIL", results[0]);
         }
 
         [Test]
         public void AssertOneActive_ExactlyOneChildActiveInHierarchy_Passes()
         {
-            var parent = new GameObject("OAE_Parent");
+            var parent = TrackOwnedObject(new GameObject("OAE_Parent"));
             var childA = new GameObject("OAE_ChildA"); childA.transform.SetParent(parent.transform); childA.SetActive(true);
             var childB = new GameObject("OAE_ChildB"); childB.transform.SetParent(parent.transform); childB.SetActive(false);
-            try
+            var step = new PlaytestStep
             {
-                var step = new PlaytestStep
-                {
-                    Type = StepType.AssertOneActive,
-                    Queries = new[] { "/OAE_Parent/OAE_ChildA", "/OAE_Parent/OAE_ChildB" },
-                    RawLine = "ASSERT_ONE_ACTIVE /OAE_Parent/OAE_ChildA /OAE_Parent/OAE_ChildB"
-                };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
-                Assert.AreEqual(1, passed);
-                Assert.AreEqual(0, failed);
-            }
-            finally { UnityEngine.Object.DestroyImmediate(parent); }
+                Type = StepType.AssertOneActive,
+                Queries = new[] { "/OAE_Parent/OAE_ChildA", "/OAE_Parent/OAE_ChildB" },
+                RawLine = "ASSERT_ONE_ACTIVE /OAE_Parent/OAE_ChildA /OAE_Parent/OAE_ChildB"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+            Assert.AreEqual(1, passed);
+            Assert.AreEqual(0, failed);
         }
 
         [Test]
         public void AssertOneActive_DeepNesting_GrandparentInactive_NoneAreCounted()
         {
-            var gp    = new GameObject("OAF_GP"); gp.SetActive(false);
+            var gp    = TrackOwnedObject(new GameObject("OAF_GP")); gp.SetActive(false);
             var p     = new GameObject("OAF_P");  p.transform.SetParent(gp.transform); p.SetActive(true);
             var child = new GameObject("OAF_C");  child.transform.SetParent(p.transform); child.SetActive(true);
-            try
+            var step = new PlaytestStep
             {
-                var step = new PlaytestStep
-                {
-                    Type = StepType.AssertOneActive,
-                    Queries = new[] { "/OAF_GP/OAF_P/OAF_C" },
-                    RawLine = "ASSERT_ONE_ACTIVE /OAF_GP/OAF_P/OAF_C"
-                };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
-                Assert.AreEqual(0, passed, "grandchild with inactive grandparent must not be counted");
-                Assert.AreEqual(1, failed);
-            }
-            finally { UnityEngine.Object.DestroyImmediate(gp); }
+                Type = StepType.AssertOneActive,
+                Queries = new[] { "/OAF_GP/OAF_P/OAF_C" },
+                RawLine = "ASSERT_ONE_ACTIVE /OAF_GP/OAF_P/OAF_C"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+            Assert.AreEqual(0, passed, "grandchild with inactive grandparent must not be counted");
+            Assert.AreEqual(1, failed);
         }
 
         [Test]
@@ -1188,23 +1085,20 @@ namespace UnityMCP.Editor.Tests
         {
             var p1 = WriteTestPng(Color.red, "fd_match1");
             var p2 = WriteTestPng(Color.red, "fd_match2");
-            try
-            {
-                var state = new PlaytestState();
-                state.InitFrames("clip3");
-                state.AddFrame("clip3", p1);
-                state.AddFrame("clip3", p2);
-                var step = new PlaytestStep { Type = StepType.AssertFramesDiffer, Message = "clip3" };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
+            RegisterCleanup(() => { System.IO.File.Delete(p1); System.IO.File.Delete(p2); });
+            var state = new PlaytestState();
+            state.InitFrames("clip3");
+            state.AddFrame("clip3", p1);
+            state.AddFrame("clip3", p2);
+            var step = new PlaytestStep { Type = StepType.AssertFramesDiffer, Message = "clip3" };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
 
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
 
-                Assert.AreEqual(1, failed, "Identical frames must fail ASSERT_FRAMES_DIFFER");
-                Assert.AreEqual(0, passed);
-                StringAssert.Contains("FAIL", results[0]);
-            }
-            finally { System.IO.File.Delete(p1); System.IO.File.Delete(p2); }
+            Assert.AreEqual(1, failed, "Identical frames must fail ASSERT_FRAMES_DIFFER");
+            Assert.AreEqual(0, passed);
+            StringAssert.Contains("FAIL", results[0]);
         }
 
         [Test]
@@ -1212,23 +1106,20 @@ namespace UnityMCP.Editor.Tests
         {
             var p1 = WriteTestPng(Color.blue, "fs_match1");
             var p2 = WriteTestPng(Color.blue, "fs_match2");
-            try
-            {
-                var state = new PlaytestState();
-                state.InitFrames("clip4");
-                state.AddFrame("clip4", p1);
-                state.AddFrame("clip4", p2);
-                var step = new PlaytestStep { Type = StepType.AssertFramesStatic, Message = "clip4" };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
+            RegisterCleanup(() => { System.IO.File.Delete(p1); System.IO.File.Delete(p2); });
+            var state = new PlaytestState();
+            state.InitFrames("clip4");
+            state.AddFrame("clip4", p1);
+            state.AddFrame("clip4", p2);
+            var step = new PlaytestStep { Type = StepType.AssertFramesStatic, Message = "clip4" };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
 
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
 
-                Assert.AreEqual(1, passed, "Identical frames must pass ASSERT_FRAMES_STATIC");
-                Assert.AreEqual(0, failed);
-                StringAssert.Contains("PASS", results[0]);
-            }
-            finally { System.IO.File.Delete(p1); System.IO.File.Delete(p2); }
+            Assert.AreEqual(1, passed, "Identical frames must pass ASSERT_FRAMES_STATIC");
+            Assert.AreEqual(0, failed);
+            StringAssert.Contains("PASS", results[0]);
         }
 
         // ── State Tracking: AssertChanged ────────────────────────────────────────
@@ -1236,57 +1127,49 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void AssertChanged_ValueChangedAfterCapture_Passes()
         {
-            var go = new GameObject("ACT_Changed1");
+            var go = TrackOwnedObject(new GameObject("ACT_Changed1"));
             go.SetActive(true);
-            try
+            var state = new PlaytestState();
+            state.Capture("ac_changed", "/ACT_Changed1|activeSelf", "true", 1f);
+            go.SetActive(false);
+            var step = new PlaytestStep
             {
-                var state = new PlaytestState();
-                state.Capture("ac_changed", "/ACT_Changed1|activeSelf", "true", 1f);
-                go.SetActive(false);
-                var step = new PlaytestStep
-                {
-                    Type = StepType.AssertChanged,
-                    Message = "ac_changed",
-                    RawLine = "ASSERT_CHANGED ac_changed"
-                };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
+                Type = StepType.AssertChanged,
+                Message = "ac_changed",
+                RawLine = "ASSERT_CHANGED ac_changed"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
 
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
 
-                Assert.AreEqual(1, passed);
-                Assert.AreEqual(0, failed);
-                StringAssert.Contains("PASS", results[0]);
-            }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            Assert.AreEqual(1, passed);
+            Assert.AreEqual(0, failed);
+            StringAssert.Contains("PASS", results[0]);
         }
 
         [Test]
         public void AssertChanged_ValueUnchangedAfterCapture_Fails()
         {
-            var go = new GameObject("ACT_Unchanged1");
+            var go = TrackOwnedObject(new GameObject("ACT_Unchanged1"));
             go.SetActive(true);
-            try
+            var state = new PlaytestState();
+            state.Capture("ac_unchanged", "/ACT_Unchanged1|activeSelf", "true", 1f);
+            // value stays "true"
+            var step = new PlaytestStep
             {
-                var state = new PlaytestState();
-                state.Capture("ac_unchanged", "/ACT_Unchanged1|activeSelf", "true", 1f);
-                // value stays "true"
-                var step = new PlaytestStep
-                {
-                    Type = StepType.AssertChanged,
-                    Message = "ac_unchanged",
-                    RawLine = "ASSERT_CHANGED ac_unchanged"
-                };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
+                Type = StepType.AssertChanged,
+                Message = "ac_unchanged",
+                RawLine = "ASSERT_CHANGED ac_unchanged"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
 
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
 
-                Assert.AreEqual(0, passed);
-                Assert.AreEqual(1, failed);
-                StringAssert.Contains("FAIL", results[0]);
-            }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            Assert.AreEqual(0, passed);
+            Assert.AreEqual(1, failed);
+            StringAssert.Contains("FAIL", results[0]);
         }
 
         // ── State Tracking: Invariant ─────────────────────────────────────────────
@@ -1532,51 +1415,43 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Click_InactiveObject_ReportsErrObjectInactive_IncrementsFailed()
         {
-            var go = new GameObject("ClickInactive__UITest");
+            var go = TrackOwnedObject(new GameObject("ClickInactive__UITest"));
             go.SetActive(false);
-            try
+            var step = new PlaytestStep
             {
-                var step = new PlaytestStep
-                {
-                    Type = StepType.Click,
-                    Path = "/ClickInactive__UITest",
-                    RawLine = "CLICK /ClickInactive__UITest"
-                };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
+                Type = StepType.Click,
+                Path = "/ClickInactive__UITest",
+                RawLine = "CLICK /ClickInactive__UITest"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
 
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
 
-                Assert.AreEqual(1, failed);
-                Assert.AreEqual(0, passed);
-                StringAssert.Contains("object inactive", results[0]);
-            }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(0, passed);
+            StringAssert.Contains("object inactive", results[0]);
         }
 
         [Test]
         public void Click_NoButtonOrPointerHandler_ReportsFailNoHandler_IncrementsFailed()
         {
-            var go = new GameObject("ClickNoHandler__UITest");
+            var go = TrackOwnedObject(new GameObject("ClickNoHandler__UITest"));
             go.SetActive(true);
-            try
+            var step = new PlaytestStep
             {
-                var step = new PlaytestStep
-                {
-                    Type = StepType.Click,
-                    Path = "/ClickNoHandler__UITest",
-                    RawLine = "CLICK /ClickNoHandler__UITest"
-                };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
+                Type = StepType.Click,
+                Path = "/ClickNoHandler__UITest",
+                RawLine = "CLICK /ClickNoHandler__UITest"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
 
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
 
-                Assert.AreEqual(1, failed);
-                Assert.AreEqual(0, passed);
-                StringAssert.Contains("no Button or IPointerClickHandler", results[0]);
-            }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(0, passed);
+            StringAssert.Contains("no Button or IPointerClickHandler", results[0]);
         }
 
         [Test]
@@ -1643,26 +1518,22 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Fill_UIDocumentPath_ExistingGoNoUIDocument_ReportsFailNoTextField()
         {
-            var go = new GameObject("FillGoNoUI__UITest");
-            try
+            var go = TrackOwnedObject(new GameObject("FillGoNoUI__UITest"));
+            var step = new PlaytestStep
             {
-                var step = new PlaytestStep
-                {
-                    Type = StepType.Fill,
-                    Path = "/FillGoNoUI__UITest|UIDocument|myInput",
-                    Value = "text",
-                    RawLine = "FILL /FillGoNoUI__UITest|UIDocument|myInput text"
-                };
-                var results = new List<string>();
-                int passed = 0, failed = 0;
+                Type = StepType.Fill,
+                Path = "/FillGoNoUI__UITest|UIDocument|myInput",
+                Value = "text",
+                RawLine = "FILL /FillGoNoUI__UITest|UIDocument|myInput text"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
 
-                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
 
-                Assert.AreEqual(1, failed);
-                Assert.AreEqual(0, passed);
-                StringAssert.Contains("FAIL", results[0]);
-            }
-            finally { UnityEngine.Object.DestroyImmediate(go); }
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(0, passed);
+            StringAssert.Contains("FAIL", results[0]);
         }
 
         // ── UI Error Paths: Focus ─────────────────────────────────────────────────

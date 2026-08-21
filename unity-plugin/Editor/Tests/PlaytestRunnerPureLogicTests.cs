@@ -10,7 +10,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class PlaytestRunnerPureLogicTests : SceneTestBase
+    public class PlaytestRunnerPureLogicTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── Task 3: FormatProvenance ──────────────────────────────────────────
 
@@ -120,15 +120,9 @@ namespace UnityMCP.Editor.Tests
                 BindingFlags.NonPublic | BindingFlags.Static);
             Assert.IsNotNull(mi, "SetTimeScale must exist as private static method");
 
-            try
-            {
-                mi.Invoke(null, new object[] { 0.5f });
-                Assert.AreEqual(0.5f, Time.timeScale, 0.001f);
-            }
-            finally
-            {
-                Time.timeScale = 1f;
-            }
+            RegisterCleanup(() => Time.timeScale = 1f);
+            mi.Invoke(null, new object[] { 0.5f });
+            Assert.AreEqual(0.5f, Time.timeScale, 0.001f);
         }
 
         [Test]
@@ -139,15 +133,9 @@ namespace UnityMCP.Editor.Tests
                 BindingFlags.NonPublic | BindingFlags.Static);
             Assert.IsNotNull(mi);
 
-            try
-            {
-                mi.Invoke(null, new object[] { 0f });
-                Assert.AreEqual(0f, Time.timeScale, 0.001f);
-            }
-            finally
-            {
-                Time.timeScale = 1f;
-            }
+            RegisterCleanup(() => Time.timeScale = 1f);
+            mi.Invoke(null, new object[] { 0f });
+            Assert.AreEqual(0f, Time.timeScale, 0.001f);
         }
 
         [Test]
@@ -163,16 +151,10 @@ namespace UnityMCP.Editor.Tests
             // _cachedConfig is null (CompleteRunCleanup sets it to null)
             PlaytestRunner.CompleteRunCleanupForTests();
 
-            try
-            {
-                mi.Invoke(null, new object[] { 0.75f });
-                Assert.AreEqual(0.75f, Time.timeScale, 0.001f,
-                    "With null config, SetTimeScale must fall back to Time.timeScale");
-            }
-            finally
-            {
-                Time.timeScale = 1f;
-            }
+            RegisterCleanup(() => Time.timeScale = 1f);
+            mi.Invoke(null, new object[] { 0.75f });
+            Assert.AreEqual(0.75f, Time.timeScale, 0.001f,
+                "With null config, SetTimeScale must fall back to Time.timeScale");
         }
     }
 }

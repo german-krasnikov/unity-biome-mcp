@@ -19,19 +19,14 @@ namespace UnityMCP.Editor.Tests
         public void SetUp()
         {
             _prevFinder = CommandRouter.FindPlaytestConfigGuidsForTest;
+            RegisterCleanup(() => CommandRouter.FindPlaytestConfigGuidsForTest = _prevFinder);
             CommandRouter.FindPlaytestConfigGuidsForTest = () => Array.Empty<string>();
         }
 
-        [TearDown]
-        public void TearDown()
-        {
-            CommandRouter.FindPlaytestConfigGuidsForTest = _prevFinder;
-        }
-
         // Helpers
-        private static PlaytestConfig MakeConfig(List<QueryAlias> aliases)
+        private PlaytestConfig MakeConfig(List<QueryAlias> aliases)
         {
-            var cfg = ScriptableObject.CreateInstance<PlaytestConfig>();
+            var cfg = TrackOwnedObject(ScriptableObject.CreateInstance<PlaytestConfig>());
             cfg.aliases = aliases ?? new List<QueryAlias>();
             return cfg;
         }
@@ -56,14 +51,10 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void BuildAliasSection_ConfigWithNullAliases_ReturnsNull()
         {
-            var cfg = ScriptableObject.CreateInstance<PlaytestConfig>();
+            var cfg = TrackOwnedObject(ScriptableObject.CreateInstance<PlaytestConfig>());
             cfg.aliases = null;
-            try
-            {
-                var result = CommandRouter.BuildAliasSection(cfg);
-                Assert.IsNull(result);
-            }
-            finally { UObject.DestroyImmediate(cfg); }
+            var result = CommandRouter.BuildAliasSection(cfg);
+            Assert.IsNull(result);
         }
 
         [Test]
@@ -73,12 +64,8 @@ namespace UnityMCP.Editor.Tests
             {
                 new QueryAlias { alias = "hp", type = AliasType.VarRuntime, path = "/Player", component = "Health", field = "hp" }
             });
-            try
-            {
-                var result = CommandRouter.BuildAliasSection(cfg);
-                Assert.IsNull(result, "All-VarRuntime config must return null — nothing to emit");
-            }
-            finally { UObject.DestroyImmediate(cfg); }
+            var result = CommandRouter.BuildAliasSection(cfg);
+            Assert.IsNull(result, "All-VarRuntime config must return null — nothing to emit");
         }
 
         [Test]
@@ -88,13 +75,9 @@ namespace UnityMCP.Editor.Tests
             {
                 new QueryAlias { alias = "player", type = AliasType.ValPath, path = "/Player", component = "Health", field = "hp" }
             });
-            try
-            {
-                var result = CommandRouter.BuildAliasSection(cfg);
-                Assert.IsNotNull(result);
-                StringAssert.Contains("player=/Player|Health|hp", result);
-            }
-            finally { UObject.DestroyImmediate(cfg); }
+            var result = CommandRouter.BuildAliasSection(cfg);
+            Assert.IsNotNull(result);
+            StringAssert.Contains("player=/Player|Health|hp", result);
         }
 
         [Test]
@@ -104,13 +87,9 @@ namespace UnityMCP.Editor.Tests
             {
                 new QueryAlias { alias = "maxhp", type = AliasType.ValConst, constValue = "100" }
             });
-            try
-            {
-                var result = CommandRouter.BuildAliasSection(cfg);
-                Assert.IsNotNull(result);
-                StringAssert.Contains("maxhp=100", result);
-            }
-            finally { UObject.DestroyImmediate(cfg); }
+            var result = CommandRouter.BuildAliasSection(cfg);
+            Assert.IsNotNull(result);
+            StringAssert.Contains("maxhp=100", result);
         }
 
         [Test]
@@ -122,16 +101,12 @@ namespace UnityMCP.Editor.Tests
                 new QueryAlias { alias = "runtime_speed", type = AliasType.VarRuntime, path = "/P", component = "C", field = "speed" },
                 new QueryAlias { alias = "maxhp", type = AliasType.ValConst, constValue = "200" }
             });
-            try
-            {
-                var result = CommandRouter.BuildAliasSection(cfg);
-                Assert.IsNotNull(result);
-                StringAssert.Contains("player=", result);
-                StringAssert.Contains("maxhp=200", result);
-                // VarRuntime alias must not appear as a line in the section
-                StringAssert.DoesNotContain("runtime_speed=", result);
-            }
-            finally { UObject.DestroyImmediate(cfg); }
+            var result = CommandRouter.BuildAliasSection(cfg);
+            Assert.IsNotNull(result);
+            StringAssert.Contains("player=", result);
+            StringAssert.Contains("maxhp=200", result);
+            // VarRuntime alias must not appear as a line in the section
+            StringAssert.DoesNotContain("runtime_speed=", result);
         }
 
         [Test]
@@ -141,14 +116,10 @@ namespace UnityMCP.Editor.Tests
             {
                 new QueryAlias { alias = "x", type = AliasType.ValConst, constValue = "1" }
             });
-            try
-            {
-                var result = CommandRouter.BuildAliasSection(cfg);
-                Assert.IsNotNull(result);
-                StringAssert.StartsWith("--- ALIASES ---", result);
-                StringAssert.EndsWith("---", result);
-            }
-            finally { UObject.DestroyImmediate(cfg); }
+            var result = CommandRouter.BuildAliasSection(cfg);
+            Assert.IsNotNull(result);
+            StringAssert.StartsWith("--- ALIASES ---", result);
+            StringAssert.EndsWith("---", result);
         }
 
         // ── GetAliasesText: header stripping ─────────────────────────────────
@@ -169,28 +140,20 @@ namespace UnityMCP.Editor.Tests
             {
                 new QueryAlias { alias = "x", type = AliasType.ValConst, constValue = "1" }
             });
-            try
-            {
-                // Verify BuildAliasSection produces --- lines
-                var section = CommandRouter.BuildAliasSection(cfg);
-                Assert.IsNotNull(section);
-                StringAssert.Contains("---", section);
+            // Verify BuildAliasSection produces --- lines
+            var section = CommandRouter.BuildAliasSection(cfg);
+            Assert.IsNotNull(section);
+            StringAssert.Contains("---", section);
 
-                // GetAliasesText must strip them — inject this config via the finder
-                CommandRouter.FindPlaytestConfigGuidsForTest = () => new[] { "fake-guid" };
-                // Note: with a fake guid, AssetDatabase won't load the asset.
-                // Test this via the section structure: confirm --- lines are present in raw,
-                // and that GetAliasesText strips them from whatever BuildAliasSection returns.
-                // Since our fake guid returns null config, GetAliasesText returns "no aliases".
-                var result = InvokeGetAliasesText();
-                // A fake GUID yields a null config — confirms fallback to "no aliases"
-                Assert.AreEqual("no aliases", result);
-            }
-            finally
-            {
-                UObject.DestroyImmediate(cfg);
-                CommandRouter.FindPlaytestConfigGuidsForTest = () => Array.Empty<string>();
-            }
+            // GetAliasesText must strip them — inject this config via the finder
+            CommandRouter.FindPlaytestConfigGuidsForTest = () => new[] { "fake-guid" };
+            // Note: with a fake guid, AssetDatabase won't load the asset.
+            // Test this via the section structure: confirm --- lines are present in raw,
+            // and that GetAliasesText strips them from whatever BuildAliasSection returns.
+            // Since our fake guid returns null config, GetAliasesText returns "no aliases".
+            var result = InvokeGetAliasesText();
+            // A fake GUID yields a null config — confirms fallback to "no aliases"
+            Assert.AreEqual("no aliases", result);
         }
 
         [Test]

@@ -11,15 +11,10 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode = () => false;
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-            CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
         }
 
         // ── Task 1: ExecInspect ───────────────────────────────────────────────

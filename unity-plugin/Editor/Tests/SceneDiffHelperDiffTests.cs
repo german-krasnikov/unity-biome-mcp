@@ -7,7 +7,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal sealed class SceneDiffHelperDiffTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    internal sealed class SceneDiffHelperDiffTests : SceneTestBase
     {
         [SetUp]
         public void SetUp() => SceneDiffHelper.Reset();

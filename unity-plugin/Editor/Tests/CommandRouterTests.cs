@@ -198,29 +198,23 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Process_WhileCompiling_BlockedCommand_ReturnsRetryResponse()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
             CommandRouter.IsCompiling = () => true;
-            try
-            {
-                var json = "{\"id\":\"1\",\"cmd\":\"create_object\",\"args\":{\"name\":\"X\"}}";
-                var result = CommandRouter.Process(json);
-                Assert.IsTrue(result.Contains("\"ok\":false"), result);
-                Assert.IsTrue(result.Contains("retry"), result);
-            }
-            finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }
+            var json = "{\"id\":\"1\",\"cmd\":\"create_object\",\"args\":{\"name\":\"X\"}}";
+            var result = CommandRouter.Process(json);
+            Assert.IsTrue(result.Contains("\"ok\":false"), result);
+            Assert.IsTrue(result.Contains("retry"), result);
         }
 
         [Test]
         public void Process_WhileCompiling_PingAllowed_ReturnsPong()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
             CommandRouter.IsCompiling = () => true;
-            try
-            {
-                var json = "{\"id\":\"2\",\"cmd\":\"ping\",\"args\":{}}";
-                var result = CommandRouter.Process(json);
-                Assert.IsTrue(result.Contains("\"ok\":true"), result);
-                Assert.IsTrue(result.Contains("pong"), result);
-            }
-            finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }
+            var json = "{\"id\":\"2\",\"cmd\":\"ping\",\"args\":{}}";
+            var result = CommandRouter.Process(json);
+            Assert.IsTrue(result.Contains("\"ok\":true"), result);
+            Assert.IsTrue(result.Contains("pong"), result);
         }
 
         // M5: "batch" must reach BatchHelper.Execute during compile so its own per-line guard
@@ -229,30 +223,24 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Process_WhileCompiling_BatchReachesInnerGuard_BlocksMutatingCommand()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
             CommandRouter.IsCompiling = () => true;
-            try
-            {
-                var json = "{\"id\":\"5\",\"cmd\":\"batch\",\"args\":{\"commands\":\"set_active path=/X value=true\"}}";
-                var result = CommandRouter.Process(json);
-                Assert.IsTrue(result.Contains("\"ok\":false"), result); // batch with blocked commands returns ok:false
-                StringAssert.Contains("BLOCKED", result); // inner per-line guard fired instead
-            }
-            finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }
+            var json = "{\"id\":\"5\",\"cmd\":\"batch\",\"args\":{\"commands\":\"set_active path=/X value=true\"}}";
+            var result = CommandRouter.Process(json);
+            Assert.IsTrue(result.Contains("\"ok\":false"), result); // batch with blocked commands returns ok:false
+            StringAssert.Contains("BLOCKED", result); // inner per-line guard fired instead
         }
 
         [Test]
         public void Process_WhileCompiling_BatchAllowsReadOnlyAllowedCommand()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
             CommandRouter.IsCompiling = () => true;
-            try
-            {
-                var json = "{\"id\":\"6\",\"cmd\":\"batch\",\"args\":{\"commands\":\"get_console\"}}";
-                var result = CommandRouter.Process(json);
-                Assert.IsTrue(result.Contains("\"ok\":true"), result);
-                StringAssert.DoesNotContain("BLOCKED", result);
-                StringAssert.DoesNotContain("retry", result); // confirms outer gate did not reject
-            }
-            finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }
+            var json = "{\"id\":\"6\",\"cmd\":\"batch\",\"args\":{\"commands\":\"get_console\"}}";
+            var result = CommandRouter.Process(json);
+            Assert.IsTrue(result.Contains("\"ok\":true"), result);
+            StringAssert.DoesNotContain("BLOCKED", result);
+            StringAssert.DoesNotContain("retry", result); // confirms outer gate did not reject
         }
 
         [Test]
@@ -267,32 +255,26 @@ namespace UnityMCP.Editor.Tests
                 return "ok";
             }, mutating: true, required: "", optional: "");
             CommandRouter._dedupRegistry = new DedupRegistry();
+            RegisterCleanup(() => CommandRouter._dedupRegistry = previousDedup);
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode = () => false;
-            try
-            {
-                var first = CommandRouter.Process(
-                    "{\"id\":\"dedup-1\",\"cmd\":\"batch\",\"op_id\":\"op-partial\","
-                    + "\"args\":{\"commands\":\"test_dedup_mutation\\ntotally_unknown_dedup_command\","
-                    + "\"on_error\":\"continue\"}}");
-                Assert.IsTrue(first.Contains("\"ok\":false"), first);
-                Assert.AreEqual(1, calls);
+            var first = CommandRouter.Process(
+                "{\"id\":\"dedup-1\",\"cmd\":\"batch\",\"op_id\":\"op-partial\","
+                + "\"args\":{\"commands\":\"test_dedup_mutation\\ntotally_unknown_dedup_command\","
+                + "\"on_error\":\"continue\"}}");
+            Assert.IsTrue(first.Contains("\"ok\":false"), first);
+            Assert.AreEqual(1, calls);
 
-                var retry = CommandRouter.Process(
-                    "{\"id\":\"dedup-2\",\"cmd\":\"batch\",\"retry_op_id\":\"op-partial\","
-                    + "\"args\":{\"commands\":\"test_dedup_mutation\\ntotally_unknown_dedup_command\","
-                    + "\"on_error\":\"continue\"}}");
-                Assert.IsTrue(retry.Contains("\"ok\":false"), retry);
-                Assert.AreEqual(1, calls,
-                    "Retrying a lost ACK for a failed non-atomic batch must replay the cached response, not re-run committed children.");
-            }
-            finally
-            {
-                CommandRouter._dedupRegistry = previousDedup;
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-                CommandRegistry.RestoreForTest(snapshot);
-            }
+            var retry = CommandRouter.Process(
+                "{\"id\":\"dedup-2\",\"cmd\":\"batch\",\"retry_op_id\":\"op-partial\","
+                + "\"args\":{\"commands\":\"test_dedup_mutation\\ntotally_unknown_dedup_command\","
+                + "\"on_error\":\"continue\"}}");
+            Assert.IsTrue(retry.Contains("\"ok\":false"), retry);
+            Assert.AreEqual(1, calls,
+                "Retrying a lost ACK for a failed non-atomic batch must replay the cached response, not re-run committed children.");
         }
 
         // MCP-IDEMP-026: cached response must include dedup_applied:true for transparency.
@@ -302,60 +284,48 @@ namespace UnityMCP.Editor.Tests
             var snapshot = CommandRegistry.CaptureForTest();
             var previousDedup = CommandRouter._dedupRegistry;
             CommandRouter._dedupRegistry = new DedupRegistry();
+            RegisterCleanup(() => CommandRouter._dedupRegistry = previousDedup);
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode = () => false;
-            try
-            {
-                CommandRegistry.Register("test_dedup_flag_cmd", _ => "flag_result",
-                    required: "", optional: "");
+            CommandRegistry.Register("test_dedup_flag_cmd", _ => "flag_result",
+                required: "", optional: "");
 
-                // First call — executes and registers op_id → result.
-                CommandRouter.Process(
-                    "{\"id\":\"fl-1\",\"cmd\":\"test_dedup_flag_cmd\",\"op_id\":\"op-dedup-flag\",\"args\":{}}");
+            // First call — executes and registers op_id → result.
+            CommandRouter.Process(
+                "{\"id\":\"fl-1\",\"cmd\":\"test_dedup_flag_cmd\",\"op_id\":\"op-dedup-flag\",\"args\":{}}");
 
-                // Retry via retry_op_id — must return cached result with dedup_applied:true.
-                var retry = CommandRouter.Process(
-                    "{\"id\":\"fl-2\",\"cmd\":\"test_dedup_flag_cmd\",\"retry_op_id\":\"op-dedup-flag\",\"args\":{}}");
+            // Retry via retry_op_id — must return cached result with dedup_applied:true.
+            var retry = CommandRouter.Process(
+                "{\"id\":\"fl-2\",\"cmd\":\"test_dedup_flag_cmd\",\"retry_op_id\":\"op-dedup-flag\",\"args\":{}}");
 
-                StringAssert.Contains("\"dedup_applied\":true", retry,
-                    $"Cached response must include dedup_applied:true; got: {retry}");
-            }
-            finally
-            {
-                CommandRouter._dedupRegistry = previousDedup;
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-                CommandRegistry.RestoreForTest(snapshot);
-            }
+            StringAssert.Contains("\"dedup_applied\":true", retry,
+                $"Cached response must include dedup_applied:true; got: {retry}");
         }
 
         [Test]
         public void Process_BatchTimeoutSummary_ReturnsFailureResponse()
         {
             var snapshot = CommandRegistry.CaptureForTest();
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode = () => false;
-            try
-            {
-                CommandRegistry.Clear();
-                CommandRegistry.Register("batch", _ => "ok:1 err:0 timeout:1",
-                    required: "commands", alwaysAllowed: true,
-                    allowedDuringCompile: true);
-                CommandRegistry.Ready = true;
+            CommandRegistry.Clear();
+            CommandRegistry.Register("batch", _ => "ok:1 err:0 timeout:1",
+                required: "commands", alwaysAllowed: true,
+                allowedDuringCompile: true);
+            CommandRegistry.Ready = true;
 
-                var result = CommandRouter.Process(
-                    "{\"id\":\"batch-timeout\",\"cmd\":\"batch\"," +
-                    "\"args\":{\"commands\":\"ping\\nping\"}}");
+            var result = CommandRouter.Process(
+                "{\"id\":\"batch-timeout\",\"cmd\":\"batch\"," +
+                "\"args\":{\"commands\":\"ping\\nping\"}}");
 
-                StringAssert.Contains("\"ok\":false", result, result);
-                StringAssert.Contains("timeout:1", result, result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-                CommandRegistry.RestoreForTest(snapshot);
-            }
+            StringAssert.Contains("\"ok\":false", result, result);
+            StringAssert.Contains("timeout:1", result, result);
         }
 
         // ── Process: play-mode guard blocks mutating commands ─────────────────
@@ -363,83 +333,59 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Process_InPlayMode_MutatingCommand_ReturnsError()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode  = () => true;
-            try
-            {
-                var json = "{\"id\":\"3\",\"cmd\":\"create_object\",\"args\":{\"name\":\"X\"}}";
-                var result = CommandRouter.Process(json);
-                Assert.IsTrue(result.Contains("\"ok\":false"), result);
-                Assert.IsTrue(result.Contains("Play mode"), result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode  = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            var json = "{\"id\":\"3\",\"cmd\":\"create_object\",\"args\":{\"name\":\"X\"}}";
+            var result = CommandRouter.Process(json);
+            Assert.IsTrue(result.Contains("\"ok\":false"), result);
+            Assert.IsTrue(result.Contains("Play mode"), result);
         }
 
         [Test]
         public void Process_InPlayMode_SetParent_NotBlockedByPlayModeGuard()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode  = () => true;
-            try
-            {
-                var json = "{\"id\":\"sp1\",\"cmd\":\"set_parent\",\"args\":{\"path\":\"/NonExistent_XYZ\",\"parent\":\"/X\"}}";
-                var result = CommandRouter.Process(json);
-                StringAssert.DoesNotContain("Play mode active", result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode  = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            var json = "{\"id\":\"sp1\",\"cmd\":\"set_parent\",\"args\":{\"path\":\"/NonExistent_XYZ\",\"parent\":\"/X\"}}";
+            var result = CommandRouter.Process(json);
+            StringAssert.DoesNotContain("Play mode active", result);
         }
 
         [Test]
         public void Process_InPlayMode_ExecuteCode_ReachesValidationInsteadOfPlayGuard()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode = () => true;
-            try
-            {
-                var result = CommandRouter.Process(
-                    "{\"id\":\"play-code\",\"cmd\":\"execute_code\",\"args\":" +
-                    "{\"code\":\"return \\\"play-ok\\\";\"}}");
+            var result = CommandRouter.Process(
+                "{\"id\":\"play-code\",\"cmd\":\"execute_code\",\"args\":" +
+                "{\"code\":\"return \\\"play-ok\\\";\"}}");
 
-                StringAssert.DoesNotContain("Play mode active", result, result);
-                StringAssert.Contains("play-ok", result, result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            StringAssert.DoesNotContain("Play mode active", result, result);
+            StringAssert.Contains("play-ok", result, result);
         }
 
         [Test]
         public async Task ProcessAsync_InPlayMode_ExecuteCode_ReachesValidationInsteadOfPlayGuard()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode = () => true;
-            try
-            {
-                var tcs = new TaskCompletionSource<string>();
-                CommandRouter.ProcessAsync(
-                    "{\"id\":\"play-code-async\",\"cmd\":\"execute_code\",\"args\":" +
-                    "{\"code\":\"return \\\"play-ok\\\";\"}}",
-                    tcs);
-                var result = await tcs.Task;
+            var tcs = new TaskCompletionSource<string>();
+            CommandRouter.ProcessAsync(
+                "{\"id\":\"play-code-async\",\"cmd\":\"execute_code\",\"args\":" +
+                "{\"code\":\"return \\\"play-ok\\\";\"}}",
+                tcs);
+            var result = await tcs.Task;
 
-                StringAssert.DoesNotContain("Play mode active", result, result);
-                StringAssert.Contains("play-ok", result, result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            StringAssert.DoesNotContain("Play mode active", result, result);
+            StringAssert.Contains("play-ok", result, result);
         }
 
         // ── Batch: set_parent is NOT blocked by Play Mode gate ────────────────
@@ -448,22 +394,16 @@ namespace UnityMCP.Editor.Tests
         public void Batch_InPlayMode_SetParent_NotBlockedByPlayModeGuard()
         {
             var origRO = CommandRouter.IsReadOnly;
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsReadOnly = origRO);
+            RegisterCleanup(() => BatchHelper.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsReadOnly = () => false;   // isolate from RO worker
             BatchHelper.IsPlayMode = () => true;
-            try
-            {
-                // set_parent is mutating but explicitly excluded from the Play Mode block.
-                // Result may be an error (object not found) but must NOT contain "BLOCKED".
-                var result = BatchHelper.Execute("set_parent /NonExistent_XYZ /X", "continue", 25000);
-                StringAssert.DoesNotContain("BLOCKED", result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsReadOnly = origRO;
-                BatchHelper.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            // set_parent is mutating but explicitly excluded from the Play Mode block.
+            // Result may be an error (object not found) but must NOT contain "BLOCKED".
+            var result = BatchHelper.Execute("set_parent /NonExistent_XYZ /X", "continue", 25000);
+            StringAssert.DoesNotContain("BLOCKED", result);
         }
 
         // ── Strategy C: ReadOnly verification ────────────────────────────────
@@ -472,21 +412,15 @@ namespace UnityMCP.Editor.Tests
         public void Batch_SetParent_WithReadOnly_IsBlockedByReadOnlyGuard()
         {
             var origRO = CommandRouter.IsReadOnly;
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsReadOnly = origRO);
+            RegisterCleanup(() => BatchHelper.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsReadOnly = () => true;
             BatchHelper.IsPlayMode = () => true;
-            try
-            {
-                var result = BatchHelper.Execute(
-                    "set_parent /NonExistent_XYZ /X", "continue", 25000);
-                StringAssert.Contains("READ_ONLY_BLOCKED", result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsReadOnly = origRO;
-                BatchHelper.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            var result = BatchHelper.Execute(
+                "set_parent /NonExistent_XYZ /X", "continue", 25000);
+            StringAssert.Contains("READ_ONLY_BLOCKED", result);
         }
 
         // ── Process: runtime guard blocks runtime-only commands outside play ──
@@ -494,20 +428,14 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Process_OutsidePlayMode_RuntimeCommand_ReturnsError()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode  = () => false;
-            try
-            {
-                var json = "{\"id\":\"4\",\"cmd\":\"invoke_method\",\"args\":{\"path\":\"/X\",\"component\":\"C\",\"method\":\"M\"}}";
-                var result = CommandRouter.Process(json);
-                Assert.IsTrue(result.Contains("\"ok\":false"), result);
-                Assert.IsTrue(result.Contains("Play Mode"), result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode  = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            var json = "{\"id\":\"4\",\"cmd\":\"invoke_method\",\"args\":{\"path\":\"/X\",\"component\":\"C\",\"method\":\"M\"}}";
+            var result = CommandRouter.Process(json);
+            Assert.IsTrue(result.Contains("\"ok\":false"), result);
+            Assert.IsTrue(result.Contains("Play Mode"), result);
         }
 
         // ── BuildResponse (via ping): short data stays inline ─────────────────
@@ -515,22 +443,16 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Process_Ping_ShortData_InlineResponse()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode  = () => false;
-            try
-            {
-                var json = "{\"id\":\"5\",\"cmd\":\"ping\",\"args\":{}}";
-                var result = CommandRouter.Process(json);
-                // Short response: no file field, data inline
-                Assert.IsTrue(result.Contains("\"ok\":true"), result);
-                Assert.IsFalse(result.Contains("\"file\""), result);
-                Assert.IsTrue(result.Contains("pong"), result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode  = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            var json = "{\"id\":\"5\",\"cmd\":\"ping\",\"args\":{}}";
+            var result = CommandRouter.Process(json);
+            // Short response: no file field, data inline
+            Assert.IsTrue(result.Contains("\"ok\":true"), result);
+            Assert.IsFalse(result.Contains("\"file\""), result);
+            Assert.IsTrue(result.Contains("pong"), result);
         }
 
         // ── BuildResponse (direct seam): truncation-ordering fix (Task 3.2) ────
@@ -547,13 +469,10 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(result.Contains("\"file\""), result);
             var filePath = JsonHelper.ExtractString(result, "file");
             Assert.IsNotNull(filePath, result);
-            try
-            {
-                var written = System.IO.File.ReadAllText(filePath);
-                Assert.AreEqual(bigData.Length, written.Length,
-                    "file-offloaded data must be full, not soft-truncated to maxResponseChars");
-            }
-            finally { System.IO.File.Delete(filePath); }
+            RegisterCleanup(() => { if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath); });
+            var written = System.IO.File.ReadAllText(filePath);
+            Assert.AreEqual(bigData.Length, written.Length,
+                "file-offloaded data must be full, not soft-truncated to maxResponseChars");
         }
 
         [Test]
@@ -597,22 +516,16 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Process_DisabledTool_ReturnsDisabledError()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
+            RegisterCleanup(() => CommandRouter.IsToolEnabledFn = MCPSettings.IsToolEnabled);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode  = () => false;
             CommandRouter.IsToolEnabledFn = _ => false;
-            try
-            {
-                var json = "{\"id\":\"t1\",\"cmd\":\"get_hierarchy\",\"args\":{}}";
-                var result = CommandRouter.Process(json);
-                Assert.IsTrue(result.Contains("\"ok\":false"), result);
-                Assert.IsTrue(result.Contains("disabled in settings"), result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode  = () => UnityEditor.EditorApplication.isPlaying;
-                CommandRouter.IsToolEnabledFn = MCPSettings.IsToolEnabled;
-            }
+            var json = "{\"id\":\"t1\",\"cmd\":\"get_hierarchy\",\"args\":{}}";
+            var result = CommandRouter.Process(json);
+            Assert.IsTrue(result.Contains("\"ok\":false"), result);
+            Assert.IsTrue(result.Contains("disabled in settings"), result);
         }
 
         // ── CS1.test.1: get_disabled_tools / set_tool_catalog have schema ─────
@@ -643,41 +556,29 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public async Task ProcessAsync_RunTests_WhileCompiling_SetsGuardResponse()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
             CommandRouter.IsCompiling = () => true;
-            try
-            {
-                var tcs = new System.Threading.Tasks.TaskCompletionSource<string>();
-                var json = "{\"id\":\"pa1\",\"cmd\":\"run_tests\",\"args\":{}}";
-                CommandRouter.ProcessAsync(json, tcs);
-                Assert.IsTrue(tcs.Task.IsCompleted, "TCS should be set synchronously when guard fires");
-                var result = await tcs.Task;
-                Assert.IsTrue(result.Contains("\"ok\":false"), result);
-                Assert.IsTrue(result.Contains("retry"), result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-            }
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<string>();
+            var json = "{\"id\":\"pa1\",\"cmd\":\"run_tests\",\"args\":{}}";
+            CommandRouter.ProcessAsync(json, tcs);
+            Assert.IsTrue(tcs.Task.IsCompleted, "TCS should be set synchronously when guard fires");
+            var result = await tcs.Task;
+            Assert.IsTrue(result.Contains("\"ok\":false"), result);
+            Assert.IsTrue(result.Contains("retry"), result);
         }
 
         [Test]
         public async Task ProcessAsync_WaitUntil_WhileCompiling_SetsGuardResponse()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
             CommandRouter.IsCompiling = () => true;
-            try
-            {
-                var tcs = new System.Threading.Tasks.TaskCompletionSource<string>();
-                var json = "{\"id\":\"pa2\",\"cmd\":\"wait_until\",\"args\":{\"path\":\"/x\",\"component\":\"C\",\"field\":\"f\",\"value\":\"v\"}}";
-                CommandRouter.ProcessAsync(json, tcs);
-                Assert.IsTrue(tcs.Task.IsCompleted);
-                var result = await tcs.Task;
-                Assert.IsTrue(result.Contains("\"ok\":false"), result);
-                Assert.IsTrue(result.Contains("retry"), result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-            }
+            var tcs = new System.Threading.Tasks.TaskCompletionSource<string>();
+            var json = "{\"id\":\"pa2\",\"cmd\":\"wait_until\",\"args\":{\"path\":\"/x\",\"component\":\"C\",\"field\":\"f\",\"value\":\"v\"}}";
+            CommandRouter.ProcessAsync(json, tcs);
+            Assert.IsTrue(tcs.Task.IsCompleted);
+            var result = await tcs.Task;
+            Assert.IsTrue(result.Contains("\"ok\":false"), result);
+            Assert.IsTrue(result.Contains("retry"), result);
         }
 
         [Test]
@@ -790,20 +691,14 @@ namespace UnityMCP.Editor.Tests
                 _ => throw new System.Exception("should not reach here"),
                 fileHandler: (id, args) => { called = true; return $"{{\"id\":\"{id}\",\"file\":\"x.png\"}}"; },
                 specialDispatch: true, alwaysAllowed: true, allowedDuringCompile: true);
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
+            RegisterCleanup(() => CommandRouter.RegisterAll());  // restore registry, removes test_file_cmd
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode  = () => false;
-            try
-            {
-                var json = "{\"id\":\"r1\",\"cmd\":\"test_file_cmd\",\"args\":{}}";
-                CommandRouter.Process(json);
-                Assert.IsTrue(called, "FileHandler must be invoked by Process()");
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode  = () => UnityEditor.EditorApplication.isPlaying;
-                CommandRouter.RegisterAll();  // restore registry, removes test_file_cmd
-            }
+            var json = "{\"id\":\"r1\",\"cmd\":\"test_file_cmd\",\"args\":{}}";
+            CommandRouter.Process(json);
+            Assert.IsTrue(called, "FileHandler must be invoked by Process()");
         }
 
         [TestCase(".cs")]
@@ -814,18 +709,12 @@ namespace UnityMCP.Editor.Tests
             var path = System.IO.Path.Combine(
                 FileOutputHelper.OutputDir, "screenshot-non-png" + extension);
             System.IO.File.WriteAllText(path, "keep-me");
-            try
-            {
-                var error = Assert.Throws<System.ArgumentException>(() =>
-                    FileOutputHelper.WritePng(new byte[] { 1, 2, 3 }, outputPath: path));
+            RegisterCleanup(() => { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); });
+            var error = Assert.Throws<System.ArgumentException>(() =>
+                FileOutputHelper.WritePng(new byte[] { 1, 2, 3 }, outputPath: path));
 
-                StringAssert.Contains(".png", error.Message);
-                Assert.AreEqual("keep-me", System.IO.File.ReadAllText(path));
-            }
-            finally
-            {
-                if (System.IO.File.Exists(path)) System.IO.File.Delete(path);
-            }
+            StringAssert.Contains(".png", error.Message);
+            Assert.AreEqual("keep-me", System.IO.File.ReadAllText(path));
         }
 
         [Test]
@@ -845,17 +734,11 @@ namespace UnityMCP.Editor.Tests
             //   - DefaultIsCompiling Layer 1 returns false immediately
             // Simulates Windows post-reload stale EditorApplication.isCompiling tick:
             // MCPServer never saw compilationStarted so IsReallyCompiling=false unblocks commands.
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
             CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
             MCPServer.ResetDomainStateForTests();  // _isCompiling=false → IsReallyCompiling=false
-            try
-            {
-                Assert.IsFalse(CommandRouter.IsCompiling(),
-                    "WIN-1: IsReallyCompiling=false must unblock commands even if EditorApplication.isCompiling=true");
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-            }
+            Assert.IsFalse(CommandRouter.IsCompiling(),
+                "WIN-1: IsReallyCompiling=false must unblock commands even if EditorApplication.isCompiling=true");
         }
 
         [Test]
@@ -863,20 +746,14 @@ namespace UnityMCP.Editor.Tests
         {
             // End-to-end: MCPServer.IsReallyCompiling=false (no compilationStarted this domain)
             // must not block commands — DefaultIsCompiling Layer 1 returns false.
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
             CommandRouter.IsPlayMode = () => false;
             MCPServer.ResetDomainStateForTests();  // _isCompiling=false → IsReallyCompiling=false
-            try
-            {
-                var json = "{\"id\":\"win1\",\"cmd\":\"ping\",\"args\":{}}";
-                var result = CommandRouter.Process(json);
-                Assert.IsTrue(result.Contains("\"ok\":true"), result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            var json = "{\"id\":\"win1\",\"cmd\":\"ping\",\"args\":{}}";
+            var result = CommandRouter.Process(json);
+            Assert.IsTrue(result.Contains("\"ok\":true"), result);
         }
 
         // ── Scenario 2: Batch must NOT be blocked when IsReallyCompiling=false ──
@@ -888,19 +765,13 @@ namespace UnityMCP.Editor.Tests
         {
             // Simulate false latch: compilationFinished fired → _isCompiling=false
             // but EditorApplication.isCompiling could still be true (ignored).
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => BatchHelper.IsCompiling = () => CommandRouter.IsCompiling());
             CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
             BatchHelper.IsCompiling = () => CommandRouter.IsCompiling();
             MCPServer.ResetDomainStateForTests();  // _isCompiling=false → IsReallyCompiling=false
-            try
-            {
-                var result = BatchHelper.Execute("ping", "continue", 25000);
-                Assert.IsFalse(result.Contains("BLOCKED"), $"Batch must not be blocked when IsReallyCompiling=false. Got: {result}");
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                BatchHelper.IsCompiling = () => CommandRouter.IsCompiling();
-            }
+            var result = BatchHelper.Execute("ping", "continue", 25000);
+            Assert.IsFalse(result.Contains("BLOCKED"), $"Batch must not be blocked when IsReallyCompiling=false. Got: {result}");
         }
 
         // ── RC-2: isCompiling wedge — elapsed > 120s treated as non-compiling ──
@@ -909,32 +780,23 @@ namespace UnityMCP.Editor.Tests
         public void IsCompiling_WedgeCondition_ElapsedOver120s_ReturnsFalse()
         {
             // Simulate: EditorApplication says compiling but our tracker says >120s elapsed
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
             CommandRouter.IsCompiling = () => 150.0 < 120.0;
-            try
-            {
-                Assert.IsFalse(CommandRouter.IsCompiling(),
-                    "Wedge condition: elapsed > 120s must unblock commands");
-            }
-            finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }
+            Assert.IsFalse(CommandRouter.IsCompiling(),
+                "Wedge condition: elapsed > 120s must unblock commands");
         }
 
         [Test]
         public void Process_WedgeCondition_UnblocksNormalCommand()
         {
             // When compile elapsed > 120s, IsCompiling returns false → command goes through
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;  // wedge cleared
             CommandRouter.IsPlayMode = () => false;
-            try
-            {
-                var json = "{\"id\":\"w1\",\"cmd\":\"ping\",\"args\":{}}";
-                var result = CommandRouter.Process(json);
-                Assert.IsTrue(result.Contains("\"ok\":true"), result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            var json = "{\"id\":\"w1\",\"cmd\":\"ping\",\"args\":{}}";
+            var result = CommandRouter.Process(json);
+            Assert.IsTrue(result.Contains("\"ok\":true"), result);
         }
 
         // ── Fix #13: inspect accepts type= as alias for components= ──────────
@@ -942,67 +804,46 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Inspect_TypeAliasForComponents_FiltersCorrectly()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode = () => false;
-            var go = new UnityEngine.GameObject("InspectTypeTest1");
+            var go = TrackOwnedObject(new UnityEngine.GameObject("InspectTypeTest1"));
             go.AddComponent<UnityEngine.BoxCollider>();
-            try
-            {
-                var result = CommandRouter.Process(
-                    "{\"id\":\"i1\",\"cmd\":\"inspect\",\"args\":{\"paths\":\"/InspectTypeTest1\",\"type\":\"BoxCollider\"}}");
-                StringAssert.Contains("BoxCollider", result);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(go);
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            var result = CommandRouter.Process(
+                "{\"id\":\"i1\",\"cmd\":\"inspect\",\"args\":{\"paths\":\"/InspectTypeTest1\",\"type\":\"BoxCollider\"}}");
+            StringAssert.Contains("BoxCollider", result);
         }
 
         [Test]
         public void Inspect_ComponentsParamStillWorks()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode = () => false;
-            var go = new UnityEngine.GameObject("InspectTypeTest2");
+            var go = TrackOwnedObject(new UnityEngine.GameObject("InspectTypeTest2"));
             go.AddComponent<UnityEngine.BoxCollider>();
-            try
-            {
-                var result = CommandRouter.Process(
-                    "{\"id\":\"i2\",\"cmd\":\"inspect\",\"args\":{\"paths\":\"/InspectTypeTest2\",\"components\":\"BoxCollider\"}}");
-                StringAssert.Contains("BoxCollider", result);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(go);
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            var result = CommandRouter.Process(
+                "{\"id\":\"i2\",\"cmd\":\"inspect\",\"args\":{\"paths\":\"/InspectTypeTest2\",\"components\":\"BoxCollider\"}}");
+            StringAssert.Contains("BoxCollider", result);
         }
 
         [Test]
         public void Inspect_ComponentsWinsOverType_WhenBothProvided()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode = () => false;
-            var go = new UnityEngine.GameObject("InspectTypeTest3");
+            var go = TrackOwnedObject(new UnityEngine.GameObject("InspectTypeTest3"));
             go.AddComponent<UnityEngine.BoxCollider>();
             go.AddComponent<UnityEngine.SphereCollider>();
-            try
-            {
-                // components=BoxCollider, type=SphereCollider → BoxCollider wins (type is fallback)
-                var result = CommandRouter.Process(
-                    "{\"id\":\"i3\",\"cmd\":\"inspect\",\"args\":{\"paths\":\"/InspectTypeTest3\",\"components\":\"BoxCollider\",\"type\":\"SphereCollider\"}}");
-                StringAssert.Contains("BoxCollider", result);
-                StringAssert.DoesNotContain("SphereCollider", result);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(go);
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            // components=BoxCollider, type=SphereCollider → BoxCollider wins (type is fallback)
+            var result = CommandRouter.Process(
+                "{\"id\":\"i3\",\"cmd\":\"inspect\",\"args\":{\"paths\":\"/InspectTypeTest3\",\"components\":\"BoxCollider\",\"type\":\"SphereCollider\"}}");
+            StringAssert.Contains("BoxCollider", result);
+            StringAssert.DoesNotContain("SphereCollider", result);
         }
 
         // ── #09: compile_status includes reload= suffix ───────────────────────
@@ -1010,15 +851,12 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void CompileStatus_ResponseContains_ReloadSuffix()
         {
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
             CommandRouter.IsCompiling = () => false;
-            try
-            {
-                var json = "{\"id\":\"cs1\",\"cmd\":\"compile_status\",\"args\":{}}";
-                var result = CommandRouter.Process(json);
-                Assert.IsTrue(result.Contains("\"ok\":true"), result);
-                StringAssert.Contains("|reload=", result);
-            }
-            finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }
+            var json = "{\"id\":\"cs1\",\"cmd\":\"compile_status\",\"args\":{}}";
+            var result = CommandRouter.Process(json);
+            Assert.IsTrue(result.Contains("\"ok\":true"), result);
+            StringAssert.Contains("|reload=", result);
         }
 
         // ── IsPlaytestSuccess edge cases (Task 4) ────────────────────────────
@@ -1060,14 +898,11 @@ namespace UnityMCP.Editor.Tests
         public void Process_ServerNotReady_ReturnsServerInitializingRetryResponse()
         {
             var snapshot = CommandRegistry.CaptureForTest();
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
             CommandRegistry.Ready = false;
-            try
-            {
-                var result = CommandRouter.Process("{\"id\":\"nr1\",\"cmd\":\"ping\",\"args\":{}}");
-                StringAssert.Contains("Server initializing", result);
-                StringAssert.Contains("\"ok\":false", result);
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            var result = CommandRouter.Process("{\"id\":\"nr1\",\"cmd\":\"ping\",\"args\":{}}");
+            StringAssert.Contains("Server initializing", result);
+            StringAssert.Contains("\"ok\":false", result);
         }
 
         [Test]
@@ -1084,37 +919,28 @@ namespace UnityMCP.Editor.Tests
         {
             // CommandRegistry.Ready stays true (default after RegisterAll).
             // Verify all guards are passed and the command executes successfully.
+            RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
+            RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
             CommandRouter.IsCompiling = () => false;
             CommandRouter.IsPlayMode = () => false;
-            try
-            {
-                var result = CommandRouter.Process("{\"id\":\"rr1\",\"cmd\":\"get_hierarchy\",\"args\":{\"depth\":\"1\"}}");
-                StringAssert.Contains("\"ok\":true", result);
-                StringAssert.DoesNotContain("Server initializing", result);
-                StringAssert.DoesNotContain("Python-only", result);
-            }
-            finally
-            {
-                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
-                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
-            }
+            var result = CommandRouter.Process("{\"id\":\"rr1\",\"cmd\":\"get_hierarchy\",\"args\":{\"depth\":\"1\"}}");
+            StringAssert.Contains("\"ok\":true", result);
+            StringAssert.DoesNotContain("Server initializing", result);
+            StringAssert.DoesNotContain("Python-only", result);
         }
 
         [Test]
         public async Task ProcessAsync_ServerNotReady_SetsServerInitializingResponse()
         {
             var snapshot = CommandRegistry.CaptureForTest();
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
             CommandRegistry.Ready = false;
-            try
-            {
-                var tcs = new TaskCompletionSource<string>();
-                CommandRouter.ProcessAsync("{\"id\":\"pa3\",\"cmd\":\"ping\",\"args\":{}}", tcs);
-                Assert.IsTrue(tcs.Task.IsCompleted, "Guard must set TCS synchronously");
-                var result = await tcs.Task;
-                StringAssert.Contains("Server initializing", result);
-                StringAssert.Contains("\"ok\":false", result);
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            var tcs = new TaskCompletionSource<string>();
+            CommandRouter.ProcessAsync("{\"id\":\"pa3\",\"cmd\":\"ping\",\"args\":{}}", tcs);
+            Assert.IsTrue(tcs.Task.IsCompleted, "Guard must set TCS synchronously");
+            var result = await tcs.Task;
+            StringAssert.Contains("Server initializing", result);
+            StringAssert.Contains("\"ok\":false", result);
         }
 
         // ── BuildHelp: prefix filter and formatting ───────────────────────────
@@ -1130,63 +956,51 @@ namespace UnityMCP.Editor.Tests
         public void BuildHelp_MatchingPrefix_ReturnsOnlyMatchingCommands()
         {
             var snapshot = CommandRegistry.CaptureForTest();
-            try
-            {
-                CommandRegistry.Clear();
-                CommandRegistry.Ready = true;
-                CommandRegistry.Register("bht_cmd1", _ => "ok", required: "", optional: "");
-                CommandRegistry.Register("other_cmd", _ => "ok", required: "", optional: "");
-                var result = CommandRegistry.BuildHelp("bht_");
-                StringAssert.Contains("bht_cmd1", result);
-                StringAssert.DoesNotContain("other_cmd", result);
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.Clear();
+            CommandRegistry.Ready = true;
+            CommandRegistry.Register("bht_cmd1", _ => "ok", required: "", optional: "");
+            CommandRegistry.Register("other_cmd", _ => "ok", required: "", optional: "");
+            var result = CommandRegistry.BuildHelp("bht_");
+            StringAssert.Contains("bht_cmd1", result);
+            StringAssert.DoesNotContain("other_cmd", result);
         }
 
         [Test]
         public void BuildHelp_MutatingCommand_ShowsRWMarker()
         {
             var snapshot = CommandRegistry.CaptureForTest();
-            try
-            {
-                CommandRegistry.Clear();
-                CommandRegistry.Ready = true;
-                CommandRegistry.Register("bht_write", _ => "ok", mutating: true, required: "", optional: "");
-                var result = CommandRegistry.BuildHelp("bht_");
-                StringAssert.Contains("[RW]", result);
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.Clear();
+            CommandRegistry.Ready = true;
+            CommandRegistry.Register("bht_write", _ => "ok", mutating: true, required: "", optional: "");
+            var result = CommandRegistry.BuildHelp("bht_");
+            StringAssert.Contains("[RW]", result);
         }
 
         [Test]
         public void BuildHelp_ReadCommand_ShowsROMarker()
         {
             var snapshot = CommandRegistry.CaptureForTest();
-            try
-            {
-                CommandRegistry.Clear();
-                CommandRegistry.Ready = true;
-                CommandRegistry.Register("bht_read", _ => "ok", mutating: false, required: "", optional: "");
-                var result = CommandRegistry.BuildHelp("bht_");
-                StringAssert.Contains("[RO]", result);
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.Clear();
+            CommandRegistry.Ready = true;
+            CommandRegistry.Register("bht_read", _ => "ok", mutating: false, required: "", optional: "");
+            var result = CommandRegistry.BuildHelp("bht_");
+            StringAssert.Contains("[RO]", result);
         }
 
         [Test]
         public void BuildHelp_CommandWithDescription_IncludesDescription()
         {
             var snapshot = CommandRegistry.CaptureForTest();
-            try
-            {
-                CommandRegistry.Clear();
-                CommandRegistry.Ready = true;
-                CommandRegistry.Register("bht_desc", _ => "ok", required: "", optional: "",
-                    description: "my test description text");
-                var result = CommandRegistry.BuildHelp("bht_");
-                StringAssert.Contains("my test description text", result);
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.Clear();
+            CommandRegistry.Ready = true;
+            CommandRegistry.Register("bht_desc", _ => "ok", required: "", optional: "",
+                description: "my test description text");
+            var result = CommandRegistry.BuildHelp("bht_");
+            StringAssert.Contains("my test description text", result);
         }
 
         // ── IsBatchable: all gating conditions ───────────────────────────────
@@ -1199,66 +1013,51 @@ namespace UnityMCP.Editor.Tests
         public void IsBatchable_SyncHandler_ReturnsTrue()
         {
             var snapshot = CommandRegistry.CaptureForTest();
-            try
-            {
-                CommandRegistry.Register("ib_sync", _ => "ok", required: "", optional: "");
-                Assert.IsTrue(CommandRegistry.IsBatchable("ib_sync"));
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.Register("ib_sync", _ => "ok", required: "", optional: "");
+            Assert.IsTrue(CommandRegistry.IsBatchable("ib_sync"));
         }
 
         [Test]
         public void IsBatchable_RegisterAsync_ReturnsFalse()
         {
             var snapshot = CommandRegistry.CaptureForTest();
-            try
-            {
-                CommandRegistry.RegisterAsync("ib_async",
-                    (id, args, tcs) => tcs.SetResult("ok"),
-                    required: "", optional: "");
-                Assert.IsFalse(CommandRegistry.IsBatchable("ib_async"));
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.RegisterAsync("ib_async",
+                (id, args, tcs) => tcs.SetResult("ok"),
+                required: "", optional: "");
+            Assert.IsFalse(CommandRegistry.IsBatchable("ib_async"));
         }
 
         [Test]
         public void IsBatchable_SpecialDispatch_ReturnsFalse()
         {
             var snapshot = CommandRegistry.CaptureForTest();
-            try
-            {
-                CommandRegistry.Register("ib_special", _ => "ok",
-                    specialDispatch: true, required: "", optional: "");
-                Assert.IsFalse(CommandRegistry.IsBatchable("ib_special"));
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.Register("ib_special", _ => "ok",
+                specialDispatch: true, required: "", optional: "");
+            Assert.IsFalse(CommandRegistry.IsBatchable("ib_special"));
         }
 
         [Test]
         public void IsBatchable_FileHandler_ReturnsFalse()
         {
             var snapshot = CommandRegistry.CaptureForTest();
-            try
-            {
-                CommandRegistry.Register("ib_file", _ => "ok",
-                    fileHandler: (id, args) => "resp", required: "", optional: "");
-                Assert.IsFalse(CommandRegistry.IsBatchable("ib_file"));
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.Register("ib_file", _ => "ok",
+                fileHandler: (id, args) => "resp", required: "", optional: "");
+            Assert.IsFalse(CommandRegistry.IsBatchable("ib_file"));
         }
 
         [Test]
         public void IsBatchable_AlwaysAllowed_DoesNotPreventBatchability()
         {
             var snapshot = CommandRegistry.CaptureForTest();
-            try
-            {
-                CommandRegistry.Register("ib_always", _ => "ok",
-                    alwaysAllowed: true, required: "", optional: "");
-                Assert.IsTrue(CommandRegistry.IsBatchable("ib_always"),
-                    "alwaysAllowed must not affect batchability");
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.Register("ib_always", _ => "ok",
+                alwaysAllowed: true, required: "", optional: "");
+            Assert.IsTrue(CommandRegistry.IsBatchable("ib_always"),
+                "alwaysAllowed must not affect batchability");
         }
 
         // ── AlreadyRegistered: double registration guard ──────────────────────
@@ -1267,30 +1066,24 @@ namespace UnityMCP.Editor.Tests
         public void Register_DoubleRegistration_SecondCallSkipped()
         {
             var snapshot = CommandRegistry.CaptureForTest();
-            try
-            {
-                CommandRegistry.Register("dr_sync", _ => "first", required: "", optional: "");
-                CommandRegistry.Register("dr_sync", _ => "second", required: "", optional: "");
-                var result = CommandRegistry.Execute("dr_sync", "{}");
-                Assert.AreEqual("first", result, "Second Register call must be silently skipped");
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.Register("dr_sync", _ => "first", required: "", optional: "");
+            CommandRegistry.Register("dr_sync", _ => "second", required: "", optional: "");
+            var result = CommandRegistry.Execute("dr_sync", "{}");
+            Assert.AreEqual("first", result, "Second Register call must be silently skipped");
         }
 
         [Test]
         public void RegisterAction_DoubleRegistration_SecondCallSkipped()
         {
             var snapshot = CommandRegistry.CaptureForTest();
-            try
-            {
-                CommandRegistry.RegisterAction("dr_action", (action, args) => "first",
-                    required: "", optional: "");
-                CommandRegistry.RegisterAction("dr_action", (action, args) => "second",
-                    required: "", optional: "");
-                var result = CommandRegistry.Execute("dr_action", "{\"action\":\"test\"}");
-                Assert.AreEqual("first", result, "Second RegisterAction call must be silently skipped");
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.RegisterAction("dr_action", (action, args) => "first",
+                required: "", optional: "");
+            CommandRegistry.RegisterAction("dr_action", (action, args) => "second",
+                required: "", optional: "");
+            var result = CommandRegistry.Execute("dr_action", "{\"action\":\"test\"}");
+            Assert.AreEqual("first", result, "Second RegisterAction call must be silently skipped");
         }
 
         [Test]
@@ -1299,21 +1092,18 @@ namespace UnityMCP.Editor.Tests
             var snapshot = CommandRegistry.CaptureForTest();
             var firstCalled = false;
             var secondCalled = false;
-            try
-            {
-                CommandRegistry.RegisterAsync("dr_async",
-                    (id, args, tcs) => { firstCalled = true; tcs.SetResult("first"); },
-                    required: "", optional: "");
-                CommandRegistry.RegisterAsync("dr_async",
-                    (id, args, tcs) => { secondCalled = true; tcs.SetResult("second"); },
-                    required: "", optional: "");
-                CommandRegistry.HasAsyncHandler("dr_async", out var handler);
-                var tcs2 = new System.Threading.Tasks.TaskCompletionSource<string>();
-                handler("id", "{}", tcs2);
-                Assert.IsTrue(firstCalled, "First handler must be called");
-                Assert.IsFalse(secondCalled, "Second RegisterAsync call must be silently skipped");
-            }
-            finally { CommandRegistry.RestoreForTest(snapshot); }
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.RegisterAsync("dr_async",
+                (id, args, tcs) => { firstCalled = true; tcs.SetResult("first"); },
+                required: "", optional: "");
+            CommandRegistry.RegisterAsync("dr_async",
+                (id, args, tcs) => { secondCalled = true; tcs.SetResult("second"); },
+                required: "", optional: "");
+            CommandRegistry.HasAsyncHandler("dr_async", out var handler);
+            var tcs2 = new System.Threading.Tasks.TaskCompletionSource<string>();
+            handler("id", "{}", tcs2);
+            Assert.IsTrue(firstCalled, "First handler must be called");
+            Assert.IsFalse(secondCalled, "Second RegisterAsync call must be silently skipped");
         }
     }
 }

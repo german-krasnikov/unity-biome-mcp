@@ -5,7 +5,7 @@ using NUnit.Framework;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CommandValidatorAutoUsageTests : SceneTestBase
+    public class CommandValidatorAutoUsageTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── AutoUsage: high-arity truncation ─────────────────────────────────
 

@@ -8,7 +8,7 @@ using UnityEngine;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    internal sealed class GameStateHelperSnapshotTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    internal sealed class GameStateHelperSnapshotTests : SceneTestBase
     {
         private GameObject _go;
         private string _path;
