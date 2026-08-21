@@ -20,7 +20,7 @@ namespace UnityMCP.Editor
         /// <summary>Resolve &amp;ref to GO. Backward-compat wrapper over ResolveRef.</summary>
         public static GameObject Resolve(string r) => ResolveRef(r) as GameObject;
 
-        // & prefix only: alphanumeric (base62 chars — letters and digits).
+        // & prefix only: base62 chars (0-9, a-z, A-Z) — locale-invariant.
         // $ is a hex instance ID prefix (TransientObjectId), never a ref.
         public static bool IsRef(string s)
         {
@@ -28,11 +28,14 @@ namespace UnityMCP.Editor
             if (s[0] == WirePrefix.Ref)
             {
                 for (int i = 1; i < s.Length; i++)
-                    if (!char.IsLetterOrDigit(s[i])) return false;
+                    if (!IsBase62Char(s[i])) return false;
                 return true;
             }
             return false;
         }
+
+        private static bool IsBase62Char(char c)
+            => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 
         /// <summary>No-op: stateless backend has no cache to clear.</summary>
         public static void Invalidate() { }

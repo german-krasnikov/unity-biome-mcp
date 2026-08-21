@@ -105,8 +105,7 @@ namespace UnityMCP.Editor
             {
                 // Ref and transient-ID paths throw inside FindObject when stale.
                 // Defensive check: if somehow a ref-like path slips through null, surface as STALE_CACHE.
-                // Note: RefManager.IsRef(path) is covered by path.StartsWith("$") — IsRef requires '$' prefix.
-                if (path.StartsWith("#") || path.StartsWith("$"))
+                if (path.StartsWith("&") || path.StartsWith("#") || path.StartsWith("$"))
                     throw new StaleCacheException($"Stale cache: {path}. Call get_hierarchy to refresh.");
                 throw new InvalidOperationException(ErrorHelper.ObjectNotFound(path));
             }

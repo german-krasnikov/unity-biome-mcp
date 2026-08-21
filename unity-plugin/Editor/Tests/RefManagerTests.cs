@@ -7,12 +7,6 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class RefManagerTests : SceneTestBase
     {
-        [SetUp]
-        public void SetUp() => RefManager.Invalidate();
-
-        [TearDown]
-        public void TearDown() => RefManager.Invalidate();
-
         // ── Assign ────────────────────────────────────────────────────────────
 
         [Test]
@@ -63,7 +57,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Resolve_UnknownRef_ReturnsNull()
         {
-            Assert.IsNull(RefManager.Resolve("$zzz_unknown"));
+            Assert.IsNull(RefManager.Resolve("&0"));
+            Assert.IsNull(RefManager.Resolve("&ZZZZZZZZZZZ"));
         }
 
         [Test]
