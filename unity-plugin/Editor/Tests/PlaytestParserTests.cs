@@ -773,5 +773,281 @@ namespace UnityMCP.Editor.Tests
             var result = PlaytestParser.ReplaceWholeWord("x foo y", "foo", "longer_word");
             Assert.AreEqual("x longer_word y", result);
         }
+
+        // ── Measurement pipeline: CAPTURE_MIN ────────────────────────────────────
+
+        [Test]
+        public void Parse_CaptureMin_SetsNameAndQuery()
+        {
+            var r = PlaytestParser.Parse("CAPTURE_MIN $speed /Player|Rb|speed");
+            Assert.AreEqual(1, r.Count);
+            var s = r[0];
+            Assert.AreEqual(StepType.CaptureMin, s.Type);
+            Assert.AreEqual("speed", s.Message);
+            Assert.AreEqual("/Player|Rb|speed", s.Query);
+            Assert.AreEqual(0f, s.Delay, 0.001f);
+        }
+
+        [Test]
+        public void Parse_CaptureMin_WithOver_SetsDuration()
+        {
+            var r = PlaytestParser.Parse("CAPTURE_MIN $minFps /Stats|Fps|v OVER 3.5");
+            var s = r[0];
+            Assert.AreEqual(StepType.CaptureMin, s.Type);
+            Assert.AreEqual("minFps", s.Message);
+            Assert.AreEqual(3.5f, s.Delay, 0.001f);
+        }
+
+        [Test]
+        public void Parse_CaptureMin_MissingPath_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => PlaytestParser.Parse("CAPTURE_MIN $speed"));
+        }
+
+        // ── Measurement pipeline: CAPTURE_MAX ────────────────────────────────────
+
+        [Test]
+        public void Parse_CaptureMax_SetsNameAndQuery()
+        {
+            var r = PlaytestParser.Parse("CAPTURE_MAX $topScore /Game|Score|total");
+            var s = r[0];
+            Assert.AreEqual(StepType.CaptureMax, s.Type);
+            Assert.AreEqual("topScore", s.Message);
+            Assert.AreEqual("/Game|Score|total", s.Query);
+        }
+
+        [Test]
+        public void Parse_CaptureMax_WithOver_SetsDuration()
+        {
+            var r = PlaytestParser.Parse("CAPTURE_MAX $maxHp /Player|Health|hp OVER 5");
+            var s = r[0];
+            Assert.AreEqual(StepType.CaptureMax, s.Type);
+            Assert.AreEqual(5f, s.Delay, 0.001f);
+        }
+
+        // ── Measurement pipeline: ASSERT_MIN ─────────────────────────────────────
+
+        [Test]
+        public void Parse_AssertMin_SetsNameOpValue()
+        {
+            var r = PlaytestParser.Parse("ASSERT_MIN $speed >= 30");
+            var s = r[0];
+            Assert.AreEqual(StepType.AssertMin, s.Type);
+            Assert.AreEqual("speed", s.Message);
+            Assert.AreEqual(">=", s.Op);
+            Assert.AreEqual("30", s.Value);
+        }
+
+        // ── Measurement pipeline: ASSERT_MAX ─────────────────────────────────────
+
+        [Test]
+        public void Parse_AssertMax_SetsNameOpValue()
+        {
+            var r = PlaytestParser.Parse("ASSERT_MAX $topScore <= 9999");
+            var s = r[0];
+            Assert.AreEqual(StepType.AssertMax, s.Type);
+            Assert.AreEqual("topScore", s.Message);
+            Assert.AreEqual("<=", s.Op);
+            Assert.AreEqual("9999", s.Value);
+        }
+
+        // ── Measurement pipeline: WAIT_STABLE ────────────────────────────────────
+
+        [Test]
+        public void Parse_WaitStable_SetsQueryDeltaAndWindow()
+        {
+            var r = PlaytestParser.Parse("WAIT_STABLE /Player|H|hp DELTA 0.5 OVER 2");
+            var s = r[0];
+            Assert.AreEqual(StepType.WaitStable, s.Type);
+            Assert.AreEqual("/Player|H|hp", s.Query);
+            Assert.AreEqual("0.5", s.Value);
+            Assert.AreEqual(2f, s.Delay, 0.001f);
+        }
+
+        [Test]
+        public void Parse_WaitStable_WithTimeout_SetsTimeoutField()
+        {
+            var r = PlaytestParser.Parse("WAIT_STABLE /Obj|C|f DELTA 1 OVER 3 TIMEOUT 10");
+            var s = r[0];
+            Assert.AreEqual(StepType.WaitStable, s.Type);
+            Assert.AreEqual(10f, s.Timeout, 0.001f);
+        }
+
+        [Test]
+        public void Parse_WaitStable_MissingTokens_Throws()
+        {
+            Assert.Throws<ArgumentException>(() =>
+                PlaytestParser.Parse("WAIT_STABLE /Obj|C|f DELTA 1"));
+        }
+
+        // ── Measurement pipeline: ASSERT_CHANGED ─────────────────────────────────
+
+        [Test]
+        public void Parse_AssertChanged_SetsMessageLabel()
+        {
+            var r = PlaytestParser.Parse("ASSERT_CHANGED $hp");
+            var s = r[0];
+            Assert.AreEqual(StepType.AssertChanged, s.Type);
+            Assert.AreEqual("$hp", s.Message);
+        }
+
+        // ── Measurement pipeline: ASSERT_CONSERVED ───────────────────────────────
+
+        [Test]
+        public void Parse_AssertConserved_SetsSumQueriesAndDuration()
+        {
+            var r = PlaytestParser.Parse("ASSERT_CONSERVED SUM /A|C|f + /B|C|f OVER 5");
+            var s = r[0];
+            Assert.AreEqual(StepType.AssertConserved, s.Type);
+            Assert.AreEqual(2, s.Queries.Length);
+            Assert.AreEqual(5f, s.Delay, 0.001f);
+        }
+
+        [Test]
+        public void Parse_AssertConserved_WithExpectedSum_SetsValue()
+        {
+            var r = PlaytestParser.Parse("ASSERT_CONSERVED SUM /A|C|f + /B|C|f == 100 OVER 5");
+            var s = r[0];
+            Assert.AreEqual(StepType.AssertConserved, s.Type);
+            Assert.AreEqual("100", s.Value);
+        }
+
+        // ── Measurement pipeline: INVARIANT ──────────────────────────────────────
+
+        [Test]
+        public void Parse_Invariant_SetsQueryOpValue()
+        {
+            var r = PlaytestParser.Parse("INVARIANT /Enemy|H|hp > 0");
+            var s = r[0];
+            Assert.AreEqual(StepType.Invariant, s.Type);
+            Assert.AreEqual("/Enemy|H|hp", s.Query);
+            Assert.AreEqual(">", s.Op);
+            Assert.AreEqual("0", s.Value);
+        }
+
+        // ── Measurement pipeline: CAPTURE ─────────────────────────────────────────
+
+        [Test]
+        public void Parse_Capture_SetsLabelAndQuery()
+        {
+            var r = PlaytestParser.Parse("CAPTURE hp /Player|Health|current");
+            var s = r[0];
+            Assert.AreEqual(StepType.Capture, s.Type);
+            Assert.AreEqual("hp", s.Message);
+            Assert.AreEqual("/Player|Health|current", s.Query);
+        }
+
+        // ── Capture commands: CAPTURE_FRAMES ──────────────────────────────────────
+
+        [Test]
+        public void Parse_CaptureFrames_SetsCountAndInterval()
+        {
+            var r = PlaytestParser.Parse("CAPTURE_FRAMES 5 INTERVAL 0.5");
+            var s = r[0];
+            Assert.AreEqual(StepType.CaptureFrames, s.Type);
+            Assert.AreEqual(5f, s.Timeout, 0.001f);
+            Assert.AreEqual(0.5f, s.Delay, 0.001f);
+        }
+
+        [Test]
+        public void Parse_CaptureFrames_WithCamera_SetsCameraField()
+        {
+            var r = PlaytestParser.Parse("CAPTURE_FRAMES 3 INTERVAL 0.1 CAMERA scene");
+            var s = r[0];
+            Assert.AreEqual(StepType.CaptureFrames, s.Type);
+            Assert.AreEqual("scene", s.Component);
+        }
+
+        [Test]
+        public void Parse_CaptureFrames_WithLabel_SetsMessageField()
+        {
+            var r = PlaytestParser.Parse("CAPTURE_FRAMES 4 INTERVAL 0.2 LABEL myClip");
+            var s = r[0];
+            Assert.AreEqual(StepType.CaptureFrames, s.Type);
+            Assert.AreEqual("myClip", s.Message);
+        }
+
+        [Test]
+        public void Parse_CaptureFrames_CountLessThan2_Throws()
+        {
+            Assert.Throws<ArgumentException>(() =>
+                PlaytestParser.Parse("CAPTURE_FRAMES 1 INTERVAL 0.5"));
+        }
+
+        [Test]
+        public void Parse_CaptureFrames_MissingInterval_Throws()
+        {
+            Assert.Throws<ArgumentException>(() =>
+                PlaytestParser.Parse("CAPTURE_FRAMES 5 CAMERA game"));
+        }
+
+        // ── Capture commands: ASSERT_FRAMES_DIFFER ────────────────────────────────
+
+        [Test]
+        public void Parse_AssertFramesDiffer_SetsLabel()
+        {
+            var r = PlaytestParser.Parse("ASSERT_FRAMES_DIFFER myClip");
+            var s = r[0];
+            Assert.AreEqual(StepType.AssertFramesDiffer, s.Type);
+            Assert.AreEqual("myClip", s.Message);
+        }
+
+        // ── Capture commands: ASSERT_FRAMES_STATIC ────────────────────────────────
+
+        [Test]
+        public void Parse_AssertFramesStatic_SetsLabel()
+        {
+            var r = PlaytestParser.Parse("ASSERT_FRAMES_STATIC myClip");
+            var s = r[0];
+            Assert.AreEqual(StepType.AssertFramesStatic, s.Type);
+            Assert.AreEqual("myClip", s.Message);
+        }
+
+        // ── Capture commands: WAIT_CAPTURED ───────────────────────────────────────
+
+        [Test]
+        public void Parse_WaitCaptured_SetsLabelAndMode()
+        {
+            var r = PlaytestParser.Parse("WAIT_CAPTURED hp INCREASED");
+            var s = r[0];
+            Assert.AreEqual(StepType.WaitCaptured, s.Type);
+            Assert.AreEqual("hp", s.Message);
+            Assert.AreEqual("INCREASED", s.Op);
+        }
+
+        [Test]
+        public void Parse_WaitCaptured_WithTimeout_SetsTimeoutField()
+        {
+            var r = PlaytestParser.Parse("WAIT_CAPTURED hp DECREASED TIMEOUT 5");
+            var s = r[0];
+            Assert.AreEqual(StepType.WaitCaptured, s.Type);
+            Assert.AreEqual(5f, s.Timeout, 0.001f);
+        }
+
+        [Test]
+        public void Parse_WaitCaptured_WithOver_SetsDuration()
+        {
+            var r = PlaytestParser.Parse("WAIT_CAPTURED hp UNCHANGED OVER 2");
+            var s = r[0];
+            Assert.AreEqual(StepType.WaitCaptured, s.Type);
+            Assert.AreEqual(2f, s.Delay, 0.001f);
+        }
+
+        [Test]
+        public void Parse_WaitCaptured_MissingMode_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => PlaytestParser.Parse("WAIT_CAPTURED hp"));
+        }
+
+        [Test]
+        public void Parse_WaitCaptured_IncreasedBy_SetsSubOpAndValue()
+        {
+            var r = PlaytestParser.Parse("WAIT_CAPTURED score INCREASED_BY >= 10");
+            var s = r[0];
+            Assert.AreEqual(StepType.WaitCaptured, s.Type);
+            Assert.AreEqual("INCREASED_BY", s.Op);
+            Assert.AreEqual(">=", s.Args);
+            Assert.AreEqual("10", s.Value);
+        }
     }
 }

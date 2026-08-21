@@ -1074,6 +1074,57 @@ namespace UnityMCP.Editor.Tests
                 "cancel-rejected|run_id=" + runId + "|reason=no-utf-guid", result);
         }
 
+        [Test]
+        public void Cancel_ProbeUnknown_FirstCancel_ReturnsAckWithActivityUnknownSuffix()
+        {
+            var service = CreateService();
+            service.Start("request-probe-unknown", "EditMode", null, null);
+            var runId = _store.ReadRequest("request-probe-unknown").run_id;
+            _framework.Activity = UtfRunActivity.Unknown;
+
+            var response = service.Cancel(runId);
+
+            // Probe=Unknown: not Inactive (no early exit), Cancel proceeds and activityAfter=Unknown
+            StringAssert.StartsWith("cancel-requested|run_id=" + runId + "|utf_guid=utf-guid-1",
+                response);
+            StringAssert.Contains("|activity=unknown", response);
+            Assert.AreEqual(1, _framework.CancelCalls);
+        }
+
+        [Test]
+        public void Cancel_AlreadyRequested_ProbeUnknown_ReturnsAckWithActivityUnknownSuffix()
+        {
+            var service = CreateService();
+            service.Start("request-already-unknown", "EditMode", null, null);
+            var runId = _store.ReadRequest("request-already-unknown").run_id;
+            // First cancel: Activity=Active, appends CancelRequested
+            service.Cancel(runId);
+            Assert.AreEqual(1, _framework.CancelCalls);
+
+            // Second cancel: Activity=Unknown + alreadyRequested=true
+            _framework.Activity = UtfRunActivity.Unknown;
+            var response = service.Cancel(runId);
+
+            StringAssert.StartsWith("cancel-requested|run_id=" + runId + "|utf_guid=utf-guid-1",
+                response);
+            StringAssert.Contains("|activity=unknown", response);
+            Assert.AreEqual(1, _framework.CancelCalls, "Framework.Cancel must not be called when already requested");
+        }
+
+        [Test]
+        public void Cancel_ProbeInactive_NeverCallsFrameworkCancel()
+        {
+            var service = CreateService();
+            service.Start("request-probe-inactive-nocall", "EditMode", null, null);
+            var runId = _store.ReadRequest("request-probe-inactive-nocall").run_id;
+            _framework.Activity = UtfRunActivity.Inactive;
+
+            service.Cancel(runId);
+
+            Assert.AreEqual(0, _framework.CancelCalls,
+                "Framework.Cancel must not be called when Probe returns Inactive");
+        }
+
         // ── GetRunJson ──
 
         [Test]

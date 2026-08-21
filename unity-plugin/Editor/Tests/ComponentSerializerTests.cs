@@ -9,6 +9,12 @@ using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
 {
+    [System.Serializable]
+    internal struct CsPoint { public int x; public int y; }
+
+    [System.Serializable]
+    internal struct CsHashId { public string label; public int id; }
+
     // Helper ScriptableObject for typed serialization tests (no disk asset needed).
     internal class CsTestData : ScriptableObject
     {
@@ -23,6 +29,11 @@ namespace UnityMCP.Editor.Tests
         public string str;
         public GameObject goRef;
         public Texture2D texRef;
+        public int[] intArray;
+        public GameObject[] goArray;
+        public CsPoint point;
+        public CsPoint[] pointArray;
+        public CsHashId hashId;
     }
 
     [TestFixture]
@@ -910,6 +921,106 @@ namespace UnityMCP.Editor.Tests
             var result = HierarchySerializer.SerializeSubtree(_root);
             // Each line has a &x ref token
             Assert.IsTrue(result.Contains("&"), $"Ref token '&' missing: '{result}'");
+        }
+
+        // ── CS-T8: Generic array serialization ───────────────────────────────────
+
+        [Test]
+        public void Array_Empty_ReturnsEmptyBrackets()
+        {
+            var d = CreateData();
+            d.intArray = new int[0];
+            var so = new SerializedObject(d);
+            so.Update();
+            var prop = so.FindProperty("intArray");
+            Assert.IsNotNull(prop, "intArray property not found");
+            Assert.AreEqual("[]", ComponentSerializer.GetPropertyValueString(prop));
+        }
+
+        [Test]
+        public void Array_ThreeElements_ReturnsCommaSeparatedInBrackets()
+        {
+            var d = CreateData();
+            d.intArray = new int[] { 10, 20, 30 };
+            var so = new SerializedObject(d);
+            so.Update();
+            var prop = so.FindProperty("intArray");
+            Assert.AreEqual("[10, 20, 30]", ComponentSerializer.GetPropertyValueString(prop));
+        }
+
+        [Test]
+        public void Array_ElevenElements_TruncatesWithEllipsisSuffix()
+        {
+            var d = CreateData();
+            d.intArray = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+            var so = new SerializedObject(d);
+            so.Update();
+            var prop = so.FindProperty("intArray");
+            var result = ComponentSerializer.GetPropertyValueString(prop);
+            StringAssert.Contains(", ...+1]", result);
+            StringAssert.StartsWith("[1", result);
+        }
+
+        [Test]
+        public void Array_ObjectReference_NullElement_ReturnsNullToken()
+        {
+            var d = CreateData();
+            d.goArray = new GameObject[] { null };
+            var so = new SerializedObject(d);
+            so.Update();
+            var prop = so.FindProperty("goArray");
+            Assert.IsNotNull(prop, "goArray property not found");
+            Assert.AreEqual("[null]", ComponentSerializer.GetPropertyValueString(prop));
+        }
+
+        [Test]
+        public void Array_ObjectReference_ValidGameObject_ContainsPath()
+        {
+            var target = new GameObject("ArrayRefGO");
+            _toDestroy.Add(target);
+            var d = CreateData();
+            d.goArray = new GameObject[] { target };
+            var so = new SerializedObject(d);
+            so.Update();
+            var result = ComponentSerializer.GetPropertyValueString(so.FindProperty("goArray"));
+            StringAssert.Contains("ArrayRefGO", result);
+            StringAssert.StartsWith("[", result);
+            StringAssert.EndsWith("]", result);
+        }
+
+        [Test]
+        public void GenericStruct_TwoIntFields_ReturnsInlinedBraces()
+        {
+            var d = CreateData();
+            d.point = new CsPoint { x = 5, y = 10 };
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "point"));
+            Assert.AreEqual("{x=5, y=10}", result);
+        }
+
+        [Test]
+        public void GenericStruct_StringPlusInt_ReturnsPrettyFormat()
+        {
+            var d = CreateData();
+            d.hashId = new CsHashId { label = "hero", id = 42 };
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "hashId"));
+            Assert.AreEqual("hero (42)", result);
+        }
+
+        [Test]
+        public void Array_StructElements_InlinesEachElement()
+        {
+            var d = CreateData();
+            d.pointArray = new CsPoint[]
+            {
+                new CsPoint { x = 1, y = 2 },
+                new CsPoint { x = 3, y = 4 }
+            };
+            var so = new SerializedObject(d);
+            so.Update();
+            var result = ComponentSerializer.GetPropertyValueString(so.FindProperty("pointArray"));
+            StringAssert.Contains("{x=1, y=2}", result);
+            StringAssert.Contains("{x=3, y=4}", result);
+            StringAssert.StartsWith("[", result);
         }
     }
 }

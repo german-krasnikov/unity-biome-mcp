@@ -1231,6 +1231,480 @@ namespace UnityMCP.Editor.Tests
             finally { System.IO.File.Delete(p1); System.IO.File.Delete(p2); }
         }
 
+        // ── State Tracking: AssertChanged ────────────────────────────────────────
+
+        [Test]
+        public void AssertChanged_ValueChangedAfterCapture_Passes()
+        {
+            var go = new GameObject("ACT_Changed1");
+            go.SetActive(true);
+            try
+            {
+                var state = new PlaytestState();
+                state.Capture("ac_changed", "/ACT_Changed1|activeSelf", "true", 1f);
+                go.SetActive(false);
+                var step = new PlaytestStep
+                {
+                    Type = StepType.AssertChanged,
+                    Message = "ac_changed",
+                    RawLine = "ASSERT_CHANGED ac_changed"
+                };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+                Assert.AreEqual(1, passed);
+                Assert.AreEqual(0, failed);
+                StringAssert.Contains("PASS", results[0]);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void AssertChanged_ValueUnchangedAfterCapture_Fails()
+        {
+            var go = new GameObject("ACT_Unchanged1");
+            go.SetActive(true);
+            try
+            {
+                var state = new PlaytestState();
+                state.Capture("ac_unchanged", "/ACT_Unchanged1|activeSelf", "true", 1f);
+                // value stays "true"
+                var step = new PlaytestStep
+                {
+                    Type = StepType.AssertChanged,
+                    Message = "ac_unchanged",
+                    RawLine = "ASSERT_CHANGED ac_unchanged"
+                };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+                Assert.AreEqual(0, passed);
+                Assert.AreEqual(1, failed);
+                StringAssert.Contains("FAIL", results[0]);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        // ── State Tracking: Invariant ─────────────────────────────────────────────
+
+        [Test]
+        public void Invariant_StepExecution_RegistersInStateAndIncrementsPassed()
+        {
+            var state = new PlaytestState();
+            var step = new PlaytestStep
+            {
+                Type = StepType.Invariant,
+                Query = "/Obj|C|f",
+                Op = "==",
+                Value = "1",
+                RawLine = "INVARIANT /Obj|C|f == 1"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+            Assert.AreEqual(1, passed);
+            Assert.AreEqual(0, failed);
+            StringAssert.Contains("INVARIANT registered", results[0]);
+            StringAssert.Contains("INVARIANT /Obj|C|f == 1", results[0]);
+        }
+
+        // ── State Tracking: AssertConserved ───────────────────────────────────────
+
+        [Test]
+        public void AssertConserved_StepExecution_RegistersInStateAndIncrementsPassed()
+        {
+            var state = new PlaytestState();
+            var step = new PlaytestStep
+            {
+                Type = StepType.AssertConserved,
+                Queries = new[] { "/A|C|f", "/B|C|f" },
+                Delay = 5f,
+                Value = "100",
+                RawLine = "ASSERT_CONSERVED SUM /A|C|f + /B|C|f == 100 OVER 5"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+            Assert.AreEqual(1, passed);
+            Assert.AreEqual(0, failed);
+            StringAssert.Contains("ASSERT_CONSERVED registered", results[0]);
+        }
+
+        // ── State Tracking: CaptureMin / AssertMin ────────────────────────────────
+
+        [Test]
+        public void CaptureMin_StepExecution_RegistersTrackerAndPasses()
+        {
+            var state = new PlaytestState();
+            var step = new PlaytestStep
+            {
+                Type = StepType.CaptureMin,
+                Message = "minSpeed",
+                Query = "/P|R|speed",
+                RawLine = "CAPTURE_MIN $minSpeed /P|R|speed"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+            Assert.AreEqual(1, passed);
+            StringAssert.Contains("CAPTURE_MIN minSpeed started", results[0]);
+            state.PollExtrema(q => "42");
+            Assert.AreEqual(42f, state.GetMin("minSpeed"), 0.001f);
+        }
+
+        [Test]
+        public void AssertMin_MinMeetsCondition_Passes()
+        {
+            var state = new PlaytestState();
+            state.StartTrackMin("fps", "/G|S|fps");
+            state.PollExtrema(q => "30");
+            state.PollExtrema(q => "20");
+            state.PollExtrema(q => "25");
+            var step = new PlaytestStep
+            {
+                Type = StepType.AssertMin,
+                Message = "fps",
+                Op = ">=",
+                Value = "15",
+                RawLine = "ASSERT_MIN $fps >= 15"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+            Assert.AreEqual(1, passed);
+            Assert.AreEqual(0, failed);
+            StringAssert.Contains("PASS", results[0]);
+        }
+
+        [Test]
+        public void AssertMin_MinBelowThreshold_Fails()
+        {
+            var state = new PlaytestState();
+            state.StartTrackMin("fps2", "/G|S|fps");
+            state.PollExtrema(q => "5");
+            var step = new PlaytestStep
+            {
+                Type = StepType.AssertMin,
+                Message = "fps2",
+                Op = ">=",
+                Value = "15",
+                RawLine = "ASSERT_MIN $fps2 >= 15"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+            Assert.AreEqual(0, passed);
+            Assert.AreEqual(1, failed);
+            StringAssert.Contains("FAIL", results[0]);
+        }
+
+        // ── State Tracking: CaptureMax / AssertMax ────────────────────────────────
+
+        [Test]
+        public void CaptureMax_StepExecution_RegistersTrackerAndPasses()
+        {
+            var state = new PlaytestState();
+            var step = new PlaytestStep
+            {
+                Type = StepType.CaptureMax,
+                Message = "maxScore",
+                Query = "/G|Sc|v",
+                RawLine = "CAPTURE_MAX $maxScore /G|Sc|v"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+            Assert.AreEqual(1, passed);
+            StringAssert.Contains("CAPTURE_MAX maxScore started", results[0]);
+            state.PollExtrema(q => "99");
+            Assert.AreEqual(99f, state.GetMax("maxScore"), 0.001f);
+        }
+
+        [Test]
+        public void AssertMax_MaxMeetsCondition_Passes()
+        {
+            var state = new PlaytestState();
+            state.StartTrackMax("score", "/G|Sc|v");
+            state.PollExtrema(q => "75");
+            state.PollExtrema(q => "50");
+            var step = new PlaytestStep
+            {
+                Type = StepType.AssertMax,
+                Message = "score",
+                Op = "<=",
+                Value = "100",
+                RawLine = "ASSERT_MAX $score <= 100"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+            Assert.AreEqual(1, passed);
+            Assert.AreEqual(0, failed);
+            StringAssert.Contains("PASS", results[0]);
+        }
+
+        // ── State Tracking: WaitStable ────────────────────────────────────────────
+
+        [Test]
+        public void WaitStable_StepExecution_StartsWindowAndReturnsFalse()
+        {
+            var state = new PlaytestState();
+            var step = new PlaytestStep
+            {
+                Type = StepType.WaitStable,
+                Query = "/P|H|hp",
+                Value = "1",
+                Delay = 2f,
+                Timeout = 10f
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            bool done = PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+            Assert.IsFalse(done, "WAIT_STABLE must not complete synchronously");
+            Assert.AreEqual(0, results.Count);
+        }
+
+        [Test]
+        public void PollStable_ValuesWithinDelta_ReturnsTrue()
+        {
+            var state = new PlaytestState();
+            state.StartStableWindow("/X|C|f");
+            state.PollStable(0f, 1.0f, 2f, q => "10.0");
+            state.PollStable(1f, 1.0f, 2f, q => "10.3");
+            bool stable = state.PollStable(2f, 1.0f, 2f, q => "10.5");
+
+            Assert.IsTrue(stable, "Range 0.5 <= delta 1.0 should be stable");
+        }
+
+        [Test]
+        public void PollStable_ValuesExceedDelta_ReturnsFalse()
+        {
+            var state = new PlaytestState();
+            state.StartStableWindow("/X|C|f");
+            state.PollStable(0f, 0.5f, 2f, q => "1.0");
+            state.PollStable(1f, 0.5f, 2f, q => "5.0");
+            bool stable = state.PollStable(2f, 0.5f, 2f, q => "3.0");
+
+            Assert.IsFalse(stable, "Range 4.0 > delta 0.5 should not be stable");
+        }
+
+        // ── UI Error Paths: Click ─────────────────────────────────────────────────
+
+        [Test]
+        public void Click_MissingObject_ReportsErrObjectNotFound_IncrementsFailed()
+        {
+            var step = new PlaytestStep
+            {
+                Type = StepType.Click,
+                Path = "/NonExistentClickTarget__UITest",
+                RawLine = "CLICK /NonExistentClickTarget__UITest"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(0, passed);
+            StringAssert.Contains("object not found", results[0]);
+        }
+
+        [Test]
+        public void Click_InactiveObject_ReportsErrObjectInactive_IncrementsFailed()
+        {
+            var go = new GameObject("ClickInactive__UITest");
+            go.SetActive(false);
+            try
+            {
+                var step = new PlaytestStep
+                {
+                    Type = StepType.Click,
+                    Path = "/ClickInactive__UITest",
+                    RawLine = "CLICK /ClickInactive__UITest"
+                };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+                Assert.AreEqual(1, failed);
+                Assert.AreEqual(0, passed);
+                StringAssert.Contains("object inactive", results[0]);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void Click_NoButtonOrPointerHandler_ReportsFailNoHandler_IncrementsFailed()
+        {
+            var go = new GameObject("ClickNoHandler__UITest");
+            go.SetActive(true);
+            try
+            {
+                var step = new PlaytestStep
+                {
+                    Type = StepType.Click,
+                    Path = "/ClickNoHandler__UITest",
+                    RawLine = "CLICK /ClickNoHandler__UITest"
+                };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+                Assert.AreEqual(1, failed);
+                Assert.AreEqual(0, passed);
+                StringAssert.Contains("no Button or IPointerClickHandler", results[0]);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void Click_UIDocumentPath_MissingObject_ReportsErrObjectNotFound()
+        {
+            var step = new PlaytestStep
+            {
+                Type = StepType.Click,
+                Path = "/NonExistentClickUI__UITest|UIDocument|btn",
+                RawLine = "CLICK /NonExistentClickUI__UITest|UIDocument|btn"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(0, passed);
+            StringAssert.Contains("object not found", results[0]);
+        }
+
+        // ── UI Error Paths: Fill ──────────────────────────────────────────────────
+
+        [Test]
+        public void Fill_PathWithoutUIDocument_ReportsErrOnlySupportedForm_IncrementsFailed()
+        {
+            var step = new PlaytestStep
+            {
+                Type = StepType.Fill,
+                Path = "/SomePath/plainSelector",
+                Value = "text",
+                RawLine = "FILL /SomePath/plainSelector text"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(0, passed);
+            StringAssert.Contains("only UIDocument|selector form supported", results[0]);
+        }
+
+        [Test]
+        public void Fill_UIDocumentPath_MissingObject_ReportsErrObjectNotFound_IncrementsFailed()
+        {
+            var step = new PlaytestStep
+            {
+                Type = StepType.Fill,
+                Path = "/NonExistentFillGO__UITest|UIDocument|myInput",
+                Value = "text",
+                RawLine = "FILL /NonExistentFillGO__UITest|UIDocument|myInput text"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(0, passed);
+            StringAssert.Contains("object not found", results[0]);
+        }
+
+        [Test]
+        public void Fill_UIDocumentPath_ExistingGoNoUIDocument_ReportsFailNoTextField()
+        {
+            var go = new GameObject("FillGoNoUI__UITest");
+            try
+            {
+                var step = new PlaytestStep
+                {
+                    Type = StepType.Fill,
+                    Path = "/FillGoNoUI__UITest|UIDocument|myInput",
+                    Value = "text",
+                    RawLine = "FILL /FillGoNoUI__UITest|UIDocument|myInput text"
+                };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+                Assert.AreEqual(1, failed);
+                Assert.AreEqual(0, passed);
+                StringAssert.Contains("FAIL", results[0]);
+            }
+            finally { UnityEngine.Object.DestroyImmediate(go); }
+        }
+
+        // ── UI Error Paths: Focus ─────────────────────────────────────────────────
+
+        [Test]
+        public void Focus_PathWithoutUIDocument_ReportsErrOnlySupportedForm_IncrementsFailed()
+        {
+            var step = new PlaytestStep
+            {
+                Type = StepType.Focus,
+                Path = "/SomePath/plainElement",
+                RawLine = "FOCUS /SomePath/plainElement"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(0, passed);
+            StringAssert.Contains("only UIDocument|selector form supported", results[0]);
+        }
+
+        [Test]
+        public void Focus_UIDocumentPath_MissingObject_ReportsErrObjectNotFound_IncrementsFailed()
+        {
+            var step = new PlaytestStep
+            {
+                Type = StepType.Focus,
+                Path = "/NonExistentFocusGO__UITest|UIDocument|myField",
+                RawLine = "FOCUS /NonExistentFocusGO__UITest|UIDocument|myField"
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(0, passed);
+            StringAssert.Contains("object not found", results[0]);
+        }
+
         static string WriteTestPng(Color color, string name)
         {
             var tex = new Texture2D(4, 4, TextureFormat.RGB24, false);
