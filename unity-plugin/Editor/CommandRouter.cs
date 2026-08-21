@@ -157,6 +157,12 @@ namespace UnityMCP.Editor
                         UnityEngine.Debug.Assert(dedupJson.EndsWith("}"), $"Unexpected JSON tail in dedup response: ...{dedupJson[^Math.Min(20, dedupJson.Length)..]}");
                         return dedupJson.Substring(0, dedupJson.Length - 1) + ",\"dedup_applied\":true}";
                     }
+                    // Op was processed before domain reload — result unavailable but mutation executed.
+                    if (_dedupRegistry.ContainsWithinTtl(retryOpId))
+                    {
+                        var synth = JsonHelper.FormatResponse(id, true, "dedup_applied_post_reload", null);
+                        return synth.Substring(0, synth.Length - 1) + ",\"dedup_applied\":true}";
+                    }
                 }
 
                 var opId = JsonHelper.ExtractString(json, "op_id");
@@ -624,6 +630,7 @@ namespace UnityMCP.Editor
         [UnityEditor.InitializeOnLoadMethod]
         private static void OnDomainReload()
         {
+            _dedupRegistry.Load();
             PluginRegistry.OnDomainReload();
             // Do NOT populate here: [InitializeOnLoadMethod] fires before CommandRegistry.static ctor
             // (which calls RegisterAll). Populating now yields an empty/partial tool list.

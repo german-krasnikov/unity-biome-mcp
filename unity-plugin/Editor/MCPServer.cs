@@ -496,6 +496,7 @@ namespace UnityMCP.Editor
         {
             _shuttingDown = true;
             WriteStateFile("reloading");
+            CommandRouter._dedupRegistry.Save();  // persist before static fields reset
             // Send going_away FIRST — streams still alive, handlers still running
             _mainSlot.ForEach(c => SendGoingAwaySync(c.GetStream()));
             _chatSlot.ForEach(c => SendGoingAwaySync(c.GetStream()));
