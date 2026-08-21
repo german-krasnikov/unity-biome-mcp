@@ -279,8 +279,8 @@ namespace UnityMCP.TestProject.SceneObject
             {
                 var result = ComponentSerializer.Serialize("/SerRefObj", "TestRefScript");
                 Assert.IsNotNull(result);
-                StringAssert.Contains("$", result);
-                StringAssert.Contains(TransientObjectId.GetHexRef(target), result);
+                StringAssert.Contains("&", result);
+                StringAssert.Contains(RefManager.AssignAny(target), result);
             }
             finally
             {
