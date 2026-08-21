@@ -46,5 +46,27 @@ namespace UnityMCP.Editor.Tests
         {
             Assert.That(ObjectIdCompat.ResolveObject(0UL), Is.Null);
         }
+
+        [Test]
+        public void GetRawId_FitsIn32BitRange()
+        {
+            // Pre-6000.4: GetRawId must use (uint) cast, NOT (ulong)(long).
+            // Sign-extension would produce values > uint.MaxValue for negative instance IDs.
+            var go = TrackOwnedObject(new GameObject("32BitBoundCheck"));
+            var raw = ObjectIdCompat.GetRawId(go);
+            Assert.That(raw, Is.LessThanOrEqualTo((ulong)uint.MaxValue),
+                $"GetRawId must not sign-extend negative instance IDs — got 0x{raw:X}");
+        }
+
+        [Test]
+        public void GetRawId_HexRef_Max8Chars()
+        {
+            // HexRef = "$" + RawValue.ToString("X") — with (uint) cast, max 8 hex chars.
+            var go = TrackOwnedObject(new GameObject("HexRefMaxLen"));
+            var hexRef = TransientObjectId.GetHexRef(go);
+            var hexPart = hexRef.Substring(1); // strip $
+            Assert.That(hexPart.Length, Is.LessThanOrEqualTo(8),
+                $"HexRef hex part must be ≤ 8 chars on pre-6000.4 — got '{hexRef}'");
+        }
     }
 }

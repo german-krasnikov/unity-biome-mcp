@@ -26,7 +26,7 @@ namespace UnityMCP.Editor
                && property.objectReferenceEntityIdValue != EntityId.None;
 #else
         internal static ulong GetRawId(Object obj)
-            => obj == null ? 0UL : unchecked((ulong)(long)obj.GetInstanceID());
+            => obj == null ? 0UL : unchecked((uint)obj.GetInstanceID());
 
         internal static Object ResolveObject(ulong rawId)
             => rawId == 0UL ? null

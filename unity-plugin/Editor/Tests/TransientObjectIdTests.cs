@@ -118,12 +118,13 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void HexRef_NegativeId_PreservesFullBits()
+        public void HexRef_NegativeId_Max8HexChars()
         {
-            // -12345 as unsigned 64-bit = 0xFFFFFFFFFFFFCFC7
-            var wire = unchecked((ulong)(long)(-12345)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            // GetRawId uses (uint) cast — negative int maps to 32-bit unsigned, max 8 hex chars.
+            // -12345 → unchecked((uint)(-12345)) = 4294954951 = 0xFFFFCFC7
+            var wire = unchecked((uint)(-12345)).ToString(System.Globalization.CultureInfo.InvariantCulture);
             Assert.IsTrue(TransientObjectId.TryParse(wire, out var id));
-            Assert.AreEqual("$FFFFFFFFFFFFCFC7", id.HexRef);
+            Assert.AreEqual("$FFFFCFC7", id.HexRef);
         }
 
         [Test]
@@ -134,8 +135,9 @@ namespace UnityMCP.Editor.Tests
             StringAssert.StartsWith("$", id.HexRef);
             // All chars after $ must be uppercase hex digits
             var hexPart = id.HexRef.Substring(1);
-            Assert.IsTrue(hexPart.Length > 0 && hexPart.Length <= 16,
-                $"HexRef '{id.HexRef}' must be 1-16 hex chars after $");
+            // Pre-6000.4: (uint) cast → max 8 hex chars; 6000.4+: EntityId → up to 16
+            Assert.IsTrue(hexPart.Length > 0 && hexPart.Length <= 8,
+                $"HexRef '{id.HexRef}' must be 1-8 hex chars after $ on pre-6000.4");
             foreach (var c in hexPart)
                 Assert.IsTrue((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'),
                     $"Non-hex char '{c}' in '{id.HexRef}'");
