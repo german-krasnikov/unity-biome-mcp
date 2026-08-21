@@ -135,7 +135,7 @@ namespace UnityMCP.Editor.Tests
         // ── CS-T4: Non-null ObjectReference + RectTransform ───────────────────
 
         [Test]
-        public void ObjectReference_GameObjectRef_ReturnsPathSpaceHexId()
+        public void ObjectReference_GameObjectRef_ReturnsPathSpaceAmpRef()
         {
             var d = CreateData();
             var target = TrackOwnedObject(new GameObject("ObjRefTarget"));
@@ -144,11 +144,11 @@ namespace UnityMCP.Editor.Tests
             var result = ComponentSerializer.GetPropertyValueString(prop);
             var expectedPath = ComponentSerializer.GetPath(target);
             StringAssert.StartsWith(expectedPath, result);
-            StringAssert.Contains(TransientObjectId.GetHexRef(target), result);
+            StringAssert.Contains(RefManager.AssignAny(target), result);
         }
 
         [Test]
-        public void ObjectReference_ComponentRef_ReturnsPathDoubleColonTypeAndHexId()
+        public void ObjectReference_ComponentRef_ReturnsPathDoubleColonTypeAndAmpRef()
         {
             var target = TrackOwnedObject(new GameObject("CompRefTarget"));
             var rb = target.AddComponent<Rigidbody>();
@@ -160,11 +160,11 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNotNull(prop, "m_ConnectedBody not found on FixedJoint");
             var result = ComponentSerializer.GetPropertyValueString(prop);
             StringAssert.Contains("::Rigidbody", result);
-            StringAssert.Contains(TransientObjectId.GetHexRef(rb), result);
+            StringAssert.Contains(RefManager.AssignAny(rb), result);
         }
 
         [Test]
-        public void ObjectReference_NonGoNonComponentAsset_ReturnsNameSpaceHexId()
+        public void ObjectReference_NonGoNonComponentAsset_ReturnsNameSpaceAmpRef()
         {
             var d = CreateData();
             var tex = TrackOwnedObject(new Texture2D(1, 1));
@@ -173,7 +173,7 @@ namespace UnityMCP.Editor.Tests
             var prop = DataProp(d, "texRef");
             var result = ComponentSerializer.GetPropertyValueString(prop);
             StringAssert.StartsWith("TestTex", result);
-            StringAssert.Contains(TransientObjectId.GetHexRef(tex), result);
+            StringAssert.Contains(RefManager.AssignAny(tex), result);
         }
 
         [Test]

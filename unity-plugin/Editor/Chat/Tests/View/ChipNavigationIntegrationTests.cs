@@ -228,13 +228,13 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(0, handled.Count, "scene GOs must not populate handledPaths");
         }
 
-        // B7 - Create() stores the object's EntityId as $HEX ref.
+        // B7 - Create() stores the object's EntityId as &ref (ST5).
         [Test]
-        public void HierarchyChipProvider_Create_SetsInstanceId()
+        public void HierarchyChipProvider_Create_SetsAmpRef()
         {
             var go   = Make("IdChip");
             var chip = _provider.Create(go, "");
-            Assert.AreEqual(TransientObjectId.GetHexRef(go), chip.ObjectId);
+            Assert.AreEqual(RefManager.Assign(go), chip.ObjectId);
         }
 
         // B8 — full round-trip: Create → FormatPayload → HierarchyReference.Parse → Resolve → same GO
@@ -244,8 +244,8 @@ namespace UnityMCP.Editor.Chat.Tests
             var go   = Make("RoundTripTarget");
             var chip = _provider.Create(go, "");
 
-            // ObjectId must be $HEX after Phase 2
-            StringAssert.StartsWith("$", chip.ObjectId);
+            // ObjectId must be &ref after ST5
+            StringAssert.StartsWith("&", chip.ObjectId);
 
             // FormatPayload → e.g. "[hierarchy:/RoundTripTarget$XXXX]" (or with @GOID suffix)
             var fullRef = _provider.FormatPayload(chip, new ChipPayloadContext("path", ""));

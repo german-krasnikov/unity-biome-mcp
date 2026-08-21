@@ -43,15 +43,30 @@ namespace UnityMCP.Editor.Chat
 
             string objectId = "";
 
-            // $HEX format — e.g. "/Ground$2B678" ($ attached directly, no space).
-            int dollarIndex = working.LastIndexOf('$');
-            if (dollarIndex >= 0)
+            // &ref format — e.g. "/Ground&a" (& attached directly, no space).
+            int ampIndex = working.LastIndexOf('&');
+            if (ampIndex >= 0)
             {
-                var token = working.Substring(dollarIndex); // "$2B678" — includes $
-                if (TransientObjectId.TryParse(token, out _))
+                var token = working.Substring(ampIndex);
+                if (RefManager.IsRef(token))
                 {
                     objectId = token;
-                    working  = working.Substring(0, dollarIndex).TrimEnd();
+                    working  = working.Substring(0, ampIndex).TrimEnd();
+                }
+            }
+
+            // $HEX format — backward compat, e.g. "/Ground$2B678" ($ attached directly, no space).
+            if (string.IsNullOrEmpty(objectId))
+            {
+                int dollarIndex = working.LastIndexOf('$');
+                if (dollarIndex >= 0)
+                {
+                    var token = working.Substring(dollarIndex); // "$2B678" — includes $
+                    if (TransientObjectId.TryParse(token, out _))
+                    {
+                        objectId = token;
+                        working  = working.Substring(0, dollarIndex).TrimEnd();
+                    }
                 }
             }
 
@@ -75,11 +90,19 @@ namespace UnityMCP.Editor.Chat
                 if (obj is GameObject go) return go;
             }
 
-            // 2. Process-local object ID.
+            // 2. Process-local object ID — &ref (RefManager) or $HEX (TransientObjectId).
             if (!string.IsNullOrEmpty(reference.ObjectId) && reference.ObjectId != "0")
             {
-                var obj = TransientObjectId.Resolve(reference.ObjectId);
-                if (obj is GameObject go) return go;
+                if (RefManager.IsRef(reference.ObjectId))
+                {
+                    var go = RefManager.Resolve(reference.ObjectId);
+                    if (go != null) return go;
+                }
+                else
+                {
+                    var obj = TransientObjectId.Resolve(reference.ObjectId);
+                    if (obj is GameObject go) return go;
+                }
             }
 
             // 3. Exact path.

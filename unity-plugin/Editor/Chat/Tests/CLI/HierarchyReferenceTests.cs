@@ -110,6 +110,63 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual("", href.ObjectId);
         }
 
+        // ── &ref format (ST5) ────────────────────────────────────────────────
+
+        [Test]
+        public void Parse_AmpRef_ExtractsPathAndId()
+        {
+            var href = HierarchyReference.Parse("/Ground&a");
+            Assert.AreEqual("/Ground", href.Path);
+            Assert.AreEqual("&a", href.ObjectId);
+            Assert.AreEqual(0UL, href.GlobalObjectId.targetObjectId);
+        }
+
+        [Test]
+        public void Parse_AmpRef_WithGlobalObjectId_ExtractsBoth()
+        {
+            const string goidString = "GlobalObjectId_V1-2-00000000000000000000000000000001-12345-0";
+            var raw = $"/Ground&a@{goidString}";
+            var href = HierarchyReference.Parse(raw);
+            Assert.AreEqual("/Ground", href.Path);
+            Assert.AreEqual("&a", href.ObjectId);
+            Assert.AreEqual(12345UL, href.GlobalObjectId.targetObjectId);
+        }
+
+        [Test]
+        public void Parse_AmpRef_NestedPath_ExtractsCorrectly()
+        {
+            var href = HierarchyReference.Parse("/Root/Child&b2");
+            Assert.AreEqual("/Root/Child", href.Path);
+            Assert.AreEqual("&b2", href.ObjectId);
+        }
+
+        [Test]
+        public void Parse_AmpRef_InvalidToken_NotExtracted()
+        {
+            // "&" not followed by alphanumeric — not a valid ref, stays in path
+            var href = HierarchyReference.Parse("/Root&");
+            Assert.AreEqual("/Root&", href.Path);
+            Assert.AreEqual("", href.ObjectId);
+        }
+
+        [Test]
+        public void Resolver_AmpRef_WhenRefValid_ReturnsGameObject()
+        {
+            var go = new GameObject("ResolverAmpRef");
+            try
+            {
+                var r = RefManager.Assign(go);
+                var resolver = new HierarchyResolver();
+                var href = new HierarchyReference("/StalePath", r, default);
+                var resolved = resolver.Resolve(href);
+                Assert.AreEqual(go, resolved);
+            }
+            finally
+            {
+                Object.DestroyImmediate(go);
+            }
+        }
+
         // ── Resolver fallback chain ───────────────────────────────────────────
 
         [Test]

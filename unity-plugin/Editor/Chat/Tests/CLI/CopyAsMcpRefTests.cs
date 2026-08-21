@@ -39,16 +39,16 @@ namespace UnityMCP.Editor.Chat.Tests
             return go;
         }
 
-        // 1. Hierarchy GO produces bracket ref with transient EntityId in $HEX format
+        // 1. Hierarchy GO produces bracket ref with &ref (ST5)
         [Test]
-        public void FormatAsRef_HierarchyGO_ReturnsBracketWithId()
+        public void FormatAsRef_HierarchyGO_ReturnsBracketWithAmpRef()
         {
             var go = MakeGo("Player");
             var result = ChipContextResolver.FormatAsRef(go);
             Assert.IsNotNull(result);
-            StringAssert.StartsWith("[hierarchy:/Player$", result);
+            StringAssert.StartsWith("[hierarchy:/Player&", result);
             StringAssert.EndsWith("]", result);
-            StringAssert.Contains(TransientObjectId.GetHexRef(go), result);
+            StringAssert.Contains(RefManager.Assign(go), result);
         }
 
         // 2. Null returns null — no throw
@@ -65,7 +65,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var go = MakeGo("Hero");
             var result = ChipContextResolver.FormatAsRef(go);
             var expected = ChipContextResolver.FormatChipRef(
-                ChipKindKeys.Hierarchy, "/" + go.name, TransientObjectId.GetHexRef(go));
+                ChipKindKeys.Hierarchy, "/" + go.name, RefManager.Assign(go));
             Assert.AreEqual(expected, result);
         }
 
