@@ -168,9 +168,9 @@ namespace UnityMCP.Editor.Chat.Tests
             var go = MakeGo("SceneObj");
             ChipContextResolver.FindObjectOverride = _ => go;
             var result = ChipContextResolver.ResolveOne("/SceneObj", ChipDepth.PathOnly);
-            // ST5 format: &ref immediately after path, no space (e.g. /SceneObj&1a)
+            // &ref format: space before ref (e.g. /SceneObj &1a) so parser can distinguish from names
             var ampRef = RefManager.Assign(go);
-            StringAssert.Contains("/SceneObj" + ampRef, result);
+            StringAssert.Contains("/SceneObj " + ampRef, result);
             Assert.IsTrue(RefManager.IsRef(ampRef));
         }
 
@@ -217,9 +217,9 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void FormatChipRef_Hierarchy_AmpRef_ProducesCorrectBracket()
         {
-            // ST5: &ref format — direct concatenation, same path as $HEX
+            // &ref format uses a space separator so the parser can distinguish from names containing '&'
             var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Hierarchy, "/Player", "&a");
-            Assert.AreEqual("[hierarchy:/Player&a]", result);
+            Assert.AreEqual("[hierarchy:/Player &a]", result);
         }
 
         [Test]

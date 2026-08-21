@@ -31,7 +31,12 @@ namespace UnityMCP.Editor.Chat
         internal static string FormatChipRef(string kindKey, string path, string objectId)
         {
             if (kindKey == ChipKindKeys.Hierarchy && !string.IsNullOrEmpty(objectId) && objectId != "0")
-                return $"[{kindKey}:{path}{objectId}]";
+            {
+                // &ref uses a space separator so the parser can distinguish it from names containing '&'.
+                // $HEX uses no separator (legacy backward-compat).
+                var sep = RefManager.IsRef(objectId) ? " " : "";
+                return $"[{kindKey}:{path}{sep}{objectId}]";
+            }
             return $"[{kindKey}:{path}]";
         }
 
@@ -111,7 +116,7 @@ namespace UnityMCP.Editor.Chat
             {
                 var goForId = FindGo(chipPath);
                 if (goForId != null && goForId)
-                    return chipPath + RefManager.Assign(goForId);
+                    return chipPath + " " + RefManager.Assign(goForId);
                 return chipPath;
             }
 

@@ -46,7 +46,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var go = MakeGo("Player");
             var result = ChipContextResolver.FormatAsRef(go);
             Assert.IsNotNull(result);
-            StringAssert.StartsWith("[hierarchy:/Player&", result);
+            StringAssert.StartsWith("[hierarchy:/Player &", result);
             StringAssert.EndsWith("]", result);
             StringAssert.Contains(RefManager.Assign(go), result);
         }

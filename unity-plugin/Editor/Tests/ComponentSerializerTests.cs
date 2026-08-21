@@ -710,13 +710,15 @@ namespace UnityMCP.Editor.Tests
             var b = TrackOwnedObject(new GameObject("DupTest"));
 
             var ex = Assert.Throws<System.ArgumentException>(() => ComponentSerializer.FindObject("DupTest"));
-            // Message must say "matches" and contain $HEX entity IDs for disambiguation.
+            // Message must say "matches" and contain &ref entity IDs for disambiguation.
             StringAssert.Contains("matches", ex.Message);
-            StringAssert.Contains("$", ex.Message);
-            // Two different $HEX IDs must appear — hints are unique
-            Assert.AreNotEqual(TransientObjectId.GetHexRef(a), TransientObjectId.GetHexRef(b));
-            StringAssert.Contains(TransientObjectId.GetHexRef(a), ex.Message);
-            StringAssert.Contains(TransientObjectId.GetHexRef(b), ex.Message);
+            StringAssert.Contains("&", ex.Message);
+            // Two different &ref IDs must appear — hints are unique
+            var refA = RefManager.AssignAny(a);
+            var refB = RefManager.AssignAny(b);
+            Assert.AreNotEqual(refA, refB);
+            StringAssert.Contains(refA, ex.Message);
+            StringAssert.Contains(refB, ex.Message);
         }
 
         // ── G9: Serialize succeeds for just-created objects without cache refresh ──

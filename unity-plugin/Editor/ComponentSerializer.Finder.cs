@@ -179,10 +179,10 @@ namespace UnityMCP.Editor
                         {
                             if (ambiguous.Count == 0)
                             {
-                                ambiguous.Add($"{foundScene}:/{name} ({TransientObjectId.GetHexRef(found)})");
+                                ambiguous.Add($"{foundScene}:/{name} ({RefManager.AssignAny(found)})");
                                 ambiguousScenes.Add(foundScene);
                             }
-                            ambiguous.Add($"{scene.name}:/{name} ({TransientObjectId.GetHexRef(root)})");
+                            ambiguous.Add($"{scene.name}:/{name} ({RefManager.AssignAny(root)})");
                             ambiguousScenes.Add(scene.name);
                         }
                     }

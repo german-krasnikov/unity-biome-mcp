@@ -43,15 +43,20 @@ namespace UnityMCP.Editor.Chat
 
             string objectId = "";
 
-            // &ref format — e.g. "/Ground&a" (& attached directly, no space).
+            // &ref format — e.g. "/Ground &a" (space before &, so & is not part of an object name).
+            // The & must NOT be immediately preceded by a letter/digit — that would indicate it's
+            // embedded in a name like "Tom&Jerry", not a ref token.
             int ampIndex = working.LastIndexOf('&');
             if (ampIndex >= 0)
             {
-                var token = working.Substring(ampIndex);
-                if (RefManager.IsRef(token))
+                if (ampIndex == 0 || !char.IsLetterOrDigit(working[ampIndex - 1]))
                 {
-                    objectId = token;
-                    working  = working.Substring(0, ampIndex).TrimEnd();
+                    var token = working.Substring(ampIndex);
+                    if (RefManager.IsRef(token))
+                    {
+                        objectId = token;
+                        working  = working.Substring(0, ampIndex).TrimEnd();
+                    }
                 }
             }
 

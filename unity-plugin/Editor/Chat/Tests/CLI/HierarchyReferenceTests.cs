@@ -115,7 +115,8 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void Parse_AmpRef_ExtractsPathAndId()
         {
-            var href = HierarchyReference.Parse("/Ground&a");
+            // Space before & is required: parser rejects & preceded by a letter/digit
+            var href = HierarchyReference.Parse("/Ground &a");
             Assert.AreEqual("/Ground", href.Path);
             Assert.AreEqual("&a", href.ObjectId);
             Assert.AreEqual(0UL, href.GlobalObjectId.targetObjectId);
@@ -125,7 +126,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void Parse_AmpRef_WithGlobalObjectId_ExtractsBoth()
         {
             const string goidString = "GlobalObjectId_V1-2-00000000000000000000000000000001-12345-0";
-            var raw = $"/Ground&a@{goidString}";
+            var raw = $"/Ground &a@{goidString}";
             var href = HierarchyReference.Parse(raw);
             Assert.AreEqual("/Ground", href.Path);
             Assert.AreEqual("&a", href.ObjectId);
@@ -135,9 +136,27 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void Parse_AmpRef_NestedPath_ExtractsCorrectly()
         {
-            var href = HierarchyReference.Parse("/Root/Child&b2");
+            var href = HierarchyReference.Parse("/Root/Child &b2");
             Assert.AreEqual("/Root/Child", href.Path);
             Assert.AreEqual("&b2", href.ObjectId);
+        }
+
+        [Test]
+        public void Parse_AmpInObjectName_NotExtractedAsRef()
+        {
+            // "Tom&Jerry" — the & is part of the name, not a ref (letter precedes &)
+            var result = HierarchyReference.Parse("/Tom&Jerry");
+            Assert.AreEqual("/Tom&Jerry", result.Path);
+            Assert.AreEqual("", result.ObjectId);
+        }
+
+        [Test]
+        public void Parse_AmpRef_AfterSpace_Extracted()
+        {
+            // "/Ground &a" — & follows a space (non-alphanumeric), so it's extracted as a ref
+            var result = HierarchyReference.Parse("/Ground &a");
+            Assert.AreEqual("/Ground", result.Path);
+            Assert.AreEqual("&a", result.ObjectId);
         }
 
         [Test]
