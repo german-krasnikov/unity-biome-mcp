@@ -75,75 +75,6 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNull(RefManager.Resolve(r));
         }
 
-        // ── GenerateRef — base62, no wrap-around ──────────────────────────────
-
-        [Test]
-        public void GenerateRef_Zero_ReturnsAmpersand1()
-        {
-            Assert.AreEqual("&1", RefManager.GenerateRef(0));
-        }
-
-        [Test]
-        public void GenerateRef_9_ReturnsAmpersandLowercaseA()
-        {
-            // n=9 → val=10 → base62[10]='a'
-            Assert.AreEqual("&a", RefManager.GenerateRef(9));
-        }
-
-        [Test]
-        public void GenerateRef_60_ReturnsAmpersandZ()
-        {
-            // n=60 → val=61 → base62[61]='Z' — last single-char ref
-            Assert.AreEqual("&Z", RefManager.GenerateRef(60));
-        }
-
-        [Test]
-        public void GenerateRef_61_ReturnsTwoCharRef()
-        {
-            // n=61 → val=62 = 1*62+0 → "10" in base62 — first two-char ref
-            Assert.AreEqual("&10", RefManager.GenerateRef(61));
-        }
-
-        [Test]
-        public void GenerateRef_3843_ReturnsThreeCharRef()
-        {
-            // n=3843 → val=3844 = 62^2 → "100" in base62 — first three-char ref
-            Assert.AreEqual("&100", RefManager.GenerateRef(3843));
-        }
-
-        [Test]
-        public void GenerateRef_NoWrapAround_LargeN()
-        {
-            // Counter grows freely — no wrap-around, each n gives unique output
-            var r9999 = RefManager.GenerateRef(9999);
-            Assert.IsTrue(r9999.StartsWith("&"), "Ref must start with &");
-            Assert.AreNotEqual("&1", r9999, "Large n must not wrap to first slot");
-        }
-
-        // ── Prune ─────────────────────────────────────────────────────────────
-
-        [Test]
-        public void Prune_RemovesDestroyedGO_ResolveReturnsNull()
-        {
-            var go = new GameObject("Ref_Prune");
-            var r = RefManager.Assign(go);
-            Object.DestroyImmediate(go);
-            RefManager.Prune();
-            Assert.IsNull(RefManager.Resolve(r));
-        }
-
-        [Test]
-        public void Prune_KeepsLiveGO()
-        {
-            var go = new GameObject("Ref_Live");
-            try
-            {
-                var r = RefManager.Assign(go);
-                RefManager.Prune();
-                Assert.AreEqual(go, RefManager.Resolve(r));
-            }
-            finally { Object.DestroyImmediate(go); }
-        }
 
         // ── IsRef — & accepts alphanumeric (base62); $ is never a ref ──────────
 
@@ -274,17 +205,15 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Invalidate_ClearsAnyRefs()
+        public void Invalidate_IsNoOp_RefsSurvive()
         {
-            var go = new GameObject("AnyComp_E");
-            try
-            {
-                var comp = go.AddComponent<BoxCollider>();
-                var r = RefManager.AssignAny(comp);
-                RefManager.Invalidate();
-                Assert.IsNull(RefManager.ResolveAny(r));
-            }
-            finally { Object.DestroyImmediate(go); }
+            // Stateless backend: Invalidate is a no-op, refs remain valid.
+            var go = TrackOwnedObject(new GameObject("AnyComp_E"));
+            var comp = go.AddComponent<BoxCollider>();
+            var r = RefManager.AssignAny(comp);
+            RefManager.Invalidate();
+            Assert.IsNotNull(RefManager.ResolveAny(r));
+            Assert.AreSame(comp, RefManager.ResolveAny(r));
         }
 
         // === Base62 Codec ===

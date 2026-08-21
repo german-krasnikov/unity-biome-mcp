@@ -128,28 +128,32 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void Navigate_RefInvalidatedBeforeNewAssignment_StaleRefDoesNotAliasNewObject()
+        public void Navigate_Refs_AreNeverAliasedBetweenDifferentObjects()
         {
+            // Stateless refs: base62(instanceID) — different objects always get different refs.
+            // Invalidate is a no-op; refs never get recycled or reassigned.
             RefManager.Invalidate();
             RegisterCleanup(RefManager.Invalidate);
             var original = Make("OriginalRefTarget");
-            var staleRef = RefManager.Assign(original);
+            var originalRef = RefManager.Assign(original);
 
-            RefManager.Invalidate();
+            RefManager.Invalidate(); // no-op: stateless refs are never recycled
             var replacement = Make("ReplacementRefTarget");
             var replacementRef = RefManager.Assign(replacement);
 
-            Assert.AreNotEqual(staleRef, replacementRef,
-                "Invalidate must not recycle a reference that may still exist in chat output");
+            Assert.AreNotEqual(originalRef, replacementRef,
+                "Stateless refs derived from instanceID — different objects never share a ref");
+
+            // originalRef still resolves to original (alive), not to replacement
             Selection.activeGameObject = null;
             LogAssert.ignoreFailingMessages = true;
+            _provider.Navigate(originalRef);
+            LogAssert.ignoreFailingMessages = false;
 
-            _provider.Navigate(staleRef);
-
-            Assert.IsNull(Selection.activeGameObject,
-                "The stale reference must not select the newly assigned object");
+            Assert.AreEqual(original, Selection.activeGameObject,
+                "Stateless ref resolves to the original object; Invalidate does not clear it");
             Assert.AreEqual(replacement, RefManager.Resolve(replacementRef),
-                "The replacement remains reachable through its new reference");
+                "The replacement is independently reachable through its own reference");
         }
 
         [Test]
