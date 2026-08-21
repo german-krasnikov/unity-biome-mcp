@@ -547,5 +547,156 @@ namespace UnityMCP.Editor.Tests
                 ObjectManager.SetParent(childPath, "/P404_NewParent"),
                 "SetParent on non-root prefab child must throw InvalidOperationException");
         }
+
+        // ── 7. SetMaterial ────────────────────────────────────────────────────
+
+        [Test]
+        public void SetMaterial_RendererPresent_ReturnsShaderAndColorInfo()
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "OM_MatCube";
+            _toDestroy.Add(go);
+
+            var result = ObjectManager.SetMaterial("/OM_MatCube", "#FF0000FF", null);
+
+            StringAssert.Contains("shader=", result, "Result must contain shader name");
+            StringAssert.Contains("color=", result, "Result must contain color");
+        }
+
+        [Test]
+        public void SetMaterial_NoRenderer_ThrowsArgumentException()
+        {
+            // _go is a plain GameObject with no Renderer component
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.SetMaterial("/OM_TestObj", null, null));
+        }
+
+        [Test]
+        public void SetMaterial_InvalidColor_ThrowsArgumentException()
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "OM_MatBadColor";
+            _toDestroy.Add(go);
+
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.SetMaterial("/OM_MatBadColor", "NOT_A_COLOR", null));
+        }
+
+        [Test]
+        public void SetMaterial_InvalidPath_ThrowsArgumentException()
+        {
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.SetMaterial("/OM_DoesNotExist_XYZ", null, null));
+        }
+
+        // ── 8. RenameObject ───────────────────────────────────────────────────
+
+        [Test]
+        public void RenameObject_ValidPath_RenamesGameObject()
+        {
+            ObjectManager.RenameObject("/OM_TestObj", "OM_Renamed");
+
+            Assert.AreEqual("OM_Renamed", _go.name, "GameObject name must change after RenameObject");
+        }
+
+        [Test]
+        public void RenameObject_EmptyName_ThrowsArgumentException()
+        {
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.RenameObject("/OM_TestObj", ""));
+        }
+
+        // ── 9. SetSiblingIndex ────────────────────────────────────────────────
+
+        [Test]
+        public void SetSiblingIndex_ValidIndex_SetsCorrectIndex()
+        {
+            var parent = new GameObject("OM_SibParent");
+            _toDestroy.Add(parent);
+            _go.transform.SetParent(parent.transform);
+            var sibling = new GameObject("OM_Sibling");
+            sibling.transform.SetParent(parent.transform);
+
+            ObjectManager.SetSiblingIndex("/OM_SibParent/OM_TestObj", 1);
+
+            Assert.AreEqual(1, _go.transform.GetSiblingIndex(), "Sibling index must be 1 after SetSiblingIndex(1)");
+        }
+
+        [Test]
+        public void SetSiblingIndex_NegativeIndex_ClampsToZero()
+        {
+            var parent = new GameObject("OM_SibParentNeg");
+            _toDestroy.Add(parent);
+            _go.transform.SetParent(parent.transform);
+            var sibling = new GameObject("OM_SiblingNeg");
+            sibling.transform.SetParent(parent.transform);
+
+            // Unity clamps negative sibling indices to 0
+            ObjectManager.SetSiblingIndex("/OM_SibParentNeg/OM_TestObj", -5);
+
+            Assert.AreEqual(0, _go.transform.GetSiblingIndex(), "Negative index must be clamped to 0");
+        }
+
+        [Test]
+        public void SetSiblingIndex_OutOfRangeIndex_ClampsToMax()
+        {
+            var parent = new GameObject("OM_SibParentOob");
+            _toDestroy.Add(parent);
+            _go.transform.SetParent(parent.transform);
+            var sibling = new GameObject("OM_SiblingOob");
+            sibling.transform.SetParent(parent.transform);
+
+            // 2 children: valid range 0–1; index 99 clamps to 1
+            ObjectManager.SetSiblingIndex("/OM_SibParentOob/OM_TestObj", 99);
+
+            Assert.AreEqual(1, _go.transform.GetSiblingIndex(), "Out-of-range index must clamp to last position");
+        }
+
+        // ── 10. DeleteObjectById ──────────────────────────────────────────────
+
+        [Test]
+        public void DeleteObjectById_ValidHexId_RemovesObjectFromScene()
+        {
+            var target = new GameObject("OM_DelById");
+            var hexId = TransientObjectId.GetHexRef(target);
+
+            ObjectManager.DeleteObjectById(hexId);
+
+            Assert.IsNull(GameObject.Find("OM_DelById"), "Object must be gone after DeleteObjectById");
+        }
+
+        [Test]
+        public void DeleteObjectById_NonExistentId_ThrowsArgumentException()
+        {
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.DeleteObjectById("$DEADBEEFDEADBEEF"));
+        }
+
+        [Test]
+        public void DeleteObjectById_WithChildren_WithoutForce_ThrowsArgumentException()
+        {
+            var target = new GameObject("OM_DelByIdParent");
+            _toDestroy.Add(target);
+            var child = new GameObject("OM_DelByIdChild");
+            child.transform.SetParent(target.transform);
+            var hexId = TransientObjectId.GetHexRef(target);
+
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.DeleteObjectById(hexId));
+        }
+
+        [Test]
+        public void DeleteObjectById_WithChildren_WithForce_DeletesAll()
+        {
+            var target = new GameObject("OM_DelByIdForce");
+            var child = new GameObject("OM_DelByIdForceChild");
+            child.transform.SetParent(target.transform);
+            var hexId = TransientObjectId.GetHexRef(target);
+
+            ObjectManager.DeleteObjectById(hexId, force: true);
+
+            Assert.IsNull(GameObject.Find("OM_DelByIdForce"), "Parent must be gone after force delete");
+            Assert.IsNull(GameObject.Find("OM_DelByIdForceChild"), "Child must be gone after force delete");
+        }
     }
 }
