@@ -1020,5 +1020,101 @@ namespace UnityMCP.Editor.Tests
             }
             finally { CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling; }
         }
+
+        // ── IsPlaytestSuccess edge cases (Task 4) ────────────────────────────
+
+        private static bool InvokeIsPlaytestSuccess(string report)
+        {
+            var m = typeof(CommandRouter).GetMethod("IsPlaytestSuccess",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            return (bool)m.Invoke(null, new object[] { report });
+        }
+
+        [Test]
+        public void IsPlaytestSuccess_EmptyString_ReturnsFalse()
+            => Assert.IsFalse(InvokeIsPlaytestSuccess(""));
+
+        [Test]
+        public void IsPlaytestSuccess_Null_ReturnsFalse()
+            => Assert.IsFalse(InvokeIsPlaytestSuccess(null));
+
+        [Test]
+        public void IsPlaytestSuccess_ContainsSpaceOKSubstring_ReturnsTrue()
+            => Assert.IsTrue(InvokeIsPlaytestSuccess("Test run OK"));
+
+        [Test]
+        public void IsPlaytestSuccess_PlaytestZeroOfZero_TotalZeroGuard_ReturnsFalse()
+            => Assert.IsFalse(InvokeIsPlaytestSuccess("PLAYTEST: 0/0 (0.0s)"));
+
+        [Test]
+        public void IsPlaytestSuccess_PlaytestHeaderNoSpaceAfterCount_ReturnsFalse()
+            => Assert.IsFalse(InvokeIsPlaytestSuccess("PLAYTEST:4/4"));
+
+        [Test]
+        public void IsPlaytestSuccess_PartialPassMinimalFormat_ReturnsFalse()
+            => Assert.IsFalse(InvokeIsPlaytestSuccess("PLAYTEST: 3/4 (0.0s)"));
+
+        // ── CheckGuards: server-not-ready and python-only (Task 5) ───────────
+
+        [Test]
+        public void Process_ServerNotReady_ReturnsServerInitializingRetryResponse()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            CommandRegistry.Ready = false;
+            try
+            {
+                var result = CommandRouter.Process("{\"id\":\"nr1\",\"cmd\":\"ping\",\"args\":{}}");
+                StringAssert.Contains("Server initializing", result);
+                StringAssert.Contains("\"ok\":false", result);
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
+
+        [Test]
+        public void Process_PythonOnlyCommand_ReturnsActionableError()
+        {
+            // sync_unity is a known Python-only tool; direct TCP must return an actionable error.
+            var result = CommandRouter.Process("{\"id\":\"py1\",\"cmd\":\"sync_unity\",\"args\":{}}");
+            StringAssert.Contains("Python-only", result);
+            StringAssert.Contains("\"ok\":false", result);
+        }
+
+        [Test]
+        public void Process_ReadyTrueAndValidCommand_PassesGuardsAndReturnsSuccess()
+        {
+            // CommandRegistry.Ready stays true (default after RegisterAll).
+            // Verify all guards are passed and the command executes successfully.
+            CommandRouter.IsCompiling = () => false;
+            CommandRouter.IsPlayMode = () => false;
+            try
+            {
+                var result = CommandRouter.Process("{\"id\":\"rr1\",\"cmd\":\"get_hierarchy\",\"args\":{\"depth\":\"1\"}}");
+                StringAssert.Contains("\"ok\":true", result);
+                StringAssert.DoesNotContain("Server initializing", result);
+                StringAssert.DoesNotContain("Python-only", result);
+            }
+            finally
+            {
+                CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling;
+                CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying;
+            }
+        }
+
+        [Test]
+        public async Task ProcessAsync_ServerNotReady_SetsServerInitializingResponse()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            CommandRegistry.Ready = false;
+            try
+            {
+                var tcs = new TaskCompletionSource<string>();
+                CommandRouter.ProcessAsync("{\"id\":\"pa3\",\"cmd\":\"ping\",\"args\":{}}", tcs);
+                Assert.IsTrue(tcs.Task.IsCompleted, "Guard must set TCS synchronously");
+                var result = await tcs.Task;
+                StringAssert.Contains("Server initializing", result);
+                StringAssert.Contains("\"ok\":false", result);
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
     }
 }
