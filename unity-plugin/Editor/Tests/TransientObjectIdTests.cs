@@ -84,8 +84,6 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("\"ObjectIds\":[\"9007199254740993\"]", json);
         }
 
-        // ── HexRef format (Task 4: unified $HEX ID) ──────────────────────────
-
         [Test]
         public void TryParse_DollarHex_ReturnsCorrectRawValue()
         {
@@ -109,44 +107,5 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(TransientObjectId.TryParse("$g", out _));
         }
 
-        [Test]
-        public void HexRef_PositiveId_UppercaseNoLeadingZeros()
-        {
-            // Build via decimal parse (no Unity object needed)
-            Assert.IsTrue(TransientObjectId.TryParse("#1000", out var id));
-            Assert.AreEqual("$3E8", id.HexRef);
-        }
-
-        [Test]
-        public void HexRef_NegativeId_PreservesFullBits()
-        {
-            // -12345 as unsigned 64-bit = 0xFFFFFFFFFFFFCFC7
-            var wire = unchecked((ulong)(long)(-12345)).ToString(System.Globalization.CultureInfo.InvariantCulture);
-            Assert.IsTrue(TransientObjectId.TryParse(wire, out var id));
-            Assert.AreEqual("$FFFFFFFFFFFFCFC7", id.HexRef);
-        }
-
-        [Test]
-        public void HexRef_FromGameObject_StartsWithDollarUppercaseHex()
-        {
-            var go = TrackOwnedObject(new GameObject("HexRefFormat"));
-            var id = TransientObjectId.FromObject(go);
-            StringAssert.StartsWith("$", id.HexRef);
-            // All chars after $ must be uppercase hex digits
-            var hexPart = id.HexRef.Substring(1);
-            Assert.IsTrue(hexPart.Length > 0 && hexPart.Length <= 16,
-                $"HexRef '{id.HexRef}' must be 1-16 hex chars after $");
-            foreach (var c in hexPart)
-                Assert.IsTrue((c >= '0' && c <= '9') || (c >= 'A' && c <= 'F'),
-                    $"Non-hex char '{c}' in '{id.HexRef}'");
-        }
-
-        [Test]
-        public void HexRef_StaticOverload_MatchesInstanceProperty()
-        {
-            var go = TrackOwnedObject(new GameObject("HexRefStatic"));
-            var id = TransientObjectId.FromObject(go);
-            Assert.AreEqual(id.HexRef, TransientObjectId.GetHexRef(go));
-        }
     }
 }

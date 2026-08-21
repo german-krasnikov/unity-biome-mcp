@@ -29,13 +29,7 @@ namespace UnityMCP.Editor
             return new TransientObjectId(ObjectIdCompat.GetRawId(value));
         }
 
-        // AI-facing $HEX ref — full 64-bit uppercase hex, no leading zeros.
-        // Disjoint from RefManager $a-$zz (lowercase) and #RRGGBBAA color syntax.
-        // TryParse handles both legacy 8-char (32-bit) and current up-to-16-char (64-bit) hex.
-        internal string HexRef => "$" + RawValue.ToString("X", CultureInfo.InvariantCulture);
-
         internal static string GetWireValue(Object value) => FromObject(value).WireValue;
-        internal static string GetHexRef(Object value) => FromObject(value).HexRef;
 
         // CONVENTION (DRY Group A): component references use the component's own instanceID.
         internal static string GetComponentWireValue(Component comp) => FromObject(comp).WireValue;

@@ -179,10 +179,10 @@ namespace UnityMCP.Editor
                         {
                             if (ambiguous.Count == 0)
                             {
-                                ambiguous.Add($"{foundScene}:/{name} ({TransientObjectId.GetHexRef(found)})");
+                                ambiguous.Add($"{foundScene}:/{name} ({RefManager.AssignAny(found)})");
                                 ambiguousScenes.Add(foundScene);
                             }
-                            ambiguous.Add($"{scene.name}:/{name} ({TransientObjectId.GetHexRef(root)})");
+                            ambiguous.Add($"{scene.name}:/{name} ({RefManager.AssignAny(root)})");
                             ambiguousScenes.Add(scene.name);
                         }
                     }
@@ -264,11 +264,19 @@ namespace UnityMCP.Editor
             return dot >= 0 ? typeName.Substring(dot + 1) : typeName;
         }
 
-        /// <summary>Resolves "path::TypeName #id" (legacy) or "path::TypeName $HEX" (new) wire ref to Component.</summary>
+        /// <summary>Resolves "path::TypeName &amp;ref" (new), "path::TypeName $HEX", or "path::TypeName #id" (legacy) wire ref to Component.</summary>
         internal static Component FindComponentByRef(string wireRef)
         {
             if (string.IsNullOrEmpty(wireRef)) return null;
-            // Find last # or $ separator — both formats supported for backward compat
+            // New: &ref format — last token starting with & and valid base62
+            int lastSpace = wireRef.LastIndexOf(' ');
+            if (lastSpace >= 0)
+            {
+                var tail = wireRef.Substring(lastSpace + 1);
+                if (RefManager.IsRef(tail))
+                    return RefManager.ResolveAny(tail) as Component;
+            }
+            // Legacy: #decimal and $HEX
             var hashIdx = wireRef.LastIndexOf('#');
             var dollarIdx = wireRef.LastIndexOf('$');
             var sepIdx = System.Math.Max(hashIdx, dollarIdx);

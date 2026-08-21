@@ -145,7 +145,7 @@ namespace UnityMCP.Editor.Tests
             finally { Object.DestroyImmediate(go); }
         }
 
-        // ── IsRef — & accepts alphanumeric (base62), $ accepts digits only ────
+        // ── IsRef — & accepts alphanumeric (base62); $ is never a ref ──────────
 
         [Test]
         public void IsRef_AmpersandDecimalRef_ReturnsTrue()
@@ -169,16 +169,19 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void IsRef_DollarDigitsOnly_BackwardCompat_ReturnsTrue()
+        public void IsRef_DollarDigits_ReturnsFalse()
         {
-            Assert.IsTrue(RefManager.IsRef("$1"));
-            Assert.IsTrue(RefManager.IsRef("$9999"));
+            // $digits is a hex instance ID (e.g. $1=1, $400=1024) — never a ref
+            Assert.IsFalse(RefManager.IsRef("$1"));
+            Assert.IsFalse(RefManager.IsRef("$9999"));
+            Assert.IsFalse(RefManager.IsRef("$400"));
+            Assert.IsFalse(RefManager.IsRef("$2710"));
         }
 
         [Test]
         public void IsRef_DollarAlpha_ReturnsFalse()
         {
-            // $abc is an alias, not a RefManager ref
+            // $abc is an alias / hex ID, not a RefManager ref
             Assert.IsFalse(RefManager.IsRef("$abc"));
             Assert.IsFalse(RefManager.IsRef("$a"));
         }
@@ -216,6 +219,72 @@ namespace UnityMCP.Editor.Tests
             // $ + non-digit → not a decimal ref, so TransientObjectId hex path used
             Assert.IsFalse(RefManager.IsRef("$3E8"));
             Assert.IsFalse(RefManager.IsRef("$2B678"));
+        }
+
+        // ── AssignAny / ResolveAny — universal UnityEngine.Object support ──────
+
+        [Test]
+        public void AssignAny_Component_ReturnsRef()
+        {
+            var go = new GameObject("AnyComp_A");
+            try
+            {
+                var comp = go.AddComponent<BoxCollider>();
+                var r = RefManager.AssignAny(comp);
+                Assert.IsTrue(r.StartsWith("&"), "ref must start with &");
+                Assert.AreEqual(comp, RefManager.ResolveAny(r));
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void AssignAny_SameObject_ReturnsSameRef()
+        {
+            var go = new GameObject("AnyComp_B");
+            try
+            {
+                var comp = go.AddComponent<BoxCollider>();
+                var r1 = RefManager.AssignAny(comp);
+                var r2 = RefManager.AssignAny(comp);
+                Assert.AreEqual(r1, r2);
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void ResolveAny_Stale_ReturnsNull()
+        {
+            var go = new GameObject("AnyComp_C");
+            var comp = go.AddComponent<BoxCollider>();
+            var r = RefManager.AssignAny(comp);
+            Object.DestroyImmediate(go);
+            Assert.IsNull(RefManager.ResolveAny(r));
+        }
+
+        [Test]
+        public void Assign_GameObject_StillWorks_BackwardCompat()
+        {
+            var go = new GameObject("AnyComp_D");
+            try
+            {
+                var r = RefManager.Assign(go);
+                Assert.AreEqual(go, RefManager.Resolve(r));
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void Invalidate_ClearsAnyRefs()
+        {
+            var go = new GameObject("AnyComp_E");
+            try
+            {
+                var comp = go.AddComponent<BoxCollider>();
+                var r = RefManager.AssignAny(comp);
+                RefManager.Invalidate();
+                Assert.IsNull(RefManager.ResolveAny(r));
+            }
+            finally { Object.DestroyImmediate(go); }
         }
     }
 }

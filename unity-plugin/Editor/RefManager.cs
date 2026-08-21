@@ -6,39 +6,45 @@ namespace UnityMCP.Editor
 {
     internal static class RefManager
     {
-        private static Dictionary<string, GameObject> _refToObj = new Dictionary<string, GameObject>();
-        private static Dictionary<GameObject, string> _objectToRef = new Dictionary<GameObject, string>();
+        private static Dictionary<string, Object> _refToObj = new Dictionary<string, Object>();
+        private static Dictionary<Object, string> _objectToRef = new Dictionary<Object, string>();
         private static int _counter = 0;
 
         private static readonly char[] Base62 =
             "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ".ToCharArray();
 
-        /// <summary>Assign ref to GO. Returns existing ref if already mapped.</summary>
-        public static string Assign(GameObject go)
+        /// <summary>Assign ref to any UnityEngine.Object. Returns existing ref if already mapped.</summary>
+        public static string AssignAny(Object obj)
         {
-            if (_objectToRef.TryGetValue(go, out var existing)) return existing;
+            if (_objectToRef.TryGetValue(obj, out var existing)) return existing;
             var r = GenerateRef(_counter++);
-            // Evict old GO's reverse-lookup entry before overwriting the slot.
+            // Evict old object's reverse-lookup entry before overwriting the slot.
             if (_refToObj.TryGetValue(r, out var old) && old != null)
                 _objectToRef.Remove(old);
-            _refToObj[r] = go;
-            _objectToRef[go] = r;
+            _refToObj[r] = obj;
+            _objectToRef[obj] = r;
             return r;
         }
 
-        /// <summary>Resolve &amp;ref to GO. Returns null if stale.</summary>
-        public static GameObject Resolve(string r)
+        /// <summary>Resolve &amp;ref to any UnityEngine.Object. Returns null if stale.</summary>
+        public static Object ResolveAny(string r)
         {
-            if (!_refToObj.TryGetValue(r, out var go) || go == null)
+            if (!_refToObj.TryGetValue(r, out var obj) || obj == null)
             {
                 _refToObj.Remove(r);
                 return null;
             }
-            return go;
+            return obj;
         }
 
-        // & prefix: alphanumeric (base62 chars — letters and digits).
-        // $ prefix: digits only — backward compat for one version; $abc is an alias, not a ref.
+        /// <summary>Assign ref to GO. Returns existing ref if already mapped.</summary>
+        public static string Assign(GameObject go) => AssignAny(go);
+
+        /// <summary>Resolve &amp;ref to GO. Returns null if stale or not a GameObject.</summary>
+        public static GameObject Resolve(string r) => ResolveAny(r) as GameObject;
+
+        // & prefix only: alphanumeric (base62 chars — letters and digits).
+        // $ is a hex instance ID prefix (TransientObjectId), never a ref.
         public static bool IsRef(string s)
         {
             if (s == null || s.Length < 2) return false;
@@ -46,12 +52,6 @@ namespace UnityMCP.Editor
             {
                 for (int i = 1; i < s.Length; i++)
                     if (!char.IsLetterOrDigit(s[i])) return false;
-                return true;
-            }
-            if (s[0] == WirePrefix.Alias) // $ — backward compat, digits only
-            {
-                for (int i = 1; i < s.Length; i++)
-                    if (!char.IsDigit(s[i])) return false;
                 return true;
             }
             return false;
@@ -77,6 +77,7 @@ namespace UnityMCP.Editor
             foreach (var kv in _refToObj)
                 if (kv.Value != null) _objectToRef[kv.Value] = kv.Key;
         }
+
 
         /// <summary>
         /// Encodes n+1 in base62 (counter grows freely, no wrap-around).

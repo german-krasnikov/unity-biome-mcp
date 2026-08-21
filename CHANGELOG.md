@@ -12,6 +12,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.48.0] — 2026-08-21
+
+### Added
+
+- **RefManager universal Object support — `AssignAny` / `ResolveAny`:**
+  - `RefManager` now tracks any `UnityEngine.Object` (not just `GameObject`), enabling
+    stable short refs for materials, assets, audio clips, and other asset types
+  - `AssignAny(obj)` → `&N` ref; `ResolveAny(ref)` → original object
+  - Python MCP server updated: reflect calls, autobatch guards, and docstrings aligned
+    with the expanded API surface
+
+### Changed
+
+- **Wire protocol: ObjectReference serialization `$HEX` → `&ref`:**
+  - C# serializer now emits `path &N` (e.g. `Assets/Foo.mat &3`) instead of
+    `path $DEADBEEF` for all ObjectReference fields
+  - Unifies with the `&N` numeric-ref convention already used by `search_scene` (v1.47.0)
+  - Python parser accepts `&ref` (new), `$HEX`, and `#decimal` — old Unity plugin output
+    remains readable; new plugin output requires Python server ≥ v1.48.0
+  - Chat/Chip pipeline migrated end-to-end to `&ref` format
+
+### Fixed
+
+- **Sign-extension in hex object IDs:** negative `GetInstanceID()` values produced
+  16-char hex strings; capped to 8 chars (max valid representation)
+- **`RefManager.IsRef` cleanup:** removed obsolete `$digits` branch that incorrectly
+  matched `$1234`-style tokens as refs; `IsRef` now exclusively matches `&N` refs
+- **`&ref` parser edge cases:** `&` in object names (e.g. "Tom & Jerry") correctly
+  distinguished from ref tokens via preceding-char guard
+
 ## [v1.47.1] — 2026-08-21
 
 ### Added
@@ -3555,7 +3585,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.1...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.0...HEAD
+[v1.48.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.1...v1.48.0
 [v1.47.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.0...v1.47.1
 [v1.47.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.1...v1.47.0
 [v1.46.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.0...v1.46.1

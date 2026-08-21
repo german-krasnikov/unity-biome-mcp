@@ -35,7 +35,7 @@ In-Unity MCP Chat window: partial `MCPChatWindow`, Markdown-to-UIElements render
 - `Chat/View/ToolCards/ScreenshotCard.cs` — `screenshot` + `screenshot_baseline` results as thumbnail preview (max 160px height); click-to-open via `ImageBlockRenderer`
 - `Chat/View/ToolCards/HierarchyCard.cs` — `get_hierarchy` text-tree with depth-indented nodes; shows ≤20 nodes, "Show more" button reveals remainder; canonical object references drive click-to-select via `NavBindingHelper`
 - `Chat/View/ToolCards/BashCard.cs` — `Bash` tool results: description (optional), command line, output (≤20 lines visible, "Show more" for rest); red border for non-zero exit; truncation indicator at ≥2000 chars (T0.1 threshold)
-- `Chat/View/ToolCards/ComponentReadCard.cs` — `get_component`, `inspect`, `get_components_list` results: clickable object path, component type(s), property list (≤20 visible, "Show more" for rest); $HEX IDs resolve via hierarchy navigation, #decimal IDs render as plain labels
+- `Chat/View/ToolCards/ComponentReadCard.cs` — `get_component`, `inspect`, `get_components_list` results: clickable object path, component type(s), property list (≤20 visible, "Show more" for rest); ObjectReference fields emit `&<base62>` compact refs that resolve via hierarchy navigation
 
 ### Parsers (Result Extraction)
 - `Chat/CLI/Parsers/ScreenshotResultParser.cs` — Extracts image file path from result text

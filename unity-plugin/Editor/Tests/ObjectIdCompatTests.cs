@@ -46,5 +46,33 @@ namespace UnityMCP.Editor.Tests
         {
             Assert.That(ObjectIdCompat.ResolveObject(0UL), Is.Null);
         }
+
+        [Test]
+        public void GetRawId_RoundTrip_ResolvesToSameObject()
+        {
+            var go = TrackOwnedObject(new GameObject("RoundTrip"));
+            var rawId = ObjectIdCompat.GetRawId(go);
+            Assert.That(ObjectIdCompat.ResolveObject(rawId), Is.SameAs(go));
+        }
+
+        [Test]
+        public void GetRawId_TwoObjects_DifferentIds()
+        {
+            var a = TrackOwnedObject(new GameObject("A"));
+            var b = TrackOwnedObject(new GameObject("B"));
+            Assert.That(ObjectIdCompat.GetRawId(a), Is.Not.EqualTo(ObjectIdCompat.GetRawId(b)));
+        }
+
+        [Test]
+        public void GetRawId_Null_ReturnsZero()
+        {
+            Assert.That(ObjectIdCompat.GetRawId(null), Is.EqualTo(0UL));
+        }
+
+        [Test]
+        public void ResolveObject_Zero_ReturnsNull()
+        {
+            Assert.IsNull(ObjectIdCompat.ResolveObject(0UL));
+        }
     }
 }

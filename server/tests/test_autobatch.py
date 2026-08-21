@@ -269,6 +269,15 @@ async def test_g11_setup_objects_regular_parent_unaffected(mock_send):
     assert "/#" not in cmds, "No instance-ID-like paths for a normal parent"
 
 
+async def test_setup_objects_parent_ampersand_ref_no_leading_slash(mock_send):
+    """parent=&ref (new short-ID) should NOT get / prepended."""
+    from unity_mcp.tools.autobatch import setup_objects
+    await setup_objects("Child parent=&abc")
+    cmds = _batch_cmds(mock_send)
+    assert "&abc" in cmds, "&abc must appear in batch commands"
+    assert "/&abc" not in cmds, "&abc must not get a leading slash prepended"
+
+
 async def test_autobatch_setup_uses_batch_timeout(mock_send):
     """Bug 2: autobatch must pass timeout= to _send to avoid indefinite hangs."""
     from unity_mcp.tools.autobatch import setup_objects

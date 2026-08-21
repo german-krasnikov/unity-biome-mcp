@@ -75,3 +75,25 @@ async def test_scene_save_copy_include_unsaved_not_in_args(scene_mod, _patch_sen
 
     args = _patch_send.call_args[0][1]
     assert "include_unsaved" not in args
+
+
+# ── _OBJECT_REF regex coverage ────────────────────────────────────────────────
+
+import re
+from unity_mcp.tools.scene import _OBJECT_REF
+
+
+def test_object_ref_matches_ampersand():
+    assert re.fullmatch(_OBJECT_REF, "&abc123")
+
+
+def test_object_ref_matches_hash():
+    assert re.fullmatch(_OBJECT_REF, "#12345")
+
+
+def test_object_ref_matches_dollar_hex():
+    assert re.fullmatch(_OBJECT_REF, "$3E8")
+
+
+def test_object_ref_no_match_plain_path():
+    assert not re.fullmatch(_OBJECT_REF, "/some/path")

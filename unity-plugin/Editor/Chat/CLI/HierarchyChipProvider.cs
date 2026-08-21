@@ -24,7 +24,7 @@ namespace UnityMCP.Editor.Chat
             var path = ComponentSerializer.GetPath(go);
             var goid = GlobalObjectId.GetGlobalObjectIdSlow(go);
             return new ChipData(Key, path, FormatHierarchyDisplay(path, go.name),
-                TransientObjectId.GetHexRef(go), goid);
+                RefManager.Assign(go), goid);
         }
 
         internal static string FormatHierarchyDisplay(string path, string leafName)

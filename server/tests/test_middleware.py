@@ -102,6 +102,12 @@ def test_taint_allows_hash_ref(mw):
     assert result is None
 
 
+def test_taint_allows_ampersand_ref(mw):
+    """&ref values (new short-ID format) should bypass taint check."""
+    result = mw.check_taint("set_property", {"path": "/A", "component": "C", "prop": "targetReference", "value": "&abc123"})
+    assert result is None
+
+
 # ─── Feature 4: Periodic State Injection ─────────────────────────────────────
 
 async def test_state_injection_every_10_calls(mw):

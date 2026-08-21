@@ -163,18 +163,15 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void ResolveOne_PathOnly_SceneObject_IncludesTransientObjectId()
+        public void ResolveOne_PathOnly_SceneObject_IncludesAmpRef()
         {
             var go = MakeGo("SceneObj");
             ChipContextResolver.FindObjectOverride = _ => go;
             var result = ChipContextResolver.ResolveOne("/SceneObj", ChipDepth.PathOnly);
-            // New format: $HEX immediately after path, no space (e.g. /SceneObj$3E8)
-            StringAssert.Contains("/SceneObj$", result);
-            var parts = result.Split('$');
-            Assert.AreEqual(2, parts.Length);
-            Assert.IsTrue(ulong.TryParse(parts[1],
-                System.Globalization.NumberStyles.HexNumber,
-                System.Globalization.CultureInfo.InvariantCulture, out _));
+            // &ref format: space before ref (e.g. /SceneObj &1a) so parser can distinguish from names
+            var ampRef = RefManager.Assign(go);
+            StringAssert.Contains("/SceneObj " + ampRef, result);
+            Assert.IsTrue(RefManager.IsRef(ampRef));
         }
 
         [Test]
@@ -186,25 +183,25 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void ResolveOne_Summary_IncludesInstanceID()
+        public void ResolveOne_Summary_IncludesAmpRef()
         {
             var go = MakeGo("SummaryObj");
             ChipContextResolver.FindObjectOverride = _ => go;
             var result = ChipContextResolver.ResolveOne("/SummaryObj", ChipDepth.Summary);
-            // New format: $HEX via SelectionSummary
-            StringAssert.Contains(TransientObjectId.GetHexRef(go), result);
+            // ST5 format: &ref via SelectionSummary → RefManager.Assign
+            StringAssert.Contains(RefManager.Assign(go), result);
         }
 
         [Test]
-        public void ResolveAll_MultiChip_EachHasInstanceID()
+        public void ResolveAll_MultiChip_EachHasAmpRef()
         {
             var go1 = MakeGo("Multi1");
             var go2 = MakeGo("Multi2");
             ChipContextResolver.FindObjectOverride = p => p.Contains("Multi1") ? go1 : go2;
             var result = ChipContextResolver.ResolveAll(new List<string> { "/Multi1", "/Multi2" });
-            // New format: $HEX via SelectionSummary
-            StringAssert.Contains(TransientObjectId.GetHexRef(go1), result);
-            StringAssert.Contains(TransientObjectId.GetHexRef(go2), result);
+            // ST5 format: &ref via SelectionSummary → RefManager.Assign
+            StringAssert.Contains(RefManager.Assign(go1), result);
+            StringAssert.Contains(RefManager.Assign(go2), result);
         }
 
         // ── FormatChipRef — string kindKey (H6) ─────────────────────────────
@@ -215,6 +212,14 @@ namespace UnityMCP.Editor.Chat.Tests
             // objectId already in $HEX format — direct concatenation
             var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Hierarchy, "/World/Player", "$3039");
             Assert.AreEqual("[hierarchy:/World/Player$3039]", result);
+        }
+
+        [Test]
+        public void FormatChipRef_Hierarchy_AmpRef_ProducesCorrectBracket()
+        {
+            // &ref format uses a space separator so the parser can distinguish from names containing '&'
+            var result = ChipContextResolver.FormatChipRef(ChipKindKeys.Hierarchy, "/Player", "&a");
+            Assert.AreEqual("[hierarchy:/Player &a]", result);
         }
 
         [Test]

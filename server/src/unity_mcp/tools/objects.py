@@ -72,7 +72,7 @@ async def set_property(path: str | None = None, component: str = "", prop: str =
                        ref_component_type: str | None = None) -> str:
     """Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`).
     find_type: component type — bulk-sets prop on all matching objects without specifying paths.
-    For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), $hexId (e.g. $3E8) or #instanceID (legacy), or 'null'. dry_run=True shows what would change without applying.
+    For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'. dry_run=True shows what would change without applying.
     ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'.
     effects: mutates scene via SerializedObject, creates an undo entry. Verify with get_component after."""
     if value is not None:
@@ -197,7 +197,7 @@ async def set_parent(path: str, parent: str | None = None, world_position_stays:
 
 async def rename_object(path: str, name: str) -> str:
     """Rename a GameObject. Returns new scene path after rename.
-    path: current scene path, $hexId (e.g. $3E8) or #instanceID (legacy). name: new name (non-empty).
+    path: current scene path, &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy). name: new name (non-empty).
     Note: all subsequent MCP calls must use the new path."""
     return await _send("rename_object", {"path": path, "name": name})
 

@@ -192,9 +192,9 @@ namespace UnityMCP.Editor
             // Defensive: strip one surrounding quote pair if present
             if (value.Length >= 2 && value[0] == '"' && value[value.Length - 1] == '"')
                 value = value.Substring(1, value.Length - 2);
-            // P-258: component wire format "path::TypeName #id" or "path::TypeName $HEX"
+            // P-258: component wire format "path::TypeName #id", "path::TypeName $HEX", or "path::TypeName &ref"
             // The "::" suffix signals this is a component ref; the id encodes the component instanceID.
-            bool hasComponentId = value.Contains("::") && (value.Contains(" #") || value.Contains(" $"));
+            bool hasComponentId = value.Contains("::") && HasTrailingRef(value);
             if (hasComponentId)
             {
                 var comp = ComponentSerializer.FindComponentByRef(value);
@@ -221,7 +221,7 @@ namespace UnityMCP.Editor
                                 System.Array.ConvertAll(go.GetComponents<Component>(), c => c.GetType().Name));
                             throw new ArgumentException(
                                 $"No '{typeName}' component on '{goPath}'. Available: {available}. " +
-                                "For multiple components of the same type, use 'path::TypeName $hexId' or 'path::TypeName #id' (legacy).");
+                                "For multiple components of the same type, use 'path::TypeName &ref' or 'path::TypeName #id' (legacy).");
                         }
                         property.objectReferenceValue = comp;
                         return;
@@ -229,10 +229,10 @@ namespace UnityMCP.Editor
                     // go == null: fall through to sub-asset check below.
                 }
             }
-            // RefManager decimal ref ($1-$9999) — explicit fast path before path-based lookup
+            // RefManager &ref — explicit fast path before path-based lookup
             if (RefManager.IsRef(value))
             {
-                var resolved = RefManager.Resolve(value);
+                var resolved = RefManager.ResolveAny(value);
                 if (resolved != null) { property.objectReferenceValue = resolved; return; }
             }
             // $HEX format (e.g. $3E8) — must check before path-based lookup
@@ -333,6 +333,15 @@ namespace UnityMCP.Editor
                         $"Type mismatch: field '{property.propertyPath}' rejected asset " +
                         "(field expects a specific Component or incompatible type).");
             }
+        }
+
+        /// <summary>Returns true if the last space-separated token in value is a #id, $HEX, or &amp;ref.</summary>
+        private static bool HasTrailingRef(string value)
+        {
+            int lastSpace = value.LastIndexOf(' ');
+            if (lastSpace < 0) return false;
+            var tail = value.Substring(lastSpace + 1);
+            return tail.StartsWith("#") || tail.StartsWith("$") || RefManager.IsRef(tail);
         }
 
         /// <summary>Split comma-separated array values, respecting parens/brackets.</summary>

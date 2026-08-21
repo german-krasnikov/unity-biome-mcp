@@ -32,7 +32,7 @@ namespace UnityMCP.Editor.Chat
                     var path = ComponentSerializer.GetPath(activeGO);
                     var goid = GlobalObjectId.GetGlobalObjectIdSlow(activeGO);
                     var chip = new ChipData(ChipKindKeys.Hierarchy, path, name,
-                        TransientObjectId.GetHexRef(activeGO), goid);
+                        RefManager.Assign(activeGO), goid);
                     results.Add(new MentionCandidate(chip, score + ScoreBoost, HierarchyIcon));
                     if (results.Count >= maxResults) return;
                 }

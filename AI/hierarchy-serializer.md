@@ -169,8 +169,8 @@ Important invariants:
 
 - component sections use `[TypeName]` and `---` separators;
 - property lines use `name: value`;
-- object references include a human-readable scene or asset description plus the
-  current `$<hex>` transient identity when available;
+- object references include a human-readable scene or asset description plus a
+  compact `&<base62>` reference from `RefManager`;
 - null object references serialize as `null`;
 - floats use compact invariant-culture formatting;
 - `get_component` field filtering and `inspect` composition belong to their

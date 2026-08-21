@@ -135,7 +135,7 @@ namespace UnityMCP.Editor.Tests
         // ── CS-T4: Non-null ObjectReference + RectTransform ───────────────────
 
         [Test]
-        public void ObjectReference_GameObjectRef_ReturnsPathSpaceHexId()
+        public void ObjectReference_GameObjectRef_ReturnsPathSpaceAmpRef()
         {
             var d = CreateData();
             var target = TrackOwnedObject(new GameObject("ObjRefTarget"));
@@ -144,11 +144,11 @@ namespace UnityMCP.Editor.Tests
             var result = ComponentSerializer.GetPropertyValueString(prop);
             var expectedPath = ComponentSerializer.GetPath(target);
             StringAssert.StartsWith(expectedPath, result);
-            StringAssert.Contains(TransientObjectId.GetHexRef(target), result);
+            StringAssert.Contains(RefManager.AssignAny(target), result);
         }
 
         [Test]
-        public void ObjectReference_ComponentRef_ReturnsPathDoubleColonTypeAndHexId()
+        public void ObjectReference_ComponentRef_ReturnsPathDoubleColonTypeAndAmpRef()
         {
             var target = TrackOwnedObject(new GameObject("CompRefTarget"));
             var rb = target.AddComponent<Rigidbody>();
@@ -160,11 +160,11 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNotNull(prop, "m_ConnectedBody not found on FixedJoint");
             var result = ComponentSerializer.GetPropertyValueString(prop);
             StringAssert.Contains("::Rigidbody", result);
-            StringAssert.Contains(TransientObjectId.GetHexRef(rb), result);
+            StringAssert.Contains(RefManager.AssignAny(rb), result);
         }
 
         [Test]
-        public void ObjectReference_NonGoNonComponentAsset_ReturnsNameSpaceHexId()
+        public void ObjectReference_NonGoNonComponentAsset_ReturnsNameSpaceAmpRef()
         {
             var d = CreateData();
             var tex = TrackOwnedObject(new Texture2D(1, 1));
@@ -173,7 +173,7 @@ namespace UnityMCP.Editor.Tests
             var prop = DataProp(d, "texRef");
             var result = ComponentSerializer.GetPropertyValueString(prop);
             StringAssert.StartsWith("TestTex", result);
-            StringAssert.Contains(TransientObjectId.GetHexRef(tex), result);
+            StringAssert.Contains(RefManager.AssignAny(tex), result);
         }
 
         [Test]
@@ -710,13 +710,15 @@ namespace UnityMCP.Editor.Tests
             var b = TrackOwnedObject(new GameObject("DupTest"));
 
             var ex = Assert.Throws<System.ArgumentException>(() => ComponentSerializer.FindObject("DupTest"));
-            // Message must say "matches" and contain $HEX entity IDs for disambiguation.
+            // Message must say "matches" and contain &ref entity IDs for disambiguation.
             StringAssert.Contains("matches", ex.Message);
-            StringAssert.Contains("$", ex.Message);
-            // Two different $HEX IDs must appear — hints are unique
-            Assert.AreNotEqual(TransientObjectId.GetHexRef(a), TransientObjectId.GetHexRef(b));
-            StringAssert.Contains(TransientObjectId.GetHexRef(a), ex.Message);
-            StringAssert.Contains(TransientObjectId.GetHexRef(b), ex.Message);
+            StringAssert.Contains("&", ex.Message);
+            // Two different &ref IDs must appear — hints are unique
+            var refA = RefManager.AssignAny(a);
+            var refB = RefManager.AssignAny(b);
+            Assert.AreNotEqual(refA, refB);
+            StringAssert.Contains(refA, ex.Message);
+            StringAssert.Contains(refB, ex.Message);
         }
 
         // ── G9: Serialize succeeds for just-created objects without cache refresh ──
@@ -778,7 +780,7 @@ namespace UnityMCP.Editor.Tests
         public void FindComponentByRef_DollarHexFormat_ResolvesComponent()
         {
             var rb = _go.AddComponent<Rigidbody>();
-            var hexRef = TransientObjectId.GetHexRef(rb);
+            var hexRef = "$" + ObjectIdCompat.GetRawId(rb).ToString("X");
             var wireRef = $"/CSFinderTest::Rigidbody {hexRef}";
             var result = ComponentSerializer.FindComponentByRef(wireRef);
             Assert.AreEqual(rb, result);
@@ -791,6 +793,24 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void FindComponentByRef_InvalidHashId_ReturnsNull()
             => Assert.IsNull(ComponentSerializer.FindComponentByRef("path::Type #notanumber"));
+
+        [Test]
+        public void FindComponentByRef_AmpRef_ResolvesComponent()
+        {
+            var rb = _go.AddComponent<Rigidbody>();
+            var ampRef = RefManager.AssignAny(rb);
+            var wireRef = $"/CSFinderTest::Rigidbody {ampRef}";
+            var result = ComponentSerializer.FindComponentByRef(wireRef);
+            Assert.AreEqual(rb, result);
+        }
+
+        [Test]
+        public void FindComponentByRef_TomAndJerryName_WithoutRef_ReturnsNull()
+        {
+            // "/Tom & Jerry::Renderer" contains " &" but not a valid &ref tail — must return null
+            var result = ComponentSerializer.FindComponentByRef("/Tom & Jerry::Renderer");
+            Assert.IsNull(result, "Object name containing ' &' must not be treated as an &ref");
+        }
 
         [Test]
         public void SplitPathSegments_BracketProtectsSlash_SingleSegment()

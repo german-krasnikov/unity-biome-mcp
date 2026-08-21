@@ -421,3 +421,19 @@ async def test_dollar_hex_without_path_mismatch():
     resp = "target = /Enemy/Body $3E8\n---\n  target: /Enemy/Body $3E8"
     result = await reflect("set_property", {"prop": "target", "value": "/Enemy/Head"}, resp, _dummy_send)
     assert isinstance(result, Mismatch)
+
+
+# ── &ref suffix (new short-ID format) ────────────────────────────────────────
+
+async def test_set_property_ampersand_ref_suffix_accepted():
+    """&ref suffix from new short-ID format should be accepted as matching."""
+    resp = "target = /Enemy/Head &abc\n---\n  target: /Enemy/Head &abc"
+    result = await reflect("set_property", {"prop": "target", "value": "/Enemy/Head"}, resp, _dummy_send)
+    assert result is None
+
+
+async def test_set_property_ampersand_ref_mismatch_detected():
+    """Different path with &ref suffix should still be detected as mismatch."""
+    resp = "target = /Enemy/Body &abc\n---\n  target: /Enemy/Body &abc"
+    result = await reflect("set_property", {"prop": "target", "value": "/Enemy/Head"}, resp, _dummy_send)
+    assert isinstance(result, Mismatch)
