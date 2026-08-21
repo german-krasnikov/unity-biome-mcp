@@ -56,5 +56,18 @@ namespace UnityMCP.Editor.Tests
 
             Assert.AreEqual(0, EditorPrefs.GetInt(ScriptCompKey, 99));
         }
+
+        [Test]
+        public void ForceUnlock_WhenHrChangedPref_RestoresOriginalValue()
+        {
+            HotReloadDetector._overrideForTest = () => true;
+            EditorPrefs.SetInt(ScriptCompKey, 0);
+
+            ReloadGuard.OnTurnStarted();
+            Assert.AreEqual(1, EditorPrefs.GetInt(ScriptCompKey, 99), "pref must be 1 after OnTurnStarted with HR active");
+
+            ReloadGuard.ForceUnlock();
+            Assert.AreEqual(0, EditorPrefs.GetInt(ScriptCompKey, 99), "pref must be restored to 0 after ForceUnlock");
+        }
     }
 }

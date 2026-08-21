@@ -18,11 +18,17 @@ STAMP2 = "bbbb2222:ts2"
 
 
 def _send_with(responses: list):
-    """AsyncMock that pops and returns/raises items in order."""
+    """AsyncMock that pops and returns/raises items in order.
+
+    warm_type_cache and get_status are handled transparently without consuming
+    a response slot — these are ancillary calls injected by sync_unity internals.
+    """
     async def _impl(*_args, **_kwargs):
         cmd = _args[0] if _args else ""
         if cmd == "warm_type_cache":
             return "ok:types=42"
+        if cmd == "get_status":
+            return ""  # no HR active — do not consume a response slot
         item = responses.pop(0)
         if isinstance(item, BaseException):
             raise item
@@ -40,9 +46,12 @@ def _fast_sleep():
 def _reset_sync():
     """Reset sync module state between tests."""
     _sync._reset_bump_used()
-    orig = _sync._send
+    orig_send = _sync._send
+    orig_cache = _sync._hr_cached
+    _sync._hr_cached = None  # ensure clean HR check per test
     yield
-    _sync._send = orig
+    _sync._send = orig_send
+    _sync._hr_cached = orig_cache
 
 
 @pytest.fixture(autouse=True)

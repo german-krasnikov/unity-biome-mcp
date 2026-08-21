@@ -18,9 +18,12 @@ def _patch_sleep():
 
 @pytest.fixture(autouse=True)
 def _reset_send():
-    original = _sync._send
+    original_send = _sync._send
+    original_cache = _sync._hr_cached
+    _sync._hr_cached = None  # clean isolation: force fresh get_status call per test
     yield
-    _sync._send = original
+    _sync._send = original_send
+    _sync._hr_cached = original_cache
 
 
 async def test_sync_unity_skips_when_hr_detected():
@@ -81,3 +84,28 @@ async def test_sync_unity_proceeds_when_get_status_fails():
     _sync._send = _fake_send
     result = await _sync.sync_unity()
     assert sync_called, "sync must proceed when get_status raises"
+
+
+async def test_sync_unity_skips_get_status_when_hr_cached_false():
+    """When _hr_cached=False, get_status is not called — sync proceeds without the network round-trip."""
+    get_status_calls = []
+    sync_called = []
+
+    async def _fake_send(cmd, args=None, **kwargs):
+        if cmd == "get_status":
+            get_status_calls.append(cmd)
+            return "hot_reload_detected=false"
+        if cmd == "sync":
+            sync_called.append(cmd)
+            return "sync_ack|epoch=1|will_compile=false"
+        if cmd == "sync_status":
+            return "epoch=0|state=idle"
+        if cmd in ("get_compile_errors", "warm_type_cache"):
+            return ""
+        return ""
+
+    _sync._send = _fake_send
+    _sync._hr_cached = False  # simulate previously known-not-HR
+    result = await _sync.sync_unity()
+    assert not get_status_calls, "get_status must NOT be called when _hr_cached=False"
+    assert sync_called, "sync must proceed when cache says HR is inactive"

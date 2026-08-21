@@ -3,6 +3,7 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityMCP.Editor.Testing;
+using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -38,6 +39,32 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(File.Exists(Abs(assetPath) + ".meta"), "failed new UXML meta must be deleted");
             Assert.IsNull(AssetDatabase.LoadAssetAtPath<Object>(assetPath),
                 "failed new UXML must not remain in AssetDatabase");
+        }
+
+        // TDD: Red — _importAsset seam does not exist yet → compile error.
+        // Green — seam added + ForceUpdate → Default → captured == Default.
+        [Test]
+        [BiomeWorkerOnly("WriteUIFile write path must use Default not ForceUpdate")]
+        public void WriteUIFile_PassesDefaultOptions_NotForceUpdate()
+        {
+            ImportAssetOptions? captured = null;
+            UIFileHelper._importAsset = (_, opts) => captured = opts;
+            try
+            {
+                UIFileHelper.WriteUIFile(
+                    TempDir + "/OptionsCheck.uss",
+                    "create_uss",
+                    ".root { color: red; }",
+                    _ => null,
+                    _ => null);
+            }
+            finally
+            {
+                UIFileHelper._importAsset = AssetDatabase.ImportAsset;
+            }
+            Assert.IsTrue(captured.HasValue, "_importAsset seam must be called on write path");
+            Assert.AreEqual(ImportAssetOptions.Default, captured.Value,
+                "Write path must use ImportAssetOptions.Default, not ForceUpdate");
         }
 
         [Test]

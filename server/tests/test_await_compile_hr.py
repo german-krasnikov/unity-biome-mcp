@@ -18,9 +18,12 @@ def _patch_sleep():
 
 @pytest.fixture(autouse=True)
 def _reset_send():
-    original = _ci._send
+    original_send = _ci._send
+    original_cache = _ci._hr_cached
+    _ci._hr_cached = None  # clean isolation: force fresh get_status call per test
     yield
-    _ci._send = original
+    _ci._send = original_send
+    _ci._hr_cached = original_cache
 
 
 async def test_await_compile_hr_clean_returns_note():
@@ -95,4 +98,26 @@ async def test_await_compile_hr_check_fails_falls_through():
     _ci._send = _fake_send
     with patch("unity_mcp.editor_log.get_corroborated_errors", new=AsyncMock(return_value="")):
         result = await _ci.await_compile(timeout=60.0)
+    assert "hot-reload-mode" not in result
+
+
+async def test_await_compile_skips_get_status_when_hr_cached_false():
+    """_hr_cached=False short-circuits the get_status call — normal polling proceeds."""
+    get_status_calls = []
+
+    async def _fake_send(cmd, args=None, **kwargs):
+        if cmd == "get_status":
+            get_status_calls.append(cmd)
+            return "hot_reload_detected=false"
+        if cmd == "sync_status":
+            return "epoch=0|state=idle"
+        if cmd == "compile_status":
+            return "idle|0.0"
+        return ""
+
+    _ci._send = _fake_send
+    _ci._hr_cached = False
+    with patch("unity_mcp.editor_log.get_corroborated_errors", new=AsyncMock(return_value="")):
+        result = await _ci.await_compile(timeout=60.0)
+    assert not get_status_calls, "get_status must NOT be called when _hr_cached=False"
     assert "hot-reload-mode" not in result

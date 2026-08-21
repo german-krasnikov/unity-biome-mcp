@@ -20,7 +20,7 @@ namespace UnityMCP.Editor
             BackupFile(abs);
             el.SetAttributeValue(attr, value);
             SaveXDocument(doc, abs);
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            _importAsset(path, ImportAssetOptions.Default);
             var valErr = ValidateImportedUxml(abs, path);
             return valErr ?? $"ok: set-attr name={selector} attr={attr} value=\"{value}\"\npath: {path}\nvalidated: CloneTree OK";
         }
@@ -36,7 +36,7 @@ namespace UnityMCP.Editor
             BackupFile(abs);
             el.SetAttributeValue("class", string.Join(" ", classes));
             SaveXDocument(doc, abs);
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            _importAsset(path, ImportAssetOptions.Default);
             return $"ok: add-class name={selector} class={cssClass}\npath: {path}";
         }
 
@@ -51,7 +51,7 @@ namespace UnityMCP.Editor
             BackupFile(abs);
             el.SetAttributeValue("class", string.Join(" ", classes));
             SaveXDocument(doc, abs);
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            _importAsset(path, ImportAssetOptions.Default);
             return $"ok: remove-class name={selector} class={cssClass}\npath: {path}";
         }
 
@@ -72,7 +72,7 @@ namespace UnityMCP.Editor
             BackupFile(abs);
             parentEl.Add(newEl);
             SaveXDocument(doc, abs);
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            _importAsset(path, ImportAssetOptions.Default);
             var valErr = ValidateImportedUxml(abs, path);
             return valErr ?? $"ok: add-element tag={tag} under parent={parent}\npath: {path}\nvalidated: CloneTree OK";
         }
@@ -85,7 +85,7 @@ namespace UnityMCP.Editor
             BackupFile(abs);
             el.Remove();
             SaveXDocument(doc, abs);
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            _importAsset(path, ImportAssetOptions.Default);
             return $"ok: remove-element name={selector}\npath: {path}";
         }
 

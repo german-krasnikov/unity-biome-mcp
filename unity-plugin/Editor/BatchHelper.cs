@@ -21,6 +21,9 @@ namespace UnityMCP.Editor
         internal static Func<bool> IsCompiling = () => CommandRouter.IsCompiling();
         // Testable seam — tests can inject true to simulate Play Mode.
         internal static Func<bool> IsPlayMode = () => EditorApplication.isPlaying;
+        // Testable seams for StartAssetEditing / StopAssetEditing — tests inject call-count spies.
+        internal static Action _startEditing = AssetDatabase.StartAssetEditing;
+        internal static Action _stopEditing = AssetDatabase.StopAssetEditing;
 
         private static readonly Regex _sigilRe = new Regex(@"\$([A-Za-z_][A-Za-z0-9_]*)", RegexOptions.Compiled);
         private static readonly Regex _failureCountRe = new Regex(
@@ -33,7 +36,7 @@ namespace UnityMCP.Editor
 
         public static string Execute(string commandsText, string onError,
             int timeoutMs = 25000, bool atomic = false, bool validateAliases = false,
-            Func<long> elapsedMilliseconds = null)
+            bool deferAssetImport = false, Func<long> elapsedMilliseconds = null)
         {
             if (validateAliases)
                 return ValidateAliases(commandsText);
@@ -50,12 +53,16 @@ namespace UnityMCP.Editor
             // mutations land inside a bounded window. Atomic root gets its own label.
             bool isRoot = _batchDepth == 1;
             bool isAtomicRoot = atomic && isRoot;
+            // Only the outermost batch opens the editing scope — Unity ref-counts Start/Stop,
+            // so a nested open would require a nested close to avoid import leaks.
+            bool deferImport = deferAssetImport && isRoot;
             int gid = -1;
             if (isRoot)
             {
                 gid = UndoGroupHelper.OpenNamedGroup(atomic ? "MCP Atomic Batch" : "MCP Batch");
                 _batchRootMutationCount = 0;
             }
+            if (deferImport) _startEditing();
 
             // Returns true when caller should break out of the op loop.
             bool AtomicFail(int opIndex)
@@ -197,6 +204,12 @@ namespace UnityMCP.Editor
             } // end try
             finally
             {
+                // StopAssetEditing MUST be in finally — never skip even on exception or atomic rollback.
+                if (deferImport)
+                {
+                    _stopEditing();
+                    AssetDatabase.SaveAssets();
+                }
                 if (isRoot)
                     // CollapseUndoOperations on an already-reverted/empty group is a Unity no-op — safe to call unconditionally.
                     UndoGroupHelper.CloseNamedGroup(gid);

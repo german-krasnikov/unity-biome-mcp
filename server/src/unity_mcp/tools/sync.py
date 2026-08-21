@@ -26,6 +26,7 @@ from unity_mcp.utils import parse_pipe_fields
 from ._common import bind
 
 _send = None
+_hr_cached: bool | None = None  # None=unknown, False=not-HR (skip get_status), True=re-check
 
 _POLL_INTERVAL = 1.0
 _FOCUS_HINT_AFTER = 15.0  # see backgrounded-editor hint in sync_unity
@@ -122,6 +123,20 @@ def _parse_stamp(status: str) -> str:
     return parse_pipe_fields(status).get("stamp", "")
 
 
+async def _is_hr_active() -> bool:
+    """Check if Hot Reload is active. Caches False to skip future round-trips."""
+    global _hr_cached
+    if _hr_cached is False:
+        return False
+    try:
+        status = await _send("get_status", {})
+        active = "hot_reload_detected=true" in (status or "")
+        _hr_cached = active
+        return active
+    except Exception:
+        return False  # fail-open; do NOT cache — unknown state
+
+
 async def sync_unity(
     resolve: bool = False,
     bump: bool = False,
@@ -138,16 +153,12 @@ async def sync_unity(
         raise ToolError("sync_unity requires a Unity connection (no bridge)")
 
     # HR coexistence guard — fail-open: if get_status fails, proceed normally
-    try:
-        _status_raw = await _send("get_status", {})
-        if "hot_reload_detected=true" in (_status_raw or ""):
-            return (
-                "warn: Hot Reload detected — sync_unity skipped. "
-                "HR handles compilation via method patching. "
-                "Call await_compile to confirm current state."
-            )
-    except Exception:
-        pass  # bridge down / old plugin — proceed normally
+    if await _is_hr_active():
+        return (
+            "warn: Hot Reload detected — sync_unity skipped. "
+            "HR handles compilation via method patching. "
+            "Call await_compile to confirm current state."
+        )
 
     # D2: bump circuit-breaker
     if bump and _bump_used:
@@ -294,6 +305,8 @@ async def _warm_type_cache() -> None:
 
 
 def register(mcp, send, args):
+    global _hr_cached
+    _hr_cached = None  # reset on reconnect — HR status may have changed
     bind(globals(), send, args)
     editor_log.init_corroboration()
     from ._annotations import RW as _RW
