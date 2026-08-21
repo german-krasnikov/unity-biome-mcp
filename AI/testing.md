@@ -8,6 +8,18 @@ The canonical Unity test project uses Unity `6000.0.65f1` and the Editor's
 built-in Unity Test Framework `1.6.0`. Product code, fixtures, and runners target
 the Unity `6000.0` contract; do not add newer-Unity compatibility branches.
 
+## Two Test Projects (both run on CI)
+
+Tests live in TWO locations — CI runs both, local runs often miss one:
+
+| Location | What | When to update |
+|----------|------|----------------|
+| `unity-plugin/Editor/Tests/` | Plugin unit tests (shipped in UPM) | Always — primary test location |
+| `unity-test-project/Assets/Tests/` | Consumer-facing integration tests | When plugin API or contract changes |
+
+When changing RefManager, ComponentSerializer, ValueParser, or any public API:
+grep for stale references in BOTH test projects before committing.
+
 ## Version-Agnostic Tests (no `#if` in test code)
 
 Tests must never use `#if UNITY_*` preprocessor guards. A guarded test means

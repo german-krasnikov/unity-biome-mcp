@@ -12,6 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.48.1] — 2026-08-21
+
+### Changed
+
+- **RefManager: stateless Base62 refs (`&4GFdMM`) replace counter-based refs (`&1`, `&2`):**
+  - Ref values are now derived from Unity `GetInstanceID()` encoded as Base62 — stable
+    across domain reloads and independent of assignment order
+  - Wire format prefix `&` is unchanged; only the suffix format changes
+  - `IsRef` tightened to explicit ASCII `[0-9a-zA-Z]` ranges (rejects locale chars)
+
+### Fixed
+
+- **Unstable ref IDs on domain reload:** counter-based IDs reset after every domain
+  reload, causing same object to get different refs on each `get_hierarchy` call;
+  Base62 instanceID encoding eliminates the counter and the aliasing hazard
+- **Stale-cache guard:** `CommandRouter.ObjectHandlers` now includes `&` prefix
+  in defensive stale-ref detection alongside `#` and `$`
+
 ## [v1.48.0] — 2026-08-21
 
 ### Added
@@ -3585,7 +3603,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.1...HEAD
+[v1.48.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.0...v1.48.1
 [v1.48.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.1...v1.48.0
 [v1.47.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.0...v1.47.1
 [v1.47.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.1...v1.47.0

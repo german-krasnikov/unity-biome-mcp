@@ -36,7 +36,7 @@ One match per line:
 ```
 
 - `/Path/To/Object` — full hierarchy path via `ComponentSerializer.GetPath()` (includes scene prefix in multi-scene: `SceneName:/Path/To/Object`)
-- `&ref` — compact hierarchy reference assigned by `RefManager` (process-local, for example `&1`, `&a`, `&10`); prefer the path in durable examples
+- `&ref` — compact hierarchy reference assigned by `RefManager` (base62-encoded instanceID; stable per-object; for example `&1`, `&a`, `&10`); prefer the path in durable examples
 - `[Comp1,Comp2]` — list of component types (excluding Transform, comma-separated, no spaces)
 - `!` — suffix if GameObject inactive
 
