@@ -9,11 +9,28 @@ using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
 {
+    // Helper ScriptableObject for typed serialization tests (no disk asset needed).
+    internal class CsTestData : ScriptableObject
+    {
+        public Vector2 vec2;
+        public Vector4 vec4;
+        public Vector2Int vec2Int;
+        public Vector3Int vec3Int;
+        public Rect rect;
+        public Bounds bounds;
+        public RectInt rectInt;
+        public BoundsInt boundsInt;
+        public string str;
+        public GameObject goRef;
+        public Texture2D texRef;
+    }
+
     [TestFixture]
     public class ComponentSerializerGetPropertyValueTests : SceneTestBase
     {
         private GameObject _go;
         private List<GameObject> _toDestroy = new List<GameObject>();
+        private List<Object> _objs = new List<Object>();
 
         [SetUp]
         public void SetUp() => _go = new GameObject("CSerializerTest");
@@ -24,13 +41,191 @@ namespace UnityMCP.Editor.Tests
             foreach (var go in _toDestroy)
                 if (go != null) Object.DestroyImmediate(go);
             _toDestroy.Clear();
+            foreach (var o in _objs)
+                if (o != null) Object.DestroyImmediate(o);
+            _objs.Clear();
             Object.DestroyImmediate(_go);
+        }
+
+        private CsTestData CreateData()
+        {
+            var d = ScriptableObject.CreateInstance<CsTestData>();
+            _objs.Add(d);
+            return d;
         }
 
         // ── helpers ──────────────────────────────────────────────────────────
 
         private SerializedProperty Prop(Component comp, string name)
             => new SerializedObject(comp).FindProperty(name);
+
+        private SerializedProperty DataProp(CsTestData d, string name)
+        {
+            var so = new SerializedObject(d);
+            so.Update();
+            return so.FindProperty(name);
+        }
+
+        // ── CS-T1: Vector type branches ───────────────────────────────────────
+
+        [Test]
+        public void Vector2_ParenthesisG4Format()
+        {
+            var d = CreateData();
+            d.vec2 = new Vector2(1.5f, 2.75f);
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "vec2"));
+            Assert.AreEqual("(1.5, 2.75)", result);
+        }
+
+        [Test]
+        public void Vector4_FourComponentG4Format()
+        {
+            var d = CreateData();
+            d.vec4 = new Vector4(1f, 2f, 3f, 4f);
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "vec4"));
+            Assert.AreEqual("(1, 2, 3, 4)", result);
+        }
+
+        [Test]
+        public void Vector2Int_IntegerParenthesisFormat()
+        {
+            var d = CreateData();
+            d.vec2Int = new Vector2Int(10, 20);
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "vec2Int"));
+            Assert.AreEqual("(10, 20)", result);
+        }
+
+        [Test]
+        public void Vector3Int_IntegerParenthesisFormat()
+        {
+            var d = CreateData();
+            d.vec3Int = new Vector3Int(1, 2, 3);
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "vec3Int"));
+            Assert.AreEqual("(1, 2, 3)", result);
+        }
+
+        [Test]
+        public void Rect_FourComponentG4Format()
+        {
+            var d = CreateData();
+            d.rect = new Rect(1f, 2f, 3f, 4f);
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "rect"));
+            Assert.AreEqual("(1, 2, 3, 4)", result);
+        }
+
+        [Test]
+        public void Bounds_SixComponentG4Format_CenterThenSize()
+        {
+            var d = CreateData();
+            d.bounds = new Bounds(new Vector3(1f, 2f, 3f), new Vector3(4f, 5f, 6f));
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "bounds"));
+            Assert.AreEqual("(1, 2, 3, 4, 5, 6)", result);
+        }
+
+        [Test]
+        public void RectInt_IntegerParenthesisFormat()
+        {
+            var d = CreateData();
+            d.rectInt = new RectInt(1, 2, 3, 4);
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "rectInt"));
+            Assert.AreEqual("(1, 2, 3, 4)", result);
+        }
+
+        [Test]
+        public void BoundsInt_IntegerParenthesisFormat_PositionThenSize()
+        {
+            var d = CreateData();
+            d.boundsInt = new BoundsInt(new Vector3Int(1, 2, 3), new Vector3Int(4, 5, 6));
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "boundsInt"));
+            Assert.AreEqual("(1, 2, 3, 4, 5, 6)", result);
+        }
+
+        // ── CS-T4: Non-null ObjectReference + RectTransform ───────────────────
+
+        [Test]
+        public void ObjectReference_GameObjectRef_ReturnsPathSpaceHexId()
+        {
+            var d = CreateData();
+            var target = new GameObject("ObjRefTarget");
+            _toDestroy.Add(target);
+            d.goRef = target;
+            var prop = DataProp(d, "goRef");
+            var result = ComponentSerializer.GetPropertyValueString(prop);
+            var expectedPath = ComponentSerializer.GetPath(target);
+            StringAssert.StartsWith(expectedPath, result);
+            StringAssert.Contains(TransientObjectId.GetHexRef(target), result);
+        }
+
+        [Test]
+        public void ObjectReference_ComponentRef_ReturnsPathDoubleColonTypeAndHexId()
+        {
+            var target = new GameObject("CompRefTarget");
+            _toDestroy.Add(target);
+            var rb = target.AddComponent<Rigidbody>();
+            var joint = _go.AddComponent<FixedJoint>();
+            joint.connectedBody = rb;
+            var so = new SerializedObject(joint);
+            so.Update();
+            var prop = so.FindProperty("m_ConnectedBody");
+            Assert.IsNotNull(prop, "m_ConnectedBody not found on FixedJoint");
+            var result = ComponentSerializer.GetPropertyValueString(prop);
+            StringAssert.Contains("::Rigidbody", result);
+            StringAssert.Contains(TransientObjectId.GetHexRef(rb), result);
+        }
+
+        [Test]
+        public void ObjectReference_NonGoNonComponentAsset_ReturnsNameSpaceHexId()
+        {
+            var d = CreateData();
+            var tex = new Texture2D(1, 1);
+            tex.name = "TestTex";
+            _objs.Add(tex);
+            d.texRef = tex;
+            var prop = DataProp(d, "texRef");
+            var result = ComponentSerializer.GetPropertyValueString(prop);
+            StringAssert.StartsWith("TestTex", result);
+            StringAssert.Contains(TransientObjectId.GetHexRef(tex), result);
+        }
+
+        [Test]
+        public void SerializeComponent_RectTransform_ContainsAllFiveRectFriendlyFields()
+        {
+            var go = new GameObject("RtTest");
+            _toDestroy.Add(go);
+            var rt = go.AddComponent<RectTransform>();
+            rt.anchoredPosition = new Vector2(10f, 20f);
+            rt.sizeDelta = new Vector2(100f, 50f);
+            rt.anchorMin = new Vector2(0f, 0f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            var result = ComponentSerializer.Serialize(go, "RectTransform");
+            Assert.IsNotNull(result);
+            StringAssert.Contains("anchoredPosition:", result);
+            StringAssert.Contains("sizeDelta:", result);
+            StringAssert.Contains("anchorMin:", result);
+            StringAssert.Contains("anchorMax:", result);
+            StringAssert.Contains("pivot:", result);
+        }
+
+        // ── CS-T5: String branch and no-fields edge paths ─────────────────────
+
+        [Test]
+        public void String_ReturnsValueAsIs()
+        {
+            var d = CreateData();
+            d.str = "hello world";
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "str"));
+            Assert.AreEqual("hello world", result);
+        }
+
+        [Test]
+        public void SerializeComponent_AudioListener_ReturnsNoSerializedFields()
+        {
+            _go.AddComponent<AudioListener>();
+            var result = ComponentSerializer.Serialize("/" + _go.name, "AudioListener");
+            Assert.IsNotNull(result);
+            Assert.AreEqual("(no serialized fields)", result);
+        }
 
         // ── Integer branch ────────────────────────────────────────────────────
 
@@ -461,6 +656,97 @@ namespace UnityMCP.Editor.Tests
 
             var result = ComponentSerializer.Serialize("/G9NewObject", "Transform");
             Assert.IsNotNull(result, "Serialize should succeed for a newly created object without cache refresh");
+        }
+
+        // ── CS-F2: ScenePathParser.Parse ─────────────────────────────────────
+
+        [Test]
+        public void ScenePathParser_Null_SceneNameIsNull()
+            => Assert.IsNull(ScenePathParser.Parse(null).SceneName);
+
+        [Test]
+        public void ScenePathParser_Empty_SceneNameIsNull()
+            => Assert.IsNull(ScenePathParser.Parse("").SceneName);
+
+        [Test]
+        public void ScenePathParser_NoColonSlash_SceneNameIsNull()
+            => Assert.IsNull(ScenePathParser.Parse("Root/Child").SceneName);
+
+        [Test]
+        public void ScenePathParser_SepAtZero_SceneNameIsNull()
+            => Assert.IsNull(ScenePathParser.Parse(":/path").SceneName);
+
+        [Test]
+        public void ScenePathParser_BracketAtStart_SceneNameIsNull()
+            => Assert.IsNull(ScenePathParser.Parse("[Obj/Name]:/path").SceneName);
+
+        [Test]
+        public void ScenePathParser_SceneNameContainsSlash_SceneNameIsNull()
+            => Assert.IsNull(ScenePathParser.Parse("a/b:/child").SceneName);
+
+        [Test]
+        public void ScenePathParser_Valid_ParsesSceneNameAndLocalPath()
+        {
+            var r = ScenePathParser.Parse("MyScene:/Root/Child");
+            Assert.AreEqual("MyScene", r.SceneName);
+            Assert.AreEqual("Root/Child", r.LocalPath);
+        }
+
+        [Test]
+        public void ScenePathParser_DoubleSlash_LocalPathStripsLeadingSlash()
+        {
+            var r = ScenePathParser.Parse("MyScene://Root");
+            Assert.AreEqual("MyScene", r.SceneName);
+            Assert.AreEqual("Root", r.LocalPath);
+        }
+
+        // ── CS-F5: FindComponentByRef + EscapeSegment ────────────────────────
+
+        [Test]
+        public void FindComponentByRef_DollarHexFormat_ResolvesComponent()
+        {
+            var rb = _go.AddComponent<Rigidbody>();
+            var hexRef = TransientObjectId.GetHexRef(rb);
+            var wireRef = $"/CSFinderTest::Rigidbody {hexRef}";
+            var result = ComponentSerializer.FindComponentByRef(wireRef);
+            Assert.AreEqual(rb, result);
+        }
+
+        [Test]
+        public void FindComponentByRef_NoSeparator_ReturnsNull()
+            => Assert.IsNull(ComponentSerializer.FindComponentByRef("path::Transform"));
+
+        [Test]
+        public void FindComponentByRef_InvalidHashId_ReturnsNull()
+            => Assert.IsNull(ComponentSerializer.FindComponentByRef("path::Type #notanumber"));
+
+        [Test]
+        public void SplitPathSegments_BracketProtectsSlash_SingleSegment()
+        {
+            var parts = ComponentSerializer.SplitPathSegments("[Zone/A]");
+            Assert.AreEqual(1, parts.Length);
+            Assert.AreEqual("[Zone/A]", parts[0]);
+        }
+
+        // ── CS-T5: SerializeAll header fields ────────────────────────────────
+
+        [Test]
+        public void SerializeAll_ContainsNameActiveTagLayerHeaders()
+        {
+            var result = ComponentSerializer.SerializeAll(TransientObjectId.GetWireValue(_go));
+            Assert.IsNotNull(result);
+            StringAssert.Contains("name:", result);
+            StringAssert.Contains("active:", result);
+            StringAssert.Contains("tag:", result);
+            StringAssert.Contains("layer:", result);
+        }
+
+        [Test]
+        public void SerializeAll_StaticObject_ContainsStaticTrueLine()
+        {
+            _go.isStatic = true;
+            var result = ComponentSerializer.SerializeAll(TransientObjectId.GetWireValue(_go));
+            StringAssert.Contains("static: true", result);
         }
     }
 
