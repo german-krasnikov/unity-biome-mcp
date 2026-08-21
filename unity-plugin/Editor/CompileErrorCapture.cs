@@ -102,7 +102,8 @@ namespace UnityMCP.Editor
         /// <summary>Test seam: inject a compile error without real compilation.</summary>
         public static void InjectForTest(string msg)
         {
-            _errors.Add(msg);
+            if (_errors.Count < MaxErrors)
+                _errors.Add(msg);
             // Also persist to SessionState so reload-survival can be tested
             SessionState.SetString(SessionKey, BuildErrorText(_errors));
         }
