@@ -8,6 +8,8 @@
 //   TimelineSerializer.Serialize            — requires PlayableDirector bound to TimelineAsset
 
 using System;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.Animations;
@@ -1054,6 +1056,33 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(AnimatorConditionMode.If, result.mode);
             Assert.AreEqual("Jump", result.parameter);
         }
+
+        [Test]
+        public void ParseCondition_BoolTrueUpperCase_CaseInsensitive_ReturnsIf()
+        {
+            var result = AnimatorControllerHelper.ParseCondition("Grounded==TRUE", _ctrl);
+            Assert.AreEqual(AnimatorConditionMode.If, result.mode);
+            Assert.AreEqual("Grounded", result.parameter);
+            Assert.AreEqual(0f, result.threshold, 0.0001f);
+        }
+
+        [Test]
+        public void ParseCondition_BoolFalseMixedCase_CaseInsensitive_ReturnsIfNot()
+        {
+            var result = AnimatorControllerHelper.ParseCondition("IsActive==False", _ctrl);
+            Assert.AreEqual(AnimatorConditionMode.IfNot, result.mode);
+            Assert.AreEqual("IsActive", result.parameter);
+            Assert.AreEqual(0f, result.threshold, 0.0001f);
+        }
+
+        [Test]
+        public void ParseCondition_DoubleEqualNumeric_ReturnsEquals()
+        {
+            var result = AnimatorControllerHelper.ParseCondition("State==2", _ctrl);
+            Assert.AreEqual(AnimatorConditionMode.Equals, result.mode);
+            Assert.AreEqual("State", result.parameter);
+            Assert.AreEqual(2f, result.threshold, 0.0001f);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1321,5 +1350,116 @@ namespace UnityMCP.Editor.Tests
 
             StringAssert.Contains("4 states", header);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AnimatorControllerHelper — ParseBlendType (private, via reflection)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [TestFixture]
+    public class AnimatorControllerHelperParseBlendTypeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    {
+        private static readonly MethodInfo ParseBlendTypeMethod =
+            typeof(AnimatorControllerHelper).GetMethod(
+                "ParseBlendType", BindingFlags.NonPublic | BindingFlags.Static);
+
+        private static BlendTreeType Invoke(string input)
+        {
+            try
+            {
+                return (BlendTreeType)ParseBlendTypeMethod.Invoke(null, new object[] { input });
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                return default; // unreachable
+            }
+        }
+
+        [Test]
+        public void ParseBlendType_1d_ReturnsSimple1D()
+            => Assert.AreEqual(BlendTreeType.Simple1D, Invoke("1d"));
+
+        [Test]
+        public void ParseBlendType_Simple1d_ReturnsSimple1D()
+            => Assert.AreEqual(BlendTreeType.Simple1D, Invoke("simple1d"));
+
+        [Test]
+        public void ParseBlendType_2dSimple_ReturnsSimpleDirectional2D()
+            => Assert.AreEqual(BlendTreeType.SimpleDirectional2D, Invoke("2d_simple"));
+
+        [Test]
+        public void ParseBlendType_2dFreeform_ReturnsFreeformDirectional2D()
+            => Assert.AreEqual(BlendTreeType.FreeformDirectional2D, Invoke("2d_freeform"));
+
+        [Test]
+        public void ParseBlendType_2dCartesian_ReturnsFreeformCartesian2D()
+            => Assert.AreEqual(BlendTreeType.FreeformCartesian2D, Invoke("2d_cartesian"));
+
+        [Test]
+        public void ParseBlendType_Direct_ReturnsDirect()
+            => Assert.AreEqual(BlendTreeType.Direct, Invoke("direct"));
+
+        [Test]
+        public void ParseBlendType_Unknown_ThrowsArgumentException()
+            => Assert.Throws<ArgumentException>(() => Invoke("unknown_type"));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AnimatorControllerHelper — ResolveLayerIndex (private, via reflection)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [TestFixture]
+    public class AnimatorControllerHelperResolveLayerIndexTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    {
+        private AnimatorController _ctrl;
+        private static readonly string CtrlFolder = TestPaths.ForFixture("AnimCtrlResolveLayerTests");
+        private static readonly string CtrlPath = CtrlFolder + "/Tests_AnimCtrlLayers.controller";
+
+        private static readonly MethodInfo ResolveLayerIndexMethod =
+            typeof(AnimatorControllerHelper).GetMethod(
+                "ResolveLayerIndex", BindingFlags.NonPublic | BindingFlags.Static);
+
+        [SetUp]
+        public void SetUp()
+        {
+            TrackOwnedAsset(CtrlFolder);
+            TestPaths.EnsureFolder(CtrlFolder);
+            _ctrl = AnimatorController.CreateAnimatorControllerAtPath(CtrlPath);
+            _ctrl.AddLayer("Action Layer");
+        }
+
+        private int Invoke(string layer)
+        {
+            try
+            {
+                return (int)ResolveLayerIndexMethod.Invoke(null, new object[] { _ctrl, layer });
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                return default; // unreachable
+            }
+        }
+
+        [Test]
+        public void ResolveLayerIndex_IntegerZero_ReturnsZero()
+            => Assert.AreEqual(0, Invoke("0"));
+
+        [Test]
+        public void ResolveLayerIndex_IntegerOne_ReturnsOne()
+            => Assert.AreEqual(1, Invoke("1"));
+
+        [Test]
+        public void ResolveLayerIndex_BaseLayerName_ReturnsZero()
+            => Assert.AreEqual(0, Invoke("Base Layer"));
+
+        [Test]
+        public void ResolveLayerIndex_UnknownName_ThrowsArgumentException()
+            => Assert.Throws<ArgumentException>(() => Invoke("Ghost Layer"));
+
+        [Test]
+        public void ResolveLayerIndex_OutOfRangeIndex_ThrowsArgumentOutOfRangeException()
+            => Assert.Throws<ArgumentOutOfRangeException>(() => Invoke("99"));
     }
 }
