@@ -1017,5 +1017,233 @@ namespace UnityMCP.Editor.Tests
             public void Stop() { }
             public string Report() => "stub";
         }
+
+        // ── Section step ─────────────────────────────────────────────────────
+
+        [Test]
+        public void Section_ProducesFormattedDashLine_NoPassFailIncrement()
+        {
+            var step = new PlaytestStep { Type = StepType.Section, Message = "Phase One" };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            bool done = PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.IsTrue(done, "Section must complete synchronously");
+            Assert.AreEqual(1, results.Count);
+            Assert.AreEqual("--- Phase One ---", results[0]);
+            Assert.AreEqual(0, passed, "Section does not increment passed");
+            Assert.AreEqual(0, failed, "Section does not increment failed");
+        }
+
+        // ── Monitor step ──────────────────────────────────────────────────────
+
+        [Test]
+        public void Monitor_EmptyQuery_StopsAllMonitors_ResultContainsStop()
+        {
+            RegisterCleanup(() => PlaytestMonitorRegistry.Reset());
+            PlaytestMonitorRegistry.InjectForTest(new StubMonitor());
+            var step = new PlaytestStep { Type = StepType.Monitor, Query = "" };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.AreEqual(0, PlaytestMonitorRegistry.ActiveCount, "StopAll must clear all monitors");
+            Assert.AreEqual(1, results.Count);
+            StringAssert.Contains("MONITOR STOP", results[0]);
+        }
+
+        [Test]
+        public void Monitor_UnregisteredQuery_IncrementsFailed_NotPassed()
+        {
+            RegisterCleanup(() => PlaytestMonitorRegistry.Reset());
+            var step = new PlaytestStep { Type = StepType.Monitor, Query = "SomeMissingMonitor" };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.AreEqual(0, passed);
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(1, results.Count);
+            StringAssert.Contains("Monitor not found", results[0]);
+        }
+
+        // ── WAIT step ─────────────────────────────────────────────────────────
+
+        [Test]
+        public void Wait_ReturnsNotDone_BecauseAsyncDelayPhaseIsSet()
+        {
+            var step = new PlaytestStep { Type = StepType.Wait, Delay = 1f };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            bool done = PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.IsFalse(done, "WAIT must not complete synchronously — waits for real-time delay");
+            Assert.AreEqual(0, results.Count, "WAIT produces no result until delay elapses");
+        }
+
+        // ── SWEEP_PATH parser expansion ───────────────────────────────────────
+
+        [Test]
+        public void SweepPath_TwoWaypoints_ExpandsToMoveAndWaitSteps()
+        {
+            // SWEEP_PATH expands at parse time: each waypoint → Move + Wait
+            var script = "SWEEP_PATH /Player DWELL 0.5\n1,0,0\n2,0,0";
+
+            var steps = PlaytestParser.Parse(script);
+
+            // 2 waypoints × (Move + Wait) = 4 steps
+            Assert.AreEqual(4, steps.Count);
+            Assert.AreEqual(StepType.Move, steps[0].Type);
+            Assert.AreEqual(StepType.Wait, steps[1].Type);
+            Assert.AreEqual(0.5f, steps[1].Delay, 0.001f, "DWELL delay must match");
+            Assert.AreEqual(StepType.Move, steps[2].Type);
+            Assert.AreEqual(StepType.Wait, steps[3].Type);
+        }
+
+        // ── WAIT_CAPTURED step ────────────────────────────────────────────────
+
+        [Test]
+        public void WaitCaptured_ReturnsNotDone_BecauseAsyncPhaseIsSet()
+        {
+            var step = new PlaytestStep
+            {
+                Type = StepType.WaitCaptured,
+                Message = "hp",
+                Op = "INCREASED",
+                Timeout = 5f
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            bool done = PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.IsFalse(done, "WAIT_CAPTURED must not complete synchronously — polls for a captured delta");
+            Assert.AreEqual(0, results.Count);
+        }
+
+        // ── Snapshot step (result format) ─────────────────────────────────────
+
+        [Test]
+        public void Snapshot_ProducesLabeledResultLine_IncrementsPassed()
+        {
+            var step = new PlaytestStep
+            {
+                Type = StepType.Snapshot,
+                Queries = System.Array.Empty<string>()
+            };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            bool done = PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.IsTrue(done);
+            Assert.AreEqual(1, passed);
+            Assert.AreEqual(0, failed);
+            Assert.AreEqual(1, results.Count);
+            StringAssert.StartsWith("[1] SNAPSHOT", results[0]);
+        }
+
+        // ── AssertFramesDiffer / AssertFramesStatic ───────────────────────────
+
+        [Test]
+        public void AssertFramesDiffer_LessThanTwoFrames_ReportsErr_IncrementsFailed()
+        {
+            var state = new PlaytestState();
+            state.InitFrames("clip1");
+            state.AddFrame("clip1", "frame0.png"); // only 1 frame — below threshold
+            var step = new PlaytestStep { Type = StepType.AssertFramesDiffer, Message = "clip1" };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(0, passed);
+            StringAssert.Contains("ERR: need ≥2 frames", results[0]);
+        }
+
+        [Test]
+        public void AssertFramesStatic_LessThanTwoFrames_ReportsErr_IncrementsFailed()
+        {
+            var state = new PlaytestState();
+            state.InitFrames("clip2");
+            // no frames added — null list is also < 2
+            var step = new PlaytestStep { Type = StepType.AssertFramesStatic, Message = "clip2" };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(0, passed);
+            StringAssert.Contains("ERR: need ≥2 frames", results[0]);
+        }
+
+        [Test]
+        public void AssertFramesDiffer_MatchingFrames_ReportsFail_IncrementsFailed()
+        {
+            var p1 = WriteTestPng(Color.red, "fd_match1");
+            var p2 = WriteTestPng(Color.red, "fd_match2");
+            try
+            {
+                var state = new PlaytestState();
+                state.InitFrames("clip3");
+                state.AddFrame("clip3", p1);
+                state.AddFrame("clip3", p2);
+                var step = new PlaytestStep { Type = StepType.AssertFramesDiffer, Message = "clip3" };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+                Assert.AreEqual(1, failed, "Identical frames must fail ASSERT_FRAMES_DIFFER");
+                Assert.AreEqual(0, passed);
+                StringAssert.Contains("FAIL", results[0]);
+            }
+            finally { System.IO.File.Delete(p1); System.IO.File.Delete(p2); }
+        }
+
+        [Test]
+        public void AssertFramesStatic_MatchingFrames_ReportsPass_IncrementsPassed()
+        {
+            var p1 = WriteTestPng(Color.blue, "fs_match1");
+            var p2 = WriteTestPng(Color.blue, "fs_match2");
+            try
+            {
+                var state = new PlaytestState();
+                state.InitFrames("clip4");
+                state.AddFrame("clip4", p1);
+                state.AddFrame("clip4", p2);
+                var step = new PlaytestStep { Type = StepType.AssertFramesStatic, Message = "clip4" };
+                var results = new List<string>();
+                int passed = 0, failed = 0;
+
+                PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0, state);
+
+                Assert.AreEqual(1, passed, "Identical frames must pass ASSERT_FRAMES_STATIC");
+                Assert.AreEqual(0, failed);
+                StringAssert.Contains("PASS", results[0]);
+            }
+            finally { System.IO.File.Delete(p1); System.IO.File.Delete(p2); }
+        }
+
+        static string WriteTestPng(Color color, string name)
+        {
+            var tex = new Texture2D(4, 4, TextureFormat.RGB24, false);
+            var pixels = new Color[16];
+            for (int i = 0; i < pixels.Length; i++) pixels[i] = color;
+            tex.SetPixels(pixels);
+            tex.Apply();
+            var path = System.IO.Path.Combine(
+                Application.temporaryCachePath,
+                $"{name}_{System.Guid.NewGuid():N}.png");
+            System.IO.File.WriteAllBytes(path, tex.EncodeToPNG());
+            UnityEngine.Object.DestroyImmediate(tex);
+            return path;
+        }
     }
 }
