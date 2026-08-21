@@ -32,11 +32,11 @@ Claude Code ←─stdio─→ Python MCP Server ←─TCP:9500─→ Unity Edito
 
 One match per line:
 ```
-/Path/To/Object $HEX [Component1,Component2] !
+/Path/To/Object &ref [Component1,Component2] !
 ```
 
 - `/Path/To/Object` — full hierarchy path via `ComponentSerializer.GetPath()` (includes scene prefix in multi-scene: `SceneName:/Path/To/Object`)
-- `$HEX` — process-local transient object ID; prefer the path in durable examples
+- `&ref` — compact hierarchy reference assigned by `RefManager` (process-local, for example `&1`, `&a`, `&10`); prefer the path in durable examples
 - `[Comp1,Comp2]` — list of component types (excluding Transform, comma-separated, no spaces)
 - `!` — suffix if GameObject inactive
 
@@ -70,28 +70,28 @@ Search GameObject hierarchy by name, component, tag, layer, active state.
 ```
 # Search by component
 search_scene(query="t:Rigidbody")
-→ /Player $7D0 [Rigidbody,PlayerController]
-  /Enemy $BB8 [Rigidbody,EnemyAI] !
+→ /Player &1 [Rigidbody,PlayerController]
+  /Enemy &2 [Rigidbody,EnemyAI] !
 
 # Search by name (substring, case-insensitive)
 search_scene(query="Player")
-→ /Player $7D0 [Rigidbody,PlayerController]
-  /UI/PlayerUI $516 [Canvas,PlayerUIScript]
+→ /Player &1 [Rigidbody,PlayerController]
+  /UI/PlayerUI &3 [Canvas,PlayerUIScript]
 
 # Combine filters
 search_scene(query="t:Light active=true")
-→ /Lights/Directional Light $4B0 [Light]
-  /Lights/Spotlight $4B1 [Light]
+→ /Lights/Directional Light &4 [Light]
+  /Lights/Spotlight &5 [Light]
 
 # Scoped search — within subtree, limit results
 search_scene(query="t:Renderer", root="/Level/Cave", limit=10)
-→ /Level/Cave/Rock_1 $FD2 [Renderer]
-  /Level/Cave/Rock_2 $FD3 [Renderer]
+→ /Level/Cave/Rock_1 &6 [Renderer]
+  /Level/Cave/Rock_2 &7 [Renderer]
   ...+8 more (limit=10)
 
 # Multi-scene search — filter to specific scene
 search_scene(query="t:Light", scene="Forest")
-→ Forest:/Lights/Directional Light $4B0 [Light]
+→ Forest:/Lights/Directional Light &4 [Light]
 ```
 
 **Overflow marker:** When results exceed limit, the final line is `...+{N} more (limit={L})` showing remaining count.
