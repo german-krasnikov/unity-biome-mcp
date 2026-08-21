@@ -44,6 +44,17 @@ namespace UnityMCP.Editor
             _log.Clear();
         }
 
+#if UNITY_INCLUDE_TESTS
+        /// <summary>Test seam: wipes in-memory state, leaves SessionState intact.
+        /// Mirrors the effect of a domain reload on static fields.</summary>
+        internal static void SimulateDomainReloadForTest()
+        {
+            _watches.Clear();
+            _log.Clear();
+            _idCounter = 0;
+        }
+#endif
+
         public static string[] DrainLog()
         {
             var result = _log.ToArray();

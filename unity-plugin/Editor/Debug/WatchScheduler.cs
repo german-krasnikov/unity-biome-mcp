@@ -20,6 +20,17 @@ namespace UnityMCP.Editor
 
         internal static void Stop() => EditorApplication.update -= Tick;
 
+#if UNITY_INCLUDE_TESTS
+        /// <summary>Test seam: re-runs what [InitializeOnLoad] does — restores watches
+        /// and re-subscribes Tick. Avoids double-subscription via remove-then-add.</summary>
+        internal static void ReRegisterForTest()
+        {
+            WatchRegistry.Load();
+            EditorApplication.update -= Tick;
+            EditorApplication.update += Tick;
+        }
+#endif
+
         private static void Tick()
         {
             if (!EditorApplication.isPlaying) return;
