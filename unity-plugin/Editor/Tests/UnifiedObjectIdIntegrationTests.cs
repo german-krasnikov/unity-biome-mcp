@@ -18,7 +18,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void GetPropertyValueString_ObjectRef_DollarHexFormat()
+        public void GetPropertyValueString_ObjectRef_EmitsAmpRef()
         {
             // Arrange: GO as a serialized ObjectReference target
             var target = TrackOwnedObject(new GameObject("HexRefTarget"));
@@ -34,11 +34,30 @@ namespace UnityMCP.Editor.Tests
             // Act
             var result = ComponentSerializer.GetPropertyValueString(prop);
 
-            // Assert: $HEX format used, NOT #decimal
-            Assert.IsTrue(Regex.IsMatch(result, @"\$[0-9A-F]+"),
-                $"ObjectRef output must contain $HEX (uppercase), got: {result}");
+            // Assert: &ref format (RefManager), NOT $HEX or #decimal
+            Assert.IsTrue(Regex.IsMatch(result, @"&[0-9a-zA-Z]+"),
+                $"ObjectRef output must contain &ref (RefManager base62), got: {result}");
+            Assert.IsFalse(Regex.IsMatch(result, @"\$[0-9A-F]+"),
+                $"ObjectRef output must NOT use $HEX format, got: {result}");
             Assert.IsFalse(result.Contains(" #"),
-                $"ObjectRef output must NOT use # prefix for ID, got: {result}");
+                $"ObjectRef output must NOT use #decimal format, got: {result}");
+        }
+
+        [Test]
+        public void SetObjectReference_AmpRef_ResolvesToObject()
+        {
+            var target = TrackOwnedObject(new GameObject("AmpRefTarget"));
+            var holder = TrackOwnedObject(ScriptableObject.CreateInstance<GoRefHolder>());
+            var ampRef = RefManager.AssignAny(target);
+
+            var so = new SerializedObject(holder);
+            var prop = so.FindProperty("Value");
+            ValueParser.SetPropertyValue(prop, ampRef);
+            so.ApplyModifiedPropertiesWithoutUndo();
+            so.Update();
+
+            Assert.AreSame(target, so.FindProperty("Value").objectReferenceValue,
+                $"SetPropertyValue({ampRef}) must resolve to target via ResolveAny");
         }
 
         [Test]

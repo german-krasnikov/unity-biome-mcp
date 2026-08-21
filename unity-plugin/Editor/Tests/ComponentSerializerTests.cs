@@ -793,6 +793,24 @@ namespace UnityMCP.Editor.Tests
             => Assert.IsNull(ComponentSerializer.FindComponentByRef("path::Type #notanumber"));
 
         [Test]
+        public void FindComponentByRef_AmpRef_ResolvesComponent()
+        {
+            var rb = _go.AddComponent<Rigidbody>();
+            var ampRef = RefManager.AssignAny(rb);
+            var wireRef = $"/CSFinderTest::Rigidbody {ampRef}";
+            var result = ComponentSerializer.FindComponentByRef(wireRef);
+            Assert.AreEqual(rb, result);
+        }
+
+        [Test]
+        public void FindComponentByRef_TomAndJerryName_WithoutRef_ReturnsNull()
+        {
+            // "/Tom & Jerry::Renderer" contains " &" but not a valid &ref tail — must return null
+            var result = ComponentSerializer.FindComponentByRef("/Tom & Jerry::Renderer");
+            Assert.IsNull(result, "Object name containing ' &' must not be treated as an &ref");
+        }
+
+        [Test]
         public void SplitPathSegments_BracketProtectsSlash_SingleSegment()
         {
             var parts = ComponentSerializer.SplitPathSegments("[Zone/A]");
