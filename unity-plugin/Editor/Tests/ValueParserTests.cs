@@ -518,5 +518,131 @@ namespace UnityMCP.Editor.Tests
             Assert.That(result, Does.Not.Contain("would change").IgnoreCase,
                 "DRY-RUN must validate ObjectReference paths, not blindly report success");
         }
+
+        // ── ParseVector4Lenient ───────────────────────────────────────────────
+
+        [Test]
+        public void ParseVector4Lenient_TwoComponents_ZAndWDefaultToZero()
+        {
+            var v = ValueParser.ParseVector4Lenient("1.0, 2.0");
+            Assert.AreEqual(1f, v.x, 0.001f);
+            Assert.AreEqual(2f, v.y, 0.001f);
+            Assert.AreEqual(0f, v.z, 0.001f);
+            Assert.AreEqual(0f, v.w, 0.001f);
+        }
+
+        [Test]
+        public void ParseVector4Lenient_ThreeComponents_WDefaultsToZero()
+        {
+            var v = ValueParser.ParseVector4Lenient("1.0, 2.0, 3.0");
+            Assert.AreEqual(1f, v.x, 0.001f);
+            Assert.AreEqual(2f, v.y, 0.001f);
+            Assert.AreEqual(3f, v.z, 0.001f);
+            Assert.AreEqual(0f, v.w, 0.001f);
+        }
+
+        [Test]
+        public void ParseVector4Lenient_FourComponents_RoundTrip()
+        {
+            var v = ValueParser.ParseVector4Lenient("1.5, 2.5, 3.5, 4.5");
+            Assert.AreEqual(1.5f, v.x, 0.001f);
+            Assert.AreEqual(2.5f, v.y, 0.001f);
+            Assert.AreEqual(3.5f, v.z, 0.001f);
+            Assert.AreEqual(4.5f, v.w, 0.001f);
+        }
+
+        [Test]
+        public void ParseVector4Lenient_OneComponent_ThrowsArgumentException()
+            => Assert.Throws<System.ArgumentException>(() => ValueParser.ParseVector4Lenient("1.0"));
+
+        [Test]
+        public void ParseVector4Lenient_Empty_ThrowsArgumentException()
+            => Assert.Throws<System.ArgumentException>(() => ValueParser.ParseVector4Lenient(""));
+
+        // ── GetSerializedFieldType edge cases ─────────────────────────────────
+
+        [Test]
+        public void GetSerializedFieldType_NullTargetObject_ReturnsNull()
+        {
+            var go = new GameObject("VP_FieldTypeNull");
+            go.AddComponent<Light>();
+            var prop = new SerializedObject(go.GetComponent<Light>()).FindProperty("m_Intensity");
+            Assert.IsNotNull(prop, "m_Intensity must exist on Light");
+            Object.DestroyImmediate(go);
+            // serializedObject.targetObject is now Unity-null
+            var result = ValueParser.GetSerializedFieldType(prop);
+            Assert.IsNull(result);
+        }
+
+        [Test]
+        public void GetSerializedFieldType_CppBackedField_NoReflectionMatch_ReturnsNull()
+        {
+            // Light.m_Intensity is C++ backed — C# FieldInfo lookup returns null
+            var go = new GameObject("VP_FieldTypeCpp");
+            go.AddComponent<Light>();
+            try
+            {
+                var so = new SerializedObject(go.GetComponent<Light>());
+                var prop = so.FindProperty("m_Intensity");
+                Assert.IsNotNull(prop);
+                var result = ValueParser.GetSerializedFieldType(prop);
+                Assert.IsNull(result, "C++ backed field has no C# FieldInfo — must return null");
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void GetSerializedFieldType_ValidCSharpField_ReturnsCorrectType()
+        {
+            var go = new GameObject("VP_FieldTypeValid");
+            go.AddComponent<EnumTestComponent>();
+            try
+            {
+                var so = new SerializedObject(go.GetComponent<EnumTestComponent>());
+                var prop = so.FindProperty("_toolType");
+                Assert.IsNotNull(prop, "_toolType must exist on EnumTestComponent");
+                var result = ValueParser.GetSerializedFieldType(prop);
+                Assert.AreEqual(typeof(ToolType), result);
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        // ── SetPropertyValue: unsupported property type → default throw ───────
+
+        [Test]
+        public void SetPropertyValue_AnimationCurveProperty_ThrowsArgumentException()
+        {
+            // Find any AnimationCurve property across common components to test the default: throw branch.
+            SerializedProperty curveProp = null;
+            var go = new GameObject("VP_UnsupportedType");
+            try
+            {
+                // Try components known to expose AnimationCurve properties in the serialization.
+                UnityEngine.Component[] candidates =
+                {
+                    go.AddComponent<AudioSource>(),
+                    go.AddComponent<TrailRenderer>()
+                };
+                foreach (var comp in candidates)
+                {
+                    if (comp == null) continue;
+                    var so2 = new SerializedObject(comp);
+                    var it = so2.GetIterator();
+                    if (!it.Next(true)) continue;
+                    do
+                    {
+                        if (it.propertyType == SerializedPropertyType.AnimationCurve)
+                        { curveProp = it.Copy(); break; }
+                    } while (it.Next(false));
+                    if (curveProp != null) break;
+                }
+                Assume.That(curveProp, Is.Not.Null,
+                    "At least one component must expose an AnimationCurve SerializedProperty");
+                var ex = Assert.Throws<System.ArgumentException>(() =>
+                    ValueParser.SetPropertyValue(curveProp, "test_value"));
+                StringAssert.Contains("Unsupported", ex.Message);
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
     }
 }

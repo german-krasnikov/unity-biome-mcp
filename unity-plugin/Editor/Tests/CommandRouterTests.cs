@@ -1116,5 +1116,204 @@ namespace UnityMCP.Editor.Tests
             }
             finally { CommandRegistry.RestoreForTest(snapshot); }
         }
+
+        // ── BuildHelp: prefix filter and formatting ───────────────────────────
+
+        [Test]
+        public void BuildHelp_NoMatchingPrefix_ReturnsEmptyString()
+        {
+            var result = CommandRegistry.BuildHelp("totally_nonexistent_prefix_xyzzy_");
+            Assert.AreEqual("", result);
+        }
+
+        [Test]
+        public void BuildHelp_MatchingPrefix_ReturnsOnlyMatchingCommands()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            try
+            {
+                CommandRegistry.Clear();
+                CommandRegistry.Ready = true;
+                CommandRegistry.Register("bht_cmd1", _ => "ok", required: "", optional: "");
+                CommandRegistry.Register("other_cmd", _ => "ok", required: "", optional: "");
+                var result = CommandRegistry.BuildHelp("bht_");
+                StringAssert.Contains("bht_cmd1", result);
+                StringAssert.DoesNotContain("other_cmd", result);
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
+
+        [Test]
+        public void BuildHelp_MutatingCommand_ShowsRWMarker()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            try
+            {
+                CommandRegistry.Clear();
+                CommandRegistry.Ready = true;
+                CommandRegistry.Register("bht_write", _ => "ok", mutating: true, required: "", optional: "");
+                var result = CommandRegistry.BuildHelp("bht_");
+                StringAssert.Contains("[RW]", result);
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
+
+        [Test]
+        public void BuildHelp_ReadCommand_ShowsROMarker()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            try
+            {
+                CommandRegistry.Clear();
+                CommandRegistry.Ready = true;
+                CommandRegistry.Register("bht_read", _ => "ok", mutating: false, required: "", optional: "");
+                var result = CommandRegistry.BuildHelp("bht_");
+                StringAssert.Contains("[RO]", result);
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
+
+        [Test]
+        public void BuildHelp_CommandWithDescription_IncludesDescription()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            try
+            {
+                CommandRegistry.Clear();
+                CommandRegistry.Ready = true;
+                CommandRegistry.Register("bht_desc", _ => "ok", required: "", optional: "",
+                    description: "my test description text");
+                var result = CommandRegistry.BuildHelp("bht_");
+                StringAssert.Contains("my test description text", result);
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
+
+        // ── IsBatchable: all gating conditions ───────────────────────────────
+
+        [Test]
+        public void IsBatchable_UnregisteredCommand_ReturnsTrue()
+            => Assert.IsTrue(CommandRegistry.IsBatchable("totally_unknown_xyzzy_cmd"));
+
+        [Test]
+        public void IsBatchable_SyncHandler_ReturnsTrue()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            try
+            {
+                CommandRegistry.Register("ib_sync", _ => "ok", required: "", optional: "");
+                Assert.IsTrue(CommandRegistry.IsBatchable("ib_sync"));
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
+
+        [Test]
+        public void IsBatchable_RegisterAsync_ReturnsFalse()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            try
+            {
+                CommandRegistry.RegisterAsync("ib_async",
+                    (id, args, tcs) => tcs.SetResult("ok"),
+                    required: "", optional: "");
+                Assert.IsFalse(CommandRegistry.IsBatchable("ib_async"));
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
+
+        [Test]
+        public void IsBatchable_SpecialDispatch_ReturnsFalse()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            try
+            {
+                CommandRegistry.Register("ib_special", _ => "ok",
+                    specialDispatch: true, required: "", optional: "");
+                Assert.IsFalse(CommandRegistry.IsBatchable("ib_special"));
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
+
+        [Test]
+        public void IsBatchable_FileHandler_ReturnsFalse()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            try
+            {
+                CommandRegistry.Register("ib_file", _ => "ok",
+                    fileHandler: (id, args) => "resp", required: "", optional: "");
+                Assert.IsFalse(CommandRegistry.IsBatchable("ib_file"));
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
+
+        [Test]
+        public void IsBatchable_AlwaysAllowed_DoesNotPreventBatchability()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            try
+            {
+                CommandRegistry.Register("ib_always", _ => "ok",
+                    alwaysAllowed: true, required: "", optional: "");
+                Assert.IsTrue(CommandRegistry.IsBatchable("ib_always"),
+                    "alwaysAllowed must not affect batchability");
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
+
+        // ── AlreadyRegistered: double registration guard ──────────────────────
+
+        [Test]
+        public void Register_DoubleRegistration_SecondCallSkipped()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            try
+            {
+                CommandRegistry.Register("dr_sync", _ => "first", required: "", optional: "");
+                CommandRegistry.Register("dr_sync", _ => "second", required: "", optional: "");
+                var result = CommandRegistry.Execute("dr_sync", "{}");
+                Assert.AreEqual("first", result, "Second Register call must be silently skipped");
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
+
+        [Test]
+        public void RegisterAction_DoubleRegistration_SecondCallSkipped()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            try
+            {
+                CommandRegistry.RegisterAction("dr_action", (action, args) => "first",
+                    required: "", optional: "");
+                CommandRegistry.RegisterAction("dr_action", (action, args) => "second",
+                    required: "", optional: "");
+                var result = CommandRegistry.Execute("dr_action", "{\"action\":\"test\"}");
+                Assert.AreEqual("first", result, "Second RegisterAction call must be silently skipped");
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
+
+        [Test]
+        public void RegisterAsync_DoubleRegistration_SecondCallSkipped()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            var firstCalled = false;
+            var secondCalled = false;
+            try
+            {
+                CommandRegistry.RegisterAsync("dr_async",
+                    (id, args, tcs) => { firstCalled = true; tcs.SetResult("first"); },
+                    required: "", optional: "");
+                CommandRegistry.RegisterAsync("dr_async",
+                    (id, args, tcs) => { secondCalled = true; tcs.SetResult("second"); },
+                    required: "", optional: "");
+                CommandRegistry.HasAsyncHandler("dr_async", out var handler);
+                var tcs2 = new System.Threading.Tasks.TaskCompletionSource<string>();
+                handler("id", "{}", tcs2);
+                Assert.IsTrue(firstCalled, "First handler must be called");
+                Assert.IsFalse(secondCalled, "Second RegisterAsync call must be silently skipped");
+            }
+            finally { CommandRegistry.RestoreForTest(snapshot); }
+        }
     }
 }
