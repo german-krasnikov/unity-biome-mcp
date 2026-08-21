@@ -67,7 +67,7 @@ reference UI hosts compatibly across Unity versions:
   - Double quotes: `"text with spaces"`
   - Square brackets: `[content/with/slashes]`
   - Backslash escapes: `\"` and `\[` inside quotes; `\/` and `\\` in paths
-- **ParseQOV** (Query-Operator-Value): Scans tokens for operators (`==`, `!=`, `>`, `<`, `>=`, `<=`), extracts query/op/value. Empty op = bool shorthand (e.g., `ASSERT $flag` = `ASSERT $flag == True`)
+- **ParseQOV** (Query-Operator-Value): Scans tokens for operators (`==`, `!=`, `>`, `<`, `>=`, `<=`), extracts query/op/value. Empty op = bool shorthand (e.g., `ASSERT $flag` = `ASSERT $flag == True`). Bool value normalization (InputNormalizer): case-insensitive aliases map to `True` or `False`: `true/yes/on` → `True`; `false/no/off` → `False`. Applies to `SET_ACTIVE`, `SET`, `ASSERT`, and all comparisons.
 - **NormalizeUIHostPath**: Replaces `|PanelRenderer|` and `|UI|` tokens with `|UIDocument|` to unify host reference syntax across versions
 
 ## Setup and Teardown Blocks
