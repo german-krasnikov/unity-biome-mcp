@@ -12,6 +12,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.47.1] — 2026-08-21
+
+### Added
+
+- **C# test coverage boost — 430+ new unit tests across 30+ subsystems:**
+  - Coverage targets critical MCP paths: CommandRouter, ComponentSerializer,
+    PlaytestParser, PlaytestRunner, TestRunService, TestRunFinalizationCoordinator,
+    ValueParser, ObjectManager, SyncHelper, RuntimeHelper, and 20+ more subsystems
+  - Best-practice refactoring: all test fixtures now use `TrackOwnedObject` ownership
+    pattern per `AI/testing.md` policy — eliminates manual `[TearDown]` cleanup
+  - Every test reviewed against `AI/testing.md` checklist by code-reviewer agents
+
+- **InputNormalizer bool aliases:** `true/false/yes/no/on/off` (case-insensitive)
+  normalize to `True`/`False` in `set_property` and playtest DSL commands
+
+### Fixed
+
+- **CompileErrorCapture.InjectForTest:** respects `MaxErrors` cap (was unbounded
+  in test seam, allowing >50 errors to accumulate)
+
 ## [v1.47.0] — 2026-08-20
 
 ### Fixed
@@ -3535,7 +3555,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.1...HEAD
+[v1.47.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.0...v1.47.1
 [v1.47.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.1...v1.47.0
 [v1.46.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.46.0...v1.46.1
 [v1.46.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.45.0...v1.46.0
