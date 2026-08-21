@@ -29,15 +29,7 @@ namespace UnityMCP.Editor
             return new TransientObjectId(ObjectIdCompat.GetRawId(value));
         }
 
-        // AI-facing $HEX ref — uppercase hex, no leading zeros.
-        // Pre-6000.4: at most 8 hex chars (32-bit uint cast, no sign-extension).
-        // 6000.4+: up to 16 hex chars (true 64-bit EntityId).
-        // Disjoint from RefManager $a-$zz (lowercase) and #RRGGBBAA color syntax.
-        // TryParse handles legacy decimal wire values and $HEX of any width.
-        internal string HexRef => "$" + RawValue.ToString("X", CultureInfo.InvariantCulture);
-
         internal static string GetWireValue(Object value) => FromObject(value).WireValue;
-        internal static string GetHexRef(Object value) => FromObject(value).HexRef;
 
         // CONVENTION (DRY Group A): component references use the component's own instanceID.
         internal static string GetComponentWireValue(Component comp) => FromObject(comp).WireValue;

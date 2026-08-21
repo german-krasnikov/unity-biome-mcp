@@ -8,33 +8,43 @@ The canonical Unity test project uses Unity `6000.0.65f1` and the Editor's
 built-in Unity Test Framework `1.6.0`. Product code, fixtures, and runners target
 the Unity `6000.0` contract; do not add newer-Unity compatibility branches.
 
-## Version-Specific Assertions
+## Version-Agnostic Tests (no `#if` in test code)
 
-When production code uses `#if UNITY_6000_4_OR_NEWER` (or similar preprocessor
-guards) to change behavior between Unity versions, tests asserting that
-behavior MUST use matching guards. Without them the test passes locally on
-6000.0 but fails on CI compat matrices (6000.4, 6000.5, etc.).
+Tests must never use `#if UNITY_*` preprocessor guards. A guarded test means
+zero coverage on the excluded version — the opposite of what CI compat matrices
+exist for.
+
+When production code branches on Unity version (`#if UNITY_6000_4_OR_NEWER`),
+test the **behavioral contract** that holds on ALL versions, not
+implementation details that differ.
 
 ```csharp
-// WRONG — will fail on Unity 6.4+ where EntityId produces true 64-bit values
+// WRONG — tests a numeric range that is version-specific
 [Test]
 public void RawId_FitsIn32Bits()
 {
-    Assert.LessOrEqual(ObjectIdCompat.GetRawId(go), uint.MaxValue);
+    Assert.LessOrEqual(ObjectIdCompat.GetRawId(go), uint.MaxValue); // fails on 6.4+
 }
 
-// RIGHT — guarded to match the production #if branch
+// WRONG — #if guard hides the test on 6.4+, zero coverage there
 #if !UNITY_6000_4_OR_NEWER
 [Test]
-public void RawId_FitsIn32Bits()
-{
-    Assert.LessOrEqual(ObjectIdCompat.GetRawId(go), uint.MaxValue);
-}
+public void RawId_FitsIn32Bits() { ... }
 #endif
+
+// RIGHT — behavioral invariant that holds on every Unity version
+[Test]
+public void ObjectId_RoundTrip_ResolvesToSameObject()
+{
+    var go = TrackOwnedObject(new GameObject("RoundTrip"));
+    var rawId = ObjectIdCompat.GetRawId(go);
+    Assert.That(ObjectIdCompat.ResolveObject(rawId), Is.SameAs(go));
+}
 ```
 
-Rule: every assertion whose expected value depends on a compile-time Unity
-version flag must be wrapped in the same `#if` guard as the production code.
+Rule: test the contract (round-trip, uniqueness, null safety), not the
+encoding (bit width, hex length, numeric range). If a test assertion would
+fail on a different Unity version, it is testing an implementation detail.
 
 ## C# Fixtures
 

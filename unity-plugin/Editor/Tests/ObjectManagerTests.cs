@@ -610,7 +610,7 @@ namespace UnityMCP.Editor.Tests
         public void DeleteObjectById_ValidHexId_RemovesObjectFromScene()
         {
             var target = TrackOwnedObject(new GameObject("OM_DelById"));
-            var hexId = TransientObjectId.GetHexRef(target);
+            var hexId = "$" + ObjectIdCompat.GetRawId(target).ToString("X");
 
             ObjectManager.DeleteObjectById(hexId);
 
@@ -630,7 +630,7 @@ namespace UnityMCP.Editor.Tests
             var target = TrackOwnedObject(new GameObject("OM_DelByIdParent"));
             var child = new GameObject("OM_DelByIdChild");
             child.transform.SetParent(target.transform);
-            var hexId = TransientObjectId.GetHexRef(target);
+            var hexId = "$" + ObjectIdCompat.GetRawId(target).ToString("X");
 
             Assert.Throws<System.ArgumentException>(() =>
                 ObjectManager.DeleteObjectById(hexId));
@@ -642,7 +642,7 @@ namespace UnityMCP.Editor.Tests
             var target = TrackOwnedObject(new GameObject("OM_DelByIdForce"));
             var child = new GameObject("OM_DelByIdForceChild");
             child.transform.SetParent(target.transform);
-            var hexId = TransientObjectId.GetHexRef(target);
+            var hexId = "$" + ObjectIdCompat.GetRawId(target).ToString("X");
 
             ObjectManager.DeleteObjectById(hexId, force: true);
 

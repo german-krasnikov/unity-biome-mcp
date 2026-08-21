@@ -73,7 +73,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void Navigate_ByInstanceId_SetsActiveGameObject()
         {
             var go = Make("IdTarget");
-            var id = TransientObjectId.GetHexRef(go);  // "$XXXX"
+            var id = "$" + ObjectIdCompat.GetRawId(go).ToString("X");  // "$XXXX"
             _provider.Navigate($"/IdTarget{id}");       // "/IdTarget$XXXX"
             Assert.AreEqual(go, Selection.activeGameObject);
         }

@@ -47,28 +47,32 @@ namespace UnityMCP.Editor.Tests
             Assert.That(ObjectIdCompat.ResolveObject(0UL), Is.Null);
         }
 
-#if !UNITY_6000_4_OR_NEWER
         [Test]
-        public void GetRawId_FitsIn32BitRange()
+        public void GetRawId_RoundTrip_ResolvesToSameObject()
         {
-            // Pre-6000.4: GetRawId must use (uint) cast, NOT (ulong)(long).
-            // Sign-extension would produce values > uint.MaxValue for negative instance IDs.
-            var go = TrackOwnedObject(new GameObject("32BitBoundCheck"));
-            var raw = ObjectIdCompat.GetRawId(go);
-            Assert.That(raw, Is.LessThanOrEqualTo((ulong)uint.MaxValue),
-                $"GetRawId must not sign-extend negative instance IDs — got 0x{raw:X}");
+            var go = TrackOwnedObject(new GameObject("RoundTrip"));
+            var rawId = ObjectIdCompat.GetRawId(go);
+            Assert.That(ObjectIdCompat.ResolveObject(rawId), Is.SameAs(go));
         }
 
         [Test]
-        public void GetRawId_HexRef_Max8Chars()
+        public void GetRawId_TwoObjects_DifferentIds()
         {
-            // HexRef = "$" + RawValue.ToString("X") — with (uint) cast, max 8 hex chars.
-            var go = TrackOwnedObject(new GameObject("HexRefMaxLen"));
-            var hexRef = TransientObjectId.GetHexRef(go);
-            var hexPart = hexRef.Substring(1); // strip $
-            Assert.That(hexPart.Length, Is.LessThanOrEqualTo(8),
-                $"HexRef hex part must be ≤ 8 chars on pre-6000.4 — got '{hexRef}'");
+            var a = TrackOwnedObject(new GameObject("A"));
+            var b = TrackOwnedObject(new GameObject("B"));
+            Assert.That(ObjectIdCompat.GetRawId(a), Is.Not.EqualTo(ObjectIdCompat.GetRawId(b)));
         }
-#endif
+
+        [Test]
+        public void GetRawId_Null_ReturnsZero()
+        {
+            Assert.That(ObjectIdCompat.GetRawId(null), Is.EqualTo(0UL));
+        }
+
+        [Test]
+        public void ResolveObject_Zero_ReturnsNull()
+        {
+            Assert.IsNull(ObjectIdCompat.ResolveObject(0UL));
+        }
     }
 }

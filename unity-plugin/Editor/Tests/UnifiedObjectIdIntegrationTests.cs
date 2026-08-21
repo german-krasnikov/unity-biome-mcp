@@ -125,7 +125,7 @@ namespace UnityMCP.Editor.Tests
         {
             // Arrange
             var go = TrackOwnedObject(new GameObject("FindByHexRef"));
-            var hexRef = TransientObjectId.GetHexRef(go);
+            var hexRef = "$" + ObjectIdCompat.GetRawId(go).ToString("X");
 
             // Act
             var found = ComponentSerializer.FindObject(hexRef);
@@ -141,7 +141,7 @@ namespace UnityMCP.Editor.Tests
             // Arrange
             var target = TrackOwnedObject(new GameObject("SetHexRefTarget"));
             var holder = TrackOwnedObject(ScriptableObject.CreateInstance<GoRefHolder>());
-            var hexRef = TransientObjectId.GetHexRef(target);
+            var hexRef = "$" + ObjectIdCompat.GetRawId(target).ToString("X");
 
             var so = new SerializedObject(holder);
             var prop = so.FindProperty("Value");

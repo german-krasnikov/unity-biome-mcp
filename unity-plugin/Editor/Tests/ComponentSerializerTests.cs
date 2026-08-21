@@ -780,7 +780,7 @@ namespace UnityMCP.Editor.Tests
         public void FindComponentByRef_DollarHexFormat_ResolvesComponent()
         {
             var rb = _go.AddComponent<Rigidbody>();
-            var hexRef = TransientObjectId.GetHexRef(rb);
+            var hexRef = "$" + ObjectIdCompat.GetRawId(rb).ToString("X");
             var wireRef = $"/CSFinderTest::Rigidbody {hexRef}";
             var result = ComponentSerializer.FindComponentByRef(wireRef);
             Assert.AreEqual(rb, result);
