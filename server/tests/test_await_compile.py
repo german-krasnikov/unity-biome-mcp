@@ -47,8 +47,10 @@ def _patch_sleep():
 @pytest.fixture(autouse=True)
 def _reset_send():
     original = _ci._send
+    orig_cache = _ci._hr_cached
     yield
     _ci._send = original
+    _ci._hr_cached = orig_cache  # ensure isolation
 
 
 async def test_already_idle_returns_errors_immediately():

@@ -54,5 +54,15 @@ namespace UnityMCP.Editor.Tests
             MCPSettings.SetHotReloadMode(true);
             Assert.IsTrue(MCPSettings.GetHotReloadMode());
         }
+
+        [Test]
+        public void IsPackageInstalled_NeverThrows()
+        {
+            // Reset cache so the assembly scan actually runs.
+            HotReloadDetector._cachedPackageInstalled = null;
+            RegisterCleanup(() => HotReloadDetector._cachedPackageInstalled = null);
+            // Dynamic/emit assemblies can throw on GetName(); this must not propagate.
+            Assert.DoesNotThrow(() => HotReloadDetector.IsPackageInstalled());
+        }
     }
 }

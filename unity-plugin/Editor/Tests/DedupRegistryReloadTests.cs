@@ -79,6 +79,17 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(0, registry.Count);
         }
 
+        // ── Corrupted SessionState ────────────────────────────────────────────
+
+        [Test]
+        public void DedupRegistry_Load_CorruptedSessionState_DoesNotThrow()
+        {
+            SessionState.SetString(DedupRegistry.SessionKey, "garbage\nhalf:abcNaN\n:ts\n");
+            var registry = new DedupRegistry();
+            Assert.DoesNotThrow(() => registry.Load());
+            // corrupted lines skipped — registry is empty or partially populated (no crash)
+        }
+
         // ── CommandRouter integration ─────────────────────────────────────────
 
         [Test]
