@@ -70,7 +70,7 @@ class MiddlewareGuardsMixin:
         if not prop.endswith("Reference"):
             return None
         value = args.get("value", "")
-        if not value or value == "null" or value.startswith("#"):
+        if not value or value == "null" or value.startswith("#") or value.startswith("&"):
             return None
         if value not in self._clean_paths:
             return f"⚠ TAINT WARNING: '{value}' was never read. Consider get_hierarchy first."

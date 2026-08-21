@@ -49,7 +49,7 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "path":      "Scene path to the GameObject (e.g. /Player/Body)",
         "component": "Component type (empty string = Transform)",
         "prop":      "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')",
-        "value":     "New value. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), $hexId (e.g. $3E8) or #instanceID (legacy decimal), or 'null'",
+        "value":     "New value. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'",
         "dry_run":   "Show what would change without applying (safe preview)",
         "find_type": "Component type — bulk-sets prop on ALL scene objects with this component (no path needed)",
     },

@@ -12,7 +12,7 @@ from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._common import _guard_read_only, bind
 
-_OBJECT_REF = r'(?:&[0-9A-Za-z]+|#[^\s]+)'
+_OBJECT_REF = r'(?:&[0-9A-Za-z]+|#[^\s]+|\$[0-9A-Fa-f]+)'
 _RE_SLOT = re.compile(rf'slot_\d+\s+\[\]\s+{_OBJECT_REF}')
 _RE_POINT = re.compile(rf'point_\d+\s+\[\]\s+{_OBJECT_REF}')
 _RE_MESH = re.compile(rf'\[MeshFilter,MeshRenderer\]\s+{_OBJECT_REF}')
