@@ -1128,6 +1128,322 @@ namespace UnityMCP.Editor.Tests
             StringAssert.DoesNotContain("INFRASTRUCTURE_ERROR", json);
         }
 
+        // ── TryFinalizeCore_RestoreFails ──
+
+        [Test]
+        public void TryFinalizeCore_RestoreFails_WritesActivePointerAfterTermination()
+        {
+            const string runId = "run-restore-fail-pointer";
+            WriteFinalizingRun(runId, "mcp");
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+            _environment.RestoreError = new InvalidOperationException("disk full");
+
+            CreateFinalizer().TryFinalize(runId);
+
+            var run = _store.ReadRun(runId);
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Terminal, run.lifecycle);
+            Assert.AreEqual(TestRunProtocol.RunOutcome.Invalid, run.outcome);
+            Assert.AreEqual(runId, _store.ReadActive().run_id,
+                "Active pointer must reference the failed run after restore failure.");
+        }
+
+        [Test]
+        public void TryFinalizeCore_RestoreFails_AppendInfrastructureOnceDeduplicatesExistingMessage()
+        {
+            const string runId = "run-restore-dedup";
+            WriteFinalizingRun(runId, "mcp");
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+            _environment.RestoreError = new InvalidOperationException("injected error");
+            const string expectedMsg = "scene restoration failed: injected error";
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_id = Guid.NewGuid().ToString("N"),
+                event_type = TestRunProtocol.EventType.InfrastructureError,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                message = expectedMsg
+            });
+
+            CreateFinalizer().TryFinalize(runId);
+
+            var count = _store.ReadJournal(runId).events.Count(e =>
+                e != null &&
+                e.event_type == TestRunProtocol.EventType.InfrastructureError &&
+                e.message == expectedMsg);
+            Assert.AreEqual(1, count,
+                "AppendInfrastructureOnce must not append a duplicate of an existing message.");
+        }
+
+        // ── TryFinalizeCore_AlreadyTerminal ──
+
+        [Test]
+        public void TryFinalizeCore_AlreadyTerminalRun_ReturnsTrueWithoutCallingRestore()
+        {
+            const string runId = "run-already-terminal-norestore";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                lifecycle = TestRunProtocol.Lifecycle.Terminal,
+                outcome = TestRunProtocol.RunOutcome.Passed,
+                finished_utc = Utc,
+                created_utc = Utc
+            });
+
+            var result = CreateFinalizer().TryFinalize(runId);
+
+            Assert.IsTrue(result);
+            Assert.AreEqual(0, _environment.RestoreCalls);
+        }
+
+        [Test]
+        public void TryFinalizeCore_AlreadyTerminalRun_RepairsActivePointerWhenRunIdMatchesActive()
+        {
+            const string runId = "run-terminal-pointer-repair";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                lifecycle = TestRunProtocol.Lifecycle.Terminal,
+                outcome = TestRunProtocol.RunOutcome.Passed,
+                finished_utc = Utc,
+                created_utc = Utc
+            });
+            _store.WriteActive(new TestRunPointer
+            {
+                run_id = runId,
+                updated_utc = "2020-01-01T00:00:00Z"
+            });
+
+            CreateFinalizer().TryFinalize(runId);
+
+            Assert.AreEqual(Utc, _store.ReadActive().updated_utc,
+                "Active pointer updated_utc must be repaired from run.finished_utc.");
+        }
+
+        [Test]
+        public void TryFinalizeCore_TerminalizeRequest_WritesTerminalStateToLinkedRequest()
+        {
+            var service = CreateService();
+            service.Start("request-terminalize-test", "EditMode", null, null);
+            var runId = _store.ReadRequest("request-terminalize-test").run_id;
+            var run = _store.ReadRun(runId);
+            run.lifecycle = TestRunProtocol.Lifecycle.Terminal;
+            run.finished_utc = Utc;
+            _store.WriteRun(run);
+
+            CreateFinalizer().TryFinalize(runId);
+
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Terminal,
+                _store.ReadRequest("request-terminalize-test").state,
+                "TerminalizeRequest must set the linked request state to terminal.");
+        }
+
+        // ── TryFinalizeCore_SuccessfulFinalization ──
+
+        [Test]
+        public void TryFinalizeCore_SuccessfulFinalization_AppendsRunFinalizedAndTerminates()
+        {
+            const string runId = "run-success-final";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed);
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+
+            var completed = CreateFinalizer().TryFinalize(runId);
+
+            Assert.IsTrue(completed);
+            var run = _store.ReadRun(runId);
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Terminal, run.lifecycle);
+            Assert.AreEqual(TestRunProtocol.Health.Healthy, run.health);
+            Assert.IsTrue(_store.ReadJournal(runId).events.Any(e =>
+                e != null && e.event_type == TestRunProtocol.EventType.RunFinalized));
+            Assert.IsTrue(_store.Reconcile(runId).is_terminal);
+            Assert.AreEqual(1, _environment.RestoreCalls);
+        }
+
+        [Test]
+        public void TryFinalizeCore_NoExecutionBoundary_AppendsAbandonedEvent()
+        {
+            const string runId = "run-no-boundary";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                source = "mcp",
+                lifecycle = TestRunProtocol.Lifecycle.Finalizing,
+                created_utc = Utc,
+                build_coherent = true
+            });
+            _store.WriteActive(new TestRunPointer { run_id = runId, updated_utc = Utc });
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+
+            CreateFinalizer().TryFinalize(runId);
+
+            Assert.IsTrue(_store.ReadJournal(runId).events.Any(e =>
+                e != null && e.event_type == TestRunProtocol.EventType.Abandoned),
+                "Abandoned event must be appended when no execution boundary exists.");
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Terminal,
+                _store.ReadRun(runId).lifecycle);
+        }
+
+        [Test]
+        public void TryFinalizeCore_EditorQuitting_WithExecutionBoundary_SkipsActivityProbe()
+        {
+            const string runId = "run-quitting-boundary";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed);
+            _framework.AnyActivity = UtfRunActivity.Active;
+            _framework.Activity = UtfRunActivity.Active;
+
+            Assert.IsFalse(CreateFinalizer().TryFinalize(runId),
+                "Active framework must block normal finalization.");
+            Assert.IsTrue(CreateFinalizer().TryFinalizeForEditorShutdown(runId),
+                "EditorShutdown must bypass activity probe when execution boundary exists.");
+
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Terminal,
+                _store.ReadRun(runId).lifecycle);
+        }
+
+        // ── SelectTerminalOutcome via TryFinalize observable outcomes ──
+
+        [Test]
+        public void SelectTerminalOutcome_NoFinalizedEventInJournal_UsesDerivedOutcomeFromSummary()
+        {
+            const string runId = "run-select-derived";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Failed);
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+
+            CreateFinalizer().TryFinalize(runId);
+
+            Assert.AreEqual(TestRunProtocol.RunOutcome.Failed,
+                _store.ReadRun(runId).outcome,
+                "With no RunFinalized event, outcome must be derived from the reconciled summary.");
+        }
+
+        [Test]
+        public void SelectTerminalOutcome_SingleFinalizedEventAgreeingWithDerived_AcceptsItsOutcome()
+        {
+            const string runId = "run-select-single-finalized";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed);
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_id = Guid.NewGuid().ToString("N"),
+                event_type = TestRunProtocol.EventType.RunFinalized,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                outcome = TestRunProtocol.RunOutcome.Passed
+            });
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+
+            CreateFinalizer().TryFinalize(runId);
+
+            Assert.AreEqual(TestRunProtocol.RunOutcome.Passed, _store.ReadRun(runId).outcome);
+        }
+
+        [Test]
+        public void SelectTerminalOutcome_TwoConflictingFinalizedEvents_ReturnsInvalid()
+        {
+            const string runId = "run-select-conflict";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed);
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_id = Guid.NewGuid().ToString("N"),
+                event_type = TestRunProtocol.EventType.RunFinalized,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                outcome = TestRunProtocol.RunOutcome.Passed
+            });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_id = Guid.NewGuid().ToString("N"),
+                event_type = TestRunProtocol.EventType.RunFinalized,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                outcome = TestRunProtocol.RunOutcome.Failed
+            });
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+
+            CreateFinalizer().TryFinalize(runId);
+
+            Assert.AreEqual(TestRunProtocol.RunOutcome.Invalid, _store.ReadRun(runId).outcome,
+                "Conflicting RunFinalized events must produce invalid outcome.");
+        }
+
+        [Test]
+        public void SelectTerminalOutcome_NonTerminalLegacyOutcomeInRunRecord_ReturnsInvalid()
+        {
+            const string runId = "run-select-nonterminal-legacy";
+            WriteFinalizingRun(runId, "mcp",
+                provisionalOutcome: "running",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed);
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+
+            CreateFinalizer().TryFinalize(runId);
+
+            Assert.AreEqual(TestRunProtocol.RunOutcome.Invalid, _store.ReadRun(runId).outcome,
+                "Non-terminal legacy run.outcome must be rejected and produce invalid.");
+        }
+
+        [Test]
+        public void SelectTerminalOutcome_MorePessimistic_FailedOverPassed()
+        {
+            const string runId = "run-select-pessimistic";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed);
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_id = Guid.NewGuid().ToString("N"),
+                event_type = TestRunProtocol.EventType.RunFinalized,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                outcome = TestRunProtocol.RunOutcome.Failed
+            });
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+
+            CreateFinalizer().TryFinalize(runId);
+
+            Assert.AreEqual(TestRunProtocol.RunOutcome.Failed, _store.ReadRun(runId).outcome,
+                "MorePessimistic must prefer 'failed' (rank 2) over 'passed' (rank 1).");
+        }
+
+        [Test]
+        public void SelectTerminalOutcome_InvalidOutcomeIsMostPessimistic()
+        {
+            const string runId = "run-select-invalid-highest";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed);
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_id = Guid.NewGuid().ToString("N"),
+                event_type = TestRunProtocol.EventType.RunFinalized,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                outcome = TestRunProtocol.RunOutcome.Invalid
+            });
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+
+            CreateFinalizer().TryFinalize(runId);
+
+            Assert.AreEqual(TestRunProtocol.RunOutcome.Invalid, _store.ReadRun(runId).outcome,
+                "'invalid' has the highest rank and must override any other outcome.");
+        }
+
         private TestRunService CreateService(
             TestRunBuildFingerprint build = null,
             Action<string> afterDurableBoundary = null) =>
