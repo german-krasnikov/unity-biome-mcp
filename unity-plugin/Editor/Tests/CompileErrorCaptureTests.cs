@@ -86,5 +86,94 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("CS0001", result);
             StringAssert.Contains("CS0002", result);
         }
+
+        // Task5 #MaxErrors: InjectForTest caps at 50 — 51st error must not appear
+        [Test]
+        public void InjectForTest_CapsAt50_51stErrorNotIncluded()
+        {
+            for (int i = 0; i < 51; i++)
+                CompileErrorCapture.InjectForTest($"File{i}.cs:1:1: error CS{i:D4}: msg{i}");
+
+            var result = CompileErrorCapture.GetErrors();
+
+            StringAssert.Contains("50 compilation error(s)", result,
+                "header must report exactly 50 errors (cap enforced)");
+            StringAssert.DoesNotContain("msg50", result,
+                "51st injected error must not appear in output");
+        }
+
+        // Task6 #HasErrors_1: HasErrors returns false when clean
+        [Test]
+        public void HasErrors_ReturnsFalse_WhenClean()
+        {
+            Assert.IsFalse(CompileErrorCapture.HasErrors());
+        }
+
+        // Task6 #HasErrors_2: HasErrors returns true after inject
+        [Test]
+        public void HasErrors_ReturnsTrue_AfterInject()
+        {
+            CompileErrorCapture.InjectForTest("Foo.cs:1:1: error CS0001: boom");
+            Assert.IsTrue(CompileErrorCapture.HasErrors());
+        }
+
+        // Task6 #HasErrors_3: HasErrors returns false after Clear
+        [Test]
+        public void HasErrors_ReturnsFalse_AfterClear()
+        {
+            CompileErrorCapture.InjectForTest("Bar.cs:1:1: error CS0002: x");
+            CompileErrorCapture.Clear();
+            Assert.IsFalse(CompileErrorCapture.HasErrors());
+        }
+
+        // Task6 #HasErrors_4: SessionState sentinel "No compilation errors" → HasErrors false
+        [Test]
+        public void HasErrors_WithSessionSentinelValue_ReturnsFalse()
+        {
+            // Write the sentinel directly — simulates a post-clear state where the key exists
+            // but holds the sentinel string. HasErrors must treat this as "no errors".
+            UnityEditor.SessionState.SetString("MCP_CompileErrors", "No compilation errors");
+
+            Assert.IsFalse(CompileErrorCapture.HasErrors(),
+                "sentinel value 'No compilation errors' must not be treated as an error");
+            // TearDown's Clear() will erase the key
+        }
+
+        // Task6 #HasErrors_5: GetErrors returns sentinel string when state is empty
+        [Test]
+        public void GetErrors_EmptyState_ReturnsCleanMessage()
+        {
+            var result = CompileErrorCapture.GetErrors();
+            Assert.AreEqual("No compilation errors", result);
+        }
+
+        // Task7 #AsmFallback_1: SessionState pre-populated for assembly → GetErrorsForAssembly returns it
+        [Test]
+        public void GetErrorsForAssembly_FallsBackToSessionState_WhenInMemoryEmpty()
+        {
+            const string asmKey  = "MCP_CompileErrors_FallbackAsm";
+            const string asmPath = "Library/ScriptAssemblies/FallbackAsm.dll";
+            const string payload = "2 compilation error(s):\nFoo.cs:1:0: error CS0001: a\nBar.cs:2:0: error CS0002: b";
+            UnityEditor.SessionState.SetString(asmKey, payload);
+            try
+            {
+                var result = CompileErrorCapture.GetErrorsForAssembly(asmPath);
+                StringAssert.Contains("2 compilation error(s)", result,
+                    "must return SessionState-persisted errors when in-memory map is empty");
+            }
+            finally
+            {
+                UnityEditor.SessionState.EraseString(asmKey);
+            }
+        }
+
+        // Task7 #AsmFallback_2: no SessionState entry for assembly → returns clean message
+        [Test]
+        public void GetErrorsForAssembly_NoSessionStateEntry_ReturnsCleanMessage()
+        {
+            UnityEditor.SessionState.EraseString("MCP_CompileErrors_NoSuchAsm");
+            var result = CompileErrorCapture.GetErrorsForAssembly("Library/ScriptAssemblies/NoSuchAsm.dll");
+            Assert.AreEqual("No compilation errors", result);
+        }
     }
 }

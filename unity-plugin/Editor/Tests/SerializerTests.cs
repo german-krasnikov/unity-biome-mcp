@@ -8,6 +8,8 @@
 //   TimelineSerializer.Serialize            — requires PlayableDirector bound to TimelineAsset
 
 using System;
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEditor.Animations;
@@ -27,19 +29,9 @@ namespace UnityMCP.Editor.Tests
     public class AnimationSerializerTests : SceneTestBase
     {
         private GameObject _go;
-        private readonly System.Collections.Generic.List<UnityEngine.Object> _assets = new();
 
         [SetUp]
-        public void SetUp() => _go = new GameObject("AnimSerTest");
-
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var a in _assets)
-                if (a != null) UnityEngine.Object.DestroyImmediate(a);
-            _assets.Clear();
-            UnityEngine.Object.DestroyImmediate(_go);
-        }
+        public void SetUp() => _go = TrackOwnedObject(new GameObject("AnimSerTest"));
 
         [Test]
         public void GetAllClips_NoAnimatorNoAnimation_ReturnsNull()
@@ -51,8 +43,7 @@ namespace UnityMCP.Editor.Tests
         public void GetAllClips_LegacyAnimationWithClip_ReturnsClipArray()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "TestClip", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "TestClip", legacy = true });
             anim.AddClip(clip, clip.name);
 
             var result = AnimationSerializer.GetAllClips(_go);
@@ -74,8 +65,7 @@ namespace UnityMCP.Editor.Tests
         public void FindClip_MatchingName_ReturnsClip()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "Walk", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "Walk", legacy = true });
             anim.AddClip(clip, clip.name);
 
             var result = AnimationSerializer.FindClip(_go, "Walk");
@@ -88,8 +78,7 @@ namespace UnityMCP.Editor.Tests
         public void FindClip_WrongName_ReturnsNull()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "Walk", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "Walk", legacy = true });
             anim.AddClip(clip, clip.name);
 
             Assert.IsNull(AnimationSerializer.FindClip(_go, "Run"));
@@ -109,8 +98,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_WithClip_ContainsClipNameAndCurves()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "Jump", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "Jump", legacy = true });
             // Add one curve so binding count is 1
             var curve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
             AnimationUtility.SetEditorCurve(clip,
@@ -127,8 +115,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_ContainsClipNameAndLength()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "Idle", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "Idle", legacy = true });
             var curve = AnimationCurve.Linear(0f, 0f, 2f, 1f);
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("", typeof(Transform), "m_LocalPosition.y"), curve);
@@ -145,8 +132,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_CurveHeaderPresent()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T1", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T1", legacy = true });
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("", typeof(Transform), "m_LocalPosition.x"),
                 AnimationCurve.Linear(0f, 0f, 1f, 1f));
@@ -161,8 +147,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_KeyframesOnePerLine_NoAtSign()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T2", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T2", legacy = true });
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("", typeof(Transform), "m_LocalPosition.x"),
                 AnimationCurve.Linear(0f, 0f, 1f, 1f));
@@ -179,8 +164,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_ChildPathInCurveHeader()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T3", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T3", legacy = true });
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("Head/Jaw", typeof(Transform), "m_LocalPosition.x"),
                 AnimationCurve.Linear(0f, 0f, 1f, 1f));
@@ -198,8 +182,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_BindingSortDeterministic()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T4", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T4", legacy = true });
             var curve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("", typeof(Transform), "m_LocalPosition.z"), curve);
@@ -220,8 +203,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_FiftyKeyCapWithTruncation()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T5", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T5", legacy = true });
             var keys = new Keyframe[51];
             for (int i = 0; i < 51; i++) keys[i] = new Keyframe(i * 0.02f, i);
             AnimationUtility.SetEditorCurve(clip,
@@ -239,8 +221,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_EmptyClip_NoCurveBlock()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T6", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T6", legacy = true });
             anim.AddClip(clip, clip.name);
 
             var result = AnimationSerializer.Serialize("/" + _go.name, "T6", null);
@@ -254,8 +235,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_PropertyAlias_EmittedAndUsed()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T7", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T7", legacy = true });
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("", typeof(Transform), "m_LocalPosition.x"),
                 AnimationCurve.Linear(0f, 0f, 1f, 1f));
@@ -272,8 +252,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_PathAlias_WhenUsedTwice()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T8", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T8", legacy = true });
             var curve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("Spine/Head", typeof(Transform), "m_LocalPosition.x"), curve);
@@ -292,8 +271,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_PathAlias_SingleUse_NoAlias()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T9", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T9", legacy = true });
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("Spine/Head", typeof(Transform), "m_LocalPosition.x"),
                 AnimationCurve.Linear(0f, 0f, 1f, 1f));
@@ -309,8 +287,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_PathAliasCollision_ParentSegmentPrepended()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T10", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T10", legacy = true });
             var curve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("Jaw/Head", typeof(Transform), "m_LocalPosition.x"), curve);
@@ -334,13 +311,11 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_PPtrCurve_RefPrefixAndObjectName()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T11", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T11", legacy = true });
 
-            var mat = new Material(Shader.Find("Hidden/InternalErrorShader")
-                                   ?? Shader.Find("Standard"));
+            var mat = TrackOwnedObject(new Material(Shader.Find("Hidden/InternalErrorShader")
+                                   ?? Shader.Find("Standard")));
             mat.name = "IdleFrame0";
-            _assets.Add(mat);
 
             var ptrBinding = EditorCurveBinding.PPtrCurve("", typeof(SpriteRenderer), "m_Sprite");
             AnimationUtility.SetObjectReferenceCurve(clip, ptrBinding,
@@ -357,8 +332,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_PPtrCurve_NullValue()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T12", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T12", legacy = true });
 
             var ptrBinding = EditorCurveBinding.PPtrCurve("", typeof(SpriteRenderer), "m_Sprite");
             AnimationUtility.SetObjectReferenceCurve(clip, ptrBinding,
@@ -375,8 +349,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_Header_ShowsCurvesAndRefs()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T13", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T13", legacy = true });
 
             var curve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
             AnimationUtility.SetEditorCurve(clip,
@@ -401,8 +374,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_MixedClip_AllFeaturesPresent()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "T14", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "T14", legacy = true });
             var curve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
 
             AnimationUtility.SetEditorCurve(clip,
@@ -410,9 +382,8 @@ namespace UnityMCP.Editor.Tests
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("Spine/Head", typeof(Transform), "m_LocalPosition.y"), curve);
 
-            var mat = new Material(Shader.Find("Hidden/InternalErrorShader")
-                                   ?? Shader.Find("Standard")) { name = "Frame0" };
-            _assets.Add(mat);
+            var mat = TrackOwnedObject(new Material(Shader.Find("Hidden/InternalErrorShader")
+                                   ?? Shader.Find("Standard")) { name = "Frame0" });
             AnimationUtility.SetObjectReferenceCurve(clip,
                 EditorCurveBinding.PPtrCurve("Spine/Head", typeof(SpriteRenderer), "m_Sprite"),
                 new[] { new ObjectReferenceKeyframe { time = 0f, value = mat } });
@@ -435,8 +406,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_100Keyframes_TruncatesAt50()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "Long", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "Long", legacy = true });
             var keys = new Keyframe[100];
             for (int i = 0; i < 100; i++) keys[i] = new Keyframe(i * 0.033f, i);
             AnimationUtility.SetEditorCurve(clip,
@@ -457,8 +427,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_SamePathMultipleCurves_OnlyOnePathVAL()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "Pos", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "Pos", legacy = true });
             var curve = AnimationCurve.Linear(0f, 0f, 1f, 1f);
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("Head", typeof(Transform), "m_LocalPosition.x"), curve);
@@ -479,8 +448,7 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_ClipDetail_UnknownProperty_RawNameInCurveHeader()
         {
             var anim = _go.AddComponent<Animation>();
-            var clip = new AnimationClip { name = "Custom", legacy = true };
-            _assets.Add(clip);
+            var clip = TrackOwnedObject(new AnimationClip { name = "Custom", legacy = true });
             AnimationUtility.SetEditorCurve(clip,
                 EditorCurveBinding.FloatCurve("", typeof(Transform), "m_SomeCustomProp"),
                 AnimationCurve.Constant(0f, 1f, 0f));
@@ -504,12 +472,9 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
-            _go = new GameObject("PSTest");
+            _go = TrackOwnedObject(new GameObject("PSTest"));
             _go.AddComponent<ParticleSystem>();
         }
-
-        [TearDown]
-        public void TearDown() => UnityEngine.Object.DestroyImmediate(_go);
 
         private string Path => "/" + _go.name;
 
@@ -611,7 +576,7 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
-            _go = new GameObject("ShaderTest");
+            _go = TrackOwnedObject(new GameObject("ShaderTest"));
             var renderer = _go.AddComponent<MeshRenderer>();
             // Prefer URP Lit; fall back to Standard or Unlit
             var shader = Shader.Find("Universal Render Pipeline/Lit")
@@ -619,16 +584,9 @@ namespace UnityMCP.Editor.Tests
                          ?? Shader.Find("Unlit/Color");
             if (shader != null)
             {
-                _mat = new Material(shader);
+                _mat = TrackOwnedObject(new Material(shader));
                 renderer.sharedMaterial = _mat;
             }
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            UnityEngine.Object.DestroyImmediate(_go);
-            if (_mat != null) UnityEngine.Object.DestroyImmediate(_mat);
         }
 
         private string Path => "/" + _go.name;
@@ -673,16 +631,9 @@ namespace UnityMCP.Editor.Tests
         public void Serialize_NoRenderer_ThrowsInvalidOperation()
         {
             // Use a GO with no renderer
-            var plain = new GameObject("PlainGO");
-            try
-            {
-                Assert.Throws<InvalidOperationException>(
-                    () => ShaderSerializer.Serialize("/PlainGO", "material"));
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(plain);
-            }
+            var plain = TrackOwnedObject(new GameObject("PlainGO"));
+            Assert.Throws<InvalidOperationException>(
+                () => ShaderSerializer.Serialize("/PlainGO", "material"));
         }
 
         [Test]
@@ -935,21 +886,14 @@ namespace UnityMCP.Editor.Tests
         public void BoundTrack_UsesArrowSyntax()
         {
             var track = _timeline.CreateTrack<UnityEngine.Timeline.AnimationTrack>(null, "Cam");
-            var dirGo = new GameObject("BindingTestDirector");
-            try
-            {
-                var director = dirGo.AddComponent<PlayableDirector>();
-                director.playableAsset = _timeline;
-                director.SetGenericBinding(track, dirGo);
-                var result = TimelineSerializer.Serialize("/BindingTestDirector", null);
-                StringAssert.Contains("→ /BindingTestDirector", result);
-                StringAssert.DoesNotContain("bound:", result);
-                StringAssert.DoesNotContain("unbound", result);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(dirGo);
-            }
+            var dirGo = TrackOwnedObject(new GameObject("BindingTestDirector"));
+            var director = dirGo.AddComponent<PlayableDirector>();
+            director.playableAsset = _timeline;
+            director.SetGenericBinding(track, dirGo);
+            var result = TimelineSerializer.Serialize("/BindingTestDirector", null);
+            StringAssert.Contains("→ /BindingTestDirector", result);
+            StringAssert.DoesNotContain("bound:", result);
+            StringAssert.DoesNotContain("unbound", result);
         }
 
         [Test]
@@ -1054,6 +998,33 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(AnimatorConditionMode.If, result.mode);
             Assert.AreEqual("Jump", result.parameter);
         }
+
+        [Test]
+        public void ParseCondition_BoolTrueUpperCase_CaseInsensitive_ReturnsIf()
+        {
+            var result = AnimatorControllerHelper.ParseCondition("Grounded==TRUE", _ctrl);
+            Assert.AreEqual(AnimatorConditionMode.If, result.mode);
+            Assert.AreEqual("Grounded", result.parameter);
+            Assert.AreEqual(0f, result.threshold, 0.0001f);
+        }
+
+        [Test]
+        public void ParseCondition_BoolFalseMixedCase_CaseInsensitive_ReturnsIfNot()
+        {
+            var result = AnimatorControllerHelper.ParseCondition("IsActive==False", _ctrl);
+            Assert.AreEqual(AnimatorConditionMode.IfNot, result.mode);
+            Assert.AreEqual("IsActive", result.parameter);
+            Assert.AreEqual(0f, result.threshold, 0.0001f);
+        }
+
+        [Test]
+        public void ParseCondition_DoubleEqualNumeric_ReturnsEquals()
+        {
+            var result = AnimatorControllerHelper.ParseCondition("State==2", _ctrl);
+            Assert.AreEqual(AnimatorConditionMode.Equals, result.mode);
+            Assert.AreEqual("State", result.parameter);
+            Assert.AreEqual(2f, result.threshold, 0.0001f);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -1120,17 +1091,13 @@ namespace UnityMCP.Editor.Tests
         {
             var sm = _ctrl.layers[0].stateMachine;
             sm.AddState("Idle");
-            var mask = new AvatarMask { name = "BodyMask" };
+            var mask = TrackOwnedObject(new AvatarMask { name = "BodyMask" });
             var layers = _ctrl.layers;
             layers[0].avatarMask = mask;
             _ctrl.layers = layers;
 
-            try
-            {
-                var result = AnimatorControllerSerializer.Serialize(CtrlPath, null);
-                StringAssert.Contains("mask:BodyMask", result);
-            }
-            finally { UnityEngine.Object.DestroyImmediate(mask); }
+            var result = AnimatorControllerSerializer.Serialize(CtrlPath, null);
+            StringAssert.Contains("mask:BodyMask", result);
         }
 
         // T02: mask: absent when no AvatarMask
@@ -1247,24 +1214,16 @@ namespace UnityMCP.Editor.Tests
             sm0.AddState("Walk");
             sm1.AddState("Shoot");
 
-            var maskA = new AvatarMask { name = "LowerBody" };
-            var maskB = new AvatarMask { name = "UpperBodyMask" };
+            var maskA = TrackOwnedObject(new AvatarMask { name = "LowerBody" });
+            var maskB = TrackOwnedObject(new AvatarMask { name = "UpperBodyMask" });
             var layers = _ctrl.layers;
             layers[0].avatarMask = maskA;
             layers[1].avatarMask = maskB;
             _ctrl.layers = layers;
 
-            try
-            {
-                var result = AnimatorControllerSerializer.Serialize(CtrlPath, null);
-                StringAssert.Contains("mask:LowerBody", result);
-                StringAssert.Contains("mask:UpperBodyMask", result);
-            }
-            finally
-            {
-                UnityEngine.Object.DestroyImmediate(maskA);
-                UnityEngine.Object.DestroyImmediate(maskB);
-            }
+            var result = AnimatorControllerSerializer.Serialize(CtrlPath, null);
+            StringAssert.Contains("mask:LowerBody", result);
+            StringAssert.Contains("mask:UpperBodyMask", result);
         }
 
         // T11: state with tag + !wdv + speedParam — all three tokens on same line
@@ -1321,5 +1280,116 @@ namespace UnityMCP.Editor.Tests
 
             StringAssert.Contains("4 states", header);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AnimatorControllerHelper — ParseBlendType (private, via reflection)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [TestFixture]
+    public class AnimatorControllerHelperParseBlendTypeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    {
+        private static readonly MethodInfo ParseBlendTypeMethod =
+            typeof(AnimatorControllerHelper).GetMethod(
+                "ParseBlendType", BindingFlags.NonPublic | BindingFlags.Static);
+
+        private static BlendTreeType Invoke(string input)
+        {
+            try
+            {
+                return (BlendTreeType)ParseBlendTypeMethod.Invoke(null, new object[] { input });
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                return default; // unreachable
+            }
+        }
+
+        [Test]
+        public void ParseBlendType_1d_ReturnsSimple1D()
+            => Assert.AreEqual(BlendTreeType.Simple1D, Invoke("1d"));
+
+        [Test]
+        public void ParseBlendType_Simple1d_ReturnsSimple1D()
+            => Assert.AreEqual(BlendTreeType.Simple1D, Invoke("simple1d"));
+
+        [Test]
+        public void ParseBlendType_2dSimple_ReturnsSimpleDirectional2D()
+            => Assert.AreEqual(BlendTreeType.SimpleDirectional2D, Invoke("2d_simple"));
+
+        [Test]
+        public void ParseBlendType_2dFreeform_ReturnsFreeformDirectional2D()
+            => Assert.AreEqual(BlendTreeType.FreeformDirectional2D, Invoke("2d_freeform"));
+
+        [Test]
+        public void ParseBlendType_2dCartesian_ReturnsFreeformCartesian2D()
+            => Assert.AreEqual(BlendTreeType.FreeformCartesian2D, Invoke("2d_cartesian"));
+
+        [Test]
+        public void ParseBlendType_Direct_ReturnsDirect()
+            => Assert.AreEqual(BlendTreeType.Direct, Invoke("direct"));
+
+        [Test]
+        public void ParseBlendType_Unknown_ThrowsArgumentException()
+            => Assert.Throws<ArgumentException>(() => Invoke("unknown_type"));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // AnimatorControllerHelper — ResolveLayerIndex (private, via reflection)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [TestFixture]
+    public class AnimatorControllerHelperResolveLayerIndexTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    {
+        private AnimatorController _ctrl;
+        private static readonly string CtrlFolder = TestPaths.ForFixture("AnimCtrlResolveLayerTests");
+        private static readonly string CtrlPath = CtrlFolder + "/Tests_AnimCtrlLayers.controller";
+
+        private static readonly MethodInfo ResolveLayerIndexMethod =
+            typeof(AnimatorControllerHelper).GetMethod(
+                "ResolveLayerIndex", BindingFlags.NonPublic | BindingFlags.Static);
+
+        [SetUp]
+        public void SetUp()
+        {
+            TrackOwnedAsset(CtrlFolder);
+            TestPaths.EnsureFolder(CtrlFolder);
+            _ctrl = AnimatorController.CreateAnimatorControllerAtPath(CtrlPath);
+            _ctrl.AddLayer("Action Layer");
+        }
+
+        private int Invoke(string layer)
+        {
+            try
+            {
+                return (int)ResolveLayerIndexMethod.Invoke(null, new object[] { _ctrl, layer });
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                return default; // unreachable
+            }
+        }
+
+        [Test]
+        public void ResolveLayerIndex_IntegerZero_ReturnsZero()
+            => Assert.AreEqual(0, Invoke("0"));
+
+        [Test]
+        public void ResolveLayerIndex_IntegerOne_ReturnsOne()
+            => Assert.AreEqual(1, Invoke("1"));
+
+        [Test]
+        public void ResolveLayerIndex_BaseLayerName_ReturnsZero()
+            => Assert.AreEqual(0, Invoke("Base Layer"));
+
+        [Test]
+        public void ResolveLayerIndex_UnknownName_ThrowsArgumentException()
+            => Assert.Throws<ArgumentException>(() => Invoke("Ghost Layer"));
+
+        [Test]
+        public void ResolveLayerIndex_OutOfRangeIndex_ThrowsArgumentOutOfRangeException()
+            => Assert.Throws<ArgumentOutOfRangeException>(() => Invoke("99"));
     }
 }

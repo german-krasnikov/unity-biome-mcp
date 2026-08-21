@@ -149,5 +149,114 @@ namespace UnityMCP.Editor.Tests
 
             Assert.That(typeName, Does.Contain("AudioSource"));
         }
+
+        // ── WireEvent: additional coverage ───────────────────────────────────
+
+        [Test]
+        public void WireEvent_InvalidEventField_ThrowsArgumentException()
+        {
+            var ex = Assert.Throws<ArgumentException>(() =>
+                ObjectManager.WireEvent(
+                    "/EW_Source", "Button", "nonExistentEventXYZ",
+                    "/EW_Target", "SetActive", "void", null));
+            StringAssert.Contains("nonExistentEventXYZ", ex.Message);
+        }
+
+        [Test]
+        public void WireEvent_InvalidTargetPath_ThrowsArgumentException()
+        {
+            var ex = Assert.Throws<ArgumentException>(() =>
+                ObjectManager.WireEvent(
+                    "/EW_Source", "Button", "onClick",
+                    "/NonExistentPathXYZZY", "SetActive", "void", null));
+            StringAssert.Contains("NonExistentPathXYZZY", ex.Message);
+        }
+
+        [Test]
+        public void WireEvent_ValidWire_PersistentCallAdded()
+        {
+            ObjectManager.WireEvent(
+                "/EW_Source", "Button", "onClick",
+                "/EW_Target", "SetActive", "bool", "true");
+
+            var so = new SerializedObject(_srcGo.GetComponent<UnityEngine.UI.Button>());
+            var calls = so.FindProperty("m_OnClick.m_PersistentCalls.m_Calls");
+            Assert.Greater(calls.arraySize, 0, "Persistent listener must be added after WireEvent");
+        }
+
+        [Test]
+        public void WireEvent_CalledTwice_TwoListenersAdded()
+        {
+            ObjectManager.WireEvent("/EW_Source", "Button", "onClick",
+                "/EW_Target", "SetActive", "bool", "true");
+            ObjectManager.WireEvent("/EW_Source", "Button", "onClick",
+                "/EW_Target", "SetActive", "bool", "false");
+
+            var so = new SerializedObject(_srcGo.GetComponent<UnityEngine.UI.Button>());
+            var calls = so.FindProperty("m_OnClick.m_PersistentCalls.m_Calls");
+            Assert.AreEqual(2, calls.arraySize, "Two WireEvent calls must add two persistent listeners");
+        }
+
+        // ── UnwireEvent: coverage ─────────────────────────────────────────────
+
+        [Test]
+        public void UnwireEvent_RemoveExistingByIndex_CountDecreases()
+        {
+            ObjectManager.WireEvent("/EW_Source", "Button", "onClick",
+                "/EW_Target", "SetActive", "bool", "true");
+
+            ObjectManager.UnwireEvent("/EW_Source", "Button", "onClick", "0");
+
+            var so = new SerializedObject(_srcGo.GetComponent<UnityEngine.UI.Button>());
+            var calls = so.FindProperty("m_OnClick.m_PersistentCalls.m_Calls");
+            Assert.AreEqual(0, calls.arraySize, "Count must be 0 after removing the only listener");
+        }
+
+        [Test]
+        public void UnwireEvent_IndexOutOfRange_ThrowsArgumentException()
+        {
+            // No listeners wired — index 0 is out of range
+            var ex = Assert.Throws<ArgumentException>(() =>
+                ObjectManager.UnwireEvent("/EW_Source", "Button", "onClick", "0"));
+            StringAssert.Contains("out of range", ex.Message);
+        }
+
+        [Test]
+        public void UnwireEvent_NullIndex_ClearsAllListeners()
+        {
+            ObjectManager.WireEvent("/EW_Source", "Button", "onClick",
+                "/EW_Target", "SetActive", "bool", "true");
+            ObjectManager.WireEvent("/EW_Source", "Button", "onClick",
+                "/EW_Target", "SetActive", "bool", "false");
+
+            ObjectManager.UnwireEvent("/EW_Source", "Button", "onClick", null);
+
+            var so = new SerializedObject(_srcGo.GetComponent<UnityEngine.UI.Button>());
+            var calls = so.FindProperty("m_OnClick.m_PersistentCalls.m_Calls");
+            Assert.AreEqual(0, calls.arraySize, "Null index must clear all persistent listeners");
+        }
+
+        [Test]
+        public void UnwireEvent_AfterRemoveOne_CountIsOne()
+        {
+            ObjectManager.WireEvent("/EW_Source", "Button", "onClick",
+                "/EW_Target", "SetActive", "bool", "true");
+            ObjectManager.WireEvent("/EW_Source", "Button", "onClick",
+                "/EW_Target", "SetActive", "bool", "false");
+
+            ObjectManager.UnwireEvent("/EW_Source", "Button", "onClick", "0");
+
+            var so = new SerializedObject(_srcGo.GetComponent<UnityEngine.UI.Button>());
+            var calls = so.FindProperty("m_OnClick.m_PersistentCalls.m_Calls");
+            Assert.AreEqual(1, calls.arraySize, "Exactly 1 listener must remain after removing index 0");
+        }
+
+        [Test]
+        public void UnwireEvent_InvalidEventField_ThrowsArgumentException()
+        {
+            var ex = Assert.Throws<ArgumentException>(() =>
+                ObjectManager.UnwireEvent("/EW_Source", "Button", "nonExistentEventXYZ", null));
+            StringAssert.Contains("nonExistentEventXYZ", ex.Message);
+        }
     }
 }

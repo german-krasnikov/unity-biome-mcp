@@ -266,6 +266,25 @@ ASSERT /Player|name == Player
 
 Bool fields like `activeSelf` don't need `== true` — bare ASSERT is sufficient.
 
+## Bool Value Aliases
+
+When setting or comparing bool values, use common bool spellings — all normalize to Unity's serialized format automatically:
+
+| Input | Normalizes to |
+|-------|---|
+| `true`, `yes`, `on` | `True` |
+| `false`, `no`, `off` | `False` |
+
+Works in `SET_ACTIVE`, `SET`, and all assertions:
+
+```
+SET_ACTIVE /Player true      # or: yes, on
+SET /NPC Enabled enabled no  # sets to False
+ASSERT /Door|Locked == yes   # equivalent to == True
+```
+
+All inputs are case-insensitive (`TRUE`, `Yes`, `OFF` all work).
+
 ## Virtual Fields
 
 Synthetic fields on well-known components:

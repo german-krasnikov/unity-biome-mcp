@@ -1,7 +1,6 @@
 // TDD — ComponentSerializer type branches + Finder + HierarchySerializer format.
 // EditMode tests — run in Unity Test Runner (Window > General > Test Runner > EditMode).
 // All branches covered via real SerializedProperty from built-in Unity components.
-using System.Collections.Generic;
 using System.Globalization;
 using NUnit.Framework;
 using UnityEditor;
@@ -9,28 +8,212 @@ using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
 {
+    [System.Serializable]
+    internal struct CsPoint { public int x; public int y; }
+
+    [System.Serializable]
+    internal struct CsHashId { public string label; public int id; }
+
+    // Helper ScriptableObject for typed serialization tests (no disk asset needed).
+    internal class CsTestData : ScriptableObject
+    {
+        public Vector2 vec2;
+        public Vector4 vec4;
+        public Vector2Int vec2Int;
+        public Vector3Int vec3Int;
+        public Rect rect;
+        public Bounds bounds;
+        public RectInt rectInt;
+        public BoundsInt boundsInt;
+        public string str;
+        public GameObject goRef;
+        public Texture2D texRef;
+        public int[] intArray;
+        public GameObject[] goArray;
+        public CsPoint point;
+        public CsPoint[] pointArray;
+        public CsHashId hashId;
+    }
+
     [TestFixture]
     public class ComponentSerializerGetPropertyValueTests : SceneTestBase
     {
         private GameObject _go;
-        private List<GameObject> _toDestroy = new List<GameObject>();
 
         [SetUp]
-        public void SetUp() => _go = new GameObject("CSerializerTest");
+        public void SetUp() => _go = TrackOwnedObject(new GameObject("CSerializerTest"));
 
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var go in _toDestroy)
-                if (go != null) Object.DestroyImmediate(go);
-            _toDestroy.Clear();
-            Object.DestroyImmediate(_go);
-        }
+        private CsTestData CreateData()
+            => TrackOwnedObject(ScriptableObject.CreateInstance<CsTestData>());
 
         // ── helpers ──────────────────────────────────────────────────────────
 
         private SerializedProperty Prop(Component comp, string name)
             => new SerializedObject(comp).FindProperty(name);
+
+        private SerializedProperty DataProp(CsTestData d, string name)
+        {
+            var so = new SerializedObject(d);
+            so.Update();
+            return so.FindProperty(name);
+        }
+
+        // ── CS-T1: Vector type branches ───────────────────────────────────────
+
+        [Test]
+        public void Vector2_ParenthesisG4Format()
+        {
+            var d = CreateData();
+            d.vec2 = new Vector2(1.5f, 2.75f);
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "vec2"));
+            Assert.AreEqual("(1.5, 2.75)", result);
+        }
+
+        [Test]
+        public void Vector4_FourComponentG4Format()
+        {
+            var d = CreateData();
+            d.vec4 = new Vector4(1f, 2f, 3f, 4f);
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "vec4"));
+            Assert.AreEqual("(1, 2, 3, 4)", result);
+        }
+
+        [Test]
+        public void Vector2Int_IntegerParenthesisFormat()
+        {
+            var d = CreateData();
+            d.vec2Int = new Vector2Int(10, 20);
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "vec2Int"));
+            Assert.AreEqual("(10, 20)", result);
+        }
+
+        [Test]
+        public void Vector3Int_IntegerParenthesisFormat()
+        {
+            var d = CreateData();
+            d.vec3Int = new Vector3Int(1, 2, 3);
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "vec3Int"));
+            Assert.AreEqual("(1, 2, 3)", result);
+        }
+
+        [Test]
+        public void Rect_FourComponentG4Format()
+        {
+            var d = CreateData();
+            d.rect = new Rect(1f, 2f, 3f, 4f);
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "rect"));
+            Assert.AreEqual("(1, 2, 3, 4)", result);
+        }
+
+        [Test]
+        public void Bounds_SixComponentG4Format_CenterThenSize()
+        {
+            var d = CreateData();
+            d.bounds = new Bounds(new Vector3(1f, 2f, 3f), new Vector3(4f, 5f, 6f));
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "bounds"));
+            Assert.AreEqual("(1, 2, 3, 4, 5, 6)", result);
+        }
+
+        [Test]
+        public void RectInt_IntegerParenthesisFormat()
+        {
+            var d = CreateData();
+            d.rectInt = new RectInt(1, 2, 3, 4);
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "rectInt"));
+            Assert.AreEqual("(1, 2, 3, 4)", result);
+        }
+
+        [Test]
+        public void BoundsInt_IntegerParenthesisFormat_PositionThenSize()
+        {
+            var d = CreateData();
+            d.boundsInt = new BoundsInt(new Vector3Int(1, 2, 3), new Vector3Int(4, 5, 6));
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "boundsInt"));
+            Assert.AreEqual("(1, 2, 3, 4, 5, 6)", result);
+        }
+
+        // ── CS-T4: Non-null ObjectReference + RectTransform ───────────────────
+
+        [Test]
+        public void ObjectReference_GameObjectRef_ReturnsPathSpaceHexId()
+        {
+            var d = CreateData();
+            var target = TrackOwnedObject(new GameObject("ObjRefTarget"));
+            d.goRef = target;
+            var prop = DataProp(d, "goRef");
+            var result = ComponentSerializer.GetPropertyValueString(prop);
+            var expectedPath = ComponentSerializer.GetPath(target);
+            StringAssert.StartsWith(expectedPath, result);
+            StringAssert.Contains(TransientObjectId.GetHexRef(target), result);
+        }
+
+        [Test]
+        public void ObjectReference_ComponentRef_ReturnsPathDoubleColonTypeAndHexId()
+        {
+            var target = TrackOwnedObject(new GameObject("CompRefTarget"));
+            var rb = target.AddComponent<Rigidbody>();
+            var joint = _go.AddComponent<FixedJoint>();
+            joint.connectedBody = rb;
+            var so = new SerializedObject(joint);
+            so.Update();
+            var prop = so.FindProperty("m_ConnectedBody");
+            Assert.IsNotNull(prop, "m_ConnectedBody not found on FixedJoint");
+            var result = ComponentSerializer.GetPropertyValueString(prop);
+            StringAssert.Contains("::Rigidbody", result);
+            StringAssert.Contains(TransientObjectId.GetHexRef(rb), result);
+        }
+
+        [Test]
+        public void ObjectReference_NonGoNonComponentAsset_ReturnsNameSpaceHexId()
+        {
+            var d = CreateData();
+            var tex = TrackOwnedObject(new Texture2D(1, 1));
+            tex.name = "TestTex";
+            d.texRef = tex;
+            var prop = DataProp(d, "texRef");
+            var result = ComponentSerializer.GetPropertyValueString(prop);
+            StringAssert.StartsWith("TestTex", result);
+            StringAssert.Contains(TransientObjectId.GetHexRef(tex), result);
+        }
+
+        [Test]
+        public void SerializeComponent_RectTransform_ContainsAllFiveRectFriendlyFields()
+        {
+            var go = TrackOwnedObject(new GameObject("RtTest"));
+            var rt = go.AddComponent<RectTransform>();
+            rt.anchoredPosition = new Vector2(10f, 20f);
+            rt.sizeDelta = new Vector2(100f, 50f);
+            rt.anchorMin = new Vector2(0f, 0f);
+            rt.anchorMax = new Vector2(1f, 1f);
+            rt.pivot = new Vector2(0.5f, 0.5f);
+            var result = ComponentSerializer.Serialize(go, "RectTransform");
+            Assert.IsNotNull(result);
+            StringAssert.Contains("anchoredPosition:", result);
+            StringAssert.Contains("sizeDelta:", result);
+            StringAssert.Contains("anchorMin:", result);
+            StringAssert.Contains("anchorMax:", result);
+            StringAssert.Contains("pivot:", result);
+        }
+
+        // ── CS-T5: String branch and no-fields edge paths ─────────────────────
+
+        [Test]
+        public void String_ReturnsValueAsIs()
+        {
+            var d = CreateData();
+            d.str = "hello world";
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "str"));
+            Assert.AreEqual("hello world", result);
+        }
+
+        [Test]
+        public void SerializeComponent_AudioListener_ReturnsNoSerializedFields()
+        {
+            _go.AddComponent<AudioListener>();
+            var result = ComponentSerializer.Serialize("/" + _go.name, "AudioListener");
+            Assert.IsNotNull(result);
+            Assert.AreEqual("(no serialized fields)", result);
+        }
 
         // ── Integer branch ────────────────────────────────────────────────────
 
@@ -234,8 +417,8 @@ namespace UnityMCP.Editor.Tests
             // Access m_Children array size on Transform (children list)
             var t = _go.transform;
             // Add 2 children
-            var c1 = new GameObject("child1"); c1.transform.SetParent(t); _toDestroy.Add(c1);
-            var c2 = new GameObject("child2"); c2.transform.SetParent(t); _toDestroy.Add(c2);
+            var c1 = TrackOwnedObject(new GameObject("child1")); c1.transform.SetParent(t);
+            var c2 = TrackOwnedObject(new GameObject("child2")); c2.transform.SetParent(t);
 
             var so = new SerializedObject(t);
             var childrenProp = so.FindProperty("m_Children");
@@ -279,6 +462,105 @@ namespace UnityMCP.Editor.Tests
             // Either "(no serialized fields)" or actual fields — must not be null
             Assert.IsNotNull(result);
         }
+
+        // ── CS-T8: Generic array serialization ───────────────────────────────────
+
+        [Test]
+        public void Array_Empty_ReturnsEmptyBrackets()
+        {
+            var d = CreateData();
+            d.intArray = new int[0];
+            var so = new SerializedObject(d);
+            so.Update();
+            var prop = so.FindProperty("intArray");
+            Assert.IsNotNull(prop, "intArray property not found");
+            Assert.AreEqual("[]", ComponentSerializer.GetPropertyValueString(prop));
+        }
+
+        [Test]
+        public void Array_ThreeElements_ReturnsCommaSeparatedInBrackets()
+        {
+            var d = CreateData();
+            d.intArray = new int[] { 10, 20, 30 };
+            var so = new SerializedObject(d);
+            so.Update();
+            var prop = so.FindProperty("intArray");
+            Assert.AreEqual("[10, 20, 30]", ComponentSerializer.GetPropertyValueString(prop));
+        }
+
+        [Test]
+        public void Array_ElevenElements_TruncatesWithEllipsisSuffix()
+        {
+            var d = CreateData();
+            d.intArray = new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 };
+            var so = new SerializedObject(d);
+            so.Update();
+            var prop = so.FindProperty("intArray");
+            var result = ComponentSerializer.GetPropertyValueString(prop);
+            StringAssert.Contains(", ...+1]", result);
+            StringAssert.StartsWith("[1", result);
+        }
+
+        [Test]
+        public void Array_ObjectReference_NullElement_ReturnsNullToken()
+        {
+            var d = CreateData();
+            d.goArray = new GameObject[] { null };
+            var so = new SerializedObject(d);
+            so.Update();
+            var prop = so.FindProperty("goArray");
+            Assert.IsNotNull(prop, "goArray property not found");
+            Assert.AreEqual("[null]", ComponentSerializer.GetPropertyValueString(prop));
+        }
+
+        [Test]
+        public void Array_ObjectReference_ValidGameObject_ContainsPath()
+        {
+            var target = TrackOwnedObject(new GameObject("ArrayRefGO"));
+            var d = CreateData();
+            d.goArray = new GameObject[] { target };
+            var so = new SerializedObject(d);
+            so.Update();
+            var result = ComponentSerializer.GetPropertyValueString(so.FindProperty("goArray"));
+            StringAssert.Contains("ArrayRefGO", result);
+            StringAssert.StartsWith("[", result);
+            StringAssert.EndsWith("]", result);
+        }
+
+        [Test]
+        public void GenericStruct_TwoIntFields_ReturnsInlinedBraces()
+        {
+            var d = CreateData();
+            d.point = new CsPoint { x = 5, y = 10 };
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "point"));
+            Assert.AreEqual("{x=5, y=10}", result);
+        }
+
+        [Test]
+        public void GenericStruct_StringPlusInt_ReturnsPrettyFormat()
+        {
+            var d = CreateData();
+            d.hashId = new CsHashId { label = "hero", id = 42 };
+            var result = ComponentSerializer.GetPropertyValueString(DataProp(d, "hashId"));
+            Assert.AreEqual("hero (42)", result);
+        }
+
+        [Test]
+        public void Array_StructElements_InlinesEachElement()
+        {
+            var d = CreateData();
+            d.pointArray = new CsPoint[]
+            {
+                new CsPoint { x = 1, y = 2 },
+                new CsPoint { x = 3, y = 4 }
+            };
+            var so = new SerializedObject(d);
+            so.Update();
+            var result = ComponentSerializer.GetPropertyValueString(so.FindProperty("pointArray"));
+            StringAssert.Contains("{x=1, y=2}", result);
+            StringAssert.Contains("{x=3, y=4}", result);
+            StringAssert.StartsWith("[", result);
+        }
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -289,19 +571,9 @@ namespace UnityMCP.Editor.Tests
     public class ComponentSerializerFinderTests : SceneTestBase
     {
         private GameObject _go;
-        private List<GameObject> _toDestroy = new List<GameObject>();
 
         [SetUp]
-        public void SetUp() => _go = new GameObject("CSFinderTest");
-
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var go in _toDestroy)
-                if (go != null) Object.DestroyImmediate(go);
-            _toDestroy.Clear();
-            Object.DestroyImmediate(_go);
-        }
+        public void SetUp() => _go = TrackOwnedObject(new GameObject("CSFinderTest"));
 
         // ── StripNamespace ────────────────────────────────────────────────────
 
@@ -365,9 +637,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void GetPath_ChildObject_FullSlashSeparatedPath()
         {
-            var child = new GameObject("CSChild");
+            var child = TrackOwnedObject(new GameObject("CSChild"));
             child.transform.SetParent(_go.transform);
-            _toDestroy.Add(child);
             var result = ComponentSerializer.GetPath(child);
             Assert.AreEqual("/CSFinderTest/CSChild", result);
         }
@@ -375,9 +646,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void GetPath_DeepNested_FullPathReturned()
         {
-            var child = new GameObject("A"); child.transform.SetParent(_go.transform);
+            var child = TrackOwnedObject(new GameObject("A")); child.transform.SetParent(_go.transform);
             var grand = new GameObject("B"); grand.transform.SetParent(child.transform);
-            _toDestroy.Add(child); // grand is destroyed with child
             Assert.AreEqual("/CSFinderTest/A/B", ComponentSerializer.GetPath(grand));
         }
 
@@ -436,10 +706,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void FindRoot_DuplicateNamesInSameScene_ThrowsWithUniqueHints()
         {
-            var a = new GameObject("DupTest");
-            var b = new GameObject("DupTest");
-            _toDestroy.Add(a);
-            _toDestroy.Add(b);
+            var a = TrackOwnedObject(new GameObject("DupTest"));
+            var b = TrackOwnedObject(new GameObject("DupTest"));
 
             var ex = Assert.Throws<System.ArgumentException>(() => ComponentSerializer.FindObject("DupTest"));
             // Message must say "matches" and contain $HEX entity IDs for disambiguation.
@@ -456,11 +724,101 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void NewlyCreatedObject_SerializeTransform_ReturnsNonNull()
         {
-            var go = new GameObject("G9NewObject");
-            RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(go));
+            var go = TrackOwnedObject(new GameObject("G9NewObject"));
 
             var result = ComponentSerializer.Serialize("/G9NewObject", "Transform");
             Assert.IsNotNull(result, "Serialize should succeed for a newly created object without cache refresh");
+        }
+
+        // ── CS-F2: ScenePathParser.Parse ─────────────────────────────────────
+
+        [Test]
+        public void ScenePathParser_Null_SceneNameIsNull()
+            => Assert.IsNull(ScenePathParser.Parse(null).SceneName);
+
+        [Test]
+        public void ScenePathParser_Empty_SceneNameIsNull()
+            => Assert.IsNull(ScenePathParser.Parse("").SceneName);
+
+        [Test]
+        public void ScenePathParser_NoColonSlash_SceneNameIsNull()
+            => Assert.IsNull(ScenePathParser.Parse("Root/Child").SceneName);
+
+        [Test]
+        public void ScenePathParser_SepAtZero_SceneNameIsNull()
+            => Assert.IsNull(ScenePathParser.Parse(":/path").SceneName);
+
+        [Test]
+        public void ScenePathParser_BracketAtStart_SceneNameIsNull()
+            => Assert.IsNull(ScenePathParser.Parse("[Obj/Name]:/path").SceneName);
+
+        [Test]
+        public void ScenePathParser_SceneNameContainsSlash_SceneNameIsNull()
+            => Assert.IsNull(ScenePathParser.Parse("a/b:/child").SceneName);
+
+        [Test]
+        public void ScenePathParser_Valid_ParsesSceneNameAndLocalPath()
+        {
+            var r = ScenePathParser.Parse("MyScene:/Root/Child");
+            Assert.AreEqual("MyScene", r.SceneName);
+            Assert.AreEqual("Root/Child", r.LocalPath);
+        }
+
+        [Test]
+        public void ScenePathParser_DoubleSlash_LocalPathStripsLeadingSlash()
+        {
+            var r = ScenePathParser.Parse("MyScene://Root");
+            Assert.AreEqual("MyScene", r.SceneName);
+            Assert.AreEqual("Root", r.LocalPath);
+        }
+
+        // ── CS-F5: FindComponentByRef + EscapeSegment ────────────────────────
+
+        [Test]
+        public void FindComponentByRef_DollarHexFormat_ResolvesComponent()
+        {
+            var rb = _go.AddComponent<Rigidbody>();
+            var hexRef = TransientObjectId.GetHexRef(rb);
+            var wireRef = $"/CSFinderTest::Rigidbody {hexRef}";
+            var result = ComponentSerializer.FindComponentByRef(wireRef);
+            Assert.AreEqual(rb, result);
+        }
+
+        [Test]
+        public void FindComponentByRef_NoSeparator_ReturnsNull()
+            => Assert.IsNull(ComponentSerializer.FindComponentByRef("path::Transform"));
+
+        [Test]
+        public void FindComponentByRef_InvalidHashId_ReturnsNull()
+            => Assert.IsNull(ComponentSerializer.FindComponentByRef("path::Type #notanumber"));
+
+        [Test]
+        public void SplitPathSegments_BracketProtectsSlash_SingleSegment()
+        {
+            var parts = ComponentSerializer.SplitPathSegments("[Zone/A]");
+            Assert.AreEqual(1, parts.Length);
+            Assert.AreEqual("[Zone/A]", parts[0]);
+        }
+
+        // ── CS-T5: SerializeAll header fields ────────────────────────────────
+
+        [Test]
+        public void SerializeAll_ContainsNameActiveTagLayerHeaders()
+        {
+            var result = ComponentSerializer.SerializeAll(TransientObjectId.GetWireValue(_go));
+            Assert.IsNotNull(result);
+            StringAssert.Contains("name:", result);
+            StringAssert.Contains("active:", result);
+            StringAssert.Contains("tag:", result);
+            StringAssert.Contains("layer:", result);
+        }
+
+        [Test]
+        public void SerializeAll_StaticObject_ContainsStaticTrueLine()
+        {
+            _go.isStatic = true;
+            var result = ComponentSerializer.SerializeAll(TransientObjectId.GetWireValue(_go));
+            StringAssert.Contains("static: true", result);
         }
     }
 
@@ -472,22 +830,12 @@ namespace UnityMCP.Editor.Tests
     public class HierarchySerializerFormatTests : SceneTestBase
     {
         private GameObject _root;
-        private List<GameObject> _toDestroy = new List<GameObject>();
 
         [SetUp]
         public void SetUp()
         {
             HierarchySerializer.ResetIncrementalCache();
-            _root = new GameObject("HSRoot");
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            foreach (var go in _toDestroy)
-                if (go != null) Object.DestroyImmediate(go);
-            _toDestroy.Clear();
-            Object.DestroyImmediate(_root);
+            _root = TrackOwnedObject(new GameObject("HSRoot"));
         }
 
         // ── SerializeSubtree ──────────────────────────────────────────────────
@@ -506,9 +854,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SerializeSubtree_SingleChild_ChildLinePresent()
         {
-            var child = new GameObject("HSChild");
+            var child = TrackOwnedObject(new GameObject("HSChild"));
             child.transform.SetParent(_root.transform);
-            _toDestroy.Add(child);
             var result = HierarchySerializer.SerializeSubtree(_root, depth: 1);
             Assert.IsTrue(result.Contains("HSChild"), $"Child missing: '{result}'");
         }
@@ -516,9 +863,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SerializeSubtree_InactiveChild_BangMarkerPresent()
         {
-            var child = new GameObject("HSInactive");
+            var child = TrackOwnedObject(new GameObject("HSInactive"));
             child.transform.SetParent(_root.transform);
-            _toDestroy.Add(child);
             child.SetActive(false);
             var result = HierarchySerializer.SerializeSubtree(_root, depth: 1);
             Assert.IsTrue(result.Contains(" !"), $"Inactive marker '!' missing: '{result}'");
@@ -527,8 +873,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SerializeSubtree_MultipleChildren_TreeCharsPresent()
         {
-            var c1 = new GameObject("A"); c1.transform.SetParent(_root.transform); _toDestroy.Add(c1);
-            var c2 = new GameObject("B"); c2.transform.SetParent(_root.transform); _toDestroy.Add(c2);
+            var c1 = TrackOwnedObject(new GameObject("A")); c1.transform.SetParent(_root.transform);
+            var c2 = TrackOwnedObject(new GameObject("B")); c2.transform.SetParent(_root.transform);
             var result = HierarchySerializer.SerializeSubtree(_root, depth: 1);
             // Should use ├─ or └─ connectors
             Assert.IsTrue(result.Contains("├─") || result.Contains("└─"),
@@ -538,9 +884,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SerializeSubtree_LastChild_LCornerConnector()
         {
-            var child = new GameObject("OnlyChild");
+            var child = TrackOwnedObject(new GameObject("OnlyChild"));
             child.transform.SetParent(_root.transform);
-            _toDestroy.Add(child);
             var result = HierarchySerializer.SerializeSubtree(_root, depth: 1);
             Assert.IsTrue(result.Contains("└─"), $"└─ missing for last child: '{result}'");
         }
@@ -548,9 +893,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SerializeSubtree_DepthTruncated_PlusDescendantCount()
         {
-            var child = new GameObject("Parent"); child.transform.SetParent(_root.transform);
+            var child = TrackOwnedObject(new GameObject("Parent")); child.transform.SetParent(_root.transform);
             var grand = new GameObject("Grand"); grand.transform.SetParent(child.transform);
-            _toDestroy.Add(child); // grand is destroyed with child
             // depth=0 → child has +1 descendant marker
             var result = HierarchySerializer.SerializeSubtree(_root, depth: 0);
             Assert.IsTrue(result.Contains("+"), $"Descendant count marker missing: '{result}'");
@@ -573,8 +917,7 @@ namespace UnityMCP.Editor.Tests
         public void SerializeIncremental_AfterChange_ReturnsUpdated()
         {
             HierarchySerializer.SerializeIncremental(99, "/" + _root.name, null, false);
-            var child = new GameObject("NewChild"); child.transform.SetParent(_root.transform);
-            _toDestroy.Add(child);
+            var child = TrackOwnedObject(new GameObject("NewChild")); child.transform.SetParent(_root.transform);
             var result = HierarchySerializer.SerializeIncremental(99, "/" + _root.name, null, false);
             Assert.AreNotEqual("NO_CHANGE", result, "Expected updated hierarchy after adding child");
             Assert.IsTrue(result.Contains("NewChild"));
@@ -603,8 +946,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SerializeSummary_WithChildren_ShowsChildCount()
         {
-            var c = new GameObject("C1"); c.transform.SetParent(_root.transform);
-            _toDestroy.Add(c);
+            var c = TrackOwnedObject(new GameObject("C1")); c.transform.SetParent(_root.transform);
             var result = HierarchySerializer.SerializeSummary("/" + _root.name);
             Assert.IsTrue(result.Contains("1"), $"Child count missing: '{result}'");
         }

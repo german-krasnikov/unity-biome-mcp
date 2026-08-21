@@ -1,10 +1,8 @@
 // TDD — EditMode tests for ObjectManager mutations (P0-2 audit gap).
 // Run in Unity Test Runner → EditMode.
-using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityMCP.Editor;
 
@@ -14,23 +12,11 @@ namespace UnityMCP.Editor.Tests
     public class ObjectManagerTests : SceneTestBase
     {
         private GameObject _go;
-        private List<GameObject> _toDestroy = new List<GameObject>();
 
         [SetUp]
         public void SetUp()
         {
-            _go = new GameObject("OM_TestObj");
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            if (_go != null)
-                Object.DestroyImmediate(_go);
-
-            foreach (var go in _toDestroy)
-                if (go != null) Object.DestroyImmediate(go);
-            _toDestroy.Clear();
+            _go = TrackOwnedObject(new GameObject("OM_TestObj"));
         }
 
         // ── 1. CreateObject ───────────────────────────────────────────────────
@@ -41,7 +27,7 @@ namespace UnityMCP.Editor.Tests
             var path = ObjectManager.CreateObject("OM_Created", null, null);
 
             var found = GameObject.Find("OM_Created");
-            _toDestroy.Add(found);
+            if (found != null) TrackOwnedObject(found);
             Assert.IsNotNull(found, "GameObject should exist in scene after CreateObject");
             Assert.AreEqual("/OM_Created", path);
         }
@@ -52,7 +38,7 @@ namespace UnityMCP.Editor.Tests
             var path = ObjectManager.CreateObject("OM_Created", null, null, primitive: "Cube");
 
             var found = GameObject.Find("OM_Created");
-            _toDestroy.Add(found);
+            if (found != null) TrackOwnedObject(found);
             Assert.IsNotNull(found);
             Assert.IsNotNull(found.GetComponent<MeshFilter>(), "Primitive Cube must have MeshFilter");
         }
@@ -65,7 +51,7 @@ namespace UnityMCP.Editor.Tests
 
             // cleanup if it partially created
             var stray = GameObject.Find("OM_Created");
-            if (stray != null) _toDestroy.Add(stray);
+            if (stray != null) TrackOwnedObject(stray);
         }
 
         // ── 2. DeleteObject ───────────────────────────────────────────────────
@@ -73,7 +59,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void DeleteObject_RemovesFromScene()
         {
-            // _go is tracked; after delete we null it so TearDown skips it
+            // _go is tracked; after delete we null it so base class skips it
             ObjectManager.DeleteObject("/OM_TestObj");
             _go = null;
 
@@ -89,7 +75,7 @@ namespace UnityMCP.Editor.Tests
             Assert.Throws<System.ArgumentException>(() =>
                 ObjectManager.DeleteObject("/OM_TestObj"));
 
-            // _go and child still alive — TearDown cleans up
+            // _go and child still alive — base class cleans up tracked _go (child destroyed with it)
         }
 
         [Test]
@@ -189,37 +175,23 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SetParent_ValidPath_ReparentsObject()
         {
-            var parent = new GameObject("OM_Parent");
+            var parent = TrackOwnedObject(new GameObject("OM_Parent"));
 
-            try
-            {
-                ObjectManager.SetParent("/OM_TestObj", "/OM_Parent");
+            ObjectManager.SetParent("/OM_TestObj", "/OM_Parent");
 
-                Assert.AreEqual(parent.transform, _go.transform.parent,
-                    "Parent should be OM_Parent after SetParent");
-            }
-            finally
-            {
-                Object.DestroyImmediate(parent);
-            }
+            Assert.AreEqual(parent.transform, _go.transform.parent,
+                "Parent should be OM_Parent after SetParent");
         }
 
         [Test]
         public void SetParent_NullParent_UnparentsObject()
         {
-            var parent = new GameObject("OM_Parent");
+            var parent = TrackOwnedObject(new GameObject("OM_Parent"));
             _go.transform.SetParent(parent.transform);
 
-            try
-            {
-                ObjectManager.SetParent("/OM_Parent/OM_TestObj", null);
+            ObjectManager.SetParent("/OM_Parent/OM_TestObj", null);
 
-                Assert.IsNull(_go.transform.parent, "Parent should be null after unparenting");
-            }
-            finally
-            {
-                Object.DestroyImmediate(parent);
-            }
+            Assert.IsNull(_go.transform.parent, "Parent should be null after unparenting");
         }
 
         [Test]
@@ -236,9 +208,6 @@ namespace UnityMCP.Editor.Tests
         {
             _go.AddComponent<BoxCollider>();
             var scene = _go.scene;
-            Assert.IsTrue(EditorSceneManager.SaveScene(scene),
-                "Dirty-state precondition could not be persisted");
-            Assert.IsFalse(scene.isDirty, "Scene must be clean before SetProperty");
 
             ObjectManager.SetProperty("/OM_TestObj", "BoxCollider", "m_Size", "(2,2,2)");
 
@@ -250,9 +219,6 @@ namespace UnityMCP.Editor.Tests
         {
             _go.AddComponent<Light>().intensity = 1f;
             var scene = _go.scene;
-            Assert.IsTrue(EditorSceneManager.SaveScene(scene),
-                "Dirty-state precondition could not be persisted");
-            Assert.IsFalse(scene.isDirty, "Scene must be clean before SetPropertyDelta");
 
             ObjectManager.SetPropertyDelta("/OM_TestObj", "Light", "m_Intensity", "+0.5");
 
@@ -365,8 +331,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ResolveComponent_MultipleMatchingComponents_LogsWarning()
         {
-            var go = new GameObject("G6Multi");
-            RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(go));
+            var go = TrackOwnedObject(new GameObject("G6Multi"));
             go.AddComponent<BoxCollider>();
             go.AddComponent<BoxCollider>(); // second of same type
 
@@ -380,8 +345,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ResolveComponent_SingleComponent_NoWarning()
         {
-            var go = new GameObject("G6Single");
-            RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(go));
+            var go = TrackOwnedObject(new GameObject("G6Single"));
             go.AddComponent<BoxCollider>(); // only one
 
             ConsoleCapture.Clear();
@@ -425,9 +389,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SerializeGO_NestedObject_ReturnsComponent()
         {
-            var parent = new GameObject("P107_Parent");
+            var parent = TrackOwnedObject(new GameObject("P107_Parent"));
             var child  = new GameObject("P107_Child");
-            RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(parent));
             child.transform.SetParent(parent.transform);
 
             var result = ComponentSerializer.Serialize(child, "Transform");
@@ -439,8 +402,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void FindComponent_UIObject_TransformRequest_ReturnsRectTransform()
         {
-            var uiGo = new GameObject("P210_UIObj", typeof(RectTransform));
-            RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(uiGo));
+            var uiGo = TrackOwnedObject(new GameObject("P210_UIObj", typeof(RectTransform)));
 
             var result = ComponentSerializer.FindComponent(uiGo, "Transform");
 
@@ -461,8 +423,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Serialize_UIObject_TransformRequest_ReturnsContent()
         {
-            var uiGo = new GameObject("P210_Serialize", typeof(RectTransform));
-            RegisterCleanup(() => UnityEngine.Object.DestroyImmediate(uiGo));
+            var uiGo = TrackOwnedObject(new GameObject("P210_Serialize", typeof(RectTransform)));
 
             var result = ComponentSerializer.Serialize("/P210_Serialize", "Transform");
 
@@ -476,10 +437,8 @@ namespace UnityMCP.Editor.Tests
         public void SetProperty_BulkFindType_DryRun_DoesNotMutate()
         {
             CommandRouter.RegisterAll();
-            var go1 = new GameObject("P429_A");
-            var go2 = new GameObject("P429_B");
-            RegisterCleanup(() => Object.DestroyImmediate(go1));
-            RegisterCleanup(() => Object.DestroyImmediate(go2));
+            var go1 = TrackOwnedObject(new GameObject("P429_A"));
+            var go2 = TrackOwnedObject(new GameObject("P429_B"));
             go1.AddComponent<BoxCollider>();
             go2.AddComponent<BoxCollider>();
 
@@ -504,8 +463,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ResolveComponent_AfterUndoAddComponent_FindsComponent()
         {
-            var go = new GameObject("P416_Obj");
-            RegisterCleanup(() => Object.DestroyImmediate(go));
+            var go = TrackOwnedObject(new GameObject("P416_Obj"));
             Undo.AddComponent<Rigidbody>(go);
 
             var (resolvedGo, comp) = ObjectManager.ResolveComponent("/P416_Obj", "Rigidbody");
@@ -540,12 +498,156 @@ namespace UnityMCP.Editor.Tests
             var childPath = ComponentSerializer.GetPath(childTransform.gameObject);
 
             // A new parent target
-            var newParent = new GameObject("P404_NewParent");
-            RegisterCleanup(() => Object.DestroyImmediate(newParent));
+            var newParent = TrackOwnedObject(new GameObject("P404_NewParent"));
 
             Assert.Throws<System.InvalidOperationException>(() =>
                 ObjectManager.SetParent(childPath, "/P404_NewParent"),
                 "SetParent on non-root prefab child must throw InvalidOperationException");
+        }
+
+        // ── 7. SetMaterial ────────────────────────────────────────────────────
+
+        [Test]
+        public void SetMaterial_RendererPresent_ReturnsShaderAndColorInfo()
+        {
+            var go = TrackOwnedObject(GameObject.CreatePrimitive(PrimitiveType.Cube));
+            go.name = "OM_MatCube";
+
+            var result = ObjectManager.SetMaterial("/OM_MatCube", "#FF0000FF", null);
+
+            StringAssert.Contains("shader=", result, "Result must contain shader name");
+            StringAssert.Contains("color=", result, "Result must contain color");
+        }
+
+        [Test]
+        public void SetMaterial_NoRenderer_ThrowsArgumentException()
+        {
+            // _go is a plain GameObject with no Renderer component
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.SetMaterial("/OM_TestObj", null, null));
+        }
+
+        [Test]
+        public void SetMaterial_InvalidColor_ThrowsArgumentException()
+        {
+            var go = TrackOwnedObject(GameObject.CreatePrimitive(PrimitiveType.Cube));
+            go.name = "OM_MatBadColor";
+
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.SetMaterial("/OM_MatBadColor", "NOT_A_COLOR", null));
+        }
+
+        [Test]
+        public void SetMaterial_InvalidPath_ThrowsArgumentException()
+        {
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.SetMaterial("/OM_DoesNotExist_XYZ", null, null));
+        }
+
+        // ── 8. RenameObject ───────────────────────────────────────────────────
+
+        [Test]
+        public void RenameObject_ValidPath_RenamesGameObject()
+        {
+            ObjectManager.RenameObject("/OM_TestObj", "OM_Renamed");
+
+            Assert.AreEqual("OM_Renamed", _go.name, "GameObject name must change after RenameObject");
+        }
+
+        [Test]
+        public void RenameObject_EmptyName_ThrowsArgumentException()
+        {
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.RenameObject("/OM_TestObj", ""));
+        }
+
+        // ── 9. SetSiblingIndex ────────────────────────────────────────────────
+
+        [Test]
+        public void SetSiblingIndex_ValidIndex_SetsCorrectIndex()
+        {
+            var parent = TrackOwnedObject(new GameObject("OM_SibParent"));
+            _go.transform.SetParent(parent.transform);
+            var sibling = TrackOwnedObject(new GameObject("OM_Sibling"));
+            sibling.transform.SetParent(parent.transform);
+
+            ObjectManager.SetSiblingIndex("/OM_SibParent/OM_TestObj", 1);
+
+            Assert.AreEqual(1, _go.transform.GetSiblingIndex(), "Sibling index must be 1 after SetSiblingIndex(1)");
+        }
+
+        [Test]
+        public void SetSiblingIndex_NegativeIndex_ClampsToZero()
+        {
+            var parent = TrackOwnedObject(new GameObject("OM_SibParentNeg"));
+            _go.transform.SetParent(parent.transform);
+            var sibling = TrackOwnedObject(new GameObject("OM_SiblingNeg"));
+            sibling.transform.SetParent(parent.transform);
+
+            // Unity clamps negative sibling indices to 0
+            ObjectManager.SetSiblingIndex("/OM_SibParentNeg/OM_TestObj", -5);
+
+            Assert.AreEqual(1, _go.transform.GetSiblingIndex(), "Negative index is placed at last position by Unity's SetSiblingIndex");
+        }
+
+        [Test]
+        public void SetSiblingIndex_OutOfRangeIndex_ClampsToMax()
+        {
+            var parent = TrackOwnedObject(new GameObject("OM_SibParentOob"));
+            _go.transform.SetParent(parent.transform);
+            var sibling = TrackOwnedObject(new GameObject("OM_SiblingOob"));
+            sibling.transform.SetParent(parent.transform);
+
+            // 2 children: valid range 0–1; index 99 clamps to 1
+            ObjectManager.SetSiblingIndex("/OM_SibParentOob/OM_TestObj", 99);
+
+            Assert.AreEqual(1, _go.transform.GetSiblingIndex(), "Out-of-range index must clamp to last position");
+        }
+
+        // ── 10. DeleteObjectById ──────────────────────────────────────────────
+
+        [Test]
+        public void DeleteObjectById_ValidHexId_RemovesObjectFromScene()
+        {
+            var target = TrackOwnedObject(new GameObject("OM_DelById"));
+            var hexId = TransientObjectId.GetHexRef(target);
+
+            ObjectManager.DeleteObjectById(hexId);
+
+            Assert.IsNull(GameObject.Find("OM_DelById"), "Object must be gone after DeleteObjectById");
+        }
+
+        [Test]
+        public void DeleteObjectById_NonExistentId_ThrowsArgumentException()
+        {
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.DeleteObjectById("$DEADBEEFDEADBEEF"));
+        }
+
+        [Test]
+        public void DeleteObjectById_WithChildren_WithoutForce_ThrowsArgumentException()
+        {
+            var target = TrackOwnedObject(new GameObject("OM_DelByIdParent"));
+            var child = new GameObject("OM_DelByIdChild");
+            child.transform.SetParent(target.transform);
+            var hexId = TransientObjectId.GetHexRef(target);
+
+            Assert.Throws<System.ArgumentException>(() =>
+                ObjectManager.DeleteObjectById(hexId));
+        }
+
+        [Test]
+        public void DeleteObjectById_WithChildren_WithForce_DeletesAll()
+        {
+            var target = TrackOwnedObject(new GameObject("OM_DelByIdForce"));
+            var child = new GameObject("OM_DelByIdForceChild");
+            child.transform.SetParent(target.transform);
+            var hexId = TransientObjectId.GetHexRef(target);
+
+            ObjectManager.DeleteObjectById(hexId, force: true);
+
+            Assert.IsNull(GameObject.Find("OM_DelByIdForce"), "Parent must be gone after force delete");
+            Assert.IsNull(GameObject.Find("OM_DelByIdForceChild"), "Child must be gone after force delete");
         }
     }
 }

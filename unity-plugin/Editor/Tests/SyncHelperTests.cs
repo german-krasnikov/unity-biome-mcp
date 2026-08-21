@@ -575,6 +575,178 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("state=compiling", status,
                 "stamp-heal must NOT heal to ready when ScriptCompilationFailed=true");
         }
+
+        // Task1 #NullGuard_1: OverrideOpsForTest(null) throws ArgumentNullException
+        [Test]
+        public void OverrideOpsForTest_Null_ThrowsArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>(() => SyncHelper.OverrideOpsForTest(null));
+        }
+
+        // Task1 #NullGuard_2: RestoreOpsForTest(null) throws ArgumentNullException
+        [Test]
+        public void RestoreOpsForTest_Null_ThrowsArgumentNullException()
+        {
+            Assert.Throws<ArgumentNullException>(() => SyncHelper.RestoreOpsForTest(null));
+        }
+
+        // Task1 #NullGuard_3: OnSyncComplete fires exactly once on successful reload
+        [Test]
+        public void OnAfterReload_Success_FiresOnSyncComplete_ExactlyOnce()
+        {
+            int fireCount = 0;
+            SyncHelper.OnSyncComplete += () => fireCount++;
+            _mock.ScriptCompilationFailedOnFinish = false;
+
+            SyncHelper.SimulateAfterAssemblyReload();
+
+            Assert.AreEqual(1, fireCount, "OnSyncComplete must fire exactly once on success");
+        }
+
+        // Task2 #StampHeal_Empty_1: empty stampAtTrigger blocks stamp-heal → stays compiling
+        [Test]
+        public void GetSyncStatus_StampHeal_EmptySnapshot_StaysCompiling()
+        {
+            UnityEditor.SessionState.EraseString("MCP_StampAtTrigger");
+            UnityEditor.SessionState.SetString("MCP_SyncState", "compiling");
+            UnityEditor.SessionState.SetBool("MCP_SyncCompileStarted", true);
+            SyncHelper.OverrideDomainStampForTest("SOME_STAMP");
+            _mock.IsCompilingAfterRefresh = false;
+
+            var status = SyncHelper.GetSyncStatus();
+
+            StringAssert.Contains("state=compiling", status,
+                "empty stampAtTrigger must block stamp-heal — guard requires non-empty snapshot");
+        }
+
+        // Task2 #StampHeal_Empty_2: non-empty snapshot + stamp changed → heals to ready
+        [Test]
+        public void GetSyncStatus_StampHeal_NonEmptySnapshot_StampChanged_HealsToReady()
+        {
+            UnityEditor.SessionState.SetString("MCP_StampAtTrigger", "OLD");
+            UnityEditor.SessionState.SetString("MCP_SyncState", "compiling");
+            UnityEditor.SessionState.SetBool("MCP_SyncCompileStarted", true);
+            SyncHelper.OverrideDomainStampForTest("NEW");
+            _mock.IsCompilingAfterRefresh = false;
+
+            var status = SyncHelper.GetSyncStatus();
+
+            StringAssert.Contains("state=ready", status,
+                "non-empty snapshot with changed stamp must heal to ready");
+        }
+
+        // Task3 #Wedge_Neg_1: state=idle → wedge guard inactive, returns sync_ack
+        [Test]
+        public void TriggerSync_WedgeGuard_IdleState_ReturnsSyncAck()
+        {
+            // ResetForTest leaves state=idle (erased key defaults to "idle")
+            var result = SyncHelper.TriggerSync(resolve: false);
+
+            StringAssert.StartsWith("sync_ack", result,
+                "idle state must not trigger wedge guard");
+        }
+
+        // Task3 #Wedge_Neg_2: state=compiling but started=false → wedge breaks at condition 2
+        [Test]
+        public void TriggerSync_WedgeGuard_CompileNotStarted_ReturnsSyncAck()
+        {
+            const string stamp = "FROZEN";
+            UnityEditor.SessionState.SetString("MCP_SyncState", "compiling");
+            UnityEditor.SessionState.SetBool("MCP_SyncCompileStarted", false); // condition 2 broken
+            SyncHelper.OverrideDomainStampForTest(stamp);
+            UnityEditor.SessionState.SetString("MCP_StampAtTrigger", stamp);
+            _mock.IsCompilingAfterRefresh = false;
+
+            var result = SyncHelper.TriggerSync(resolve: false);
+
+            StringAssert.StartsWith("sync_ack", result,
+                "started=false must break wedge condition 2 → sync_ack returned");
+        }
+
+        // Task3 #Wedge_Neg_3: all four conditions met → wedge fires (the "debounce message")
+        [Test]
+        public void TriggerSync_WedgeGuard_AllConditionsMet_ReturnsWedged()
+        {
+            const string stamp = "FROZEN";
+            UnityEditor.SessionState.SetString("MCP_SyncState", "compiling");
+            UnityEditor.SessionState.SetBool("MCP_SyncCompileStarted", true);
+            SyncHelper.OverrideDomainStampForTest(stamp);
+            UnityEditor.SessionState.SetString("MCP_StampAtTrigger", stamp);
+            _mock.IsCompilingAfterRefresh = false; // !IsCompiling = true
+
+            var result = SyncHelper.TriggerSync(resolve: false);
+
+            StringAssert.StartsWith("wedged|", result,
+                "all four conditions must return the wedge/debounce response");
+        }
+
+        // Task3 #Wedge_Neg_4: IsCompiling=true breaks condition 4 → sync_ack (re-trigger allowed)
+        [Test]
+        public void TriggerSync_WedgeGuard_IsCompilingTrue_BreaksCondition4()
+        {
+            const string stamp = "FROZEN";
+            UnityEditor.SessionState.SetString("MCP_SyncState", "compiling");
+            UnityEditor.SessionState.SetBool("MCP_SyncCompileStarted", true);
+            SyncHelper.OverrideDomainStampForTest(stamp);
+            UnityEditor.SessionState.SetString("MCP_StampAtTrigger", stamp);
+            _mock.IsCompilingAfterRefresh = true; // IsCompiling=true breaks condition 4
+
+            var result = SyncHelper.TriggerSync(resolve: false);
+
+            StringAssert.StartsWith("sync_ack", result,
+                "IsCompiling=true must break wedge condition 4 → trigger fires");
+        }
+
+        // Task4 #FailedFormat_1: failed state contains 'err' pipe-delimited field
+        [Test]
+        public void GetSyncStatus_FailedState_ContainsErrField()
+        {
+            _mock.ScriptCompilationFailedOnFinish = true;
+            SyncHelper.TriggerSync(resolve: false);
+            SyncHelper.SimulateCompilationStarted();
+            SyncHelper.SimulateCompilationFinished();
+
+            var status = SyncHelper.GetSyncStatus();
+
+            StringAssert.Contains("|err=", status, "failed state must contain |err= field");
+        }
+
+        // Task4 #FailedFormat_2: exact pipe-delimited format with all required fields
+        [Test]
+        public void GetSyncStatus_FailedState_ExactPipeDelimitedFormat()
+        {
+            _mock.ScriptCompilationFailedOnFinish = true;
+            SyncHelper.TriggerSync(resolve: false);
+            SyncHelper.SimulateCompilationStarted();
+            SyncHelper.SimulateCompilationFinished();
+
+            var status = SyncHelper.GetSyncStatus();
+
+            StringAssert.Contains("epoch=", status, "must contain epoch= field");
+            StringAssert.Contains("|state=failed|", status, "must contain |state=failed|");
+            StringAssert.Contains("|err=", status, "must contain |err= field");
+            StringAssert.Contains("|stamp=", status, "must contain |stamp= field");
+        }
+
+        // Task4 #FailedFormat_3: err= field value is non-empty (contains error description)
+        [Test]
+        public void GetSyncStatus_FailedState_ErrField_ContainsNonEmptyDescription()
+        {
+            _mock.ScriptCompilationFailedOnFinish = true;
+            SyncHelper.TriggerSync(resolve: false);
+            SyncHelper.SimulateCompilationStarted();
+            SyncHelper.SimulateCompilationFinished();
+
+            var status = SyncHelper.GetSyncStatus();
+
+            var errIdx = status.IndexOf("|err=", System.StringComparison.Ordinal);
+            Assert.Greater(errIdx, 0, "err= field must be present");
+            var afterErr = status.Substring(errIdx + 5); // skip "|err="
+            var errValue = afterErr.Contains("|")
+                ? afterErr.Substring(0, afterErr.IndexOf('|'))
+                : afterErr;
+            Assert.IsNotEmpty(errValue, "err= field must contain a non-empty error description");
+        }
     }
 
     // ── MockSyncOps ──────────────────────────────────────────────────────────
