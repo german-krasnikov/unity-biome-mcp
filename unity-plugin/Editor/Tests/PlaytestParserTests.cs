@@ -531,5 +531,247 @@ namespace UnityMCP.Editor.Tests
             CollectionAssert.AreEqual(new[] { "/X", "/Y" }, step.Queries,
                 "DSL-012: mixed alias and literal paths must both be in Queries");
         }
+
+        // ── PP-T1: Primitive command parse coverage ──────────────────────────────
+
+        [Test]
+        public void Parse_Teleport_LiteralPosition_SetsPathAndPosition()
+        {
+            var r = PlaytestParser.Parse("TELEPORT /obj 1,2,3");
+            var s = r[0];
+            Assert.AreEqual(StepType.Teleport, s.Type);
+            Assert.AreEqual("/obj", s.Path);
+            Assert.AreEqual(new Vector3(1, 2, 3), s.Position);
+            Assert.IsNull(s.RawPosition);
+        }
+
+        [Test]
+        public void Parse_Teleport_AtExpression_SetsRawPositionAndPositionIsZero()
+        {
+            var r = PlaytestParser.Parse("TELEPORT /obj @/Ref.position");
+            var s = r[0];
+            Assert.AreEqual(StepType.Teleport, s.Type);
+            Assert.AreEqual("@/Ref.position", s.RawPosition);
+            Assert.AreEqual(Vector3.zero, s.Position);
+        }
+
+        [Test]
+        public void Parse_Snapshot_SingleQuery_SetsQueriesArrayOfOne()
+        {
+            var r = PlaytestParser.Parse("SNAPSHOT game");
+            Assert.AreEqual(StepType.Snapshot, r[0].Type);
+            Assert.AreEqual(1, r[0].Queries.Length);
+            Assert.AreEqual("game", r[0].Queries[0]);
+        }
+
+        [Test]
+        public void Parse_Snapshot_MultipleQueries_SetsQueriesArray()
+        {
+            var r = PlaytestParser.Parse("SNAPSHOT /cam,/minimap");
+            Assert.AreEqual(StepType.Snapshot, r[0].Type);
+            Assert.AreEqual(2, r[0].Queries.Length);
+            Assert.AreEqual("/cam", r[0].Queries[0]);
+            Assert.AreEqual("/minimap", r[0].Queries[1]);
+        }
+
+        [Test]
+        public void Parse_SetActive_True_SetsPathAndValue()
+        {
+            var r = PlaytestParser.Parse("SET_ACTIVE /obj true");
+            var s = r[0];
+            Assert.AreEqual(StepType.SetActive, s.Type);
+            Assert.AreEqual("/obj", s.Path);
+            Assert.AreEqual("true", s.Value);
+        }
+
+        [Test]
+        public void Parse_SetActive_False_SetsPathAndValue()
+        {
+            var r = PlaytestParser.Parse("SET_ACTIVE /obj false");
+            var s = r[0];
+            Assert.AreEqual(StepType.SetActive, s.Type);
+            Assert.AreEqual("/obj", s.Path);
+            Assert.AreEqual("false", s.Value);
+        }
+
+        [Test]
+        public void Parse_Set_SetsAllFields()
+        {
+            var r = PlaytestParser.Parse("SET /obj Comp field 42");
+            var s = r[0];
+            Assert.AreEqual(StepType.Set, s.Type);
+            Assert.AreEqual("/obj", s.Path);
+            Assert.AreEqual("Comp", s.Component);
+            Assert.AreEqual("field", s.Method);
+            Assert.AreEqual("42", s.Args);
+        }
+
+        [Test]
+        public void Parse_Log_SetsMessage()
+        {
+            var r = PlaytestParser.Parse("LOG hello world");
+            var s = r[0];
+            Assert.AreEqual(StepType.Log, s.Type);
+            Assert.AreEqual("hello world", s.Message);
+        }
+
+        [Test]
+        public void Parse_Timescale_SetsDelayValue()
+        {
+            var r = PlaytestParser.Parse("TIMESCALE 0.5");
+            var s = r[0];
+            Assert.AreEqual(StepType.TimeScale, s.Type);
+            Assert.AreEqual(0.5f, s.Delay, 0.001f);
+        }
+
+        [Test]
+        public void Parse_AssertNear_SetsPathValueAndThreshold()
+        {
+            var r = PlaytestParser.Parse("ASSERT_NEAR /A /B 0.5");
+            var s = r[0];
+            Assert.AreEqual(StepType.AssertNear, s.Type);
+            Assert.AreEqual("/A", s.Path);
+            Assert.AreEqual("/B", s.Value);
+            Assert.AreEqual(0.5f, s.Delay, 0.001f);
+        }
+
+        [Test]
+        public void Parse_UnknownCommand_ThrowsArgumentException()
+        {
+            Assert.Throws<ArgumentException>(() => PlaytestParser.Parse("UNKNOWN_COMMAND"));
+        }
+
+        [Test]
+        public void Parse_AssertConsoleClean_WithIgnorePatterns_SetsQueriesArray()
+        {
+            var r = PlaytestParser.Parse("ASSERT_CONSOLE_CLEAN IGNORE pat1,pat2");
+            var s = r[0];
+            Assert.AreEqual(StepType.AssertConsoleClean, s.Type);
+            Assert.IsNotNull(s.Queries);
+            Assert.AreEqual(2, s.Queries.Length);
+            Assert.AreEqual("pat1", s.Queries[0]);
+            Assert.AreEqual("pat2", s.Queries[1]);
+        }
+
+        // ── PP-T4: UI interaction step parsing ──────────────────────────────────
+
+        [Test]
+        public void Parse_Fill_SetsPathAndValue()
+        {
+            var r = PlaytestParser.Parse("FILL /panel|UIDocument|input hello");
+            var s = r[0];
+            Assert.AreEqual(StepType.Fill, s.Type);
+            Assert.AreEqual("/panel|UIDocument|input", s.Path);
+            Assert.AreEqual("hello", s.Value);
+        }
+
+        [Test]
+        public void Parse_Fill_MultiWordValue_IsJoined()
+        {
+            var r = PlaytestParser.Parse("FILL /field hello world");
+            Assert.AreEqual(StepType.Fill, r[0].Type);
+            Assert.AreEqual("hello world", r[0].Value);
+        }
+
+        [Test]
+        public void Parse_Fill_MissingPath_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => PlaytestParser.Parse("FILL"));
+        }
+
+        [Test]
+        public void Parse_Focus_SetsPath()
+        {
+            var r = PlaytestParser.Parse("FOCUS /panel|UIDocument|input");
+            var s = r[0];
+            Assert.AreEqual(StepType.Focus, s.Type);
+            Assert.AreEqual("/panel|UIDocument|input", s.Path);
+        }
+
+        [Test]
+        public void Parse_Focus_MissingPath_Throws()
+        {
+            Assert.Throws<ArgumentException>(() => PlaytestParser.Parse("FOCUS"));
+        }
+
+        [Test]
+        public void NormalizeUIHostPath_PanelRenderer_IsNormalizedToUIDocument()
+        {
+            var result = PlaytestParser.NormalizeUIHostPath("/host|PanelRenderer|element");
+            Assert.AreEqual("/host|UIDocument|element", result);
+        }
+
+        [Test]
+        public void NormalizeUIHostPath_UI_IsNormalizedToUIDocument()
+        {
+            var result = PlaytestParser.NormalizeUIHostPath("/host|UI|element");
+            Assert.AreEqual("/host|UIDocument|element", result);
+        }
+
+        // ── PP-T7: SetPosition deferred and ReplaceWholeWord boundary ────────────
+
+        [Test]
+        public void Parse_Move_AtExpression_SetsRawPositionNotPosition()
+        {
+            var r = PlaytestParser.Parse("MOVE TO @/Ref.position");
+            var s = r[0];
+            Assert.AreEqual(StepType.Move, s.Type);
+            Assert.AreEqual("@/Ref.position", s.RawPosition);
+            Assert.AreEqual(Vector3.zero, s.Position);
+        }
+
+        [Test]
+        public void Parse_Teleport_AtExpression_RawPositionSetAndPathPreserved()
+        {
+            var r = PlaytestParser.Parse("TELEPORT /hero @/SpawnPoint.position");
+            var s = r[0];
+            Assert.AreEqual("/hero", s.Path);
+            Assert.AreEqual("@/SpawnPoint.position", s.RawPosition);
+        }
+
+        [Test]
+        public void ReplaceWholeWord_WordAtStart_IsReplaced()
+        {
+            var result = PlaytestParser.ReplaceWholeWord("foo bar baz", "foo", "qux");
+            Assert.AreEqual("qux bar baz", result);
+        }
+
+        [Test]
+        public void ReplaceWholeWord_WordAtEnd_IsReplaced()
+        {
+            var result = PlaytestParser.ReplaceWholeWord("bar baz foo", "foo", "qux");
+            Assert.AreEqual("bar baz qux", result);
+        }
+
+        [Test]
+        public void ReplaceWholeWord_SubstringMatch_IsNotReplaced()
+        {
+            // "foo" inside "foobar" must not match because the next char is a letter
+            var result = PlaytestParser.ReplaceWholeWord("foobar", "foo", "qux");
+            Assert.AreEqual("foobar", result);
+        }
+
+        [Test]
+        public void ReplaceWholeWord_DollarPrefixed_WordNotReplaced()
+        {
+            // searching "foo" in "$foo" must not replace — prevCh='$' blocks the match
+            var result = PlaytestParser.ReplaceWholeWord("ASSERT $foo == 1", "foo", "bar");
+            Assert.AreEqual("ASSERT $foo == 1", result);
+        }
+
+        [Test]
+        public void ReplaceWholeWord_EmptyWord_ReturnsLineUnchanged()
+        {
+            var result = PlaytestParser.ReplaceWholeWord("foo bar", "", "qux");
+            Assert.AreEqual("foo bar", result);
+        }
+
+        [Test]
+        public void ReplaceWholeWord_LongerReplacement_CorrectResult()
+        {
+            // replacement longer than original must not corrupt the remaining line
+            var result = PlaytestParser.ReplaceWholeWord("x foo y", "foo", "longer_word");
+            Assert.AreEqual("x longer_word y", result);
+        }
     }
 }
