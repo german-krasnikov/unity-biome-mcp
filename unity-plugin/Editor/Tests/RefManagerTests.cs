@@ -286,5 +286,112 @@ namespace UnityMCP.Editor.Tests
             }
             finally { Object.DestroyImmediate(go); }
         }
+
+        // === Base62 Codec ===
+
+        [Test]
+        public void Base62Encode_Zero_Returns0()
+        {
+            Assert.AreEqual("0", RefManager.Base62Encode(0));
+        }
+
+        [Test]
+        public void Base62Encode_FortyTwo_ReturnsG()
+        {
+            // 42 in base62: 42/62=0 r42 → index 42 = 'G'
+            Assert.AreEqual("G", RefManager.Base62Encode(42));
+        }
+
+        [Test]
+        public void Base62Encode_MaxUint_Max6Chars()
+        {
+            var encoded = RefManager.Base62Encode(uint.MaxValue);
+            Assert.LessOrEqual(encoded.Length, 6);
+        }
+
+        [TestCase(0UL)]
+        [TestCase(1UL)]
+        [TestCase(42UL)]
+        [TestCase(1000UL)]
+        [TestCase(4294967295UL)] // uint.MaxValue
+        [TestCase(18446744073709551615UL)] // ulong.MaxValue
+        public void Base62_RoundTrip(ulong value)
+        {
+            var encoded = RefManager.Base62Encode(value);
+            Assert.IsTrue(RefManager.TryBase62Decode(encoded, out var decoded));
+            Assert.AreEqual(value, decoded);
+        }
+
+        [Test]
+        public void TryBase62Decode_InvalidChars_ReturnsFalse()
+        {
+            Assert.IsFalse(RefManager.TryBase62Decode("!invalid!", out _));
+        }
+
+        // === Ref / ResolveRef ===
+
+        [Test]
+        public void Ref_GameObject_StartsWithAmpersand()
+        {
+            var go = TrackOwnedObject(new GameObject("RefTest"));
+            var r = RefManager.Ref(go);
+            Assert.IsTrue(r.StartsWith("&"));
+        }
+
+        [Test]
+        public void Ref_SameObject_Twice_SameResult()
+        {
+            var go = TrackOwnedObject(new GameObject("Stable"));
+            Assert.AreEqual(RefManager.Ref(go), RefManager.Ref(go));
+        }
+
+        [Test]
+        public void Ref_TwoObjects_DifferentResults()
+        {
+            var a = TrackOwnedObject(new GameObject("A"));
+            var b = TrackOwnedObject(new GameObject("B"));
+            Assert.AreNotEqual(RefManager.Ref(a), RefManager.Ref(b));
+        }
+
+        [Test]
+        public void ResolveRef_RoundTrip_SameObject()
+        {
+            var go = TrackOwnedObject(new GameObject("RoundTrip"));
+            var r = RefManager.Ref(go);
+            Assert.AreSame(go, RefManager.ResolveRef(r));
+        }
+
+        [Test]
+        public void ResolveRef_DestroyedObject_ReturnsNull()
+        {
+            var go = new GameObject("Doomed");
+            var r = RefManager.Ref(go);
+            Object.DestroyImmediate(go);
+            Assert.IsNull(RefManager.ResolveRef(r));
+        }
+
+        [Test]
+        public void Ref_Null_ReturnsNull()
+        {
+            Assert.IsNull(RefManager.Ref(null));
+        }
+
+        [Test]
+        public void ResolveRef_Invalid_ReturnsNull()
+        {
+            Assert.IsNull(RefManager.ResolveRef(null));
+            Assert.IsNull(RefManager.ResolveRef(""));
+            Assert.IsNull(RefManager.ResolveRef("&!bad!"));
+        }
+
+        [Test]
+        public void Ref_AfterInvalidate_ReturnsSameRef()
+        {
+            var go = TrackOwnedObject(new GameObject("StableAcrossInvalidate"));
+            var r1 = RefManager.Ref(go);
+            RefManager.Invalidate();
+            var r2 = RefManager.Ref(go);
+            Assert.AreEqual(r1, r2, "Ref must be stable across Invalidate — derived from instanceID, not a counter");
+        }
     }
 }

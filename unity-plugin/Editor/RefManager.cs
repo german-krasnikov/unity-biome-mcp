@@ -93,5 +93,50 @@ namespace UnityMCP.Editor
             } while (val > 0);
             return WirePrefix.Ref + sb.ToString();
         }
+
+        /// <summary>Pure base62 encode — no offset, no prefix.</summary>
+        internal static string Base62Encode(ulong value)
+        {
+            if (value == 0) return "0";
+            var sb = new StringBuilder(11);
+            while (value > 0)
+            {
+                sb.Insert(0, Base62[(int)(value % 62)]);
+                value /= 62;
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>Decode base62 string. Returns false on empty input or invalid chars.</summary>
+        internal static bool TryBase62Decode(string encoded, out ulong result)
+        {
+            result = 0;
+            if (string.IsNullOrEmpty(encoded)) return false;
+            foreach (var c in encoded)
+            {
+                int digit;
+                if (c >= '0' && c <= '9') digit = c - '0';
+                else if (c >= 'a' && c <= 'z') digit = c - 'a' + 10;
+                else if (c >= 'A' && c <= 'Z') digit = c - 'A' + 36;
+                else return false;
+                result = result * 62 + (ulong)digit;
+            }
+            return true;
+        }
+
+        /// <summary>Deterministic stateless ref: same object → same string, always.</summary>
+        public static string Ref(Object obj)
+        {
+            if (obj == null) return null;
+            return WirePrefix.Ref + Base62Encode(ObjectIdCompat.GetRawId(obj));
+        }
+
+        /// <summary>Resolve &amp;base62 ref back to Object. O(1) via Unity internals.</summary>
+        public static Object ResolveRef(string r)
+        {
+            if (string.IsNullOrEmpty(r) || r.Length < 2 || r[0] != WirePrefix.Ref) return null;
+            if (!TryBase62Decode(r.Substring(1), out var rawId)) return null;
+            return ObjectIdCompat.ResolveObject(rawId);
+        }
     }
 }
