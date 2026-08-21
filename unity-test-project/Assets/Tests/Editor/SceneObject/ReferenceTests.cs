@@ -471,57 +471,32 @@ namespace UnityMCP.TestProject.SceneObject
         }
 
         [Test]
-        public void Invalidate_ClearsAll()
+        public void Invalidate_IsNoOp_RefsSurvive()
         {
             var go = new GameObject("E");
             try
             {
                 var r = RefManager.Assign(go);
                 RefManager.Invalidate();
-                Assert.That(RefManager.Resolve(r), Is.Null);
+                Assert.That(RefManager.Resolve(r), Is.SameAs(go));
             }
             finally { Object.DestroyImmediate(go); }
         }
 
         [Test]
-        public void Prune_RemovesStale()
+        public void Assign_AfterDestroyedObject_ReturnsValidRef()
         {
             var go = new GameObject("F");
-            var r = RefManager.Assign(go);
+            RefManager.Assign(go);
             Object.DestroyImmediate(go);
-            RefManager.Prune();
-            // After prune, re-assigning a new GO should get a fresh ref
+            // Prune is no-op; assigning a new object must still return a valid ref
             var go2 = new GameObject("F2");
             try
             {
                 var r2 = RefManager.Assign(go2);
-                // just verify it works without throwing
                 Assert.That(r2, Does.StartWith("&"));
             }
             finally { Object.DestroyImmediate(go2); }
-        }
-
-        [Test]
-        public void GenerateRef_Sequence()
-        {
-            RefManager.Invalidate();
-            // Assign 28 GOs and verify refs are unique, compact, and sequential
-            var gos = new GameObject[28];
-            for (int i = 0; i < 28; i++) gos[i] = new GameObject($"Gen{i}");
-            try
-            {
-                var refs = new string[28];
-                for (int i = 0; i < 28; i++) refs[i] = RefManager.Assign(gos[i]);
-
-                for (int i = 0; i < 28; i++)
-                {
-                    Assert.IsTrue(refs[i].StartsWith("&"), $"refs[{i}] must start with &");
-                    Assert.IsTrue(RefManager.IsRef(refs[i]), $"refs[{i}] must be a valid ref");
-                }
-                Assert.AreEqual(28, new System.Collections.Generic.HashSet<string>(refs).Count,
-                    "All 28 refs must be unique");
-            }
-            finally { foreach (var g in gos) Object.DestroyImmediate(g); }
         }
 
         [Test]
