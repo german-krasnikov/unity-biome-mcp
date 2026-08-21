@@ -217,5 +217,71 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(RefManager.IsRef("$3E8"));
             Assert.IsFalse(RefManager.IsRef("$2B678"));
         }
+
+        // ── AssignAny / ResolveAny — universal UnityEngine.Object support ──────
+
+        [Test]
+        public void AssignAny_Component_ReturnsRef()
+        {
+            var go = new GameObject("AnyComp_A");
+            try
+            {
+                var comp = go.AddComponent<BoxCollider>();
+                var r = RefManager.AssignAny(comp);
+                Assert.IsTrue(r.StartsWith("&"), "ref must start with &");
+                Assert.AreEqual(comp, RefManager.ResolveAny(r));
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void AssignAny_SameObject_ReturnsSameRef()
+        {
+            var go = new GameObject("AnyComp_B");
+            try
+            {
+                var comp = go.AddComponent<BoxCollider>();
+                var r1 = RefManager.AssignAny(comp);
+                var r2 = RefManager.AssignAny(comp);
+                Assert.AreEqual(r1, r2);
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void ResolveAny_Stale_ReturnsNull()
+        {
+            var go = new GameObject("AnyComp_C");
+            var comp = go.AddComponent<BoxCollider>();
+            var r = RefManager.AssignAny(comp);
+            Object.DestroyImmediate(go);
+            Assert.IsNull(RefManager.ResolveAny(r));
+        }
+
+        [Test]
+        public void Assign_GameObject_StillWorks_BackwardCompat()
+        {
+            var go = new GameObject("AnyComp_D");
+            try
+            {
+                var r = RefManager.Assign(go);
+                Assert.AreEqual(go, RefManager.Resolve(r));
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
+
+        [Test]
+        public void Invalidate_ClearsAnyRefs()
+        {
+            var go = new GameObject("AnyComp_E");
+            try
+            {
+                var comp = go.AddComponent<BoxCollider>();
+                var r = RefManager.AssignAny(comp);
+                RefManager.Invalidate();
+                Assert.IsNull(RefManager.ResolveAny(r));
+            }
+            finally { Object.DestroyImmediate(go); }
+        }
     }
 }
