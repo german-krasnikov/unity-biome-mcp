@@ -137,6 +137,18 @@ async def sync_unity(
     if _send is None:
         raise ToolError("sync_unity requires a Unity connection (no bridge)")
 
+    # HR coexistence guard — fail-open: if get_status fails, proceed normally
+    try:
+        _status_raw = await _send("get_status", {})
+        if "hot_reload_detected=true" in (_status_raw or ""):
+            return (
+                "warn: Hot Reload detected — sync_unity skipped. "
+                "HR handles compilation via method patching. "
+                "Call await_compile to confirm current state."
+            )
+    except Exception:
+        pass  # bridge down / old plugin — proceed normally
+
     # D2: bump circuit-breaker
     if bump and _bump_used:
         return "STOP: bump already used this session; investigate compile errors instead of re-bumping"

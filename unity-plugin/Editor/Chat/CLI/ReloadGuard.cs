@@ -139,6 +139,7 @@ namespace UnityMCP.Editor.Chat
                     SessionState.SetBool(LockMarkerKey, true);
                     _lockStartTime = Ops.TimeSinceStartup;
                     AddWatchdog();
+                    EnsureScriptCompilationDuringPlay();
                 }
                 catch
                 {
@@ -174,6 +175,15 @@ namespace UnityMCP.Editor.Chat
             _autoRefreshDisallowed = false;
             _assembliesLocked = false;
             _lockDepth = 0;
+        }
+
+        private static void EnsureScriptCompilationDuringPlay()
+        {
+            if (!HotReloadDetector.IsActive()) return;
+            // 0 = RecompileAndContinuePlaying (default, may interrupt Play Mode)
+            // 1 = RecompileAfterFinishedPlaying (safer with HR)
+            if (EditorPrefs.GetInt("ScriptCompilationDuringPlay", 0) == 0)
+                EditorPrefs.SetInt("ScriptCompilationDuringPlay", 1);
         }
 
         private static void WatchdogTick()

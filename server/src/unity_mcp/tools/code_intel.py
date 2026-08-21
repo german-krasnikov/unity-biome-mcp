@@ -133,6 +133,19 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
         from .. import editor_log
         return await editor_log.get_corroborated_errors(_send, compile_status=compile_status)
 
+    # HR annotation — HR compiles without domain reload; no Unity compile cycle to poll.
+    _hr_active = False
+    try:
+        _st_raw = await _send("get_status", {})
+        _hr_active = "hot_reload_detected=true" in (_st_raw or "")
+    except Exception:
+        pass  # fail-open: proceed with normal polling if get_status unavailable
+
+    if _hr_active:
+        errors = await _get_errors()
+        note = " [hot-reload-mode: HR applied changes without domain reload]"
+        return (errors + note) if errors else ("compile clean" + note)
+
     # timeout=0: single check, no loop
     # G13: only active compile states are "still compiling"; terminal states (idle-failed,
     # idle-never, idle-stale) fall through to _get_errors() which returns the real verdict.
