@@ -205,6 +205,80 @@ namespace UnityMCP.TestProject.Runtime
             Assert.That(ex.Message, Does.Contain("CS1002"));
         }
 
+        // ---------- ReplaceTopLevelReturns ----------
+
+        [Test]
+        public void ReplaceTopLevelReturns_BareReturn_ReplacedWithReturnNull()
+        {
+            var result = CodeExecutor.ReplaceTopLevelReturns("return;");
+            Assert.That(result, Is.EqualTo("return null;"));
+        }
+
+        [Test]
+        public void ReplaceTopLevelReturns_ReturnInIfWithoutBraces_Replaced()
+        {
+            var result = CodeExecutor.ReplaceTopLevelReturns("if (x) return;");
+            Assert.That(result, Is.EqualTo("if (x) return null;"));
+        }
+
+        [Test]
+        public void ReplaceTopLevelReturns_ReturnInsideLambdaBraces_NotReplaced()
+        {
+            var code = "Action a = () => { return; };";
+            Assert.That(CodeExecutor.ReplaceTopLevelReturns(code), Is.EqualTo(code));
+        }
+
+        [Test]
+        public void ReplaceTopLevelReturns_ReturnInsideMethodBody_NotReplaced()
+        {
+            var code = "void Foo() { return; }";
+            Assert.That(CodeExecutor.ReplaceTopLevelReturns(code), Is.EqualTo(code));
+        }
+
+        [Test]
+        public void ReplaceTopLevelReturns_NoReturnStatement_Unchanged()
+        {
+            var code = "var x = 1 + 1;";
+            Assert.That(CodeExecutor.ReplaceTopLevelReturns(code), Is.EqualTo(code));
+        }
+
+        [Test]
+        public void ReplaceTopLevelReturns_MultipleTopLevelReturns_AllReplaced()
+        {
+            var code = "if (a) return;\nif (b) return;";
+            Assert.That(CodeExecutor.ReplaceTopLevelReturns(code),
+                Is.EqualTo("if (a) return null;\nif (b) return null;"));
+        }
+
+        // ---------- WrapIfBareCode — class-detection edge cases ----------
+
+        [Test]
+        public void WrapIfBareCode_CodeWithClassKeyword_ReturnedUnchanged()
+        {
+            var code = "class Derived : Base { }";
+            Assert.That(CodeExecutor.WrapIfBareCode(code), Is.EqualTo(code));
+        }
+
+        [Test]
+        public void WrapIfBareCode_UsingDirective_HoistedAboveClassWrapper()
+        {
+            var result = CodeExecutor.WrapIfBareCode("using System.Text; Debug.Log(\"x\");");
+            var usingIdx = result.IndexOf("using System.Text;", System.StringComparison.Ordinal);
+            var classIdx = result.IndexOf("class __MCPScript", System.StringComparison.Ordinal);
+            Assert.That(usingIdx, Is.GreaterThanOrEqualTo(0), "using directive must appear in output");
+            Assert.That(classIdx, Is.GreaterThanOrEqualTo(0), "class wrapper must appear in output");
+            Assert.That(usingIdx, Is.LessThan(classIdx), "using must be hoisted above the class");
+        }
+
+        [Test]
+        public void WrapIfBareCode_BareExpression_WrappedInRunMethod()
+        {
+            var result = CodeExecutor.WrapIfBareCode("Debug.Log(1);");
+            Assert.That(result, Does.Contain("class __MCPScript"));
+            Assert.That(result, Does.Contain("public static object Run()"));
+            Assert.That(result, Does.Contain("Debug.Log(1);"));
+        }
+
         [Test]
         public void Execute_EmptyBareCode_DoesNotThrow()
         {

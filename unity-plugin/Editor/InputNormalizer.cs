@@ -133,6 +133,14 @@ namespace UnityMCP.Editor
             { "Vector2.left", "(-1,0)" },
             { "Vector2.right", "(1,0)" },
             { "Quaternion.identity", "(0,0,0,1)" },
+
+            // Bool aliases: case-insensitive → Unity serialized format
+            { "true",  "True"  },
+            { "false", "False" },
+            { "yes",   "True"  },
+            { "no",    "False" },
+            { "on",    "True"  },
+            { "off",   "False" },
         };
 
         public static string NormalizeComponent(string input, GameObject go)
