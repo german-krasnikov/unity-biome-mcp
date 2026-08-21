@@ -145,7 +145,7 @@ namespace UnityMCP.Editor.Tests
             finally { Object.DestroyImmediate(go); }
         }
 
-        // ── IsRef — & accepts alphanumeric (base62), $ accepts digits only ────
+        // ── IsRef — & accepts alphanumeric (base62); $ is never a ref ──────────
 
         [Test]
         public void IsRef_AmpersandDecimalRef_ReturnsTrue()
@@ -169,16 +169,19 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void IsRef_DollarDigitsOnly_BackwardCompat_ReturnsTrue()
+        public void IsRef_DollarDigits_ReturnsFalse()
         {
-            Assert.IsTrue(RefManager.IsRef("$1"));
-            Assert.IsTrue(RefManager.IsRef("$9999"));
+            // $digits is a hex instance ID (e.g. $1=1, $400=1024) — never a ref
+            Assert.IsFalse(RefManager.IsRef("$1"));
+            Assert.IsFalse(RefManager.IsRef("$9999"));
+            Assert.IsFalse(RefManager.IsRef("$400"));
+            Assert.IsFalse(RefManager.IsRef("$2710"));
         }
 
         [Test]
         public void IsRef_DollarAlpha_ReturnsFalse()
         {
-            // $abc is an alias, not a RefManager ref
+            // $abc is an alias / hex ID, not a RefManager ref
             Assert.IsFalse(RefManager.IsRef("$abc"));
             Assert.IsFalse(RefManager.IsRef("$a"));
         }

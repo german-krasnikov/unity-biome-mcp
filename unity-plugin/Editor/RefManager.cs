@@ -43,8 +43,8 @@ namespace UnityMCP.Editor
         /// <summary>Resolve &amp;ref to GO. Returns null if stale or not a GameObject.</summary>
         public static GameObject Resolve(string r) => ResolveAny(r) as GameObject;
 
-        // & prefix: alphanumeric (base62 chars — letters and digits).
-        // $ prefix: digits only — backward compat for one version; $abc is an alias, not a ref.
+        // & prefix only: alphanumeric (base62 chars — letters and digits).
+        // $ is a hex instance ID prefix (TransientObjectId), never a ref.
         public static bool IsRef(string s)
         {
             if (s == null || s.Length < 2) return false;
@@ -52,12 +52,6 @@ namespace UnityMCP.Editor
             {
                 for (int i = 1; i < s.Length; i++)
                     if (!char.IsLetterOrDigit(s[i])) return false;
-                return true;
-            }
-            if (s[0] == WirePrefix.Alias) // $ — backward compat, digits only
-            {
-                for (int i = 1; i < s.Length; i++)
-                    if (!char.IsDigit(s[i])) return false;
                 return true;
             }
             return false;
