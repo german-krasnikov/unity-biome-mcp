@@ -917,6 +917,217 @@ namespace UnityMCP.Editor.Tests
             finally { TestRunAssemblyFingerprint.CompileStatusGetter = original; }
         }
 
+        // ── GetLegacyResults ──
+
+        [Test]
+        public void GetLegacyResults_UnknownRunId_ReturnsNone()
+        {
+            var result = CreateService().GetLegacyResults("run-does-not-exist");
+
+            Assert.AreEqual("none", result);
+        }
+
+        [Test]
+        public void GetLegacyResults_NonTerminalRun_ReturnsPending()
+        {
+            var service = CreateService();
+            service.Start("request-legacy-pending", "EditMode", null, null);
+            var runId = _store.ReadRequest("request-legacy-pending").run_id;
+
+            var result = service.GetLegacyResults(runId);
+
+            Assert.AreEqual("pending", result);
+        }
+
+        [Test]
+        public void GetLegacyResults_TerminalRun_ReturnsFormattedCounters()
+        {
+            const string runId = "run-legacy-terminal";
+            WriteFinalizingRun(runId, "unity-ui",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed);
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+            CreateFinalizer().TryFinalize(runId);
+
+            var result = CreateService().GetLegacyResults(runId);
+
+            StringAssert.StartsWith("0 tests:", result);
+            StringAssert.Contains(" passed,", result);
+            StringAssert.Contains(" failed,", result);
+            StringAssert.Contains("outcome=passed", result);
+        }
+
+        // ── GetLegacyProgress ──
+
+        [Test]
+        public void GetLegacyProgress_UnknownRunId_ReturnsIdleBare()
+        {
+            var result = CreateService().GetLegacyProgress("run-does-not-exist");
+
+            Assert.AreEqual("idle", result);
+        }
+
+        [Test]
+        public void GetLegacyProgress_TerminalRun_ReturnsIdleWithOutcome()
+        {
+            const string runId = "run-progress-terminal";
+            WriteFinalizingRun(runId, "unity-ui",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed);
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+            CreateFinalizer().TryFinalize(runId);
+
+            var result = CreateService().GetLegacyProgress(runId);
+
+            Assert.AreEqual("idle|run_id=" + runId + "|outcome=passed", result);
+        }
+
+        [Test]
+        public void GetLegacyProgress_ManifestIncomplete_ReturnsPendingWithRunId()
+        {
+            var service = CreateService();
+            service.Start("request-progress-pending", "EditMode", null, null);
+            var runId = _store.ReadRequest("request-progress-pending").run_id;
+
+            var result = service.GetLegacyProgress(runId);
+
+            Assert.AreEqual("pending|run_id=" + runId + "|no-progress-yet", result);
+        }
+
+        [Test]
+        public void GetLegacyProgress_InFlightWithManifestSealed_ReturnsRunningFormat()
+        {
+            const string runId = "run-progress-inflight";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                lifecycle = TestRunProtocol.Lifecycle.Running,
+                created_utc = Utc,
+                utf_guid = "utf-guid-1",
+                build_coherent = true
+            });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.RunStarted,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 5
+            });
+            _store.SealManifest(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.ManifestSealed,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 5
+            });
+
+            var result = CreateService().GetLegacyProgress(runId);
+
+            Assert.AreEqual(
+                "running|0|0|0|0|5|0.0|eta=0s|run_id=" + runId, result);
+        }
+
+        // ── Cancel edge cases ──
+
+        [Test]
+        public void Cancel_UnknownRunId_ReturnsNone()
+        {
+            var result = CreateService().Cancel("run-not-in-store");
+
+            Assert.AreEqual("none", result);
+        }
+
+        [Test]
+        public void Cancel_AlreadyTerminalRun_ReturnsAlreadyTerminal()
+        {
+            const string runId = "run-cancel-already-terminal";
+            WriteFinalizingRun(runId, "unity-ui",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed);
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+            CreateFinalizer().TryFinalize(runId);
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Terminal,
+                _store.ReadRun(runId).lifecycle);
+
+            var result = CreateService().Cancel(runId);
+
+            Assert.AreEqual(
+                "already-terminal|run_id=" + runId + "|outcome=passed", result);
+        }
+
+        [Test]
+        public void Cancel_NoUtfGuid_ReturnsCancelRejected()
+        {
+            const string runId = "run-cancel-no-guid";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                lifecycle = TestRunProtocol.Lifecycle.Dispatched,
+                created_utc = Utc
+            });
+
+            var result = CreateService().Cancel(runId);
+
+            Assert.AreEqual(
+                "cancel-rejected|run_id=" + runId + "|reason=no-utf-guid", result);
+        }
+
+        // ── GetRunJson ──
+
+        [Test]
+        public void GetRunJson_EmptyRunId_ReturnsNone()
+        {
+            Assert.AreEqual("none", CreateService().GetRunJson(""));
+        }
+
+        [Test]
+        public void GetRunJson_WhitespaceRunId_ReturnsNone()
+        {
+            Assert.AreEqual("none", CreateService().GetRunJson("   "));
+        }
+
+        [Test]
+        public void GetRunJson_RunDirectoryMissing_ReturnsNone()
+        {
+            var result = CreateService().GetRunJson("run-no-directory");
+
+            Assert.AreEqual("none", result);
+        }
+
+        // ── ListRunsJson ──
+
+        [Test]
+        public void ListRunsJson_LimitZero_ClampedToOne()
+        {
+            WriteBareRun("run-lz-old", "2026-08-02T10:00:00.0000000Z");
+            WriteBareRun("run-lz-new", "2026-08-02T11:00:00.0000000Z");
+
+            var json = CreateService().ListRunsJson(0);
+
+            StringAssert.Contains("run-lz-new", json);
+            StringAssert.DoesNotContain("run-lz-old", json);
+        }
+
+        [Test]
+        public void ListRunsJson_CompactSnapshot_StripsIssuesFromInvalidRun()
+        {
+            const string runId = "run-compact-issues";
+            WriteFinalizingRun(runId, "mcp");
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+            _environment.RestoreError =
+                new InvalidOperationException("compact-strip-marker");
+            CreateFinalizer().TryFinalize(runId);
+
+            var json = CreateService().ListRunsJson(10);
+
+            StringAssert.Contains(runId, json);
+            StringAssert.DoesNotContain("compact-strip-marker", json);
+            StringAssert.DoesNotContain("INFRASTRUCTURE_ERROR", json);
+        }
+
         private TestRunService CreateService(
             TestRunBuildFingerprint build = null,
             Action<string> afterDurableBoundary = null) =>
