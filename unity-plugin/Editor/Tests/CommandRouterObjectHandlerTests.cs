@@ -94,7 +94,7 @@ namespace UnityMCP.Editor.Tests
             var raw = CommandRouter.Process(
                 "{\"id\":\"oh5a\",\"cmd\":\"inspect\"," +
                 "\"args\":{\"paths\":\"/InspectCompress_T5\"}}");
-            StringAssert.Contains("m_LocalPosition.x: 0", raw);
+            StringAssert.Contains("m_LocalPosition: (0, 0, 0)", raw);
 
             // Act: with compress=true the zero-value line is stripped
             var result = CommandRouter.Process(
@@ -102,7 +102,7 @@ namespace UnityMCP.Editor.Tests
                 "\"args\":{\"paths\":\"/InspectCompress_T5\",\"compress\":\"true\"}}");
 
             StringAssert.Contains("\"ok\":true", result);
-            StringAssert.DoesNotContain("m_LocalPosition.x: 0", result);
+            StringAssert.DoesNotContain("m_LocalPosition: (0, 0, 0)", result);
         }
 
         [Test]

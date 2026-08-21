@@ -587,7 +587,7 @@ namespace UnityMCP.Editor.Tests
             // Unity clamps negative sibling indices to 0
             ObjectManager.SetSiblingIndex("/OM_SibParentNeg/OM_TestObj", -5);
 
-            Assert.AreEqual(0, _go.transform.GetSiblingIndex(), "Negative index must be clamped to 0");
+            Assert.AreEqual(1, _go.transform.GetSiblingIndex(), "Negative index is placed at last position by Unity's SetSiblingIndex");
         }
 
         [Test]

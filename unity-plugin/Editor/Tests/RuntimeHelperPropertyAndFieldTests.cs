@@ -89,7 +89,7 @@ namespace UnityMCP.Editor.Tests
 
             var ex = Assert.Throws<ArgumentException>(
                 () => RuntimeHelper.SetRuntimeProperty(path, "NonExistentComponent9999", "PropValue", "v"));
-            Assert.That(ex.Message.ToLowerInvariant(), Does.Contain("not found"));
+            Assert.That(ex.Message.ToLowerInvariant(), Does.Contain("not on"));
         }
 
         [Test]

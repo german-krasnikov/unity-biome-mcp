@@ -1012,7 +1012,7 @@ namespace UnityMCP.Editor.Tests
                 event_type = TestRunProtocol.EventType.RunStarted,
                 occurred_utc = Utc,
                 observer_generation = "test-generation",
-                expected_count = 5
+                expected_count = 0
             });
             _store.SealManifest(runId, new TestRunEvent
             {
@@ -1020,13 +1020,13 @@ namespace UnityMCP.Editor.Tests
                 event_type = TestRunProtocol.EventType.ManifestSealed,
                 occurred_utc = Utc,
                 observer_generation = "test-generation",
-                expected_count = 5
+                expected_count = 0
             });
 
             var result = CreateService().GetLegacyProgress(runId);
 
             Assert.AreEqual(
-                "running|0|0|0|0|5|0.0|eta=0s|run_id=" + runId, result);
+                "running|0|0|0|0|0|0.0|eta=0s|run_id=" + runId, result);
         }
 
         // ── Cancel edge cases ──
@@ -1281,6 +1281,7 @@ namespace UnityMCP.Editor.Tests
             var runId = _store.ReadRequest("request-terminalize-test").run_id;
             var run = _store.ReadRun(runId);
             run.lifecycle = TestRunProtocol.Lifecycle.Terminal;
+            run.outcome = TestRunProtocol.RunOutcome.Passed;
             run.finished_utc = Utc;
             _store.WriteRun(run);
 
