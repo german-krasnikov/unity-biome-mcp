@@ -55,13 +55,11 @@ Player [Rigidbody,PlayerController] &3
 | Global limit | `MAX_NODES = 3000`, followed by a narrowing hint when reached |
 | Tree structure | `├─`, `└─`, and `│` connectors |
 
-`RefManager` encodes `counter + 1`, so the first values are `&1`, `&2`, and so
-on; after `&Z` it continues with `&10`. It does not wrap at a fixed slot count.
-The server invalidates the map on connection lifecycle boundaries that make
-references unsafe. Invalidating the maps does not reset the process-local
-counter, so a stale reference cannot alias an object assigned later in the same
-Editor process. A reference is still a convenient short-lived address, not a
-durable object identity.
+`RefManager` deterministically encodes `base62(obj.GetInstanceID())`, so the same
+object always receives the same ref across invalidations and reconnections. It does
+not use a counter; each ref is stable for the object's lifetime. A reference is a
+short-lived address: destroyed targets resolve as `null`, and Invalidate is a
+no-op (refs survive unaffected). Prefer paths for durable examples and tests.
 
 ### Multi-scene output
 
@@ -182,10 +180,10 @@ duplicating the mutation rules here.
 
 ## Invalidation and Safety
 
-- A destroyed target resolves as stale and is removed from `RefManager`.
-- `Invalidate()` clears both maps but keeps the counter monotonic for the life
-  of the Editor process.
-- `Prune()` removes destroyed objects without renumbering live entries.
+- A destroyed target resolves as `null` via Unity internals; `RefManager.Ref()` of
+  a destroyed object returns `null`.
+- `Invalidate()` and `Prune()` are no-ops in the stateless backend; refs survive
+  unaffected because they are derived from instanceID, not from ephemeral state.
 - Hierarchy changes may invalidate assumptions even when a previously assigned
   reference still resolves; verify the target before a consequential write.
 - Multi-scene tests must cover both qualified and unqualified paths and retain a
