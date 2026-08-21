@@ -12,6 +12,10 @@ namespace UnityMCP.Editor
 {
     internal static class PlaytestAliasHelpers
     {
+        // Testability seam — tests can inject a call spy.
+        internal static Action<string, ImportAssetOptions> _importAsset =
+            AssetDatabase.ImportAsset;
+
         private static readonly Regex NonAlphaUnder = new Regex(@"[^a-z0-9_]", RegexOptions.Compiled);
 
         // Dispatch on type — VAL or VAR keyword, path or constValue content.
@@ -56,7 +60,7 @@ namespace UnityMCP.Editor
             var relative = $"{folder}/{filename}.defs";
             var absolute = Path.GetFullPath(relative);
             File.WriteAllText(absolute, FormatVALBlock(aliases));
-            AssetDatabase.Refresh();
+            _importAsset(relative, ImportAssetOptions.Default);
             return absolute;
         }
 

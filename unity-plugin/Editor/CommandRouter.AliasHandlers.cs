@@ -161,7 +161,7 @@ namespace UnityMCP.Editor
 
             var block = PlaytestAliasHelpers.FormatVALBlock(cfg.aliases);
             File.WriteAllText(absDefsPath, block, Encoding.UTF8);
-            AssetDatabase.Refresh();
+            AssetDatabase.ImportAsset(defsPath, ImportAssetOptions.Default);
             return $"exported: {cfg.aliases.Count} aliases -> {defsPath}";
         }
 
