@@ -27,16 +27,18 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void IsAutoRefreshDisabled_WhenKAutoRefreshIs0_ReturnsTrue()
+        public void IsAutoRefreshDisabled_WhenDisabled_ReturnsTrue()
         {
             SetEditorPrefInt("kAutoRefresh", 0);
+            SetEditorPrefInt("kAutoRefreshMode", 2); // 2 = Disabled
             Assert.IsTrue(HotReloadDetector.IsAutoRefreshDisabled());
         }
 
         [Test]
-        public void IsAutoRefreshDisabled_WhenKAutoRefreshIs1_ReturnsFalse()
+        public void IsAutoRefreshDisabled_WhenEnabled_ReturnsFalse()
         {
             SetEditorPrefInt("kAutoRefresh", 1);
+            SetEditorPrefInt("kAutoRefreshMode", 0); // 0 = Enabled
             Assert.IsFalse(HotReloadDetector.IsAutoRefreshDisabled());
         }
 

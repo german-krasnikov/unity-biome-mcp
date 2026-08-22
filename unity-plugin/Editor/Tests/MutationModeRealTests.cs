@@ -159,8 +159,8 @@ namespace UnityMCP.Editor.Tests
         {
             // Simulate crash state: EditorPref says MM=ON but SessionState cleared (guards not applied)
             MCPSettings.SetMutationMode(true);
-            EditorPrefs.SetInt("kAutoRefresh", 0);
-            EditorPrefs.SetInt("kAutoRefreshMode", 2);
+            SetEditorPrefInt("kAutoRefresh", 0);
+            SetEditorPrefInt("kAutoRefreshMode", 2);
             // SessionState is clean (AutoRefreshGuard.IsApplied=false) — simulates crash
 
             bool recovered = MutationModeCrashRecovery.RecoverIfNeeded();
