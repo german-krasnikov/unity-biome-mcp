@@ -17,6 +17,13 @@ Use `mcp_status` for a compact view of the connected scene and Editor state:
 status = await mcp_status()
 ```
 
+The status includes:
+- `scene` — current open scene name
+- `playing` — true if Play Mode is active
+- `mutation_mode` — true if Hot Reload or Mutation Mode toggle is enabled
+- `fast_play_mode` — true if Play Mode does not reload domain
+- `plugin_version`, `protocol_version`, `python_version` — cross-language version diagnostics
+
 If a specialized tool is not visible, inspect the catalog without changing the
 session, then enable only the category you need:
 
@@ -52,6 +59,30 @@ result = await sync_unity()
 Do not replace that check with a fixed sleep. `recompile` requests compilation
 but does not by itself prove that the new assembly loaded. For diagnosis and
 the post-change verification ladder, see [Diagnostics](diagnostics.md).
+
+## Batch multiple .cs writes into one domain reload
+
+When writing multiple C# files, batch them into a single domain reload using write sessions:
+
+```python
+await start_write_session()
+await asset(action="write_text", path="Assets/Scripts/File1.cs", content="...")
+await asset(action="write_text", path="Assets/Scripts/File2.cs", content="...")
+await end_write_session(sync=True)
+```
+
+This is faster than writing each file separately (which triggers a domain reload per write):
+
+- `start_write_session()` locks assemblies and disables auto-refresh
+- `end_write_session(sync=True)` releases the lock and triggers **one** domain reload
+  for all buffered writes
+- `sync=True` (default) waits for compilation to finish before returning
+- `sync=False` returns immediately after releasing the lock
+- Auto-releases after 120s watchdog if not explicitly closed
+
+Wrap only script-affecting operations (`asset` with .cs/.asmdef/.dll paths,
+`write_text` with script extensions). Non-script writes (`asset` with .prefab/.mat)
+outside the session are safe.
 
 Other maintenance tools are intentionally narrower:
 

@@ -154,3 +154,25 @@ and save gating, use
 [`scene_change_plan` and `apply_scene_change`](scene.md#apply-a-guarded-scene-change).
 For exact `batch` parameters and installed tool signatures, use the
 [generated schema](../tools-schema/index.md).
+
+## Optimize multiple C# file writes
+
+When writing multiple .cs files, use `write_session` to batch them into **one** domain
+reload instead of triggering a reload per write:
+
+```python
+await start_write_session()
+await batch(commands="""
+asset action=write_text path=Assets/Scripts/Handler.cs content="..."
+asset action=write_text path=Assets/Scripts/Helper.cs content="..."
+asset action=write_text path=Assets/Scripts/Config.asmdef content="..."
+""")
+await end_write_session(sync=True)
+```
+
+Each separate `asset` write would normally trigger a domain reload. Inside a write session,
+the reload fires **once** when `end_write_session()` runs.
+
+- Use for multiple script writes, assembly definitions, or DLL imports
+- Write_session does not affect non-script operations (prefabs, materials, etc.)
+- `end_write_session(sync=True)` waits for compile; use `sync=False` for immediate return

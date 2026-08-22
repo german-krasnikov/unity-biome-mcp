@@ -223,11 +223,30 @@ for `SyncHelper` to report the matching ready or failed state, tolerates the
 expected domain-reload disconnect, corroborates errors, and invokes bounded
 internal recovery only when needed.
 
-**Hot Reload coexistence:** When SingularityGroup Hot Reload is installed or
-`MCPSettings.HotReloadMode` is enabled, `sync_unity` detects the active state
+**Mutation Mode:** When SingularityGroup Hot Reload is installed or
+`MCPSettings.GetMutationMode()` is enabled, `sync_unity` detects the active state
 via `HotReloadDetector.IsActive()` and skips Refresh/RequestScriptCompilation.
 HR handles method patching into the live domain without reload. The detection
 check is fast (assembly scan + EditorPref read) and cached conservatively.
+`mcp_status` reports `mutation_mode=true|false` (Protocol v4+).
+
+**Fast Play Mode:** `FastPlayMode` manages EditorSettings `enterPlayModeOptionsEnabled`
++ `DisableDomainReload` for session scope. When active, entering Play Mode does not
+trigger a domain reload. `editor(action="fast_play_mode", enable="true"|"false")`
+toggles at runtime; `mcp_status` reports `fast_play_mode=true|false`. Original
+EditorSettings are preserved and restored on disable.
+
+**Reload risk tracking:** The `reload_risk` module classifies commands by domain reload
+risk and tracks script writes across calls. `await_compile()` short-circuits when
+`mutation_mode=true` and `reload_risk.has_touches() == False`, returning immediately
+without polling. When mutation_mode is OFF, short-circuit is disabled; always poll
+(backward compat for non-MM workflows).
+
+**Write sessions:** `write_session` tools batch multiple .cs file writes into a
+single domain reload. `start_write_session()` opens a lock and disables auto-refresh;
+`end_write_session(sync=True)` releases the lock and triggers reload. Auto-releases
+after 120s watchdog. Wrap multiple `asset(action="write_text", ...)` calls between
+start/end for efficiency.
 
 `force_refresh`, `recompile`, and `force_play_stop` are recovery implementation
 details, not the public agent workflow. `sync_unity` is mutating because import,

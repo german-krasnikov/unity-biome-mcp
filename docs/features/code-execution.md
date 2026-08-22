@@ -108,6 +108,45 @@ var list = new List<Object>();  // Resolves to UnityEngine.Object
 # `using Object = UnityEngine.Object;` is auto-included in every script.
 ```
 
+## Type Persistence (Mutation Mode)
+
+When **Mutation Mode** is enabled, use `persist_as` to store compiled types for
+reuse across multiple `execute_code` calls. This eliminates per-call compilation
+overhead:
+
+```python
+# Call 1: compile and store type "Handler"
+await execute_code(
+    code="""
+    public class Handler {
+        public static void Execute() { Debug.Log("handler executed"); }
+        public static int Value { get; set; } = 42;
+    }
+    """,
+    persist_as="Handler"
+)
+# → returns "compile clean"
+
+# Call 2: Handler is available; recompile only this code (100ms vs 5s)
+result = await execute_code("return Handler.Value.ToString();")
+# → "42"
+
+# Call 3: execute Handler without any new code
+result = await execute_code("Handler.Execute(); return null;")
+# → "null"
+
+# Clear types when done
+await clear_held_types()
+```
+
+**Without `persist_as`:** Each call compiles fresh (full domain reload, 15-30s).
+
+**With `persist_as`:** First call is normal speed; subsequent calls see the persisted
+types and compile much faster (100-300ms). Use this pattern for rapid iteration
+during development.
+
+`persist_as` is ignored when Mutation Mode is disabled.
+
 ## Undo Integration
 
 ```python
