@@ -495,6 +495,7 @@ namespace UnityMCP.Editor
         private static void OnBeforeReload()
         {
             _shuttingDown = true;
+            Debug.Log($"{BiomeLabel.Tag} Domain reload started [Mutation Mode: {(MCPSettings.GetMutationMode() ? "ON" : "OFF")}]");
             WriteStateFile("reloading");
             try { CommandRouter._dedupRegistry.Save(); } catch { }  // persist before static fields reset
             // Send going_away FIRST — streams still alive, handlers still running
