@@ -89,7 +89,7 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"mutation_mode={HotReloadDetector.IsActive().ToString().ToLower()}");
                 sb.AppendLine($"write_session={WriteSessionGuard.IsActive.ToString().ToLower()}");
                 sb.AppendLine($"held_types={HeldTypeStore.Count}");
-                sb.AppendLine($"fast_play_mode={MCPSettings.GetFastPlayMode().ToString().ToLower()}");
+                sb.AppendLine($"fast_play_mode={FastPlayMode.IsApplied.ToString().ToLower()}");
                 return sb.ToString().TrimEnd();
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
         }
@@ -394,7 +394,7 @@ namespace UnityMCP.Editor
                 bool atomic = JsonHelper.ExtractString(args, "atomic") == "true";
                 bool validateAliases = JsonHelper.ExtractString(args, "validate_aliases") == "true";
                 var deferStr = JsonHelper.ExtractString(args, "defer_asset_import");
-                bool deferImport = deferStr == "true" || (deferStr == null && HotReloadDetector.IsActive());
+                bool deferImport = deferStr == "true" || (deferStr == null && MCPSettings.GetMutationMode());
                 return BatchHelper.Execute(
                     JsonHelper.ExtractString(args, "commands"),
                     JsonHelper.ExtractString(args, "on_error") ?? "continue",

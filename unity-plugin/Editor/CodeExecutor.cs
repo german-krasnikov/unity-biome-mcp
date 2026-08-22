@@ -110,26 +110,30 @@ namespace UnityMCP.Editor
         public static string Execute(string code, string undoLabel, string persistAs = null)
         {
             SecurityScan(code);
-
             var wrapped = WrapIfBareCode(code);
-
             EnsureRoslyn();
 
-            if (persistAs != null) ProbeCreateFromStream(); // warm probe before compile
-
-            var (assembly, bytes) = CompileToBytes(wrapped);
-
-            if (persistAs != null)
+            if (!string.IsNullOrEmpty(persistAs))
+            {
+                ProbeCreateFromStream();
+                var (asm, bytes) = CompileToBytes(wrapped);
                 HeldTypeStore.Register(persistAs, bytes);
+                var hasRun = asm.GetTypes()
+                    .Any(t => t.GetMethod("Run",
+                        BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic) != null);
+                if (!hasRun)
+                    return $"persisted:{persistAs} ({HeldTypeStore.Count} held)";
+                return RunWithUndo(asm, undoLabel);
+            }
 
-            var hasRun = assembly.GetTypes()
-                .Any(t => t.GetMethod("Run",
-                    BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic) != null);
+            return RunWithUndo(Compile(wrapped), undoLabel);
+        }
 
-            if (persistAs != null && !hasRun)
-                return $"persisted:{persistAs} ({HeldTypeStore.Count} held)";
-
-            return RunWithUndo(assembly, undoLabel);
+        // Returns Assembly only — no byte[] allocation for the common non-persist path.
+        private static Assembly Compile(string code)
+        {
+            var (asm, _) = CompileToBytes(code);
+            return asm;
         }
 
         /// <summary>Clears all held assembly bytes and removes any Path B DLL files from disk.</summary>

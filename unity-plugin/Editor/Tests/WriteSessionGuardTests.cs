@@ -126,6 +126,33 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(0, _stopC, "StopAssetEditing must not fire before timeout");
         }
 
+        // ── Subtask 18: Start() acquisition failure rollback ─────────────────
+
+        [Test]
+        public void Start_WhenStartEditingThrows_RollsBackAndReturnsError()
+        {
+            WriteSessionGuard._startEditing = () => throw new Exception("disk-full");
+            var result = WriteSessionGuard.Start();
+            Assert.That(result, Does.Contain("err:acquire_failed"), "Must return error on acquisition failure");
+            Assert.That(result, Does.Contain("disk-full"), "Must include exception message");
+            Assert.IsFalse(WriteSessionGuard.IsActive, "Must not be active after failed Start");
+            // Rollback: stopEditing called to undo partial acquire
+            Assert.AreEqual(1, _stopC,   "StopEditing must be called for rollback");
+            Assert.AreEqual(1, _allowC,  "AllowRefresh must be called for rollback");
+            Assert.AreEqual(1, _unlockC, "UnlockAssemblies must be called for rollback");
+        }
+
+        [Test]
+        public void Watchdog_WhenForceReleaseThrows_LogsErrorDoesNotPropagate()
+        {
+            WriteSessionGuard.Start();
+            WriteSessionGuard._stopEditing = () => throw new Exception("stop-boom");
+            _fakeTime = 121.0;
+            // Must not throw — watchdog catches ForceRelease exceptions
+            Assert.DoesNotThrow(() => WriteSessionGuard.InvokeWatchdogTickForTest());
+            Assert.IsFalse(WriteSessionGuard.IsActive);
+        }
+
         // ── Subtask 18: crash recovery ───────────────────────────────────────
 
         [Test]

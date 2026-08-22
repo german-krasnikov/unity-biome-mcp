@@ -45,16 +45,26 @@ namespace UnityMCP.Editor
 
         // ── Public API ───────────────────────────────────────────────────────────────
 
-        internal static string Start()
+        internal static string Start(string hint = "")
         {
-            if (_active) return "err=already_active";
-            _startEditing();
-            _disallowRefresh();
-            _lockAssemblies();
+            if (_active) return "already_active";
+            try
+            {
+                _startEditing();
+                _disallowRefresh();
+                _lockAssemblies();
+            }
+            catch (Exception ex)
+            {
+                try { _stopEditing(); }      catch { }
+                try { _allowRefresh(); }     catch { }
+                try { _unlockAssemblies(); } catch { }
+                return $"err:acquire_failed|{ex.Message}";
+            }
+            _active = true;
             SessionState.SetBool(ActiveKey, true);
             _startTime = _time();
             EditorApplication.update += WatchdogTick;
-            _active = true;
             return "write_session_started";
         }
 
@@ -91,7 +101,8 @@ namespace UnityMCP.Editor
             if (!_active) { EditorApplication.update -= WatchdogTick; return; }
             if (_time() - _startTime <= _watchdogSeconds) return;
             Debug.LogWarning("[MCP] WriteSession watchdog fired — releasing lock after timeout");
-            ForceRelease();
+            try { ForceRelease(); }
+            catch (Exception ex) { Debug.LogError($"[MCP] WriteSession watchdog: {ex.Message}"); }
         }
 
         // ── Test helpers ─────────────────────────────────────────────────────────────
