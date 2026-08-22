@@ -267,6 +267,7 @@ namespace UnityMCP.Editor
 
         internal static (Assembly asm, byte[] bytes) CompileToBytes(string code)
         {
+            EnsureRoslyn();
             if (_compilationCount >= 200)
                 Debug.LogWarning($"{BiomeLabel.Tag} execute_code: 200+ compilations — assembly leak risk in Mono. Consider restarting Unity.");
             _compilationCount++;
@@ -308,7 +309,7 @@ namespace UnityMCP.Editor
 
             var createParams = createMethod.GetParameters();
             var createArgs = new object[createParams.Length];
-            createArgs[0] = "MCPScript";
+            createArgs[0] = $"MCPScript_{_compilationCount}";
             if (createParams.Length > 1) createArgs[1] = syntaxTreesArray;
             if (createParams.Length > 2) createArgs[2] = refList;
             if (createParams.Length > 3) createArgs[3] = options;

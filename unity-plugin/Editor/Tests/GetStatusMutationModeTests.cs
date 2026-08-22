@@ -58,8 +58,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void GetStatus_ContainsFastPlayModeField_WhenDisabled()
         {
-            ProtectEditorPrefBool("UnityMCP_FastPlayMode");
-            EditorPrefs.DeleteKey("UnityMCP_FastPlayMode"); // ensure default false
+            DeleteEditorPrefBool("UnityMCP_FastPlayMode"); // ensure default false
             var result = CommandRegistry.Execute("get_status", "{}");
             StringAssert.Contains("fast_play_mode=false", result);
         }
