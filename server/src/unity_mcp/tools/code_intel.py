@@ -154,6 +154,11 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
         note = " [hot-reload-mode: HR applied changes without domain reload]"
         return (errors + note) if errors else ("compile clean" + note)
 
+    # Short-circuit: no script writes this session → compile is clean by definition.
+    from .. import reload_risk as _rr
+    if not _rr.has_touches():
+        return "compile clean (no script writes)"
+
     # timeout=0: single check, no loop
     # G13: only active compile states are "still compiling"; terminal states (idle-failed,
     # idle-never, idle-stale) fall through to _get_errors() which returns the real verdict.

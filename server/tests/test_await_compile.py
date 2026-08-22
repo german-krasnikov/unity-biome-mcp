@@ -9,6 +9,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 import unity_mcp.tools.code_intel as _ci
 from unity_mcp.bridge import DomainReloadError
+from unity_mcp import reload_risk
 
 
 def _make_send(status_seq, errors_response=""):
@@ -48,9 +49,12 @@ def _patch_sleep():
 def _reset_send():
     original = _ci._send
     orig_cache = _ci._mm_cached
+    # Simulate post-script-write state so the short-circuit doesn't fire.
+    reload_risk.touch()
     yield
     _ci._send = original
     _ci._mm_cached = orig_cache  # ensure isolation
+    reload_risk.reset()
 
 
 async def test_already_idle_returns_errors_immediately():

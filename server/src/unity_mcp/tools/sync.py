@@ -160,6 +160,8 @@ async def sync_unity(
             "Call await_compile to confirm current state."
         )
 
+    from unity_mcp import reload_risk as _rr
+
     # D2: bump circuit-breaker
     if bump and _bump_used:
         return "STOP: bump already used this session; investigate compile errors instead of re-bumping"
@@ -240,6 +242,7 @@ async def sync_unity(
             recovery = await _attempt_recovery(_send, mvid, _send_reload, deadline=deadline)
             if recovery is None:
                 await _warm_type_cache()
+                _rr.on_compile_clean()
                 return "sync clean"  # healed via force_refresh
             # BLOCKER1: T1 failed → escalate to run_ladder T2-T5
             return await _run_ladder(_send, send_reload=_send_reload, start_tier=2)
@@ -270,16 +273,19 @@ async def sync_unity(
                         recovery = await _attempt_recovery(_send, mvid_pre, _send_reload, deadline=deadline)
                         if recovery is None:
                             await _warm_type_cache()
+                            _rr.on_compile_clean()
                             return "sync clean"  # healed via force_refresh
                         # BLOCKER1: T1 failed → escalate to run_ladder T2-T5
                         return await _run_ladder(_send, send_reload=_send_reload, start_tier=2)
                     # will_compile=false (cache-hit / no-change): frozen MVID is clean.
                     # expected_compile threading (item 1 / A5): never STALE-DOMAIN here.
                     await _warm_type_cache()
+                    _rr.on_compile_clean()
                     return "sync clean (no-op, cache-hit)"
             errors = await _get_errors()
             if not errors:
                 await _warm_type_cache()
+                _rr.on_compile_clean()
                 return "sync clean"
             return errors
 

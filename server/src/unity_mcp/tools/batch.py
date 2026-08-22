@@ -172,6 +172,9 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
         commands, pre_errors, orig_indices = _preprocess_continue_mode(commands)
     else:
         commands = _preprocess_stop_mode(commands)
+    from .. import reload_risk
+    if reload_risk.classify_batch(commands) == "script":
+        reload_risk.touch()
     timeout_ms = max(1000, int((timeout - 5) * 1000))
     args = _build_send_args(commands, on_error, timeout_ms, atomic, validate_aliases, defer_asset_import)
     result = await _send("batch", args, timeout=timeout)
