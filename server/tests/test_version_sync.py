@@ -54,8 +54,8 @@ def project_root(tmp_path: Path) -> Path:
         encoding="utf-8"
     )
 
-    (tmp_path / "unity-plugin" / "Editor" / "MCPServer.cs").write_text(
-        'internal static string PluginVersion => "0.8.2";\n',
+    (tmp_path / "unity-plugin" / "Editor" / "BiomeVersion.cs").write_text(
+        'public const string Plugin = "0.8.2";\n',
         encoding="utf-8"
     )
 

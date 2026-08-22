@@ -53,10 +53,8 @@ def _write_fixture(root: Path, versions: dict) -> None:
         json.dumps({"server_version": versions["_meta.json"], "plugin_version": versions["_meta.json"]}),
         encoding="utf-8",
     )
-    (root / "unity-plugin" / "Editor" / "MCPServer.cs").write_text(
-        "internal static class MCPServer {\n"
-        f'    internal static string PluginVersion => "{versions["MCPServer.cs"]}";\n'
-        "}\n",
+    (root / "unity-plugin" / "Editor" / "BiomeVersion.cs").write_text(
+        f'public const string Plugin = "{versions["MCPServer.cs"]}";\n',
         encoding="utf-8",
     )
     (root / "scripts" / "gauntlet").mkdir(parents=True, exist_ok=True)
@@ -126,7 +124,7 @@ def test_check_rejects_missing_version_patterns(tmp_path):
         tmp_path / "server" / "uv.lock",
         tmp_path / "unity-plugin" / "package.json",
         tmp_path / "server" / "src" / "unity_mcp" / "__version__.py",
-        tmp_path / "unity-plugin" / "Editor" / "MCPServer.cs",
+        tmp_path / "unity-plugin" / "Editor" / "BiomeVersion.cs",
     ):
         path.write_text("no version here\n", encoding="utf-8")
     (tmp_path / "docs" / "assets" / "_meta.json").write_text(
@@ -170,7 +168,7 @@ def test_sync_rolls_back_every_artifact_on_replace_failure(
         tmp_path / "unity-plugin" / "package.json",
         tmp_path / "server" / "src" / "unity_mcp" / "__version__.py",
         tmp_path / "docs" / "assets" / "_meta.json",
-        tmp_path / "unity-plugin" / "Editor" / "MCPServer.cs",
+        tmp_path / "unity-plugin" / "Editor" / "BiomeVersion.cs",
         tmp_path / "scripts" / "gauntlet" / "release-policy.json",
     ]
     originals = {path: path.read_bytes() for path in paths}
