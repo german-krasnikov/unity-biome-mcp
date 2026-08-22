@@ -10,6 +10,7 @@ _EXPECTED_CORE = frozenset({
 
 _EXPECTED_TIER1_NONCORE = frozenset({
     "apply_scene_change", "await_compile", "console_mark", "delete_object", "discover_tools",
+    "end_write_session",
     "get_changeset", "get_console_since", "lint_scene_refs", "permission_prompt", "reconnect_unity",
     "resolve_tool_schema", "run_playtest", "run_playtest_suite", "run_tests", "run_tests_wait",
     "scene", "scene_change_plan", "screenshot", "search_scene", "set_active", "set_parent",
@@ -29,12 +30,12 @@ def test_core_exact_13():
     assert _CORE_TOOLS == _EXPECTED_CORE
 
 
-def test_tier1_noncore_exact_23():
+def test_tier1_noncore_exact_28():
     assert TIER1 - _CORE_TOOLS == _EXPECTED_TIER1_NONCORE
 
 
-def test_visible_surface_40():
-    assert len(TIER1) == 40  # +3 intent tools promoted to tier1 (Step 1)
+def test_visible_surface_41():
+    assert len(TIER1) == 41  # +3 intent tools promoted to tier1 (Step 1); +1 end_write_session
 
 
 def test_promoted_compile_preflight_is_core():

@@ -198,7 +198,6 @@ from .tools.autobatch import configure_objects, set_properties, setup_objects  #
 from .tools.batch import batch, references, validate_references  # noqa: F401
 from .tools.code_intel import compile_preflight  # noqa: F401
 from .tools.codegen import auto_fix, execute_code, get_schema, smart_build  # noqa: F401
-from .tools.write_session import end_write_session, start_write_session  # noqa: F401
 from .tools.connection import list_connections, reconnect_unity  # noqa: F401
 from .tools.console import get_compile_errors, get_console, recompile  # noqa: F401
 from .tools.editor_control import checkpoint, editor  # noqa: F401
@@ -276,6 +275,7 @@ from .tools.ui_intent_tool import ui_intent  # noqa: F401
 from .tools.uitk import attach_uitk, inspect_uitk, lint_uitk, uitk_element, uitk_file  # noqa: F401
 from .tools.vfx_intent_tool import vfx_intent  # noqa: F401
 from .tools.watch import get_watches, watch  # noqa: F401
+from .tools.write_session import end_write_session, start_write_session  # noqa: F401
 
 # Disabled-tools state lives here so tests can mutate srv._disabled_tools_cache directly.
 _disabled_tools_cache: set | None = None

@@ -88,8 +88,8 @@ def test_tier1_count_in_bounds():
     +3 intent tools (ui_intent, vfx_intent, uitk_intent) promoted in Step 1."""
     from unity_mcp.tools.tool_specs import _SPECS
     count = sum(1 for s in _SPECS.values() if s.tier1 and not s.core)
-    assert 23 <= count <= 27, (
-        f"Tier1 non-core count is {count} — outside [23, 27] bounds. "
+    assert 23 <= count <= 28, (
+        f"Tier1 non-core count is {count} — outside [23, 28] bounds. "
         "Update this range intentionally if the tier1 set changed."
     )
 

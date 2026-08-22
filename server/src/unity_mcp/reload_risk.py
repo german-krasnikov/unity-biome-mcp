@@ -1,6 +1,4 @@
 """Classify MCP commands by domain reload risk + track script writes since last compile."""
-from __future__ import annotations
-
 import os
 import re
 from typing import Literal
