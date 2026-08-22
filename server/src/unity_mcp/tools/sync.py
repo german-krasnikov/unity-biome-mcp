@@ -152,15 +152,15 @@ async def sync_unity(
     if _send is None:
         raise ToolError("sync_unity requires a Unity connection (no bridge)")
 
-    # HR coexistence guard — fail-open: if get_status fails, proceed normally
-    if await _is_hr_active():
-        return (
-            "warn: Hot Reload detected — sync_unity skipped. "
-            "HR handles compilation via method patching. "
-            "Call await_compile to confirm current state."
-        )
-
     from unity_mcp import reload_risk as _rr
+
+    # MM coexistence guard — skip only when no script writes; has_touches → fall through.
+    # Fail-open: if get_status fails, proceed normally.
+    if await _is_hr_active() and not _rr.has_touches():
+        return (
+            "mutation_mode active — sync skipped (no script writes). "
+            "Call await_compile to check state."
+        )
 
     # D2: bump circuit-breaker
     if bump and _bump_used:

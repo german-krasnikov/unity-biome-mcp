@@ -4,8 +4,9 @@ When get_status returns mutation_mode=true, await_compile returns
 immediately with current errors and a [hot-reload-mode] annotation.
 When mutation mode is inactive or get_status fails, normal polling path is used.
 """
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
 
 import unity_mcp.tools.code_intel as _ci
 from unity_mcp import reload_risk
@@ -34,40 +35,40 @@ def _reset_send():
     _ci._mm_cached = original_cache
 
 
-async def test_await_compile_hr_clean_returns_note():
-    """Mutation mode active + no errors → 'compile clean' with [hot-reload-mode] annotation."""
+async def test_await_compile_mm_no_touches_returns_clean():
+    """Mutation mode active + no script writes → immediate 'compile clean' (no polling)."""
     async def _fake_send(cmd, args=None, **kwargs):
         if cmd == "get_status":
             return "scene=Sample\nmutation_mode=true\nplaying=false"
-        if cmd == "get_compile_errors":
-            return ""
-        raise AssertionError(f"Unexpected cmd: {cmd}")
+        raise AssertionError(f"Unexpected cmd: {cmd}")  # no polling expected
 
     _ci._send = _fake_send
-    reload_risk.touch()
-    with patch("unity_mcp.editor_log.get_corroborated_errors", new=AsyncMock(return_value="")):
-        result = await _ci.await_compile(timeout=60.0)
+    # No reload_risk.touch() — has_touches() returns False
+    result = await _ci.await_compile(timeout=60.0)
     assert "compile clean" in result
-    assert "hot-reload-mode" in result
+    assert "no script writes" in result
 
 
-async def test_await_compile_hr_with_errors_returns_errors_plus_note():
-    """Mutation mode active + compile errors → both error text and [hot-reload-mode] annotation."""
-    errors_text = "Assets/Foo.cs(1,1): error CS0103: name not found"
+async def test_await_compile_mm_with_touches_falls_through_to_polling():
+    """Mutation mode active + has_touches → falls through to normal polling (no early return)."""
+    sync_status_called = []
 
     async def _fake_send(cmd, args=None, **kwargs):
         if cmd == "get_status":
             return "mutation_mode=true"
-        if cmd == "get_compile_errors":
-            return errors_text
-        raise AssertionError(f"Unexpected cmd: {cmd}")
+        if cmd == "sync_status":
+            sync_status_called.append(cmd)
+            return "epoch=0|state=idle"
+        if cmd == "compile_status":
+            return "idle|0.0"
+        return ""
 
     _ci._send = _fake_send
-    reload_risk.touch()
-    with patch("unity_mcp.editor_log.get_corroborated_errors", new=AsyncMock(return_value=errors_text)):
+    reload_risk.touch()  # simulate script write
+    with patch("unity_mcp.editor_log.get_corroborated_errors", new=AsyncMock(return_value="")):
         result = await _ci.await_compile(timeout=60.0)
-    assert errors_text in result
-    assert "hot-reload-mode" in result
+    # Must NOT have the annotation — normal polling path
+    assert "hot-reload-mode" not in result
 
 
 async def test_await_compile_normal_mode_unaffected():

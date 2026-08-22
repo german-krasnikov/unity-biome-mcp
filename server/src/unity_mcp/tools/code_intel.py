@@ -154,15 +154,9 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
     mm_active = await _is_hr_active()
 
     # Short-circuit: MM on + no script writes → clean by definition.
-    # Toggle OFF means always poll Unity (no touch tracking guarantees when MM is off).
+    # Toggle OFF or MM on with touches → fall through to normal polling.
     if mm_active and not _rr.has_touches():
         return "compile clean (no script writes this session)"
-
-    # HR annotation — MM active: HR applied changes without domain reload.
-    if mm_active:
-        errors = await _get_errors()
-        note = " [hot-reload-mode: HR applied changes without domain reload]"
-        return (errors + note) if errors else ("compile clean" + note)
 
     # timeout=0: single check, no loop
     # G13: only active compile states are "still compiling"; terminal states (idle-failed,
