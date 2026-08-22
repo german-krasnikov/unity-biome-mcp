@@ -61,6 +61,9 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(
                 EditorSettings.enterPlayModeOptions.HasFlag(EnterPlayModeOptions.DisableDomainReload),
                 "DisableDomainReload must be set");
+            Assert.IsFalse(
+                EditorSettings.enterPlayModeOptions.HasFlag(EnterPlayModeOptions.DisableSceneReload),
+                "WS-MCP-247: must NOT set DisableSceneReload");
         }
 
         [Test]
@@ -156,6 +159,7 @@ namespace UnityMCP.Editor.Tests
             MCPSettings.SetMutationMode(true);
             SetEditorPrefInt("kAutoRefresh", 0);
             SetEditorPrefInt("kAutoRefreshMode", 2);
+            EditorSettings.enterPlayModeOptionsEnabled = true;
             // SessionState is clean (AutoRefreshGuard.IsApplied=false) — simulates crash
 
             bool recovered = MutationModeCrashRecovery.RecoverIfNeeded();
@@ -164,6 +168,7 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(MCPSettings.GetMutationMode(), "MM must be OFF after recovery");
             Assert.AreEqual(1, EditorPrefs.GetInt("kAutoRefresh", -1), "kAutoRefresh must be restored to 1");
             Assert.AreEqual(0, EditorPrefs.GetInt("kAutoRefreshMode", -1), "kAutoRefreshMode must be 0 (Enabled)");
+            Assert.IsFalse(EditorSettings.enterPlayModeOptionsEnabled, "Must reset enterPlayModeOptions after crash");
         }
 
         [Test]

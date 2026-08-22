@@ -134,5 +134,42 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(0, SessionState.GetInt("MCP_FPM_OrigOptions", -1),
                 "Original options must be None (0) when Play Mode Options were disabled");
         }
+
+        [Test]
+        public void Restore_WhenApplied_RestoresExactOriginalValues()
+        {
+            bool restoredEnabled = true;  // should become false
+            var restoredOptions = EnterPlayModeOptions.DisableDomainReload;  // should become None
+
+            // Setup: options were disabled originally
+            FastPlayMode._getEnabled = () => false;
+            FastPlayMode._getOptions = () => EnterPlayModeOptions.None;
+            FastPlayMode._setEnabled = v => restoredEnabled = v;
+            FastPlayMode._setOptions = v => restoredOptions = v;
+
+            FastPlayMode.Apply();
+
+            // Now Restore should write back false/None
+            FastPlayMode.Restore();
+
+            Assert.IsFalse(restoredEnabled, "Must restore original enabled=false");
+            Assert.AreEqual(EnterPlayModeOptions.None, restoredOptions, "Must restore original options=None");
+        }
+
+        [Test]
+        public void Apply_WhenUserHadBothFlagsEnabled_PreservesBoth()
+        {
+            FastPlayMode._getEnabled = () => true;
+            FastPlayMode._getOptions = () => EnterPlayModeOptions.DisableDomainReload | EnterPlayModeOptions.DisableSceneReload;
+            EnterPlayModeOptions written = default;
+            FastPlayMode._setEnabled = _ => { };
+            FastPlayMode._setOptions = v => written = v;
+
+            FastPlayMode.Apply();
+
+            Assert.IsTrue(written.HasFlag(EnterPlayModeOptions.DisableDomainReload));
+            Assert.IsTrue(written.HasFlag(EnterPlayModeOptions.DisableSceneReload),
+                "User's existing DisableSceneReload must be preserved when options were already enabled");
+        }
     }
 }
