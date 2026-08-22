@@ -772,7 +772,7 @@ def test_tier1_tool_count():
     """P-319 regression: TIER1 count must match CHANGELOG documentation.
     If this fails, update CHANGELOG.md and this assertion together."""
     from unity_mcp.tools.gating import TIER1
-    assert len(TIER1) == 40, (
+    assert len(TIER1) == 41, (
         f"TIER1 count changed: {len(TIER1)}. Update CHANGELOG.md and this assertion."
     )
 

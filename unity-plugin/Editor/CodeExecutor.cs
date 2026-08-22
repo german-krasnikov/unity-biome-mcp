@@ -84,16 +84,82 @@ namespace UnityMCP.Editor
         private static Assembly _roslynCore     => RoslynLoader.RoslynCore;
         private static int _compilationCount;
 
-        public static string Execute(string code, string undoLabel)
+        // ── AssemblyResolve handler (lazy, registered once) ──────────────────
+        private static bool _resolverRegistered;
+
+        private static void EnsureAssemblyResolver()
+        {
+            if (_resolverRegistered) return;
+            _resolverRegistered = true;
+            AppDomain.CurrentDomain.AssemblyResolve += (_, args) =>
+            {
+                var shortName = new AssemblyName(args.Name).Name;
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                    if (asm.GetName().Name == shortName) return asm;
+                return null;
+            };
+        }
+
+        // ── persist_as probe (lazy, cached) ──────────────────────────────────
+        private static bool? _hasCreateFromStream;
+        private static MethodInfo _createFromStream;
+
+        /// <summary>Detects whether Roslyn ships CreateFromStream(Stream) — cached after first call.
+        /// Returns true → Path A (zero disk I/O); false → Path B (temp DLL fallback).</summary>
+        internal static bool ProbeCreateFromStream()
+        {
+            if (_hasCreateFromStream.HasValue) return _hasCreateFromStream.Value;
+            if (!RoslynLoader.EnsureRoslyn())
+            {
+                _hasCreateFromStream = false;
+                return false;
+            }
+            var metaRefType = _roslynCore.GetType("Microsoft.CodeAnalysis.MetadataReference");
+            _createFromStream = metaRefType?.GetMethods(BindingFlags.Public | BindingFlags.Static)
+                .FirstOrDefault(m => m.Name == "CreateFromStream"
+                    && m.GetParameters().Length > 0
+                    && typeof(Stream).IsAssignableFrom(m.GetParameters()[0].ParameterType));
+            _hasCreateFromStream = _createFromStream != null;
+            return _hasCreateFromStream.Value;
+        }
+
+        public static string Execute(string code, string undoLabel, string persistAs = null)
         {
             SecurityScan(code);
-
             var wrapped = WrapIfBareCode(code);
-
             EnsureRoslyn();
 
-            var assembly = Compile(wrapped);
-            return RunWithUndo(assembly, undoLabel);
+            if (!string.IsNullOrEmpty(persistAs))
+            {
+                ProbeCreateFromStream();
+                var (asm, bytes) = CompileToBytes(wrapped);
+                HeldTypeStore.Register(persistAs, bytes);
+                var hasRun = asm.GetTypes()
+                    .Any(t => t.GetMethod("Run",
+                        BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic) != null);
+                if (!hasRun)
+                    return $"persisted:{persistAs} ({HeldTypeStore.Count} held)";
+                return RunWithUndo(asm, undoLabel);
+            }
+
+            return RunWithUndo(Compile(wrapped), undoLabel);
+        }
+
+        // Returns Assembly only — no byte[] allocation for the common non-persist path.
+        private static Assembly Compile(string code)
+        {
+            var (asm, _) = CompileToBytes(code);
+            return asm;
+        }
+
+        /// <summary>Clears all held assembly bytes and removes any Path B DLL files from disk.</summary>
+        internal static void ClearHeld()
+        {
+            HeldTypeStore.Clear();
+            var hotDir = Path.Combine(Application.dataPath, "..", "Library", "UnityMCP", "HotTypes");
+            if (!Directory.Exists(hotDir)) return;
+            foreach (var f in Directory.GetFiles(hotDir, "*.dll"))
+                try { File.Delete(f); } catch { /* ignore locked files */ }
         }
 
         // Exposed for tests
@@ -215,8 +281,10 @@ namespace UnityMCP.Editor
                 throw new InvalidOperationException("Roslyn DLLs not found — execute_code unavailable.");
         }
 
-        private static Assembly Compile(string code)
+        internal static (Assembly asm, byte[] bytes) CompileToBytes(string code)
         {
+            EnsureRoslyn();
+            EnsureAssemblyResolver();
             if (_compilationCount >= 200)
                 Debug.LogWarning($"{BiomeLabel.Tag} execute_code: 200+ compilations — assembly leak risk in Mono. Consider restarting Unity.");
             _compilationCount++;
@@ -224,6 +292,8 @@ namespace UnityMCP.Editor
             // ParseText: find overload where first param is string (or SourceText) — use the one
             // that can accept only a string argument by filling remaining optional params with defaults.
             var syntaxTreeType = _roslynCompiler.GetType("Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree");
+            if (syntaxTreeType == null)
+                throw new InvalidOperationException("CSharpSyntaxTree type not found in Microsoft.CodeAnalysis.CSharp.dll");
             // Find ParseText overload where first param is string (not SourceText)
             var parseMethod = syntaxTreeType.GetMethods(BindingFlags.Public | BindingFlags.Static)
                 .Where(m => m.Name == "ParseText"
@@ -258,7 +328,7 @@ namespace UnityMCP.Editor
 
             var createParams = createMethod.GetParameters();
             var createArgs = new object[createParams.Length];
-            createArgs[0] = "MCPScript";
+            createArgs[0] = $"MCPScript_{_compilationCount}";
             if (createParams.Length > 1) createArgs[1] = syntaxTreesArray;
             if (createParams.Length > 2) createArgs[2] = refList;
             if (createParams.Length > 3) createArgs[3] = options;
@@ -284,7 +354,8 @@ namespace UnityMCP.Editor
 
             CheckEmitResult(emitResult);
 
-            return Assembly.Load(ms.ToArray());
+            var asmBytes = ms.ToArray();
+            return (Assembly.Load(asmBytes), asmBytes);
         }
 
         private static object BuildCompilationOptions()
@@ -358,7 +429,57 @@ namespace UnityMCP.Editor
                 refList.SetValue(
                     createFromFileMethod.Invoke(null, BuildInvokeArgs(createFromFileMethod, assemblies[i])), i);
 
-            return refList;
+            // Append held assembly bytes as additional MetadataReferences
+            var allHeld = HeldTypeStore.GetAll();
+            if (allHeld.Count == 0) return refList;
+
+            var extList = Array.CreateInstance(metaRefType, assemblies.Length + allHeld.Count);
+            Array.Copy(refList, extList, assemblies.Length);
+            int idx = assemblies.Length;
+
+            if (ProbeCreateFromStream())
+            {
+                // Path A: zero disk I/O — wrap bytes in MemoryStream
+                foreach (var bytes in allHeld.Values)
+                    extList.SetValue(
+                        _createFromStream.Invoke(null, BuildInvokeArgs(_createFromStream, new MemoryStream(bytes))),
+                        idx++);
+            }
+            else
+            {
+                // Path B: write DLLs to Library/UnityMCP/HotTypes/ and use CreateFromFile
+                var hotDir = Path.Combine(Application.dataPath, "..", "Library", "UnityMCP", "HotTypes");
+                Directory.CreateDirectory(hotDir);
+                foreach (var kv in allHeld)
+                {
+                    var path = Path.Combine(hotDir, SanitizeLabel(kv.Key) + ".dll");
+                    if (!File.Exists(path) || !BytesEqual(File.ReadAllBytes(path), kv.Value))
+                        File.WriteAllBytes(path, kv.Value);
+                    extList.SetValue(
+                        createFromFileMethod.Invoke(null, BuildInvokeArgs(createFromFileMethod, path)),
+                        idx++);
+                }
+            }
+
+            return extList;
+        }
+
+        private static string SanitizeLabel(string label)
+        {
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in label)
+                if (char.IsLetterOrDigit(c) || c == '_' || c == '-') sb.Append(c);
+            var s = sb.ToString();
+            if (s.Length > 64) s = s.Substring(0, 64);
+            return s.Length == 0 ? "held" : s;
+        }
+
+        private static bool BytesEqual(byte[] a, byte[] b)
+        {
+            if (a.Length != b.Length) return false;
+            for (int i = 0; i < a.Length; i++)
+                if (a[i] != b[i]) return false;
+            return true;
         }
 
         // Name-based check only — used directly by tests and delegated to from Assembly overload.

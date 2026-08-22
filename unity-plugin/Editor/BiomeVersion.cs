@@ -6,6 +6,6 @@ namespace UnityMCP.Editor
     internal static class BiomeVersion
     {
         public const string Plugin = "1.46.1";
-        public const int Protocol = 3;
+        public const int Protocol = 4;
     }
 }

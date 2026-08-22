@@ -275,6 +275,7 @@ from .tools.ui_intent_tool import ui_intent  # noqa: F401
 from .tools.uitk import attach_uitk, inspect_uitk, lint_uitk, uitk_element, uitk_file  # noqa: F401
 from .tools.vfx_intent_tool import vfx_intent  # noqa: F401
 from .tools.watch import get_watches, watch  # noqa: F401
+from .tools.write_session import end_write_session, start_write_session  # noqa: F401
 
 # Disabled-tools state lives here so tests can mutate srv._disabled_tools_cache directly.
 _disabled_tools_cache: set | None = None

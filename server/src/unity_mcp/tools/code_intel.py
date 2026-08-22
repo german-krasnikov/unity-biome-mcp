@@ -18,7 +18,7 @@ from unity_mcp.utils import parse_pipe_fields
 from ._common import bind
 
 _send = None
-_hr_cached: bool | None = None  # None=unknown, False=not-HR (skip get_status), True=re-check
+_mm_cached: bool | None = None  # None=unknown, False=not-MM (skip get_status), True=re-check
 
 _STILL_BUSY_STATES = frozenset({"compiling", "reloading"})
 
@@ -122,14 +122,14 @@ async def _await_compile_generation(timeout: float, expected_generation: int) ->
 
 
 async def _is_hr_active() -> bool:
-    """Check if Hot Reload is active. Caches False to skip future round-trips."""
-    global _hr_cached
-    if _hr_cached is False:
+    """Check if Mutation Mode is active. Caches False to skip future round-trips."""
+    global _mm_cached
+    if _mm_cached is False:
         return False
     try:
         status = await _send("get_status", {})
-        active = "hot_reload_detected=true" in (status or "")
-        _hr_cached = active
+        active = "mutation_mode=true" in (status or "")
+        _mm_cached = active
         return active
     except Exception:
         return False  # fail-open; do NOT cache — unknown state
@@ -148,8 +148,18 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
         from .. import editor_log
         return await editor_log.get_corroborated_errors(_send, compile_status=compile_status)
 
-    # HR annotation — HR compiles without domain reload; no Unity compile cycle to poll.
-    if await _is_hr_active():
+    from .. import reload_risk as _rr
+
+    # Check mutation mode once — used for both short-circuit and HR path.
+    mm_active = await _is_hr_active()
+
+    # Short-circuit: MM on + no script writes → clean by definition.
+    # Toggle OFF means always poll Unity (no touch tracking guarantees when MM is off).
+    if mm_active and not _rr.has_touches():
+        return "compile clean (no script writes this session)"
+
+    # HR annotation — MM active: HR applied changes without domain reload.
+    if mm_active:
         errors = await _get_errors()
         note = " [hot-reload-mode: HR applied changes without domain reload]"
         return (errors + note) if errors else ("compile clean" + note)
@@ -276,8 +286,8 @@ async def serialized_field_rename_audit(
 
 
 def register(mcp, send, args):
-    global _hr_cached
-    _hr_cached = None  # reset on reconnect — HR status may have changed
+    global _mm_cached
+    _mm_cached = None  # reset on reconnect — mutation mode status may have changed
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()

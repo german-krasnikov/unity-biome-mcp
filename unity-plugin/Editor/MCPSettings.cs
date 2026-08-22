@@ -29,18 +29,24 @@ namespace UnityMCP.Editor
         public static void SetSecurityLevel(SecurityLevel level) =>
             EditorPrefs.SetInt(KeySecurityLevel, (int)level);
 
-        // ── Hot Reload Mode ──────────────────────────────────────────────────
-        private const string KeyHotReloadMode = "UnityMCP_HotReloadMode";
+        // ── Mutation Mode ────────────────────────────────────────────────────
+        private const string KeyMutationMode = "UnityMCP_HotReloadMode"; // key string preserved for backward compat
 
         /// <summary>
         /// When true: sync_unity skips Refresh/RequestScriptCompilation.
         /// Enable when SingularityGroup Hot Reload is installed. Default OFF.
         /// </summary>
-        public static bool GetHotReloadMode() =>
-            EditorPrefs.GetBool(KeyHotReloadMode, false);
+        public static bool GetMutationMode() =>
+            EditorPrefs.GetBool(KeyMutationMode, false);
 
-        public static void SetHotReloadMode(bool value) =>
-            EditorPrefs.SetBool(KeyHotReloadMode, value);
+        public static void SetMutationMode(bool value) =>
+            EditorPrefs.SetBool(KeyMutationMode, value);
+
+        // ── Fast Play Mode ───────────────────────────────────────────────────
+        private const string KeyFastPlayMode = "UnityMCP_FastPlayMode";
+
+        public static bool GetFastPlayMode() => EditorPrefs.GetBool(KeyFastPlayMode, false);
+        public static void SetFastPlayMode(bool value) => EditorPrefs.SetBool(KeyFastPlayMode, value);
 
         // Minimal built-in default — used when no Python catalog received yet.
         // Generated from tool_specs._SPECS — categories and tool lists match get_catalog() output.

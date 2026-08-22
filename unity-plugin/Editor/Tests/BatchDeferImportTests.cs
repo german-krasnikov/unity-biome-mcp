@@ -84,5 +84,31 @@ namespace UnityMCP.Editor.Tests
                 atomic: true, deferAssetImport: true);
             Assert.That(_stopCount, Is.EqualTo(1), "_stopEditing must be called even after atomic rollback");
         }
+
+        // Scenario 5: mutation_mode ON with no explicit defer_asset_import → auto-defer activates.
+        // Uses MCPSettings.SetMutationMode (not HotReloadDetector override) because batch auto-defer
+        // is now gated on the explicit MM toggle, not the broader HotReloadDetector.IsActive().
+        [Test]
+        public void MutationModeOn_AutoDefer_OpensScope()
+        {
+            RegisterCleanup(() => MCPSettings.SetMutationMode(false));
+            MCPSettings.SetMutationMode(true);
+            // Execute via the registered command (defer_asset_import absent → auto-detect)
+            var result = CommandRegistry.Execute("batch",
+                "{\"commands\":\"get_hierarchy path=/\"}");
+            Assert.That(_startCount, Is.EqualTo(1), "Auto-defer must open editing scope when mutation_mode is ON");
+            Assert.That(_stopCount, Is.EqualTo(1), "Auto-defer must close editing scope when mutation_mode is ON");
+        }
+
+        // Scenario 6: mutation_mode OFF with no explicit defer_asset_import → no auto-defer.
+        [Test]
+        public void MutationModeOff_NoAutoDefer_NoScope()
+        {
+            RegisterCleanup(() => MCPSettings.SetMutationMode(false));
+            MCPSettings.SetMutationMode(false);
+            var result = CommandRegistry.Execute("batch",
+                "{\"commands\":\"get_hierarchy path=/\"}");
+            Assert.That(_startCount, Is.EqualTo(0), "No auto-defer when mutation_mode is OFF");
+        }
     }
 }

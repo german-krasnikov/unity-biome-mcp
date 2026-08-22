@@ -35,16 +35,16 @@ namespace UnityMCP.Editor
             emojiToggle.RegisterValueChangedCallback(evt => BiomeLabel.UseEmoji = evt.newValue);
             root.Add(emojiToggle);
 
-            var hrModeToggle = new Toggle("Hot Reload Mode (experimental)")
+            var mmModeToggle = new Toggle("Mutation Mode (experimental)")
             {
-                value = MCPSettings.GetHotReloadMode()
+                value = MCPSettings.GetMutationMode()
             };
-            hrModeToggle.tooltip =
+            mmModeToggle.tooltip =
                 "Enable when SingularityGroup Hot Reload package is installed. " +
                 "Skips Refresh() calls that HR patches to no-ops. Default: OFF.";
-            hrModeToggle.RegisterValueChangedCallback(evt =>
-                MCPSettings.SetHotReloadMode(evt.newValue));
-            root.Add(hrModeToggle);
+            mmModeToggle.RegisterValueChangedCallback(evt =>
+                MCPSettings.SetMutationMode(evt.newValue));
+            root.Add(mmModeToggle);
 
             var searchField = new TextField();
             searchField.value = "";

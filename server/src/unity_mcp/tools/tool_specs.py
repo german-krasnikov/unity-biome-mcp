@@ -93,7 +93,9 @@ _SPECS: dict[str, ToolSpec] = {
     # middleware_types.is_write() handles the argument-aware classification.
     'doctor': ToolSpec(category='SYSTEM', direct_only=True),
     'editor': ToolSpec(category='CORE', core=True),
+    'clear_held_types': ToolSpec(category='SYSTEM', core=False, timeout_s=5.0, mutability='read'),
     'execute_code': ToolSpec(category='SYSTEM', core=True, timeout_s=60.0),
+    'end_write_session':   ToolSpec(category='ASSETS', tier1=True),
     'export_package': ToolSpec(category='_INTERNAL', timeout_s=120.0),
     'export_playtest_aliases_to_defs': ToolSpec(category='TESTS'),
     'find_objects': ToolSpec(category='SCENE', mutability='read'),
@@ -194,6 +196,7 @@ _SPECS: dict[str, ToolSpec] = {
     'set_property_delta': ToolSpec(category='SCENE'),
     'set_rect': ToolSpec(category='UGUI'),
     'setup_objects': ToolSpec(category='SCENE', direct_only=True),
+    'start_write_session': ToolSpec(category='ASSETS', mutability='write'),
     'shader': ToolSpec(category='ASSETS'),
     'smart_build': ToolSpec(category='SYSTEM', direct_only=True),
     'snapshot': ToolSpec(category='RUNTIME', mutability='read', direct_only=True),

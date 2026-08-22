@@ -93,6 +93,8 @@ namespace UnityMCP.Editor.RegionTool
             var store = new RegionStore { Regions = list.ToArray() };
             try
             {
+                var dir = Path.GetDirectoryName(PersistPath);
+                if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
                 File.WriteAllText(PersistPath, JsonUtility.ToJson(store, prettyPrint: true));
             }
             catch (Exception e)

@@ -11,12 +11,25 @@ _send = None
 _args = None
 
 
-async def execute_code(code: str, undo_label: str = "execute_code") -> str:
+async def execute_code(
+    code: str,
+    undo_label: str = "execute_code",
+    persist_as: str | None = None,
+) -> str:
     """Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.
     Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed.
     Bare statements are auto-wrapped in a static class — no boilerplate needed.
+    persist_as stores the compiled types for reuse in the next execute_code call (Mutation Mode).
     Example: \"var go = new GameObject(\\\"Test\\\"); return go.name;\""""
-    return await _send("execute_code", _args(code=code, undo_label=undo_label))
+    args = _args(code=code, undo_label=undo_label)
+    if persist_as is not None:
+        args["persist_as"] = persist_as
+    return await _send("execute_code", args)
+
+
+async def clear_held_types() -> str:
+    """Clear all types held across execute_code persist_as calls. Use to free the held-type store (~0 tokens)."""
+    return await _send("clear_held_types", {})
 
 
 async def get_schema(type: str) -> str:
@@ -91,3 +104,4 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RO)(get_schema)
     mcp.tool(annotations=_RO)(auto_fix)
     mcp.tool(annotations=_RW)(smart_build)
+    mcp.tool(annotations=_RW)(clear_held_types)

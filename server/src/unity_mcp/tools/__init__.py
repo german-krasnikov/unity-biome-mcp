@@ -44,6 +44,7 @@ from . import (
     verify,
     vfx_intent_tool,
     watch,
+    write_session,
 )
 from .metrics_tool import register as register_metrics
 
@@ -66,6 +67,7 @@ def register_all(mcp, send, args, *, get_slot, get_middleware=None,
     permission_prompt_tool.register(mcp, send, args)
     for mod in [animator_intent_tool, vfx_intent_tool, ui_intent_tool, uitk_intent_tool]:
         mod.register(mcp, send, args)
+    write_session.register(mcp, send, args)
     register_metrics(mcp, send, args)
     budget_tool.register(mcp, send, args)
     changeset_tool.register(mcp, send, args)

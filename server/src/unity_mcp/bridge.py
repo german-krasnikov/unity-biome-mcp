@@ -45,7 +45,7 @@ __all__ = [
     "PROTOCOL_VERSION", "VersionInfo", "parse_version_string", "check_protocol_version",
 ]
 
-PROTOCOL_VERSION = 3
+PROTOCOL_VERSION = 4
 
 _NEW_FMT = re.compile(r"proto:(\d+)(?:\|plugin:([^|]*))?(?:\|stamp:(.*))?")
 _OLD_FMT = re.compile(r"[\d.]+(?:\|stamp:(.*))?")

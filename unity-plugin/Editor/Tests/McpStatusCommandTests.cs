@@ -45,7 +45,7 @@ namespace UnityMCP.Editor.Tests
         public void ExecGetStatus_ContainsProtocol()
         {
             var result = CommandRouter.ExecuteCommand("get_status", "{}");
-            Assert.That(result, Does.Contain("protocol=3"));
+            Assert.That(result, Does.Contain("protocol=4"));
         }
 
         [Test]

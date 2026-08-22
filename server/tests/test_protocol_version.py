@@ -11,8 +11,8 @@ from unity_mcp.bridge import PROTOCOL_VERSION, parse_version_string, VersionInfo
 from helpers import make_writer, reconnect_preamble
 
 
-def test_protocol_version_is_3():
-    assert PROTOCOL_VERSION == 3
+def test_protocol_version_is_4():
+    assert PROTOCOL_VERSION == 4
 
 
 def test_parse_new_version_format():

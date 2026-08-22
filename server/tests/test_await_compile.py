@@ -9,6 +9,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 import unity_mcp.tools.code_intel as _ci
 from unity_mcp.bridge import DomainReloadError
+from unity_mcp import reload_risk
 
 
 def _make_send(status_seq, errors_response=""):
@@ -47,10 +48,11 @@ def _patch_sleep():
 @pytest.fixture(autouse=True)
 def _reset_send():
     original = _ci._send
-    orig_cache = _ci._hr_cached
+    orig_cache = _ci._mm_cached
     yield
     _ci._send = original
-    _ci._hr_cached = orig_cache  # ensure isolation
+    _ci._mm_cached = orig_cache  # ensure isolation
+    reload_risk.reset()
 
 
 async def test_already_idle_returns_errors_immediately():
@@ -149,7 +151,7 @@ async def test_timeout_zero_idle_returns_errors():
     async def _send(cmd, args=None, **kwargs):
         nonlocal call_count
         if cmd == "get_status":
-            return "hot_reload_detected=false"  # pre-flight; not counted
+            return "mutation_mode=false"  # pre-flight; not counted
         call_count += 1
         if cmd == "compile_status":
             return "idle|3.0"
@@ -177,7 +179,7 @@ async def test_timeout_zero_wedge_yields_verdict_not_still_compiling():
     async def _send(cmd, args=None, **kwargs):
         nonlocal call_count
         if cmd == "get_status":
-            return "hot_reload_detected=false"  # pre-flight; not counted
+            return "mutation_mode=false"  # pre-flight; not counted
         call_count += 1
         if cmd == "compile_status":
             return "idle-failed|3.0"
@@ -579,3 +581,60 @@ async def test_await_compile_settle_returns_clean_if_still_idle():
         result = await _ci.await_compile(timeout=30.0)
 
     assert "compile clean" in result
+
+
+# ---------------------------------------------------------------------------
+# CRITICAL FIX: short-circuit must be gated on mutation_mode, not just touches
+# ---------------------------------------------------------------------------
+
+async def test_short_circuit_skipped_when_mm_off_no_touches():
+    """CRITICAL: Short-circuit must NOT fire when MM is off, even with no script touches.
+
+    Before the fix: if not _rr.has_touches() → returns immediately (wrong when MM=off).
+    After the fix: gated on mm_active → always polls Unity when MM is off.
+    """
+    reload_risk.reset()  # ensure no touches
+    _ci._mm_cached = None
+
+    poll_count = [0]
+
+    async def _send(cmd, args=None, **kwargs):
+        if cmd == "get_status":
+            return "mutation_mode=false"
+        if cmd == "compile_status":
+            poll_count[0] += 1
+            return "idle|1.0"
+        if cmd == "get_compile_errors":
+            return ""
+        if cmd == "sync_status":
+            raise ConnectionError("not available")
+        raise AssertionError(f"Unexpected: {cmd}")
+
+    _ci._send = _send
+    result = await _ci.await_compile(timeout=60.0)
+    assert "compile clean" in result
+    assert poll_count[0] >= 1, (
+        f"MM off: must poll Unity even with no touches (short-circuit must not fire); "
+        f"got poll_count={poll_count[0]}"
+    )
+
+
+async def test_short_circuit_fires_when_mm_on_no_touches():
+    """Short-circuit returns clean immediately when MM is on and no files were written."""
+    reload_risk.reset()  # ensure no touches
+    _ci._mm_cached = None
+
+    poll_count = [0]
+
+    async def _send(cmd, args=None, **kwargs):
+        if cmd == "get_status":
+            return "mutation_mode=true"
+        poll_count[0] += 1
+        raise AssertionError(f"Should not reach {cmd}: short-circuit must have fired")
+
+    _ci._send = _send
+    result = await _ci.await_compile(timeout=60.0)
+    assert result == "compile clean (no script writes this session)", (
+        f"Expected short-circuit message, got: {result!r}"
+    )
+    assert poll_count[0] == 0, "Short-circuit must not poll Unity"

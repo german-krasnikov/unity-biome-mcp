@@ -12,6 +12,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.50.0] — 2026-08-22
+
+### Added
+
+- **Mutation Mode (renamed from HotReload) with Fast Play Mode:**
+  - `MCPSettings.GetMutationMode() / SetMutationMode()` replaces GetHotReloadMode (EditorPref key preserved for backward compat)
+  - `MCPSettingsUI` label updated to "Mutation Mode (experimental)"
+  - `mcp_status` now reports `mutation_mode=true|false` (replaces `hot_reload_detected`)
+  - New `editor(action="mutation_mode", enable="true"|"false")` toggle in addition to `MCPSettings` UI
+  - `HotReloadDetector.IsActive()` unchanged; method checks `MCPSettings.GetMutationMode()`
+
+- **Fast Play Mode — Play Mode entry without domain reload:**
+  - `FastPlayMode.cs` manages EditorSettings `enterPlayModeOptionsEnabled` + `DisableDomainReload`
+  - `editor(action="fast_play_mode", enable="true"|"false")` toggles at runtime
+  - `mcp_status` reports `fast_play_mode=true|false`
+  - Preserves and restores original EditorSettings on disable; SessionState-backed for session scope
+
+- **execute_code persist_as parameter — cross-call type reuse:**
+  - `execute_code(code=..., persist_as="TypeName")` compiles and stores the generated `__MCPScript` type
+  - `clear_held_types()` clears the persistent type store
+  - Enable rapid iteration: subsequent `execute_code` calls see types from prior persist_as invocations
+  - Without persist_as, behavior unchanged (fresh assembly per call)
+
+- **write_session tools — batch N .cs writes into 1 domain reload:**
+  - `start_write_session()` opens a write lock, disables auto-refresh, returns session ID
+  - `end_write_session(sync=True)` releases lock and triggers one domain reload
+  - Wrap multiple `asset(action="write_text", path="Assets/...cs", ...)` calls between start/end
+  - `sync=True` (default) waits for compile to finish; `sync=False` returns immediately after unlock
+  - Auto-releases after 120s watchdog if end is not called explicitly
+  - `WriteSessionGuard` C# component hardens session lifecycle
+
+- **reload_risk classifier — skip await_compile when no scripts touched:**
+  - `unity_mcp.reload_risk` module classifies commands by domain reload risk ("script" / "none")
+  - Tracks script writes across calls; counter resets on compile-clean
+  - `await_compile()` short-circuits when `mutation_mode=true` + `reload_risk.has_touches() == False`
+    → returns "compile clean (no script writes this session)" without polling
+  - `classify()` / `classify_batch()` exposed for agent inspection of batch risk
+
+### Changed
+
+- **Protocol version 3 → 4:**
+  - Wire field rename: `hot_reload_detected=` → `mutation_mode=` in mcp_status response
+  - Consumer clients at v1.49.x connecting to v1.50.0 server will fail until upgraded
+  - `BiomeVersion.Protocol` and `server/src/unity_mcp/bridge.py PROTOCOL_VERSION` both bumped
+  - Old plugin → old server remains fully compatible
+
+- **await_compile short-circuit gating:**
+  - `await_compile()` checks `mutation_mode=true` **and** `reload_risk.has_touches()` before short-circuiting
+  - When mutation_mode is OFF, short-circuit is disabled; always poll (preserves backward compat for non-MM workflows)
+  - Returns annotation `[hot-reload-mode: HR applied changes without domain reload]` when MM active + touches exist
+
+- **mcp_status now exposes:**
+  - `mutation_mode=true|false` (formerly `hot_reload_detected`)
+  - `fast_play_mode=true|false` (new)
+
+### Fixed
+
+- **await_compile annotation correctness:** annotation now only emitted when mutation_mode is active
+- **reload_risk counter persistence:** counter survives within session; reset only on compile-clean (confirmed via sync_status)
+- **WriteSessionGuard hardening:** asset import locks and auto-refresh toggles now atomic via finally block
+
 ## [v1.49.0] — 2026-08-22
 
 ### Added
@@ -3641,7 +3702,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.49.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.0...HEAD
+[v1.50.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.49.0...v1.50.0
 [v1.49.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.1...v1.49.0
 [v1.48.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.0...v1.48.1
 [v1.48.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.1...v1.48.0

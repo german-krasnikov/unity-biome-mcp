@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 380" width="560" height="380"
      role="img" aria-labelledby="stats-title stats-desc">
   <title id="stats-title">Unity Biome MCP project inventory</title>
-  <desc id="stats-desc" data-biome-marker="STATS_DESC"><!-- BIOME:STATS_DESC -->160 registered MCP tools. Test inventory: 15173 entries: 6086 regular Python, 511 Python stress, 634 live Python, and 7942 Unity source attributes. Unity count source: static source scan. Server package version: v1.49.0.<!-- /BIOME:STATS_DESC --></desc>
+  <desc id="stats-desc" data-biome-marker="STATS_DESC"><!-- BIOME:STATS_DESC -->163 registered MCP tools. Test inventory: 15276 entries: 6142 regular Python, 511 Python stress, 637 live Python, and 7986 Unity source attributes. Unity count source: static source scan. Server package version: v1.50.0.<!-- /BIOME:STATS_DESC --></desc>
 
   <defs>
     <filter id="stats-core-glow" x="-80%" y="-80%" width="260%" height="260%">
@@ -189,7 +189,7 @@
   <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
     <text x="280" y="82" text-anchor="middle" fill="#f2f2f2" font-size="42"
           data-biome-marker="TOOLS"
-          font-weight="700" data-mobile-critical="true"><!-- BIOME:TOOLS -->160<!-- /BIOME:TOOLS --></text>
+          font-weight="700" data-mobile-critical="true"><!-- BIOME:TOOLS -->163<!-- /BIOME:TOOLS --></text>
     <text x="280" y="116" text-anchor="middle" fill="#46e6a6" font-size="17"
           font-weight="700" data-mobile-critical="true">REGISTERED MCP TOOLS</text>
   </g>
@@ -238,15 +238,15 @@
   <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">
     <text x="280" y="218" text-anchor="middle" fill="#f2f2f2" font-size="38"
           data-biome-marker="TESTS"
-          font-weight="700" data-mobile-critical="true"><!-- BIOME:TESTS -->15173<!-- /BIOME:TESTS --></text>
+          font-weight="700" data-mobile-critical="true"><!-- BIOME:TESTS -->15276<!-- /BIOME:TESTS --></text>
     <text x="280" y="245" text-anchor="middle" fill="#59a7ff" font-size="17"
           font-weight="700" data-mobile-critical="true">TEST INVENTORY</text>
     <text x="280" y="266" text-anchor="middle" fill="#d2d2d2" font-size="17"
           data-biome-marker="BREAKDOWN_PRIMARY"
-          data-mobile-critical="true"><!-- BIOME:BREAKDOWN_PRIMARY -->6086 regular / 511 stress<!-- /BIOME:BREAKDOWN_PRIMARY --></text>
+          data-mobile-critical="true"><!-- BIOME:BREAKDOWN_PRIMARY -->6142 regular / 511 stress<!-- /BIOME:BREAKDOWN_PRIMARY --></text>
     <text x="280" y="283" text-anchor="middle" fill="#b7b7bd" font-size="17"
           data-biome-marker="BREAKDOWN_SECONDARY"
-          data-mobile-critical="true"><!-- BIOME:BREAKDOWN_SECONDARY -->634 live / 7942 Unity<!-- /BIOME:BREAKDOWN_SECONDARY --></text>
+          data-mobile-critical="true"><!-- BIOME:BREAKDOWN_SECONDARY -->637 live / 7986 Unity<!-- /BIOME:BREAKDOWN_SECONDARY --></text>
   </g>
 
   <!-- second bridge -->
@@ -260,12 +260,12 @@
     <rect data-biome-bar="CS"
           x="82" y="322" height="7" width="396" rx="3" fill="#59a7ff" opacity=".85"/>
     <text data-biome-bar-label="CS"
-          x="478" y="331" text-anchor="end" fill="#b7b7bd" font-size="10">7942 c#</text>
+          x="478" y="331" text-anchor="end" fill="#b7b7bd" font-size="10">7986 c#</text>
 
     <rect data-biome-bar="PY"
-          x="82" y="337" height="7" width="303" rx="3" fill="#46e6a6" opacity=".85"/>
+          x="82" y="337" height="7" width="305" rx="3" fill="#46e6a6" opacity=".85"/>
     <text data-biome-bar-label="PY"
-          x="478" y="346" text-anchor="end" fill="#b7b7bd" font-size="10">6086 py</text>
+          x="478" y="346" text-anchor="end" fill="#b7b7bd" font-size="10">6142 py</text>
 
     <rect data-biome-bar="STRESS"
           x="82" y="352" height="7" width="25" rx="3" fill="#f0a536" opacity=".85"/>
@@ -275,6 +275,6 @@
     <rect data-biome-bar="LIVE"
           x="82" y="367" height="7" width="32" rx="3" fill="#e67e46" opacity=".85"/>
     <text data-biome-bar-label="LIVE"
-          x="478" y="376" text-anchor="end" fill="#b7b7bd" font-size="10">634 live</text>
+          x="478" y="376" text-anchor="end" fill="#b7b7bd" font-size="10">637 live</text>
   </g>
 </svg>

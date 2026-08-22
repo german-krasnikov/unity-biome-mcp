@@ -8,6 +8,7 @@ _args = None
 
 
 async def _write_text_with_capture(path: str, content: str) -> str:
+    from .. import reload_risk
     from ..changeset_coordinator import get_coordinator
     from ..changeset_file_capture import snapshot_file
     from ..changeset_store import get_store
@@ -21,6 +22,9 @@ async def _write_text_with_capture(path: str, content: str) -> str:
 
     if coord and after_ref != before_ref:
         coord.append_file_op("asset.write_text", path, before_ref, after_ref)
+
+    if reload_risk.classify("asset", {"path": path}) == "script":
+        reload_risk.touch()
 
     return result
 

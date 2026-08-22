@@ -86,7 +86,10 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"readOnly={IsReadOnly()}");
                 sb.AppendLine($"plugin_version={BiomeVersion.Plugin}");
                 sb.AppendLine($"protocol={BiomeVersion.Protocol}");
-                sb.AppendLine($"hot_reload_detected={HotReloadDetector.IsActive().ToString().ToLower()}");
+                sb.AppendLine($"mutation_mode={HotReloadDetector.IsActive().ToString().ToLower()}");
+                sb.AppendLine($"write_session={WriteSessionGuard.IsActive.ToString().ToLower()}");
+                sb.AppendLine($"held_types={HeldTypeStore.Count}");
+                sb.AppendLine($"fast_play_mode={FastPlayMode.IsApplied.ToString().ToLower()}");
                 return sb.ToString().TrimEnd();
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
         }
@@ -181,9 +184,12 @@ namespace UnityMCP.Editor
                 _ => $"{CompileNotifier.GetStatus()}|reload={SyncHelper.SyncState}",
                 required: "", optional: "", allowedDuringCompile: true);
             // sync/sync_status: unified reload API (v0.21)
-            CommandRegistry.Register("sync",        args => SyncHelper.TriggerSync(
-                JsonHelper.ExtractString(args, "resolve") == "true"),
-                required: "", optional: "resolve");
+            CommandRegistry.Register("sync", args =>
+            {
+                if (HotReloadDetector.IsActive() && EditorApplication.isPlaying)
+                    return "warn:ScriptCompilationDuringPlay blocked";
+                return SyncHelper.TriggerSync(JsonHelper.ExtractString(args, "resolve") == "true");
+            }, required: "", optional: "resolve");
             CommandRegistry.Register("sync_status", _ => SyncHelper.GetSyncStatus(),
                 required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("recompile", _ => { UnityEditor.AssetDatabase.Refresh(); return "ok"; },
@@ -240,7 +246,7 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "path_b")),
                 required: "path_a,path_b", optional: "");
             CommandRegistry.Register("editor", ExecEditor,
-                required: "", optional: "action,path,paths");
+                required: "", optional: "action,path,paths,enable");
             CommandRegistry.Register("ping_object", args =>
                 EditorStateHelper.PingObject(JsonHelper.ExtractString(args, "path")),
                 required: "path", optional: "");
@@ -387,7 +393,8 @@ namespace UnityMCP.Editor
                 if (timeoutStr != null) int.TryParse(timeoutStr, out timeoutMs);
                 bool atomic = JsonHelper.ExtractString(args, "atomic") == "true";
                 bool validateAliases = JsonHelper.ExtractString(args, "validate_aliases") == "true";
-                bool deferImport = JsonHelper.ExtractString(args, "defer_asset_import") == "true";
+                var deferStr = JsonHelper.ExtractString(args, "defer_asset_import");
+                bool deferImport = deferStr == "true" || (deferStr == null && MCPSettings.GetMutationMode());
                 return BatchHelper.Execute(
                     JsonHelper.ExtractString(args, "commands"),
                     JsonHelper.ExtractString(args, "on_error") ?? "continue",
@@ -411,10 +418,14 @@ namespace UnityMCP.Editor
             // user submits is arbitrary C#, but the command's own args are fixed.
             CommandRegistry.Register("execute_code", args => CodeExecutor.Execute(
                 JsonHelper.ExtractString(args, "code"),
-                JsonHelper.ExtractString(args, "undo_label") ?? "execute_code"),
+                JsonHelper.ExtractString(args, "undo_label") ?? "execute_code",
+                JsonHelper.ExtractString(args, "persist_as")),
                 mutating: true,
-                required: "code", optional: "undo_label",
+                required: "code", optional: "undo_label,persist_as",
                 allowedDuringCompile: true);  // T2.5: ReloadGuard probe must work when wedged
+            CommandRegistry.Register("clear_held_types",
+                _ => { CodeExecutor.ClearHeld(); return "ok: held types cleared"; },
+                mutating: false, required: "", optional: "");
             // Both file_path and new_content are required — a preflight check needs the file
             // and the candidate content to validate (Issue 23 review M8).
             CommandRegistry.Register("compile_preflight", args =>
@@ -436,6 +447,13 @@ namespace UnityMCP.Editor
                 var turns = ExtractInt(args, "turns", 1);
                 return UndoGroupStack.RevertLast(turns);
             }, mutating: true, required: "", optional: "turns");
+
+            CommandRegistry.Register("start_write_session",
+                _ => WriteSessionGuard.Start(),
+                mutating: true, required: "", optional: "");
+            CommandRegistry.Register("end_write_session",
+                _ => WriteSessionGuard.End(),
+                mutating: true, required: "", optional: "");
 
             // Runtime (Play Mode only) — mutate runtime GameObject/component state directly
             // (not flagged mutating: true — runtime: true already routes them through the

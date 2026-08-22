@@ -20,7 +20,7 @@ namespace UnityMCP.Editor
             _overrideForTest?.Invoke() ?? IsActiveNative();
 
         private static bool IsActiveNative() =>
-            MCPSettings.GetHotReloadMode() || IsPackageInstalled() || IsAutoRefreshDisabled();
+            MCPSettings.GetMutationMode() || IsPackageInstalled() || IsAutoRefreshDisabled();
 
         internal static bool IsPackageInstalled()
         {

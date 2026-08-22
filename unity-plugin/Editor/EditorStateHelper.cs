@@ -32,6 +32,7 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"prefab:{stage.assetPath}");
             sb.AppendLine($"play_epoch:{PlayModeEpochTracker.Epoch}");
             sb.AppendLine($"world_ready:{PlayModeEpochTracker.WorldReady}");
+            sb.AppendLine($"fast_play_mode:{FastPlayMode.IsApplied}");
             return sb.ToString().TrimEnd();
         }
 
@@ -82,9 +83,26 @@ namespace UnityMCP.Editor
                     return $"selected:{ComponentSerializer.GetPath(go)}";
                 case "project_path":
                     return System.IO.Path.GetDirectoryName(Application.dataPath);
+                case "fast_play_mode":
+                {
+                    var enableStr = argsJson != null ? JsonHelper.ExtractString(argsJson, "enable") : null;
+                    if (enableStr == null)
+                        return $"fast_play_mode:{FastPlayMode.IsApplied}";
+                    if (enableStr == "true") FastPlayMode.Apply();
+                    else                     FastPlayMode.Restore();
+                    return $"fast_play_mode:{FastPlayMode.IsApplied}";
+                }
+                case "mutation_mode":
+                {
+                    var enableStr = argsJson != null ? JsonHelper.ExtractString(argsJson, "enable") : null;
+                    if (enableStr == null)
+                        return $"mutation_mode:{MCPSettings.GetMutationMode()}";
+                    MCPSettings.SetMutationMode(enableStr == "true");
+                    return $"mutation_mode:{MCPSettings.GetMutationMode()}";
+                }
                 default:
                     throw new System.ArgumentException(
-                        ErrorHelper.InvalidAction(action, new[] { "state", "play", "pause", "stop", "select", "project_path" }));
+                        ErrorHelper.InvalidAction(action, new[] { "state", "play", "pause", "stop", "select", "project_path", "fast_play_mode", "mutation_mode" }));
             }
         }
 

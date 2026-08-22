@@ -26,7 +26,7 @@ from unity_mcp.utils import parse_pipe_fields
 from ._common import bind
 
 _send = None
-_hr_cached: bool | None = None  # None=unknown, False=not-HR (skip get_status), True=re-check
+_mm_cached: bool | None = None  # None=unknown, False=not-MM (skip get_status), True=re-check
 
 _POLL_INTERVAL = 1.0
 _FOCUS_HINT_AFTER = 15.0  # see backgrounded-editor hint in sync_unity
@@ -124,14 +124,14 @@ def _parse_stamp(status: str) -> str:
 
 
 async def _is_hr_active() -> bool:
-    """Check if Hot Reload is active. Caches False to skip future round-trips."""
-    global _hr_cached
-    if _hr_cached is False:
+    """Check if Mutation Mode is active. Caches False to skip future round-trips."""
+    global _mm_cached
+    if _mm_cached is False:
         return False
     try:
         status = await _send("get_status", {})
-        active = "hot_reload_detected=true" in (status or "")
-        _hr_cached = active
+        active = "mutation_mode=true" in (status or "")
+        _mm_cached = active
         return active
     except Exception:
         return False  # fail-open; do NOT cache — unknown state
@@ -159,6 +159,8 @@ async def sync_unity(
             "HR handles compilation via method patching. "
             "Call await_compile to confirm current state."
         )
+
+    from unity_mcp import reload_risk as _rr
 
     # D2: bump circuit-breaker
     if bump and _bump_used:
@@ -240,6 +242,7 @@ async def sync_unity(
             recovery = await _attempt_recovery(_send, mvid, _send_reload, deadline=deadline)
             if recovery is None:
                 await _warm_type_cache()
+                _rr.on_compile_clean()
                 return "sync clean"  # healed via force_refresh
             # BLOCKER1: T1 failed → escalate to run_ladder T2-T5
             return await _run_ladder(_send, send_reload=_send_reload, start_tier=2)
@@ -270,16 +273,19 @@ async def sync_unity(
                         recovery = await _attempt_recovery(_send, mvid_pre, _send_reload, deadline=deadline)
                         if recovery is None:
                             await _warm_type_cache()
+                            _rr.on_compile_clean()
                             return "sync clean"  # healed via force_refresh
                         # BLOCKER1: T1 failed → escalate to run_ladder T2-T5
                         return await _run_ladder(_send, send_reload=_send_reload, start_tier=2)
                     # will_compile=false (cache-hit / no-change): frozen MVID is clean.
                     # expected_compile threading (item 1 / A5): never STALE-DOMAIN here.
                     await _warm_type_cache()
+                    _rr.on_compile_clean()
                     return "sync clean (no-op, cache-hit)"
             errors = await _get_errors()
             if not errors:
                 await _warm_type_cache()
+                _rr.on_compile_clean()
                 return "sync clean"
             return errors
 
@@ -305,8 +311,8 @@ async def _warm_type_cache() -> None:
 
 
 def register(mcp, send, args):
-    global _hr_cached
-    _hr_cached = None  # reset on reconnect — HR status may have changed
+    global _mm_cached
+    _mm_cached = None  # reset on reconnect — mutation mode status may have changed
     bind(globals(), send, args)
     editor_log.init_corroboration()
     from ._annotations import RW as _RW

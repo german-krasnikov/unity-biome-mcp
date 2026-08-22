@@ -22,9 +22,9 @@ _TIER1_SNAPSHOT = frozenset({
     "batch", "compile_preflight", "create_object", "editor", "execute_code",
     "get_compile_errors", "get_component", "get_console", "get_hierarchy",
     "inspect", "manage_component", "mcp_status", "set_property",
-    # 23 TIER1-only (non-core) — P-12440 Phase 1; +2 console_mark/get_console_since (B2); +1 get_changeset (T16)
+    # 28 TIER1-only (non-core) — P-12440 Phase 1; +2 console_mark/get_console_since (B2); +1 get_changeset (T16); +1 end_write_session (mutation-mode)
     "apply_scene_change", "await_compile",
-    "console_mark", "get_changeset", "get_console_since",
+    "console_mark", "end_write_session", "get_changeset", "get_console_since",
     "delete_object", "discover_tools",
     "lint_scene_refs",
     "permission_prompt", "reconnect_unity", "resolve_tool_schema",
@@ -137,7 +137,8 @@ _CATEGORY_SIZES_SNAPSHOT = {
 
 _TIMEOUT_CATEGORIES_SNAPSHOT = {
     "apply_scene_change": 120.0,
-    "ask_user": 300.0, "batch": 120.0, "build": 300.0, "compile_preflight": 60.0,
+    "ask_user": 300.0, "batch": 120.0, "build": 300.0, "clear_held_types": 5.0,
+    "compile_preflight": 60.0,
     "execute_code": 60.0, "export_package": 120.0, "fingerprint": 10.0,
     "cancel_test_run": 10.0, "get_changeset": 5.0, "get_console": 10.0, "get_hierarchy": 15.0,
     "get_test_count": 10.0, "get_test_run": 10.0, "get_version": 5.0,
