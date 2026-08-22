@@ -28,7 +28,10 @@ namespace UnityMCP.Editor
             EditorPrefs.SetInt("kAutoRefresh", 1);
             EditorPrefs.SetInt("kAutoRefreshMode", 0); // 0 = Enabled
 
-            Debug.Log($"{BiomeLabel.Tag} Mutation Mode disabled after crash recovery — auto-refresh restored");
+            // Restore EditorSettings (FastPlayMode may have left DisableDomainReload set)
+            EditorSettings.enterPlayModeOptionsEnabled = false;
+
+            Debug.Log($"{BiomeLabel.Tag} Mutation Mode disabled after crash recovery — all settings restored");
             return true;
         }
     }
