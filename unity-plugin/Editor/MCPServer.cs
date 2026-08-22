@@ -46,6 +46,9 @@ namespace UnityMCP.Editor
         internal static volatile string _lastWrittenState = "";
         // Set when TCP bind falls back to a non-configured port; cleared on each StartAsync entry.
         internal static volatile bool _portFallback;
+        // Counts domain reloads for this Editor session. Increments every [InitializeOnLoad] call.
+        // Exposed via get_status so users can verify mutation_mode prevented domain reloads.
+        internal static int _domainReloadCount;
 
         public static MCPStatusModel.SubState CurrentSubState => MCPStatusModel.GetSubState(
             isCompiling: _isCompiling,
@@ -186,6 +189,7 @@ namespace UnityMCP.Editor
 
         static MCPServer()
         {
+            _domainReloadCount++;
             if (!ShouldStartServer(Application.isBatchMode)) return;
 
             RegisterLifecycleCallbacks();

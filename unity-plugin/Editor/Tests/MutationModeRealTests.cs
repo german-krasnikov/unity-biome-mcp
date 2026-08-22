@@ -1,0 +1,135 @@
+using NUnit.Framework;
+using UnityEditor;
+
+namespace UnityMCP.Editor.Tests
+{
+    /// <summary>
+    /// Real integration tests: no seam injection — proves Mutation Mode writes real
+    /// EditorPrefs and EditorSettings, not just in-memory state.
+    /// Cleanup via ProtectEditorPref* ensures originals are restored after each test.
+    /// </summary>
+    [TestFixture]
+    public class MutationModeRealTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    {
+        [SetUp]
+        public void SetUp()
+        {
+            ProtectEditorPrefInt("kAutoRefresh");
+            ProtectEditorPrefBool("UnityMCP_HotReloadMode");
+            ProtectEditorPrefBool("UnityMCP_FastPlayMode");
+            // Prevent stale package-installed cache from skipping AutoRefreshGuard.Apply()
+            HotReloadDetector._cachedPackageInstalled = false;
+            // Restore seams to real implementations — prior mock tests may have left no-ops in place.
+            AutoRefreshGuard._getAutoRefresh = () => EditorPrefs.GetInt("kAutoRefresh", 1);
+            AutoRefreshGuard._setAutoRefresh = v  => EditorPrefs.SetInt("kAutoRefresh", v);
+            FastPlayMode._setEnabled  = v => EditorSettings.enterPlayModeOptionsEnabled = v;
+            FastPlayMode._setOptions  = v => EditorSettings.enterPlayModeOptions = v;
+            FastPlayMode._getEnabled  = () => EditorSettings.enterPlayModeOptionsEnabled;
+            FastPlayMode._getOptions  = () => EditorSettings.enterPlayModeOptions;
+            // Clean slate before each test
+            AutoRefreshGuard.ResetForTest();
+            FastPlayMode.ResetForTest();
+            MCPSettings.SetMutationMode(false);
+            // Register get_status command for status-assertion tests
+            CommandRegistry.Clear();
+            CommandRouter.RegisterMetaCommands();
+            RegisterCleanup(() =>
+            {
+                MCPSettings.SetMutationMode(false);
+                AutoRefreshGuard.Restore();
+                FastPlayMode.Restore();
+                AutoRefreshGuard.ResetForTest();
+                FastPlayMode.ResetForTest();
+                HotReloadDetector._cachedPackageInstalled = null;
+                CommandRegistry.Clear();
+                CommandRegistry.InitDefaults();
+            });
+        }
+
+        [Test]
+        public void Enable_ReallyDisablesAutoRefresh()
+        {
+            Assert.AreEqual(1, EditorPrefs.GetInt("kAutoRefresh", 1), "Pre-condition: kAutoRefresh should be 1");
+
+            EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"true\"}");
+
+            Assert.AreEqual(0, EditorPrefs.GetInt("kAutoRefresh", 1), "kAutoRefresh must be 0 after Enable");
+        }
+
+        [Test]
+        public void Enable_ReallyEnablesFastPlayMode()
+        {
+            EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"true\"}");
+
+            Assert.IsTrue(EditorSettings.enterPlayModeOptionsEnabled, "enterPlayModeOptionsEnabled must be true");
+            Assert.IsTrue(
+                EditorSettings.enterPlayModeOptions.HasFlag(EnterPlayModeOptions.DisableDomainReload),
+                "DisableDomainReload must be set");
+        }
+
+        [Test]
+        public void Disable_RestoresAutoRefresh()
+        {
+            var before = EditorPrefs.GetInt("kAutoRefresh", 1);
+
+            EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"true\"}");
+            EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"false\"}");
+
+            Assert.AreEqual(before, EditorPrefs.GetInt("kAutoRefresh", 1), "kAutoRefresh must be restored");
+        }
+
+        [Test]
+        public void Disable_RestoresFastPlayMode()
+        {
+            var wasFPM = EditorSettings.enterPlayModeOptionsEnabled;
+
+            EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"true\"}");
+            EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"false\"}");
+
+            Assert.AreEqual(wasFPM, EditorSettings.enterPlayModeOptionsEnabled, "enterPlayModeOptions must be restored");
+        }
+
+        [Test]
+        public void ToggleThreeTimes_NoStateCorruption()
+        {
+            var origKAR = EditorPrefs.GetInt("kAutoRefresh", 1);
+            var origFPM = EditorSettings.enterPlayModeOptionsEnabled;
+
+            EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"true\"}");
+            Assert.AreEqual(0, EditorPrefs.GetInt("kAutoRefresh", 1));
+            Assert.IsTrue(EditorSettings.enterPlayModeOptionsEnabled);
+
+            EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"false\"}");
+            Assert.AreEqual(origKAR, EditorPrefs.GetInt("kAutoRefresh", 1));
+            Assert.AreEqual(origFPM, EditorSettings.enterPlayModeOptionsEnabled);
+
+            EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"true\"}");
+            Assert.AreEqual(0, EditorPrefs.GetInt("kAutoRefresh", 1));
+
+            EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"false\"}");
+            Assert.AreEqual(origKAR, EditorPrefs.GetInt("kAutoRefresh", 1));
+        }
+
+        [Test]
+        public void GetStatus_ReportsRealAutoRefreshState()
+        {
+            var statusOff = CommandRegistry.Execute("get_status", "{}");
+            StringAssert.Contains("auto_refresh=true", statusOff);
+            StringAssert.Contains("mutation_mode=false", statusOff);
+
+            EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"true\"}");
+
+            var statusOn = CommandRegistry.Execute("get_status", "{}");
+            StringAssert.Contains("auto_refresh=false", statusOn);
+            StringAssert.Contains("mutation_mode=true", statusOn);
+            StringAssert.Contains("fast_play_mode=true", statusOn);
+        }
+
+        [Test]
+        public void GetStatus_ContainsDomainReloadCount()
+        {
+            var status = CommandRegistry.Execute("get_status", "{}");
+            StringAssert.Contains("domain_reload_count=", status);
+        }
+    }
+}
