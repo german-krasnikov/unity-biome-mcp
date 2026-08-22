@@ -18,6 +18,7 @@ from unity_mcp.utils import parse_pipe_fields
 from ._common import bind
 
 _send = None
+_hr_cached: bool | None = None  # None=unknown, False=not-HR (skip get_status), True=re-check
 
 _STILL_BUSY_STATES = frozenset({"compiling", "reloading"})
 
@@ -120,6 +121,20 @@ async def _await_compile_generation(timeout: float, expected_generation: int) ->
         await asyncio.sleep(1)
 
 
+async def _is_hr_active() -> bool:
+    """Check if Hot Reload is active. Caches False to skip future round-trips."""
+    global _hr_cached
+    if _hr_cached is False:
+        return False
+    try:
+        status = await _send("get_status", {})
+        active = "hot_reload_detected=true" in (status or "")
+        _hr_cached = active
+        return active
+    except Exception:
+        return False  # fail-open; do NOT cache — unknown state
+
+
 async def await_compile(timeout: float = 60.0, expected_generation: int | None = None) -> str:
     """Block until Unity finishes compiling + reloading, then return compile errors.
     Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'.
@@ -132,6 +147,12 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
         # Sentinel-strip lives in get_corroborated_errors (P3 DRY).
         from .. import editor_log
         return await editor_log.get_corroborated_errors(_send, compile_status=compile_status)
+
+    # HR annotation — HR compiles without domain reload; no Unity compile cycle to poll.
+    if await _is_hr_active():
+        errors = await _get_errors()
+        note = " [hot-reload-mode: HR applied changes without domain reload]"
+        return (errors + note) if errors else ("compile clean" + note)
 
     # timeout=0: single check, no loop
     # G13: only active compile states are "still compiling"; terminal states (idle-failed,
@@ -255,6 +276,8 @@ async def serialized_field_rename_audit(
 
 
 def register(mcp, send, args):
+    global _hr_cached
+    _hr_cached = None  # reset on reconnect — HR status may have changed
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()

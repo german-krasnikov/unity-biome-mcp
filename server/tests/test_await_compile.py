@@ -47,8 +47,10 @@ def _patch_sleep():
 @pytest.fixture(autouse=True)
 def _reset_send():
     original = _ci._send
+    orig_cache = _ci._hr_cached
     yield
     _ci._send = original
+    _ci._hr_cached = orig_cache  # ensure isolation
 
 
 async def test_already_idle_returns_errors_immediately():
@@ -140,11 +142,14 @@ async def test_multiple_disconnects_within_timeout():
 
 
 async def test_timeout_zero_idle_returns_errors():
-    """timeout=0, status idle → fetches errors (exactly 2 calls: status + errors)."""
+    """timeout=0, status idle → fetches errors (exactly 2 calls: status + errors).
+    get_status is a pre-flight HR check and does not count toward the compile path."""
     call_count = 0
 
     async def _send(cmd, args=None, **kwargs):
         nonlocal call_count
+        if cmd == "get_status":
+            return "hot_reload_detected=false"  # pre-flight; not counted
         call_count += 1
         if cmd == "compile_status":
             return "idle|3.0"
@@ -171,6 +176,8 @@ async def test_timeout_zero_wedge_yields_verdict_not_still_compiling():
 
     async def _send(cmd, args=None, **kwargs):
         nonlocal call_count
+        if cmd == "get_status":
+            return "hot_reload_detected=false"  # pre-flight; not counted
         call_count += 1
         if cmd == "compile_status":
             return "idle-failed|3.0"

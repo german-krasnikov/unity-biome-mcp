@@ -496,6 +496,7 @@ namespace UnityMCP.Editor
         {
             _shuttingDown = true;
             WriteStateFile("reloading");
+            try { CommandRouter._dedupRegistry.Save(); } catch { }  // persist before static fields reset
             // Send going_away FIRST — streams still alive, handlers still running
             _mainSlot.ForEach(c => SendGoingAwaySync(c.GetStream()));
             _chatSlot.ForEach(c => SendGoingAwaySync(c.GetStream()));
@@ -529,7 +530,7 @@ namespace UnityMCP.Editor
         // ── Tier 4b: status response format ──────────────────────────────────
 
         // synced by sync_versions.py — do not edit manually
-        internal static string PluginVersion => "1.48.1";
+        internal static string PluginVersion => "1.49.0";
 
         internal static string BuildVersionString(string stamp, string pluginVersion)
         {

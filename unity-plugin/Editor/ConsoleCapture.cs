@@ -14,6 +14,7 @@ namespace UnityMCP.Editor
     public static class ConsoleCapture
     {
         private const int MAX_STACKTRACE_LENGTH = 500;
+        private const string DroppedCountKey = "MCP_DroppedProblemCount";
 
         // Issue 27 (C1): logs worth surfacing as "a problem happened" — not just LogType.Error.
         // Unhandled C# exceptions arrive as LogType.Exception; failed asserts as LogType.Assert.
@@ -25,12 +26,16 @@ namespace UnityMCP.Editor
         // Issue 27 (C3/Step 4): count of problem-type entries evicted — either by ring overflow
         // (ConsoleRingBuffer.Write) or by ConsoleProblemPersistence's own FIFO cap (M9) —
         // surfaced as an explicit marker instead of silently losing them.
+        // Persisted in SessionState so the count survives domain reload.
         private static int _droppedProblemCount = 0;
 
         private static readonly object _lock = new object();
 
         static ConsoleCapture()
         {
+            // Restore dropped count that was persisted before the last domain reload.
+            _droppedProblemCount = int.TryParse(
+                UnityEditor.SessionState.GetString(DroppedCountKey, "0"), out var n) ? n : 0;
             Application.logMessageReceived += OnLogReceived;
             // G10: hook Unity's built-in Console.Clear so our buffer stays in sync.
             HookUnityConsoleClear();
@@ -60,6 +65,7 @@ namespace UnityMCP.Editor
                 ConsoleRingBuffer.Reset();
                 ConsoleProblemPersistence.Clear();
                 _droppedProblemCount = 0;
+                UnityEditor.SessionState.EraseString(DroppedCountKey);
             }
         }
 
@@ -87,6 +93,11 @@ namespace UnityMCP.Editor
                 if (ConsoleRingBuffer.Write(entry, out var evicted) &&
                     Array.IndexOf(ProblemTypes, evicted.Type) >= 0)
                     _droppedProblemCount++;
+
+                // Persist so the count survives domain reload. Write-on-increment is rare
+                // (only on ring or FIFO overflow) and SessionState.SetString is O(1) in-process.
+                if (_droppedProblemCount > 0)
+                    UnityEditor.SessionState.SetString(DroppedCountKey, _droppedProblemCount.ToString());
             }
         }
 
@@ -200,6 +211,7 @@ namespace UnityMCP.Editor
                 ConsoleRingBuffer.Reset();
                 ConsoleProblemPersistence.Clear();
                 _droppedProblemCount = 0;
+                UnityEditor.SessionState.EraseString(DroppedCountKey);
             }
         }
 
@@ -243,6 +255,19 @@ namespace UnityMCP.Editor
             {
                 ConsoleRingBuffer.Reset();
                 ConsoleProblemPersistence.SimulateDomainReloadForTest();
+                // Reset the static field initializer value, as domain reload would.
+                _droppedProblemCount = 0;
+            }
+        }
+
+        /// <summary>Test seam: restores _droppedProblemCount from SessionState, mirroring
+        /// what the static ctor does post-reload.</summary>
+        internal static void RestoreDroppedCountFromSessionState()
+        {
+            lock (_lock)
+            {
+                _droppedProblemCount = int.TryParse(
+                    UnityEditor.SessionState.GetString(DroppedCountKey, "0"), out var n) ? n : 0;
             }
         }
 

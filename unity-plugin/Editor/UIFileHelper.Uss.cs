@@ -50,7 +50,7 @@ namespace UnityMCP.Editor
 
             BackupFile(abs);
             File.WriteAllText(abs, string.Join("\n", lines), JsonHelper.Utf8NoBom);
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            _importAsset(path, ImportAssetOptions.Default);
             return $"ok: set-rule selector={selector} prop={prop} value={value}\npath: {path}";
         }
 
@@ -77,7 +77,7 @@ namespace UnityMCP.Editor
             BackupFile(abs);
             lines.RemoveRange(blockStart, blockEnd - blockStart + 1);
             File.WriteAllText(abs, string.Join("\n", lines), JsonHelper.Utf8NoBom);
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            _importAsset(path, ImportAssetOptions.Default);
             return $"ok: remove-rule selector={selector}\npath: {path}";
         }
 

@@ -49,7 +49,7 @@ namespace UnityMCP.Editor
 
             var content = BuildTemplate(preset);
             File.WriteAllText(path, content, Encoding.UTF8);
-            try { AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate); }
+            try { _importAsset(path, ImportAssetOptions.Default); }
             catch (Exception ex) { Debug.LogWarning($"ShaderGraph import warning for '{path}': {ex.Message}"); }
 
             return Get(path);

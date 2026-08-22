@@ -139,6 +139,7 @@ namespace UnityMCP.Editor.Chat
                     SessionState.SetBool(LockMarkerKey, true);
                     _lockStartTime = Ops.TimeSinceStartup;
                     AddWatchdog();
+                    EnsureScriptCompilationDuringPlay();
                 }
                 catch
                 {
@@ -170,10 +171,31 @@ namespace UnityMCP.Editor.Chat
                 // Required to re-arm the file watcher; AllowAutoRefresh alone does not.
                 try { Ops.RefreshAssets(); } catch { }
             }
+            // Restore ScriptCompilationDuringPlay if EnsureScriptCompilationDuringPlay changed it.
+            var prevScriptComp = SessionState.GetInt(ScriptCompDuringPlayPrevKey, -1);
+            if (prevScriptComp >= 0)
+            {
+                EditorPrefs.SetInt("ScriptCompilationDuringPlay", prevScriptComp);
+                SessionState.EraseInt(ScriptCompDuringPlayPrevKey);
+            }
             SessionState.EraseBool(LockMarkerKey);
             _autoRefreshDisallowed = false;
             _assembliesLocked = false;
             _lockDepth = 0;
+        }
+
+        private const string ScriptCompDuringPlayPrevKey = "MCP_PrevScriptCompDuringPlay";
+
+        private static void EnsureScriptCompilationDuringPlay()
+        {
+            if (!HotReloadDetector.IsActive()) return;
+            // 0 = RecompileAndContinuePlaying (default, may interrupt Play Mode)
+            // 1 = RecompileAfterFinishedPlaying (safer with HR)
+            var current = EditorPrefs.GetInt("ScriptCompilationDuringPlay", 0);
+            if (current != 0) return;
+            // Save original so ForceUnlock can restore it.
+            SessionState.SetInt(ScriptCompDuringPlayPrevKey, current);
+            EditorPrefs.SetInt("ScriptCompilationDuringPlay", 1);
         }
 
         private static void WatchdogTick()

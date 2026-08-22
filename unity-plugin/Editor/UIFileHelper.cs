@@ -15,6 +15,10 @@ namespace UnityMCP.Editor
 {
     public static partial class UIFileHelper
     {
+        // Testability seam — tests can inject a call spy. Shared by Uxml.cs and Uss.cs.
+        internal static Action<string, ImportAssetOptions> _importAsset =
+            AssetDatabase.ImportAsset;
+
         // C2: in-memory backup store — cleared on domain reload (CLR restart).
         private static readonly Dictionary<string, string> _fileBackups = new();
 
@@ -79,7 +83,7 @@ namespace UnityMCP.Editor
             Directory.CreateDirectory(Path.GetDirectoryName(abs)!);
             File.WriteAllText(abs, content, JsonHelper.Utf8NoBom); // C4: no BOM; C2: in-place
 
-            AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
+            _importAsset(assetPath, ImportAssetOptions.Default);
 
             if (isUxml)
             {
@@ -128,7 +132,7 @@ namespace UnityMCP.Editor
             if (!_fileBackups.TryGetValue(abs, out var backup))
                 return "err: no backup available — domain was reloaded or no prior write in this session. Use git to recover.";
             File.WriteAllText(abs, backup, JsonHelper.Utf8NoBom);
-            AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate);
+            _importAsset(assetPath, ImportAssetOptions.Default);
             _fileBackups.Remove(abs);
             return $"ok: reverted\npath: {assetPath}";
         }

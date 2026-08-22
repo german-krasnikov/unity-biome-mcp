@@ -223,6 +223,12 @@ for `SyncHelper` to report the matching ready or failed state, tolerates the
 expected domain-reload disconnect, corroborates errors, and invokes bounded
 internal recovery only when needed.
 
+**Hot Reload coexistence:** When SingularityGroup Hot Reload is installed or
+`MCPSettings.HotReloadMode` is enabled, `sync_unity` detects the active state
+via `HotReloadDetector.IsActive()` and skips Refresh/RequestScriptCompilation.
+HR handles method patching into the live domain without reload. The detection
+check is fast (assembly scan + EditorPref read) and cached conservatively.
+
 `force_refresh`, `recompile`, and `force_play_stop` are recovery implementation
 details, not the public agent workflow. `sync_unity` is mutating because import,
 compile, optional package resolution, and optional version bump can change

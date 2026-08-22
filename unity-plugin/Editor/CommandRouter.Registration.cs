@@ -86,6 +86,7 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"readOnly={IsReadOnly()}");
                 sb.AppendLine($"plugin_version={BiomeVersion.Plugin}");
                 sb.AppendLine($"protocol={BiomeVersion.Protocol}");
+                sb.AppendLine($"hot_reload_detected={HotReloadDetector.IsActive().ToString().ToLower()}");
                 return sb.ToString().TrimEnd();
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
         }
@@ -386,11 +387,12 @@ namespace UnityMCP.Editor
                 if (timeoutStr != null) int.TryParse(timeoutStr, out timeoutMs);
                 bool atomic = JsonHelper.ExtractString(args, "atomic") == "true";
                 bool validateAliases = JsonHelper.ExtractString(args, "validate_aliases") == "true";
+                bool deferImport = JsonHelper.ExtractString(args, "defer_asset_import") == "true";
                 return BatchHelper.Execute(
                     JsonHelper.ExtractString(args, "commands"),
                     JsonHelper.ExtractString(args, "on_error") ?? "continue",
-                    timeoutMs, atomic, validateAliases);
-            }, mutating: false, required: "commands", optional: "on_error,timeout_ms,atomic,validate_aliases",
+                    timeoutMs, atomic, validateAliases, deferImport);
+            }, mutating: false, required: "commands", optional: "on_error,timeout_ms,atomic,validate_aliases,defer_asset_import",
                allowedDuringCompile: true);
 
             // Spatial queries (read-only)

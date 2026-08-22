@@ -227,6 +227,22 @@ async def test_batch_validate_aliases_false_not_sent(mock_bridge, bridge_respons
     assert "validate_aliases" not in call_args[1]
 
 
+async def test_batch_defer_asset_import_forwarded(mock_bridge, bridge_response):
+    """defer_asset_import=True is forwarded as 'true' string in command dict."""
+    bridge_response(data="ok:1")
+    await batch(commands="ping", defer_asset_import=True)
+    call_args = mock_bridge.send.call_args[0]
+    assert call_args[1].get("defer_asset_import") == "true"
+
+
+async def test_batch_defer_asset_import_false_not_sent(mock_bridge, bridge_response):
+    """defer_asset_import=False (default) means key is absent from command dict."""
+    bridge_response(data="ok:1")
+    await batch(commands="ping")
+    call_args = mock_bridge.send.call_args[0]
+    assert "defer_asset_import" not in call_args[1]
+
+
 # P0-2: direct_only rejection
 
 async def test_batch_rejects_direct_only_tool(mock_bridge):

@@ -3,6 +3,8 @@
 // Thread-safe for Unity's single-threaded editor main loop.
 using System;
 using System.Collections.Generic;
+using System.Text;
+using UnityEditor;
 
 namespace UnityMCP.Editor
 {
@@ -87,6 +89,54 @@ namespace UnityMCP.Editor
             }
             if (oldest != null)
                 _store.Remove(oldest);
+        }
+
+        // ── Domain-reload persistence ─────────────────────────────────────────
+
+        internal const string SessionKey = "MCP_DedupRegistry_v1";
+        private const int SaveWindowSeconds = 60;
+        private const int SaveMaxEntries = 50;
+
+        /// <summary>Persists entries from the last 60 s to SessionState (called before domain reload).</summary>
+        internal void Save()
+        {
+            long cutoff = _clock() - (long)(SaveWindowSeconds * TimeSpan.TicksPerSecond);
+            var sb = new StringBuilder();
+            int count = 0;
+            foreach (var kv in _store)
+            {
+                if (kv.Value.ts >= cutoff && count < SaveMaxEntries)
+                {
+                    sb.Append(kv.Key).Append(':').Append(kv.Value.ts).Append('\n');
+                    count++;
+                }
+            }
+            SessionState.SetString(SessionKey, sb.ToString());
+        }
+
+        /// <summary>Restores entries from SessionState (called after domain reload in OnDomainReload).</summary>
+        internal void Load()
+        {
+            var text = SessionState.GetString(SessionKey, "");
+            if (string.IsNullOrEmpty(text)) return;
+            foreach (var line in text.Split('\n'))
+            {
+                if (string.IsNullOrEmpty(line)) continue;
+                var sep = line.LastIndexOf(':');
+                if (sep <= 0) continue;
+                var opId = line.Substring(0, sep);
+                if (long.TryParse(line.Substring(sep + 1), out var ts))
+                    _store[opId] = (ts, null);  // result unknown post-reload
+            }
+        }
+
+        /// <summary>Returns true if opId is known within TTL, even when result is null (post-reload).</summary>
+        internal bool ContainsWithinTtl(string opId)
+        {
+            if (string.IsNullOrEmpty(opId) || !_store.TryGetValue(opId, out var entry))
+                return false;
+            long ageMs = (_clock() - entry.ts) / TimeSpan.TicksPerMillisecond;
+            return ageMs < TtlSeconds * 1000;
         }
     }
 }

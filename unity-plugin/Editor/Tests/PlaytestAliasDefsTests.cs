@@ -1,7 +1,9 @@
 // TDD: ParseDefsToAliases + ValidateAliases — pure string helpers, no Unity API.
 using System;
 using System.Collections.Generic;
+using System.IO;
 using NUnit.Framework;
+using UnityEditor;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -158,6 +160,44 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("$x", result);
             StringAssert.Contains("defs:", result);
             StringAssert.Contains("asset:", result);
+        }
+
+        // ── ExportToDefs seam: ImportAsset not Refresh ────────────────────────
+
+        [Test]
+        public void ExportToDefs_UsesImportAsset_NotGlobalRefresh()
+        {
+            var prev = PlaytestAliasHelpers._importAsset;
+            string capturedPath = null;
+            ImportAssetOptions capturedOptions = ImportAssetOptions.Default;
+            int callCount = 0;
+
+            PlaytestAliasHelpers._importAsset = (path, opts) =>
+            {
+                capturedPath = path;
+                capturedOptions = opts;
+                callCount++;
+            };
+
+            string exportedAbsPath = null;
+            RegisterCleanup(() =>
+            {
+                PlaytestAliasHelpers._importAsset = prev;
+                if (exportedAbsPath != null && File.Exists(exportedAbsPath))
+                    File.Delete(exportedAbsPath);
+            });
+
+            var aliases = new List<QueryAlias>
+            {
+                new QueryAlias { alias = "test_seam", type = AliasType.ValConst, constValue = "1" }
+            };
+
+            exportedAbsPath = PlaytestAliasHelpers.ExportToDefs(aliases, "test_refresh_seam");
+
+            Assert.AreEqual(1, callCount, "_importAsset seam must be called exactly once");
+            Assert.IsNotNull(capturedPath);
+            StringAssert.EndsWith(".defs", capturedPath);
+            Assert.AreEqual(ImportAssetOptions.Default, capturedOptions);
         }
 
         // ── Export roundtrip ──────────────────────────────────────────────────

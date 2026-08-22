@@ -8,6 +8,10 @@ namespace UnityMCP.Editor
 {
     internal static partial class ShaderGraphHelper
     {
+        // Testability seam — tests can inject a call spy.
+        internal static Action<string, ImportAssetOptions> _importAsset =
+            AssetDatabase.ImportAsset;
+
         public static string ManageNode(string path, string nodeType, string nodeId, string action)
         {
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
@@ -20,7 +24,7 @@ namespace UnityMCP.Editor
                 ? RemoveNode(content, blocks, root, nodeId)
                 : AddNode(content, root, nodeType);
             File.WriteAllText(path, content);
-            try { AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate); }
+            try { _importAsset(path, ImportAssetOptions.Default); }
             catch (Exception ex) { Debug.LogWarning($"ShaderGraph import failed for '{path}': {ex.Message}"); }
             return Get(path);
         }
@@ -37,7 +41,7 @@ namespace UnityMCP.Editor
                 ? RemoveEdge(content, root, outputNode, outputSlot, inputNode, inputSlot)
                 : AddEdge(content, root, outputNode, outputSlot, inputNode, inputSlot);
             File.WriteAllText(path, content);
-            try { AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate); }
+            try { _importAsset(path, ImportAssetOptions.Default); }
             catch (Exception ex) { Debug.LogWarning($"ShaderGraph import failed for '{path}': {ex.Message}"); }
             return Get(path);
         }
@@ -170,7 +174,7 @@ namespace UnityMCP.Editor
             content = InsertIntoArray(content, root, "m_Properties", $"{{\"m_Id\": \"{newId}\"}}");
             content = content.TrimEnd() + "\n\n" + propBlock + "\n";
             File.WriteAllText(path, content);
-            try { AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate); }
+            try { _importAsset(path, ImportAssetOptions.Default); }
             catch (Exception ex) { Debug.LogWarning($"ShaderGraph import failed for '{path}': {ex.Message}"); }
             return Get(path);
         }
@@ -195,7 +199,7 @@ namespace UnityMCP.Editor
 
             content = RemoveNode(content, blocks, root, propId);
             File.WriteAllText(path, content);
-            try { AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate); }
+            try { _importAsset(path, ImportAssetOptions.Default); }
             catch (Exception ex) { Debug.LogWarning($"ShaderGraph import failed for '{path}': {ex.Message}"); }
             return $"property removed: {name}";
         }
@@ -225,7 +229,7 @@ namespace UnityMCP.Editor
             var updatedBlock = propBlock.Replace($"\"m_Name\": \"{oldName}\"", $"\"m_Name\": \"{newName}\"");
             content = content.Replace(propBlock, updatedBlock);
             File.WriteAllText(path, content);
-            try { AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate); }
+            try { _importAsset(path, ImportAssetOptions.Default); }
             catch (Exception ex) { Debug.LogWarning($"ShaderGraph import failed for '{path}': {ex.Message}"); }
             return $"property renamed: {oldName} → {newName}";
         }

@@ -120,7 +120,8 @@ def _preprocess_stop_mode(commands: str) -> str:
 
 
 def _build_send_args(
-    commands: str, on_error: str, timeout_ms: int, atomic: bool, validate_aliases: bool
+    commands: str, on_error: str, timeout_ms: int, atomic: bool, validate_aliases: bool,
+    defer_asset_import: bool = False,
 ) -> dict:
     """Build TCP args dict, omitting default/falsy values."""
     args: dict = {"commands": commands}
@@ -138,6 +139,8 @@ def _build_send_args(
         args["atomic"] = "true"
     if validate_aliases:
         args["validate_aliases"] = "true"
+    if defer_asset_import:
+        args["defer_asset_import"] = "true"
     return args
 
 
@@ -160,8 +163,9 @@ def _merge_pre_errors(result: str, pre_errors: list[str], orig_indices: list[int
 
 
 async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
-                atomic: bool = False, validate_aliases: bool = False) -> str:
-    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75). atomic: on failure, reverts prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain. PREFER over individual tool calls."""
+                atomic: bool = False, validate_aliases: bool = False,
+                defer_asset_import: bool = False) -> str:
+    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop. timeout: seconds (default 75). atomic: reverts Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. defer_asset_import: wraps in StartAssetEditing/StopAssetEditing. PREFER over individual tool calls."""
     pre_errors: list[str] = []
     orig_indices: list[int] = []
     if on_error == "continue":
@@ -169,7 +173,7 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
     else:
         commands = _preprocess_stop_mode(commands)
     timeout_ms = max(1000, int((timeout - 5) * 1000))
-    args = _build_send_args(commands, on_error, timeout_ms, atomic, validate_aliases)
+    args = _build_send_args(commands, on_error, timeout_ms, atomic, validate_aliases, defer_asset_import)
     result = await _send("batch", args, timeout=timeout)
     result = _check_completeness(commands, result)
     if pre_errors:
