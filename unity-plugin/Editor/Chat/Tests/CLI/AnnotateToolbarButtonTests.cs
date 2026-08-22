@@ -41,8 +41,8 @@ namespace UnityMCP.Editor.Chat.Tests
             ScreenshotService.CaptureFunc = (w, h, cam) => null;
             // CaptureFunc returning null causes two expected warnings:
             // one from ScreenshotService (empty data) and one from AnnotateToolbarButton (failed).
-            LogAssert.Expect(LogType.Warning, new Regex("Screenshot capture returned empty data"));
-            LogAssert.Expect(LogType.Warning, new Regex("Screenshot capture failed for annotation"));
+            LogAssert.Expect(LogType.Warning, new Regex(".*Screenshot capture returned empty data"));
+            LogAssert.Expect(LogType.Warning, new Regex(".*Screenshot capture failed for annotation"));
             Assert.DoesNotThrow(() => _btn.OnClick(null));
         }
 
