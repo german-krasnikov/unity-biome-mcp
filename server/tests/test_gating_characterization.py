@@ -137,7 +137,8 @@ _CATEGORY_SIZES_SNAPSHOT = {
 
 _TIMEOUT_CATEGORIES_SNAPSHOT = {
     "apply_scene_change": 120.0,
-    "ask_user": 300.0, "batch": 120.0, "build": 300.0, "compile_preflight": 60.0,
+    "ask_user": 300.0, "batch": 120.0, "build": 300.0, "clear_held_types": 5.0,
+    "compile_preflight": 60.0,
     "execute_code": 60.0, "export_package": 120.0, "fingerprint": 10.0,
     "cancel_test_run": 10.0, "get_changeset": 5.0, "get_console": 10.0, "get_hierarchy": 15.0,
     "get_test_count": 10.0, "get_test_run": 10.0, "get_version": 5.0,

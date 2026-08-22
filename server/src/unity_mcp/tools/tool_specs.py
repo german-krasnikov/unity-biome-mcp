@@ -93,6 +93,7 @@ _SPECS: dict[str, ToolSpec] = {
     # middleware_types.is_write() handles the argument-aware classification.
     'doctor': ToolSpec(category='SYSTEM', direct_only=True),
     'editor': ToolSpec(category='CORE', core=True),
+    'clear_held_types': ToolSpec(category='SYSTEM', core=False, timeout_s=5.0, mutability='read'),
     'execute_code': ToolSpec(category='SYSTEM', core=True, timeout_s=60.0),
     'export_package': ToolSpec(category='_INTERNAL', timeout_s=120.0),
     'export_playtest_aliases_to_defs': ToolSpec(category='TESTS'),

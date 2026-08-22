@@ -135,13 +135,14 @@ The SYSTEM category contains:
 alias_status       animator_intent      apply_template       ask
 ask_user           auto_fix             brief_build          budget_status
 build              checkpoint           checkpoint_create    checkpoint_restore
-discover_tools     do                   doctor               execute_code
-fingerprint        get_capabilities     get_changes          get_enabled_tools
-get_schema         list_connections     list_skills          list_templates
-load_session       mcp_status           menu                 permission_prompt
-recompile          reconnect_unity      release_smoke        resolve_tool_schema
-save_session       save_skill           save_template        set_llm_config
-smart_build        sync_unity           undo_last            use_skill
+clear_held_types   discover_tools       do                   doctor
+execute_code       fingerprint          get_capabilities     get_changes
+get_enabled_tools  get_schema           list_connections     list_skills
+list_templates     load_session         mcp_status           menu
+permission_prompt  recompile            reconnect_unity      release_smoke
+resolve_tool_schema save_session        save_skill           save_template
+set_llm_config     smart_build          sync_unity           undo_last
+use_skill
 ```
 
 This list provides authored discoverability; the generated schema remains the

@@ -19,7 +19,7 @@ namespace UnityMCP.Editor.Tests
         {
             "alias_status", "analyze_lod_culling", "animation", "animator", "ask_user", "asset", "attach_uitk", "auto_wire",
             "autofit_collider", "bake", "batch", "build", "cancel_test_run", "check_colliders", "checkpoint", "checkpoint_undo_restore", "clear_console",
-            "compile_preflight", "compile_status", "console_clear_buffer", "create_object", "create_ui", "debug_animator",
+            "clear_held_types", "compile_preflight", "compile_status", "console_clear_buffer", "create_object", "create_ui", "debug_animator",
             "debug_physics", "delete_object", "diagnose", "editor", "execute_code", "find_objects",
             "export_playtest_aliases_to_defs",
             "fingerprint", "force_play_stop", "force_refresh", "get_capabilities", "get_changes", "get_compile_errors",

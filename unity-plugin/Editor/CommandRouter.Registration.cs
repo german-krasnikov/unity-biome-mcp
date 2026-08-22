@@ -415,10 +415,14 @@ namespace UnityMCP.Editor
             // user submits is arbitrary C#, but the command's own args are fixed.
             CommandRegistry.Register("execute_code", args => CodeExecutor.Execute(
                 JsonHelper.ExtractString(args, "code"),
-                JsonHelper.ExtractString(args, "undo_label") ?? "execute_code"),
+                JsonHelper.ExtractString(args, "undo_label") ?? "execute_code",
+                JsonHelper.ExtractString(args, "persist_as")),
                 mutating: true,
-                required: "code", optional: "undo_label",
+                required: "code", optional: "undo_label,persist_as",
                 allowedDuringCompile: true);  // T2.5: ReloadGuard probe must work when wedged
+            CommandRegistry.Register("clear_held_types",
+                _ => { CodeExecutor.ClearHeld(); return "ok: held types cleared"; },
+                mutating: false, required: "", optional: "");
             // Both file_path and new_content are required — a preflight check needs the file
             // and the candidate content to validate (Issue 23 review M8).
             CommandRegistry.Register("compile_preflight", args =>
