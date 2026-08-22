@@ -122,14 +122,15 @@ async def _await_compile_generation(timeout: float, expected_generation: int) ->
 
 
 async def _is_hr_active() -> bool:
-    """Check if Mutation Mode is active. Caches False to skip future round-trips."""
+    """Check if Mutation Mode is active. Caches True only — False re-checks each call."""
     global _mm_cached
-    if _mm_cached is False:
-        return False
+    if _mm_cached is True:
+        return True
     try:
         status = await _send("get_status", {})
         active = "mutation_mode=true" in (status or "")
-        _mm_cached = active
+        if active:
+            _mm_cached = True
         return active
     except Exception:
         return False  # fail-open; do NOT cache — unknown state

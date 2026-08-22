@@ -15,6 +15,7 @@ namespace UnityMCP.Editor.Tests
         public void SetUp()
         {
             ProtectEditorPrefInt("kAutoRefresh");
+            ProtectEditorPrefInt("kAutoRefreshMode");
             ProtectEditorPrefBool("UnityMCP_HotReloadMode");
             ProtectEditorPrefBool("UnityMCP_FastPlayMode");
             // Prevent stale package-installed cache from skipping AutoRefreshGuard.Apply()
@@ -126,10 +127,13 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void GetStatus_ContainsDomainReloadCount()
+        public void GetStatus_DomainReloadCount_IsPositive()
         {
             var status = CommandRegistry.Execute("get_status", "{}");
-            StringAssert.Contains("domain_reload_count=", status);
+            var match = System.Text.RegularExpressions.Regex.Match(status, @"domain_reload_count=(\d+)");
+            Assert.IsTrue(match.Success, "get_status must contain domain_reload_count=<n>");
+            int count = int.Parse(match.Groups[1].Value);
+            Assert.Greater(count, 0, "domain_reload_count must be positive (at least 1 reload happened to run this test)");
         }
     }
 }

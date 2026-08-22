@@ -14,7 +14,12 @@ async def editor(action: str = "state", path: str | None = None,
     select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC").
     fast_play_mode/mutation_mode: enable='true'|'false' to toggle."""
     t = 15.0 if action in ("play", "stop", "pause") else 30.0
-    return await _send("editor", _args(action=action, path=path, paths=paths, enable=enable), timeout=t)
+    result = await _send("editor", _args(action=action, path=path, paths=paths, enable=enable), timeout=t)
+    if action == "mutation_mode":
+        from . import sync as _sync, code_intel as _ci
+        _sync._mm_cached = None
+        _ci._mm_cached = None
+    return result
 
 
 async def ping_object(path: str) -> str:

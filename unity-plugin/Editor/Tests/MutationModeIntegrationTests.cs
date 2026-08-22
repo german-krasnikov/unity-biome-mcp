@@ -26,6 +26,7 @@ namespace UnityMCP.Editor.Tests
             ProtectEditorPrefBool("UnityMCP_FastPlayMode");
             ProtectEditorPrefBool("UnityMCP_MutationMode");
             ProtectEditorPrefInt("kAutoRefresh");
+            ProtectEditorPrefInt("kAutoRefreshMode");
             RegisterCleanup(FastPlayMode.ResetForTest);
             RegisterCleanup(AutoRefreshGuard.ResetForTest);
             RegisterCleanup(() => HotReloadDetector._cachedPackageInstalled = null);

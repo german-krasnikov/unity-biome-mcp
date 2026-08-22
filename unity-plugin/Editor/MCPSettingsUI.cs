@@ -43,7 +43,8 @@ namespace UnityMCP.Editor
                 "Enable when SingularityGroup Hot Reload package is installed. " +
                 "Skips Refresh() calls that HR patches to no-ops. Default: OFF.";
             mmModeToggle.RegisterValueChangedCallback(evt =>
-                MCPSettings.SetMutationMode(evt.newValue));
+                EditorStateHelper.Control("mutation_mode", null,
+                    $"{{\"enable\":\"{(evt.newValue ? "true" : "false")}\"}}"));
             root.Add(mmModeToggle);
 
             var searchField = new TextField();

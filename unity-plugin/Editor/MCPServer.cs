@@ -187,9 +187,13 @@ namespace UnityMCP.Editor
                 : Path.Combine(projectRoot, scenePath));
         }
 
+        const string ReloadCountKey = "MCP_DomainReloadCount";
+
         static MCPServer()
         {
-            _domainReloadCount++;
+            int prev = SessionState.GetInt(ReloadCountKey, 0);
+            SessionState.SetInt(ReloadCountKey, prev + 1);
+            _domainReloadCount = prev + 1;
             if (!ShouldStartServer(Application.isBatchMode)) return;
 
             RegisterLifecycleCallbacks();

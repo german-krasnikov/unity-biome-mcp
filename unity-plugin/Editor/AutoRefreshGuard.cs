@@ -11,8 +11,9 @@ namespace UnityMCP.Editor
     /// </summary>
     internal static class AutoRefreshGuard
     {
-        const string KeyApplied   = "MCP_ARG_Applied";
-        const string KeyOrigValue = "MCP_ARG_OrigValue";
+        const string KeyApplied       = "MCP_ARG_Applied";
+        const string KeyOrigValue     = "MCP_ARG_OrigValue";
+        const string KeyOrigModeValue = "MCP_ARG_OrigModeValue";
 
         // ── Test seams ──────────────────────────────────────────────────────
         internal static Func<int>    _getAutoRefresh = () => EditorPrefs.GetInt("kAutoRefresh", 1);
@@ -27,18 +28,23 @@ namespace UnityMCP.Editor
             if (IsApplied) return;
             if (HotReloadDetector.IsPackageInstalled()) return;  // HR owns kAutoRefresh
             SessionState.SetInt(KeyOrigValue, _getAutoRefresh());
+            SessionState.SetInt(KeyOrigModeValue, EditorPrefs.GetInt("kAutoRefreshMode", 0));
             SessionState.SetBool(KeyApplied, true);
             _setAutoRefresh(0);
-            Debug.Log("[MCP] Auto-refresh disabled (kAutoRefresh=0)");
+            EditorPrefs.SetInt("kAutoRefreshMode", 2);  // 2 = Disabled (Unity 2021.3+)
+            Debug.Log("[MCP] Auto-refresh disabled (kAutoRefresh=0, kAutoRefreshMode=2)");
         }
 
         internal static void Restore()
         {
             if (!IsApplied) return;
             int orig = SessionState.GetInt(KeyOrigValue, 1);
+            int origMode = SessionState.GetInt(KeyOrigModeValue, 0);
             _setAutoRefresh(orig);
+            EditorPrefs.SetInt("kAutoRefreshMode", origMode);
             SessionState.EraseBool(KeyApplied);
             SessionState.EraseInt(KeyOrigValue);
+            SessionState.EraseInt(KeyOrigModeValue);
             Debug.Log("[MCP] Auto-refresh restored");
         }
 
@@ -47,6 +53,7 @@ namespace UnityMCP.Editor
         {
             SessionState.EraseBool(KeyApplied);
             SessionState.EraseInt(KeyOrigValue);
+            SessionState.EraseInt(KeyOrigModeValue);
         }
     }
 }

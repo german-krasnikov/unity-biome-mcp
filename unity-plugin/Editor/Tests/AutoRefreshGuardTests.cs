@@ -17,6 +17,7 @@ namespace UnityMCP.Editor.Tests
             AutoRefreshGuard._getAutoRefresh = () => _getAutoRefreshVal;
             AutoRefreshGuard._setAutoRefresh = v => _setAutoRefreshVal = v;
             ProtectEditorPrefInt("kAutoRefresh");
+            ProtectEditorPrefInt("kAutoRefreshMode");
             // Ensure HR package check always returns false in unit tests
             HotReloadDetector._cachedPackageInstalled = false;
             RegisterCleanup(AutoRefreshGuard.ResetForTest);
