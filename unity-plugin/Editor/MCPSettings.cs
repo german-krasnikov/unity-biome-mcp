@@ -42,6 +42,12 @@ namespace UnityMCP.Editor
         public static void SetMutationMode(bool value) =>
             EditorPrefs.SetBool(KeyMutationMode, value);
 
+        // ── Fast Play Mode ───────────────────────────────────────────────────
+        private const string KeyFastPlayMode = "UnityMCP_FastPlayMode";
+
+        public static bool GetFastPlayMode() => EditorPrefs.GetBool(KeyFastPlayMode, false);
+        public static void SetFastPlayMode(bool value) => EditorPrefs.SetBool(KeyFastPlayMode, value);
+
         // Minimal built-in default — used when no Python catalog received yet.
         // Generated from tool_specs._SPECS — categories and tool lists match get_catalog() output.
         private static readonly Dictionary<string, string[]> _defaultCatalog =

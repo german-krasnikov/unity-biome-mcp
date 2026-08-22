@@ -181,9 +181,12 @@ namespace UnityMCP.Editor
                 _ => $"{CompileNotifier.GetStatus()}|reload={SyncHelper.SyncState}",
                 required: "", optional: "", allowedDuringCompile: true);
             // sync/sync_status: unified reload API (v0.21)
-            CommandRegistry.Register("sync",        args => SyncHelper.TriggerSync(
-                JsonHelper.ExtractString(args, "resolve") == "true"),
-                required: "", optional: "resolve");
+            CommandRegistry.Register("sync", args =>
+            {
+                if (HotReloadDetector.IsActive() && EditorApplication.isPlaying)
+                    return "warn:ScriptCompilationDuringPlay blocked";
+                return SyncHelper.TriggerSync(JsonHelper.ExtractString(args, "resolve") == "true");
+            }, required: "", optional: "resolve");
             CommandRegistry.Register("sync_status", _ => SyncHelper.GetSyncStatus(),
                 required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("recompile", _ => { UnityEditor.AssetDatabase.Refresh(); return "ok"; },
@@ -240,7 +243,7 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "path_b")),
                 required: "path_a,path_b", optional: "");
             CommandRegistry.Register("editor", ExecEditor,
-                required: "", optional: "action,path,paths");
+                required: "", optional: "action,path,paths,enable");
             CommandRegistry.Register("ping_object", args =>
                 EditorStateHelper.PingObject(JsonHelper.ExtractString(args, "path")),
                 required: "path", optional: "");
@@ -387,7 +390,8 @@ namespace UnityMCP.Editor
                 if (timeoutStr != null) int.TryParse(timeoutStr, out timeoutMs);
                 bool atomic = JsonHelper.ExtractString(args, "atomic") == "true";
                 bool validateAliases = JsonHelper.ExtractString(args, "validate_aliases") == "true";
-                bool deferImport = JsonHelper.ExtractString(args, "defer_asset_import") == "true";
+                var deferStr = JsonHelper.ExtractString(args, "defer_asset_import");
+                bool deferImport = deferStr == "true" || (deferStr == null && HotReloadDetector.IsActive());
                 return BatchHelper.Execute(
                     JsonHelper.ExtractString(args, "commands"),
                     JsonHelper.ExtractString(args, "on_error") ?? "continue",

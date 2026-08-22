@@ -17,6 +17,15 @@ namespace UnityMCP.Editor
         {
             _moveTcs = null;
             _activeSimulator = null;
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+        }
+
+        static void OnPlayModeStateChanged(PlayModeStateChange state)
+        {
+            // With domain reload ON, static fields reset automatically on Play Mode entry.
+            // With domain reload OFF they survive — we must clean up manually.
+            if (state == PlayModeStateChange.ExitingPlayMode && MCPSettings.GetFastPlayMode())
+                CompleteRunCleanup();
         }
 
         public static void Run(string script, float globalTimeout, TaskCompletionSource<string> tcs,
@@ -451,6 +460,9 @@ namespace UnityMCP.Editor
         }
 
         internal static void CompleteRunCleanupForTests() => CompleteRunCleanup();
+        internal static void SimulatePlayModeStateChange(PlayModeStateChange state) => OnPlayModeStateChanged(state);
+        internal static bool IsRunningForTest => _isRunning;
+        internal static void SetRunningForTest(bool value) => _isRunning = value;
         // consecutive exceptions during WAIT_UNTIL polling — reset on success or new step
         static int _waitPollErrors;
 
