@@ -84,6 +84,22 @@ namespace UnityMCP.Editor
         private static Assembly _roslynCore     => RoslynLoader.RoslynCore;
         private static int _compilationCount;
 
+        // ── AssemblyResolve handler (lazy, registered once) ──────────────────
+        private static bool _resolverRegistered;
+
+        private static void EnsureAssemblyResolver()
+        {
+            if (_resolverRegistered) return;
+            _resolverRegistered = true;
+            AppDomain.CurrentDomain.AssemblyResolve += (_, args) =>
+            {
+                var shortName = new AssemblyName(args.Name).Name;
+                foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+                    if (asm.GetName().Name == shortName) return asm;
+                return null;
+            };
+        }
+
         // ── persist_as probe (lazy, cached) ──────────────────────────────────
         private static bool? _hasCreateFromStream;
         private static MethodInfo _createFromStream;
@@ -268,6 +284,7 @@ namespace UnityMCP.Editor
         internal static (Assembly asm, byte[] bytes) CompileToBytes(string code)
         {
             EnsureRoslyn();
+            EnsureAssemblyResolver();
             if (_compilationCount >= 200)
                 Debug.LogWarning($"{BiomeLabel.Tag} execute_code: 200+ compilations — assembly leak risk in Mono. Consider restarting Unity.");
             _compilationCount++;
@@ -275,6 +292,8 @@ namespace UnityMCP.Editor
             // ParseText: find overload where first param is string (or SourceText) — use the one
             // that can accept only a string argument by filling remaining optional params with defaults.
             var syntaxTreeType = _roslynCompiler.GetType("Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree");
+            if (syntaxTreeType == null)
+                throw new InvalidOperationException("CSharpSyntaxTree type not found in Microsoft.CodeAnalysis.CSharp.dll");
             // Find ParseText overload where first param is string (not SourceText)
             var parseMethod = syntaxTreeType.GetMethods(BindingFlags.Public | BindingFlags.Static)
                 .Where(m => m.Name == "ParseText"
