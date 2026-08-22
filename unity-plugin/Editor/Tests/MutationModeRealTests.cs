@@ -21,12 +21,8 @@ namespace UnityMCP.Editor.Tests
             // Prevent stale package-installed cache from skipping AutoRefreshGuard.Apply()
             HotReloadDetector._cachedPackageInstalled = false;
             // Restore seams to real implementations — prior mock tests may have left no-ops in place.
-            AutoRefreshGuard._getAutoRefresh = () => EditorPrefs.GetInt("kAutoRefresh", 1);
-            AutoRefreshGuard._setAutoRefresh = v  => EditorPrefs.SetInt("kAutoRefresh", v);
-            FastPlayMode._setEnabled  = v => EditorSettings.enterPlayModeOptionsEnabled = v;
-            FastPlayMode._setOptions  = v => EditorSettings.enterPlayModeOptions = v;
-            FastPlayMode._getEnabled  = () => EditorSettings.enterPlayModeOptionsEnabled;
-            FastPlayMode._getOptions  = () => EditorSettings.enterPlayModeOptions;
+            AutoRefreshGuard.RestoreDefaultSeams();
+            FastPlayMode.RestoreDefaultSeams();
             // Clean slate before each test
             AutoRefreshGuard.ResetForTest();
             FastPlayMode.ResetForTest();

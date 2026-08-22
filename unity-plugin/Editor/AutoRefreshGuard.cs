@@ -16,8 +16,16 @@ namespace UnityMCP.Editor
         const string KeyOrigModeValue = "MCP_ARG_OrigModeValue";
 
         // ── Test seams ──────────────────────────────────────────────────────
-        internal static Func<int>    _getAutoRefresh = () => EditorPrefs.GetInt("kAutoRefresh", 1);
-        internal static Action<int>  _setAutoRefresh = v  => EditorPrefs.SetInt("kAutoRefresh", v);
+        private static int GetAutoRefreshDefault() => EditorPrefs.GetInt("kAutoRefresh", 1);
+        private static void SetAutoRefreshDefault(int v) => EditorPrefs.SetInt("kAutoRefresh", v);
+        internal static Func<int>    _getAutoRefresh = GetAutoRefreshDefault;
+        internal static Action<int>  _setAutoRefresh = SetAutoRefreshDefault;
+
+        internal static void RestoreDefaultSeams()
+        {
+            _getAutoRefresh = GetAutoRefreshDefault;
+            _setAutoRefresh = SetAutoRefreshDefault;
+        }
 
         // ── State ────────────────────────────────────────────────────────────
         internal static bool IsApplied => SessionState.GetBool(KeyApplied, false);
