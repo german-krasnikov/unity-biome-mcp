@@ -261,10 +261,10 @@ META_JSON_CONTENT = json.dumps({
 MCP_SERVER_CS_STUB = textwrap.dedent("""\
     namespace UnityMCP.Editor
     {
-        internal static partial class MCPServer
+        namespace UnityMCP.Editor { internal static class BiomeVersion
         {
             // synced by sync_versions.py — do not edit manually
-            internal static string PluginVersion => "0.40.1";
+            public const string Plugin = "0.40.1";
         }
     }
 """)
@@ -272,7 +272,7 @@ MCP_SERVER_CS_STUB = textwrap.dedent("""\
 
 @pytest.fixture()
 def full_project_root(tmp_path: Path) -> Path:
-    """Full project tree including _meta.json and MCPServer.cs stub."""
+    """Full project tree including _meta.json and BiomeVersion.cs stub."""
     (tmp_path / "server" / "src" / "unity_mcp").mkdir(parents=True)
     (tmp_path / "unity-plugin" / "Editor").mkdir(parents=True)
     (tmp_path / "docs" / "assets").mkdir(parents=True)
@@ -302,7 +302,7 @@ def full_project_root(tmp_path: Path) -> Path:
         META_JSON_CONTENT, encoding="utf-8"
     )
 
-    (tmp_path / "unity-plugin" / "Editor" / "MCPServer.cs").write_text(
+    (tmp_path / "unity-plugin" / "Editor" / "BiomeVersion.cs").write_text(
         MCP_SERVER_CS_STUB, encoding="utf-8"
     )
 
@@ -315,7 +315,7 @@ def full_project_root(tmp_path: Path) -> Path:
 
 
 def test_plugin_version_cs_pattern_not_found(tmp_path):
-    """Fails fast if MCPServer.cs has no PluginVersion pattern."""
+    """Fails fast if BiomeVersion.cs has no BiomeVersion.Plugin pattern."""
     (tmp_path / "server" / "src" / "unity_mcp").mkdir(parents=True)
     (tmp_path / "unity-plugin" / "Editor").mkdir(parents=True)
     (tmp_path / "docs" / "assets").mkdir(parents=True)
@@ -328,8 +328,8 @@ def test_plugin_version_cs_pattern_not_found(tmp_path):
     (tmp_path / "unity-plugin" / "package.json").write_text('{"name":"x","version":"0.1.0"}', encoding="utf-8")
     (tmp_path / "server" / "src" / "unity_mcp" / "__version__.py").write_text('__version__="0.1.0"\n', encoding="utf-8")
     (tmp_path / "docs" / "assets" / "_meta.json").write_text('{"server_version":"0.1.0","plugin_version":"0.1.0"}', encoding="utf-8")
-    # MCPServer.cs WITHOUT the PluginVersion pattern
-    (tmp_path / "unity-plugin" / "Editor" / "MCPServer.cs").write_text("// no version here\n", encoding="utf-8")
+    # BiomeVersion.cs WITHOUT the BiomeVersion.Plugin pattern
+    (tmp_path / "unity-plugin" / "Editor" / "BiomeVersion.cs").write_text("// no version here\n", encoding="utf-8")
     (tmp_path / "scripts" / "gauntlet").mkdir(parents=True)
     (tmp_path / "scripts" / "gauntlet" / "release-policy.json").write_text(
         '{"activation_product_version":"0.1.0"}', encoding="utf-8"
@@ -337,7 +337,7 @@ def test_plugin_version_cs_pattern_not_found(tmp_path):
 
     result = run_sync("0.2.0", tmp_path)
     assert result.returncode != 0
-    assert "PluginVersion" in result.stderr or "pattern" in result.stderr.lower() or "not found" in result.stderr.lower()
+    assert "Plugin" in result.stderr or "pattern" in result.stderr.lower() or "not found" in result.stderr.lower()
 
 
 def test_all_five_sources_synced(full_project_root):
@@ -349,11 +349,11 @@ def test_all_five_sources_synced(full_project_root):
     pkg = (full_project_root / "unity-plugin" / "package.json").read_text(encoding="utf-8")
     ver_py = (full_project_root / "server" / "src" / "unity_mcp" / "__version__.py").read_text(encoding="utf-8")
     meta = json.loads((full_project_root / "docs" / "assets" / "_meta.json").read_text(encoding="utf-8"))
-    cs = (full_project_root / "unity-plugin" / "Editor" / "MCPServer.cs").read_text(encoding="utf-8")
+    cs = (full_project_root / "unity-plugin" / "Editor" / "BiomeVersion.cs").read_text(encoding="utf-8")
 
     assert 'version = "1.0.0"' in pyproject
     assert '"version": "1.0.0"' in pkg
     assert '__version__ = "1.0.0"' in ver_py
     assert meta["server_version"] == "1.0.0"
     assert meta["plugin_version"] == "1.0.0"
-    assert 'PluginVersion => "1.0.0"' in cs
+    assert 'Plugin = "1.0.0"' in cs

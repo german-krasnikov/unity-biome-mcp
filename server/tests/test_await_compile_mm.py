@@ -112,8 +112,8 @@ async def test_await_compile_hr_check_fails_falls_through():
     assert "hot-reload-mode" not in result
 
 
-async def test_await_compile_skips_get_status_when_mm_cached_false():
-    """_mm_cached=False short-circuits the get_status call — normal polling proceeds."""
+async def test_await_compile_rechecks_when_mm_cached_none_or_false():
+    """_mm_cached=None/False re-checks get_status (no sticky False caching)."""
     get_status_calls = []
 
     async def _fake_send(cmd, args=None, **kwargs):
@@ -127,8 +127,8 @@ async def test_await_compile_skips_get_status_when_mm_cached_false():
         return ""
 
     _ci._send = _fake_send
-    _ci._mm_cached = False
+    _ci._mm_cached = None  # unknown state → should call get_status
     with patch("unity_mcp.editor_log.get_corroborated_errors", new=AsyncMock(return_value="")):
         result = await _ci.await_compile(timeout=60.0)
-    assert not get_status_calls, "get_status must NOT be called when _mm_cached=False"
+    assert get_status_calls, "get_status MUST be called when _mm_cached is not True"
     assert "hot-reload-mode" not in result

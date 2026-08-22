@@ -96,8 +96,8 @@ async def test_sync_unity_proceeds_when_get_status_fails():
     assert sync_called, "sync must proceed when get_status raises"
 
 
-async def test_sync_unity_skips_get_status_when_mm_cached_false():
-    """When _mm_cached=False, get_status is not called — sync proceeds without the network round-trip."""
+async def test_sync_unity_rechecks_when_mm_cached_none():
+    """_mm_cached=None re-checks get_status (no sticky False caching)."""
     get_status_calls = []
     sync_called = []
 
@@ -115,10 +115,10 @@ async def test_sync_unity_skips_get_status_when_mm_cached_false():
         return ""
 
     _sync._send = _fake_send
-    _sync._mm_cached = False  # simulate previously known-not-MM
+    _sync._mm_cached = None  # unknown → must call get_status
     await _sync.sync_unity()
-    assert not get_status_calls, "get_status must NOT be called when _mm_cached=False"
-    assert sync_called, "sync must proceed when cache says mutation mode is inactive"
+    assert get_status_calls, "get_status MUST be called when _mm_cached is not True"
+    assert sync_called, "sync must proceed when mutation_mode=false"
 
 
 async def test_sync_unity_proceeds_when_mm_active_and_has_touches():
