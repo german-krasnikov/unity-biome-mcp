@@ -79,14 +79,15 @@ async def test_batch_without_script_writes_no_increment():
 # --- code_intel.py ---
 
 async def test_await_compile_short_circuits_when_no_touches():
-    """await_compile must return immediately (no TCP) when no script writes this session."""
+    """await_compile must return immediately (no TCP) when MM active and no script writes."""
     send_mock = AsyncMock()
     ci_mod._send = send_mock
-    ci_mod._mm_cached = False  # not HR mode
 
-    result = await ci_mod.await_compile(timeout=60)
+    with patch("unity_mcp.tools.code_intel._is_hr_active", new=AsyncMock(return_value=True)):
+        result = await ci_mod.await_compile(timeout=60)
 
-    assert result == "compile clean (no script writes)"
+    assert "compile clean" in result
+    assert "no script writes" in result
     send_mock.assert_not_called()
 
 

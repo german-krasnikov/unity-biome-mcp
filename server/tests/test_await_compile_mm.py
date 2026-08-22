@@ -8,12 +8,20 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 import unity_mcp.tools.code_intel as _ci
+from unity_mcp import reload_risk
 
 
 @pytest.fixture(autouse=True)
 def _patch_sleep():
     with patch("asyncio.sleep", new=AsyncMock(return_value=None)):
         yield
+
+
+@pytest.fixture(autouse=True)
+def _reset_reload_risk():
+    reload_risk.reset()
+    yield
+    reload_risk.reset()
 
 
 @pytest.fixture(autouse=True)
@@ -36,6 +44,7 @@ async def test_await_compile_hr_clean_returns_note():
         raise AssertionError(f"Unexpected cmd: {cmd}")
 
     _ci._send = _fake_send
+    reload_risk.touch()
     with patch("unity_mcp.editor_log.get_corroborated_errors", new=AsyncMock(return_value="")):
         result = await _ci.await_compile(timeout=60.0)
     assert "compile clean" in result
@@ -54,6 +63,7 @@ async def test_await_compile_hr_with_errors_returns_errors_plus_note():
         raise AssertionError(f"Unexpected cmd: {cmd}")
 
     _ci._send = _fake_send
+    reload_risk.touch()
     with patch("unity_mcp.editor_log.get_corroborated_errors", new=AsyncMock(return_value=errors_text)):
         result = await _ci.await_compile(timeout=60.0)
     assert errors_text in result
