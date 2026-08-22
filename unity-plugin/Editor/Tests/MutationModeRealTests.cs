@@ -137,3 +137,60 @@ namespace UnityMCP.Editor.Tests
         }
     }
 }
+
+    [TestFixture]
+    public class MutationModeCrashRecoveryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    {
+        [SetUp]
+        public void SetUp()
+        {
+            ProtectEditorPrefBool("UnityMCP_MutationMode");
+            ProtectEditorPrefBool("UnityMCP_FastPlayMode");
+            ProtectEditorPrefInt("kAutoRefresh");
+            ProtectEditorPrefInt("kAutoRefreshMode");
+            AutoRefreshGuard.ResetForTest();
+            FastPlayMode.ResetForTest();
+            RegisterCleanup(AutoRefreshGuard.ResetForTest);
+            RegisterCleanup(FastPlayMode.ResetForTest);
+            RegisterCleanup(() => MCPSettings.SetMutationMode(false));
+        }
+
+        [Test]
+        public void RecoverIfNeeded_WhenMMOnButSessionStateLost_RestoresEverything()
+        {
+            // Simulate crash state: EditorPref says MM=ON but SessionState cleared (guards not applied)
+            MCPSettings.SetMutationMode(true);
+            EditorPrefs.SetInt("kAutoRefresh", 0);
+            EditorPrefs.SetInt("kAutoRefreshMode", 2);
+            // SessionState is clean (AutoRefreshGuard.IsApplied=false) — simulates crash
+
+            bool recovered = MutationModeCrashRecovery.RecoverIfNeeded();
+
+            Assert.IsTrue(recovered, "Should detect crash state and recover");
+            Assert.IsFalse(MCPSettings.GetMutationMode(), "MM must be OFF after recovery");
+            Assert.AreEqual(1, EditorPrefs.GetInt("kAutoRefresh", -1), "kAutoRefresh must be restored to 1");
+            Assert.AreEqual(0, EditorPrefs.GetInt("kAutoRefreshMode", -1), "kAutoRefreshMode must be 0 (Enabled)");
+        }
+
+        [Test]
+        public void RecoverIfNeeded_WhenMMOff_DoesNothing()
+        {
+            MCPSettings.SetMutationMode(false);
+            bool recovered = MutationModeCrashRecovery.RecoverIfNeeded();
+            Assert.IsFalse(recovered);
+        }
+
+        [Test]
+        public void RecoverIfNeeded_WhenMMOnAndGuardApplied_DoesNothing()
+        {
+            // Normal state: MM=ON and guard properly applied (not a crash)
+            MCPSettings.SetMutationMode(true);
+            AutoRefreshGuard._getAutoRefresh = () => 1;
+            AutoRefreshGuard._setAutoRefresh = _ => { };
+            AutoRefreshGuard.Apply();
+
+            bool recovered = MutationModeCrashRecovery.RecoverIfNeeded();
+            Assert.IsFalse(recovered, "Should not recover when guards are properly applied");
+            Assert.IsTrue(MCPSettings.GetMutationMode(), "MM should stay ON");
+        }
+    }

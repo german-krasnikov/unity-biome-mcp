@@ -5,19 +5,31 @@ namespace UnityMCP.Editor
 {
     /// <summary>
     /// Detects crash/restart where Mutation Mode EditorPref says ON but SessionState was cleared.
-    /// Restores a safe state (MM off) so the Editor doesn't start with a stale kAutoRefresh=0.
+    /// Restores a safe state (MM off, kAutoRefresh restored) so the Editor doesn't start broken.
     /// </summary>
     [InitializeOnLoad]
     static class MutationModeCrashRecovery
     {
-        static MutationModeCrashRecovery()
+        static MutationModeCrashRecovery() => RecoverIfNeeded();
+
+        internal static bool RecoverIfNeeded()
         {
-            // MM says ON but SessionState lost (crash/force-quit) → restore safe state
-            if (MCPSettings.GetMutationMode() && !AutoRefreshGuard.IsApplied)
-            {
-                MCPSettings.SetMutationMode(false);
-                Debug.Log("[MCP] Mutation Mode disabled after crash recovery (SessionState lost)");
-            }
+            if (!MCPSettings.GetMutationMode() || AutoRefreshGuard.IsApplied)
+                return false;
+            // HR package manages kAutoRefresh itself — don't interfere
+            if (HotReloadDetector.IsPackageInstalled())
+                return false;
+
+            // Crash detected: MM EditorPref=ON but SessionState lost (guards not applied)
+            MCPSettings.SetMutationMode(false);
+            MCPSettings.SetFastPlayMode(false);
+
+            // Restore kAutoRefresh to safe default (original value lost with SessionState)
+            EditorPrefs.SetInt("kAutoRefresh", 1);
+            EditorPrefs.SetInt("kAutoRefreshMode", 0); // 0 = Enabled
+
+            Debug.Log($"{BiomeLabel.Tag} Mutation Mode disabled after crash recovery — auto-refresh restored");
+            return true;
         }
     }
 }
