@@ -90,6 +90,8 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"write_session={WriteSessionGuard.IsActive.ToString().ToLower()}");
                 sb.AppendLine($"held_types={HeldTypeStore.Count}");
                 sb.AppendLine($"fast_play_mode={FastPlayMode.IsApplied.ToString().ToLower()}");
+                sb.AppendLine($"auto_refresh={(!AutoRefreshGuard.IsApplied).ToString().ToLower()}");
+                sb.AppendLine($"domain_reload_count={MCPServer._domainReloadCount}");
                 return sb.ToString().TrimEnd();
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
         }

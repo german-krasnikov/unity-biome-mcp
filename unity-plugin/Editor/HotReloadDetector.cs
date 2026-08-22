@@ -39,7 +39,13 @@ namespace UnityMCP.Editor
             return found;
         }
 
-        internal static bool IsAutoRefreshDisabled() =>
-            EditorPrefs.GetInt("kAutoRefresh", 1) == 0;
+        internal static bool IsAutoRefreshDisabled()
+        {
+            // kAutoRefreshMode: 0=enabled, 1=outside-playmode, 2=disabled (Unity 2021.3+)
+            int mode = EditorPrefs.GetInt("kAutoRefreshMode", -1);
+            if (mode >= 0) return mode == 2;
+            // Legacy fallback: kAutoRefresh 0=disabled, 1=enabled
+            return EditorPrefs.GetInt("kAutoRefresh", 1) == 0;
+        }
     }
 }

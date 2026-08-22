@@ -1,5 +1,6 @@
 using System;
 using UnityEditor;
+using UnityEngine;
 
 namespace UnityMCP.Editor
 {
@@ -14,14 +15,23 @@ namespace UnityMCP.Editor
         const string KeyOrigOptions = "MCP_FPM_OrigOptions";
 
         // ── Test seams ──────────────────────────────────────────────────────
-        internal static Action<bool> _setEnabled =
-            v => EditorSettings.enterPlayModeOptionsEnabled = v;
-        internal static Action<EnterPlayModeOptions> _setOptions =
-            v => EditorSettings.enterPlayModeOptions = v;
-        internal static Func<bool> _getEnabled =
-            () => EditorSettings.enterPlayModeOptionsEnabled;
-        internal static Func<EnterPlayModeOptions> _getOptions =
-            () => EditorSettings.enterPlayModeOptions;
+        private static void SetEnabledDefault(bool v) => EditorSettings.enterPlayModeOptionsEnabled = v;
+        private static void SetOptionsDefault(EnterPlayModeOptions v) => EditorSettings.enterPlayModeOptions = v;
+        private static bool GetEnabledDefault() => EditorSettings.enterPlayModeOptionsEnabled;
+        private static EnterPlayModeOptions GetOptionsDefault() => EditorSettings.enterPlayModeOptions;
+
+        internal static Action<bool> _setEnabled = SetEnabledDefault;
+        internal static Action<EnterPlayModeOptions> _setOptions = SetOptionsDefault;
+        internal static Func<bool> _getEnabled = GetEnabledDefault;
+        internal static Func<EnterPlayModeOptions> _getOptions = GetOptionsDefault;
+
+        internal static void RestoreDefaultSeams()
+        {
+            _setEnabled = SetEnabledDefault;
+            _setOptions = SetOptionsDefault;
+            _getEnabled = GetEnabledDefault;
+            _getOptions = GetOptionsDefault;
+        }
 
         // ── State ────────────────────────────────────────────────────────────
         internal static bool IsApplied => SessionState.GetBool(KeyApplied, false);
@@ -36,6 +46,7 @@ namespace UnityMCP.Editor
             _setEnabled(true);
             _setOptions(_getOptions() | EnterPlayModeOptions.DisableDomainReload);
             MCPSettings.SetFastPlayMode(true);
+            Debug.Log("[MCP] Fast Play Mode enabled (DisableDomainReload)");
         }
 
         internal static void Restore()
@@ -49,6 +60,7 @@ namespace UnityMCP.Editor
             SessionState.EraseBool(KeyOrigEnabled);
             SessionState.EraseInt(KeyOrigOptions);
             MCPSettings.SetFastPlayMode(false);
+            Debug.Log("[MCP] Fast Play Mode restored");
         }
 
         // ── Test support ─────────────────────────────────────────────────────

@@ -124,14 +124,15 @@ def _parse_stamp(status: str) -> str:
 
 
 async def _is_hr_active() -> bool:
-    """Check if Mutation Mode is active. Caches False to skip future round-trips."""
+    """Check if Mutation Mode is active. Caches True only — False re-checks each call."""
     global _mm_cached
-    if _mm_cached is False:
-        return False
+    if _mm_cached is True:
+        return True
     try:
         status = await _send("get_status", {})
         active = "mutation_mode=true" in (status or "")
-        _mm_cached = active
+        if active:
+            _mm_cached = True
         return active
     except Exception:
         return False  # fail-open; do NOT cache — unknown state
@@ -152,15 +153,15 @@ async def sync_unity(
     if _send is None:
         raise ToolError("sync_unity requires a Unity connection (no bridge)")
 
-    # HR coexistence guard — fail-open: if get_status fails, proceed normally
-    if await _is_hr_active():
-        return (
-            "warn: Hot Reload detected — sync_unity skipped. "
-            "HR handles compilation via method patching. "
-            "Call await_compile to confirm current state."
-        )
-
     from unity_mcp import reload_risk as _rr
+
+    # MM coexistence guard — skip only when no script writes; has_touches → fall through.
+    # Fail-open: if get_status fails, proceed normally.
+    if await _is_hr_active() and not _rr.has_touches():
+        return (
+            "mutation_mode active — sync skipped (no script writes). "
+            "Call await_compile to check state."
+        )
 
     # D2: bump circuit-breaker
     if bump and _bump_used:

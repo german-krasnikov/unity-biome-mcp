@@ -46,6 +46,9 @@ namespace UnityMCP.Editor
         internal static volatile string _lastWrittenState = "";
         // Set when TCP bind falls back to a non-configured port; cleared on each StartAsync entry.
         internal static volatile bool _portFallback;
+        // Counts domain reloads for this Editor session. Increments every [InitializeOnLoad] call.
+        // Exposed via get_status so users can verify mutation_mode prevented domain reloads.
+        internal static int _domainReloadCount;
 
         public static MCPStatusModel.SubState CurrentSubState => MCPStatusModel.GetSubState(
             isCompiling: _isCompiling,
@@ -184,8 +187,13 @@ namespace UnityMCP.Editor
                 : Path.Combine(projectRoot, scenePath));
         }
 
+        const string ReloadCountKey = "MCP_DomainReloadCount";
+
         static MCPServer()
         {
+            int prev = SessionState.GetInt(ReloadCountKey, 0);
+            SessionState.SetInt(ReloadCountKey, prev + 1);
+            _domainReloadCount = prev + 1;
             if (!ShouldStartServer(Application.isBatchMode)) return;
 
             RegisterLifecycleCallbacks();
@@ -399,7 +407,7 @@ namespace UnityMCP.Editor
                     }
                 }
 
-                MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} Server started on port {PortFileManager.Port} (chat: {PortFileManager.ChatPort})"));
+                MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} Server started on port {PortFileManager.Port} (chat: {PortFileManager.ChatPort}) [Mutation Mode: {(MCPSettings.GetMutationMode() ? "ON" : "OFF")}]"));
                 // Marshal onto main thread — a bind-retry above may have hopped this
                 // continuation onto ThreadPool via ConfigureAwait(false), and both
                 // WritePortFile/WriteStateFile touch Unity main-thread-only APIs
@@ -495,6 +503,7 @@ namespace UnityMCP.Editor
         private static void OnBeforeReload()
         {
             _shuttingDown = true;
+            Debug.Log($"{BiomeLabel.Tag} Domain reload started [Mutation Mode: {(MCPSettings.GetMutationMode() ? "ON" : "OFF")}]");
             WriteStateFile("reloading");
             try { CommandRouter._dedupRegistry.Save(); } catch { }  // persist before static fields reset
             // Send going_away FIRST — streams still alive, handlers still running
@@ -530,7 +539,7 @@ namespace UnityMCP.Editor
         // ── Tier 4b: status response format ──────────────────────────────────
 
         // synced by sync_versions.py — do not edit manually
-        internal static string PluginVersion => "1.50.0";
+        internal static string PluginVersion => BiomeVersion.Plugin;
 
         internal static string BuildVersionString(string stamp, string pluginVersion)
         {
