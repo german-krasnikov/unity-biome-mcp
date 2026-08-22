@@ -37,8 +37,7 @@ namespace UnityMCP.Editor.Tests
             RegisterCleanup(() =>
             {
                 MCPSettings.SetMutationMode(false);
-                AutoRefreshGuard.Restore();
-                FastPlayMode.Restore();
+                // Use ResetForTest (clears SessionState only) — ProtectEditorPrefInt handles EditorPrefs restore
                 AutoRefreshGuard.ResetForTest();
                 FastPlayMode.ResetForTest();
                 HotReloadDetector._cachedPackageInstalled = null;
