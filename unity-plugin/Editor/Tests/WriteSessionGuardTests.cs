@@ -152,8 +152,8 @@ namespace UnityMCP.Editor.Tests
             WriteSessionGuard._stopEditing = () => throw new Exception("stop-boom");
             _fakeTime = 121.0;
             // Watchdog emits a warning (fired) and an error (ForceRelease exception)
-            LogAssert.Expect(LogType.Warning, new Regex(".*watchdog fired.*"));
-            LogAssert.Expect(LogType.Error, new Regex(".*watchdog.*stop-boom.*"));
+            LogAssert.Expect(LogType.Warning, new Regex("watchdog fired"));
+            LogAssert.Expect(LogType.Error, new Regex("watchdog.*stop-boom"));
             // Must not throw — watchdog catches ForceRelease exceptions
             Assert.DoesNotThrow(() => WriteSessionGuard.InvokeWatchdogTickForTest());
             Assert.IsFalse(WriteSessionGuard.IsActive);
