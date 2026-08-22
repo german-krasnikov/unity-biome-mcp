@@ -14,6 +14,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v1.49.0] — 2026-08-22
 
+### Added
+
+- **Hot Reload detection + coexistence toggle:**
+  - `HotReloadDetector.cs` detects SingularityGroup Hot Reload via assembly scan +
+    `kAutoRefresh` EditorPref check; result cached with `afterAssemblyReload` invalidation
+  - `MCPSettings.HotReloadMode` toggle (default OFF) in MCP Settings UI
+  - `mcp_status` now reports `hot_reload_detected=true|false`
+  - `sync_unity` Python guard: skips Refresh when HR active (fail-open)
+  - `await_compile` annotates response when HR manages compilation
+  - `ReloadGuard.EnsureScriptCompilationDuringPlay` prevents Play Mode interruption
+
+- **Asset batching: `defer_asset_import` param on `batch` tool:**
+  - Wraps batch execution in `AssetDatabase.StartAssetEditing/StopAssetEditing`
+  - Collapses N individual import passes into 1; opt-in, default false
+  - `StopAssetEditing` guaranteed via `finally` block
+
+### Changed
+
+- **16 unnecessary `ForceUpdate` → `Default` in asset import calls:**
+  - UIFileHelper (9 locations), ShaderGraphHelper (7 locations)
+  - Eliminates blocking progress bar on every UXML/USS/ShaderGraph write
+
+- **2 bare `AssetDatabase.Refresh()` → targeted `ImportAsset(path, Default)`:**
+  - `PlaytestAliasHelpers.ExportToDefs()` and `CommandRouter.AliasHandlers`
+  - Avoids full project scan after writing a single `.defs` file
+
+### Fixed
+
+- **DedupRegistry double-mutation on domain reload:** op_ids now persist to
+  `SessionState`; prevents retry_op_id from re-executing mutations post-reload
+- **ChangeWatcher history loss:** `_changes` persisted via `SessionState`;
+  `get_changeset` returns history across domain reloads
+- **WatchRegistry callback re-registration:** verified + test seams added
+- **`_droppedProblemCount` reset:** persists to `SessionState`; the
+  `[+N older problem entries dropped]` suffix survives domain reloads
+
 ## [v1.48.1] — 2026-08-21
 
 ### Changed
