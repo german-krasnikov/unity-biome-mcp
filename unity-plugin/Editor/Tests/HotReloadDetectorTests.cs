@@ -41,18 +41,18 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void GetHotReloadMode_DefaultsToFalse()
+        public void GetMutationMode_DefaultsToFalse()
         {
             DeleteEditorPrefBool("UnityMCP_HotReloadMode");
-            Assert.IsFalse(MCPSettings.GetHotReloadMode());
+            Assert.IsFalse(MCPSettings.GetMutationMode());
         }
 
         [Test]
-        public void SetHotReloadMode_Persists()
+        public void SetMutationMode_Persists()
         {
             ProtectEditorPrefBool("UnityMCP_HotReloadMode");
-            MCPSettings.SetHotReloadMode(true);
-            Assert.IsTrue(MCPSettings.GetHotReloadMode());
+            MCPSettings.SetMutationMode(true);
+            Assert.IsTrue(MCPSettings.GetMutationMode());
         }
 
         [Test]

@@ -6,12 +6,12 @@ namespace UnityMCP.Editor.Tests
 {
     /// <summary>
     /// Verifies ReloadGuard.EnsureScriptCompilationDuringPlay sets
-    /// ScriptCompilationDuringPlay=1 when HR is active.
+    /// ScriptCompilationDuringPlay=1 when mutation mode is active.
     /// The base class (UnityMcpTestBase) already provides IsolatedReloadGuardOps —
     /// no additional BeginTestIsolation nesting required.
     /// </summary>
     [TestFixture]
-    public class ReloadGuardHotReloadTests : UnityMCP.Editor.Testing.UnityMcpTestBase
+    public class ReloadGuardMutationModeTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string ScriptCompKey = "ScriptCompilationDuringPlay";
 
@@ -25,7 +25,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void EnsureScriptCompilationDuringPlay_WhenHrActive_AndValueIs0_SetsTo1()
+        public void EnsureScriptCompilationDuringPlay_WhenMutationModeActive_AndValueIs0_SetsTo1()
         {
             HotReloadDetector._overrideForTest = () => true;
             SetEditorPrefInt(ScriptCompKey, 0);
@@ -36,7 +36,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void EnsureScriptCompilationDuringPlay_WhenHrActive_AndValueAlready1_DoesNotChange()
+        public void EnsureScriptCompilationDuringPlay_WhenMutationModeActive_AndValueAlready1_DoesNotChange()
         {
             HotReloadDetector._overrideForTest = () => true;
             SetEditorPrefInt(ScriptCompKey, 1);
@@ -47,7 +47,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void EnsureScriptCompilationDuringPlay_WhenHrInactive_DoesNothing()
+        public void EnsureScriptCompilationDuringPlay_WhenMutationModeInactive_DoesNothing()
         {
             HotReloadDetector._overrideForTest = () => false;
             SetEditorPrefInt(ScriptCompKey, 0);
@@ -58,13 +58,13 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void ForceUnlock_WhenHrChangedPref_RestoresOriginalValue()
+        public void ForceUnlock_WhenMutationModeChangedPref_RestoresOriginalValue()
         {
             HotReloadDetector._overrideForTest = () => true;
             SetEditorPrefInt(ScriptCompKey, 0);
 
             ReloadGuard.OnTurnStarted();
-            Assert.AreEqual(1, EditorPrefs.GetInt(ScriptCompKey, 99), "pref must be 1 after OnTurnStarted with HR active");
+            Assert.AreEqual(1, EditorPrefs.GetInt(ScriptCompKey, 99), "pref must be 1 after OnTurnStarted with mutation mode active");
 
             ReloadGuard.ForceUnlock();
             Assert.AreEqual(0, EditorPrefs.GetInt(ScriptCompKey, 99), "pref must be restored to 0 after ForceUnlock");

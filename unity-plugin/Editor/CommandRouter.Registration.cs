@@ -86,7 +86,7 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"readOnly={IsReadOnly()}");
                 sb.AppendLine($"plugin_version={BiomeVersion.Plugin}");
                 sb.AppendLine($"protocol={BiomeVersion.Protocol}");
-                sb.AppendLine($"hot_reload_detected={HotReloadDetector.IsActive().ToString().ToLower()}");
+                sb.AppendLine($"mutation_mode={HotReloadDetector.IsActive().ToString().ToLower()}");
                 return sb.ToString().TrimEnd();
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
         }
