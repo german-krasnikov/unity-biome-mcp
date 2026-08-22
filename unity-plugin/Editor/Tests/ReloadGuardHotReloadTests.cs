@@ -28,7 +28,7 @@ namespace UnityMCP.Editor.Tests
         public void EnsureScriptCompilationDuringPlay_WhenHrActive_AndValueIs0_SetsTo1()
         {
             HotReloadDetector._overrideForTest = () => true;
-            EditorPrefs.SetInt(ScriptCompKey, 0);
+            SetEditorPrefInt(ScriptCompKey, 0);
 
             ReloadGuard.OnTurnStarted();
 
@@ -39,7 +39,7 @@ namespace UnityMCP.Editor.Tests
         public void EnsureScriptCompilationDuringPlay_WhenHrActive_AndValueAlready1_DoesNotChange()
         {
             HotReloadDetector._overrideForTest = () => true;
-            EditorPrefs.SetInt(ScriptCompKey, 1);
+            SetEditorPrefInt(ScriptCompKey, 1);
 
             ReloadGuard.OnTurnStarted();
 
@@ -50,7 +50,7 @@ namespace UnityMCP.Editor.Tests
         public void EnsureScriptCompilationDuringPlay_WhenHrInactive_DoesNothing()
         {
             HotReloadDetector._overrideForTest = () => false;
-            EditorPrefs.SetInt(ScriptCompKey, 0);
+            SetEditorPrefInt(ScriptCompKey, 0);
 
             ReloadGuard.OnTurnStarted();
 
@@ -61,7 +61,7 @@ namespace UnityMCP.Editor.Tests
         public void ForceUnlock_WhenHrChangedPref_RestoresOriginalValue()
         {
             HotReloadDetector._overrideForTest = () => true;
-            EditorPrefs.SetInt(ScriptCompKey, 0);
+            SetEditorPrefInt(ScriptCompKey, 0);
 
             ReloadGuard.OnTurnStarted();
             Assert.AreEqual(1, EditorPrefs.GetInt(ScriptCompKey, 99), "pref must be 1 after OnTurnStarted with HR active");
