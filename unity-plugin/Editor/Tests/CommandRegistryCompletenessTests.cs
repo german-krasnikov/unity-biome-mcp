@@ -36,6 +36,7 @@ namespace UnityMCP.Editor.Tests
             "scriptable_object", "search_context", "search_scene", "serialized_field_rename_audit", "set_active", "set_client_label", "set_material", "set_parent",
             "set_property", "set_property_delta", "set_rect", "set_runtime_property",
             "set_sibling_index", "set_tool_catalog", "shader", "spatial_query", "sync", "sync_playtest_aliases_from_defs", "sync_status", "test_step",
+            "start_write_session", "end_write_session",
             "timeline", "transfer_object", "uitk_element", "uitk_file", "undo_last", "unwire_event", "validate_triggers",
             "validate_playtest_aliases", "validate_references", "wait_until", "warm_type_cache", "watch_add", "watch_clear", "watch_remove",
             "watch_reset", "wire_event",

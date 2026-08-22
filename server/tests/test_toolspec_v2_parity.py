@@ -133,4 +133,5 @@ def test_write_cmds_bounded_size():
     # plus the raw navmesh transport alias used by navmesh_query.
     # test_step, run_playtest, run_playtest_suite, screenshot_baseline,
     # verify_after_change, and conditionally mutating doctor.
-    assert len(WRITE_CMDS) <= 87, f"WRITE_CMDS grew to {len(WRITE_CMDS)} — annotate new tools with mutability='read' if they don't mutate"
+    # 89 = +2 for start_write_session + end_write_session (Phase D, write-session lock ops).
+    assert len(WRITE_CMDS) <= 89, f"WRITE_CMDS grew to {len(WRITE_CMDS)} — annotate new tools with mutability='read' if they don't mutate"

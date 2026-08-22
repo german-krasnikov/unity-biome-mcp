@@ -445,6 +445,13 @@ namespace UnityMCP.Editor
                 return UndoGroupStack.RevertLast(turns);
             }, mutating: true, required: "", optional: "turns");
 
+            CommandRegistry.Register("start_write_session",
+                _ => WriteSessionGuard.Start(),
+                mutating: true, required: "", optional: "");
+            CommandRegistry.Register("end_write_session",
+                _ => WriteSessionGuard.End(),
+                mutating: true, required: "", optional: "");
+
             // Runtime (Play Mode only) — mutate runtime GameObject/component state directly
             // (not flagged mutating: true — runtime: true already routes them through the
             // Play-Mode-only guard; preserved as-is from the pre-split registration).
