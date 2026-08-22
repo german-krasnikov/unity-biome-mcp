@@ -21,6 +21,20 @@ def _reset_tracker():
 
 
 @pytest.fixture(autouse=True)
+def _restore_sends():
+    """Restore module-level _send after each test to prevent bleed into mock_bridge tests."""
+    saved = {
+        "asset": (asset_mod._send, getattr(asset_mod, "_args", None)),
+        "batch": (batch_mod._send, getattr(batch_mod, "_args", None)),
+        "ci":    (ci_mod._send, getattr(ci_mod, "_args", None)),
+    }
+    yield
+    asset_mod._send, asset_mod._args = saved["asset"]
+    batch_mod._send, batch_mod._args = saved["batch"]
+    ci_mod._send, ci_mod._args = saved["ci"]
+
+
+@pytest.fixture(autouse=True)
 def _patch_asset_deps():
     """Ensure changeset deps return None (no store/coordinator setup)."""
     with patch("unity_mcp.changeset_store.get_store", return_value=None), \
