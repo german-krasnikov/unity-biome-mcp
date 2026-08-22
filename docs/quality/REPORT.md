@@ -1,37 +1,37 @@
 # Quality Report
 
-> Auto-generated on **2026-08-22** from commit `466f528` (v1.49.0)
+> Auto-generated on **2026-08-22** from commit `6039aec` (v1.50.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.49.0 |
-| Commit | `466f528` |
+| Version | v1.50.0 |
+| Commit | `6039aec` |
 | Date | 2026-08-22 |
-| MCP Tools | 160 |
+| MCP Tools | 163 |
 
 ## Test Results
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.14) | 6083 | 0 | 3 | 6086 | ✅ |
+| Python Server (3.14) | 6139 | 0 | 3 | 6142 | ✅ |
 | Python Install | 79 | 0 | 0 | 79 | ✅ |
 | Python Scripts | 939 | 0 | 0 | 939 | ✅ |
-| C# EditMode (Linux) | 8740 | 0 | 184 | 8924 | ✅ |
-| C# EditMode (Windows) | 8626 | 0 | 298 | 8924 | ✅ |
-| C# EditMode (macOS) | 8740 | 0 | 184 | 8924 | ✅ |
+| C# EditMode (Linux) | 8773 | 0 | 185 | 8958 | ✅ |
+| C# EditMode (Windows) | 8659 | 0 | 299 | 8958 | ✅ |
+| C# EditMode (macOS) | 8773 | 0 | 185 | 8958 | ✅ |
 
 ## Tool Quality
 
 | Linter | Errors | Warnings | Score |
 |--------|--------|----------|-------|
-| mcp-tool-card-linter | 0 | 414 | 83.72/100 |
+| mcp-tool-card-linter | 0 | 422 | 83.75/100 |
 
 ### Per-Tool Scores
 
 <details>
-<summary>160 tools scored (click to expand)</summary>
+<summary>163 tools scored (click to expand)</summary>
 
 | Tool | Score | Errors | Warnings | Risk |
 |------|-------|--------|----------|------|
@@ -74,6 +74,7 @@
 | `material` | 78 | 0 | 3 | medium |
 | `references` | 78 | 0 | 3 | medium |
 | `doctor` | 79 | 0 | 4 | medium |
+| `end_write_session` | 79 | 0 | 4 | medium |
 | `get_changes` | 79 | 0 | 4 | medium |
 | `set_active` | 79 | 0 | 4 | medium |
 | `set_parent` | 79 | 0 | 4 | medium |
@@ -88,6 +89,7 @@
 | `autofit_collider` | 82 | 0 | 3 | medium |
 | `batch` | 82 | 0 | 3 | high |
 | `brief_build` | 82 | 0 | 3 | high |
+| `execute_code` | 82 | 0 | 3 | high |
 | `get_metrics` | 82 | 0 | 3 | high |
 | `region_clear` | 82 | 0 | 3 | high |
 | `ui_intent` | 82 | 0 | 3 | medium |
@@ -95,7 +97,6 @@
 | `cancel_test_run` | 83 | 0 | 3 | medium |
 | `debug_physics` | 83 | 0 | 3 | medium |
 | `do` | 83 | 0 | 3 | medium |
-| `execute_code` | 83 | 0 | 3 | high |
 | `get_component` | 83 | 0 | 3 | medium |
 | `get_spatial_context` | 83 | 0 | 3 | medium |
 | `invoke_method` | 83 | 0 | 2 | medium |
@@ -122,15 +123,16 @@
 | `recompile` | 85 | 0 | 3 | medium |
 | `snapshot` | 85 | 0 | 2 | medium |
 | `spatial_query` | 85 | 0 | 1 | medium |
+| `start_write_session` | 85 | 0 | 3 | medium |
 | `sync_playtest_aliases_from_defs` | 85 | 0 | 2 | medium |
 | `transfer_object` | 85 | 0 | 2 | medium |
 | `compile_preflight` | 86 | 0 | 2 | medium |
+| `editor` | 86 | 0 | 2 | medium |
 | `list_events` | 86 | 0 | 2 | medium |
 | `project_settings` | 86 | 0 | 2 | high |
 | `unwire_event` | 86 | 0 | 2 | high |
 | `validate_playtest_aliases` | 86 | 0 | 2 | medium |
 | `diagnose` | 87 | 0 | 2 | low |
-| `editor` | 87 | 0 | 2 | medium |
 | `inspect_uitk` | 87 | 0 | 2 | medium |
 | `rename_object` | 87 | 0 | 2 | medium |
 | `console_mark` | 88 | 0 | 2 | low |
@@ -176,6 +178,7 @@
 | `query_state` | 93 | 0 | 1 | medium |
 | `resolve_scene_refs` | 93 | 0 | 1 | medium |
 | `resolve_test_request` | 93 | 0 | 1 | low |
+| `clear_held_types` | 94 | 0 | 1 | low |
 | `save_session` | 94 | 0 | 1 | low |
 | `alias_status` | 95 | 0 | 1 | low |
 | `auto_fix` | 95 | 0 | 1 | low |

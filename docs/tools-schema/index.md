@@ -5,7 +5,7 @@ hide:
 
 # MCP Tool Schema
 
-> **160 registered tools** — auto-generated from server tool definitions.
+> **163 registered tools** — auto-generated from server tool definitions.
 
 > Quality: **83.7/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
 
@@ -38,6 +38,7 @@ hide:
 | [`checkpoint`](#checkpoint) | 🟡 78/100 | 🟡 medium | Create a named Undo checkpoint. Use before major scene changes. Allows rollba... |
 | [`checkpoint_create`](#checkpoint_create) | 🟡 78/100 | 🟡 medium | Create a durable checkpoint before an agent turn. |
 | [`checkpoint_restore`](#checkpoint_restore) | 🟢 91/100 | 🟡 medium | Restore files to their pre-turn state. |
+| [`clear_held_types`](#clear_held_types) | 🟢 94/100 | 🟢 low | Clear all types held across execute_code persist_as calls. Use to free the he... |
 | [`compile_preflight`](#compile_preflight) | 🟢 86/100 | 🟡 medium | Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — ca... |
 | [`configure_objects`](#configure_objects) | 🟢 92/100 | 🟡 medium | Configure multiple objects at once. |
 | [`console_mark`](#console_mark) | 🟢 88/100 | 🟢 low | Create a console watermark. Returns mark_id encoding current timestamp. |
@@ -51,8 +52,9 @@ hide:
 | [`discover_tools`](#discover_tools) | 🟢 85/100 | 🟢 low | Find and enable tools by category. |
 | [`do`](#do) | 🟢 83/100 | 🟡 medium | Convert natural language intent into Unity scene operations. Use when scene s... |
 | [`doctor`](#doctor) | 🟡 79/100 | 🟡 medium | Run health diagnostics. fix=True removes safe stale port/lock files. |
-| [`editor`](#editor) | 🟢 87/100 | 🟡 medium | Editor state/control. action: state|play|pause|stop|select|project_path. |
-| [`execute_code`](#execute_code) | 🟢 83/100 | 🔴 high | Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile. |
+| [`editor`](#editor) | 🟢 86/100 | 🟡 medium | Editor state/control. action: state|play|pause|stop|select|project_path|fast_... |
+| [`end_write_session`](#end_write_session) | 🟡 79/100 | 🟡 medium | Release write session lock and trigger one domain reload. |
+| [`execute_code`](#execute_code) | 🟢 82/100 | 🔴 high | Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile. |
 | [`export_playtest_aliases_to_defs`](#export_playtest_aliases_to_defs) | 🟢 85/100 | 🟡 medium | Export PlaytestConfig.asset aliases to a readable .defs text file. |
 | [`find_objects`](#find_objects) | 🟢 88/100 | 🟡 medium | Find objects by criteria. Use search_scene for complex queries. Does NOT supp... |
 | [`fingerprint`](#fingerprint) | 🟢 85/100 | 🟡 medium | Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens. |
@@ -153,6 +155,7 @@ hide:
 | [`smart_build`](#smart_build) | 🟢 92/100 | 🟢 low | Build scene objects from natural language description using MCP sampling + ex... |
 | [`snapshot`](#snapshot) | 🟢 85/100 | 🟡 medium | Capture or compare object state. |
 | [`spatial_query`](#spatial_query) | 🟢 85/100 | 🟡 medium | Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|ra... |
+| [`start_write_session`](#start_write_session) | 🟢 85/100 | 🟡 medium | Open a write session — lock assemblies + disable auto-refresh. |
 | [`sync_playtest_aliases_from_defs`](#sync_playtest_aliases_from_defs) | 🟢 85/100 | 🟡 medium | Overwrite PlaytestConfig.asset aliases from a .defs text file. |
 | [`sync_unity`](#sync_unity) | 🟡 73/100 | 🟡 medium | Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code... |
 | [`test_step`](#test_step) | 🟡 71/100 | 🟡 medium | [Play Mode] Move character, snapshot state before/after, check console. |
@@ -2154,6 +2157,22 @@ Restore files to their pre-turn state. Tries Unity Undo first when domain stamp 
 
 ---
 
+### `clear_held_types`
+
+🟢 94/100 · Risk: 🟢 low
+
+Clear all types held across execute_code persist_as calls. Use to free the held-type store (~0 tokens).
+
+<details>
+<summary>2 quality issues</summary>
+
+- **warning**: outputSchema is missing.
+- **info**: Tool appears read-only but does not declare readOnlyHint=true.
+
+</details>
+
+---
+
 ### `compile_preflight`
 
 🟢 86/100 · Risk: 🟡 medium
@@ -3087,24 +3106,26 @@ Run health diagnostics. fix=True removes safe stale port/lock files.
 
 ### `editor`
 
-🟢 87/100 · Risk: 🟡 medium
+🟢 86/100 · Risk: 🟡 medium
 
-Editor state/control. action: state|play|pause|stop|select|project_path. select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC").
+Editor state/control. action: state|play|pause|stop|select|project_path|fast_play_mode|mutation_mode. select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC"). fast_play_mode/mutation_mode: enable='true'|'false' to toggle.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `action` | string |  | Operation to perform — see tool docstring for allowed values (default: `state`) |
+| `enable` | any |  |  |
 | `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 | `paths` | any |  |  |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>6 quality issues</summary>
 
 - **warning**: Object schema has properties but no required list.
 - **info**: Free-form string parameter 'action' has no maxLength.
 - **info**: Parameter 'paths' has no description.
+- **info**: Parameter 'enable' has no description.
 - **warning**: outputSchema is missing.
 - **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
@@ -3146,6 +3167,18 @@ Editor state/control. action: state|play|pause|stop|select|project_path. select:
       ],
       "default": null,
       "title": "Paths"
+    },
+    "enable": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Enable"
     }
   },
   "title": "editorArguments",
@@ -3158,26 +3191,73 @@ Editor state/control. action: state|play|pause|stop|select|project_path. select:
 
 ---
 
-### `execute_code`
+### `end_write_session`
 
-🟢 83/100 · Risk: 🔴 high
+🟡 79/100 · Risk: 🟡 medium
 
-Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile. Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed. Bare statements are auto-wrapped in a static class — no boilerplate needed. Example: "var go = new GameObject(\"Test\"); return go.name;"
+Release write session lock and trigger one domain reload. sync=True (default): waits for compile to finish before returning. sync=False: returns immediately after releasing the lock.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `code` | string | ✓ | C# code to execute in the Unity Editor context |
-| `undo_label` | string |  | Label for the Undo group entry (default 'execute_code') (default: `execute_code`) |
+| `sync` | boolean |  |  (default: `True`) |
 
 <details>
 <summary>5 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
+- **warning**: Object schema has properties but no required list.
+- **info**: Parameter 'sync' has no description.
+- **warning**: outputSchema is missing.
+
+</details>
+
+<details>
+<summary>JSON Schema</summary>
+
+```json
+{
+  "properties": {
+    "sync": {
+      "default": true,
+      "title": "Sync",
+      "type": "boolean"
+    }
+  },
+  "title": "end_write_sessionArguments",
+  "type": "object",
+  "additionalProperties": false
+}
+```
+
+</details>
+
+---
+
+### `execute_code`
+
+🟢 82/100 · Risk: 🔴 high
+
+Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile. Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed. Bare statements are auto-wrapped in a static class — no boilerplate needed. persist_as stores the compiled types for reuse in the next execute_code call (Mutation Mode). Example: "var go = new GameObject(\"Test\"); return go.name;"
+
+**Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `code` | string | ✓ | C# code to execute in the Unity Editor context |
+| `persist_as` | any |  |  |
+| `undo_label` | string |  | Label for the Undo group entry (default 'execute_code') (default: `execute_code`) |
+
+<details>
+<summary>6 quality issues</summary>
+
+- **warning**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
 - **info**: Free-form string parameter 'code' has no maxLength.
 - **info**: Free-form string parameter 'undo_label' has no maxLength.
+- **info**: Parameter 'persist_as' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -3199,6 +3279,18 @@ Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile. Securi
       "title": "Undo Label",
       "type": "string",
       "description": "Label for the Undo group entry (default 'execute_code')"
+    },
+    "persist_as": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Persist As"
     }
   },
   "required": [
@@ -10330,6 +10422,23 @@ Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|rayca
   "additionalProperties": false
 }
 ```
+
+</details>
+
+---
+
+### `start_write_session`
+
+🟢 85/100 · Risk: 🟡 medium
+
+Open a write session — lock assemblies + disable auto-refresh. Call before writing multiple .cs files via asset(action='write_text'). All writes batch into one domain reload. Close with end_write_session(). Auto-releases after 120s watchdog if the session is not ended explicitly.
+
+<details>
+<summary>3 quality issues</summary>
+
+- **warning**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
+- **warning**: outputSchema is missing.
 
 </details>
 
