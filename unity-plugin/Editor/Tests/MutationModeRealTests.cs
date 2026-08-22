@@ -136,7 +136,6 @@ namespace UnityMCP.Editor.Tests
             Assert.Greater(count, 0, "domain_reload_count must be positive (at least 1 reload happened to run this test)");
         }
     }
-}
 
     [TestFixture]
     public class MutationModeCrashRecoveryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
@@ -194,3 +193,4 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(MCPSettings.GetMutationMode(), "MM should stay ON");
         }
     }
+}
