@@ -87,6 +87,9 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"plugin_version={BiomeVersion.Plugin}");
                 sb.AppendLine($"protocol={BiomeVersion.Protocol}");
                 sb.AppendLine($"mutation_mode={HotReloadDetector.IsActive().ToString().ToLower()}");
+                sb.AppendLine($"write_session={WriteSessionGuard.IsActive.ToString().ToLower()}");
+                sb.AppendLine($"held_types={HeldTypeStore.Count}");
+                sb.AppendLine($"fast_play_mode={MCPSettings.GetFastPlayMode().ToString().ToLower()}");
                 return sb.ToString().TrimEnd();
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
         }
