@@ -399,7 +399,7 @@ namespace UnityMCP.Editor
                     }
                 }
 
-                MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} Server started on port {PortFileManager.Port} (chat: {PortFileManager.ChatPort})"));
+                MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} Server started on port {PortFileManager.Port} (chat: {PortFileManager.ChatPort}) [Mutation Mode: {(MCPSettings.GetMutationMode() ? "ON" : "OFF")}]"));
                 // Marshal onto main thread — a bind-retry above may have hopped this
                 // continuation onto ThreadPool via ConfigureAwait(false), and both
                 // WritePortFile/WriteStateFile touch Unity main-thread-only APIs
