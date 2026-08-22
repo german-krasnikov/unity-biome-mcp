@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Mutation Mode no longer disables Scene Reload (WS-MCP-247):** `FastPlayMode.Apply()` now reads
+  options BEFORE setting `enterPlayModeOptionsEnabled=true`, avoiding Unity 6's automatic mask
+  injection (`DisableDomainReload | DisableSceneReload`). If Play Mode Options were disabled, `None`
+  is used as the base so dormant Unity bits are ignored. User-configured `DisableSceneReload` is
+  preserved when Play Mode Options were already enabled.
+- **Test fixture pref-key corrected:** `MutationModeIntegrationTests` and `MutationModeCrashRecoveryTests`
+  now protect `"UnityMCP_HotReloadMode"` (the actual EditorPrefs key) instead of the stale
+  `"UnityMCP_MutationMode"` string.
+
 ## [v1.50.0] — 2026-08-22
 
 ### Added

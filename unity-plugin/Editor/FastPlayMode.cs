@@ -40,11 +40,18 @@ namespace UnityMCP.Editor
         internal static void Apply()
         {
             if (IsApplied) return;
-            SessionState.SetBool(KeyOrigEnabled, _getEnabled());
-            SessionState.SetInt(KeyOrigOptions, (int)_getOptions());
+            bool originalEnabled = _getEnabled();
+            var originalOptions = _getOptions();
+            // Read options BEFORE setEnabled — Unity 6 may inject defaults (mask=3) as a side-effect.
+            // If options were disabled, use None as base so we don't inherit dormant Unity bits.
+            var desiredOptions =
+                (originalEnabled ? originalOptions : EnterPlayModeOptions.None) |
+                EnterPlayModeOptions.DisableDomainReload;
+            SessionState.SetBool(KeyOrigEnabled, originalEnabled);
+            SessionState.SetInt(KeyOrigOptions, (int)originalOptions);
             SessionState.SetBool(KeyApplied, true);
             _setEnabled(true);
-            _setOptions(_getOptions() | EnterPlayModeOptions.DisableDomainReload);
+            _setOptions(desiredOptions);
             MCPSettings.SetFastPlayMode(true);
             Debug.Log("[MCP] Fast Play Mode enabled (DisableDomainReload)");
         }

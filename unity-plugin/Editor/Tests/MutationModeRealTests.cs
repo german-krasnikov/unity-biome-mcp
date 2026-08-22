@@ -138,7 +138,7 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
-            ProtectEditorPrefBool("UnityMCP_MutationMode");
+            ProtectEditorPrefBool("UnityMCP_HotReloadMode"); // actual key (backward-compat string in MCPSettings)
             ProtectEditorPrefBool("UnityMCP_FastPlayMode");
             ProtectEditorPrefInt("kAutoRefresh");
             ProtectEditorPrefInt("kAutoRefreshMode");

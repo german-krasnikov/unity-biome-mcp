@@ -79,5 +79,60 @@ namespace UnityMCP.Editor.Tests
             FastPlayMode.Apply();
             Assert.IsTrue(FastPlayMode.IsApplied);
         }
+
+        // ── Regression: WS-MCP-247 ───────────────────────────────────────────
+
+        [Test]
+        public void Apply_WhenEnablingOptionsInjectsUnityDefaults_DoesNotDisableSceneReload()
+        {
+            // Simulate Unity 6 side-effect: setEnabled(true) causes getOptions to return mask=3
+            bool enabled = false;
+            var options = EnterPlayModeOptions.None;
+            FastPlayMode._getEnabled = () => enabled;
+            FastPlayMode._getOptions = () => options;
+            FastPlayMode._setEnabled = v =>
+            {
+                enabled = v;
+                if (v) options = EnterPlayModeOptions.DisableDomainReload | EnterPlayModeOptions.DisableSceneReload;
+            };
+            FastPlayMode._setOptions = v => options = v;
+
+            FastPlayMode.Apply();
+
+            Assert.AreEqual(EnterPlayModeOptions.DisableDomainReload, options,
+                "Only DisableDomainReload should be set — DisableSceneReload must NOT be injected");
+        }
+
+        [Test]
+        public void Apply_WhenUserHadDisableSceneReloadEnabled_PreservesIt()
+        {
+            // User already had Play Mode Options ON with DisableSceneReload
+            bool enabled = true;
+            var options = EnterPlayModeOptions.DisableSceneReload;
+            FastPlayMode._getEnabled = () => enabled;
+            FastPlayMode._getOptions = () => options;
+            FastPlayMode._setEnabled = v => enabled = v;
+            FastPlayMode._setOptions = v => options = v;
+
+            FastPlayMode.Apply();
+
+            Assert.IsTrue(options.HasFlag(EnterPlayModeOptions.DisableDomainReload), "Must add DisableDomainReload");
+            Assert.IsTrue(options.HasFlag(EnterPlayModeOptions.DisableSceneReload), "Must preserve user's DisableSceneReload");
+        }
+
+        [Test]
+        public void Apply_WhenPlayModeOptionsDisabled_SavesNoneAsOriginal()
+        {
+            // Play Mode Options were OFF — original should be saved as None/false
+            FastPlayMode._getEnabled = () => false;
+            FastPlayMode._getOptions = () => EnterPlayModeOptions.None;
+            FastPlayMode._setEnabled = _ => { };
+            FastPlayMode._setOptions = _ => { };
+
+            FastPlayMode.Apply();
+
+            Assert.AreEqual(0, SessionState.GetInt("MCP_FPM_OrigOptions", -1),
+                "Original options must be None (0) when Play Mode Options were disabled");
+        }
     }
 }
