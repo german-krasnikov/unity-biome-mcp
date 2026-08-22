@@ -97,6 +97,16 @@ namespace UnityMCP.Editor
                     var enableStr = argsJson != null ? JsonHelper.ExtractString(argsJson, "enable") : null;
                     if (enableStr == null)
                         return $"mutation_mode:{MCPSettings.GetMutationMode()}";
+                    if (enableStr == "true")
+                    {
+                        FastPlayMode.Apply();
+                        AutoRefreshGuard.Apply();
+                    }
+                    else
+                    {
+                        AutoRefreshGuard.Restore();
+                        FastPlayMode.Restore();
+                    }
                     MCPSettings.SetMutationMode(enableStr == "true");
                     return $"mutation_mode:{MCPSettings.GetMutationMode()}";
                 }
