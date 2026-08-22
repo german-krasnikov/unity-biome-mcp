@@ -1,26 +1,26 @@
 # Quality Report
 
-> Auto-generated on **2026-08-21** from commit `7d26629` (v1.48.1)
+> Auto-generated on **2026-08-22** from commit `466f528` (v1.49.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.48.1 |
-| Commit | `7d26629` |
-| Date | 2026-08-21 |
+| Version | v1.49.0 |
+| Commit | `466f528` |
+| Date | 2026-08-22 |
 | MCP Tools | 160 |
 
 ## Test Results
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.14) | 6072 | 0 | 3 | 6075 | ✅ |
+| Python Server (3.14) | 6083 | 0 | 3 | 6086 | ✅ |
 | Python Install | 79 | 0 | 0 | 79 | ✅ |
 | Python Scripts | 939 | 0 | 0 | 939 | ✅ |
-| C# EditMode (Linux) | 8731 | 0 | 184 | 8915 | ✅ |
-| C# EditMode (Windows) | 8617 | 0 | 298 | 8915 | ✅ |
-| C# EditMode (macOS) | 8731 | 0 | 184 | 8915 | ✅ |
+| C# EditMode (Linux) | 8740 | 0 | 184 | 8924 | ✅ |
+| C# EditMode (Windows) | 8626 | 0 | 298 | 8924 | ✅ |
+| C# EditMode (macOS) | 8740 | 0 | 184 | 8924 | ✅ |
 
 ## Tool Quality
 
@@ -86,12 +86,12 @@
 | `prefab` | 81 | 0 | 2 | high |
 | `scene_change_plan` | 81 | 0 | 3 | medium |
 | `autofit_collider` | 82 | 0 | 3 | medium |
+| `batch` | 82 | 0 | 3 | high |
 | `brief_build` | 82 | 0 | 3 | high |
 | `get_metrics` | 82 | 0 | 3 | high |
 | `region_clear` | 82 | 0 | 3 | high |
 | `ui_intent` | 82 | 0 | 3 | medium |
 | `validate_references` | 82 | 0 | 3 | medium |
-| `batch` | 83 | 0 | 3 | high |
 | `cancel_test_run` | 83 | 0 | 3 | medium |
 | `debug_physics` | 83 | 0 | 3 | medium |
 | `do` | 83 | 0 | 3 | medium |

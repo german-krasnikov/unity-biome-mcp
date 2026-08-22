@@ -29,7 +29,7 @@ hide:
 | [`autofit_collider`](#autofit_collider) | 🟢 82/100 | 🟡 medium | Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule. |
 | [`await_compile`](#await_compile) | 🟢 84/100 | 🟢 low | Block until Unity finishes compiling + reloading, then return compile errors. |
 | [`bake`](#bake) | 🟢 92/100 | 🟢 low | Bake operations. |
-| [`batch`](#batch) | 🟢 83/100 | 🔴 high | Execute multiple commands in one call. Use for 2+ ops — reads AND writes. com... |
+| [`batch`](#batch) | 🟢 82/100 | 🔴 high | Execute multiple commands in one call. Use for 2+ ops — reads AND writes. com... |
 | [`brief_build`](#brief_build) | 🟢 82/100 | 🔴 high | Use to get a snapshot of project state before starting work. |
 | [`budget_status`](#budget_status) | 🟢 95/100 | 🟢 low | Returns Haiku cost: session/cap/day/skipped features. Text format. |
 | [`build`](#build) | 🟢 90/100 | 🟡 medium | Build player. action: build. |
@@ -1669,9 +1669,9 @@ Bake operations. target: lighting|occlusion. action (lighting): start(default)|s
 
 ### `batch`
 
-🟢 83/100 · Risk: 🔴 high
+🟢 82/100 · Risk: 🔴 high
 
-Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75). atomic: on failure, reverts prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain. PREFER over individual tool calls.
+Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop. timeout: seconds (default 75). atomic: reverts Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. defer_asset_import: wraps in StartAssetEditing/StopAssetEditing. PREFER over individual tool calls.
 
 **Parameters:**
 
@@ -1679,17 +1679,19 @@ Execute multiple commands in one call. Use for 2+ ops — reads AND writes. comm
 |-----------|------|----------|-------------|
 | `atomic` | boolean |  | On failure, revert prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain (default: `False`) |
 | `commands` | string | ✓ | One command per line (e.g. 'get_component path=/Player type=Transform') |
+| `defer_asset_import` | boolean |  |  (default: `False`) |
 | `on_error` | string |  | Error behavior: continue (default) \| stop — stop aborts remaining commands (default: `continue`) |
 | `timeout` | number |  | Total timeout in seconds (default 75) (default: `75.0`) |
 | `validate_aliases` | boolean |  | Dry-run alias validation before executing any mutations (default: `False`) |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>6 quality issues</summary>
 
 - **warning**: Risky tool lacks a clear usage boundary.
 - **info**: Free-form string parameter 'commands' has no maxLength.
 - **info**: Free-form string parameter 'on_error' has no maxLength.
 - **warning**: Numeric parameter 'timeout' has no bounds.
+- **info**: Parameter 'defer_asset_import' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -1728,6 +1730,11 @@ Execute multiple commands in one call. Use for 2+ ops — reads AND writes. comm
       "title": "Validate Aliases",
       "type": "boolean",
       "description": "Dry-run alias validation before executing any mutations"
+    },
+    "defer_asset_import": {
+      "default": false,
+      "title": "Defer Asset Import",
+      "type": "boolean"
     }
   },
   "required": [
