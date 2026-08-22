@@ -1,5 +1,6 @@
 using System;
 using UnityEditor;
+using UnityEngine;
 
 namespace UnityMCP.Editor
 {
@@ -28,6 +29,7 @@ namespace UnityMCP.Editor
             SessionState.SetInt(KeyOrigValue, _getAutoRefresh());
             SessionState.SetBool(KeyApplied, true);
             _setAutoRefresh(0);
+            Debug.Log("[MCP] Auto-refresh disabled (kAutoRefresh=0)");
         }
 
         internal static void Restore()
@@ -37,6 +39,7 @@ namespace UnityMCP.Editor
             _setAutoRefresh(orig);
             SessionState.EraseBool(KeyApplied);
             SessionState.EraseInt(KeyOrigValue);
+            Debug.Log("[MCP] Auto-refresh restored");
         }
 
         // ── Test support ─────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 using System;
 using UnityEditor;
+using UnityEngine;
 
 namespace UnityMCP.Editor
 {
@@ -36,6 +37,7 @@ namespace UnityMCP.Editor
             _setEnabled(true);
             _setOptions(_getOptions() | EnterPlayModeOptions.DisableDomainReload);
             MCPSettings.SetFastPlayMode(true);
+            Debug.Log("[MCP] Fast Play Mode enabled (DisableDomainReload)");
         }
 
         internal static void Restore()
@@ -49,6 +51,7 @@ namespace UnityMCP.Editor
             SessionState.EraseBool(KeyOrigEnabled);
             SessionState.EraseInt(KeyOrigOptions);
             MCPSettings.SetFastPlayMode(false);
+            Debug.Log("[MCP] Fast Play Mode restored");
         }
 
         // ── Test support ─────────────────────────────────────────────────────
