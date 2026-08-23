@@ -1,13 +1,13 @@
 # Quality Report
 
-> Auto-generated on **2026-08-23** from commit `d70fa9e` (v1.50.6)
+> Auto-generated on **2026-08-23** from commit `f363d96` (v1.50.7)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.50.6 |
-| Commit | `d70fa9e` |
+| Version | v1.50.7 |
+| Commit | `f363d96` |
 | Date | 2026-08-23 |
 | MCP Tools | 163 |
 
@@ -15,7 +15,7 @@
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.14) | 6156 | 0 | 3 | 6159 | ✅ |
+| Python Server (3.14) | 6167 | 0 | 3 | 6170 | ✅ |
 | Python Install | 79 | 0 | 0 | 79 | ✅ |
 | Python Scripts | 939 | 0 | 0 | 939 | ✅ |
 | C# EditMode (Linux) | 8850 | 7 | 185 | 9042 | ❌ |
@@ -26,7 +26,7 @@
 
 | Linter | Errors | Warnings | Score |
 |--------|--------|----------|-------|
-| mcp-tool-card-linter | 0 | 422 | 83.75/100 |
+| mcp-tool-card-linter | 0 | 422 | 83.74/100 |
 
 ### Per-Tool Scores
 
@@ -52,7 +52,7 @@
 | `animation` | 71 | 0 | 3 | medium |
 | `test_step` | 71 | 0 | 4 | medium |
 | `set_rect` | 72 | 0 | 4 | medium |
-| `sync_unity` | 73 | 0 | 5 | medium |
+| `sync_unity` | 72 | 0 | 5 | medium |
 | `asset` | 74 | 0 | 3 | high |
 | `run_tests` | 74 | 0 | 5 | medium |
 | `set_sibling_index` | 74 | 0 | 5 | medium |

@@ -157,7 +157,7 @@ hide:
 | [`spatial_query`](#spatial_query) | 🟢 85/100 | 🟡 medium | Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|ra... |
 | [`start_write_session`](#start_write_session) | 🟢 85/100 | 🟡 medium | Open a write session — lock assemblies + disable auto-refresh. |
 | [`sync_playtest_aliases_from_defs`](#sync_playtest_aliases_from_defs) | 🟢 85/100 | 🟡 medium | Overwrite PlaytestConfig.asset aliases from a .defs text file. |
-| [`sync_unity`](#sync_unity) | 🟡 73/100 | 🟡 medium | Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code... |
+| [`sync_unity`](#sync_unity) | 🟡 72/100 | 🟡 medium | Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code... |
 | [`test_step`](#test_step) | 🟡 71/100 | 🟡 medium | [Play Mode] Move character, snapshot state before/after, check console. |
 | [`timeline`](#timeline) | 🟡 64/100 | 🟡 medium | Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinema... |
 | [`transfer_object`](#transfer_object) | 🟢 85/100 | 🟡 medium | Move or copy a GameObject to another loaded scene. action: move|copy. |
@@ -3108,7 +3108,7 @@ Run health diagnostics. fix=True removes safe stale port/lock files.
 
 🟢 86/100 · Risk: 🟡 medium
 
-Editor state/control. action: state|play|pause|stop|select|project_path|fast_play_mode|mutation_mode. select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC"). fast_play_mode/mutation_mode: enable='true'|'false' to toggle.
+Editor state/control. action: state|play|pause|stop|select|project_path|fast_play_mode|mutation_mode. select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC"). fast_play_mode/mutation_mode: enable='true'|'false' to toggle. mutation_mode: defers domain reload (WHEN, not WHETHER) — requires Hot Reload package to avoid reload on .cs edits.
 
 **Parameters:**
 
@@ -10509,7 +10509,7 @@ Overwrite PlaytestConfig.asset aliases from a .defs text file. defs: project-rel
 
 ### `sync_unity`
 
-🟡 73/100 · Risk: 🟡 medium
+🟡 72/100 · Risk: 🟡 medium
 
 Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to live.  resolve=True: call Client.Resolve() first (use after package.json change). bump=True: atomically increment plugin patch version BEFORE sync, implies resolve=True. Returns: 'sync clean' / compile errors / timeout message.
 
@@ -10518,11 +10518,12 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `bump` | boolean |  |  (default: `False`) |
+| `force` | boolean |  |  (default: `False`) |
 | `resolve` | boolean |  |  (default: `False`) |
 | `timeout` | number |  | Seconds before giving up (default varies per tool) (default: `120.0`) |
 
 <details>
-<summary>7 quality issues</summary>
+<summary>8 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
@@ -10530,6 +10531,7 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
 - **info**: Parameter 'resolve' has no description.
 - **info**: Parameter 'bump' has no description.
 - **warning**: Numeric parameter 'timeout' has no bounds.
+- **info**: Parameter 'force' has no description.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -10555,6 +10557,11 @@ Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to
       "title": "Timeout",
       "type": "number",
       "description": "Seconds before giving up (default varies per tool)"
+    },
+    "force": {
+      "default": false,
+      "title": "Force",
+      "type": "boolean"
     }
   },
   "title": "sync_unityArguments",
