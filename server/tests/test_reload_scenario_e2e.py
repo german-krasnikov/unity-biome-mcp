@@ -47,11 +47,8 @@ def _reset_sync():
     """Reset sync module state between tests."""
     _sync._reset_bump_used()
     orig_send = _sync._send
-    orig_cache = _sync._mm_cached
-    _sync._mm_cached = None  # ensure clean mutation mode check per test
     yield
     _sync._send = orig_send
-    _sync._mm_cached = orig_cache
 
 
 @pytest.fixture(autouse=True)

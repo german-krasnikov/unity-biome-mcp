@@ -171,5 +171,60 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(written.HasFlag(EnterPlayModeOptions.DisableSceneReload),
                 "User's existing DisableSceneReload must be preserved when options were already enabled");
         }
+
+        // ── WS-MCP-249: Ownership tests ──────────────────────────────────────
+
+        [Test]
+        public void Apply_UserThenMutation_NoDoubleWrite()
+        {
+            int writeCalls = 0;
+            FastPlayMode._setEnabled = _ => writeCalls++;
+            FastPlayMode._setOptions = _ => { };
+
+            FastPlayMode.Apply(FastPlayOwner.User);
+            Assert.AreEqual(1, writeCalls, "Settings must be written once for first owner");
+
+            FastPlayMode.Apply(FastPlayOwner.Mutation);
+            Assert.AreEqual(1, writeCalls, "Settings must NOT be written again for second owner");
+        }
+
+        [Test]
+        public void Restore_Mutation_WhenUserOwns_SettingsNotRestored()
+        {
+            int restoreCalls = 0;
+            FastPlayMode._setEnabled = _ => { };
+            FastPlayMode._setOptions = _ => { };
+
+            FastPlayMode.Apply(FastPlayOwner.User);
+            FastPlayMode.Apply(FastPlayOwner.Mutation);
+
+            // Track restores only after both are applied
+            FastPlayMode._setEnabled = _ => restoreCalls++;
+
+            FastPlayMode.Restore(FastPlayOwner.Mutation);
+
+            Assert.AreEqual(0, restoreCalls, "Settings must NOT be restored while User still owns");
+            Assert.IsTrue(FastPlayMode.IsApplied, "Must remain applied for User owner");
+        }
+
+        [Test]
+        public void Restore_LastOwner_RestoresSettings()
+        {
+            bool restoredEnabled = true; // start true; Apply sets to false original
+            FastPlayMode._getEnabled = () => false;
+            FastPlayMode._getOptions = () => EnterPlayModeOptions.None;
+            FastPlayMode._setEnabled = _ => { };
+            FastPlayMode._setOptions = _ => { };
+
+            FastPlayMode.Apply(FastPlayOwner.User);
+
+            // After Apply, capture restores
+            FastPlayMode._setEnabled = v => restoredEnabled = v;
+
+            FastPlayMode.Restore(FastPlayOwner.User);
+
+            Assert.IsFalse(restoredEnabled, "Must restore original enabled=false when last owner releases");
+            Assert.IsFalse(FastPlayMode.IsApplied);
+        }
     }
 }

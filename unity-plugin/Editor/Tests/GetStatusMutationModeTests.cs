@@ -21,12 +21,14 @@ namespace UnityMCP.Editor.Tests
                 CommandRegistry.Clear();
                 CommandRegistry.InitDefaults();
             });
+            // Protect MCPSettings mutation mode key (UnityMCP_HotReloadMode)
+            ProtectEditorPrefBool("UnityMCP_HotReloadMode");
         }
 
         [Test]
         public void GetStatus_ContainsMutationModeField_WhenFalse()
         {
-            HotReloadDetector._overrideForTest = () => false;
+            MCPSettings.SetMutationMode(false);
             var result = CommandRegistry.Execute("get_status", "{}");
             StringAssert.Contains("mutation_mode=false", result);
         }
@@ -34,9 +36,21 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void GetStatus_ContainsMutationModeField_WhenTrue()
         {
-            HotReloadDetector._overrideForTest = () => true;
+            MCPSettings.SetMutationMode(true);
             var result = CommandRegistry.Execute("get_status", "{}");
             StringAssert.Contains("mutation_mode=true", result);
+        }
+
+        [Test]
+        public void GetStatus_MutationMode_ExternalARDisabled_ConfiguredOff_ReportsFalse()
+        {
+            // HotReloadDetector.IsActive() would return true (simulating external AR disabled),
+            // but mutation_mode must report MCPSettings — the configured state.
+            HotReloadDetector._overrideForTest = () => true;
+            MCPSettings.SetMutationMode(false);
+            var result = CommandRegistry.Execute("get_status", "{}");
+            StringAssert.Contains("mutation_mode=false", result,
+                "mutation_mode must reflect MCPSettings, not HotReloadDetector.IsActive()");
         }
 
         [Test]

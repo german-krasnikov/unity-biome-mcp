@@ -104,5 +104,21 @@ namespace UnityMCP.Editor.Tests
             EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"false\"}");
             Assert.IsFalse(AutoRefreshGuard.IsApplied);
         }
+
+        // ── WS-MCP-249: ownership ─────────────────────────────────────────────
+
+        [Test]
+        public void Control_FastPlayMode_Disable_WhileMutationModeOn_ReturnsError()
+        {
+            MCPSettings.SetMutationMode(true);
+            RegisterCleanup(() => MCPSettings.SetMutationMode(false));
+            FastPlayMode.Apply(FastPlayOwner.Mutation);
+
+            var result = EditorStateHelper.Control("fast_play_mode", null, "{\"enable\":\"false\"}");
+
+            StringAssert.StartsWith("err:", result,
+                "Disabling Fast Play while Mutation Mode is ON must return an error");
+            Assert.IsTrue(FastPlayMode.IsApplied, "Fast Play must remain applied");
+        }
     }
 }

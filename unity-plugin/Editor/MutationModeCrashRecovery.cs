@@ -31,7 +31,7 @@ namespace UnityMCP.Editor
             // Restore EditorSettings (FastPlayMode may have left DisableDomainReload set)
             EditorSettings.enterPlayModeOptionsEnabled = false;
 
-            Debug.Log($"{BiomeLabel.Tag} Mutation Mode disabled after crash recovery — all settings restored");
+            Debug.Log($"{BiomeLabel.Tag} Mutation Mode disabled after crash recovery — reset to safe defaults (original settings unrecoverable after SessionState loss)");
             return true;
         }
     }

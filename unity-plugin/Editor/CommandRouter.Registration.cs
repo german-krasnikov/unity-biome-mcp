@@ -86,11 +86,11 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"readOnly={IsReadOnly()}");
                 sb.AppendLine($"plugin_version={BiomeVersion.Plugin}");
                 sb.AppendLine($"protocol={BiomeVersion.Protocol}");
-                sb.AppendLine($"mutation_mode={HotReloadDetector.IsActive().ToString().ToLower()}");
+                sb.AppendLine($"mutation_mode={MCPSettings.GetMutationMode().ToString().ToLower()}");
                 sb.AppendLine($"write_session={WriteSessionGuard.IsActive.ToString().ToLower()}");
                 sb.AppendLine($"held_types={HeldTypeStore.Count}");
                 sb.AppendLine($"fast_play_mode={FastPlayMode.IsApplied.ToString().ToLower()}");
-                sb.AppendLine($"auto_refresh={(!AutoRefreshGuard.IsApplied).ToString().ToLower()}");
+                sb.AppendLine($"auto_refresh={(!HotReloadDetector.IsAutoRefreshDisabled()).ToString().ToLower()}");
                 sb.AppendLine($"domain_reload_count={MCPServer._domainReloadCount}");
                 return sb.ToString().TrimEnd();
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);

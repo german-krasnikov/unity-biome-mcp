@@ -6,11 +6,15 @@ namespace UnityMCP.Editor
 {
     /// <summary>
     /// Owns the full lifecycle of enterPlayModeOptionsEnabled + DisableDomainReload on behalf of MCP.
-    /// All EditorSettings writes go through test seams — zero test pollution.
+    /// Supports multiple independent owners (User, Mutation) — settings are restored only when the
+    /// last owner releases. All EditorSettings writes go through test seams — zero test pollution.
     /// </summary>
+    [Flags]
+    internal enum FastPlayOwner { None = 0, User = 1, Mutation = 2 }
+
     internal static class FastPlayMode
     {
-        const string KeyApplied     = "MCP_FPM_Applied";
+        const string KeyOwners      = "MCP_FPM_Owners";
         const string KeyOrigEnabled = "MCP_FPM_OrigEnabled";
         const string KeyOrigOptions = "MCP_FPM_OrigOptions";
 
@@ -34,46 +38,65 @@ namespace UnityMCP.Editor
         }
 
         // ── State ────────────────────────────────────────────────────────────
-        internal static bool IsApplied => SessionState.GetBool(KeyApplied, false);
+        internal static bool IsApplied => GetOwners() != FastPlayOwner.None;
+
+        private static FastPlayOwner GetOwners() =>
+            (FastPlayOwner)SessionState.GetInt(KeyOwners, 0);
+
+        private static void SetOwners(FastPlayOwner v) =>
+            SessionState.SetInt(KeyOwners, (int)v);
 
         // ── API ──────────────────────────────────────────────────────────────
-        internal static void Apply()
+        internal static void Apply(FastPlayOwner owner = FastPlayOwner.User)
         {
-            if (IsApplied) return;
-            bool originalEnabled = _getEnabled();
-            var originalOptions = _getOptions();
-            // Read options BEFORE setEnabled — Unity 6 may inject defaults (mask=3) as a side-effect.
-            // If options were disabled, use None as base so we don't inherit dormant Unity bits.
-            var desiredOptions =
-                (originalEnabled ? originalOptions : EnterPlayModeOptions.None) |
-                EnterPlayModeOptions.DisableDomainReload;
-            SessionState.SetBool(KeyOrigEnabled, originalEnabled);
-            SessionState.SetInt(KeyOrigOptions, (int)originalOptions);
-            SessionState.SetBool(KeyApplied, true);
-            _setEnabled(true);
-            _setOptions(desiredOptions);
-            MCPSettings.SetFastPlayMode(true);
-            Debug.Log("[MCP] Fast Play Mode enabled (DisableDomainReload)");
+            var current = GetOwners();
+            if (current.HasFlag(owner)) return; // already owned by this owner
+
+            bool wasEmpty = current == FastPlayOwner.None;
+            SetOwners(current | owner);
+
+            if (wasEmpty) // first owner — snapshot + write settings
+            {
+                bool originalEnabled = _getEnabled();
+                var originalOptions = _getOptions();
+                // Read options BEFORE setEnabled — Unity 6 may inject defaults (mask=3) as a side-effect.
+                // If options were disabled, use None as base so we don't inherit dormant Unity bits.
+                var desiredOptions =
+                    (originalEnabled ? originalOptions : EnterPlayModeOptions.None) |
+                    EnterPlayModeOptions.DisableDomainReload;
+                SessionState.SetBool(KeyOrigEnabled, originalEnabled);
+                SessionState.SetInt(KeyOrigOptions, (int)originalOptions);
+                _setEnabled(true);
+                _setOptions(desiredOptions);
+                MCPSettings.SetFastPlayMode(true);
+                Debug.Log("[MCP] Fast Play Mode enabled (DisableDomainReload)");
+            }
         }
 
-        internal static void Restore()
+        internal static void Restore(FastPlayOwner owner = FastPlayOwner.User)
         {
-            if (!IsApplied) return;
-            bool origEnabled = SessionState.GetBool(KeyOrigEnabled, false);
-            var  origOptions = (EnterPlayModeOptions)SessionState.GetInt(KeyOrigOptions, 0);
-            _setEnabled(origEnabled);
-            _setOptions(origOptions);
-            SessionState.EraseBool(KeyApplied);
-            SessionState.EraseBool(KeyOrigEnabled);
-            SessionState.EraseInt(KeyOrigOptions);
-            MCPSettings.SetFastPlayMode(false);
-            Debug.Log("[MCP] Fast Play Mode restored");
+            var current = GetOwners();
+            if (!current.HasFlag(owner)) return; // not owned by this owner
+
+            SetOwners(current & ~owner);
+
+            if (GetOwners() == FastPlayOwner.None) // last owner released
+            {
+                bool origEnabled = SessionState.GetBool(KeyOrigEnabled, false);
+                var  origOptions = (EnterPlayModeOptions)SessionState.GetInt(KeyOrigOptions, 0);
+                _setEnabled(origEnabled);
+                _setOptions(origOptions);
+                SessionState.EraseBool(KeyOrigEnabled);
+                SessionState.EraseInt(KeyOrigOptions);
+                MCPSettings.SetFastPlayMode(false);
+                Debug.Log("[MCP] Fast Play Mode restored");
+            }
         }
 
         // ── Test support ─────────────────────────────────────────────────────
         internal static void ResetForTest()
         {
-            SessionState.EraseBool(KeyApplied);
+            SessionState.EraseInt(KeyOwners);
             SessionState.EraseBool(KeyOrigEnabled);
             SessionState.EraseInt(KeyOrigOptions);
         }
