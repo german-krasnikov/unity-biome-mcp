@@ -1,5 +1,7 @@
 """Editor chrome: play/pause/stop, selection, ping, undo, checkpoints, capabilities.
 (B2: split from scene.py)"""
+from typing import Literal
+
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._common import bind
@@ -8,7 +10,7 @@ _send = None
 _args = None
 
 
-async def editor(action: str = "state", path: str | None = None,
+async def editor(action: Literal["state", "play", "pause", "stop", "select", "project_path", "fast_play_mode", "mutation_mode"] = "state", path: str | None = None,
                  paths: str | None = None, enable: str | None = None) -> str:
     """Editor state/control. action: state|play|pause|stop|select|project_path|fast_play_mode|mutation_mode.
     select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC").

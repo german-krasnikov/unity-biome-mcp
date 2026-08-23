@@ -191,6 +191,12 @@ async def sync_unity(
     except ConnectionError as e:
         raise ToolError(f"Unity unreachable: {e}") from e
 
+    # MCPAUDIT-015: Unity-side warn:/err: must surface as hard failure
+    if isinstance(ack, str) and (ack.startswith("warn:") or ack.startswith("err:")):
+        raise ToolError(f"sync blocked by Unity: {ack}")
+    if not isinstance(ack, str):
+        raise ToolError(f"sync: unexpected ack type {type(ack).__name__}")
+
     try:
         epoch, will_compile = _parse_ack(ack)
     except (ValueError, KeyError, IndexError):
