@@ -265,6 +265,7 @@ namespace UnityMCP.Editor.TestRuns
                 case TestRunProtocol.RunOutcome.Cancelled: return 3;
                 case TestRunProtocol.RunOutcome.Failed: return 2;
                 case TestRunProtocol.RunOutcome.Passed: return 1;
+                case TestRunProtocol.RunOutcome.NoTestsMatched: return 1;
                 default: return 0;
             }
         }

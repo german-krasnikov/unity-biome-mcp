@@ -124,7 +124,7 @@ namespace UnityMCP.Editor.Tests
                 outcome = TestRunProtocol.RunOutcome.Passed
             });
 
-            Assert.AreEqual(TestRunProtocol.RunOutcome.Passed,
+            Assert.AreEqual(TestRunProtocol.RunOutcome.NoTestsMatched,
                 _store.Reconcile(runId).outcome);
         }
 
@@ -469,7 +469,7 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(File.Exists(_store.GetExpectedTestsPath(RunId)));
             Assert.IsTrue(summary.manifest_complete);
             Assert.AreEqual(0, summary.expected_count);
-            Assert.AreEqual(TestRunProtocol.RunOutcome.Passed, summary.outcome);
+            Assert.AreEqual(TestRunProtocol.RunOutcome.NoTestsMatched, summary.outcome);
         }
 
         [Test]
