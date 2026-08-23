@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor
@@ -43,8 +44,14 @@ namespace UnityMCP.Editor
                 "Enable when SingularityGroup Hot Reload package is installed. " +
                 "Skips Refresh() calls that HR patches to no-ops. Default: OFF.";
             mmModeToggle.RegisterValueChangedCallback(evt =>
+            {
                 EditorStateHelper.Control("mutation_mode", null,
-                    $"{{\"enable\":\"{(evt.newValue ? "true" : "false")}\"}}"));
+                    $"{{\"enable\":\"{(evt.newValue ? "true" : "false")}\"}}");
+                if (evt.newValue && !HotReloadDetector.IsPackageInstalled())
+                    Debug.LogWarning("[MCP] Mutation Mode: Hot Reload package not installed. " +
+                        "Static fields persist across Play sessions. " +
+                        "Use [RuntimeInitializeOnLoadMethod(SubsystemRegistration)] to reset mutable runtime statics.");
+            });
             root.Add(mmModeToggle);
 
             var searchField = new TextField();

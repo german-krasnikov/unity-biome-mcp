@@ -773,6 +773,7 @@ namespace UnityMCP.Editor.TestRuns
                 case TestRunProtocol.RunOutcome.Incomplete:
                 case TestRunProtocol.RunOutcome.Invalid:
                 case TestRunProtocol.RunOutcome.DispatchFailed:
+                case TestRunProtocol.RunOutcome.DirtySceneBlocked:
                     return true;
                 default:
                     return false;

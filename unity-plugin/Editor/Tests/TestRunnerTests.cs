@@ -1550,9 +1550,23 @@ namespace UnityMCP.Editor.Tests
                 "'invalid' has the highest rank and must override any other outcome.");
         }
 
+        [Test]
+        public void Start_WithDirtyScene_ReturnsDirtySceneBlockedAndNeverCallsUtf()
+        {
+            var service = CreateService(hasDirtyScene: () => true);
+
+            var response = service.Start("request-dirty-scene", "EditMode", null, null);
+
+            StringAssert.StartsWith("test-request|request_id=request-dirty-scene|", response);
+            StringAssert.Contains("|outcome=dirty_scene_blocked", response);
+            Assert.AreEqual(0, _framework.ExecuteCalls);
+            Assert.AreEqual(0, _environment.PrepareCalls);
+        }
+
         private TestRunService CreateService(
             TestRunBuildFingerprint build = null,
-            Action<string> afterDurableBoundary = null) =>
+            Action<string> afterDurableBoundary = null,
+            Func<bool> hasDirtyScene = null) =>
             new TestRunService(
                 _store,
                 _environment,
@@ -1562,6 +1576,7 @@ namespace UnityMCP.Editor.Tests
                 () => false,
                 () => true,
                 () => Utc,
+                hasDirtyScene ?? (() => false),
                 afterDurableBoundary);
 
         private TestRunFinalizationCoordinator CreateFinalizer(

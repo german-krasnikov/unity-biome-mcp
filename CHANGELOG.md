@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Compatibility warning when Mutation Mode enabled without Hot Reload package (WS-MCP-248)
+- Dirty-scene preflight before test dispatch — immediate `dirty_scene_blocked` instead of 300s timeout (WS-MCP-248)
+
+### Fixed
+- Tests no longer hang on dirty scene: `run_tests`/`run_tests_wait` immediately returns `dirty_scene_blocked` outcome (WS-MCP-248)
+
 ## [v1.50.3] — 2026-08-23
 
 ## [v1.50.2] — 2026-08-23

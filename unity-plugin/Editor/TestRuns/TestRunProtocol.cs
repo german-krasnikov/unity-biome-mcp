@@ -28,6 +28,7 @@ namespace UnityMCP.Editor.TestRuns
             public const string Incomplete = "incomplete";
             public const string Invalid = "invalid";
             public const string DispatchFailed = "dispatch_failed";
+            public const string DirtySceneBlocked = "dirty_scene_blocked";
         }
 
         public static class LeafOutcome

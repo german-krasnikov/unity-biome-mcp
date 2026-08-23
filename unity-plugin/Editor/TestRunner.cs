@@ -34,7 +34,8 @@ namespace UnityMCP.Editor
             () => EditorApplication.isPlaying,
             CommandRouter.DefaultIsCompiling,
             () => SyncHelper.IsCompileClean,
-            UtcNow));
+            UtcNow,
+            SceneHelper.HasDirtyScene));
 #endif
 
         internal static TestRunStore ProductionStore() => TestRunStore.ForProject(

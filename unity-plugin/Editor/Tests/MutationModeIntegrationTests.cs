@@ -64,5 +64,21 @@ namespace UnityMCP.Editor.Tests
             EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"false\"}");
             Assert.IsFalse(MCPSettings.GetMutationMode());
         }
+
+        [Test]
+        public void Enable_WithoutHotReload_ReturnsWarningLine()
+        {
+            HotReloadDetector._cachedPackageInstalled = false;
+            var result = EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"true\"}");
+            StringAssert.Contains("warning:no_hot_reload_package", result);
+        }
+
+        [Test]
+        public void Enable_WithHotReload_NoWarning()
+        {
+            HotReloadDetector._cachedPackageInstalled = true;
+            var result = EditorStateHelper.Control("mutation_mode", null, "{\"enable\":\"true\"}");
+            Assert.IsFalse(result.Contains("warning:"), "No warning when HR installed");
+        }
     }
 }

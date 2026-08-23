@@ -96,7 +96,7 @@ namespace UnityMCP.Editor
                 {
                     var enableStr = argsJson != null ? JsonHelper.ExtractString(argsJson, "enable") : null;
                     if (enableStr == null)
-                        return $"mutation_mode:{MCPSettings.GetMutationMode()}";
+                        return $"mutation_mode:{MCPSettings.GetMutationMode().ToString().ToLower()}";
                     if (enableStr == "true")
                     {
                         FastPlayMode.Apply();
@@ -110,7 +110,10 @@ namespace UnityMCP.Editor
                         Debug.Log("[MCP] Mutation Mode OFF — auto-refresh restored, fast play restored.");
                     }
                     MCPSettings.SetMutationMode(enableStr == "true");
-                    return $"mutation_mode:{MCPSettings.GetMutationMode()}";
+                    var result = $"mutation_mode:{MCPSettings.GetMutationMode().ToString().ToLower()}";
+                    if (enableStr == "true" && !HotReloadDetector.IsPackageInstalled())
+                        result += "|warning:no_hot_reload_package — static fields persist across Play sessions. Use [RuntimeInitializeOnLoadMethod(SubsystemRegistration)] to reset mutable statics.";
+                    return result;
                 }
                 default:
                     throw new System.ArgumentException(
