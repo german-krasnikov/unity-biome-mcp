@@ -115,6 +115,7 @@ namespace UnityMCP.Editor.TestRuns
         private readonly Func<bool> _isPlaying;
         private readonly Func<bool> _isCompiling;
         private readonly Func<bool> _isCompileClean;
+        private readonly Func<bool> _hasDirtyScene;
         private readonly Func<string> _utcNow;
         private readonly Action<string> _afterDurableBoundary;
         private readonly TestRunFinalizationCoordinator _finalizer;
@@ -128,6 +129,7 @@ namespace UnityMCP.Editor.TestRuns
             Func<bool> isCompiling,
             Func<bool> isCompileClean,
             Func<string> utcNow,
+            Func<bool> hasDirtyScene = null,
             Action<string> afterDurableBoundary = null)
         {
             _store = store ?? throw new ArgumentNullException(nameof(store));
@@ -137,6 +139,7 @@ namespace UnityMCP.Editor.TestRuns
             _isPlaying = isPlaying ?? throw new ArgumentNullException(nameof(isPlaying));
             _isCompiling = isCompiling ?? throw new ArgumentNullException(nameof(isCompiling));
             _isCompileClean = isCompileClean ?? throw new ArgumentNullException(nameof(isCompileClean));
+            _hasDirtyScene = hasDirtyScene ?? SceneHelper.HasDirtyScene;
             _utcNow = utcNow ?? throw new ArgumentNullException(nameof(utcNow));
             _afterDurableBoundary = afterDurableBoundary;
             _finalizer = new TestRunFinalizationCoordinator(
@@ -264,6 +267,13 @@ namespace UnityMCP.Editor.TestRuns
                 if (string.IsNullOrEmpty(run.mode))
                     return FailDispatch(run, request,
                         "mode must be exactly EditMode or PlayMode", environmentPrepared);
+
+                // Dirty-scene preflight — refuse dispatch instead of hanging
+                if (_hasDirtyScene())
+                    return FailDispatch(run, request,
+                        "err:dirty_scene — save or discard scene changes before running tests",
+                        environmentPrepared,
+                        outcome: TestRunProtocol.RunOutcome.DirtySceneBlocked);
 
                 RequireNoUtfRunActive("before environment preparation");
                 _environment.Prepare(_store, run.run_id, _utcNow());
@@ -671,8 +681,10 @@ namespace UnityMCP.Editor.TestRuns
             TestRunRequestRecord request,
             string message,
             bool restoreEnvironment,
-            bool preserveActive = false)
+            bool preserveActive = false,
+            string outcome = null)
         {
+            var effectiveOutcome = outcome ?? TestRunProtocol.RunOutcome.DispatchFailed;
             var now = _utcNow();
             _store.AppendEvent(run.run_id, new TestRunEvent
             {
@@ -681,7 +693,7 @@ namespace UnityMCP.Editor.TestRuns
                 event_type = TestRunProtocol.EventType.DispatchFailed,
                 occurred_utc = now,
                 observer_generation = TestRunObserverRegistration.Generation,
-                outcome = TestRunProtocol.RunOutcome.DispatchFailed,
+                outcome = effectiveOutcome,
                 message = message ?? "test dispatch failed"
             });
             run = _store.ReadRun(run.run_id);
@@ -689,7 +701,7 @@ namespace UnityMCP.Editor.TestRuns
                 ? TestRunProtocol.Lifecycle.Finalizing
                 : TestRunProtocol.Lifecycle.Terminal;
             if (!restoreEnvironment && string.IsNullOrEmpty(run.outcome))
-                run.outcome = TestRunProtocol.RunOutcome.DispatchFailed;
+                run.outcome = effectiveOutcome;
             if (!restoreEnvironment) run.finished_utc = now;
             _store.WriteRun(run);
             request = _store.ReadRequest(request.request_id);

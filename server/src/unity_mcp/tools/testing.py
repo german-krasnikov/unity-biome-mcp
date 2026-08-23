@@ -35,6 +35,7 @@ _MAX_CONSECUTIVE_TCP_FAILURES = 5
 _FINALIZATION_STUCK_TIMEOUT = 30.0  # seconds; monkeypatch to 0.0 in tests
 _TERMINAL_OUTCOMES = {
     "passed", "failed", "cancelled", "incomplete", "invalid", "dispatch_failed",
+    "dirty_scene_blocked",
 }
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
 
@@ -53,7 +54,7 @@ def _try_update_handle_from_result(run_id: str, result: str) -> None:
     expected = snapshot.get("expected_count")
     ec = expected if isinstance(expected, int) and not isinstance(expected, bool) else None
     outcome = snapshot.get("outcome", "")
-    state = "passed" if outcome == "passed" else "failed" if outcome in ("failed", "dispatch_failed") else "cancelled" if outcome == "cancelled" else "completed"
+    state = "passed" if outcome == "passed" else "failed" if outcome in ("failed", "dispatch_failed", "dirty_scene_blocked") else "cancelled" if outcome == "cancelled" else "completed"
     handle.update(state, result=result, expected_count=ec)
 
 

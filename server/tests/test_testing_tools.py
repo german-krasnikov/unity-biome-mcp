@@ -190,3 +190,9 @@ async def test_cancel_test_run_sends_identity(testing_mod, _patch_send):
 async def test_list_test_runs_clamps_limit(testing_mod, _patch_send):
     await testing_mod.list_test_runs(1000)
     _patch_send.assert_awaited_once_with("list_test_runs", {"limit": 100})
+
+
+# ── Terminal outcomes ─────────────────────────────────────────────────────────
+
+def test_dirty_scene_blocked_is_terminal(testing_mod):
+    assert "dirty_scene_blocked" in testing_mod._TERMINAL_OUTCOMES

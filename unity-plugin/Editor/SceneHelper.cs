@@ -9,6 +9,15 @@ namespace UnityMCP.Editor
 {
     public static class SceneHelper
     {
+        /// <summary>Returns true if any loaded scene has unsaved changes.</summary>
+        internal static bool HasDirtyScene()
+        {
+            for (int i = 0; i < SceneManager.sceneCount; i++)
+                if (SceneManager.GetSceneAt(i).isDirty)
+                    return true;
+            return false;
+        }
+
         /// <summary>Find loaded scene by path first, then by name.</summary>
         private static Scene FindScene(string identifier)
         {
