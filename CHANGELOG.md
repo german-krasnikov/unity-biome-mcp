@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.50.8] — 2026-08-23
+
+### Fixed
+- **NoTestsMatched outcome rank:** `TestRunFinalizationCoordinator.OutcomeRank()` and
+  `TestRunStore.IsTerminalOutcome()` now recognise `NoTestsMatched` as a terminal outcome.
+  Zero-test filter runs no longer downgrade to `Incomplete` and throw `TestRunStoreException`.
+
 ## [v1.50.7] — 2026-08-23
 
 ### Changed
@@ -3764,7 +3771,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.7...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.8...HEAD
+[v1.50.8]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.7...v1.50.8
 [v1.50.7]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.6...v1.50.7
 [v1.50.6]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.5...v1.50.6
 [v1.50.5]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.4...v1.50.5

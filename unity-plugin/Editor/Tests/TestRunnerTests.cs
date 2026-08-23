@@ -842,7 +842,7 @@ namespace UnityMCP.Editor.Tests
             var summary = _store.Reconcile(runId);
             Assert.IsTrue(summary.is_terminal);
             Assert.IsTrue(summary.cleanup_complete);
-            Assert.AreEqual(TestRunProtocol.RunOutcome.Passed, summary.outcome);
+            Assert.AreEqual(TestRunProtocol.RunOutcome.NoTestsMatched, summary.outcome);
             Assert.AreEqual(1, _environment.RestoreCalls);
             Assert.AreEqual(TestRunProtocol.Lifecycle.Terminal,
                 _store.ReadRun(runId).lifecycle);
@@ -1008,7 +1008,7 @@ namespace UnityMCP.Editor.Tests
             StringAssert.StartsWith("0 tests:", result);
             StringAssert.Contains(" passed,", result);
             StringAssert.Contains(" failed,", result);
-            StringAssert.Contains("outcome=passed", result);
+            StringAssert.Contains("outcome=no_tests_matched", result);
         }
 
         // ── GetLegacyProgress ──
@@ -1033,7 +1033,7 @@ namespace UnityMCP.Editor.Tests
 
             var result = CreateService().GetLegacyProgress(runId);
 
-            Assert.AreEqual("idle|run_id=" + runId + "|outcome=passed", result);
+            Assert.AreEqual("idle|run_id=" + runId + "|outcome=no_tests_matched", result);
         }
 
         [Test]
@@ -1108,7 +1108,7 @@ namespace UnityMCP.Editor.Tests
             var result = CreateService().Cancel(runId);
 
             Assert.AreEqual(
-                "already-terminal|run_id=" + runId + "|outcome=passed", result);
+                "already-terminal|run_id=" + runId + "|outcome=no_tests_matched", result);
         }
 
         [Test]
@@ -1443,14 +1443,14 @@ namespace UnityMCP.Editor.Tests
                 event_type = TestRunProtocol.EventType.RunFinalized,
                 occurred_utc = Utc,
                 observer_generation = "test-generation",
-                outcome = TestRunProtocol.RunOutcome.Passed
+                outcome = TestRunProtocol.RunOutcome.NoTestsMatched
             });
             _framework.AnyActivity = UtfRunActivity.Inactive;
             _framework.Activity = UtfRunActivity.Inactive;
 
             CreateFinalizer().TryFinalize(runId);
 
-            Assert.AreEqual(TestRunProtocol.RunOutcome.Passed, _store.ReadRun(runId).outcome);
+            Assert.AreEqual(TestRunProtocol.RunOutcome.NoTestsMatched, _store.ReadRun(runId).outcome);
         }
 
         [Test]
