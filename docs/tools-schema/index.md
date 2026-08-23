@@ -3114,7 +3114,7 @@ Editor state/control. action: state|play|pause|stop|select|project_path|fast_pla
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `action` | string |  | Operation to perform — see tool docstring for allowed values (default: `state`) |
+| `action` | `state` \| `play` \| `pause` \| `stop` \| `select` \| `project_path` \| `fast_play_mode` \| `mutation_mode` |  | Operation to perform — see tool docstring for allowed values (default: `state`) |
 | `enable` | any |  |  |
 | `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 | `paths` | any |  |  |
@@ -3139,6 +3139,16 @@ Editor state/control. action: state|play|pause|stop|select|project_path|fast_pla
   "properties": {
     "action": {
       "default": "state",
+      "enum": [
+        "state",
+        "play",
+        "pause",
+        "stop",
+        "select",
+        "project_path",
+        "fast_play_mode",
+        "mutation_mode"
+      ],
       "title": "Action",
       "type": "string",
       "description": "Operation to perform \u2014 see tool docstring for allowed values"
