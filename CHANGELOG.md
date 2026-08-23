@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.50.6] — 2026-08-23
+
 ### Fixed
 - **sync_unity false-green on warn: response (MCPAUDIT-015):** Unity-side `warn:` and `err:` ack
   strings now raise `ToolError` immediately instead of silently falling through to `_parse_ack`.
@@ -3753,7 +3755,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.5...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.6...HEAD
+[v1.50.6]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.5...v1.50.6
 [v1.50.5]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.4...v1.50.5
 [v1.50.4]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.3...v1.50.4
 [v1.50.3]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.2...v1.50.3
