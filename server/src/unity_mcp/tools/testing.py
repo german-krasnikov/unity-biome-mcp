@@ -35,7 +35,7 @@ _MAX_CONSECUTIVE_TCP_FAILURES = 5
 _FINALIZATION_STUCK_TIMEOUT = 30.0  # seconds; monkeypatch to 0.0 in tests
 _TERMINAL_OUTCOMES = {
     "passed", "failed", "cancelled", "incomplete", "invalid", "dispatch_failed",
-    "dirty_scene_blocked",
+    "dirty_scene_blocked", "no_tests_matched",
 }
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
 

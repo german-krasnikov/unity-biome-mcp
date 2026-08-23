@@ -645,6 +645,11 @@ namespace UnityMCP.Editor.TestRuns
             else
                 summary.outcome = TestRunProtocol.RunOutcome.Passed;
 
+            // Zero-match: filter produced no tests — not a real pass
+            if (summary.outcome == TestRunProtocol.RunOutcome.Passed &&
+                summary.expected_count == 0 && summary.passed == 0)
+                summary.outcome = TestRunProtocol.RunOutcome.NoTestsMatched;
+
             summary.outcome = MergeTerminalCheckpoint(
                 summary.outcome, Normalize(runFinalized?.outcome));
             if (storedTerminal)
@@ -688,6 +693,7 @@ namespace UnityMCP.Editor.TestRuns
                 case TestRunProtocol.RunOutcome.Cancelled: return 3;
                 case TestRunProtocol.RunOutcome.Failed: return 2;
                 case TestRunProtocol.RunOutcome.Passed: return 1;
+                case TestRunProtocol.RunOutcome.NoTestsMatched: return 1;
                 default: return 0;
             }
         }
@@ -829,6 +835,7 @@ namespace UnityMCP.Editor.TestRuns
                 case TestRunProtocol.RunOutcome.Incomplete:
                 case TestRunProtocol.RunOutcome.Invalid:
                 case TestRunProtocol.RunOutcome.DispatchFailed:
+                case TestRunProtocol.RunOutcome.NoTestsMatched:
                     return true;
                 default:
                     return false;

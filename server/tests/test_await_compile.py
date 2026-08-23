@@ -48,10 +48,8 @@ def _patch_sleep():
 @pytest.fixture(autouse=True)
 def _reset_send():
     original = _ci._send
-    orig_cache = _ci._mm_cached
     yield
     _ci._send = original
-    _ci._mm_cached = orig_cache  # ensure isolation
     reload_risk.reset()
 
 
@@ -594,7 +592,6 @@ async def test_short_circuit_skipped_when_mm_off_no_touches():
     After the fix: gated on mm_active → always polls Unity when MM is off.
     """
     reload_risk.reset()  # ensure no touches
-    _ci._mm_cached = None
 
     poll_count = [0]
 
@@ -622,7 +619,6 @@ async def test_short_circuit_skipped_when_mm_off_no_touches():
 async def test_short_circuit_fires_when_mm_on_no_touches():
     """Short-circuit returns clean immediately when MM is on and no files were written."""
     reload_risk.reset()  # ensure no touches
-    _ci._mm_cached = None
 
     poll_count = [0]
 

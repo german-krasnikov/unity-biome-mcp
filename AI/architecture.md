@@ -223,24 +223,29 @@ for `SyncHelper` to report the matching ready or failed state, tolerates the
 expected domain-reload disconnect, corroborates errors, and invokes bounded
 internal recovery only when needed.
 
-**Mutation Mode:** When SingularityGroup Hot Reload is installed or
-`MCPSettings.GetMutationMode()` is enabled, `sync_unity` detects the active state
-via `HotReloadDetector.IsActive()` and skips Refresh/RequestScriptCompilation.
-HR handles method patching into the live domain without reload. The detection
-check is fast (assembly scan + EditorPref read) and cached conservatively.
-`mcp_status` reports `mutation_mode=true|false` (Protocol v4+).
+**Mutation Mode:** `MCPSettings.GetMutationMode()` is the user-controlled pref.
+`HotReloadDetector.IsActive()` is the broader signal: true when the user pref is set,
+when the SingularityGroup Hot Reload package is installed, or when AutoRefresh is
+externally disabled. `sync_unity` and `await_compile` skip domain reload only when
+`hot_reload_active=true` (read live from `mcp_status` before every skip decision —
+no process-level cache). `mcp_status` reports `mutation_mode` (user pref only),
+`hot_reload_active` (compile-skip gate), and `auto_refresh_actual` (real kAutoRefresh
+pref, not guard ownership) — Protocol v4+.
 
 **Fast Play Mode:** `FastPlayMode` manages EditorSettings `enterPlayModeOptionsEnabled`
-+ `DisableDomainReload` for session scope. When active, entering Play Mode does not
-trigger a domain reload. `editor(action="fast_play_mode", enable="true"|"false")`
-toggles at runtime; `mcp_status` reports `fast_play_mode=true|false`. Original
-EditorSettings are preserved and restored on disable.
++ `DisableDomainReload` with a `FastPlayOwner` bitmask (`User=1`, `Mutation=2`).
+`Apply(owner)` ORs the bit in; `Restore(owner)` ANDs it out; EditorSettings are
+restored only when `CurrentOwners == None`. This ensures Mutation Mode OFF does not
+destroy user-owned Fast Play settings, and standalone Fast Play OFF cannot leave
+Mutation partially active (no `DisableDomainReload` while AutoRefresh is still off).
+`editor(action="fast_play_mode", enable="true"|"false")` toggles the `User` owner;
+`mcp_status` reports `fast_play_mode=true|false`.
 
 **Reload risk tracking:** The `reload_risk` module classifies commands by domain reload
 risk and tracks script writes across calls. `await_compile()` short-circuits when
-`mutation_mode=true` and `reload_risk.has_touches() == False`, returning immediately
-without polling. When mutation_mode is OFF, short-circuit is disabled; always poll
-(backward compat for non-MM workflows).
+`hot_reload_active=true` (live-read, no cache) and `reload_risk.has_touches() == False`.
+External AutoRefresh changes alone do not authorize the skip unless `hot_reload_active`
+is confirmed true by a fresh status read in the same Python call.
 
 **Write sessions:** `write_session` tools batch multiple .cs file writes into a
 single domain reload. `start_write_session()` opens a lock and disables auto-refresh;

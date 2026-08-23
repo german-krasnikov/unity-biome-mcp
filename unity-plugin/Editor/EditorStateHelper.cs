@@ -88,8 +88,14 @@ namespace UnityMCP.Editor
                     var enableStr = argsJson != null ? JsonHelper.ExtractString(argsJson, "enable") : null;
                     if (enableStr == null)
                         return $"fast_play_mode:{FastPlayMode.IsApplied}";
-                    if (enableStr == "true") FastPlayMode.Apply();
-                    else                     FastPlayMode.Restore();
+                    if (enableStr == "true")
+                        FastPlayMode.Apply(FastPlayOwner.User);
+                    else
+                    {
+                        if (MCPSettings.GetMutationMode())
+                            return "err:blocked — Mutation Mode depends on Fast Play. Disable Mutation Mode first.";
+                        FastPlayMode.Restore(FastPlayOwner.User);
+                    }
                     return $"fast_play_mode:{FastPlayMode.IsApplied}";
                 }
                 case "mutation_mode":
@@ -99,14 +105,14 @@ namespace UnityMCP.Editor
                         return $"mutation_mode:{MCPSettings.GetMutationMode().ToString().ToLower()}";
                     if (enableStr == "true")
                     {
-                        FastPlayMode.Apply();
+                        FastPlayMode.Apply(FastPlayOwner.Mutation);
                         AutoRefreshGuard.Apply();
                         Debug.Log("[MCP] Mutation Mode ON — auto-refresh disabled, fast play enabled. Call sync_unity to compile.");
                     }
                     else
                     {
                         AutoRefreshGuard.Restore();
-                        FastPlayMode.Restore();
+                        FastPlayMode.Restore(FastPlayOwner.Mutation);
                         Debug.Log("[MCP] Mutation Mode OFF — auto-refresh restored, fast play restored.");
                     }
                     MCPSettings.SetMutationMode(enableStr == "true");

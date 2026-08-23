@@ -18,7 +18,6 @@ from unity_mcp.utils import parse_pipe_fields
 from ._common import bind
 
 _send = None
-_mm_cached: bool | None = None  # None=unknown, False=not-MM (skip get_status), True=re-check
 
 _STILL_BUSY_STATES = frozenset({"compiling", "reloading"})
 
@@ -121,19 +120,13 @@ async def _await_compile_generation(timeout: float, expected_generation: int) ->
         await asyncio.sleep(1)
 
 
-async def _is_hr_active() -> bool:
-    """Check if Mutation Mode is active. Caches True only — False re-checks each call."""
-    global _mm_cached
-    if _mm_cached is True:
-        return True
+async def _is_mm_active() -> bool:
+    """Check if Mutation Mode is configured ON. No caching — always fresh."""
     try:
         status = await _send("get_status", {})
-        active = "mutation_mode=true" in (status or "")
-        if active:
-            _mm_cached = True
-        return active
+        return "mutation_mode=true" in (status or "")
     except Exception:
-        return False  # fail-open; do NOT cache — unknown state
+        return False  # fail-open
 
 
 async def await_compile(timeout: float = 60.0, expected_generation: int | None = None) -> str:
@@ -152,7 +145,7 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
     from .. import reload_risk as _rr
 
     # Check mutation mode once — used for both short-circuit and HR path.
-    mm_active = await _is_hr_active()
+    mm_active = await _is_mm_active()
 
     # Short-circuit: MM on + no script writes → clean by definition.
     # Toggle OFF or MM on with touches → fall through to normal polling.
@@ -281,8 +274,6 @@ async def serialized_field_rename_audit(
 
 
 def register(mcp, send, args):
-    global _mm_cached
-    _mm_cached = None  # reset on reconnect — mutation mode status may have changed
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()

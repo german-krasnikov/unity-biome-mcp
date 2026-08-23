@@ -28,11 +28,8 @@ def _reset_reload_risk():
 @pytest.fixture(autouse=True)
 def _reset_send():
     original_send = _ci._send
-    original_cache = _ci._mm_cached
-    _ci._mm_cached = None  # clean isolation: force fresh get_status call per test
     yield
     _ci._send = original_send
-    _ci._mm_cached = original_cache
 
 
 async def test_await_compile_mm_no_touches_returns_clean():
@@ -112,8 +109,8 @@ async def test_await_compile_hr_check_fails_falls_through():
     assert "hot-reload-mode" not in result
 
 
-async def test_await_compile_rechecks_when_mm_cached_none_or_false():
-    """_mm_cached=None/False re-checks get_status (no sticky False caching)."""
+async def test_await_compile_always_rechecks_get_status():
+    """No caching — every await_compile call must re-read get_status."""
     get_status_calls = []
 
     async def _fake_send(cmd, args=None, **kwargs):
@@ -127,8 +124,7 @@ async def test_await_compile_rechecks_when_mm_cached_none_or_false():
         return ""
 
     _ci._send = _fake_send
-    _ci._mm_cached = None  # unknown state → should call get_status
     with patch("unity_mcp.editor_log.get_corroborated_errors", new=AsyncMock(return_value="")):
         result = await _ci.await_compile(timeout=60.0)
-    assert get_status_calls, "get_status MUST be called when _mm_cached is not True"
+    assert get_status_calls, "get_status MUST be called every time (no cache)"
     assert "hot-reload-mode" not in result

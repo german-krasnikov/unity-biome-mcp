@@ -26,7 +26,6 @@ from unity_mcp.utils import parse_pipe_fields
 from ._common import bind
 
 _send = None
-_mm_cached: bool | None = None  # None=unknown, False=not-MM (skip get_status), True=re-check
 
 _POLL_INTERVAL = 1.0
 _FOCUS_HINT_AFTER = 15.0  # see backgrounded-editor hint in sync_unity
@@ -123,19 +122,13 @@ def _parse_stamp(status: str) -> str:
     return parse_pipe_fields(status).get("stamp", "")
 
 
-async def _is_hr_active() -> bool:
-    """Check if Mutation Mode is active. Caches True only — False re-checks each call."""
-    global _mm_cached
-    if _mm_cached is True:
-        return True
+async def _is_mm_active() -> bool:
+    """Check if Mutation Mode is configured ON. No caching — always fresh."""
     try:
         status = await _send("get_status", {})
-        active = "mutation_mode=true" in (status or "")
-        if active:
-            _mm_cached = True
-        return active
+        return "mutation_mode=true" in (status or "")
     except Exception:
-        return False  # fail-open; do NOT cache — unknown state
+        return False  # fail-open
 
 
 async def sync_unity(
@@ -157,7 +150,7 @@ async def sync_unity(
 
     # MM coexistence guard — skip only when no script writes; has_touches → fall through.
     # Fail-open: if get_status fails, proceed normally.
-    if await _is_hr_active() and not _rr.has_touches():
+    if await _is_mm_active() and not _rr.has_touches():
         return (
             "mutation_mode active — sync skipped (no script writes). "
             "Call await_compile to check state."
@@ -312,8 +305,6 @@ async def _warm_type_cache() -> None:
 
 
 def register(mcp, send, args):
-    global _mm_cached
-    _mm_cached = None  # reset on reconnect — mutation mode status may have changed
     bind(globals(), send, args)
     editor_log.init_corroboration()
     from ._annotations import RW as _RW

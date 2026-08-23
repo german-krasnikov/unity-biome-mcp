@@ -4,6 +4,7 @@ When mcp_status / get_status returns mutation_mode=true AND no script writes,
 sync_unity must return a skip message without sending 'sync'.
 When mutation_mode=true AND has_touches() is True, sync falls through normally.
 If the status check fails (connection error), sync must proceed normally (fail-open).
+No caching: every call must re-read get_status — a later false must clear a prior true.
 """
 from unittest.mock import AsyncMock, patch
 
@@ -22,11 +23,8 @@ def _patch_sleep():
 @pytest.fixture(autouse=True)
 def _reset_send():
     original_send = _sync._send
-    original_cache = _sync._mm_cached
-    _sync._mm_cached = None  # clean isolation: force fresh get_status call per test
     yield
     _sync._send = original_send
-    _sync._mm_cached = original_cache
 
 
 @pytest.fixture(autouse=True)
@@ -96,8 +94,8 @@ async def test_sync_unity_proceeds_when_get_status_fails():
     assert sync_called, "sync must proceed when get_status raises"
 
 
-async def test_sync_unity_rechecks_when_mm_cached_none():
-    """_mm_cached=None re-checks get_status (no sticky False caching)."""
+async def test_sync_unity_rechecks_when_mm_false():
+    """mutation_mode=false → always re-checks get_status (no False caching)."""
     get_status_calls = []
     sync_called = []
 
@@ -115,9 +113,8 @@ async def test_sync_unity_rechecks_when_mm_cached_none():
         return ""
 
     _sync._send = _fake_send
-    _sync._mm_cached = None  # unknown → must call get_status
     await _sync.sync_unity()
-    assert get_status_calls, "get_status MUST be called when _mm_cached is not True"
+    assert get_status_calls, "get_status MUST be called every time"
     assert sync_called, "sync must proceed when mutation_mode=false"
 
 
@@ -160,3 +157,33 @@ async def test_sync_unity_skips_when_mm_active_and_no_touches():
     result = await _sync.sync_unity()
     assert not sync_called, "sync must NOT be called when MM active and no touches"
     assert "mutation_mode" in result or "no script writes" in result
+
+
+async def test_sync_unity_no_stale_true_cache():
+    """After mutation_mode=true (skip) then false, second call must proceed — no stale cache."""
+    call_count = [0]
+    sync_called = []
+
+    async def _fake_send(cmd, args=None, **kwargs):
+        if cmd == "get_status":
+            call_count[0] += 1
+            # First call: true (skip); second call: false (proceed)
+            return "mutation_mode=true" if call_count[0] == 1 else "mutation_mode=false"
+        if cmd == "sync":
+            sync_called.append(cmd)
+            return "sync_ack|epoch=1|will_compile=false"
+        if cmd == "sync_status":
+            return "epoch=0|state=idle"
+        if cmd in ("get_compile_errors", "warm_type_cache"):
+            return ""
+        return ""
+
+    _sync._send = _fake_send
+
+    # First call: mutation_mode=true, skip
+    result1 = await _sync.sync_unity()
+    assert not sync_called, "first call with true must skip sync"
+
+    # Second call: mutation_mode=false, must proceed
+    result2 = await _sync.sync_unity()
+    assert sync_called, "second call with false must proceed — no stale True cache"

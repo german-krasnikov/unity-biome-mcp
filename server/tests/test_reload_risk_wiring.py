@@ -97,7 +97,7 @@ async def test_await_compile_short_circuits_when_no_touches():
     send_mock = AsyncMock()
     ci_mod._send = send_mock
 
-    with patch("unity_mcp.tools.code_intel._is_hr_active", new=AsyncMock(return_value=True)):
+    with patch("unity_mcp.tools.code_intel._is_mm_active", new=AsyncMock(return_value=True)):
         result = await ci_mod.await_compile(timeout=60)
 
     assert "compile clean" in result
@@ -121,7 +121,6 @@ async def test_await_compile_proceeds_when_has_touches():
         return ""
 
     ci_mod._send = _fake_send
-    ci_mod._mm_cached = False
 
     with patch("unity_mcp.editor_log.get_corroborated_errors", new=AsyncMock(return_value="")):
         with patch.dict("os.environ", {"UNITY_MCP_COMPILE_SETTLE_SECS": "0"}):
