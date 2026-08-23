@@ -1,7 +1,7 @@
 {
   "schema_version": 3,
   "policy_version": "1.0.0",
-  "activation_product_version": "1.50.2",
+  "activation_product_version": "1.50.3",
   "harness_lock_path": "server/uv.lock",
   "contract_catalog_path": "scripts/gauntlet/contracts.json",
   "contract_catalog_sha": "64a553fb93035458d9b2d5f39f6d4501a0ed053d3f44ecaafdcb40101d2bdbde",

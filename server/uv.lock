@@ -707,7 +707,7 @@ wheels = [
 
 [[package]]
 name = "unity-biome-mcp"
-version = "1.50.2"
+version = "1.50.3"
 source = { editable = "." }
 dependencies = [
     { name = "mcp" },

@@ -95,7 +95,7 @@ namespace UnityMCP.Editor.TestRuns
                 var ownActivity = string.IsNullOrEmpty(run.utf_guid)
                     ? UtfRunActivity.Unknown
                     : _framework.Probe(run.utf_guid);
-                if (anyActivity != UtfRunActivity.Inactive ||
+                if (anyActivity == UtfRunActivity.Active ||
                     ownActivity == UtfRunActivity.Active)
                 {
                     var health = anyActivity == UtfRunActivity.Unknown

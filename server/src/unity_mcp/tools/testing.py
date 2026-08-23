@@ -31,6 +31,8 @@ _STARTED = "tests-started"
 _REQUEST_STATUS = "test-request"
 _START_UNKNOWN = "START-UNKNOWN"
 _RUN_STATES = {"prepared", "dispatched", "running", "finalizing", "terminal"}
+_MAX_CONSECUTIVE_TCP_FAILURES = 5
+_FINALIZATION_STUCK_TIMEOUT = 30.0  # seconds; monkeypatch to 0.0 in tests
 _TERMINAL_OUTCOMES = {
     "passed", "failed", "cancelled", "incomplete", "invalid", "dispatch_failed",
 }
@@ -408,6 +410,8 @@ async def run_tests_wait(
     loop = asyncio.get_running_loop()
     deadline = loop.time() + max(0.0, float(timeout))
     last_snapshot = "none"
+    _tcp_fail_streak = 0
+    _finalizing_stuck_since: float | None = None
 
     for attempt in range(attempts):
         if not run_id:
@@ -484,9 +488,18 @@ async def run_tests_wait(
                 current = await asyncio.wait_for(
                     get_test_run(run_id), timeout=remaining
                 )
+                _tcp_fail_streak = 0
             except TimeoutError:
                 break
             except Exception:
+                _tcp_fail_streak += 1
+                if _tcp_fail_streak >= _MAX_CONSECUTIVE_TCP_FAILURES:
+                    return (
+                        f"TIMEOUT|request_id={stable_request_id}"
+                        f"|run_id={run_id or known_run_id or 'unknown'}"
+                        f"|reason=tcp-consecutive-failures"
+                        f"|snapshot={_compact_snapshot(last_snapshot)}"
+                    )
                 current = ""
             if current not in ("", "none", "pending"):
                 last_snapshot = current
@@ -517,6 +530,24 @@ async def run_tests_wait(
                             f"|snapshot={_compact_snapshot(current)}"
                         )
                     snapshot_state = state or lifecycle
+                    # Detect C# stuck in "finalizing" (reflection failure in
+                    # TestRunFinalizationCoordinator). "Effectively done" means
+                    # all test events received; only cleanup remains.
+                    _effectively_done = (
+                        snapshot.get("execution_finished") is True
+                        and snapshot.get("run_finished_observed") is True
+                    )
+                    if lifecycle == "finalizing" and _effectively_done:
+                        if _finalizing_stuck_since is None:
+                            _finalizing_stuck_since = loop.time()
+                        elif loop.time() - _finalizing_stuck_since >= _FINALIZATION_STUCK_TIMEOUT:
+                            return (
+                                f"TIMEOUT|request_id={stable_request_id}"
+                                f"|run_id={run_id}|reason=finalization-timeout"
+                                f"|snapshot={_compact_snapshot(current)}"
+                            )
+                    else:
+                        _finalizing_stuck_since = None
                 if snapshot is not None and snapshot_state == "terminal":
                     terminal_error = _terminal_snapshot_error(
                         snapshot, mode=mode, filter_name=filter or ""
