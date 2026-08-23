@@ -768,6 +768,7 @@ namespace UnityMCP.Editor.TestRuns
             switch (outcome)
             {
                 case TestRunProtocol.RunOutcome.Passed:
+                case TestRunProtocol.RunOutcome.NoTestsMatched:
                 case TestRunProtocol.RunOutcome.Failed:
                 case TestRunProtocol.RunOutcome.Cancelled:
                 case TestRunProtocol.RunOutcome.Incomplete:
