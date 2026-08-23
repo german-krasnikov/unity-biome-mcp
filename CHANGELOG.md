@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.50.2] — 2026-08-23
+
+### Fixed
+- **Mutation Mode no longer disables Scene Reload (WS-MCP-247):** `FastPlayMode.Apply()` now reads
+  options BEFORE setting `enterPlayModeOptionsEnabled=true`, avoiding Unity 6's automatic mask
+  injection (`DisableDomainReload | DisableSceneReload`). If Play Mode Options were disabled, `None`
+  is used as the base so dormant Unity bits are ignored. User-configured `DisableSceneReload` is
+  preserved when Play Mode Options were already enabled.
+- **Test fixture pref-key corrected:** `MutationModeIntegrationTests` and `MutationModeCrashRecoveryTests`
+  now protect `"UnityMCP_HotReloadMode"` (the actual EditorPrefs key) instead of the stale
+  `"UnityMCP_MutationMode"` string.
+
 ## [v1.50.0] — 2026-08-22
 
 ### Added
@@ -3702,7 +3714,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.2...HEAD
+[v1.50.2]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.50.0...v1.50.2
 [v1.50.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.49.0...v1.50.0
 [v1.49.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.1...v1.49.0
 [v1.48.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.0...v1.48.1

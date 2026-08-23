@@ -33,3 +33,14 @@ async def test_fast_play_mode_none_enable_omitted(mod, _patch):
     await mod.editor(action="fast_play_mode")
     call_args = _patch.call_args
     assert "enable" not in call_args[0][1]
+
+
+async def test_mutation_mode_enable_forwards_args(mod, _patch):
+    """editor(action='mutation_mode') reaches bridge correctly."""
+    _patch.return_value = "mutation_mode:true"
+    result = await mod.editor(action="mutation_mode", enable="true")
+    call_args = _patch.call_args
+    assert call_args[0][0] == "editor"
+    assert call_args[0][1].get("action") == "mutation_mode"
+    assert call_args[0][1].get("enable") == "true"
+    assert "mutation_mode" in result
