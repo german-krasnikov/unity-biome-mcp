@@ -644,6 +644,60 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Finalizer_ProbeAnyUnknown_OwnInactive_Finalizes()
+        {
+            const string runId = "run-probe-any-unknown";
+            WriteFinalizingRun(runId, "mcp");
+            var run = _store.ReadRun(runId);
+            run.utf_guid = "utf-known-guid";
+            _store.WriteRun(run);
+            _framework.AnyActivity = UtfRunActivity.Unknown;  // reflection miss
+            _framework.Activity = UtfRunActivity.Inactive;    // our run is done
+
+            var result = CreateFinalizer().TryFinalize(runId);
+
+            Assert.IsTrue(result, "Should finalize: own run Inactive overrides Unknown global");
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Terminal, _store.ReadRun(runId).lifecycle);
+            Assert.IsTrue(_store.ReadJournal(runId).events.Any(e =>
+                e.event_type == TestRunProtocol.EventType.RunFinalized));
+        }
+
+        [Test]
+        public void Finalizer_ProbeAnyUnknown_OwnActive_Blocks()
+        {
+            const string runId = "run-own-active-any-unknown";
+            WriteFinalizingRun(runId, "mcp");
+            var run = _store.ReadRun(runId);
+            run.utf_guid = "utf-known-guid";
+            _store.WriteRun(run);
+            _framework.AnyActivity = UtfRunActivity.Unknown;
+            _framework.Activity = UtfRunActivity.Active;  // our run still running
+
+            var result = CreateFinalizer().TryFinalize(runId);
+
+            Assert.IsFalse(result, "Should not finalize: own run is Active");
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Finalizing,
+                _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(0, _environment.RestoreCalls);
+        }
+
+        [Test]
+        public void Finalizer_BothActive_Blocks()
+        {
+            const string runId = "run-both-active";
+            WriteFinalizingRun(runId, "mcp");
+            _framework.AnyActivity = UtfRunActivity.Active;
+            // Activity defaults to Active in FakeFrameworkDriver; no utf_guid → ownActivity=Unknown
+
+            var result = CreateFinalizer().TryFinalize(runId);
+
+            Assert.IsFalse(result, "Active global probe must block finalization");
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Finalizing,
+                _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(0, _environment.RestoreCalls);
+        }
+
+        [Test]
         public void Finalizer_PreviousEditorSessionCannotPoisonCurrentUtfRun()
         {
             const string runId = "run-previous-editor";
