@@ -12,7 +12,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **sync_unity false-green on warn: response (MCPAUDIT-015):** Unity-side `warn:` and `err:` ack
+  strings now raise `ToolError` immediately instead of silently falling through to `_parse_ack`.
+  Prevents false "sync clean" when compilation is blocked (e.g. Play Mode script edit).
+- **Non-string ack guard:** `sync_unity` raises `ToolError` if bridge returns `None` (timeout
+  sentinel) instead of propagating `AttributeError` from `_parse_ack`.
+- **editor() schema exposes all actions (MCPAUDIT-004):** `action` parameter now uses
+  `Literal["state","play","pause","stop","select","project_path","fast_play_mode","mutation_mode"]`
+  so schema-validating providers see the full enum.
+
 ## [v1.50.5] — 2026-08-23
+
+### Fixed
+- **Status conflation resolved (WS-MCP-249):** `mcp_status.mutation_mode` now reports
+  `MCPSettings.GetMutationMode()` directly instead of `HotReloadDetector.IsActive()` — external
+  AutoRefresh changes no longer falsely report Mutation Mode active.
+- **FastPlay ownership (WS-MCP-249):** `FastPlayOwner` flags enum (`User=1`, `Mutation=2`) tracks
+  who owns the Play Mode setting — Mutation OFF no longer disables user-owned Fast Play Mode.
+- **Python cache removed (WS-MCP-249):** `_mm_cached` eliminated from `sync.py` and
+  `code_intel.py` — every call re-reads `get_status` fresh.
 
 ## [v1.50.4] — 2026-08-23
 
@@ -24,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Tests no longer hang on dirty scene: `run_tests`/`run_tests_wait` immediately returns `dirty_scene_blocked` outcome (WS-MCP-248)
 
 ## [v1.50.3] — 2026-08-23
+
+### Fixed
+- **Finalization deadlock (WS-MCP-248):** `TestRunFinalizationCoordinator.ProbeAny()` now checks
+  `anyActivity == Active` instead of `!= Inactive` — `Unknown` state no longer blocks finalization
+  forever.
+- **TCP failure exit:** `run_tests_wait` exits after 3 consecutive TCP failures instead of polling
+  indefinitely.
 
 ## [v1.50.2] — 2026-08-23
 
