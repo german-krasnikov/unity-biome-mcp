@@ -272,7 +272,9 @@ or package changes; they should not call internal recovery commands directly.
 3. `SyncHelper.TriggerSync()` allocates an epoch in `SessionState`, marks the
    state compiling, optionally resolves packages, refreshes assets, requests
    script compilation, and starts its tick pump. It returns
-   `sync_ack|epoch=N|will_compile=<bool>`.
+   `sync_ack|epoch=N|will_compile=<bool>`. If the acknowledgement is prefixed
+   `warn:` or `err:`, Python immediately raises `ToolError` instead of
+   proceeding (MCPAUDIT-015: Unity-side warnings/errors surface as hard failures).
 4. If Unity reports that no compile is needed, Python still checks corroborated
    compile errors and warms the type cache before returning a clean no-op result.
 5. Otherwise Python polls `sync_status` until the same epoch is ready or failed.
@@ -282,7 +284,8 @@ or package changes; they should not call internal recovery commands directly.
    timeout returns a stop/manual-recovery result rather than a success.
 7. A ready state is checked for compile errors. When an expected compile leaves a
    comparable main-assembly MVID frozen, Python invokes bounded internal recovery
-   before it may report success.
+   before it may report success. Non-string acknowledgements (e.g. `None` from
+   bridge timeout) are rejected with `ToolError`.
 
 `unity-plugin/Editor/SyncHelper.cs` owns the persisted epoch/state/error/stamp
 machine and compilation/reload event handlers. A ready state may come from the

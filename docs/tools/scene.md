@@ -107,8 +107,10 @@ await editor(action="play")
 await editor(action="stop")
 ```
 
-Actions are `state`, `play`, `pause`, `stop`, `select`, and `project_path`. For
-multi-selection, pass comma-separated paths through `paths`.
+Actions are `state`, `play`, `pause`, `stop`, `select`, `project_path`,
+`fast_play_mode`, and `mutation_mode`. For multi-selection, pass comma-separated
+paths through `paths`. For `fast_play_mode` and `mutation_mode`, use `enable="true"`
+or `enable="false"` to toggle.
 
 ## Apply a guarded scene change
 
