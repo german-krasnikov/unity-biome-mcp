@@ -5,7 +5,7 @@ namespace UnityMCP.Editor
     /// Protocol must match server/src/unity_mcp/bridge.py PROTOCOL_VERSION.</summary>
     internal static class BiomeVersion
     {
-        public const string Plugin = "1.50.3";
+        public const string Plugin = "1.50.4";
         public const int Protocol = 4;
     }
 }
