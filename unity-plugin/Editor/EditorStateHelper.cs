@@ -118,7 +118,7 @@ namespace UnityMCP.Editor
                     MCPSettings.SetMutationMode(enableStr == "true");
                     var result = $"mutation_mode:{MCPSettings.GetMutationMode().ToString().ToLower()}";
                     if (enableStr == "true" && !HotReloadDetector.IsPackageInstalled())
-                        result += "|warning:no_hot_reload_package — static fields persist across Play sessions. Use [RuntimeInitializeOnLoadMethod(SubsystemRegistration)] to reset mutable statics.";
+                        result += "|warning:no_hot_reload_package — Mutation Mode controls WHEN reload happens, not WHETHER: .cs edits still trigger a full domain reload without Hot Reload package. Static fields persist across Play sessions; use [RuntimeInitializeOnLoadMethod(SubsystemRegistration)] to reset them.";
                     return result;
                 }
                 default:

@@ -581,6 +581,7 @@ async def lifespan(app):
             _last_refresh_ts: float = 0.0
 
             from .tools.sync import _reset_bump_used as _sync_reset_bump
+            from .tools.sync import _reset_last_clean_stamp as _sync_reset_stamp
 
             def _on_reconnect():
                 nonlocal _last_refresh_ts
@@ -599,6 +600,7 @@ async def lifespan(app):
                 _spawn_reconnect_task(_refresh_resources(slot.bridge))
             slot.add_reconnect_callback(_on_reconnect)
             slot.add_reconnect_callback(_sync_reset_bump)
+            slot.add_reconnect_callback(_sync_reset_stamp)
             # gating.reset() is intentionally NOT wired here — automatic heartbeat
             # reconnects (incl. domain-reload of the SAME project) would otherwise
             # wipe discover_tools() unlocks on every recompile. Manual reconnects

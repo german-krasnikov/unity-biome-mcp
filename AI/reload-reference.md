@@ -315,3 +315,19 @@ command alone is not proof that new code is live.
   `AI/testing.md`, and user recovery instructions in `docs/`.
 - Do not add file:line audit tables, future-task backlogs, or duplicated OS/source
   indexes here.
+
+## §16 Mutation Mode Scope Contract
+
+| Claim | Verdict |
+|-------|---------|
+| MM suppresses domain reload for .cs edits (no Hot Reload pkg) | FALSE — domain reload still fires |
+| MM suppresses domain reload when Hot Reload pkg is installed | TRUE — HR patches in-process |
+| MM disables auto-refresh | TRUE — `DisallowAutoRefresh()` called on enable |
+| MM enables fast play | TRUE — `FastPlayMode.Apply()` called on enable |
+| sync_unity skips when MM active + no touches | TRUE — see §13 |
+| await_compile short-circuits when MM active + no touches | TRUE — see §13 |
+
+Key phrase: "Mutation Mode controls WHEN domain reload happens, not WHETHER it happens
+for .cs source changes without the Hot Reload package."
+
+Update this table when `EditorStateHelper.cs` or `MCPSettings.cs` changes MM semantics.

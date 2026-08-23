@@ -118,7 +118,7 @@ namespace UnityMCP.Editor
                 if (IsPlayMode() && CommandRegistry.IsMutating(cmd, argsJson)
                     && !CommandRouter.IsAllowedMutationInPlayMode(cmd, argsJson))
                 {
-                    sb.AppendLine($"[{i}] BLOCKED: '{cmd}' is mutating, skipped in Play Mode");
+                    sb.AppendLine($"[{i}] BLOCKED: '{cmd}' is mutating in Play Mode — use execute_code(persist_as=...) for in-Play code changes");
                     if (AtomicFail(i)) break; else continue;
                 }
                 if (!IsPlayMode() && CommandRegistry.IsRuntime(cmd))

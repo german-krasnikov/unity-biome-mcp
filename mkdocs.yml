@@ -95,6 +95,7 @@ nav:
     - Prefab Editing: features/prefab-edit.md
     - Region Selection: features/region-tool.md
     - Code Execution: features/code-execution.md
+    - Mutation Mode: features/mutation-mode.md
     - Skills & Templates: features/session-skills.md
     - Test Reliability: testing-reliability.md
   - Chat:
