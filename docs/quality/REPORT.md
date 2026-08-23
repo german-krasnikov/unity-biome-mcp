@@ -1,13 +1,13 @@
 # Quality Report
 
-> Auto-generated on **2026-08-23** from commit `f363d96` (v1.50.7)
+> Auto-generated on **2026-08-23** from commit `3374c75` (v1.50.8)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.50.7 |
-| Commit | `f363d96` |
+| Version | v1.50.8 |
+| Commit | `3374c75` |
 | Date | 2026-08-23 |
 | MCP Tools | 163 |
 
