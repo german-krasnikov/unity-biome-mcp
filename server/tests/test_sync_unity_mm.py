@@ -34,19 +34,29 @@ def _reset_reload_risk():
     reload_risk.reset()
 
 
+@pytest.fixture(autouse=True)
+def _reset_last_stamp():
+    _sync._last_clean_stamp = ""
+    yield
+    _sync._last_clean_stamp = ""
+
+
 async def test_sync_unity_skips_when_hr_detected():
-    """When mutation mode active, sync_unity warns and does NOT call 'sync' command."""
+    """When mutation mode active and stamp stable, sync_unity warns and does NOT call 'sync'."""
     sync_called = []
 
     async def _fake_send(cmd, args=None, **kwargs):
         if cmd == "get_status":
             return "scene=SampleScene\nmutation_mode=true\nplaying=false"
+        if cmd == "sync_status":
+            return "epoch=0|state=idle|stamp=stable:stamp"
         if cmd == "sync":
             sync_called.append(cmd)
             return "sync_ack|epoch=1|will_compile=false"
         return ""
 
     _sync._send = _fake_send
+    _sync._last_clean_stamp = "stable:stamp"  # stable stamp → skip applies
     result = await _sync.sync_unity()
     assert "warn" in result.lower() or "mutation_mode" in result.lower() or "mutation mode" in result.lower()
     assert not sync_called, "sync command must NOT be called when mutation mode is detected"
@@ -141,18 +151,21 @@ async def test_sync_unity_proceeds_when_mm_active_and_has_touches():
 
 
 async def test_sync_unity_skips_when_mm_active_and_no_touches():
-    """MM active + no script writes → sync skipped, returned immediately."""
+    """MM active + no script writes + stamp stable → sync skipped, returned immediately."""
     sync_called = []
 
     async def _fake_send(cmd, args=None, **kwargs):
         if cmd == "get_status":
             return "scene=SampleScene\nmutation_mode=true\nplaying=false"
+        if cmd == "sync_status":
+            return "epoch=0|state=idle|stamp=stable:stamp"
         if cmd == "sync":
             sync_called.append(cmd)
             return "sync_ack|epoch=1|will_compile=false"
         return ""
 
     _sync._send = _fake_send
+    _sync._last_clean_stamp = "stable:stamp"  # stable stamp → skip applies
     # No reload_risk.touch() — has_touches() returns False
     result = await _sync.sync_unity()
     assert not sync_called, "sync must NOT be called when MM active and no touches"
@@ -173,14 +186,15 @@ async def test_sync_unity_no_stale_true_cache():
             sync_called.append(cmd)
             return "sync_ack|epoch=1|will_compile=false"
         if cmd == "sync_status":
-            return "epoch=0|state=idle"
+            return "epoch=0|state=idle|stamp=stable:stamp"
         if cmd in ("get_compile_errors", "warm_type_cache"):
             return ""
         return ""
 
     _sync._send = _fake_send
+    _sync._last_clean_stamp = "stable:stamp"  # stable stamp → first call skips
 
-    # First call: mutation_mode=true, skip
+    # First call: mutation_mode=true + stable stamp → skip
     result1 = await _sync.sync_unity()
     assert not sync_called, "first call with true must skip sync"
 

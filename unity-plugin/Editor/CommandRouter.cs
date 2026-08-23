@@ -108,7 +108,7 @@ namespace UnityMCP.Editor
             if (IsPlayMode() && IsMutatingCommand(cmd, argsJson)
                 && !IsAllowedMutationInPlayMode(cmd, argsJson))
                 return JsonHelper.FormatResponse(id, false, null,
-                    "Play mode active — changes will be lost. Stop play mode first.");
+                    "Play mode active — scene mutations lost on stop. For in-Play code changes use execute_code(persist_as=...).");
             if (!IsPlayMode() && CommandRegistry.IsRuntime(cmd))
                 return JsonHelper.FormatResponse(id, false, null, "Not in Play Mode. Use editor(action='play') first.");
             if (IsReadOnly() && IsMutatingCommand(cmd, argsJson))

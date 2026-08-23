@@ -42,10 +42,18 @@ async def _timed_send(send, cmd: str, args: dict, deadline: float) -> str:
 # D2: bump circuit-breaker — one bump per connection session
 _bump_used: bool = False
 
+# Stamp of last clean sync — used by MM coexistence guard to detect external edits.
+_last_clean_stamp: str = ""
+
 
 def _reset_bump_used() -> None:
     global _bump_used
     _bump_used = False
+
+
+def _reset_last_clean_stamp() -> None:
+    global _last_clean_stamp
+    _last_clean_stamp = ""
 
 
 async def _attempt_recovery(send, mvid_pre: str, send_reload=None, deadline: float = 0) -> str | None:
@@ -131,10 +139,33 @@ async def _is_mm_active() -> bool:
         return False  # fail-open
 
 
+async def _mm_should_skip() -> bool:
+    """True only when current stamp matches _last_clean_stamp (stable = no external edits)."""
+    global _last_clean_stamp
+    if not _last_clean_stamp:
+        return False  # no baseline → cannot skip
+    try:
+        raw = await _send("sync_status", {})
+        current = _parse_stamp(raw)
+    except Exception:
+        return False  # fail-open
+    return bool(current) and current == _last_clean_stamp
+
+
+def _reload_type_note(mm_active: bool, stamp_pre: str, stamp_post: str) -> str:
+    """Returns reload type suffix for clean sync responses when MM is active."""
+    if not mm_active:
+        return ""
+    mvid_pre  = stamp_pre.partition(":")[0]
+    mvid_post = stamp_post.partition(":")[0]
+    return " (hot reload)" if mvid_pre == mvid_post else " (domain reload)"
+
+
 async def sync_unity(
     resolve: bool = False,
     bump: bool = False,
     timeout: float = _DEFAULT_TIMEOUT,
+    force: bool = False,
 ) -> str:
     """Unified Unity reload: trigger Refresh (+ optional Resolve), wait for new code to live.
 
@@ -142,17 +173,19 @@ async def sync_unity(
     bump=True: atomically increment plugin patch version BEFORE sync, implies resolve=True.
     Returns: 'sync clean' / compile errors / timeout message.
     """
-    global _bump_used
+    global _bump_used, _last_clean_stamp
     if _send is None:
         raise ToolError("sync_unity requires a Unity connection (no bridge)")
 
     from unity_mcp import reload_risk as _rr
 
-    # MM coexistence guard — skip only when no script writes; has_touches → fall through.
-    # Fail-open: if get_status fails, proceed normally.
-    if await _is_mm_active() and not _rr.has_touches():
+    # MM coexistence guard — stamp-anchored skip.
+    # Fail-open: stamp read error or no baseline → proceed.
+    mm_active = await _is_mm_active()
+    if not force and mm_active and not _rr.has_touches() and await _mm_should_skip():
         return (
-            "mutation_mode active — sync skipped (no script writes). "
+            "mutation_mode active — sync skipped (stamp stable, no .cs touches). "
+            "Mutation Mode defers reload; without Hot Reload package, .cs edits still reload the domain. "
             "Call await_compile to check state."
         )
 
@@ -207,6 +240,7 @@ async def sync_unity(
         errors = await _get_errors()
         if not errors:
             await _warm_type_cache()
+            _last_clean_stamp = stamp_pre  # stamp unchanged on fast path
             return "sync clean (no compile needed)"
         return errors
 
@@ -243,7 +277,9 @@ async def sync_unity(
             if recovery is None:
                 await _warm_type_cache()
                 _rr.on_compile_clean()
-                return "sync clean"  # healed via force_refresh
+                _last_clean_stamp = stamp_pre
+                note = _reload_type_note(mm_active, stamp_pre, stamp_pre)
+                return f"sync clean{note}"  # healed via force_refresh
             # BLOCKER1: T1 failed → escalate to run_ladder T2-T5
             return await _run_ladder(_send, send_reload=_send_reload, start_tier=2)
 
@@ -274,7 +310,9 @@ async def sync_unity(
                         if recovery is None:
                             await _warm_type_cache()
                             _rr.on_compile_clean()
-                            return "sync clean"  # healed via force_refresh
+                            _last_clean_stamp = stamp_post
+                            note = _reload_type_note(mm_active, stamp_pre, stamp_post)
+                            return f"sync clean{note}"  # healed via force_refresh
                         # BLOCKER1: T1 failed → escalate to run_ladder T2-T5
                         return await _run_ladder(_send, send_reload=_send_reload, start_tier=2)
                     # will_compile=false (cache-hit / no-change): frozen MVID is clean.
@@ -286,7 +324,9 @@ async def sync_unity(
             if not errors:
                 await _warm_type_cache()
                 _rr.on_compile_clean()
-                return "sync clean"
+                _last_clean_stamp = stamp_post
+                note = _reload_type_note(mm_active, stamp_pre, stamp_post)
+                return f"sync clean{note}"
             return errors
 
         # state = compiling/reloading/idle — keep polling

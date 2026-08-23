@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Mutation Mode scope clarified (MCPAUDIT-007, MCPAUDIT-009):** Error messages in
+  `BatchHelper.cs` and `CommandRouter.cs` now redirect Play Mode mutation blocks to
+  `execute_code(persist_as=...)`. `EditorStateHelper.cs` `no_hot_reload_package` warning
+  now states: Mutation Mode controls WHEN reload happens, not WHETHER — .cs edits still
+  trigger a full domain reload without the Hot Reload package.
+
 ## [v1.50.6] — 2026-08-23
 
 ### Fixed

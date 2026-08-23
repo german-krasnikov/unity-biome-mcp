@@ -14,7 +14,8 @@ async def editor(action: Literal["state", "play", "pause", "stop", "select", "pr
                  paths: str | None = None, enable: str | None = None) -> str:
     """Editor state/control. action: state|play|pause|stop|select|project_path|fast_play_mode|mutation_mode.
     select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC").
-    fast_play_mode/mutation_mode: enable='true'|'false' to toggle."""
+    fast_play_mode/mutation_mode: enable='true'|'false' to toggle.
+    mutation_mode: defers domain reload (WHEN, not WHETHER) — requires Hot Reload package to avoid reload on .cs edits."""
     t = 15.0 if action in ("play", "stop", "pause") else 30.0
     return await _send("editor", _args(action=action, path=path, paths=paths, enable=enable), timeout=t)
 
