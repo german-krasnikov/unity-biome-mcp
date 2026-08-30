@@ -7,6 +7,14 @@ _send = None
 _args = None
 
 
+def _source_patch_mutation_is_on() -> bool:
+    """Route seam for `.cs` writes (§3.2 in the FSR handoff plan). Always
+    False today: no editor(mutation_mode) command or coordinator wiring
+    exists yet (P0-70). Exists so P0-70 changes exactly this one function,
+    never the routing/capture structure in _write_text_with_capture below."""
+    return False
+
+
 async def _write_text_with_capture(path: str, content: str) -> str:
     from ..changeset_coordinator import get_coordinator
     from ..changeset_file_capture import snapshot_file
@@ -16,7 +24,12 @@ async def _write_text_with_capture(path: str, content: str) -> str:
     coord = get_coordinator()
 
     before_ref = snapshot_file(path, store) if store else None
-    result = await _send("asset", _args(action="write_text", path=path, content=content))
+    # §3.2: exactly one route, never a write-first probe, never a fallback
+    # after an uncertain send.
+    if path.endswith(".cs") and _source_patch_mutation_is_on():
+        result = await _send("source_patch_write", _args(path=path, content=content))
+    else:
+        result = await _send("asset", _args(action="write_text", path=path, content=content))
     after_ref = snapshot_file(path, store) if store else None
 
     if coord and after_ref != before_ref:

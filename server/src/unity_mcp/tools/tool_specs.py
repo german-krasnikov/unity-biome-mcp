@@ -197,6 +197,10 @@ _SPECS: dict[str, ToolSpec] = {
     'shader': ToolSpec(category='ASSETS'),
     'smart_build': ToolSpec(category='SYSTEM', direct_only=True),
     'snapshot': ToolSpec(category='RUNTIME', mutability='read', direct_only=True),
+    # P0-50: internal, direct-only, unity_transport — routed only by asset.py's
+    # own internal sender when Source Patch mutation is armed; never a public
+    # MCP tool, never batchable (see server/tests/test_source_patch_boundary.py).
+    'source_patch_write': ToolSpec(category='_INTERNAL', direct_only=True, unity_transport=True),
     'spatial_query': ToolSpec(category='SCENE', mutability='read'),
     'sync_playtest_aliases_from_defs': ToolSpec(category='TESTS'),
     'sync_unity': ToolSpec(category='SYSTEM', tier1=True, direct_only=True),

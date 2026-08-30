@@ -632,6 +632,8 @@ namespace UnityMCP.Editor
                 required: "action", optional: "target,scenes,path,dev");
             CommandRegistry.RegisterAsync("package", AsyncPackage,
                 required: "action", optional: "name,version,query");
+            CommandRegistry.RegisterAsync("source_patch_write", AsyncSourcePatchWrite,
+                mutating: true, required: "path,content", optional: "");
         }
     }
 }

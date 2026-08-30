@@ -17,21 +17,22 @@ namespace UnityMCP.Editor.Tests
     {
         // §3.2: "Python adds at most one internal/direct-only async command
         // source_patch_write ... not MCP-decorated and batch/intent cannot invoke
-        // it." Today it must not exist as a registered C# command surface at all.
-        //
-        // P0-50 WILL make this assertion flip: once source_patch_write is
-        // registered, TryGetContract must return true. When that happens, do not
-        // delete this test — replace the body with the real contract (registered,
-        // AsyncHandler/FileHandler/SpecialDispatch set so IsBatchable is false, per
-        // CommandRegistry.IsBatchable's own "unregistered == batchable" default).
+        // it." P0-50 landed it — this assertion deliberately flipped from
+        // "not registered" to "registered, internal-shaped, not batchable" per
+        // the P0-40-era comment this replaces. Do not delete this test.
         [Test]
-        public void CommandRegistry_SourcePatchWriteCommand_NotYetRegistered()
+        public void CommandRegistry_SourcePatchWriteCommand_RegisteredInternalAndNotBatchable()
         {
             var exists = CommandRegistry.TryGetContract("source_patch_write",
-                out _, out _, out _);
-            Assert.IsFalse(exists,
-                "source_patch_write must not exist as a public C# command surface " +
-                "before P0-50 lands it as an internal/direct-only, non-batchable command.");
+                out var required, out _, out var isFreeForm);
+            Assert.IsTrue(exists, "source_patch_write must be registered by P0-50.");
+            Assert.IsFalse(isFreeForm, "source_patch_write must declare a structured contract.");
+            CollectionAssert.Contains(required, "path");
+            CollectionAssert.Contains(required, "content");
+            Assert.IsTrue(CommandRegistry.HasAsyncHandler("source_patch_write", out _),
+                "source_patch_write must be registered via RegisterAsync.");
+            Assert.IsFalse(CommandRegistry.IsBatchable("source_patch_write"),
+                "source_patch_write must be unreachable from batch (§3.2).");
         }
 
         // §3.1: base package references no FSR/Harmony/MonoMod. This checks the

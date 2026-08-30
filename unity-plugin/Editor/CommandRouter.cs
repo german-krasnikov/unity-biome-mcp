@@ -327,6 +327,17 @@ namespace UnityMCP.Editor
                 r => !r.StartsWith("err:"));
         }
 
+        // P0-50: internal/direct-only — never MCP-decorated, never batchable
+        // (RegisterAsync alone makes CommandRegistry.IsBatchable return false).
+        // Params are exactly path+content per §3.2 "only path, content,
+        // operation/project identity" — the existing TCP envelope (id/op_id)
+        // plus this connection's single-Editor binding already carry
+        // operation/project identity, so no extra param is added here.
+        private static void AsyncSourcePatchWrite(string id, string argsJson, TaskCompletionSource<string> tcs)
+        {
+            tcs.TrySetResult(BuildResponse(id, SourcePatchHost.WriteText(argsJson)));
+        }
+
         // Bridges an inner async Task<string> to the outer TCS, formatting a fault
         // uniformly as "{label} error: ...". Collapses 4x identical ContinueWith copy-paste.
         // isSuccess: optional predicate on the result string; null = always success.

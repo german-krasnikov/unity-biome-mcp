@@ -445,6 +445,10 @@ namespace UnityMCP.Editor
             var content = JsonHelper.ExtractString(argsJson, "content") ?? "";
             if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
             ValidatePath(path);
+            // P0-50: one authoritative pre-write decision, shared by raw direct
+            // "asset" dispatch and batch dispatch (both reach this exact method
+            // via CommandRouter.ExecuteCommand) — see SourcePatchHost doc comment.
+            SourcePatchHost.GuardLegacyCsWrite(path);
             AssetHelper.EnsureDirectory(path);
             var abs = Path.GetFullPath(path);
             File.WriteAllText(abs, content, System.Text.Encoding.UTF8);

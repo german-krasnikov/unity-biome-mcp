@@ -324,3 +324,56 @@ async def test_asset_write_text_no_changeset_op_when_content_unchanged(mock_brid
     await asset(action="write_text", path=str(target), content="same content")
 
     coordinator.append_file_op.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# P0-50: route a `.cs` write through source_patch_write when Source Patch
+# mutation is armed, otherwise stay on the legacy `asset` route. Mutation is
+# unconditionally OFF today — _source_patch_mutation_is_on() always returns
+# False, since no editor(mutation_mode) command or coordinator wiring exists
+# yet (P0-70). These tests force the seam True to prove the routing/capture
+# logic itself ahead of that wiring. See §3.2/§6 P0-50 in
+# Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md.
+# ---------------------------------------------------------------------------
+
+async def test_asset_write_text_cs_routes_to_source_patch_when_mutation_armed(mock_bridge, monkeypatch):
+    monkeypatch.setattr("unity_mcp.tools.asset._source_patch_mutation_is_on", lambda: True)
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:write"})
+
+    await asset(action="write_text", path="Assets/f.cs", content="data")
+
+    cmd, args = mock_bridge.send.call_args[0][:2]
+    assert cmd == "source_patch_write"
+    assert args == {"path": "Assets/f.cs", "content": "data"}
+
+
+async def test_asset_write_text_cs_stays_legacy_when_mutation_off(mock_bridge, monkeypatch):
+    monkeypatch.setattr("unity_mcp.tools.asset._source_patch_mutation_is_on", lambda: False)
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:write"})
+
+    await asset(action="write_text", path="Assets/f.cs", content="data")
+
+    cmd, args = mock_bridge.send.call_args[0][:2]
+    assert cmd == "asset"
+    assert args == {"action": "write_text", "path": "Assets/f.cs", "content": "data"}
+
+
+async def test_asset_write_text_non_cs_stays_legacy_even_when_mutation_armed(mock_bridge, monkeypatch):
+    """§6 P0-50 requirement 4: non-.cs is never rerouted, regardless of state."""
+    monkeypatch.setattr("unity_mcp.tools.asset._source_patch_mutation_is_on", lambda: True)
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:write"})
+
+    await asset(action="write_text", path="Assets/f.txt", content="data")
+
+    cmd, _args = mock_bridge.send.call_args[0][:2]
+    assert cmd == "asset"
+
+
+async def test_asset_write_text_cs_sends_exactly_once_regardless_of_route(mock_bridge, monkeypatch):
+    """§3.2: never probes by writing first — exactly one send either way."""
+    monkeypatch.setattr("unity_mcp.tools.asset._source_patch_mutation_is_on", lambda: True)
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:write"})
+
+    await asset(action="write_text", path="Assets/f.cs", content="data")
+
+    assert mock_bridge.send.call_count == 1
