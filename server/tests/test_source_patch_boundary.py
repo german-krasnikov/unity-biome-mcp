@@ -51,13 +51,37 @@ def _references_contain_forbidden_fragment(references: list) -> str | None:
 # package-absent/installed distinction applies to the BASE package itself).
 # ---------------------------------------------------------------------------
 
+# The one sanctioned exception to the scan below: a reference naming the
+# canonical neutral Source Patch asmdef by its exact, case-sensitive name.
+# §3.1 requires exactly this one asmdef to exist (P0-40 landed it) and
+# expects real references to it by name — UnityMCP.Editor.Tests (P0-40) and,
+# later, UnityMCP.Editor itself (P0-50). That exact string is therefore not
+# a forbidden-provider reference. Any other name that merely CONTAINS
+# "sourcepatch" (a typo'd second asmdef, a suffixed variant such as
+# "UnityMCP.Editor.SourcePatch2", a third-party "Foo.SourcePatch") stays
+# fully forbidden — this is an exact case-sensitive equality check, not a
+# substring/normalized-contains exemption.
+_SANCTIONED_NEUTRAL_ASMDEF_REFERENCE = "UnityMCP.Editor.SourcePatch"
+
+
 def test_base_asmdefs_have_no_forbidden_references():
-    """No shipped asmdef references FSR/Harmony/MonoMod/Cecil/provider-Roslyn/
-    SourcePatch today. §3.1: base never references the optional package."""
+    """No shipped asmdef references FSR/Harmony/MonoMod/Cecil/provider-Roslyn
+    today. §3.1: base never references the optional package. The single
+    sanctioned exception is an exact, case-sensitive reference to the
+    canonical neutral asmdef itself (see
+    _SANCTIONED_NEUTRAL_ASMDEF_REFERENCE) — that is the in-repo neutral
+    module P0-40 landed, not the optional FSR-backed provider package, and
+    §3.1 expects it to be referenced by name. This test should not need to
+    change again when P0-50 adds the same exact reference from
+    UnityMCP.Editor."""
     offenders = {}
     for path in _asmdef_paths():
         data = json.loads(path.read_text(encoding="utf-8"))
-        hit = _references_contain_forbidden_fragment(data.get("references", []))
+        refs = [
+            r for r in data.get("references", [])
+            if r != _SANCTIONED_NEUTRAL_ASMDEF_REFERENCE
+        ]
+        hit = _references_contain_forbidden_fragment(refs)
         if hit:
             offenders[path.name] = hit
     assert not offenders, f"forbidden asmdef references found: {offenders}"
@@ -82,12 +106,19 @@ def test_package_json_has_no_forbidden_dependency_or_keyword():
 
 
 def test_at_most_one_source_patch_asmdef_exists():
-    """§3.1: exactly one neutral Source Patch asmdef is allowed once P0-40
-    lands; today there must be zero. Guard is '<= 1' per the plan's own
-    wording so P0-40 does not need to touch this test."""
+    """§3.1: exactly one neutral Source Patch asmdef exists, and never a
+    second one. P0-40 landed the real module (`UnityMCP.Editor.SourcePatch.
+    asmdef`); this test's baseline honestly flipped from "zero" to "exactly
+    this one" at that point. A prior version of this docstring claimed P0-40
+    would never need to touch this test — that was wrong, and is corrected
+    here rather than repeated. The guard that matters for the rest of the
+    feature's life is '<= 1' plus the exact expected name, so a rename or a
+    second competing asmdef both fail loudly."""
     matches = [p.name for p in _asmdef_paths() if "sourcepatch" in p.name.lower()]
     assert len(matches) <= 1, f"more than one Source Patch asmdef found: {matches}"
-    assert matches == [], "P0-30 baseline: zero Source Patch asmdefs exist yet"
+    assert matches == ["UnityMCP.Editor.SourcePatch.asmdef"], (
+        f"expected exactly the canonical neutral asmdef, found: {matches}"
+    )
 
 
 _PROVIDER_IF_PATTERN = re.compile(r"#if.*(FSR|HARMONY|SOURCE_PATCH|PROVIDER)", re.IGNORECASE)

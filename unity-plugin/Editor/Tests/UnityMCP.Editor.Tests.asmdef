@@ -6,6 +6,7 @@
         "UnityMCP.Editor.TestSupport",
         "UnityMCP.Editor.Chat.CLI",
         "UnityMCP.Editor.Chat.View",
+        "UnityMCP.Editor.SourcePatch",
         "UnityMCP.Runtime.TestHelpers",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
