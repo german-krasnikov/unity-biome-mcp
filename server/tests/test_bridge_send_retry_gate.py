@@ -58,7 +58,12 @@ class _TimeoutGate:
 
 
 def _make_bridge_and_writer():
-    bridge = UnityBridge(probe=make_idle_probe())
+    # Every scenario in this module exercises retry timing with a mock read
+    # command; opt those command names into the real retry-safety predicate.
+    bridge = UnityBridge(
+        probe=make_idle_probe(),
+        is_retry_safe=lambda cmd: cmd == "ping",
+    )
     writer = make_writer()
     return bridge, writer
 
@@ -105,7 +110,7 @@ async def test_send_domain_reload_uses_gate_not_sleep():
          patch("asyncio.sleep", side_effect=spy_sleep):
         bridge._writer = writer
         bridge._reader = reader
-        result = await asyncio.wait_for(bridge.send("test", {}), timeout=5.0)
+        result = await asyncio.wait_for(bridge.send("ping", {}), timeout=5.0)
 
     assert result["ok"] is True
     assert gate_clears, "gate.clear() must be called for domain_reload reason"
@@ -294,7 +299,7 @@ async def test_send_wakes_early_when_concurrent_reconnect_sets_gate():
         bridge._writer = writer
         bridge._reader = reader
         t0 = time.monotonic()
-        result = await asyncio.wait_for(bridge.send("test", {}), timeout=5.0)
+        result = await asyncio.wait_for(bridge.send("ping", {}), timeout=5.0)
         elapsed = time.monotonic() - t0
 
     assert result["ok"] is True

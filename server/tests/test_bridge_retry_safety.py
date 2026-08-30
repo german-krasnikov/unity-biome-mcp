@@ -1,10 +1,8 @@
 """TDD: retry-safety gating via ToolAnnotations (Phase 3, Task 3.2).
 
-A TimeoutError means the request may have already reached Unity and started
-executing before the client gave up waiting. Blindly retrying a
-non-idempotent command risks duplicate execution (e.g. execute_code running
-twice). should_retry() must refuse to retry TimeoutError-class errors for
-commands the caller marks unsafe via is_retry_safe.
+UnityBridge owns the DeliveryState-aware exception gate: unsafe SENT frames
+never retry, while UNSENT transport recovery is allowed. RetryPolicy remains
+delivery-agnostic. The in-band Unity retry hint still uses ToolAnnotations.
 """
 import asyncio
 import time
@@ -23,14 +21,14 @@ def _far_deadline() -> float:
     return time.monotonic() + SESSION_TIMEOUT
 
 
-def test_should_retry_blocks_non_idempotent_command_on_timeout():
+def test_should_retry_policy_does_not_guess_unsafe_timeout_delivery():
     bridge = _make_bridge(is_retry_safe=lambda cmd: cmd == "get_console")
     do_retry, delay, reason = bridge.should_retry(
         asyncio.TimeoutError(), attempt=0, session_deadline=_far_deadline(),
         cmd="execute_code",
     )
-    assert do_retry is False
-    assert reason == "unsafe_to_retry"
+    assert do_retry is True
+    assert reason == "transient"
 
 
 def test_should_retry_allows_read_only_command_on_timeout():
@@ -53,17 +51,15 @@ def test_should_retry_explicit_all_safe_allows_retry():
     assert do_retry is True  # attempt=0 -> falls through to existing "transient" branch
 
 
-def test_should_retry_default_denies_unknown_commands():
-    """No is_retry_safe passed -> fail-closed default: unknown/unannotated
-    commands are NOT retried on TimeoutError, since a TimeoutError means the
-    command may have already reached Unity and started executing."""
+def test_should_retry_default_still_leaves_delivery_gate_to_bridge():
+    """The default remains unsafe, but should_retry has no delivery state."""
     bridge = _make_bridge()
     do_retry, delay, reason = bridge.should_retry(
         asyncio.TimeoutError(), attempt=0, session_deadline=_far_deadline(),
         cmd="execute_code",
     )
-    assert do_retry is False
-    assert reason == "unsafe_to_retry"
+    assert do_retry is True
+    assert reason == "transient"
 
 
 def test_should_retry_connection_refused_ignores_retry_safety():
@@ -79,13 +75,9 @@ def test_should_retry_connection_refused_ignores_retry_safety():
 
 # --- A1: hint-path (Unity's {ok:false, retry:N} busy sentinel) retry-safety ---
 #
-# should_retry() above only gates the *exception* path (TimeoutError/
-# ConnectionError caught around the socket read). _send_with_retry() has a
-# SECOND, independent retry decision for Unity's in-band "busy, retry me"
-# hint -- that path retried unconditionally, bypassing is_retry_safe entirely.
-# A TimeoutError and a {"retry": N} hint carry the same risk: the original
-# command may have already reached Unity's dispatcher, so blindly retrying a
-# non-idempotent command (e.g. create_object) risks duplicate execution.
+# The in-band "busy, retry me" hint arrives after dispatch, so it has the same
+# safety requirement as the bridge exception path's SENT boundary. Both use
+# the one annotation-derived is_retry_safe predicate.
 
 async def test_hint_retry_denied_for_unsafe_command():
     """Hint-path retry must respect is_retry_safe -- must NOT loop for a

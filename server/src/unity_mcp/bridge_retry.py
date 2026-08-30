@@ -1,9 +1,8 @@
 """Retry decision policy -- extracted from UnityBridge (C8 / SOLID finding S2).
 
-Unifies both retry surfaces (exception-path TimeoutError/ConnectionError via
-decide(), hint-path Unity 'retry' JSON sentinel via allow_hint_retry()) behind
-one is_retry_safe gate, closing the class of bug where a second ad-hoc retry
-path could silently bypass the safety gate (C1 / A1).
+Owns transport retry timing and the Unity ``retry`` hint gate.  The caller
+combines ``decide()`` with its concrete DeliveryState: an unsafe command may
+retry before the writer accepts a frame, but never after SENT.
 """
 import time
 from collections.abc import Callable  # noqa: TC003
@@ -23,7 +22,12 @@ class RetryPolicy:
     def decide(self, error: Exception, attempt: int, session_deadline: float,
                cmd: str = "") -> tuple[bool, float, str]:
         """Exception-path decision. Same contract/return shape as the former
-        UnityBridge.should_retry() -- (should_retry, delay_s, reason)."""
+        UnityBridge.should_retry() -- (should_retry, delay_s, reason).
+
+        This policy intentionally has no frame-delivery state.  UnityBridge
+        observes this decision first, then overrides resend at the SENT boundary
+        for commands not proven retry-safe.
+        """
         from .bridge_socket import DomainReloadError  # local import avoids cycle
         from .errors import CapacityBusyError  # local import avoids cycle
 
@@ -34,9 +38,6 @@ class RetryPolicy:
 
         if isinstance(error, CapacityBusyError):
             return True, error.retry_after_seconds, "capacity_busy"
-
-        if isinstance(error, TimeoutError) and not self.is_retry_safe(cmd):
-            return False, 0.0, "unsafe_to_retry"
 
         if isinstance(error, DomainReloadError):
             delay = min(2 ** (attempt + 1), 8.0)

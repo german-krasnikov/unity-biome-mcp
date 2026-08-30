@@ -42,7 +42,6 @@ IDEM_TOOLS = [
     (objects, "set_property"),
     (objects, "set_active"),
     (objects, "set_material"),
-    (console, "recompile"),
     (asset, "project_settings"),
     (ui, "set_rect"),
     (connection, "reconnect_unity"),
@@ -58,6 +57,8 @@ NON_IDEM_TOOLS = [
     (objects, "wire_event"),
     (scene, "scene"),
     (testing, "run_tests_wait"),
+    # Every call triggers a fresh compile/reload; dedup does not survive it.
+    (console, "recompile"),
     # editor mutates editor state (play/pause/stop) — not idempotent
     (editor_control, "editor"),
 ]
@@ -108,3 +109,66 @@ async def test_retry_safe_cmds_includes_only_readonly_or_idempotent():
     safe = await retry_safe_cmds(mcp)
     assert "get_console" in safe          # RO
     assert "execute_code" not in safe     # RW, no idempotentHint
+
+
+async def test_recompile_annotation_prevents_public_send_after_domain_reload():
+    """Executable annotation mutant: RW_IDEM would produce multiple frames."""
+    import json
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    import unity_mcp.bridge as bridge_module
+    from unity_mcp.bridge import BridgeState, CommandStatus, UnityBridge
+    from unity_mcp.bridge_socket import DomainReloadError
+    from unity_mcp.errors import UncertainDeliveryError
+    from unity_mcp.server import mcp
+    from unity_mcp.tools._annotations import retry_safe_cmds
+
+    safe = await retry_safe_cmds(mcp)
+    assert "recompile" not in safe
+
+    class ImmediateGate:
+        def clear(self):
+            pass
+
+        def set(self):
+            pass
+
+        async def wait(self):
+            return None
+
+    probe = MagicMock()
+    probe.has_strong_busy_signal.return_value = False
+    probe.is_process_dead.return_value = False
+    bridge = UnityBridge(probe=probe, is_retry_safe=safe.__contains__)
+    bridge._reload_gate = ImmediateGate()
+    bridge._crash_log = MagicMock()
+    writer = MagicMock()
+    writer.is_closing.return_value = False
+    writer.drain = AsyncMock()
+    writer.get_extra_info.return_value = None
+    writer.wait_closed = AsyncMock()
+    bridge._writer = writer
+    bridge._reader = MagicMock()
+    bridge._state = BridgeState.CONNECTED
+    frames: list[dict] = []
+
+    def capture_frame(_writer, raw: bytes) -> None:
+        frames.append(json.loads(raw.decode("utf-8")))
+
+    with (
+        patch.object(bridge_module, "frame_write", side_effect=capture_frame),
+        patch.object(
+            bridge, "_read_response", new_callable=AsyncMock,
+            side_effect=DomainReloadError("reload after recompile"),
+        ),
+        patch.object(bridge, "close", new_callable=AsyncMock),
+    ):
+        with pytest.raises(UncertainDeliveryError) as caught:
+            await bridge.send("recompile", {})
+
+    assert len(frames) == 1
+    assert caught.value.cmd == "recompile"
+    assert caught.value.op_id == frames[0]["op_id"]
+    assert caught.value.delivery is CommandStatus.ACCEPTED
+    assert bridge.get_command_status(caught.value.op_id)[0] is CommandStatus.ACCEPTED
+    await bridge.close()

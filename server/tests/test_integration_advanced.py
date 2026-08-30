@@ -240,8 +240,13 @@ async def test_message_id_increments_correctly(mock_unity_server):
 
 
 async def test_reconnect_during_commands(mock_unity_server):
-    """Circuit breaker: server drop raises ConnectionError; manual reconnect works."""
+    """A retry-safe command reconnects after a lost ACK without losing identity.
+
+    The explicit predicate models a read-only/idempotent public annotation;
+    unknown commands remain fail-closed in production.
+    """
     connection_count = 0
+    received_requests = []
 
     async def unstable_handler(reader, writer):
         nonlocal connection_count
@@ -253,6 +258,7 @@ async def test_reconnect_during_commands(mock_unity_server):
                 length = struct.unpack("!I", header)[0]
                 payload = await reader.readexactly(length)
                 request = json.loads(payload.decode("utf-8"))
+                received_requests.append(request)
 
                 # Drop connection on first command
                 if connection_count == 1:
@@ -273,15 +279,25 @@ async def test_reconnect_during_commands(mock_unity_server):
     server = await asyncio.start_server(unstable_handler, "127.0.0.1", 0)
     port = server.sockets[0].getsockname()[1]
 
-    bridge = UnityBridge(port=port)
+    bridge = UnityBridge(
+        port=port,
+        is_retry_safe=lambda name: name == "cmd",
+    )
     await bridge.connect()
 
-    # First command: server drops → bridge retries → reconnects → succeeds
+    # The opted-in command may reconnect and resend after the server received
+    # the first frame but its response was lost.
     result = await bridge.send("cmd", {})
     assert result["ok"] is True
     assert connection_count >= 2, "Bridge should have reconnected automatically"
     assert result["data"] == "reconnected"
     assert connection_count == 2  # Initial + reconnect
+    command_requests = [
+        request for request in received_requests if request.get("cmd") == "cmd"
+    ]
+    assert len(command_requests) == 2
+    assert command_requests[1]["op_id"] == command_requests[0]["op_id"]
+    assert command_requests[1]["retry_op_id"] == command_requests[0]["op_id"]
 
     await bridge.close()
     server.close()

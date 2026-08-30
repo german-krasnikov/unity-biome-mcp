@@ -22,6 +22,23 @@ class CapacityBusyError(ConnectionError):
         self.active = active
 
 
+class UncertainDeliveryError(ConnectionError):
+    """A mutating frame may have executed, so the transport must not resend it.
+
+    Callers can query the same bridge ledger with ``op_id``; parsing the human
+    message is never required.
+    """
+
+    def __init__(self, *, cmd: str, op_id: str, delivery: enum.Enum | str) -> None:
+        super().__init__(
+            f"Command {cmd!r} was sent; outcome is uncertain and "
+            "the unsafe command was not retried"
+        )
+        self.cmd = cmd
+        self.op_id = op_id
+        self.delivery = delivery
+
+
 @dataclass
 class UnityError:
     message: str

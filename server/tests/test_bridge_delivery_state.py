@@ -33,11 +33,11 @@ def test_delivery_state_unknown_op_id_returns_not_found():
 
 
 # ---------------------------------------------------------------------------
-# Test 2 — state transitions to ACCEPTED after TCP write
+# Test 2 — state transitions to ACCEPTED after writer acceptance
 # ---------------------------------------------------------------------------
 
 async def test_delivery_state_tracks_accepted():
-    """After TCP write succeeds (drain called), op_id ledger state is ACCEPTED.
+    """After the writer accepts a frame, op_id ledger state is ACCEPTED.
 
     Red: _send_with_retry doesn't update CommandLedger yet.
     """
@@ -46,7 +46,7 @@ async def test_delivery_state_tracks_accepted():
 
     # Intercept: write succeeds but read hangs → we check state mid-flight
     async def controlled_read():
-        # At this point write already drained → ACCEPTED must be set
+        # Writer acceptance precedes response handling → ACCEPTED must be set.
         raise ConnectionError("simulated mid-flight disconnect")
 
     writer = MagicMock()
@@ -81,7 +81,7 @@ async def test_delivery_state_tracks_accepted():
             pass  # expected — connection error after write
 
     assert accepted_op_ids, (
-        "Expected CommandLedger.record(ACCEPTED) after TCP write succeeded"
+        "Expected CommandLedger.record(ACCEPTED) after writer accepted frame"
     )
 
 
