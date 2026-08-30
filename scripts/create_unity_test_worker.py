@@ -62,6 +62,25 @@ def _hash_tree(root: Path) -> str:
     return digest.hexdigest()
 
 
+def _load_source_patch_pin(pin_path: Path) -> dict[str, str]:
+    """Read a tracked Source Patch provider pin (e.g. scripts/
+    source_patch_provider_pin.json) and return the one manifest dependency
+    entry it describes: {package_name: "git_url#ref"}.
+
+    Disposable-worker/matrix-lock input only (§6 P0-70) — never merged into
+    the tracked unity-test-project/Packages/manifest.json by default; a
+    caller must pass this explicitly to create_worker()."""
+    if not pin_path.is_file():
+        raise WorkerCreationError(f"Source Patch provider pin not found: {pin_path}")
+    payload = json.loads(pin_path.read_text(encoding="utf-8"))
+    missing = [key for key in ("package_name", "git_url", "ref") if not payload.get(key)]
+    if missing:
+        raise WorkerCreationError(
+            f"Source Patch provider pin {pin_path} missing field(s): {', '.join(missing)}"
+        )
+    return {payload["package_name"]: f"{payload['git_url']}#{payload['ref']}"}
+
+
 def _validate_source(source: Path) -> None:
     required = (source / "Assets", source / "Packages", source / "ProjectSettings")
     if not all(path.is_dir() for path in required):
@@ -156,6 +175,7 @@ def create_worker(
     *,
     artifact_manifest: Path | None = None,
     artifact_root: Path | None = None,
+    source_patch_provider_pin: Path | None = None,
 ) -> dict[str, object]:
     source = source.resolve()
     destination = destination.resolve()
@@ -176,6 +196,18 @@ def create_worker(
             artifact_manifest,
             artifact_root,
         )
+        if source_patch_provider_pin is not None:
+            pin_dependency = _load_source_patch_pin(source_patch_provider_pin)
+            package_dependencies = {**package_dependencies, **pin_dependency}
+            pin_payload = json.loads(source_patch_provider_pin.read_text(encoding="utf-8"))
+            package_marker = {
+                **package_marker,
+                "source_patch_provider_package": pin_payload["package_name"],
+                "source_patch_provider_ref": pin_payload["ref"],
+                "source_patch_provider_pin_sha256": hashlib.sha256(
+                    source_patch_provider_pin.read_bytes()
+                ).hexdigest(),
+            }
         _rewrite_manifest(destination, package_dependencies)
 
         library = destination / "Library"
@@ -223,6 +255,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-project", type=Path, default=DEFAULT_SOURCE_PROJECT)
     parser.add_argument("--artifact-manifest", type=Path)
     parser.add_argument("--artifact-root", type=Path)
+    parser.add_argument("--source-patch-provider-pin", type=Path)
     parser.add_argument("--unity", type=Path, default=DEFAULT_UNITY)
     parser.add_argument("--launch", action="store_true")
     return parser.parse_args()
@@ -236,6 +269,7 @@ def main() -> int:
             args.destination,
             artifact_manifest=args.artifact_manifest,
             artifact_root=args.artifact_root,
+            source_patch_provider_pin=args.source_patch_provider_pin,
         )
         print(json.dumps(marker, indent=2, sort_keys=True))
         print(f"worker={args.destination.resolve()}")
