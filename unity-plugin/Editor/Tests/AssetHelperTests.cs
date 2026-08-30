@@ -371,6 +371,77 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("testdata", System.IO.File.ReadAllText(abs, System.Text.Encoding.UTF8));
         }
 
+        // ── P0-30: freeze OFF encoding/direct-vs-batch baseline (pre-SourcePatch) ──
+
+        [Test]
+        public void WriteText_WritesUtf8ByteOrderMark()
+        {
+            // AssetDatabaseHelper.WriteText uses System.Text.Encoding.UTF8 (NOT
+            // JsonHelper.Utf8NoBom, used by every other writer in this codebase),
+            // which emits a 3-byte BOM. Freezing this pre-existing quirk as-is —
+            // not fixing it here (see Plans/HotReload P0-30). WriteText has no
+            // per-extension branch, so this also documents the .cs write path
+            // without triggering a real Unity compile (a real .cs import is
+            // covered separately by the BiomeWorkerOnly-gated explicit test).
+            TrackOwnedAsset(TempFolder);
+            AssetHelper.EnsureDirectory(TempFolder + "/bom.txt");
+
+            AssetDatabaseHelper.Execute("write_text",
+                $"{{\"path\":\"{TempFolder}/bom.txt\",\"content\":\"testdata\"}}");
+
+            var abs = System.IO.Path.GetFullPath(TempFolder + "/bom.txt");
+            var bytes = System.IO.File.ReadAllBytes(abs);
+            Assert.GreaterOrEqual(bytes.Length, 3);
+            Assert.AreEqual(0xEF, bytes[0]);
+            Assert.AreEqual(0xBB, bytes[1]);
+            Assert.AreEqual(0xBF, bytes[2]);
+        }
+
+        [Test]
+        public void WriteText_JsonExtension_RoundtripsContentUnchanged()
+        {
+            // Freezes "non-.cs behavior stays unchanged": .json goes through the
+            // exact same WriteText code path as .txt/.cs, with no special-casing.
+            TrackOwnedAsset(TempFolder);
+            AssetHelper.EnsureDirectory(TempFolder + "/data.json");
+
+            var result = AssetDatabaseHelper.Execute("write_text",
+                $"{{\"path\":\"{TempFolder}/data.json\",\"content\":\"{{\\\"a\\\":1}}\"}}");
+
+            StringAssert.StartsWith("ok:write", result);
+            var abs = System.IO.Path.GetFullPath(TempFolder + "/data.json");
+            Assert.AreEqual("{\"a\":1}", System.IO.File.ReadAllText(abs, System.Text.Encoding.UTF8));
+        }
+
+        [Test]
+        public void WriteText_ViaBatchAndDirect_ProduceIdenticalFileBytes()
+        {
+            // P0-30 baseline: today nothing distinguishes the direct `asset`
+            // dispatch from the `batch`-routed one — both reach
+            // AssetDatabaseHelper.WriteText via CommandRouter.ExecuteCommand with
+            // no additional gate. This freezes that absence-of-gate as the
+            // explicit pre-SourcePatch OFF behavior (the future §3.2 "same C#
+            // pre-write gate" requirement has nothing to enforce yet).
+            SetEditorPrefBool(MCPSettings.KeyPrefix + "asset", true);
+            TrackOwnedAsset(TempFolder);
+            AssetHelper.EnsureDirectory(TempFolder + "/direct.txt");
+            AssetHelper.EnsureDirectory(TempFolder + "/viabatch.txt");
+
+            var directResult = AssetDatabaseHelper.Execute("write_text",
+                $"{{\"path\":\"{TempFolder}/direct.txt\",\"content\":\"parity-check\"}}");
+
+            var batchResult = BatchHelper.Execute(
+                $"asset action=write_text path=\"{TempFolder}/viabatch.txt\" content=\"parity-check\"",
+                "stop");
+
+            StringAssert.StartsWith("ok:write", directResult);
+            Assert.IsFalse(BatchHelper.HasErrors(batchResult), batchResult);
+
+            var directBytes = System.IO.File.ReadAllBytes(System.IO.Path.GetFullPath(TempFolder + "/direct.txt"));
+            var batchBytes = System.IO.File.ReadAllBytes(System.IO.Path.GetFullPath(TempFolder + "/viabatch.txt"));
+            CollectionAssert.AreEqual(directBytes, batchBytes);
+        }
+
         [Test]
         public void Reimport_NonExistentAsset_Throws()
         {
