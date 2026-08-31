@@ -25,7 +25,7 @@ REPO_ROOT = SCRIPTS.parent
 PIN_PATH = SCRIPTS / "source_patch_provider_pin.json"
 EXPECTED_PACKAGE = "com.handzlikchris.fastscriptreload"
 EXPECTED_SHA = "e50d43dda33e2d62c68be25278d48bc07f6003ff"
-EXPECTED_URL = "https://github.com/german-krasnikov/FastScriptReload.git"
+EXPECTED_URL = "https://github.com/german-krasnikov/FastScriptReload.git?path=/Assets"
 EXPECTED_DEPENDENCY = f"{EXPECTED_URL}#{EXPECTED_SHA}"
 
 
@@ -52,6 +52,32 @@ def test_tracked_pin_file_matches_final_adapter_sha():
     assert payload["package_name"] == EXPECTED_PACKAGE
     assert payload["git_url"] == EXPECTED_URL
     assert payload["ref"] == EXPECTED_SHA
+
+
+def test_tracked_pin_git_url_hardcodes_assets_path_literal():
+    """Independent of EXPECTED_URL/EXPECTED_DEPENDENCY — hardcoded literal,
+    never derived from this module's own fixture constants.
+
+    Real incident (Cycle A attempt 6, P0-80): the FSR fork's package.json
+    lives under Assets/ (the qualified branch is a full Unity project, not a
+    bare UPM package), so the git dependency needs `?path=/Assets` or Unity's
+    package resolution fails with "Repository does not contain a package
+    manifest". The pin file was missing it, and this test's own
+    EXPECTED_URL constant was ALSO missing it — so
+    test_tracked_pin_file_matches_final_adapter_sha compared the tracked
+    file against an equally-wrong fixture and could never catch this class
+    of regression. This test must never read EXPECTED_URL or
+    EXPECTED_DEPENDENCY, so a future accidental edit to those constants
+    cannot silently defeat it a second time (double-red: fails if the pin
+    loses the path, and fails if _load_source_patch_pin's composition
+    breaks)."""
+    payload = json.loads(PIN_PATH.read_text(encoding="utf-8"))
+    assert "?path=/Assets" in payload["git_url"]
+    dependency = worker._load_source_patch_pin(PIN_PATH)["com.handzlikchris.fastscriptreload"]
+    assert dependency == (
+        "https://github.com/german-krasnikov/FastScriptReload.git"
+        "?path=/Assets#e50d43dda33e2d62c68be25278d48bc07f6003ff"
+    )
 
 
 # ---------------------------------------------------------------------------
