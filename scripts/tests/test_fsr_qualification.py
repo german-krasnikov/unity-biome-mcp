@@ -299,3 +299,42 @@ def test_validate_receipt_set_raises_when_checkout_shas_differ():
     receipts[0]["checkout_sha"] = "c" * 40
     with pytest.raises(fq.FsrQualificationError):
         fq.validate_receipt_set(receipts, _lock())
+
+
+# ---------------------------------------------------------------------------
+# write_pilot_evidence — the fixture-free GUI baseline previously discarded
+# all diagnostic evidence on failure (Run 2: min-windows-x64/max-windows-x64
+# INFRASTRUCTURE_BLOCKED with nothing but a bare exception message uploaded).
+# ---------------------------------------------------------------------------
+
+def test_write_pilot_evidence_writes_receipt_and_log_tail(tmp_path: Path):
+    evidence_out = tmp_path / "evidence"
+    log = tmp_path / "pilot-unity.log"
+    log.write_text("line one\nline two\n", encoding="utf-8")
+
+    fq.write_pilot_evidence(
+        evidence_out, cell="min-windows-x64", os_name="Windows", arch="x64",
+        log_path=log, outcome="PASS", error=None,
+    )
+
+    receipt = json.loads((evidence_out / "pilot-receipt.json").read_text(encoding="utf-8"))
+    assert receipt["outcome"] == "PASS"
+    assert receipt["cell"] == "min-windows-x64"
+    assert (evidence_out / "pilot-unity-log-tail.txt").read_text(encoding="utf-8") == "line one\nline two"
+
+
+def test_write_pilot_evidence_records_missing_log_explicitly(tmp_path: Path):
+    evidence_out = tmp_path / "evidence"
+    missing_log = tmp_path / "does-not-exist.log"
+
+    fq.write_pilot_evidence(
+        evidence_out, cell="min-windows-x64", os_name="Windows", arch="x64",
+        log_path=missing_log, outcome="INFRASTRUCTURE_BLOCKED",
+        error="Timed out waiting for Unity MCP port 127.0.0.1:9600: timed out",
+    )
+
+    receipt = json.loads((evidence_out / "pilot-receipt.json").read_text(encoding="utf-8"))
+    assert receipt["outcome"] == "INFRASTRUCTURE_BLOCKED"
+    assert "Timed out" in receipt["error"]
+    tail = (evidence_out / "pilot-unity-log-tail.txt").read_text(encoding="utf-8")
+    assert "not found" in tail.lower()

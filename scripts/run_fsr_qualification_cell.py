@@ -63,13 +63,26 @@ def _git_head_sha() -> str:
 
 
 def _git_changed_paths(base_sha: str) -> list[str]:
-    result = subprocess.run(
-        ["git", "diff", "--name-only", f"{base_sha}..HEAD"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    """Raises FsrQualificationCellError (caught by main()) rather than the
+    raw CalledProcessError — Run 2 crashed 4/6 cells unhandled here on a
+    shallow clone (actions/checkout's default fetch-depth: 1 has no history
+    reaching base_product_sha), and the exception propagated past main()'s
+    except tuple entirely, so no receipt.json ever got written. checkout
+    now uses fetch-depth: 0, but any future git-diff failure must still
+    surface as a caught, evidenced error."""
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", f"{base_sha}..HEAD"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as error:
+        raise FsrQualificationCellError(
+            f"git diff --name-only {base_sha}..HEAD failed (exit {error.returncode}): "
+            f"{error.stderr or error.stdout}"
+        ) from error
     return [line for line in result.stdout.splitlines() if line]
 
 
@@ -97,12 +110,30 @@ async def _stop(process: subprocess.Popen | None) -> None:
         terminate_workers([process])
 
 
-async def run_pilot(*, unity: Path, source_project: Path, work_root: Path, port: int, startup_timeout: float) -> None:
-    """Fixture-free GUI baseline: no fixture, no provider pin."""
+async def run_pilot(
+    *,
+    unity: Path,
+    source_project: Path,
+    work_root: Path,
+    port: int,
+    startup_timeout: float,
+    evidence_out: Path | None = None,
+    cell_name: str = "pilot",
+    os_name: str = "",
+    arch: str = "",
+) -> None:
+    """Fixture-free GUI baseline: no fixture, no provider pin.
+
+    Always writes pilot evidence (receipt + Unity log tail, or an explicit
+    "not found" record) when evidence_out is given — Run 2 discarded all
+    diagnostic evidence on a failed pilot, uploading nothing but a bare
+    receipt.json with no log content at all."""
     project = work_root / "pilot"
     log = work_root / "pilot-unity.log"
     worker.create_worker(source_project, project)
     process = _launch(unity=unity, project=project, port=port, log=log)
+    outcome = "FAIL"
+    error_message: str | None = None
     try:
         await asyncio.to_thread(
             wait_for_port, host="127.0.0.1", port=port, process=process, log=log, timeout=startup_timeout
@@ -114,8 +145,23 @@ async def run_pilot(*, unity: Path, source_project: Path, work_root: Path, port:
         # CommandRouter.Registration.cs; mcp_status is a Python-only MCP
         # server tool and is not reachable over raw TCP).
         await durable.call(port, "get_status", {})
+        outcome = "PASS"
+    except (durable.RunnerError, OSError, TimeoutError) as error:
+        error_message = str(error)
+        outcome = "INFRASTRUCTURE_BLOCKED"
+        raise
     finally:
         await _stop(process)
+        if evidence_out is not None:
+            fq.write_pilot_evidence(
+                evidence_out,
+                cell=cell_name,
+                os_name=os_name,
+                arch=arch,
+                log_path=log,
+                outcome=outcome,
+                error=error_message,
+            )
 
 
 async def _phase_off_legacy_compile(*, unity, project, port, log, startup_timeout) -> subprocess.Popen:
@@ -261,6 +307,10 @@ def main(argv: list[str] | None = None) -> int:
                     work_root=args.work_root,
                     port=args.port,
                     startup_timeout=args.startup_timeout,
+                    evidence_out=args.evidence_out,
+                    cell_name=args.cell_name or "pilot",
+                    os_name=args.os_name,
+                    arch=args.arch,
                 )
             )
         else:

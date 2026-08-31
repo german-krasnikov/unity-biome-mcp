@@ -16,6 +16,8 @@ import json
 from collections.abc import Mapping, Sequence  # noqa: TC003
 from pathlib import Path  # noqa: TC003
 
+from gauntlet.hosted_conformance import tail_log
+
 REQUIRED_LOCK_KEYS = ("base_product_sha", "final_fsr_adapter_sha", "cells")
 REQUIRED_CELL_WINDOWS = ("u_min", "u_max")
 REQUIRED_CELL_FIELDS = ("unity_version", "unity_revision", "utf_version")
@@ -171,6 +173,40 @@ def validate_receipt_set(
         )
 
 
+def write_pilot_evidence(
+    evidence_out: Path,
+    *,
+    cell: str,
+    os_name: str,
+    arch: str,
+    log_path: Path,
+    outcome: str,
+    error: str | None,
+) -> None:
+    """The fixture-free GUI pilot previously discarded all diagnostic
+    evidence on failure — a failed pilot cell uploaded nothing but a bare
+    receipt.json with no log content at all. Always write a receipt +
+    whatever Unity log tail exists (or an explicit "not found" record) so a
+    future failure is diagnosable from the uploaded artifact alone."""
+    if outcome not in VALID_OUTCOMES:
+        raise FsrQualificationError(
+            f"Invalid pilot evidence outcome {outcome!r}; expected one of {sorted(VALID_OUTCOMES)}"
+        )
+    evidence_out.mkdir(parents=True, exist_ok=True)
+    receipt: dict[str, object] = {
+        "cell": cell,
+        "os": os_name,
+        "arch": arch,
+        "outcome": outcome,
+    }
+    if error:
+        receipt["error"] = error
+    (evidence_out / "pilot-receipt.json").write_text(
+        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    (evidence_out / "pilot-unity-log-tail.txt").write_text(tail_log(log_path), encoding="utf-8")
+
+
 def build_headed_unity_command(unity: Path, project: Path, log: Path) -> list[str]:
     """No -batchmode/-nographics/-quit: a direct GUI supervisor, not a
     batchmode lane (§7 P1-20)."""
@@ -202,6 +238,7 @@ __all__ = [
     "load_lock",
     "resolve_cell",
     "build_runtime_receipt",
+    "write_pilot_evidence",
     "assert_base_sha_untouched",
     "validate_receipt_set",
     "build_headed_unity_command",

@@ -186,3 +186,45 @@ def test_workflow_push_trigger_paths_cover_the_full_cell_mechanization():
         "scripts/gauntlet/fsr_qualification_fixture.py",
         "scripts/fixtures/fsr_qualification/**",
     }
+
+
+def test_workflow_checkout_steps_fetch_full_history():
+    """Run 2 crashed 4/6 cells: git diff --name-only <base>..HEAD failed
+    exit 128 on actions/checkout's default shallow clone (fetch-depth: 1),
+    which has no history reaching the frozen base_product_sha. Both the
+    cell job and the aggregate job run that diff."""
+    data = _parsed()
+    for job_name in ("cell", "aggregate"):
+        checkout = next(
+            step
+            for step in data["jobs"][job_name]["steps"]
+            if step.get("uses", "").startswith("actions/checkout")
+        )
+        assert checkout["with"]["fetch-depth"] == 0, job_name
+
+
+def test_workflow_work_root_uses_runner_temp_env_var_not_expression():
+    """Matches ci-conformance.yml's already-proven windows-2022 pattern
+    ($RUNNER_TEMP, a bash env var) instead of the ${{ runner.temp }} GH
+    expression this workflow originally used, which — concatenated with a
+    hand-appended '/subdir' — produced a mixed-separator path on Windows
+    (D:\\a\\_temp/fsr-pilot-...) in the first two matrix runs."""
+    text = _text()
+    assert "$RUNNER_TEMP/fsr-pilot-" in text
+    assert "$RUNNER_TEMP/fsr-cell-" in text
+    assert "runner.temp" not in text
+
+
+def test_workflow_pilot_step_captures_evidence():
+    """The pilot previously uploaded nothing but a bare receipt.json on
+    failure (Run 2: min-windows-x64/max-windows-x64 INFRASTRUCTURE_BLOCKED
+    with zero diagnostic content) — it must now pass --evidence-out and the
+    identifying cell/os/arch so a future failure is diagnosable from the
+    uploaded artifact alone."""
+    text = _text()
+    pilot_index = text.index("Fixture-free GUI baseline (pilot)")
+    full_index = text.index("Run cell scenario")
+    pilot_block = text[pilot_index:full_index]
+    assert "--evidence-out \"artifacts/${{ matrix.cell }}/pilot\"" in pilot_block
+    assert "--cell-name ${{ matrix.cell }}" in pilot_block
+    assert "--os-name ${{ matrix.os_name }}" in pilot_block

@@ -19,13 +19,19 @@ import gauntlet.fsr_qualification as fq  # noqa: E402
 
 
 def _git_changed_paths(base_sha: str) -> list[str]:
-    result = subprocess.run(
-        ["git", "diff", "--name-only", f"{base_sha}..HEAD"],
-        cwd=REPO_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    try:
+        result = subprocess.run(
+            ["git", "diff", "--name-only", f"{base_sha}..HEAD"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    except subprocess.CalledProcessError as error:
+        raise fq.FsrQualificationError(
+            f"git diff --name-only {base_sha}..HEAD failed (exit {error.returncode}): "
+            f"{error.stderr or error.stdout}"
+        ) from error
     return [line for line in result.stdout.splitlines() if line]
 
 

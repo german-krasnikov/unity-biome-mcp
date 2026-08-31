@@ -82,6 +82,14 @@ jobs:
             hub-version: '3.19.5'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # Full history: run_fsr_qualification_cell.py and
+          # validate_fsr_qualification_receipts.py both run
+          # `git diff --name-only <base_product_sha>..HEAD` (the
+          # aggregate base-SHA-untouched guard) — the default shallow
+          # clone (fetch-depth: 1) has no history reaching the frozen
+          # base and fails closed with exit 128 on every cell.
+          fetch-depth: 0
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
@@ -162,10 +170,15 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
+          mkdir -p "artifacts/${{ matrix.cell }}/pilot"
           python scripts/run_fsr_qualification_cell.py \
             --mode pilot \
             --unity "${{ steps.unity-setup.outputs.unity-editor-path }}" \
-            --work-root "${{ runner.temp }}/fsr-pilot-${{ matrix.cell }}-${{ github.run_id }}" \
+            --work-root "$RUNNER_TEMP/fsr-pilot-${{ matrix.cell }}-${{ github.run_id }}" \
+            --evidence-out "artifacts/${{ matrix.cell }}/pilot" \
+            --cell-name ${{ matrix.cell }} \
+            --os-name ${{ matrix.os_name }} \
+            --arch ${{ matrix.arch }} \
             --port 9600 \
             --startup-timeout 420
 
@@ -179,7 +192,7 @@ jobs:
           python scripts/run_fsr_qualification_cell.py \
             --mode full \
             --unity "${{ steps.unity-setup.outputs.unity-editor-path }}" \
-            --work-root "${{ runner.temp }}/fsr-cell-${{ matrix.cell }}-${{ github.run_id }}" \
+            --work-root "$RUNNER_TEMP/fsr-cell-${{ matrix.cell }}-${{ github.run_id }}" \
             --window ${{ matrix.window }} \
             --lock scripts/fsr_qualification_lock.json \
             --provider-pin scripts/source_patch_provider_pin.json \
@@ -249,6 +262,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # Full history: run_fsr_qualification_cell.py and
+          # validate_fsr_qualification_receipts.py both run
+          # `git diff --name-only <base_product_sha>..HEAD` (the
+          # aggregate base-SHA-untouched guard) — the default shallow
+          # clone (fetch-depth: 1) has no history reaching the frozen
+          # base and fails closed with exit 128 on every cell.
+          fetch-depth: 0
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
