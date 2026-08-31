@@ -187,14 +187,26 @@ def _write_final_prefs_snapshot(evidence_out: Path | None, *, os_name: str, proj
 
 LINUX_LICENSE_FILE_REL = Path(".local") / "share" / "unity3d" / "Unity" / "Unity_lic.ulf"
 
-# P1-30: structural off-mode evidence — mirrors
-# scripts/fixtures/fsr_qualification/Editor/CycleInstrumentation.cs
-# exactly (same denylist fragments, same domain-loads.jsonl path/shape) so
-# a fixture change and a driver change can never silently drift apart
-# without a test catching it.
-DOMAIN_LOAD_DENYLIST_FRAGMENTS = (
-    "roslyn", "codeanalysis", "harmony", "cecil", "monomod", "fastscriptreload",
-)
+# P1-30: structural off-mode evidence — domain-loads.jsonl path/shape
+# mirrors scripts/fixtures/fsr_qualification/Editor/CycleInstrumentation.cs
+# exactly, but this fragment set is deliberately NARROWER than the
+# fixture's own inline list. The fixture's broader set decides what to
+# INCLUDE in the evidence dump (harmless to be generous there — Python
+# does its own, separate, precise pass/fail decision afterward); this
+# set decides pass/fail, where precision matters. Run 20 (33427266391):
+# matching "cecil" (even against an assembly's LOCATION, not just its
+# name) false-positived on Unity.Cecil (Unity's OWN built-in, from
+# Editor/Data/Managed, always present) and Mono.Cecil.*/
+# Unity.Burst.Cecil.* (separate com.unity.nuget.mono-cecil /
+# com.unity.burst packages — base project dependencies, not exclusive
+# to the optional FastScriptReload package) — "cecil" is simply too
+# generic a substring for either name- or location-based matching to
+# disambiguate. "fastscriptreload" alone, matched against LOCATION,
+# correctly and uniquely identifies every confirmed true positive
+# (FastScriptReload.Editor/Runtime — the package folder name is their
+# own filename; the bundled Roslyn DLLs — inside the package's own
+# Plugins/Roslyn folder) with zero observed false positives.
+DOMAIN_LOAD_DENYLIST_FRAGMENTS = ("fastscriptreload",)
 DOMAIN_LOADS_REL = (
     Path("Library") / "UnityMCP" / "FsrQualificationCell" / "fsr-qualification" / "domain-loads.jsonl"
 )
@@ -511,9 +523,18 @@ async def _phase_final_restore(
 
     v4_records = await _wait_for_new_domain_load(project, after_count=len(before_records))
     last_assemblies = v4_records[-1].get("assemblies", [])
+    # Run 20 (33427266391): matching by bare NAME substring ("cecil")
+    # false-positived on Unity.Cecil (Unity's OWN built-in, from
+    # Editor/Data/Managed, always present) and Mono.Cecil.*/
+    # Unity.Burst.Cecil.* (separate com.unity.nuget.mono-cecil /
+    # com.unity.burst packages -- base project dependencies, not
+    # exclusive to the optional FastScriptReload package). Location
+    # correctly identifies only assemblies physically inside
+    # FastScriptReload's own package folder (or, for its own
+    # FastScriptReload.Editor/Runtime, its own filename).
     found = [
         assembly.get("name", "") for assembly in last_assemblies
-        if any(fragment in assembly.get("name", "").lower() for fragment in DOMAIN_LOAD_DENYLIST_FRAGMENTS)
+        if any(fragment in assembly.get("location", "").lower() for fragment in DOMAIN_LOAD_DENYLIST_FRAGMENTS)
     ]
     evidence["assembly_needles_found"] = found
     evidence["assembly_needles_absent"] = not found
@@ -531,8 +552,18 @@ async def _phase_final_restore(
 
     restored_bytes = target_path.read_bytes() if target_path.is_file() else b""
     pristine_bytes = harness.target_body("v0").encode("utf-8")
-    evidence["restored_sha256"] = fq.byte_diagnostic(restored_bytes)["sha256"]
-    evidence["pristine_sha256"] = fq.byte_diagnostic(pristine_bytes)["sha256"]
+    # Run 20 (33427266391): the first time this check was ever actually
+    # exercised (every earlier run failed before reaching it) --
+    # restore_sha_matches came back False with no further detail. Full
+    # byte_diagnostic (not just sha256) captured unconditionally so a
+    # mismatch is directly diagnosable (e.g. a UTF-8 BOM prefix from the
+    # legacy write route) rather than re-guessed blind on the next run.
+    restored_diag = fq.byte_diagnostic(restored_bytes)
+    pristine_diag = fq.byte_diagnostic(pristine_bytes)
+    evidence["restored_byte_diagnostic"] = restored_diag
+    evidence["pristine_byte_diagnostic"] = pristine_diag
+    evidence["restored_sha256"] = restored_diag["sha256"]
+    evidence["pristine_sha256"] = pristine_diag["sha256"]
     evidence["restore_sha_matches"] = evidence["restored_sha256"] == evidence["pristine_sha256"]
 
     checks = ("compute_after_legacy_write_is_4", "assembly_needles_absent", "restore_sha_matches")

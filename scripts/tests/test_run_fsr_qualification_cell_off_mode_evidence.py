@@ -731,7 +731,13 @@ def test_phase_final_restore_raises_when_denylist_assembly_present(
 
     async def _call(port, command, args):
         target.write_bytes(args["content"].encode("utf-8"))
-        _append_domain_load(tmp_path, {"pid": 111, "assemblies": [{"name": "0Harmony"}]})
+        _append_domain_load(tmp_path, {
+            "pid": 111,
+            "assemblies": [{
+                "name": "0Harmony",
+                "location": "/worker/Library/PackageCache/com.handzlikchris.fastscriptreload@x/Plugins/0Harmony.dll",
+            }],
+        })
         return "ok"
 
     monkeypatch.setattr(cell_script.durable, "call", _call)
@@ -742,6 +748,51 @@ def test_phase_final_restore_raises_when_denylist_assembly_present(
 
     assert exc_info.value.off_mode_evidence["assembly_needles_absent"] is False
     assert "0Harmony" in exc_info.value.off_mode_evidence["assembly_needles_found"]
+
+
+def test_phase_final_restore_does_not_flag_unity_or_base_package_cecil_assemblies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Run 20 (33427266391): min-linux-x64 got past step 6 cleanly for
+    the first time and failed here instead -- assembly_needles_found
+    listed Unity.Cecil (Unity's OWN built-in, from
+    Editor/Data/Managed/Unity.Cecil.dll, ALWAYS present regardless of
+    any package), plus Mono.Cecil.*/Unity.Burst.Cecil.* (from the
+    separate com.unity.nuget.mono-cecil and com.unity.burst packages --
+    base project dependencies, not exclusive to the optional
+    FastScriptReload package). Matching by bare NAME substring ("cecil")
+    catches all of these; matching by LOCATION path correctly identifies
+    only assemblies physically inside FastScriptReload's own package
+    folder (or, for FastScriptReload.Editor/Runtime, its own filename)."""
+    target = tmp_path / "target.cs"
+
+    async def _call(port, command, args):
+        target.write_bytes(args["content"].encode("utf-8"))
+        _append_domain_load(tmp_path, {
+            "pid": 111,
+            "assemblies": [
+                {"name": "Unity.Cecil", "location": "/opt/Unity/Editor/Data/Managed/Unity.Cecil.dll"},
+                {
+                    "name": "Mono.Cecil",
+                    "location": "/worker/Library/PackageCache/com.unity.nuget.mono-cecil@x/Mono.Cecil.dll",
+                },
+                {
+                    "name": "Unity.Burst.Cecil",
+                    "location": "/worker/Library/PackageCache/com.unity.burst@x/Unity.Burst.CodeGen/Unity.Burst.Cecil.dll",
+                },
+            ],
+        })
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+    _oracle_sequence(monkeypatch, [{"compute": "4"}])
+
+    evidence = asyncio.run(
+        cell_script._phase_final_restore(port=9600, project=tmp_path, target_path=target)
+    )
+
+    assert evidence["assembly_needles_found"] == []
+    assert evidence["assembly_needles_absent"] is True
 
 
 def test_phase_final_restore_raises_when_compute_after_legacy_write_is_not_4(
