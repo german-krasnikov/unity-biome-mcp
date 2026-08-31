@@ -27,14 +27,15 @@ REQUIRED_CELL_WINDOWS = ("u_min", "u_max")
 REQUIRED_CELL_FIELDS = ("unity_version", "unity_revision", "utf_version")
 VALID_OUTCOMES = frozenset({"PASS", "FAIL", "INFRASTRUCTURE_BLOCKED"})
 GUARDED_BASE_PREFIXES = ("unity-plugin/", "server/src/")
-EXPECTED_CELLS = (
-    "min-macos-arm64",
-    "min-windows-x64",
-    "min-linux-x64",
-    "max-macos-arm64",
-    "max-windows-x64",
-    "max-linux-x64",
-)
+# Narrowed after run 5 (coordinator decision, Plans/HotReload/V2/FSR-MVP-CLEAN
+# /04-PARETO-COMPLETION-HANDOFF.md §1.1): u_max shelved to P2-07. The
+# qualifying window is u_min on macOS/Linux only; Windows is kept as a
+# documented, non-blocking INFRASTRUCTURE_BLOCKED limitation — present with
+# an honest receipt is required, PASS is not (never a green skip: an
+# absent or invalid-outcome Windows receipt still fails the aggregate).
+REQUIRED_PASS_CELLS = ("min-macos-arm64", "min-linux-x64")
+DOCUMENTED_BLOCKED_CELLS = ("min-windows-x64",)
+EXPECTED_CELLS = REQUIRED_PASS_CELLS + DOCUMENTED_BLOCKED_CELLS
 
 
 class FsrQualificationError(RuntimeError):
@@ -154,36 +155,46 @@ def assert_base_sha_untouched(
 def validate_receipt_set(
     receipts: Sequence[Mapping[str, object]], lock: Mapping[str, object]
 ) -> None:
-    """Aggregate-job guard: DoD requires exactly 6/6 unique PASS receipts
-    bound to one SHA set (§7 P1-20). Any missing cell, duplicate, non-PASS
-    outcome, or SHA drift fails the aggregate — this never averages or
-    partially-passes the matrix."""
+    """Aggregate-job guard, narrowed after run 5: exactly 2/2 unique PASS
+    receipts for REQUIRED_PASS_CELLS, bound to one SHA set, plus exactly
+    one present, honestly-labeled receipt for DOCUMENTED_BLOCKED_CELLS
+    (Windows) — its outcome does not have to be PASS, but it must exist
+    and carry a real VALID_OUTCOMES value. A missing or duplicate cell
+    (either kind), a non-PASS required cell, an invalid-outcome blocked
+    cell, or SHA drift on a required cell fails the aggregate — this never
+    averages or partially-passes the matrix, and Windows is never a green
+    skip by simply being absent."""
     cells_seen = [receipt.get("cell") for receipt in receipts]
     if sorted(cells_seen) != sorted(EXPECTED_CELLS):
         raise FsrQualificationError(
-            f"Expected exactly the 6 cells {sorted(EXPECTED_CELLS)}, got {sorted(cells_seen)}"
+            f"Expected exactly the cells {sorted(EXPECTED_CELLS)}, got {sorted(cells_seen)}"
         )
     if len(set(cells_seen)) != len(cells_seen):
         raise FsrQualificationError(f"Duplicate cell receipts: {cells_seen}")
 
-    for receipt in receipts:
+    by_cell = {receipt.get("cell"): receipt for receipt in receipts}
+
+    for cell in REQUIRED_PASS_CELLS:
+        receipt = by_cell[cell]
         if receipt.get("outcome") != "PASS":
-            raise FsrQualificationError(
-                f"Cell {receipt.get('cell')} is not PASS: {receipt.get('outcome')}"
-            )
+            raise FsrQualificationError(f"Required cell {cell} is not PASS: {receipt.get('outcome')}")
         if receipt.get("lock_base_product_sha") != lock["base_product_sha"]:
-            raise FsrQualificationError(
-                f"Cell {receipt.get('cell')} lock_base_product_sha does not match the lock"
-            )
+            raise FsrQualificationError(f"Cell {cell} lock_base_product_sha does not match the lock")
         if receipt.get("candidate_sha") != lock["final_fsr_adapter_sha"]:
+            raise FsrQualificationError(f"Cell {cell} candidate_sha does not match the lock")
+
+    for cell in DOCUMENTED_BLOCKED_CELLS:
+        receipt = by_cell[cell]
+        outcome = receipt.get("outcome")
+        if outcome not in VALID_OUTCOMES:
             raise FsrQualificationError(
-                f"Cell {receipt.get('cell')} candidate_sha does not match the lock"
+                f"Documented-blocked cell {cell} has no honest outcome: {outcome!r}"
             )
 
-    checkout_shas = {receipt.get("checkout_sha") for receipt in receipts}
+    checkout_shas = {by_cell[cell].get("checkout_sha") for cell in REQUIRED_PASS_CELLS}
     if len(checkout_shas) != 1:
         raise FsrQualificationError(
-            f"Cells ran against different checkout SHAs: {sorted(checkout_shas)}"
+            f"Required-pass cells ran against different checkout SHAs: {sorted(checkout_shas)}"
         )
 
 
@@ -262,6 +273,17 @@ def build_headed_unity_environment(
     env["UNITY_MCP_PORT"] = str(port)
     env["UNITY_MCP_PROJECT_PATH"] = str(project.resolve())
     return env
+
+
+def detect_dialog_suppressed(log_text: str) -> bool:
+    """Run 5 correction: "FSR: asset auto refresh enabled..." prints
+    unconditionally, before FSR's own StopShowing gate
+    (FastScriptReloadWelcomeScreen.cs L984 vs the DisplayDialogComplex call
+    at L986) — its presence does NOT mean the dialog was shown. The real
+    suppression marker is the absence of a DisplayDialogComplex stack
+    frame, which only appears in the log when the dialog itself is
+    actually invoked."""
+    return "DisplayDialogComplex" not in log_text
 
 
 def default_editor_log_path(*, os_name: str, home: Path) -> Path:
@@ -374,6 +396,8 @@ __all__ = [
     "GUARDED_BASE_PREFIXES",
     "VALID_OUTCOMES",
     "EXPECTED_CELLS",
+    "REQUIRED_PASS_CELLS",
+    "DOCUMENTED_BLOCKED_CELLS",
     "load_lock",
     "resolve_cell",
     "build_runtime_receipt",
@@ -383,6 +407,7 @@ __all__ = [
     "build_headed_unity_command",
     "build_headed_unity_environment",
     "default_editor_log_path",
+    "detect_dialog_suppressed",
     "capture_wait_diagnostics",
     "wait_for_port_diagnosed",
 ]

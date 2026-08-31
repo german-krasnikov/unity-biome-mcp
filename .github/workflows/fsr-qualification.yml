@@ -1,8 +1,16 @@
 name: FSR Qualification Matrix
 
-# P1-20: six-cell frozen U_MIN..U_MAX compatibility matrix. Advisory only —
-# workflow_dispatch (plus a temporary path-scoped push trigger, see below),
-# never required until a second unchanged 6/6 promotes it. See
+# P1-20: frozen compatibility matrix, narrowed after run 5 (coordinator
+# decision, see scripts/fsr_qualification_lock.json "qualified_windows"):
+# u_min (6000.0.65f1) on macOS/Linux is the qualifying pair; u_max
+# (6000.5.10f1, a staging-branch build) hung in the fixture-free pilot
+# unrelated to any fix applied here and is shelved to P2-07, not run.
+# Windows stays in the matrix as a documented, non-blocking
+# INFRASTRUCTURE_BLOCKED limitation (window-station-for-headed-GUI gap in
+# the GH-hosted runner service context) — required to produce an honest
+# receipt, never required to PASS. Advisory only — workflow_dispatch (plus
+# a temporary path-scoped push trigger, see below), never required until a
+# second unchanged aggregate PASS promotes it. See
 # Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md §7 P1-20.
 #
 # Existing unity-tests.yml/unity-compat.yml/ci-conformance.yml batchmode
@@ -14,7 +22,7 @@ on:
   workflow_dispatch: {}
   # temporary trigger: workflow_dispatch requires the file on the default
   # branch; remove the push trigger (or land on default) after the first
-  # recorded 6/6.
+  # recorded aggregate PASS.
   push:
     branches: [feature/mutation-fsr-mvp]
     paths:
@@ -61,24 +69,6 @@ jobs:
             # pin: 3.20.0 regresses /opt/unityhub/unityhub path on Linux
             # (issue #57) — same pin already proven by unity-tests.yml /
             # unity-compat.yml / ci-conformance.yml.
-            hub-version: '3.19.5'
-          - cell: max-macos-arm64
-            window: u_max
-            runner: macos-15
-            os_name: macOS
-            arch: arm64
-            hub-version: ''
-          - cell: max-windows-x64
-            window: u_max
-            runner: windows-2022
-            os_name: Windows
-            arch: x64
-            hub-version: ''
-          - cell: max-linux-x64
-            window: u_max
-            runner: ubuntu-24.04
-            os_name: Linux
-            arch: x64
             hub-version: '3.19.5'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -258,7 +248,7 @@ jobs:
           retention-days: 30
 
   aggregate:
-    name: Aggregate 6/6
+    name: Aggregate (2/2 required-pass + Windows documented-blocked)
     needs: [cell]
     if: always()
     runs-on: ubuntu-24.04
@@ -282,7 +272,7 @@ jobs:
           pattern: fsr-qualification-*
           path: receipts
 
-      - name: Assert exactly 6/6 unique PASS receipts bound to one SHA set
+      - name: Assert 2/2 required-pass receipts + one documented-blocked Windows receipt
         shell: bash
         run: |
           python scripts/validate_fsr_qualification_receipts.py \

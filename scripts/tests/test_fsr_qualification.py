@@ -236,7 +236,7 @@ def test_headed_unity_environment_omits_batchmode_marker():
 # one SHA set
 # ---------------------------------------------------------------------------
 
-def _receipt(cell: str, **overrides) -> dict:
+def _pass_receipt(cell: str, **overrides) -> dict:
     payload = {
         "cell": cell,
         "outcome": "PASS",
@@ -248,54 +248,91 @@ def _receipt(cell: str, **overrides) -> dict:
     return payload
 
 
-def _six_receipts() -> list:
-    return [_receipt(cell) for cell in fq.EXPECTED_CELLS]
+def _blocked_receipt(cell: str, **overrides) -> dict:
+    """Windows: no checkout_sha/lock_base_product_sha/candidate_sha —
+    matches the real workflow fallback receipt, written when pilot/setup
+    itself fails before run_full ever resolves the lock."""
+    payload = {"cell": cell, "outcome": "INFRASTRUCTURE_BLOCKED"}
+    payload.update(overrides)
+    return payload
+
+
+def _three_receipts() -> list:
+    return [
+        *(_pass_receipt(cell) for cell in fq.REQUIRED_PASS_CELLS),
+        *(_blocked_receipt(cell) for cell in fq.DOCUMENTED_BLOCKED_CELLS),
+    ]
 
 
 def _lock() -> dict:
     return {"base_product_sha": "a" * 40, "final_fsr_adapter_sha": "b" * 40}
 
 
-def test_validate_receipt_set_passes_for_six_matching_pass_receipts():
-    fq.validate_receipt_set(_six_receipts(), _lock())  # must not raise
+def test_validate_receipt_set_passes_for_two_pass_plus_one_documented_blocked():
+    fq.validate_receipt_set(_three_receipts(), _lock())  # must not raise
 
 
-def test_validate_receipt_set_raises_when_a_cell_is_missing():
-    receipts = _six_receipts()[:-1]
+def test_validate_receipt_set_raises_when_a_required_pass_cell_is_missing():
+    receipts = [r for r in _three_receipts() if r["cell"] != fq.REQUIRED_PASS_CELLS[0]]
+    with pytest.raises(fq.FsrQualificationError):
+        fq.validate_receipt_set(receipts, _lock())
+
+
+def test_validate_receipt_set_raises_when_the_blocked_cell_is_missing():
+    """Windows must never be silently absent — "documented-blocked, not a
+    green skip"."""
+    receipts = [r for r in _three_receipts() if r["cell"] not in fq.DOCUMENTED_BLOCKED_CELLS]
     with pytest.raises(fq.FsrQualificationError):
         fq.validate_receipt_set(receipts, _lock())
 
 
 def test_validate_receipt_set_raises_on_duplicate_cell():
-    receipts = _six_receipts()
+    receipts = _three_receipts()
     receipts[-1] = dict(receipts[0])
     with pytest.raises(fq.FsrQualificationError):
         fq.validate_receipt_set(receipts, _lock())
 
 
-def test_validate_receipt_set_raises_on_non_pass_outcome():
-    receipts = _six_receipts()
+def test_validate_receipt_set_raises_when_required_pass_cell_is_not_pass():
+    receipts = _three_receipts()
     receipts[0]["outcome"] = "INFRASTRUCTURE_BLOCKED"
     with pytest.raises(fq.FsrQualificationError):
         fq.validate_receipt_set(receipts, _lock())
 
 
+def test_validate_receipt_set_does_not_require_blocked_cell_to_pass():
+    """The whole point: Windows INFRASTRUCTURE_BLOCKED must not fail the
+    aggregate — only a missing or invalid-outcome blocked receipt should."""
+    receipts = _three_receipts()
+    assert receipts[-1]["outcome"] == "INFRASTRUCTURE_BLOCKED"
+    fq.validate_receipt_set(receipts, _lock())  # must not raise
+
+
+def test_validate_receipt_set_raises_when_blocked_cell_outcome_is_not_a_valid_enum_value():
+    """Never a green skip: the blocked cell must carry a real, honest
+    outcome value, not an arbitrary/fabricated one."""
+    receipts = _three_receipts()
+    receipts[-1]["outcome"] = "SKIPPED"
+    with pytest.raises(fq.FsrQualificationError):
+        fq.validate_receipt_set(receipts, _lock())
+
+
 def test_validate_receipt_set_raises_on_base_sha_mismatch():
-    receipts = _six_receipts()
+    receipts = _three_receipts()
     receipts[0]["lock_base_product_sha"] = "c" * 40
     with pytest.raises(fq.FsrQualificationError):
         fq.validate_receipt_set(receipts, _lock())
 
 
 def test_validate_receipt_set_raises_on_candidate_sha_mismatch():
-    receipts = _six_receipts()
+    receipts = _three_receipts()
     receipts[0]["candidate_sha"] = "c" * 40
     with pytest.raises(fq.FsrQualificationError):
         fq.validate_receipt_set(receipts, _lock())
 
 
-def test_validate_receipt_set_raises_when_checkout_shas_differ():
-    receipts = _six_receipts()
+def test_validate_receipt_set_raises_when_required_pass_checkout_shas_differ():
+    receipts = _three_receipts()
     receipts[0]["checkout_sha"] = "c" * 40
     with pytest.raises(fq.FsrQualificationError):
         fq.validate_receipt_set(receipts, _lock())
@@ -536,3 +573,33 @@ def test_build_runtime_receipt_embeds_preseed_receipt_when_given():
         preseed={"mechanism": "linux_prefs_xml", "applied": True, "keys": ["kAutoRefreshMode"]},
     )
     assert receipt["preseed"]["mechanism"] == "linux_prefs_xml"
+
+
+# ---------------------------------------------------------------------------
+# detect_dialog_suppressed — Run 5 correction: "FSR: asset auto refresh
+# enabled..." prints unconditionally before the StopShowing gate
+# (FastScriptReloadWelcomeScreen.cs L984 vs the DisplayDialogComplex call
+# at L986), so its presence does NOT mean the dialog was shown. The real
+# suppression marker is the absence of a DisplayDialogComplex stack frame.
+# ---------------------------------------------------------------------------
+
+def test_detect_dialog_suppressed_true_when_no_dialog_stack_frame():
+    log_text = (
+        "FSR: Fast Script Reload - asset auto refresh enabled - full reload "
+        "will be triggered unless editor preference adjusted\n"
+        "Start importing Packages/com.handzlikchris.fastscriptreload\n"
+    )
+    assert fq.detect_dialog_suppressed(log_text) is True
+
+
+def test_detect_dialog_suppressed_false_when_dialog_stack_frame_present():
+    log_text = (
+        "FSR: Fast Script Reload - asset auto refresh enabled\n"
+        "UnityEditor.EditorUtility:DisplayDialogComplex "
+        "(string,string,string,string,string)\n"
+    )
+    assert fq.detect_dialog_suppressed(log_text) is False
+
+
+def test_detect_dialog_suppressed_true_for_empty_log():
+    assert fq.detect_dialog_suppressed("") is True

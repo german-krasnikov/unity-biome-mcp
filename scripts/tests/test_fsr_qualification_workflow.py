@@ -48,31 +48,24 @@ def test_workflow_push_trigger_is_documented_as_temporary():
     assert "after the first" in text
 
 
-def test_workflow_defines_exactly_six_frozen_cells():
+def test_workflow_defines_exactly_the_three_narrowed_cells():
+    """Narrowed after run 5 (coordinator decision): u_max is shelved to
+    P2-07 — only the three u_min cells remain (macOS/Linux required-pass,
+    Windows documented-blocked)."""
     data = _parsed()
     cells = data["jobs"]["cell"]["strategy"]["matrix"]["include"]
     names = sorted(entry["cell"] for entry in cells)
     assert names == [
-        "max-linux-x64",
-        "max-macos-arm64",
-        "max-windows-x64",
         "min-linux-x64",
         "min-macos-arm64",
         "min-windows-x64",
     ]
 
 
-def test_workflow_pairs_each_os_with_both_windows():
+def test_workflow_only_runs_u_min_window():
     data = _parsed()
     cells = data["jobs"]["cell"]["strategy"]["matrix"]["include"]
-    by_runner = {}
-    for entry in cells:
-        by_runner.setdefault(entry["runner"], set()).add(entry["window"])
-    assert by_runner == {
-        "macos-15": {"u_min", "u_max"},
-        "windows-2022": {"u_min", "u_max"},
-        "ubuntu-24.04": {"u_min", "u_max"},
-    }
+    assert {entry["window"] for entry in cells} == {"u_min"}
 
 
 def test_workflow_never_uses_fail_fast_or_cancels_in_progress():
@@ -250,3 +243,13 @@ def test_workflow_job_timeout_covers_worst_case_phase_sum():
     real headroom, not truncate mid-run before evidence is written."""
     data = _parsed()
     assert data["jobs"]["cell"]["timeout-minutes"] >= 150
+
+
+def test_workflow_aggregate_wording_no_longer_claims_six_of_six():
+    """Narrowed after run 5: the aggregate gate is 2/2 required-pass +
+    one documented-blocked Windows receipt, never a stale "6/6" claim."""
+    text = _text()
+    assert "6/6" not in text
+    aggregate_index = text.index("aggregate:")
+    block = text[aggregate_index:]
+    assert "documented-blocked" in block.lower() or "required-pass" in block.lower()
