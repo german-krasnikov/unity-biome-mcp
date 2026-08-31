@@ -175,7 +175,7 @@ def _recvexactly(s: socket.socket, n: int) -> bytes | None:
 
 def _probe_guard_locked(port: int, timeout: float = 2.0) -> "bool | None":
     """Returns True=wedged, False=clear, None=unable to query."""
-    code = 'UnityEditor.SessionState.GetBool("MCP_ReloadGuardLocked", false).ToString()'
+    code = 'UnityEditor.SessionState.GetBool("MCP_ReloadGuardLocked", false).ToString();'
     msg = json.dumps({"cmd": "execute_code", "args": {"code": code}, "id": "chk-g"}).encode()
     frame = struct.pack(">I", len(msg)) + msg
     try:

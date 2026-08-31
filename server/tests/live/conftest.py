@@ -1097,12 +1097,12 @@ def _data(result) -> str:
 
 
 def _ok(result) -> str:
-    """Assert result is ok and return data string."""
+    """Assert result is ok and return data string, stripped of middleware markers."""
     d = result.get("data", "") if isinstance(result, dict) else str(result)
     err = result.get("err", "") if isinstance(result, dict) else ""
     ok = result.get("ok", True) if isinstance(result, dict) else True
     assert ok, f"cmd failed: {err or d}"
-    return d
+    return strip_markers(d)
 
 
 def _transient_ref(text: str) -> str:
