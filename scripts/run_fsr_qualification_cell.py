@@ -269,24 +269,52 @@ async def _query_oracle(
     return result
 
 
-async def _wait_for_oracle_settle(
-    port: int, *, timeout: float = 60.0, poll_interval: float = 0.5
-) -> dict[str, str]:
-    """Polls _query_oracle until compiling=false — used right after a
-    reload-triggering write/mode-change so the evidence captured is the
-    settled post-reload state, not a mid-compile snapshot. Raises rather
-    than silently returning a still-compiling snapshot: DoD language is
-    explicit that no cycle evidence may be "skipped/uncertain" (§6 P0-80)."""
-    oracle = await _query_oracle(port)
+async def _wait_for_new_domain_load(
+    project: Path, *, after_count: int, timeout: float = 120.0, poll_interval: float = 1.0
+) -> list[dict[str, object]]:
+    """File-based reload confirmation — Pareto correction (coordinator,
+    after run 17): retrying an EFFECT command (mutation_mode disable, a
+    legacy .cs write) is fundamentally wrong -- it violates this
+    project's own "never retry an MCP call with identical arguments"
+    rule -- and was the actual root cause of run 17's epoch/compileCount
+    contamination (the retry wrapper resent the disable command into an
+    already-reloaded domain, so before/after live-oracle snapshots ended
+    up reading the SAME post-reload state from two different call
+    attempts, not a real before/after pair). domain-loads.jsonl already
+    proved reliable for this exact purpose in runs 6-12, before a
+    live-oracle approach replaced it for P1-20's structured evidence.
+
+    Polls _read_domain_loads(project) until it holds more than
+    after_count records, then returns every record added since (normally
+    exactly one — CycleInstrumentation's [InitializeOnLoad] static
+    constructor writes one record per domain load, and the effect
+    command being waited on triggers exactly one)."""
     deadline = asyncio.get_event_loop().time() + timeout
-    while oracle.get("compiling") == "true":
+    while True:
+        records = _read_domain_loads(project)
+        if len(records) > after_count:
+            return records[after_count:]
         if asyncio.get_event_loop().time() >= deadline:
             raise FsrQualificationCellError(
-                f"Unity did not settle (still compiling) within {timeout}s"
+                f"No new domain-load record appeared within {timeout}s"
             )
         await asyncio.sleep(poll_interval)
-        oracle = await _query_oracle(port)
-    return oracle
+
+
+async def _call_effect_expecting_reload_disconnect(
+    port: int, command: str, args: dict[str, object]
+) -> str:
+    """Calls an EFFECT command (disabling ON mode, a legacy .cs write)
+    exactly once — never retried, unlike _call_retrying_reload_race,
+    which is for read-only queries only. A TransportUncertain/
+    OSError/ConnectionError/TimeoutError here is the command's own
+    reload actually happening, not a failure to paper over; the reload
+    itself is confirmed afterward through domain-loads.jsonl via
+    _wait_for_new_domain_load, never by retrying this call."""
+    try:
+        return await durable.call(port, command, args)
+    except (OSError, ConnectionError, TimeoutError, durable.TransportUncertain) as error:
+        return f"reload-disconnect (expected): {error}"
 
 
 def _read_domain_loads(project: Path) -> list[dict[str, object]]:
@@ -357,56 +385,53 @@ async def _phase_off_disable_evidence(*, port: int, project: Path) -> dict[str, 
     previously existed only as unstructured unity.log text, never
     validated independently by the receipt itself.
 
-    Queries CycleInstrumentation.QueryOracle() immediately before
-    disabling ON mode (epoch/compile-count baseline), disables (the one
-    legacy compile/reload this step requires), waits for that reload to
-    settle, then queries again — the delta between the two oracle
-    snapshots is the proof, not a log grep. same_pid comes from every
-    domain-loads.jsonl record's pid across the whole launch (not just the
-    two endpoints), so a transient respawn in between can't hide. On any
-    check failing, raises with whatever evidence was collected attached as
-    .off_mode_evidence — the same pattern _phase_on_retained_object uses
+    File-oracle design (coordinator correction after run 17: retrying the
+    disable EFFECT command corrupted live before/after oracle snapshots
+    of the SAME reload -- see _wait_for_new_domain_load's docstring).
+    Disables exactly once, never retried; the reload is confirmed by a
+    NEW domain-loads.jsonl record appearing, and every structural field
+    (pid, epoch, compileStartedCount) is read directly from that record
+    and the one immediately before it -- never from a live before/after
+    oracle pair. The only live call is a single, read-only oracle query
+    AFTER the reload is already confirmed, to read `compute` (the one
+    field domain-loads.jsonl does not carry). On any check failing,
+    raises with whatever evidence was collected attached as
+    .off_mode_evidence -- the same pattern _phase_on_retained_object uses
     for .byte_diagnostics."""
     evidence: dict[str, object] = {}
 
-    before = await _query_oracle(port)
-    evidence["epoch_before"] = before.get("epoch")
-    evidence["compile_started_count_before"] = before.get("compileCount")
+    before_records = _read_domain_loads(project)
+    previous_record = before_records[-1] if before_records else {}
 
-    evidence["disable_result"] = await _call_retrying_reload_race(
+    evidence["disable_result"] = await _call_effect_expecting_reload_disconnect(
         port, "editor", {"action": "mutation_mode", "enable": False}
     )
 
-    after = await _wait_for_oracle_settle(port)
-    evidence["epoch_after"] = after.get("epoch")
-    evidence["compile_started_count_after"] = after.get("compileCount")
-    evidence["compute_after_disable"] = after.get("compute")
+    new_records = await _wait_for_new_domain_load(project, after_count=len(before_records))
+    evidence["new_domain_load_count"] = len(new_records)
+    new_record = new_records[-1]
 
-    epoch_before_i = _int_or_none(evidence["epoch_before"])
-    epoch_after_i = _int_or_none(evidence["epoch_after"])
-    epoch_delta = (
-        epoch_after_i - epoch_before_i if epoch_before_i is not None and epoch_after_i is not None else None
-    )
+    evidence["editor_pid"] = new_record.get("pid")
+    evidence["same_pid"] = new_record.get("pid") == previous_record.get("pid")
+
+    epoch_before_i = _int_or_none(previous_record.get("epoch")) or 0
+    epoch_after_i = _int_or_none(new_record.get("epoch"))
+    epoch_delta = epoch_after_i - epoch_before_i if epoch_after_i is not None else None
+    evidence["epoch_before"] = epoch_before_i
+    evidence["epoch_after"] = epoch_after_i
     evidence["epoch_delta"] = epoch_delta
     evidence["epoch_delta_is_one"] = epoch_delta == 1
 
-    count_before_i = _int_or_none(evidence["compile_started_count_before"])
-    count_after_i = _int_or_none(evidence["compile_started_count_after"])
-    count_delta = (
-        count_after_i - count_before_i if count_before_i is not None and count_after_i is not None else None
-    )
-    evidence["compile_started_count_delta"] = count_delta
-    evidence["compile_started_count_delta_is_one"] = count_delta == 1
+    compile_started_count = _int_or_none(new_record.get("compileStartedCount"))
+    evidence["compile_started_count"] = compile_started_count
+    evidence["compile_started_count_is_one"] = compile_started_count == 1
 
-    evidence["compute_after_disable_is_3"] = evidence["compute_after_disable"] == "3"
-
-    domain_loads = _read_domain_loads(project)
-    pids = {record.get("pid") for record in domain_loads if "pid" in record}
-    evidence["same_pid"] = len(pids) <= 1
-    evidence["editor_pid"] = domain_loads[-1].get("pid") if domain_loads else None
+    oracle = await _query_oracle(port)
+    evidence["compute_after_disable"] = oracle.get("compute")
+    evidence["compute_after_disable_is_3"] = oracle.get("compute") == "3"
 
     checks = (
-        "epoch_delta_is_one", "compile_started_count_delta_is_one",
+        "epoch_delta_is_one", "compile_started_count_is_one",
         "compute_after_disable_is_3", "same_pid",
     )
     failed = [name for name in checks if not evidence.get(name)]
@@ -428,20 +453,26 @@ async def _phase_final_restore(
     physically gone, and CycleInstrumentation's own denylist scan of
     AppDomain assemblies confirms none of the provider's names are
     loaded), then v0 (restores the pristine baseline byte-for-byte,
-    verified by sha256, not merely "no exception raised"). On any check
-    failing, raises with whatever evidence was collected attached as
-    .off_mode_evidence."""
+    verified by sha256, not merely "no exception raised").
+
+    File-oracle design (coordinator correction after run 17: same reason
+    as _phase_off_disable_evidence -- each .cs write is an EFFECT
+    command, never retried; its reload is confirmed via a new
+    domain-loads.jsonl record, not a live before/after oracle pair). The
+    only live calls are read-only oracle queries for `compute`, issued
+    only after each reload is already confirmed via the file. On any
+    check failing, raises with whatever evidence was collected attached
+    as .off_mode_evidence."""
     evidence: dict[str, object] = {}
 
-    evidence["legacy_write_result"] = await _call_retrying_reload_race(
+    before_records = _read_domain_loads(project)
+
+    evidence["legacy_write_result"] = await _call_effect_expecting_reload_disconnect(
         port, "asset", {"action": "write_text", "path": REL_TARGET, "content": harness.target_body("v4")}
     )
-    oracle_v4 = await _wait_for_oracle_settle(port)
-    evidence["compute_after_legacy_write"] = oracle_v4.get("compute")
-    evidence["compute_after_legacy_write_is_4"] = oracle_v4.get("compute") == "4"
 
-    domain_loads = _read_domain_loads(project)
-    last_assemblies = domain_loads[-1].get("assemblies", []) if domain_loads else []
+    v4_records = await _wait_for_new_domain_load(project, after_count=len(before_records))
+    last_assemblies = v4_records[-1].get("assemblies", [])
     found = [
         assembly.get("name", "") for assembly in last_assemblies
         if any(fragment in assembly.get("name", "").lower() for fragment in DOMAIN_LOAD_DENYLIST_FRAGMENTS)
@@ -449,10 +480,17 @@ async def _phase_final_restore(
     evidence["assembly_needles_found"] = found
     evidence["assembly_needles_absent"] = not found
 
-    evidence["restore_write_result"] = await _call_retrying_reload_race(
+    oracle = await _query_oracle(port)
+    evidence["compute_after_legacy_write"] = oracle.get("compute")
+    evidence["compute_after_legacy_write_is_4"] = oracle.get("compute") == "4"
+
+    evidence["restore_write_result"] = await _call_effect_expecting_reload_disconnect(
         port, "asset", {"action": "write_text", "path": REL_TARGET, "content": harness.target_body("v0")}
     )
-    await _wait_for_oracle_settle(port)
+    await _wait_for_new_domain_load(
+        project, after_count=len(before_records) + len(v4_records)
+    )
+
     restored_bytes = target_path.read_bytes() if target_path.is_file() else b""
     pristine_bytes = harness.target_body("v0").encode("utf-8")
     evidence["restored_sha256"] = fq.byte_diagnostic(restored_bytes)["sha256"]
@@ -640,7 +678,16 @@ async def _phase_on_retained_object(*, port, target_path: Path) -> list[dict[str
     never asset/write_text — the C# side explicitly rejects a legacy write
     on a .cs path in that state ("source patch active — legacy .cs write
     rejected pre-effect", Run 5: 33387852561). This is the same routing
-    server/src/unity_mcp/tools/asset.py itself performs."""
+    server/src/unity_mcp/tools/asset.py itself performs.
+
+    Enables ON mode but never disables it — disabling (step 6, §6 P0-80)
+    is exclusively _phase_off_disable_evidence's responsibility. A stray
+    leftover disable call here (removed after run 17) double-disabled
+    mutation mode on every real run: the actual reload happened silently
+    in THIS phase, before _phase_off_disable_evidence's own disable call
+    ever ran, so its epoch/compileCount before/after always came back
+    unchanged — the "before" snapshot already reflected the post-reload
+    state, and the second disable call was a same-state no-op."""
     diagnostics: list[dict[str, object]] = []
     await durable.call(port, "editor", {"action": "mutation_mode", "enable": True})
     for kind in ON_MODE_KIND_SEQUENCE:
@@ -684,7 +731,6 @@ async def _phase_on_retained_object(*, port, target_path: Path) -> list[dict[str
         else:
             entry["result"] = "applied"
         diagnostics.append(entry)
-    await durable.call(port, "editor", {"action": "mutation_mode", "enable": False})
     return diagnostics
 
 

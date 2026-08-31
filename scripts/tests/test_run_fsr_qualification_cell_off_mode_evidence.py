@@ -224,36 +224,118 @@ def test_query_oracle_does_not_retry_on_a_genuine_runner_error(monkeypatch: pyte
 
 
 # ---------------------------------------------------------------------------
-# _wait_for_oracle_settle — polls until compiling=false; raises rather than
-# silently returning a still-compiling snapshot (no uncertain evidence).
+# _wait_for_new_domain_load / _call_effect_expecting_reload_disconnect --
+# Pareto correction (coordinator, after run 17): retrying an EFFECT
+# command (mutation_mode disable, a legacy .cs write) is fundamentally
+# wrong -- it violates this project's own "never retry an MCP call with
+# identical arguments" rule -- and was the actual root cause of run 17's
+# epoch/compileCount contamination, not a settle-timing race. Reload
+# confirmation and every structural field now come from
+# domain-loads.jsonl (already proven reliable for this in runs 6-12),
+# never from live before/after oracle snapshots bracketing a retried
+# effect call.
 # ---------------------------------------------------------------------------
 
-def test_wait_for_oracle_settle_returns_once_compiling_is_false(monkeypatch: pytest.MonkeyPatch):
-    responses = iter([
-        {"compiling": "true", "compute": "?"},
-        {"compiling": "true", "compute": "?"},
-        {"compiling": "false", "compute": "4"},
-    ])
+def test_call_effect_expecting_reload_disconnect_returns_normal_response(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    async def _call(port, command, args):
+        return "mutation_mode:false"
 
-    async def _fake_query_oracle(port):
-        return next(responses)
+    monkeypatch.setattr(cell_script.durable, "call", _call)
 
-    monkeypatch.setattr(cell_script, "_query_oracle", _fake_query_oracle)
+    result = asyncio.run(
+        cell_script._call_effect_expecting_reload_disconnect(9600, "editor", {"action": "mutation_mode"})
+    )
 
-    oracle = asyncio.run(cell_script._wait_for_oracle_settle(9600, timeout=5.0, poll_interval=0.01))
-
-    assert oracle == {"compiling": "false", "compute": "4"}
+    assert result == "mutation_mode:false"
 
 
-def test_wait_for_oracle_settle_raises_when_still_compiling_at_deadline(monkeypatch: pytest.MonkeyPatch):
-    async def _fake_query_oracle(port):
-        return {"compiling": "true", "compute": "?"}
+def test_call_effect_expecting_reload_disconnect_treats_disconnect_as_expected_not_a_failure(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """The whole point: a TransportUncertain/connection-refused/timeout
+    right after an effect command IS that command's own reload — it must
+    never be retried (this project's own "never retry with identical
+    args" rule) and must never fail the call."""
+    calls = {"n": 0}
 
-    monkeypatch.setattr(cell_script, "_query_oracle", _fake_query_oracle)
+    async def _call(port, command, args):
+        calls["n"] += 1
+        raise cell_script.durable.TransportUncertain("going away")
 
-    with pytest.raises(cell_script.FsrQualificationCellError, match="did not settle"):
-        asyncio.run(cell_script._wait_for_oracle_settle(9600, timeout=0.02, poll_interval=0.01))
+    monkeypatch.setattr(cell_script.durable, "call", _call)
 
+    result = asyncio.run(
+        cell_script._call_effect_expecting_reload_disconnect(9600, "editor", {"action": "mutation_mode"})
+    )
+
+    assert "reload-disconnect" in result
+    assert calls["n"] == 1  # never retried
+
+
+def test_call_effect_expecting_reload_disconnect_treats_connection_refused_as_expected(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    async def _call(port, command, args):
+        raise ConnectionRefusedError("[Errno 111] Connection refused")
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    result = asyncio.run(
+        cell_script._call_effect_expecting_reload_disconnect(9600, "asset", {"action": "write_text"})
+    )
+
+    assert "reload-disconnect" in result
+
+
+def test_wait_for_new_domain_load_polls_until_a_new_record_appears(tmp_path: Path):
+    path = tmp_path / "Library" / "UnityMCP" / "FsrQualificationCell" / "fsr-qualification" / "domain-loads.jsonl"
+    path.parent.mkdir(parents=True)
+    path.write_text('{"pid": 111, "epoch": 0}\n', encoding="utf-8")
+
+    async def _append_after_delay():
+        await asyncio.sleep(0.05)
+        with path.open("a", encoding="utf-8") as handle:
+            handle.write('{"pid": 111, "epoch": 1}\n')
+
+    async def _run():
+        appender = asyncio.ensure_future(_append_after_delay())
+        records = await cell_script._wait_for_new_domain_load(
+            tmp_path, after_count=1, timeout=2.0, poll_interval=0.01
+        )
+        await appender
+        return records
+
+    records = asyncio.run(_run())
+
+    assert records == [{"pid": 111, "epoch": 1}]
+
+
+def test_wait_for_new_domain_load_raises_when_nothing_new_appears_by_deadline(tmp_path: Path):
+    path = tmp_path / "Library" / "UnityMCP" / "FsrQualificationCell" / "fsr-qualification" / "domain-loads.jsonl"
+    path.parent.mkdir(parents=True)
+    path.write_text('{"pid": 111, "epoch": 0}\n', encoding="utf-8")
+
+    with pytest.raises(cell_script.FsrQualificationCellError, match="No new domain-load record"):
+        asyncio.run(
+            cell_script._wait_for_new_domain_load(tmp_path, after_count=1, timeout=0.02, poll_interval=0.01)
+        )
+
+
+def test_wait_for_new_domain_load_returns_multiple_records_if_more_than_one_appeared(tmp_path: Path):
+    path = tmp_path / "Library" / "UnityMCP" / "FsrQualificationCell" / "fsr-qualification" / "domain-loads.jsonl"
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        '{"pid": 111, "epoch": 0}\n{"pid": 111, "epoch": 1}\n{"pid": 111, "epoch": 2}\n',
+        encoding="utf-8",
+    )
+
+    records = asyncio.run(
+        cell_script._wait_for_new_domain_load(tmp_path, after_count=1, timeout=1.0, poll_interval=0.01)
+    )
+
+    assert records == [{"pid": 111, "epoch": 1}, {"pid": 111, "epoch": 2}]
 
 # ---------------------------------------------------------------------------
 # _read_domain_loads — reads Library/UnityMCP/FsrQualificationCell/
@@ -350,17 +432,28 @@ def test_manifest_matches_pre_pin_false_when_missing(tmp_path: Path):
 
 
 # ---------------------------------------------------------------------------
-# _phase_off_disable_evidence — step 6 (§6 P0-80): "disable: one receipt,
-# one sync, same PID/project, exact N -> N+1, clean compile and v3
-# behavior from normally compiled source." Queries the oracle immediately
-# before disabling, disables, waits for the resulting reload to settle,
-# queries again — the delta between the two snapshots is the proof.
+# _phase_off_disable_evidence / _phase_final_restore — steps 6 and 8-9
+# (§6 P0-80). File-oracle design (coordinator correction after run 17):
+# the disable/write EFFECT commands are each called exactly once, never
+# retried; the reload and every structural field come from
+# domain-loads.jsonl records, hermetically constructed here as fixtures
+# -- never from a live before/after oracle sequence bracketing a
+# possibly-retried effect call. The only live oracle call left in either
+# phase is a single, read-only query for `compute` after the reload is
+# already confirmed via the file.
 # ---------------------------------------------------------------------------
 
 def _write_domain_loads(project: Path, records: list[dict]) -> None:
     path = _domain_loads_path(project)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(json.dumps(r) for r in records) + "\n", encoding="utf-8")
+
+
+def _append_domain_load(project: Path, record: dict) -> None:
+    path = _domain_loads_path(project)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record) + "\n")
 
 
 def _oracle_sequence(monkeypatch: pytest.MonkeyPatch, snapshots: list[dict]) -> None:
@@ -373,46 +466,65 @@ def _oracle_sequence(monkeypatch: pytest.MonkeyPatch, snapshots: list[dict]) -> 
 
 
 def test_phase_off_disable_evidence_happy_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
-    _oracle_sequence(monkeypatch, [
-        {"epoch": "1", "compileCount": "0"},  # before disable
-        {"epoch": "2", "compileCount": "1", "compute": "3", "compiling": "false"},  # settled after
-    ])
-    _write_domain_loads(tmp_path, [{"pid": 111, "epoch": 1}, {"pid": 111, "epoch": 2}])
+    _write_domain_loads(tmp_path, [{"pid": 111, "epoch": 0, "compileStartedCount": 0}])
 
     async def _call(port, command, args):
         assert command == "editor" and args == {"action": "mutation_mode", "enable": False}
-        return "ok"
+        _append_domain_load(tmp_path, {"pid": 111, "epoch": 1, "compileStartedCount": 1})
+        return "mutation_mode:false"
 
     monkeypatch.setattr(cell_script.durable, "call", _call)
+    _oracle_sequence(monkeypatch, [{"compute": "3"}])
 
     evidence = asyncio.run(cell_script._phase_off_disable_evidence(port=9600, project=tmp_path))
 
-    assert evidence["disable_result"] == "ok"
-    assert evidence["epoch_before"] == "1"
-    assert evidence["epoch_after"] == "2"
+    assert evidence["disable_result"] == "mutation_mode:false"
+    assert evidence["epoch_before"] == 0
+    assert evidence["epoch_after"] == 1
     assert evidence["epoch_delta"] == 1
     assert evidence["epoch_delta_is_one"] is True
-    assert evidence["compile_started_count_delta"] == 1
-    assert evidence["compile_started_count_delta_is_one"] is True
+    assert evidence["compile_started_count"] == 1
+    assert evidence["compile_started_count_is_one"] is True
     assert evidence["compute_after_disable"] == "3"
     assert evidence["compute_after_disable_is_3"] is True
     assert evidence["same_pid"] is True
     assert evidence["editor_pid"] == 111
 
 
+def test_phase_off_disable_evidence_never_retries_the_disable_call(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """The whole point of the redesign: a disconnect right after the
+    disable call is that call's own reload, never a reason to resend it."""
+    _write_domain_loads(tmp_path, [{"pid": 111, "epoch": 0, "compileStartedCount": 0}])
+    calls = {"n": 0}
+
+    async def _call(port, command, args):
+        calls["n"] += 1
+        _append_domain_load(tmp_path, {"pid": 111, "epoch": 1, "compileStartedCount": 1})
+        raise cell_script.durable.TransportUncertain("going away")
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+    _oracle_sequence(monkeypatch, [{"compute": "3"}])
+
+    evidence = asyncio.run(cell_script._phase_off_disable_evidence(port=9600, project=tmp_path))
+
+    assert calls["n"] == 1
+    assert "reload-disconnect" in evidence["disable_result"]
+    assert evidence["epoch_delta_is_one"] is True
+
+
 def test_phase_off_disable_evidence_raises_when_epoch_delta_is_not_one(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    _oracle_sequence(monkeypatch, [
-        {"epoch": "1", "compileCount": "0"},
-        {"epoch": "3", "compileCount": "1", "compute": "3", "compiling": "false"},  # +2, not +1
-    ])
-    _write_domain_loads(tmp_path, [{"pid": 111}])
+    _write_domain_loads(tmp_path, [{"pid": 111, "epoch": 0, "compileStartedCount": 0}])
 
     async def _call(port, command, args):
-        return "ok"
+        _append_domain_load(tmp_path, {"pid": 111, "epoch": 2, "compileStartedCount": 1})  # +2, not +1
+        return "mutation_mode:false"
 
     monkeypatch.setattr(cell_script.durable, "call", _call)
+    _oracle_sequence(monkeypatch, [{"compute": "3"}])
 
     with pytest.raises(cell_script.FsrQualificationCellError) as exc_info:
         asyncio.run(cell_script._phase_off_disable_evidence(port=9600, project=tmp_path))
@@ -423,16 +535,14 @@ def test_phase_off_disable_evidence_raises_when_epoch_delta_is_not_one(
 def test_phase_off_disable_evidence_raises_when_compute_is_not_3(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    _oracle_sequence(monkeypatch, [
-        {"epoch": "1", "compileCount": "0"},
-        {"epoch": "2", "compileCount": "1", "compute": "2", "compiling": "false"},
-    ])
-    _write_domain_loads(tmp_path, [{"pid": 111}])
+    _write_domain_loads(tmp_path, [{"pid": 111, "epoch": 0, "compileStartedCount": 0}])
 
     async def _call(port, command, args):
-        return "ok"
+        _append_domain_load(tmp_path, {"pid": 111, "epoch": 1, "compileStartedCount": 1})
+        return "mutation_mode:false"
 
     monkeypatch.setattr(cell_script.durable, "call", _call)
+    _oracle_sequence(monkeypatch, [{"compute": "2"}])
 
     with pytest.raises(cell_script.FsrQualificationCellError) as exc_info:
         asyncio.run(cell_script._phase_off_disable_evidence(port=9600, project=tmp_path))
@@ -443,21 +553,37 @@ def test_phase_off_disable_evidence_raises_when_compute_is_not_3(
 def test_phase_off_disable_evidence_raises_when_pid_changed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    _oracle_sequence(monkeypatch, [
-        {"epoch": "1", "compileCount": "0"},
-        {"epoch": "2", "compileCount": "1", "compute": "3", "compiling": "false"},
-    ])
-    _write_domain_loads(tmp_path, [{"pid": 111}, {"pid": 222}])  # respawned mid-launch
+    _write_domain_loads(tmp_path, [{"pid": 111, "epoch": 0, "compileStartedCount": 0}])
 
     async def _call(port, command, args):
-        return "ok"
+        _append_domain_load(tmp_path, {"pid": 222, "epoch": 1, "compileStartedCount": 1})  # respawned
+        return "mutation_mode:false"
 
     monkeypatch.setattr(cell_script.durable, "call", _call)
+    _oracle_sequence(monkeypatch, [{"compute": "3"}])
 
     with pytest.raises(cell_script.FsrQualificationCellError) as exc_info:
         asyncio.run(cell_script._phase_off_disable_evidence(port=9600, project=tmp_path))
 
     assert exc_info.value.off_mode_evidence["same_pid"] is False
+
+
+def test_phase_off_disable_evidence_raises_when_compile_started_count_is_not_one(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    _write_domain_loads(tmp_path, [{"pid": 111, "epoch": 0, "compileStartedCount": 0}])
+
+    async def _call(port, command, args):
+        _append_domain_load(tmp_path, {"pid": 111, "epoch": 1, "compileStartedCount": 2})
+        return "mutation_mode:false"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+    _oracle_sequence(monkeypatch, [{"compute": "3"}])
+
+    with pytest.raises(cell_script.FsrQualificationCellError) as exc_info:
+        asyncio.run(cell_script._phase_off_disable_evidence(port=9600, project=tmp_path))
+
+    assert exc_info.value.off_mode_evidence["compile_started_count_is_one"] is False
 
 
 # ---------------------------------------------------------------------------
@@ -478,14 +604,14 @@ def test_phase_final_restore_happy_path(tmp_path: Path, monkeypatch: pytest.Monk
     async def _call(port, command, args):
         write_calls.append((command, args))
         target.write_bytes(args["content"].encode("utf-8"))
+        if "return 4" in args["content"]:
+            _append_domain_load(tmp_path, {"pid": 111, "assemblies": [{"name": "UnityEngine.CoreModule"}]})
+        else:
+            _append_domain_load(tmp_path, {"pid": 111, "assemblies": []})
         return "ok:" + args["content"][:10]
 
     monkeypatch.setattr(cell_script.durable, "call", _call)
-    _oracle_sequence(monkeypatch, [
-        {"compute": "4", "compiling": "false"},  # settled after v4 write
-        {"compute": "0", "compiling": "false"},  # settled after v0 restore write
-    ])
-    _write_domain_loads(tmp_path, [{"pid": 111, "assemblies": [{"name": "UnityEngine.CoreModule"}]}])
+    _oracle_sequence(monkeypatch, [{"compute": "4"}])
 
     evidence = asyncio.run(
         cell_script._phase_final_restore(port=9600, project=tmp_path, target_path=target)
@@ -502,6 +628,30 @@ def test_phase_final_restore_happy_path(tmp_path: Path, monkeypatch: pytest.Monk
     assert evidence["restored_sha256"] == evidence["pristine_sha256"]
 
 
+def test_phase_final_restore_never_retries_the_write_calls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    target = tmp_path / "target.cs"
+    calls = {"n": 0}
+
+    async def _call(port, command, args):
+        calls["n"] += 1
+        target.write_bytes(args["content"].encode("utf-8"))
+        _append_domain_load(tmp_path, {"pid": 111, "assemblies": []})
+        raise ConnectionRefusedError("[Errno 111] Connection refused")
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+    _oracle_sequence(monkeypatch, [{"compute": "4"}])
+
+    evidence = asyncio.run(
+        cell_script._phase_final_restore(port=9600, project=tmp_path, target_path=target)
+    )
+
+    assert calls["n"] == 2  # exactly one attempt per write, never retried
+    assert "reload-disconnect" in evidence["legacy_write_result"]
+    assert "reload-disconnect" in evidence["restore_write_result"]
+
+
 def test_phase_final_restore_raises_when_denylist_assembly_present(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
@@ -509,14 +659,11 @@ def test_phase_final_restore_raises_when_denylist_assembly_present(
 
     async def _call(port, command, args):
         target.write_bytes(args["content"].encode("utf-8"))
+        _append_domain_load(tmp_path, {"pid": 111, "assemblies": [{"name": "0Harmony"}]})
         return "ok"
 
     monkeypatch.setattr(cell_script.durable, "call", _call)
-    _oracle_sequence(monkeypatch, [
-        {"compute": "4", "compiling": "false"},
-        {"compute": "0", "compiling": "false"},
-    ])
-    _write_domain_loads(tmp_path, [{"pid": 111, "assemblies": [{"name": "0Harmony"}]}])
+    _oracle_sequence(monkeypatch, [{"compute": "4"}])
 
     with pytest.raises(cell_script.FsrQualificationCellError) as exc_info:
         asyncio.run(cell_script._phase_final_restore(port=9600, project=tmp_path, target_path=target))
@@ -532,14 +679,11 @@ def test_phase_final_restore_raises_when_compute_after_legacy_write_is_not_4(
 
     async def _call(port, command, args):
         target.write_bytes(args["content"].encode("utf-8"))
+        _append_domain_load(tmp_path, {"pid": 111, "assemblies": []})
         return "ok"
 
     monkeypatch.setattr(cell_script.durable, "call", _call)
-    _oracle_sequence(monkeypatch, [
-        {"compute": "3", "compiling": "false"},  # stale — legacy write did not take effect
-        {"compute": "0", "compiling": "false"},
-    ])
-    _write_domain_loads(tmp_path, [{"pid": 111, "assemblies": []}])
+    _oracle_sequence(monkeypatch, [{"compute": "3"}])  # stale — legacy write did not take effect
 
     with pytest.raises(cell_script.FsrQualificationCellError) as exc_info:
         asyncio.run(cell_script._phase_final_restore(port=9600, project=tmp_path, target_path=target))
@@ -557,19 +701,17 @@ def test_phase_final_restore_raises_when_restored_content_does_not_match_pristin
             target.write_bytes(args["content"].encode("utf-8"))
         else:
             target.write_bytes(b"corrupted, not the pristine v0 content")
+        _append_domain_load(tmp_path, {"pid": 111, "assemblies": []})
         return "ok"
 
     monkeypatch.setattr(cell_script.durable, "call", _call)
-    _oracle_sequence(monkeypatch, [
-        {"compute": "4", "compiling": "false"},
-        {"compute": "0", "compiling": "false"},
-    ])
-    _write_domain_loads(tmp_path, [{"pid": 111, "assemblies": []}])
+    _oracle_sequence(monkeypatch, [{"compute": "4"}])
 
     with pytest.raises(cell_script.FsrQualificationCellError) as exc_info:
         asyncio.run(cell_script._phase_final_restore(port=9600, project=tmp_path, target_path=target))
 
     assert exc_info.value.off_mode_evidence["restore_sha_matches"] is False
+
 
 
 # ---------------------------------------------------------------------------
@@ -611,7 +753,19 @@ def test_run_full_embeds_off_mode_evidence_in_receipt_end_to_end(
     monkeypatch.setattr(cell_script.worker, "rewrite_manifest_pin", lambda *a, **k: None)
     monkeypatch.setattr(cell_script.harness, "install_fixture", lambda *a, **k: None)
     monkeypatch.setattr(cell_script.harness, "validate_installed_fixture", lambda *a, **k: None)
-    monkeypatch.setattr(cell_script, "_launch", lambda **k: _FakeProcessIntegration())
+
+    def _launch_stub(**k):
+        # Simulates Unity's own cold-boot domain-load record for whichever
+        # fresh launch this is -- in a real run this always exists by the
+        # time _phase_off_disable_evidence/_phase_final_restore start
+        # (CycleInstrumentation's [InitializeOnLoad] fires on cold start
+        # too); _clear_domain_loads_evidence wipes any prior launch's
+        # record right before this call, so this becomes the sole
+        # "previous" baseline for the launch that follows.
+        _append_domain_load(project, {"pid": 111, "epoch": 0, "compileStartedCount": 0})
+        return _FakeProcessIntegration()
+
+    monkeypatch.setattr(cell_script, "_launch", _launch_stub)
     monkeypatch.setattr(cell_script.fq, "wait_for_port_diagnosed", lambda **k: None)
     monkeypatch.setattr(
         cell_script.preseed, "preseed_editor_prefs", lambda project, *, os_name: {"applied": True}
@@ -624,24 +778,20 @@ def test_run_full_embeds_off_mode_evidence_in_receipt_end_to_end(
 
     monkeypatch.setattr(cell_script, "_stop", _stop)
 
-    _write_domain_loads(project, [
-        {"pid": 111, "epoch": 1, "assemblies": []},
-        {"pid": 111, "epoch": 2, "assemblies": []},
-    ])
-
-    oracle_sequence = iter([
-        "epoch=1|compileCount=0",  # _phase_off_disable_evidence: before disable
-        "epoch=2|compileCount=1|compute=3|compiling=false",  # settled after disable
-        "compute=4|compiling=false",  # settled after v4 legacy write
-        "compute=0|compiling=false",  # settled after v0 restore write
-    ])
+    # Exactly two live oracle reads across the whole off-mode flow now:
+    # one for step 6's compute check, one for step 8's (after the v4 write).
+    oracle_responses = iter(["compute=3", "compute=4"])
 
     async def _call(port, command, args):
         if command == "execute_code":
-            return next(oracle_sequence)
+            return next(oracle_responses)
+        if command == "editor" and args.get("action") == "mutation_mode" and args.get("enable") is False:
+            _append_domain_load(project, {"pid": 111, "epoch": 1, "compileStartedCount": 1})
+            return "mutation_mode:false"
         if command == "asset" and args.get("action") == "write_text":
             (project / cell_script.REL_TARGET).parent.mkdir(parents=True, exist_ok=True)
             (project / cell_script.REL_TARGET).write_bytes(args["content"].encode("utf-8"))
+            _append_domain_load(project, {"pid": 111, "assemblies": []})
             return "ok"
         if command == "source_patch_write":
             if "System.Func<int>" in args.get("content", ""):
@@ -712,7 +862,12 @@ def test_run_full_fails_and_records_evidence_when_manifest_restore_is_wrong(
     monkeypatch.setattr(cell_script.worker, "rewrite_manifest_pin", _corrupt_manifest_pin)
     monkeypatch.setattr(cell_script.harness, "install_fixture", lambda *a, **k: None)
     monkeypatch.setattr(cell_script.harness, "validate_installed_fixture", lambda *a, **k: None)
-    monkeypatch.setattr(cell_script, "_launch", lambda **k: _FakeProcessIntegration())
+
+    def _launch_stub(**k):
+        _append_domain_load(project, {"pid": 111, "epoch": 0, "compileStartedCount": 0})
+        return _FakeProcessIntegration()
+
+    monkeypatch.setattr(cell_script, "_launch", _launch_stub)
     monkeypatch.setattr(cell_script.fq, "wait_for_port_diagnosed", lambda **k: None)
     monkeypatch.setattr(
         cell_script.preseed, "preseed_editor_prefs", lambda project, *, os_name: {"applied": True}
@@ -725,16 +880,14 @@ def test_run_full_fails_and_records_evidence_when_manifest_restore_is_wrong(
 
     monkeypatch.setattr(cell_script, "_stop", _stop)
 
-    _write_domain_loads(project, [{"pid": 111, "assemblies": []}])
-
-    oracle_sequence = iter([
-        "epoch=1|compileCount=0",
-        "epoch=2|compileCount=1|compute=3|compiling=false",
-    ])
+    oracle_responses = iter(["compute=3"])
 
     async def _call(port, command, args):
         if command == "execute_code":
-            return next(oracle_sequence)
+            return next(oracle_responses)
+        if command == "editor" and args.get("action") == "mutation_mode" and args.get("enable") is False:
+            _append_domain_load(project, {"pid": 111, "epoch": 1, "compileStartedCount": 1})
+            return "mutation_mode:false"
         if command in ("asset", "source_patch_write"):
             if "System.Func<int>" in args.get("content", ""):
                 raise cell_script.durable.RunnerError(
@@ -885,7 +1038,12 @@ def test_run_full_captures_error_and_evidence_when_phase_off_disable_evidence_ra
     monkeypatch.setattr(cell_script.worker, "rewrite_manifest_pin", lambda *a, **k: None)
     monkeypatch.setattr(cell_script.harness, "install_fixture", lambda *a, **k: None)
     monkeypatch.setattr(cell_script.harness, "validate_installed_fixture", lambda *a, **k: None)
-    monkeypatch.setattr(cell_script, "_launch", lambda **k: _FakeProcessIntegration())
+
+    def _launch_stub(**k):
+        _append_domain_load(project, {"pid": 111, "epoch": 0, "compileStartedCount": 0})
+        return _FakeProcessIntegration()
+
+    monkeypatch.setattr(cell_script, "_launch", _launch_stub)
     monkeypatch.setattr(cell_script.fq, "wait_for_port_diagnosed", lambda **k: None)
     monkeypatch.setattr(
         cell_script.preseed, "preseed_editor_prefs", lambda project, *, os_name: {"applied": True}
@@ -898,14 +1056,14 @@ def test_run_full_captures_error_and_evidence_when_phase_off_disable_evidence_ra
 
     monkeypatch.setattr(cell_script, "_stop", _stop)
 
-    oracle_sequence = iter([
-        "epoch=1|compileCount=0",  # before disable
-        "epoch=3|compileCount=2|compute=3|compiling=false",  # settled after -- +2, not +1
-    ])
+    oracle_responses = iter(["compute=3"])
 
     async def _call(port, command, args):
         if command == "execute_code":
-            return next(oracle_sequence)
+            return next(oracle_responses)
+        if command == "editor" and args.get("action") == "mutation_mode" and args.get("enable") is False:
+            _append_domain_load(project, {"pid": 111, "epoch": 2, "compileStartedCount": 1})  # +2, not +1
+            return "mutation_mode:false"
         if command in ("asset", "source_patch_write"):
             if "System.Func<int>" in args.get("content", ""):
                 raise cell_script.durable.RunnerError(
@@ -943,12 +1101,7 @@ def test_run_full_captures_error_and_evidence_when_phase_off_disable_evidence_ra
     assert on_disk_receipt["outcome"] == "FAIL"
     assert "step 6" in on_disk_receipt["error"]
     assert on_disk_receipt["off_mode_evidence"]["step6_disable"]["epoch_delta_is_one"] is False
-    # same_pid is vacuously True here: _clear_domain_loads_evidence wipes
-    # domain-loads.jsonl right before this launch (see the dedicated
-    # same_pid cross-launch-contamination tests below for that check's
-    # own coverage), and nothing in this test's mocked _launch writes a
-    # fresh record -- this test's own purpose is the error/evidence
-    # CAPTURE gap, not same_pid's correctness.
+    assert on_disk_receipt["off_mode_evidence"]["step6_disable"]["same_pid"] is True
 
     off_mode_file = json.loads((tmp_path / "evidence" / "off-mode-evidence.json").read_text(encoding="utf-8"))
     assert off_mode_file["step6_disable"]["epoch_delta"] == 2
