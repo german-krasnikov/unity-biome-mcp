@@ -24,7 +24,7 @@ from test_create_unity_test_worker import source_project
 REPO_ROOT = SCRIPTS.parent
 PIN_PATH = SCRIPTS / "source_patch_provider_pin.json"
 EXPECTED_PACKAGE = "com.handzlikchris.fastscriptreload"
-EXPECTED_SHA = "e50d43dda33e2d62c68be25278d48bc07f6003ff"
+EXPECTED_SHA = "b90a5c3fd7cfa452f23e8a807cc7bd61dc934bbf"
 EXPECTED_URL = "https://github.com/german-krasnikov/FastScriptReload.git?path=/Assets"
 EXPECTED_DEPENDENCY = f"{EXPECTED_URL}#{EXPECTED_SHA}"
 
@@ -76,7 +76,7 @@ def test_tracked_pin_git_url_hardcodes_assets_path_literal():
     dependency = worker._load_source_patch_pin(PIN_PATH)["com.handzlikchris.fastscriptreload"]
     assert dependency == (
         "https://github.com/german-krasnikov/FastScriptReload.git"
-        "?path=/Assets#e50d43dda33e2d62c68be25278d48bc07f6003ff"
+        "?path=/Assets#b90a5c3fd7cfa452f23e8a807cc7bd61dc934bbf"
     )
 
 
