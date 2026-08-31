@@ -127,11 +127,20 @@ def _apply_commands(commands: list[list[str]]) -> None:
 
 
 def find_candidate_prefs_paths(discovery_report: str, *, home: Path) -> list[Path]:
-    """Parse a discover_touched_config_files() report for file paths that
-    look like additional Unity EditorPrefs storage: under home, mentioning
-    "unity" (case-insensitive) anywhere in the path, and not the
-    already-known ~/.config/unity3d/prefs (that one is already preseeded
-    directly, no need to rediscover it)."""
+    """Parse a discover_touched_config_files() report for additional Unity
+    EditorPrefs storage: under home, and not the already-known
+    ~/.config/unity3d/prefs (that one is already preseeded directly, no
+    need to rediscover it).
+
+    Run 8 (33396935103) regression: an earlier "contains 'unity' anywhere
+    in the path" filter matched ~/.local/share/unity3d/Unity/Unity_lic.ulf
+    (an XML-shaped Unity LICENSE file) and linux_prefs_xml_patch
+    unconditionally overwrote it as a fabricated <unity_prefs> document,
+    destroying the license and crashing the run's next Unity launch. Every
+    real Unity flat prefs file observed (macOS, Linux, and every
+    known Linux path variant) is always literally named "prefs" — only
+    that exact basename may be a candidate, never a broader substring
+    match against arbitrary Unity-related files (licenses, logs, caches)."""
     known = (home / ".config" / "unity3d" / "prefs").resolve()
     home_str = str(home)
     candidates: set[Path] = set()
@@ -139,9 +148,9 @@ def find_candidate_prefs_paths(discovery_report: str, *, home: Path) -> list[Pat
         line = raw_line.strip()
         if not line.startswith(home_str):
             continue
-        if "unity" not in line.lower():
-            continue
         candidate = Path(line).resolve()
+        if candidate.name != "prefs":
+            continue
         if candidate == known:
             continue
         candidates.add(candidate)

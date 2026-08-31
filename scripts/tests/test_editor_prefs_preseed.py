@@ -395,15 +395,39 @@ def test_find_candidate_prefs_paths_matches_unity_paths_under_home(tmp_path: Pat
     report = (
         f"=== files modified since marker ===\n"
         f"{home}/.config/unity3d/prefs\n"
-        f"{home}/.local/share/unity3d/Editor.something\n"
+        f"{home}/.local/share/unity3d/prefs\n"
         f"{home}/.config/dconf/user\n"
         f"/etc/passwd\n"
     )
     candidates = preseed.find_candidate_prefs_paths(report, home=home)
-    assert (home / ".local" / "share" / "unity3d" / "Editor.something") in candidates
+    assert (home / ".local" / "share" / "unity3d" / "prefs") in candidates
     assert (home / ".config" / "unity3d" / "prefs") not in candidates  # already known
     assert (home / ".config" / "dconf" / "user") not in candidates  # no "unity" in path
     assert not any(str(c).startswith("/etc") for c in candidates)
+
+
+def test_find_candidate_prefs_paths_excludes_non_prefs_named_files(tmp_path: Path):
+    """Run 8 (33396935103) regression: the old "contains 'unity', under
+    home" filter matched ~/.local/share/unity3d/Unity/Unity_lic.ulf (an
+    XML-shaped Unity LICENSE file, not a prefs file) and
+    linux_prefs_xml_patch unconditionally overwrote it as a fabricated
+    <unity_prefs> document — destroying the license and crashing the
+    full run's second Unity launch ("No valid Unity Editor license
+    found" -> Hub handoff -> execv Permission denied). Unity's real
+    flat prefs storage is always literally named "prefs" on every
+    platform/path variant seen; only that exact basename may be a
+    candidate."""
+    home = tmp_path / "home"
+    report = (
+        f"=== files modified since marker ===\n"
+        f"{home}/.local/share/unity3d/Unity/Unity_lic.ulf\n"
+        f"{home}/.config/unity3d/Unity/licenses/packages/packageAccessControlList.xml\n"
+        f"{home}/.config/unity3d/Unity/CoreBusinessMetrics.db\n"
+        f"{home}/.config/unity3d/Unity/Unity.Licensing.Client.log\n"
+        f"{home}/.local/share/unity3d/prefs\n"
+    )
+    candidates = preseed.find_candidate_prefs_paths(report, home=home)
+    assert candidates == [(home / ".local" / "share" / "unity3d" / "prefs")]
 
 
 def test_find_candidate_prefs_paths_empty_report_returns_empty(tmp_path: Path):
@@ -428,8 +452,11 @@ def test_adaptive_preseed_patches_xml_looking_candidates(tmp_path: Path):
 
 
 def test_adaptive_preseed_skips_unknown_format_candidates(tmp_path: Path):
+    """Defense-in-depth: even a "prefs"-named candidate that isn't
+    actually XML-shaped (corrupted, or a platform quirk) must never be
+    blindly patched."""
     home = tmp_path / "home"
-    candidate = home / ".local" / "share" / "unity3d" / "Editor.log"
+    candidate = home / ".local" / "share" / "unity3d" / "prefs"
     candidate.parent.mkdir(parents=True)
     candidate.write_bytes(b"\x00\x01binary-not-xml")
     report = f"{candidate}\n"
