@@ -243,6 +243,7 @@ def _pass_receipt(cell: str, **overrides) -> dict:
         "checkout_sha": "a" * 40,
         "lock_base_product_sha": "a" * 40,
         "candidate_sha": "b" * 40,
+        "off_mode_evidence": {"epoch_delta_is_one": True, "same_pid": True},
     }
     payload.update(overrides)
     return payload
@@ -334,6 +335,23 @@ def test_validate_receipt_set_raises_on_candidate_sha_mismatch():
 def test_validate_receipt_set_raises_when_required_pass_checkout_shas_differ():
     receipts = _three_receipts()
     receipts[0]["checkout_sha"] = "c" * 40
+    with pytest.raises(fq.FsrQualificationError):
+        fq.validate_receipt_set(receipts, _lock())
+
+
+def test_validate_receipt_set_raises_when_required_pass_cell_missing_off_mode_evidence():
+    """P1-20 reviewer gap #2: a required-pass cell's receipt must carry
+    structural off-mode evidence, not just an "outcome": "PASS" string —
+    this is the aggregate-level half of "validates independently"."""
+    receipts = _three_receipts()
+    del receipts[0]["off_mode_evidence"]
+    with pytest.raises(fq.FsrQualificationError):
+        fq.validate_receipt_set(receipts, _lock())
+
+
+def test_validate_receipt_set_raises_when_required_pass_cell_off_mode_evidence_is_empty():
+    receipts = _three_receipts()
+    receipts[0]["off_mode_evidence"] = {}
     with pytest.raises(fq.FsrQualificationError):
         fq.validate_receipt_set(receipts, _lock())
 
@@ -573,6 +591,37 @@ def test_build_runtime_receipt_embeds_preseed_receipt_when_given():
         preseed={"mechanism": "linux_prefs_xml", "applied": True, "keys": ["kAutoRefreshMode"]},
     )
     assert receipt["preseed"]["mechanism"] == "linux_prefs_xml"
+
+
+# ---------------------------------------------------------------------------
+# off_mode_evidence — P1-20 reviewer gap #2 (GO_WITH_GAPS): OFF/uninstall/
+# package-absent step evidence previously existed only as unstructured
+# unity.log text, never validated independently by the receipt itself
+# (AI doc: "§10 Exact-SHA evidence validates independently"). Embeds the
+# structural step6/7/8/9 evidence dict directly in the terminal receipt.
+# ---------------------------------------------------------------------------
+
+def test_build_runtime_receipt_embeds_off_mode_evidence_when_given():
+    receipt = fq.build_runtime_receipt(
+        cell="min-linux-x64", os_name="Linux", arch="x64",
+        unity_version="6000.0.65f1", unity_revision="a18e2220bd50",
+        setup_ok=True, license_ok=True, display_ok=True,
+        checkout_sha="a" * 40, lock_base_product_sha="a" * 40,
+        candidate_sha="b" * 40, outcome="PASS",
+        off_mode_evidence={"epoch_delta_is_one": True, "same_pid": True},
+    )
+    assert receipt["off_mode_evidence"] == {"epoch_delta_is_one": True, "same_pid": True}
+
+
+def test_build_runtime_receipt_omits_off_mode_evidence_key_when_not_given():
+    receipt = fq.build_runtime_receipt(
+        cell="min-linux-x64", os_name="Linux", arch="x64",
+        unity_version="6000.0.65f1", unity_revision="a18e2220bd50",
+        setup_ok=True, license_ok=True, display_ok=True,
+        checkout_sha="a" * 40, lock_base_product_sha="a" * 40,
+        candidate_sha="b" * 40, outcome="PASS",
+    )
+    assert "off_mode_evidence" not in receipt
 
 
 # ---------------------------------------------------------------------------

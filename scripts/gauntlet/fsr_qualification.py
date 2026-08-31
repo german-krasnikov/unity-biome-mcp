@@ -100,6 +100,7 @@ def build_runtime_receipt(
     outcome: str,
     error: str | None = None,
     preseed: dict[str, object] | None = None,
+    off_mode_evidence: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Assemble one cell's terminal evidence receipt. `outcome` must be one
     of PASS/FAIL/INFRASTRUCTURE_BLOCKED — a missing secret or setup/license
@@ -130,6 +131,8 @@ def build_runtime_receipt(
         receipt["error"] = error
     if preseed is not None:
         receipt["preseed"] = preseed
+    if off_mode_evidence is not None:
+        receipt["off_mode_evidence"] = off_mode_evidence
     return receipt
 
 
@@ -162,9 +165,9 @@ def validate_receipt_set(
     (Windows) — its outcome does not have to be PASS, but it must exist
     and carry a real VALID_OUTCOMES value. A missing or duplicate cell
     (either kind), a non-PASS required cell, an invalid-outcome blocked
-    cell, or SHA drift on a required cell fails the aggregate — this never
-    averages or partially-passes the matrix, and Windows is never a green
-    skip by simply being absent."""
+    cell, SHA drift, or missing structural off-mode evidence on a required
+    cell fails the aggregate — this never averages or partially-passes the
+    matrix, and Windows is never a green skip by simply being absent."""
     cells_seen = [receipt.get("cell") for receipt in receipts]
     if sorted(cells_seen) != sorted(EXPECTED_CELLS):
         raise FsrQualificationError(
@@ -183,6 +186,15 @@ def validate_receipt_set(
             raise FsrQualificationError(f"Cell {cell} lock_base_product_sha does not match the lock")
         if receipt.get("candidate_sha") != lock["final_fsr_adapter_sha"]:
             raise FsrQualificationError(f"Cell {cell} candidate_sha does not match the lock")
+        # P1-20 reviewer gap #2 (GO_WITH_GAPS): OFF/uninstall/package-absent
+        # step evidence previously existed only as unstructured unity.log
+        # text — "validates independently" (AI doc §10) requires the
+        # receipt itself to carry it, not merely an "outcome": "PASS"
+        # string a reader must trust.
+        if not receipt.get("off_mode_evidence"):
+            raise FsrQualificationError(
+                f"Required cell {cell} PASS receipt is missing structural off-mode evidence"
+            )
 
     for cell in DOCUMENTED_BLOCKED_CELLS:
         receipt = by_cell[cell]

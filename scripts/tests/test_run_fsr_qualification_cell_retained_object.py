@@ -179,7 +179,11 @@ def test_run_full_installs_fixture_before_launching_unity(
     AssetDatabase scan imports it with no BOM-introducing legacy write."""
     order: list[str] = []
 
-    monkeypatch.setattr(cell_script.worker, "create_worker", lambda *a, **k: None)
+    def _create_worker_stub(source_project, project, **k):
+        (project / "Packages").mkdir(parents=True, exist_ok=True)
+        (project / "Packages" / "manifest.json").write_text('{"dependencies": {}}', encoding="utf-8")
+
+    monkeypatch.setattr(cell_script.worker, "create_worker", _create_worker_stub)
     monkeypatch.setattr(cell_script.worker, "rewrite_manifest_pin", lambda *a, **k: None)
     monkeypatch.setattr(
         cell_script.harness, "install_fixture", lambda project: order.append("install_fixture")
@@ -197,6 +201,17 @@ def test_run_full_installs_fixture_before_launching_unity(
         return None
 
     monkeypatch.setattr(cell_script, "_stop", _stop)
+
+    async def _off_disable_stub(*, port, project):
+        return {"epoch_delta_is_one": True}
+
+    monkeypatch.setattr(cell_script, "_phase_off_disable_evidence", _off_disable_stub)
+    monkeypatch.setattr(cell_script, "_manifest_matches_pre_pin", lambda project, pre_pin: True)
+
+    async def _final_restore_stub(*, port, project, target_path):
+        return {"restore_sha_matches": True}
+
+    monkeypatch.setattr(cell_script, "_phase_final_restore", _final_restore_stub)
 
     async def _call(port, command, args):
         if command == "source_patch_write" and "System.Func<int>" in args.get("content", ""):

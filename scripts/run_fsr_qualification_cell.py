@@ -186,6 +186,219 @@ def _write_final_prefs_snapshot(evidence_out: Path | None, *, os_name: str, proj
 
 LINUX_LICENSE_FILE_REL = Path(".local") / "share" / "unity3d" / "Unity" / "Unity_lic.ulf"
 
+# P1-30: structural off-mode evidence — mirrors
+# scripts/fixtures/fsr_qualification/Editor/CycleInstrumentation.cs
+# exactly (same denylist fragments, same domain-loads.jsonl path/shape) so
+# a fixture change and a driver change can never silently drift apart
+# without a test catching it.
+DOMAIN_LOAD_DENYLIST_FRAGMENTS = (
+    "roslyn", "codeanalysis", "harmony", "cecil", "monomod", "fastscriptreload",
+)
+DOMAIN_LOADS_REL = (
+    Path("Library") / "UnityMCP" / "FsrQualificationCell" / "fsr-qualification" / "domain-loads.jsonl"
+)
+
+
+async def _query_oracle(port: int) -> dict[str, str]:
+    """One execute_code round trip to
+    SourcePatchHarness.CycleInstrumentation.QueryOracle() — retained-object
+    identity, current Compute() value, domain epoch/stamp, isCompiling, and
+    the independent compile-started counter, all consistent as of one
+    moment. Parses its "key=value|key=value..." contract; a malformed pair
+    (no "=") is skipped, never raised on — evidence collection must never
+    itself become a new source of cell failure."""
+    raw = await durable.call(
+        port, "execute_code",
+        {"code": "return SourcePatchHarness.CycleInstrumentation.QueryOracle();"},
+    )
+    result: dict[str, str] = {}
+    for pair in raw.split("|"):
+        if "=" not in pair:
+            continue
+        key, _, value = pair.partition("=")
+        result[key] = value
+    return result
+
+
+async def _wait_for_oracle_settle(
+    port: int, *, timeout: float = 60.0, poll_interval: float = 0.5
+) -> dict[str, str]:
+    """Polls _query_oracle until compiling=false — used right after a
+    reload-triggering write/mode-change so the evidence captured is the
+    settled post-reload state, not a mid-compile snapshot. Raises rather
+    than silently returning a still-compiling snapshot: DoD language is
+    explicit that no cycle evidence may be "skipped/uncertain" (§6 P0-80)."""
+    oracle = await _query_oracle(port)
+    deadline = asyncio.get_event_loop().time() + timeout
+    while oracle.get("compiling") == "true":
+        if asyncio.get_event_loop().time() >= deadline:
+            raise FsrQualificationCellError(
+                f"Unity did not settle (still compiling) within {timeout}s"
+            )
+        await asyncio.sleep(poll_interval)
+        oracle = await _query_oracle(port)
+    return oracle
+
+
+def _read_domain_loads(project: Path) -> list[dict[str, object]]:
+    """Reads CycleInstrumentation's domain-loads.jsonl — one JSON record
+    per domain load (cold start and every Domain Reload within the
+    process), already written into the worker's own Library/ folder during
+    every real run but never previously read back by the driver (P1-20
+    reviewer gap #2). Missing file -> []; a malformed line is skipped, not
+    raised on, since a partial write mid-flush is a real possibility this
+    evidence-reader must tolerate, not amplify into a cell failure."""
+    path = project / DOMAIN_LOADS_REL
+    if not path.is_file():
+        return []
+    records: list[dict[str, object]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            records.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return records
+
+
+def _manifest_matches_pre_pin(project: Path, pre_pin_manifest: str) -> bool:
+    """Step 7 (§6 P0-80): "remove optional package offline only after
+    Off/zero lease" — proves the manifest is restored exactly byte-for-
+    byte, not merely "rewrite_manifest_pin raised no exception"."""
+    manifest_path = project / "Packages" / "manifest.json"
+    if not manifest_path.is_file():
+        return False
+    return manifest_path.read_text(encoding="utf-8") == pre_pin_manifest
+
+
+def _int_or_none(value: object) -> int | None:
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return None
+
+
+async def _phase_off_disable_evidence(*, port: int, project: Path) -> dict[str, object]:
+    """Step 6 (§6 P0-80): "disable: one receipt, one sync, same PID/
+    project, exact N -> N+1, clean compile and v3 behavior from normally
+    compiled source." P1-20 reviewer gap #2 (GO_WITH_GAPS): this evidence
+    previously existed only as unstructured unity.log text, never
+    validated independently by the receipt itself.
+
+    Queries CycleInstrumentation.QueryOracle() immediately before
+    disabling ON mode (epoch/compile-count baseline), disables (the one
+    legacy compile/reload this step requires), waits for that reload to
+    settle, then queries again — the delta between the two oracle
+    snapshots is the proof, not a log grep. same_pid comes from every
+    domain-loads.jsonl record's pid across the whole launch (not just the
+    two endpoints), so a transient respawn in between can't hide. On any
+    check failing, raises with whatever evidence was collected attached as
+    .off_mode_evidence — the same pattern _phase_on_retained_object uses
+    for .byte_diagnostics."""
+    evidence: dict[str, object] = {}
+
+    before = await _query_oracle(port)
+    evidence["epoch_before"] = before.get("epoch")
+    evidence["compile_started_count_before"] = before.get("compileCount")
+
+    evidence["disable_result"] = await durable.call(
+        port, "editor", {"action": "mutation_mode", "enable": False}
+    )
+
+    after = await _wait_for_oracle_settle(port)
+    evidence["epoch_after"] = after.get("epoch")
+    evidence["compile_started_count_after"] = after.get("compileCount")
+    evidence["compute_after_disable"] = after.get("compute")
+
+    epoch_before_i = _int_or_none(evidence["epoch_before"])
+    epoch_after_i = _int_or_none(evidence["epoch_after"])
+    epoch_delta = (
+        epoch_after_i - epoch_before_i if epoch_before_i is not None and epoch_after_i is not None else None
+    )
+    evidence["epoch_delta"] = epoch_delta
+    evidence["epoch_delta_is_one"] = epoch_delta == 1
+
+    count_before_i = _int_or_none(evidence["compile_started_count_before"])
+    count_after_i = _int_or_none(evidence["compile_started_count_after"])
+    count_delta = (
+        count_after_i - count_before_i if count_before_i is not None and count_after_i is not None else None
+    )
+    evidence["compile_started_count_delta"] = count_delta
+    evidence["compile_started_count_delta_is_one"] = count_delta == 1
+
+    evidence["compute_after_disable_is_3"] = evidence["compute_after_disable"] == "3"
+
+    domain_loads = _read_domain_loads(project)
+    pids = {record.get("pid") for record in domain_loads if "pid" in record}
+    evidence["same_pid"] = len(pids) <= 1
+    evidence["editor_pid"] = domain_loads[-1].get("pid") if domain_loads else None
+
+    checks = (
+        "epoch_delta_is_one", "compile_started_count_delta_is_one",
+        "compute_after_disable_is_3", "same_pid",
+    )
+    failed = [name for name in checks if not evidence.get(name)]
+    if failed:
+        error = FsrQualificationCellError(f"step 6 off-mode evidence check(s) failed: {failed}")
+        error.off_mode_evidence = evidence
+        raise error
+    return evidence
+
+
+async def _phase_final_restore(
+    *, port: int, project: Path, target_path: Path
+) -> dict[str, object]:
+    """Steps 8-9 (§6 P0-80): "8. fresh package-absent Editor: provider
+    assemblies absent, base compile clean, another legacy `.cs`
+    write/reload; 9. exact source/meta/mtime/project settings
+    restoration." Two writes within the same fresh launch: v4 first
+    (proves legacy compile still works cleanly with the package
+    physically gone, and CycleInstrumentation's own denylist scan of
+    AppDomain assemblies confirms none of the provider's names are
+    loaded), then v0 (restores the pristine baseline byte-for-byte,
+    verified by sha256, not merely "no exception raised"). On any check
+    failing, raises with whatever evidence was collected attached as
+    .off_mode_evidence."""
+    evidence: dict[str, object] = {}
+
+    evidence["legacy_write_result"] = await durable.call(
+        port, "asset", {"action": "write_text", "path": REL_TARGET, "content": harness.target_body("v4")}
+    )
+    oracle_v4 = await _wait_for_oracle_settle(port)
+    evidence["compute_after_legacy_write"] = oracle_v4.get("compute")
+    evidence["compute_after_legacy_write_is_4"] = oracle_v4.get("compute") == "4"
+
+    domain_loads = _read_domain_loads(project)
+    last_assemblies = domain_loads[-1].get("assemblies", []) if domain_loads else []
+    found = [
+        assembly.get("name", "") for assembly in last_assemblies
+        if any(fragment in assembly.get("name", "").lower() for fragment in DOMAIN_LOAD_DENYLIST_FRAGMENTS)
+    ]
+    evidence["assembly_needles_found"] = found
+    evidence["assembly_needles_absent"] = not found
+
+    evidence["restore_write_result"] = await durable.call(
+        port, "asset", {"action": "write_text", "path": REL_TARGET, "content": harness.target_body("v0")}
+    )
+    await _wait_for_oracle_settle(port)
+    restored_bytes = target_path.read_bytes() if target_path.is_file() else b""
+    pristine_bytes = harness.target_body("v0").encode("utf-8")
+    evidence["restored_sha256"] = fq.byte_diagnostic(restored_bytes)["sha256"]
+    evidence["pristine_sha256"] = fq.byte_diagnostic(pristine_bytes)["sha256"]
+    evidence["restore_sha_matches"] = evidence["restored_sha256"] == evidence["pristine_sha256"]
+
+    checks = ("compute_after_legacy_write_is_4", "assembly_needles_absent", "restore_sha_matches")
+    failed = [name for name in checks if not evidence.get(name)]
+    if failed:
+        error = FsrQualificationCellError(f"steps 8-9 restore evidence check(s) failed: {failed}")
+        error.off_mode_evidence = evidence
+        raise error
+    return evidence
+
+
+
 
 def _license_file_diagnostic(*, os_name: str, label: str) -> dict[str, object] | None:
     """Run 8 (33396935103): min-linux-x64's full run crashed on "No valid
@@ -435,6 +648,7 @@ async def run_full(
     preseed_attempts: list[dict[str, object]] = []
     on_mode_diagnostics: list[dict[str, object]] | None = None
     license_diagnostics: list[dict[str, object]] = []
+    off_mode_evidence: dict[str, object] = {}
     try:
         print(f"PHASE: create worker ({cell['unity_version']})", flush=True)
         worker.create_worker(
@@ -464,6 +678,7 @@ async def run_full(
         process = None
 
         print("PHASE: step 3 install optional package offline", flush=True)
+        pre_pin_manifest = (project / "Packages" / "manifest.json").read_text(encoding="utf-8")
         worker.rewrite_manifest_pin(project, provider_pin, install=True)
 
         print("PHASE: steps 4-6 fresh Editor with package, ON retained-object", flush=True)
@@ -486,11 +701,22 @@ async def run_full(
         on_mode_diagnostics = await _phase_on_retained_object(
             port=port, target_path=project / REL_TARGET
         )
+        off_mode_evidence["step6_disable"] = await _phase_off_disable_evidence(
+            port=port, project=project
+        )
         await _stop(process)
         process = None
 
         print("PHASE: step 7 remove optional package offline", flush=True)
         worker.rewrite_manifest_pin(project, provider_pin, install=False)
+        manifest_matches_pre_pin = _manifest_matches_pre_pin(project, pre_pin_manifest)
+        off_mode_evidence["step7_manifest_restore"] = {
+            "manifest_matches_pre_pin": manifest_matches_pre_pin
+        }
+        if not manifest_matches_pre_pin:
+            raise FsrQualificationCellError(
+                "step 7: restored manifest.json does not match its pre-pin content"
+            )
 
         print("PHASE: steps 8-9 fresh package-absent Editor, final OFF", flush=True)
         preseed_attempts.append(
@@ -505,7 +731,9 @@ async def run_full(
             host="127.0.0.1", port=port, process=process, log=log,
             timeout=startup_timeout, evidence_out=evidence_out, os_name=os_name,
         )
-        await durable.call(port, "asset", {"action": "write_text", "path": REL_TARGET, "content": harness.target_body("v0")})
+        off_mode_evidence["step8_9_final_restore"] = await _phase_final_restore(
+            port=port, project=project, target_path=project / REL_TARGET
+        )
         await _stop(process)
         process = None
 
@@ -521,6 +749,17 @@ async def run_full(
         error_message = str(error)
         outcome = "FAIL"
         on_mode_diagnostics = getattr(error, "byte_diagnostics", on_mode_diagnostics)
+        # _phase_off_disable_evidence and _phase_final_restore are the only
+        # two off-mode phases that attach partial evidence to a raised
+        # error, they run sequentially, and each only ever fills its own
+        # step key — so "whichever key is still unset" unambiguously
+        # identifies which phase was in flight when it failed.
+        partial_off_mode_evidence = getattr(error, "off_mode_evidence", None)
+        if partial_off_mode_evidence is not None:
+            if "step6_disable" not in off_mode_evidence:
+                off_mode_evidence["step6_disable"] = partial_off_mode_evidence
+            elif "step8_9_final_restore" not in off_mode_evidence:
+                off_mode_evidence["step8_9_final_restore"] = partial_off_mode_evidence
         raise
     finally:
         await _stop(process)
@@ -532,6 +771,10 @@ async def run_full(
         if license_diagnostics:
             (evidence_out / "license-file-diagnostics.json").write_text(
                 json.dumps(license_diagnostics, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+        if off_mode_evidence:
+            (evidence_out / "off-mode-evidence.json").write_text(
+                json.dumps(off_mode_evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )
         receipt = fq.build_runtime_receipt(
             cell=cell_name,
@@ -548,6 +791,7 @@ async def run_full(
             outcome=outcome,
             error=error_message,
             preseed={"attempts": preseed_attempts} if preseed_attempts else None,
+            off_mode_evidence=off_mode_evidence if off_mode_evidence else None,
         )
         (evidence_out / "receipt.json").write_text(
             json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
