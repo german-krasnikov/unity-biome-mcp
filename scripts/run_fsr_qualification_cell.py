@@ -301,6 +301,8 @@ async def _wait_for_new_domain_load(
         await asyncio.sleep(poll_interval)
 
 
+
+
 async def _call_effect_expecting_reload_disconnect(
     port: int, command: str, args: dict[str, object]
 ) -> str:
@@ -324,7 +326,17 @@ def _read_domain_loads(project: Path) -> list[dict[str, object]]:
     every real run but never previously read back by the driver (P1-20
     reviewer gap #2). Missing file -> []; a malformed line is skipped, not
     raised on, since a partial write mid-flush is a real possibility this
-    evidence-reader must tolerate, not amplify into a cell failure."""
+    evidence-reader must tolerate, not amplify into a cell failure.
+
+    Excludes isBatchMode=true records — Run 19 (33423756500) coordinator
+    diagnosis: AssetImportWorker is a separate batchmode subprocess Unity
+    spawns for background asset importing that ALSO executes
+    [InitializeOnLoad] and writes its own record into this SAME file (a
+    known P0-80 pattern) — same_pid's naive first-seen-pid comparison
+    mistook one of its lines for the real headed Editor's own "previous"
+    baseline. A record without the field (every fixture/receipt from
+    before this field existed) is treated as the real Editor's own, never
+    filtered — this is additive, not a breaking format change."""
     path = project / DOMAIN_LOADS_REL
     if not path.is_file():
         return []
@@ -334,9 +346,12 @@ def _read_domain_loads(project: Path) -> list[dict[str, object]]:
         if not line:
             continue
         try:
-            records.append(json.loads(line))
+            record = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if record.get("isBatchMode") is True:
+            continue
+        records.append(record)
     return records
 
 
@@ -394,10 +409,18 @@ async def _phase_off_disable_evidence(*, port: int, project: Path) -> dict[str, 
     and the one immediately before it -- never from a live before/after
     oracle pair. The only live call is a single, read-only oracle query
     AFTER the reload is already confirmed, to read `compute` (the one
-    field domain-loads.jsonl does not carry). On any check failing,
-    raises with whatever evidence was collected attached as
-    .off_mode_evidence -- the same pattern _phase_on_retained_object uses
-    for .byte_diagnostics."""
+    field domain-loads.jsonl does not carry).
+
+    _read_domain_loads already excludes AssetImportWorker's own
+    domain-load records (Run 19, 33423756500: the coordinator identified
+    "previous_record" as a batchmode subprocess's own [InitializeOnLoad]
+    write into this SAME file, not the headed Editor's -- a known P0-80
+    pattern; new_record.pid matched the real editor_pid throughout, only
+    same_pid's naive first-seen-pid comparison was fooled), so
+    previous_record/new_record here are both guaranteed to be the real
+    Editor's own. On any check failing, raises with whatever evidence
+    was collected attached as .off_mode_evidence -- the same pattern
+    _phase_on_retained_object uses for .byte_diagnostics."""
     evidence: dict[str, object] = {}
 
     before_records = _read_domain_loads(project)
@@ -473,9 +496,11 @@ async def _phase_final_restore(
     command, never retried; its reload is confirmed via a new
     domain-loads.jsonl record, not a live before/after oracle pair). The
     only live calls are read-only oracle queries for `compute`, issued
-    only after each reload is already confirmed via the file. On any
-    check failing, raises with whatever evidence was collected attached
-    as .off_mode_evidence."""
+    only after each reload is already confirmed via the file.
+    _read_domain_loads already excludes AssetImportWorker's own
+    domain-load records (see _phase_off_disable_evidence's docstring).
+    On any check failing, raises with whatever evidence was collected
+    attached as .off_mode_evidence."""
     evidence: dict[str, object] = {}
 
     before_records = _read_domain_loads(project)

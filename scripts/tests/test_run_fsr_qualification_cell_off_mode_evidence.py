@@ -337,6 +337,7 @@ def test_wait_for_new_domain_load_returns_multiple_records_if_more_than_one_appe
 
     assert records == [{"pid": 111, "epoch": 1}, {"pid": 111, "epoch": 2}]
 
+
 # ---------------------------------------------------------------------------
 # _read_domain_loads — reads Library/UnityMCP/FsrQualificationCell/
 # fsr-qualification/domain-loads.jsonl, written by CycleInstrumentation's
@@ -375,6 +376,43 @@ def test_read_domain_loads_skips_malformed_lines(tmp_path: Path):
     records = cell_script._read_domain_loads(tmp_path)
 
     assert [r["pid"] for r in records] == [1, 2]
+
+
+def test_read_domain_loads_excludes_asset_import_worker_lines_interspersed(tmp_path: Path):
+    """Run 19 (33423756500) coordinator diagnosis: AssetImportWorker is a
+    separate batchmode subprocess Unity spawns for background asset
+    importing that ALSO executes [InitializeOnLoad] and writes its own
+    record into this SAME domain-loads.jsonl (a known P0-80 pattern) --
+    same_pid's naive first-seen-pid comparison mistook one of its lines
+    for the real Editor's own "previous" baseline. Worker lines (tagged
+    isBatchMode=true by the fixture) must never reach any consumer of
+    _read_domain_loads, wherever they land in the file."""
+    path = _domain_loads_path(tmp_path)
+    path.parent.mkdir(parents=True)
+    path.write_text(
+        '{"pid": 111, "isBatchMode": false, "epoch": 0}\n'
+        '{"pid": 222, "isBatchMode": true, "epoch": 0}\n'
+        '{"pid": 111, "isBatchMode": false, "epoch": 1}\n',
+        encoding="utf-8",
+    )
+
+    records = cell_script._read_domain_loads(tmp_path)
+
+    assert [r["pid"] for r in records] == [111, 111]
+    assert all(r["isBatchMode"] is False for r in records)
+
+
+def test_read_domain_loads_treats_missing_isbatchmode_field_as_editor(tmp_path: Path):
+    """Backward compatible with records that predate the isBatchMode
+    field (every existing fixture/test in this file) -- absence must
+    never be silently filtered out."""
+    path = _domain_loads_path(tmp_path)
+    path.parent.mkdir(parents=True)
+    path.write_text('{"pid": 111, "epoch": 0}\n', encoding="utf-8")
+
+    records = cell_script._read_domain_loads(tmp_path)
+
+    assert [r["pid"] for r in records] == [111]
 
 
 # ---------------------------------------------------------------------------

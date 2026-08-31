@@ -118,6 +118,13 @@ namespace SourcePatchHarness
                 "\"utc\":\"" + DateTime.UtcNow.ToString("o") + "\"," +
                 "\"event\":\"" + evt + "\"," +
                 "\"pid\":" + System.Diagnostics.Process.GetCurrentProcess().Id + "," +
+                // P1-30 (coordinator, after run 19): AssetImportWorker is a
+                // separate batchmode subprocess Unity spawns for background
+                // asset importing that ALSO executes [InitializeOnLoad] and
+                // writes its own record into this SAME file (P0-80 already
+                // saw this locally) -- the driver must be able to tell its
+                // lines apart from the real headed Editor's own.
+                "\"isBatchMode\":" + UnityEngine.Application.isBatchMode.ToString().ToLowerInvariant() + "," +
                 "\"epoch\":" + SyncHelper.CurrentEpoch + "," +
                 "\"stamp\":\"" + Escape(SyncHelper.CurrentDomainStamp) + "\"," +
                 "\"targetInstanceId\":" + (holder != null ? holder.GetInstanceID().ToString() : "null") + "," +
