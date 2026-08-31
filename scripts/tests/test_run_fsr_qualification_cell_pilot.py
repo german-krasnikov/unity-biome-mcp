@@ -260,3 +260,106 @@ def test_run_pilot_survives_a_failed_preseed(tmp_path: Path, monkeypatch: pytest
 
     assert written["preseed"]["applied"] is False
     assert "no ProjectSettings.asset" in written["preseed"]["error"]
+
+
+# ---------------------------------------------------------------------------
+# Run 5 finding: min-linux-x64 still hung even with preseed applied once at
+# cell start — an intermediate Unity process exit can overwrite the
+# underlying prefs store (Unity's own exit-time prefs flush), losing the
+# preseeded values before the actually-vulnerable launch (steps 4-6,
+# package installed) runs. Preseed must be (re)applied before EVERY Unity
+# launch in run_full, not just once at cell start.
+# ---------------------------------------------------------------------------
+
+def test_apply_preseed_returns_receipt_on_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(
+        cell_script.preseed,
+        "preseed_editor_prefs",
+        lambda project, *, os_name: {"mechanism": "linux_prefs_xml", "applied": True, "keys": []},
+    )
+    receipt = cell_script._apply_preseed(tmp_path / "worker", os_name="Linux")
+    assert receipt["applied"] is True
+
+
+def test_apply_preseed_survives_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    def _fail(project, *, os_name):
+        raise cell_script.preseed.EditorPrefsPreseedError("boom")
+
+    monkeypatch.setattr(cell_script.preseed, "preseed_editor_prefs", _fail)
+    receipt = cell_script._apply_preseed(tmp_path / "worker", os_name="Linux")
+    assert receipt["applied"] is False
+    assert "boom" in receipt["error"]
+
+
+def test_run_full_applies_preseed_before_every_unity_launch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """3 launches in run_full (steps 1-2, steps 4-6, steps 8-9) — preseed
+    must be called immediately before each one, not just once at cell
+    start."""
+    preseed_calls: list = []
+    launch_calls: list = []
+
+    monkeypatch.setattr(
+        cell_script.preseed,
+        "preseed_editor_prefs",
+        lambda project, *, os_name: preseed_calls.append(os_name) or {"applied": True, "mechanism": os_name},
+    )
+    monkeypatch.setattr(cell_script.worker, "create_worker", lambda *a, **k: None)
+    monkeypatch.setattr(cell_script.worker, "rewrite_manifest_pin", lambda *a, **k: None)
+    monkeypatch.setattr(cell_script.harness, "install_fixture", lambda *a, **k: None)
+    monkeypatch.setattr(cell_script.harness, "validate_installed_fixture", lambda *a, **k: None)
+    monkeypatch.setattr(
+        cell_script, "_launch", lambda **k: launch_calls.append(1) or _FakeProcess()
+    )
+    monkeypatch.setattr(cell_script.fq, "wait_for_port_diagnosed", lambda **k: None)
+
+    async def _stop(process):
+        return None
+
+    monkeypatch.setattr(cell_script, "_stop", _stop)
+
+    async def _call(port, command, args):
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+    monkeypatch.setattr(
+        cell_script,
+        "_git_head_sha",
+        lambda: "a" * 40,
+    )
+    monkeypatch.setattr(cell_script, "_git_changed_paths", lambda base_sha: [])
+
+    lock_path = tmp_path / "lock.json"
+    lock_path.write_text(
+        '{"base_product_sha": "' + "a" * 40 + '", "final_fsr_adapter_sha": "' + "b" * 40
+        + '", "cells": {"u_min": {"unity_version": "6000.0.65f1", '
+        '"unity_revision": "a18e2220bd50", "utf_version": "1.6.0"}, '
+        '"u_max": {"unity_version": "6000.5.10f1", "unity_revision": "3bd4f66ad299", '
+        '"utf_version": "1.6.0"}}}',
+        encoding="utf-8",
+    )
+    pin_path = tmp_path / "pin.json"
+    pin_path.write_text("{}", encoding="utf-8")
+
+    import asyncio
+
+    asyncio.run(
+        cell_script.run_full(
+            unity=tmp_path / "Unity",
+            source_project=tmp_path / "source",
+            work_root=tmp_path / "work",
+            window="u_min",
+            lock_path=lock_path,
+            provider_pin=pin_path,
+            evidence_out=tmp_path / "evidence",
+            port=9600,
+            startup_timeout=1.0,
+            cell_name="min-linux-x64",
+            os_name="Linux",
+            arch="x64",
+        )
+    )
+
+    assert len(preseed_calls) == 3
+    assert len(launch_calls) == 3

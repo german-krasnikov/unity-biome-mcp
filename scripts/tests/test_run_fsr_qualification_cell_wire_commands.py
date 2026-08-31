@@ -16,7 +16,7 @@ CELL_SCRIPT = REPO_ROOT / "scripts" / "run_fsr_qualification_cell.py"
 REGISTRATION_CS = REPO_ROOT / "unity-plugin" / "Editor" / "CommandRouter.Registration.cs"
 
 CALL_PATTERN = re.compile(r'durable\.call\(\s*port,\s*"([a-zA-Z_]+)"')
-REGISTER_PATTERN = re.compile(r'CommandRegistry\.(?:Register|RegisterAction)\(\s*"([a-zA-Z_]+)"')
+REGISTER_PATTERN = re.compile(r'CommandRegistry\.(?:Register|RegisterAction|RegisterAsync)\(\s*"([a-zA-Z_]+)"')
 
 
 def _wire_commands_used_by_cell_script() -> set[str]:
@@ -56,3 +56,23 @@ def test_cell_script_never_calls_python_only_mcp_status():
 def test_cell_script_uses_get_status_for_the_pilot_health_probe():
     text = CELL_SCRIPT.read_text(encoding="utf-8")
     assert '"get_status"' in text
+
+
+def test_registered_wire_commands_include_async_registrations():
+    """Regression guard: REGISTER_PATTERN previously only matched
+    CommandRegistry.Register/RegisterAction, missing RegisterAsync entirely
+    — source_patch_write (the correct ON-mode write route,
+    CommandRouter.Registration.cs) is registered via RegisterAsync and
+    would have been silently treated as "unregistered" by this test."""
+    assert "source_patch_write" in _registered_wire_commands()
+
+
+def test_cell_script_routes_on_mode_writes_through_source_patch_write():
+    """Run 5 (33387852561): min-macos-arm64 reached real semantic
+    execution and failed with "asset failed: STATE: state=OnReady: source
+    patch active — legacy .cs write rejected pre-effect" — the C#-side
+    asset/write_text route explicitly rejects .cs writes while mutation is
+    ON; the real Python asset.py tool routes those through source_patch_write
+    instead (server/src/unity_mcp/tools/asset.py). The cell script must do
+    the same while mutation is ON."""
+    assert "source_patch_write" in _wire_commands_used_by_cell_script()

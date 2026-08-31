@@ -111,6 +111,23 @@ async def _stop(process: subprocess.Popen | None) -> None:
         terminate_workers([process])
 
 
+def _apply_preseed(project: Path, *, os_name: str) -> dict[str, object]:
+    """Defense-in-depth (Run 4 root cause): FSR's first-run modal dialog
+    blocks ProcessInitializeOnLoadAttributes on a headed Editor before the
+    MCP listener ever starts. Called before EVERY Unity launch, not just
+    the cell's first (Run 5: min-linux-x64 still hung even with preseed
+    applied once at cell start — an intermediate Unity process exit can
+    overwrite the underlying prefs store, losing the preseeded values
+    before the actually-vulnerable launch, steps 4-6 with the package
+    installed, ever runs). Never lets a preseed failure abort the cell —
+    this is a second, independent layer, not the primary fix (the fork
+    owner's adapter guard is)."""
+    try:
+        return preseed.preseed_editor_prefs(project, os_name=os_name)
+    except preseed.EditorPrefsPreseedError as preseed_error:
+        return {"mechanism": os_name, "applied": False, "error": str(preseed_error)}
+
+
 async def run_pilot(
     *,
     unity: Path,
@@ -152,10 +169,7 @@ async def run_pilot(
     # blocks ProcessInitializeOnLoadAttributes on a headed Editor before the
     # MCP listener ever starts. Never lets a preseed failure abort the
     # cell — this is a second, independent layer, not the primary fix.
-    try:
-        preseed_receipt = preseed.preseed_editor_prefs(project, os_name=os_name)
-    except preseed.EditorPrefsPreseedError as preseed_error:
-        preseed_receipt = {"mechanism": os_name, "applied": False, "error": str(preseed_error)}
+    preseed_receipt = _apply_preseed(project, os_name=os_name)
     process = _launch(unity=unity, project=project, port=port, log=log)
     outcome = "FAIL"
     error_message: str | None = None
@@ -207,9 +221,14 @@ async def _phase_off_legacy_compile(
 
 
 async def _phase_on_retained_object(*, port) -> None:
+    # While mutation is ON, .cs writes must go through source_patch_write,
+    # never asset/write_text — the C# side explicitly rejects a legacy
+    # write on a .cs path in that state ("source patch active — legacy .cs
+    # write rejected pre-effect", Run 5: 33387852561). This is the same
+    # routing server/src/unity_mcp/tools/asset.py itself performs.
     await durable.call(port, "editor", {"action": "mutation_mode", "enable": True})
     for kind in ("v1", "v2", "invalid", "v2", "v3"):
-        await durable.call(port, "asset", {"action": "write_text", "path": REL_TARGET, "content": harness.target_body(kind)})
+        await durable.call(port, "source_patch_write", {"path": REL_TARGET, "content": harness.target_body(kind)})
     await durable.call(port, "editor", {"action": "mutation_mode", "enable": False})
 
 
@@ -240,7 +259,7 @@ async def run_full(
     outcome = "FAIL"
     error_message: str | None = None
     process: subprocess.Popen | None = None
-    preseed_receipt: dict[str, object] | None = None
+    preseed_attempts: list[dict[str, object]] = []
     try:
         print(f"PHASE: create worker ({cell['unity_version']})", flush=True)
         worker.create_worker(
@@ -250,17 +269,8 @@ async def run_full(
             target_unity_revision=cell["unity_revision"],
         )
 
-        # Defense-in-depth (Run 4 root cause): FSR's first-run modal dialog
-        # blocks ProcessInitializeOnLoadAttributes on a headed Editor before
-        # the MCP listener ever starts. Never lets a preseed failure abort
-        # the cell — this is a second, independent layer, not the primary
-        # fix (the fork owner's adapter guard is).
-        try:
-            preseed_receipt = preseed.preseed_editor_prefs(project, os_name=os_name)
-        except preseed.EditorPrefsPreseedError as preseed_error:
-            preseed_receipt = {"mechanism": os_name, "applied": False, "error": str(preseed_error)}
-
         print("PHASE: steps 1-2 package-absent OFF compile", flush=True)
+        preseed_attempts.append(_apply_preseed(project, os_name=os_name))
         process = await _phase_off_legacy_compile(
             unity=unity, project=project, port=port, log=log, startup_timeout=startup_timeout,
             evidence_out=evidence_out, os_name=os_name,
@@ -272,6 +282,7 @@ async def run_full(
         worker.rewrite_manifest_pin(project, provider_pin, install=True)
 
         print("PHASE: steps 4-6 fresh Editor with package, ON retained-object", flush=True)
+        preseed_attempts.append(_apply_preseed(project, os_name=os_name))
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
             fq.wait_for_port_diagnosed,
@@ -287,6 +298,7 @@ async def run_full(
         worker.rewrite_manifest_pin(project, provider_pin, install=False)
 
         print("PHASE: steps 8-9 fresh package-absent Editor, final OFF", flush=True)
+        preseed_attempts.append(_apply_preseed(project, os_name=os_name))
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
             fq.wait_for_port_diagnosed,
@@ -325,7 +337,7 @@ async def run_full(
             candidate_sha=lock["final_fsr_adapter_sha"],
             outcome=outcome,
             error=error_message,
-            preseed=preseed_receipt,
+            preseed={"attempts": preseed_attempts} if preseed_attempts else None,
         )
         (evidence_out / "receipt.json").write_text(
             json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
