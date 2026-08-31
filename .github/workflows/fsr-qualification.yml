@@ -36,7 +36,7 @@ jobs:
   cell:
     name: "${{ matrix.cell }}"
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 90
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
@@ -175,12 +175,14 @@ jobs:
             --mode pilot \
             --unity "${{ steps.unity-setup.outputs.unity-editor-path }}" \
             --work-root "$RUNNER_TEMP/fsr-pilot-${{ matrix.cell }}-${{ github.run_id }}" \
+            --window ${{ matrix.window }} \
+            --lock scripts/fsr_qualification_lock.json \
             --evidence-out "artifacts/${{ matrix.cell }}/pilot" \
             --cell-name ${{ matrix.cell }} \
             --os-name ${{ matrix.os_name }} \
             --arch ${{ matrix.arch }} \
             --port 9600 \
-            --startup-timeout 420
+            --startup-timeout 900
 
       - name: Run cell scenario
         id: run-cell
@@ -201,7 +203,7 @@ jobs:
             --os-name ${{ matrix.os_name }} \
             --arch ${{ matrix.arch }} \
             --port 9600 \
-            --startup-timeout 420
+            --startup-timeout 900
 
       - name: Stop owned Xvfb
         if: always() && runner.os == 'Linux' && steps.xvfb.outputs.xvfb_pid != ''

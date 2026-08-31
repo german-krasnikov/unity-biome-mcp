@@ -92,16 +92,20 @@ def build_runtime_receipt(
     lock_base_product_sha: str,
     candidate_sha: str,
     outcome: str,
+    error: str | None = None,
 ) -> dict[str, object]:
     """Assemble one cell's terminal evidence receipt. `outcome` must be one
     of PASS/FAIL/INFRASTRUCTURE_BLOCKED — a missing secret or setup/license
     failure is always a failed INFRASTRUCTURE_BLOCKED cell, never a green
-    skip (§7 P1-20)."""
+    skip (§7 P1-20). `error`, when given, is the real Python exception
+    message — Run 3 reached real semantic failures with no error recorded
+    anywhere but the GH Actions job log, which is only retrievable once the
+    whole workflow run has completed."""
     if outcome not in VALID_OUTCOMES:
         raise FsrQualificationError(
             f"Invalid receipt outcome {outcome!r}; expected one of {sorted(VALID_OUTCOMES)}"
         )
-    return {
+    receipt: dict[str, object] = {
         "cell": cell,
         "os": os_name,
         "arch": arch,
@@ -115,6 +119,9 @@ def build_runtime_receipt(
         "candidate_sha": candidate_sha,
         "outcome": outcome,
     }
+    if error:
+        receipt["error"] = error
+    return receipt
 
 
 def assert_base_sha_untouched(
@@ -207,16 +214,29 @@ def write_pilot_evidence(
     (evidence_out / "pilot-unity-log-tail.txt").write_text(tail_log(log_path), encoding="utf-8")
 
 
-def build_headed_unity_command(unity: Path, project: Path, log: Path) -> list[str]:
+def build_headed_unity_command(
+    unity: Path, project: Path, log: Path, *, force_d3d11: bool = False
+) -> list[str]:
     """No -batchmode/-nographics/-quit: a direct GUI supervisor, not a
-    batchmode lane (§7 P1-20)."""
-    return [
+    batchmode lane (§7 P1-20).
+
+    force_d3d11 is a Windows-only diagnostic: min-windows-x64's Editor.log
+    never reached even the earliest engine banner line across 3 consecutive
+    matrix runs, unlike every Linux/macOS cell, which always logs within
+    the first second. GPU-less Windows CI VMs are a documented source of
+    Unity Editor startup hangs during graphics-backend auto-detection;
+    -force-d3d11 is a standard Unity Editor argument that skips it. This is
+    an evidence-motivated experiment, not a confirmed fix."""
+    command = [
         str(unity),
         "-projectPath",
         str(project.resolve()),
         "-logFile",
         str(log.resolve()),
     ]
+    if force_d3d11:
+        command.append("-force-d3d11")
+    return command
 
 
 def build_headed_unity_environment(

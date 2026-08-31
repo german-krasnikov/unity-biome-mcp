@@ -338,3 +338,56 @@ def test_write_pilot_evidence_records_missing_log_explicitly(tmp_path: Path):
     assert "Timed out" in receipt["error"]
     tail = (evidence_out / "pilot-unity-log-tail.txt").read_text(encoding="utf-8")
     assert "not found" in tail.lower()
+
+
+# ---------------------------------------------------------------------------
+# build_runtime_receipt error capture — Run 3's min-linux-x64/min-macos-
+# arm64 reached real semantic execution and failed for real, but the
+# receipt had no error field at all: only the raw GH Actions job log (only
+# retrievable after the whole run completes) carried the actual Python
+# exception message.
+# ---------------------------------------------------------------------------
+
+def test_build_runtime_receipt_captures_error_message_when_given():
+    receipt = fq.build_runtime_receipt(
+        cell="min-linux-x64", os_name="Linux", arch="x64",
+        unity_version="6000.0.65f1", unity_revision="a18e2220bd50",
+        setup_ok=True, license_ok=True, display_ok=True,
+        checkout_sha="a" * 40, lock_base_product_sha="a" * 40,
+        candidate_sha="b" * 40, outcome="FAIL",
+        error="editor mutation_mode failed: some real reason",
+    )
+    assert receipt["error"] == "editor mutation_mode failed: some real reason"
+
+
+def test_build_runtime_receipt_omits_error_key_when_not_given():
+    receipt = fq.build_runtime_receipt(
+        cell="min-linux-x64", os_name="Linux", arch="x64",
+        unity_version="6000.0.65f1", unity_revision="a18e2220bd50",
+        setup_ok=True, license_ok=True, display_ok=True,
+        checkout_sha="a" * 40, lock_base_product_sha="a" * 40,
+        candidate_sha="b" * 40, outcome="PASS",
+    )
+    assert "error" not in receipt
+
+
+# ---------------------------------------------------------------------------
+# build_headed_unity_command -force-d3d11 — Windows-only diagnostic. GPU-less
+# Windows CI VMs are a known source of Unity Editor startup hangs during
+# graphics-backend auto-detection; min-windows-x64's Editor.log never even
+# reached the "Unity Editor version:" banner line across 3 consecutive
+# matrix runs, unlike every Linux/macOS cell, which always logs that line
+# within the first second. -force-d3d11 is a standard, documented Unity
+# Editor argument that skips backend auto-detection.
+# ---------------------------------------------------------------------------
+
+def test_headed_unity_command_forces_d3d11_only_when_requested():
+    windows_command = fq.build_headed_unity_command(
+        Path("/tmp/Unity"), Path("/tmp/project"), Path("/tmp/log"), force_d3d11=True
+    )
+    assert "-force-d3d11" in windows_command
+
+    default_command = fq.build_headed_unity_command(
+        Path("/tmp/Unity"), Path("/tmp/project"), Path("/tmp/log")
+    )
+    assert "-force-d3d11" not in default_command

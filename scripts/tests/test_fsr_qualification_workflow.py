@@ -228,3 +228,25 @@ def test_workflow_pilot_step_captures_evidence():
     assert "--evidence-out \"artifacts/${{ matrix.cell }}/pilot\"" in pilot_block
     assert "--cell-name ${{ matrix.cell }}" in pilot_block
     assert "--os-name ${{ matrix.os_name }}" in pilot_block
+
+
+def test_workflow_bumps_startup_timeout_for_cold_provider_compile():
+    """Run 3 (33381259363): min-linux-x64/min-macos-arm64 pilots passed and
+    reached real semantic execution, but "Run cell scenario" timed out
+    waiting for the MCP port while Unity's own build log showed it still
+    actively compiling the FSR provider's full dependency graph (829 build
+    items, no warm cache in a fresh disposable worker) — not a hang, a cold
+    compile that didn't finish inside 420s. The evidence artifact's
+    unity.log (captured moments later) showed the build had in fact
+    succeeded. 900s gives real headroom."""
+    text = _text()
+    assert "--startup-timeout 420" not in text
+    assert text.count("--startup-timeout 900") == 2
+
+
+def test_workflow_job_timeout_covers_worst_case_phase_sum():
+    """Up to 4 startup-timeout waits (pilot + 3 Editor launches in --mode
+    full) plus unity-setup (40 min) must fit inside the job timeout with
+    real headroom, not truncate mid-run before evidence is written."""
+    data = _parsed()
+    assert data["jobs"]["cell"]["timeout-minutes"] >= 150

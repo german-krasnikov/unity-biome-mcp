@@ -40,6 +40,7 @@ import create_unity_test_worker as worker  # noqa: E402
 import gauntlet.fsr_qualification as fq  # noqa: E402
 import gauntlet.fsr_qualification_fixture as harness  # noqa: E402
 from gauntlet.hosted_conformance import (  # noqa: E402
+    HostedConformanceError,
     tail_log,
     terminate_workers,
     wait_for_port,
@@ -87,7 +88,7 @@ def _git_changed_paths(base_sha: str) -> list[str]:
 
 
 def _launch(*, unity: Path, project: Path, port: int, log: Path) -> subprocess.Popen:
-    command = fq.build_headed_unity_command(unity, project, log)
+    command = fq.build_headed_unity_command(unity, project, log, force_d3d11=os.name == "nt")
     env = fq.build_headed_unity_environment(os.environ, port=port, project=project)
     write_mcp_project_settings(project, port=port, read_only=False)
 
@@ -121,8 +122,18 @@ async def run_pilot(
     cell_name: str = "pilot",
     os_name: str = "",
     arch: str = "",
+    unity_version: str | None = None,
+    unity_revision: str | None = None,
 ) -> None:
     """Fixture-free GUI baseline: no fixture, no provider pin.
+
+    unity_version/unity_revision (when both given) rewrite the worker's
+    declared Unity version to match the launching Editor — Run 3 showed
+    max-linux-x64/max-macos-arm64 pilots failing because this was omitted:
+    the worker always defaulted to U_MIN (6000.0.65f1) while the U_MAX
+    (6000.5.10f1) Editor launched headed against it, which risks Unity's
+    interactive "project created with an earlier version, continue
+    anyway?" dialog — it blocks indefinitely outside batchmode.
 
     Always writes pilot evidence (receipt + Unity log tail, or an explicit
     "not found" record) when evidence_out is given — Run 2 discarded all
@@ -130,7 +141,12 @@ async def run_pilot(
     receipt.json with no log content at all."""
     project = work_root / "pilot"
     log = work_root / "pilot-unity.log"
-    worker.create_worker(source_project, project)
+    worker.create_worker(
+        source_project,
+        project,
+        target_unity_version=unity_version,
+        target_unity_revision=unity_revision,
+    )
     process = _launch(unity=unity, project=project, port=port, log=log)
     outcome = "FAIL"
     error_message: str | None = None
@@ -146,7 +162,7 @@ async def run_pilot(
         # server tool and is not reachable over raw TCP).
         await durable.call(port, "get_status", {})
         outcome = "PASS"
-    except (durable.RunnerError, OSError, TimeoutError) as error:
+    except (durable.RunnerError, HostedConformanceError, OSError, TimeoutError) as error:
         error_message = str(error)
         outcome = "INFRASTRUCTURE_BLOCKED"
         raise
@@ -206,8 +222,10 @@ async def run_full(
     log = evidence_out / "unity.log"
     setup_ok = license_ok = display_ok = True
     outcome = "FAIL"
+    error_message: str | None = None
     process: subprocess.Popen | None = None
     try:
+        print(f"PHASE: create worker ({cell['unity_version']})", flush=True)
         worker.create_worker(
             source_project,
             project,
@@ -215,17 +233,17 @@ async def run_full(
             target_unity_revision=cell["unity_revision"],
         )
 
-        # Steps 1-2: package-absent OFF clean-base compile, then stop.
+        print("PHASE: steps 1-2 package-absent OFF compile", flush=True)
         process = await _phase_off_legacy_compile(
             unity=unity, project=project, port=port, log=log, startup_timeout=startup_timeout
         )
         await _stop(process)
         process = None
 
-        # Step 3: install optional package offline by exact pin (worker only).
+        print("PHASE: step 3 install optional package offline", flush=True)
         worker.rewrite_manifest_pin(project, provider_pin, install=True)
 
-        # Steps 4-6: fresh Editor, ON retained-object sequence, disable.
+        print("PHASE: steps 4-6 fresh Editor with package, ON retained-object", flush=True)
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
             wait_for_port, host="127.0.0.1", port=port, process=process, log=log, timeout=startup_timeout
@@ -235,10 +253,10 @@ async def run_full(
         await _stop(process)
         process = None
 
-        # Step 7: remove optional package offline only after OFF/zero lease.
+        print("PHASE: step 7 remove optional package offline", flush=True)
         worker.rewrite_manifest_pin(project, provider_pin, install=False)
 
-        # Steps 8-9: fresh package-absent Editor, final legacy OFF, restoration.
+        print("PHASE: steps 8-9 fresh package-absent Editor, final OFF", flush=True)
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
             wait_for_port, host="127.0.0.1", port=port, process=process, log=log, timeout=startup_timeout
@@ -248,7 +266,15 @@ async def run_full(
         process = None
 
         outcome = "PASS"
-    except (durable.RunnerError, OSError, TimeoutError, worker.WorkerCreationError, fq.FsrQualificationError):
+    except (
+        durable.RunnerError,
+        HostedConformanceError,
+        OSError,
+        TimeoutError,
+        worker.WorkerCreationError,
+        fq.FsrQualificationError,
+    ) as error:
+        error_message = str(error)
         outcome = "FAIL"
         raise
     finally:
@@ -266,6 +292,7 @@ async def run_full(
             lock_base_product_sha=lock["base_product_sha"],
             candidate_sha=lock["final_fsr_adapter_sha"],
             outcome=outcome,
+            error=error_message,
         )
         (evidence_out / "receipt.json").write_text(
             json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
@@ -300,6 +327,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         if args.mode == "pilot":
+            unity_version = unity_revision = None
+            if args.window:
+                pilot_cell = fq.resolve_cell(fq.load_lock(args.lock), args.window)
+                unity_version = pilot_cell["unity_version"]
+                unity_revision = pilot_cell["unity_revision"]
             asyncio.run(
                 run_pilot(
                     unity=args.unity,
@@ -311,6 +343,8 @@ def main(argv: list[str] | None = None) -> int:
                     cell_name=args.cell_name or "pilot",
                     os_name=args.os_name,
                     arch=args.arch,
+                    unity_version=unity_version,
+                    unity_revision=unity_revision,
                 )
             )
         else:
