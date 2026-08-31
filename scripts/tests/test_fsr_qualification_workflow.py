@@ -8,7 +8,6 @@ tracked workflow file only.
 """
 from pathlib import Path
 
-import pytest
 import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -49,12 +48,6 @@ def test_workflow_push_trigger_is_documented_as_temporary():
     assert "after the first" in text
 
 
-@pytest.mark.skip(
-    reason="DEBUG LANE (temporary): matrix narrowed to min-linux-x64 only, "
-    "aggregate simplified to a bare receipt check while iterating "
-    "off-mode-evidence fixes; restored verbatim in the "
-    "\"restore full qualification matrix\" commit."
-)
 def test_workflow_defines_exactly_the_three_narrowed_cells():
     """Narrowed after run 5 (coordinator decision): u_max is shelved to
     P2-07 — only the three u_min cells remain (macOS/Linux required-pass,
@@ -134,12 +127,6 @@ def test_workflow_reuses_pinned_actions_from_existing_ci():
         assert pinned in text
 
 
-@pytest.mark.skip(
-    reason="DEBUG LANE (temporary): matrix narrowed to min-linux-x64 only, "
-    "aggregate simplified to a bare receipt check while iterating "
-    "off-mode-evidence fixes; restored verbatim in the "
-    "\"restore full qualification matrix\" commit."
-)
 def test_workflow_aggregate_job_needs_cell_and_validates_receipts():
     data = _parsed()
     aggregate = data["jobs"]["aggregate"]
@@ -194,12 +181,6 @@ def test_workflow_push_trigger_paths_cover_the_full_cell_mechanization():
     }
 
 
-@pytest.mark.skip(
-    reason="DEBUG LANE (temporary): matrix narrowed to min-linux-x64 only, "
-    "aggregate simplified to a bare receipt check while iterating "
-    "off-mode-evidence fixes; restored verbatim in the "
-    "\"restore full qualification matrix\" commit."
-)
 def test_workflow_checkout_steps_fetch_full_history():
     """Run 2 crashed 4/6 cells: git diff --name-only <base>..HEAD failed
     exit 128 on actions/checkout's default shallow clone (fetch-depth: 1),
@@ -274,12 +255,6 @@ def test_workflow_aggregate_wording_no_longer_claims_six_of_six():
     assert "documented-blocked" in block.lower() or "required-pass" in block.lower()
 
 
-@pytest.mark.skip(
-    reason="DEBUG LANE (temporary): matrix narrowed to min-linux-x64 only, "
-    "aggregate simplified to a bare receipt check while iterating "
-    "off-mode-evidence fixes; restored verbatim in the "
-    "\"restore full qualification matrix\" commit."
-)
 def test_workflow_aggregate_job_installs_server_dev_deps_before_validating():
     """Run 10 (33399420344): the aggregate job's own
     validate_fsr_qualification_receipts.py import chain
