@@ -391,3 +391,148 @@ def test_headed_unity_command_forces_d3d11_only_when_requested():
         Path("/tmp/Unity"), Path("/tmp/project"), Path("/tmp/log")
     )
     assert "-force-d3d11" not in default_command
+
+
+# ---------------------------------------------------------------------------
+# Windows timeout diagnostics — Run 4: min-windows-x64/max-windows-x64
+# produced zero log content across 4 consecutive matrix runs with no
+# visibility into why. Every poll_interval seconds during the wait, and
+# once more on final timeout, capture process liveness, -logFile
+# presence/size, the OS-default Editor.log fallback location, and a
+# Unity process list, so a timeout finally produces real evidence.
+# ---------------------------------------------------------------------------
+
+class _FakeProcess:
+    def __init__(self, returncode=None):
+        self._returncode = returncode
+        self.returncode = returncode
+
+    def poll(self):
+        return self._returncode
+
+
+def test_default_editor_log_path_per_os(tmp_path: Path):
+    windows = fq.default_editor_log_path(os_name="Windows", home=tmp_path)
+    macos = fq.default_editor_log_path(os_name="macOS", home=tmp_path)
+    linux = fq.default_editor_log_path(os_name="Linux", home=tmp_path)
+    assert windows == tmp_path / "AppData" / "Local" / "Unity" / "Editor" / "Editor.log"
+    assert macos == tmp_path / "Library" / "Logs" / "Unity" / "Editor.log"
+    assert linux == tmp_path / ".config" / "unity3d" / "Editor.log"
+
+
+def test_capture_wait_diagnostics_reports_log_presence_and_process_liveness(tmp_path: Path):
+    log = tmp_path / "unity.log"
+    log.write_text("hello", encoding="utf-8")
+    process = _FakeProcess(returncode=None)
+
+    snapshot = fq.capture_wait_diagnostics(
+        process=process, log=log, os_name="Linux", home=tmp_path
+    )
+
+    assert snapshot["poll"] is None
+    assert snapshot["log_exists"] is True
+    assert snapshot["log_size"] == 5
+    assert snapshot["default_log_exists"] is False
+    assert "unity_processes" in snapshot
+
+
+def test_capture_wait_diagnostics_reports_missing_log(tmp_path: Path):
+    process = _FakeProcess(returncode=None)
+
+    snapshot = fq.capture_wait_diagnostics(
+        process=process, log=tmp_path / "absent.log", os_name="Windows", home=tmp_path
+    )
+
+    assert snapshot["log_exists"] is False
+    assert snapshot["log_size"] is None
+
+
+def test_wait_for_port_diagnosed_returns_once_port_open(tmp_path: Path):
+    import socket
+
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(("127.0.0.1", 0))
+    server.listen(1)
+    port = server.getsockname()[1]
+    process = _FakeProcess(returncode=None)
+
+    fq.wait_for_port_diagnosed(
+        host="127.0.0.1", port=port, process=process, log=tmp_path / "unity.log",
+        timeout=5.0, evidence_out=tmp_path / "evidence", os_name="Linux",
+        home=tmp_path, poll_interval=30.0,
+    )  # must not raise
+    server.close()
+
+
+def test_wait_for_port_diagnosed_raises_when_process_exits_early(tmp_path: Path):
+    process = _FakeProcess(returncode=1)
+
+    with pytest.raises(fq.HostedConformanceError, match="exited early"):
+        fq.wait_for_port_diagnosed(
+            host="127.0.0.1", port=59321, process=process, log=tmp_path / "unity.log",
+            timeout=5.0, evidence_out=tmp_path / "evidence", os_name="Windows",
+            home=tmp_path, poll_interval=30.0,
+        )
+
+
+def test_wait_for_port_diagnosed_times_out_and_writes_diagnostics(tmp_path: Path):
+    process = _FakeProcess(returncode=None)
+    evidence_out = tmp_path / "evidence"
+
+    with pytest.raises(fq.HostedConformanceError, match="Timed out"):
+        fq.wait_for_port_diagnosed(
+            host="127.0.0.1", port=59322, process=process, log=tmp_path / "unity.log",
+            timeout=0.3, evidence_out=evidence_out, os_name="Windows",
+            home=tmp_path, poll_interval=0.1,
+        )
+
+    diagnostics = (evidence_out / "wait-diagnostics.jsonl").read_text(encoding="utf-8")
+    assert diagnostics.strip()
+    lines = [json.loads(line) for line in diagnostics.strip().splitlines()]
+    assert len(lines) >= 1
+    assert all(line["poll"] is None for line in lines)
+
+
+# ---------------------------------------------------------------------------
+# preseed honesty in receipts — "зафиксируй preseed-значения в receipt
+# ячейки (честность среды)"
+# ---------------------------------------------------------------------------
+
+def test_write_pilot_evidence_embeds_preseed_receipt_when_given(tmp_path: Path):
+    evidence_out = tmp_path / "evidence"
+    log = tmp_path / "pilot-unity.log"
+
+    fq.write_pilot_evidence(
+        evidence_out, cell="min-windows-x64", os_name="Windows", arch="x64",
+        log_path=log, outcome="PASS", error=None,
+        preseed={"mechanism": "windows_registry", "applied": True, "keys": ["kAutoRefreshMode"]},
+    )
+
+    receipt = json.loads((evidence_out / "pilot-receipt.json").read_text(encoding="utf-8"))
+    assert receipt["preseed"]["mechanism"] == "windows_registry"
+    assert receipt["preseed"]["applied"] is True
+
+
+def test_write_pilot_evidence_omits_preseed_key_when_not_given(tmp_path: Path):
+    evidence_out = tmp_path / "evidence"
+    log = tmp_path / "pilot-unity.log"
+
+    fq.write_pilot_evidence(
+        evidence_out, cell="min-windows-x64", os_name="Windows", arch="x64",
+        log_path=log, outcome="PASS", error=None,
+    )
+
+    receipt = json.loads((evidence_out / "pilot-receipt.json").read_text(encoding="utf-8"))
+    assert "preseed" not in receipt
+
+
+def test_build_runtime_receipt_embeds_preseed_receipt_when_given():
+    receipt = fq.build_runtime_receipt(
+        cell="min-linux-x64", os_name="Linux", arch="x64",
+        unity_version="6000.0.65f1", unity_revision="a18e2220bd50",
+        setup_ok=True, license_ok=True, display_ok=True,
+        checkout_sha="a" * 40, lock_base_product_sha="a" * 40,
+        candidate_sha="b" * 40, outcome="PASS",
+        preseed={"mechanism": "linux_prefs_xml", "applied": True, "keys": ["kAutoRefreshMode"]},
+    )
+    assert receipt["preseed"]["mechanism"] == "linux_prefs_xml"

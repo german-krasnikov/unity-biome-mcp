@@ -40,7 +40,7 @@ def _stub_common(monkeypatch: pytest.MonkeyPatch, *, create_worker_calls: list):
         lambda *a, **k: create_worker_calls.append(k),
     )
     monkeypatch.setattr(cell_script, "_launch", lambda **k: _FakeProcess())
-    monkeypatch.setattr(cell_script, "wait_for_port", lambda **k: None)
+    monkeypatch.setattr(cell_script.fq, "wait_for_port_diagnosed", lambda **k: None)
 
     async def _stop(process):
         return None
@@ -116,7 +116,7 @@ def test_run_pilot_classifies_hosted_conformance_timeout_as_infrastructure_block
             "Timed out waiting for Unity MCP port 127.0.0.1:9600: timed out"
         )
 
-    monkeypatch.setattr(cell_script, "wait_for_port", _wait_for_port)
+    monkeypatch.setattr(cell_script.fq, "wait_for_port_diagnosed", _wait_for_port)
 
     written = {}
 
@@ -171,3 +171,92 @@ def test_launch_forces_d3d11_only_on_windows(tmp_path: Path, monkeypatch: pytest
     monkeypatch.setattr(cell_script.os, "name", "posix")
     cell_script._launch(unity=tmp_path / "Unity", project=tmp_path / "p", port=9600, log=tmp_path / "l")
     assert captured["force_d3d11"] is False
+
+
+# ---------------------------------------------------------------------------
+# preseed wiring — Run 4 root cause (FSR's first-run modal dialog blocks
+# ProcessInitializeOnLoadAttributes on a headed Editor). Defense-in-depth:
+# preseed runs before the Editor launches, and a failed preseed must never
+# abort the pilot.
+# ---------------------------------------------------------------------------
+
+def test_run_pilot_calls_preseed_before_launch_and_embeds_receipt_on_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    calls: list = []
+    _stub_common(monkeypatch, create_worker_calls=calls)
+
+    async def _call(port, command, args):
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+    monkeypatch.setattr(
+        cell_script.preseed,
+        "preseed_editor_prefs",
+        lambda project, *, os_name: {"mechanism": "linux_prefs_xml", "applied": True, "keys": []},
+    )
+
+    written = {}
+    monkeypatch.setattr(
+        cell_script.fq,
+        "write_pilot_evidence",
+        lambda evidence_out, **kwargs: written.update(kwargs),
+    )
+
+    import asyncio
+
+    asyncio.run(
+        cell_script.run_pilot(
+            unity=tmp_path / "Unity",
+            source_project=tmp_path / "source",
+            work_root=tmp_path / "work",
+            port=9600,
+            startup_timeout=1.0,
+            os_name="Linux",
+            evidence_out=tmp_path / "evidence",
+        )
+    )
+
+    assert written["preseed"]["mechanism"] == "linux_prefs_xml"
+    assert written["preseed"]["applied"] is True
+
+
+def test_run_pilot_survives_a_failed_preseed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Preseed is defense-in-depth, never the primary fix — a preseed
+    failure must not abort the pilot, only be recorded honestly."""
+    calls: list = []
+    _stub_common(monkeypatch, create_worker_calls=calls)
+
+    async def _call(port, command, args):
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    def _fail(project, *, os_name):
+        raise cell_script.preseed.EditorPrefsPreseedError("no ProjectSettings.asset")
+
+    monkeypatch.setattr(cell_script.preseed, "preseed_editor_prefs", _fail)
+
+    written = {}
+    monkeypatch.setattr(
+        cell_script.fq,
+        "write_pilot_evidence",
+        lambda evidence_out, **kwargs: written.update(kwargs),
+    )
+
+    import asyncio
+
+    asyncio.run(
+        cell_script.run_pilot(
+            unity=tmp_path / "Unity",
+            source_project=tmp_path / "source",
+            work_root=tmp_path / "work",
+            port=9600,
+            startup_timeout=1.0,
+            os_name="Windows",
+            evidence_out=tmp_path / "evidence",
+        )
+    )
+
+    assert written["preseed"]["applied"] is False
+    assert "no ProjectSettings.asset" in written["preseed"]["error"]

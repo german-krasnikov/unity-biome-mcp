@@ -37,13 +37,13 @@ SCRIPTS = REPO_ROOT / "scripts"
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(SCRIPTS))
 import create_unity_test_worker as worker  # noqa: E402
+import gauntlet.editor_prefs_preseed as preseed  # noqa: E402
 import gauntlet.fsr_qualification as fq  # noqa: E402
 import gauntlet.fsr_qualification_fixture as harness  # noqa: E402
 from gauntlet.hosted_conformance import (  # noqa: E402
     HostedConformanceError,
     tail_log,
     terminate_workers,
-    wait_for_port,
     write_mcp_project_settings,
 )
 
@@ -141,18 +141,29 @@ async def run_pilot(
     receipt.json with no log content at all."""
     project = work_root / "pilot"
     log = work_root / "pilot-unity.log"
+    diagnostics_dir = evidence_out or work_root
     worker.create_worker(
         source_project,
         project,
         target_unity_version=unity_version,
         target_unity_revision=unity_revision,
     )
+    # Defense-in-depth (Run 4 root cause): FSR's first-run modal dialog
+    # blocks ProcessInitializeOnLoadAttributes on a headed Editor before the
+    # MCP listener ever starts. Never lets a preseed failure abort the
+    # cell — this is a second, independent layer, not the primary fix.
+    try:
+        preseed_receipt = preseed.preseed_editor_prefs(project, os_name=os_name)
+    except preseed.EditorPrefsPreseedError as preseed_error:
+        preseed_receipt = {"mechanism": os_name, "applied": False, "error": str(preseed_error)}
     process = _launch(unity=unity, project=project, port=port, log=log)
     outcome = "FAIL"
     error_message: str | None = None
     try:
         await asyncio.to_thread(
-            wait_for_port, host="127.0.0.1", port=port, process=process, log=log, timeout=startup_timeout
+            fq.wait_for_port_diagnosed,
+            host="127.0.0.1", port=port, process=process, log=log,
+            timeout=startup_timeout, evidence_out=diagnostics_dir, os_name=os_name,
         )
         # durable.call already raises RunnerError on a non-ok response, so a
         # successful return is itself the pilot's health proof: the headed
@@ -177,13 +188,18 @@ async def run_pilot(
                 log_path=log,
                 outcome=outcome,
                 error=error_message,
+                preseed=preseed_receipt,
             )
 
 
-async def _phase_off_legacy_compile(*, unity, project, port, log, startup_timeout) -> subprocess.Popen:
+async def _phase_off_legacy_compile(
+    *, unity, project, port, log, startup_timeout, evidence_out, os_name
+) -> subprocess.Popen:
     process = _launch(unity=unity, project=project, port=port, log=log)
     await asyncio.to_thread(
-        wait_for_port, host="127.0.0.1", port=port, process=process, log=log, timeout=startup_timeout
+        fq.wait_for_port_diagnosed,
+        host="127.0.0.1", port=port, process=process, log=log,
+        timeout=startup_timeout, evidence_out=evidence_out, os_name=os_name,
     )
     harness.install_fixture(project)
     await durable.call(port, "asset", {"action": "write_text", "path": REL_TARGET, "content": harness.target_body("v0")})
@@ -224,6 +240,7 @@ async def run_full(
     outcome = "FAIL"
     error_message: str | None = None
     process: subprocess.Popen | None = None
+    preseed_receipt: dict[str, object] | None = None
     try:
         print(f"PHASE: create worker ({cell['unity_version']})", flush=True)
         worker.create_worker(
@@ -233,9 +250,20 @@ async def run_full(
             target_unity_revision=cell["unity_revision"],
         )
 
+        # Defense-in-depth (Run 4 root cause): FSR's first-run modal dialog
+        # blocks ProcessInitializeOnLoadAttributes on a headed Editor before
+        # the MCP listener ever starts. Never lets a preseed failure abort
+        # the cell — this is a second, independent layer, not the primary
+        # fix (the fork owner's adapter guard is).
+        try:
+            preseed_receipt = preseed.preseed_editor_prefs(project, os_name=os_name)
+        except preseed.EditorPrefsPreseedError as preseed_error:
+            preseed_receipt = {"mechanism": os_name, "applied": False, "error": str(preseed_error)}
+
         print("PHASE: steps 1-2 package-absent OFF compile", flush=True)
         process = await _phase_off_legacy_compile(
-            unity=unity, project=project, port=port, log=log, startup_timeout=startup_timeout
+            unity=unity, project=project, port=port, log=log, startup_timeout=startup_timeout,
+            evidence_out=evidence_out, os_name=os_name,
         )
         await _stop(process)
         process = None
@@ -246,7 +274,9 @@ async def run_full(
         print("PHASE: steps 4-6 fresh Editor with package, ON retained-object", flush=True)
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
-            wait_for_port, host="127.0.0.1", port=port, process=process, log=log, timeout=startup_timeout
+            fq.wait_for_port_diagnosed,
+            host="127.0.0.1", port=port, process=process, log=log,
+            timeout=startup_timeout, evidence_out=evidence_out, os_name=os_name,
         )
         harness.validate_installed_fixture(project)
         await _phase_on_retained_object(port=port)
@@ -259,7 +289,9 @@ async def run_full(
         print("PHASE: steps 8-9 fresh package-absent Editor, final OFF", flush=True)
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
-            wait_for_port, host="127.0.0.1", port=port, process=process, log=log, timeout=startup_timeout
+            fq.wait_for_port_diagnosed,
+            host="127.0.0.1", port=port, process=process, log=log,
+            timeout=startup_timeout, evidence_out=evidence_out, os_name=os_name,
         )
         await durable.call(port, "asset", {"action": "write_text", "path": REL_TARGET, "content": harness.target_body("v0")})
         await _stop(process)
@@ -293,6 +325,7 @@ async def run_full(
             candidate_sha=lock["final_fsr_adapter_sha"],
             outcome=outcome,
             error=error_message,
+            preseed=preseed_receipt,
         )
         (evidence_out / "receipt.json").write_text(
             json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"

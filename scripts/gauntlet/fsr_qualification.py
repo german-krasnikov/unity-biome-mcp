@@ -13,10 +13,14 @@ plan requires "a direct GUI supervisor on every OS."
 See Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md §7 P1-20.
 """
 import json
+import socket
+import subprocess
+import time
 from collections.abc import Mapping, Sequence  # noqa: TC003
+from datetime import UTC, datetime
 from pathlib import Path  # noqa: TC003
 
-from gauntlet.hosted_conformance import tail_log
+from gauntlet.hosted_conformance import HostedConformanceError, tail_log
 
 REQUIRED_LOCK_KEYS = ("base_product_sha", "final_fsr_adapter_sha", "cells")
 REQUIRED_CELL_WINDOWS = ("u_min", "u_max")
@@ -93,6 +97,7 @@ def build_runtime_receipt(
     candidate_sha: str,
     outcome: str,
     error: str | None = None,
+    preseed: dict[str, object] | None = None,
 ) -> dict[str, object]:
     """Assemble one cell's terminal evidence receipt. `outcome` must be one
     of PASS/FAIL/INFRASTRUCTURE_BLOCKED — a missing secret or setup/license
@@ -121,6 +126,8 @@ def build_runtime_receipt(
     }
     if error:
         receipt["error"] = error
+    if preseed is not None:
+        receipt["preseed"] = preseed
     return receipt
 
 
@@ -189,12 +196,17 @@ def write_pilot_evidence(
     log_path: Path,
     outcome: str,
     error: str | None,
+    preseed: dict[str, object] | None = None,
 ) -> None:
     """The fixture-free GUI pilot previously discarded all diagnostic
     evidence on failure — a failed pilot cell uploaded nothing but a bare
     receipt.json with no log content at all. Always write a receipt +
     whatever Unity log tail exists (or an explicit "not found" record) so a
-    future failure is diagnosable from the uploaded artifact alone."""
+    future failure is diagnosable from the uploaded artifact alone.
+
+    preseed, when given, is the offline EditorPrefs preseed receipt
+    (mechanism/keys/applied/error) — embedded so the evidence bundle is
+    honest about what environment mitigations were actually in place."""
     if outcome not in VALID_OUTCOMES:
         raise FsrQualificationError(
             f"Invalid pilot evidence outcome {outcome!r}; expected one of {sorted(VALID_OUTCOMES)}"
@@ -208,6 +220,8 @@ def write_pilot_evidence(
     }
     if error:
         receipt["error"] = error
+    if preseed is not None:
+        receipt["preseed"] = preseed
     (evidence_out / "pilot-receipt.json").write_text(
         json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
@@ -250,8 +264,113 @@ def build_headed_unity_environment(
     return env
 
 
+def default_editor_log_path(*, os_name: str, home: Path) -> Path:
+    """The OS-default Editor.log location Unity falls back to — checked in
+    addition to our explicit -logFile path, in case that argument itself
+    silently failed (Run 4: Windows produced zero content at the -logFile
+    path across 4 consecutive matrix runs)."""
+    if os_name == "Windows":
+        return home / "AppData" / "Local" / "Unity" / "Editor" / "Editor.log"
+    if os_name == "macOS":
+        return home / "Library" / "Logs" / "Unity" / "Editor.log"
+    return home / ".config" / "unity3d" / "Editor.log"
+
+
+def _list_unity_processes(*, os_name: str) -> str:
+    """Best-effort process snapshot; never raises — a missing/failing tool
+    must not break diagnostics collection, only degrade it."""
+    try:
+        if os_name == "Windows":
+            command = ["tasklist", "/FI", "IMAGENAME eq Unity.exe"]
+        else:
+            command = ["ps", "-A", "-o", "pid,comm"]
+        result = subprocess.run(command, capture_output=True, text=True, timeout=10)
+        return result.stdout
+    except (OSError, subprocess.SubprocessError) as error:
+        return f"<process list unavailable: {error}>"
+
+
+def capture_wait_diagnostics(
+    *, process: subprocess.Popen, log: Path, os_name: str, home: Path
+) -> dict[str, object]:
+    """One diagnostic snapshot: process liveness (poll()), -logFile
+    presence/size, the OS-default Editor.log fallback location, and a
+    Unity process list."""
+    default_log = default_editor_log_path(os_name=os_name, home=home)
+    return {
+        "utc": datetime.now(UTC).isoformat(),
+        "poll": process.poll(),
+        "log_path": str(log),
+        "log_exists": log.is_file(),
+        "log_size": log.stat().st_size if log.is_file() else None,
+        "default_log_path": str(default_log),
+        "default_log_exists": default_log.is_file(),
+        "default_log_size": default_log.stat().st_size if default_log.is_file() else None,
+        "unity_processes": _list_unity_processes(os_name=os_name),
+    }
+
+
+def _append_diagnostics(path: Path, snapshot: dict[str, object]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(snapshot) + "\n")
+
+
+def wait_for_port_diagnosed(
+    *,
+    host: str,
+    port: int,
+    process: subprocess.Popen,
+    log: Path,
+    timeout: float,
+    evidence_out: Path,
+    os_name: str,
+    home: Path | None = None,
+    poll_interval: float = 30.0,
+) -> None:
+    """Same contract as gauntlet.hosted_conformance.wait_for_port (raises
+    HostedConformanceError on early exit or timeout), plus a periodic
+    diagnostic snapshot every poll_interval seconds to
+    evidence_out/wait-diagnostics.jsonl and one final snapshot on timeout —
+    Run 4 (Windows, 4 consecutive matrix runs) produced a timeout with zero
+    other evidence at all. A separate function from the shared, already-
+    proven wait_for_port so this never risks the batchmode conformance
+    lanes that depend on it."""
+    home = home or Path.home()
+    diagnostics_path = evidence_out / "wait-diagnostics.jsonl"
+    deadline = time.monotonic() + timeout
+    next_snapshot = time.monotonic()
+    last_error: OSError | None = None
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise HostedConformanceError(
+                f"Unity worker for port {port} exited early with {process.returncode}.\n"
+                + tail_log(log)
+            )
+        if time.monotonic() >= next_snapshot:
+            _append_diagnostics(
+                diagnostics_path,
+                capture_wait_diagnostics(process=process, log=log, os_name=os_name, home=home),
+            )
+            next_snapshot = time.monotonic() + poll_interval
+        try:
+            with socket.create_connection((host, port), timeout=1.0):
+                return
+        except OSError as exc:
+            last_error = exc
+            time.sleep(1.0)
+    _append_diagnostics(
+        diagnostics_path,
+        capture_wait_diagnostics(process=process, log=log, os_name=os_name, home=home),
+    )
+    raise HostedConformanceError(
+        f"Timed out waiting for Unity MCP port {host}:{port}: {last_error}\n" + tail_log(log)
+    )
+
+
 __all__ = [
     "FsrQualificationError",
+    "HostedConformanceError",
     "GUARDED_BASE_PREFIXES",
     "VALID_OUTCOMES",
     "EXPECTED_CELLS",
@@ -263,4 +382,7 @@ __all__ = [
     "validate_receipt_set",
     "build_headed_unity_command",
     "build_headed_unity_environment",
+    "default_editor_log_path",
+    "capture_wait_diagnostics",
+    "wait_for_port_diagnosed",
 ]
