@@ -836,6 +836,91 @@ def test_phase_final_restore_raises_when_restored_content_does_not_match_pristin
     assert exc_info.value.off_mode_evidence["restore_sha_matches"] is False
 
 
+# ---------------------------------------------------------------------------
+# _strip_utf8_bom / restore comparison -- coordinator diagnosis after run 21
+# (33428779387): restore_sha_matches was the ONLY remaining check, and its
+# mismatch was a real, KNOWN, frozen quirk, not a bug -- AssetDatabaseHelper
+# .WriteText (the legacy write route steps 8-9 use, since ON mode is
+# disabled by then) writes a UTF-8 BOM (see AssetHelperTests.cs's own
+# WriteText_WritesUtf8ByteOrderMark, "freezing this pre-existing quirk as
+# -is -- not fixing it here", Plans/HotReload P0-30) -- while the Python
+# driver's own pristine-baseline bytes (harness.target_body("v0")) never
+# have one. Comparing content, not raw bytes, means stripping a leading
+# BOM from BOTH sides before comparing -- never "fixing" the frozen C#
+# write behavior itself.
+# ---------------------------------------------------------------------------
+
+def test_strip_utf8_bom_removes_a_leading_bom():
+    assert cell_script._strip_utf8_bom(b"\xef\xbb\xbfhello") == b"hello"
+
+
+def test_strip_utf8_bom_is_a_noop_without_a_bom():
+    assert cell_script._strip_utf8_bom(b"hello") == b"hello"
+
+
+def test_strip_utf8_bom_does_not_touch_a_bom_elsewhere_in_the_content():
+    # Only a LEADING BOM is a write-encoding artifact; the same three
+    # bytes appearing mid-content are real data, never stripped.
+    assert cell_script._strip_utf8_bom(b"he\xef\xbb\xbfllo") == b"he\xef\xbb\xbfllo"
+
+
+def test_phase_final_restore_accepts_a_bom_prefixed_restore_as_matching(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Reproduces run 21 (33428779387) exactly: the legacy write's actual
+    on-disk bytes carry AssetDatabaseHelper's frozen UTF-8 BOM quirk, but
+    the content after the BOM is byte-identical to pristine v0 -- this
+    must be accepted as a genuine match, and the raw (unstripped) SHAs of
+    both sides must still be recorded for transparency."""
+    target = tmp_path / "target.cs"
+    pristine_v0 = cell_script.harness.target_body("v0").encode("utf-8")
+
+    async def _call(port, command, args):
+        if "return 0" not in args["content"]:
+            target.write_bytes(args["content"].encode("utf-8"))
+        else:
+            target.write_bytes(b"\xef\xbb\xbf" + pristine_v0)  # BOM-prefixed, frozen quirk
+        _append_domain_load(tmp_path, {"pid": 111, "assemblies": []})
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+    _oracle_sequence(monkeypatch, [{"compute": "4"}])
+
+    evidence = asyncio.run(
+        cell_script._phase_final_restore(port=9600, project=tmp_path, target_path=target)
+    )
+
+    assert evidence["restore_sha_matches"] is True
+    assert evidence["bom_stripped_compare"] is True
+    # raw SHAs legitimately differ (BOM vs. no BOM) -- both still recorded
+    assert evidence["restored_sha256"] != evidence["pristine_sha256"]
+
+
+def test_phase_final_restore_still_rejects_genuinely_different_content_with_a_bom(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Double-redness: BOM-tolerant comparison must not become an
+    "always pass" -- content that is ACTUALLY wrong, even with a BOM
+    prefix, must still fail."""
+    target = tmp_path / "target.cs"
+
+    async def _call(port, command, args):
+        if "return 0" not in args["content"]:
+            target.write_bytes(args["content"].encode("utf-8"))
+        else:
+            target.write_bytes(b"\xef\xbb\xbfcorrupted, not the pristine v0 content")
+        _append_domain_load(tmp_path, {"pid": 111, "assemblies": []})
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+    _oracle_sequence(monkeypatch, [{"compute": "4"}])
+
+    with pytest.raises(cell_script.FsrQualificationCellError) as exc_info:
+        asyncio.run(cell_script._phase_final_restore(port=9600, project=tmp_path, target_path=target))
+
+    assert exc_info.value.off_mode_evidence["restore_sha_matches"] is False
+
+
 
 # ---------------------------------------------------------------------------
 # run_full integration — proves the real (non-stubbed) phase functions wire

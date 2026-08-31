@@ -405,6 +405,24 @@ def _int_or_none(value: object) -> int | None:
         return None
 
 
+UTF8_BOM = b"\xef\xbb\xbf"
+
+
+def _strip_utf8_bom(data: bytes) -> bytes:
+    """Strips a LEADING UTF-8 BOM only -- never the same three bytes if
+    they appear mid-content, which would be real data, not a write-
+    encoding artifact. Coordinator diagnosis after run 21 (33428779387):
+    AssetDatabaseHelper.WriteText (the legacy write route steps 8-9 use,
+    since ON mode is disabled by then) writes a UTF-8 BOM -- a frozen,
+    deliberate, TESTED behavior (AssetHelperTests.cs's own
+    WriteText_WritesUtf8ByteOrderMark, "freezing this pre-existing quirk
+    as-is -- not fixing it here", Plans/HotReload P0-30) -- while the
+    driver's own pristine-baseline bytes never have one. Comparing
+    CONTENT, not raw bytes, means stripping this from both sides before
+    comparing; it never touches the C# write behavior itself."""
+    return data[len(UTF8_BOM):] if data.startswith(UTF8_BOM) else data
+
+
 async def _phase_off_disable_evidence(*, port: int, project: Path) -> dict[str, object]:
     """Step 6 (§6 P0-80): "disable: one receipt, one sync, same PID/
     project, exact N -> N+1, clean compile and v3 behavior from normally
@@ -564,7 +582,13 @@ async def _phase_final_restore(
     evidence["pristine_byte_diagnostic"] = pristine_diag
     evidence["restored_sha256"] = restored_diag["sha256"]
     evidence["pristine_sha256"] = pristine_diag["sha256"]
-    evidence["restore_sha_matches"] = evidence["restored_sha256"] == evidence["pristine_sha256"]
+    # BOM-stripped comparison, not the raw SHAs above -- see
+    # _strip_utf8_bom's docstring: AssetDatabaseHelper.WriteText's UTF-8
+    # BOM is a frozen, deliberate quirk on the legacy route, not
+    # something to "fix" here. The raw SHAs stay in evidence for
+    # transparency (they legitimately differ whenever a BOM is present).
+    evidence["bom_stripped_compare"] = True
+    evidence["restore_sha_matches"] = _strip_utf8_bom(restored_bytes) == _strip_utf8_bom(pristine_bytes)
 
     checks = ("compute_after_legacy_write_is_4", "assembly_needles_absent", "restore_sha_matches")
     failed = [name for name in checks if not evidence.get(name)]
