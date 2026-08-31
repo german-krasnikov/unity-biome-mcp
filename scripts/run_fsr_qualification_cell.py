@@ -199,18 +199,40 @@ DOMAIN_LOADS_REL = (
 )
 
 
-async def _query_oracle(port: int) -> dict[str, str]:
+async def _query_oracle(
+    port: int, *, retries: int = 5, retry_delay: float = 1.0
+) -> dict[str, str]:
     """One execute_code round trip to
     SourcePatchHarness.CycleInstrumentation.QueryOracle() — retained-object
     identity, current Compute() value, domain epoch/stamp, isCompiling, and
     the independent compile-started counter, all consistent as of one
     moment. Parses its "key=value|key=value..." contract; a malformed pair
     (no "=") is skipped, never raised on — evidence collection must never
-    itself become a new source of cell failure."""
-    raw = await durable.call(
-        port, "execute_code",
-        {"code": "return SourcePatchHarness.CycleInstrumentation.QueryOracle();"},
-    )
+    itself become a new source of cell failure.
+
+    Run 13 (33410330964) min-linux-x64: the very first live oracle query
+    right after triggering a disable/write-triggered reload raced Unity's
+    "going_away" announcement ("Unity announced domain reload before
+    returning the response") and failed the whole cell — this codebase's
+    established convention (run_unity_tests.py's own retry semantics;
+    "timeout/reload disconnect is nonterminal") is that this exact race is
+    expected, not a hard failure, when querying right after triggering the
+    very reload being waited for. Retries on durable.TransportUncertain
+    only — a genuine RunnerError (e.g. a real compile/command failure)
+    still fails fast, never silently retried away."""
+    last_error: durable.TransportUncertain | None = None
+    for _attempt in range(retries):
+        try:
+            raw = await durable.call(
+                port, "execute_code",
+                {"code": "return SourcePatchHarness.CycleInstrumentation.QueryOracle();"},
+            )
+            break
+        except durable.TransportUncertain as error:
+            last_error = error
+            await asyncio.sleep(retry_delay)
+    else:
+        raise last_error
     result: dict[str, str] = {}
     for pair in raw.split("|"):
         if "=" not in pair:

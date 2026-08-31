@@ -61,6 +61,61 @@ def test_query_oracle_ignores_malformed_pairs(monkeypatch: pytest.MonkeyPatch):
     assert oracle == {"compute": "3", "epoch": "1"}
 
 
+def test_query_oracle_retries_on_transport_uncertain(monkeypatch: pytest.MonkeyPatch):
+    """Run 13 (33410330964) min-linux-x64: the very first live oracle
+    query right after triggering the disable-reload raced Unity's
+    "going_away" announcement and failed the whole cell —
+    "Unity announced domain reload before returning the response". This
+    codebase's established convention (run_unity_tests.py's own retry
+    semantics; AI doc: "timeout/reload disconnect is nonterminal") is that
+    a reload disconnect during exactly the reload being waited for is
+    expected, not a hard failure — querying right after triggering a
+    reload is supposed to occasionally race it."""
+    calls = {"n": 0}
+
+    async def _call(port, command, args):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise cell_script.durable.TransportUncertain("going away")
+        return "compute=3|epoch=2"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    oracle = asyncio.run(cell_script._query_oracle(9600, retry_delay=0.001))
+
+    assert oracle == {"compute": "3", "epoch": "2"}
+    assert calls["n"] == 3
+
+
+def test_query_oracle_raises_after_exhausting_retries_on_transport_uncertain(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    async def _call(port, command, args):
+        raise cell_script.durable.TransportUncertain("going away")
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    with pytest.raises(cell_script.durable.TransportUncertain):
+        asyncio.run(cell_script._query_oracle(9600, retries=3, retry_delay=0.001))
+
+
+def test_query_oracle_does_not_retry_on_a_genuine_runner_error(monkeypatch: pytest.MonkeyPatch):
+    """Only the transient reload-race gets retried — a real failure (e.g.
+    a bad command) must still fail fast, not be silently retried away."""
+    calls = {"n": 0}
+
+    async def _call(port, command, args):
+        calls["n"] += 1
+        raise cell_script.durable.RunnerError("execute_code failed: compile error")
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    with pytest.raises(cell_script.durable.RunnerError, match="compile error"):
+        asyncio.run(cell_script._query_oracle(9600, retry_delay=0.001))
+
+    assert calls["n"] == 1
+
+
 # ---------------------------------------------------------------------------
 # _wait_for_oracle_settle — polls until compiling=false; raises rather than
 # silently returning a still-compiling snapshot (no uncertain evidence).
