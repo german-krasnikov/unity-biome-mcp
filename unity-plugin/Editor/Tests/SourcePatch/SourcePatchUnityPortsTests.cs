@@ -19,11 +19,12 @@ namespace UnityMCP.Editor.Tests
         public void BytesPort_WriteThenRead_RoundTripsExactBytes()
         {
             // Deliberately .txt, not .cs: the port itself is extension-agnostic
-            // (only SourcePatchRequest.TryCreate enforces .cs), and a real .cs
-            // import here would schedule a genuine Unity recompile mid-suite —
-            // exactly the risk SourcePatchLegacyCsWriteExplicitTests.cs's own
-            // header warns about. This still exercises the identical
-            // File.WriteAllBytes + AssetDatabase.ImportAsset code path.
+            // (only SourcePatchRequest.TryCreate enforces .cs). Write() is raw
+            // File.WriteAllBytes only — it no longer calls
+            // AssetDatabase.ImportAsset at all (§6 P0-70 fix, P0-80 Cycle A).
+            // .txt remains the right choice here regardless: it keeps this
+            // round-trip test decoupled from any AssetDatabase import noise a
+            // real .cs path could still trigger elsewhere in a shared batch run.
             TrackOwnedAsset(TempFolder);
             var path = TempFolder + "/roundtrip.txt";
             AssetHelper.EnsureDirectory(path);
