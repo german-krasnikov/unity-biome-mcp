@@ -34,10 +34,11 @@ def test_workflow_triggers_on_workflow_dispatch_and_scoped_push():
     triggers = data[True] if True in data else data["on"]
     assert set(triggers.keys()) == {"workflow_dispatch", "push"}
     assert triggers["push"]["branches"] == ["feature/mutation-fsr-mvp"]
-    assert set(triggers["push"]["paths"]) == {
-        ".github/workflows/fsr-qualification.yml",
-        "scripts/fsr_qualification_lock.json",
-    }
+    # Exact paths-list coverage is
+    # test_workflow_push_trigger_paths_cover_the_full_cell_mechanization's
+    # job — this test only pins the trigger shape (branch-scoped, path
+    # filter present) so the two tests fail for one reason each.
+    assert ".github/workflows/fsr-qualification.yml" in triggers["push"]["paths"]
 
 
 def test_workflow_push_trigger_is_documented_as_temporary():
@@ -148,3 +149,40 @@ def test_workflow_license_secrets_reference_existing_repo_secrets():
     text = _text()
     assert "secrets.UNITY_EMAIL" in text
     assert "secrets.UNITY_PASSWORD" in text
+
+
+def test_workflow_pins_linux_hub_version_matching_working_ci_lanes():
+    """Regression guard: the first matrix run failed 6x
+    INFRASTRUCTURE_BLOCKED on Linux with buildalon/unity-setup unable to
+    find /opt/unityhub/unityhub. unity-tests.yml/unity-compat.yml/
+    ci-conformance.yml all already work around this by pinning
+    hub-version: '3.19.5' on Linux only (3.20.0+ regresses that path,
+    issue #57) — this workflow must repeat that exact working pattern."""
+    data = _parsed()
+    cells = data["jobs"]["cell"]["strategy"]["matrix"]["include"]
+    for entry in cells:
+        if entry["runner"].startswith("ubuntu-"):
+            assert entry["hub-version"] == "3.19.5", entry["cell"]
+        else:
+            assert entry["hub-version"] == "", entry["cell"]
+    unity_setup = next(
+        step for step in data["jobs"]["cell"]["steps"] if step.get("id") == "unity-setup"
+    )
+    assert unity_setup["with"]["hub-version"] == "${{ matrix.hub-version }}"
+
+
+def test_workflow_push_trigger_paths_cover_the_full_cell_mechanization():
+    """Fix-only pushes (the cell driver, the fixture generator, the fixture
+    source itself) must self-trigger a rerun — not just edits to the
+    workflow/lock files."""
+    data = _parsed()
+    triggers = data[True] if True in data else data["on"]
+    paths = set(triggers["push"]["paths"])
+    assert paths == {
+        ".github/workflows/fsr-qualification.yml",
+        "scripts/fsr_qualification_lock.json",
+        "scripts/run_fsr_qualification_cell.py",
+        "scripts/gauntlet/fsr_qualification.py",
+        "scripts/gauntlet/fsr_qualification_fixture.py",
+        "scripts/fixtures/fsr_qualification/**",
+    }

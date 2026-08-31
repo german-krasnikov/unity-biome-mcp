@@ -20,6 +20,10 @@ on:
     paths:
       - '.github/workflows/fsr-qualification.yml'
       - 'scripts/fsr_qualification_lock.json'
+      - 'scripts/run_fsr_qualification_cell.py'
+      - 'scripts/gauntlet/fsr_qualification.py'
+      - 'scripts/gauntlet/fsr_qualification_fixture.py'
+      - 'scripts/fixtures/fsr_qualification/**'
 
 concurrency:
   group: fsr-qualification-${{ github.ref }}
@@ -42,31 +46,40 @@ jobs:
             runner: macos-15
             os_name: macOS
             arch: arm64
+            hub-version: ''
           - cell: min-windows-x64
             window: u_min
             runner: windows-2022
             os_name: Windows
             arch: x64
+            hub-version: ''
           - cell: min-linux-x64
             window: u_min
             runner: ubuntu-24.04
             os_name: Linux
             arch: x64
+            # pin: 3.20.0 regresses /opt/unityhub/unityhub path on Linux
+            # (issue #57) — same pin already proven by unity-tests.yml /
+            # unity-compat.yml / ci-conformance.yml.
+            hub-version: '3.19.5'
           - cell: max-macos-arm64
             window: u_max
             runner: macos-15
             os_name: macOS
             arch: arm64
+            hub-version: ''
           - cell: max-windows-x64
             window: u_max
             runner: windows-2022
             os_name: Windows
             arch: x64
+            hub-version: ''
           - cell: max-linux-x64
             window: u_max
             runner: ubuntu-24.04
             os_name: Linux
             arch: x64
+            hub-version: '3.19.5'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
@@ -132,6 +145,7 @@ jobs:
         with:
           unity-version: ${{ steps.cell.outputs.unity_version }}
           cache-installation: true
+          hub-version: ${{ matrix.hub-version }}
 
       - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
         id: license

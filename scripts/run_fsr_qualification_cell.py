@@ -109,8 +109,11 @@ async def run_pilot(*, unity: Path, source_project: Path, work_root: Path, port:
         )
         # durable.call already raises RunnerError on a non-ok response, so a
         # successful return is itself the pilot's health proof: the headed
-        # Editor booted, the TCP bridge answered, and mcp_status compiled.
-        await durable.call(port, "mcp_status", {})
+        # Editor booted, the TCP bridge answered, and get_status compiled
+        # (get_status is the real C#-side wire command registered in
+        # CommandRouter.Registration.cs; mcp_status is a Python-only MCP
+        # server tool and is not reachable over raw TCP).
+        await durable.call(port, "get_status", {})
     finally:
         await _stop(process)
 
