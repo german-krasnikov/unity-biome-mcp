@@ -51,6 +51,16 @@ import run_unity_tests as durable  # noqa: E402
 
 REL_TARGET = harness.REL_TARGET
 
+# Run 8 (33396935103): the old sequence ("v1", "v2", "invalid", "v2", "v3")
+# repeated "v2" right after "invalid" is correctly rejected pre-effect —
+# since the rejection leaves the file still at "v2", writing "v2" again is
+# a genuine no-op that any correct body-only classifier legitimately
+# refuses as "no-body-change" ("rejected the replacement body; no effect").
+# Never a classifier/BOM/JSON-unescape bug — present since f5c5b746, the
+# very first commit that created the matrix. Each step must differ from
+# its predecessor.
+ON_MODE_KIND_SEQUENCE = ("v1", "v2", "invalid", "v3")
+
 
 class FsrQualificationCellError(RuntimeError):
     pass
@@ -310,7 +320,7 @@ async def _phase_on_retained_object(*, port, target_path: Path) -> list[dict[str
     server/src/unity_mcp/tools/asset.py itself performs."""
     diagnostics: list[dict[str, object]] = []
     await durable.call(port, "editor", {"action": "mutation_mode", "enable": True})
-    for kind in ("v1", "v2", "invalid", "v2", "v3"):
+    for kind in ON_MODE_KIND_SEQUENCE:
         content = harness.target_body(kind)
         before_bytes = target_path.read_bytes() if target_path.is_file() else b""
         entry: dict[str, object] = {

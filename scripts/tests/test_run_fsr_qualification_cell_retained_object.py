@@ -48,7 +48,7 @@ def test_phase_on_retained_object_survives_expected_invalid_rejection(
     asyncio.run(cell_script._phase_on_retained_object(port=9600, target_path=target))  # must not raise
 
     write_calls = [c for c in calls if c[0] == "source_patch_write"]
-    assert len(write_calls) == 5  # v1, v2, invalid, v2, v3 — all attempted
+    assert len(write_calls) == 4  # v1, v2, invalid, v3 — all attempted
 
 
 def test_phase_on_retained_object_raises_when_invalid_is_unexpectedly_accepted(
@@ -282,7 +282,7 @@ def test_phase_on_retained_object_returns_byte_diagnostics_for_every_write(
         cell_script._phase_on_retained_object(port=9600, target_path=target)
     )
 
-    assert len(diagnostics) == 5  # v1, v2, invalid, v2, v3
+    assert len(diagnostics) == 4  # v1, v2, invalid, v3
     assert diagnostics[0]["kind"] == "v1"
     assert diagnostics[0]["result"] == "applied"
     assert "sha256" in diagnostics[0]["before"]
@@ -314,3 +314,58 @@ def test_phase_on_retained_object_diagnostics_survive_unexpected_failure(
 
     assert hasattr(exc_info.value, "byte_diagnostics")
     assert len(exc_info.value.byte_diagnostics) == 1
+
+
+# ---------------------------------------------------------------------------
+# Run 8 (33396935103) root cause: the on-mode-write-diagnostics.json byte
+# capture (added for this exact purpose) showed the failing write's before
+# and after sha256 were IDENTICAL ("5b5d7de4..." both sides, "return 2;").
+# The old kind rotation ("v1", "v2", "invalid", "v2", "v3") repeats "v2"
+# right after "invalid" is correctly rejected pre-effect — since the
+# rejection left the file still at "v2", writing "v2" again is a genuine
+# no-op that any correct body-only classifier legitimately refuses as
+# "no-body-change". This was never the classifier, BOM, or JSON-unescape —
+# it was a duplicate no-op step in the driver's own scenario, present since
+# the very first commit (f5c5b746) that created the matrix. A faithful mock
+# (reject when after == current on-disk content, mirroring the real
+# classifier) exposes it; the old permissive mocks (reject only on
+# "System.Func<int>") never did.
+# ---------------------------------------------------------------------------
+
+def test_phase_on_retained_object_never_attempts_a_no_op_duplicate_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+):
+    target = tmp_path / "target.cs"
+    target.write_bytes(cell_script.harness.target_body("v0").encode("utf-8"))
+    state = {"current": target.read_bytes()}
+
+    async def _call(port, command, args):
+        if command != "source_patch_write":
+            return "ok"
+        content = args["content"].encode("utf-8")
+        if content == state["current"] or "System.Func<int>" in args["content"]:
+            raise cell_script.durable.RunnerError(
+                "source_patch_write failed: STATE: source patch rejected the "
+                "replacement body; no effect"
+            )
+        state["current"] = content
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    import asyncio
+
+    diagnostics = asyncio.run(
+        cell_script._phase_on_retained_object(port=9600, target_path=target)
+    )  # must not raise against a classifier that faithfully refuses no-op writes
+
+    kinds = [d["kind"] for d in diagnostics]
+    assert kinds == list(cell_script.ON_MODE_KIND_SEQUENCE)
+    for i in range(len(kinds) - 1):
+        assert kinds[i] != kinds[i + 1], "consecutive duplicate kind writes identical content — a no-op the real classifier rejects"
+
+
+def test_on_mode_kind_sequence_has_no_consecutive_duplicates():
+    seq = cell_script.ON_MODE_KIND_SEQUENCE
+    for i in range(len(seq) - 1):
+        assert seq[i] != seq[i + 1]
