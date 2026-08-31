@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "note": "P1-20 six-cell frozen U_MIN..U_MAX compatibility matrix lock. Read by scripts/run_fsr_qualification_cell.py and .github/workflows/fsr-qualification.yml. See Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md §1.1/§7 P1-20. Immutable per matrix run: the aggregate job asserts every cell receipt is bound to this exact base_product_sha/final_fsr_adapter_sha pair, and that base_product_sha..checkout does not touch unity-plugin/** or server/src/**.",
+  "base_product_sha": "7875430f73d28a043806742164ab478145dedafe",
+  "final_fsr_adapter_sha": "e50d43dda33e2d62c68be25278d48bc07f6003ff",
+  "fsr_upstream_sha": "51140b71d9e5df1de231b33ec20ee089b18bebec",
+  "provider_pin_path": "scripts/source_patch_provider_pin.json",
+  "provider_pin_sha256": "e796a85a1f358ede8c3e6348a141360234eb036d8c2cb8ebc0b5f806514e879f",
+  "cells": {
+    "u_min": {
+      "unity_version": "6000.0.65f1",
+      "unity_revision": "a18e2220bd50",
+      "utf_version": "1.6.0"
+    },
+    "u_max": {
+      "unity_version": "6000.5.10f1",
+      "unity_revision": "3bd4f66ad299",
+      "utf_version": "1.6.0"
+    }
+  },
+  "installer": {
+    "action": "buildalon/unity-setup",
+    "action_pinned_sha": "30fcbcb56c10ea5d64298e970d952b8d29bc268b",
+    "hub_version": "3.19.5",
+    "license_action": "buildalon/activate-unity-license",
+    "license_action_pinned_sha": "e0d245d0787b7b9931b56ccbde3b508f6b70f1af",
+    "license_type": "Personal"
+  },
+  "harmony_sha256": "77e6901ecc606aec66c2a972782a3779e4f50c037d2d165eb7ececdd4d8f794d"
+}

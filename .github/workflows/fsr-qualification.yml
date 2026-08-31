@@ -1,0 +1,245 @@
+name: FSR Qualification Matrix
+
+# P1-20: six-cell frozen U_MIN..U_MAX compatibility matrix. Advisory only —
+# workflow_dispatch, never push/PR triggered, never required until a second
+# unchanged 6/6 promotes it. See
+# Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md §7 P1-20.
+#
+# Existing unity-tests.yml/unity-compat.yml/ci-conformance.yml batchmode
+# lanes are setup/license/cache patterns only, not FSR qualification
+# evidence — every cell here launches Unity headed (no -batchmode
+# -nographics): a direct GUI supervisor, per the plan's explicit
+# requirement.
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: fsr-qualification-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  cell:
+    name: "${{ matrix.cell }}"
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cell: min-macos-arm64
+            window: u_min
+            runner: macos-15
+            os_name: macOS
+            arch: arm64
+          - cell: min-windows-x64
+            window: u_min
+            runner: windows-2022
+            os_name: Windows
+            arch: x64
+          - cell: min-linux-x64
+            window: u_min
+            runner: ubuntu-24.04
+            os_name: Linux
+            arch: x64
+          - cell: max-macos-arm64
+            window: u_max
+            runner: macos-15
+            os_name: macOS
+            arch: arm64
+          - cell: max-windows-x64
+            window: u_max
+            runner: windows-2022
+            os_name: Windows
+            arch: x64
+          - cell: max-linux-x64
+            window: u_max
+            runner: ubuntu-24.04
+            os_name: Linux
+            arch: x64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.14'
+
+      - name: Resolve frozen cell Unity version from the lock
+        id: cell
+        shell: bash
+        run: |
+          python - "${{ matrix.window }}" <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          import sys
+          lock = json.load(open("scripts/fsr_qualification_lock.json"))
+          entry = lock["cells"][sys.argv[1]]
+          print(f"unity_version={entry['unity_version']} ({entry['unity_revision']})")
+          PY
+
+      - name: Start owned Xvfb (Linux only — direct GUI supervisor needs a display)
+        if: runner.os == 'Linux'
+        id: xvfb
+        shell: bash
+        run: |
+          Xvfb :99 -screen 0 1280x1024x24 &
+          echo "xvfb_pid=$!" >> "$GITHUB_OUTPUT"
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+          sleep 2
+
+      - name: Install VC++ 2010 runtime (Unity 6 dependency)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: choco install vcredist2010 -y
+
+      - name: Install server with dev deps
+        shell: bash
+        run: pip install -e "server[dev]"
+
+      - name: Set UPM cache path
+        id: upm-path
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            echo "path=$HOME/Library/Caches/Unity/upm" >> "$GITHUB_OUTPUT"
+          elif [[ "$RUNNER_OS" == "Linux" ]]; then
+            echo "path=$HOME/.cache/Unity/upm" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=$LOCALAPPDATA/Unity/cache/upm" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cache UPM packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ steps.upm-path.outputs.path }}
+          key: fsr-qualification-upm-${{ matrix.cell }}-${{ hashFiles('scripts/fsr_qualification_lock.json') }}
+          restore-keys: |
+            fsr-qualification-upm-${{ matrix.cell }}-
+
+      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
+        id: unity-setup
+        timeout-minutes: 40
+        continue-on-error: true
+        with:
+          unity-version: ${{ steps.cell.outputs.unity_version }}
+          cache-installation: true
+
+      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
+        id: license
+        if: steps.unity-setup.outcome == 'success'
+        continue-on-error: true
+        with:
+          license: 'Personal'
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+
+      - name: Fixture-free GUI baseline (pilot)
+        id: pilot
+        if: steps.unity-setup.outcome == 'success' && steps.license.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          python scripts/run_fsr_qualification_cell.py \
+            --mode pilot \
+            --unity "${{ steps.unity-setup.outputs.unity-editor-path }}" \
+            --work-root "${{ runner.temp }}/fsr-pilot-${{ matrix.cell }}-${{ github.run_id }}" \
+            --port 9600 \
+            --startup-timeout 420
+
+      - name: Run cell scenario
+        id: run-cell
+        if: steps.pilot.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          mkdir -p "artifacts/${{ matrix.cell }}"
+          python scripts/run_fsr_qualification_cell.py \
+            --mode full \
+            --unity "${{ steps.unity-setup.outputs.unity-editor-path }}" \
+            --work-root "${{ runner.temp }}/fsr-cell-${{ matrix.cell }}-${{ github.run_id }}" \
+            --window ${{ matrix.window }} \
+            --lock scripts/fsr_qualification_lock.json \
+            --provider-pin scripts/source_patch_provider_pin.json \
+            --evidence-out "artifacts/${{ matrix.cell }}" \
+            --cell-name ${{ matrix.cell }} \
+            --os-name ${{ matrix.os_name }} \
+            --arch ${{ matrix.arch }} \
+            --port 9600 \
+            --startup-timeout 420
+
+      - name: Stop owned Xvfb
+        if: always() && runner.os == 'Linux' && steps.xvfb.outputs.xvfb_pid != ''
+        shell: bash
+        run: kill "${{ steps.xvfb.outputs.xvfb_pid }}" || true
+
+      # A missing secret or failed setup/license/pilot is a failed
+      # INFRASTRUCTURE_BLOCKED cell, never a green skip (§7 P1-20). This
+      # step only fires when run-cell itself never produced a receipt.json.
+      - name: Write INFRASTRUCTURE_BLOCKED receipt when no cell receipt exists
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "artifacts/${{ matrix.cell }}"
+          if [ ! -f "artifacts/${{ matrix.cell }}/receipt.json" ]; then
+            python - <<'PY'
+          import json
+          payload = {
+              "cell": "${{ matrix.cell }}",
+              "os": "${{ matrix.os_name }}",
+              "arch": "${{ matrix.arch }}",
+              "outcome": "INFRASTRUCTURE_BLOCKED",
+              "setup_ok": "${{ steps.unity-setup.outcome }}" == "success",
+              "license_ok": "${{ steps.license.outcome }}" == "success",
+              "display_ok": "${{ steps.pilot.outcome }}" == "success",
+          }
+          with open("artifacts/${{ matrix.cell }}/receipt.json", "w", encoding="utf-8") as handle:
+              json.dump(payload, handle, indent=2, sort_keys=True)
+              handle.write("\n")
+          PY
+          fi
+
+      - name: Fail the job on a non-PASS receipt
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import sys
+          payload = json.load(open("artifacts/${{ matrix.cell }}/receipt.json"))
+          outcome = payload.get("outcome")
+          print(f"cell=${{ matrix.cell }} outcome={outcome}")
+          sys.exit(0 if outcome == "PASS" else 1)
+          PY
+
+      - name: Upload cell evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: fsr-qualification-${{ matrix.cell }}
+          path: artifacts/${{ matrix.cell }}/
+          retention-days: 30
+
+  aggregate:
+    name: Aggregate 6/6
+    needs: [cell]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.14'
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: fsr-qualification-*
+          path: receipts
+
+      - name: Assert exactly 6/6 unique PASS receipts bound to one SHA set
+        shell: bash
+        run: |
+          python scripts/validate_fsr_qualification_receipts.py \
+            --receipts-root receipts \
+            --lock scripts/fsr_qualification_lock.json
