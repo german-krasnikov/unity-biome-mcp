@@ -47,20 +47,15 @@ jobs:
     timeout-minutes: 150
     strategy:
       fail-fast: false
+      # DEBUG LANE — NOT A QUALIFICATION RESULT. Temporary: iterating the
+      # off-mode-evidence file-oracle fixes on the fastest single cell
+      # only, so each iteration cost is one Linux runner, not three.
+      # Restored to the full three-cell matrix (macOS + Linux required,
+      # Windows documented-blocked) in a dedicated "restore full
+      # qualification matrix" commit before any run counts toward P1-20/
+      # P1-30 evidence.
       matrix:
         include:
-          - cell: min-macos-arm64
-            window: u_min
-            runner: macos-15
-            os_name: macOS
-            arch: arm64
-            hub-version: ''
-          - cell: min-windows-x64
-            window: u_min
-            runner: windows-2022
-            os_name: Windows
-            arch: x64
-            hub-version: ''
           - cell: min-linux-x64
             window: u_min
             runner: ubuntu-24.04
@@ -248,46 +243,28 @@ jobs:
           retention-days: 30
 
   aggregate:
-    name: Aggregate (2/2 required-pass + Windows documented-blocked)
+    # DEBUG LANE — NOT A QUALIFICATION RESULT. This gate is 1/1
+    # min-linux-x64 only while iterating; the real 2/2-required +
+    # Windows-documented-blocked gate (validate_fsr_qualification_receipts.py)
+    # returns once the matrix is restored.
+    name: "Aggregate (debug lane — 1/1 min-linux-x64, not a qualification result)"
     needs: [cell]
     if: always()
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          # Full history: run_fsr_qualification_cell.py and
-          # validate_fsr_qualification_receipts.py both run
-          # `git diff --name-only <base_product_sha>..HEAD` (the
-          # aggregate base-SHA-untouched guard) — the default shallow
-          # clone (fetch-depth: 1) has no history reaching the frozen
-          # base and fails closed with exit 128 on every cell.
-          fetch-depth: 0
-
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
-        with:
-          python-version: '3.14'
-
-      # Run 10 (33399420344): validate_fsr_qualification_receipts.py's
-      # import chain (gauntlet.fsr_qualification -> hosted_conformance ->
-      # create_unity_test_worker -> worker_artifacts -> artifacts ->
-      # package_archives -> python_package_contract) reaches
-      # `from packaging.requirements import ...` — a real dependency
-      # (server/pyproject.toml: "packaging>=24.0") the cell jobs already
-      # install (see "Install server with dev deps" above) but this job
-      # never did, so the aggregate step failed on ModuleNotFoundError
-      # even though both required cells (macOS, Linux) had already PASSED.
-      - name: Install server with dev deps
-        shell: bash
-        run: pip install -e "server[dev]"
-
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
           pattern: fsr-qualification-*
           path: receipts
 
-      - name: Assert 2/2 required-pass receipts + one documented-blocked Windows receipt
+      - name: Assert min-linux-x64 receipt is PASS (debug lane only)
         shell: bash
         run: |
-          python scripts/validate_fsr_qualification_receipts.py \
-            --receipts-root receipts \
-            --lock scripts/fsr_qualification_lock.json
+          python - <<'PY'
+          import json, sys
+          path = "receipts/fsr-qualification-min-linux-x64/receipt.json"
+          receipt = json.load(open(path, encoding="utf-8"))
+          outcome = receipt.get("outcome")
+          print(f"min-linux-x64 outcome={outcome}")
+          sys.exit(0 if outcome == "PASS" else 1)
+          PY
