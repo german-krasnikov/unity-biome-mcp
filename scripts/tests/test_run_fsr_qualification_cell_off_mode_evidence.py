@@ -61,6 +61,66 @@ def test_query_oracle_ignores_malformed_pairs(monkeypatch: pytest.MonkeyPatch):
     assert oracle == {"compute": "3", "epoch": "1"}
 
 
+# ---------------------------------------------------------------------------
+# _call_retrying_reload_race — Run 14 (33411347829): min-linux-x64 failed
+# identically to Run 13 even after _query_oracle alone got a retry —
+# on-mode-write-diagnostics.json again showed the full v1/v2/invalid/v3
+# sequence already complete and no off-mode-evidence.json at all, meaning
+# the SAME race can equally hit the disable call and the two legacy
+# writes themselves (they trigger the very reload being raced), not only
+# the oracle query that follows them. One shared retry wrapper closes the
+# gap for every reload-adjacent durable.call in the off-mode phases, not
+# just _query_oracle's own.
+# ---------------------------------------------------------------------------
+
+def test_call_retrying_reload_race_retries_on_transport_uncertain(monkeypatch: pytest.MonkeyPatch):
+    calls = {"n": 0}
+
+    async def _call(port, command, args):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise cell_script.durable.TransportUncertain("going away")
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    result = asyncio.run(
+        cell_script._call_retrying_reload_race(9600, "editor", {"action": "mutation_mode"}, retry_delay=0.001)
+    )
+
+    assert result == "ok"
+    assert calls["n"] == 3
+
+
+def test_call_retrying_reload_race_raises_after_exhausting_retries(monkeypatch: pytest.MonkeyPatch):
+    async def _call(port, command, args):
+        raise cell_script.durable.TransportUncertain("going away")
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    with pytest.raises(cell_script.durable.TransportUncertain):
+        asyncio.run(
+            cell_script._call_retrying_reload_race(9600, "editor", {}, retries=3, retry_delay=0.001)
+        )
+
+
+def test_call_retrying_reload_race_does_not_retry_on_a_genuine_runner_error(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    calls = {"n": 0}
+
+    async def _call(port, command, args):
+        calls["n"] += 1
+        raise cell_script.durable.RunnerError("boom")
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    with pytest.raises(cell_script.durable.RunnerError, match="boom"):
+        asyncio.run(cell_script._call_retrying_reload_race(9600, "editor", {}, retry_delay=0.001))
+
+    assert calls["n"] == 1
+
+
 def test_query_oracle_retries_on_transport_uncertain(monkeypatch: pytest.MonkeyPatch):
     """Run 13 (33410330964) min-linux-x64: the very first live oracle
     query right after triggering the disable-reload raced Unity's

@@ -199,8 +199,41 @@ DOMAIN_LOADS_REL = (
 )
 
 
+async def _call_retrying_reload_race(
+    port: int, command: str, args: dict[str, object],
+    *, retries: int = 10, retry_delay: float = 2.0,
+) -> str:
+    """Wraps durable.call, retrying on durable.TransportUncertain (a
+    domain reload's "going_away" announcement racing the response) — this
+    codebase's established convention (run_unity_tests.py's own retry
+    semantics; "timeout/reload disconnect is nonterminal") is that this
+    race is expected, not a hard failure, for any command that either
+    directly triggers a reload (disabling ON mode, a legacy .cs write) or
+    queries state immediately after one.
+
+    Run 13 (33410330964): the very first live oracle query after
+    triggering the disable-reload raced it and failed both required
+    cells. Run 14 (33411347829) recurred identically on min-linux-x64
+    after _query_oracle alone got a retry — on-mode-write-diagnostics.json
+    again showed the full ON-mode sequence already complete and no
+    off-mode-evidence.json at all, meaning the SAME race can equally hit
+    the disable call and the legacy writes themselves, not only the
+    oracle query that follows them. Every reload-adjacent durable.call in
+    the off-mode phases goes through this one wrapper now, not just
+    _query_oracle's own. A genuine RunnerError (a real compile/command
+    failure) still fails fast, never silently retried away."""
+    last_error: durable.TransportUncertain | None = None
+    for _attempt in range(retries):
+        try:
+            return await durable.call(port, command, args)
+        except durable.TransportUncertain as error:
+            last_error = error
+            await asyncio.sleep(retry_delay)
+    raise last_error
+
+
 async def _query_oracle(
-    port: int, *, retries: int = 5, retry_delay: float = 1.0
+    port: int, *, retries: int = 10, retry_delay: float = 2.0
 ) -> dict[str, str]:
     """One execute_code round trip to
     SourcePatchHarness.CycleInstrumentation.QueryOracle() — retained-object
@@ -208,31 +241,13 @@ async def _query_oracle(
     the independent compile-started counter, all consistent as of one
     moment. Parses its "key=value|key=value..." contract; a malformed pair
     (no "=") is skipped, never raised on — evidence collection must never
-    itself become a new source of cell failure.
-
-    Run 13 (33410330964) min-linux-x64: the very first live oracle query
-    right after triggering a disable/write-triggered reload raced Unity's
-    "going_away" announcement ("Unity announced domain reload before
-    returning the response") and failed the whole cell — this codebase's
-    established convention (run_unity_tests.py's own retry semantics;
-    "timeout/reload disconnect is nonterminal") is that this exact race is
-    expected, not a hard failure, when querying right after triggering the
-    very reload being waited for. Retries on durable.TransportUncertain
-    only — a genuine RunnerError (e.g. a real compile/command failure)
-    still fails fast, never silently retried away."""
-    last_error: durable.TransportUncertain | None = None
-    for _attempt in range(retries):
-        try:
-            raw = await durable.call(
-                port, "execute_code",
-                {"code": "return SourcePatchHarness.CycleInstrumentation.QueryOracle();"},
-            )
-            break
-        except durable.TransportUncertain as error:
-            last_error = error
-            await asyncio.sleep(retry_delay)
-    else:
-        raise last_error
+    itself become a new source of cell failure. See
+    _call_retrying_reload_race's docstring for why this retries."""
+    raw = await _call_retrying_reload_race(
+        port, "execute_code",
+        {"code": "return SourcePatchHarness.CycleInstrumentation.QueryOracle();"},
+        retries=retries, retry_delay=retry_delay,
+    )
     result: dict[str, str] = {}
     for pair in raw.split("|"):
         if "=" not in pair:
@@ -325,7 +340,7 @@ async def _phase_off_disable_evidence(*, port: int, project: Path) -> dict[str, 
     evidence["epoch_before"] = before.get("epoch")
     evidence["compile_started_count_before"] = before.get("compileCount")
 
-    evidence["disable_result"] = await durable.call(
+    evidence["disable_result"] = await _call_retrying_reload_race(
         port, "editor", {"action": "mutation_mode", "enable": False}
     )
 
@@ -385,7 +400,7 @@ async def _phase_final_restore(
     .off_mode_evidence."""
     evidence: dict[str, object] = {}
 
-    evidence["legacy_write_result"] = await durable.call(
+    evidence["legacy_write_result"] = await _call_retrying_reload_race(
         port, "asset", {"action": "write_text", "path": REL_TARGET, "content": harness.target_body("v4")}
     )
     oracle_v4 = await _wait_for_oracle_settle(port)
@@ -401,7 +416,7 @@ async def _phase_final_restore(
     evidence["assembly_needles_found"] = found
     evidence["assembly_needles_absent"] = not found
 
-    evidence["restore_write_result"] = await durable.call(
+    evidence["restore_write_result"] = await _call_retrying_reload_race(
         port, "asset", {"action": "write_text", "path": REL_TARGET, "content": harness.target_body("v0")}
     )
     await _wait_for_oracle_settle(port)
