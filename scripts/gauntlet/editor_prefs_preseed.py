@@ -54,19 +54,44 @@ class EditorPrefsPreseedError(RuntimeError):
     pass
 
 
-def resolve_product_name(project: Path) -> str:
-    """Read productName from the disposable worker's OWN
-    ProjectSettings.asset — never a hardcoded literal. Unity's .asset files
-    are a custom YAML variant (!u! tags) that break standard YAML parsers,
-    so this is deliberately a simple line scan, matching how other tools in
-    this codebase already parse similar files (e.g. ProjectVersion.txt)."""
+def _read_project_settings_field(project: Path, field: str) -> str:
+    """Shared line-scan for resolve_product_name/resolve_company_name —
+    Unity's .asset files are a custom YAML variant (!u! tags) that break
+    standard YAML parsers, so this stays a simple line scan, matching how
+    other tools in this codebase already parse similar files (e.g.
+    ProjectVersion.txt)."""
     settings_path = project / "ProjectSettings" / "ProjectSettings.asset"
     if not settings_path.is_file():
         raise EditorPrefsPreseedError(f"ProjectSettings.asset not found: {settings_path}")
+    prefix = f"  {field}: "
     for line in settings_path.read_text(encoding="utf-8").splitlines():
-        if line.startswith("  productName: "):
-            return line[len("  productName: ") :].strip()
-    raise EditorPrefsPreseedError(f"productName not found in {settings_path}")
+        if line.startswith(prefix):
+            return line[len(prefix):].strip()
+    raise EditorPrefsPreseedError(f"{field} not found in {settings_path}")
+
+
+def resolve_product_name(project: Path) -> str:
+    """Read productName from the disposable worker's OWN
+    ProjectSettings.asset — never a hardcoded literal."""
+    return _read_project_settings_field(project, "productName")
+
+
+def resolve_company_name(project: Path) -> str:
+    """Read companyName from the disposable worker's OWN
+    ProjectSettings.asset — never a hardcoded literal. Run 8
+    (33396935103) coordinator diagnosis: Unity 6 on Linux keys its real
+    flat-file EditorPrefs store per companyName/productName
+    (~/.config/unity3d/<companyName>/<productName>/prefs), not only the
+    machine-global ~/.config/unity3d/prefs this preseed used to write
+    exclusively."""
+    return _read_project_settings_field(project, "companyName")
+
+
+def linux_company_product_prefs_path(home: Path, company_name: str, product_name: str) -> Path:
+    """Unity 6's real per-project Linux EditorPrefs store — see
+    resolve_company_name's docstring for why this exists alongside the
+    machine-global flat path."""
+    return home / ".config" / "unity3d" / company_name / product_name / "prefs"
 
 
 def _stop_dialog_key(product_name: str) -> str:
@@ -249,9 +274,12 @@ def discover_touched_config_files(*, marker: Path, home: Path | None = None) -> 
     return "\n".join(lines)
 
 
-def read_prefs_snapshot(os_name: str, *, home: Path | None = None) -> str | None:
+def read_prefs_snapshot(
+    os_name: str, *, home: Path | None = None,
+    company_name: str | None = None, product_name: str | None = None,
+) -> str | None:
     """Read back whatever the CURRENT state of the OS's own EditorPrefs
-    store is — for Linux, the literal file content; for macOS/Windows, a
+    store is — for Linux, the literal file content(s); for macOS/Windows, a
     best-effort textual dump (defaults read / reg query). Never raises;
     returns a diagnostic string noting failure instead. Run 6
     (33390881487): min-linux-x64's receipt showed preseed applied=true,
@@ -259,16 +287,27 @@ def read_prefs_snapshot(os_name: str, *, home: Path | None = None) -> str | None
     Unity never read the written XML, or the format does not match what
     Unity itself expects. Capturing this before AND after the cell lets a
     future run compare against what Unity itself writes, instead of
-    guessing the format again."""
+    guessing the format again.
+
+    When company_name/product_name are given (Linux only), also includes
+    Unity's real per-project store (see resolve_company_name) alongside
+    the machine-global flat file — Run 8 (33396935103): capturing both
+    lets a future run see exactly which one Unity actually read from."""
     home = home or Path.home()
     if os_name == "Linux":
-        path = home / ".config" / "unity3d" / "prefs"
-        if not path.is_file():
-            return None
-        try:
-            return path.read_text(encoding="utf-8", errors="replace")
-        except OSError as error:
-            return f"<unreadable: {error}>"
+        candidates = [home / ".config" / "unity3d" / "prefs"]
+        if company_name and product_name:
+            candidates.append(linux_company_product_prefs_path(home, company_name, product_name))
+        parts: list[str] = []
+        for path in candidates:
+            if not path.is_file():
+                continue
+            try:
+                content = path.read_text(encoding="utf-8", errors="replace")
+            except OSError as error:
+                content = f"<unreadable: {error}>"
+            parts.append(f"--- {path} ---\n{content}")
+        return "\n".join(parts) if parts else None
     if os_name == "macOS":
         command = ["defaults", "read", MACOS_DEFAULTS_DOMAIN]
     elif os_name == "Windows":
@@ -301,17 +340,29 @@ def preseed_editor_prefs(
         raise EditorPrefsPreseedError(f"Unsupported os_name for preseed: {os_name!r}")
     mechanism = mechanisms[os_name]
 
+    company_name: str | None = None
     try:
         if os_name == "macOS":
             _apply_commands(macos_defaults_write_commands(product_name))
         elif os_name == "Windows":
             _apply_commands(windows_reg_add_commands(product_name))
         else:
-            prefs_path = (home or Path.home()) / ".config" / "unity3d" / "prefs"
-            prefs_path.parent.mkdir(parents=True, exist_ok=True)
-            existing = prefs_path.read_text(encoding="utf-8") if prefs_path.is_file() else None
-            prefs_path.write_text(
+            home_dir = home or Path.home()
+            flat_path = home_dir / ".config" / "unity3d" / "prefs"
+            flat_path.parent.mkdir(parents=True, exist_ok=True)
+            existing = flat_path.read_text(encoding="utf-8") if flat_path.is_file() else None
+            flat_path.write_text(
                 linux_prefs_xml_patch(existing, product_name), encoding="utf-8"
+            )
+            # Additive, never instead of the flat path above (Run 8:
+            # 33396935103) — Unity's real per-project store, merging
+            # whatever Unity itself already wrote there.
+            company_name = resolve_company_name(project)
+            cp_path = linux_company_product_prefs_path(home_dir, company_name, product_name)
+            cp_path.parent.mkdir(parents=True, exist_ok=True)
+            cp_existing = cp_path.read_text(encoding="utf-8") if cp_path.is_file() else None
+            cp_path.write_text(
+                linux_prefs_xml_patch(cp_existing, product_name), encoding="utf-8"
             )
     except subprocess.CalledProcessError as error:
         return {
@@ -322,12 +373,15 @@ def preseed_editor_prefs(
             "error": error.stderr or str(error),
         }
 
-    return {
+    receipt: dict[str, object] = {
         "mechanism": mechanism,
         "product_name": product_name,
         "keys": keys,
         "applied": True,
     }
+    if company_name is not None:
+        receipt["company_name"] = company_name
+    return receipt
 
 
 __all__ = [
@@ -338,6 +392,8 @@ __all__ = [
     "WINDOWS_REGISTRY_KEY",
     "EditorPrefsPreseedError",
     "resolve_product_name",
+    "resolve_company_name",
+    "linux_company_product_prefs_path",
     "macos_defaults_write_commands",
     "linux_prefs_xml_patch",
     "windows_reg_add_commands",

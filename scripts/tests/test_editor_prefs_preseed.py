@@ -473,3 +473,95 @@ def test_adaptive_preseed_handles_no_candidates_found(tmp_path: Path):
     result = preseed.adaptive_preseed_from_discovery("no unity paths here", product_name="X", home=home)
     assert result["candidates_found"] == []
     assert result["attempts"] == []
+
+
+# ---------------------------------------------------------------------------
+# Company/product-scoped prefs — run 8 coordinator diagnosis: Unity 6 on
+# Linux keys its real EditorPrefs store per companyName/productName
+# (~/.config/unity3d/<companyName>/<productName>/prefs), not only the flat
+# ~/.config/unity3d/prefs this preseed used to write exclusively. Run 8's
+# own discovery found this exact file
+# (~/.config/unity3d/German Krasnikov/Unity Biome MCP Demo/prefs) already
+# populated with real Unity keys (ToolchainAutomaticallyInstallPackage,
+# unity.cloud_userid, UnityGraphicsQuality) but with no kAutoRefreshMode —
+# preseed must merge into it too, deterministically, before every launch
+# (not only reactively through post-hoc discovery), preserving whatever
+# Unity already wrote there.
+# ---------------------------------------------------------------------------
+
+def test_resolve_company_name_reads_from_project_settings(tmp_path: Path):
+    project = _project_settings(tmp_path, "Unity Biome MCP Demo")
+    assert preseed.resolve_company_name(project) == "Some Company"
+
+
+def test_resolve_company_name_missing_file_raises(tmp_path: Path):
+    with pytest.raises(preseed.EditorPrefsPreseedError):
+        preseed.resolve_company_name(tmp_path / "nonexistent")
+
+
+def test_linux_company_product_prefs_path_shape(tmp_path: Path):
+    home = tmp_path / "home"
+    path = preseed.linux_company_product_prefs_path(home, "German Krasnikov", "Unity Biome MCP Demo")
+    assert path == home / ".config" / "unity3d" / "German Krasnikov" / "Unity Biome MCP Demo" / "prefs"
+
+
+def test_preseed_editor_prefs_linux_also_merges_company_product_path(tmp_path: Path):
+    project = _project_settings(tmp_path, "Unity Biome MCP Demo")
+    home = tmp_path / "home"
+    cp_path = preseed.linux_company_product_prefs_path(home, "Some Company", "Unity Biome MCP Demo")
+    cp_path.parent.mkdir(parents=True)
+    cp_path.write_text(
+        '<unity_prefs version_major="1" version_minor="1">\n'
+        '\t<pref name="unity.cloud_userid" type="string">abc123</pref>\n'
+        "</unity_prefs>\n",
+        encoding="utf-8",
+    )
+
+    receipt = preseed.preseed_editor_prefs(project, os_name="Linux", home=home)
+
+    patched = cp_path.read_text(encoding="utf-8")
+    assert "kAutoRefreshMode" in patched
+    assert "unity.cloud_userid" in patched  # existing content preserved, not clobbered
+    assert receipt["company_name"] == "Some Company"
+    # the already-known flat path is still written too — additive, not replaced
+    assert (home / ".config" / "unity3d" / "prefs").is_file()
+
+
+def test_preseed_editor_prefs_linux_creates_company_product_path_when_absent(tmp_path: Path):
+    project = _project_settings(tmp_path, "Unity Biome MCP Demo")
+    home = tmp_path / "home"
+
+    preseed.preseed_editor_prefs(project, os_name="Linux", home=home)
+
+    cp_path = preseed.linux_company_product_prefs_path(home, "Some Company", "Unity Biome MCP Demo")
+    assert cp_path.is_file()
+    assert "kAutoRefreshMode" in cp_path.read_text(encoding="utf-8")
+
+
+def test_read_prefs_snapshot_linux_includes_company_product_file(tmp_path: Path):
+    home = tmp_path / "home"
+    flat_path = home / ".config" / "unity3d" / "prefs"
+    flat_path.parent.mkdir(parents=True)
+    flat_path.write_text('<unity_prefs version_major="1" version_minor="1">\n</unity_prefs>\n', encoding="utf-8")
+    cp_path = preseed.linux_company_product_prefs_path(home, "Some Company", "Unity Biome MCP Demo")
+    cp_path.parent.mkdir(parents=True)
+    cp_path.write_text('<unity_prefs version_major="1" version_minor="1">\n\t<pref name="x" type="int">1</pref>\n</unity_prefs>\n', encoding="utf-8")
+
+    snapshot = preseed.read_prefs_snapshot(
+        "Linux", home=home, company_name="Some Company", product_name="Unity Biome MCP Demo"
+    )
+
+    assert str(flat_path) in snapshot
+    assert str(cp_path) in snapshot
+    assert 'name="x"' in snapshot
+
+
+def test_read_prefs_snapshot_linux_without_company_product_args_is_flat_only(tmp_path: Path):
+    home = tmp_path / "home"
+    flat_path = home / ".config" / "unity3d" / "prefs"
+    flat_path.parent.mkdir(parents=True)
+    flat_path.write_text('<unity_prefs version_major="1" version_minor="1">\n</unity_prefs>\n', encoding="utf-8")
+
+    snapshot = preseed.read_prefs_snapshot("Linux", home=home)
+
+    assert "unity_prefs" in snapshot

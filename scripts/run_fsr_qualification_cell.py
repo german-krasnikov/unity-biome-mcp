@@ -145,7 +145,14 @@ def _apply_preseed(
     except preseed.EditorPrefsPreseedError as preseed_error:
         receipt = {"mechanism": os_name, "applied": False, "error": str(preseed_error)}
     if evidence_out is not None:
-        snapshot = preseed.read_prefs_snapshot(os_name)
+        # Run 8 (33396935103): the receipt only carries company_name on a
+        # successful Linux write — falls back to flat-only snapshot
+        # (unchanged prior behavior) on any other OS or a failed preseed.
+        snapshot = preseed.read_prefs_snapshot(
+            os_name,
+            company_name=receipt.get("company_name"),
+            product_name=receipt.get("product_name"),
+        )
         if snapshot is not None:
             evidence_out.mkdir(parents=True, exist_ok=True)
             suffix = f"-{label}" if label else ""
@@ -155,18 +162,51 @@ def _apply_preseed(
     return receipt
 
 
-def _write_final_prefs_snapshot(evidence_out: Path | None, *, os_name: str) -> None:
+def _write_final_prefs_snapshot(evidence_out: Path | None, *, os_name: str, project: Path | None = None) -> None:
     """Post-mortem: captures the real prefs content AFTER the cell ends
     (success or failure) — Run 6's ask: compare this against the
     after-preseed snapshots to see whether Unity itself rewrote/ignored
-    what was preseeded."""
+    what was preseeded. Best-effort company/product resolution (Run 8:
+    33396935103) — never fails this diagnostic-only capture."""
     if evidence_out is None:
         return
-    snapshot = preseed.read_prefs_snapshot(os_name)
+    company_name = product_name = None
+    if project is not None:
+        try:
+            company_name = preseed.resolve_company_name(project)
+            product_name = preseed.resolve_product_name(project)
+        except preseed.EditorPrefsPreseedError:
+            pass
+    snapshot = preseed.read_prefs_snapshot(os_name, company_name=company_name, product_name=product_name)
     if snapshot is None:
         return
     evidence_out.mkdir(parents=True, exist_ok=True)
     (evidence_out / "prefs-final.txt").write_text(snapshot, encoding="utf-8")
+
+
+LINUX_LICENSE_FILE_REL = Path(".local") / "share" / "unity3d" / "Unity" / "Unity_lic.ulf"
+
+
+def _license_file_diagnostic(*, os_name: str, label: str) -> dict[str, object] | None:
+    """Run 8 (33396935103): min-linux-x64's full run crashed on "No valid
+    Unity Editor license found" right after an (now fixed) adaptive-preseed
+    bug overwrote Unity's real license file (find_candidate_prefs_paths'
+    old "contains \'unity\'" filter matched it; now restricted to the
+    exact basename "prefs"). Captures this file's state at each launch
+    boundary so any future recurrence — from this or any other cause — is
+    immediately visible in evidence, never silently re-diagnosed from a
+    crashed Editor's log alone. Linux-only: this exact path is not where
+    macOS/Windows store their license."""
+    if os_name != "Linux":
+        return None
+    path = Path.home() / LINUX_LICENSE_FILE_REL
+    if not path.is_file():
+        return {"label": label, "path": str(path), "exists": False}
+    try:
+        data = path.read_bytes()
+    except OSError as error:
+        return {"label": label, "path": str(path), "exists": True, "error": str(error)}
+    return {"label": label, "path": str(path), "exists": True, **fq.byte_diagnostic(data)}
 
 
 def _apply_adaptive_preseed(
@@ -262,7 +302,7 @@ async def run_pilot(
         raise
     finally:
         await _stop(process)
-        _write_final_prefs_snapshot(evidence_out, os_name=os_name)
+        _write_final_prefs_snapshot(evidence_out, os_name=os_name, project=project)
         if os_name != "Windows" and evidence_out is not None:
             report = preseed.discover_touched_config_files(marker=discovery_marker)
             evidence_out.mkdir(parents=True, exist_ok=True)
@@ -394,6 +434,7 @@ async def run_full(
     process: subprocess.Popen | None = None
     preseed_attempts: list[dict[str, object]] = []
     on_mode_diagnostics: list[dict[str, object]] | None = None
+    license_diagnostics: list[dict[str, object]] = []
     try:
         print(f"PHASE: create worker ({cell['unity_version']})", flush=True)
         worker.create_worker(
@@ -412,6 +453,9 @@ async def run_full(
         preseed_attempts.append(
             _apply_preseed(project, os_name=os_name, evidence_out=evidence_out, label="steps1-2")
         )
+        diag = _license_file_diagnostic(os_name=os_name, label="before-steps1-2")
+        if diag is not None:
+            license_diagnostics.append(diag)
         process = await _phase_off_legacy_compile(
             unity=unity, project=project, port=port, log=log, startup_timeout=startup_timeout,
             evidence_out=evidence_out, os_name=os_name,
@@ -429,6 +473,9 @@ async def run_full(
         adaptive_result = _apply_adaptive_preseed(evidence_out, os_name=os_name, project=project)
         if adaptive_result is not None:
             preseed_attempts.append({"mechanism": "adaptive", **adaptive_result})
+        diag = _license_file_diagnostic(os_name=os_name, label="before-steps4-6")
+        if diag is not None:
+            license_diagnostics.append(diag)
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
             fq.wait_for_port_diagnosed,
@@ -449,6 +496,9 @@ async def run_full(
         preseed_attempts.append(
             _apply_preseed(project, os_name=os_name, evidence_out=evidence_out, label="steps8-9")
         )
+        diag = _license_file_diagnostic(os_name=os_name, label="before-steps8-9")
+        if diag is not None:
+            license_diagnostics.append(diag)
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
             fq.wait_for_port_diagnosed,
@@ -474,10 +524,14 @@ async def run_full(
         raise
     finally:
         await _stop(process)
-        _write_final_prefs_snapshot(evidence_out, os_name=os_name)
+        _write_final_prefs_snapshot(evidence_out, os_name=os_name, project=project)
         if on_mode_diagnostics is not None:
             (evidence_out / "on-mode-write-diagnostics.json").write_text(
                 json.dumps(on_mode_diagnostics, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+        if license_diagnostics:
+            (evidence_out / "license-file-diagnostics.json").write_text(
+                json.dumps(license_diagnostics, indent=2, sort_keys=True) + "\n", encoding="utf-8"
             )
         receipt = fq.build_runtime_receipt(
             cell=cell_name,

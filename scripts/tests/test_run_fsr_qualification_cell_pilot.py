@@ -446,6 +446,85 @@ def test_write_final_prefs_snapshot_noop_when_snapshot_unavailable(
 
 
 # ---------------------------------------------------------------------------
+# company/product-scoped snapshot wiring — Run 8 (33396935103): Unity's
+# real per-project Linux prefs store lives at
+# ~/.config/unity3d/<companyName>/<productName>/prefs, not only the flat
+# machine-global path. Both _apply_preseed and _write_final_prefs_snapshot
+# must pass company_name/product_name through to read_prefs_snapshot so
+# evidence captures both stores.
+# ---------------------------------------------------------------------------
+
+def test_apply_preseed_passes_company_and_product_name_to_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(
+        cell_script.preseed,
+        "preseed_editor_prefs",
+        lambda project, *, os_name: {
+            "applied": True, "mechanism": "linux_prefs_xml",
+            "company_name": "Some Company", "product_name": "Some Product",
+        },
+    )
+    captured: list[dict] = []
+    monkeypatch.setattr(
+        cell_script.preseed,
+        "read_prefs_snapshot",
+        lambda os_name, **k: captured.append(k) or "<unity_prefs>...</unity_prefs>",
+    )
+    evidence_out = tmp_path / "evidence"
+
+    cell_script._apply_preseed(
+        tmp_path / "worker", os_name="Linux", evidence_out=evidence_out, label="steps1-2"
+    )
+
+    assert captured == [{"company_name": "Some Company", "product_name": "Some Product"}]
+
+
+def test_write_final_prefs_snapshot_resolves_company_and_product_from_project(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    project = tmp_path / "worker"
+    monkeypatch.setattr(cell_script.preseed, "resolve_company_name", lambda p: "Some Company")
+    monkeypatch.setattr(cell_script.preseed, "resolve_product_name", lambda p: "Some Product")
+    captured: list[dict] = []
+    monkeypatch.setattr(
+        cell_script.preseed,
+        "read_prefs_snapshot",
+        lambda os_name, **k: captured.append(k) or "<unity_prefs>final</unity_prefs>",
+    )
+    evidence_out = tmp_path / "evidence"
+
+    cell_script._write_final_prefs_snapshot(evidence_out, os_name="Linux", project=project)
+
+    assert captured == [{"company_name": "Some Company", "product_name": "Some Product"}]
+
+
+def test_write_final_prefs_snapshot_falls_back_when_project_settings_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Best-effort — a project whose ProjectSettings.asset can't be read
+    must not break this diagnostic-only capture, only skip the
+    company/product-scoped read."""
+    monkeypatch.setattr(
+        cell_script.preseed, "resolve_company_name",
+        lambda p: (_ for _ in ()).throw(cell_script.preseed.EditorPrefsPreseedError("missing")),
+    )
+    captured: list[dict] = []
+    monkeypatch.setattr(
+        cell_script.preseed,
+        "read_prefs_snapshot",
+        lambda os_name, **k: captured.append(k) or "x",
+    )
+    evidence_out = tmp_path / "evidence"
+
+    cell_script._write_final_prefs_snapshot(
+        evidence_out, os_name="Linux", project=tmp_path / "nonexistent-worker"
+    )
+
+    assert captured == [{"company_name": None, "product_name": None}]
+
+
+# ---------------------------------------------------------------------------
 # discovery wiring — Run 7: reveal what Unity actually touches under
 # ~/.config and ~/.local/share during a real pilot run, since the tracked
 # prefs file is proven stable/untouched yet Unity's behavior still implies
@@ -575,3 +654,47 @@ def test_apply_adaptive_preseed_noop_on_windows(tmp_path: Path):
     result = cell_script._apply_adaptive_preseed(evidence_out, os_name="Windows", project=tmp_path / "worker")
 
     assert result is None
+
+
+# ---------------------------------------------------------------------------
+# _license_file_diagnostic — Run 8 (33396935103): min-linux-x64's full run
+# crashed on "No valid Unity Editor license found" right after an (now
+# fixed) adaptive-preseed bug overwrote Unity's real license file. Even
+# though the underlying cause is fixed, capture the license file's state
+# at each launch boundary going forward so any future recurrence (from
+# this or any other cause) is immediately visible in evidence, never
+# silently re-diagnosed from a crashed Editor's log alone.
+# ---------------------------------------------------------------------------
+
+def test_license_file_diagnostic_reports_bytes_when_present(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    home = tmp_path / "home"
+    lic_path = home / ".local" / "share" / "unity3d" / "Unity" / "Unity_lic.ulf"
+    lic_path.parent.mkdir(parents=True)
+    lic_path.write_bytes(b"<UnityLicenseFile>fake-license-bytes</UnityLicenseFile>")
+    monkeypatch.setattr(cell_script.Path, "home", classmethod(lambda cls: home))
+
+    diag = cell_script._license_file_diagnostic(os_name="Linux", label="before-steps4-6")
+
+    assert diag["label"] == "before-steps4-6"
+    assert diag["exists"] is True
+    assert diag["size"] == len(b"<UnityLicenseFile>fake-license-bytes</UnityLicenseFile>")
+    assert "sha256" in diag
+
+
+def test_license_file_diagnostic_reports_missing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setattr(cell_script.Path, "home", classmethod(lambda cls: home))
+
+    diag = cell_script._license_file_diagnostic(os_name="Linux", label="before-steps1-2")
+
+    assert diag == {
+        "label": "before-steps1-2",
+        "path": str(home / ".local" / "share" / "unity3d" / "Unity" / "Unity_lic.ulf"),
+        "exists": False,
+    }
+
+
+def test_license_file_diagnostic_none_on_non_linux():
+    assert cell_script._license_file_diagnostic(os_name="macOS", label="x") is None
+    assert cell_script._license_file_diagnostic(os_name="Windows", label="x") is None
