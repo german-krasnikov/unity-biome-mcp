@@ -2,6 +2,7 @@
 
 import base64
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -776,3 +777,122 @@ def test_multiscene_live_tests_use_canonical_transient_id_expression():
         assert "RUN_OWNED_ROOT" in source
         assert ".scene_paths" in source
         assert ".asset_paths" in source
+
+
+async def test_wait_compile_idle_returns_true_immediately_when_idle():
+    """Read-only poll: an already-idle compile_status returns True on the
+    first check, with no sleep and no reconnect."""
+
+    class _FakeBridge:
+        async def send(self, cmd, args):  # noqa: ARG002
+            assert cmd == "compile_status"
+            return {"ok": True, "data": "idle"}
+
+    result = await live_conftest._wait_compile_idle(
+        _FakeBridge(), budget_s=5.0, interval_s=0.01
+    )
+    assert result is True
+
+
+async def test_wait_compile_idle_polls_until_compiling_clears():
+    """Poll compile_status until 'compiling' clears, bounded by budget_s —
+    entirely in-place, never a bridge.close()/reconnect cycle."""
+    responses = iter([
+        {"ok": True, "data": "compiling"},
+        {"ok": True, "data": "compiling"},
+        {"ok": True, "data": "idle"},
+    ])
+    calls = []
+
+    class _FakeBridge:
+        async def send(self, cmd, args):  # noqa: ARG002
+            calls.append(cmd)
+            return next(responses)
+
+    result = await live_conftest._wait_compile_idle(
+        _FakeBridge(), budget_s=5.0, interval_s=0.01
+    )
+    assert result is True
+    assert calls == ["compile_status"] * 3
+
+
+async def test_wait_compile_idle_returns_false_when_budget_exhausted():
+    """Still-compiling past the budget returns False instead of hanging
+    forever — domain reload is documented up to 90s; the caller decides
+    what to do next."""
+
+    class _FakeBridge:
+        async def send(self, cmd, args):  # noqa: ARG002
+            return {"ok": True, "data": "compiling"}
+
+    result = await live_conftest._wait_compile_idle(
+        _FakeBridge(), budget_s=0.03, interval_s=0.02
+    )
+    assert result is False
+
+
+async def test_capture_unity_state_reload_failure_waits_instead_of_reconnecting():
+    """UncertainDeliveryError / 'Domain reload in progress' must retry via a
+    bounded read-only re-probe (_wait_compile_idle + a fresh op_id from the
+    next _execute_checked call), never bridge.close()/reconnect — repeated
+    reconnect churn during an active Unity compile was measured to lengthen
+    downstream test timing (commit d41bc6e0)."""
+    responses = iter([
+        ConnectionError("Domain reload in progress — retry after recompile"),
+        {"ok": True, "data": "P\t0\nT\t1\n"},
+    ])
+
+    class _FakeBridge:
+        async def send(self, cmd, args):  # noqa: ARG002
+            item = next(responses)
+            if isinstance(item, Exception):
+                raise item
+            return item
+
+        async def close(self):
+            raise AssertionError("must not close the bridge for a reload-related failure")
+
+    async def _forbid_reconnect(bridge, retries=15, delay=1.0):  # noqa: ARG001
+        raise AssertionError("must not reconnect for a reload-related failure")
+
+    with patch.object(live_conftest, "_connect_with_retry", _forbid_reconnect), \
+         patch.object(
+             live_conftest, "_wait_compile_idle", AsyncMock(return_value=True)
+         ) as wait_mock:
+        state = await live_conftest._capture_unity_state(_FakeBridge())
+
+    assert state.is_playing is False
+    assert wait_mock.await_count == 1
+
+
+async def test_capture_unity_state_non_reload_failure_still_reconnects():
+    """A non-reload connection failure keeps the original reconnect
+    fallback — only the reload-specific path skips bridge.close()/reconnect."""
+    responses = iter([
+        ConnectionError("connection reset by peer"),
+        {"ok": True, "data": "P\t0\nT\t1\n"},
+    ])
+    reconnected = []
+
+    class _FakeBridge:
+        async def send(self, cmd, args):  # noqa: ARG002
+            item = next(responses)
+            if isinstance(item, Exception):
+                raise item
+            return item
+
+        async def close(self):
+            pass
+
+    async def _fake_connect_with_retry(bridge, retries=15, delay=1.0):  # noqa: ARG001
+        reconnected.append(retries)
+
+    async def _forbid_wait(bridge, budget_s=90.0, interval_s=2.0):  # noqa: ARG001
+        raise AssertionError("must not poll compile_status for a non-reload failure")
+
+    with patch.object(live_conftest, "_connect_with_retry", _fake_connect_with_retry), \
+         patch.object(live_conftest, "_wait_compile_idle", _forbid_wait):
+        state = await live_conftest._capture_unity_state(_FakeBridge())
+
+    assert state.is_playing is False
+    assert reconnected == [10]
