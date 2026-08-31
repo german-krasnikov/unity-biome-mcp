@@ -253,3 +253,24 @@ def test_workflow_aggregate_wording_no_longer_claims_six_of_six():
     aggregate_index = text.index("aggregate:")
     block = text[aggregate_index:]
     assert "documented-blocked" in block.lower() or "required-pass" in block.lower()
+
+
+def test_workflow_aggregate_job_installs_server_dev_deps_before_validating():
+    """Run 10 (33399420344): the aggregate job's own
+    validate_fsr_qualification_receipts.py import chain
+    (gauntlet.fsr_qualification -> ... -> python_package_contract) needs
+    the real "packaging" dependency (server/pyproject.toml:
+    "packaging>=24.0") that the cell jobs already install via "pip install
+    -e \"server[dev]\"" (see "Install server with dev deps") but the
+    aggregate job never did — it failed on ModuleNotFoundError even
+    though both required cells (macOS, Linux) had already PASSED."""
+    text = _text()
+    aggregate_index = text.index("aggregate:")
+    block = text[aggregate_index:]
+    # rindex, not index: the checkout step's fetch-depth comment (and this
+    # test's own docstring text) also mentions the script's name earlier in
+    # the block — only the actual `run:` invocation (the last occurrence)
+    # matters for step ordering.
+    validate_index = block.rindex("validate_fsr_qualification_receipts.py")
+    install_index = block.index('pip install -e "server[dev]"')
+    assert install_index < validate_index
