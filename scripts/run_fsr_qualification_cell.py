@@ -159,6 +159,24 @@ def _write_final_prefs_snapshot(evidence_out: Path | None, *, os_name: str) -> N
     (evidence_out / "prefs-final.txt").write_text(snapshot, encoding="utf-8")
 
 
+def _apply_adaptive_preseed(
+    evidence_out: Path | None, *, os_name: str, project: Path
+) -> dict[str, object] | None:
+    """Run 7 (b): after pilot's discovery revealed what Unity actually
+    touched, extend preseed to those candidate paths too — in addition to,
+    never instead of, the already-known ~/.config/unity3d/prefs path.
+    None when there is no pilot discovery report to read yet (e.g. pilot
+    itself never ran) or on Windows (discovery is POSIX-only)."""
+    if os_name == "Windows" or evidence_out is None:
+        return None
+    report_path = evidence_out / "pilot" / "prefs-discovery.txt"
+    if not report_path.is_file():
+        return None
+    report = report_path.read_text(encoding="utf-8")
+    product_name = preseed.resolve_product_name(project)
+    return preseed.adaptive_preseed_from_discovery(report, product_name=product_name)
+
+
 async def run_pilot(
     *,
     unity: Path,
@@ -203,6 +221,14 @@ async def run_pilot(
     preseed_receipt = _apply_preseed(
         project, os_name=os_name, evidence_out=evidence_out, label="pilot"
     )
+    # Run 7: the tracked ~/.config/unity3d/prefs file is proven stable/
+    # untouched across a whole cell run, yet Unity's behavior still implies
+    # a non-default kAutoRefreshMode was read from somewhere — `find
+    # -newer` reveals what Unity actually touches. POSIX-only (Windows has
+    # no ~/.config convention); never fails the pilot on its own.
+    discovery_marker = work_root / "pilot-discovery-marker"
+    if os_name != "Windows":
+        preseed.create_discovery_marker(discovery_marker)
     process = _launch(unity=unity, project=project, port=port, log=log)
     outcome = "FAIL"
     error_message: str | None = None
@@ -227,6 +253,10 @@ async def run_pilot(
     finally:
         await _stop(process)
         _write_final_prefs_snapshot(evidence_out, os_name=os_name)
+        if os_name != "Windows" and evidence_out is not None:
+            report = preseed.discover_touched_config_files(marker=discovery_marker)
+            evidence_out.mkdir(parents=True, exist_ok=True)
+            (evidence_out / "prefs-discovery.txt").write_text(report, encoding="utf-8")
         if evidence_out is not None:
             fq.write_pilot_evidence(
                 evidence_out,
@@ -263,34 +293,66 @@ async def _phase_off_legacy_compile(
     return process
 
 
-async def _phase_on_retained_object(*, port) -> None:
-    # While mutation is ON, .cs writes must go through source_patch_write,
-    # never asset/write_text — the C# side explicitly rejects a legacy
-    # write on a .cs path in that state ("source patch active — legacy .cs
-    # write rejected pre-effect", Run 5: 33387852561). This is the same
-    # routing server/src/unity_mcp/tools/asset.py itself performs.
+async def _phase_on_retained_object(*, port, target_path: Path) -> list[dict[str, object]]:
+    """Returns one byte-diagnostic entry per attempted write (Run 7: the
+    classifier proved correct for the exact intended content when tested
+    directly offline — ADMITTED cleanly — so the discrepancy must be in
+    what actually reaches it live; capturing sha256 + edge bytes of the
+    real before/after content lets a live run be compared against that
+    offline proof). On any unexpected failure, whatever diagnostics were
+    already collected are attached to the raised error as
+    .byte_diagnostics so they are never lost.
+
+    While mutation is ON, .cs writes must go through source_patch_write,
+    never asset/write_text — the C# side explicitly rejects a legacy write
+    on a .cs path in that state ("source patch active — legacy .cs write
+    rejected pre-effect", Run 5: 33387852561). This is the same routing
+    server/src/unity_mcp/tools/asset.py itself performs."""
+    diagnostics: list[dict[str, object]] = []
     await durable.call(port, "editor", {"action": "mutation_mode", "enable": True})
     for kind in ("v1", "v2", "invalid", "v2", "v3"):
         content = harness.target_body(kind)
+        before_bytes = target_path.read_bytes() if target_path.is_file() else b""
+        entry: dict[str, object] = {
+            "kind": kind,
+            "before": fq.byte_diagnostic(before_bytes),
+            "after": fq.byte_diagnostic(content.encode("utf-8")),
+        }
+        rejection: durable.RunnerError | None = None
+        try:
+            await durable.call(port, "source_patch_write", {"path": REL_TARGET, "content": content})
+        except durable.RunnerError as error:
+            rejection = error
+
+        # The scenario deliberately proves an invalid (non body-only)
+        # mutation is rejected pre-effect, not that it succeeds
+        # ("1 -> 2 -> invalid stays 2 -> 3", §6 P0-80) — a rejection here
+        # is the correct, expected outcome (Run 6: 33390881487 first
+        # exposed this; the driver previously let this specific
+        # RunnerError abort the whole cell).
         if kind == "invalid":
-            # The scenario deliberately proves an invalid (non body-only)
-            # mutation is rejected pre-effect, not that it succeeds
-            # ("1 -> 2 -> invalid stays 2 -> 3", §6 P0-80) — a rejection
-            # here is the correct, expected outcome (Run 6: 33390881487
-            # first exposed this; the driver previously let this specific
-            # RunnerError abort the whole cell).
-            try:
-                await durable.call(port, "source_patch_write", {"path": REL_TARGET, "content": content})
-            except durable.RunnerError as error:
-                if "rejected" not in str(error).lower():
-                    raise
-            else:
+            if rejection is None:
+                entry["result"] = "applied(unexpected)"
+                diagnostics.append(entry)
                 raise FsrQualificationCellError(
                     "source_patch_write unexpectedly accepted the invalid (non body-only) mutation"
                 )
+            if "rejected" not in str(rejection).lower():
+                entry["result"] = f"rejected(unexpected-reason): {rejection}"
+                diagnostics.append(entry)
+                rejection.byte_diagnostics = diagnostics
+                raise rejection
+            entry["result"] = "rejected(expected)"
+        elif rejection is not None:
+            entry["result"] = f"rejected: {rejection}"
+            diagnostics.append(entry)
+            rejection.byte_diagnostics = diagnostics
+            raise rejection
         else:
-            await durable.call(port, "source_patch_write", {"path": REL_TARGET, "content": content})
+            entry["result"] = "applied"
+        diagnostics.append(entry)
     await durable.call(port, "editor", {"action": "mutation_mode", "enable": False})
+    return diagnostics
 
 
 async def run_full(
@@ -321,6 +383,7 @@ async def run_full(
     error_message: str | None = None
     process: subprocess.Popen | None = None
     preseed_attempts: list[dict[str, object]] = []
+    on_mode_diagnostics: list[dict[str, object]] | None = None
     try:
         print(f"PHASE: create worker ({cell['unity_version']})", flush=True)
         worker.create_worker(
@@ -353,6 +416,9 @@ async def run_full(
         preseed_attempts.append(
             _apply_preseed(project, os_name=os_name, evidence_out=evidence_out, label="steps4-6")
         )
+        adaptive_result = _apply_adaptive_preseed(evidence_out, os_name=os_name, project=project)
+        if adaptive_result is not None:
+            preseed_attempts.append({"mechanism": "adaptive", **adaptive_result})
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
             fq.wait_for_port_diagnosed,
@@ -360,7 +426,9 @@ async def run_full(
             timeout=startup_timeout, evidence_out=evidence_out, os_name=os_name,
         )
         harness.validate_installed_fixture(project)
-        await _phase_on_retained_object(port=port)
+        on_mode_diagnostics = await _phase_on_retained_object(
+            port=port, target_path=project / REL_TARGET
+        )
         await _stop(process)
         process = None
 
@@ -392,10 +460,15 @@ async def run_full(
     ) as error:
         error_message = str(error)
         outcome = "FAIL"
+        on_mode_diagnostics = getattr(error, "byte_diagnostics", on_mode_diagnostics)
         raise
     finally:
         await _stop(process)
         _write_final_prefs_snapshot(evidence_out, os_name=os_name)
+        if on_mode_diagnostics is not None:
+            (evidence_out / "on-mode-write-diagnostics.json").write_text(
+                json.dumps(on_mode_diagnostics, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
         receipt = fq.build_runtime_receipt(
             cell=cell_name,
             os_name=os_name,

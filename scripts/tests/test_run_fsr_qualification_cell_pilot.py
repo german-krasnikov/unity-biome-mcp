@@ -443,3 +443,135 @@ def test_write_final_prefs_snapshot_noop_when_snapshot_unavailable(
     cell_script._write_final_prefs_snapshot(evidence_out, os_name="Windows")
 
     assert not evidence_out.exists()
+
+
+# ---------------------------------------------------------------------------
+# discovery wiring — Run 7: reveal what Unity actually touches under
+# ~/.config and ~/.local/share during a real pilot run, since the tracked
+# prefs file is proven stable/untouched yet Unity's behavior still implies
+# it read a non-default kAutoRefreshMode from somewhere.
+# ---------------------------------------------------------------------------
+
+def test_run_pilot_writes_discovery_report_on_linux(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    calls: list = []
+    _stub_common(monkeypatch, create_worker_calls=calls)
+
+    async def _call(port, command, args):
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+    monkeypatch.setattr(
+        cell_script.preseed, "preseed_editor_prefs", lambda project, *, os_name: {"applied": True}
+    )
+    marker_calls: list = []
+    monkeypatch.setattr(
+        cell_script.preseed, "create_discovery_marker", lambda path: marker_calls.append(path)
+    )
+    monkeypatch.setattr(
+        cell_script.preseed,
+        "discover_touched_config_files",
+        lambda *, marker, home=None: "=== discovery report ===",
+    )
+
+    import asyncio
+
+    asyncio.run(
+        cell_script.run_pilot(
+            unity=tmp_path / "Unity",
+            source_project=tmp_path / "source",
+            work_root=tmp_path / "work",
+            port=9600,
+            startup_timeout=1.0,
+            os_name="Linux",
+            evidence_out=tmp_path / "evidence",
+        )
+    )
+
+    assert len(marker_calls) == 1
+    report_path = tmp_path / "evidence" / "prefs-discovery.txt"
+    assert report_path.read_text(encoding="utf-8") == "=== discovery report ==="
+
+
+def test_run_pilot_skips_discovery_on_windows(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    calls: list = []
+    _stub_common(monkeypatch, create_worker_calls=calls)
+
+    async def _call(port, command, args):
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+    monkeypatch.setattr(
+        cell_script.preseed, "preseed_editor_prefs", lambda project, *, os_name: {"applied": True}
+    )
+    marker_calls: list = []
+    monkeypatch.setattr(
+        cell_script.preseed, "create_discovery_marker", lambda path: marker_calls.append(path)
+    )
+
+    import asyncio
+
+    asyncio.run(
+        cell_script.run_pilot(
+            unity=tmp_path / "Unity",
+            source_project=tmp_path / "source",
+            work_root=tmp_path / "work",
+            port=9600,
+            startup_timeout=1.0,
+            os_name="Windows",
+            evidence_out=tmp_path / "evidence",
+        )
+    )
+
+    assert marker_calls == []
+    assert not (tmp_path / "evidence" / "prefs-discovery.txt").exists()
+
+
+# ---------------------------------------------------------------------------
+# adaptive preseed wiring — Run 7 (b): before steps 4-6 (the vulnerable
+# phase), read pilot's own discovery report and extend preseed to any
+# candidate paths it found, in addition to the already-known path.
+# ---------------------------------------------------------------------------
+
+def test_apply_adaptive_preseed_reads_pilot_discovery_and_extends(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    evidence_out = tmp_path / "evidence"
+    pilot_dir = evidence_out / "pilot"
+    pilot_dir.mkdir(parents=True)
+    (pilot_dir / "prefs-discovery.txt").write_text("some unity discovery report", encoding="utf-8")
+
+    calls: list = []
+    monkeypatch.setattr(
+        cell_script.preseed,
+        "adaptive_preseed_from_discovery",
+        lambda report, *, product_name, home=None: calls.append(report) or {"candidates_found": [], "attempts": []},
+    )
+    monkeypatch.setattr(
+        cell_script.preseed, "resolve_product_name", lambda project: "Unity Biome MCP Demo"
+    )
+
+    result = cell_script._apply_adaptive_preseed(evidence_out, os_name="Linux", project=tmp_path / "worker")
+
+    assert calls == ["some unity discovery report"]
+    assert result == {"candidates_found": [], "attempts": []}
+
+
+def test_apply_adaptive_preseed_noop_when_no_pilot_report(tmp_path: Path):
+    evidence_out = tmp_path / "evidence"
+    result = cell_script._apply_adaptive_preseed(evidence_out, os_name="Linux", project=tmp_path / "worker")
+    assert result is None
+
+
+def test_apply_adaptive_preseed_noop_on_windows(tmp_path: Path):
+    evidence_out = tmp_path / "evidence"
+    pilot_dir = evidence_out / "pilot"
+    pilot_dir.mkdir(parents=True)
+    (pilot_dir / "prefs-discovery.txt").write_text("report", encoding="utf-8")
+
+    result = cell_script._apply_adaptive_preseed(evidence_out, os_name="Windows", project=tmp_path / "worker")
+
+    assert result is None

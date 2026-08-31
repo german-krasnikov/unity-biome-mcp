@@ -126,6 +126,120 @@ def _apply_commands(commands: list[list[str]]) -> None:
         subprocess.run(command, check=True, capture_output=True, text=True)
 
 
+def find_candidate_prefs_paths(discovery_report: str, *, home: Path) -> list[Path]:
+    """Parse a discover_touched_config_files() report for file paths that
+    look like additional Unity EditorPrefs storage: under home, mentioning
+    "unity" (case-insensitive) anywhere in the path, and not the
+    already-known ~/.config/unity3d/prefs (that one is already preseeded
+    directly, no need to rediscover it)."""
+    known = (home / ".config" / "unity3d" / "prefs").resolve()
+    home_str = str(home)
+    candidates: set[Path] = set()
+    for raw_line in discovery_report.splitlines():
+        line = raw_line.strip()
+        if not line.startswith(home_str):
+            continue
+        if "unity" not in line.lower():
+            continue
+        candidate = Path(line).resolve()
+        if candidate == known:
+            continue
+        candidates.add(candidate)
+    return sorted(candidates)
+
+
+def adaptive_preseed_from_discovery(
+    discovery_report: str, *, product_name: str, home: Path | None = None
+) -> dict[str, object]:
+    """Best-effort: for every candidate path found in a discovery report
+    (beyond the already-known ~/.config/unity3d/prefs), attempt to merge
+    our two keys into it too — in addition to, never instead of, the
+    original path (Run 7 (b): "продолжай писать в старый путь тоже —
+    безвредно"). Only ever patches files that already look like the known
+    XML shape; anything else is recorded, not touched, since blindly
+    rewriting an unknown format risks corrupting real Unity state."""
+    home = home or Path.home()
+    candidates = find_candidate_prefs_paths(discovery_report, home=home)
+    attempts: list[dict[str, object]] = []
+    for candidate in candidates:
+        entry: dict[str, object] = {"path": str(candidate)}
+        try:
+            existing = candidate.read_text(encoding="utf-8") if candidate.is_file() else None
+        except (OSError, UnicodeDecodeError) as error:
+            entry["applied"] = False
+            entry["error"] = str(error)
+            attempts.append(entry)
+            continue
+        if existing is None or not existing.strip().startswith("<"):
+            entry["applied"] = False
+            entry["reason"] = "not XML-shaped, not patched"
+            attempts.append(entry)
+            continue
+        try:
+            candidate.write_text(
+                linux_prefs_xml_patch(existing, product_name), encoding="utf-8"
+            )
+            entry["applied"] = True
+            entry["format"] = "xml"
+        except OSError as error:
+            entry["applied"] = False
+            entry["error"] = str(error)
+        attempts.append(entry)
+    return {"candidates_found": [str(c) for c in candidates], "attempts": attempts}
+
+
+def create_discovery_marker(path: Path) -> None:
+    """A reference file for `find -newer` — Run 7's discovery step touches
+    this before Unity launches, then diffs what changed against it after
+    Unity exits."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch()
+
+
+def discover_touched_config_files(*, marker: Path, home: Path | None = None) -> str:
+    """Best-effort report of what Unity actually touched under
+    ~/.config and ~/.local/share during its run (find -newer marker), plus
+    a full listing+cat of ~/.config/unity3d/**. Run 7: the tracked
+    ~/.config/unity3d/prefs file is proven stable/untouched across a whole
+    cell run, yet FSR's auto-refresh check still returned a non-default
+    value — meaning Unity reads EditorPrefs from some OTHER location this
+    is meant to reveal. Never raises; a failed find degrades the report,
+    it does not fail the caller."""
+    home = home or Path.home()
+    lines: list[str] = []
+    try:
+        result = subprocess.run(
+            [
+                "find", str(home / ".config"), str(home / ".local" / "share"),
+                "-newer", str(marker), "-type", "f",
+            ],
+            capture_output=True, text=True, timeout=30,
+        )
+        lines.append("=== files modified since marker ===")
+        lines.append(result.stdout or "<none>")
+        if result.stderr:
+            lines.append(result.stderr)
+    except (OSError, subprocess.SubprocessError) as error:
+        lines.append(f"<find failed: {error}>")
+
+    unity3d_dir = home / ".config" / "unity3d"
+    lines.append("=== ~/.config/unity3d/** listing ===")
+    if unity3d_dir.is_dir():
+        entries = sorted(unity3d_dir.rglob("*"))
+        lines.extend(str(entry) for entry in entries)
+        lines.append("=== candidate file contents (< 64KiB) ===")
+        for entry in entries:
+            if entry.is_file() and entry.stat().st_size < 65536:
+                lines.append(f"--- {entry} ---")
+                try:
+                    lines.append(entry.read_text(encoding="utf-8", errors="replace"))
+                except OSError as error:
+                    lines.append(f"<unreadable: {error}>")
+    else:
+        lines.append(f"<{unity3d_dir} does not exist>")
+    return "\n".join(lines)
+
+
 def read_prefs_snapshot(os_name: str, *, home: Path | None = None) -> str | None:
     """Read back whatever the CURRENT state of the OS's own EditorPrefs
     store is — for Linux, the literal file content; for macOS/Windows, a
@@ -220,4 +334,8 @@ __all__ = [
     "windows_reg_add_commands",
     "preseed_editor_prefs",
     "read_prefs_snapshot",
+    "create_discovery_marker",
+    "discover_touched_config_files",
+    "find_candidate_prefs_paths",
+    "adaptive_preseed_from_discovery",
 ]

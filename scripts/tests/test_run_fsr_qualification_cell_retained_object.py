@@ -26,9 +26,11 @@ import run_fsr_qualification_cell as cell_script  # noqa: E402
 
 
 def test_phase_on_retained_object_survives_expected_invalid_rejection(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ):
     calls: list[tuple[str, dict]] = []
+    target = tmp_path / "target.cs"
+    target.write_bytes(cell_script.harness.target_body("v0").encode("utf-8"))
 
     async def _call(port, command, args):
         calls.append((command, args))
@@ -43,15 +45,18 @@ def test_phase_on_retained_object_survives_expected_invalid_rejection(
 
     import asyncio
 
-    asyncio.run(cell_script._phase_on_retained_object(port=9600))  # must not raise
+    asyncio.run(cell_script._phase_on_retained_object(port=9600, target_path=target))  # must not raise
 
     write_calls = [c for c in calls if c[0] == "source_patch_write"]
     assert len(write_calls) == 5  # v1, v2, invalid, v2, v3 — all attempted
 
 
 def test_phase_on_retained_object_raises_when_invalid_is_unexpectedly_accepted(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ):
+    target = tmp_path / "target.cs"
+    target.write_bytes(cell_script.harness.target_body("v0").encode("utf-8"))
+
     async def _call(port, command, args):
         return "ok"  # invalid mutation is (wrongly) accepted every time
 
@@ -60,15 +65,17 @@ def test_phase_on_retained_object_raises_when_invalid_is_unexpectedly_accepted(
     import asyncio
 
     with pytest.raises(cell_script.FsrQualificationCellError, match="unexpectedly accepted"):
-        asyncio.run(cell_script._phase_on_retained_object(port=9600))
+        asyncio.run(cell_script._phase_on_retained_object(port=9600, target_path=target))
 
 
 def test_phase_on_retained_object_reraises_unrelated_error_for_invalid_kind(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ):
     """Only a genuine rejection is expected for "invalid" — any other
     RunnerError (e.g. a real infra failure) must still fail the cell, not
     be silently swallowed."""
+    target = tmp_path / "target.cs"
+    target.write_bytes(cell_script.harness.target_body("v0").encode("utf-8"))
 
     async def _call(port, command, args):
         if command == "source_patch_write" and "System.Func<int>" in args.get("content", ""):
@@ -80,12 +87,15 @@ def test_phase_on_retained_object_reraises_unrelated_error_for_invalid_kind(
     import asyncio
 
     with pytest.raises(cell_script.durable.RunnerError, match="connection reset"):
-        asyncio.run(cell_script._phase_on_retained_object(port=9600))
+        asyncio.run(cell_script._phase_on_retained_object(port=9600, target_path=target))
 
 
 def test_phase_on_retained_object_still_propagates_valid_kind_failures(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ):
+    target = tmp_path / "target.cs"
+    target.write_bytes(cell_script.harness.target_body("v0").encode("utf-8"))
+
     async def _call(port, command, args):
         if command == "source_patch_write" and '"v1"' not in str(args) and "return 1;" in args.get("content", ""):
             raise cell_script.durable.RunnerError("source_patch_write failed: boom")
@@ -96,7 +106,7 @@ def test_phase_on_retained_object_still_propagates_valid_kind_failures(
     import asyncio
 
     with pytest.raises(cell_script.durable.RunnerError, match="boom"):
-        asyncio.run(cell_script._phase_on_retained_object(port=9600))
+        asyncio.run(cell_script._phase_on_retained_object(port=9600, target_path=target))
 
 
 # ---------------------------------------------------------------------------
@@ -238,3 +248,69 @@ def test_run_full_installs_fixture_before_launching_unity(
 class _FakeProcessForOrder:
     def poll(self):
         return None
+
+
+# ---------------------------------------------------------------------------
+# byte-level diagnostics — Run 7: capture sha256 + first/last 32 hex bytes
+# of the actual before (on disk) and after (about to be sent) content for
+# every ON-mode write, embedded in the receipt, so a live run's real bytes
+# can be compared against what is proven to work offline through the real
+# classifier (verified locally: the exact v0->v1 pair is cleanly ADMITTED).
+# ---------------------------------------------------------------------------
+
+def test_phase_on_retained_object_returns_byte_diagnostics_for_every_write(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    target = tmp_path / "FastReloadTarget.cs"
+    target.write_bytes(cell_script.harness.target_body("v0").encode("utf-8"))
+
+    async def _call(port, command, args):
+        if command == "source_patch_write" and "System.Func<int>" in args.get("content", ""):
+            raise cell_script.durable.RunnerError(
+                "source_patch_write failed: STATE: source patch rejected the "
+                "replacement body; no effect"
+            )
+        if command == "source_patch_write":
+            target.write_bytes(args["content"].encode("utf-8"))
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    import asyncio
+
+    diagnostics = asyncio.run(
+        cell_script._phase_on_retained_object(port=9600, target_path=target)
+    )
+
+    assert len(diagnostics) == 5  # v1, v2, invalid, v2, v3
+    assert diagnostics[0]["kind"] == "v1"
+    assert diagnostics[0]["result"] == "applied"
+    assert "sha256" in diagnostics[0]["before"]
+    assert "sha256" in diagnostics[0]["after"]
+    assert diagnostics[2]["kind"] == "invalid"
+    assert diagnostics[2]["result"].startswith("rejected")
+
+
+def test_phase_on_retained_object_diagnostics_survive_unexpected_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Even when the scenario ultimately raises, whatever diagnostics were
+    collected before the failure must still be attached to the raised
+    error so they are not lost."""
+    target = tmp_path / "FastReloadTarget.cs"
+    target.write_bytes(cell_script.harness.target_body("v0").encode("utf-8"))
+
+    async def _call(port, command, args):
+        if command == "source_patch_write" and "return 1;" in args.get("content", ""):
+            raise cell_script.durable.RunnerError("source_patch_write failed: boom")
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    import asyncio
+
+    with pytest.raises(cell_script.durable.RunnerError) as exc_info:
+        asyncio.run(cell_script._phase_on_retained_object(port=9600, target_path=target))
+
+    assert hasattr(exc_info.value, "byte_diagnostics")
+    assert len(exc_info.value.byte_diagnostics) == 1

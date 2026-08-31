@@ -616,3 +616,30 @@ def test_classify_dialog_evidence_inconclusive_when_warning_never_reached():
     far; still not proof either way."""
     log_text = "Unity Editor version:    6000.0.65f1 (a18e2220bd50)\n"
     assert fq.classify_dialog_evidence(log_text) == "inconclusive"
+
+
+# ---------------------------------------------------------------------------
+# byte_diagnostic — Run 7: min-macos-arm64's classifier rejection could not
+# be explained by the BOM theory (fixed and disproven) nor by reproducing
+# the exact content through the real classifier locally (ADMITTED cleanly).
+# The coordinator's ask: capture sha256 + first/last 32 hex bytes of the
+# actual before (read from disk) and after (about to be sent) content for
+# every ON-mode write, so a live run's exact bytes can be compared against
+# what is proven to work offline.
+# ---------------------------------------------------------------------------
+
+def test_byte_diagnostic_reports_sha256_size_and_edges():
+    data = b"hello world, this is more than thirty-two bytes long for sure"
+    diag = fq.byte_diagnostic(data)
+    import hashlib
+    assert diag["sha256"] == hashlib.sha256(data).hexdigest()
+    assert diag["size"] == len(data)
+    assert diag["first32_hex"] == data[:32].hex()
+    assert diag["last32_hex"] == data[-32:].hex()
+
+
+def test_byte_diagnostic_handles_short_data():
+    data = b"short"
+    diag = fq.byte_diagnostic(data)
+    assert diag["first32_hex"] == data.hex()
+    assert diag["last32_hex"] == data.hex()

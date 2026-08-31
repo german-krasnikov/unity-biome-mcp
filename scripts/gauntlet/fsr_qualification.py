@@ -12,6 +12,7 @@ plan requires "a direct GUI supervisor on every OS."
 
 See Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md §7 P1-20.
 """
+import hashlib
 import json
 import socket
 import subprocess
@@ -295,6 +296,22 @@ def classify_dialog_evidence(log_text: str) -> str:
     return "inconclusive"
 
 
+def byte_diagnostic(data: bytes) -> dict[str, object]:
+    """sha256 + size + first/last 32 hex bytes of one content buffer. Run 7:
+    min-macos-arm64's classifier rejection could not be explained by the
+    (fixed, disproven) BOM theory, nor by reproducing the exact intended
+    content through the real classifier locally (ADMITTED cleanly, offline)
+    — capturing this for the actual before (on disk) and after (about to
+    be sent) content of every ON-mode write lets a live run's real bytes be
+    compared against what is proven to work."""
+    return {
+        "sha256": hashlib.sha256(data).hexdigest(),
+        "size": len(data),
+        "first32_hex": data[:32].hex(),
+        "last32_hex": data[-32:].hex(),
+    }
+
+
 def default_editor_log_path(*, os_name: str, home: Path) -> Path:
     """The OS-default Editor.log location Unity falls back to — checked in
     addition to our explicit -logFile path, in case that argument itself
@@ -415,6 +432,7 @@ __all__ = [
     "validate_receipt_set",
     "build_headed_unity_command",
     "build_headed_unity_environment",
+    "byte_diagnostic",
     "default_editor_log_path",
     "classify_dialog_evidence",
     "capture_wait_diagnostics",

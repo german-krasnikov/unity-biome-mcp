@@ -323,3 +323,126 @@ def test_read_prefs_snapshot_never_raises_on_command_failure(
     snapshot = preseed.read_prefs_snapshot("macOS", home=tmp_path)
 
     assert "unreadable" in snapshot.lower()
+
+
+# ---------------------------------------------------------------------------
+# discover_touched_config_files / create_discovery_marker — Run 7: the
+# tracked ~/.config/unity3d/prefs file is proven stable and never touched
+# by Unity across the whole run, yet FSR's auto-refresh check still
+# returned a non-default value — meaning Unity reads EditorPrefs from some
+# OTHER location. `find -newer <marker>` under ~/.config and
+# ~/.local/share, plus a full listing+cat of ~/.config/unity3d/**, reveals
+# what Unity actually touched during its run.
+# ---------------------------------------------------------------------------
+
+def test_create_discovery_marker_creates_an_empty_file(tmp_path: Path):
+    marker = tmp_path / "marker"
+    preseed.create_discovery_marker(marker)
+    assert marker.is_file()
+
+
+def test_discover_touched_config_files_lists_newly_modified_files(tmp_path: Path):
+    home = tmp_path / "home"
+    (home / ".config").mkdir(parents=True)
+    (home / ".local" / "share").mkdir(parents=True)
+    marker = tmp_path / "marker"
+    preseed.create_discovery_marker(marker)
+    import time
+
+    time.sleep(0.05)
+    new_file = home / ".config" / "some_new_dconf_thing"
+    new_file.write_text("touched-after-marker", encoding="utf-8")
+
+    report = preseed.discover_touched_config_files(marker=marker, home=home)
+
+    assert "some_new_dconf_thing" in report
+
+
+def test_discover_touched_config_files_lists_and_cats_unity3d_dir(tmp_path: Path):
+    home = tmp_path / "home"
+    unity3d = home / ".config" / "unity3d"
+    unity3d.mkdir(parents=True)
+    (unity3d / "prefs").write_text("<unity_prefs>known</unity_prefs>", encoding="utf-8")
+    marker = tmp_path / "marker"
+    preseed.create_discovery_marker(marker)
+
+    report = preseed.discover_touched_config_files(marker=marker, home=home)
+
+    assert "prefs" in report
+    assert "known" in report
+
+
+def test_discover_touched_config_files_handles_missing_unity3d_dir(tmp_path: Path):
+    home = tmp_path / "home"
+    home.mkdir()
+    marker = tmp_path / "marker"
+    preseed.create_discovery_marker(marker)
+
+    report = preseed.discover_touched_config_files(marker=marker, home=home)
+
+    assert isinstance(report, str)
+
+
+# ---------------------------------------------------------------------------
+# find_candidate_prefs_paths / adaptive_preseed_from_discovery — Run 7 (b):
+# after pilot's discovery reveals what Unity actually touched, extend our
+# preseed to those paths too (in addition to, never instead of, the
+# already-known ~/.config/unity3d/prefs — harmless either way).
+# ---------------------------------------------------------------------------
+
+def test_find_candidate_prefs_paths_matches_unity_paths_under_home(tmp_path: Path):
+    home = tmp_path / "home"
+    report = (
+        f"=== files modified since marker ===\n"
+        f"{home}/.config/unity3d/prefs\n"
+        f"{home}/.local/share/unity3d/Editor.something\n"
+        f"{home}/.config/dconf/user\n"
+        f"/etc/passwd\n"
+    )
+    candidates = preseed.find_candidate_prefs_paths(report, home=home)
+    assert (home / ".local" / "share" / "unity3d" / "Editor.something") in candidates
+    assert (home / ".config" / "unity3d" / "prefs") not in candidates  # already known
+    assert (home / ".config" / "dconf" / "user") not in candidates  # no "unity" in path
+    assert not any(str(c).startswith("/etc") for c in candidates)
+
+
+def test_find_candidate_prefs_paths_empty_report_returns_empty(tmp_path: Path):
+    home = tmp_path / "home"
+    assert preseed.find_candidate_prefs_paths("", home=home) == []
+
+
+def test_adaptive_preseed_patches_xml_looking_candidates(tmp_path: Path):
+    home = tmp_path / "home"
+    candidate = home / ".local" / "share" / "unity3d" / "prefs"
+    candidate.parent.mkdir(parents=True)
+    candidate.write_text('<unity_prefs version_major="1" version_minor="1">\n</unity_prefs>\n', encoding="utf-8")
+    report = f"{candidate}\n"
+
+    result = preseed.adaptive_preseed_from_discovery(
+        report, product_name="Unity Biome MCP Demo", home=home
+    )
+
+    assert result["attempts"][0]["applied"] is True
+    patched = candidate.read_text(encoding="utf-8")
+    assert "kAutoRefreshMode" in patched
+
+
+def test_adaptive_preseed_skips_unknown_format_candidates(tmp_path: Path):
+    home = tmp_path / "home"
+    candidate = home / ".local" / "share" / "unity3d" / "Editor.log"
+    candidate.parent.mkdir(parents=True)
+    candidate.write_bytes(b"\x00\x01binary-not-xml")
+    report = f"{candidate}\n"
+
+    result = preseed.adaptive_preseed_from_discovery(
+        report, product_name="Unity Biome MCP Demo", home=home
+    )
+
+    assert result["attempts"][0]["applied"] is False
+
+
+def test_adaptive_preseed_handles_no_candidates_found(tmp_path: Path):
+    home = tmp_path / "home"
+    result = preseed.adaptive_preseed_from_discovery("no unity paths here", product_name="X", home=home)
+    assert result["candidates_found"] == []
+    assert result["attempts"] == []
