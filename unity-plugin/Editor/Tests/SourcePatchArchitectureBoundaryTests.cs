@@ -35,6 +35,18 @@ namespace UnityMCP.Editor.Tests
                 "source_patch_write must be unreachable from batch (§3.2).");
         }
 
+        // §6 P0-70: "editor mutation_mode" schema/ToolSpec/C# parity — the C#
+        // contract must declare "enable" as optional so the Python wrapper's
+        // tri-state bool can cross the wire.
+        [Test]
+        public void CommandRegistry_Editor_ContractDeclaresEnableOptional()
+        {
+            var exists = CommandRegistry.TryGetContract("editor", out _, out var optional, out var isFreeForm);
+            Assert.IsTrue(exists, "editor must be registered.");
+            Assert.IsFalse(isFreeForm, "editor must declare a structured contract.");
+            CollectionAssert.Contains(optional, "enable");
+        }
+
         // §3.1: base package references no FSR/Harmony/MonoMod. This checks the
         // LIVE loaded domain (real evidence from the currently open, package-absent
         // Editor), complementing the static asmdef/package.json scan in

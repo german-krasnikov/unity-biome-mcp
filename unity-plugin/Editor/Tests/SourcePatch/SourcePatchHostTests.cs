@@ -1,9 +1,9 @@
-// P0-50: unit-level coverage for SourcePatchHost, the one main-assembly
-// integration seam (§3.1/§6). CurrentState is a settable seam — no live path
-// can reach anything but Unavailable yet (no provider registration/P0-60, no
-// mutation_mode command/P0-70), so every non-Off/Unavailable state here is
-// forced directly. See Plans/HotReload/V2/FSR-MVP-CLEAN/
-// 04-PARETO-COMPLETION-HANDOFF.md.
+// P0-50/P0-70: unit-level coverage for SourcePatchHost, the one main-assembly
+// integration seam (§3.1/§6). CurrentState's setter remains a direct test seam
+// (it marks lazy reconciliation "already done" so it never overwrites a
+// forced test state) — every non-Off/Unavailable state here is forced
+// directly rather than reached through a real provider/mutation_mode flow.
+// See Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md.
 using System.IO;
 using NUnit.Framework;
 using UnityMCP.Editor.SourcePatch;
@@ -94,7 +94,11 @@ namespace UnityMCP.Editor.Tests
                 "source_patch_write's OFF/Unavailable delegation must produce the exact same response as calling the legacy writer directly.");
         }
 
-        [TestCase(SourcePatchState.OnReady)]
+        // P0-70: OnReady deliberately removed from this blanket-throw matrix.
+        // Forcing OnReady now has real, richer behavior (an armed coordinator
+        // can actually apply a write) instead of an undifferentiated throw —
+        // see SourcePatchMutationModeTests.cs for OnReady's dedicated coverage
+        // (both the armed-success path and the unarmed-defensive-throw path).
         [TestCase(SourcePatchState.Busy)]
         [TestCase(SourcePatchState.Disabling)]
         [TestCase(SourcePatchState.Recovery)]

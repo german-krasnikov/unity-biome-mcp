@@ -213,6 +213,17 @@ namespace UnityMCP.Editor
         /// </summary>
         internal static bool IsMutating(string cmd, string argsJson)
         {
+            if (cmd == "editor")
+            {
+                // "editor" is base-registered non-mutating (play/stop/select/state/
+                // project_path don't corrupt scene data — see CommandRouter.
+                // IsMutatingCommand). mutation_mode is the one action with real
+                // state-changing effect (P0-70): a query (no "enable") is a read;
+                // a set (enable present) is a write, regardless of the base flag.
+                var editorAction = JsonHelper.ExtractString(argsJson, "action") ?? "state";
+                return editorAction == "mutation_mode" &&
+                    JsonHelper.ExtractString(argsJson, "enable") != null;
+            }
             if (!IsMutating(cmd)) return false;
             if (cmd == "uitk_file")
             {

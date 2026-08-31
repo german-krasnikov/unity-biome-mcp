@@ -101,6 +101,10 @@ def is_write(cmd: str, args: dict | None = None) -> bool:
         # Missing/false is observational. Any other value is conservative: the
         # Unity handler may stop Play Mode after a timeout.
         return (args or {}).get("abort_on_fail", False) not in (False, "false")
+    if cmd == "editor" and (args or {}).get("action") == "mutation_mode":
+        # P0-70: a query (no "enable") is a read; a set (enable present,
+        # including an explicit False) is a write.
+        return "enable" in (args or {})
     if cmd == "get_metrics":
         # Python-local counter consumption; malformed values fail closed.
         return (args or {}).get("reset", False) not in (False, "false")

@@ -131,12 +131,26 @@ namespace UnityMCP.Editor.Tests
         public bool Registry_IsMutating_Profile_DependsOnAction(string argsJson)
             => CommandRegistry.IsMutating("profile", argsJson);
 
+        // P0-70: "editor" itself stays base-registered non-mutating (play/stop/
+        // select/state/project_path don't corrupt scene data) — only
+        // mutation_mode's SET form (enable present) is a write.
+        [TestCase("{\"action\":\"mutation_mode\"}", ExpectedResult = false)]
+        [TestCase("{\"action\":\"mutation_mode\",\"enable\":\"true\"}", ExpectedResult = true)]
+        [TestCase("{\"action\":\"mutation_mode\",\"enable\":\"false\"}", ExpectedResult = true)]
+        [TestCase("{\"action\":\"play\"}", ExpectedResult = false)]
+        [TestCase("{\"action\":\"state\"}", ExpectedResult = false)]
+        [TestCase("{}", ExpectedResult = false)]
+        public bool Registry_IsMutating_Editor_MutationModeDependsOnEnable(string argsJson)
+            => CommandRegistry.IsMutating("editor", argsJson);
+
         [TestCase("profile", "{\"action\":\"start\"}", ExpectedResult = true)]
         [TestCase("profile", "{\"action\":\"stop\"}", ExpectedResult = true)]
         [TestCase("profile", "{\"action\":\"future\"}", ExpectedResult = false)]
         [TestCase("wait_until", "{\"abort_on_fail\":\"true\"}", ExpectedResult = true)]
         [TestCase("execute_code", "{}", ExpectedResult = true)]
         [TestCase("screenshot", "{}", ExpectedResult = true)]
+        [TestCase("editor", "{\"action\":\"mutation_mode\",\"enable\":\"true\"}", ExpectedResult = true)]
+        [TestCase("editor", "{\"action\":\"play\"}", ExpectedResult = false)]
         public bool PlayMutationAllowance_IsNarrowAndArgumentAware(string cmd, string argsJson)
             => CommandRouter.IsAllowedMutationInPlayMode(cmd, argsJson);
 

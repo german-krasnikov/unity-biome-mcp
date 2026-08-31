@@ -1,7 +1,7 @@
 """N3: READ_CMDS audit — comprehensive tests for read/write classification."""
 import pytest
 
-from unity_mcp.middleware_types import READ_CMDS, WRITE_CMDS
+from unity_mcp.middleware_types import READ_CMDS, WRITE_CMDS, is_write
 from unity_mcp.middleware_guards import _is_batch_readonly
 
 
@@ -466,3 +466,18 @@ def test_check_retry_skipped_for_scene_list():
     mw.check_retry("scene", {"action": "list"})
     result = mw.check_retry("scene", {"action": "list"})
     assert result is None
+
+
+# ── editor mutation_mode argument-aware classification (P0-70) ───────────────
+
+def test_is_write_mutation_mode_query_is_read():
+    assert is_write("editor", {"action": "mutation_mode"}) is False
+
+
+def test_is_write_mutation_mode_enable_true_is_write():
+    assert is_write("editor", {"action": "mutation_mode", "enable": True}) is True
+
+
+def test_is_write_mutation_mode_enable_false_is_still_write():
+    """An explicit False is a real intent-set, not a query."""
+    assert is_write("editor", {"action": "mutation_mode", "enable": False}) is True

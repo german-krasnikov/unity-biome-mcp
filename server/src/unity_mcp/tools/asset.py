@@ -2,17 +2,19 @@ from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
+from ._source_patch_intent import get_cached_intent as _get_cached_intent
 
 _send = None
 _args = None
 
 
 def _source_patch_mutation_is_on() -> bool:
-    """Route seam for `.cs` writes (§3.2 in the FSR handoff plan). Always
-    False today: no editor(mutation_mode) command or coordinator wiring
-    exists yet (P0-70). Exists so P0-70 changes exactly this one function,
-    never the routing/capture structure in _write_text_with_capture below."""
-    return False
+    """Route seam for `.cs` writes (§3.2 in the FSR handoff plan). Reads the
+    local intent cache (P0-70) — never a network round-trip; see
+    tools/_source_patch_intent.py for why, and editor_control.editor()'s
+    mutation_mode branch for the writer side. C#'s SourcePatchHost is the
+    authoritative pre-effect gate if this cache is ever stale."""
+    return _get_cached_intent()
 
 
 async def _write_text_with_capture(path: str, content: str) -> str:
