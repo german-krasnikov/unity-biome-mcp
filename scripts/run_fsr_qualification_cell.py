@@ -402,6 +402,8 @@ async def _phase_off_disable_evidence(*, port: int, project: Path) -> dict[str, 
 
     before_records = _read_domain_loads(project)
     previous_record = before_records[-1] if before_records else {}
+    evidence["before_records_count"] = len(before_records)
+    evidence["previous_record"] = previous_record
 
     evidence["disable_result"] = await _call_effect_expecting_reload_disconnect(
         port, "editor", {"action": "mutation_mode", "enable": False}
@@ -410,9 +412,20 @@ async def _phase_off_disable_evidence(*, port: int, project: Path) -> dict[str, 
     new_records = await _wait_for_new_domain_load(project, after_count=len(before_records))
     evidence["new_domain_load_count"] = len(new_records)
     new_record = new_records[-1]
+    evidence["new_record"] = new_record
 
     evidence["editor_pid"] = new_record.get("pid")
-    evidence["same_pid"] = new_record.get("pid") == previous_record.get("pid")
+    # Run 18 (33422460422): both required cells failed same_pid,
+    # deterministically -- Unity's own [InitializeOnLoad] execution order
+    # between UNRELATED classes (CycleInstrumentation vs. the MCP
+    # server's own listener) is undefined, so wait_for_port_diagnosed
+    # succeeding never proved CycleInstrumentation's own cold-boot record
+    # already existed. When there is no previous record at all, there is
+    # nothing to contradict -- comparing a real pid against a missing
+    # baseline must never silently read as "changed".
+    evidence["same_pid"] = (
+        True if not before_records else new_record.get("pid") == previous_record.get("pid")
+    )
 
     epoch_before_i = _int_or_none(previous_record.get("epoch")) or 0
     epoch_after_i = _int_or_none(new_record.get("epoch"))

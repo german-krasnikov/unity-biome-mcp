@@ -489,6 +489,40 @@ def test_phase_off_disable_evidence_happy_path(tmp_path: Path, monkeypatch: pyte
     assert evidence["compute_after_disable_is_3"] is True
     assert evidence["same_pid"] is True
     assert evidence["editor_pid"] == 111
+    assert evidence["before_records_count"] == 1
+    assert evidence["previous_record"] == {"pid": 111, "epoch": 0, "compileStartedCount": 0}
+    assert evidence["new_record"] == {"pid": 111, "epoch": 1, "compileStartedCount": 1}
+
+
+def test_phase_off_disable_evidence_raises_when_no_previous_record_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Run 18 (33422460422): both required cells failed same_pid,
+    deterministically, with epoch_before=0 for both -- ambiguous between
+    "a real previous record with epoch 0" and "no previous record at
+    all" (the epoch fallback silently maps both to 0). Unity's own
+    [InitializeOnLoad] execution order between UNRELATED classes
+    (CycleInstrumentation vs. the MCP server's own listener) is
+    undefined -- wait_for_port_diagnosed succeeding only proves the MCP
+    TCP listener is up, never that CycleInstrumentation's own static
+    constructor has already run and written the cold-boot record. If it
+    hasn't, before_records is genuinely empty here, and comparing a real
+    pid against a missing baseline must never silently read as "changed"
+    -- this diagnostic must make the "no baseline" case unambiguous."""
+    # no _write_domain_loads call at all -- domain-loads.jsonl does not exist yet
+
+    async def _call(port, command, args):
+        _append_domain_load(tmp_path, {"pid": 111, "epoch": 1, "compileStartedCount": 1})
+        return "mutation_mode:false"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+    _oracle_sequence(monkeypatch, [{"compute": "3"}])
+
+    evidence = asyncio.run(cell_script._phase_off_disable_evidence(port=9600, project=tmp_path))
+
+    assert evidence["before_records_count"] == 0
+    assert evidence["previous_record"] == {}
+    assert evidence["same_pid"] is True  # no baseline to contradict -- never silently "changed"
 
 
 def test_phase_off_disable_evidence_never_retries_the_disable_call(
