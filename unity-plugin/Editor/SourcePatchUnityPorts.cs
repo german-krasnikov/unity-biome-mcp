@@ -5,17 +5,24 @@ using UnityMCP.Editor.SourcePatch;
 
 namespace UnityMCP.Editor
 {
-    /// <summary>Real ISourcePatchBytesPort — raw file I/O + AssetDatabase import,
-    /// mirroring AssetDatabaseHelper.WriteText's write+import pairing (§6 P0-70).</summary>
+    /// <summary>Real ISourcePatchBytesPort — raw file I/O only, deliberately
+    /// import-free (§6 P0-70 fix). AssetDatabase.ImportAsset on a .cs path
+    /// synchronously flips EditorApplication.isCompiling and requests a real
+    /// Unity script compilation, which is exactly the self-inflicted "zero
+    /// compile" violation that made a genuinely successful FSR apply read as
+    /// Uncertain/Recovery in P0-80 Cycle A live testing (the provider itself
+    /// returned applied=True; SyncHelperCompileEvidencePort correctly, if
+    /// unfairly, detected this port's own ImportAsset call as the violation).
+    /// §3.2 requires a "raw full-file source update": Unity must observe an
+    /// ON-path write only through the OFF-path sync later, never immediately
+    /// via import. The legacy/OFF route (AssetDatabaseHelper.WriteText) is a
+    /// separate implementation and keeps its own ImportAsset call unchanged.</summary>
     internal sealed class UnitySourcePatchBytesPort : ISourcePatchBytesPort
     {
         public byte[] Read(string assetPath) => File.ReadAllBytes(Path.GetFullPath(assetPath));
 
-        public void Write(string assetPath, byte[] content)
-        {
+        public void Write(string assetPath, byte[] content) =>
             File.WriteAllBytes(Path.GetFullPath(assetPath), content);
-            AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.Default);
-        }
     }
 
     /// <summary>Real IAutoRefreshLeasePort — DisallowAutoRefresh + LockReloadAssemblies,

@@ -37,6 +37,50 @@ namespace UnityMCP.Editor.Tests
             CollectionAssert.AreEqual(content, readBack);
         }
 
+        // Product bug found in P0-80 Cycle A: source_patch_write stably returned
+        // "outcome is uncertain; entering Recovery" on a live ON apply even
+        // though the FSR provider itself succeeded (diagnostic probe proved
+        // DynamicAssemblyCompiler.Compile -> AssemblyChangesLoader applied=True,
+        // failureReason=null). Root cause: this port's own Write() called
+        // AssetDatabase.ImportAsset on the .cs file BEFORE provider.Apply ran,
+        // which synchronously flips EditorApplication.isCompiling and requests
+        // real Unity script compilation (Editor.log: "[ScriptCompilation]
+        // Requested script compilation because: Assetdatabase observed changes
+        // in script compilation related files") — SyncHelperCompileEvidencePort
+        // then correctly (from its own narrow view) detects that self-inflicted
+        // violation and the coordinator branches into Recovery. §3.2 requires
+        // a "raw full-file source update" — Unity must only see the change via
+        // the OFF-path sync, never via an ON-path import.
+        [Test]
+        public void BytesPort_Write_CsPath_NeverRequestsUnityScriptCompilation()
+        {
+            // Deliberately does not assert on the whole-project
+            // EditorApplication.isCompiling flag: a sibling P0-30 legacy test
+            // in the same filtered batch (e.g. SourcePatchCsWriteGateTests)
+            // can legitimately be mid-compile from its own real .cs write at
+            // the same time, and waiting for that to settle here previously
+            // proved actively dangerous — an actual Domain Reload firing
+            // while this test's own wait loop is subscribed to
+            // EditorApplication.update corrupted the whole UTF run's terminal
+            // evidence. The two assertions below are causally tied to THIS
+            // port's own path/assembly and are immune to that ambient noise:
+            // GetMainAssetTypeAtPath only reflects what happened to this exact
+            // file, and the Domain stamp only tracks UnityMCP.* assemblies —
+            // a scratch TestsTemp file (outside every asmdef) never touches it.
+            TrackOwnedAsset(TempFolder);
+            var path = TempFolder + "/never-compiled.cs";
+            AssetHelper.EnsureDirectory(path);
+            var port = new UnitySourcePatchBytesPort();
+            var stampBefore = SyncHelper.CurrentDomainStamp;
+
+            port.Write(path, System.Text.Encoding.UTF8.GetBytes("// ON-path write must stay import-free\n"));
+
+            Assert.IsNull(AssetDatabase.GetMainAssetTypeAtPath(path),
+                "the file must stay unknown to AssetDatabase until the next real sync, never registered as a MonoScript " +
+                "— ON-path bytes-port writes must never call AssetDatabase.ImportAsset on a .cs file (§3.2 raw full-file source update)");
+            Assert.AreEqual(stampBefore, SyncHelper.CurrentDomainStamp, "stable Domain stamp — zero compile occurred");
+        }
+
         [Test]
         public void LeasePort_AcquireThenDispose_DoesNotThrow()
         {
