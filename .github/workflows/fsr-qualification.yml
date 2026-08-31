@@ -262,9 +262,21 @@ jobs:
         run: |
           python - <<'PY'
           import json, sys
-          path = "receipts/fsr-qualification-min-linux-x64/receipt.json"
-          receipt = json.load(open(path, encoding="utf-8"))
+          from pathlib import Path
+          # Run 22 (33430126171): actions/download-artifact extracts a
+          # SINGLE matching artifact flat (receipts/receipt.json), not
+          # into a per-artifact subdirectory the way it does for 2+
+          # matches (which the real, full-matrix aggregate step's own
+          # glob-based receipts_root.glob("*/receipt.json") already
+          # tolerates) -- a hardcoded receipts/fsr-qualification-
+          # min-linux-x64/receipt.json path failed even though the cell
+          # itself had already passed. A recursive glob finds it either way.
+          matches = list(Path("receipts").rglob("receipt.json"))
+          if len(matches) != 1:
+              print(f"expected exactly one receipt.json under receipts/, found {len(matches)}: {matches}")
+              sys.exit(1)
+          receipt = json.loads(matches[0].read_text(encoding="utf-8"))
           outcome = receipt.get("outcome")
-          print(f"min-linux-x64 outcome={outcome}")
+          print(f"min-linux-x64 outcome={outcome} (from {matches[0]})")
           sys.exit(0 if outcome == "PASS" else 1)
           PY
