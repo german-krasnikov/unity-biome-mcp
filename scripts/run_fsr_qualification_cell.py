@@ -220,13 +220,24 @@ async def _call_retrying_reload_race(
     the disable call and the legacy writes themselves, not only the
     oracle query that follows them. Every reload-adjacent durable.call in
     the off-mode phases goes through this one wrapper now, not just
-    _query_oracle's own. A genuine RunnerError (a real compile/command
-    failure) still fails fast, never silently retried away."""
-    last_error: durable.TransportUncertain | None = None
+    _query_oracle's own.
+
+    Run 15 (33413847009): min-linux-x64 failed a third time with a
+    DIFFERENT exception — "[Errno 111] Connection refused", a raw
+    ConnectionRefusedError/OSError from socket.create_connection inside
+    durable.call's own _call_sync, never wrapped as TransportUncertain at
+    all — a domain reload can briefly close the TCP listener outright,
+    not just delay a response. This codebase's own established retry
+    loops (run_unity_tests.py) already catch (OSError, ConnectionError,
+    asyncio.TimeoutError, TransportUncertain) together for exactly this
+    reason; catching only TransportUncertain missed three of those four
+    categories. A genuine RunnerError (a real compile/command failure) is
+    not in this tuple and still fails fast, never silently retried away."""
+    last_error: Exception | None = None
     for _attempt in range(retries):
         try:
             return await durable.call(port, command, args)
-        except durable.TransportUncertain as error:
+        except (OSError, ConnectionError, TimeoutError, durable.TransportUncertain) as error:
             last_error = error
             await asyncio.sleep(retry_delay)
     raise last_error

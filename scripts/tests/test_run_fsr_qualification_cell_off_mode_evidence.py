@@ -121,6 +121,53 @@ def test_call_retrying_reload_race_does_not_retry_on_a_genuine_runner_error(
     assert calls["n"] == 1
 
 
+def test_call_retrying_reload_race_retries_on_connection_refused(monkeypatch: pytest.MonkeyPatch):
+    """Run 15 (33413847009): min-linux-x64 failed a third time, this time
+    with a DIFFERENT exception entirely — "[Errno 111] Connection
+    refused" (a raw ConnectionRefusedError/OSError from
+    socket.create_connection inside durable.call's _call_sync, never
+    wrapped as TransportUncertain at all). A domain reload can briefly
+    close the TCP listener outright, not just delay a response — this
+    codebase's own established retry loops (run_unity_tests.py) already
+    catch (OSError, ConnectionError, asyncio.TimeoutError,
+    TransportUncertain) together for exactly this reason; catching only
+    TransportUncertain missed three of those four categories."""
+    calls = {"n": 0}
+
+    async def _call(port, command, args):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            raise ConnectionRefusedError("[Errno 111] Connection refused")
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    result = asyncio.run(
+        cell_script._call_retrying_reload_race(9600, "editor", {}, retry_delay=0.001)
+    )
+
+    assert result == "ok"
+    assert calls["n"] == 3
+
+
+def test_call_retrying_reload_race_retries_on_asyncio_timeout(monkeypatch: pytest.MonkeyPatch):
+    calls = {"n": 0}
+
+    async def _call(port, command, args):
+        calls["n"] += 1
+        if calls["n"] < 2:
+            raise TimeoutError()
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    result = asyncio.run(
+        cell_script._call_retrying_reload_race(9600, "editor", {}, retry_delay=0.001)
+    )
+
+    assert result == "ok"
+
+
 def test_query_oracle_retries_on_transport_uncertain(monkeypatch: pytest.MonkeyPatch):
     """Run 13 (33410330964) min-linux-x64: the very first live oracle
     query right after triggering the disable-reload raced Unity's
