@@ -26,6 +26,7 @@ Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md §7 P1-20.
 """
 import argparse
 import asyncio
+import contextlib
 import json
 import os
 import subprocess
@@ -309,6 +310,27 @@ def _read_domain_loads(project: Path) -> list[dict[str, object]]:
         except json.JSONDecodeError:
             continue
     return records
+
+
+def _clear_domain_loads_evidence(project: Path) -> None:
+    """Run 16 (33416142578): both required cells failed step 6's same_pid
+    check deterministically, 100% of the time — CycleInstrumentation.cs's
+    [InitializeOnLoad] static constructor only ever appends to
+    domain-loads.jsonl (File.AppendAllText), never clears it, and a
+    cell's whole worker directory (Library/) persists across every one of
+    run_full's launches (steps1-2, steps4-6, steps8-9 all share the same
+    `project` path) — so by the time steps4-6 reaches step 6, the file
+    already carries at least one record from steps1-2's own, entirely
+    separate Unity process (a different pid), permanently failing
+    same_pid regardless of what actually happened within steps4-6's own
+    launch. Deleting the file immediately before a launch whose own
+    evidence matters (steps4-6, steps8-9) scopes the next
+    _read_domain_loads to that launch alone; Unity recreates the
+    directory and file itself on its next domain load. Best-effort —
+    never raises; a missing file is already the desired end state."""
+    path = project / DOMAIN_LOADS_REL
+    with contextlib.suppress(OSError):
+        path.unlink(missing_ok=True)
 
 
 def _manifest_matches_pre_pin(project: Path, pre_pin_manifest: str) -> bool:
@@ -739,6 +761,7 @@ async def run_full(
         diag = _license_file_diagnostic(os_name=os_name, label="before-steps4-6")
         if diag is not None:
             license_diagnostics.append(diag)
+        _clear_domain_loads_evidence(project)
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
             fq.wait_for_port_diagnosed,
@@ -773,6 +796,7 @@ async def run_full(
         diag = _license_file_diagnostic(os_name=os_name, label="before-steps8-9")
         if diag is not None:
             license_diagnostics.append(diag)
+        _clear_domain_loads_evidence(project)
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
             fq.wait_for_port_diagnosed,
@@ -793,6 +817,7 @@ async def run_full(
         TimeoutError,
         worker.WorkerCreationError,
         fq.FsrQualificationError,
+        FsrQualificationCellError,
     ) as error:
         error_message = str(error)
         outcome = "FAIL"

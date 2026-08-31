@@ -317,6 +317,34 @@ def test_manifest_matches_pre_pin_false_when_different(tmp_path: Path):
     assert cell_script._manifest_matches_pre_pin(tmp_path, '{"dependencies": {}}') is False
 
 
+# ---------------------------------------------------------------------------
+# _clear_domain_loads_evidence — Run 16 (33416142578): both required cells
+# failed step 6's same_pid check deterministically, 100% of the time —
+# CycleInstrumentation.cs's [InitializeOnLoad] static constructor only
+# ever appends to domain-loads.jsonl (File.AppendAllText), never clears
+# it, and run_full's own worker directory (Library/) persists across ALL
+# of a cell's launches (steps1-2, steps4-6, steps8-9 all share the same
+# `project` path) — so by the time steps4-6 reaches step 6, the file
+# already carries at least one record from steps1-2's own, entirely
+# separate Unity process (a different pid). Clearing it immediately
+# before each launch whose own evidence matters (steps4-6, steps8-9)
+# scopes _read_domain_loads to that launch alone.
+# ---------------------------------------------------------------------------
+
+def test_clear_domain_loads_evidence_removes_existing_file(tmp_path: Path):
+    path = cell_script.Path(tmp_path) / cell_script.DOMAIN_LOADS_REL
+    path.parent.mkdir(parents=True)
+    path.write_text('{"pid": 1}\n', encoding="utf-8")
+
+    cell_script._clear_domain_loads_evidence(tmp_path)
+
+    assert not path.exists()
+
+
+def test_clear_domain_loads_evidence_noop_when_absent(tmp_path: Path):
+    cell_script._clear_domain_loads_evidence(tmp_path)  # must not raise
+
+
 def test_manifest_matches_pre_pin_false_when_missing(tmp_path: Path):
     assert cell_script._manifest_matches_pre_pin(tmp_path, '{"dependencies": {}}') is False
 
@@ -743,3 +771,184 @@ def test_run_full_fails_and_records_evidence_when_manifest_restore_is_wrong(
     on_disk_receipt = json.loads((tmp_path / "evidence" / "receipt.json").read_text(encoding="utf-8"))
     assert on_disk_receipt["outcome"] == "FAIL"
     assert on_disk_receipt["off_mode_evidence"]["step7_manifest_restore"]["manifest_matches_pre_pin"] is False
+
+
+def test_run_full_clears_domain_loads_evidence_before_steps4_6_and_steps8_9_launches(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Regression for the same_pid cross-launch-contamination bug: clearing
+    must happen immediately before EACH of the two launches whose own
+    off-mode evidence matters (steps4-6, steps8-9), not just once."""
+    order: list[str] = []
+
+    def _create_worker_stub(source_project, dest, **k):
+        (dest / "Packages").mkdir(parents=True, exist_ok=True)
+        (dest / "Packages" / "manifest.json").write_text('{"dependencies": {}}', encoding="utf-8")
+
+    monkeypatch.setattr(cell_script.worker, "create_worker", _create_worker_stub)
+    monkeypatch.setattr(cell_script.worker, "rewrite_manifest_pin", lambda *a, **k: None)
+    monkeypatch.setattr(cell_script.harness, "install_fixture", lambda *a, **k: None)
+    monkeypatch.setattr(cell_script.harness, "validate_installed_fixture", lambda *a, **k: None)
+    monkeypatch.setattr(
+        cell_script, "_launch",
+        lambda **k: order.append("_launch") or _FakeProcessIntegration(),
+    )
+    monkeypatch.setattr(cell_script.fq, "wait_for_port_diagnosed", lambda **k: None)
+    monkeypatch.setattr(
+        cell_script.preseed, "preseed_editor_prefs", lambda project, *, os_name: {"applied": True}
+    )
+    monkeypatch.setattr(cell_script, "_git_head_sha", lambda: "a" * 40)
+    monkeypatch.setattr(cell_script, "_git_changed_paths", lambda base_sha: [])
+    monkeypatch.setattr(
+        cell_script, "_clear_domain_loads_evidence",
+        lambda project: order.append("_clear_domain_loads_evidence"),
+    )
+
+    async def _stop(process):
+        return None
+
+    monkeypatch.setattr(cell_script, "_stop", _stop)
+
+    async def _off_disable_stub(*, port, project):
+        return {"epoch_delta_is_one": True}
+
+    monkeypatch.setattr(cell_script, "_phase_off_disable_evidence", _off_disable_stub)
+    monkeypatch.setattr(cell_script, "_manifest_matches_pre_pin", lambda project, pre_pin: True)
+
+    async def _final_restore_stub(*, port, project, target_path):
+        return {"restore_sha_matches": True}
+
+    monkeypatch.setattr(cell_script, "_phase_final_restore", _final_restore_stub)
+
+    async def _call(port, command, args):
+        if "System.Func<int>" in args.get("content", ""):
+            raise cell_script.durable.RunnerError(
+                "source_patch_write failed: STATE: source patch rejected the "
+                "replacement body; no effect"
+            )
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    lock_path, pin_path = _lock_and_pin(tmp_path)
+
+    asyncio.run(
+        cell_script.run_full(
+            unity=tmp_path / "Unity",
+            source_project=tmp_path / "source",
+            work_root=tmp_path / "work",
+            window="u_min",
+            lock_path=lock_path,
+            provider_pin=pin_path,
+            evidence_out=tmp_path / "evidence",
+            port=9600,
+            startup_timeout=1.0,
+            cell_name="min-linux-x64",
+            os_name="Linux",
+            arch="x64",
+        )
+    )
+
+    # steps1-2's launch has no preceding clear (its own evidence is never
+    # read); steps4-6 and steps8-9 each clear immediately before their launch.
+    assert order == [
+        "_launch",
+        "_clear_domain_loads_evidence", "_launch",
+        "_clear_domain_loads_evidence", "_launch",
+    ]
+
+
+def test_run_full_captures_error_and_evidence_when_phase_off_disable_evidence_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Run 16 (33416142578): both required cells failed with "FAILED:
+    step 6 off-mode evidence check(s) failed: [...]" printed to stderr by
+    main()'s OUTER except tuple, but receipt.json had no "error" key and
+    no off-mode-evidence.json was written at all — run_full's OWN except
+    tuple listed fq.FsrQualificationError (gauntlet.fsr_qualification's
+    class) but never FsrQualificationCellError (run_fsr_qualification_cell's
+    own, completely unrelated class despite the similar name) — the
+    exact class every off-mode phase function raises. The exception
+    skipped run_full's error_message/off_mode_evidence capture entirely,
+    only being caught much later, one level up. Every prior test of this
+    failure path happened to set off_mode_evidence directly in run_full's
+    own try block before raising (step 7's manifest check) rather than
+    relying on the except block's getattr(error, "off_mode_evidence", ...)
+    merge — never exercising this exact gap."""
+    project = tmp_path / "work" / "worker"
+
+    def _create_worker_stub(source_project, dest, **k):
+        (dest / "Packages").mkdir(parents=True, exist_ok=True)
+        (dest / "Packages" / "manifest.json").write_text('{"dependencies": {}}', encoding="utf-8")
+
+    monkeypatch.setattr(cell_script.worker, "create_worker", _create_worker_stub)
+    monkeypatch.setattr(cell_script.worker, "rewrite_manifest_pin", lambda *a, **k: None)
+    monkeypatch.setattr(cell_script.harness, "install_fixture", lambda *a, **k: None)
+    monkeypatch.setattr(cell_script.harness, "validate_installed_fixture", lambda *a, **k: None)
+    monkeypatch.setattr(cell_script, "_launch", lambda **k: _FakeProcessIntegration())
+    monkeypatch.setattr(cell_script.fq, "wait_for_port_diagnosed", lambda **k: None)
+    monkeypatch.setattr(
+        cell_script.preseed, "preseed_editor_prefs", lambda project, *, os_name: {"applied": True}
+    )
+    monkeypatch.setattr(cell_script, "_git_head_sha", lambda: "a" * 40)
+    monkeypatch.setattr(cell_script, "_git_changed_paths", lambda base_sha: [])
+
+    async def _stop(process):
+        return None
+
+    monkeypatch.setattr(cell_script, "_stop", _stop)
+
+    oracle_sequence = iter([
+        "epoch=1|compileCount=0",  # before disable
+        "epoch=3|compileCount=2|compute=3|compiling=false",  # settled after -- +2, not +1
+    ])
+
+    async def _call(port, command, args):
+        if command == "execute_code":
+            return next(oracle_sequence)
+        if command in ("asset", "source_patch_write"):
+            if "System.Func<int>" in args.get("content", ""):
+                raise cell_script.durable.RunnerError(
+                    "source_patch_write failed: STATE: source patch rejected the "
+                    "replacement body; no effect"
+                )
+            (project / cell_script.REL_TARGET).parent.mkdir(parents=True, exist_ok=True)
+            (project / cell_script.REL_TARGET).write_bytes(args["content"].encode("utf-8"))
+            return "ok"
+        return "ok"
+
+    monkeypatch.setattr(cell_script.durable, "call", _call)
+
+    lock_path, pin_path = _lock_and_pin(tmp_path)
+
+    with pytest.raises(cell_script.FsrQualificationCellError, match="step 6"):
+        asyncio.run(
+            cell_script.run_full(
+                unity=tmp_path / "Unity",
+                source_project=tmp_path / "source",
+                work_root=tmp_path / "work",
+                window="u_min",
+                lock_path=lock_path,
+                provider_pin=pin_path,
+                evidence_out=tmp_path / "evidence",
+                port=9600,
+                startup_timeout=1.0,
+                cell_name="min-linux-x64",
+                os_name="Linux",
+                arch="x64",
+            )
+        )
+
+    on_disk_receipt = json.loads((tmp_path / "evidence" / "receipt.json").read_text(encoding="utf-8"))
+    assert on_disk_receipt["outcome"] == "FAIL"
+    assert "step 6" in on_disk_receipt["error"]
+    assert on_disk_receipt["off_mode_evidence"]["step6_disable"]["epoch_delta_is_one"] is False
+    # same_pid is vacuously True here: _clear_domain_loads_evidence wipes
+    # domain-loads.jsonl right before this launch (see the dedicated
+    # same_pid cross-launch-contamination tests below for that check's
+    # own coverage), and nothing in this test's mocked _launch writes a
+    # fresh record -- this test's own purpose is the error/evidence
+    # CAPTURE gap, not same_pid's correctness.
+
+    off_mode_file = json.loads((tmp_path / "evidence" / "off-mode-evidence.json").read_text(encoding="utf-8"))
+    assert off_mode_file["step6_disable"]["epoch_delta"] == 2
