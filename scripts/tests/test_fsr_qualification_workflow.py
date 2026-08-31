@@ -22,11 +22,29 @@ def _parsed() -> dict:
     return yaml.safe_load(_text())
 
 
-def test_workflow_triggers_only_on_workflow_dispatch():
-    """Advisory only — never push/PR triggered (§7 P1-20 DoD)."""
+def test_workflow_triggers_on_workflow_dispatch_and_scoped_push():
+    """Advisory (§7 P1-20 DoD): workflow_dispatch is the intended trigger.
+    A temporary push trigger exists only because GitHub refuses to
+    register workflow_dispatch for a workflow that is absent from the
+    default branch, and this repo's mandate keeps master untouched — the
+    push trigger is scoped to this exact branch and to only the
+    workflow/lock files themselves, so an ordinary product commit on this
+    branch never fires the matrix (dispatch stays de-facto manual)."""
     data = _parsed()
     triggers = data[True] if True in data else data["on"]
-    assert list(triggers.keys()) == ["workflow_dispatch"]
+    assert set(triggers.keys()) == {"workflow_dispatch", "push"}
+    assert triggers["push"]["branches"] == ["feature/mutation-fsr-mvp"]
+    assert set(triggers["push"]["paths"]) == {
+        ".github/workflows/fsr-qualification.yml",
+        "scripts/fsr_qualification_lock.json",
+    }
+
+
+def test_workflow_push_trigger_is_documented_as_temporary():
+    text = _text()
+    assert "temporary trigger" in text
+    assert "requires the file on the default" in text
+    assert "after the first" in text
 
 
 def test_workflow_defines_exactly_six_frozen_cells():

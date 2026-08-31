@@ -1,8 +1,8 @@
 name: FSR Qualification Matrix
 
 # P1-20: six-cell frozen U_MIN..U_MAX compatibility matrix. Advisory only —
-# workflow_dispatch, never push/PR triggered, never required until a second
-# unchanged 6/6 promotes it. See
+# workflow_dispatch (plus a temporary path-scoped push trigger, see below),
+# never required until a second unchanged 6/6 promotes it. See
 # Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md §7 P1-20.
 #
 # Existing unity-tests.yml/unity-compat.yml/ci-conformance.yml batchmode
@@ -12,6 +12,14 @@ name: FSR Qualification Matrix
 # requirement.
 on:
   workflow_dispatch: {}
+  # temporary trigger: workflow_dispatch requires the file on the default
+  # branch; remove the push trigger (or land on default) after the first
+  # recorded 6/6.
+  push:
+    branches: [feature/mutation-fsr-mvp]
+    paths:
+      - '.github/workflows/fsr-qualification.yml'
+      - 'scripts/fsr_qualification_lock.json'
 
 concurrency:
   group: fsr-qualification-${{ github.ref }}
