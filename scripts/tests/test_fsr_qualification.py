@@ -583,23 +583,36 @@ def test_build_runtime_receipt_embeds_preseed_receipt_when_given():
 # suppression marker is the absence of a DisplayDialogComplex stack frame.
 # ---------------------------------------------------------------------------
 
-def test_detect_dialog_suppressed_true_when_no_dialog_stack_frame():
-    log_text = (
-        "FSR: Fast Script Reload - asset auto refresh enabled - full reload "
-        "will be triggered unless editor preference adjusted\n"
-        "Start importing Packages/com.handzlikchris.fastscriptreload\n"
-    )
-    assert fq.detect_dialog_suppressed(log_text) is True
-
-
-def test_detect_dialog_suppressed_false_when_dialog_stack_frame_present():
+def test_classify_dialog_evidence_shown_when_dialog_stack_frame_present():
     log_text = (
         "FSR: Fast Script Reload - asset auto refresh enabled\n"
         "UnityEditor.EditorUtility:DisplayDialogComplex "
         "(string,string,string,string,string)\n"
     )
-    assert fq.detect_dialog_suppressed(log_text) is False
+    assert fq.classify_dialog_evidence(log_text) == "shown"
 
 
-def test_detect_dialog_suppressed_true_for_empty_log():
-    assert fq.detect_dialog_suppressed("") is True
+def test_classify_dialog_evidence_inconclusive_when_log_just_stops():
+    """Run 6 correction: a killed process's log looks IDENTICAL whether
+    the dialog blocked it or something else entirely did — anything after
+    a real block is equally absent either way. Absence of the
+    DisplayDialogComplex frame is never, by itself, proof of suppression."""
+    log_text = (
+        "FSR: Fast Script Reload - asset auto refresh enabled - full reload "
+        "will be triggered unless editor preference adjusted\n"
+        "UnityEditor.EditorAssemblies:ProcessInitializeOnLoadAttributes "
+        "(System.Type[])\n"
+    )
+    assert fq.classify_dialog_evidence(log_text) == "inconclusive"
+
+
+def test_classify_dialog_evidence_inconclusive_for_empty_log():
+    assert fq.classify_dialog_evidence("") == "inconclusive"
+
+
+def test_classify_dialog_evidence_inconclusive_when_warning_never_reached():
+    """The warning line itself never appearing is equally inconclusive —
+    something blocked even earlier, or the phase simply never got that
+    far; still not proof either way."""
+    log_text = "Unity Editor version:    6000.0.65f1 (a18e2220bd50)\n"
+    assert fq.classify_dialog_evidence(log_text) == "inconclusive"

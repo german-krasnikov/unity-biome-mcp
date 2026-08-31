@@ -275,15 +275,24 @@ def build_headed_unity_environment(
     return env
 
 
-def detect_dialog_suppressed(log_text: str) -> bool:
-    """Run 5 correction: "FSR: asset auto refresh enabled..." prints
+def classify_dialog_evidence(log_text: str) -> str:
+    """Returns "shown" (a DisplayDialogComplex stack frame is present — the
+    dialog definitely appeared) or "inconclusive" — never a false
+    "suppressed". Run 6 correction (33390881487): the earlier
+    detect_dialog_suppressed treated the ABSENCE of DisplayDialogComplex as
+    proof of suppression, but a killed process's truncated log looks
+    IDENTICAL whether the dialog blocked it or something else entirely
+    did — anything that would have logged after a real block is equally
+    absent either way. "FSR: asset auto refresh enabled..." also prints
     unconditionally, before FSR's own StopShowing gate
     (FastScriptReloadWelcomeScreen.cs L984 vs the DisplayDialogComplex call
-    at L986) — its presence does NOT mean the dialog was shown. The real
-    suppression marker is the absence of a DisplayDialogComplex stack
-    frame, which only appears in the log when the dialog itself is
-    actually invoked."""
-    return "DisplayDialogComplex" not in log_text
+    at L986), so its presence alone says nothing either. Positive proof of
+    suppression requires independent evidence the phase actually
+    completed (e.g. wait_for_port_diagnosed succeeding), not log-text
+    alone."""
+    if "DisplayDialogComplex" in log_text:
+        return "shown"
+    return "inconclusive"
 
 
 def default_editor_log_path(*, os_name: str, home: Path) -> Path:
@@ -407,7 +416,7 @@ __all__ = [
     "build_headed_unity_command",
     "build_headed_unity_environment",
     "default_editor_log_path",
-    "detect_dialog_suppressed",
+    "classify_dialog_evidence",
     "capture_wait_diagnostics",
     "wait_for_port_diagnosed",
 ]

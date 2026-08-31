@@ -240,3 +240,86 @@ def test_preseed_editor_prefs_macos_command_failure_is_reported_not_raised(
 
     assert receipt["applied"] is False
     assert "nope" in receipt["error"]
+
+
+# ---------------------------------------------------------------------------
+# read_prefs_snapshot — Run 6: min-linux-x64's receipt shows preseed
+# applied=true, yet the stack still shows FSR's L977 auto-refresh check not
+# returning early — meaning either Unity never read the written XML, or the
+# format doesn't match what Unity expects. Capture the actual on-disk
+# content (before AND after the cell) so a future run can compare it
+# against what Unity itself writes, instead of guessing the format again.
+# ---------------------------------------------------------------------------
+
+def test_read_prefs_snapshot_linux_reads_the_real_file(tmp_path: Path):
+    home = tmp_path / "home"
+    prefs_path = home / ".config" / "unity3d" / "prefs"
+    prefs_path.parent.mkdir(parents=True)
+    prefs_path.write_text('<unity_prefs version_major="1" version_minor="1">\n</unity_prefs>\n', encoding="utf-8")
+
+    snapshot = preseed.read_prefs_snapshot("Linux", home=home)
+
+    assert "unity_prefs" in snapshot
+
+
+def test_read_prefs_snapshot_linux_returns_none_when_absent(tmp_path: Path):
+    home = tmp_path / "home"
+    home.mkdir()
+    assert preseed.read_prefs_snapshot("Linux", home=home) is None
+
+
+def test_read_prefs_snapshot_macos_invokes_defaults_read(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    calls = []
+
+    def _run(cmd, **kwargs):
+        calls.append(cmd)
+
+        class _Result:
+            stdout = "kAutoRefreshMode = 2;\n"
+            stderr = ""
+
+        return _Result()
+
+    monkeypatch.setattr(preseed.subprocess, "run", _run)
+
+    snapshot = preseed.read_prefs_snapshot("macOS", home=tmp_path)
+
+    assert calls[0][:3] == ["defaults", "read", preseed.MACOS_DEFAULTS_DOMAIN]
+    assert "kAutoRefreshMode" in snapshot
+
+
+def test_read_prefs_snapshot_windows_invokes_reg_query(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    calls = []
+
+    def _run(cmd, **kwargs):
+        calls.append(cmd)
+
+        class _Result:
+            stdout = "kAutoRefreshMode    REG_DWORD    0x2\n"
+            stderr = ""
+
+        return _Result()
+
+    monkeypatch.setattr(preseed.subprocess, "run", _run)
+
+    snapshot = preseed.read_prefs_snapshot("Windows", home=tmp_path)
+
+    assert calls[0][:3] == ["reg", "query", preseed.WINDOWS_REGISTRY_KEY]
+    assert "kAutoRefreshMode" in snapshot
+
+
+def test_read_prefs_snapshot_never_raises_on_command_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    def _run(cmd, **kwargs):
+        raise OSError("no such command")
+
+    monkeypatch.setattr(preseed.subprocess, "run", _run)
+
+    snapshot = preseed.read_prefs_snapshot("macOS", home=tmp_path)
+
+    assert "unreadable" in snapshot.lower()

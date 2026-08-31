@@ -320,6 +320,11 @@ def test_run_full_applies_preseed_before_every_unity_launch(
     monkeypatch.setattr(cell_script, "_stop", _stop)
 
     async def _call(port, command, args):
+        if command == "source_patch_write" and "System.Func<int>" in args.get("content", ""):
+            raise cell_script.durable.RunnerError(
+                "source_patch_write failed: STATE: source patch rejected the "
+                "replacement body; no effect"
+            )
         return "ok"
 
     monkeypatch.setattr(cell_script.durable, "call", _call)
@@ -363,3 +368,78 @@ def test_run_full_applies_preseed_before_every_unity_launch(
 
     assert len(preseed_calls) == 3
     assert len(launch_calls) == 3
+
+
+# ---------------------------------------------------------------------------
+# _apply_preseed evidence capture — Run 6: capture the real prefs file
+# content right after each preseed write, so a future run can compare
+# against what Unity itself writes instead of guessing the format again.
+# ---------------------------------------------------------------------------
+
+def test_apply_preseed_writes_snapshot_file_when_evidence_out_given(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(
+        cell_script.preseed,
+        "preseed_editor_prefs",
+        lambda project, *, os_name: {"applied": True, "mechanism": "linux_prefs_xml"},
+    )
+    monkeypatch.setattr(
+        cell_script.preseed, "read_prefs_snapshot", lambda os_name, **k: "<unity_prefs>...</unity_prefs>"
+    )
+    evidence_out = tmp_path / "evidence"
+
+    cell_script._apply_preseed(
+        tmp_path / "worker", os_name="Linux", evidence_out=evidence_out, label="steps1-2"
+    )
+
+    snapshot_path = evidence_out / "prefs-after-preseed-steps1-2.txt"
+    assert snapshot_path.is_file()
+    assert "unity_prefs" in snapshot_path.read_text(encoding="utf-8")
+
+
+def test_apply_preseed_skips_snapshot_file_when_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(
+        cell_script.preseed,
+        "preseed_editor_prefs",
+        lambda project, *, os_name: {"applied": True, "mechanism": "windows_registry"},
+    )
+    monkeypatch.setattr(cell_script.preseed, "read_prefs_snapshot", lambda os_name, **k: None)
+    evidence_out = tmp_path / "evidence"
+
+    cell_script._apply_preseed(
+        tmp_path / "worker", os_name="Windows", evidence_out=evidence_out, label="pilot"
+    )
+
+    assert not evidence_out.exists() or not list(evidence_out.glob("prefs-*"))
+
+
+def test_write_final_prefs_snapshot_writes_file_when_available(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(
+        cell_script.preseed, "read_prefs_snapshot", lambda os_name, **k: "<unity_prefs>final</unity_prefs>"
+    )
+    evidence_out = tmp_path / "evidence"
+
+    cell_script._write_final_prefs_snapshot(evidence_out, os_name="Linux")
+
+    assert (evidence_out / "prefs-final.txt").read_text(encoding="utf-8") == "<unity_prefs>final</unity_prefs>"
+
+
+def test_write_final_prefs_snapshot_noop_when_evidence_out_is_none(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(cell_script.preseed, "read_prefs_snapshot", lambda os_name, **k: "x")
+    cell_script._write_final_prefs_snapshot(None, os_name="Linux")  # must not raise
+
+
+def test_write_final_prefs_snapshot_noop_when_snapshot_unavailable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    monkeypatch.setattr(cell_script.preseed, "read_prefs_snapshot", lambda os_name, **k: None)
+    evidence_out = tmp_path / "evidence"
+
+    cell_script._write_final_prefs_snapshot(evidence_out, os_name="Windows")
+
+    assert not evidence_out.exists()

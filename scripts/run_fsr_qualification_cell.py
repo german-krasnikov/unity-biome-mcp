@@ -111,7 +111,9 @@ async def _stop(process: subprocess.Popen | None) -> None:
         terminate_workers([process])
 
 
-def _apply_preseed(project: Path, *, os_name: str) -> dict[str, object]:
+def _apply_preseed(
+    project: Path, *, os_name: str, evidence_out: Path | None = None, label: str = ""
+) -> dict[str, object]:
     """Defense-in-depth (Run 4 root cause): FSR's first-run modal dialog
     blocks ProcessInitializeOnLoadAttributes on a headed Editor before the
     MCP listener ever starts. Called before EVERY Unity launch, not just
@@ -121,11 +123,40 @@ def _apply_preseed(project: Path, *, os_name: str) -> dict[str, object]:
     before the actually-vulnerable launch, steps 4-6 with the package
     installed, ever runs). Never lets a preseed failure abort the cell —
     this is a second, independent layer, not the primary fix (the fork
-    owner's adapter guard is)."""
+    owner's adapter guard is).
+
+    When evidence_out is given, also captures the real on-disk/registry
+    prefs snapshot right after this write (Run 6: min-linux-x64 reported
+    applied=true yet FSR's auto-refresh check still did not return early —
+    capturing the actual content lets a future run compare against what
+    Unity itself writes, instead of guessing the format again)."""
     try:
-        return preseed.preseed_editor_prefs(project, os_name=os_name)
+        receipt = preseed.preseed_editor_prefs(project, os_name=os_name)
     except preseed.EditorPrefsPreseedError as preseed_error:
-        return {"mechanism": os_name, "applied": False, "error": str(preseed_error)}
+        receipt = {"mechanism": os_name, "applied": False, "error": str(preseed_error)}
+    if evidence_out is not None:
+        snapshot = preseed.read_prefs_snapshot(os_name)
+        if snapshot is not None:
+            evidence_out.mkdir(parents=True, exist_ok=True)
+            suffix = f"-{label}" if label else ""
+            (evidence_out / f"prefs-after-preseed{suffix}.txt").write_text(
+                snapshot, encoding="utf-8"
+            )
+    return receipt
+
+
+def _write_final_prefs_snapshot(evidence_out: Path | None, *, os_name: str) -> None:
+    """Post-mortem: captures the real prefs content AFTER the cell ends
+    (success or failure) — Run 6's ask: compare this against the
+    after-preseed snapshots to see whether Unity itself rewrote/ignored
+    what was preseeded."""
+    if evidence_out is None:
+        return
+    snapshot = preseed.read_prefs_snapshot(os_name)
+    if snapshot is None:
+        return
+    evidence_out.mkdir(parents=True, exist_ok=True)
+    (evidence_out / "prefs-final.txt").write_text(snapshot, encoding="utf-8")
 
 
 async def run_pilot(
@@ -169,7 +200,9 @@ async def run_pilot(
     # blocks ProcessInitializeOnLoadAttributes on a headed Editor before the
     # MCP listener ever starts. Never lets a preseed failure abort the
     # cell — this is a second, independent layer, not the primary fix.
-    preseed_receipt = _apply_preseed(project, os_name=os_name)
+    preseed_receipt = _apply_preseed(
+        project, os_name=os_name, evidence_out=evidence_out, label="pilot"
+    )
     process = _launch(unity=unity, project=project, port=port, log=log)
     outcome = "FAIL"
     error_message: str | None = None
@@ -193,6 +226,7 @@ async def run_pilot(
         raise
     finally:
         await _stop(process)
+        _write_final_prefs_snapshot(evidence_out, os_name=os_name)
         if evidence_out is not None:
             fq.write_pilot_evidence(
                 evidence_out,
@@ -209,14 +243,23 @@ async def run_pilot(
 async def _phase_off_legacy_compile(
     *, unity, project, port, log, startup_timeout, evidence_out, os_name
 ) -> subprocess.Popen:
+    """The fixture must already be on disk (see run_full, install_fixture
+    called before this phase's launch) — this phase only launches and
+    waits for the port. Run 6 (33390881487) showed why: install_fixture
+    used to run AFTER Unity was already started, then an immediate
+    redundant asset/write_text re-wrote the same v0 content through the
+    legacy route — which adds a UTF-8 BOM (AssetDatabaseHelper.WriteText
+    uses File.WriteAllText with .NET's BOM-including Encoding.UTF8, while
+    SourcePatchModePolicy.TryApplyWrite's own newBytes never gets one) —
+    bypassing Unity's normal startup asset-import for no reason. Installing
+    before launch lets Unity's own startup AssetDatabase scan import it
+    naturally, matching the proven local P0-80 shape."""
     process = _launch(unity=unity, project=project, port=port, log=log)
     await asyncio.to_thread(
         fq.wait_for_port_diagnosed,
         host="127.0.0.1", port=port, process=process, log=log,
         timeout=startup_timeout, evidence_out=evidence_out, os_name=os_name,
     )
-    harness.install_fixture(project)
-    await durable.call(port, "asset", {"action": "write_text", "path": REL_TARGET, "content": harness.target_body("v0")})
     return process
 
 
@@ -228,7 +271,25 @@ async def _phase_on_retained_object(*, port) -> None:
     # routing server/src/unity_mcp/tools/asset.py itself performs.
     await durable.call(port, "editor", {"action": "mutation_mode", "enable": True})
     for kind in ("v1", "v2", "invalid", "v2", "v3"):
-        await durable.call(port, "source_patch_write", {"path": REL_TARGET, "content": harness.target_body(kind)})
+        content = harness.target_body(kind)
+        if kind == "invalid":
+            # The scenario deliberately proves an invalid (non body-only)
+            # mutation is rejected pre-effect, not that it succeeds
+            # ("1 -> 2 -> invalid stays 2 -> 3", §6 P0-80) — a rejection
+            # here is the correct, expected outcome (Run 6: 33390881487
+            # first exposed this; the driver previously let this specific
+            # RunnerError abort the whole cell).
+            try:
+                await durable.call(port, "source_patch_write", {"path": REL_TARGET, "content": content})
+            except durable.RunnerError as error:
+                if "rejected" not in str(error).lower():
+                    raise
+            else:
+                raise FsrQualificationCellError(
+                    "source_patch_write unexpectedly accepted the invalid (non body-only) mutation"
+                )
+        else:
+            await durable.call(port, "source_patch_write", {"path": REL_TARGET, "content": content})
     await durable.call(port, "editor", {"action": "mutation_mode", "enable": False})
 
 
@@ -268,9 +329,16 @@ async def run_full(
             target_unity_version=cell["unity_version"],
             target_unity_revision=cell["unity_revision"],
         )
+        # Before Unity ever launches, so its own startup AssetDatabase scan
+        # imports the file naturally — see _phase_off_legacy_compile's
+        # docstring for the BOM-introducing bug (Run 6: 33390881487) this
+        # ordering avoids.
+        harness.install_fixture(project)
 
         print("PHASE: steps 1-2 package-absent OFF compile", flush=True)
-        preseed_attempts.append(_apply_preseed(project, os_name=os_name))
+        preseed_attempts.append(
+            _apply_preseed(project, os_name=os_name, evidence_out=evidence_out, label="steps1-2")
+        )
         process = await _phase_off_legacy_compile(
             unity=unity, project=project, port=port, log=log, startup_timeout=startup_timeout,
             evidence_out=evidence_out, os_name=os_name,
@@ -282,7 +350,9 @@ async def run_full(
         worker.rewrite_manifest_pin(project, provider_pin, install=True)
 
         print("PHASE: steps 4-6 fresh Editor with package, ON retained-object", flush=True)
-        preseed_attempts.append(_apply_preseed(project, os_name=os_name))
+        preseed_attempts.append(
+            _apply_preseed(project, os_name=os_name, evidence_out=evidence_out, label="steps4-6")
+        )
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
             fq.wait_for_port_diagnosed,
@@ -298,7 +368,9 @@ async def run_full(
         worker.rewrite_manifest_pin(project, provider_pin, install=False)
 
         print("PHASE: steps 8-9 fresh package-absent Editor, final OFF", flush=True)
-        preseed_attempts.append(_apply_preseed(project, os_name=os_name))
+        preseed_attempts.append(
+            _apply_preseed(project, os_name=os_name, evidence_out=evidence_out, label="steps8-9")
+        )
         process = _launch(unity=unity, project=project, port=port, log=log)
         await asyncio.to_thread(
             fq.wait_for_port_diagnosed,
@@ -323,6 +395,7 @@ async def run_full(
         raise
     finally:
         await _stop(process)
+        _write_final_prefs_snapshot(evidence_out, os_name=os_name)
         receipt = fq.build_runtime_receipt(
             cell=cell_name,
             os_name=os_name,

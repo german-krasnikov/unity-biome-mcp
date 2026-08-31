@@ -126,6 +126,39 @@ def _apply_commands(commands: list[list[str]]) -> None:
         subprocess.run(command, check=True, capture_output=True, text=True)
 
 
+def read_prefs_snapshot(os_name: str, *, home: Path | None = None) -> str | None:
+    """Read back whatever the CURRENT state of the OS's own EditorPrefs
+    store is — for Linux, the literal file content; for macOS/Windows, a
+    best-effort textual dump (defaults read / reg query). Never raises;
+    returns a diagnostic string noting failure instead. Run 6
+    (33390881487): min-linux-x64's receipt showed preseed applied=true,
+    yet FSR's L977 auto-refresh check still did not return early — either
+    Unity never read the written XML, or the format does not match what
+    Unity itself expects. Capturing this before AND after the cell lets a
+    future run compare against what Unity itself writes, instead of
+    guessing the format again."""
+    home = home or Path.home()
+    if os_name == "Linux":
+        path = home / ".config" / "unity3d" / "prefs"
+        if not path.is_file():
+            return None
+        try:
+            return path.read_text(encoding="utf-8", errors="replace")
+        except OSError as error:
+            return f"<unreadable: {error}>"
+    if os_name == "macOS":
+        command = ["defaults", "read", MACOS_DEFAULTS_DOMAIN]
+    elif os_name == "Windows":
+        command = ["reg", "query", WINDOWS_REGISTRY_KEY]
+    else:
+        return None
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, timeout=10)
+        return result.stdout or result.stderr
+    except (OSError, subprocess.SubprocessError) as error:
+        return f"<unreadable: {error}>"
+
+
 def preseed_editor_prefs(
     project: Path, *, os_name: str, home: Path | None = None
 ) -> dict[str, object]:
@@ -186,4 +219,5 @@ __all__ = [
     "linux_prefs_xml_patch",
     "windows_reg_add_commands",
     "preseed_editor_prefs",
+    "read_prefs_snapshot",
 ]
