@@ -99,11 +99,17 @@ To clear Recovery:
 
 1. Check what went wrong with `mcp_status()`
 2. Verify your edit matches the limitations below
-3. Disable and re-enable: `editor(action="mutation_mode", enable="false")` then `enable="true"`
+3. Disable and re-enable: `editor(action="mutation_mode", enable="false")`
+   — this is a legal transition from Recovery (Recovery → Disabling); it
+   triggers the same single causal Domain Reload a normal disable uses and
+   releases any AutoRefresh lease still held from the failed mutation. Then
+   call `enable="true"` again as a separate step once state reads Off.
 
 If the problem persists, fall back to the standard compile path (disable Mutation Mode).
 
-## Limitations
+## Limitations and Validation
+
+**Path validation:** All `.cs` writes are validated before any effects (Read/Write/Lease). Invalid paths are rejected with a clean warning: empty paths, absolute paths, non-.cs files, paths outside `Assets/` (e.g. `Packages/`, `../`), and traversal sequences (`..` segments). Path validation occurs even if Mutation Mode is OFF, and rejects before Recovery state can be reached.
 
 Mutations are only admitted if they meet all these constraints:
 

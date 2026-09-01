@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **ON-path source writes no longer trigger `[ScriptCompilation]` request:** `UnitySourcePatchBytesPort.Write` now uses raw `File.WriteAllBytes` instead of `ImportAsset`, avoiding spurious compile-request events that caused Recovery transitions
+- **Path validation in `source_patch_write` (ROI #1):** Added `SourcePatchPathGuard` pre-effect boundary check rejecting traversal (`..` segments), absolute paths, Packages/ prefix, and non-.cs files before any Read/Write/Lease effects; violations return VALIDATION rejection, no Recovery state
+- **Recovery exit edge (ROI #2):** Added Recovery → Disabling state machine edge so `editor(action="mutation_mode", enable=false)` from Recovery is now legal, triggering the same causal Domain Reload a normal disable uses and releasing any AutoRefresh lease still held from the failed mutation; lease field added to `SourcePatchCoordinator` with `ReleaseHeldLease()` method
 
 ### Limitations (Release-Tier)
 
