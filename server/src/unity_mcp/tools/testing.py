@@ -195,6 +195,12 @@ def _terminal_snapshot_error(
     if not _snapshot_matches_intent(snapshot, mode=mode, filter_name=filter_name):
         return "request-intent-mismatch"
 
+    health = snapshot.get("health")
+    if health == "no_test_progress":
+        return "run-health-no-test-progress"
+    if health == "editor_unresponsive":
+        return "run-health-editor-unresponsive"
+
     required_flags = (
         ("is_terminal", "terminal-flag-missing"),
         ("execution_finished", "execution-boundary-missing"),

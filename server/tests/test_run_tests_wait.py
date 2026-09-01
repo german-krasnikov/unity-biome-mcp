@@ -19,13 +19,15 @@ ACK = (
 )
 
 
-def _snapshot(state: str, outcome: str = "") -> str:
+def _snapshot(state: str, outcome: str = "", health: str = "") -> str:
     terminal = state == "terminal"
     expected = 6964
     failed = 1 if terminal and outcome == "failed" else 0
     skipped = 1 if terminal else 0
     passed = expected - failed - skipped if terminal else 4
-    return json.dumps({
+    # "incomplete" models an abandoned run: no real RunFinished evidence.
+    run_finished_observed = terminal and outcome != "incomplete"
+    data = {
         "request_id": REQUEST_ID,
         "run_id": RUN_ID,
         "utf_guid": "utf-1",
@@ -40,7 +42,7 @@ def _snapshot(state: str, outcome: str = "") -> str:
         "cleanup_complete": terminal,
         "run_started_observed": True,
         "manifest_complete": True,
-        "run_finished_observed": terminal,
+        "run_finished_observed": run_finished_observed,
         "build_coherent": True,
         "utf_xml_scope": "complete" if terminal else "none",
         "expected_count": expected,
@@ -63,7 +65,10 @@ def _snapshot(state: str, outcome: str = "") -> str:
             "expected": expected,
             "finished": expected if terminal else 4,
         },
-    })
+    }
+    if health:
+        data["health"] = health
+    return json.dumps(data)
 
 
 async def _started(mode, filter=None, request_id=None):
@@ -430,6 +435,33 @@ async def test_terminal_snapshot_must_match_requested_mode_and_filter():
         )
 
     assert "reason=request-intent-mismatch" in result
+
+
+def test_terminal_snapshot_error_reports_no_test_progress():
+    snapshot = json.loads(
+        _snapshot("terminal", "incomplete", health="no_test_progress")
+    )
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=""
+    ) == "run-health-no-test-progress"
+
+
+def test_terminal_snapshot_error_reports_editor_unresponsive():
+    snapshot = json.loads(
+        _snapshot("terminal", "incomplete", health="editor_unresponsive")
+    )
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=""
+    ) == "run-health-editor-unresponsive"
+
+
+def test_terminal_snapshot_error_ignores_missing_health_for_wire_compat():
+    """Old plugin never emits `health` -- absence must not change behavior."""
+    snapshot = json.loads(_snapshot("terminal", "passed"))
+    assert "health" not in snapshot
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=""
+    ) is None
 
 
 def test_terminal_validator_rejects_partial_or_untrusted_evidence():
