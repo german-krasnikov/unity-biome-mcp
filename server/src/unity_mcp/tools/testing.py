@@ -193,8 +193,10 @@ def _snapshot_matches_intent(
 # regex-matched. A nested-class filter like "Foo+Bar" ('+' is .NET's nested
 # -class separator) is reinterpreted as a quantifier -- usually zero matches.
 # '.' is excluded: it's the universal namespace/method separator, flagging it
-# would make every filter look suspicious.
-_REGEX_METACHARS = frozenset("+*?()[]{}^$|\\")
+# would make every filter look suspicious. '|' is excluded too: it's UTF's
+# legal separator for multi-group filters ("TestA|TestB"), never
+# misinterpreted by the matching engine -- an "escape it" hint would mislead.
+_REGEX_METACHARS = frozenset("+*?()[]{}^$\\")
 
 
 def _filter_has_regex_metachar(filter_name: str) -> bool:

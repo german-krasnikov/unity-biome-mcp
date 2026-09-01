@@ -519,6 +519,18 @@ def test_zero_match_filter_without_metachar_reason():
     ) == "run-zero-match-filter"
 
 
+def test_zero_match_filter_with_group_separator_reason():
+    """'|' is UTF's legal multi-group filter separator ("TestA|TestB"), never
+    misinterpreted by the engine -- it must not trigger the metachar hint."""
+    filter_name = "TestA|TestB"
+    snapshot = json.loads(_snapshot("terminal", "passed"))
+    snapshot["filter"] = filter_name
+    snapshot["expected_count"] = 0
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=filter_name
+    ) == "run-zero-match-filter"
+
+
 def test_terminal_snapshot_error_negative_expected_count_stays_invalid():
     """A negative expected_count is corrupted evidence, not a zero-match --
     the original reason must survive the taxonomy split."""
