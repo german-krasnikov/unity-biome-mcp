@@ -6,6 +6,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, patch
 
+from unity_mcp import editor_log
 import unity_mcp.tools.verify as _v
 
 # Patch targets (verify.py uses module references, not function references)
@@ -30,6 +31,12 @@ def test_is_compile_clean_variants():
     assert _is_compile_clean("No compilation errors.")  # period suffix
     assert not _is_compile_clean("error CS0234: bad type")
     assert not _is_compile_clean("1 compilation error(s):")
+
+
+def test_is_compile_clean_rejects_unreachable_sentinel():
+    # ARC-6 T5: a dead-Unity UNITY_UNREACHABLE sentinel must never be
+    # mistaken for "compile clean" by the mandatory verify gate.
+    assert not _v._is_compile_clean(editor_log.UNITY_UNREACHABLE)
 
 
 def _run_snapshot(
@@ -198,6 +205,20 @@ async def test_verify_compile_errors_fail():
         result = await _v.verify_after_change(run_tests_mode="EditMode")
     assert result.startswith("FAIL: await_compile")
     assert "CS0246" in result
+
+
+@pytest.mark.asyncio
+async def test_verify_compile_unreachable_sentinel_fails_gate():
+    # ARC-6 T5 integration proof: a dead Unity connection must FAIL the
+    # mandatory gate, never PASS as if Unity were clean.
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value=editor_log.UNITY_UNREACHABLE)),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_RUN_TESTS_WAIT, AsyncMock(return_value="should not be called")),
+    ):
+        result = await _v.verify_after_change(run_tests_mode="EditMode")
+    assert result.startswith("FAIL: await_compile")
+    assert editor_log.UNITY_UNREACHABLE in result
 
 
 @pytest.mark.asyncio
