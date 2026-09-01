@@ -91,6 +91,13 @@ by runtime boundary:
 | `unity-plugin/Editor/ObjectIdCompat.cs` | Platform compat bridge for Unity 6.0–6.3 (instance-ID) and 6.4+ (EntityId) object identity APIs. |
 | `unity-plugin/Editor/UIPanelHost.cs` | Compat layer for `UIDocument` (Unity 6.0) and `PanelRenderer` (Unity 6.4+); used by playtest UI commands and intent tools. |
 | `unity-plugin/Editor/PlaytestParser.cs` and `PlaytestRunner*.cs` | Playtest DSL parsing and execution. |
+| `unity-plugin/Editor/SourcePatch/` (neutral asmdef) | Optional Source Patch provider contract: immutable DTOs, state machine (`Unavailable`/`Off`/`OnReady`/`Busy`/`Disabling`/`Recovery`), coordinator, and registration slot. Depends on no FSR/Harmony/provider types; main Editor depends on it. |
+| `unity-plugin/Editor/SourcePatchHost.cs` | Seam in `asset(write_text)` path; routes `.cs` writes to provider or legacy based on intent/capability. |
+| `unity-plugin/Editor/SourcePatchPathGuard.cs` | Pre-effect path boundary check (ROI #1): rejects empty/absolute/non-.cs paths, paths outside `Assets/`, and `..` traversal before any Read/Write/Lease effects. Pure string/Path logic, fully unit-testable without live Editor. |
+| `unity-plugin/Editor/SourcePatchUnityPorts.cs` (`UnityAutoRefreshLeasePort`, implementing `IAutoRefreshLeasePort` from `SourcePatch/SourcePatchCoordinator.cs`) | Auto-refresh disable/restore lease coordination for grouped provider writes. |
+| `unity-plugin/Editor/SourcePatchHost.cs` (`GuardLegacyCsWrite`) | Guard invoked from the legacy `.cs` write path when the provider is off/absent. |
+| `unity-plugin/Editor/MutationModeToggle.cs` | MCP Settings Hub UI shell for the "Mutation Mode (experimental)" checkbox (P2-04). Polls `SourcePatchHost`/`SourcePatchModePolicy` every 600ms; forwards clicks to `SetMutationIntent`. |
+| `unity-plugin/Editor/MutationModeToggleState.cs` | Pure view-model mapping (state, intentOn, providerPresent, isPlaying) → (Checked, Enabled, Tooltip, ShowRecoveryWarning). Zero side effects. |
 | `unity-plugin/Editor/Chat/` | In-Unity chat presentation and relay integration. |
 | `unity-plugin/Editor/Tests/` | EditMode and PlayMode implementation fixtures. |
 | `unity-plugin/Runtime/` | Runtime/player assemblies and test helpers. |

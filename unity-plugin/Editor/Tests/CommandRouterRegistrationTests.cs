@@ -23,7 +23,7 @@ namespace UnityMCP.Editor.Tests
         private static readonly string[] AsyncCommands =
         {
             "run_tests", "ask_user", "wait_until", "move_to", "test_step", "run_playtest",
-            "build", "package",
+            "build", "package", "source_patch_write",
         };
 
         [TearDown]

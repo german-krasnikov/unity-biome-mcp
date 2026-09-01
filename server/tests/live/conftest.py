@@ -253,6 +253,41 @@ async def _transient_id_expression(
     return _transient_id_capture_expression(object_expression)
 
 
+_RELOAD_FAILURE_MARKERS = ("domain reload", "outcome is uncertain")
+
+
+def _is_reload_related(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return any(marker in text for marker in _RELOAD_FAILURE_MARKERS)
+
+
+async def _wait_compile_idle(
+    bridge: UnityBridge, budget_s: float = 90.0, interval_s: float = 2.0
+) -> bool:
+    """Poll compile_status (read-only) until Unity is idle, bounded by budget_s.
+
+    Never closes or reconnects the bridge: DomainReloadTracker documents a
+    reload can run up to 90s (DOMAIN_RELOAD_EXPIRY_S) on slow machines, and
+    repeated bridge.close()/reconnect cycling as the retry strategy was
+    measured to add TCP churn that lengthened downstream test timing during
+    an active Unity compile (see commit d41bc6e0). Returns True once idle is
+    observed (or immediately if already idle), False if the budget expires —
+    the caller decides what to do next.
+    """
+    deadline = time.monotonic() + budget_s
+    while True:
+        try:
+            status = await bridge.send("compile_status", {})
+            data = status.get("data", "") if isinstance(status, dict) else str(status)
+            if "compiling" not in str(data).lower():
+                return True
+        except (ConnectionError, OSError):
+            pass
+        if time.monotonic() >= deadline:
+            return False
+        await asyncio.sleep(interval_s)
+
+
 async def _capture_unity_state(bridge: UnityBridge) -> UnityStateSnapshot:
     last_error = None
     for attempt in range(3):
@@ -265,6 +300,12 @@ async def _capture_unity_state(bridge: UnityBridge) -> UnityStateSnapshot:
             last_error = exc
             if attempt == 2:
                 break
+            if _is_reload_related(exc):
+                # Bounded read-only re-probe: wait out the reload in place,
+                # then retry with a fresh op_id (the next _execute_checked
+                # call) — no bridge.close()/reconnect churn.
+                await _wait_compile_idle(bridge)
+                continue
             try:
                 await bridge.close()
             finally:
@@ -1024,6 +1065,10 @@ async def unity_state_owner(
         pytest.fail("unsafe Unity baseline before live test: " + "; ".join(blockers))
     before = initial
     yield policy
+    # A test can leave Unity mid-domain-reload (e.g. a sync/recompile it
+    # triggered). Settle before the lease renew and state capture below —
+    # both are read-only probes that otherwise race a genuine reload.
+    await _wait_compile_idle(bridge)
     _assert_lease_owned(await _renew_live_suite_lease(bridge), "renew")
     await _restore_owned_state(bridge, before, policy)
 
@@ -1097,12 +1142,12 @@ def _data(result) -> str:
 
 
 def _ok(result) -> str:
-    """Assert result is ok and return data string."""
+    """Assert result is ok and return data string, stripped of middleware markers."""
     d = result.get("data", "") if isinstance(result, dict) else str(result)
     err = result.get("err", "") if isinstance(result, dict) else ""
     ok = result.get("ok", True) if isinstance(result, dict) else True
     assert ok, f"cmd failed: {err or d}"
-    return d
+    return strip_markers(d)
 
 
 def _transient_ref(text: str) -> str:

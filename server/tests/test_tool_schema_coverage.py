@@ -63,6 +63,11 @@ def test_fastmcp_run_playtest_schema_has_path_defs_script():
         assert param in props, f"FastMCP dropped '{param}' from run_playtest JSON schema"
 
 
+def test_fastmcp_editor_schema_has_enable():
+    assert "enable" in _props("editor"), \
+        "FastMCP dropped 'enable' from editor JSON schema (P0-70 mutation_mode)"
+
+
 def test_fastmcp_alias_status_schema_exists():
     from unity_mcp.server import mcp
     assert "alias_status" in mcp._tool_manager._tools, \

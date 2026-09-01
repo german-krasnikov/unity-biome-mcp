@@ -225,6 +225,33 @@ error recovery. ~26 tests; run in `ci-python.yml` without editor dependency.
 See `.claude/skills/testing-tdd.md` section "Cross-Boundary Test Layers" for
 implementation patterns, fixture usage, and conformance gating details.
 
+## Source Patch (Mutation Mode) Qualification
+
+Optional FSR-based body-only source patching uses a dedicated CI qualification matrix
+in `.github/workflows/fsr-qualification.yml`. Qualification requires two pass cells
+(Unity 6000.0.65f1 on macOS ARM64 and Linux x64); Windows x64 is documented as
+INFRASTRUCTURE_BLOCKED (headed-GUI unavailable on GH-hosted runners) and engineering-supported
+with CI qualification pending. U_MAX (6000.5.10f1) is shelved in P2-07 for a reviewed
+compatibility change with new matrix evidence.
+
+**Test fixtures:** New C# tests use existing `UnityMcpTestBase`, `SceneTestBase`, and
+`BiomeWorkerOnly` patterns. Source Patch mutations are forbidden in standard T5
+(read-only) test projects; only mutation-specific fixtures with the disposable worker
+marker use `mcp_status() → source_patch_state` to verify ON/Recovery transitions and
+confirm provider registration.
+
+**CI qualification scope:**
+- Install/compile/Roslyn-loader proof per platform
+- Mutation Mode intent → ON-ready path verification (zero compile, retained state)
+- Logical OFF via intent → exact one domain reload path (receipt-based validation)
+- Physical package removal → package-absent clean compile proof
+- Post-qualification runs are deterministic focused seams, not full-suite multiplication
+
+Adapter SHA pinning is maintained in `scripts/source_patch_provider_pin.json`; any
+binary or dependency change reopens the full matrix. See the CI qualification matrix
+in `.github/workflows/fsr-qualification.yml` and `scripts/fsr_qualification_lock.json`
+for the locked Unity window, platform attestation, and evidence structure.
+
 ## Documentation and Skill Checks
 
 Run `python scripts/check_skills_freshness.py --strict` after changing bundled

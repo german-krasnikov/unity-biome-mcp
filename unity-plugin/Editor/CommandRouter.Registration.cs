@@ -86,6 +86,7 @@ namespace UnityMCP.Editor
                 sb.AppendLine($"readOnly={IsReadOnly()}");
                 sb.AppendLine($"plugin_version={BiomeVersion.Plugin}");
                 sb.AppendLine($"protocol={BiomeVersion.Protocol}");
+                sb.AppendLine(SourcePatchModePolicy.StatusProjection());
                 return sb.ToString().TrimEnd();
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
         }
@@ -239,7 +240,7 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "path_b")),
                 required: "path_a,path_b", optional: "");
             CommandRegistry.Register("editor", ExecEditor,
-                required: "", optional: "action,path,paths");
+                required: "", optional: "action,path,paths,enable");
             CommandRegistry.Register("ping_object", args =>
                 EditorStateHelper.PingObject(JsonHelper.ExtractString(args, "path")),
                 required: "path", optional: "");
@@ -632,6 +633,8 @@ namespace UnityMCP.Editor
                 required: "action", optional: "target,scenes,path,dev");
             CommandRegistry.RegisterAsync("package", AsyncPackage,
                 required: "action", optional: "name,version,query");
+            CommandRegistry.RegisterAsync("source_patch_write", AsyncSourcePatchWrite,
+                mutating: true, required: "path,content", optional: "");
         }
     }
 }

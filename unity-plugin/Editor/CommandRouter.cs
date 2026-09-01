@@ -130,6 +130,10 @@ namespace UnityMCP.Editor
             if (cmd == "set_parent" || cmd == "execute_code" || cmd == "screenshot" ||
                 cmd == "wait_until")
                 return true;
+            if (cmd == "editor")
+                // Toggling Source Patch intent touches no scene data — never
+                // blocked by "changes will be lost, stop play mode first".
+                return JsonHelper.ExtractString(argsJson, "action") == "mutation_mode";
             if (cmd != "profile") return false;
             var action = JsonHelper.ExtractString(argsJson, "action");
             return action == "start" || action == "stop";
@@ -325,6 +329,17 @@ namespace UnityMCP.Editor
                 PackageManagerHelper.Execute(action, name, version, query, inner));
             CompleteFromInner(id, inner.Task, tcs, "package",
                 r => !r.StartsWith("err:"));
+        }
+
+        // P0-50: internal/direct-only — never MCP-decorated, never batchable
+        // (RegisterAsync alone makes CommandRegistry.IsBatchable return false).
+        // Params are exactly path+content per §3.2 "only path, content,
+        // operation/project identity" — the existing TCP envelope (id/op_id)
+        // plus this connection's single-Editor binding already carry
+        // operation/project identity, so no extra param is added here.
+        private static void AsyncSourcePatchWrite(string id, string argsJson, TaskCompletionSource<string> tcs)
+        {
+            tcs.TrySetResult(BuildResponse(id, SourcePatchHost.WriteText(argsJson)));
         }
 
         // Bridges an inner async Task<string> to the outer TCS, formatting a fault

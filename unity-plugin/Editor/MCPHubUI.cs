@@ -135,6 +135,8 @@ namespace UnityMCP.Editor
                 ShowPortStatus(restartWarning, restartBtn, $"Saved. Restart the {BiomeLabel.DisplayName} server to apply port changes.", "warning");
             });
 
+            section.Add(MutationModeToggle.Build());
+
             return section;
         }
 

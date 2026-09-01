@@ -124,3 +124,68 @@ async def test_editor_paths_and_path_together(ec_mod, _patch_send):
     call_args = _patch_send.call_args
     assert call_args[0][1]["path"] == "/Player"
     assert call_args[0][1]["paths"] == "/Player,/Enemy"
+
+
+# ── mutation_mode (P0-70) ─────────────────────────────────────────────────────
+
+async def test_mutation_mode_query_omits_enable(ec_mod, _patch_send):
+    """No enable kwarg at all -> "enable" absent from wire args (query)."""
+    await ec_mod.editor(action="mutation_mode")
+
+    call_args = _patch_send.call_args
+    assert call_args[0][0] == "editor"
+    assert "enable" not in call_args[0][1]
+
+
+async def test_mutation_mode_enable_true_sends_lowercase_string(ec_mod, _patch_send):
+    await ec_mod.editor(action="mutation_mode", enable=True)
+
+    call_args = _patch_send.call_args
+    assert call_args[0][1]["enable"] == "true"
+
+
+async def test_mutation_mode_enable_false_sends_lowercase_string_not_omitted(ec_mod, _patch_send):
+    """Critical tri-state case: explicit False must cross the wire as "false",
+    never collapsed into omission the way Pattern-A optional flags are."""
+    await ec_mod.editor(action="mutation_mode", enable=False)
+
+    call_args = _patch_send.call_args
+    assert call_args[0][1]["enable"] == "false"
+
+
+async def test_mutation_mode_enable_true_updates_local_cache(ec_mod, _patch_send):
+    from unity_mcp.tools._source_patch_intent import get_cached_intent, set_cached_intent
+    set_cached_intent(False)
+
+    await ec_mod.editor(action="mutation_mode", enable=True)
+
+    assert get_cached_intent() is True
+    set_cached_intent(False)  # restore
+
+
+async def test_mutation_mode_enable_false_updates_local_cache(ec_mod, _patch_send):
+    from unity_mcp.tools._source_patch_intent import get_cached_intent, set_cached_intent
+    set_cached_intent(True)
+
+    await ec_mod.editor(action="mutation_mode", enable=False)
+
+    assert get_cached_intent() is False
+
+
+async def test_mutation_mode_error_response_does_not_update_cache(ec_mod, _patch_send):
+    from unity_mcp.tools._source_patch_intent import get_cached_intent, set_cached_intent
+    set_cached_intent(False)
+    _patch_send.return_value = "err: source patch provider absent"
+
+    await ec_mod.editor(action="mutation_mode", enable=True)
+
+    assert get_cached_intent() is False
+
+
+async def test_non_mutation_mode_action_does_not_touch_cache(ec_mod, _patch_send):
+    from unity_mcp.tools._source_patch_intent import get_cached_intent, set_cached_intent
+    set_cached_intent(False)
+
+    await ec_mod.editor(action="play")
+
+    assert get_cached_intent() is False

@@ -97,7 +97,10 @@ async def test_non_reload_reasons_use_sleep_not_gate():
     probe = make_idle_probe()
     probe.has_strong_busy_signal.return_value = True  # busy = triggers "busy" reason
 
-    bridge = UnityBridge(probe=probe)
+    bridge = UnityBridge(
+        probe=probe,
+        is_retry_safe=lambda cmd: cmd == "ping",
+    )
     sleep_calls: list[float] = []
 
     original_sleep = asyncio.sleep
@@ -135,7 +138,10 @@ async def test_reload_gate_always_clears_on_domain_reload():
     import json, struct
 
     probe = make_idle_probe()
-    bridge = UnityBridge(probe=probe)
+    bridge = UnityBridge(
+        probe=probe,
+        is_retry_safe=lambda cmd: cmd == "ping",
+    )
 
     # Track if gate.clear() was called while connected=True
     cleared_when_connected = []
@@ -175,7 +181,7 @@ async def test_reload_gate_always_clears_on_domain_reload():
          patch("asyncio.sleep", new=AsyncMock()):
         bridge._writer = writer
         bridge._reader = reader
-        result = await asyncio.wait_for(bridge.send("test", {}), timeout=10.0)
+        result = await asyncio.wait_for(bridge.send("ping", {}), timeout=10.0)
 
     assert result["ok"] is True
 

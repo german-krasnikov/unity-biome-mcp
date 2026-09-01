@@ -12,6 +12,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.51.0] — 2026-09-01
+
+### Added
+
+- **Mutation Mode (Source Patch MVP) — Optional FSR-based body-only source patching:**
+  - `editor(action="mutation_mode", enable=true|false)` toggles intent for optional in-memory method-body patching
+  - MCP Settings Hub checkbox: **Mutation Mode (experimental)** in General section (P2-04). Polls state every 600ms; disabled states include Provider Absent, Busy, Disabling, Recovery, and Play Mode. Recovery state shows a recovery warning label.
+  - `mcp_status` exposes `source_patch_intent`, `source_patch_provider`, `source_patch_state`, `source_patch_op`, `source_patch_recovery`
+  - State machine: `Unavailable` (no package) → `Off` (default) ↔ `OnReady/Busy` (intent ON, provider ready) ↔ `Recovery` (failed write)
+  - Supported scope (MVP, qualified): existing sync non-generic methods in `Assets/`, body-only edits, single file at a time, Mono backend, Unity 6000.0.65f1; platforms: macOS ARM64 + Linux x64 (CI-qualified), Windows x64 (engineering-supported, CI qualification pending)
+  - `asset(action="write_text")` on `.cs` files routes internally via optional provider when ON; falls back to standard compile if provider absent
+  - Physical package install/remove via git-pin when Editor stopped; exact one domain reload on OFF transition
+  - New C# modules: neutral `SourcePatch` asmdef, `SourcePatchHost` seam, auto-refresh lease coordination (`IAutoRefreshLeasePort`/`UnityAutoRefreshLeasePort`), legacy-write guard (`SourcePatchHost.GuardLegacyCsWrite`), and UI toggle (`MutationModeToggle`/`MutationModeToggleState`)
+  - CI qualification: two required-pass cells (Unity 6000.0.65f1 on macOS ARM64, Linux x64); Windows x64 documented as INFRASTRUCTURE_BLOCKED (headed-GUI unavailable on GH-hosted runners); in `.github/workflows/fsr-qualification.yml`
+
+### Documentation
+
+- New user guide: `docs/features/mutation-mode.md` (workflow, limitations, FAQ)
+- Updated contributor skill: `.claude/skills/mutation-mode.md` (intent vs. capability, state machine, release-tier limitations)
+- Added `AI/architecture.md` section on Source Patch boundaries and state machine
+- Added `AI/structure.md` entries for SourcePatch modules and seams
+- Added `AI/testing.md` section on FSR qualification and mutation-specific fixtures
+
+### Fixed
+
+- **ON-path source writes no longer trigger `[ScriptCompilation]` request:** `UnitySourcePatchBytesPort.Write` now uses raw `File.WriteAllBytes` instead of `ImportAsset`, avoiding spurious compile-request events that caused Recovery transitions
+- **Path validation in `source_patch_write` (ROI #1):** Added `SourcePatchPathGuard` pre-effect boundary check rejecting traversal (`..` segments), absolute paths, Packages/ prefix, and non-.cs files before any Read/Write/Lease effects; violations return VALIDATION rejection, no Recovery state
+- **Recovery exit edge (ROI #2):** Added Recovery → Disabling state machine edge so `editor(action="mutation_mode", enable=false)` from Recovery is now legal, triggering the same causal Domain Reload a normal disable uses and releasing any AutoRefresh lease still held from the failed mutation; lease field added to `SourcePatchCoordinator` with `ReleaseHeldLease()` method
+
+### Limitations (Release-Tier)
+
+- MonoBehaviour-derived mutable types not supported (fail-closed Recovery; workaround: mutate utility classes, hold MonoBehaviour instances)
+- Async/iterator/lambda/local-fn/generic/overloaded methods not admitted in preflight
+- No Play Mode mutations; state not preserved across Play Mode cycle
+- ON transitions auto-OFF after domain reload (receipt-based recovery prevents stale session)
+- Platforms: macOS ARM64 and Linux x64 (CI-qualified); Windows x64 (engineering-supported, CI-qualification pending)
+
 ## [v1.48.1] — 2026-08-21
 
 ### Changed
@@ -3603,7 +3640,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.1...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.51.0...HEAD
+[v1.51.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.1...v1.51.0
 [v1.48.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.0...v1.48.1
 [v1.48.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.1...v1.48.0
 [v1.47.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.0...v1.47.1

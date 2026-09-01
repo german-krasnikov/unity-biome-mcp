@@ -5,7 +5,7 @@ import struct
 import time
 from unittest.mock import AsyncMock, Mock, patch, MagicMock
 import pytest
-from unity_mcp.bridge import UnityBridge, DOMAIN_RELOAD_EXPIRY_S
+from unity_mcp.bridge import CommandStatus, DOMAIN_RELOAD_EXPIRY_S, UnityBridge
 from helpers import make_writer, make_idle_probe, ping_response, reconnect_preamble, version_response
 
 
@@ -360,7 +360,7 @@ async def test_max_retries_exhausted(mock_connection):
 
 
 async def test_send_timeout_raises():
-    """send() raises ConnectionError when Unity doesn't respond (circuit breaker, no retry)."""
+    """Unsafe timeout after one frame is uncertain and never retried."""
     idle_probe = make_idle_probe()
 
     def create_hanging_mock():
@@ -371,13 +371,19 @@ async def test_send_timeout_raises():
         reader.readexactly = AsyncMock(side_effect=hang)
         return (reader, writer)
 
+    connection = create_hanging_mock()
     with patch("unity_mcp.bridge.asyncio.open_connection",
-               return_value=create_hanging_mock()):
+               return_value=connection):
         bridge = UnityBridge(probe=idle_probe)
         await bridge.connect()
 
-        with pytest.raises((TimeoutError, ConnectionError), match="Unity not responding"):
+        with pytest.raises(ConnectionError, match="outcome is uncertain"):
             await bridge.send("test", {}, timeout=0.01)
+
+        assert connection[1].write.call_count == 1
+        raw = connection[1].write.call_args.args[0]
+        operation = json.loads(raw[4:].decode("utf-8"))
+        assert bridge.get_command_status(operation["op_id"])[0] is CommandStatus.ACCEPTED
 
 
 async def test_concurrent_sends_with_dead_connection():
@@ -505,11 +511,14 @@ async def test_probe_raises_does_not_crash_send():
 
     with patch("unity_mcp.bridge.asyncio.open_connection",
                side_effect=open_connection_side_effect):
-        bridge = UnityBridge(probe=exploding_probe)
+        bridge = UnityBridge(
+            probe=exploding_probe,
+            is_retry_safe=lambda cmd: cmd == "get_status",
+        )
         await bridge.connect()
 
         with pytest.raises((TimeoutError, ConnectionError), match="Unity not responding"):
-            await bridge.send("test", {}, timeout=0.01)
+            await bridge.send("get_status", {}, timeout=0.01)
 
 
 async def test_concurrent_sends_routes_per_caller(mock_unity_server):
@@ -822,5 +831,4 @@ async def test_close_uses_shut_rdwr_on_non_windows(monkeypatch):
     await bridge.close()
 
     mock_sock.shutdown.assert_called_once_with(sock_mod.SHUT_RDWR)
-
 

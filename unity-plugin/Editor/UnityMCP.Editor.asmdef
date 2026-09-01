@@ -1,7 +1,7 @@
 {
     "name": "UnityMCP.Editor",
     "rootNamespace": "UnityMCP.Editor",
-    "references": ["UnityEditor.TestRunner", "UnityEngine.TestRunner", "Unity.Timeline", "Unity.Timeline.Editor"],
+    "references": ["UnityEditor.TestRunner", "UnityEngine.TestRunner", "Unity.Timeline", "Unity.Timeline.Editor", "UnityMCP.Editor.SourcePatch"],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

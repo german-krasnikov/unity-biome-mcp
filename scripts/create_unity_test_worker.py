@@ -62,6 +62,25 @@ def _hash_tree(root: Path) -> str:
     return digest.hexdigest()
 
 
+def _load_source_patch_pin(pin_path: Path) -> dict[str, str]:
+    """Read a tracked Source Patch provider pin (e.g. scripts/
+    source_patch_provider_pin.json) and return the one manifest dependency
+    entry it describes: {package_name: "git_url#ref"}.
+
+    Disposable-worker/matrix-lock input only (§6 P0-70) — never merged into
+    the tracked unity-test-project/Packages/manifest.json by default; a
+    caller must pass this explicitly to create_worker()."""
+    if not pin_path.is_file():
+        raise WorkerCreationError(f"Source Patch provider pin not found: {pin_path}")
+    payload = json.loads(pin_path.read_text(encoding="utf-8"))
+    missing = [key for key in ("package_name", "git_url", "ref") if not payload.get(key)]
+    if missing:
+        raise WorkerCreationError(
+            f"Source Patch provider pin {pin_path} missing field(s): {', '.join(missing)}"
+        )
+    return {payload["package_name"]: f"{payload['git_url']}#{payload['ref']}"}
+
+
 def _validate_source(source: Path) -> None:
     required = (source / "Assets", source / "Packages", source / "ProjectSettings")
     if not all(path.is_dir() for path in required):
@@ -79,6 +98,53 @@ def _validate_source(source: Path) -> None:
         )
     if not (source / BOOTSTRAP_SCENE).is_file():
         raise WorkerCreationError(f"Named bootstrap scene is missing: {BOOTSTRAP_SCENE}")
+
+
+def rewrite_manifest_pin(destination: Path, pin: Path, *, install: bool) -> None:
+    """Add (install=True) or remove (install=False) the Source Patch
+    provider dependency on an ALREADY-CREATED disposable worker's
+    manifest.json, mid-lifecycle — for the P1-20 matrix's offline
+    install/uninstall phases (§6 P0-80 steps 3 and 7). Distinct from
+    create_worker(..., source_patch_provider_pin=...), which only pins at
+    creation time. Never touches a non-disposable project; this function
+    only ever writes destination/Packages/manifest.json."""
+    dependency = _load_source_patch_pin(pin)
+    package_name = next(iter(dependency))
+    manifest_path = destination / "Packages" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    dependencies = manifest.get("dependencies")
+    if not isinstance(dependencies, dict):
+        raise WorkerCreationError("Packages/manifest.json has no dependencies object")
+    if install:
+        dependencies.update(dependency)
+    else:
+        dependencies.pop(package_name, None)
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=True) + "\n", encoding="utf-8"
+    )
+    lock_path = destination / "Packages" / "packages-lock.json"
+    if lock_path.exists():
+        lock_path.unlink()
+
+
+def rewrite_project_version(
+    destination: Path, *, unity_version: str, unity_revision: str
+) -> None:
+    """Rewrite an ALREADY-CREATED disposable worker's
+    ProjectSettings/ProjectVersion.txt to declare a different target Unity
+    version/revision, so a headed (non-batchmode) launch of a different
+    Editor never hits Unity's interactive "project created with an earlier
+    version, continue anyway?" dialog — which blocks indefinitely outside
+    batchmode (§7 P1-20). Disposable-worker-only; never called on
+    create_worker's default path."""
+    path = destination / "ProjectSettings" / "ProjectVersion.txt"
+    if not path.is_file():
+        raise WorkerCreationError(f"ProjectVersion.txt is missing: {path}")
+    path.write_text(
+        f"m_EditorVersion: {unity_version}\n"
+        f"m_EditorVersionWithRevision: {unity_version} ({unity_revision})\n",
+        encoding="utf-8",
+    )
 
 
 def _prepare_destination(destination: Path) -> None:
@@ -156,7 +222,14 @@ def create_worker(
     *,
     artifact_manifest: Path | None = None,
     artifact_root: Path | None = None,
+    source_patch_provider_pin: Path | None = None,
+    target_unity_version: str | None = None,
+    target_unity_revision: str | None = None,
 ) -> dict[str, object]:
+    if bool(target_unity_version) != bool(target_unity_revision):
+        raise WorkerCreationError(
+            "target_unity_version and target_unity_revision must be given together"
+        )
     source = source.resolve()
     destination = destination.resolve()
     _validate_source(source)
@@ -170,12 +243,30 @@ def create_worker(
         )
         shutil.copytree(source / "Packages", destination / "Packages")
         shutil.copytree(source / "ProjectSettings", destination / "ProjectSettings")
+        if target_unity_version and target_unity_revision:
+            rewrite_project_version(
+                destination,
+                unity_version=target_unity_version,
+                unity_revision=target_unity_revision,
+            )
         local_packages = destination / "LocalPackages"
         package_dependencies, package_marker = _install_worker_packages(
             local_packages,
             artifact_manifest,
             artifact_root,
         )
+        if source_patch_provider_pin is not None:
+            pin_dependency = _load_source_patch_pin(source_patch_provider_pin)
+            package_dependencies = {**package_dependencies, **pin_dependency}
+            pin_payload = json.loads(source_patch_provider_pin.read_text(encoding="utf-8"))
+            package_marker = {
+                **package_marker,
+                "source_patch_provider_package": pin_payload["package_name"],
+                "source_patch_provider_ref": pin_payload["ref"],
+                "source_patch_provider_pin_sha256": hashlib.sha256(
+                    source_patch_provider_pin.read_bytes()
+                ).hexdigest(),
+            }
         _rewrite_manifest(destination, package_dependencies)
 
         library = destination / "Library"
@@ -200,8 +291,8 @@ def create_worker(
                     + _hash_tree(REPO_ROOT / "unity-plugin-reload")
                 ).encode("ascii")
             ).hexdigest(),
-            "unity_version": UNITY_VERSION,
-            "unity_revision": UNITY_REVISION,
+            "unity_version": target_unity_version or UNITY_VERSION,
+            "unity_revision": target_unity_revision or UNITY_REVISION,
             "utf_version": UTF_VERSION,
             "bootstrap_scene": BOOTSTRAP_SCENE,
             **package_marker,
@@ -223,6 +314,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-project", type=Path, default=DEFAULT_SOURCE_PROJECT)
     parser.add_argument("--artifact-manifest", type=Path)
     parser.add_argument("--artifact-root", type=Path)
+    parser.add_argument("--source-patch-provider-pin", type=Path)
+    parser.add_argument("--target-unity-version", type=str)
+    parser.add_argument("--target-unity-revision", type=str)
     parser.add_argument("--unity", type=Path, default=DEFAULT_UNITY)
     parser.add_argument("--launch", action="store_true")
     return parser.parse_args()
@@ -236,6 +330,9 @@ def main() -> int:
             args.destination,
             artifact_manifest=args.artifact_manifest,
             artifact_root=args.artifact_root,
+            source_patch_provider_pin=args.source_patch_provider_pin,
+            target_unity_version=args.target_unity_version,
+            target_unity_revision=args.target_unity_revision,
         )
         print(json.dumps(marker, indent=2, sort_keys=True))
         print(f"worker={args.destination.resolve()}")

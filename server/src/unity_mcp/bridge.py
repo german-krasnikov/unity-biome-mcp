@@ -119,7 +119,7 @@ class BridgeState(enum.Enum):
 class DeliveryState(enum.Enum):
     """Tracks per-attempt write/read lifecycle for idempotent retry (P-322)."""
     UNSENT = "unsent"       # not yet written to socket
-    SENT = "sent"           # written + drained; response not yet received
+    SENT = "sent"           # accepted by writer; response not yet received
     DELIVERED = "delivered" # response received
     FAILED = "failed"       # error before or after write
 
@@ -128,7 +128,7 @@ class CommandStatus(enum.Enum):
     """Persistent lifecycle state for a single op_id in the CommandLedger."""
     NOT_FOUND = "not_found"    # op_id unknown (never sent or TTL expired)
     SENT = "sent"              # queued but not yet written to TCP
-    ACCEPTED = "accepted"      # TCP write committed; Unity may have received it
+    ACCEPTED = "accepted"      # writer accepted frame; Unity may have received it
     COMPLETED = "completed"    # response received (success or Unity-level error)
     FAILED = "failed"          # terminal transport error; no response
 
@@ -443,8 +443,9 @@ class UnityBridge(HeartbeatMixin):
         """Send cmd with retry loop.
 
         op_id (P-322): UUID included in payload as op_id so C# can dedup
-        retries. On retry after a SENT state (write OK, read failed) the payload
-        is rebuilt with 'retry_op_id' so Unity knows to check its dedup registry.
+        retries. On retry after a SENT state (writer accepted the frame, response
+        failed) the payload is rebuilt with 'retry_op_id' so Unity knows to check
+        its dedup registry.
         """
         attempt = 0
         result = None
@@ -473,16 +474,25 @@ class UnityBridge(HeartbeatMixin):
                         await self._reconnect(fire_callbacks=False)
                         METRICS.inc("reconnect.send_path")
                     frame_write(self._writer, payload)
-                    await self._writer.drain()
-                    delivery = DeliveryState.SENT  # P-322: write committed
+                    # StreamWriter.write() may hand bytes to the transport before
+                    # drain() reports failure.  From this point a mutating command
+                    # is delivery-uncertain and must be treated as SENT.
+                    delivery = DeliveryState.SENT  # P-322: frame may be delivered
                     self._ledger.record(op_id, CommandStatus.ACCEPTED)  # MCP-TRANS-008
+                    await self._writer.drain()
                     try:
                         result = await asyncio.wait_for(
                             self._read_response(), timeout=timeout)
                     except asyncio.CancelledError:
                         await self.close()
                         raise
-            except (OSError, asyncio.IncompleteReadError, json.JSONDecodeError, RuntimeError) as e:
+            except (
+                OSError,
+                asyncio.IncompleteReadError,
+                json.JSONDecodeError,
+                UnicodeDecodeError,
+                RuntimeError,
+            ) as e:
                 if isinstance(e, TimeoutError) and delivery == DeliveryState.SENT and self._reload.is_active():
                     # P-183: read timeout after payload delivered → Unity was processing
                     # the command (not reloading). Clear stale reload flag so next
@@ -493,10 +503,20 @@ class UnityBridge(HeartbeatMixin):
                     await self.close()
                 if self._first_failure_ts is None:
                     self._first_failure_ts = time.monotonic()
-                do_retry, delay, reason = self.should_retry(e, attempt, session_deadline, cmd=cmd)
+                # Preserve transport/reload observation side effects even when
+                # resend is forbidden; DomainReloadError still transitions the
+                # bridge and marks the compile probe.
+                do_retry, delay, reason = self.should_retry(
+                    e, attempt, session_deadline, cmd=cmd)
+                observed_reason = reason
+                # A written frame may already have executed in Unity. Only commands
+                # proven read-only/idempotent by ToolAnnotations may be resent after
+                # that boundary. Before SENT, reconnecting is transport recovery.
+                if delivery == DeliveryState.SENT and not self._is_retry_safe(cmd):
+                    do_retry, delay, reason = False, 0.0, "unsafe_sent"
                 self._crash_log.log_disconnect(cmd=cmd, retry=attempt,
                                                error_type=type(e).__name__,
-                                               unity_busy=reason in ("busy", "domain_reload"),
+                                               unity_busy=observed_reason in ("busy", "domain_reload"),
                                                port=self._port,
                                                bid=self._bridge_id,
                                                reason=reason,
@@ -518,6 +538,13 @@ class UnityBridge(HeartbeatMixin):
                     else:
                         await asyncio.sleep(delay + jitter)
                     continue
+                if reason == "unsafe_sent":
+                    from .errors import UncertainDeliveryError
+                    raise UncertainDeliveryError(
+                        cmd=cmd,
+                        op_id=op_id,
+                        delivery=CommandStatus.ACCEPTED,
+                    ) from e
                 self._ledger.record(op_id, CommandStatus.FAILED)  # MCP-TRANS-008
                 raise ConnectionError(self._describe_failure(cmd, e)) from e
 
@@ -540,12 +567,9 @@ class UnityBridge(HeartbeatMixin):
                         )}
                 except Exception:
                     pass
-                # A1/C8: the busy-hint retry is the same risk as a TimeoutError
-                # retry — the command may have already reached Unity's
-                # dispatcher. Gate it through RetryPolicy's same is_retry_safe
-                # fail-closed check (decide()'s TimeoutError branch and
-                # allow_hint_retry() now share one gate — the whole point of
-                # unifying the two retry surfaces).
+                # A1/C8: Unity has already dispatched a command before emitting
+                # this in-band hint, so use the same annotation-derived safety
+                # predicate as the exception path's SENT gate.
                 if not self._retry_policy.allow_hint_retry(cmd):
                     return result
                 if attempt < MAX_RETRIES:

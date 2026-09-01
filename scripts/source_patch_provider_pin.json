@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "package_name": "com.handzlikchris.fastscriptreload",
+  "git_url": "https://github.com/german-krasnikov/FastScriptReload.git?path=/Assets",
+  "ref": "b90a5c3fd7cfa452f23e8a807cc7bd61dc934bbf",
+  "note": "FINAL_FSR_ADAPTER_SHA (branch biome-mcp-fat-blob-qualification). Disposable-worker qualification pin only — never the base product's package.json dependency and never the tracked unity-test-project/Packages/manifest.json. Pass via create_unity_test_worker.py --source-patch-provider-pin. See Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md §6 P0-70/P0-80."
+}

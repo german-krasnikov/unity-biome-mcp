@@ -11,7 +11,10 @@ import pytest_asyncio
 
 from tests.live.conftest import _connect_with_retry, make_live_bridge
 
-pytestmark = pytest.mark.live
+# Domain reload can legitimately take up to DOMAIN_RELOAD_EXPIRY_S (90s);
+# this file alone needs headroom past the pyproject.toml global 30s
+# --timeout, without widening it for the rest of the suite.
+pytestmark = [pytest.mark.live, pytest.mark.timeout(120)]
 
 
 async def _wait_compile_idle(bridge) -> None:
@@ -106,6 +109,10 @@ async def test_live_sync_full_cycle(bridge):
             "ready",
             "idle",
         }:
+            # Settle to compile-idle before returning control to teardown —
+            # sync_status can report "ready" a beat before compile_status
+            # clears, which otherwise races unity_state_owner's teardown.
+            await _wait_compile_idle(bridge)
             return
         if state == "failed":
             pytest.fail(f"Compile failed: {status}")
@@ -168,3 +175,5 @@ async def test_live_plugin_bump_re_resolve(bridge, tmp_path):
     assert "sync_ack" in _data(response), f"Expected sync_ack: {response}"
     assert installed_package.read_bytes() == installed_before
     assert source_package.read_bytes() == source_before
+    if "will_compile=true" in _data(response):
+        await _wait_compile_idle(bridge)

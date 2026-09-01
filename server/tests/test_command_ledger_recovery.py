@@ -30,7 +30,7 @@ def test_ledger_accepted_then_responded_is_terminal():
 
 
 def test_ledger_accepted_then_disconnect_is_unknown():
-    """TCP write succeeded (ACCEPTED) but no response arrived — fate is unknown, not lost."""
+    """Writer accepted the frame but no response arrived — fate is unknown."""
     bridge = _bridge()
     op_id = "op-disconnect-2"
 

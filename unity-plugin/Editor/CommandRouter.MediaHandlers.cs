@@ -334,6 +334,8 @@ namespace UnityMCP.Editor
             var action = JsonHelper.ExtractString(args, "action") ?? "state";
             if (action == "state")
                 return EditorStateHelper.GetState();
+            if (action == "mutation_mode")
+                return SourcePatchModePolicy.SetMutationIntent(ParseOptBool(args, "enable"));
             return EditorStateHelper.Control(action, JsonHelper.ExtractString(args, "path"), args);
         }
 

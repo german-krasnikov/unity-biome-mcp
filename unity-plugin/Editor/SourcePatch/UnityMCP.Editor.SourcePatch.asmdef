@@ -1,0 +1,14 @@
+{
+    "name": "UnityMCP.Editor.SourcePatch",
+    "rootNamespace": "UnityMCP.Editor.SourcePatch",
+    "references": [],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

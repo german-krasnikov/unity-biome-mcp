@@ -401,6 +401,43 @@ def test_guard_probe_oserror():
     assert result is None
 
 
+def test_guard_probe_code_is_valid_statement():
+    """Regression: SessionState probe sent to execute_code must end with ';'.
+
+    A missing semicolon compiles fine in mocked tests (execute_code is stubbed) but
+    crashes for real against Roslyn with CS1002 (";" expected) — invisible to every
+    other test in this file since none of them exercise a live compiler. This is the
+    check_unity.py counterpart to reload_ladder.py's identical probe, which already
+    guards against this class of bug (test_t2_5_guard_check_code_is_valid_statement).
+    """
+    mod = _load_check_unity()
+    response_body = json.dumps({"data": "False"}).encode()
+    sent: dict = {}
+
+    class FakeSock:
+        def sendall(self, data):
+            sent["frame"] = data
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            pass
+
+    with patch("socket.create_connection", return_value=FakeSock()), patch.object(
+        mod, "_recvexactly"
+    ) as mock_recv:
+        mock_recv.side_effect = [
+            struct.pack(">I", len(response_body)),
+            response_body,
+        ]
+        mod._probe_guard_locked(9500)
+
+    payload = json.loads(sent["frame"][4:])
+    code = payload["args"]["code"]
+    assert code.strip().endswith(";"), f"missing semicolon: {code!r}"
+
+
 # ===========================================================================
 # Group G: Source Verification — TCP server death fixes
 # ===========================================================================

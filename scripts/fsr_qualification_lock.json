@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "note": "P1-20 frozen compatibility matrix lock. Read by scripts/run_fsr_qualification_cell.py and .github/workflows/fsr-qualification.yml. See Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md §1.1/§7 P1-20. Immutable per matrix run: the aggregate job asserts every required-pass cell receipt is bound to this exact base_product_sha/final_fsr_adapter_sha pair, and that base_product_sha..checkout does not touch unity-plugin/** or server/src/**. Narrowed after run 5 (coordinator decision): u_max is shelved to P2-07, not part of the qualifying window; qualified_windows names the sole actively-tested window.",
+  "base_product_sha": "7875430f73d28a043806742164ab478145dedafe",
+  "final_fsr_adapter_sha": "b90a5c3fd7cfa452f23e8a807cc7bd61dc934bbf",
+  "fsr_upstream_sha": "51140b71d9e5df1de231b33ec20ee089b18bebec",
+  "provider_pin_path": "scripts/source_patch_provider_pin.json",
+  "provider_pin_sha256": "97a354ba6ae96178e4f3073b6248c18d122c47e4937933fd57009af0d47de8c3",
+  "qualified_windows": ["u_min"],
+  "cells": {
+    "u_min": {
+      "unity_version": "6000.0.65f1",
+      "unity_revision": "a18e2220bd50",
+      "utf_version": "1.6.0"
+    },
+    "u_max": {
+      "unity_version": "6000.5.10f1",
+      "unity_revision": "3bd4f66ad299",
+      "utf_version": "1.6.0",
+      "status": "shelved",
+      "shelved_to": "P2-07",
+      "shelved_reason": "Run 5 (33387852561): both max-linux-x64 and max-macos-arm64 hung in the fixture-free, package-absent pilot after licensing succeeded cleanly, before any asset import — unaffected by the dialog-suppression fix, preseed, or the version-mismatch fix, all independently confirmed working on u_min in the same run. The editor build reports Branch: 6000.5/staging (a pre-release branch, not a stable release branch). Endpoint move requires new matrix evidence per §1.1; not attempted again without a specific fix."
+    }
+  },
+  "installer": {
+    "action": "buildalon/unity-setup",
+    "action_pinned_sha": "30fcbcb56c10ea5d64298e970d952b8d29bc268b",
+    "hub_version": "3.19.5",
+    "license_action": "buildalon/activate-unity-license",
+    "license_action_pinned_sha": "e0d245d0787b7b9931b56ccbde3b508f6b70f1af",
+    "license_type": "Personal"
+  },
+  "harmony_sha256": "77e6901ecc606aec66c2a972782a3779e4f50c037d2d165eb7ececdd4d8f794d"
+}

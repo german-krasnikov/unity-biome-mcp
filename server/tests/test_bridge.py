@@ -299,12 +299,15 @@ class TestUnityBridge:
 
         with patch("unity_mcp.bridge.asyncio.open_connection", side_effect=open_connection_side_effect):
             with patch("unity_mcp.bridge.asyncio.sleep", new_callable=AsyncMock):
-                bridge = UnityBridge(probe=idle_probe)
+                bridge = UnityBridge(
+                    probe=idle_probe,
+                    is_retry_safe=lambda cmd: cmd == "get_status",
+                )
                 await bridge.connect()
                 # Patch _read_response to raise TimeoutError for normal sends
                 with patch.object(bridge, "_read_response", side_effect=asyncio.TimeoutError):
                     with pytest.raises((TimeoutError, ConnectionError), match="Unity not responding"):
-                        await bridge.send("test", {})
+                        await bridge.send("get_status", {})
 
     async def test_bridge_retry_respects_max_retries(self):
         """Bridge doesn't retry forever on compilation busy."""
@@ -357,7 +360,10 @@ async def test_idle_retry_gets_one_grace_attempt():
 
     with patch("unity_mcp.bridge.asyncio.open_connection", side_effect=failing_open):
         with patch("unity_mcp.bridge.asyncio.sleep", new_callable=AsyncMock):
-            bridge = UnityBridge(probe=idle_probe)
+            bridge = UnityBridge(
+                probe=idle_probe,
+                is_retry_safe=lambda cmd: cmd == "get_status",
+            )
             # This test replaces asyncio.sleep process-wide. A reconnect starts
             # the production heartbeat, whose loop would otherwise spin without
             # yielding and accumulate unbounded AsyncMock call history.
@@ -365,7 +371,7 @@ async def test_idle_retry_gets_one_grace_attempt():
             await bridge.connect()
             with patch.object(bridge, "_read_response", side_effect=ConnectionError("lost")):
                 with pytest.raises(ConnectionError):
-                    await bridge.send("test", {})
+                    await bridge.send("get_status", {})
 
     # attempt 0 → 1 grace retry → attempt 1 → give up (idle probe, no more retries)
     # initial connect + 1 retry = 2 open_connection calls
@@ -405,7 +411,10 @@ async def test_domain_reload_pins_busy_for_all_retries():
 
     with patch("unity_mcp.bridge.asyncio.open_connection", side_effect=fake_open):
         with patch("unity_mcp.bridge.asyncio.sleep", new_callable=AsyncMock):
-            bridge = UnityBridge(probe=probe)
+            bridge = UnityBridge(
+                probe=probe,
+                is_retry_safe=lambda cmd: cmd == "run_tests",
+            )
             bridge.start_heartbeat = Mock()
             await bridge.connect()
             with pytest.raises((ConnectionError, TimeoutError)):
@@ -438,12 +447,15 @@ async def test_non_domain_reload_does_not_pin_busy():
 
     with patch("unity_mcp.bridge.asyncio.open_connection", side_effect=fake_open):
         with patch("unity_mcp.bridge.asyncio.sleep", new_callable=AsyncMock):
-            bridge = UnityBridge(probe=probe)
+            bridge = UnityBridge(
+                probe=probe,
+                is_retry_safe=lambda cmd: cmd == "get_status",
+            )
             bridge.start_heartbeat = Mock()
             await bridge.connect()
             with patch.object(bridge, "_read_response", side_effect=ConnectionError("plain")):
                 with pytest.raises(ConnectionError):
-                    await bridge.send("test", {})
+                    await bridge.send("get_status", {})
 
     # idle probe: attempt 0 → 1 grace → give up = 2 open_connection calls total
     assert call_count == 2, (

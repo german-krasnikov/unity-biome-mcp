@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 from mcp.server.fastmcp.exceptions import ToolError
 
 from unity_mcp.server import asset, material
@@ -254,3 +254,126 @@ async def test_asset_class_name_maps_to_class_key(mock_bridge):
     args = mock_bridge.send.call_args[0][1]
     assert args["class"] == "GameConfig"
     assert "class_name" not in args
+
+
+# ---------------------------------------------------------------------------
+# P0-30: freeze asset.write_text changeset-capture baseline (OFF, pre-SourcePatch).
+# Direct asset(action="write_text") goes through _write_text_with_capture(),
+# which is the ONLY Python entry point that records a changeset op. The
+# `batch` tool (server/tests/test_source_patch_boundary.py) sends raw command
+# text straight to Unity and never calls this capture path — that asymmetry
+# is the real current boundary between the two .cs effect entry points and is
+# intentionally left unmasked here (see Plans/HotReload P0-30).
+# ---------------------------------------------------------------------------
+
+async def test_asset_write_text_without_changeset_wiring_still_forwards(mock_bridge, monkeypatch):
+    """Default unit-test state: coordinator/store singletons are unwired (None).
+    write_text must still forward to Unity unchanged and must not raise."""
+    monkeypatch.setattr("unity_mcp.changeset_coordinator.get_coordinator", lambda: None)
+    monkeypatch.setattr("unity_mcp.changeset_store.get_store", lambda: None)
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:write\npath:Assets/f.cs\nsize:4"})
+    await asset(action="write_text", path="Assets/f.cs", content="data")
+    args = mock_bridge.send.call_args[0][1]
+    assert args == {"action": "write_text", "path": "Assets/f.cs", "content": "data"}
+
+
+async def test_asset_write_text_appends_changeset_op_when_content_changes(mock_bridge, monkeypatch, tmp_path):
+    """Direct write_text records exactly one append_file_op when the on-disk
+    bytes actually differ before vs. after send() — the real Unity write case."""
+    from unity_mcp.changeset import ContentRef
+    from unity_mcp.changeset_store import ContentStore
+
+    target = tmp_path / "Script.cs"
+    target.write_text("old content", encoding="utf-8")
+    store = ContentStore(str(tmp_path / "blobs"))
+    coordinator = Mock()
+
+    monkeypatch.setattr("unity_mcp.changeset_coordinator.get_coordinator", lambda: coordinator)
+    monkeypatch.setattr("unity_mcp.changeset_store.get_store", lambda: store)
+
+    async def _fake_send(cmd, args, **kwargs):
+        # Mirrors what the real Unity write_text handler does to disk.
+        target.write_text(args["content"], encoding="utf-8")
+        return {"ok": True, "data": "ok:write"}
+
+    mock_bridge.send = AsyncMock(side_effect=_fake_send)
+
+    await asset(action="write_text", path=str(target), content="new content")
+
+    coordinator.append_file_op.assert_called_once_with(
+        "asset.write_text", str(target), ContentRef.of("old content"), ContentRef.of("new content"))
+
+
+async def test_asset_write_text_no_changeset_op_when_content_unchanged(mock_bridge, monkeypatch, tmp_path):
+    """Direct write_text records NOTHING when before/after on-disk bytes are
+    identical — e.g. a mocked bridge that never actually touches disk, or a
+    real write that happens to round-trip the same content."""
+    from unity_mcp.changeset_store import ContentStore
+
+    target = tmp_path / "Script.cs"
+    target.write_text("same content", encoding="utf-8")
+    store = ContentStore(str(tmp_path / "blobs"))
+    coordinator = Mock()
+
+    monkeypatch.setattr("unity_mcp.changeset_coordinator.get_coordinator", lambda: coordinator)
+    monkeypatch.setattr("unity_mcp.changeset_store.get_store", lambda: store)
+
+    # _send does NOT touch disk here — mirrors every other unit test in this file.
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:write"})
+
+    await asset(action="write_text", path=str(target), content="same content")
+
+    coordinator.append_file_op.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# P0-50: route a `.cs` write through source_patch_write when Source Patch
+# mutation is armed, otherwise stay on the legacy `asset` route. Mutation is
+# unconditionally OFF today — _source_patch_mutation_is_on() always returns
+# False, since no editor(mutation_mode) command or coordinator wiring exists
+# yet (P0-70). These tests force the seam True to prove the routing/capture
+# logic itself ahead of that wiring. See §3.2/§6 P0-50 in
+# Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md.
+# ---------------------------------------------------------------------------
+
+async def test_asset_write_text_cs_routes_to_source_patch_when_mutation_armed(mock_bridge, monkeypatch):
+    monkeypatch.setattr("unity_mcp.tools.asset._source_patch_mutation_is_on", lambda: True)
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:write"})
+
+    await asset(action="write_text", path="Assets/f.cs", content="data")
+
+    cmd, args = mock_bridge.send.call_args[0][:2]
+    assert cmd == "source_patch_write"
+    assert args == {"path": "Assets/f.cs", "content": "data"}
+
+
+async def test_asset_write_text_cs_stays_legacy_when_mutation_off(mock_bridge, monkeypatch):
+    monkeypatch.setattr("unity_mcp.tools.asset._source_patch_mutation_is_on", lambda: False)
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:write"})
+
+    await asset(action="write_text", path="Assets/f.cs", content="data")
+
+    cmd, args = mock_bridge.send.call_args[0][:2]
+    assert cmd == "asset"
+    assert args == {"action": "write_text", "path": "Assets/f.cs", "content": "data"}
+
+
+async def test_asset_write_text_non_cs_stays_legacy_even_when_mutation_armed(mock_bridge, monkeypatch):
+    """§6 P0-50 requirement 4: non-.cs is never rerouted, regardless of state."""
+    monkeypatch.setattr("unity_mcp.tools.asset._source_patch_mutation_is_on", lambda: True)
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:write"})
+
+    await asset(action="write_text", path="Assets/f.txt", content="data")
+
+    cmd, _args = mock_bridge.send.call_args[0][:2]
+    assert cmd == "asset"
+
+
+async def test_asset_write_text_cs_sends_exactly_once_regardless_of_route(mock_bridge, monkeypatch):
+    """§3.2: never probes by writing first — exactly one send either way."""
+    monkeypatch.setattr("unity_mcp.tools.asset._source_patch_mutation_is_on", lambda: True)
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok:write"})
+
+    await asset(action="write_text", path="Assets/f.cs", content="data")
+
+    assert mock_bridge.send.call_count == 1
