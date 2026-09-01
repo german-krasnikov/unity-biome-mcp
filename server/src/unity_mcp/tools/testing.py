@@ -358,7 +358,13 @@ async def run_tests(
             )
             if not recoverable_prepared:
                 try:
-                    current = await get_test_run(existing_status["run_id"])
+                    # Raw fetch, not the validating get_test_run wrapper: this
+                    # branch does its own correlation + intent check right
+                    # below, same reason run_tests_wait bypasses it (see
+                    # _fetch_test_run_json docstring) -- a PROTOCOL-ERROR
+                    # string here would otherwise fail _decode_snapshot's
+                    # JSON parse and get masked as "intent-check-invalid".
+                    current = await _fetch_test_run_json(existing_status["run_id"])
                 except Exception as exc:
                     return _unknown_start(
                         stable_request_id, f"intent-check-{type(exc).__name__}"
@@ -524,7 +530,7 @@ async def run_tests_wait(
                 break
             try:
                 current = await asyncio.wait_for(
-                    get_test_run(run_id), timeout=remaining
+                    _fetch_test_run_json(run_id), timeout=remaining
                 )
             except TimeoutError:
                 break
@@ -605,8 +611,15 @@ async def resolve_test_request(request_id: str) -> str:
     return await _send("resolve_test_request", {"request_id": request_id})
 
 
-async def get_test_run(run_id: str) -> str:
-    """Return the durable JSON snapshot for one exact test run."""
+async def _fetch_test_run_json(run_id: str) -> str:
+    """Return the raw durable JSON snapshot for one exact test run.
+
+    Unvalidated by design: ``run_tests_wait`` polls through this directly and
+    does its own richer, intent-aware validation right after. Routing it
+    through the fail-closed ``get_test_run`` wrapper instead would let a
+    ``PROTOCOL-ERROR`` string get silently swallowed by ``_decode_snapshot``'s
+    non-JSON path and surface as a masked ``TIMEOUT``.
+    """
     handle = _registry.get(run_id)
     if handle is not None and handle.result is not None:
         return handle.result  # cached terminal result
@@ -634,6 +647,35 @@ async def get_test_run(run_id: str) -> str:
 
     _try_update_handle_from_result(run_id, result)
     return result
+
+
+async def get_test_run(run_id: str) -> str:
+    """Return the durable JSON snapshot for one exact test run.
+
+    Fails closed on terminal-invalid evidence: a snapshot claiming
+    ``state == "terminal"`` that doesn't pass ARC-1/ARC-3 validation (an
+    honest zero-match filter, a stalled/unresponsive terminal claim, a
+    corrupted count) comes back as
+    ``PROTOCOL-ERROR|run_id=...|reason=...|snapshot=...`` instead of the raw
+    snapshot -- closes the direct-poll path around ``run_tests_wait``'s own
+    validation.
+    """
+    result = await _fetch_test_run_json(run_id)
+    try:
+        data = json.loads(result)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return result
+    if not isinstance(data, dict) or data.get("state") != "terminal":
+        return result
+    reason = _terminal_snapshot_error(
+        data, mode=str(data.get("mode") or ""), filter_name=str(data.get("filter") or "")
+    )
+    if reason is None:
+        return result
+    return (
+        f"PROTOCOL-ERROR|run_id={run_id}|reason={reason}"
+        f"|snapshot={_compact_snapshot(result)}"
+    )
 
 
 async def cancel_test_run(run_id: str) -> str:

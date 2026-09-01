@@ -56,7 +56,7 @@ async def test_none_snapshot_is_not_terminal():
     })
     with patch.object(testing, "run_tests", _started), \
          patch.object(
-             testing, "get_test_run", AsyncMock(side_effect=["none", terminal])
+             testing, "_fetch_test_run_json", AsyncMock(side_effect=["none", terminal])
          ), patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQ, timeout=2.0, poll_interval=1.0
@@ -67,7 +67,7 @@ async def test_none_snapshot_is_not_terminal():
 
 async def test_all_none_timeout_preserves_exact_run_id():
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(return_value="none")), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value="none")), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQ, timeout=0.001, poll_interval=1.0
@@ -89,7 +89,7 @@ async def test_multiple_reload_failures_do_not_replace_last_snapshot():
         ConnectionError("reload 2"),
     ])
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", poll), \
+         patch.object(testing, "_fetch_test_run_json", poll), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQ, timeout=3.0, poll_interval=1.0
@@ -113,7 +113,7 @@ async def test_timeout_includes_health_streak_after_threshold():
     stall = _running_with_health("suspected_stall")
     poll = AsyncMock(side_effect=[stall, stall, stall])
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", poll), \
+         patch.object(testing, "_fetch_test_run_json", poll), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQ, timeout=2.0, poll_interval=1.0
@@ -129,7 +129,7 @@ async def test_timeout_omits_health_streak_below_threshold():
     """A single stall poll must not trigger the diagnostic suffix."""
     stall = _running_with_health("suspected_stall")
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(return_value=stall)), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value=stall)), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQ, timeout=0.001, poll_interval=1.0
@@ -145,7 +145,7 @@ async def test_health_streak_resets_on_healthy_poll():
     healthy = _running_with_health("healthy")
     poll = AsyncMock(side_effect=[stall, stall, healthy, stall])
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", poll), \
+         patch.object(testing, "_fetch_test_run_json", poll), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQ, timeout=3.0, poll_interval=1.0
@@ -165,7 +165,7 @@ async def test_health_streak_accumulates_on_swallowed_poll_exception():
         ConnectionError("reload 3"),
     ])
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", poll), \
+         patch.object(testing, "_fetch_test_run_json", poll), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQ, timeout=2.0, poll_interval=1.0

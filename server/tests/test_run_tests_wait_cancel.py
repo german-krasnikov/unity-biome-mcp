@@ -75,7 +75,7 @@ async def _started(mode, filter=None, request_id=None):
 async def test_wait_cancelled_during_poll_preserves_run_identity():
     """CancelledError from get_test_run mid-poll propagates; never swallowed by the loop."""
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(side_effect=asyncio.CancelledError())), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(side_effect=asyncio.CancelledError())), \
          patch("asyncio.sleep", AsyncMock()):
         with pytest.raises(asyncio.CancelledError):
             await testing.run_tests_wait(
@@ -137,7 +137,7 @@ async def test_wait_reconnect_mid_poll_resumes_same_run_id():
         terminal,
     ]
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(side_effect=polls)) as get_run, \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(side_effect=polls)) as get_run, \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=10.0, poll_interval=1.0
@@ -156,7 +156,7 @@ async def test_wait_300s_timeout_terminates_within_deadline():
     running = _snapshot("running")
     started_at = time.monotonic()
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(return_value=running)), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value=running)), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=0.05, poll_interval=1.0

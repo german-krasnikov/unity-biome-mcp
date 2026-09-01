@@ -80,7 +80,7 @@ async def _started(mode, filter=None, request_id=None):
 async def test_wait_returns_only_the_terminal_snapshot_for_exact_run():
     polls = [_snapshot("running"), _snapshot("terminal", "passed")]
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(side_effect=polls)) as get_run, \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(side_effect=polls)) as get_run, \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=2.0, poll_interval=1.0
@@ -106,7 +106,7 @@ async def test_wait_polls_exact_run_before_first_sleep():
         order.append(("sleep", None))
 
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", poll), \
+         patch.object(testing, "_fetch_test_run_json", poll), \
          patch("asyncio.sleep", sleep):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=10.0, poll_interval=5.0
@@ -127,7 +127,7 @@ async def test_finalizing_dispatch_failure_is_polled_by_exact_run_id():
     terminal = _snapshot("terminal", "dispatch_failed")
     get_run = AsyncMock(return_value=terminal)
     with patch.object(testing, "run_tests", finalizing), \
-         patch.object(testing, "get_test_run", get_run), \
+         patch.object(testing, "_fetch_test_run_json", get_run), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=1.0, poll_interval=1.0
@@ -152,7 +152,7 @@ async def test_lost_ack_resolves_correlated_terminal_status_then_polls():
              testing, "resolve_test_request", AsyncMock(return_value=status)
          ), \
          patch.object(
-             testing, "get_test_run", AsyncMock(return_value=terminal)
+             testing, "_fetch_test_run_json", AsyncMock(return_value=terminal)
          ) as get_run, \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
@@ -167,7 +167,7 @@ async def test_lost_ack_resolves_correlated_terminal_status_then_polls():
 async def test_timeout_is_nonterminal_and_keeps_identity_and_last_snapshot():
     running = _snapshot("running")
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(return_value=running)), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value=running)), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=0.001, poll_interval=1.0
@@ -187,7 +187,7 @@ async def test_blocked_preflight_is_propagated_without_polling():
 
     poll = AsyncMock()
     with patch.object(testing, "run_tests", blocked), \
-         patch.object(testing, "get_test_run", poll):
+         patch.object(testing, "_fetch_test_run_json", poll):
         with pytest.raises(ToolError, match="BLOCKED"):
             await testing.run_tests_wait(request_id=REQUEST_ID)
 
@@ -202,7 +202,7 @@ async def test_poll_transport_failure_keeps_last_snapshot_and_recovers():
         _snapshot("terminal", "failed"),
     ]
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(side_effect=polls)), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(side_effect=polls)), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=3.0, poll_interval=1.0
@@ -225,7 +225,7 @@ async def test_lost_start_ack_is_resolved_before_exact_polling():
              "resolve_test_request",
              AsyncMock(side_effect=["none", ACK]),
          ) as resolve, \
-         patch.object(testing, "get_test_run", AsyncMock(return_value=terminal)) as get_run, \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value=terminal)) as get_run, \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=3.0, poll_interval=1.0
@@ -256,7 +256,7 @@ async def test_lost_ack_prepared_intent_is_resumed_with_same_immutable_payload()
              testing, "resolve_test_request", AsyncMock(return_value=prepared)
          ) as resolve, \
          patch.object(
-             testing, "get_test_run", AsyncMock(return_value=terminal)
+             testing, "_fetch_test_run_json", AsyncMock(return_value=terminal)
          ) as get_run:
         result = await testing.run_tests_wait(
             mode="EditMode",
@@ -360,7 +360,7 @@ async def test_snapshot_identity_mismatch_is_protocol_error():
         "outcome": "passed",
     })
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(return_value=mismatched)), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value=mismatched)), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=1.0, poll_interval=1.0
@@ -389,7 +389,7 @@ async def test_snapshot_requires_both_correlation_identities(
     snapshot.pop(missing_field)
     with patch.object(testing, "run_tests", _started), \
          patch.object(
-             testing, "get_test_run", AsyncMock(return_value=json.dumps(snapshot))
+             testing, "_fetch_test_run_json", AsyncMock(return_value=json.dumps(snapshot))
          ):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=1.0, poll_interval=1.0
@@ -413,7 +413,7 @@ async def test_terminal_snapshot_requires_explicit_completion_evidence(field, re
     snapshot.pop(field)
     with patch.object(testing, "run_tests", _started), \
          patch.object(
-             testing, "get_test_run", AsyncMock(return_value=json.dumps(snapshot))
+             testing, "_fetch_test_run_json", AsyncMock(return_value=json.dumps(snapshot))
          ):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=1.0, poll_interval=1.0
@@ -428,7 +428,7 @@ async def test_terminal_snapshot_must_match_requested_mode_and_filter():
     snapshot["filter"] = "Old.Filter"
     with patch.object(testing, "run_tests", _started), \
          patch.object(
-             testing, "get_test_run", AsyncMock(return_value=json.dumps(snapshot))
+             testing, "_fetch_test_run_json", AsyncMock(return_value=json.dumps(snapshot))
          ):
         result = await testing.run_tests_wait(
             filter="New.Filter", request_id=REQUEST_ID, timeout=1.0, poll_interval=1.0
@@ -575,7 +575,7 @@ async def test_wait_accepts_unfiltered_editmode_one_test_terminal_snapshot():
 
     with patch.object(testing, "run_tests", _started), patch.object(
         testing,
-        "get_test_run",
+        "_fetch_test_run_json",
         AsyncMock(return_value=json.dumps(snapshot)),
     ):
         result = await testing.run_tests_wait(
@@ -615,7 +615,7 @@ async def test_wait_timeout_bounds_a_hung_poll_by_wall_clock():
 
     started_at = time.monotonic()
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", hung_poll):
+         patch.object(testing, "_fetch_test_run_json", hung_poll):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=0.03, poll_interval=0.01
         )
