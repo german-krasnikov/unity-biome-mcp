@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, patch
 from mcp.server.fastmcp.exceptions import ToolError
 
 import unity_mcp.tools.code_intel as _ci
+from unity_mcp import editor_log
 from unity_mcp.bridge import DomainReloadError
 
 
@@ -224,11 +225,14 @@ async def test_malformed_status_treated_as_idle():
     assert "compile clean" in result
 
 
-async def test_get_errors_connection_failure_returns_clean():
-    """compile_status idle, get_compile_errors raises ConnectionError → 'compile clean'."""
+# ARC-6 T3: declared red-flip (ARC-19 §3) — was
+# test_get_errors_connection_failure_returns_clean, asserting "compile clean" in result.
+# A dead TCP link during error fetch must never be reported as a clean compile.
+async def test_get_errors_connection_failure_returns_unreachable():
+    """compile_status idle, get_compile_errors raises ConnectionError → UNITY_UNREACHABLE, not clean."""
     _ci._send = _make_send(["idle|2.0"], errors_response=ConnectionError("tcp gone"))
     result = await _ci.await_compile(timeout=60.0)
-    assert "compile clean" in result
+    assert result == editor_log.UNITY_UNREACHABLE
 
 
 async def test_get_errors_tool_error_propagates():
@@ -264,6 +268,28 @@ async def test_await_compile_uses_sync_status_epoch():
     # P3: sentinel must NOT leak as an error payload
     assert result != "No compilation errors", "sentinel must be stripped, not returned as error"
     assert "No compilation errors" not in result
+
+
+# ARC-6 T3: epoch-ready path (code_intel.py ~L193) must surface UNITY_UNREACHABLE,
+# not silently report "compile clean (sync)", when the TCP link dies mid-fetch.
+async def test_await_compile_epoch_ready_unreachable():
+    """Epoch-aware ready path + dead TCP during get_compile_errors → UNITY_UNREACHABLE."""
+    call_log = []
+
+    async def _epoch_send(cmd, args=None, **kwargs):
+        call_log.append(cmd)
+        if cmd == "sync_status":
+            if call_log.count("sync_status") == 1:
+                return "epoch=5|state=compiling|dur=1.2"
+            return "epoch=5|state=ready"
+        if cmd == "get_compile_errors":
+            raise ConnectionError("tcp gone")
+        raise AssertionError(f"Unexpected: {cmd}")
+
+    _ci._send = _epoch_send
+    result = await _ci.await_compile(timeout=60.0)
+    assert result == editor_log.UNITY_UNREACHABLE
+    assert result != "compile clean (sync)"
 
 
 # Fallback: sync_status unavailable → compile_status fallback still works
@@ -572,3 +598,44 @@ async def test_await_compile_settle_returns_clean_if_still_idle():
         result = await _ci.await_compile(timeout=30.0)
 
     assert "compile clean" in result
+
+
+# ---------------------------------------------------------------------------
+# ARC-6 T3: _await_compile_generation must surface UNITY_UNREACHABLE, not
+# silently report clean, when get_compile_errors hits a dead TCP link.
+# ---------------------------------------------------------------------------
+
+async def test_await_compile_generation_no_gen_info_unreachable():
+    """Old plugin (no gen field) + dead TCP during error fetch → UNITY_UNREACHABLE.
+
+    Covers code_intel.py's "no gen info" branch — previously fell back to
+    'compile clean (no gen info)' on a dead read.
+    """
+    async def _send(cmd, args=None, **kwargs):
+        if cmd == "sync_status":
+            return "epoch=0|state=idle"
+        if cmd == "get_compile_errors":
+            raise ConnectionError("tcp gone")
+        raise AssertionError(f"Unexpected: {cmd}")
+
+    _ci._send = _send
+    result = await _ci._await_compile_generation(5.0, 1)
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
+async def test_await_compile_generation_reached_unreachable():
+    """Target generation reached + dead TCP during error fetch → UNITY_UNREACHABLE.
+
+    Covers code_intel.py's "gen >= expected" branch — previously fell back to
+    'compile clean (gen N)' on a dead read.
+    """
+    async def _send(cmd, args=None, **kwargs):
+        if cmd == "sync_status":
+            return "gen=1|epoch=0|state=idle"
+        if cmd == "get_compile_errors":
+            raise ConnectionError("tcp gone")
+        raise AssertionError(f"Unexpected: {cmd}")
+
+    _ci._send = _send
+    result = await _ci._await_compile_generation(5.0, 1)
+    assert result == editor_log.UNITY_UNREACHABLE
