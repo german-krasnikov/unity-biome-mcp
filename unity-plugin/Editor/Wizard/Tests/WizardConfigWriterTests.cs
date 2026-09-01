@@ -127,15 +127,20 @@ namespace UnityMCP.Editor.Tests
             // ARC-13 T1: the non-versioned call site (AiConfigScreen "Write Config"
             // button -> Merge) shares MergeWithEntry with ProjectConfigFormats.Merge —
             // an unrelated "cwd" key a user hand-added must survive here too.
+            // OLD_URL_MARKER (not the real GitInstallUrl) proves args actually gets
+            // patched: with the real URL pre-seeded, old and new args values were
+            // identical, so a no-op Merge that touches nothing would still "pass".
+            const string OldUrlMarker = "OLD_URL_MARKER";
             var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
                 + "\"command\": \"uvx\","
-                + "\"args\": [\"--from\", \"" + WizardConfigWriter.GitInstallUrl + "\", \"unity-biome-mcp\"],"
+                + "\"args\": [\"--from\", \"" + OldUrlMarker + "\", \"unity-biome-mcp\"],"
                 + "\"cwd\": \"/custom/path\""
                 + "}}}";
 
             var result = WizardConfigWriter.Merge(existing, 9500);
 
             StringAssert.Contains("/custom/path", result, "unknown cwd key must survive a Merge");
+            StringAssert.DoesNotContain(OldUrlMarker, result, "args value must actually be replaced, not a no-op merge");
         }
 
         // ── Fresh — port and key presence ─────────────────────────────────────
