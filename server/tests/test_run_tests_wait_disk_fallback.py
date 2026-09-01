@@ -17,11 +17,18 @@ import unity_mcp.tools.testing as testing
 
 
 @pytest.fixture(autouse=True)
-def _restore_get_slot():
-    """Isolate module-global _get_slot across tests in this file."""
-    original = testing._get_slot
+def _restore_testing_globals():
+    """Isolate testing.py's module globals across tests in this file.
+
+    register() rebinds _send/_args/_get_slot (bind() pattern, same as every
+    tools/*.py module) — unity_mcp.server.run_tests is the *same* function
+    object, reading these globals at call time, so leaving them mutated here
+    corrupts every later test-file's real send() binding (cross-test
+    pollution, not just within this file).
+    """
+    original = (testing._send, testing._args, testing._get_slot)
     yield
-    testing._get_slot = original
+    testing._send, testing._args, testing._get_slot = original
 
 
 def test_resolve_project_path_none_without_get_slot():
