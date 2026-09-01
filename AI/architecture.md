@@ -286,6 +286,39 @@ depends on the main Editor assembly, never the reverse.
 - Validate cross-language mutability, runtime, registration, and schema parity
   whenever a public tool contract changes.
 
+## Source Patch (Optional Mutation Mode)
+
+**Scope:** Optional FSR-based body-only source patching. Enabled via `editor(action="mutation_mode")` intent and optional `com.unity-biome-mcp.source-patch.fsr` adapter package.
+
+**Architecture boundary:**
+
+```
+Public MCP tools (editor / asset / mcp_status)
+       ↓
+Python internal router (_source_patch_mutation_is_on)
+       ↓
+C# SourcePatchHost (seam in asset.write_text path)
+       ↓
+Neutral SourcePatch asmdef (state machine, coordinator, no provider dependency)
+       ↓
+Optional FSR adapter (Roslyn body classifier, Harmony detour, exact-target loader)
+```
+
+**State machine:** `Unavailable` (package absent) → `Off` (default) → `OnReady/Busy` (intent ON, provider ready) ↔ `Recovery` (failed write). One causal domain reload on `Disabling → Off`.
+
+**Limitations (release-tier):**
+- Body-only mutations only (existing sync non-generic methods in `Assets/`)
+- MonoBehaviour-derived mutable types unsupported (fail-closed Recovery)
+- Async/iterator/lambda/local-fn/generic/overloaded methods rejected in preflight
+- Single file at a time; no multi-file transactions
+- No Play Mode mutations; auto-OFF on domain reload
+- Mono backend only; deterministic one-at-a-time operations
+- Qualified window: `6000.0.65f1` (Mono). Extension beyond this window is P2-07 (reviewed compatibility change).
+
+**CI qualification:** Two required-pass cells (Unity 6000.0.65f1 × macOS ARM64, Linux x64) per `.github/workflows/fsr-qualification.yml`. Windows x64 documented as INFRASTRUCTURE_BLOCKED (headed-GUI unavailable on GH-hosted runners); engineering-supported with CI qualification pending. Adapter SHA pinned via `scripts/source_patch_provider_pin.json`.
+
+See `.claude/skills/mutation-mode.md` for contributor guidance; `docs/features/mutation-mode.md` for user workflow.
+
 ## Related
 
 - [`mcp-server.md`](mcp-server.md) — Python server implementation details

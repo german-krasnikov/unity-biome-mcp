@@ -18,5 +18,6 @@ Guides for common tasks and advanced patterns.
 | [Prefab Editing](prefab-edit.md) | Edit prefabs in isolation |
 | [Region Selection](region-tool.md) | Spatial queries and selection |
 | [Code Execution](code-execution.md) | Run C# in the Unity Editor |
+| [Mutation Mode](mutation-mode.md) | Faster method editing with in-memory patching (optional) |
 | [Skills & Templates](session-skills.md) | Reusable session-level guidance |
 | [Test Reliability](../testing-reliability.md) | Run NUnit tests with durable identity and recover safely |
