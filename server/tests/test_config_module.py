@@ -706,3 +706,112 @@ def test_project_merge_preserves_existing_servers(tmp_path):
     data = json.loads(cfg.read_text(encoding="utf-8"))
     assert "filesystem" in data["mcpServers"]
     assert "unity-biome-mcp" in data["mcpServers"]
+
+
+# ─── merger.py: pin support (ARC-0b T3) ──────────────────────────────────────
+
+def test_is_entry_pinned_false_when_file_missing(tmp_path):
+    from unity_mcp.config import merger
+    assert merger.is_entry_pinned(tmp_path / "nope.json") is False
+
+
+def test_is_entry_pinned_false_when_absent(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": []}}}), encoding="utf-8")
+    assert merger.is_entry_pinned(cfg) is False
+
+
+def test_is_entry_pinned_true_when_pin_true(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": [], "_pin": True}}
+    }), encoding="utf-8")
+    assert merger.is_entry_pinned(cfg) is True
+
+
+def test_is_entry_pinned_ignores_sibling_entry_pin(tmp_path):
+    """A sibling MCP server's own "_pin" must never leak into our classification."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({
+        "mcpServers": {
+            "other-mcp": {"command": "x", "_pin": True},
+            "unity-biome-mcp": {"command": "uvx", "args": []},
+        }
+    }), encoding="utf-8")
+    assert merger.is_entry_pinned(cfg) is False
+
+
+def test_unpin_entry_removes_pin_key(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": [], "_pin": True}}
+    }), encoding="utf-8")
+
+    removed = merger.unpin_entry(cfg)
+
+    assert removed is True
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    assert "_pin" not in data["mcpServers"]["unity-biome-mcp"]
+    assert data["mcpServers"]["unity-biome-mcp"]["command"] == "uvx"
+
+
+def test_unpin_entry_returns_false_when_not_pinned(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    original = json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": []}}})
+    cfg.write_text(original, encoding="utf-8")
+
+    assert merger.unpin_entry(cfg) is False
+    assert cfg.read_text(encoding="utf-8") == original  # untouched, no rewrite
+
+
+def test_is_toml_pinned_false_without_marker(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    cfg.write_text("[mcp_servers.unity-biome-mcp]\ncommand = 'uvx'\nargs = []\n", encoding="utf-8")
+    assert merger.is_toml_pinned(cfg) is False
+
+
+def test_is_toml_pinned_false_when_file_missing(tmp_path):
+    from unity_mcp.config import merger
+    assert merger.is_toml_pinned(tmp_path / "nope.toml") is False
+
+
+def test_is_toml_pinned_true_with_marker(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        "# unity-biome-mcp generated v0.54.1 pinned\n[mcp_servers.unity-biome-mcp]\ncommand = 'uvx'\nargs = []\n",
+        encoding="utf-8",
+    )
+    assert merger.is_toml_pinned(cfg) is True
+
+
+def test_pin_toml_entry_writes_marker(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    merger.merge_toml_mcp(cfg, {"command": "uvx", "args": []})
+
+    merger.pin_toml_entry(cfg, "0.54.1")
+
+    text = cfg.read_text(encoding="utf-8")
+    assert "# unity-biome-mcp generated v0.54.1 pinned\n[mcp_servers.unity-biome-mcp]" in text
+    assert merger.is_toml_pinned(cfg) is True
+
+
+def test_unpin_toml_entry_removes_marker(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    merger.merge_toml_mcp(cfg, {"command": "uvx", "args": []})
+    merger.pin_toml_entry(cfg, "0.54.1")
+
+    merger.unpin_toml_entry(cfg)
+
+    text = cfg.read_text(encoding="utf-8")
+    assert merger.is_toml_pinned(cfg) is False
+    assert "[mcp_servers.unity-biome-mcp]" in text
+    assert "command = 'uvx'" in text

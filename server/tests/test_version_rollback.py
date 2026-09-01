@@ -207,6 +207,91 @@ def test_version_set_single_tool_only(install_mod):
     assert mock_merge.call_count == 1  # only claude-code, not cursor
 
 
+# ── install.py — version --set / --unpin pin support (ARC-0b T3) ────────────
+
+def test_version_set_adds_pin_to_entry(install_mod):
+    """ARC-0b: `version --set` must write "_pin": true into the entry so a
+    later `install.py update` skips it (_reconfigure_detected_clients)."""
+    mock_stop = MagicMock(return_value=True)
+    mock_merge = MagicMock()
+    mock_client = MagicMock()
+    mock_client.stdout_only = False
+    mock_client.is_toml = False
+    mock_client.root_key = "mcpServers"
+    mock_client.entry_transformer = None
+    mock_client.config_path = Path("/tmp/fake.json")
+
+    args = Namespace(set_version="0.54.1", port=0, tool=None, list=False, online=False)
+
+    with patch.object(install_mod, "_load_stop_server", return_value=mock_stop), \
+         patch("unity_mcp.config.resolver.find_port", MagicMock(return_value=9500)), \
+         patch.object(install_mod, "merge_mcp_config", mock_merge), \
+         patch.object(install_mod, "CLIENT_REGISTRY", {"claude-code": mock_client}), \
+         patch.object(install_mod, "detect_installed", return_value=["claude-code"]), \
+         patch.object(install_mod, "backup", MagicMock()):
+        install_mod.cmd_version(args)
+
+    entry_arg = mock_merge.call_args[0][1]
+    assert entry_arg["_pin"] is True
+
+
+def test_version_set_pins_toml_client(install_mod):
+    """Codex (TOML) client: pin_toml_entry must be called with the set version,
+    after the regular merge_toml_mcp write."""
+    mock_stop = MagicMock(return_value=True)
+    mock_merge_toml = MagicMock()
+    mock_pin_toml = MagicMock()
+    mock_client = MagicMock()
+    mock_client.stdout_only = False
+    mock_client.is_toml = True
+    mock_client.root_key = "mcpServers"
+    mock_client.entry_transformer = None
+    mock_client.config_path = Path("/tmp/config.toml")
+
+    args = Namespace(set_version="0.54.1", port=0, tool="codex", list=False, online=False)
+
+    with patch.object(install_mod, "_load_stop_server", return_value=mock_stop), \
+         patch("unity_mcp.config.resolver.find_port", MagicMock(return_value=9500)), \
+         patch.object(install_mod, "merge_toml_mcp", mock_merge_toml), \
+         patch.object(install_mod, "pin_toml_entry", mock_pin_toml), \
+         patch.object(install_mod, "CLIENT_REGISTRY", {"codex": mock_client}), \
+         patch.object(install_mod, "detect_installed", return_value=["codex"]), \
+         patch.object(install_mod, "backup", MagicMock()):
+        install_mod.cmd_version(args)
+
+    assert mock_merge_toml.called
+    assert mock_pin_toml.call_args[0] == (mock_client.config_path, "0.54.1")
+
+
+def test_version_unpin_removes_pin_from_json_config(tmp_path, install_mod):
+    """`version --unpin` must remove "_pin" from the real config file."""
+    cfg = tmp_path / "claude.json"
+    cfg.write_text(json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "old", "args": [], "_pin": True}}
+    }), encoding="utf-8")
+    mock_client = MagicMock()
+    mock_client.stdout_only = False
+    mock_client.is_toml = False
+    mock_client.root_key = "mcpServers"
+    mock_client.config_path = cfg
+
+    args = Namespace(set_version=None, port=0, tool="claude-code", list=False, online=False, unpin=True)
+
+    with patch.object(install_mod, "CLIENT_REGISTRY", {"claude-code": mock_client}):
+        install_mod.cmd_version(args)
+
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    assert "_pin" not in data["mcpServers"]["unity-biome-mcp"]
+    assert data["mcpServers"]["unity-biome-mcp"]["command"] == "old"
+
+
+def test_version_unpin_does_not_require_set_version(install_mod):
+    """--unpin alone (no --set) must not hit the 'Specify --list or --set' failure."""
+    args = Namespace(set_version=None, port=0, tool=None, list=False, online=False, unpin=True)
+    with patch.object(install_mod, "CLIENT_REGISTRY", {}):
+        install_mod.cmd_version(args)  # must not raise SystemExit
+
+
 def test_version_set_rejects_invalid_semver(install_mod, capsys):
     args = Namespace(set_version="bad-version", port=0, tool=None, list=False, online=False)
     with pytest.raises(SystemExit):

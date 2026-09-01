@@ -34,7 +34,10 @@ def _add_server_to_path() -> None:
 try:
     _add_server_to_path()
     from unity_mcp.config.clients import CLIENT_REGISTRY, detect_installed
-    from unity_mcp.config.merger import merge_mcp_config, merge_toml_mcp, SERVER_NAME
+    from unity_mcp.config.merger import (
+        merge_mcp_config, merge_toml_mcp, SERVER_NAME,
+        is_entry_pinned, is_toml_pinned, unpin_entry, pin_toml_entry, unpin_toml_entry,
+    )
     from unity_mcp.config.backup import backup
     from unity_mcp.config.resolver import build_server_entry, GIT_INSTALL_URL
     from unity_mcp.config.validator import validate_config
@@ -44,6 +47,11 @@ except ImportError:
     merge_mcp_config = None  # type: ignore[assignment]
     merge_toml_mcp = None  # type: ignore[assignment]
     SERVER_NAME = "unity-biome-mcp"  # type: ignore[assignment]
+    is_entry_pinned = lambda *a, **kw: False  # type: ignore[assignment]
+    is_toml_pinned = lambda *a, **kw: False  # type: ignore[assignment]
+    unpin_entry = lambda *a, **kw: False  # type: ignore[assignment]
+    pin_toml_entry = lambda *a, **kw: None  # type: ignore[assignment]
+    unpin_toml_entry = lambda *a, **kw: None  # type: ignore[assignment]
     backup = None  # type: ignore[assignment]
     build_server_entry = lambda port=0: {}  # type: ignore[assignment]
     GIT_INSTALL_URL = "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server"
@@ -74,7 +82,8 @@ def _reinstall_uvx() -> None:
 
 def _reconfigure_detected_clients() -> None:
     """Re-assert MCP entry for AI tools already configured. Never adds a new tool,
-    never prompts — matches cmd_update's existing non-interactive contract."""
+    never prompts — matches cmd_update's existing non-interactive contract.
+    Skips any entry pinned via `install.py version --set` (ARC-0b)."""
     if merge_mcp_config is None:
         return
     entry = build_server_entry()
@@ -84,6 +93,11 @@ def _reconfigure_detected_clients() -> None:
             continue
         report = validate_config(key)
         if "not configured" in report or "not found" in report:
+            continue
+        pinned = (is_toml_pinned(client.config_path) if client.is_toml
+                  else is_entry_pinned(client.config_path, root_key=client.root_key))
+        if pinned:
+            ui.info(f"Skipped {client.name} (pinned)")
             continue
         try:
             backup(client.config_path)
@@ -279,8 +293,25 @@ def _plugin_upm_url(version: str) -> str:
     return f"https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin#v{version}"
 
 
+def _unpin_configs(tool_key: str | None) -> None:
+    """Remove the pin marker from configs (ARC-0b: `install.py version --unpin`)."""
+    tools = [tool_key] if tool_key else list(CLIENT_REGISTRY.keys())
+    for key in tools:
+        client = CLIENT_REGISTRY.get(key)
+        if client is None or client.stdout_only:
+            continue
+        try:
+            if client.is_toml:
+                unpin_toml_entry(client.config_path)
+            else:
+                unpin_entry(client.config_path, root_key=client.root_key)
+            ui.ok(f"{key} unpinned")
+        except Exception as e:
+            ui.info(f"Could not unpin {key}: {e}")
+
+
 def cmd_version(args: argparse.Namespace) -> None:
-    """Handle 'version --list' and 'version --set X.Y.Z'."""
+    """Handle 'version --list', 'version --set X.Y.Z', and 'version --unpin'."""
     if getattr(args, "list", False):
         versions = _version_list_offline(_CHANGELOG_PATH)
         ui.info("Available versions (from CHANGELOG.md):")
@@ -289,9 +320,13 @@ def cmd_version(args: argparse.Namespace) -> None:
             print(f"  v{ver}{suffix}")
         return
 
+    if getattr(args, "unpin", False):
+        _unpin_configs(getattr(args, "tool", None))
+        return
+
     set_version = getattr(args, "set_version", None)
     if not set_version:
-        ui.fail("Specify --list or --set X.Y.Z")
+        ui.fail("Specify --list, --set X.Y.Z, or --unpin")
         sys.exit(1)
 
     if not _SEMVER_RE_INSTALL.match(set_version):
@@ -319,6 +354,7 @@ def cmd_version(args: argparse.Namespace) -> None:
 
     # Build pinned entry
     entry = build_server_entry_for_ref(set_version)
+    entry["_pin"] = True
 
     # Re-pin all (or one) detected configs
     tool_key = getattr(args, "tool", None)
@@ -335,6 +371,7 @@ def cmd_version(args: argparse.Namespace) -> None:
                 backup(client.config_path)
             if client.is_toml:
                 merge_toml_mcp(client.config_path, entry)
+                pin_toml_entry(client.config_path, set_version)
             else:
                 merge_mcp_config(
                     client.config_path, entry,
@@ -409,6 +446,8 @@ def main() -> None:
     p_ver.add_argument("--port", type=int, default=0, help="Port of running server to stop first")
     p_ver.add_argument("--force-print-plugin-url", action="store_true",
                        help="Print plugin UPM git URL for the pinned version and exit")
+    p_ver.add_argument("--unpin", action="store_true",
+                       help="Remove the pin so the next update re-syncs to the live version")
 
     sub.add_parser("pull", help="Pull latest code (git clone installs only)")
     sub.add_parser("uninstall", help="Remove Unity Biome MCP")

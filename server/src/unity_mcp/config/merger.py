@@ -23,6 +23,24 @@ _UNITY_MCP_SECTION_RE = re.compile(
     re.MULTILINE,
 )
 
+# ARC-0b Task 3: pin markers. JSON uses a "_pin": true sibling of "_v" inside our
+# entry (checked directly via dict lookup, no regex needed — see is_entry_pinned).
+# TOML has no JSON parser to lean on, so a comment line directly above our section
+# carries the marker, mirroring the C# writer's format exactly (ProjectConfigToml.cs):
+#   # unity-biome-mcp generated v0.54.1 pinned
+# The lookahead scopes the marker to OUR section only, same guarantee as the JSON
+# side's FindOurEntry — a sibling server's comment can never leak into our pin state.
+_TOML_MARKER_RE = re.compile(
+    r"^# unity-(?:biome-mcp|mcp) generated v[\d.]+(?: pinned)?\n"
+    r"(?=\[mcp_servers\.unity-(?:biome-mcp|mcp)\])",
+    re.MULTILINE,
+)
+_TOML_PIN_RE = re.compile(
+    r"^# unity-(?:biome-mcp|mcp) generated v[\d.]+ pinned\n"
+    r"(?=\[mcp_servers\.unity-(?:biome-mcp|mcp)\])",
+    re.MULTILINE,
+)
+
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
     """Recursively merge overlay into base, mutating and returning base.
@@ -69,6 +87,55 @@ def merge_mcp_config(
     os.replace(str(tmp), str(config_path))
 
 
+def is_entry_pinned(
+    config_path: pathlib.Path,
+    root_key: str = "mcpServers",
+    server_name: str = SERVER_NAME,
+) -> bool:
+    """True if our entry carries "_pin": true. ARC-0b: a pinned entry is never
+    overwritten by _reconfigure_detected_clients (install.py update).
+
+    False on a missing file, corrupt JSON, or a missing/non-dict entry —
+    "degrade, don't crash" (same contract as merge_mcp_config's corrupt-JSON path).
+    """
+    if not config_path.exists():
+        return False
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return False
+    root = data.get(root_key)
+    if not isinstance(root, dict):
+        return False
+    entry = root.get(server_name)
+    return isinstance(entry, dict) and entry.get("_pin", False) is True
+
+
+def unpin_entry(
+    config_path: pathlib.Path,
+    root_key: str = "mcpServers",
+    server_name: str = SERVER_NAME,
+) -> bool:
+    """Remove "_pin" from our entry if present. Returns True iff a pin was removed
+    (no-op, no rewrite, on a missing file/entry/pin — `install.py version --unpin`)."""
+    if not config_path.exists():
+        return False
+    try:
+        data = json.loads(config_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return False
+    root = data.get(root_key)
+    entry = root.get(server_name) if isinstance(root, dict) else None
+    if not isinstance(entry, dict) or "_pin" not in entry:
+        return False
+    del entry["_pin"]
+
+    tmp = config_path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    os.replace(str(tmp), str(config_path))
+    return True
+
+
 def merge_toml_mcp(config_path: pathlib.Path, server_entry: dict) -> None:
     """Merge unity-biome-mcp into a TOML config (Codex). Text-based, no TOML lib needed."""
     bak = config_path.with_suffix(".bak")
@@ -105,6 +172,46 @@ def merge_toml_mcp(config_path: pathlib.Path, server_entry: dict) -> None:
     config_path.parent.mkdir(parents=True, exist_ok=True)
     tmp = config_path.with_suffix(".tmp")
     tmp.write_text(text, encoding="utf-8")
+    os.replace(str(tmp), str(config_path))
+
+
+def is_toml_pinned(config_path: pathlib.Path) -> bool:
+    """True if the marker comment directly above our TOML section ends " pinned"."""
+    if not config_path.exists():
+        return False
+    text = config_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    return bool(_TOML_PIN_RE.search(text))
+
+
+def pin_toml_entry(config_path: pathlib.Path, version: str) -> None:
+    """Insert (or replace) the pin marker comment directly above our TOML section.
+    No-op if the file or our section doesn't exist yet — `install.py version --set`
+    calls merge_toml_mcp first, then this, so the section is always present by then."""
+    if not config_path.exists():
+        return
+    text = config_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    text = _TOML_MARKER_RE.sub("", text)  # drop any stale marker (pinned or not) first
+    marker = f"# {SERVER_NAME} generated v{version} pinned\n"
+    new_text, n = _UNITY_MCP_SECTION_RE.subn(lambda m: marker + m.group(0), text, count=1)
+    if n == 0:
+        return
+
+    tmp = config_path.with_suffix(".tmp")
+    tmp.write_text(new_text, encoding="utf-8")
+    os.replace(str(tmp), str(config_path))
+
+
+def unpin_toml_entry(config_path: pathlib.Path) -> None:
+    """Remove the pin marker comment above our TOML section, if present."""
+    if not config_path.exists():
+        return
+    text = config_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    new_text = _TOML_PIN_RE.sub("", text)
+    if new_text == text:
+        return
+
+    tmp = config_path.with_suffix(".tmp")
+    tmp.write_text(new_text, encoding="utf-8")
     os.replace(str(tmp), str(config_path))
 
 

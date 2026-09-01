@@ -459,6 +459,96 @@ def test_reconfigure_detected_clients_never_prompts(tmp_path):
         inst._reconfigure_detected_clients()  # must not raise
 
 
+# ── _reconfigure_detected_clients: pin support (ARC-0b T3) ───────────────────
+
+def test_reconfigure_detected_clients_skips_pinned_entry(tmp_path):
+    """A "_pin": true entry must survive install.py update byte-for-byte —
+    merge_mcp_config must not even be called for that client."""
+    cfg = tmp_path / "claude.json"
+    original = json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "old", "args": [], "_pin": True}}
+    })
+    cfg.write_text(original, encoding="utf-8")
+    registry = _fake_registry(cfg)
+    entry = {"command": "new", "args": []}
+    merge_calls = []
+
+    def fake_merge(path, e, root_key="mcpServers", entry_transformer=None):
+        merge_calls.append(path)
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["fake-tool"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry), \
+         patch.object(inst, "merge_mcp_config", fake_merge):
+        inst._reconfigure_detected_clients()
+
+    assert merge_calls == []
+    assert cfg.read_text(encoding="utf-8") == original  # untouched, byte-for-byte
+
+
+def test_reconfigure_detected_clients_updates_unpinned_entry(tmp_path):
+    """Regression guard: an entry without "_pin" must still be reconfigured."""
+    cfg = tmp_path / "claude.json"
+    cfg.write_text(json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "old", "args": []}}
+    }), encoding="utf-8")
+    registry = _fake_registry(cfg)
+    entry = {"command": "new", "args": []}
+    merge_calls = []
+
+    def fake_merge(path, e, root_key="mcpServers", entry_transformer=None):
+        merge_calls.append(path)
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["fake-tool"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry), \
+         patch.object(inst, "merge_mcp_config", fake_merge):
+        inst._reconfigure_detected_clients()
+
+    assert merge_calls == [cfg]
+
+
+def test_reconfigure_detected_clients_skips_pinned_toml_entry(tmp_path):
+    """Codex-style TOML entry pinned via its comment marker must not be re-merged."""
+    cfg = tmp_path / "config.toml"
+    original = (
+        "# unity-biome-mcp generated v0.54.1 pinned\n"
+        "[mcp_servers.unity-biome-mcp]\ncommand = 'old'\nargs = []\n"
+    )
+    cfg.write_text(original, encoding="utf-8")
+    registry = _fake_registry(cfg)
+    registry["fake-tool"].is_toml = True
+    entry = {"command": "new", "args": []}
+    merge_calls = []
+
+    def fake_merge_toml(path, e):
+        merge_calls.append(path)
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["fake-tool"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry), \
+         patch.object(inst, "merge_toml_mcp", fake_merge_toml):
+        inst._reconfigure_detected_clients()
+
+    assert merge_calls == []
+    assert cfg.read_text(encoding="utf-8") == original
+
+
+# ── version --unpin flag ──────────────────────────────────────────────────────
+
+def test_version_unpin_flag_in_help():
+    """install.py version --help must document --unpin (ARC-0b T3)."""
+    r = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "install.py"), "version", "--help"],
+        capture_output=True, encoding="utf-8",
+    )
+    assert r.returncode == 0
+    assert "--unpin" in r.stdout
+
+
 # ── stop subcommand argparse wiring ──────────────────────────────────────────
 
 def test_stop_subcommand_registered():
