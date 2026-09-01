@@ -37,7 +37,18 @@ editor(action="mutation_mode", enable="false")  # Disable (reverts to normal com
 
 ### Via Editor UI
 
-Open **MCP > Settings** and toggle **Mutation Mode (experimental)**.
+Open **MCP > Settings**, scroll to **General** section, and toggle **Mutation Mode (experimental)**.
+
+The checkbox reflects your preference and provider readiness. States:
+
+| Toggle state | Meaning |
+|---|---|
+| **Checked, enabled** | Mode is ON; provider is installed and ready |
+| **Unchecked, enabled** | Mode is OFF; you can enable it |
+| **Disabled (gray)** | Provider not installed, or mode is Busy/Disabling/in Recovery, or Editor is in Play Mode |
+| **Disabled + warning** | Mode is in Recovery state; requires a domain reload before it can be re-enabled |
+
+Disabling always triggers exactly one script reload.
 
 ## Check status
 

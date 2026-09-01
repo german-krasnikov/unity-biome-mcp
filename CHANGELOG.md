@@ -16,12 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Mutation Mode (Source Patch MVP) — Optional FSR-based body-only source patching:**
   - `editor(action="mutation_mode", enable=true|false)` toggles intent for optional in-memory method-body patching
+  - MCP Settings Hub checkbox: **Mutation Mode (experimental)** in General section (P2-04). Polls state every 600ms; disabled states include Provider Absent, Busy, Disabling, Recovery, and Play Mode. Recovery state shows a recovery warning label.
   - `mcp_status` exposes `source_patch_intent`, `source_patch_provider`, `source_patch_state`, `source_patch_op`, `source_patch_recovery`
   - State machine: `Unavailable` (no package) → `Off` (default) ↔ `OnReady/Busy` (intent ON, provider ready) ↔ `Recovery` (failed write)
   - Supported scope (MVP, qualified): existing sync non-generic methods in `Assets/`, body-only edits, single file at a time, Mono backend, Unity 6000.0.65f1; platforms: macOS ARM64 + Linux x64 (CI-qualified), Windows x64 (engineering-supported, CI qualification pending)
   - `asset(action="write_text")` on `.cs` files routes internally via optional provider when ON; falls back to standard compile if provider absent
   - Physical package install/remove via git-pin when Editor stopped; exact one domain reload on OFF transition
-  - New C# modules: neutral `SourcePatch` asmdef, `SourcePatchHost` seam, auto-refresh lease coordination (`IAutoRefreshLeasePort`/`UnityAutoRefreshLeasePort`) and legacy-write guard (`SourcePatchHost.GuardLegacyCsWrite`)
+  - New C# modules: neutral `SourcePatch` asmdef, `SourcePatchHost` seam, auto-refresh lease coordination (`IAutoRefreshLeasePort`/`UnityAutoRefreshLeasePort`), legacy-write guard (`SourcePatchHost.GuardLegacyCsWrite`), and UI toggle (`MutationModeToggle`/`MutationModeToggleState`)
   - CI qualification: two required-pass cells (Unity 6000.0.65f1 on macOS ARM64, Linux x64); Windows x64 documented as INFRASTRUCTURE_BLOCKED (headed-GUI unavailable on GH-hosted runners); in `.github/workflows/fsr-qualification.yml`
 
 ### Documentation
