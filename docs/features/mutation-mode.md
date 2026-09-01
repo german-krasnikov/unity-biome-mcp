@@ -50,6 +50,34 @@ The checkbox reflects your preference and provider readiness. States:
 
 Disabling always triggers exactly one script reload.
 
+## Installing the provider
+
+The Mutation Mode checkbox is **disabled** if the optional provider package is not installed. This is fail-closed by design: the base MCP plugin does not depend on or bundle the provider, so Mutation Mode is entirely optional.
+
+**When provider is absent:**
+- Checkbox shows: **disabled (gray)** with tooltip "Mutation Mode provider package is not installed"
+- MCP calls: `editor(action="mutation_mode", enable=true)` returns `source_patch_provider absent`
+- Behavior: All `.cs` writes use the standard Unity compile path
+
+**To enable Mutation Mode:**
+
+Add the Fast Script Reload (FSR) provider package to your project's `Packages/manifest.json`:
+
+```json
+{
+  "dependencies": {
+    "com.unity.modules.core": "...",
+    "com.handzlikchris.fastscriptreload": "https://github.com/german-krasnikov/FastScriptReload.git?path=/Assets#b90a5c3fd7cfa452f23e8a807cc7bd61dc934bbf"
+  }
+}
+```
+
+After adding the dependency, Unity resolves the package. The Mutation Mode checkbox becomes **enabled** (though unchecked, reflecting the Off state) and you can toggle it.
+
+**To disable Mutation Mode permanently:**
+
+Remove the provider dependency from `manifest.json`. The project reverts to the `Unavailable` state with the checkbox disabled. Standard `.cs` compile behavior is restored automatically.
+
 ## Check status
 
 ```python
