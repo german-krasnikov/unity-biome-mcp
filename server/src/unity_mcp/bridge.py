@@ -236,6 +236,8 @@ class UnityBridge(HeartbeatMixin):
         self._first_failure_ts: float | None = None
         self._reconnect_started_at: float | None = None
         self._hard_deadline_started_at: float | None = None
+        # ARC-7 T1: throttle clock for the periodic stale-port sweep (bridge_heartbeat.py).
+        self._last_port_sweep_at: float = 0.0
         self._state: BridgeState = BridgeState.DISCONNECTED
         self._on_reconnect_callbacks: list = []
         self._crash_log = CrashLogger()

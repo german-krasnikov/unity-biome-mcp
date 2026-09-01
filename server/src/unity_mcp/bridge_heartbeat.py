@@ -7,6 +7,7 @@ import threading
 import time
 
 from unity_mcp.bridge_socket import DomainReloadError, frame_write
+from unity_mcp.lockfile import cleanup_stale_port_files
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,9 @@ BACKOFF_MAX_S: float = 60.0
 # Fast reconnect backoff for expected domain reloads (PlayMode enter/exit).
 # Keep separate from BACKOFF_MIN_S so unexpected disconnects still back off at 5s.
 RELOAD_BACKOFF_S: float = 1.0
+# ARC-7 T1: minimum interval between stale-port sweeps from the idle heartbeat
+# branch. Mirrors the reconnect-callback debounce precedent (server.py ~591).
+PORT_SWEEP_INTERVAL_S: float = 30.0
 
 _hard_exit_scheduled: bool = False
 
@@ -176,6 +180,7 @@ class HeartbeatMixin:
             wait = 5.0
         else:
             wait = 2.0
+            self._maybe_sweep_stale_ports()
         await asyncio.sleep(wait)
 
         if self._check_hard_deadline():
@@ -187,6 +192,22 @@ class HeartbeatMixin:
             self._startup_grace_expired = True
             return
         await self._try_reconnect()
+
+    def _maybe_sweep_stale_ports(self) -> None:
+        """Periodic ghost-port cleanup — only reached from the idle disconnected branch.
+
+        Reuses cleanup_stale_port_files(tcp_probe=True) unchanged (PID-check first,
+        cheap; TCP-probe second, only for PID-alive entries). Throttled by
+        PORT_SWEEP_INTERVAL_S so every idle tick doesn't re-scan the ports dir.
+        """
+        now = time.monotonic()
+        # getattr default: HeartbeatMixin is also exercised via bare test stubs
+        # that don't carry every UnityBridge field (not in the documented
+        # contract above) — mirrors _hard_deadline_started_at's own guard.
+        if now - getattr(self, "_last_port_sweep_at", 0.0) < PORT_SWEEP_INTERVAL_S:
+            return
+        self._last_port_sweep_at = now
+        cleanup_stale_port_files(tcp_probe=True)
 
     async def _handle_ping_timeout(self) -> None:
         """Handle TimeoutError from ping: apply stall counter, close only when dead or stalled."""
