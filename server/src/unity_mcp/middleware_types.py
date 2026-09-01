@@ -118,8 +118,15 @@ def is_write(cmd: str, args: dict | None = None) -> bool:
 
 
 # Reads safe to serve from PrefetchCache (both above-circuit and pre-TCP paths).
+# ARC-5 T2 contract: membership here is the SOLE "safe to serve up to TTL
+# stale" gate. Any read whose truth can change autonomously — no tracked
+# write in this pipeline invalidates it (manual edit, Hot Reload, another
+# session, plain wall-clock progress) — must stay OUT of this set, regardless
+# of whether any GATE_PRIORS entry currently targets it. get_compile_errors
+# is intentionally excluded for exactly this reason (see prefetch_cache.py's
+# GATE_PRIORS comment for the paired write-side fix).
 _READ_CACHEABLE = frozenset({
-    "get_component", "get_hierarchy", "get_components_list", "inspect", "get_compile_errors",
+    "get_component", "get_hierarchy", "get_components_list", "inspect",
 })
 
 

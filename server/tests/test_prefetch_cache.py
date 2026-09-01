@@ -71,9 +71,12 @@ def test_gate_priors_set_property():
     assert pred == ("get_component", {"path": "/Player", "type": "Health"})
 
 
-def test_gate_priors_recompile():
-    fn = GATE_PRIORS["recompile"]
-    assert fn({}) == ("get_compile_errors", {})
+def test_gate_priors_excludes_recompile():
+    """ARC-5 T1: recompile acks BEFORE Unity compiles (async write) — it must
+    never drive this sync-write-assuming prefetch mechanism, or a background
+    prefetch fires moments after the ack, populating a global-key cache slot
+    with pre-compile data that a later get_compile_errors call could reuse."""
+    assert "recompile" not in GATE_PRIORS
 
 
 def test_stats_tracks_operations():
