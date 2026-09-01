@@ -34,7 +34,7 @@
         },
         {
           "id": "retry-safety-non-idempotent-timeout",
-          "pytest_node_id": "server/tests/test_bridge_retry_safety.py::test_should_retry_blocks_non_idempotent_command_on_timeout"
+          "pytest_node_id": "server/tests/test_bridge_retry_policy.py::test_sent_unsafe_source_patch_is_never_resent[timeout]"
         }
       ],
       "max_age_seconds": 86400
@@ -67,7 +67,7 @@
         },
         {
           "id": "retry-safety-non-idempotent-timeout",
-          "pytest_node_id": "server/tests/test_bridge_retry_safety.py::test_should_retry_blocks_non_idempotent_command_on_timeout"
+          "pytest_node_id": "server/tests/test_bridge_retry_policy.py::test_sent_unsafe_source_patch_is_never_resent[timeout]"
         }
       ],
       "max_age_seconds": 86400
