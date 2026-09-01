@@ -74,6 +74,9 @@ Add the Fast Script Reload (FSR) provider package to your project's `Packages/ma
 
 After adding the dependency, Unity resolves the package. The Mutation Mode checkbox becomes **enabled** (though unchecked, reflecting the Off state) and you can toggle it.
 
+> [!NOTE]
+> The FastScriptReload provider is licensed under MIT by Chris Handzlik. See [Third-Party Notices](../../THIRD-PARTY-NOTICES.md) for full copyright and license details.
+
 **To disable Mutation Mode permanently:**
 
 Remove the provider dependency from `manifest.json`. The project reverts to the `Unavailable` state with the checkbox disabled. Standard `.cs` compile behavior is restored automatically.

@@ -254,4 +254,4 @@ Report security issues through [SECURITY.md](SECURITY.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) · [Third-Party Notices](THIRD-PARTY-NOTICES.md)
