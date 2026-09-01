@@ -35,6 +35,9 @@ _TERMINAL_OUTCOMES = {
     "passed", "failed", "cancelled", "incomplete", "invalid", "dispatch_failed",
 }
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
+# Mirrors bridge_heartbeat.py's _ping_stall_failures threshold (3): gates a
+# diagnostic TIMEOUT suffix only, never control flow.
+_HEALTH_STREAK_TIMEOUT_THRESHOLD = 3
 
 
 def _try_update_handle_from_result(run_id: str, result: str) -> None:
@@ -414,6 +417,7 @@ async def run_tests_wait(
     loop = asyncio.get_running_loop()
     deadline = loop.time() + max(0.0, float(timeout))
     last_snapshot = "none"
+    health_streak = 0
 
     for attempt in range(attempts):
         if not run_id:
@@ -493,7 +497,10 @@ async def run_tests_wait(
             except TimeoutError:
                 break
             except Exception:
+                # Transport hiccup, not confirmed dead -- counts toward the
+                # same diagnostic streak as an explicit suspected_stall.
                 current = ""
+                health_streak += 1
             if current not in ("", "none", "pending"):
                 last_snapshot = current
                 snapshot, protocol_error = _decode_snapshot(
@@ -523,6 +530,12 @@ async def run_tests_wait(
                             f"|snapshot={_compact_snapshot(current)}"
                         )
                     snapshot_state = state or lifecycle
+                    if snapshot_state != "terminal":
+                        health = snapshot.get("health")
+                        if health == "suspected_stall":
+                            health_streak += 1
+                        elif health in ("healthy", "reloading"):
+                            health_streak = 0
                 if snapshot is not None and snapshot_state == "terminal":
                     terminal_error = _terminal_snapshot_error(
                         snapshot, mode=mode, filter_name=filter or ""
@@ -542,10 +555,16 @@ async def run_tests_wait(
             if remaining > 0:
                 await asyncio.sleep(min(interval, remaining))
 
+    streak_suffix = (
+        f"|health_streak={health_streak}"
+        if health_streak >= _HEALTH_STREAK_TIMEOUT_THRESHOLD
+        else ""
+    )
     return (
         f"TIMEOUT|request_id={stable_request_id}"
         f"|run_id={run_id or known_run_id or 'unknown'}"
         f"|snapshot={_compact_snapshot(last_snapshot)}"
+        f"{streak_suffix}"
     )
 
 

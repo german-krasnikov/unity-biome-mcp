@@ -99,6 +99,82 @@ async def test_multiple_reload_failures_do_not_replace_last_snapshot():
     assert '"finished":27' in result
 
 
+def _running_with_health(health: str) -> str:
+    return json.dumps({
+        "request_id": REQ,
+        "run_id": RUN,
+        "state": "running",
+        "health": health,
+    })
+
+
+async def test_timeout_includes_health_streak_after_threshold():
+    """ARC-1 P2: 3+ consecutive suspected_stall polls annotate the TIMEOUT."""
+    stall = _running_with_health("suspected_stall")
+    poll = AsyncMock(side_effect=[stall, stall, stall])
+    with patch.object(testing, "run_tests", _started), \
+         patch.object(testing, "get_test_run", poll), \
+         patch("asyncio.sleep", AsyncMock()):
+        result = await testing.run_tests_wait(
+            request_id=REQ, timeout=2.0, poll_interval=1.0
+        )
+
+    assert result.startswith(f"TIMEOUT|request_id={REQ}|run_id={RUN}|snapshot=")
+    prefix, _, count = result.rpartition("|health_streak=")
+    assert prefix, result
+    assert int(count) == 3
+
+
+async def test_timeout_omits_health_streak_below_threshold():
+    """A single stall poll must not trigger the diagnostic suffix."""
+    stall = _running_with_health("suspected_stall")
+    with patch.object(testing, "run_tests", _started), \
+         patch.object(testing, "get_test_run", AsyncMock(return_value=stall)), \
+         patch("asyncio.sleep", AsyncMock()):
+        result = await testing.run_tests_wait(
+            request_id=REQ, timeout=0.001, poll_interval=1.0
+        )
+
+    assert result.startswith(f"TIMEOUT|request_id={REQ}|run_id={RUN}|snapshot=")
+    assert "health_streak=" not in result
+
+
+async def test_health_streak_resets_on_healthy_poll():
+    """A healthy poll between stalls proves the streak resets, not accumulates."""
+    stall = _running_with_health("suspected_stall")
+    healthy = _running_with_health("healthy")
+    poll = AsyncMock(side_effect=[stall, stall, healthy, stall])
+    with patch.object(testing, "run_tests", _started), \
+         patch.object(testing, "get_test_run", poll), \
+         patch("asyncio.sleep", AsyncMock()):
+        result = await testing.run_tests_wait(
+            request_id=REQ, timeout=3.0, poll_interval=1.0
+        )
+
+    assert "health_streak=" not in result
+
+
+async def test_health_streak_accumulates_on_swallowed_poll_exception():
+    """Transport errors swallowed by `except Exception: current = ""` still
+    count toward the diagnostic streak -- Unity may be alive but polls keep
+    failing, which is exactly the case this diagnostic exists to surface.
+    """
+    poll = AsyncMock(side_effect=[
+        ConnectionError("reload 1"),
+        ConnectionError("reload 2"),
+        ConnectionError("reload 3"),
+    ])
+    with patch.object(testing, "run_tests", _started), \
+         patch.object(testing, "get_test_run", poll), \
+         patch("asyncio.sleep", AsyncMock()):
+        result = await testing.run_tests_wait(
+            request_id=REQ, timeout=2.0, poll_interval=1.0
+        )
+
+    assert result.startswith(f"TIMEOUT|request_id={REQ}|run_id={RUN}|snapshot=none")
+    assert result.endswith("|health_streak=3")
+
+
 async def test_generated_request_id_is_reused_for_dispatch_and_resolution(monkeypatch):
     seen = []
 
