@@ -64,6 +64,13 @@ namespace UnityMCP.Editor.Wizard
                 Description = "Visual Studio Code with Copilot MCP",
                 Mechanism = InstallMechanism.PythonConfig,
                 BinaryName = "code",
+#if UNITY_EDITOR_WIN
+                ConfigDir = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "Code"),
+#elif UNITY_EDITOR_OSX
+                ConfigDir = "~/Library/Application Support/Code",
+#else
+                ConfigDir = "~/.config/Code",
+#endif
                 AutoProjectConfig = true
             },
             new BackendDescriptor
@@ -71,7 +78,7 @@ namespace UnityMCP.Editor.Wizard
                 Key = "codex", DisplayName = "Codex", Icon = "◉",
                 Description = "OpenAI Codex CLI — writes MCP config file",
                 Mechanism = InstallMechanism.PythonConfig,
-                BinaryName = "codex",
+                BinaryName = "codex", ConfigDir = "~/.codex",
                 AutoProjectConfig = true
             },
             new BackendDescriptor

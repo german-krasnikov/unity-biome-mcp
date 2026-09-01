@@ -27,20 +27,22 @@ namespace UnityMCP.Editor.Wizard
             SetEnabledKeys(detectedKeys);
         }
 
-        internal static IEnumerable<string> DetectInstalled()
+        // descriptors/dirExists: injected by tests; null means production defaults
+        // (BackendDescriptor.All / Directory.Exists). A backend with no ConfigDir is
+        // never auto-enabled — it falls through without ever consulting dirExists.
+        internal static IEnumerable<string> DetectInstalled(
+            BackendDescriptor[] descriptors = null, Func<string, bool> dirExists = null)
         {
+            descriptors ??= BackendDescriptor.All;
+            dirExists ??= Directory.Exists;
+            var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var detected = new List<string>();
-            foreach (var d in BackendDescriptor.All)
+            foreach (var d in descriptors)
             {
                 if (!d.AutoProjectConfig) continue;
-                if (string.IsNullOrEmpty(d.ConfigDir))
-                {
-                    detected.Add(d.Key);
-                    continue;
-                }
-                var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                if (string.IsNullOrEmpty(d.ConfigDir)) continue;
                 var expanded = d.ConfigDir.Replace("~", home);
-                if (Directory.Exists(expanded)) detected.Add(d.Key);
+                if (dirExists(expanded)) detected.Add(d.Key);
             }
             if (detected.Count == 0) detected.Add("claude-code");
             return detected;
