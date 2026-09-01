@@ -12,6 +12,7 @@ from typing import Any
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ..compile_state import CompileStateProbe
+from . import run_disk_fallback
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
@@ -726,6 +727,42 @@ def _resolve_project_path() -> Path | None:
     if slot is None:
         return None
     return CompileStateProbe.autodetect_project_path(port=slot.port)
+
+
+def _read_disk_fallback(
+    run_id: str,
+    *,
+    mode: str,
+    filter_name: str,
+    expected_request_id: str,
+) -> str | None:
+    """Last-resort disk read of a durable terminal test-run summary (ARC-2).
+
+    Single-shot: called only from run_tests_wait's TIMEOUT return. Reuses
+    _decode_snapshot/_terminal_snapshot_error verbatim against disk JSON
+    instead of wire JSON -- one validation path, no new rules. Fail-inert by
+    design: an unresolved project path, an unsafe run_id, a missing/empty/
+    corrupt file, a non-terminal snapshot, or failed terminal invariants all
+    return None -- never an exception, so a filesystem hiccup degrades to the
+    pre-existing TIMEOUT instead of crashing it.
+    """
+    if not _valid_identity(run_id):
+        return None
+    project_path = _resolve_project_path()
+    if project_path is None:
+        return None
+    raw = run_disk_fallback.read_terminal_summary(project_path, run_id)
+    if raw is None:
+        return None
+    snapshot, protocol_error = _decode_snapshot(
+        raw, expected_request_id=expected_request_id, expected_run_id=run_id
+    )
+    if protocol_error is not None or snapshot is None:
+        return None
+    if _terminal_snapshot_error(snapshot, mode=mode, filter_name=filter_name) is not None:
+        return None
+    snapshot["read_via"] = "disk"
+    return json.dumps(snapshot, separators=(",", ":"), sort_keys=True)
 
 
 def register(mcp, send, args, *, get_slot=None):
