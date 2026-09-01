@@ -268,12 +268,14 @@ async def _get_errors() -> str:
     """Get compile errors from C# and corroborate with editor_log (both-signals gate).
 
     Delegates to get_corroborated_errors — sentinel-strip lives there (P3 DRY).
-    Swallows ConnectionError/OSError: TCP gone during error fetch is treated as no errors.
+    ARC-6: a dead TCP call during error fetch surfaces editor_log.UNITY_UNREACHABLE,
+    not "" — this local catch is defense-in-depth in case editor_log.py's own
+    (ConnectionError, OSError) guard ever regresses back to a silent "".
     """
     try:
         return await editor_log.get_corroborated_errors(_send)
     except (ConnectionError, OSError):
-        return ""
+        return editor_log.UNITY_UNREACHABLE
 
 
 async def _warm_type_cache() -> None:

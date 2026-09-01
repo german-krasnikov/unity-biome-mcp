@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from mcp.server.fastmcp.exceptions import ToolError
 
 import unity_mcp.tools.sync as _sync
+from unity_mcp import editor_log
 from unity_mcp.bridge import DomainReloadError
 
 
@@ -104,6 +105,9 @@ def _patch_corroborate():
         mock_el.corroborate = lambda s: s  # kept for back-compat with test_both_signals_required
         mock_el.init_corroboration = MagicMock()
         mock_el.get_corroborated_errors = _default_get_corroborated
+        # ARC-6 T2: keep the real sentinel value reachable through the mocked module
+        # so production code's `editor_log.UNITY_UNREACHABLE` isn't a stray MagicMock.
+        mock_el.UNITY_UNREACHABLE = editor_log.UNITY_UNREACHABLE
         yield mock_el
 
 
@@ -515,6 +519,51 @@ async def test_sync_sentinel_stripped(_patch_corroborate):
     assert "No compilation errors" not in result
     assert "sync clean" in result
 
+
+# ── ARC-6 T2: sync.py._get_errors mirrors the UNITY_UNREACHABLE sentinel ─────
+
+# T2.1: dead TCP during get_corroborated_errors → sentinel, not a false "no errors"
+@pytest.mark.asyncio
+async def test_get_errors_connectionerror_returns_sentinel_not_empty(_patch_corroborate):
+    """ARC-6 T2: ConnectionError from get_corroborated_errors must surface UNITY_UNREACHABLE.
+
+    Red-precondition: before the fix, _get_errors' own except clause returned "" —
+    indistinguishable from a genuinely clean compile.
+    """
+    _patch_corroborate.get_corroborated_errors = AsyncMock(side_effect=ConnectionError("gone"))
+    result = await _sync._get_errors()
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
+# T2.2: same, OSError (bridge_socket.py's raise surface includes bare OSError/TimeoutError)
+@pytest.mark.asyncio
+async def test_get_errors_oserror_returns_sentinel_not_empty(_patch_corroborate):
+    _patch_corroborate.get_corroborated_errors = AsyncMock(side_effect=OSError("disk full"))
+    result = await _sync._get_errors()
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
+# T2.3 (integration): real editor_log.get_corroborated_errors wired in — dead TCP on
+# get_compile_errors during the ready-state arm must surface UNITY_UNREACHABLE through
+# sync_unity(), never a false "sync clean".
+@pytest.mark.asyncio
+async def test_sync_unity_ready_state_surfaces_unreachable_not_clean(_patch_corroborate):
+    """ARC-6 T2 end-to-end: sync_unity must not report clean when Unity is unreachable."""
+    _patch_corroborate.get_corroborated_errors = editor_log.get_corroborated_errors
+
+    async def _send(cmd, args=None, **kwargs):
+        if cmd == "sync":
+            return "sync_ack|epoch=1|will_compile=true"
+        if cmd == "sync_status":
+            return "epoch=1|state=ready"
+        if cmd == "get_compile_errors":
+            raise ConnectionError("Unity closed")
+        return ""
+
+    _sync._send = _send
+    result = await _sync.sync_unity(timeout=60.0)
+    assert "sync clean" not in result
+    assert editor_log.UNITY_UNREACHABLE in result
 
 
 # G18: ready arm MVID unchanged after expected compile → REIMPORT-NEEDED
