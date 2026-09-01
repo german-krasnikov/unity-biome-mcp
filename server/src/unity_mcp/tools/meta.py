@@ -5,6 +5,7 @@ register(mcp, send, args) pattern used by every other tools/*.py module.
 """
 
 from mcp.server.fastmcp import Context  # noqa: TC002 — fastmcp eval_str=True requires runtime
+from mcp.server.fastmcp.exceptions import ToolError
 
 from ..doctor import format_report, run_doctor
 from ..llm_config import apply_config, parse_tcp_config
@@ -17,6 +18,7 @@ from .schema_registry import _registry as _schema_registry
 
 _send = None
 _args = None
+_get_slot = None
 
 
 async def discover_tools(category: str | None = None, enable: bool = True,
@@ -71,11 +73,60 @@ async def alias_status() -> str:
     return await _send("alias_status", {})
 
 
+def _fmt_num(val) -> str:
+    """Format a numeric bridge diagnostic. Anything non-numeric — an honest
+    None (e.g. bridge.last_contact_age_s before first contact, or in the
+    sub-ping-interval null window right after a reconnect) or an unset
+    Mock auto-attribute in tests — reports 'n/a' rather than crashing or
+    fabricating a value (ARC-7 T3)."""
+    if isinstance(val, bool):
+        return "n/a"
+    if isinstance(val, (int, float)):
+        return f"{val:.1f}" if isinstance(val, float) else str(val)
+    return "n/a"
+
+
+def _fmt_bool(val) -> str:
+    return "true" if val is True else "false" if val is False else "n/a"
+
+
 async def mcp_status() -> str:
-    """Compact MCP status: scene, dirty, play/compile state, port, alias count, version."""
+    """Compact MCP status: scene, dirty, play/compile state, port, alias count,
+    version — plus Python-side liveness diagnostics (ARC-7 T3) that answer
+    honestly, never raising, when Unity itself is unreachable."""
     from .. import __version__
-    cs_status = await _send("get_status", {})
-    return f"{cs_status}\npython_version={__version__}"
+    try:
+        cs_status = await _send("get_status", {}, timeout=5.0)
+        unity_status = "reachable"
+    except ToolError:
+        cs_status = ""
+        unity_status = "unreachable"
+
+    slot = _get_slot() if _get_slot else None
+    bridge = slot.bridge if slot is not None else None
+
+    liveness = getattr(bridge, "status", None)
+    liveness = liveness if isinstance(liveness, str) else "unknown"
+
+    pid_alive = None
+    probe = getattr(bridge, "_probe", None)
+    if probe is not None:
+        dead = probe.is_process_dead()
+        if isinstance(dead, bool):
+            pid_alive = not dead
+
+    lines = [
+        f"liveness={liveness}",
+        f"unity_status={unity_status}",
+        f"pid_alive={_fmt_bool(pid_alive)}",
+        f"last_contact_s={_fmt_num(getattr(bridge, 'last_contact_age_s', None))}",
+        f"ping_fail={_fmt_num(getattr(bridge, '_ping_failures', None))}",
+        f"ping_stall={_fmt_num(getattr(bridge, '_ping_stall_failures', None))}",
+        f"queue_depth={_fmt_num(getattr(bridge, 'pending_queue_depth', None))}",
+        cs_status,
+        f"python_version={__version__}",
+    ]
+    return "\n".join(lines)
 
 
 async def release_smoke() -> str:
@@ -95,8 +146,10 @@ async def release_smoke() -> str:
     return f"{'PASS' if passed else 'FAIL'}\n" + "\n".join(results)
 
 
-def register(mcp, send, args):
+def register(mcp, send, args, *, get_slot=None):
+    global _get_slot
     bind(globals(), send, args)
+    _get_slot = get_slot
     mcp.tool()(discover_tools)
     # Conservative annotation: fix=True may remove stale local files. Runtime
     # read-only enforcement remains argument-aware in doctor() itself.
