@@ -107,8 +107,12 @@ await editor(action="play")
 await editor(action="stop")
 ```
 
-Actions are `state`, `play`, `pause`, `stop`, `select`, and `project_path`. For
-multi-selection, pass comma-separated paths through `paths`.
+Actions are `state`, `play`, `pause`, `stop`, `select`, `project_path`, and
+`mutation_mode`. For multi-selection, pass comma-separated paths through `paths`.
+
+For `mutation_mode`, omit `enable` to query current intent; pass `enable=true` or
+`enable=false` to set the preference. Mutation Mode is an optional feature; check
+`mcp_status()` for availability and operational state before relying on it.
 
 ## Apply a guarded scene change
 
