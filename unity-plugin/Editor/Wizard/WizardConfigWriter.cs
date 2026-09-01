@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace UnityMCP.Editor.Wizard
 {
@@ -63,7 +64,13 @@ namespace UnityMCP.Editor.Wizard
                 if (!FindEntryBounds(existing, key, out var bStart, out var bEnd)) continue;
                 var keyStart = existing.LastIndexOf("\"" + key + "\"", bStart, StringComparison.Ordinal);
                 if (keyStart < 0) continue;
-                return existing.Substring(0, keyStart) + entry + existing.Substring(bEnd);
+                // Point-splice (ARC-13 T1): patch only command/args/_v in place, keep
+                // every other key (env, cwd, ...) byte-identical — never whole-replace.
+                var oldSpan = existing.Substring(bStart, bEnd - bStart);
+                var patchedSpan = PatchEntryFields(oldSpan, entry);
+                return existing.Substring(0, keyStart)
+                     + "\"" + PermissionConfig.SERVER_NAME + "\": " + patchedSpan
+                     + existing.Substring(bEnd);
             }
 
             if (existing.Contains("\"" + rootKey + "\""))
@@ -186,6 +193,69 @@ namespace UnityMCP.Editor.Wizard
             start = braceStart;
             end = pos;
             return true;
+        }
+
+        // ARC-13 T1: point-splice the 3 fields the wizard template writes — command,
+        // args, and (when the call site's template has one) _v — into an existing
+        // entry span, leaving every other key byte-identical. A field missing from
+        // `oldSpan` is left untouched here; inserting a missing field is ARC-13 T2,
+        // not this task.
+        private static readonly string[] PatchedFields = { "command", "args", "_v" };
+
+        private static string PatchEntryFields(string oldSpan, string freshEntry)
+        {
+            foreach (var field in PatchedFields)
+            {
+                if (!FindFieldSegment(freshEntry, field, out var freshStart, out var freshEnd))
+                    continue; // this call site's template doesn't write this field (e.g. bare Merge has no "_v")
+
+                if (!FindFieldSegment(oldSpan, field, out var oldStart, out var oldEnd))
+                    continue; // absent from the old entry — insert-if-absent is ARC-13 T2
+
+                var freshSegment = freshEntry.Substring(freshStart, freshEnd - freshStart);
+                oldSpan = oldSpan.Substring(0, oldStart) + freshSegment + oldSpan.Substring(oldEnd);
+            }
+            return oldSpan;
+        }
+
+        // Locates the full `"field": value` segment — from the opening quote of the
+        // key to the end of its value — for the two value shapes the wizard template
+        // ever writes: a quoted string (command, _v) or a flat string array (args).
+        // Callers splice a replacement segment into this span; everything else
+        // (surrounding commas, unrelated keys) is untouched.
+        private static bool FindFieldSegment(string text, string field, out int start, out int end)
+        {
+            start = end = -1;
+            var m = Regex.Match(text, "\"" + Regex.Escape(field) + "\"\\s*:\\s*");
+            if (!m.Success) return false;
+            var valueStart = m.Index + m.Length;
+            if (valueStart >= text.Length) return false;
+
+            if (text[valueStart] == '"')
+            {
+                var close = text.IndexOf('"', valueStart + 1);
+                if (close < 0) return false;
+                start = m.Index;
+                end = close + 1;
+                return true;
+            }
+
+            if (text[valueStart] == '[')
+            {
+                int depth = 1, pos = valueStart + 1;
+                while (pos < text.Length && depth > 0)
+                {
+                    if (text[pos] == '[') depth++;
+                    else if (text[pos] == ']') depth--;
+                    pos++;
+                }
+                if (depth != 0) return false;
+                start = m.Index;
+                end = pos;
+                return true;
+            }
+
+            return false; // unsupported value shape — leave untouched rather than guess
         }
     }
 }

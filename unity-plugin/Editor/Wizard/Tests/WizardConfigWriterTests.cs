@@ -121,6 +121,23 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("unity-biome-mcp", result);
         }
 
+        [Test]
+        public void Merge_PreservesUnknownEntryKeys()
+        {
+            // ARC-13 T1: the non-versioned call site (AiConfigScreen "Write Config"
+            // button -> Merge) shares MergeWithEntry with ProjectConfigFormats.Merge —
+            // an unrelated "cwd" key a user hand-added must survive here too.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"args\": [\"--from\", \"" + WizardConfigWriter.GitInstallUrl + "\", \"unity-biome-mcp\"],"
+                + "\"cwd\": \"/custom/path\""
+                + "}}}";
+
+            var result = WizardConfigWriter.Merge(existing, 9500);
+
+            StringAssert.Contains("/custom/path", result, "unknown cwd key must survive a Merge");
+        }
+
         // ── Fresh — port and key presence ─────────────────────────────────────
 
         [Test]

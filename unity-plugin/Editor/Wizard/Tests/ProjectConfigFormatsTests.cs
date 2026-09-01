@@ -133,6 +133,47 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Merge_PreservesUnknownEntryKeys_OnVersionBump()
+        {
+            // ARC-13 T1: a version bump (OwnedStale -> Merge) must point-splice only
+            // command/args/_v, never whole-replace the entry — an unrelated "env" key
+            // a user hand-added (e.g. UNITY_MCP_NO_GATING) must survive.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"args\": [\"--from\", \"OLD_URL_MARKER\", \"unity-biome-mcp\"],"
+                + "\"_v\": \"0.1.0\","
+                + "\"env\": {\"UNITY_MCP_NO_GATING\": \"1\"}"
+                + "}}}";
+
+            var result = ProjectConfigFormats.Merge(existing, 9500, "NEW_URL_MARKER", "2.0.0", "mcpServers");
+
+            StringAssert.Contains("UNITY_MCP_NO_GATING", result, "unknown env key must survive a version bump");
+            StringAssert.Contains("\"_v\": \"2.0.0\"", result, "version marker must actually update");
+            StringAssert.Contains("NEW_URL_MARKER", result, "args value must actually be replaced");
+            StringAssert.DoesNotContain("OLD_URL_MARKER", result, "old args value must not survive");
+        }
+
+        [Test]
+        public void Merge_NestedBracesInUnknownValue_DoesNotBreakFieldSearch()
+        {
+            // A user-added "env" key with its own nested object AND array must not
+            // confuse the outer entry-bounds brace-counting or the "args" field's own
+            // bracket-depth matching during point-splice.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"args\": [\"--from\", \"OLD_URL\", \"unity-biome-mcp\"],"
+                + "\"_v\": \"0.1.0\","
+                + "\"env\": {\"FLAGS\": [\"a\", \"b\"], \"NESTED\": {\"deep\": \"1\"}}"
+                + "}}}";
+
+            var result = ProjectConfigFormats.Merge(existing, 9500, "NEW_URL", "2.0.0", "mcpServers");
+
+            StringAssert.Contains("\"NESTED\": {\"deep\": \"1\"}", result, "deeply nested unknown value must survive intact");
+            StringAssert.Contains("NEW_URL", result);
+            StringAssert.DoesNotContain("OLD_URL", result);
+        }
+
+        [Test]
         public void Adopt_NoEntry_ReturnsOriginalText()
         {
             var text = "{\"mcpServers\":{}}";
