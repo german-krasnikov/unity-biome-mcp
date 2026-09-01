@@ -42,6 +42,16 @@ async def proxy_bridge(conformance_worker):
     worker, _real_bridge = conformance_worker
     real_port = worker.port
 
+    # Wire the real production retry-safety classification (server.py:533's
+    # is_retry_safe=lambda cmd: cmd in _retry_safe pattern) instead of the
+    # UnityBridge default (lambda cmd: False, unsafe-for-everything). Without
+    # this, a fault-injected disconnect after SENT always raises
+    # UncertainDeliveryError regardless of what retry_safe_cmds() classifies,
+    # since this bridge never consults it.
+    from unity_mcp.server import mcp
+    from unity_mcp.tools._annotations import retry_safe_cmds
+    is_retry_safe = (await retry_safe_cmds(mcp)).__contains__
+
     servers: list[asyncio.AbstractServer] = []
     bridges: list[UnityBridge] = []
 
@@ -66,6 +76,7 @@ async def proxy_bridge(conformance_worker):
             port=proxy_port,
             probe=CompileStateProbe(None, port=proxy_port),
             expected_project_path=None,
+            is_retry_safe=is_retry_safe,
         )
         await bridge.connect()
         bridges.append(bridge)

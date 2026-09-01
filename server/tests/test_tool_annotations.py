@@ -111,6 +111,32 @@ async def test_retry_safe_cmds_includes_only_readonly_or_idempotent():
     assert "execute_code" not in safe     # RW, no idempotentHint
 
 
+async def test_retry_safe_cmds_includes_internal_status_commands():
+    """get_status/sync_status are internal wire commands with no MCP tool
+    annotation (mcp.list_tools() never sees them) but are read-only/idempotent
+    by inspection of their C# handler -- must be retry-safe (P-322 fail-closed
+    gate, ff44cc8c) or every post-SENT disconnect during get_status/sync_status
+    raises UncertainDeliveryError."""
+    from unity_mcp.server import mcp
+    from unity_mcp.tools._annotations import retry_safe_cmds
+    safe = await retry_safe_cmds(mcp)
+    assert "get_status" in safe
+    assert "sync_status" in safe
+
+
+async def test_retry_safe_cmds_excludes_mutating_internal_cmds():
+    """Double-red guard: the internal allowlist is not a blanket escape hatch.
+    source_patch_write is a mutating internal wire command (see
+    test_sent_unsafe_source_patch_is_never_resent). sync (TriggerSync) is
+    sync_status's sibling registration but bumps epoch and forces a recompile
+    -- proves the fix does not sweep in the whole sync/* family."""
+    from unity_mcp.server import mcp
+    from unity_mcp.tools._annotations import retry_safe_cmds
+    safe = await retry_safe_cmds(mcp)
+    assert "source_patch_write" not in safe
+    assert "sync" not in safe
+
+
 async def test_recompile_annotation_prevents_public_send_after_domain_reload():
     """Executable annotation mutant: RW_IDEM would produce multiple frames."""
     import json
