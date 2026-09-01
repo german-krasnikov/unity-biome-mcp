@@ -80,6 +80,25 @@ namespace UnityMCP.Editor.Wizard
                 + existingText.Substring(end);
         }
 
+        /// <summary>
+        /// ARC-11 T1: insert a "_pin": true marker as a sibling of "_v" inside our
+        /// entry — surgical insert like Adopt(), reusing WizardConfigWriter's
+        /// point-splice primitive (InsertFieldBeforeClosingBrace) so every other key
+        /// (env, custom args, ...) is preserved byte-for-byte instead of re-parsed.
+        /// Idempotent: returns the input unchanged when already pinned, so a
+        /// repeated call never duplicates the marker. Returns the original
+        /// reference unchanged when no unity-biome-mcp entry is found (mirrors
+        /// Adopt_NoEntry).
+        /// </summary>
+        internal static string Pin(string existingText)
+        {
+            if (!FindOurEntry(existingText, out var start, out var end)) return existingText;
+            if (IsPinned(existingText)) return existingText;
+            var oldSpan = existingText.Substring(start, end - start);
+            var patchedSpan = WizardConfigWriter.InsertFieldBeforeClosingBrace(oldSpan, "\"_pin\": true");
+            return existingText.Substring(0, start) + patchedSpan + existingText.Substring(end);
+        }
+
         internal static EntryState Classify(string existingText, int port, string version)
         {
             if (string.IsNullOrEmpty(existingText) ||

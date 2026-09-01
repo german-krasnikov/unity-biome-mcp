@@ -78,6 +78,33 @@ namespace UnityMCP.Editor.Wizard
         internal static bool IsPinned(string existingText) =>
             !string.IsNullOrEmpty(existingText) && PinRe.IsMatch(existingText);
 
+        // ARC-11 T1: matches the unpinned marker comment line directly above our
+        // section header — same adjacency scoping as MarkerVersionRe/PinRe, so a
+        // sibling section's comment never leaks into Pin(). Group 1 is the comment
+        // text up to (not including) the version's trailing newline — that's where
+        // the " pinned" suffix gets inserted.
+        private static readonly Regex UnpinnedCommentLineRe = new Regex(
+            @"^(# unity-(?:biome-mcp|mcp) generated v[\d.]+)(\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\])",
+            RegexOptions.Multiline);
+
+        /// <summary>
+        /// Insert the " pinned" suffix onto the version-marker comment line, directly
+        /// above our own section header — surgical insert, mirrors Adopt()'s
+        /// comment-line insertion technique. Idempotent: returns the input unchanged
+        /// when already pinned (never produces "pinned pinned"). Returns the
+        /// original reference unchanged when no comment+section-header pair is
+        /// found — Pin() is only ever invoked on an already-OwnedStale entry, which
+        /// by Classify()'s own contract already has a version marker comment.
+        /// </summary>
+        internal static string Pin(string existingText)
+        {
+            if (string.IsNullOrEmpty(existingText) || IsPinned(existingText)) return existingText;
+            var m = UnpinnedCommentLineRe.Match(existingText);
+            if (!m.Success) return existingText;
+            var insertAt = m.Groups[1].Index + m.Groups[1].Length;
+            return existingText.Substring(0, insertAt) + " pinned" + existingText.Substring(insertAt);
+        }
+
         /// <summary>
         /// Insert the version marker comment before the section header of a Foreign entry.
         /// After this call, Classify() returns OwnedCurrent when the existing entry's port matches.

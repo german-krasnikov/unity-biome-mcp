@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityMCP.Editor.Wizard;
 
@@ -156,6 +157,74 @@ namespace UnityMCP.Editor.Tests
             var text = "[mcp_servers.unity-mcp]\ncommand = 'uvx'\n";
             var result = ProjectConfigToml.Adopt(text, "2.0.0");
             Assert.AreEqual("2.0.0", ProjectConfigToml.ExtractMarkerVersion(result));
+        }
+
+        // ── ARC-11 T1: Pin() surgical marker insert (TOML mirror) ───────────
+
+        [Test]
+        public void Pin_TomlEntry_InsertsPinnedSuffixOnCommentLine()
+        {
+            var fresh = ProjectConfigToml.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3");
+
+            var result = ProjectConfigToml.Pin(fresh);
+
+            // Arm B forbidden: `result != null` would pass against a stub that
+            // returns the input unchanged.
+            StringAssert.Contains("# unity-biome-mcp generated v1.2.3 pinned", result);
+        }
+
+        [Test]
+        public void Pin_ThenClassify_Toml_ReturnsOwnedCurrent()
+        {
+            var fresh = ProjectConfigToml.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3");
+
+            var pinned = ProjectConfigToml.Pin(fresh);
+            var result = ProjectConfigToml.Classify(pinned, 9600, "1.50.0");
+
+            // Arm B forbidden: `AreNotEqual(Absent, ...)` would also pass for
+            // OwnedStale.
+            Assert.AreEqual(EntryState.OwnedCurrent, result);
+        }
+
+        [Test]
+        public void Pin_TomlNoSectionFound_ReturnsOriginalUnchanged()
+        {
+            var text = "[some_other_tool]\nkey = 'value'\n";
+            var result = ProjectConfigToml.Pin(text);
+            Assert.IsTrue(ReferenceEquals(result, text));
+        }
+
+        [Test]
+        public void Pin_AlreadyPinnedToml_IsIdempotent_NoDuplicateSuffix()
+        {
+            var fresh = ProjectConfigToml.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3");
+
+            var pinnedOnce = ProjectConfigToml.Pin(fresh);
+            var pinnedTwice = ProjectConfigToml.Pin(pinnedOnce);
+
+            Assert.AreEqual(1, Regex.Matches(pinnedTwice, "pinned").Count,
+                "a repeated Pin() must never duplicate the ' pinned' suffix");
+            Assert.AreEqual(pinnedOnce, pinnedTwice);
+        }
+
+        [Test]
+        public void Pin_TomlPreservesOtherTablesByteForByte()
+        {
+            var existing =
+                "[some_other_tool]\n" +
+                "key = 'value'\n" +
+                "\n" +
+                "# unity-biome-mcp generated v1.49.0\n" +
+                "[mcp_servers.unity-biome-mcp]\n" +
+                "command = 'uvx'\n" +
+                "\n" +
+                "[mcp_servers.unity-biome-mcp.env]\n" +
+                "UNITY_MCP_PORT = '9500'\n";
+
+            var result = ProjectConfigToml.Pin(existing);
+
+            StringAssert.Contains("[some_other_tool]\nkey = 'value'\n", result);
+            StringAssert.Contains("UNITY_MCP_PORT = '9500'", result);
         }
     }
 }

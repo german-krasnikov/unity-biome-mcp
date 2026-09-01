@@ -222,8 +222,10 @@ namespace UnityMCP.Editor.Wizard
         // brace — the exact technique ProjectConfigFormats.Adopt() already uses for
         // "_v" (ProjectConfigFormats.cs Adopt), generalized to any wizard-owned
         // field name. Position/formatting are cosmetic only (ARC-13 §6 Risks) —
-        // output stays valid JSON either way.
-        private static string InsertFieldBeforeClosingBrace(string oldSpan, string fieldSegment)
+        // output stays valid JSON either way. Internal (not private): reused by
+        // ProjectConfigFormats.Pin() (ARC-11 T1) to insert "_pin": true without
+        // duplicating this splice logic (DRY).
+        internal static string InsertFieldBeforeClosingBrace(string oldSpan, string fieldSegment)
         {
             var insertAt = oldSpan.Length - 1; // index of closing '}'
             var before = oldSpan.Substring(0, insertAt).TrimEnd();

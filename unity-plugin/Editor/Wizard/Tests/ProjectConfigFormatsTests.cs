@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityMCP.Editor.Wizard;
 
@@ -302,6 +303,82 @@ namespace UnityMCP.Editor.Tests
             var text = "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"uvx\"}}}";
             var adopted = ProjectConfigFormats.Adopt(text, "1.2.3");
             Assert.AreEqual(EntryState.OwnedCurrent, ProjectConfigFormats.Classify(adopted, 9500, "1.2.3"));
+        }
+
+        // ── ARC-11 T1: Pin() surgical marker insert ─────────────────────────
+
+        [Test]
+        public void Pin_OwnedStaleEntry_InsertsPinMarker_PreservesVersion()
+        {
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\""
+                + "}}}";
+
+            var result = ProjectConfigFormats.Pin(existing);
+
+            // Arm B forbidden: `result != null` would pass against a stub that
+            // returns the input unchanged — assert the exact inserted substring
+            // AND that the pre-existing version marker survives untouched.
+            StringAssert.Contains("\"_pin\": true", result);
+            StringAssert.Contains("\"_v\": \"1.49.0\"", result);
+        }
+
+        [Test]
+        public void Pin_ThenClassify_ReturnsOwnedCurrent_RegardlessOfVersionMismatch()
+        {
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\""
+                + "}}}";
+
+            var pinned = ProjectConfigFormats.Pin(existing);
+            var result = ProjectConfigFormats.Classify(pinned, 9500, "1.50.0");
+
+            // Arm B forbidden: `AreNotEqual(Absent, ...)` would also pass for
+            // OwnedStale — the composition claim requires the exact value.
+            Assert.AreEqual(EntryState.OwnedCurrent, result);
+        }
+
+        [Test]
+        public void Pin_NoOurEntryFound_ReturnsOriginalUnchanged()
+        {
+            var text = "{\"mcpServers\":{}}";
+            var result = ProjectConfigFormats.Pin(text);
+            Assert.IsTrue(ReferenceEquals(result, text));
+        }
+
+        [Test]
+        public void Pin_AlreadyPinned_IsIdempotent_NoDuplicateMarker()
+        {
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\""
+                + "}}}";
+
+            var pinnedOnce = ProjectConfigFormats.Pin(existing);
+            var pinnedTwice = ProjectConfigFormats.Pin(pinnedOnce);
+
+            Assert.AreEqual(1, Regex.Matches(pinnedTwice, "\"_pin\"").Count,
+                "a repeated Pin() must never duplicate the marker");
+            Assert.AreEqual(pinnedOnce, pinnedTwice);
+        }
+
+        [Test]
+        public void Pin_PreservesEnvAndSiblingKeys_ByteForByte()
+        {
+            var existing = "{\"mcpServers\":{"
+                + "\"other-tool\":{\"command\":\"x\"},"
+                + "\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\","
+                + "\"env\": {\"UNITY_MCP_NO_GATING\": \"1\"}"
+                + "}}}";
+
+            var result = ProjectConfigFormats.Pin(existing);
+
+            StringAssert.Contains("\"other-tool\":{\"command\":\"x\"}", result);
+            StringAssert.Contains("\"env\": {\"UNITY_MCP_NO_GATING\": \"1\"}", result);
         }
     }
 }
