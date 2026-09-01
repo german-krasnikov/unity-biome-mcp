@@ -6,12 +6,10 @@ import json
 import math
 import re
 import uuid
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import Any
 
 from mcp.server.fastmcp.exceptions import ToolError
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 from ..compile_state import CompileStateProbe
 from ._annotations import RO as _RO
