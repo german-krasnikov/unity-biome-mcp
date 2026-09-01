@@ -238,6 +238,9 @@ class UnityBridge(HeartbeatMixin):
         self._hard_deadline_started_at: float | None = None
         # ARC-7 T1: throttle clock for the periodic stale-port sweep (bridge_heartbeat.py).
         self._last_port_sweep_at: float = 0.0
+        # ARC-7 T2: monotonic timestamp of the last *successful* contact with Unity
+        # (heartbeat pong or a completed send() round-trip). None until either occurs.
+        self._last_contact_at: float | None = None
         self._state: BridgeState = BridgeState.DISCONNECTED
         self._on_reconnect_callbacks: list = []
         self._crash_log = CrashLogger()
@@ -427,6 +430,7 @@ class UnityBridge(HeartbeatMixin):
             try:
                 result = await self._send_with_retry(cmd, payload, msg_id, timeout, deadline, op_id)
                 self._ledger.record(op_id, CommandStatus.COMPLETED, result)  # MCP-TRANS-008
+                self._last_contact_at = time.monotonic()  # ARC-7 T2
                 if not future.done():
                     future.set_result(result)
             except asyncio.CancelledError:
@@ -941,6 +945,21 @@ class UnityBridge(HeartbeatMixin):
         if self._state == BridgeState.FAILED:
             return "tcp:failed"
         return "tcp:reconnecting"
+
+    @property
+    def last_contact_age_s(self) -> float | None:
+        """Seconds since the last successful contact with Unity (heartbeat pong
+        or a completed send() round-trip). None until either has ever occurred
+        — ARC-7 T2, diagnostic input for mcp_status (T3)."""
+        if self._last_contact_at is None:
+            return None
+        return time.monotonic() - self._last_contact_at
+
+    @property
+    def pending_queue_depth(self) -> int:
+        """Number of commands queued for the serial send consumer, not yet
+        dispatched to Unity — a plain getter over the existing queue (ARC-7 T2)."""
+        return self._send_queue.qsize()
 
     async def close(self):
         if asyncio.current_task() is not self._heartbeat_task:

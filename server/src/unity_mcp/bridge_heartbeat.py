@@ -291,3 +291,4 @@ class HeartbeatMixin:
             on_ta = getattr(self, "_on_transport_activity", None)
             if on_ta is not None:
                 on_ta()
+            self._last_contact_at = time.monotonic()  # ARC-7 T2: confirmed pong
