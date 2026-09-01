@@ -6,7 +6,7 @@ import json
 import math
 import re
 import uuid
-from pathlib import Path
+from pathlib import Path  # noqa: TC003 — get_type_hints() requires runtime (test_python314_compat)
 from typing import Any
 
 from mcp.server.fastmcp.exceptions import ToolError
