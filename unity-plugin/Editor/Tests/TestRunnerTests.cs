@@ -1029,6 +1029,86 @@ namespace UnityMCP.Editor.Tests
                 "running|0|0|0|0|0|0.0|eta=0s|run_id=" + runId, result);
         }
 
+        [Test]
+        public void Reconcile_ManifestSealedZero_AddsZeroTestMatchWarning()
+        {
+            const string runId = "run-zero-match";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                lifecycle = TestRunProtocol.Lifecycle.Running,
+                created_utc = Utc,
+                utf_guid = "utf-guid-1",
+                build_coherent = true
+            });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.RunStarted,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 0
+            });
+            _store.SealManifest(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.ManifestSealed,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 0
+            });
+
+            var summary = _store.Reconcile(runId);
+
+            Assert.IsTrue(summary.issues.Any(issue =>
+                issue.code == "ZERO_TEST_MATCH" &&
+                issue.severity == TestRunProtocol.IssueSeverity.Warning));
+        }
+
+        [Test]
+        public void Reconcile_ManifestSealedZeroWithRunFinished_DoesNotChangeOutcome()
+        {
+            const string runId = "run-zero-match-finished";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                lifecycle = TestRunProtocol.Lifecycle.Finalizing,
+                created_utc = Utc,
+                utf_guid = "utf-guid-1",
+                build_coherent = true
+            });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.RunStarted,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 0
+            });
+            _store.SealManifest(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.ManifestSealed,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 0
+            });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.RunFinished,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                outcome = TestRunProtocol.RunOutcome.Passed,
+                root_trusted = true,
+                has_aggregate = true
+            });
+
+            var summary = _store.Reconcile(runId);
+
+            Assert.AreEqual(TestRunProtocol.RunOutcome.Passed, summary.outcome);
+        }
+
         // ── Cancel edge cases ──
 
         [Test]
