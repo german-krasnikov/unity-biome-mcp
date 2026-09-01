@@ -597,6 +597,22 @@ async def run_tests_wait(
             if remaining > 0:
                 await asyncio.sleep(min(interval, remaining))
 
+    resolved_run_id = run_id or known_run_id
+    if resolved_run_id:
+        try:
+            disk_result = _read_disk_fallback(
+                resolved_run_id,
+                mode=mode,
+                filter_name=filter or "",
+                expected_request_id=stable_request_id,
+            )
+        except Exception:
+            # A filesystem hiccup degrades to the pre-existing TIMEOUT below,
+            # never crashes a caller that's already out of patience.
+            disk_result = None
+        if disk_result is not None:
+            return disk_result
+
     streak_suffix = (
         f"|health_streak={health_streak}"
         if health_streak >= _HEALTH_STREAK_TIMEOUT_THRESHOLD

@@ -13,7 +13,7 @@ TIMEOUT return; it is not called from anywhere yet.
 
 import json
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -21,6 +21,14 @@ import unity_mcp.tools.testing as testing
 
 REQUEST_ID = "req-1"
 RUN_ID = "run-1"
+ACK = (
+    f"tests-started|request_id={REQUEST_ID}|run_id={RUN_ID}"
+    "|utf_guid=utf-1|state=dispatched"
+)
+
+
+async def _started(mode, filter=None, request_id=None):
+    return ACK
 
 
 def _snapshot(state: str, outcome: str = "", health: str = "") -> str:
@@ -215,3 +223,70 @@ def test_disk_fallback_returns_marked_snapshot_for_valid_terminal():
     decoded = json.loads(result)
     assert decoded["read_via"] == "disk"
     assert decoded["outcome"] == "passed"
+
+
+# --- D4: wire _read_disk_fallback into run_tests_wait's TIMEOUT return ---
+
+
+async def test_timeout_returns_disk_fallback_when_wire_never_goes_terminal():
+    """A successful disk-fallback read replaces TIMEOUT entirely, not just prefixes it."""
+    running = _snapshot("running")
+    marked = json.dumps({"outcome": "passed", "read_via": "disk"}, sort_keys=True)
+    with patch.object(testing, "run_tests", _started), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value=running)), \
+         patch.object(testing, "_read_disk_fallback", return_value=marked) as mock_fallback, \
+         patch("asyncio.sleep", AsyncMock()):
+        result = await testing.run_tests_wait(
+            request_id=REQUEST_ID, timeout=0.001, poll_interval=1.0
+        )
+
+    assert result == marked
+    mock_fallback.assert_called_once_with(
+        RUN_ID, mode="EditMode", filter_name="", expected_request_id=REQUEST_ID,
+    )
+
+
+async def test_timeout_preserved_when_disk_fallback_finds_nothing():
+    """A None disk-fallback result leaves the pre-existing TIMEOUT contract untouched.
+
+    Locks in the exact string test_run_tests_wait_gaps.py::
+    test_all_none_timeout_preserves_exact_run_id already asserts.
+    """
+    with patch.object(testing, "run_tests", _started), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value="none")), \
+         patch.object(testing, "_read_disk_fallback", return_value=None) as mock_fallback, \
+         patch("asyncio.sleep", AsyncMock()):
+        result = await testing.run_tests_wait(
+            request_id=REQUEST_ID, timeout=0.001, poll_interval=1.0
+        )
+
+    assert result == f"TIMEOUT|request_id={REQUEST_ID}|run_id={RUN_ID}|snapshot=none"
+    mock_fallback.assert_called_once_with(
+        RUN_ID, mode="EditMode", filter_name="", expected_request_id=REQUEST_ID,
+    )
+
+
+async def test_disk_fallback_not_attempted_without_a_resolved_run_id(monkeypatch):
+    """No wire-correlated run_id at all (ACK lost, resolve finds nothing) means the
+    disk fallback is never attempted -- there is no run_id to read a summary for.
+
+    Reuses the run_id=unknown dispatch-loss shape from
+    test_run_tests_wait_gaps.py::test_generated_request_id_is_reused_for_dispatch_and_resolution.
+    """
+    async def send(cmd, args, **kwargs):
+        if cmd == "resolve_test_request":
+            return "none"
+        if cmd == "run_tests":
+            raise ConnectionError("ACK lost")
+        raise AssertionError(cmd)
+
+    monkeypatch.setattr(testing, "_send", send)
+    monkeypatch.setattr(testing, "_new_request_id", lambda: REQUEST_ID)
+    mock_fallback = MagicMock(return_value=None)
+    monkeypatch.setattr(testing, "_read_disk_fallback", mock_fallback)
+    with patch("unity_mcp.tools.diagnose.diagnose", AsyncMock(return_value="CLEAN")), \
+         patch("asyncio.sleep", AsyncMock()):
+        result = await testing.run_tests_wait(timeout=0.001, poll_interval=1.0)
+
+    assert result == f"TIMEOUT|request_id={REQUEST_ID}|run_id=unknown|snapshot=none"
+    mock_fallback.assert_not_called()
