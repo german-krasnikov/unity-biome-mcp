@@ -24,6 +24,22 @@ _UNITY_MCP_SECTION_RE = re.compile(
 )
 
 
+def _deep_merge(base: dict, overlay: dict) -> dict:
+    """Recursively merge overlay into base, mutating and returning base.
+
+    For each key in overlay: if base[key] and overlay[key] are both dict,
+    recurse; otherwise overlay's value wins outright (scalars/lists — command,
+    args, type, enabled, trust — are always replaced wholesale, we own the
+    whole value). Keys present only in base, at any depth, stay untouched.
+    """
+    for key, value in overlay.items():
+        if isinstance(value, dict) and isinstance(base.get(key), dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+    return base
+
+
 def merge_mcp_config(
     config_path: pathlib.Path,
     server_entry: dict,
@@ -44,7 +60,9 @@ def merge_mcp_config(
     data.setdefault(root_key, {})
     for old in _OLD_NAMES:                 # migrate: drop any prior-name entry
         data[root_key].pop(old, None)
-    data[root_key][SERVER_NAME] = entry
+    current = data[root_key].get(SERVER_NAME)
+    base = current if isinstance(current, dict) else {}
+    data[root_key][SERVER_NAME] = _deep_merge(base, entry)
 
     tmp = config_path.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
