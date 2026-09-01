@@ -143,3 +143,56 @@ def test_kimi_config_nonzero_port_includes_env(tmp_path):
     data = json.loads((tmp_path / "mcp.json").read_text(encoding="utf-8"))
     entry = data["mcpServers"]["unity-biome-mcp"]
     assert entry["env"]["UNITY_MCP_PORT"] == "9601"
+
+
+# ── ARC-12 T2: writers must deep-merge, not wholesale-replace the entry ──────
+
+def test_kimi_config_preserves_custom_env_on_rewrite(tmp_path):
+    """A pre-existing custom env var (or any key next to UNITY_MCP_PORT) must
+    survive a re-write that omits it (port=0 shape), while our own keys still
+    get updated. Reproduces RC2 (mcp_config_writer.py hand-rolled replace)."""
+    path = tmp_path / "mcp.json"
+    existing = {
+        "mcpServers": {
+            "unity-biome-mcp": {
+                "command": "old",
+                "args": [],
+                "env": {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"},
+            }
+        }
+    }
+    path.write_text(json.dumps(existing), encoding="utf-8")
+
+    with patch("unity_mcp.mcp_config_writer.resolve_server_cmd", return_value=("new", ["-m", "x"])):
+        write_kimi_mcp_config(str(tmp_path), 0)
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    entry = data["mcpServers"]["unity-biome-mcp"]
+    assert entry["env"] == {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"}
+    assert entry["command"] == "new"
+
+
+def test_agy_settings_preserves_custom_top_level_key_on_rewrite(tmp_path):
+    """A hand-added top-level key (e.g. 'customFlag') must survive a re-write,
+    while our own keys (command, trust) still get updated."""
+    path = tmp_path / "settings.json"
+    existing = {
+        "mcpServers": {
+            "unity-biome-mcp": {
+                "command": "old",
+                "args": [],
+                "trust": True,
+                "customFlag": "value",
+            }
+        }
+    }
+    path.write_text(json.dumps(existing), encoding="utf-8")
+
+    with patch("unity_mcp.mcp_config_writer.resolve_server_cmd", return_value=("new", ["-m", "x"])):
+        write_agy_settings(str(tmp_path), 0)
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    entry = data["mcpServers"]["unity-biome-mcp"]
+    assert entry["customFlag"] == "value"
+    assert entry["command"] == "new"
+    assert entry["trust"] is True

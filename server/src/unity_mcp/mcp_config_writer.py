@@ -9,7 +9,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from .config.merger import _OLD_NAMES, SERVER_NAME
+from .config.merger import _OLD_NAMES, SERVER_NAME, _deep_merge
 
 
 def resolve_server_cmd() -> tuple[str, list[str]]:
@@ -75,7 +75,9 @@ def write_kimi_mcp_config(config_dir: str, mcp_port: int) -> None:
     entry: dict = {"command": cmd, "args": args}
     if mcp_port:
         entry["env"] = {"UNITY_MCP_PORT": str(mcp_port)}
-    servers[SERVER_NAME] = entry
+    current = servers.get(SERVER_NAME)
+    base = current if isinstance(current, dict) else {}
+    servers[SERVER_NAME] = _deep_merge(base, entry)
     existing["mcpServers"] = servers
     _atomic_write(path, json.dumps(existing, indent=2))
 
@@ -99,7 +101,9 @@ def write_agy_settings(settings_dir: str, mcp_port: int) -> None:
     entry: dict = {"command": cmd, "args": args, "trust": True}
     if mcp_port:
         entry["env"] = {"UNITY_MCP_PORT": str(mcp_port)}
-    servers[SERVER_NAME] = entry
+    current = servers.get(SERVER_NAME)
+    base = current if isinstance(current, dict) else {}
+    servers[SERVER_NAME] = _deep_merge(base, entry)
     existing["mcpServers"] = servers
     _atomic_write(path, json.dumps(existing, indent=2))
 
