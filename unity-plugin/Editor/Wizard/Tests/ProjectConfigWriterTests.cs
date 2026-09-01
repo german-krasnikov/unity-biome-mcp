@@ -65,25 +65,35 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Run_ExistingFileNotInEnabledSet_StillUpdatesFile()
+        public void Run_DisabledAgent_ExistingFile_NotRewritten()
         {
-            // Pre-create .cursor/mcp.json with old version — not in enabled set
+            // ARC-0b T4 / ARC-14 T2 (ARC-19 §3 row 34): file-exists bypass removed —
+            // a disabled agent's pre-existing file must be left byte-identical.
+            // Pre-create .cursor/mcp.json with old version — not in enabled set.
             var cursorDir = Path.Combine(_tmpDir, ".cursor");
             Directory.CreateDirectory(cursorDir);
             var cursorPath = Path.Combine(cursorDir, "mcp.json");
             File.WriteAllText(cursorPath,
                 "{\"mcpServers\":{\"unity-mcp\":{\"command\":\"uvx\",\"_v\":\"0.0.1\"}}}");
+            // Sentinel proves no rewrite happened — a rewrite would regenerate fresh
+            // content and silently drop this appended line.
+            File.AppendAllText(cursorPath, "\n// sentinel-untouched\n");
+            var before = File.ReadAllText(cursorPath);
 
             ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
 
-            // file-exists bypass: cursor file must still be updated
-            var content = File.ReadAllText(cursorPath);
-            StringAssert.Contains("\"_v\": \"1.2.3\"", content);
+            var after = File.ReadAllText(cursorPath);
+            Assert.AreEqual(before, after);
+            StringAssert.Contains("sentinel-untouched", after);
+            StringAssert.Contains("\"_v\":\"0.0.1\"", after);
         }
 
         [Test]
-        public void GetActiveTargets_FileExistsNotEnabled_IncludesTarget()
+        public void GetActiveTargets_FileExistsKeyNotEnabled_ExcludesTarget()
         {
+            // ARC-0b T4 / ARC-14 T2 (ARC-19 §3 row 34): red-flip of
+            // GetActiveTargets_FileExistsNotEnabled_IncludesTarget — file existence must
+            // no longer bypass the enabledKeys filter.
             var cursorDir = Path.Combine(_tmpDir, ".cursor");
             Directory.CreateDirectory(cursorDir);
             File.WriteAllText(Path.Combine(cursorDir, "mcp.json"), "{}");
@@ -92,8 +102,8 @@ namespace UnityMCP.Editor.Tests
             var active = new List<ProjectConfigTarget>(
                 ProjectConfigWriter.GetActiveTargets(_tmpDir, enabled));
 
-            Assert.IsTrue(active.Exists(t => t.Key == "cursor"),
-                "cursor should be included because file exists");
+            Assert.IsFalse(active.Exists(t => t.Key == "cursor"),
+                "cursor should be excluded — key not enabled, even though file exists");
         }
 
         [Test]
@@ -188,11 +198,14 @@ namespace UnityMCP.Editor.Tests
         public void Run_FileWithForeignUnityMcpEntry_AdoptsEntry_AddsVersionMarker()
         {
             // Adoption: foreign entry gets "_v" marker inserted; custom content preserved.
+            // Key must be enabled (ARC-0b T4 / ARC-14 T2): GetActiveTargets no longer
+            // visits a target just because its file exists — Run() only reaches Adopt()
+            // for a key the caller opted into. claude-code is .mcp.json's key.
             var path = Path.Combine(_tmpDir, ".mcp.json");
             var handWritten = "{\"mcpServers\":{\"unity-mcp\":{\"command\":\"custom\"}}}";
             File.WriteAllText(path, handWritten);
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string>());
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
 
             var content = File.ReadAllText(path);
             StringAssert.Contains("\"_v\": \"1.2.3\"", content);

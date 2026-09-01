@@ -64,15 +64,15 @@ namespace UnityMCP.Editor.Wizard
             GitignorePatcher.Apply(projectRoot, active.Select(t => t.RelativePath));
         }
 
-        // Pure helper: include target if its file already exists (migration) OR its key
-        // is in enabledKeys (user opted in). No Unity API, no EditorPrefs.
+        // Pure helper: include target only if its key is in enabledKeys (user opted in).
+        // ARC-0b T4 / ARC-14 T2 (ARC-19 §3 row 34): file-exists bypass removed — a
+        // pre-existing file for a disabled key is left alone (WriteOne never deletes,
+        // it is simply not visited). No Unity API, no EditorPrefs.
         internal static IEnumerable<ProjectConfigTarget> GetActiveTargets(
             string projectRoot, HashSet<string> enabledKeys)
         {
             foreach (var target in ProjectConfigTargets.All)
             {
-                if (File.Exists(Path.Combine(projectRoot, target.RelativePath)))
-                    { yield return target; continue; }
                 if (enabledKeys != null && enabledKeys.Contains(target.Key))
                     yield return target;
             }
