@@ -302,5 +302,144 @@ namespace UnityMCP.Editor.Tests
 
             Assert.Throws<ArgumentNullException>(() => coordinator.TryApply(null));
         }
+
+        // ── ReleaseHeldLease (ROI Fix 2b): closes the lease-leak documented
+        // at TryApply's Uncertain/Drift-after-write/exception comments —
+        // those paths deliberately never dispose inline, leaving the lease
+        // for a future host-level Recovery reconciliation. Each test below
+        // reuses an existing Recovery-entering test's exact setup. ──
+
+        [Test]
+        public void ReleaseHeldLease_AfterUncertainEvidenceOutcome_DisposesExactlyOnce()
+        {
+            var bytesPort = new FakeBytesPort { Content = Bytes("before") };
+            var provider = new FakeProvider { Outcome = SourcePatchApplyOutcome.Applied };
+            var leasePort = new FakeLeasePort();
+            var evidencePort = new FakeEvidencePort { Confirmed = false };
+            var coordinator = new SourcePatchCoordinator(bytesPort, provider, leasePort, evidencePort, SourcePatchState.OnReady);
+            coordinator.TryApply(MakeRequest());
+
+            coordinator.ReleaseHeldLease();
+
+            Assert.AreEqual(1, leasePort.LastLease.DisposeCount);
+        }
+
+        [Test]
+        public void ReleaseHeldLease_AfterDriftDetectedDuringRollback_DisposesExactlyOnce()
+        {
+            var before = Bytes("before");
+            var bytesPort = new FakeBytesPort
+            {
+                Content = before,
+                ReadOverride = callIndex => callIndex == 1 ? before : Bytes("externally-changed"),
+            };
+            var provider = new FakeProvider { Outcome = SourcePatchApplyOutcome.Rejected };
+            var leasePort = new FakeLeasePort();
+            var evidencePort = new FakeEvidencePort { Confirmed = true };
+            var coordinator = new SourcePatchCoordinator(bytesPort, provider, leasePort, evidencePort, SourcePatchState.OnReady);
+            coordinator.TryApply(MakeRequest("before", "after"));
+
+            coordinator.ReleaseHeldLease();
+
+            Assert.AreEqual(1, leasePort.LastLease.DisposeCount);
+        }
+
+        [Test]
+        public void ReleaseHeldLease_AfterProviderUncertainOutcome_DisposesExactlyOnce()
+        {
+            var bytesPort = new FakeBytesPort { Content = Bytes("before") };
+            var provider = new FakeProvider { Outcome = SourcePatchApplyOutcome.Uncertain };
+            var leasePort = new FakeLeasePort();
+            var evidencePort = new FakeEvidencePort { Confirmed = true };
+            var coordinator = new SourcePatchCoordinator(bytesPort, provider, leasePort, evidencePort, SourcePatchState.OnReady);
+            coordinator.TryApply(MakeRequest());
+
+            coordinator.ReleaseHeldLease();
+
+            Assert.AreEqual(1, leasePort.LastLease.DisposeCount);
+        }
+
+        [Test]
+        public void ReleaseHeldLease_AfterWriteThrows_DisposesExactlyOnce()
+        {
+            var boom = new InvalidOperationException("boom");
+            var bytesPort = new FakeBytesPort { Content = Bytes("before"), ThrowOnWrite = boom };
+            var provider = new FakeProvider { Outcome = SourcePatchApplyOutcome.Applied };
+            var leasePort = new FakeLeasePort();
+            var evidencePort = new FakeEvidencePort { Confirmed = true };
+            var coordinator = new SourcePatchCoordinator(bytesPort, provider, leasePort, evidencePort, SourcePatchState.OnReady);
+            try { coordinator.TryApply(MakeRequest()); } catch (InvalidOperationException) { /* expected */ }
+
+            coordinator.ReleaseHeldLease();
+
+            Assert.AreEqual(1, leasePort.LastLease.DisposeCount);
+        }
+
+        [Test]
+        public void ReleaseHeldLease_AfterProviderApplyThrows_DisposesExactlyOnce()
+        {
+            var boom = new InvalidOperationException("boom");
+            var bytesPort = new FakeBytesPort { Content = Bytes("before") };
+            var provider = new FakeProvider { ThrowOnApply = boom };
+            var leasePort = new FakeLeasePort();
+            var evidencePort = new FakeEvidencePort { Confirmed = true };
+            var coordinator = new SourcePatchCoordinator(bytesPort, provider, leasePort, evidencePort, SourcePatchState.OnReady);
+            try { coordinator.TryApply(MakeRequest()); } catch (InvalidOperationException) { /* expected */ }
+
+            coordinator.ReleaseHeldLease();
+
+            Assert.AreEqual(1, leasePort.LastLease.DisposeCount);
+        }
+
+        [Test]
+        public void ReleaseHeldLease_AfterCasDriftBeforeWrite_IsNoOpNoLeaseWasAcquired()
+        {
+            var bytesPort = new FakeBytesPort { Content = Bytes("something-else") };
+            var provider = new FakeProvider { Outcome = SourcePatchApplyOutcome.Applied };
+            var leasePort = new FakeLeasePort();
+            var evidencePort = new FakeEvidencePort { Confirmed = true };
+            var coordinator = new SourcePatchCoordinator(bytesPort, provider, leasePort, evidencePort, SourcePatchState.OnReady);
+            coordinator.TryApply(MakeRequest());
+            Assert.AreEqual(0, leasePort.AcquireCount, "CAS drift before write never acquires a lease");
+
+            Assert.DoesNotThrow(() => coordinator.ReleaseHeldLease());
+
+            Assert.AreEqual(0, leasePort.AcquireCount);
+            Assert.IsNull(leasePort.LastLease, "no lease was ever acquired, so none can have been disposed");
+        }
+
+        [Test]
+        public void ReleaseHeldLease_CalledTwice_DisposesOnlyOnce()
+        {
+            var bytesPort = new FakeBytesPort { Content = Bytes("before") };
+            var provider = new FakeProvider { Outcome = SourcePatchApplyOutcome.Applied };
+            var leasePort = new FakeLeasePort();
+            var evidencePort = new FakeEvidencePort { Confirmed = false };
+            var coordinator = new SourcePatchCoordinator(bytesPort, provider, leasePort, evidencePort, SourcePatchState.OnReady);
+            coordinator.TryApply(MakeRequest());
+
+            coordinator.ReleaseHeldLease();
+            coordinator.ReleaseHeldLease();
+
+            Assert.AreEqual(1, leasePort.LastLease.DisposeCount,
+                "field-null-before-dispose must itself be idempotent, not merely rely on Lease.Dispose()'s own guard");
+        }
+
+        [Test]
+        public void ReleaseHeldLease_AfterSuccessfulApply_IsNoOpAlreadyDisposedInline()
+        {
+            var bytesPort = new FakeBytesPort { Content = Bytes("before") };
+            var provider = new FakeProvider { Outcome = SourcePatchApplyOutcome.Applied };
+            var leasePort = new FakeLeasePort();
+            var evidencePort = new FakeEvidencePort { Confirmed = true };
+            var coordinator = new SourcePatchCoordinator(bytesPort, provider, leasePort, evidencePort, SourcePatchState.OnReady);
+            coordinator.TryApply(MakeRequest());
+            Assert.AreEqual(1, leasePort.LastLease.DisposeCount, "success path disposes inline");
+
+            coordinator.ReleaseHeldLease();
+
+            Assert.AreEqual(1, leasePort.LastLease.DisposeCount,
+                "no double-dispose of a lease already released inline by the success path");
+        }
     }
 }

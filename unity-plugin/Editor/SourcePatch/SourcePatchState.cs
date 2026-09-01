@@ -18,16 +18,20 @@ namespace UnityMCP.Editor.SourcePatch
     }
 
     /// <summary>
-    /// Pure, minimal state machine enforcing exactly the 8 legal edges from
-    /// §3.3. Recovery has zero legal outgoing edges within one coordinator's
-    /// lifetime: leaving Recovery requires a new Domain Reload / a freshly
-    /// constructed coordinator (host-level, P0-50/70), never an in-process
-    /// transition (§1.2: "In-process detour undo" is a non-goal). A
-    /// domain-start-in-Recovery from a stale receipt is represented by
-    /// constructing with <paramref name="initial"/> = Recovery, not by a
-    /// transition into it — OnReady -> Recovery is deliberately NOT a legal
-    /// edge; uncertainty/drift detected while OnReady always pass through
-    /// Busy first inside the coordinator.
+    /// Pure, minimal state machine enforcing exactly the 9 legal edges from
+    /// §3.3 (ROI Fix 2b added the Recovery exit edge). Recovery has exactly
+    /// one legal outgoing edge — Recovery -&gt; Disabling — reached only by an
+    /// explicit user enable=false intent (SourcePatchModePolicy.RequestDisable),
+    /// never automatically: no code path enters it on its own. Every other
+    /// Recovery transition, in particular Recovery -&gt; OnReady and
+    /// Recovery -&gt; Off, remains illegal — there is no direct re-enable and
+    /// no silent auto-repair; the only way back to OnReady is a fresh
+    /// Domain Reload / a freshly constructed coordinator (host-level,
+    /// P0-50/70). A domain-start-in-Recovery from a stale receipt is
+    /// represented by constructing with <paramref name="initial"/> = Recovery,
+    /// not by a transition into it — OnReady -> Recovery is deliberately NOT
+    /// a legal edge; uncertainty/drift detected while OnReady always pass
+    /// through Busy first inside the coordinator.
     /// </summary>
     internal sealed class SourcePatchStateMachine
     {
@@ -42,6 +46,7 @@ namespace UnityMCP.Editor.SourcePatch
             (SourcePatchState.OnReady, SourcePatchState.Disabling),
             (SourcePatchState.Disabling, SourcePatchState.Off),
             (SourcePatchState.Disabling, SourcePatchState.Recovery),
+            (SourcePatchState.Recovery, SourcePatchState.Disabling),   // ROI Fix 2b
         };
 
         public SourcePatchState Current { get; private set; }

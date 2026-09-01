@@ -47,6 +47,14 @@ namespace UnityMCP.Editor.SourcePatch
         private readonly ICompileEvidencePort _evidence;
         private readonly SourcePatchStateMachine _state;
 
+        // Non-null only while Recovery holds an unreleased AutoRefresh
+        // lease (ROI Fix 2b) — set at every Recovery-entry point below that
+        // deliberately never disposes inline (see each site's own comment),
+        // released exactly once by SourcePatchModePolicy.RequestDisable's
+        // Recovery branch via ReleaseHeldLease(), before the causal Domain
+        // Reload it triggers.
+        private IDisposable _heldLease;
+
         public SourcePatchCoordinator(
             ISourcePatchBytesPort bytes,
             ISourcePatchProvider provider,
@@ -106,6 +114,7 @@ namespace UnityMCP.Editor.SourcePatch
                         // Evidence not confirmed: leave the lease held for a
                         // future host-level Recovery reconciliation — never
                         // release it optimistically.
+                        _heldLease = lease;
                         _state.TryTransition(SourcePatchState.Recovery);
                         return SourcePatchOperationResult.Uncertain;
 
@@ -116,6 +125,7 @@ namespace UnityMCP.Editor.SourcePatch
                             // Something raced between our write and this
                             // readback: preserve external bytes, do not
                             // overwrite them with a rollback write.
+                            _heldLease = lease;
                             _state.TryTransition(SourcePatchState.Recovery);
                             return SourcePatchOperationResult.Drift;
                         }
@@ -125,6 +135,7 @@ namespace UnityMCP.Editor.SourcePatch
                         return SourcePatchOperationResult.RolledBack;
 
                     default: // Uncertain: never rolled back, never retried.
+                        _heldLease = lease;
                         _state.TryTransition(SourcePatchState.Recovery);
                         return SourcePatchOperationResult.Uncertain;
                 }
@@ -145,9 +156,27 @@ namespace UnityMCP.Editor.SourcePatch
                 {
                     lease.Dispose();
                 }
+                else if (lease != null)
+                {
+                    _heldLease = lease;
+                }
                 _state.TryTransition(SourcePatchState.Recovery);
                 throw;
             }
+        }
+
+        /// <summary>Releases an AutoRefresh lease this coordinator left held after
+        /// entering Recovery (see TryApply's Uncertain/Drift-after-write/exception
+        /// comments — those paths deliberately never dispose inline). No-op if no
+        /// lease is currently held (e.g. Recovery entered via the pre-write CAS
+        /// check, which never acquires a lease). Idempotent — safe to call more
+        /// than once. Called exactly once, by SourcePatchModePolicy.RequestDisable's
+        /// Recovery branch, before the causal Domain Reload it triggers.</summary>
+        public void ReleaseHeldLease()
+        {
+            var lease = _heldLease;
+            _heldLease = null;
+            lease?.Dispose();
         }
 
         private static bool BytesEqual(byte[] a, byte[] b)

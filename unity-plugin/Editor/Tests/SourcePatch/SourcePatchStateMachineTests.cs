@@ -8,11 +8,14 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     internal sealed class SourcePatchStateMachineTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        // §3.3 exact 8-edge legal set. Every other one of the 36 ordered
-        // pairs over the 6 states — including every self-transition and
-        // OnReady -> Recovery (uncertainty/drift always pass through Busy
-        // inside the coordinator; a stale-receipt Recovery is a domain-start
-        // INITIAL state, never a transition into it) — is forbidden.
+        // ROI Fix 2b: §3.3 exact 9-edge legal set (8 original + the one
+        // Recovery exit edge). Every other one of the 36 ordered pairs over
+        // the 6 states — including every self-transition and OnReady ->
+        // Recovery (uncertainty/drift always pass through Busy inside the
+        // coordinator; a stale-receipt Recovery is a domain-start INITIAL
+        // state, never a transition into it) — is forbidden. Recovery has
+        // exactly one legal outgoing edge: Disabling, reached only by an
+        // explicit user enable=false intent, never automatically.
         private static readonly HashSet<(SourcePatchState, SourcePatchState)> ExpectedLegal =
             new HashSet<(SourcePatchState, SourcePatchState)>
         {
@@ -24,6 +27,7 @@ namespace UnityMCP.Editor.Tests
             (SourcePatchState.OnReady, SourcePatchState.Disabling),
             (SourcePatchState.Disabling, SourcePatchState.Off),
             (SourcePatchState.Disabling, SourcePatchState.Recovery),
+            (SourcePatchState.Recovery, SourcePatchState.Disabling),
         };
 
         [Test]
@@ -69,15 +73,16 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void FromRecovery_NoOutgoingTransitionIsLegal()
+        public void FromRecovery_OnlyDisablingTransitionIsLegal()
         {
             var states = (SourcePatchState[])Enum.GetValues(typeof(SourcePatchState));
 
             foreach (var to in states)
             {
-                Assert.IsFalse(
+                var expected = to == SourcePatchState.Disabling;
+                Assert.AreEqual(expected,
                     SourcePatchStateMachine.IsLegalTransition(SourcePatchState.Recovery, to),
-                    $"Recovery -> {to} must not be legal");
+                    $"Recovery -> {to} legality mismatch");
             }
         }
 

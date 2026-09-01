@@ -148,8 +148,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [TestCase(SourcePatchState.Busy)]
-        [TestCase(SourcePatchState.Recovery)]
-        public void EnableFalse_BusyOrRecovery_RejectsWithoutReceiptOrSync(SourcePatchState state)
+        public void EnableFalse_Busy_RejectsWithoutReceiptOrSync(SourcePatchState state)
         {
             SourcePatchHost.CurrentState = state;
             var epochBefore = SyncHelper.CurrentEpoch;
@@ -159,6 +158,103 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(state, SourcePatchHost.CurrentState);
             Assert.AreEqual(epochBefore, SyncHelper.CurrentEpoch);
             Assert.IsFalse(SourcePatchReceiptStore.TryRead(out _));
+        }
+
+        // ── ROI Fix 2b: enable=false from Recovery is the one legal exit
+        // edge (Recovery -> Disabling), reused by the same causal-reload
+        // path OnReady -> Disabling already uses. ──────────────────────────
+
+        [Test]
+        public void EnableFalse_FromRecovery_WritesReceiptTransitionsDisablingAndSyncsExactlyOnce()
+        {
+            RegisterFakeProvider();
+            SourcePatchHost.CurrentState = SourcePatchState.Recovery;
+            var epochBefore = SyncHelper.CurrentEpoch;
+
+            var result = SourcePatchModePolicy.SetMutationIntent(false);
+
+            Assert.AreEqual("requested", result);
+            Assert.AreEqual(SourcePatchState.Disabling, SourcePatchHost.CurrentState);
+            Assert.AreEqual(epochBefore + 1, SyncHelper.CurrentEpoch, "exactly one sync");
+            Assert.IsTrue(SourcePatchReceiptStore.TryRead(out var receipt));
+            Assert.AreEqual(epochBefore + 1, receipt.ExpectedEpochAfter);
+        }
+
+        private sealed class FakeLease : IDisposable
+        {
+            public int DisposeCount;
+            public void Dispose() => DisposeCount++;
+        }
+
+        private sealed class FakeLeasePort : IAutoRefreshLeasePort
+        {
+            public FakeLease LastLease;
+
+            public IDisposable AcquireLease()
+            {
+                LastLease = new FakeLease();
+                return LastLease;
+            }
+        }
+
+        [Test]
+        public void EnableFalse_FromRecovery_ReleasesHeldAutoRefreshLease()
+        {
+            // Behavioral core of ROI Fix 2b: drive a real coordinator into
+            // Recovery via an Uncertain-outcome apply (same shape as
+            // SourcePatchCoordinatorTests.TryApply_ProviderAppliedButEvidenceNotConfirmed_EntersRecoveryWithoutReleasingLease),
+            // then prove enable=false actually disposes the lease that
+            // TryApply deliberately left held.
+            var provider = RegisterFakeProvider();
+            provider.Outcome = SourcePatchApplyOutcome.Applied;
+            var leasePort = new FakeLeasePort();
+            var coordinator = new SourcePatchCoordinator(
+                new StaticContentBytesPort(System.Text.Encoding.UTF8.GetBytes("before")),
+                provider, leasePort, new NeverConfirmedEvidencePort(),
+                SourcePatchState.OnReady);
+            SourcePatchHost.CurrentState = SourcePatchState.OnReady;
+            SourcePatchHost.Coordinator = coordinator;
+            var applyResult = coordinator.TryApply(
+                SourcePatchRequestForTests("Assets/Recovery.cs", "before", "after"));
+            Assert.AreEqual(SourcePatchOperationResult.Uncertain, applyResult);
+            Assert.AreEqual(SourcePatchState.Recovery, coordinator.CurrentState);
+            Assert.AreEqual(0, leasePort.LastLease.DisposeCount, "lease deliberately held on Uncertain outcome");
+            SourcePatchHost.CurrentState = SourcePatchState.Recovery;
+
+            SourcePatchModePolicy.SetMutationIntent(false);
+
+            Assert.AreEqual(1, leasePort.LastLease.DisposeCount,
+                "enable=false from Recovery must release the lease TryApply left held");
+        }
+
+        private sealed class NeverConfirmedEvidencePort : ICompileEvidencePort
+        {
+            public bool ConfirmApplied(SourcePatchRequest request) => false;
+        }
+
+        private static SourcePatchRequest SourcePatchRequestForTests(string path, string before, string after)
+        {
+            SourcePatchRequest.TryCreate(
+                path,
+                System.Text.Encoding.UTF8.GetBytes(before),
+                System.Text.Encoding.UTF8.GetBytes(after),
+                out var request);
+            return request;
+        }
+
+        [Test]
+        public void EnableFalse_FromRecovery_WithNoLiveCoordinator_DoesNotThrow()
+        {
+            // Domain-start Recovery shape: SourcePatchHost.Coordinator is
+            // null (nothing survives a domain reload into a fresh domain).
+            SourcePatchHost.CurrentState = SourcePatchState.Recovery;
+            Assert.IsNull(SourcePatchHost.Coordinator);
+
+            string result = null;
+            Assert.DoesNotThrow(() => result = SourcePatchModePolicy.SetMutationIntent(false));
+
+            Assert.AreEqual("requested", result);
+            Assert.AreEqual(SourcePatchState.Disabling, SourcePatchHost.CurrentState);
         }
 
         [Test]

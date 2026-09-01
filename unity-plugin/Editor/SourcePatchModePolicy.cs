@@ -65,6 +65,7 @@ namespace UnityMCP.Editor
             }
 
             var path = JsonHelper.ExtractString(argsJson, "path");
+            SourcePatchPathGuard.Validate(path, CurrentProjectPath()); // ROI Fix 1: pre-effect boundary check
             var content = JsonHelper.ExtractString(argsJson, "content") ?? "";
             var newBytes = System.Text.Encoding.UTF8.GetBytes(content);
             var beforeBytes = File.ReadAllBytes(Path.GetFullPath(path));
@@ -129,8 +130,19 @@ namespace UnityMCP.Editor
                 return "mutation_mode:false"; // idempotent, no sync (no redispatch)
             if (current == SourcePatchState.Disabling)
                 return "requested"; // already in flight — no redispatch, no second receipt/sync
-            if (current != SourcePatchState.OnReady)
+            if (current != SourcePatchState.OnReady && current != SourcePatchState.Recovery)
                 throw new InvalidOperationException($"state={current}: cannot disable now");
+
+            // ROI Fix 2b: Recovery -> Disabling is the one legal Recovery exit
+            // edge, reached only by this explicit user enable=false intent.
+            // Release any AutoRefresh lease TryApply deliberately left held
+            // (see SourcePatchCoordinator.TryApply's Uncertain/Drift-after-write/
+            // exception comments) before nulling the coordinator reference below
+            // — after that the reference is gone. Null-safe: domain-start
+            // Recovery (stale receipt after a fresh reload) has no live
+            // coordinator, so this is a correct no-op in that shape.
+            if (current == SourcePatchState.Recovery)
+                SourcePatchHost.Coordinator?.ReleaseHeldLease();
 
             // Typed bounded provider stop: the coordinator never routes another
             // Apply once state leaves OnReady (WriteText's Busy/Disabling/Recovery
