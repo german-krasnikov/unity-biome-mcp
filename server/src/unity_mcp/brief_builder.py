@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable  # noqa: TC003
 from typing import Protocol
 
 from .brief import PRIORITY_RANK, AttachmentKind, AttachmentSlot, ContextBrief, Priority
+from .editor_log import UNITY_UNREACHABLE
 
 _PROVIDER_TIMEOUT = 5.0
 
@@ -101,6 +102,11 @@ class ContextBuilder:
                     provider.fetch(self._send),
                     timeout=_PROVIDER_TIMEOUT,
                 )
+            except (ConnectionError, OSError):
+                # ARC-6 T4: a dead TCP call must yield an explicit unreachable slot,
+                # not silent omission — otherwise the agent can't tell "genuinely
+                # clean" apart from "couldn't check" for this attachment.
+                content = UNITY_UNREACHABLE
             except Exception:
                 content = ""
 
