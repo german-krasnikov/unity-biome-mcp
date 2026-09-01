@@ -41,6 +41,12 @@ _cor_log_path = None
 _cor_source_dirs = None   # legacy — kept for back-compat with tests that patch it
 _cor_source_files = None  # RC-4: scoped list (excludes Chat/Tests asmdefs)
 
+# ARC-6 T1: a dead TCP connection must never collapse onto "" (this module's own
+# "genuinely checked, clean" value) — callers' `if not errors:` can't tell a
+# verified-clean compile from an unreachable Unity apart. Exact-match sentinel,
+# not a truthy check, so future callers can't fall back to "any string = error".
+UNITY_UNREACHABLE = "UNITY-UNREACHABLE: could not verify compile status (connection lost)"
+
 
 def corroborate_compile_status(
     csharp_response: str,
@@ -142,8 +148,8 @@ async def get_corroborated_errors(send, compile_status: str = "") -> str:
     """
     try:
         csharp = await send("get_compile_errors", {})
-    except ConnectionError:
-        return ""
+    except (ConnectionError, OSError):
+        return UNITY_UNREACHABLE
     out = corroborate(csharp, compile_status=compile_status)
     # Strip the clean sentinel — it's not an error payload.
     if csharp.strip() == "No compilation errors" and out == csharp:

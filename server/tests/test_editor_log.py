@@ -1072,3 +1072,41 @@ def test_corroborate_stale_dll_compile_status_idle_failed_fires_soft_warn(tmp_pa
         source_dirs=[src], compile_status="idle-failed",
     )
     assert "warn" in result.lower() or "stale" in result.lower()
+
+
+# ---------------------------------------------------------------------------
+# ARC-6 T1: get_corroborated_errors must never collapse a dead TCP connection
+# onto "" — that's this function's own "genuinely checked, clean" value.
+# ---------------------------------------------------------------------------
+
+async def test_get_corroborated_errors_connection_error_returns_sentinel():
+    """send() raises ConnectionError (Unity unreachable) → exact sentinel, not ''."""
+    from unity_mcp import editor_log
+
+    async def _send(cmd, args=None):
+        raise ConnectionError("tcp gone")
+
+    result = await editor_log.get_corroborated_errors(_send)
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
+async def test_get_corroborated_errors_timeout_error_returns_sentinel():
+    """send() raises TimeoutError (an OSError subclass) → exact sentinel, not ''."""
+    from unity_mcp import editor_log
+
+    async def _send(cmd, args=None):
+        raise TimeoutError("no response")
+
+    result = await editor_log.get_corroborated_errors(_send)
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
+async def test_get_corroborated_errors_clean_still_returns_empty():
+    """send() returns the clean sentinel from C# → genuinely-checked '' unchanged."""
+    from unity_mcp import editor_log
+
+    async def _send(cmd, args=None):
+        return "No compilation errors"
+
+    result = await editor_log.get_corroborated_errors(_send)
+    assert result == ""
