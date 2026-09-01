@@ -60,6 +60,47 @@ async def test_run_boundary_zero_expected_is_error():
 
 
 
+async def test_run_tests_zero_match_message_has_no_metachar_hint():
+    """A plain filter with an honest zero-match gets no metachar hint."""
+    registry = TestRunRegistry()
+    with (
+        patch.object(testing, "_send", AsyncMock(return_value=_ack(0))),
+        patch.object(testing, "_registry", registry),
+        patch.object(testing, "_preflight", AsyncMock(return_value=None)),
+        patch.object(testing, "resolve_test_request", AsyncMock(return_value="none")),
+    ):
+        with pytest.raises(ToolError) as exc_info:
+            await testing.run_tests(
+                mode="EditMode", filter="NoSuchClass", request_id=REQUEST_ID
+            )
+
+    message = str(exc_info.value)
+    assert "Empty manifest" in message
+    assert "regex metacharacter" not in message
+
+
+async def test_run_tests_zero_match_message_includes_metachar_hint():
+    """A nested-class filter with a '+' gets the regex-metachar hint."""
+    registry = TestRunRegistry()
+    with (
+        patch.object(testing, "_send", AsyncMock(return_value=_ack(0))),
+        patch.object(testing, "_registry", registry),
+        patch.object(testing, "_preflight", AsyncMock(return_value=None)),
+        patch.object(testing, "resolve_test_request", AsyncMock(return_value="none")),
+    ):
+        with pytest.raises(ToolError) as exc_info:
+            await testing.run_tests(
+                mode="EditMode",
+                filter="StatSheetTests+OrderIndependence",
+                request_id=REQUEST_ID,
+            )
+
+    message = str(exc_info.value)
+    assert "Empty manifest" in message
+    assert "regex metacharacter" in message
+
+
+
 async def test_get_test_run_includes_expected_from_handle():
     """get_test_run enriches non-terminal response with expected_count from handle."""
     registry = TestRunRegistry()

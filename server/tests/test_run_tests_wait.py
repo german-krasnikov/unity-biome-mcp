@@ -466,7 +466,7 @@ def test_terminal_snapshot_error_ignores_missing_health_for_wire_compat():
 
 def test_terminal_validator_rejects_partial_or_untrusted_evidence():
     mutations = (
-        (lambda snapshot: snapshot.update(expected_count=0), "expected-count-invalid"),
+        (lambda snapshot: snapshot.update(expected_count=0), "run-zero-match-filter"),
         (lambda snapshot: snapshot.update(build_coherent=False), "build-incoherent"),
         (
             lambda snapshot: snapshot.update(completed_expected_count=6963),
@@ -493,6 +493,40 @@ def test_terminal_validator_rejects_partial_or_untrusted_evidence():
         assert testing._terminal_snapshot_error(
             snapshot, mode="EditMode", filter_name=""
         ) == expected_reason
+
+
+def test_zero_match_filter_with_regex_metachar_reason():
+    """A nested-class filter's '+' is a .NET separator UTF regex-matches as a
+    quantifier, usually zero-matching. Flag it distinctly from an honest miss."""
+    filter_name = "...StatSheetTests+OrderIndependence"
+    snapshot = json.loads(_snapshot("terminal", "passed"))
+    snapshot["filter"] = filter_name
+    snapshot["expected_count"] = 0
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=filter_name
+    ) == "run-zero-match-metachar"
+
+
+def test_zero_match_filter_without_metachar_reason():
+    """Arm B: a plain non-empty filter with zero matches must not be
+    misreported as a metachar typo -- discriminates an "always metachar" fix."""
+    filter_name = "NoSuchClass"
+    snapshot = json.loads(_snapshot("terminal", "passed"))
+    snapshot["filter"] = filter_name
+    snapshot["expected_count"] = 0
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=filter_name
+    ) == "run-zero-match-filter"
+
+
+def test_terminal_snapshot_error_negative_expected_count_stays_invalid():
+    """A negative expected_count is corrupted evidence, not a zero-match --
+    the original reason must survive the taxonomy split."""
+    snapshot = json.loads(_snapshot("terminal", "passed"))
+    snapshot["expected_count"] = -1
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=""
+    ) == "expected-count-invalid"
 
 
 def test_unfiltered_editmode_one_test_can_be_green():

@@ -189,6 +189,24 @@ def _snapshot_matches_intent(
     )
 
 
+# UTF's TestRunService feeds the raw filter into Filter.groupNames,
+# regex-matched. A nested-class filter like "Foo+Bar" ('+' is .NET's nested
+# -class separator) is reinterpreted as a quantifier -- usually zero matches.
+# '.' is excluded: it's the universal namespace/method separator, flagging it
+# would make every filter look suspicious.
+_REGEX_METACHARS = frozenset("+*?()[]{}^$|\\")
+
+
+def _filter_has_regex_metachar(filter_name: str) -> bool:
+    return any(ch in _REGEX_METACHARS for ch in filter_name)
+
+
+def _zero_match_reason(filter_name: str) -> str:
+    if _filter_has_regex_metachar(filter_name):
+        return "run-zero-match-metachar"
+    return "run-zero-match-filter"
+
+
 def _terminal_snapshot_error(
     snapshot: dict[str, Any], *, mode: str, filter_name: str
 ) -> str | None:
@@ -225,7 +243,11 @@ def _terminal_snapshot_error(
         return "utf-xml-scope-missing"
 
     expected = snapshot.get("expected_count")
-    if isinstance(expected, bool) or not isinstance(expected, int) or expected <= 0:
+    if isinstance(expected, bool) or not isinstance(expected, int):
+        return "expected-count-invalid"
+    if expected == 0:
+        return _zero_match_reason(filter_name)
+    if expected < 0:
         return "expected-count-invalid"
     for field in (
         "declared_expected_count",
@@ -379,7 +401,15 @@ async def run_tests(
             except (TypeError, ValueError):
                 expected_count = None
             if expected_count == 0:
-                raise ToolError("BLOCKED: Empty manifest: no tests match filter")
+                hint = ""
+                if filter and _filter_has_regex_metachar(filter):
+                    hint = (
+                        " (filter contains a regex metacharacter -- escape it "
+                        "or use exact test names)"
+                    )
+                raise ToolError(
+                    f"BLOCKED: Empty manifest: no tests match filter{hint}"
+                )
             handle = _registry.register(correlated["run_id"], stable_request_id)
             if expected_count is not None:
                 handle.expected_count = expected_count
