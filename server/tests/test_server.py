@@ -225,7 +225,7 @@ async def test_run_tests_calls_bridge(mock_bridge):
         result = await run_tests(mode="EditMode", request_id="req-1")
     assert mock_bridge.send.await_args_list == [
         call("resolve_test_request", {"request_id": "req-1"}, timeout=10.0),
-        call("run_tests", {"mode": "EditMode", "request_id": "req-1"}, timeout=8.0),
+        call("run_tests", {"mode": "EditMode", "request_id": "req-1"}, timeout=30.0),
     ]
     assert result == ack
 
@@ -241,7 +241,7 @@ async def test_run_tests_default_mode(mock_bridge):
         result = await run_tests(request_id="req-2")
     assert mock_bridge.send.await_args_list == [
         call("resolve_test_request", {"request_id": "req-2"}, timeout=10.0),
-        call("run_tests", {"mode": "EditMode", "request_id": "req-2"}, timeout=8.0),
+        call("run_tests", {"mode": "EditMode", "request_id": "req-2"}, timeout=30.0),
     ]
     assert result == ack
 

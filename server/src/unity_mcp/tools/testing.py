@@ -357,7 +357,7 @@ async def run_tests(
         args["filter"] = filter
 
     try:
-        result = await _send("run_tests", args, timeout=8.0)
+        result = await _send("run_tests", args)
     except Exception as exc:
         return _unknown_start(stable_request_id, type(exc).__name__)
 
