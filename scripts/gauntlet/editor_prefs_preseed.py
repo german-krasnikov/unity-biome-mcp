@@ -232,29 +232,35 @@ def create_discovery_marker(path: Path) -> None:
 
 def discover_touched_config_files(*, marker: Path, home: Path | None = None) -> str:
     """Best-effort report of what Unity actually touched under
-    ~/.config and ~/.local/share during its run (find -newer marker), plus
-    a full listing+cat of ~/.config/unity3d/**. Run 7: the tracked
-    ~/.config/unity3d/prefs file is proven stable/untouched across a whole
-    cell run, yet FSR's auto-refresh check still returned a non-default
-    value — meaning Unity reads EditorPrefs from some OTHER location this
-    is meant to reveal. Never raises; a failed find degrades the report,
-    it does not fail the caller."""
+    ~/.config and ~/.local/share during its run (pure-Python walk, files
+    with mtime newer than marker — equivalent to `find -newer marker
+    -type f` but without shelling out, since no `find` binary exists on
+    Windows runners), plus a full listing+cat of ~/.config/unity3d/**.
+    Run 7: the tracked ~/.config/unity3d/prefs file is proven
+    stable/untouched across a whole cell run, yet FSR's auto-refresh check
+    still returned a non-default value — meaning Unity reads EditorPrefs
+    from some OTHER location this is meant to reveal. Never raises; a
+    failed scan degrades the report, it does not fail the caller."""
     home = home or Path.home()
     lines: list[str] = []
     try:
-        result = subprocess.run(
-            [
-                "find", str(home / ".config"), str(home / ".local" / "share"),
-                "-newer", str(marker), "-type", "f",
-            ],
-            capture_output=True, text=True, timeout=30,
-        )
+        marker_mtime = marker.stat().st_mtime
+        touched: list[str] = []
+        for root in (home / ".config", home / ".local" / "share"):
+            if not root.is_dir():
+                continue
+            for entry in root.rglob("*"):
+                if not entry.is_file():
+                    continue
+                try:
+                    if entry.stat().st_mtime > marker_mtime:
+                        touched.append(str(entry))
+                except OSError:
+                    continue
         lines.append("=== files modified since marker ===")
-        lines.append(result.stdout or "<none>")
-        if result.stderr:
-            lines.append(result.stderr)
-    except (OSError, subprocess.SubprocessError) as error:
-        lines.append(f"<find failed: {error}>")
+        lines.append("\n".join(sorted(touched)) if touched else "<none>")
+    except OSError as error:
+        lines.append(f"<scan failed: {error}>")
 
     unity3d_dir = home / ".config" / "unity3d"
     lines.append("=== ~/.config/unity3d/** listing ===")

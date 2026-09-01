@@ -1,0 +1,9 @@
+# scripts/source_patch_provider_pin.json's raw bytes are hashed
+# (scripts/fsr_qualification_lock.json pins the sha256, and
+# create_unity_test_worker.py hashes it at runtime) — without this, a
+# Windows checkout with the runner's default core.autocrlf=true rewrites
+# LF to CRLF on disk, so hashlib.sha256(path.read_bytes()) drifts from
+# the LF-committed blob and the pin comparison fails. Force LF on
+# checkout (and normalize back to LF on commit) regardless of platform
+# autocrlf settings so the bytes are identical everywhere.
+scripts/source_patch_provider_pin.json text eol=lf
