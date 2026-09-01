@@ -51,7 +51,7 @@ hide:
 | [`discover_tools`](#discover_tools) | 🟢 85/100 | 🟢 low | Find and enable tools by category. |
 | [`do`](#do) | 🟢 83/100 | 🟡 medium | Convert natural language intent into Unity scene operations. Use when scene s... |
 | [`doctor`](#doctor) | 🟡 79/100 | 🟡 medium | Run health diagnostics. fix=True removes safe stale port/lock files. |
-| [`editor`](#editor) | 🟢 87/100 | 🟡 medium | Editor state/control. action: state|play|pause|stop|select|project_path. |
+| [`editor`](#editor) | 🟡 77/100 | 🟡 medium | Editor state/control. action: state|play|pause|stop|select|project_path|mutat... |
 | [`execute_code`](#execute_code) | 🟢 83/100 | 🔴 high | Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile. |
 | [`export_playtest_aliases_to_defs`](#export_playtest_aliases_to_defs) | 🟢 85/100 | 🟡 medium | Export PlaytestConfig.asset aliases to a readable .defs text file. |
 | [`find_objects`](#find_objects) | 🟢 88/100 | 🟡 medium | Find objects by criteria. Use search_scene for complex queries. Does NOT supp... |
@@ -3080,26 +3080,29 @@ Run health diagnostics. fix=True removes safe stale port/lock files.
 
 ### `editor`
 
-🟢 87/100 · Risk: 🟡 medium
+🟡 77/100 · Risk: 🟡 medium
 
-Editor state/control. action: state|play|pause|stop|select|project_path. select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC").
+Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode. select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC"). mutation_mode: omit enable to query current intent; enable=True/False to set it.
 
 **Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `action` | string |  | Operation to perform — see tool docstring for allowed values (default: `state`) |
+| `enable` | any |  |  |
 | `path` | any |  | Scene path to target GameObject (e.g. /Parent/Child) |
 | `paths` | any |  |  |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>7 quality issues</summary>
 
+- **warning**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
 - **info**: Free-form string parameter 'action' has no maxLength.
 - **info**: Parameter 'paths' has no description.
+- **info**: Parameter 'enable' has no description.
 - **warning**: outputSchema is missing.
-- **info**: Tool appears read-only but does not declare readOnlyHint=true.
 
 </details>
 
@@ -3139,6 +3142,18 @@ Editor state/control. action: state|play|pause|stop|select|project_path. select:
       ],
       "default": null,
       "title": "Paths"
+    },
+    "enable": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Enable"
     }
   },
   "title": "editorArguments",

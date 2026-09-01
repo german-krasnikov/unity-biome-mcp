@@ -1,32 +1,32 @@
 # Quality Report
 
-> Auto-generated on **2026-08-21** from commit `7d26629` (v1.48.1)
+> Auto-generated on **2026-09-01** from commit `3f9f3cc` (v1.51.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.48.1 |
-| Commit | `7d26629` |
-| Date | 2026-08-21 |
+| Version | v1.51.0 |
+| Commit | `3f9f3cc` |
+| Date | 2026-09-01 |
 | MCP Tools | 160 |
 
 ## Test Results
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.14) | 6072 | 0 | 3 | 6075 | ✅ |
+| Python Server (3.14) | 6115 | 0 | 3 | 6118 | ✅ |
 | Python Install | 79 | 0 | 0 | 79 | ✅ |
-| Python Scripts | 939 | 0 | 0 | 939 | ✅ |
-| C# EditMode (Linux) | 8731 | 0 | 184 | 8915 | ✅ |
-| C# EditMode (Windows) | 8617 | 0 | 298 | 8915 | ✅ |
-| C# EditMode (macOS) | 8731 | 0 | 184 | 8915 | ✅ |
+| Python Scripts | 1180 | 0 | 0 | 1180 | ✅ |
+| C# EditMode (Linux) | 8740 | 0 | 184 | 8924 | ✅ |
+| C# EditMode (Windows) | 8626 | 0 | 298 | 8924 | ✅ |
+| C# EditMode (macOS) | 8740 | 0 | 184 | 8924 | ✅ |
 
 ## Tool Quality
 
 | Linter | Errors | Warnings | Score |
 |--------|--------|----------|-------|
-| mcp-tool-card-linter | 0 | 414 | 83.72/100 |
+| mcp-tool-card-linter | 0 | 416 | 83.66/100 |
 
 ### Per-Tool Scores
 
@@ -65,6 +65,7 @@
 | `permission_prompt` | 76 | 0 | 4 | low |
 | `set_material` | 76 | 0 | 4 | medium |
 | `set_property` | 76 | 0 | 4 | medium |
+| `editor` | 77 | 0 | 4 | medium |
 | `get_console` | 77 | 0 | 4 | low |
 | `manage_component` | 77 | 0 | 4 | high |
 | `set_properties` | 77 | 0 | 4 | medium |
@@ -130,7 +131,6 @@
 | `unwire_event` | 86 | 0 | 2 | high |
 | `validate_playtest_aliases` | 86 | 0 | 2 | medium |
 | `diagnose` | 87 | 0 | 2 | low |
-| `editor` | 87 | 0 | 2 | medium |
 | `inspect_uitk` | 87 | 0 | 2 | medium |
 | `rename_object` | 87 | 0 | 2 | medium |
 | `console_mark` | 88 | 0 | 2 | low |
