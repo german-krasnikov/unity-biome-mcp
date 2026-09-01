@@ -107,6 +107,25 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Classify_PinnedToml_ReturnsOwnedCurrent()
+        {
+            // ARC-0b Task 1: " pinned" suffix must win over both a stale version AND a
+            // stale port — proves the pin check overrides the whole staleness condition,
+            // not just the version half of it.
+            var existing =
+                "# unity-biome-mcp generated v1.49.0 pinned\n" +
+                "[mcp_servers.unity-biome-mcp]\n" +
+                "command = 'uvx'\n" +
+                "\n" +
+                "[mcp_servers.unity-biome-mcp.env]\n" +
+                "UNITY_MCP_PORT = '9500'\n";
+
+            var result = ProjectConfigToml.Classify(existing, 9600, "1.50.0");
+
+            Assert.AreEqual(EntryState.OwnedCurrent, result);
+        }
+
+        [Test]
         public void Classify_NoMarkerComment_ReturnsForeign()
         {
             var existing = "[mcp_servers.unity-mcp]\ncommand = 'uvx'\n";

@@ -26,10 +26,20 @@ namespace UnityMCP.Editor.Wizard
             @"(?:\[mcp_servers\.unity-(?:biome-mcp|mcp)\.[^\]]+\]\r?\n(?:(?!\[)[^\r\n]*\r?\n)*)*",
             RegexOptions.Multiline);
 
+        // Optional " pinned" suffix (ARC-0b Task 1) may follow the version on the same
+        // comment line — ExtractMarkerVersion must still find the version in a pinned file.
         private static readonly Regex MarkerVersionRe = new Regex(
-            @"^# unity-(?:biome-mcp|mcp) generated v([\d.]+)\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\]", RegexOptions.Multiline);
+            @"^# unity-(?:biome-mcp|mcp) generated v([\d.]+)(?: pinned)?\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\]", RegexOptions.Multiline);
 
         private static readonly Regex MarkerPortRe = new Regex(@"UNITY_MCP_PORT\s*=\s*'(\d+)'");
+
+        // ARC-0b Task 1: " pinned" suffix on the marker comment line, directly above
+        // our own section header — same scoping guarantee as MarkerVersionRe (must be
+        // immediately followed by our [mcp_servers.unity-...] header), so a sibling
+        // section's comment never leaks into our classification.
+        private static readonly Regex PinRe = new Regex(
+            @"^# unity-(?:biome-mcp|mcp) generated v[\d.]+ pinned\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\]",
+            RegexOptions.Multiline);
 
         internal static string BuildFresh(int port, string gitUrl, string version) =>
             $"# {PermissionConfig.SERVER_NAME} generated v{version}\n" +
@@ -65,6 +75,9 @@ namespace UnityMCP.Editor.Wizard
             return m.Success ? int.Parse(m.Groups[1].Value) : (int?)null;
         }
 
+        internal static bool IsPinned(string existingText) =>
+            !string.IsNullOrEmpty(existingText) && PinRe.IsMatch(existingText);
+
         /// <summary>
         /// Insert the version marker comment before the section header of a Foreign entry.
         /// After this call, Classify() returns OwnedCurrent when the existing entry's port matches.
@@ -91,6 +104,9 @@ namespace UnityMCP.Editor.Wizard
             var markerVersion = ExtractMarkerVersion(existingText);
             if (markerVersion == null)
                 return EntryState.Foreign;
+
+            if (IsPinned(existingText))
+                return EntryState.OwnedCurrent;
 
             var markerPort = ExtractMarkerPort(existingText);
             return markerVersion == version && markerPort == port

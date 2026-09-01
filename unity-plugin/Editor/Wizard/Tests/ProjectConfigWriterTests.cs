@@ -215,6 +215,30 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void WriteOne_PinnedEntry_FileUnchanged()
+        {
+            // ARC-0b Task 1: a pinned entry with a stale "_v" must never be rewritten by
+            // WriteOne — Classify() now returns OwnedCurrent for it, hitting the
+            // existing no-op path. Sentinel technique from Run_ExistingOwnedCurrentFile_DoesNotRewrite.
+            var path = Path.Combine(_tmpDir, ".mcp.json");
+            File.WriteAllText(path,
+                "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\","
+                + "\"_pin\": true"
+                + "}}}");
+            File.AppendAllText(path, "\n// sentinel-untouched\n");
+            var before = File.ReadAllText(path);
+
+            ProjectConfigWriter.WriteOne(_tmpDir, ProjectConfigTargets.All[0], 9500, "1.50.0",
+                WizardConfigWriter.GitInstallUrlFor("1.50.0"));
+
+            var after = File.ReadAllText(path);
+            Assert.AreEqual(before, after);
+            StringAssert.Contains("sentinel-untouched", after);
+        }
+
+        [Test]
         [Platform(Exclude = "Win")]
         public void Run_UnwritableTargetDirectory_DoesNotThrow_LogsWarning()
         {

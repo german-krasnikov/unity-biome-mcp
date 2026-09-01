@@ -106,6 +106,48 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Classify_PinnedJson_ReturnsOwnedCurrent()
+        {
+            // ARC-0b Task 1: "_pin": true must win over a stale "_v" — the P7 fix.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\","
+                + "\"_pin\": true"
+                + "}}}";
+
+            var result = ProjectConfigFormats.Classify(existing, 9500, "1.50.0");
+
+            Assert.AreEqual(EntryState.OwnedCurrent, result);
+        }
+
+        [Test]
+        public void Classify_UnpinnedJson_StaleVersion_ReturnsOwnedStale()
+        {
+            // Existing behavior preserved: no "_pin" key, stale "_v" still stales.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\""
+                + "}}}";
+
+            var result = ProjectConfigFormats.Classify(existing, 9500, "1.50.0");
+
+            Assert.AreEqual(EntryState.OwnedStale, result);
+        }
+
+        [Test]
+        public void IsPinned_SiblingServerHasPin_OurEntryDoesNot_ReturnsFalse()
+        {
+            // A sibling MCP server's own "_pin" must never leak into our classification —
+            // same scoping guarantee ExtractMarkerVersion already has (FindOurEntry).
+            var existing = "{\"mcpServers\":{"
+                + "\"other-mcp\":{\"command\":\"uvx\",\"_v\":\"3.0.0\",\"_pin\": true},"
+                + "\"unity-biome-mcp\":{\"command\":\"uvx\",\"_v\":\"1.49.0\"}"
+                + "}}";
+
+            Assert.IsFalse(ProjectConfigFormats.IsPinned(existing));
+        }
+
+        [Test]
         public void Classify_SiblingEntryHasMarker_ForeignUnityMcpEntry_ReturnsForeign()
         {
             // Regression: a sibling MCP server's own "_v" key must never leak into

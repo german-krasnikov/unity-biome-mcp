@@ -11,6 +11,7 @@ namespace UnityMCP.Editor.Wizard
     {
         private static readonly Regex MarkerVersionRe = new Regex("\"_v\"\\s*:\\s*\"([^\"]+)\"");
         private static readonly Regex MarkerPortRe = new Regex("\"UNITY_MCP_PORT\"\\s*:\\s*\"(\\d+)\"");
+        private static readonly Regex MarkerPinRe = new Regex("\"_pin\"\\s*:\\s*true");
 
         // Builds the full unity-biome-mcp entry: WizardConfigWriter.Entry(port, gitUrl) plus a
         // trailing "_v": version marker key, inserted just before the closing brace.
@@ -54,6 +55,17 @@ namespace UnityMCP.Editor.Wizard
             return m.Success ? int.Parse(m.Groups[1].Value) : (int?)null;
         }
 
+        // ARC-0b Task 1: "_pin": true sibling of "_v" inside OUR entry marks it as
+        // user-pinned — Classify() must return OwnedCurrent regardless of version
+        // mismatch. Scoped via FindOurEntry, same as ExtractMarkerVersion/Port, so a
+        // sibling MCP server's own "_pin" never leaks into our classification.
+        internal static bool IsPinned(string existingText)
+        {
+            if (!FindOurEntry(existingText, out var start, out var end))
+                return false;
+            return MarkerPinRe.Match(existingText, start, end - start).Success;
+        }
+
         /// <summary>
         /// Insert a "_v" marker into a Foreign entry without rewriting any other content.
         /// After this call, Classify() returns OwnedCurrent for the given version.
@@ -78,6 +90,9 @@ namespace UnityMCP.Editor.Wizard
             var markerVersion = ExtractMarkerVersion(existingText);
             if (markerVersion == null)
                 return EntryState.Foreign;
+
+            if (IsPinned(existingText))
+                return EntryState.OwnedCurrent;
 
             // Port is no longer written to JSON entries (discovery via .port files).
             // Staleness is version-only; port parameter kept for API compatibility.
