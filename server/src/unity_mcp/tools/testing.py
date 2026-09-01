@@ -248,31 +248,37 @@ def _terminal_snapshot_error(
     if snapshot.get("utf_xml_scope") not in {"complete", "partial"}:
         return "utf-xml-scope-missing"
 
+    # ARC-17 X1 (DEV-16 review): an old plugin's terminal snapshot may omit
+    # `expected_count` entirely -- absence must be inert, not fail-closed
+    # (ARC-17 §4). Only a *present but corrupted* value (bool, non-int,
+    # negative, or an honest zero) still triggers a reason below.
     expected = snapshot.get("expected_count")
-    if isinstance(expected, bool) or not isinstance(expected, int):
-        return "expected-count-invalid"
-    if expected == 0:
-        return _zero_match_reason(filter_name)
-    if expected < 0:
-        return "expected-count-invalid"
-    for field in (
-        "declared_expected_count",
-        "readable_manifest_count",
-        "completed_expected_count",
-        "unique_terminal_count",
-    ):
-        value = snapshot.get(field)
-        if isinstance(value, bool) or not isinstance(value, int) or value != expected:
-            return "terminal-count-invariant"
-    for field in (
-        "unmaterialized_expected_count",
-        "missing_count",
-        "unexpected_count",
-        "conflict_count",
-    ):
-        value = snapshot.get(field)
-        if isinstance(value, bool) or not isinstance(value, int) or value != 0:
-            return "terminal-count-invariant"
+    has_expected = expected is not None
+    if has_expected:
+        if isinstance(expected, bool) or not isinstance(expected, int):
+            return "expected-count-invalid"
+        if expected == 0:
+            return _zero_match_reason(filter_name)
+        if expected < 0:
+            return "expected-count-invalid"
+        for field in (
+            "declared_expected_count",
+            "readable_manifest_count",
+            "completed_expected_count",
+            "unique_terminal_count",
+        ):
+            value = snapshot.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or value != expected:
+                return "terminal-count-invariant"
+        for field in (
+            "unmaterialized_expected_count",
+            "missing_count",
+            "unexpected_count",
+            "conflict_count",
+        ):
+            value = snapshot.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or value != 0:
+                return "terminal-count-invariant"
 
     statuses = (
         "passed", "failed", "skipped", "inconclusive", "cancelled", "invalid",
@@ -283,7 +289,7 @@ def _terminal_snapshot_error(
         if isinstance(value, bool) or not isinstance(value, int) or value < 0:
             return "terminal-status-count-invalid"
         status_total += value
-    if status_total != expected:
+    if has_expected and status_total != expected:
         return "terminal-status-total-mismatch"
 
     issues = snapshot.get("issues")

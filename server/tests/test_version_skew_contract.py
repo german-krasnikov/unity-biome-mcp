@@ -1,18 +1,27 @@
 """ARC-17 X1: locks the mixed-version contract for `health` + `expected_count`.
 
-Old plugin + new server must degrade to pre-ARC-1/pre-ARC-3 behavior: a
-missing `health` key is never a `KeyError` and falls back to the boundary-flag
-detection that existed before ARC-1; a missing `expected_count` key is never a
-`KeyError` either. No new wire combination is invented here -- see
-`Plans/consumer-reports/ARC-17-version-skew-matrix.md` Task X1 and its own
-`Plans/consumer-reports/ARC-0a-test-conventions.md` §4 standing rule
-(new field -> read with `.get(key, default)`, never bare indexing).
+Old plugin + new server must degrade to inert, pre-batch behavior, per the
+ARC-17 §4 standing rule ("old plugin: field absent -> inert as today"):
 
-This is a compat *lock*, not a bugfix: production code (`testing.py`) is
-already correct (ARC-1 P1/P2, ARC-3 P1/P2 merged) -- all three tests are
-expected green immediately. Regression proof is the fault-injection arm
-described in each test's docstring (swap `.get()` for bare indexing, confirm
-RED, revert) -- performed manually and recorded in the PR, not committed.
+- A missing `health` key is never a `KeyError` and never fabricates a reason
+  on an otherwise honestly-finished run -- the branch is a silent no-op.
+- A missing `expected_count` key is never a `KeyError` either, and -- since
+  DEV-16 review -- is no longer treated as a corrupted value: the
+  count-invariant checks that depend on it are skipped entirely, and the
+  rest of the validation (boundary flags, outcome, issues) still applies.
+  A *present but corrupted* `expected_count` (bool, non-int) still fails
+  closed exactly as before -- the None-skip widens only the absent-key case.
+
+See `Plans/consumer-reports/ARC-17-version-skew-matrix.md` Task X1 (and its
+§4 table row for this DEV-16 fix) and
+`Plans/consumer-reports/ARC-0a-test-conventions.md` §4 standing rule (new
+field -> read with `.get(key, default)`, never bare indexing).
+
+This is a compat lock for `health` and a compat *fix* for `expected_count`
+(DEV-16 review found the original .get()-default for `expected_count` still
+fail-closed on a merely-absent key, which is not inert). Regression proof is
+the fault-injection arm described in each test's docstring -- performed
+manually and recorded in the PR, not committed.
 """
 
 import json
@@ -84,36 +93,47 @@ def test_pre_batch_shaped_terminal_snapshot_is_unaffected():
     assert reason is None
 
 
-def test_missing_health_key_degrades_to_pre_arc1_reason():
-    """Old plugin never emits `health` at all. An abandoned/incomplete run
-    must still be caught by the pre-ARC-1 boundary-flag path -- not a
-    `KeyError` -- with the exact same reason string that path always gave.
+def test_missing_health_key_is_inert_when_run_finished_cleanly():
+    """Old plugin never emits `health` at all. On an otherwise fully-finished
+    run (every boundary flag True), its absence must be a silent no-op --
+    not a `KeyError`, and it must not fabricate a reason.
+
+    Discriminates (Arm B): an `outcome="incomplete"` snapshot would surface
+    `run-finish-boundary-missing` via the boundary-flag check regardless of
+    whether `health` exists or is even read at all -- that shape can't tell
+    "the health branch tolerates absence" from "the health branch never ran".
+    Only a run with `run_finished_observed=True` (every other gate open)
+    isolates the health branch itself.
 
     Fault-injection arm (manual, not committed): change
     `health = snapshot.get("health")` at `testing.py` (`_terminal_snapshot_error`)
     to bare `snapshot["health"]`. This test must go RED with `KeyError`.
     Revert after confirming.
     """
-    snapshot = _new_plugin_terminal_snapshot(outcome="incomplete")
+    snapshot = _new_plugin_terminal_snapshot(outcome="passed")
+    assert snapshot["run_finished_observed"] is True
     del snapshot["health"]
 
     reason = testing._terminal_snapshot_error(
         snapshot, mode="EditMode", filter_name=""
     )
 
-    assert reason == "run-finish-boundary-missing"
+    assert reason is None
 
 
-async def test_missing_expected_count_key_never_raises():
-    """A snapshot that is otherwise fully valid but missing `expected_count`
-    (an even-older plugin shape) must fail closed through `.get()`, never
-    raise, and `get_test_run` must still hand back a coherent result built
-    from the same snapshot.
+async def test_missing_expected_count_key_degrades_to_inert_pass_through():
+    """Old plugin never sends `expected_count` at all. Per ARC-17 §4, an
+    absent field must be inert: the count-invariant checks that depend on it
+    (declared/readable/completed/unique counts, status-total mismatch) are
+    skipped entirely, but the rest of the validation (boundary flags,
+    outcome, issues) still applies. An otherwise-valid run passes through
+    `get_test_run` unchanged -- no `PROTOCOL-ERROR`, no `KeyError`.
 
-    Fault-injection arm (manual, not committed): change
-    `expected = snapshot.get("expected_count")` to bare
-    `snapshot["expected_count"]`. This test must go RED with `KeyError`.
-    Revert after confirming.
+    Fault-injection arm (manual, not committed): in `_terminal_snapshot_error`,
+    remove the `expected is not None` guard so a `None` `expected_count`
+    falls through to the type check again (i.e. restore the pre-fix
+    unconditional `expected-count-invalid` on absence). This test must go RED
+    (`reason is None` fails; `result == raw` fails). Revert after confirming.
     """
     snapshot = _new_plugin_terminal_snapshot()
     del snapshot["expected_count"]
@@ -121,14 +141,31 @@ async def test_missing_expected_count_key_never_raises():
     reason = testing._terminal_snapshot_error(
         snapshot, mode="EditMode", filter_name=""
     )
-    assert reason == "expected-count-invalid"
+    assert reason is None
 
     registry = TestRunRegistry()
+    raw = json.dumps(snapshot)
     with (
-        patch.object(testing, "_send", AsyncMock(return_value=json.dumps(snapshot))),
+        patch.object(testing, "_send", AsyncMock(return_value=raw)),
         patch.object(testing, "_registry", registry),
     ):
         result = await testing.get_test_run(RUN_ID)
 
-    assert result.startswith(f"PROTOCOL-ERROR|run_id={RUN_ID}")
-    assert "reason=expected-count-invalid" in result
+    assert result == raw
+
+
+def test_corrupted_expected_count_value_still_invalid():
+    """The None-skip widens only the *absent-key* case. A present but
+    corrupted `expected_count` -- bool or non-int -- must still fail closed
+    with the same reason as always; this is the discriminating counterpart
+    to the pass-through test above (proves the widening isn't a blanket
+    "any expected_count problem is now inert")."""
+    for bad_value in (True, False, "6", 3.5):
+        snapshot = _new_plugin_terminal_snapshot()
+        snapshot["expected_count"] = bad_value
+
+        reason = testing._terminal_snapshot_error(
+            snapshot, mode="EditMode", filter_name=""
+        )
+
+        assert reason == "expected-count-invalid", f"bad_value={bad_value!r}"
