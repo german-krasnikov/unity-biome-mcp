@@ -174,6 +174,69 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Merge_OldEntryMissingArgsKey_InsertsArgsWithoutDroppingOtherKeys()
+        {
+            // ARC-13 T2: a field present in the fresh template but absent from the
+            // old entry (e.g. a very old hand-edited entry with no "args") must be
+            // inserted, not silently left missing forever — and inserting it must
+            // not disturb an unrelated key. Two-part assertion is deliberate:
+            // loosening to only check "env" would pass even with "args" missing.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\":\"uvx\","
+                + "\"_v\":\"0.1.0\","
+                + "\"env\":{\"X\":\"1\"}"
+                + "}}}";
+
+            var result = ProjectConfigFormats.Merge(existing, 9500, WizardConfigWriter.GitInstallUrl, "2.0.0", "mcpServers");
+
+            StringAssert.Contains("\"args\": [", result, "args must be inserted, not left missing");
+            StringAssert.Contains("\"X\":\"1\"", result, "unrelated env key must survive the insert");
+            AssertBalancedJson(result);
+        }
+
+        [Test]
+        public void Merge_UserNestedObjectHasSameFieldNames_TopLevelFieldsUpdatedEnvUntouched()
+        {
+            // ARC-13 T2 review: FindFieldSegment must only match "command"/"args" at
+            // depth 1 (a direct child of our own entry). Without a depth guard,
+            // Regex.Match takes the FIRST textual occurrence — here that's inside a
+            // user's nested "env" object using the same key names — and the splice
+            // corrupts user data instead of touching our own top-level fields.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"env\":{\"args\":\"x\",\"command\":\"y\"},"
+                + "\"command\":\"uvx\","
+                + "\"args\":[\"--from\",\"OLD_URL\",\"unity-biome-mcp\"]"
+                + "}}}";
+
+            var result = ProjectConfigFormats.Merge(existing, 9500, "NEW_URL", "2.0.0", "mcpServers");
+
+            StringAssert.Contains("\"env\":{\"args\":\"x\",\"command\":\"y\"}", result,
+                "nested user object with colliding field names must survive byte-identical");
+            StringAssert.Contains("NEW_URL", result, "top-level args must still be updated");
+            StringAssert.DoesNotContain("OLD_URL", result, "top-level args old value must not survive");
+            AssertBalancedJson(result);
+        }
+
+        // Lightweight structural-validity check (no JSON parser in this codebase by
+        // design, ARC-13 §2) — proves point-splice/insert never leaves an unbalanced
+        // brace/bracket behind.
+        private static void AssertBalancedJson(string json)
+        {
+            int braces = 0, brackets = 0;
+            foreach (var c in json)
+            {
+                if (c == '{') braces++;
+                else if (c == '}') braces--;
+                else if (c == '[') brackets++;
+                else if (c == ']') brackets--;
+                Assert.GreaterOrEqual(braces, 0, "unbalanced '}' in: " + json);
+                Assert.GreaterOrEqual(brackets, 0, "unbalanced ']' in: " + json);
+            }
+            Assert.AreEqual(0, braces, "unbalanced braces in: " + json);
+            Assert.AreEqual(0, brackets, "unbalanced brackets in: " + json);
+        }
+
+        [Test]
         public void Adopt_NoEntry_ReturnsOriginalText()
         {
             var text = "{\"mcpServers\":{}}";

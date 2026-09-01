@@ -195,11 +195,11 @@ namespace UnityMCP.Editor.Wizard
             return true;
         }
 
-        // ARC-13 T1: point-splice the 3 fields the wizard template writes — command,
-        // args, and (when the call site's template has one) _v — into an existing
-        // entry span, leaving every other key byte-identical. A field missing from
-        // `oldSpan` is left untouched here; inserting a missing field is ARC-13 T2,
-        // not this task.
+        // ARC-13 T1/T2: point-splice the 3 fields the wizard template writes —
+        // command, args, and (when the call site's template has one) _v — into an
+        // existing entry span, leaving every other key byte-identical. A field
+        // present in the fresh template but absent from the old entry is inserted
+        // (T2), never left permanently missing.
         private static readonly string[] PatchedFields = { "command", "args", "_v" };
 
         private static string PatchEntryFields(string oldSpan, string freshEntry)
@@ -209,53 +209,98 @@ namespace UnityMCP.Editor.Wizard
                 if (!FindFieldSegment(freshEntry, field, out var freshStart, out var freshEnd))
                     continue; // this call site's template doesn't write this field (e.g. bare Merge has no "_v")
 
-                if (!FindFieldSegment(oldSpan, field, out var oldStart, out var oldEnd))
-                    continue; // absent from the old entry — insert-if-absent is ARC-13 T2
-
                 var freshSegment = freshEntry.Substring(freshStart, freshEnd - freshStart);
-                oldSpan = oldSpan.Substring(0, oldStart) + freshSegment + oldSpan.Substring(oldEnd);
+
+                oldSpan = FindFieldSegment(oldSpan, field, out var oldStart, out var oldEnd)
+                    ? oldSpan.Substring(0, oldStart) + freshSegment + oldSpan.Substring(oldEnd)
+                    : InsertFieldBeforeClosingBrace(oldSpan, freshSegment);
             }
             return oldSpan;
+        }
+
+        // Point-inserts a "field": value segment just before oldSpan's closing
+        // brace — the exact technique ProjectConfigFormats.Adopt() already uses for
+        // "_v" (ProjectConfigFormats.cs Adopt), generalized to any wizard-owned
+        // field name. Position/formatting are cosmetic only (ARC-13 §6 Risks) —
+        // output stays valid JSON either way.
+        private static string InsertFieldBeforeClosingBrace(string oldSpan, string fieldSegment)
+        {
+            var insertAt = oldSpan.Length - 1; // index of closing '}'
+            var before = oldSpan.Substring(0, insertAt).TrimEnd();
+            var sep = before.EndsWith("{") ? "" : ",";
+            return before + sep + "\n      " + fieldSegment + "\n    }";
         }
 
         // Locates the full `"field": value` segment — from the opening quote of the
         // key to the end of its value — for the two value shapes the wizard template
         // ever writes: a quoted string (command, _v) or a flat string array (args).
-        // Callers splice a replacement segment into this span; everything else
-        // (surrounding commas, unrelated keys) is untouched.
+        // Scoped to depth 1 (a direct child of the entry's own object): without this,
+        // Regex.Match would take the FIRST textual occurrence of "command"/"args" in
+        // the span, which a user's own nested object (e.g. "env": {"args": ...}) can
+        // precede — corrupting user data instead of touching our own field (ARC-13
+        // T2 review). Callers splice a replacement/insertion into this span; every
+        // unrelated key, at any depth, is untouched.
         private static bool FindFieldSegment(string text, string field, out int start, out int end)
         {
             start = end = -1;
-            var m = Regex.Match(text, "\"" + Regex.Escape(field) + "\"\\s*:\\s*");
-            if (!m.Success) return false;
-            var valueStart = m.Index + m.Length;
-            if (valueStart >= text.Length) return false;
-
-            if (text[valueStart] == '"')
+            var pattern = "\"" + Regex.Escape(field) + "\"\\s*:\\s*";
+            foreach (Match m in Regex.Matches(text, pattern))
             {
-                var close = text.IndexOf('"', valueStart + 1);
-                if (close < 0) return false;
-                start = m.Index;
-                end = close + 1;
-                return true;
-            }
+                if (DepthAt(text, m.Index) != 1) continue; // not a direct child of the entry object
 
-            if (text[valueStart] == '[')
-            {
-                int depth = 1, pos = valueStart + 1;
-                while (pos < text.Length && depth > 0)
+                var valueStart = m.Index + m.Length;
+                if (valueStart >= text.Length) continue;
+
+                if (text[valueStart] == '"')
                 {
-                    if (text[pos] == '[') depth++;
-                    else if (text[pos] == ']') depth--;
-                    pos++;
+                    var close = text.IndexOf('"', valueStart + 1);
+                    if (close < 0) continue;
+                    start = m.Index;
+                    end = close + 1;
+                    return true;
                 }
-                if (depth != 0) return false;
-                start = m.Index;
-                end = pos;
-                return true;
-            }
 
-            return false; // unsupported value shape — leave untouched rather than guess
+                if (text[valueStart] == '[')
+                {
+                    int depth = 1, pos = valueStart + 1;
+                    while (pos < text.Length && depth > 0)
+                    {
+                        if (text[pos] == '[') depth++;
+                        else if (text[pos] == ']') depth--;
+                        pos++;
+                    }
+                    if (depth != 0) continue;
+                    start = m.Index;
+                    end = pos;
+                    return true;
+                }
+                // unsupported value shape at depth 1 — keep scanning rather than guess
+            }
+            return false;
+        }
+
+        // Counts {}/[] nesting depth up to (not including) `pos`, skipping quoted
+        // string content so brace-like characters inside a value never distort the
+        // count — a simple counter, same style as FindEntryBounds's brace-only scan.
+        private static int DepthAt(string text, int pos)
+        {
+            int depth = 0;
+            bool inString = false;
+            var limit = Math.Min(pos, text.Length);
+            for (int i = 0; i < limit; i++)
+            {
+                var c = text[i];
+                if (inString)
+                {
+                    if (c == '\\') i++; // skip escaped char (e.g. \")
+                    else if (c == '"') inString = false;
+                    continue;
+                }
+                if (c == '"') inString = true;
+                else if (c == '{' || c == '[') depth++;
+                else if (c == '}' || c == ']') depth--;
+            }
+            return depth;
         }
     }
 }
