@@ -184,7 +184,9 @@ namespace UnityMCP.Editor.TestRuns
             terminalOutcome = SelectTerminalOutcome(run, summary, journal);
             run.lifecycle = TestRunProtocol.Lifecycle.Terminal;
             run.outcome = terminalOutcome;
-            run.health = TestRunProtocol.Health.Healthy;
+            run.health = hasExecutionBoundary
+                ? TestRunProtocol.Health.Healthy
+                : DeriveAbandonedHealth(journal);
             if (string.IsNullOrEmpty(run.finished_utc)) run.finished_utc = _utcNow();
             _store.WriteRun(run);
             TerminalizeRequest(run);
@@ -202,6 +204,17 @@ namespace UnityMCP.Editor.TestRuns
             _store.Reconcile(runId, true);
             return true;
         }
+
+        /// <summary>
+        /// An abandoned run (no RunFinished/DispatchFailed/Cancelled evidence) is
+        /// never stamped Healthy. Whether any TestStarted event ever landed tells
+        /// apart "never began" from "began, then UTF went silent."
+        /// </summary>
+        private static string DeriveAbandonedHealth(TestRunJournal journal) =>
+            (journal?.events ?? Array.Empty<TestRunEvent>()).Any(e =>
+                e != null && e.event_type == TestRunProtocol.EventType.TestStarted)
+                ? TestRunProtocol.Health.EditorUnresponsive
+                : TestRunProtocol.Health.NoTestProgress;
 
         private static bool HasExecutionBoundary(TestRunJournal journal) =>
             journal != null && (journal.events ?? Array.Empty<TestRunEvent>()).Any(e =>

@@ -1338,6 +1338,42 @@ namespace UnityMCP.Editor.Tests
                 "Abandoned event must be appended when no execution boundary exists.");
             Assert.AreEqual(TestRunProtocol.Lifecycle.Terminal,
                 _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(TestRunProtocol.Health.NoTestProgress,
+                _store.ReadRun(runId).health,
+                "An abandoned run with zero TestStarted events never executed a test.");
+        }
+
+        [Test]
+        public void TryFinalizeCore_NoExecutionBoundary_WithTestStarted_SetsEditorUnresponsive()
+        {
+            const string runId = "run-no-boundary-started";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                source = "mcp",
+                lifecycle = TestRunProtocol.Lifecycle.Finalizing,
+                created_utc = Utc,
+                build_coherent = true
+            });
+            _store.WriteActive(new TestRunPointer { run_id = runId, updated_utc = Utc });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.TestStarted,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                unique_name = "Some.Test",
+                test_id = "Some.Test",
+                full_name = "Some.Test"
+            });
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+
+            CreateFinalizer().TryFinalize(runId);
+
+            Assert.AreEqual(TestRunProtocol.Health.EditorUnresponsive,
+                _store.ReadRun(runId).health,
+                "A run that started at least one test before going silent was underway, not never-started.");
         }
 
         [Test]
