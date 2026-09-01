@@ -412,6 +412,35 @@ def test_reconfigure_detected_clients_skips_unconfigured_tools(tmp_path):
     assert merge_calls == [cfg_claude]
 
 
+def test_reconfigure_detected_clients_preserves_custom_env_var(tmp_path):
+    """E2E regression (ARC-12 T3): install.py update must not wipe a user's
+    custom env var. Reproduces RC3 through the real call chain — real merge,
+    real file write, no merge_mcp_config patch."""
+    cfg = tmp_path / "mcp.json"
+    cfg.write_text(json.dumps({
+        "mcpServers": {
+            "unity-biome-mcp": {
+                "command": "old",
+                "args": [],
+                "env": {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"},
+            }
+        }
+    }), encoding="utf-8")
+    registry = _fake_registry(cfg)
+    entry = {"command": "new", "args": ["-m", "unity_mcp.server"]}  # RC3: no env key (port=0 shape)
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["fake-tool"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry):
+        inst._reconfigure_detected_clients()
+
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    written = data["mcpServers"]["unity-biome-mcp"]
+    assert written["env"] == {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"}
+    assert written["command"] == "new"
+
+
 def test_reconfigure_detected_clients_never_prompts(tmp_path):
     """Reconfigure must never call prompt_yn — it's a non-interactive re-assert."""
     cfg = tmp_path / "claude.json"
