@@ -329,7 +329,7 @@ namespace UnityMCP.Editor.TestRuns
                 _store.WriteRequest(request);
                 Checkpoint(TestRunDurableBoundary.RequestAcknowledged);
                 _store.WriteActive(Pointer(run, run.dispatched_utc));
-                return Ack(run);
+                return Ack(run, TryGetSealedManifestCount(run.run_id));
             }
             catch (Exception e) when (!(e is TestRunInjectedCrashException))
             {
@@ -353,7 +353,7 @@ namespace UnityMCP.Editor.TestRuns
                 return RequestStatus(request, run, run.outcome, startFailure);
             return string.IsNullOrEmpty(run.utf_guid)
                 ? RequestStatus(request, run, run.outcome)
-                : Ack(run);
+                : Ack(run, TryGetSealedManifestCount(run.run_id));
         }
 
         internal string GetRunJson(string runId)
@@ -485,6 +485,17 @@ namespace UnityMCP.Editor.TestRuns
                 ? "RunStarted failed before durable start evidence was committed."
                 : failure.message;
             return true;
+        }
+
+        // Best-effort: UTF usually seals the manifest asynchronously, well after
+        // Ack() has already returned, so a null result here is the common case,
+        // not a failure. Only the synchronous empty-filter fast path observes a
+        // seal this early.
+        private int? TryGetSealedManifestCount(string runId)
+        {
+            var sealEvent = _store.ReadJournal(runId).events.FirstOrDefault(e =>
+                e != null && e.event_type == TestRunProtocol.EventType.ManifestSealed);
+            return sealEvent != null ? (int?)sealEvent.expected_count : null;
         }
 
         private string FailFastAfterRunStartFailure(
@@ -806,11 +817,14 @@ namespace UnityMCP.Editor.TestRuns
             }
         }
 
-        private static string Ack(TestRunRecord run) =>
+        private static string Ack(TestRunRecord run, int? expectedCount = null) =>
             "tests-started|request_id=" + run.request_id +
             "|run_id=" + run.run_id +
             "|utf_guid=" + run.utf_guid +
-            "|state=dispatched";
+            "|state=dispatched" +
+            (expectedCount.HasValue
+                ? "|expected_count=" + expectedCount.Value.ToString(CultureInfo.InvariantCulture)
+                : "");
 
         private static string CancelAck(TestRunRecord run) =>
             "cancel-requested|run_id=" + run.run_id + "|utf_guid=" + run.utf_guid;

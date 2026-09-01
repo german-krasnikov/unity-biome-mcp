@@ -146,6 +146,41 @@ namespace UnityMCP.Editor.Tests
                 issue.message.Contains("scene baseline is not empty")));
         }
 
+        [Test]
+        public void Start_FilterMatchesZeroTests_AckIncludesExpectedCountZero()
+        {
+            _framework.OnExecute = () =>
+            {
+                // Mirrors UTF's own empty-filter behavior: RunStarted/ManifestSealed
+                // both fire synchronously inside Execute(), before it returns.
+                var runId = _store.ReadRequest("request-zero-match").run_id;
+                _store.SealManifest(runId, new TestRunEvent
+                {
+                    run_id = runId,
+                    event_type = TestRunProtocol.EventType.ManifestSealed,
+                    occurred_utc = Utc,
+                    observer_generation = "test-generation",
+                    expected_count = 0
+                });
+            };
+
+            var ack = CreateService().Start(
+                "request-zero-match", "EditMode", null, "NoSuchClass");
+
+            StringAssert.EndsWith("|expected_count=0", ack);
+        }
+
+        [Test]
+        public void Start_ManifestNotYetSealed_AckOmitsExpectedCount()
+        {
+            // Normal fake driver: no seal is written before Execute() returns,
+            // matching the common case where UTF seals the manifest asynchronously.
+            var ack = CreateService().Start(
+                "request-no-seal", "EditMode", null, "RunnerTests");
+
+            StringAssert.DoesNotContain("expected_count=", ack);
+        }
+
         [TestCase("request-intent-persisted", 1, true)]
         [TestCase("run-record-persisted", 1, true)]
         [TestCase("prepared-pointer-persisted", 1, true)]
