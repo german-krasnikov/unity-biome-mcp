@@ -53,8 +53,9 @@ def register_all(mcp, send, args, *, get_slot, get_middleware=None,
     for mod in [scene, objects, asset, animation, runtime, watch, code_intel,
                 batch, codegen, skills, spatial, ui, uitk, sync, diagnose,
                 debug_tool, diagnostics, snapshot_tool, profiling, rendering, scene_health, auto_wire, meta, build, packages,
-                console, screenshot, testing, editor_control, verify, transaction]:
+                console, screenshot, editor_control, verify, transaction]:
         mod.register(mcp, send, args)
+    testing.register(mcp, send, args, get_slot=get_slot)
     connection.register(mcp, send, args, get_slot=get_slot,
                         get_middleware=get_middleware,
                         refresh_tools_cache=refresh_tools_cache,

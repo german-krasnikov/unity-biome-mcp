@@ -6,10 +6,14 @@ import json
 import math
 import re
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mcp.server.fastmcp.exceptions import ToolError
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+from ..compile_state import CompileStateProbe
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
@@ -18,6 +22,7 @@ from .run_handle import TestRunRegistry
 
 _send = None
 _args = None
+_get_slot = None
 _registry = TestRunRegistry()
 
 # STALE-DOMAIN: defensive -- unreachable with expected_compile=False, guards
@@ -711,8 +716,24 @@ async def get_test_count() -> str:
     return await _send("get_test_count", {})
 
 
-def register(mcp, send, args):
+def _resolve_project_path() -> Path | None:
+    """Resolve the connected Unity project's path: get_slot -> port -> autodetect.
+
+    Fail-inert by design (returns None on any missing link) — a project-path
+    miss must degrade the disk fallback (D3/D4) to a no-op, never raise.
+    """
+    if _get_slot is None:
+        return None
+    slot = _get_slot()
+    if slot is None:
+        return None
+    return CompileStateProbe.autodetect_project_path(port=slot.port)
+
+
+def register(mcp, send, args, *, get_slot=None):
     bind(globals(), send, args)
+    global _get_slot
+    _get_slot = get_slot
     # The bridge may retry run_tests only because every retry carries the same
     # durable request_id. run_tests_wait is a composite operation, not idempotent.
     mcp.tool(annotations=_RW_IDEM)(run_tests)
