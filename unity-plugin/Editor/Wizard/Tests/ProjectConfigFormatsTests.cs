@@ -365,7 +365,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Pin_PreservesEnvAndSiblingKeys_ByteForByte()
+        public void Pin_PreservesEnvAndSiblingKeys()
         {
             var existing = "{\"mcpServers\":{"
                 + "\"other-tool\":{\"command\":\"x\"},"

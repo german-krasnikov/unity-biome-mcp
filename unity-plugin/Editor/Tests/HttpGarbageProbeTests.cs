@@ -62,7 +62,7 @@ namespace UnityMCP.Editor.Tests
                         .WriteAsync(probeBytes, 0, probeBytes.Length);
                 }
 
-                await AwaitConditionAsync(() => slot.CountActive() == 0 && spy.Count > 0,
+                await ConnectionStabilityTests.AwaitConditionAsync(() => slot.CountActive() == 0 && spy.Count > 0,
                     TimeSpan.FromSeconds(5),
                     "Handler did not close the probe connection and log within the timeout.");
 
@@ -122,7 +122,7 @@ namespace UnityMCP.Editor.Tests
                         .WriteAsync(garbage, 0, garbage.Length);
                 }
 
-                await AwaitConditionAsync(() => slot.CountActive() == 0 && spy.Count > 0,
+                await ConnectionStabilityTests.AwaitConditionAsync(() => slot.CountActive() == 0 && spy.Count > 0,
                     TimeSpan.FromSeconds(5),
                     "Handler did not close the garbage connection and log within the timeout.");
 
@@ -156,13 +156,8 @@ namespace UnityMCP.Editor.Tests
             return count;
         }
 
-        private static async Task AwaitConditionAsync(Func<bool> condition, TimeSpan timeout, string timeoutMessage)
-        {
-            var deadline = DateTime.UtcNow + timeout;
-            while (!condition() && DateTime.UtcNow < deadline)
-                await Task.Delay(10).ConfigureAwait(false);
-            Assert.IsTrue(condition(), timeoutMessage);
-        }
+        // AwaitConditionAsync lives on ConnectionStabilityTests and is reused here —
+        // DRY, matching how the TCP framing helpers are already shared.
 
         private static async Task AwaitTaskStoppedAsync(Task task, TimeSpan timeout, string label)
         {
