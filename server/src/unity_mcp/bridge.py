@@ -402,33 +402,7 @@ class UnityBridge(HeartbeatMixin):
             logger.warning("client_hello handshake failed during connect (non-fatal): %s", exc)
             return
 
-        if hello.get("ev") == "going_away":
-            raise DomainReloadError("Unity going_away during initial connect")
-
-        if hello.get("error") == "CLIENT_CAPACITY_BUSY":
-            from .errors import CapacityBusyError
-            raise CapacityBusyError(
-                f"Unity at capacity: {hello.get('active', '?')}/{hello.get('capacity', '?')} clients",
-                retry_after_seconds=float(hello.get("retry_after_seconds", _CAPACITY_RETRY_AFTER_DEFAULT_S)),
-                capacity=int(hello.get("capacity", 0)),
-                active=int(hello.get("active", 0)),
-            )
-
-        if hello.get("ok") and hello.get("helloVersion"):
-            # T19: extract stable project identity (cloudProjectId or sha256[:12])
-            project_id = hello.get("projectId", "")
-            if isinstance(project_id, str) and project_id.strip():
-                self._project_id = project_id.strip()
-            # MCP-SESS-024: capture/enforce editor identity on every handshake
-            _pid = project_id.strip() if isinstance(project_id, str) else ""
-            _raw_path = hello.get("projectPath", "") or ""
-            _canon = (
-                self._canonical_project_path(_raw_path.strip())
-                if _raw_path.strip() else ""
-            )
-            self._capture_or_check_identity(project_id=_pid, project_path=_canon)
-            await self._check_version_from_hello(hello)
-        else:
+        if not await self._dispatch_client_hello_response(hello, reload_context="initial connect"):
             await self._fetch_and_check_version(reader, writer)
 
     def should_retry(self, error: Exception, attempt: int, session_deadline: float,
@@ -742,6 +716,50 @@ class UnityBridge(HeartbeatMixin):
                 f"{stored.project_path!r} to {new.project_path!r}"
             )
 
+    async def _dispatch_client_hello_response(self, hello: dict, *, reload_context: str) -> bool:
+        """Shared client_hello response dispatch for connect() and reconnect() (C1 #9).
+
+        Both call sites send their own client_hello (id prefix `c`/`rc`) and
+        read/parse the raw frame themselves; only the parsed payload is
+        handled here. going_away and CLIENT_CAPACITY_BUSY propagate as
+        DomainReloadError / CapacityBusyError to the caller unchanged. A
+        modern ok+helloVersion hello captures/checks editor identity
+        (MCP-SESS-024) and the protocol version, returning True. Any other
+        hello (old C#, no client_hello support) returns False so the caller
+        runs its own legacy get_version fallback.
+        """
+        if hello.get("ev") == "going_away":
+            raise DomainReloadError(f"Unity going_away during {reload_context}")
+
+        if hello.get("error") == "CLIENT_CAPACITY_BUSY":
+            from .errors import CapacityBusyError
+            raise CapacityBusyError(
+                f"Unity at capacity: {hello.get('active', '?')}/{hello.get('capacity', '?')} clients",
+                retry_after_seconds=float(
+                    hello.get("retry_after_seconds", _CAPACITY_RETRY_AFTER_DEFAULT_S)
+                ),
+                capacity=int(hello.get("capacity", 0)),
+                active=int(hello.get("active", 0)),
+            )
+
+        if not (hello.get("ok") and hello.get("helloVersion")):
+            return False
+
+        # T19: extract stable project identity (cloudProjectId or sha256[:12])
+        project_id = hello.get("projectId", "")
+        if isinstance(project_id, str) and project_id.strip():
+            self._project_id = project_id.strip()
+        # MCP-SESS-024: capture/enforce editor identity on every handshake
+        _pid = project_id.strip() if isinstance(project_id, str) else ""
+        _raw_path = hello.get("projectPath", "") or ""
+        _canon = (
+            self._canonical_project_path(_raw_path.strip())
+            if _raw_path.strip() else ""
+        )
+        self._capture_or_check_identity(project_id=_pid, project_path=_canon)
+        await self._check_version_from_hello(hello)
+        return True
+
     @staticmethod
     async def _close_candidate(writer) -> None:
         writer.close()
@@ -817,46 +835,29 @@ class UnityBridge(HeartbeatMixin):
             hello_raw = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
             hello = json.loads(hello_raw.decode("utf-8"))
 
-            if hello.get("ev") == "going_away":
-                raise DomainReloadError("Unity going_away during reconnect")
+            # New C#: combined response contains version + projectPath — 1 roundtrip.
+            # Checked ahead of the shared dispatch below because it must raise
+            # before identity capture, and only ever applies to an
+            # ok+helloVersion hello (going_away/capacity hellos never satisfy
+            # that guard, so evaluation order between them doesn't matter).
+            if (
+                hello.get("ok")
+                and hello.get("helloVersion")
+                and self._expected_project_path is not None
+            ):
+                reported = hello.get("projectPath", "")
+                if not isinstance(reported, str) or not reported.strip():
+                    raise _CandidateIdentityError(
+                        f"Unity on port {port} returned empty projectPath in client_hello"
+                    )
+                actual = self._canonical_project_path(reported.strip())
+                if actual != self._expected_project_path:
+                    raise _CandidateIdentityError(
+                        f"Refusing Unity on port {port}: expected project "
+                        f"{self._expected_project_path!r}, received {actual!r}"
+                    )
 
-            if hello.get("error") == "CLIENT_CAPACITY_BUSY":
-                from .errors import CapacityBusyError
-                raise CapacityBusyError(
-                    f"Unity at capacity: {hello.get('active', '?')}/{hello.get('capacity', '?')} clients",
-                    retry_after_seconds=float(hello.get("retry_after_seconds", _CAPACITY_RETRY_AFTER_DEFAULT_S)),
-                    capacity=int(hello.get("capacity", 0)),
-                    active=int(hello.get("active", 0)),
-                )
-
-            if hello.get("ok") and hello.get("helloVersion"):
-                # New C#: combined response contains version + projectPath — 1 roundtrip.
-                if self._expected_project_path is not None:
-                    reported = hello.get("projectPath", "")
-                    if not isinstance(reported, str) or not reported.strip():
-                        raise _CandidateIdentityError(
-                            f"Unity on port {port} returned empty projectPath in client_hello"
-                        )
-                    actual = self._canonical_project_path(reported.strip())
-                    if actual != self._expected_project_path:
-                        raise _CandidateIdentityError(
-                            f"Refusing Unity on port {port}: expected project "
-                            f"{self._expected_project_path!r}, received {actual!r}"
-                        )
-                # T19: extract stable project identity (cloudProjectId or sha256[:12])
-                project_id = hello.get("projectId", "")
-                if isinstance(project_id, str) and project_id.strip():
-                    self._project_id = project_id.strip()
-                # MCP-SESS-024: capture/enforce editor identity on every handshake
-                _pid = project_id.strip() if isinstance(project_id, str) else ""
-                _raw_path = hello.get("projectPath", "") or ""
-                _canon = (
-                    self._canonical_project_path(_raw_path.strip())
-                    if _raw_path.strip() else ""
-                )
-                self._capture_or_check_identity(project_id=_pid, project_path=_canon)
-                await self._check_version_from_hello(hello)
-            else:
+            if not await self._dispatch_client_hello_response(hello, reload_context="reconnect"):
                 # Old C#: hello returned ok:false — fallback to project check + get_version.
                 # Connection is already proven live (we got a response), skip extra ping.
                 await self._verify_candidate_project(reader, writer, port)
