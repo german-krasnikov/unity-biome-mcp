@@ -25,6 +25,12 @@ _get_slot = None
 # a quick TCP status query and an LLM call are unrelated concerns.
 _STATUS_TIMEOUT_S = 5.0
 
+# C1 #7 synthetic liveness value: bridge.status=="connected" (writer not yet
+# closed — tolerated stall window) alongside a failed get_status probe. Not
+# one of bridge.py's own BridgeState-derived strings (see mcp_status
+# docstring for the full liveness enum).
+_LIVENESS_STALLED = "connected-stalled"
+
 
 async def discover_tools(category: str | None = None, enable: bool = True,
                          include_legacy: bool = False, structured: bool = False,
@@ -98,7 +104,8 @@ def _fmt_bool(val) -> str:
 async def mcp_status() -> str:
     """Compact MCP status: scene, dirty, play/compile state, port, alias count,
     version — plus Python-side liveness diagnostics (ARC-7 T3) that answer
-    honestly, never raising, when Unity itself is unreachable."""
+    honestly, never raising, when Unity itself is unreachable.
+    liveness: connected | connected-stalled | waking | reconnecting | domain-reloading | dormant | disconnected | unknown"""
     from .. import __version__
     try:
         cs_status = await _send("get_status", {}, timeout=_STATUS_TIMEOUT_S)
@@ -118,7 +125,7 @@ async def mcp_status() -> str:
     # already reported unreachable — surface the stall instead of printing
     # a bare "connected" that contradicts unity_status=unreachable.
     if liveness == "connected" and unity_status == "unreachable":
-        liveness = "connected-stalled"
+        liveness = _LIVENESS_STALLED
 
     pid_alive = None
     probe = getattr(bridge, "_probe", None)

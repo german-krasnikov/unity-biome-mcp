@@ -12,6 +12,8 @@ from unittest.mock import AsyncMock
 
 from mcp.server.fastmcp.exceptions import ToolError
 
+from unity_mcp.tools.meta import _LIVENESS_STALLED
+
 
 def _field(result: str, key: str) -> str:
     m = re.search(rf"^{key}=(\S+)$", result, re.MULTILINE)
@@ -83,7 +85,7 @@ async def test_liveness_flags_stall_when_bridge_status_disagrees_with_probe(mock
     from unity_mcp.tools.meta import mcp_status
     result = await mcp_status()
     assert _field(result, "unity_status") == "unreachable"
-    assert _field(result, "liveness") == "connected-stalled"
+    assert _field(result, "liveness") == _LIVENESS_STALLED
 
 
 async def test_all_fields_na_when_get_slot_is_none(mock_bridge, monkeypatch):
