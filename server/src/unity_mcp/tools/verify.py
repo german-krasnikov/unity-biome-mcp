@@ -131,7 +131,9 @@ def _is_suite_pass(result: str) -> bool:
     if total <= 0 or passed != total:
         return False
     return not re.search(
-        r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT)\b", result, re.IGNORECASE
+        r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT)\b|timed_out:true",
+        result,
+        re.IGNORECASE,
     )
 
 

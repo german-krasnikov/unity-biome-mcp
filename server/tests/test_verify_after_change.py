@@ -166,6 +166,25 @@ def test_is_suite_pass_rejects_corrupted_first_line_with_flags():
     )
 
 
+def test_is_suite_pass_rejects_timed_out_suite_even_if_ratio_full():
+    # DEV-52b: runtime.py's _format_suite_report appends " timed_out:true"
+    # on timeout, even when every already-run file passed (passed == total
+    # of the files that got to run before the deadline). The old keyword
+    # check `\bTIMEOUT\b` never matches "timed_out" (different word), so
+    # the gate falsely PASSed a suite that actually timed out.
+    assert not _v._is_suite_pass(
+        "SUITE: 3/3 passed (12.3s) terminal:true play_stopped:true timed_out:true"
+    )
+
+
+def test_is_suite_pass_accepts_same_result_without_timed_out():
+    # Double-red guard: the fix must not start rejecting clean, non-timed-out
+    # results that otherwise look identical.
+    assert _v._is_suite_pass(
+        "SUITE: 3/3 passed (12.3s) terminal:true play_stopped:true"
+    )
+
+
 @pytest.mark.parametrize("field", [
     "is_terminal",
     "execution_finished",
