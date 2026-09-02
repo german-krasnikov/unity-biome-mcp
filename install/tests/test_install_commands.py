@@ -537,6 +537,77 @@ def test_reconfigure_detected_clients_skips_pinned_toml_entry(tmp_path):
     assert cfg.read_text(encoding="utf-8") == original
 
 
+# ── _reconfigure_detected_clients: undecodable client config must not abort update ──
+
+def test_reconfigure_detected_clients_skips_undecodable_client_and_continues(tmp_path, capsys):
+    """C1-FIX-01 (config-writers MAJOR): install.py:97-98 calls the REAL
+    is_entry_pinned before the try/except ValueError block that guards the
+    merge call below it. is_entry_pinned only catches json.JSONDecodeError,
+    not UnicodeDecodeError -- so a config file with genuinely undecodable
+    bytes (stray UTF-16 BOM / binary corruption) raises uncaught and aborts
+    the whole `for key in detect_installed()` loop, so tools after the
+    corrupt one never get reconfigured. Fixed by wrapping the pinned-check
+    call itself in the same try/except pattern."""
+    corrupt_cfg = tmp_path / "corrupt.json"
+    corrupt_cfg.write_bytes(b'\xff\xfe{"mcpServers": invalid \x80\x81')
+    good_cfg = tmp_path / "good.json"
+    good_cfg.write_text(json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "old", "args": []}}
+    }), encoding="utf-8")
+
+    corrupt_client = _fake_registry(corrupt_cfg)["fake-tool"]
+    corrupt_client.name = "Corrupt Tool"
+    good_client = _fake_registry(good_cfg)["fake-tool"]
+    good_client.name = "Good Tool"
+    registry = {"corrupt-tool": corrupt_client, "good-tool": good_client}
+    entry = {"command": "new", "args": []}
+    merge_calls = []
+
+    def fake_merge(path, e, root_key="mcpServers", entry_transformer=None):
+        merge_calls.append(path)
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["corrupt-tool", "good-tool"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry), \
+         patch.object(inst, "merge_mcp_config", fake_merge), \
+         patch.object(inst, "backup", MagicMock()):
+        inst._reconfigure_detected_clients()  # must not raise UnicodeDecodeError
+
+    assert merge_calls == [good_cfg]  # the client AFTER the corrupt one still ran
+    out = capsys.readouterr().out
+    assert "Skipped" in out
+    assert "Corrupt Tool" in out
+
+
+def test_reconfigure_detected_clients_updates_both_when_both_valid(tmp_path):
+    """Double-red: with no corruption at all, both clients are still updated
+    (the try/except around the pinned-check must not swallow the happy path)."""
+    cfg_a = tmp_path / "a.json"
+    cfg_a.write_text(json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "old", "args": []}}}), encoding="utf-8")
+    cfg_b = tmp_path / "b.json"
+    cfg_b.write_text(json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "old", "args": []}}}), encoding="utf-8")
+
+    client_a = _fake_registry(cfg_a)["fake-tool"]
+    client_b = _fake_registry(cfg_b)["fake-tool"]
+    registry = {"tool-a": client_a, "tool-b": client_b}
+    entry = {"command": "new", "args": []}
+    merge_calls = []
+
+    def fake_merge(path, e, root_key="mcpServers", entry_transformer=None):
+        merge_calls.append(path)
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["tool-a", "tool-b"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry), \
+         patch.object(inst, "merge_mcp_config", fake_merge), \
+         patch.object(inst, "backup", MagicMock()):
+        inst._reconfigure_detected_clients()
+
+    assert merge_calls == [cfg_a, cfg_b]
+
+
 # ── version --unpin flag ──────────────────────────────────────────────────────
 
 def test_version_unpin_flag_in_help():

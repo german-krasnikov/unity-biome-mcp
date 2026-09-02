@@ -80,13 +80,26 @@ def _reinstall_uvx() -> None:
     subprocess.run(["uvx", "--reinstall", "--from", GIT_INSTALL_URL, "unity-biome-mcp"], check=True)
 
 
+# C1-FIX-01 (config-writers MAJOR): one client's unreadable config must never
+# abort reconfiguration of the rest -- caught at both the pinned-check call
+# (install.py:97-98, previously unprotected) and the merge call below it.
+# UnicodeDecodeError/json.JSONDecodeError are both ValueError subclasses;
+# listed explicitly to document exactly which real-world corruption this
+# guards (Windows stray BOM/binary, corrupt JSON, unwritable/locked file).
+_CLIENT_CONFIG_ERRORS = (json.JSONDecodeError, UnicodeDecodeError, ValueError, OSError)
+
+
 def _reconfigure_detected_clients() -> None:
     """Re-assert MCP entry for AI tools already configured. Never adds a new tool,
     never prompts — matches cmd_update's existing non-interactive contract.
-    Skips any entry pinned via `install.py version --set` (ARC-0b)."""
+    Skips any entry pinned via `install.py version --set` (ARC-0b). A single
+    client with an undecodable/corrupt config is skipped, not fatal -- every
+    other detected client still gets reconfigured."""
     if merge_mcp_config is None:
         return
     entry = build_server_entry()
+    updated = 0
+    skipped = 0
     for key in detect_installed():
         client = CLIENT_REGISTRY[key]
         if client.stdout_only:
@@ -94,10 +107,16 @@ def _reconfigure_detected_clients() -> None:
         report = validate_config(key)
         if "not configured" in report or "not found" in report:
             continue
-        pinned = (is_toml_pinned(client.config_path) if client.is_toml
-                  else is_entry_pinned(client.config_path, root_key=client.root_key))
+        try:
+            pinned = (is_toml_pinned(client.config_path) if client.is_toml
+                      else is_entry_pinned(client.config_path, root_key=client.root_key))
+        except _CLIENT_CONFIG_ERRORS as exc:
+            ui.fail(f"Skipped {client.name}: {exc}")
+            skipped += 1
+            continue
         if pinned:
             ui.info(f"Skipped {client.name} (pinned)")
+            skipped += 1
             continue
         try:
             backup(client.config_path)
@@ -106,10 +125,14 @@ def _reconfigure_detected_clients() -> None:
             else:
                 merge_mcp_config(client.config_path, entry, root_key=client.root_key,
                                   entry_transformer=client.entry_transformer)
-        except ValueError as e:
-            ui.fail(f"{client.name}: {e}")
+        except _CLIENT_CONFIG_ERRORS as e:
+            ui.fail(f"Skipped {client.name}: {e}")
+            skipped += 1
             continue
         ui.ok(f"Reconfigured {client.name}")
+        updated += 1
+    if updated or skipped:
+        ui.info(f"Reconfigure summary: {updated} updated, {skipped} skipped")
 
 
 # ── subcommands ───────────────────────────────────────────────────────────────
