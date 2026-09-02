@@ -292,6 +292,52 @@ async def test_await_compile_epoch_ready_unreachable():
     assert result != "compile clean (sync)"
 
 
+# C1 #6: timeout branch (code_intel.py ~L165) must not concatenate the
+# UNITY_UNREACHABLE sentinel into a self-contradicting "timeout after Xs ...
+# \nUNITY-UNREACHABLE: ..." message. A dead TCP link is a single, primary
+# verdict — the sentinel wins outright.
+async def test_timeout_with_dead_tcp_returns_bare_unreachable():
+    """Timeout loop + fully-dead TCP (every send raises) → bare sentinel, no
+    'timeout after Xs — compile still in progress' prefix concatenated in."""
+    async def _dead_send(cmd, args=None, **kwargs):
+        raise ConnectionError("tcp gone")
+
+    _ci._send = _dead_send
+    result = await _ci.await_compile(timeout=0.001)
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
+# Double-red guard for #6: a real (non-sentinel) timeout must keep the
+# original concatenated verdict — see test_timeout_returns_best_effort above.
+# If the sentinel guard were made unconditional (always short-circuit), that
+# test would break; this comment documents the coupling, no new test needed.
+
+
+# C1 #6: STALE-DOMAIN branch (code_intel.py ~L186, matching-MVID gate) must
+# not concatenate the sentinel into "STALE-DOMAIN: ...\nUNITY-UNREACHABLE: ...".
+async def test_stale_domain_dead_tcp_during_error_fetch_returns_bare_unreachable():
+    """Matching MVID (no-IL-change) + dead TCP during the error fetch →
+    bare sentinel, not a concatenated STALE-DOMAIN + sentinel string."""
+    mvid = "60d2de34-1234-5678-abcd-ef0123456789"
+    stamp_pre = f"{mvid}:100"
+    stamp_post = f"{mvid}:200"
+    call_log = []
+
+    async def _send(cmd, args=None, **kwargs):
+        call_log.append(cmd)
+        if cmd == "sync_status":
+            if call_log.count("sync_status") == 1:
+                return f"epoch=5|state=compiling|dur=1.0|stamp={stamp_pre}"
+            return f"epoch=5|state=ready|stamp={stamp_post}"
+        if cmd == "get_compile_errors":
+            raise ConnectionError("tcp gone")
+        raise AssertionError(f"Unexpected: {cmd}")
+
+    _ci._send = _send
+    result = await _ci.await_compile(timeout=60.0)
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
 # Fallback: sync_status unavailable → compile_status fallback still works
 async def test_await_compile_falls_back_to_compile_status_when_no_sync_status():
     """When sync_status is not available, await_compile still works via compile_status fallback."""
