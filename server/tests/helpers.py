@@ -171,3 +171,11 @@ def make_bridge_disconnected(busy: bool = False):
 # Used by test_merger_deep_merge.py, test_mcp_config_writer.py (both preserve
 # a user's CUSTOM_VAR across a re-merge/re-write that omits it).
 KEEPME_ENV = {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"}
+
+
+# C# hardcoded outer watchdog timeouts, MCPServer.cs CommandTimeouts.
+# Shared by test_timing_invariants.py and test_batch_timeout.py so neither
+# test module imports the other (module-level file reads/asserts in
+# test_timing_invariants.py would otherwise run as a side effect of merely
+# collecting test_batch_timeout.py).
+CSHARP_TIMEOUT_OVERRIDES = {"run_tests": 130, "batch": 65}

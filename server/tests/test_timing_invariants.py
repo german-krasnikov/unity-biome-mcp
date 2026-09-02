@@ -20,6 +20,7 @@ import pytest
 from unity_mcp.timeout_categories import get_timeout
 from unity_mcp.tools.batch import _TIMEOUT_MS_CEILING, _UNITY_BATCH_DEFAULT_MS
 from unity_mcp.tools.tool_specs import DEFAULT_TIMEOUT
+from helpers import CSHARP_TIMEOUT_OVERRIDES as _CSHARP_OVERRIDES
 
 _PROJECT = Path(__file__).parents[2]
 _MCP_SERVER_CS_PATH = _PROJECT / "unity-plugin/Editor/MCPServer.cs"
@@ -38,7 +39,6 @@ _COMMAND_ROUTER_REGISTRATION_CS = _COMMAND_ROUTER_REGISTRATION_CS_PATH.read_text
 # and its GetCommandTimeout default fallback. Guarded against silent drift by
 # test_csharp_command_timeouts_source_matches_fixture below.
 _CSHARP_DEFAULT_TIMEOUT = 25
-_CSHARP_OVERRIDES = {"run_tests": 130, "batch": 65}
 
 
 def _csharp_timeout(cmd: str) -> int:

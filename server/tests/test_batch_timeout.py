@@ -1,6 +1,6 @@
 from unity_mcp.server import batch
 from unity_mcp.tools.batch import _TIMEOUT_MS_CEILING, _BATCH_DISPATCH_GUARD_S
-from test_timing_invariants import _CSHARP_OVERRIDES
+from helpers import CSHARP_TIMEOUT_OVERRIDES as _CSHARP_OVERRIDES
 
 
 async def test_batch_default_timeout_75s(mock_bridge, bridge_response):
