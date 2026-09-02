@@ -338,7 +338,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void HandEditedPin_SurvivesReboot_ReportsIncoherentWithLivePlugin()
         {
-            // Full Dmitrii scenario through real components, not a hand-built entry
+            // Full consumer/hand-edit scenario through real components, not a hand-built entry
             // string: Run() writes 1.50.0, the user hand-rolls both the git-tag arg
             // and the "_v" marker back to 1.49.0 (no "_pin" flag — exactly what a
             // manual .mcp.json edit looks like), then the Editor "reboots" and
