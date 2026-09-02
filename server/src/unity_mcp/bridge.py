@@ -382,21 +382,48 @@ class UnityBridge(HeartbeatMixin):
         self._pin_candidate(self._port)
 
     async def _check_initial_protocol_version(self, reader, writer) -> None:
-        """DEV-60: client_hello + version check, mirroring the hello branch of
-        _open_reconnect_candidate. Tolerant of pre-hello plugins (ARC-17
-        wire-compat) — any failure to obtain a usable hello response is
-        non-fatal; only a confirmed version mismatch blocks (check_protocol_version)."""
+        """DEV-60: client_hello + version check, mirroring _open_reconnect_candidate.
+        Only the frame read/parse is tolerant of a pre-hello plugin (ARC-17
+        wire-compat) — once a hello payload is parsed, going_away/capacity/
+        version-mismatch signals are handled exactly as in
+        _open_reconnect_candidate and propagate to connect()'s outer handler
+        (DEV-60b: these must not be swallowed as a non-fatal handshake failure)."""
+        self._counter += 1
+        hello_id = f"c{self._counter:04x}"
+        frame_write(writer, self._build_hello(hello_id))
+        await writer.drain()
         try:
-            self._counter += 1
-            hello_id = f"c{self._counter:04x}"
-            frame_write(writer, self._build_hello(hello_id))
-            await writer.drain()
             hello_raw = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
             hello = json.loads(hello_raw.decode("utf-8"))
         except Exception as exc:
             logger.warning("client_hello handshake failed during connect (non-fatal): %s", exc)
             return
+
+        if hello.get("ev") == "going_away":
+            raise DomainReloadError("Unity going_away during initial connect")
+
+        if hello.get("error") == "CLIENT_CAPACITY_BUSY":
+            from .errors import CapacityBusyError
+            raise CapacityBusyError(
+                f"Unity at capacity: {hello.get('active', '?')}/{hello.get('capacity', '?')} clients",
+                retry_after_seconds=float(hello.get("retry_after_seconds", 5.0)),
+                capacity=int(hello.get("capacity", 0)),
+                active=int(hello.get("active", 0)),
+            )
+
         if hello.get("ok") and hello.get("helloVersion"):
+            # T19: extract stable project identity (cloudProjectId or sha256[:12])
+            project_id = hello.get("projectId", "")
+            if isinstance(project_id, str) and project_id.strip():
+                self._project_id = project_id.strip()
+            # MCP-SESS-024: capture/enforce editor identity on every handshake
+            _pid = project_id.strip() if isinstance(project_id, str) else ""
+            _raw_path = hello.get("projectPath", "") or ""
+            _canon = (
+                self._canonical_project_path(_raw_path.strip())
+                if _raw_path.strip() else ""
+            )
+            self._capture_or_check_identity(project_id=_pid, project_path=_canon)
             await self._check_version_from_hello(hello)
         else:
             await self._fetch_and_check_version(reader, writer)

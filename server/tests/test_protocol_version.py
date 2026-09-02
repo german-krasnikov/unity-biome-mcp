@@ -179,3 +179,83 @@ async def test_initial_connect_succeeds_when_hello_unanswered():
     # Prove the hello was actually attempted (not just skipped outright).
     sent = json.loads(writer.write.call_args_list[0][0][0][4:])
     assert sent["cmd"] == "client_hello"
+
+
+# ── DEV-60b (review fixup): going_away/CLIENT_CAPACITY_BUSY on the initial-
+# connect hello must propagate as real errors — not be swallowed by the
+# non-fatal "hello handshake failed" catch that only guards the frame read —
+# and a hello carrying projectId must populate bridge.project_id, matching
+# _open_reconnect_candidate's "capture identity on every handshake"
+# (MCP-SESS-024). ────────────────────────────────────────────────────────
+
+
+def _hello_frame(data: dict) -> list[bytes]:
+    payload = json.dumps(data).encode()
+    return [struct.pack("!I", len(payload)), payload]
+
+
+async def test_initial_connect_raises_domain_reload_on_going_away():
+    """going_away in the initial-connect hello response must raise
+    DomainReloadError, not be treated as a non-fatal handshake failure."""
+    from unity_mcp.bridge import DomainReloadError
+
+    reader = AsyncMock()
+    writer = make_writer()
+    reader.readexactly = AsyncMock(
+        side_effect=_hello_frame({"ev": "going_away", "reason": "domain_reload"})
+    )
+
+    with patch("asyncio.open_connection", return_value=(reader, writer)):
+        bridge = UnityBridge("127.0.0.1", 9999, expected_project_path="/some/project")
+        with patch.object(bridge, "_verify_candidate_project", new=AsyncMock()):
+            with pytest.raises(DomainReloadError):
+                await bridge.connect()
+
+    # Propagated to connect()'s outer handler: candidate closed, nothing assigned.
+    assert bridge._reader is None
+    assert bridge._writer is None
+
+
+async def test_initial_connect_raises_capacity_busy():
+    """CLIENT_CAPACITY_BUSY in the initial-connect hello response must raise
+    CapacityBusyError, not be treated as a non-fatal handshake failure."""
+    from unity_mcp.errors import CapacityBusyError
+
+    reader = AsyncMock()
+    writer = make_writer()
+    reader.readexactly = AsyncMock(side_effect=_hello_frame({
+        "error": "CLIENT_CAPACITY_BUSY", "active": 4, "capacity": 4,
+        "retry_after_seconds": 2.5,
+    }))
+
+    with patch("asyncio.open_connection", return_value=(reader, writer)):
+        bridge = UnityBridge("127.0.0.1", 9999, expected_project_path="/some/project")
+        with patch.object(bridge, "_verify_candidate_project", new=AsyncMock()):
+            with pytest.raises(CapacityBusyError) as exc_info:
+                await bridge.connect()
+
+    assert exc_info.value.capacity == 4
+    assert exc_info.value.active == 4
+    assert bridge._reader is None
+    assert bridge._writer is None
+
+
+async def test_initial_connect_captures_project_identity_from_hello():
+    """bridge.project_id must be populated after the very first connect when
+    Unity's hello reply carries projectId — previously only _reconnect() (via
+    _open_reconnect_candidate) captured it, so project_id stayed None until
+    the first reconnect."""
+    reader = AsyncMock()
+    writer = make_writer()
+    reader.readexactly = AsyncMock(side_effect=_hello_frame({
+        "id": "c0001", "ok": True, "helloVersion": 2,
+        "projectId": "abc123", "projectPath": "/some/project",
+        "version": f"proto:{PROTOCOL_VERSION}|plugin:test|stamp:x",
+    }))
+
+    with patch("asyncio.open_connection", return_value=(reader, writer)):
+        bridge = UnityBridge("127.0.0.1", 9999, expected_project_path="/some/project")
+        with patch.object(bridge, "_verify_candidate_project", new=AsyncMock()):
+            await bridge.connect()
+
+    assert bridge.project_id == "abc123"
