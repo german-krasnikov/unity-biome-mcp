@@ -11,8 +11,9 @@ namespace UnityMCP.Editor
     /// <remarks>
     /// Bucket substrings are best-effort guesses at real UPM/git wording, not a
     /// captured production message (ARC-10 §6 risk). <see cref="Reason.Unknown"/>
-    /// always falls back to the raw message verbatim — no info is lost when a
-    /// bucket doesn't match.
+    /// never discards the raw message — it appends a generic actionable hint
+    /// instead (ARC-10 T3 review minors a/c) so a bucket miss never leaves the
+    /// user with zero guidance or ActionableText returning null.
     /// </remarks>
     internal static class UpmErrorClassifier
     {
@@ -37,12 +38,17 @@ namespace UnityMCP.Editor
             "cannot find branch or tag"
         };
 
+        // ARC-10 T3 review minor (b): a bare "ssl" substring false-positives on
+        // unrelated text that merely contains the three letters in sequence (e.g.
+        // "AddToClassList" in a stack trace: ...ClaSSListt -> "ssl"). Anchored to
+        // the two-word phrases real curl/git SSL failures actually use.
         private static readonly string[] NetworkMarkers =
         {
             "could not resolve host",
             "unable to connect",
             "timed out",
-            "ssl"
+            "ssl certificate",
+            "ssl connect"
         };
 
         /// <summary>Buckets a raw UPM error message into a <see cref="Reason"/>.</summary>
@@ -59,7 +65,10 @@ namespace UnityMCP.Editor
 
         /// <summary>
         /// One user-facing sentence per <paramref name="reason"/>. <see cref="Reason.Unknown"/>
-        /// returns <paramref name="rawMessage"/> verbatim — never paraphrase what wasn't classified.
+        /// (review minors a/c) never paraphrases what wasn't classified, but always appends a
+        /// generic actionable hint and never returns null — this is the field-reported main
+        /// case ("Unable to add package [url#vX]" classifies Unknown today, §1) so it must not
+        /// leave the user with a bare, un-actionable UPM message.
         /// </summary>
         public static string ActionableText(Reason reason, string version, string rawMessage)
         {
@@ -73,7 +82,9 @@ namespace UnityMCP.Editor
                 case Reason.Network:
                     return "Could not reach GitHub. Check your network connection and try again.";
                 default:
-                    return rawMessage;
+                    var hint = $"Check that tag v{version} exists in the plugin repository, " +
+                               "that no other UPM operation is in progress, and that your network connection is working.";
+                    return string.IsNullOrEmpty(rawMessage) ? hint : $"{rawMessage} {hint}";
             }
         }
 

@@ -23,6 +23,18 @@ namespace UnityMCP.Editor.Tests
         private const string NetworkMessage =
             "fatal: unable to connect to github.com:\nfatal: Could not resolve host: github.com\n";
 
+        // ARC-10 T3 review minor (b): a real curl SSL failure, matched by the
+        // tightened "ssl certificate" marker.
+        private const string SslCertificateMessage =
+            "fatal: unable to access 'https://github.com/acme/unity-biome-mcp.git/': " +
+            "SSL certificate problem: unable to get local issuer certificate";
+
+        // ARC-10 T3 review minor (b): a real Unity API name that contains the bare
+        // substring "ssl" (...ClaSSListt) without being network-related at all —
+        // proves the old bare "ssl" marker was a false-positive trap.
+        private const string SslFalsePositiveMessage =
+            "NullReferenceException in VisualElement.AddToClassList during manifest UI refresh";
+
         [Test]
         public void Classify_BusyMessage_ReturnsUpmBusy()
         {
@@ -39,6 +51,18 @@ namespace UnityMCP.Editor.Tests
         public void Classify_NetworkMessage_ReturnsNetwork()
         {
             Assert.AreEqual(UpmErrorClassifier.Reason.Network, UpmErrorClassifier.Classify(NetworkMessage));
+        }
+
+        [Test]
+        public void Classify_SslCertificateMessage_ReturnsNetwork()
+        {
+            Assert.AreEqual(UpmErrorClassifier.Reason.Network, UpmErrorClassifier.Classify(SslCertificateMessage));
+        }
+
+        [Test]
+        public void Classify_MessageContainingSslSubstringInUnrelatedWord_ReturnsUnknown()
+        {
+            Assert.AreEqual(UpmErrorClassifier.Reason.Unknown, UpmErrorClassifier.Classify(SslFalsePositiveMessage));
         }
 
         [Test]
@@ -86,11 +110,29 @@ namespace UnityMCP.Editor.Tests
                 text);
         }
 
+        // ARC-10 T3 review minors (a)/(c): Unknown must never paraphrase the raw
+        // message away, but it must also never leave the user with zero guidance
+        // (the field report's exact message classifies Unknown) and must never
+        // return null. Renamed from ActionableText_Unknown_FallsBackToRawMessage
+        // (DEV-40) — bare raw-only fallback was replaced by raw + generic hint.
         [Test]
-        public void ActionableText_Unknown_FallsBackToRawMessage()
+        public void ActionableText_Unknown_MessageIncludesRawTextAndGenericHint()
         {
             var text = UpmErrorClassifier.ActionableText(UpmErrorClassifier.Reason.Unknown, "1.49.0", FieldReportMessage);
-            Assert.AreEqual(FieldReportMessage, text);
+            Assert.AreEqual(
+                FieldReportMessage + " Check that tag v1.49.0 exists in the plugin repository, " +
+                "that no other UPM operation is in progress, and that your network connection is working.",
+                text);
+        }
+
+        [Test]
+        public void ActionableText_Unknown_NullMessage_ReturnsHintOnlyNeverNull()
+        {
+            var text = UpmErrorClassifier.ActionableText(UpmErrorClassifier.Reason.Unknown, "1.49.0", null);
+            Assert.AreEqual(
+                "Check that tag v1.49.0 exists in the plugin repository, " +
+                "that no other UPM operation is in progress, and that your network connection is working.",
+                text);
         }
     }
 }
