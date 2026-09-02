@@ -103,6 +103,39 @@ namespace UnityMCP.Editor
             cmd != "ping" && cmd != "get_version" && cmd != "status" &&
             cmd != "get_enabled_tools" && cmd != "client_hello";
 
+        // ARC-15 T1: exact 4-byte ASCII prefixes of the HTTP methods an AV/EDR scanner or
+        // health-checker probe most commonly opens with. Verified (ARC-15-http-garbage-detect.md
+        // §1) as BE-uint32 values that all comfortably exceed MaxMessageSize, so this classifier
+        // is only ever consulted from the existing overflow branch — never a legitimate frame.
+        private static readonly byte[][] KnownHttpProbePrefixes =
+        {
+            Encoding.ASCII.GetBytes("GET "),
+            Encoding.ASCII.GetBytes("POST"),
+            Encoding.ASCII.GetBytes("HEAD"),
+            Encoding.ASCII.GetBytes("PUT "),
+            Encoding.ASCII.GetBytes("DELE"), // (TE)
+            Encoding.ASCII.GetBytes("OPTI"), // (ONS)
+            Encoding.ASCII.GetBytes("HTTP"), // (/1.x response)
+        };
+
+        private const byte TlsHandshakeContentType = 0x16;
+
+        // internal so tests can classify a raw 4-byte header without opening a socket.
+        // Pure/static, no Unity API: called only after the existing length-prefix overflow
+        // check reinterprets the header bytes as ASCII/TLS — the header itself is never mutated.
+        internal static bool IsKnownForeignProtocolProbe(byte[] header)
+        {
+            if (header == null || header.Length < 4) return false;
+            if (header[0] == TlsHandshakeContentType) return true;
+            foreach (var prefix in KnownHttpProbePrefixes)
+            {
+                if (header[0] == prefix[0] && header[1] == prefix[1] &&
+                    header[2] == prefix[2] && header[3] == prefix[3])
+                    return true;
+            }
+            return false;
+        }
+
         // internal so tests can verify the cross-language response format without TCP.
         // helloVersion:2 is the Python discriminant: present → fast-path (1 RTT), absent → 3-RTT fallback.
         // T19: projectId added (cloudProjectId or sha256[:12]) — stable across path moves.
