@@ -919,7 +919,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void MtimeCoherence_IdleNeverStatus_Throws()
+        public void ValidateMtimeCoherence_IdleNever_DoesNotThrow()
         {
             var original = TestRunAssemblyFingerprint.CompileStatusGetter;
             try
@@ -927,10 +927,10 @@ namespace UnityMCP.Editor.Tests
                 TestRunAssemblyFingerprint.CompileStatusGetter = () => "idle-never|0";
                 var older = DateTime.UtcNow.AddSeconds(-10);
                 var newer = DateTime.UtcNow;
-                Assert.Throws<InvalidDataException>(() =>
+                Assert.DoesNotThrow(() =>
                     TestRunAssemblyFingerprint.ValidateMtimeCoherence(
                         "TestAsm", older, newer, "Source.cs"),
-                    "idle-never means no compile ran: stale DLL must throw");
+                    "idle-never means Bee decided nothing needed compiling: DLL is correct, must not throw");
             }
             finally { TestRunAssemblyFingerprint.CompileStatusGetter = original; }
         }
