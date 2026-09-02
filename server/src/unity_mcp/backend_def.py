@@ -362,7 +362,8 @@ class KimiDef(BackendDef):
                    config_dir=None, extra_args=None, **kwargs):
         config_dir = config_dir or tempfile.gettempdir()
         if not mcp_config_writer.write_kimi_mcp_config(config_dir, mcp_port):
-            log.error("kimi mcp.json not written (existing file unreadable) — Unity tools unavailable this session")
+            config_path = os.path.join(config_dir, "mcp.json")
+            log.error("kimi mcp.json not written (existing file unreadable): %s — Unity tools unavailable this session", config_path)
 
         argv: list[str] = ["-p", prompt, "--output-format", "stream-json"]
         if model:
@@ -390,7 +391,8 @@ class AgyDef(BackendDef):
                    config_dir=None, extra_args=None, **kwargs):
         config_dir = config_dir or tempfile.gettempdir()
         if not mcp_config_writer.write_agy_settings(config_dir, mcp_port):
-            log.error("agy settings.json not written (existing file unreadable) — Unity tools unavailable this session")
+            config_path = os.path.join(config_dir, "settings.json")
+            log.error("agy settings.json not written (existing file unreadable): %s — Unity tools unavailable this session", config_path)
 
         argv: list[str] = ["-p", prompt]
         if model:

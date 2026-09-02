@@ -285,6 +285,21 @@ def test_kimi_build_args_logs_when_config_write_fails(tmp_path, monkeypatch, cap
     assert any("mcp.json" in msg for msg in errors), errors
 
 
+def test_kimi_build_args_error_includes_config_path(tmp_path, monkeypatch, caplog):
+    # C1-FIX-02 minor: the corrupt-config error must name the exact file so
+    # the agent knows where to look, not just the bare filename "mcp.json".
+    monkeypatch.setattr(
+        "unity_mcp.backend_def.mcp_config_writer.write_kimi_mcp_config",
+        lambda config_dir, mcp_port: False,
+    )
+    with caplog.at_level(logging.ERROR):
+        KimiDef().build_args(mode="ask", model=None, mcp_port=_TEST_PORT,
+                             prompt="x", config_dir=str(tmp_path))
+    errors = [r.message for r in caplog.records if r.levelno == logging.ERROR]
+    expected_path = os.path.join(str(tmp_path), "mcp.json")
+    assert any(expected_path in msg for msg in errors), errors
+
+
 def test_kimi_build_args_silent_when_config_write_succeeds(tmp_path, monkeypatch, caplog):
     # Double-red: a successful write must not emit the failure log.
     monkeypatch.setattr(
@@ -339,6 +354,20 @@ def test_agy_build_args_logs_when_config_write_fails(tmp_path, monkeypatch, capl
                             prompt="x", config_dir=str(tmp_path))
     errors = [r.message for r in caplog.records if r.levelno == logging.ERROR]
     assert any("settings.json" in msg for msg in errors), errors
+
+
+def test_agy_build_args_error_includes_config_path(tmp_path, monkeypatch, caplog):
+    # C1-FIX-02 minor: same actionability requirement for the agy path.
+    monkeypatch.setattr(
+        "unity_mcp.backend_def.mcp_config_writer.write_agy_settings",
+        lambda settings_dir, mcp_port: False,
+    )
+    with caplog.at_level(logging.ERROR):
+        AgyDef().build_args(mode="ask", model=None, mcp_port=_TEST_PORT,
+                            prompt="x", config_dir=str(tmp_path))
+    errors = [r.message for r in caplog.records if r.levelno == logging.ERROR]
+    expected_path = os.path.join(str(tmp_path), "settings.json")
+    assert any(expected_path in msg for msg in errors), errors
 
 
 def test_agy_build_args_silent_when_config_write_succeeds(tmp_path, monkeypatch, caplog):
