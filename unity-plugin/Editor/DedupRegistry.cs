@@ -30,7 +30,13 @@ namespace UnityMCP.Editor
         // reload-survival bridge for in-flight retries, not a full mirror of
         // the in-memory dedup window. Keeps SessionState small.
         internal const string SessionKey = "MCP_DedupRegistry_v1";
-        private const int PersistCapacity = 64;
+        internal const int PersistCapacity = 64;
+
+        // DEV-64: a single oversized cached result (e.g. a large hierarchy dump)
+        // must not bloat SessionState. Entries above this cap stay dedup-active
+        // in memory but are skipped when writing the persisted snapshot, so they
+        // simply do not survive a domain reload.
+        private const int MaxPersistedResultBytes = 16 * 1024;
 
         private readonly Dictionary<string, (long ts, string result)> _store = new Dictionary<string, (long, string)>(Capacity);
         private readonly Queue<string> _persistOrder = new Queue<string>();
@@ -44,6 +50,11 @@ namespace UnityMCP.Editor
         }
 
         internal int Count => _store.Count;
+
+        // Test seam: exposes the persisted-order queue length so a
+        // regression test can pin "one slot per tracked op_id" without
+        // reaching into the SessionState JSON.
+        internal int PersistOrderCount => _persistOrder.Count;
 
         internal bool TryRegister(string opId, string result = null)
         {
@@ -110,6 +121,11 @@ namespace UnityMCP.Editor
 
         private void TrackPersistOrder(string opId)
         {
+            // DEV-64: a re-register of the same op_id (e.g. after its TTL expired)
+            // must not occupy a second slot in the persisted window — that would
+            // silently evict an unrelated entry one slot earlier than it should.
+            if (_persistOrder.Contains(opId))
+                return;
             _persistOrder.Enqueue(opId);
             while (_persistOrder.Count > PersistCapacity)
                 _persistOrder.Dequeue();
@@ -124,6 +140,9 @@ namespace UnityMCP.Editor
             foreach (var opId in _persistOrder)
             {
                 if (!_store.TryGetValue(opId, out var entry)) continue;
+                if (entry.result != null &&
+                    System.Text.Encoding.UTF8.GetByteCount(entry.result) > MaxPersistedResultBytes)
+                    continue;
                 if (n++ > 0) sb.Append(',');
                 sb.Append("{\"id\":\"").Append(JsonHelper.EscapeJson(opId))
                   .Append("\",\"ts\":").Append(entry.ts)

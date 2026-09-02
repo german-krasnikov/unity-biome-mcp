@@ -146,5 +146,53 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNull(reloaded.TryGetResult("op-reload-expired"),
                 "An entry older than TTL at restore time must not come back after a simulated reload.");
         }
+
+        // DEV-64 minor sweep: hostile characters, persist-order dedup, and a
+        // byte cap on the persisted result — see MINOR-SWEEP-CS item 7.
+
+        [Test]
+        public void SurvivesDomainReload_HostileResultCharacters_RoundTripsExactly()
+        {
+            const string hostile =
+                "quotes:\"q\" backslash:\\ newline:\ntab:\t braces:{\"nested\":1} unicode:日本語🎉";
+            _registry.TryRegister("op-hostile", hostile);
+
+            var reloaded = new DedupRegistry(clock: () => _nowTicks);
+
+            Assert.AreEqual(hostile, reloaded.TryGetResult("op-hostile"),
+                "Quotes, backslashes, newlines, braces, and unicode in a persisted result " +
+                "must round-trip exactly through the SessionState JSON snapshot.");
+        }
+
+        [Test]
+        public void ReRegisterAfterTtl_DoesNotDuplicatePersistOrderSlot()
+        {
+            _registry.TryRegister("op-dup");
+            Assert.AreEqual(1, _registry.PersistOrderCount);
+
+            _nowTicks += TimeSpan.FromSeconds(DedupRegistry.TtlSeconds + 1).Ticks;
+            Assert.IsTrue(_registry.TryRegister("op-dup"),
+                "TTL expired: re-registering the same op_id must succeed.");
+
+            Assert.AreEqual(1, _registry.PersistOrderCount,
+                "Re-registering the same op_id after TTL expiry must not occupy a second " +
+                "persist-order slot — that would evict an unrelated entry prematurely.");
+        }
+
+        [Test]
+        public void Persist_ResultExceedsByteCap_StaysInMemoryOnly_NotRestoredAfterReload()
+        {
+            var oversized = new string('x', 20 * 1024); // 20KB > the 16KB persist cap
+            _registry.TryRegister("op-oversized", oversized);
+
+            Assert.AreEqual(oversized, _registry.TryGetResult("op-oversized"),
+                "An oversized result must remain readable in-memory before any reload.");
+
+            var reloaded = new DedupRegistry(clock: () => _nowTicks);
+
+            Assert.IsNull(reloaded.TryGetResult("op-oversized"),
+                "An oversized result must not be persisted to SessionState — a reload must " +
+                "not resurrect it.");
+        }
     }
 }
