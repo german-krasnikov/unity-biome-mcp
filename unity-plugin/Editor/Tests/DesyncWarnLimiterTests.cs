@@ -53,5 +53,23 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(shouldLog);
             Assert.AreEqual(2, suppressed);
         }
+
+        // Review follow-up (DEV-49 minor): pin the boundary tick itself. Record uses
+        // `nowTicks - _windowStartTicks >= _windowTicks` — exactly at the boundary
+        // (delta == windowTicks) must already open a new window. A `>` regression would
+        // keep this call suppressed and fail this test.
+        [Test]
+        public void Record_CallExactlyAtWindowBoundary_LogsImmediately()
+        {
+            var limiter = new ClientConnectionHandler.DesyncWarnLimiter(WindowTicks);
+            const long t0 = 1000L;
+            limiter.Record(t0);
+
+            var (shouldLog, suppressed) = limiter.Record(t0 + WindowTicks);
+
+            Assert.IsTrue(shouldLog,
+                "nowTicks == t0 + WindowTicks must open a new window (>=, not >).");
+            Assert.AreEqual(0, suppressed);
+        }
     }
 }

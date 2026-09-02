@@ -175,6 +175,37 @@ namespace UnityMCP.Editor
             }
         }
 
+        // ARC-15 T3: single process-wide limiter instance shared by every connection —
+        // intentional (ARC-15-http-garbage-detect.md §6): one cap on total warning volume,
+        // not a per-connection or per-port limiter. DesyncWarnLimiter.Record is lock-guarded
+        // so concurrent ThreadPool handler threads share it safely. Not readonly: see
+        // ResetDesyncLimiterForTests below.
+        private static DesyncWarnLimiter _desyncLimiter =
+            new DesyncWarnLimiter(TimeSpan.FromSeconds(30).Ticks);
+
+#if UNITY_INCLUDE_TESTS
+        // Test-only seam (mirrors MCPServer.ResetDomainStateForTests). Re-creates the shared
+        // limiter so repeated full-suite EditMode runs in the same Editor domain don't
+        // inherit real-clock suppression state — a real 30s window would otherwise make
+        // "first call after reset logs" nondeterministic across runs less than 30s apart.
+        internal static void ResetDesyncLimiterForTests() =>
+            _desyncLimiter = new DesyncWarnLimiter(TimeSpan.FromSeconds(30).Ticks);
+#endif
+
+        // Renders a 4-byte header as printable ASCII (non-printable -> '.') for the quiet
+        // probe log, so a human (and the loopback test) can see e.g. "GET " without
+        // decoding hex. Never throws — same defensive shape as IsKnownForeignProtocolProbe.
+        private static string HeaderAsciiPreview(byte[] header)
+        {
+            var chars = new char[header.Length];
+            for (int i = 0; i < header.Length; i++)
+            {
+                var b = header[i];
+                chars[i] = (b >= 0x20 && b < 0x7F) ? (char)b : '.';
+            }
+            return new string(chars);
+        }
+
         // internal so tests can verify the cross-language response format without TCP.
         // helloVersion:2 is the Python discriminant: present → fast-path (1 RTT), absent → 3-RTT fallback.
         // T19: projectId added (cloudProjectId or sha256[:12]) — stable across path moves.
@@ -236,7 +267,26 @@ namespace UnityMCP.Editor
                         var length = BinaryPrimitives.ReadUInt32BigEndian(header);
                         if (length > MaxMessageSize)
                         {
-                            var len = length; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Protocol desync: length prefix {len} bytes (0x{len:X8}) exceeds {MaxMessageSize} — reconnecting"));
+                            var len = length;
+                            if (IsKnownForeignProtocolProbe(header))
+                            {
+                                // ARC-15 T1/T3: AV/EDR scanners and health-checkers HTTP/TLS-probe
+                                // the raw port constantly — informational only, never Warning, so
+                                // it drops out of ASSERT_CONSOLE_CLEAN.
+                                var preview = HeaderAsciiPreview(header);
+                                MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} Foreign protocol probe (\"{preview}\" 0x{len:X8}) — closing quietly"));
+                            }
+                            else
+                            {
+                                // Honest desync: rate-limited so a stuck/misbehaving peer can't
+                                // spam the console (ARC-15 T2/T3).
+                                var (shouldLog, suppressed) = _desyncLimiter.Record(DateTime.UtcNow.Ticks);
+                                if (shouldLog)
+                                {
+                                    var suffix = suppressed > 0 ? $" (+{suppressed} suppressed)" : "";
+                                    MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Protocol desync: length prefix {len} bytes (0x{len:X8}) exceeds {MaxMessageSize} — reconnecting{suffix}"));
+                                }
+                            }
                             break;
                         }
 
