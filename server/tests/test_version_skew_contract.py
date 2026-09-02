@@ -1,24 +1,24 @@
-"""ARC-17 X1: locks the mixed-version contract for `health` + `expected_count`.
+"""Locks the mixed-version contract for `health` + `expected_count`.
 
 Old plugin + new server must degrade to inert, pre-batch behavior, per the
-ARC-17 §4 standing rule ("old plugin: field absent -> inert as today"):
+standing rule ("old plugin: field absent -> inert as today"):
 
 - A missing `health` key is never a `KeyError` and never fabricates a reason
   on an otherwise honestly-finished run -- the branch is a silent no-op.
 - A missing `expected_count` key is never a `KeyError` either, and -- since
-  DEV-16 review -- is no longer treated as a corrupted value: the
+  a later fix -- is no longer treated as a corrupted value: the
   count-invariant checks that depend on it are skipped entirely, and the
   rest of the validation (boundary flags, outcome, issues) still applies.
   A *present but corrupted* `expected_count` (bool, non-int) still fails
   closed exactly as before -- the None-skip widens only the absent-key case.
 
 See `Plans/consumer-reports/ARC-17-version-skew-matrix.md` Task X1 (and its
-§4 table row for this DEV-16 fix) and
+§4 table row for this fix) and
 `Plans/consumer-reports/ARC-0a-test-conventions.md` §4 standing rule (new
 field -> read with `.get(key, default)`, never bare indexing).
 
 This is a compat lock for `health` and a compat *fix* for `expected_count`
-(DEV-16 review found the original .get()-default for `expected_count` still
+(a later review found the original .get()-default for `expected_count` still
 fail-closed on a merely-absent key, which is not inert). Regression proof is
 the fault-injection arm described in each test's docstring -- performed
 manually and recorded in the PR, not committed.

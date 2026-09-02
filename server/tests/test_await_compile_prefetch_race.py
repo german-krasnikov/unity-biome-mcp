@@ -1,4 +1,4 @@
-"""ARC-5 T3: closes the await_compile <-> middleware prefetch/cache coverage gap.
+"""Closes the await_compile <-> middleware prefetch/cache coverage gap.
 
 test_await_compile.py monkeypatches code_intel._send with a bespoke router
 (_make_send), never through wrap_send/Middleware — so the race between

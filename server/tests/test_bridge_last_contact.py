@@ -1,4 +1,4 @@
-"""ARC-7 T2: last_contact_age_s / pending_queue_depth diagnostic fields on UnityBridge.
+"""last_contact_age_s / pending_queue_depth diagnostic fields on UnityBridge.
 
 `_last_contact_at` marks the last *successful* contact with Unity — a pong on
 the heartbeat ping, or a completed send() round-trip. It must NOT be touched

@@ -1,4 +1,4 @@
-"""Timing invariant tests — ARC-4 cross-layer timeout table.
+"""Timing invariant tests — cross-layer timeout table.
 
 Pins the Python <-> C# timeout relationships declared in
 Plans/consumer-reports/ARC-4-timing-design.md Section 2.1. Two independent
@@ -8,8 +8,8 @@ same "text search, no Unity" pattern as test_reload_timing_contracts.py
 Group C). A drift on either side turns the relevant test red with the
 offending command name.
 
-ARC-4's own summary line: "Invariant: Python timeout < C# timeout for every
-command." Two rows are explicit, doc-approved exceptions to that summary
+This design's own summary line: "Invariant: Python timeout < C# timeout for
+every command." Two rows are explicit, doc-approved exceptions to that summary
 (legacy facades where C# may time out first) — see
 test_legacy_facade_timeout_matches_documented_exception.
 """

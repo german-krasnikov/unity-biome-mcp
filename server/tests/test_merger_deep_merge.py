@@ -1,6 +1,6 @@
-"""Tests for _deep_merge and its wiring into merge_mcp_config (ARC-12 T1).
+"""Tests for _deep_merge and its wiring into merge_mcp_config.
 
-Regression coverage for the P7 bug: merge_mcp_config used to whole-value
+Regression coverage for a bug where merge_mcp_config used to whole-value
 replace data[root_key][SERVER_NAME], deleting any user-added key (top-level
 or nested inside env) that wasn't part of the new entry. See
 Plans/consumer-reports/ARC-12-python-deep-merge.md.

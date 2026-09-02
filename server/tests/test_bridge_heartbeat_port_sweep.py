@@ -1,4 +1,4 @@
-"""ARC-7 T1: periodic stale-port sweep from HeartbeatMixin._tick_disconnected.
+"""Periodic stale-port sweep from HeartbeatMixin._tick_disconnected.
 
 Gate: sweep only fires on the idle branch (not busy, no reload active) —
 that is the branch that used to be a no-op `wait = 2.0`. Reload-active is

@@ -1,14 +1,14 @@
-"""DI seam for run_tests_wait's disk fallback (ARC-2 D2) and the
-decode/gate/marker glue that reads it (ARC-2 D3).
+"""DI seam for run_tests_wait's disk fallback, and the decode/gate/marker
+glue that reads it.
 
-D2 only threads `get_slot` into testing.register so `_resolve_project_path`
-can resolve the connected Unity project's path (get_slot -> port ->
-CompileStateProbe.autodetect_project_path). D3 adds `_read_disk_fallback`,
-which turns that disk text into either `None` (no usable fallback) or a
-wire-shaped snapshot string marked `"read_via": "disk"` — reusing
-`_decode_snapshot`/`_terminal_snapshot_error` verbatim, no new validation
-logic. D4 (a later task) wires `_read_disk_fallback` into run_tests_wait's
-TIMEOUT return; it is not called from anywhere yet.
+Threading `get_slot` into testing.register lets `_resolve_project_path`
+resolve the connected Unity project's path (get_slot -> port ->
+CompileStateProbe.autodetect_project_path). `_read_disk_fallback` turns that
+disk text into either `None` (no usable fallback) or a wire-shaped snapshot
+string marked `"read_via": "disk"` — reusing `_decode_snapshot`/
+`_terminal_snapshot_error` verbatim, no new validation logic. The tests below
+also cover wiring `_read_disk_fallback` into run_tests_wait's own TIMEOUT
+return path.
 """
 
 import json
@@ -177,7 +177,7 @@ def test_disk_fallback_returns_marked_snapshot_for_valid_terminal():
     assert decoded["outcome"] == "passed"
 
 
-# --- D4: wire _read_disk_fallback into run_tests_wait's TIMEOUT return ---
+# --- Wire _read_disk_fallback into run_tests_wait's TIMEOUT return ---
 
 
 async def test_timeout_returns_disk_fallback_when_wire_never_goes_terminal():

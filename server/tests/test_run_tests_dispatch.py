@@ -1,4 +1,4 @@
-"""Regression test for ARC-4 T1 — run_tests ACK dispatch timeout.
+"""Regression test for the run_tests ACK dispatch timeout.
 
 testing.py used to hardcode ``timeout=8.0`` on the run_tests ACK dispatch,
 overriding tool_specs.py's 30s default. The C# side budgets 130s for the

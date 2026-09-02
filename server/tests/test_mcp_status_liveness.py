@@ -1,9 +1,9 @@
-"""TDD tests for mcp_status liveness surface (ARC-7 T3).
+"""TDD tests for mcp_status liveness surface.
 
 mcp_status must answer with honest Python-side diagnostics (liveness,
 pid_alive, last_contact_s, ping_fail, ping_stall, queue_depth) even when
 Unity itself is unreachable, instead of letting the underlying ToolError
-propagate. See Plans/consumer-reports/ARC-7-periodic-liveness.md Task 3.
+propagate. See Plans/consumer-reports/ARC-7-periodic-liveness.md.
 
 server/tests/test_mcp_status.py stays unedited as the raw-passthrough guard.
 """

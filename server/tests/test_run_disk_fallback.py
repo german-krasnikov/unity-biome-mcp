@@ -1,7 +1,5 @@
 """Tests for run_disk_fallback — pure I/O read of the durable summary.json.
 
-TDD: tests written first, implementation follows (ARC-2 D1).
-
 This module does NOT parse JSON or validate terminal state — it only reads
 raw text off disk. Schema tolerance and terminal-state gating are exercised
 in testing.py's own tests (D3), which reuse _decode_snapshot /

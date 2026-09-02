@@ -418,8 +418,8 @@ def test_reconfigure_detected_clients_skips_unconfigured_tools(tmp_path):
 
 
 def test_reconfigure_detected_clients_preserves_custom_env_var(tmp_path):
-    """E2E regression (ARC-12 T3): install.py update must not wipe a user's
-    custom env var. Reproduces RC3 through the real call chain — real merge,
+    """E2E regression: install.py update must not wipe a user's
+    custom env var. Reproduces a bug through the real call chain — real merge,
     real file write, no merge_mcp_config patch."""
     cfg = tmp_path / "mcp.json"
     cfg.write_text(json.dumps({
@@ -464,7 +464,7 @@ def test_reconfigure_detected_clients_never_prompts(tmp_path):
         inst._reconfigure_detected_clients()  # must not raise
 
 
-# ── _reconfigure_detected_clients: pin support (ARC-0b T3) ───────────────────
+# ── _reconfigure_detected_clients: pin support ───────────────────────────────
 
 def test_reconfigure_detected_clients_skips_pinned_entry(tmp_path):
     """A "_pin": true entry must survive install.py update byte-for-byte —
@@ -616,7 +616,7 @@ def test_reconfigure_detected_clients_updates_both_when_both_valid(tmp_path):
 # ── version --unpin flag ──────────────────────────────────────────────────────
 
 def test_version_unpin_flag_in_help():
-    """install.py version --help must document --unpin (ARC-0b T3)."""
+    """install.py version --help must document --unpin."""
     r = subprocess.run(
         [sys.executable, str(REPO_ROOT / "install.py"), "version", "--help"],
         capture_output=True, encoding="utf-8",
