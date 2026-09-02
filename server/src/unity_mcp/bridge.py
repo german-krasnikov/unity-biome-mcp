@@ -868,6 +868,25 @@ class UnityBridge(HeartbeatMixin):
             await self._close_candidate(writer)
             raise
 
+    def _schedule_server_update(self, info) -> None:
+        """Schedule a background maybe_update check for a newly parsed plugin
+        version, passing the canonical project path (editor identity, captured
+        before either version-check call site runs — MCP-SESS-024) so a
+        per-project pin can block self-reinstall (C1 #12). DRY for both
+        _check_version_from_hello (modern hello) and _fetch_and_check_version
+        (legacy get_version fallback, which may have no identity yet)."""
+        if not info.plugin:
+            return
+        from .server_updater import _updater
+        identity = self._editor_identity
+        project_path = (
+            identity.project_path if identity and identity.project_path
+            else self._expected_project_path
+        )
+        task = asyncio.create_task(_updater.maybe_update(info.plugin, project_path=project_path))
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+
     async def _check_version_from_hello(self, hello: dict) -> None:
         """Parse version from a client_hello response; non-fatal unless proto mismatch."""
         version_str = hello.get("version", "")
@@ -876,11 +895,7 @@ class UnityBridge(HeartbeatMixin):
         try:
             info = parse_version_string(version_str)
             check_protocol_version(PROTOCOL_VERSION, info.proto)
-            if info.plugin:
-                from .server_updater import _updater
-                task = asyncio.create_task(_updater.maybe_update(info.plugin))
-                _background_tasks.add(task)
-                task.add_done_callback(_background_tasks.discard)
+            self._schedule_server_update(info)
         except ConnectionError:
             raise
         except Exception as exc:
@@ -902,11 +917,7 @@ class UnityBridge(HeartbeatMixin):
             if version_response.get("ok") and version_response.get("data"):
                 info = parse_version_string(version_response["data"])
                 check_protocol_version(PROTOCOL_VERSION, info.proto)
-                if info.plugin:
-                    from .server_updater import _updater
-                    task = asyncio.create_task(_updater.maybe_update(info.plugin))
-                    _background_tasks.add(task)
-                    task.add_done_callback(_background_tasks.discard)
+                self._schedule_server_update(info)
         except ConnectionError:
             raise
         except Exception as exc:

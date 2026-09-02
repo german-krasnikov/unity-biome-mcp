@@ -6,19 +6,28 @@ import sys
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from unity_mcp.config.merger import SERVER_NAME
 from unity_mcp.server_updater import ServerUpdater, _default_is_uvx_install, _updater as module_updater
 
 
-def make_updater(current="1.0.0", uvx_found=True, subprocess_exit=0, exit_calls=None):
+def make_updater(current="1.0.0", uvx_found=True, subprocess_exit=0, exit_calls=None,
+                  subprocess_calls=None, is_pinned_fn=None):
     if exit_calls is None:
         exit_calls = []
 
     async def fake_subprocess(*args, **kwargs):
+        if subprocess_calls is not None:
+            subprocess_calls.append(args)
+
         class FakeProc:
             async def wait(self):
                 return subprocess_exit
 
         return FakeProc()
+
+    kwargs = {}
+    if is_pinned_fn is not None:
+        kwargs["is_pinned_fn"] = is_pinned_fn
 
     return ServerUpdater(
         install_url="git+https://example.com",
@@ -27,6 +36,7 @@ def make_updater(current="1.0.0", uvx_found=True, subprocess_exit=0, exit_calls=
         subprocess_fn=fake_subprocess,
         exit_fn=lambda code: exit_calls.append(code),
         is_uvx_install_fn=lambda: True,
+        **kwargs,
     )
 
 
@@ -80,6 +90,40 @@ async def test_debounce_prevents_double_update():
     r = await u.maybe_update("1.6.0")
     assert r.reason == "already_running"
     assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_skips_reinstall_when_project_pinned(tmp_path):
+    """A project .mcp.json with "_pin": true blocks self-reinstall (ARC-0b/ARC-11)."""
+    (tmp_path / ".mcp.json").write_text(
+        f'''{{"mcpServers": {{"{SERVER_NAME}": {{"_pin": true, "command": "x"}}}}}}''',
+        encoding="utf-8",
+    )
+    subprocess_calls = []
+    u = make_updater(current="1.5.0", subprocess_calls=subprocess_calls)
+    r = await u.maybe_update("1.6.0", project_path=str(tmp_path))
+    assert r.reason == "pinned"
+    assert r.triggered is False
+    assert subprocess_calls == []
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_reinstalls_when_project_not_pinned(tmp_path):
+    """Double-red pair: same project dir, no .mcp.json pin — guard stays conditional."""
+    u = make_updater(current="1.5.0")
+    r = await u.maybe_update("1.6.0", project_path=str(tmp_path))
+    assert r.reason == "started"
+    assert r.triggered is True
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_ignores_pin_when_project_path_omitted():
+    """No project_path means no pin lookup — legacy callers keep prior behavior."""
+    pin_calls = []
+    u = make_updater(current="1.5.0", is_pinned_fn=lambda p: pin_calls.append(p) or True)
+    r = await u.maybe_update("1.6.0")
+    assert pin_calls == []
+    assert r.reason == "started"
 
 
 @pytest.mark.asyncio
@@ -167,7 +211,7 @@ async def test_bridge_schedules_update_task_when_plugin_newer():
     scheduled = []
 
     class FakeUpdater:
-        async def maybe_update(self, plugin_version):
+        async def maybe_update(self, plugin_version, project_path=None):
             scheduled.append(plugin_version)
 
     # Build fake TCP frames: ping pong + project check + version with newer plugin
@@ -212,6 +256,7 @@ async def test_bridge_schedules_update_task_when_plugin_newer():
                     bridge._bridge_id = "br-test"
                     bridge._started_at_utc = "2026-01-01T00:00:00Z"
                     bridge._expected_project_path = None
+                    bridge._editor_identity = None
                     bridge._probe = Mock()
                     bridge._probe.project_uuid = "project-uuid"
 
@@ -224,6 +269,35 @@ async def test_bridge_schedules_update_task_when_plugin_newer():
     await asyncio.sleep(0)
 
     assert "99.0.0" in scheduled
+
+
+@pytest.mark.asyncio
+async def test_check_version_from_hello_uses_editor_identity_project_path(monkeypatch):
+    """_check_version_from_hello passes the canonical editor-identity project path
+    to maybe_update (DRY via _schedule_server_update), so per-project pins apply
+    to the hello-based version-check path, not just the legacy get_version path."""
+    from unity_mcp.bridge import EditorIdentity, UnityBridge, _background_tasks
+    from unity_mcp.server_updater import _updater as module_updater
+
+    calls = []
+
+    async def fake_maybe_update(plugin_version, project_path=None):
+        calls.append((plugin_version, project_path))
+
+    monkeypatch.setattr(module_updater, "maybe_update", fake_maybe_update)
+
+    bridge = UnityBridge.__new__(UnityBridge)
+    bridge._editor_identity = EditorIdentity(project_id="p1", project_path="/canon/project")
+    bridge._expected_project_path = None
+
+    await bridge._check_version_from_hello({"version": "proto:3|plugin:9.9.9|stamp:abc"})
+
+    assert len(_background_tasks) == 1
+    task = next(iter(_background_tasks))
+    await task
+
+    assert calls == [("9.9.9", "/canon/project")]
+    assert len(_background_tasks) == 0
 
 
 # M4: Tests for _default_is_uvx_install — positive identification only

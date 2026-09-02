@@ -13,6 +13,12 @@ SERVER_NAME = "unity-biome-mcp"
 # rename never leaves an orphaned duplicate server behind.
 _OLD_NAMES = ("unity-mcp",)
 
+# Claude Code project-scoped config filename (root_key="mcpServers"). Canonical
+# source for this literal — install.py's _project_config_path (claude-code
+# branch) is the other consumer and is slated to import this constant instead
+# of repeating the literal.
+PROJECT_CONFIG_FILENAME = ".mcp.json"
+
 # C1-FIX-01 (windows-platform CRITICAL): every config READ in this module uses
 # utf-8-sig, which transparently strips a leading UTF-8 BOM (Windows Notepad /
 # PowerShell 5.1 Out-File/Set-Content default) before json.loads/regex parsing.

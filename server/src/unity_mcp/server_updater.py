@@ -5,9 +5,11 @@ import os
 import shutil
 import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 from unity_mcp import __version__
 from unity_mcp._update_check import _is_newer
+from unity_mcp.config.merger import PROJECT_CONFIG_FILENAME, is_entry_pinned
 from unity_mcp.config.resolver import GIT_INSTALL_URL
 
 logger = logging.getLogger("unity_mcp")
@@ -16,7 +18,12 @@ logger = logging.getLogger("unity_mcp")
 @dataclass
 class _UpdateResult:
     triggered: bool
-    reason: str  # "not_needed" | "no_uvx" | "already_running" | "not_uvx_install" | "started"
+    reason: str  # "not_needed" | "no_uvx" | "already_running" | "not_uvx_install" | "started" | "pinned"
+
+
+def _default_is_pinned(project_path: str) -> bool:
+    """True if the project's .mcp.json pins us to the current server version (ARC-0b/ARC-11)."""
+    return is_entry_pinned(Path(project_path) / PROJECT_CONFIG_FILENAME)
 
 
 def _default_is_uvx_install() -> bool:
@@ -42,6 +49,7 @@ class ServerUpdater:
         subprocess_fn=asyncio.create_subprocess_exec,
         exit_fn=os._exit,
         is_uvx_install_fn=_default_is_uvx_install,
+        is_pinned_fn=_default_is_pinned,
     ):
         self._install_url = install_url
         self._version_fn = version_fn
@@ -49,9 +57,10 @@ class ServerUpdater:
         self._subprocess_fn = subprocess_fn
         self._exit_fn = exit_fn
         self._is_uvx_install_fn = is_uvx_install_fn
+        self._is_pinned_fn = is_pinned_fn
         self._updating = False
 
-    async def maybe_update(self, plugin_version: str) -> _UpdateResult:
+    async def maybe_update(self, plugin_version: str, project_path: str | None = None) -> _UpdateResult:
         """Check if plugin is newer; if so reinstall and exit. Non-blocking guard."""
         if self._updating:
             return _UpdateResult(triggered=False, reason="already_running")
@@ -70,6 +79,13 @@ class ServerUpdater:
                 "Update manually if needed."
             )
             return _UpdateResult(triggered=False, reason="not_uvx_install")
+
+        if project_path and self._is_pinned_fn(project_path):
+            logger.info(
+                "Server update skipped: %s pins the server version (found at %s).",
+                PROJECT_CONFIG_FILENAME, project_path,
+            )
+            return _UpdateResult(triggered=False, reason="pinned")
 
         if not self._is_update_needed(plugin_version):
             return _UpdateResult(triggered=False, reason="not_needed")
