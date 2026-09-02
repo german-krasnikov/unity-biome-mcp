@@ -566,6 +566,31 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void ExistingActiveRun_SameSessionFinalizingLongRunRecentBoundary_StillBlocksDispatch()
+        {
+            // A full-suite run can dispatch long before its RunFinished boundary
+            // lands (durable suites run minutes, not seconds), but the staleness
+            // ceiling must anchor to when that boundary was recorded, not to
+            // dispatch. Elapsed-since-dispatch here is 1800s (>> the 180s
+            // ceiling), which would wrongly self-heal under a dispatch-anchored
+            // ceiling and silently disable the activity gate below. Anchored to
+            // the boundary, elapsed is only 120s, so the gate must still apply.
+            const string runId = "run-long-run-recent-boundary";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed,
+                dispatchedUtc: Utc,
+                utfGuid: "utf-guid-stuck",
+                boundaryOccurredUtc: RecentBoundaryUtc);
+            var service = CreateService(utcNow: () => LongRunNowUtc);
+
+            var response = service.Start("request-long-run", "EditMode", null, null);
+
+            StringAssert.Contains("test run already active: " + runId, DecodeReason(response));
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Finalizing, _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(0, _framework.ExecuteCalls);
+        }
+
+        [Test]
         public void ExistingActiveRun_SameSessionFinalizingPastCeilingWithoutBoundary_StaysBlocked()
         {
             // DEV-05 guardrail: without a durable execution boundary the
@@ -1801,7 +1826,8 @@ namespace UnityMCP.Editor.Tests
             string provisionalOutcome = "",
             string runFinishedOutcome = TestRunProtocol.RunOutcome.Invalid,
             string dispatchedUtc = null,
-            string utfGuid = "")
+            string utfGuid = "",
+            string boundaryOccurredUtc = null)
         {
             _store.WriteRun(new TestRunRecord
             {
@@ -1848,7 +1874,7 @@ namespace UnityMCP.Editor.Tests
             {
                 run_id = runId,
                 event_type = TestRunProtocol.EventType.RunFinished,
-                occurred_utc = Utc,
+                occurred_utc = boundaryOccurredUtc ?? Utc,
                 observer_generation = "test-generation",
                 outcome = runFinishedOutcome,
                 root_trusted = true,
@@ -1891,6 +1917,12 @@ namespace UnityMCP.Editor.Tests
         // TestRunFinalizationCoordinator.SameSessionStalenessCeilingSeconds).
         private const string UnderCeilingUtc = "2026-08-02T12:01:00.0000000Z"; // +60s
         private const string PastCeilingUtc = "2026-08-02T12:03:01.0000000Z"; // +181s
+        // Long-run scenario: dispatch was long ago but the execution-boundary
+        // event itself is recent. The ceiling must anchor to the boundary, not
+        // to dispatch, so this pair stays under the 180s ceiling even though
+        // elapsed-since-dispatch (Utc -> LongRunNowUtc) is 1800s.
+        private const string LongRunNowUtc = "2026-08-02T12:30:00.0000000Z"; // +1800s from dispatch
+        private const string RecentBoundaryUtc = "2026-08-02T12:28:00.0000000Z"; // 120s before LongRunNowUtc
 
         private sealed class FakeFrameworkDriver : ITestFrameworkDriver
         {
