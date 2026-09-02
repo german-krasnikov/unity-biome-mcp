@@ -46,6 +46,8 @@ namespace UnityMCP.Editor
         internal static volatile string _lastWrittenState = "";
         // Set when TCP bind falls back to a non-configured port; cleared on each StartAsync entry.
         internal static volatile bool _portFallback;
+        // Base backoff (ms) between chat-listener bind retries — see PortResolver.BackoffDelayMs.
+        private const int ChatPortRetryBaseMs = 300;
 
         public static MCPStatusModel.SubState CurrentSubState => MCPStatusModel.GetSubState(
             isCompiling: _isCompiling,
@@ -389,7 +391,7 @@ namespace UnityMCP.Editor
                             break;
                         }
                         var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {bp2} busy, retry {at + 1}/3..."));
-                        await Task.Delay(PortResolver.BackoffDelayMs(attempt, 300), token).ConfigureAwait(false);
+                        await Task.Delay(PortResolver.BackoffDelayMs(attempt, ChatPortRetryBaseMs), token).ConfigureAwait(false);
                     }
                     catch (SocketException se)
                     {

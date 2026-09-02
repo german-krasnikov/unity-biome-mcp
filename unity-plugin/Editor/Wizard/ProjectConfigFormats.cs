@@ -12,6 +12,8 @@ namespace UnityMCP.Editor.Wizard
         private static readonly Regex MarkerVersionRe = new Regex("\"_v\"\\s*:\\s*\"([^\"]+)\"");
         private static readonly Regex MarkerPortRe = new Regex("\"UNITY_MCP_PORT\"\\s*:\\s*\"(\\d+)\"");
         private static readonly Regex MarkerPinRe = new Regex("\"_pin\"\\s*:\\s*true");
+        // Insert literal for Pin() — matched by MarkerPinRe's flexible-whitespace pattern above.
+        private const string PinFieldJson = "\"_pin\": true";
 
         // Builds the full unity-biome-mcp entry: WizardConfigWriter.Entry(port, gitUrl) plus a
         // trailing "_v": version marker key, inserted just before the closing brace.
@@ -95,7 +97,7 @@ namespace UnityMCP.Editor.Wizard
             if (!FindOurEntry(existingText, out var start, out var end)) return existingText;
             if (IsPinned(existingText)) return existingText;
             var oldSpan = existingText.Substring(start, end - start);
-            var patchedSpan = WizardConfigWriter.InsertFieldBeforeClosingBrace(oldSpan, "\"_pin\": true");
+            var patchedSpan = WizardConfigWriter.InsertFieldBeforeClosingBrace(oldSpan, PinFieldJson);
             return existingText.Substring(0, start) + patchedSpan + existingText.Substring(end);
         }
 

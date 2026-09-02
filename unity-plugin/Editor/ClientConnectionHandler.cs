@@ -17,6 +17,8 @@ namespace UnityMCP.Editor
     internal static class ClientConnectionHandler
     {
         private const int MaxMessageSize = 10_000_000;
+        // Rate-limit window for the unrecognized-desync warning path (ARC-15 T2).
+        private const int DesyncWarnWindowSeconds = 30;
 
         internal static async Task RunAcceptLoop(TcpListener listener, ClientSlot slot, string label,
             CancellationTokenSource masterCts, CancellationToken token)
@@ -181,7 +183,7 @@ namespace UnityMCP.Editor
         // so concurrent ThreadPool handler threads share it safely. Not readonly: see
         // ResetDesyncLimiterForTests below.
         private static DesyncWarnLimiter _desyncLimiter =
-            new DesyncWarnLimiter(TimeSpan.FromSeconds(30).Ticks);
+            new DesyncWarnLimiter(TimeSpan.FromSeconds(DesyncWarnWindowSeconds).Ticks);
 
 #if UNITY_INCLUDE_TESTS
         // Test-only seam (mirrors MCPServer.ResetDomainStateForTests). Re-creates the shared
@@ -189,7 +191,7 @@ namespace UnityMCP.Editor
         // inherit real-clock suppression state — a real 30s window would otherwise make
         // "first call after reset logs" nondeterministic across runs less than 30s apart.
         internal static void ResetDesyncLimiterForTests() =>
-            _desyncLimiter = new DesyncWarnLimiter(TimeSpan.FromSeconds(30).Ticks);
+            _desyncLimiter = new DesyncWarnLimiter(TimeSpan.FromSeconds(DesyncWarnWindowSeconds).Ticks);
 #endif
 
         // Renders a 4-byte header as printable ASCII (non-printable -> '.') for the quiet

@@ -24,6 +24,7 @@ namespace UnityMCP.Editor
         // Public constants — tests use these directly.
         internal const int Capacity = 512;
         internal const double TtlSeconds = 300.0;
+        private static readonly long TtlMs = (long)(TtlSeconds * 1000);
         private const int EvictEveryN = 16;
 
         // DEV-64: persisted snapshot is capped well below Capacity — this is a
@@ -64,7 +65,7 @@ namespace UnityMCP.Editor
             if (_store.TryGetValue(opId, out var entry))
             {
                 long ageMs = (_clock() - entry.ts) / TimeSpan.TicksPerMillisecond;
-                if (ageMs < TtlSeconds * 1000)
+                if (ageMs < TtlMs)
                     return false;
                 _store.Remove(opId);
             }
@@ -91,7 +92,7 @@ namespace UnityMCP.Editor
             if (string.IsNullOrEmpty(opId) || !_store.TryGetValue(opId, out var entry))
                 return null;
             long ageMs = (_clock() - entry.ts) / TimeSpan.TicksPerMillisecond;
-            return ageMs < TtlSeconds * 1000 ? entry.result : null;
+            return ageMs < TtlMs ? entry.result : null;
         }
 
         internal void Evict()
@@ -172,7 +173,7 @@ namespace UnityMCP.Editor
                 if (!long.TryParse(JsonHelper.ExtractString(obj, "ts"), out var ts)) continue;
 
                 long ageMs = (_clock() - ts) / TimeSpan.TicksPerMillisecond;
-                if (ageMs >= TtlSeconds * 1000) continue;
+                if (ageMs >= TtlMs) continue;
 
                 _store[id] = (ts, JsonHelper.ExtractString(obj, "result"));
                 _persistOrder.Enqueue(id);
