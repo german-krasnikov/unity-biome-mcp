@@ -80,15 +80,15 @@ class ServerUpdater:
             )
             return _UpdateResult(triggered=False, reason="not_uvx_install")
 
+        if not self._is_update_needed(plugin_version):
+            return _UpdateResult(triggered=False, reason="not_needed")
+
         if project_path and self._is_pinned_fn(project_path):
             logger.info(
                 "Server update skipped: %s pins the server version (found at %s).",
                 PROJECT_CONFIG_FILENAME, project_path,
             )
             return _UpdateResult(triggered=False, reason="pinned")
-
-        if not self._is_update_needed(plugin_version):
-            return _UpdateResult(triggered=False, reason="not_needed")
 
         self._updating = True
         try:

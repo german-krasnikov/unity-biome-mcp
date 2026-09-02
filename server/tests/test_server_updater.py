@@ -117,6 +117,19 @@ async def test_maybe_update_reinstalls_when_project_not_pinned(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_maybe_update_skips_pin_check_when_not_needed(tmp_path):
+    """Review minor (C1-FIX-05 follow-up): the pin-guard must run only when an
+    update would actually trigger, not on every reconnect. Double-red:
+    reverting the pin-check back before _is_update_needed makes is_pinned_fn
+    fire (reading .mcp.json) on every call even when versions already match."""
+    pin_calls = []
+    u = make_updater(current="1.5.0", is_pinned_fn=lambda p: pin_calls.append(p) or True)
+    r = await u.maybe_update("1.5.0", project_path=str(tmp_path))
+    assert pin_calls == []
+    assert r.reason == "not_needed"
+
+
+@pytest.mark.asyncio
 async def test_maybe_update_ignores_pin_when_project_path_omitted():
     """No project_path means no pin lookup — legacy callers keep prior behavior."""
     pin_calls = []
