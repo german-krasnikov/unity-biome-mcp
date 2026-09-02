@@ -105,3 +105,77 @@ async def test_reconnect_nonfatal_on_get_version_failure():
         await bridge._reconnect(fire_callbacks=False)
 
     assert bridge.connected
+
+
+# ── DEV-60: connect() (first connect of a session) must also negotiate
+# protocol version — previously only _reconnect() did this, so a mixed-version
+# pair (old plugin + new server) went undetected until the first reconnect,
+# or never for a long-lived single connection. ──────────────────────────────
+
+
+async def test_check_protocol_version_called_during_initial_connect():
+    """connect() calls check_protocol_version after the client_hello handshake."""
+    reader = AsyncMock()
+    writer = make_writer()
+    reader.readexactly = AsyncMock(side_effect=[*reconnect_preamble(proto=3)])
+
+    called_with = []
+
+    def spy_check(python_proto, unity_proto):
+        called_with.append((python_proto, unity_proto))
+
+    with patch("asyncio.open_connection", return_value=(reader, writer)):
+        with patch("unity_mcp.bridge.check_protocol_version", side_effect=spy_check):
+            bridge = UnityBridge("127.0.0.1", 9999, expected_project_path="/some/project")
+            with patch.object(bridge, "_verify_candidate_project", new=AsyncMock()):
+                await bridge.connect()
+
+    assert called_with, "check_protocol_version was not called during initial connect"
+    assert called_with[0] == (PROTOCOL_VERSION, 3)
+
+
+async def test_initial_connect_blocks_when_plugin_is_ahead():
+    """Unity proto ahead of Python proto → connect() raises ConnectionError (block)."""
+    reader = AsyncMock()
+    writer = make_writer()
+    reader.readexactly = AsyncMock(side_effect=[*reconnect_preamble(proto=PROTOCOL_VERSION + 1)])
+
+    with patch("asyncio.open_connection", return_value=(reader, writer)):
+        bridge = UnityBridge("127.0.0.1", 9999, expected_project_path="/some/project")
+        with patch.object(bridge, "_verify_candidate_project", new=AsyncMock()):
+            with pytest.raises(ConnectionError, match="upgrade"):
+                await bridge.connect()
+
+
+async def test_initial_connect_warns_when_plugin_is_outdated(caplog):
+    """Python proto ahead of Unity proto → warning logged, connect() still succeeds."""
+    reader = AsyncMock()
+    writer = make_writer()
+    reader.readexactly = AsyncMock(side_effect=[*reconnect_preamble(proto=1)])
+
+    with patch("asyncio.open_connection", return_value=(reader, writer)):
+        bridge = UnityBridge("127.0.0.1", 9999, expected_project_path="/some/project")
+        with patch.object(bridge, "_verify_candidate_project", new=AsyncMock()):
+            with caplog.at_level(logging.WARNING, logger="unity_mcp.bridge"):
+                await bridge.connect()
+
+    assert bridge.connected
+    assert any("outdated" in r.message.lower() for r in caplog.records)
+
+
+async def test_initial_connect_succeeds_when_hello_unanswered():
+    """A pre-hello plugin (e.g. 1.46.1) that never answers client_hello must
+    not block the first connect (ARC-17 wire-compat tolerance)."""
+    reader = AsyncMock()
+    writer = make_writer()
+    reader.readexactly = AsyncMock(side_effect=OSError("connection reset"))
+
+    with patch("asyncio.open_connection", return_value=(reader, writer)):
+        bridge = UnityBridge("127.0.0.1", 9999, expected_project_path="/some/project")
+        with patch.object(bridge, "_verify_candidate_project", new=AsyncMock()):
+            await bridge.connect()  # must not raise
+
+    assert bridge.connected
+    # Prove the hello was actually attempted (not just skipped outright).
+    sent = json.loads(writer.write.call_args_list[0][0][0][4:])
+    assert sent["cmd"] == "client_hello"

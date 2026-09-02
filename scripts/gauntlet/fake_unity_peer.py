@@ -100,6 +100,13 @@ class ScriptedUnityPeer:
         ):
             reported = self.reported_project_path or self.project_path
             return PeerReply(data=str(reported.resolve()))
+        if command == "client_hello":
+            # DEV-60: this fixture models a legacy plugin (pre-hello) that
+            # doesn't understand client_hello. The real bridge now sends it on
+            # every first connect and falls back to project_path + get_version
+            # on an unrecognized reply (ARC-17 wire-compat) — so this is
+            # expected traffic, not a scripting bug worth flagging.
+            return PeerReply(ok=False, error="unknown command: client_hello")
         if isinstance(command, str) and command in self._responses:
             return self._responses[command]
 

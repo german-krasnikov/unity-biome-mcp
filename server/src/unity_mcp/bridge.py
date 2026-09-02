@@ -366,12 +366,40 @@ class UnityBridge(HeartbeatMixin):
         _apply_socket_options(writer.get_extra_info("socket"))
         try:
             await self._verify_candidate_project(reader, writer, self._port)
+            # DEV-60: negotiate protocol version on the very first connect too —
+            # previously only _reconnect() did this, so a mixed-version pair
+            # went undetected until the first reconnect (or never, for a
+            # long-lived single connection). Gated the same as the project
+            # check above: an unknown project means no real Unity endpoint is
+            # pinned yet (e.g. ad hoc/test bridges), so skip the extra round trip.
+            if self._expected_project_path is not None:
+                await self._check_initial_protocol_version(reader, writer)
         except BaseException:
             await self._close_candidate(writer)
             raise
         self._reader = reader
         self._writer = writer
         self._pin_candidate(self._port)
+
+    async def _check_initial_protocol_version(self, reader, writer) -> None:
+        """DEV-60: client_hello + version check, mirroring the hello branch of
+        _open_reconnect_candidate. Tolerant of pre-hello plugins (ARC-17
+        wire-compat) — any failure to obtain a usable hello response is
+        non-fatal; only a confirmed version mismatch blocks (check_protocol_version)."""
+        try:
+            self._counter += 1
+            hello_id = f"c{self._counter:04x}"
+            frame_write(writer, self._build_hello(hello_id))
+            await writer.drain()
+            hello_raw = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
+            hello = json.loads(hello_raw.decode("utf-8"))
+        except Exception as exc:
+            logger.warning("client_hello handshake failed during connect (non-fatal): %s", exc)
+            return
+        if hello.get("ok") and hello.get("helloVersion"):
+            await self._check_version_from_hello(hello)
+        else:
+            await self._fetch_and_check_version(reader, writer)
 
     def should_retry(self, error: Exception, attempt: int, session_deadline: float,
                       cmd: str = "") -> tuple[bool, float, str]:
