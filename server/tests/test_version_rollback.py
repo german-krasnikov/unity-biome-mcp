@@ -285,6 +285,28 @@ def test_version_unpin_removes_pin_from_json_config(tmp_path, install_mod):
     assert data["mcpServers"]["unity-biome-mcp"]["command"] == "old"
 
 
+def test_version_unpin_no_pin_present_does_not_report_unpinned(tmp_path, install_mod, capsys):
+    """`version --unpin` on a config with no "_pin" key must not claim success --
+    unpin_entry/unpin_toml_entry both return False on a no-op (item 6)."""
+    cfg = tmp_path / "claude.json"
+    cfg.write_text(json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "old", "args": []}}
+    }), encoding="utf-8")
+    mock_client = MagicMock()
+    mock_client.stdout_only = False
+    mock_client.is_toml = False
+    mock_client.root_key = "mcpServers"
+    mock_client.config_path = cfg
+
+    args = Namespace(set_version=None, port=0, tool="claude-code", list=False, online=False, unpin=True)
+
+    with patch.object(install_mod, "CLIENT_REGISTRY", {"claude-code": mock_client}):
+        install_mod.cmd_version(args)
+
+    out = capsys.readouterr().out
+    assert "unpinned" not in out
+
+
 def test_version_unpin_does_not_require_set_version(install_mod):
     """--unpin alone (no --set) must not hit the 'Specify --list or --set' failure."""
     args = Namespace(set_version=None, port=0, tool=None, list=False, online=False, unpin=True)

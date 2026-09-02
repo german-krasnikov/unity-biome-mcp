@@ -201,18 +201,21 @@ def pin_toml_entry(config_path: pathlib.Path, version: str) -> None:
     os.replace(str(tmp), str(config_path))
 
 
-def unpin_toml_entry(config_path: pathlib.Path) -> None:
-    """Remove the pin marker comment above our TOML section, if present."""
+def unpin_toml_entry(config_path: pathlib.Path) -> bool:
+    """Remove the pin marker comment above our TOML section, if present.
+    Returns True iff a marker was removed (no-op, no rewrite, on a missing
+    file/marker) -- mirrors unpin_entry's bool contract."""
     if not config_path.exists():
-        return
+        return False
     text = config_path.read_text(encoding="utf-8").replace("\r\n", "\n")
     new_text = _TOML_PIN_RE.sub("", text)
     if new_text == text:
-        return
+        return False
 
     tmp = config_path.with_suffix(".tmp")
     tmp.write_text(new_text, encoding="utf-8")
     os.replace(str(tmp), str(config_path))
+    return True
 
 
 def remove_mcp_entry(config_path: pathlib.Path, root_key: str = "mcpServers") -> bool:

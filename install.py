@@ -51,7 +51,7 @@ except ImportError:
     is_toml_pinned = lambda *a, **kw: False  # type: ignore[assignment]
     unpin_entry = lambda *a, **kw: False  # type: ignore[assignment]
     pin_toml_entry = lambda *a, **kw: None  # type: ignore[assignment]
-    unpin_toml_entry = lambda *a, **kw: None  # type: ignore[assignment]
+    unpin_toml_entry = lambda *a, **kw: False  # type: ignore[assignment]
     backup = None  # type: ignore[assignment]
     build_server_entry = lambda port=0: {}  # type: ignore[assignment]
     GIT_INSTALL_URL = "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server"
@@ -301,11 +301,15 @@ def _unpin_configs(tool_key: str | None) -> None:
         if client is None or client.stdout_only:
             continue
         try:
-            if client.is_toml:
+            removed = (
                 unpin_toml_entry(client.config_path)
+                if client.is_toml
+                else unpin_entry(client.config_path, root_key=client.root_key)
+            )
+            if removed:
+                ui.ok(f"{key} unpinned")
             else:
-                unpin_entry(client.config_path, root_key=client.root_key)
-            ui.ok(f"{key} unpinned")
+                ui.info(f"{key}: no pin to remove")
         except Exception as e:
             ui.info(f"Could not unpin {key}: {e}")
 

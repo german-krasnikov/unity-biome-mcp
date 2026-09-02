@@ -809,9 +809,21 @@ def test_unpin_toml_entry_removes_marker(tmp_path):
     merger.merge_toml_mcp(cfg, {"command": "uvx", "args": []})
     merger.pin_toml_entry(cfg, "0.54.1")
 
-    merger.unpin_toml_entry(cfg)
+    removed = merger.unpin_toml_entry(cfg)
 
+    assert removed is True
     text = cfg.read_text(encoding="utf-8")
     assert merger.is_toml_pinned(cfg) is False
     assert "[mcp_servers.unity-biome-mcp]" in text
     assert "command = 'uvx'" in text
+
+
+def test_unpin_toml_entry_returns_false_when_not_pinned(tmp_path):
+    """Symmetric with unpin_entry's bool contract (test_unpin_entry_returns_false_when_not_pinned)."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    merger.merge_toml_mcp(cfg, {"command": "uvx", "args": []})
+    original = cfg.read_text(encoding="utf-8")
+
+    assert merger.unpin_toml_entry(cfg) is False
+    assert cfg.read_text(encoding="utf-8") == original  # untouched, no rewrite
