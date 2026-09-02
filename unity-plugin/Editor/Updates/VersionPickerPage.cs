@@ -10,6 +10,7 @@ namespace UnityMCP.Editor
     {
         const string GenericFailureFallback = "UPM failed — check Console.";
         const string InProgressButtonText = "Update in progress…";
+        internal const string RollingBackButtonText = "Rolling back…";
 
         /// <summary>
         /// User-facing outcome text for a completed rollback/align UPM call — an actionable
@@ -19,6 +20,25 @@ namespace UnityMCP.Editor
         /// </summary>
         internal static string FormatResultMessage(bool success) =>
             success ? "Done." : (UpmPluginUpdater.LastFailureReason ?? GenericFailureFallback);
+
+        /// <summary>Single source for the rollback button's idle-state label — used both
+        /// when building/refreshing the button and when restoring it after a completed
+        /// UPM call, so the two can never drift apart.</summary>
+        internal static string RollbackButtonText(string version) => $"Roll Back to v{version}";
+
+#if UNITY_INCLUDE_TESTS
+        /// <summary>Test seam: override to suppress the real Roll Back result dialog
+        /// (mirrors <see cref="Chat.SceneChipProvider.DisplayDialogOverride"/>).</summary>
+        internal static Action<string, string> ResultDialogOverride;
+#endif
+
+        private static void ShowResultDialog(string title, string message)
+        {
+#if UNITY_INCLUDE_TESTS
+            if (ResultDialogOverride != null) { ResultDialogOverride(title, message); return; }
+#endif
+            EditorUtility.DisplayDialog(title, message, "OK");
+        }
 
         internal static VisualElement Build(Action onBack)
         {
@@ -72,14 +92,15 @@ namespace UnityMCP.Editor
             // UI cache surviving the reload itself (ARC-10 T4).
             bool inFlight = UpmOperationGuard.IsInFlight;
 
-            var rollbackBtn = BiomeUI.PrimaryButton(
-                $"Roll Back to v{dd.value}",
-                () => ConfirmAndRollback(dd.value, page));
+            Button rollbackBtn = null;
+            rollbackBtn = BiomeUI.PrimaryButton(
+                RollbackButtonText(dd.value),
+                () => ConfirmAndRollback(dd.value, rollbackBtn));
             rollbackBtn.AddToClassList("updates-check-btn");
             dd.RegisterValueChangedCallback(e =>
             {
                 if (!UpmOperationGuard.IsInFlight)
-                    rollbackBtn.text = $"Roll Back to v{e.newValue}";
+                    rollbackBtn.text = RollbackButtonText(e.newValue);
             });
             scroll.Add(rollbackBtn);
             if (inFlight)
@@ -156,7 +177,32 @@ namespace UnityMCP.Editor
             return "";
         }
 
-        private static void ConfirmAndRollback(string version, VisualElement page)
+        /// <summary>Puts <paramref name="rollbackBtn"/> into its in-flight visual state
+        /// (disabled + <see cref="RollingBackButtonText"/>) — extracted so the immediate-
+        /// feedback contract (C1 #14) is directly testable without driving a full
+        /// <see cref="UpmPluginUpdater.Update"/> round-trip.</summary>
+        internal static void SetRollingBackState(Button rollbackBtn)
+        {
+            rollbackBtn.SetEnabled(false);
+            rollbackBtn.text = RollingBackButtonText;
+        }
+
+        /// <summary>Post-confirm rollback body (mirrors <see cref="LevelUpPanel"/>'s
+        /// testable-shape convention): gives immediate UI feedback before the UPM
+        /// round-trip, then restores the button from the completion callback whether the
+        /// call resolves via a real Client.Add or the guard's synchronous busy-block.</summary>
+        internal static void DoRollback(string version, Button rollbackBtn)
+        {
+            SetRollingBackState(rollbackBtn);
+            UpmPluginUpdater.Update(version, success =>
+            {
+                rollbackBtn.SetEnabled(true);
+                rollbackBtn.text = RollbackButtonText(version);
+                ShowResultDialog("Roll Back", FormatResultMessage(success));
+            });
+        }
+
+        private static void ConfirmAndRollback(string version, Button rollbackBtn)
         {
             bool ok = EditorUtility.DisplayDialog(
                 "Roll Back Plugin",
@@ -165,10 +211,7 @@ namespace UnityMCP.Editor
             if (!ok) return;
             // Server pin re-syncs automatically: the UPM update triggers a domain reload and
             // ProjectConfigWriter rewrites .mcp.json for the new version (version-scoped guard).
-            UpmPluginUpdater.Update(version, success =>
-            {
-                EditorUtility.DisplayDialog("Roll Back", FormatResultMessage(success), "OK");
-            });
+            DoRollback(version, rollbackBtn);
         }
     }
 }

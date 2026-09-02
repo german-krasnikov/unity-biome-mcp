@@ -1,6 +1,9 @@
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor.Tests
@@ -150,6 +153,55 @@ namespace UnityMCP.Editor.Tests
             UpmPluginUpdater.LastFailureReason = null;
 
             Assert.AreEqual("UPM failed — check Console.", VersionPickerPage.FormatResultMessage(false));
+        }
+
+        [Test]
+        public void RollbackButtonText_FormatsVersionIntoLabel()
+        {
+            Assert.AreEqual("Roll Back to v1.2.3", VersionPickerPage.RollbackButtonText("1.2.3"));
+        }
+
+        // Proves the immediate-feedback mutation (C1 #14) in isolation, with no
+        // UpmPluginUpdater.Update involved — the round-trip test below cannot
+        // discriminate this step on its own because Update always resolves
+        // synchronously to false in a network-free test, overwriting this state
+        // with the restore state before either the button or an assertion could
+        // observe it.
+        [Test]
+        public void SetRollingBackState_DisablesButtonAndSetsRollingBackText()
+        {
+            var btn = new Button { text = "placeholder" };
+
+            VersionPickerPage.SetRollingBackState(btn);
+
+            Assert.IsFalse(btn.enabledSelf);
+            Assert.AreEqual(VersionPickerPage.RollingBackButtonText, btn.text);
+        }
+
+        // Guard pre-claimed by a different version forces UpmPluginUpdater.Update's
+        // busy short-circuit, which resolves onComplete(false) synchronously and
+        // network-free (mirrors UpmPluginUpdaterTests.Update_WhileGuardInFlight_
+        // SkipsAddAndInvokesCallbackFalse). This proves DoRollback's callback runs
+        // and restores the button via the shared RollbackButtonText(version) — the
+        // C1 #14 defect left the button disabled with in-progress text for the
+        // entire round trip because no callback ever touched it.
+        [Test]
+        public void DoRollback_DisablesButtonAndShowsRollingBackText_BeforeUpmCall()
+        {
+            Assert.IsTrue(UpmOperationGuard.TryBegin("9.9.9"));
+            var btn = new Button { text = "placeholder" };
+            int dialogCalls = 0;
+            string dialogTitle = null;
+            VersionPickerPage.ResultDialogOverride = (title, _) => { dialogCalls++; dialogTitle = title; };
+            RegisterCleanup(() => VersionPickerPage.ResultDialogOverride = null);
+            LogAssert.Expect(LogType.Error, new Regex("already in progress"));
+
+            VersionPickerPage.DoRollback("1.0.0", btn);
+
+            Assert.IsTrue(btn.enabledSelf);
+            Assert.AreEqual(VersionPickerPage.RollbackButtonText("1.0.0"), btn.text);
+            Assert.AreEqual(1, dialogCalls, "Expected the result dialog callback to fire exactly once.");
+            Assert.AreEqual("Roll Back", dialogTitle);
         }
     }
 
