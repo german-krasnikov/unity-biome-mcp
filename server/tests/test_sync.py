@@ -1072,3 +1072,43 @@ async def test_sync_survives_warm_cache_connection_error():
     _sync._send = _send
     result = await _sync.sync_unity(timeout=60.0)
     assert "sync clean" in result
+
+
+# ── DEV-53: _parse_ack must check verb prefix, not just parse fields ────────
+
+# Red: "wedged|epoch=7" was previously parsed as {'epoch': '7'} by bare
+# parse_pipe_fields — no "will_compile" key → fast path → false "sync clean".
+@pytest.mark.asyncio
+async def test_sync_unity_reports_wedge_not_clean():
+    _sync._send = _make_send(
+        "wedged|epoch=7",
+        status_seq=[],  # never polled — wedge is detected from the ack itself
+    )
+    result = await _sync.sync_unity(timeout=60.0)
+    assert "wedge" in result.lower()
+    assert "sync clean" not in result
+
+
+# Double-red companion: legitimate 'sync_ack|...|will_compile=false' must
+# still report clean — proves the verb check doesn't over-reject real acks.
+@pytest.mark.asyncio
+async def test_sync_unity_still_clean_for_real_ack():
+    _sync._send = _make_send(
+        "sync_ack|epoch=7|will_compile=false",
+        status_seq=[],
+    )
+    result = await _sync.sync_unity(timeout=60.0)
+    assert "sync clean" in result
+
+
+# Unknown verb (protocol drift / corruption) must not be silently treated as
+# a valid ack via the old permissive parse_pipe_fields() fallback.
+@pytest.mark.asyncio
+async def test_sync_unity_reports_protocol_error_for_unknown_ack_verb():
+    _sync._send = _make_send(
+        "bogus|epoch=1",
+        status_seq=[],
+    )
+    result = await _sync.sync_unity(timeout=60.0)
+    assert "sync clean" not in result
+    assert "STOP" in result
