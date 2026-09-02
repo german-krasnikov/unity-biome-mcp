@@ -59,6 +59,18 @@ def project_root(tmp_path: Path) -> Path:
         encoding="utf-8"
     )
 
+    (tmp_path / "unity-plugin" / "Editor" / "BiomeVersion.cs").write_text(
+        'namespace UnityMCP.Editor\n'
+        '{\n'
+        '    internal static class BiomeVersion\n'
+        '    {\n'
+        '        public const string Plugin = "0.8.2";\n'
+        '        public const int Protocol = 3;\n'
+        '    }\n'
+        '}\n',
+        encoding="utf-8"
+    )
+
     (tmp_path / "scripts" / "gauntlet").mkdir(parents=True)
     (tmp_path / "scripts" / "gauntlet" / "release-policy.json").write_text(
         '{\n  "activation_product_version": "0.8.2"\n}\n', encoding="utf-8"
@@ -74,6 +86,10 @@ def test_sync_versions_preserves_other_content(project_root: Path):
     pyproject = (project_root / "server" / "pyproject.toml").read_text(encoding="utf-8")
     assert 'name = "unity-biome-mcp"' in pyproject
     assert 'description = "MCP server"' in pyproject
+
+    biome_version_cs = (project_root / "unity-plugin" / "Editor" / "BiomeVersion.cs").read_text(encoding="utf-8")
+    assert 'Plugin = "2.0.0"' in biome_version_cs
+    assert "public const int Protocol = 3;" in biome_version_cs
 
 
 def test_sync_versions_invalid_version(project_root: Path):

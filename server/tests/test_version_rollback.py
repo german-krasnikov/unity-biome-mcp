@@ -419,6 +419,17 @@ MCP_SERVER_CS_STUB = textwrap.dedent("""\
     }
 """)
 
+BIOME_VERSION_CS_STUB = textwrap.dedent("""\
+    namespace UnityMCP.Editor
+    {
+        internal static class BiomeVersion
+        {
+            public const string Plugin = "0.50.0";
+            public const int Protocol = 3;
+        }
+    }
+""")
+
 
 @pytest.fixture()
 def full_project_root(tmp_path: Path) -> Path:
@@ -456,6 +467,10 @@ def full_project_root(tmp_path: Path) -> Path:
         MCP_SERVER_CS_STUB, encoding="utf-8"
     )
 
+    (tmp_path / "unity-plugin" / "Editor" / "BiomeVersion.cs").write_text(
+        BIOME_VERSION_CS_STUB, encoding="utf-8"
+    )
+
     (tmp_path / "scripts" / "gauntlet").mkdir(parents=True)
     (tmp_path / "scripts" / "gauntlet" / "release-policy.json").write_text(
         '{\n  "activation_product_version": "0.50.0"\n}\n', encoding="utf-8"
@@ -490,8 +505,8 @@ def test_plugin_version_cs_pattern_not_found(tmp_path):
     assert "PluginVersion" in result.stderr or "pattern" in result.stderr.lower() or "not found" in result.stderr.lower()
 
 
-def test_all_five_sources_synced(full_project_root):
-    """After sync, all 5 version sources agree."""
+def test_all_six_sources_synced(full_project_root):
+    """After sync, all 6 version sources agree (BiomeVersion.cs joined the set in DEV-61)."""
     result = run_sync("1.0.0", full_project_root)
     assert result.returncode == 0
 
@@ -500,6 +515,7 @@ def test_all_five_sources_synced(full_project_root):
     ver_py = (full_project_root / "server" / "src" / "unity_mcp" / "__version__.py").read_text(encoding="utf-8")
     meta = json.loads((full_project_root / "docs" / "assets" / "_meta.json").read_text(encoding="utf-8"))
     cs = (full_project_root / "unity-plugin" / "Editor" / "MCPServer.cs").read_text(encoding="utf-8")
+    biome = (full_project_root / "unity-plugin" / "Editor" / "BiomeVersion.cs").read_text(encoding="utf-8")
 
     assert 'version = "1.0.0"' in pyproject
     assert '"version": "1.0.0"' in pkg
@@ -507,3 +523,5 @@ def test_all_five_sources_synced(full_project_root):
     assert meta["server_version"] == "1.0.0"
     assert meta["plugin_version"] == "1.0.0"
     assert 'PluginVersion => "1.0.0"' in cs
+    assert 'Plugin = "1.0.0"' in biome
+    assert "public const int Protocol = 3;" in biome
