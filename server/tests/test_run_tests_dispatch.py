@@ -31,14 +31,13 @@ def _patch_deps(monkeypatch):
 async def test_run_tests_dispatch_uses_spec_timeout(_patch_deps):
     """The run_tests ACK dispatch must resolve to tool_specs's 30s budget.
 
-    Effective timeout = the explicit kwarg passed to _send, or (when absent
-    /non-positive) whatever get_timeout("run_tests") resolves to — mirroring
-    _send_raw's own `if timeout <= 0: timeout = get_timeout(cmd)` fallback.
+    No explicit timeout kwarg is passed, so _send_raw's own
+    `if timeout <= 0: timeout = get_timeout(cmd)` fallback applies —
+    asserting get_timeout("run_tests") == 30.0 pins the effective value.
     """
     await testing.run_tests(request_id="req-1")
 
     dispatch_call = _patch_deps.call_args_list[-1]
     assert dispatch_call.args[0] == "run_tests"
-    passed_timeout = dispatch_call.kwargs.get("timeout", 0)
-    effective_timeout = passed_timeout if passed_timeout > 0 else get_timeout("run_tests")
-    assert effective_timeout == 30.0
+    assert "timeout" not in dispatch_call.kwargs
+    assert get_timeout("run_tests") == 30.0

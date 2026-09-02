@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, patch
 
 import unity_mcp.tools.testing as testing
 
-
 REQ = "req-gap"
 RUN = "run-gap"
 ACK = (

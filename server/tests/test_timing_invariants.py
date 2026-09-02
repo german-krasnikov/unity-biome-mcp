@@ -20,7 +20,9 @@ import pytest
 from unity_mcp.timeout_categories import get_timeout
 
 _PROJECT = Path(__file__).parents[2]
-_MCP_SERVER_CS = (_PROJECT / "unity-plugin/Editor/MCPServer.cs").read_text(encoding="utf-8")
+_MCP_SERVER_CS_PATH = _PROJECT / "unity-plugin/Editor/MCPServer.cs"
+assert _MCP_SERVER_CS_PATH.exists(), f"C# source not found: {_MCP_SERVER_CS_PATH}"
+_MCP_SERVER_CS = _MCP_SERVER_CS_PATH.read_text(encoding="utf-8")
 
 # Mirrors MCPServer.cs's CommandTimeouts dict (only the entry our table needs)
 # and its GetCommandTimeout default fallback. Guarded against silent drift by
