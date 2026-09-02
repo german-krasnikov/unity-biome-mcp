@@ -1029,6 +1029,43 @@ namespace UnityMCP.Editor.Tests
             finally { TestRunAssemblyFingerprint.CompileStatusGetter = original; }
         }
 
+        // DEV-62: pins the explicit allow-list (only "idle|" and "idle-never|" bypass the
+        // gate) against a status that superficially looks idle but signals a wedged or
+        // failed compile — must stay fail-closed, never silently added to the allow-list.
+        [Test]
+        public void MtimeCoherence_IdleStaleStatus_Throws()
+        {
+            var original = TestRunAssemblyFingerprint.CompileStatusGetter;
+            try
+            {
+                TestRunAssemblyFingerprint.CompileStatusGetter = () => "idle-stale|1.0";
+                var older = DateTime.UtcNow.AddSeconds(-10);
+                var newer = DateTime.UtcNow;
+                Assert.Throws<InvalidDataException>(() =>
+                    TestRunAssemblyFingerprint.ValidateMtimeCoherence(
+                        "TestAsm", older, newer, "Source.cs"),
+                    "idle-stale means a wedged compile: must stay fail-closed, must throw");
+            }
+            finally { TestRunAssemblyFingerprint.CompileStatusGetter = original; }
+        }
+
+        [Test]
+        public void MtimeCoherence_IdleFailedStatus_Throws()
+        {
+            var original = TestRunAssemblyFingerprint.CompileStatusGetter;
+            try
+            {
+                TestRunAssemblyFingerprint.CompileStatusGetter = () => "idle-failed|1.0";
+                var older = DateTime.UtcNow.AddSeconds(-10);
+                var newer = DateTime.UtcNow;
+                Assert.Throws<InvalidDataException>(() =>
+                    TestRunAssemblyFingerprint.ValidateMtimeCoherence(
+                        "TestAsm", older, newer, "Source.cs"),
+                    "idle-failed means a failed compile: must stay fail-closed, must throw");
+            }
+            finally { TestRunAssemblyFingerprint.CompileStatusGetter = original; }
+        }
+
         // ── GetLegacyResults ──
 
         [Test]
