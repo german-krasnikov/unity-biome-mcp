@@ -1,6 +1,7 @@
 """Tests for ServerUpdater — auto-restart MCP server on UPM plugin update."""
 import asyncio
 import json
+import logging
 import struct
 import sys
 from unittest.mock import AsyncMock, Mock, patch
@@ -230,6 +231,41 @@ async def test_maybe_update_reinstalls_when_cursor_config_not_pinned(tmp_path):
     assert r.triggered is True
 
 
+def test_default_is_pinned_logs_the_matching_config_path(tmp_path, caplog):
+    """A pin match should be debug-loggable for diagnosis -- silent True/False
+    gives no clue which of PROJECT_CONFIG_TARGETS actually matched."""
+    cfg = tmp_path / ".mcp.json"
+    cfg.write_text(
+        f'{{"mcpServers": {{"{SERVER_NAME}": {{"_pin": true, "command": "x"}}}}}}',
+        encoding="utf-8",
+    )
+    with caplog.at_level(logging.DEBUG, logger="unity_mcp"):
+        assert _default_is_pinned(str(tmp_path)) is True
+
+    assert any("pin found" in r.message and str(cfg) in r.getMessage() for r in caplog.records)
+
+
+def test_default_is_pinned_continues_past_oserror_from_one_candidate(tmp_path, monkeypatch):
+    """Narrowing the except clause to OSError only (C1 r2 #9 follow-up; the
+    UnicodeDecodeError arm is now dead -- merger's is_entry_pinned/
+    is_toml_pinned already degrade undecodable bytes to False internally)
+    must still let one candidate's OSError be skipped in favor of the next."""
+    import unity_mcp.server_updater as server_updater
+
+    (tmp_path / ".cursor").mkdir()
+    (tmp_path / ".cursor" / "mcp.json").write_text("{}", encoding="utf-8")
+    real_is_entry_pinned = server_updater.is_entry_pinned
+
+    def flaky_is_entry_pinned(path, root_key="mcpServers"):
+        if path.parent.name == ".cursor":
+            raise OSError("simulated permission error")
+        return real_is_entry_pinned(path, root_key=root_key)
+
+    monkeypatch.setattr(server_updater, "is_entry_pinned", flaky_is_entry_pinned)
+
+    assert _default_is_pinned(str(tmp_path)) is False  # degrades, does not raise
+
+
 # ─── C1-round2 #9: cooldown between repeated failed reinstall attempts ──────
 
 @pytest.mark.asyncio
@@ -272,6 +308,29 @@ async def test_maybe_update_retries_after_cooldown_window_elapses():
 
     assert r2.reason == "reinstall_failed"
     assert len(subprocess_calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_skips_pin_scan_during_cooldown():
+    """Cooldown is a cheap monotonic-clock compare; the pin scan reads up to
+    len(PROJECT_CONFIG_TARGETS) project config files. Checking cooldown first
+    must short-circuit before that I/O runs at all once an attempt has
+    already failed and is still cooling down."""
+    clock = _FakeClock()
+    pin_calls = []
+    subprocess_calls = []
+    u = make_updater(
+        current="1.5.0", subprocess_exit=1, subprocess_calls=subprocess_calls,
+        now_fn=clock, is_pinned_fn=lambda p: pin_calls.append(p) or True,
+    )
+    await u.maybe_update("1.6.0")  # first attempt fails, starts the cooldown
+    assert len(subprocess_calls) == 1
+
+    clock.advance(60.0)
+    r2 = await u.maybe_update("1.6.0", project_path="/tmp/whatever")
+
+    assert r2.reason == "cooldown"
+    assert pin_calls == []  # pin scan never ran -- cooldown short-circuited first
 
 
 @pytest.mark.asyncio

@@ -24,7 +24,7 @@ _REINSTALL_COOLDOWN_S = _REINSTALL_TIMEOUT_S
 @dataclass
 class _UpdateResult:
     triggered: bool
-    reason: str  # "not_needed" | "no_uvx" | "already_running" | "not_uvx_install" | "started" | "pinned" | "cooldown"
+    reason: str  # "not_needed" | "no_uvx" | "already_running" | "not_uvx_install" | "started" | "pinned" | "cooldown" | "reinstall_failed"
 
 
 def _default_is_pinned(project_path: str) -> bool:
@@ -37,9 +37,10 @@ def _default_is_pinned(project_path: str) -> bool:
         path = Path(project_path) / rel_path
         try:
             pinned = is_toml_pinned(path) if is_toml else is_entry_pinned(path, root_key=root_key)
-        except (UnicodeDecodeError, OSError):
+        except OSError:
             continue
         if pinned:
+            logger.debug("server pin found: %s", path)
             return True
     return False
 
@@ -104,6 +105,12 @@ class ServerUpdater:
         if not self._is_update_needed(plugin_version):
             return _UpdateResult(triggered=False, reason="not_needed")
 
+        if (
+            self._last_failure_at is not None
+            and (self._now_fn() - self._last_failure_at) < _REINSTALL_COOLDOWN_S
+        ):
+            return _UpdateResult(triggered=False, reason="cooldown")
+
         if project_path and self._is_pinned_fn(project_path):
             logger.info(
                 "Server update skipped: a project-scoped client config pins the "
@@ -111,12 +118,6 @@ class ServerUpdater:
                 project_path,
             )
             return _UpdateResult(triggered=False, reason="pinned")
-
-        if (
-            self._last_failure_at is not None
-            and (self._now_fn() - self._last_failure_at) < _REINSTALL_COOLDOWN_S
-        ):
-            return _UpdateResult(triggered=False, reason="cooldown")
 
         self._updating = True
         try:
