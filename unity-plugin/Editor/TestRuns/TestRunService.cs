@@ -626,20 +626,22 @@ namespace UnityMCP.Editor.TestRuns
                 !_store.TryReadRun(pointer.run_id, out run))
                 return false;
             if (run.lifecycle == TestRunProtocol.Lifecycle.Terminal) return false;
-            if (TestRunFinalizationCoordinator.IsPreviousEditorSession(run))
+            // Same-session Finalizing runs must also get a self-heal attempt: a
+            // stuck ProbeAny "Active" signal (e.g. zero-match filter dispatch)
+            // must not wedge every later dispatch just because the stuck run
+            // belongs to this editor session. The coordinator's own activity
+            // gate and staleness ceiling decide whether it is safe to finalize.
+            try
             {
-                try
+                if (_finalizer.TryFinalize(run.run_id))
                 {
-                    if (_finalizer.TryFinalize(run.run_id))
-                    {
-                        run = _store.ReadRun(run.run_id);
-                        return run.lifecycle != TestRunProtocol.Lifecycle.Terminal;
-                    }
+                    run = _store.ReadRun(run.run_id);
+                    return run.lifecycle != TestRunProtocol.Lifecycle.Terminal;
                 }
-                catch
-                {
-                    // Preserve the old active pointer and fail this dispatch closed.
-                }
+            }
+            catch
+            {
+                // Preserve the old active pointer and fail this dispatch closed.
             }
             return true;
         }

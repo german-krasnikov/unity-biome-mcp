@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 #if UNITY_INCLUDE_TESTS
@@ -19,6 +20,16 @@ namespace UnityMCP.Editor.TestRuns
         private readonly Action<Action> _schedule;
         private readonly Func<TestRunBuildFingerprint> _captureBuild;
         private readonly HashSet<string> _queued = new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>
+        /// A same-session run stuck in Finalizing past this many seconds since
+        /// dispatch is forced through the activity gate below, but only when it
+        /// already has a durable execution boundary (RunFinished/DispatchFailed/
+        /// Abandoned/Cancelled). This heals a persistent ProbeAny "Active" false
+        /// signal (observed with zero-match filter dispatches) without ever
+        /// finalizing a run that is genuinely still executing.
+        /// </summary>
+        private const double SameSessionStalenessCeilingSeconds = 180d;
 
         internal TestRunFinalizationCoordinator(
             TestRunStore store,
@@ -89,7 +100,9 @@ namespace UnityMCP.Editor.TestRuns
 
             var unmanagedWithoutEnvironment = IsUnmanagedWithoutEnvironment(run);
             var previousEditorSession = IsPreviousEditorSession(run);
-            if (!editorIsQuitting && !previousEditorSession)
+            var staleBeyondCeiling = hasExecutionBoundary &&
+                ElapsedSeconds(run.dispatched_utc, _utcNow()) > SameSessionStalenessCeilingSeconds;
+            if (!editorIsQuitting && !previousEditorSession && !staleBeyondCeiling)
             {
                 var anyActivity = _framework.ProbeAny();
                 var ownActivity = string.IsNullOrEmpty(run.utf_guid)
@@ -284,6 +297,16 @@ namespace UnityMCP.Editor.TestRuns
 
         private static bool IsTerminalOutcome(string outcome) =>
             OutcomeRank(outcome) > 0;
+
+        private static double ElapsedSeconds(string dispatchedUtc, string nowUtc)
+        {
+            if (!DateTime.TryParse(dispatchedUtc, CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind, out var dispatched) ||
+                !DateTime.TryParse(nowUtc, CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind, out var now))
+                return 0d;
+            return Math.Max(0d, (now - dispatched).TotalSeconds);
+        }
 
         private static string NormalizeOutcome(string outcome) =>
             string.IsNullOrWhiteSpace(outcome) ? "" : outcome.Trim().ToLowerInvariant();

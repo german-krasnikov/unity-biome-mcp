@@ -505,6 +505,10 @@ namespace UnityMCP.Editor.Tests
                 run_id = "run-active",
                 updated_utc = Utc
             });
+            // Genuinely running: ProbeAny must report Active so the self-heal
+            // attempt (now made unconditionally, see below) correctly declines
+            // to finalize a run that is not actually stuck.
+            _framework.AnyActivity = UtfRunActivity.Active;
             var service = CreateService();
 
             var response = service.Start("request-blocked", "EditMode", null, null);
@@ -515,6 +519,79 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(0, _framework.ExecuteCalls);
             var blocked = _store.ReadRun(_store.ReadRequest("request-blocked").run_id);
             Assert.AreEqual(TestRunProtocol.RunOutcome.DispatchFailed, blocked.outcome);
+        }
+
+        [Test]
+        public void ExistingActiveRun_SameSessionFinalizingZeroMatchPastCeiling_SelfHealsAndAllowsDispatch()
+        {
+            // Reproduces the consumer symptom: a same-session run stuck in
+            // Finalizing (e.g. a zero-match --filter dispatch) with a durable
+            // RunFinished boundary already recorded, but its own UTF guid keeps
+            // probing "Active" forever (FakeFrameworkDriver.Activity defaults to
+            // Active) even though nothing else is running (AnyActivity defaults
+            // to Inactive). Past the staleness ceiling this must self-heal
+            // instead of permanently blocking every later dispatch.
+            const string runId = "run-zero-match-finalizing";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed,
+                dispatchedUtc: Utc,
+                utfGuid: "utf-guid-stuck");
+            var service = CreateService(utcNow: () => PastCeilingUtc);
+
+            var response = service.Start("request-after-zero-match", "EditMode", null, null);
+
+            StringAssert.StartsWith("tests-started|request_id=request-after-zero-match|", response);
+            Assert.AreEqual(1, _framework.ExecuteCalls);
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Terminal, _store.ReadRun(runId).lifecycle);
+        }
+
+        [Test]
+        public void ExistingActiveRun_SameSessionFinalizingUnderCeiling_StillBlocksDispatch()
+        {
+            // Double-red guard: below the ceiling the same stuck-Active own-guid
+            // probe must still block dispatch. Forcing must require both the
+            // boundary AND the ceiling, not either alone.
+            const string runId = "run-under-ceiling";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed,
+                dispatchedUtc: Utc,
+                utfGuid: "utf-guid-stuck");
+            var service = CreateService(utcNow: () => UnderCeilingUtc);
+
+            var response = service.Start("request-under-ceiling", "EditMode", null, null);
+
+            StringAssert.Contains("test run already active: " + runId, DecodeReason(response));
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Finalizing, _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(0, _framework.ExecuteCalls);
+        }
+
+        [Test]
+        public void ExistingActiveRun_SameSessionFinalizingPastCeilingWithoutBoundary_StaysBlocked()
+        {
+            // DEV-05 guardrail: without a durable execution boundary the
+            // staleness ceiling must never force finalization on its own -
+            // that would risk mislabeling a genuinely abandoned/still-running
+            // run as healthy. It must stay blocked until ProbeAny itself goes
+            // Inactive (the existing abandonment path already handles that).
+            const string runId = "run-no-boundary-past-ceiling";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                source = "mcp",
+                lifecycle = TestRunProtocol.Lifecycle.Finalizing,
+                created_utc = Utc,
+                dispatched_utc = Utc,
+                utf_guid = "utf-guid-stuck",
+                build_coherent = true
+            });
+            _store.WriteActive(new TestRunPointer { run_id = runId, updated_utc = Utc });
+            var service = CreateService(utcNow: () => PastCeilingUtc);
+
+            var response = service.Start("request-no-boundary", "EditMode", null, null);
+
+            StringAssert.Contains("test run already active: " + runId, DecodeReason(response));
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Finalizing, _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(0, _framework.ExecuteCalls);
         }
 
         [Test]
@@ -1649,7 +1726,8 @@ namespace UnityMCP.Editor.Tests
 
         private TestRunService CreateService(
             TestRunBuildFingerprint build = null,
-            Action<string> afterDurableBoundary = null) =>
+            Action<string> afterDurableBoundary = null,
+            Func<string> utcNow = null) =>
             new TestRunService(
                 _store,
                 _environment,
@@ -1658,7 +1736,7 @@ namespace UnityMCP.Editor.Tests
                 () => false,
                 () => false,
                 () => true,
-                () => Utc,
+                utcNow ?? (() => Utc),
                 afterDurableBoundary);
 
         private TestRunFinalizationCoordinator CreateFinalizer(
@@ -1684,7 +1762,9 @@ namespace UnityMCP.Editor.Tests
             string runId,
             string source,
             string provisionalOutcome = "",
-            string runFinishedOutcome = TestRunProtocol.RunOutcome.Invalid)
+            string runFinishedOutcome = TestRunProtocol.RunOutcome.Invalid,
+            string dispatchedUtc = null,
+            string utfGuid = "")
         {
             _store.WriteRun(new TestRunRecord
             {
@@ -1692,6 +1772,8 @@ namespace UnityMCP.Editor.Tests
                 source = source,
                 lifecycle = TestRunProtocol.Lifecycle.Finalizing,
                 created_utc = Utc,
+                dispatched_utc = dispatchedUtc ?? "",
+                utf_guid = utfGuid,
                 build_coherent = true,
                 utf_version = "1.6.0"
             });
@@ -1768,6 +1850,10 @@ namespace UnityMCP.Editor.Tests
         }
 
         private const string Utc = "2026-08-02T12:00:00.0000000Z";
+        // Same-session Finalizing staleness ceiling is 180s (see
+        // TestRunFinalizationCoordinator.SameSessionStalenessCeilingSeconds).
+        private const string UnderCeilingUtc = "2026-08-02T12:01:00.0000000Z"; // +60s
+        private const string PastCeilingUtc = "2026-08-02T12:03:01.0000000Z"; // +181s
 
         private sealed class FakeFrameworkDriver : ITestFrameworkDriver
         {
