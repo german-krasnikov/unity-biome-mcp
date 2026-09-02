@@ -62,3 +62,28 @@ async def test_last_contact_s_is_na_when_bridge_reports_none(mock_bridge, bridge
     from unity_mcp.tools.meta import mcp_status
     result = await mcp_status()
     assert _field(result, "last_contact_s") == "n/a"
+
+
+async def test_no_blank_line_when_unreachable(mock_bridge):
+    """cs_status="" (Unity unreachable) must not leave a blank line between
+    queue_depth= and python_version= in the joined response."""
+    mock_bridge.send = AsyncMock(side_effect=ToolError("[UNITY_UNAVAILABLE] gone"))
+    from unity_mcp.tools.meta import mcp_status
+    result = await mcp_status()
+    assert "\n\n" not in result
+
+
+async def test_all_fields_na_when_get_slot_is_none(mock_bridge, monkeypatch):
+    """_get_slot=None (module never wired via register(get_slot=...)) must
+    still resolve every bridge-derived field to a safe placeholder, never
+    raising -- getattr(None, attr, None) degrades cleanly (pin)."""
+    import unity_mcp.tools.meta as meta
+    monkeypatch.setattr(meta, "_get_slot", None)
+    mock_bridge.send = AsyncMock(side_effect=ToolError("[UNITY_UNAVAILABLE] gone"))
+    result = await meta.mcp_status()
+    assert _field(result, "liveness") == "unknown"
+    assert _field(result, "pid_alive") == "n/a"
+    assert _field(result, "last_contact_s") == "n/a"
+    assert _field(result, "ping_fail") == "n/a"
+    assert _field(result, "ping_stall") == "n/a"
+    assert _field(result, "queue_depth") == "n/a"

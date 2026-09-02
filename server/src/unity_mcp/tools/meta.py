@@ -126,7 +126,7 @@ async def mcp_status() -> str:
         cs_status,
         f"python_version={__version__}",
     ]
-    return "\n".join(lines)
+    return "\n".join(x for x in lines if x)
 
 
 async def release_smoke() -> str:
