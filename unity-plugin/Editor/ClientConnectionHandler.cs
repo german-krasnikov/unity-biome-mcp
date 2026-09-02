@@ -136,6 +136,45 @@ namespace UnityMCP.Editor
             return false;
         }
 
+        // ARC-15 T2: rate limiter for the *unrecognized* desync-warning path only — a probe
+        // classified by IsKnownForeignProtocolProbe never reaches this (routes to Debug.Log
+        // instead). At most one LogWarning per window; calls inside the window are silently
+        // counted and folded into the next window-opening call's suppressed count. Pure
+        // function of an injected nowTicks — tests never sleep the real window.
+        // internal so tests can drive it without waiting on a real clock; nested here since
+        // ClientConnectionHandler already co-locates several such single-purpose helpers.
+        internal sealed class DesyncWarnLimiter
+        {
+            private readonly long _windowTicks;
+            private readonly object _lock = new object();
+            private long _windowStartTicks;
+            private bool _hasLogged;
+            private int _suppressedCount;
+
+            internal DesyncWarnLimiter(long windowTicks) => _windowTicks = windowTicks;
+
+            // Returns shouldLog=true at most once per window; suppressed is the exact count of
+            // calls silently dropped since the last logged call, folded into the call that
+            // (re)opens the next window.
+            internal (bool shouldLog, int suppressed) Record(long nowTicks)
+            {
+                lock (_lock)
+                {
+                    if (!_hasLogged || nowTicks - _windowStartTicks >= _windowTicks)
+                    {
+                        var suppressed = _hasLogged ? _suppressedCount : 0;
+                        _windowStartTicks = nowTicks;
+                        _hasLogged = true;
+                        _suppressedCount = 0;
+                        return (true, suppressed);
+                    }
+
+                    _suppressedCount++;
+                    return (false, 0);
+                }
+            }
+        }
+
         // internal so tests can verify the cross-language response format without TCP.
         // helloVersion:2 is the Python discriminant: present → fast-path (1 RTT), absent → 3-RTT fallback.
         // T19: projectId added (cloudProjectId or sha256[:12]) — stable across path moves.
