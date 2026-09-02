@@ -18,6 +18,24 @@ def test_detect_finds_claude_desktop_when_dir_exists(tmp_path, monkeypatch):
     assert "claude-desktop" in found
 
 
+def test_detect_installed_no_false_positive_claude_code(tmp_path, monkeypatch):
+    """claude-code's config_path is ~/.claude.json — its parent IS $HOME, which
+    always exists. The old `parent.exists()` fallback therefore reported
+    claude-code as installed on every machine (DEV-57), since Path.home()
+    always exists. A fake home without .claude.json must NOT be detected."""
+    from unity_mcp.config import clients as c
+    fake_home = tmp_path  # tmp_path always exists, standing in for $HOME
+    monkeypatch.setattr(pathlib.Path, "home", classmethod(lambda cls: fake_home))
+    cfg = fake_home / ".claude.json"
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "config_path", cfg)
+    assert not cfg.exists()
+    assert "claude-code" not in c.detect_installed()
+
+    # Double-red: creating the actual file must still be detected.
+    cfg.touch()
+    assert "claude-code" in c.detect_installed()
+
+
 def test_detect_returns_empty_when_nothing_installed(tmp_path, monkeypatch):
     from unity_mcp.config import clients as c
     # Point to a nested path whose parent also doesn't exist

@@ -133,11 +133,19 @@ CLIENT_REGISTRY: dict[str, ClientInfo] = {
 
 
 def detect_installed() -> list[str]:
-    """Return keys of clients whose config file or parent dir exists. Skips stdout_only."""
+    """Return keys of clients whose config file or parent dir exists. Skips stdout_only.
+
+    The parent-dir fallback only counts when the parent is an app-specific
+    directory (e.g. ~/.cursor). For clients whose config_path lives directly
+    under $HOME (e.g. claude-code's ~/.claude.json), the parent is $HOME
+    itself — always present — so it is never treated as an install signal.
+    """
     found = []
+    home = pathlib.Path.home()
     for key, info in CLIENT_REGISTRY.items():
         if info.stdout_only:
             continue
-        if info.config_path.exists() or info.config_path.parent.exists():
+        parent = info.config_path.parent
+        if info.config_path.exists() or (parent != home and parent.exists()):
             found.append(key)
     return found
