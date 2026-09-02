@@ -259,6 +259,9 @@ class UnityBridge(HeartbeatMixin):
         self._orphan_detected_at: float | None = None
         self._pinned_port: int | None = None
         self._pinned_pid: int | None = None
+        # ARC-9 T2: one-shot (old_port, new_port) set when a same-pid port
+        # rebind is adopted; consumed via pop_port_drift_notice().
+        self._port_drift: tuple[int, int] | None = None
         self._bridge_id: str = f"br-{os.getpid():x}-{id(self) & 0xFFFF:04x}"
         self._is_retry_safe: Callable[[str], bool] = is_retry_safe or (lambda cmd: False)
         self._retry_policy = RetryPolicy(
@@ -866,6 +869,23 @@ class UnityBridge(HeartbeatMixin):
         except Exception:
             return None
 
+    def _current_port_for_pid(self, pid: int) -> int | None:
+        try:
+            from unity_mcp.lockfile import read_port_for_pid
+            return read_port_for_pid(pid, project_path=self._expected_project_path)
+        except Exception:
+            return None
+
+    def pop_port_drift_notice(self) -> str | None:
+        """Consume-once notice for a same-pid port rebind adopted by the
+        fast path in _reconnect(). Returns None once already consumed."""
+        drift = self._port_drift
+        self._port_drift = None
+        if drift is None:
+            return None
+        old_port, new_port = drift
+        return f"port changed {old_port}->{new_port}"
+
     async def _reconnect(self, fire_callbacks: bool = True):
         await self.close()
         pinned_is_live = (
@@ -881,6 +901,14 @@ class UnityBridge(HeartbeatMixin):
                 self._pinned_port = None
                 self._pinned_pid = None
                 pinned_is_live = False
+        if pinned_is_live:
+            # ARC-9 T2: my own pid may have rebound to a new port (bind
+            # conflict fallback) without dying. Reading its port file
+            # directly beats waiting for a doomed connect + backoff cycle.
+            current_port = self._current_port_for_pid(self._pinned_pid)
+            if current_port is not None and current_port != self._pinned_port:
+                self._port_drift = (self._pinned_port, current_port)
+                self._pinned_port = current_port
         candidate_port = self._pinned_port if pinned_is_live else self._discover_port()
         if candidate_port is None:
             candidate_port = self._port

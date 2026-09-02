@@ -424,6 +424,100 @@ async def test_initial_connect_rejects_foreign_project_before_assign(tmp_path):
     writer.close.assert_called_once()
 
 
+# ---------------------------------------------------------------------------
+# ARC-9 T2: same-pid port rebind fast path — no ConnectionRefused cycle
+# ---------------------------------------------------------------------------
+
+async def test_reconnect_fast_path_skips_stale_port_on_same_pid_rebind():
+    """Pinned pid is still alive but Unity rebound to a new port on the same
+    process (C# bind-conflict fallback). Reconnect must read the pid's
+    current port file and connect directly to the new port on the first
+    attempt — no ConnectionRefused cycle against the abandoned port."""
+    connected_to = []
+
+    async def mock_open(host, port):
+        connected_to.append(port)
+        return _make_ok_reader(), make_writer()
+
+    probe = make_idle_probe()
+
+    with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open), \
+         patch("unity_mcp.bridge.is_pid_alive", return_value=True), \
+         patch("unity_mcp.lockfile.read_port_for_pid", return_value=9501):
+        bridge = UnityBridge("127.0.0.1", 9500, probe=probe)
+        bridge._pinned_port = 9500
+        bridge._pinned_pid = 12345
+        await bridge._reconnect(fire_callbacks=False)
+
+    assert connected_to == [9501]
+    assert bridge._port == 9501
+    assert bridge._port_drift == (9500, 9501)
+
+
+async def test_reconnect_fast_path_no_drift_when_port_unchanged():
+    """Pinned pid alive, port file reports the same port — behaves exactly
+    like before: no drift recorded, connects to the pinned port once."""
+    connected_to = []
+
+    async def mock_open(host, port):
+        connected_to.append(port)
+        return _make_ok_reader(), make_writer()
+
+    probe = make_idle_probe()
+
+    with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open), \
+         patch("unity_mcp.bridge.is_pid_alive", return_value=True), \
+         patch("unity_mcp.lockfile.read_port_for_pid", return_value=9500):
+        bridge = UnityBridge("127.0.0.1", 9500, probe=probe)
+        bridge._pinned_port = 9500
+        bridge._pinned_pid = 12345
+        await bridge._reconnect(fire_callbacks=False)
+
+    assert connected_to == [9500]
+    assert bridge._port == 9500
+    assert bridge._port_drift is None
+
+
+async def test_reconnect_fast_path_none_keeps_old_behavior():
+    """read_port_for_pid returns None (no port file for this pid, or a dead
+    pid edge case) — falls back to the pre-existing pinned-port path
+    unchanged; no drift is ever recorded from a None reading."""
+    connected_to = []
+
+    async def mock_open(host, port):
+        connected_to.append(port)
+        return _make_ok_reader(), make_writer()
+
+    probe = make_idle_probe()
+
+    with patch.object(bridge_mod.asyncio, "open_connection", side_effect=mock_open), \
+         patch("unity_mcp.bridge.is_pid_alive", return_value=True), \
+         patch("unity_mcp.lockfile.read_port_for_pid", return_value=None):
+        bridge = UnityBridge("127.0.0.1", 9500, probe=probe)
+        bridge._pinned_port = 9500
+        bridge._pinned_pid = 12345
+        await bridge._reconnect(fire_callbacks=False)
+
+    assert connected_to == [9500]
+    assert bridge._port == 9500
+    assert bridge._port_drift is None
+
+
+def test_pop_port_drift_notice_consumes_once():
+    """pop_port_drift_notice() returns the formatted transition exactly once,
+    then clears the state so the next call reports no pending drift."""
+    bridge = UnityBridge("127.0.0.1", 9500, probe=make_idle_probe())
+    bridge._port_drift = (9500, 9501)
+
+    assert bridge.pop_port_drift_notice() == "port changed 9500->9501"
+    assert bridge.pop_port_drift_notice() is None
+
+
+def test_pop_port_drift_notice_none_when_no_drift():
+    bridge = UnityBridge("127.0.0.1", 9500, probe=make_idle_probe())
+    assert bridge.pop_port_drift_notice() is None
+
+
 def test_pid_lookup_filters_reused_port_by_canonical_project(tmp_path):
     from unity_mcp.lockfile import read_pid_from_port_file
 
