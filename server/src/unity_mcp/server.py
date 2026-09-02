@@ -404,6 +404,17 @@ def _check_read_only(cmd: str, args: dict) -> None:
         )
 
 
+def _unsafe_for_notice_prefix(text: str) -> bool:
+    """True if prefixing a notice line would corrupt `text` for a downstream
+    parser. Covers JSON responses (get_test_run/run_tests_wait json.loads()
+    it -- testing.py, verify.py) and pipe-delimited protocol records
+    (tests-started|..., test-request|..., START-UNKNOWN|..., TIMEOUT|...,
+    PROTOCOL-ERROR|... -- _parse_fields in tools/testing.py splits on '|'
+    and expects parts[0] to be the exact verb)."""
+    first_line = text.lstrip().splitlines()[0] if text.strip() else ""
+    return first_line.startswith(("{", "[")) or "|" in first_line
+
+
 def _classify_connection_error(e: Exception, probe) -> object | None:
     """Return a UnityError classification for a connection exception, or None."""
     ue = getattr(e, "unity_error", None)
@@ -456,20 +467,22 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
     text, ok = unwrap_bridge_result(result)
     if not ok:
         raise ToolError(text)
-    # ARC-9 T3: surface a same-pid port rebind on the next successful
-    # response. Consumed unconditionally (pop_port_drift_notice() is
-    # destructive) and discarded rather than prefixed when the response is
-    # JSON-shaped -- get_test_run/run_tests_wait's json.loads() call sites
-    # (testing.py, verify.py) would otherwise silently fail to parse.
-    # getattr(..., None) tolerates hand-rolled test-double bridges that
-    # predate this method (e.g. test_bridge_compile_state.py's FakeBridge).
-    # isinstance(notice, str) guards the ~270 mock_bridge tests: an
-    # unconfigured Mock().pop_port_drift_notice() auto-vivifies into a
-    # truthy Mock instance, not None (ARC-9 design note).
-    pop_notice = getattr(bridge, "pop_port_drift_notice", None)
-    notice = pop_notice() if callable(pop_notice) else None
-    if isinstance(notice, str) and notice and not text.lstrip().startswith(("{", "[")):
-        text = f"[{notice}]\n{text}"
+    # ARC-9 T3: surface a same-pid port rebind on the next safe-to-prefix
+    # response. Peek first (non-destructive) so an unsafe response (JSON,
+    # a pipe-delimited protocol record) leaves the notice queued for a later
+    # response instead of losing it -- only pop (consume) once we're about
+    # to actually prefix. getattr(..., None) tolerates hand-rolled
+    # test-double bridges that predate this API (e.g.
+    # test_bridge_compile_state.py's FakeBridge). isinstance(str) guards the
+    # ~270 mock_bridge tests: an unconfigured Mock().peek_port_drift_notice()
+    # auto-vivifies into a truthy Mock instance, not None (ARC-9 design note).
+    peek_notice = getattr(bridge, "peek_port_drift_notice", None)
+    pending = peek_notice() if callable(peek_notice) else None
+    if isinstance(pending, str) and pending and not _unsafe_for_notice_prefix(text):
+        pop_notice = getattr(bridge, "pop_port_drift_notice", None)
+        notice = pop_notice() if callable(pop_notice) else None
+        if isinstance(notice, str) and notice:
+            text = f"[{notice}]\n{text}"
     return text
 
 

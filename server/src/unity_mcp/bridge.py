@@ -876,15 +876,22 @@ class UnityBridge(HeartbeatMixin):
         except Exception:
             return None
 
-    def pop_port_drift_notice(self) -> str | None:
-        """Consume-once notice for a same-pid port rebind adopted by the
-        fast path in _reconnect(). Returns None once already consumed."""
+    def peek_port_drift_notice(self) -> str | None:
+        """Non-destructive twin of pop_port_drift_notice(). Lets a caller
+        check whether a notice is pending before deciding it's safe to
+        consume (e.g. skipping a protocol-record or JSON response)."""
         drift = self._port_drift
-        self._port_drift = None
         if drift is None:
             return None
         old_port, new_port = drift
         return f"port changed {old_port}->{new_port}"
+
+    def pop_port_drift_notice(self) -> str | None:
+        """Consume-once notice for a same-pid port rebind adopted by the
+        fast path in _reconnect(). Returns None once already consumed."""
+        notice = self.peek_port_drift_notice()
+        self._port_drift = None
+        return notice
 
     async def _reconnect(self, fire_callbacks: bool = True):
         await self.close()

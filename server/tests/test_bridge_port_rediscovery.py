@@ -518,6 +518,23 @@ def test_pop_port_drift_notice_none_when_no_drift():
     assert bridge.pop_port_drift_notice() is None
 
 
+def test_peek_port_drift_notice_does_not_consume():
+    """peek_port_drift_notice() is non-destructive: repeated calls (and a
+    subsequent pop) all still see the pending drift."""
+    bridge = UnityBridge("127.0.0.1", 9500, probe=make_idle_probe())
+    bridge._port_drift = (9500, 9501)
+
+    assert bridge.peek_port_drift_notice() == "port changed 9500->9501"
+    assert bridge.peek_port_drift_notice() == "port changed 9500->9501"
+    assert bridge.pop_port_drift_notice() == "port changed 9500->9501"
+    assert bridge.peek_port_drift_notice() is None
+
+
+def test_peek_port_drift_notice_none_when_no_drift():
+    bridge = UnityBridge("127.0.0.1", 9500, probe=make_idle_probe())
+    assert bridge.peek_port_drift_notice() is None
+
+
 def test_pid_lookup_filters_reused_port_by_canonical_project(tmp_path):
     from unity_mcp.lockfile import read_pid_from_port_file
 
