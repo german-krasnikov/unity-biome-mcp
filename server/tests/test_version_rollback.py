@@ -263,6 +263,49 @@ def test_version_set_pins_toml_client(install_mod):
     assert mock_pin_toml.call_args[0] == (mock_client.config_path, "0.54.1")
 
 
+def test_version_set_vscode_pin_survives_reconfigure(tmp_path, install_mod):
+    """E2E, DEV-58/B2-P7: a client with a whole-replace entry_transformer (vscode's
+    allowlisted format) must not lose "_pin" through the real merge_mcp_config path.
+    Before the fix, _vscode_transform dropped "_pin", so a later `install.py update`
+    (_reconfigure_detected_clients) would see is_entry_pinned()==False and silently
+    overwrite the pinned version — a false "repinned" success."""
+    from unity_mcp.config.clients import _vscode_transform
+
+    cfg = tmp_path / "mcp.json"
+    mock_client = MagicMock()
+    mock_client.stdout_only = False
+    mock_client.is_toml = False
+    mock_client.root_key = "servers"
+    mock_client.entry_transformer = _vscode_transform
+    mock_client.config_path = cfg
+    mock_client.name = "VS Code"
+
+    set_args = Namespace(set_version="0.54.1", port=0, tool="vscode", list=False, online=False)
+
+    # Phase 1: version --set writes a pinned entry through the REAL merge_mcp_config.
+    with patch.object(install_mod, "_load_stop_server", return_value=MagicMock(return_value=True)), \
+         patch("unity_mcp.config.resolver.find_port", MagicMock(return_value=9500)), \
+         patch.object(install_mod, "CLIENT_REGISTRY", {"vscode": mock_client}), \
+         patch.object(install_mod, "detect_installed", return_value=["vscode"]), \
+         patch.object(install_mod, "backup", MagicMock()):
+        install_mod.cmd_version(set_args)
+
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    assert data["servers"]["unity-biome-mcp"]["_pin"] is True
+    assert install_mod.is_entry_pinned(cfg, root_key="servers") is True
+    pinned_text = cfg.read_text(encoding="utf-8")
+
+    # Phase 2: install.py update (_reconfigure_detected_clients) must skip it —
+    # the file must stay byte-for-byte identical to what --set just wrote.
+    with patch.object(install_mod, "CLIENT_REGISTRY", {"vscode": mock_client}), \
+         patch.object(install_mod, "detect_installed", return_value=["vscode"]), \
+         patch.object(install_mod, "validate_config", return_value="Status: ok"), \
+         patch.object(install_mod, "build_server_entry", return_value={"command": "unpinned-uvx", "args": []}):
+        install_mod._reconfigure_detected_clients()
+
+    assert cfg.read_text(encoding="utf-8") == pinned_text
+
+
 def test_version_unpin_removes_pin_from_json_config(tmp_path, install_mod):
     """`version --unpin` must remove "_pin" from the real config file."""
     cfg = tmp_path / "claude.json"

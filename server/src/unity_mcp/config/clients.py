@@ -97,6 +97,11 @@ def _opencode_transform(entry: dict) -> dict:
     result: dict = {"type": "local", "command": cmd, "enabled": True}
     if "env" in entry:
         result["environment"] = entry["env"]  # OpenCode's key is "environment", not "env"
+    # Preserve unknown keys (e.g. "_pin", DEV-58/B2-P7) — but not source keys
+    # already consumed above under a different shape/name ("args" folded into
+    # "command", "env" renamed to "environment").
+    consumed = {"command", "args", "env"}
+    result.update({k: v for k, v in entry.items() if k not in result and k not in consumed})
     return result
 
 
@@ -105,6 +110,7 @@ def _vscode_transform(entry: dict) -> dict:
     result: dict = {"type": "stdio", "command": entry["command"], "args": entry.get("args", [])}
     if "env" in entry:
         result["env"] = entry["env"]
+    result.update({k: v for k, v in entry.items() if k not in result})  # preserve "_pin" etc. (DEV-58/B2-P7)
     return result
 
 

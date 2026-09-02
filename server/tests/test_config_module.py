@@ -689,6 +689,53 @@ def test_opencode_transform_passes_env():
     assert "env" not in result
 
 
+# ─── transform: preserve "_pin" and other unknown keys (DEV-58 / B2-P7) ─────
+# Both transforms whole-replace the entry from an allowlist (type/command/args/env),
+# so "_pin" — set by `install.py version --set` BEFORE merge_mcp_config applies the
+# transformer (merger.py:77) — was silently dropped, making is_entry_pinned() always
+# False for vscode/opencode and letting `install.py update` clobber a pinned version.
+
+def test_vscode_transform_preserves_pin():
+    from unity_mcp.config.clients import _vscode_transform
+    entry = {"command": "uvx", "args": [], "_pin": True}
+    result = _vscode_transform(entry)
+    assert result["_pin"] is True
+
+
+def test_vscode_transform_omits_pin_when_absent():
+    from unity_mcp.config.clients import _vscode_transform
+    entry = {"command": "uvx", "args": []}
+    result = _vscode_transform(entry)
+    assert "_pin" not in result
+
+
+def test_opencode_transform_preserves_pin():
+    from unity_mcp.config.clients import _opencode_transform
+    entry = {"command": "uvx", "args": [], "_pin": True}
+    result = _opencode_transform(entry)
+    assert result["_pin"] is True
+
+
+def test_opencode_transform_omits_pin_when_absent():
+    from unity_mcp.config.clients import _opencode_transform
+    entry = {"command": "uvx", "args": []}
+    result = _opencode_transform(entry)
+    assert "_pin" not in result
+
+
+def test_opencode_transform_pin_and_env_together_no_duplicate_env():
+    """Renamed source keys ("env" -> "environment", "args" folded into "command")
+    must not leak back in as stray literal keys once unknown keys are preserved."""
+    from unity_mcp.config.clients import _opencode_transform
+    entry = {"command": "uvx", "args": ["unity-biome-mcp"], "env": {"PORT": "9500"}, "_pin": True}
+    result = _opencode_transform(entry)
+    assert result["_pin"] is True
+    assert result["environment"] == {"PORT": "9500"}
+    assert "env" not in result
+    assert "args" not in result
+    assert result["command"] == ["uvx", "unity-biome-mcp"]
+
+
 # ─── merger.py: invalid JSON raises ─────────────────────────────────────────
 
 def test_merge_invalid_json_raises_valueerror(tmp_path):
@@ -777,6 +824,27 @@ def test_is_entry_pinned_true_when_pin_true(tmp_path):
         "mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": [], "_pin": True}}
     }), encoding="utf-8")
     assert merger.is_entry_pinned(cfg) is True
+
+
+def test_is_entry_pinned_true_through_vscode_transformer(tmp_path):
+    """Integration: merge_mcp_config with the real vscode entry_transformer must
+    not strip "_pin" before is_entry_pinned reads it back (DEV-58 / B2-P7)."""
+    from unity_mcp.config import merger
+    from unity_mcp.config.clients import _vscode_transform
+    cfg = tmp_path / "mcp.json"
+    entry = {"command": "uvx", "args": ["unity-biome-mcp"], "_pin": True}
+    merger.merge_mcp_config(cfg, entry, root_key="servers", entry_transformer=_vscode_transform)
+    assert merger.is_entry_pinned(cfg, root_key="servers") is True
+
+
+def test_is_entry_pinned_true_through_opencode_transformer(tmp_path):
+    """Same guarantee for OpenCode's command-as-array transform."""
+    from unity_mcp.config import merger
+    from unity_mcp.config.clients import _opencode_transform
+    cfg = tmp_path / "opencode.json"
+    entry = {"command": "uvx", "args": ["unity-biome-mcp"], "_pin": True}
+    merger.merge_mcp_config(cfg, entry, root_key="mcp", entry_transformer=_opencode_transform)
+    assert merger.is_entry_pinned(cfg, root_key="mcp") is True
 
 
 def test_is_entry_pinned_ignores_sibling_entry_pin(tmp_path):
