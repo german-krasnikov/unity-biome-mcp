@@ -20,9 +20,13 @@ namespace UnityMCP.Editor
         /// <summary>
         /// A holder that dies without calling <see cref="Complete"/> (e.g. a domain
         /// reload that ate the poll loop mid-<c>Client.Add</c>) must not deadlock
-        /// every future update forever. Mirrors CompileNotifier.StaleCeilingSeconds.
+        /// every future update forever. Single-sourced from
+        /// <see cref="CompileNotifier.StaleCeilingSeconds"/> (300s) rather than an
+        /// independent value: <c>UpmPluginUpdater.Update()</c> chains two sequential
+        /// <c>Client.Add</c> calls at 120s each — a 240s legitimate worst case — and a
+        /// shorter ceiling would self-heal past a real, still-running update.
         /// </summary>
-        public const float StaleCeilingSeconds = 180f;
+        public const float StaleCeilingSeconds = CompileNotifier.StaleCeilingSeconds;
 
         /// <summary>Injectable clock seam for unit tests (mirrors CompileNotifier).</summary>
         internal static Func<float> NowSecondsFloat = () => (float)EditorApplication.timeSinceStartup;
