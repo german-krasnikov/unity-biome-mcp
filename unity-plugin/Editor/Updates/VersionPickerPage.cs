@@ -8,6 +8,18 @@ namespace UnityMCP.Editor
 {
     internal static class VersionPickerPage
     {
+        const string GenericFailureFallback = "UPM failed — check Console.";
+        const string InProgressButtonText = "Update in progress…";
+
+        /// <summary>
+        /// User-facing outcome text for a completed rollback/align UPM call — an actionable
+        /// <see cref="UpmPluginUpdater.LastFailureReason"/> on failure instead of a bare
+        /// generic message (ARC-10 T4). Pure, no dialog involved, so it is unit-testable
+        /// without touching a real UPM round-trip.
+        /// </summary>
+        internal static string FormatResultMessage(bool success) =>
+            success ? "Done." : (UpmPluginUpdater.LastFailureReason ?? GenericFailureFallback);
+
         internal static VisualElement Build(Action onBack)
         {
             var page = new VisualElement();
@@ -55,18 +67,33 @@ namespace UnityMCP.Editor
                 EcosystemHeaderAnim.SetVersionIndex(header, versions.IndexOf(e.newValue), versions.Count);
             });
 
+            // Read UpmOperationGuard fresh on every Build() — it is SessionState-backed, so a
+            // rebuild after a domain reload sees the same in-flight claim without any static
+            // UI cache surviving the reload itself (ARC-10 T4).
+            bool inFlight = UpmOperationGuard.IsInFlight;
+
             var rollbackBtn = BiomeUI.PrimaryButton(
                 $"Roll Back to v{dd.value}",
                 () => ConfirmAndRollback(dd.value, page));
             rollbackBtn.AddToClassList("updates-check-btn");
-            dd.RegisterValueChangedCallback(e => rollbackBtn.text = $"Roll Back to v{e.newValue}");
+            dd.RegisterValueChangedCallback(e =>
+            {
+                if (!UpmOperationGuard.IsInFlight)
+                    rollbackBtn.text = $"Roll Back to v{e.newValue}";
+            });
             scroll.Add(rollbackBtn);
+            if (inFlight)
+            {
+                rollbackBtn.SetEnabled(false);
+                rollbackBtn.text = InProgressButtonText;
+            }
 
             if (!coherent)
             {
                 var alignBtn = BiomeUI.SecondaryButton(
                     $"Align Both to v{current}", null);
                 scroll.Add(alignBtn);
+                if (inFlight) alignBtn.SetEnabled(false);
                 alignBtn.clicked += () =>
                 {
                     bool ok = EditorUtility.DisplayDialog(
@@ -80,8 +107,7 @@ namespace UnityMCP.Editor
                     {
                         alignBtn.SetEnabled(true);
                         alignBtn.text = $"Align Both to v{current}";
-                        EditorUtility.DisplayDialog("Align",
-                            success ? "Done." : "UPM failed — check Console.", "OK");
+                        EditorUtility.DisplayDialog("Align", FormatResultMessage(success), "OK");
                     });
                 };
             }
@@ -141,8 +167,7 @@ namespace UnityMCP.Editor
             // ProjectConfigWriter rewrites .mcp.json for the new version (version-scoped guard).
             UpmPluginUpdater.Update(version, success =>
             {
-                EditorUtility.DisplayDialog("Roll Back",
-                    success ? "Done." : "UPM failed — check Console.", "OK");
+                EditorUtility.DisplayDialog("Roll Back", FormatResultMessage(success), "OK");
             });
         }
     }

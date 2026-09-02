@@ -18,9 +18,8 @@ namespace UnityMCP.Editor
 
         /// <summary>
         /// Actionable text for the most recent failure/timeout/busy-block (ARC-10 T3),
-        /// for UI display alongside the existing Console log. Null only before the
-        /// first Update() call in this session; every terminal path sets it (cleared
-        /// to null on success).
+        /// for UI display alongside the existing Console log. Null before any call and
+        /// cleared on success.
         /// </summary>
         internal static string LastFailureReason;
 
