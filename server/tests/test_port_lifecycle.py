@@ -81,15 +81,24 @@ def test_read_reload_port_skips_dead_pid(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_cleanup_tcp_probe_removes_pid_alive_tcp_dead(tmp_path):
-    """tcp_probe=True: PID alive but port not listening → file removed."""
+    """tcp_probe=True: PID alive but port not listening → file removed only
+    once the failure persists across a full sweep interval (C1 #11) — the
+    first failed probe must be tolerated (Unity's own bind-retry loop)."""
+    from unity_mcp.lockfile import PROBE_GRACE_S
     ports_dir = tmp_path / "ports"
     ports_dir.mkdir()
     (ports_dir / "44444.port").write_text("9700\n/proj\n", encoding="utf-8")
+    clock = [500.0]
 
     with patch("unity_mcp.lockfile._ports_dir", return_value=ports_dir), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=True), \
          patch("unity_mcp.lockfile._tcp_probe", return_value=False):
-        count = cleanup_stale_port_files(tcp_probe=True)
+        first = cleanup_stale_port_files(tcp_probe=True, now_fn=lambda: clock[0])
+        assert first == 0
+        assert (ports_dir / "44444.port").exists()
+
+        clock[0] += PROBE_GRACE_S
+        count = cleanup_stale_port_files(tcp_probe=True, now_fn=lambda: clock[0])
 
     assert count == 1
     assert not (ports_dir / "44444.port").exists()
