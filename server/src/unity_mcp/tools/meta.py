@@ -113,6 +113,13 @@ async def mcp_status() -> str:
     liveness = getattr(bridge, "status", None)
     liveness = liveness if isinstance(liveness, str) else "unknown"
 
+    # C1 #7: bridge.status stays "connected" through a tolerated stall window
+    # (writer not yet closed) while the independent get_status probe above
+    # already reported unreachable — surface the stall instead of printing
+    # a bare "connected" that contradicts unity_status=unreachable.
+    if liveness == "connected" and unity_status == "unreachable":
+        liveness = "connected-stalled"
+
     pid_alive = None
     probe = getattr(bridge, "_probe", None)
     if probe is not None:

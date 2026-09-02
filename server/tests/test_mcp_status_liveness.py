@@ -73,6 +73,19 @@ async def test_no_blank_line_when_unreachable(mock_bridge):
     assert "\n\n" not in result
 
 
+async def test_liveness_flags_stall_when_bridge_status_disagrees_with_probe(mock_bridge):
+    """C1 #7: bridge.status="connected" (writer not yet closed — tolerated
+    stall window per reload-recovery skill §4) next to a failed get_status
+    probe must not print the bare, self-contradicting
+    'liveness=connected' + 'unity_status=unreachable' pair."""
+    mock_bridge.status = "connected"
+    mock_bridge.send = AsyncMock(side_effect=ToolError("[UNITY_UNAVAILABLE] gone"))
+    from unity_mcp.tools.meta import mcp_status
+    result = await mcp_status()
+    assert _field(result, "unity_status") == "unreachable"
+    assert _field(result, "liveness") == "connected-stalled"
+
+
 async def test_all_fields_na_when_get_slot_is_none(mock_bridge, monkeypatch):
     """_get_slot=None (module never wired via register(get_slot=...)) must
     still resolve every bridge-derived field to a safe placeholder, never
