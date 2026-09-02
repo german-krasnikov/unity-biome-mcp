@@ -149,6 +149,23 @@ def test_playtest_suite_gate_accepts_nonempty_complete_clean_result():
     )
 
 
+def test_is_suite_pass_matches_real_producer_output():
+    # DEV-52: runtime.py's _format_suite_report always appends
+    # " terminal:true play_stopped:<bool>" (and optionally " timed_out:true")
+    # to the first line. The gate must accept this real shape.
+    assert _v._is_suite_pass(
+        "SUITE: 3/3 passed (12.3s) terminal:true play_stopped:true"
+    )
+
+
+def test_is_suite_pass_rejects_corrupted_first_line_with_flags():
+    # Double-red guard: a fix that just accepts "anything with flags" is
+    # still wrong — the ratio/word structure of the first line still matters.
+    assert not _v._is_suite_pass(
+        "SUITE: three/3 passed (12.3s) terminal:true play_stopped:true"
+    )
+
+
 @pytest.mark.parametrize("field", [
     "is_terminal",
     "execution_finished",
@@ -192,6 +209,28 @@ async def test_verify_all_pass():
     assert result.startswith("PASS("), f"Expected PASS(N/5): prefix, got: {result!r}"
     assert "compile" in result
     assert "tests(10/10)" in result
+    assert "playtests(3/3)" in result
+
+
+@pytest.mark.asyncio
+async def test_verify_all_pass_with_real_producer_suite_format():
+    # DEV-52 symptom: run_playtest_suite's real output always carries the
+    # " terminal:true play_stopped:true" suffix on its first line. Before the
+    # fix, _is_suite_pass's re.fullmatch never matched this shape, so the
+    # mandatory playtest-suite gate always FAILed even on a clean suite.
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean (5s)")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_GET_CONSOLE_SINCE, AsyncMock(return_value="")),
+        patch(_RUN_TESTS_WAIT, AsyncMock(return_value=_run_snapshot())),
+        patch(_RUN_SUITE, AsyncMock(
+            return_value="SUITE: 3/3 passed (12.3s) terminal:true play_stopped:true"
+        )),
+    ):
+        result = await _v.verify_after_change(
+            mark_id=MARK, run_tests_mode="EditMode", playtests="Tests/*.playtest"
+        )
+    assert result.startswith("PASS("), f"Expected PASS(N/5): prefix, got: {result!r}"
     assert "playtests(3/3)" in result
 
 

@@ -120,7 +120,7 @@ def _is_suite_pass(result: str) -> bool:
     if not result:
         return False
     first_line = result.strip().splitlines()[0]
-    match = re.fullmatch(
+    match = re.match(
         r"SUITE:\s*(\d+)\s*/\s*(\d+)\s+passed\s*\([^)]*\)",
         first_line,
         re.IGNORECASE,
