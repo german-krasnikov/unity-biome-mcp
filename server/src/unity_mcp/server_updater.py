@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -14,11 +15,16 @@ from unity_mcp.config.resolver import GIT_INSTALL_URL
 
 logger = logging.getLogger("unity_mcp")
 
+# Subprocess timeout for `uvx --reinstall` (below), and the reinstall-failure
+# cooldown window (C1 r2 #9) — same scale by design, one source for both.
+_REINSTALL_TIMEOUT_S = 300.0
+_REINSTALL_COOLDOWN_S = _REINSTALL_TIMEOUT_S
+
 
 @dataclass
 class _UpdateResult:
     triggered: bool
-    reason: str  # "not_needed" | "no_uvx" | "already_running" | "not_uvx_install" | "started" | "pinned"
+    reason: str  # "not_needed" | "no_uvx" | "already_running" | "not_uvx_install" | "started" | "pinned" | "cooldown"
 
 
 def _default_is_pinned(project_path: str) -> bool:
@@ -62,6 +68,7 @@ class ServerUpdater:
         exit_fn=os._exit,
         is_uvx_install_fn=_default_is_uvx_install,
         is_pinned_fn=_default_is_pinned,
+        now_fn=time.monotonic,
     ):
         self._install_url = install_url
         self._version_fn = version_fn
@@ -70,7 +77,9 @@ class ServerUpdater:
         self._exit_fn = exit_fn
         self._is_uvx_install_fn = is_uvx_install_fn
         self._is_pinned_fn = is_pinned_fn
+        self._now_fn = now_fn
         self._updating = False
+        self._last_failure_at: float | None = None
 
     async def maybe_update(self, plugin_version: str, project_path: str | None = None) -> _UpdateResult:
         """Check if plugin is newer; if so reinstall and exit. Non-blocking guard."""
@@ -103,6 +112,12 @@ class ServerUpdater:
             )
             return _UpdateResult(triggered=False, reason="pinned")
 
+        if (
+            self._last_failure_at is not None
+            and (self._now_fn() - self._last_failure_at) < _REINSTALL_COOLDOWN_S
+        ):
+            return _UpdateResult(triggered=False, reason="cooldown")
+
         self._updating = True
         try:
             current = self._version_fn()
@@ -113,6 +128,7 @@ class ServerUpdater:
             if success:
                 await self._exit_for_restart()
                 return _UpdateResult(triggered=True, reason="started")
+            self._last_failure_at = self._now_fn()
             logger.error(
                 "Server update failed. Run manually: "
                 "uvx --reinstall --from %s unity-biome-mcp",
@@ -134,11 +150,11 @@ class ServerUpdater:
             proc = await self._subprocess_fn(
                 "uvx", "--reinstall", "--from", self._install_url, "unity-biome-mcp"
             )
-            code = await asyncio.wait_for(proc.wait(), timeout=300)
+            code = await asyncio.wait_for(proc.wait(), timeout=_REINSTALL_TIMEOUT_S)
             return code == 0
         except TimeoutError:
             proc.kill()
-            logger.error("uvx reinstall timed out after 300s")
+            logger.error("uvx reinstall timed out after %ss", _REINSTALL_TIMEOUT_S)
             return False
         except Exception as exc:
             logger.error("uvx reinstall error: %s", exc)

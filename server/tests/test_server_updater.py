@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from unity_mcp.config.merger import SERVER_NAME
 from unity_mcp.server_updater import (
+    _REINSTALL_COOLDOWN_S,
     _UpdateResult,
     ServerUpdater,
     _default_is_pinned,
@@ -17,7 +18,7 @@ from unity_mcp.server_updater import (
 
 
 def make_updater(current="1.0.0", uvx_found=True, subprocess_exit=0, exit_calls=None,
-                  subprocess_calls=None, is_pinned_fn=None):
+                  subprocess_calls=None, is_pinned_fn=None, now_fn=None):
     if exit_calls is None:
         exit_calls = []
 
@@ -34,6 +35,8 @@ def make_updater(current="1.0.0", uvx_found=True, subprocess_exit=0, exit_calls=
     kwargs = {}
     if is_pinned_fn is not None:
         kwargs["is_pinned_fn"] = is_pinned_fn
+    if now_fn is not None:
+        kwargs["now_fn"] = now_fn
 
     return ServerUpdater(
         install_url="git+https://example.com",
@@ -44,6 +47,19 @@ def make_updater(current="1.0.0", uvx_found=True, subprocess_exit=0, exit_calls=
         is_uvx_install_fn=lambda: True,
         **kwargs,
     )
+
+
+class _FakeClock:
+    """Monotonic-clock stub for cooldown tests — advances only when told to."""
+
+    def __init__(self, start: float = 0.0):
+        self._t = start
+
+    def __call__(self) -> float:
+        return self._t
+
+    def advance(self, delta: float) -> None:
+        self._t += delta
 
 
 @pytest.mark.asyncio
@@ -212,6 +228,50 @@ async def test_maybe_update_reinstalls_when_cursor_config_not_pinned(tmp_path):
 
     assert r.reason == "started"
     assert r.triggered is True
+
+
+# ─── C1-round2 #9: cooldown between repeated failed reinstall attempts ──────
+
+@pytest.mark.asyncio
+async def test_maybe_update_skips_second_reinstall_within_cooldown_after_failure():
+    """A failed reinstall starts a cooldown window; a reconnect within
+    _REINSTALL_COOLDOWN_S must not retry the subprocess. Before this fix,
+    the only re-entry guard was _updating, which resets as soon as one
+    attempt completes -- every subsequent reconnect/reload retried
+    immediately with zero backoff."""
+    clock = _FakeClock()
+    subprocess_calls = []
+    u = make_updater(
+        current="1.5.0", subprocess_exit=1, subprocess_calls=subprocess_calls, now_fn=clock
+    )
+    r1 = await u.maybe_update("1.6.0")
+    assert r1.reason == "reinstall_failed"
+    assert len(subprocess_calls) == 1
+
+    clock.advance(60.0)
+    r2 = await u.maybe_update("1.6.0")
+
+    assert r2.reason == "cooldown"
+    assert r2.triggered is False
+    assert len(subprocess_calls) == 1  # not retried
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_retries_after_cooldown_window_elapses():
+    """Double-red pair: once the cooldown window fully elapses, retry resumes."""
+    clock = _FakeClock()
+    subprocess_calls = []
+    u = make_updater(
+        current="1.5.0", subprocess_exit=1, subprocess_calls=subprocess_calls, now_fn=clock
+    )
+    await u.maybe_update("1.6.0")
+    assert len(subprocess_calls) == 1
+
+    clock.advance(_REINSTALL_COOLDOWN_S + 1.0)
+    r2 = await u.maybe_update("1.6.0")
+
+    assert r2.reason == "reinstall_failed"
+    assert len(subprocess_calls) == 2
 
 
 @pytest.mark.asyncio
