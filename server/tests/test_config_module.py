@@ -222,6 +222,39 @@ def test_merger_default_root_key_unchanged(tmp_path):
     assert "other" in data["mcpServers"]
 
 
+def test_merge_mcp_config_writes_cyrillic_env_value_without_unicode_escape(tmp_path):
+    """Cyrillic env values (e.g. a Windows username in a path) must round-trip
+    as literal UTF-8 bytes, not \\uXXXX escapes -- json.dumps' default
+    (ensure_ascii=True) would silently balloon tokens and hide corruption."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    entry = {"command": "uvx", "args": ["unity-biome-mcp"], "env": {"USER_NOTE": "Привет"}}
+    merger.merge_mcp_config(cfg, entry)
+    raw = cfg.read_bytes()
+    assert "Привет".encode("utf-8") in raw
+    assert b"\\u" not in raw
+
+
+def test_unpin_entry_preserves_cyrillic_without_escaping(tmp_path):
+    """unpin_entry rewrites the whole file on a hit -- must not re-escape
+    Cyrillic already present elsewhere in the config."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    payload = {
+        "mcpServers": {
+            "unity-biome-mcp": {"command": "uvx", "args": [], "_pin": True},
+            "other": {"note": "Привет"},
+        }
+    }
+    cfg.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    assert merger.unpin_entry(cfg) is True
+
+    raw = cfg.read_bytes()
+    assert "Привет".encode("utf-8") in raw
+    assert b"\\u" not in raw
+
+
 def test_merge_toml_strips_stale_unity_entry(tmp_path):
     """Stale [mcp_servers.unity] (bare) must be removed when writing unity-biome-mcp."""
     from unity_mcp.config import merger

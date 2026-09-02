@@ -18,6 +18,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import unity_mcp.tools.testing as testing
+from unity_mcp.tools.run_disk_fallback import READ_VIA_DISK
 
 REQUEST_ID = "req-1"
 RUN_ID = "run-1"
@@ -221,7 +222,7 @@ def test_disk_fallback_returns_marked_snapshot_for_valid_terminal():
         result = _call_fallback()
 
     decoded = json.loads(result)
-    assert decoded["read_via"] == "disk"
+    assert decoded["read_via"] == READ_VIA_DISK
     assert decoded["outcome"] == "passed"
 
 
@@ -231,7 +232,7 @@ def test_disk_fallback_returns_marked_snapshot_for_valid_terminal():
 async def test_timeout_returns_disk_fallback_when_wire_never_goes_terminal():
     """A successful disk-fallback read replaces TIMEOUT entirely, not just prefixes it."""
     running = _snapshot("running")
-    marked = json.dumps({"outcome": "passed", "read_via": "disk"}, sort_keys=True)
+    marked = json.dumps({"outcome": "passed", "read_via": READ_VIA_DISK}, sort_keys=True)
     with patch.object(testing, "run_tests", _started), \
          patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value=running)), \
          patch.object(testing, "_read_disk_fallback", return_value=marked) as mock_fallback, \
@@ -276,7 +277,7 @@ async def test_disk_fallback_terminal_result_updates_registry_handle():
 
     registry = TestRunRegistry()
     registry.register(RUN_ID, REQUEST_ID)
-    marked = json.dumps({**json.loads(_snapshot("terminal", "passed")), "read_via": "disk"})
+    marked = json.dumps({**json.loads(_snapshot("terminal", "passed")), "read_via": READ_VIA_DISK})
 
     with patch.object(testing, "_registry", registry), \
          patch.object(testing, "run_tests", _started), \

@@ -39,7 +39,7 @@ _TERMINAL_OUTCOMES = {
     "passed", "failed", "cancelled", "incomplete", "invalid", "dispatch_failed",
 }
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
-# Mirrors bridge_heartbeat.py's _ping_stall_failures threshold (3): gates a
+# Mirrors bridge_heartbeat.py's _ping_failures threshold (3): gates a
 # diagnostic TIMEOUT suffix only, never control flow.
 _HEALTH_STREAK_TIMEOUT_THRESHOLD = 3
 
@@ -784,8 +784,8 @@ def _read_disk_fallback(
         return None
     if _terminal_snapshot_error(snapshot, mode=mode, filter_name=filter_name) is not None:
         return None
-    snapshot["read_via"] = "disk"
-    return json.dumps(snapshot, separators=(",", ":"), sort_keys=True)
+    snapshot["read_via"] = run_disk_fallback.READ_VIA_DISK
+    return json.dumps(snapshot, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
 
 
 def register(mcp, send, args, *, get_slot=None):

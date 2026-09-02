@@ -105,6 +105,9 @@ CONNECT_TIMEOUT = float(os.environ.get("UNITY_MCP_CONNECT_TIMEOUT", "5.0"))
 MAX_RETRIES = int(os.environ.get("UNITY_MCP_MAX_RETRIES", "3"))
 MIN_RECONNECT_INTERVAL = float(os.environ.get("UNITY_MCP_MIN_RECONNECT_INTERVAL", "5.0"))
 STARTUP_GRACE_S = float(os.environ.get("UNITY_MCP_STARTUP_GRACE", "90.0"))
+# Fallback when Unity's CLIENT_CAPACITY_BUSY hello omits retry_after_seconds.
+# Reuses bridge_heartbeat's backoff floor instead of a second hardcoded 5.0.
+_CAPACITY_RETRY_AFTER_DEFAULT_S = BACKOFF_MIN_S
 
 
 class BridgeState(enum.Enum):
@@ -406,7 +409,7 @@ class UnityBridge(HeartbeatMixin):
             from .errors import CapacityBusyError
             raise CapacityBusyError(
                 f"Unity at capacity: {hello.get('active', '?')}/{hello.get('capacity', '?')} clients",
-                retry_after_seconds=float(hello.get("retry_after_seconds", 5.0)),
+                retry_after_seconds=float(hello.get("retry_after_seconds", _CAPACITY_RETRY_AFTER_DEFAULT_S)),
                 capacity=int(hello.get("capacity", 0)),
                 active=int(hello.get("active", 0)),
             )
@@ -821,7 +824,7 @@ class UnityBridge(HeartbeatMixin):
                 from .errors import CapacityBusyError
                 raise CapacityBusyError(
                     f"Unity at capacity: {hello.get('active', '?')}/{hello.get('capacity', '?')} clients",
-                    retry_after_seconds=float(hello.get("retry_after_seconds", 5.0)),
+                    retry_after_seconds=float(hello.get("retry_after_seconds", _CAPACITY_RETRY_AFTER_DEFAULT_S)),
                     capacity=int(hello.get("capacity", 0)),
                     active=int(hello.get("active", 0)),
                 )

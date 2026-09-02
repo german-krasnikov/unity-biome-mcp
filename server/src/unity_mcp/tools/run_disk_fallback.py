@@ -11,6 +11,9 @@ handled there, not here.
 
 from pathlib import Path
 
+# Marks a snapshot as sourced from the disk fallback rather than the wire.
+READ_VIA_DISK = "disk"
+
 
 def summary_path(project_path: Path, run_id: str) -> Path:
     """Return the durable summary.json path TestRunStore.Reconcile writes."""

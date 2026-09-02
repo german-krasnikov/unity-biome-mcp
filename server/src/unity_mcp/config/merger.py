@@ -90,7 +90,7 @@ def merge_mcp_config(
     data[root_key][SERVER_NAME] = _deep_merge(base, entry)
 
     tmp = config_path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     os.replace(str(tmp), str(config_path))
 
 
@@ -138,7 +138,7 @@ def unpin_entry(
     del entry["_pin"]
 
     tmp = config_path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     os.replace(str(tmp), str(config_path))
     return True
 
@@ -244,7 +244,7 @@ def remove_mcp_entry(config_path: pathlib.Path, root_key: str = "mcpServers") ->
         return False
 
     tmp = config_path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
     os.replace(str(tmp), str(config_path))
     return True
 

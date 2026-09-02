@@ -20,6 +20,11 @@ _send = None
 _args = None
 _get_slot = None
 
+# Budget for the get_status liveness probe. Independent of brief_builder's
+# _PROVIDER_TIMEOUT (LLM attachment providers) despite the matching value --
+# a quick TCP status query and an LLM call are unrelated concerns.
+_STATUS_TIMEOUT_S = 5.0
+
 
 async def discover_tools(category: str | None = None, enable: bool = True,
                          include_legacy: bool = False, structured: bool = False,
@@ -96,7 +101,7 @@ async def mcp_status() -> str:
     honestly, never raising, when Unity itself is unreachable."""
     from .. import __version__
     try:
-        cs_status = await _send("get_status", {}, timeout=5.0)
+        cs_status = await _send("get_status", {}, timeout=_STATUS_TIMEOUT_S)
         unity_status = "reachable"
     except ToolError:
         cs_status = ""

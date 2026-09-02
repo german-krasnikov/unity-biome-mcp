@@ -18,12 +18,20 @@ from pathlib import Path
 import pytest
 
 from unity_mcp.timeout_categories import get_timeout
-from unity_mcp.tools.batch import _TIMEOUT_MS_CEILING
+from unity_mcp.tools.batch import _TIMEOUT_MS_CEILING, _UNITY_BATCH_DEFAULT_MS
 
 _PROJECT = Path(__file__).parents[2]
 _MCP_SERVER_CS_PATH = _PROJECT / "unity-plugin/Editor/MCPServer.cs"
 assert _MCP_SERVER_CS_PATH.exists(), f"C# source not found: {_MCP_SERVER_CS_PATH}"
 _MCP_SERVER_CS = _MCP_SERVER_CS_PATH.read_text(encoding="utf-8")
+
+_COMMAND_ROUTER_REGISTRATION_CS_PATH = (
+    _PROJECT / "unity-plugin/Editor/CommandRouter.Registration.cs"
+)
+assert _COMMAND_ROUTER_REGISTRATION_CS_PATH.exists(), (
+    f"C# source not found: {_COMMAND_ROUTER_REGISTRATION_CS_PATH}"
+)
+_COMMAND_ROUTER_REGISTRATION_CS = _COMMAND_ROUTER_REGISTRATION_CS_PATH.read_text(encoding="utf-8")
 
 # Mirrors MCPServer.cs's CommandTimeouts dict (only the entry our table needs)
 # and its GetCommandTimeout default fallback. Guarded against silent drift by
@@ -59,6 +67,15 @@ def test_batch_inner_timeout_ms_ceiling_under_csharp_batch_watchdog():
     """
     assert _TIMEOUT_MS_CEILING == 60000
     assert _TIMEOUT_MS_CEILING < _csharp_timeout("batch") * 1000
+
+
+def test_batch_default_ms_source_matches_fixture():
+    """Guards batch._UNITY_BATCH_DEFAULT_MS against silent drift from
+    CommandRouter.Registration.cs's "batch" dispatch default (the value
+    Unity uses when the timeout_ms arg is omitted from the wire call).
+    """
+    assert _UNITY_BATCH_DEFAULT_MS == 25000
+    assert "int timeoutMs = 25000;" in _COMMAND_ROUTER_REGISTRATION_CS
 
 
 # ARC-4 Section 2.1 rows where "Python timeout < C# timeout" holds.
