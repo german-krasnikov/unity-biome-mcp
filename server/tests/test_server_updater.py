@@ -169,6 +169,51 @@ async def test_maybe_update_does_not_raise_on_undecodable_project_config(tmp_pat
     assert subprocess_calls != []
 
 
+# ─── C1-round2 #6: pin must be honored in every project-scoped client config ──
+
+@pytest.mark.asyncio
+async def test_maybe_update_skips_reinstall_when_project_scoped_client_config_pinned(tmp_path):
+    """A pin in .cursor/mcp.json (no .mcp.json in the project at all) must
+    block reinstall -- _default_is_pinned checks every client config
+    ProjectConfigWriter (C#) can pin, not only Claude Code's .mcp.json."""
+    cursor_cfg = tmp_path / ".cursor" / "mcp.json"
+    cursor_cfg.parent.mkdir(parents=True)
+    cursor_cfg.write_text(
+        f'{{"mcpServers": {{"{SERVER_NAME}": {{"_pin": true, "command": "x"}}}}}}',
+        encoding="utf-8",
+    )
+    subprocess_calls = []
+    u = make_updater(
+        current="1.5.0", subprocess_calls=subprocess_calls, is_pinned_fn=_default_is_pinned
+    )
+
+    r = await u.maybe_update("1.6.0", project_path=str(tmp_path))
+
+    assert r.reason == "pinned"
+    assert r.triggered is False
+    assert subprocess_calls == []
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_reinstalls_when_cursor_config_not_pinned(tmp_path):
+    """Double-red pair: same .cursor/mcp.json file present, but without _pin."""
+    cursor_cfg = tmp_path / ".cursor" / "mcp.json"
+    cursor_cfg.parent.mkdir(parents=True)
+    cursor_cfg.write_text(
+        f'{{"mcpServers": {{"{SERVER_NAME}": {{"command": "x"}}}}}}',
+        encoding="utf-8",
+    )
+    subprocess_calls = []
+    u = make_updater(
+        current="1.5.0", subprocess_calls=subprocess_calls, is_pinned_fn=_default_is_pinned
+    )
+
+    r = await u.maybe_update("1.6.0", project_path=str(tmp_path))
+
+    assert r.reason == "started"
+    assert r.triggered is True
+
+
 @pytest.mark.asyncio
 async def test_correct_subprocess_args():
     captured = []

@@ -19,6 +19,21 @@ _OLD_NAMES = ("unity-mcp",)
 # of repeating the literal.
 PROJECT_CONFIG_FILENAME = ".mcp.json"
 
+# Every project-scoped client config unity-plugin/Editor/Wizard/ProjectConfigWriter
+# can pin, mirroring ProjectConfigTargets.All (C#) — (rel_path, root_key, is_toml).
+# root_key is "" for TOML (C#'s null — no JSON root section). Parity with the C#
+# source is enforced by test_config_module.py's
+# test_project_config_targets_matches_csharp_source (both a content and an order
+# guard) so the two lists cannot silently drift.
+PROJECT_CONFIG_TARGETS: tuple[tuple[str, str, bool], ...] = (
+    (PROJECT_CONFIG_FILENAME, "mcpServers", False),
+    (".cursor/mcp.json", "mcpServers", False),
+    (".vscode/mcp.json", "servers", False),
+    (".windsurf/mcp.json", "mcpServers", False),
+    (".codex/config.toml", "", True),
+    (".junie/mcp/mcp.json", "mcpServers", False),
+)
+
 # C1-FIX-01 (windows-platform CRITICAL): every config READ in this module uses
 # utf-8-sig, which transparently strips a leading UTF-8 BOM (Windows Notepad /
 # PowerShell 5.1 Out-File/Set-Content default) before json.loads/regex parsing.

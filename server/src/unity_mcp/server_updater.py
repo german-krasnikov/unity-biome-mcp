@@ -9,7 +9,7 @@ from pathlib import Path
 
 from unity_mcp import __version__
 from unity_mcp._update_check import _is_newer
-from unity_mcp.config.merger import PROJECT_CONFIG_FILENAME, is_entry_pinned
+from unity_mcp.config.merger import PROJECT_CONFIG_TARGETS, is_entry_pinned, is_toml_pinned
 from unity_mcp.config.resolver import GIT_INSTALL_URL
 
 logger = logging.getLogger("unity_mcp")
@@ -22,8 +22,20 @@ class _UpdateResult:
 
 
 def _default_is_pinned(project_path: str) -> bool:
-    """True if the project's .mcp.json pins us to the current server version (ARC-0b/ARC-11)."""
-    return is_entry_pinned(Path(project_path) / PROJECT_CONFIG_FILENAME)
+    """True if any project-scoped client config (PROJECT_CONFIG_TARGETS — every
+    config unity-plugin/Editor/Wizard/ProjectConfigWriter can pin, not just
+    Claude Code's .mcp.json) pins us to the current server version
+    (ARC-0b/ARC-11, C1 r2 #6). A single unreadable sibling file degrades to
+    "not pinned by that file" rather than aborting the whole scan."""
+    for rel_path, root_key, is_toml in PROJECT_CONFIG_TARGETS:
+        path = Path(project_path) / rel_path
+        try:
+            pinned = is_toml_pinned(path) if is_toml else is_entry_pinned(path, root_key=root_key)
+        except (UnicodeDecodeError, OSError):
+            continue
+        if pinned:
+            return True
+    return False
 
 
 def _default_is_uvx_install() -> bool:
@@ -85,8 +97,9 @@ class ServerUpdater:
 
         if project_path and self._is_pinned_fn(project_path):
             logger.info(
-                "Server update skipped: %s pins the server version (found at %s).",
-                PROJECT_CONFIG_FILENAME, project_path,
+                "Server update skipped: a project-scoped client config pins the "
+                "server version (checked under %s).",
+                project_path,
             )
             return _UpdateResult(triggered=False, reason="pinned")
 

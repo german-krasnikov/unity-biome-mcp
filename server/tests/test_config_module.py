@@ -1,6 +1,7 @@
 """Tests for config auto-generation module (clients, merger, backup, validator, resolver)."""
 import json
 import pathlib
+import re
 import sys
 from unittest.mock import patch
 
@@ -1076,3 +1077,40 @@ def test_unpin_toml_entry_false_on_undecodable_bytes_no_write(tmp_path):
 
     assert merger.unpin_toml_entry(cfg) is False
     assert cfg.read_bytes() == original  # untouched, no rewrite attempted
+
+
+# ─── merger.py: PROJECT_CONFIG_TARGETS parity with ProjectConfigTargets.cs (C1 r2 #6) ──
+
+_PROJECT = pathlib.Path(__file__).parents[2]
+_PROJECT_CONFIG_TARGETS_CS_PATH = (
+    _PROJECT / "unity-plugin/Editor/Wizard/ProjectConfigTargets.cs"
+)
+assert _PROJECT_CONFIG_TARGETS_CS_PATH.exists(), (
+    f"C# source not found: {_PROJECT_CONFIG_TARGETS_CS_PATH}"
+)
+_PROJECT_CONFIG_TARGETS_CS = _PROJECT_CONFIG_TARGETS_CS_PATH.read_text(encoding="utf-8")
+
+# Captures (key, relativePath, rootKey, isToml) from each
+# `new ProjectConfigTarget("key", "relPath", rootKeyOrNull, true|false)` row.
+_CS_PROJECT_CONFIG_TARGET_RE = re.compile(
+    r'new ProjectConfigTarget\('
+    r'"([^"]+)",\s*"([^"]+)",\s*(null|"[^"]+"),\s*(true|false)\)'
+)
+
+
+def test_project_config_targets_matches_csharp_source():
+    """PROJECT_CONFIG_TARGETS (merger.py) must mirror ProjectConfigTargets.All
+    (C#) -- the two lists are independent by necessity (different runtimes),
+    but a drift here means _default_is_pinned silently stops protecting a
+    client's pin, exactly what C1-round2 #6 found for every non-Claude-Code
+    client. This is a content AND order guard: both lists compare as tuples."""
+    from unity_mcp.config import merger
+
+    matches = _CS_PROJECT_CONFIG_TARGET_RE.findall(_PROJECT_CONFIG_TARGETS_CS)
+    assert matches, "ProjectConfigTargets.cs regex found no matches -- source format changed"
+
+    parsed = tuple(
+        (rel_path, "" if root_key == "null" else root_key.strip('"'), is_toml == "true")
+        for _key, rel_path, root_key, is_toml in matches
+    )
+    assert parsed == merger.PROJECT_CONFIG_TARGETS
