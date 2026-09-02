@@ -151,7 +151,9 @@ def _unknown_start(request_id: str, reason: str) -> str:
 def _compact_snapshot(value: str) -> str:
     """Keep timeout diagnostics precise without pretty-printed JSON noise."""
     try:
-        return json.dumps(json.loads(value), separators=(",", ":"), sort_keys=True)
+        return json.dumps(
+            json.loads(value), separators=(",", ":"), sort_keys=True, ensure_ascii=False
+        )
     except (TypeError, ValueError, json.JSONDecodeError):
         return value or "none"
 

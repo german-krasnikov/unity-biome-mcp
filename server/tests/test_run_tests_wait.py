@@ -577,6 +577,19 @@ async def test_wait_timeout_bounds_a_hung_poll_by_wall_clock():
     assert elapsed < 0.2
 
 
+def test_compact_snapshot_preserves_cyrillic_without_escaping():
+    raw = json.dumps({"run_id": RUN_ID, "request_id": REQUEST_ID, "filter": "Проверка"})
+    result = testing._compact_snapshot(raw)
+    assert "Проверка" in result
+    assert "\\u" not in result
+
+
+def test_compact_snapshot_ascii_only_is_unchanged_by_ensure_ascii():
+    raw = json.dumps({"run_id": RUN_ID, "request_id": REQUEST_ID, "filter": "Fixture.Test"})
+    result = testing._compact_snapshot(raw)
+    assert result == json.dumps(json.loads(raw), separators=(",", ":"), sort_keys=True)
+
+
 @pytest.mark.asyncio
 async def test_mode_filter_and_request_identity_are_forwarded():
     captured = {}
