@@ -4,8 +4,14 @@ using UnityEngine;
 namespace UnityMCP.Editor
 {
     /// <summary>
-    /// Detects plugin version bump after a domain reload and logs a notification.
-    /// Python MCP server handles the actual update on next reconnect via get_version.
+    /// Detects plugin version bump after a domain reload, releases the
+    /// <see cref="UpmOperationGuard"/> claim so LevelUpPanel/VersionPickerPage stop
+    /// showing an "update in progress" state, and logs a notification. UpmPluginUpdater's
+    /// own success path releases the guard from a Poll/PollReload closure on
+    /// EditorApplication.update — but installing the plugin's own package triggers the
+    /// domain reload that tears those closures down before that runs, so this is the only
+    /// release path for a self-update. Python MCP server handles the actual update on next
+    /// reconnect via get_version.
     /// </summary>
     [InitializeOnLoad]
     internal static class PluginUpdateMonitor
@@ -33,6 +39,11 @@ namespace UnityMCP.Editor
                     $"{BiomeLabel.Tag} Plugin updated {previous} → {current}. " +
                     "Python server will update automatically on next connection.");
                 SessionState.SetBool(UpdatedFlagKey, true);
+                // Safe when nothing is in flight (UpmOperationGuard.Complete() docstring).
+                // Releases a claim left behind when the reload triggered by installing our
+                // own package tore down Update()'s Poll/PollReload closures before they
+                // could call FinishUpdate() themselves.
+                UpmOperationGuard.Complete();
             }
 
             EditorPrefs.SetString(LastVersionKey, current);
