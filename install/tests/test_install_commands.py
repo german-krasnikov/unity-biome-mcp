@@ -545,16 +545,25 @@ def test_reconfigure_detected_clients_skips_pinned_toml_entry(tmp_path):
 # ── _reconfigure_detected_clients: undecodable client config must not abort update ──
 
 def test_reconfigure_detected_clients_skips_undecodable_client_and_continues(tmp_path, capsys):
-    """C1-FIX-01 (config-writers MAJOR): install.py:97-98 calls the REAL
-    is_entry_pinned before the try/except ValueError block that guards the
-    merge call below it. is_entry_pinned only catches json.JSONDecodeError,
-    not UnicodeDecodeError -- so a config file with genuinely undecodable
-    bytes (stray UTF-16 BOM / binary corruption) raises uncaught and aborts
-    the whole `for key in detect_installed()` loop, so tools after the
-    corrupt one never get reconfigured. Fixed by wrapping the pinned-check
-    call itself in the same try/except pattern."""
+    """C1-FIX-01 (config-writers MAJOR): a config file with genuinely
+    undecodable bytes (stray UTF-16 BOM / binary corruption) must not abort
+    the whole `for key in detect_installed()` loop -- the client after it
+    still gets reconfigured, and the corrupt file's on-disk bytes are never
+    touched.
+
+    Uses the REAL merge_mcp_config/backup (not test doubles): merge_mcp_config
+    only catches json.JSONDecodeError on its own read, so undecodable bytes
+    raise UnicodeDecodeError out of the read step, before merge_mcp_config
+    ever writes -- install.py's `_CLIENT_CONFIG_ERRORS` guard around that call
+    is the actual safety net (is_entry_pinned degrading to False on the same
+    bytes, C1 r2 #3, means the pinned-check no longer raises first, but the
+    merge call's own guard still catches it). A prior version of this test
+    mocked merge_mcp_config with a no-op double that never re-read the file,
+    which hid this real safety net and went red for the wrong reason when
+    is_entry_pinned stopped raising."""
+    corrupt_bytes = b'\xff\xfe{"mcpServers": invalid \x80\x81'
     corrupt_cfg = tmp_path / "corrupt.json"
-    corrupt_cfg.write_bytes(b'\xff\xfe{"mcpServers": invalid \x80\x81')
+    corrupt_cfg.write_bytes(corrupt_bytes)
     good_cfg = tmp_path / "good.json"
     good_cfg.write_text(json.dumps({
         "mcpServers": {"unity-biome-mcp": {"command": "old", "args": []}}
@@ -566,20 +575,16 @@ def test_reconfigure_detected_clients_skips_undecodable_client_and_continues(tmp
     good_client.name = "Good Tool"
     registry = {"corrupt-tool": corrupt_client, "good-tool": good_client}
     entry = {"command": "new", "args": []}
-    merge_calls = []
-
-    def fake_merge(path, e, root_key="mcpServers", entry_transformer=None):
-        merge_calls.append(path)
 
     with patch.object(inst, "CLIENT_REGISTRY", registry), \
          patch.object(inst, "detect_installed", return_value=["corrupt-tool", "good-tool"]), \
          patch.object(inst, "validate_config", return_value="Status: ok"), \
-         patch.object(inst, "build_server_entry", return_value=entry), \
-         patch.object(inst, "merge_mcp_config", fake_merge), \
-         patch.object(inst, "backup", MagicMock()):
+         patch.object(inst, "build_server_entry", return_value=entry):
         inst._reconfigure_detected_clients()  # must not raise UnicodeDecodeError
 
-    assert merge_calls == [good_cfg]  # the client AFTER the corrupt one still ran
+    assert corrupt_cfg.read_bytes() == corrupt_bytes  # untouched, never overwritten
+    good_data = json.loads(good_cfg.read_text(encoding="utf-8"))
+    assert good_data["mcpServers"]["unity-biome-mcp"]["command"] == "new"  # still reconfigured
     out = capsys.readouterr().out
     assert "Skipped" in out
     assert "Corrupt Tool" in out
