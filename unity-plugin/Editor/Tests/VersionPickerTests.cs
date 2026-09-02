@@ -103,6 +103,28 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(btn.enabledSelf);
         }
 
+        // C1 r2 #5: companion to LevelUpPanel_Build_RecoversFromStaleGuard_WithoutVersionBump
+        // — the rollback button must recover from the same 300s ceiling on any rebuild,
+        // not only when the reload happens to be the update's own version bump.
+        [Test]
+        public void VersionPickerPage_RollbackButton_RecoversFromStaleGuard_WithoutVersionBump()
+        {
+            var originalClock = UpmOperationGuard.NowSecondsFloat;
+            RegisterCleanup(() => UpmOperationGuard.NowSecondsFloat = originalClock);
+            var now = 0f;
+            UpmOperationGuard.NowSecondsFloat = () => now;
+
+            UpmOperationGuard.TryBegin("0.42.0");
+            now = UpmOperationGuard.StaleCeilingSeconds + 1f;
+
+            var page = SettingsPageFactory.BuildVersionPickerPage(() => { });
+
+            var btn = page.Q<Button>(className: "updates-check-btn");
+            Assert.IsTrue(btn.enabledSelf, "Recovered state must re-enable the rollback button.");
+            Assert.AreNotEqual("Update in progress…", btn.text,
+                "Recovered state must restore the idle rollback label, not stay on the busy text.");
+        }
+
         [Test]
         public void VersionPickerPage_AlignButton_Disabled_WhenGuardInFlight_AndIncoherent()
         {

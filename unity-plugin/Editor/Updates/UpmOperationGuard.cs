@@ -40,13 +40,34 @@ namespace UnityMCP.Editor
             : 0f;
 
         /// <summary>
+        /// True when a claim exists and has not exceeded <see cref="StaleCeilingSeconds"/>.
+        /// Read this instead of <see cref="IsInFlight"/> from any passive UI (LevelUpPanel,
+        /// VersionPickerPage) so a claim orphaned by a reload OTHER than the update's own
+        /// version bump (an unrelated script save, entering Play Mode, a sync_unity
+        /// recompile) still self-heals on the next rebuild instead of only clearing on
+        /// <c>CheckVersionChange</c>'s narrower version-match path (C1 r2 #5). Past the
+        /// ceiling this actively clears the claim via <see cref="Complete"/> and returns
+        /// false — it does not merely report staleness.
+        /// </summary>
+        public static bool IsActive
+        {
+            get
+            {
+                if (!IsInFlight) return false;
+                if (ElapsedSeconds <= StaleCeilingSeconds) return true;
+                Complete();
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Claims the guard for <paramref name="version"/>. Returns false when another
         /// operation is already in flight and has not exceeded <see cref="StaleCeilingSeconds"/>;
         /// self-heals past the ceiling so a silently-dead holder doesn't block forever.
         /// </summary>
         public static bool TryBegin(string version)
         {
-            if (IsInFlight && ElapsedSeconds <= StaleCeilingSeconds)
+            if (IsActive)
                 return false;
 
             SessionState.SetBool(InFlightKey, true);

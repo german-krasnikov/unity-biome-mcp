@@ -139,6 +139,30 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNull(rebuilt.Q<Button>(), "Rebuilt in-flight state must still show no button.");
         }
 
+        // C1 r2 #5: a reload other than the update's own version bump (an unrelated
+        // script save, entering Play Mode, a sync_unity recompile) wipes Poll/PollReload
+        // without triggering CheckVersionChange's release path, so the claim would
+        // otherwise survive untouched until an Editor restart. Build() must read the
+        // staleness-aware getter so the same 300s ceiling that self-heals TryBegin also
+        // recovers the UI without requiring a version bump.
+        [Test]
+        public void LevelUpPanel_Build_RecoversFromStaleGuard_WithoutVersionBump()
+        {
+            var originalClock = UpmOperationGuard.NowSecondsFloat;
+            RegisterCleanup(() => UpmOperationGuard.NowSecondsFloat = originalClock);
+            var now = 0f;
+            UpmOperationGuard.NowSecondsFloat = () => now;
+
+            UpdateChecker.SetAvailableVersionForTest("9.99.0");
+            UpmOperationGuard.TryBegin("9.99.0");
+            now = UpmOperationGuard.StaleCeilingSeconds + 1f;
+
+            var el = LevelUpPanel.Build(new VisualElement());
+
+            Assert.IsNotNull(el, "Recovered state must still render a panel.");
+            Assert.IsNotNull(el.Q<Button>(), "Recovered state must show the idle view's button, not stay busy.");
+        }
+
         [Test]
         public void LevelUpPanel_ShowFailureReason_RendersLastFailureReasonText()
         {

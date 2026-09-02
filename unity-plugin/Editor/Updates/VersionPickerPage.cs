@@ -89,8 +89,10 @@ namespace UnityMCP.Editor
 
             // Read UpmOperationGuard fresh on every Build() — it is SessionState-backed, so a
             // rebuild after a domain reload sees the same in-flight claim without any static
-            // UI cache surviving the reload itself (ARC-10 T4).
-            bool inFlight = UpmOperationGuard.IsInFlight;
+            // UI cache surviving the reload itself (ARC-10 T4). IsActive (not the raw
+            // IsInFlight) so a reload other than the update's own version bump still
+            // self-heals past the staleness ceiling on any rebuild (C1 r2 #5).
+            bool inFlight = UpmOperationGuard.IsActive;
 
             Button rollbackBtn = null;
             rollbackBtn = BiomeUI.PrimaryButton(
@@ -99,7 +101,7 @@ namespace UnityMCP.Editor
             rollbackBtn.AddToClassList("updates-check-btn");
             dd.RegisterValueChangedCallback(e =>
             {
-                if (!UpmOperationGuard.IsInFlight)
+                if (!UpmOperationGuard.IsActive)
                     rollbackBtn.text = RollbackButtonText(e.newValue);
             });
             scroll.Add(rollbackBtn);

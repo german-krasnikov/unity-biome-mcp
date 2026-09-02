@@ -94,5 +94,36 @@ namespace UnityMCP.Editor.Tests
                 "guard self-healed before the legitimate worst-case UPM duration elapsed");
             Assert.AreEqual("1.0.0", UpmOperationGuard.InFlightVersion);
         }
+
+        // R2 #5: a stale claim left by any reload OTHER than the update's own version
+        // bump (an unrelated script save, entering Play Mode, a sync_unity recompile)
+        // never runs CheckVersionChange's version-match release path, so nothing but
+        // this getter's own ceiling check can ever clear it. Proves the getter
+        // ACTIVELY clears the claim (Complete()), not merely reports staleness.
+        [Test]
+        public void IsActive_PastCeiling_SelfHealsWithoutTryBegin()
+        {
+            var now = 0f;
+            UpmOperationGuard.NowSecondsFloat = () => now;
+            UpmOperationGuard.TryBegin("9.9.9");
+
+            now = UpmOperationGuard.StaleCeilingSeconds + 1f;
+
+            Assert.IsFalse(UpmOperationGuard.IsActive);
+            Assert.IsFalse(UpmOperationGuard.IsInFlight);
+        }
+
+        [Test]
+        public void IsActive_UnderCeiling_StaysInFlight()
+        {
+            var now = 0f;
+            UpmOperationGuard.NowSecondsFloat = () => now;
+            UpmOperationGuard.TryBegin("9.9.9");
+
+            now = UpmOperationGuard.StaleCeilingSeconds - 1f;
+
+            Assert.IsTrue(UpmOperationGuard.IsActive);
+            Assert.IsTrue(UpmOperationGuard.IsInFlight);
+        }
     }
 }
