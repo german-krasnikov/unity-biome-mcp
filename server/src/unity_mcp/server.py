@@ -456,6 +456,20 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
     text, ok = unwrap_bridge_result(result)
     if not ok:
         raise ToolError(text)
+    # ARC-9 T3: surface a same-pid port rebind on the next successful
+    # response. Consumed unconditionally (pop_port_drift_notice() is
+    # destructive) and discarded rather than prefixed when the response is
+    # JSON-shaped -- get_test_run/run_tests_wait's json.loads() call sites
+    # (testing.py, verify.py) would otherwise silently fail to parse.
+    # getattr(..., None) tolerates hand-rolled test-double bridges that
+    # predate this method (e.g. test_bridge_compile_state.py's FakeBridge).
+    # isinstance(notice, str) guards the ~270 mock_bridge tests: an
+    # unconfigured Mock().pop_port_drift_notice() auto-vivifies into a
+    # truthy Mock instance, not None (ARC-9 design note).
+    pop_notice = getattr(bridge, "pop_port_drift_notice", None)
+    notice = pop_notice() if callable(pop_notice) else None
+    if isinstance(notice, str) and notice and not text.lstrip().startswith(("{", "[")):
+        text = f"[{notice}]\n{text}"
     return text
 
 

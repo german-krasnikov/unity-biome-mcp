@@ -1,7 +1,7 @@
 import asyncio
 import errno
 import pytest
-from unittest.mock import AsyncMock, call, patch, MagicMock
+from unittest.mock import AsyncMock, Mock, call, patch, MagicMock
 from mcp.server.fastmcp.exceptions import ToolError
 
 from unity_mcp.server import (
@@ -1193,6 +1193,78 @@ async def test_send_raw_connection_error_produces_unity_unavailable_tool_error(m
     mock_bridge._probe = probe
     with pytest.raises(ToolError, match=r"\[UNITY_UNAVAILABLE\]"):
         await _send_raw("ping", {})
+
+
+# ---------------------------------------------------------------------------
+# ARC-9 T3: _send_raw prefixes a one-time port-drift notice
+# ---------------------------------------------------------------------------
+
+async def test_send_raw_prefixes_pending_port_drift_notice(mock_bridge):
+    """First response after a drift carries the prefix; the second doesn't."""
+    from unity_mcp.server import _send_raw
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    mock_bridge.pop_port_drift_notice = Mock(
+        side_effect=["port changed 9500->9501", None]
+    )
+    result1 = await _send_raw("ping", {})
+    result2 = await _send_raw("ping", {})
+    assert result1 == "[port changed 9500->9501]\nok"
+    assert result2 == "ok"
+
+
+async def test_send_raw_ignores_unconfigured_mock_notice(mock_bridge):
+    """Regression guard: an unconfigured Mock().pop_port_drift_notice() must
+    not leak a truthy Mock repr into the response text (isinstance(str)
+    guard, not `if notice:`). Mirrors the other ~270 mock_bridge tests that
+    never configure this attribute."""
+    from unity_mcp.server import _send_raw
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    result = await _send_raw("ping", {})
+    assert result == "ok"
+
+
+async def test_send_raw_no_prefix_when_no_drift(mock_bridge):
+    """A real bridge with no pending drift returns None -- no prefix added."""
+    from unity_mcp.server import _send_raw
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
+    mock_bridge.pop_port_drift_notice = Mock(return_value=None)
+    result = await _send_raw("ping", {})
+    assert result == "ok"
+
+
+async def test_send_raw_tolerates_bridge_without_pop_port_drift_notice_method(monkeypatch):
+    """A hand-rolled test-double bridge lacking pop_port_drift_notice entirely
+    (not a Mock() auto-attribute, a real missing method) must not raise
+    AttributeError -- mirrors the FakeBridge shape used across the suite
+    (e.g. test_bridge_compile_state.py) that predates this notice API."""
+    import unity_mcp.server as srv
+    from unity_mcp.server import _send_raw
+
+    class BareFakeBridge:
+        async def send(self, cmd, args, timeout=30.0):
+            return {"ok": True, "data": "x"}
+
+    class FakeSlot:
+        bridge = BareFakeBridge()
+
+    monkeypatch.setattr(srv, "slot", FakeSlot())
+    result = await _send_raw("ping", {})
+    assert result == "x"
+
+
+async def test_send_raw_does_not_prefix_json_response(mock_bridge):
+    """A pending notice must not corrupt a JSON-shaped response -- callers
+    like get_test_run/run_tests_wait json.loads() it (testing.py, verify.py)."""
+    from unity_mcp.server import _send_raw
+    json_text = '{"run_id": "abc", "state": "terminal"}'
+    mock_bridge.send = AsyncMock(return_value={"ok": True, "data": json_text})
+    mock_bridge.pop_port_drift_notice = Mock(
+        side_effect=["port changed 9500->9501", None]
+    )
+    result1 = await _send_raw("get_test_run", {})
+    result2 = await _send_raw("get_test_run", {})
+    assert result1 == json_text
+    assert result2 == json_text
 
 
 # ---------------------------------------------------------------------------
