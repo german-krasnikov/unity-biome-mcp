@@ -22,12 +22,15 @@ def test_detect_installed_no_false_positive_claude_code(tmp_path, monkeypatch):
     """claude-code's config_path is ~/.claude.json — its parent IS $HOME, which
     always exists. The old `parent.exists()` fallback therefore reported
     claude-code as installed on every machine (DEV-57), since Path.home()
-    always exists. A fake home without .claude.json must NOT be detected."""
+    always exists. A fake home without .claude.json (and without ~/.claude/,
+    isolated via install_dir so this test doesn't depend on this machine's
+    real ~/.claude) must NOT be detected."""
     from unity_mcp.config import clients as c
     fake_home = tmp_path  # tmp_path always exists, standing in for $HOME
     monkeypatch.setattr(pathlib.Path, "home", classmethod(lambda cls: fake_home))
     cfg = fake_home / ".claude.json"
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "config_path", cfg)
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "install_dir", fake_home / ".claude")
     assert not cfg.exists()
     assert "claude-code" not in c.detect_installed()
 
@@ -36,12 +39,39 @@ def test_detect_installed_no_false_positive_claude_code(tmp_path, monkeypatch):
     assert "claude-code" in c.detect_installed()
 
 
+def test_detect_installed_claude_code_dir_without_json(tmp_path, monkeypatch):
+    """DEV-57b: `claude` CLI creates ~/.claude/ on first run, before
+    ~/.claude.json necessarily exists. detect_installed must still report
+    claude-code installed via the install_dir signal — mirrors
+    unity-plugin/Editor/Wizard/BackendDescriptor.cs's ConfigDir='~/.claude'
+    (ARC-0b single source of truth). Without the fix, this is a false
+    negative: install.py --all / the interactive default silently skips the
+    project's primary client."""
+    from unity_mcp.config import clients as c
+    fake_home = tmp_path
+    monkeypatch.setattr(pathlib.Path, "home", classmethod(lambda cls: fake_home))
+    claude_dir = fake_home / ".claude"
+    claude_dir.mkdir()
+    cfg = fake_home / ".claude.json"  # deliberately absent
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "config_path", cfg)
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "install_dir", claude_dir)
+    assert not cfg.exists()
+    assert "claude-code" in c.detect_installed()
+
+    # Double-red: without ~/.claude/ either, it must NOT be detected.
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "install_dir", fake_home / "no_such_claude_dir")
+    assert "claude-code" not in c.detect_installed()
+
+
 def test_detect_returns_empty_when_nothing_installed(tmp_path, monkeypatch):
     from unity_mcp.config import clients as c
     # Point to a nested path whose parent also doesn't exist
     missing = tmp_path / "no_such_dir" / "nonexistent.json"
+    missing_dir = tmp_path / "no_such_install_dir"
     for info in c.CLIENT_REGISTRY.values():
         monkeypatch.setattr(info, "config_path", missing)
+        if info.install_dir is not None:
+            monkeypatch.setattr(info, "install_dir", missing_dir)
     result = c.detect_installed()
     assert result == []
 

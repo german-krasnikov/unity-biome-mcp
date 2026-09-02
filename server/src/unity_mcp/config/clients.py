@@ -15,6 +15,13 @@ class ClientInfo:
     root_key: str = "mcpServers"  # JSON key that holds server entries
     entry_transformer: Callable[[dict], dict] | None = field(default=None, repr=False)
     is_toml: bool = False  # Codex uses TOML, not JSON
+    # Directory whose mere existence signals the client CLI/app is installed,
+    # independent of whether config_path has been written yet (e.g. ~/.claude
+    # is created on first `claude` run, before ~/.claude.json exists). Mirrors
+    # unity-plugin/Editor/Wizard/BackendDescriptor.cs's ConfigDir — the single
+    # source of truth for "is this client installed" (ARC-0b). None for
+    # clients where BackendDescriptor sets no ConfigDir (kimi, opencode, junie).
+    install_dir: pathlib.Path | None = None
 
 
 def _claude_desktop_path() -> pathlib.Path:
@@ -46,6 +53,37 @@ def _codex_path() -> pathlib.Path:
     return pathlib.Path.home() / ".codex" / "config.toml"
 
 
+def _claude_desktop_install_dir() -> pathlib.Path:
+    """Mirrors BackendDescriptor.cs ConfigDir for claude-desktop (per-platform)."""
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA", pathlib.Path.home() / "AppData" / "Roaming")
+        return pathlib.Path(appdata) / "Claude"
+    if sys.platform == "darwin":
+        return pathlib.Path.home() / "Library" / "Application Support" / "Claude"
+    return pathlib.Path.home() / ".config" / "Claude"
+
+
+def _windsurf_install_dir() -> pathlib.Path:
+    """Mirrors BackendDescriptor.cs ConfigDir for windsurf: ~/.codeium (non-Windows),
+    one level above config_path's parent — the Codeium install root, not the
+    windsurf-specific subfolder."""
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA", pathlib.Path.home() / "AppData" / "Roaming")
+        return pathlib.Path(appdata) / "Codeium" / "windsurf"
+    return pathlib.Path.home() / ".codeium"
+
+
+def _vscode_install_dir() -> pathlib.Path:
+    """Mirrors BackendDescriptor.cs ConfigDir for vscode: the Code app-support
+    dir itself, one level above config_path's parent (.../Code/User)."""
+    if sys.platform == "darwin":
+        return pathlib.Path.home() / "Library" / "Application Support" / "Code"
+    if sys.platform == "win32":
+        appdata = os.environ.get("APPDATA", pathlib.Path.home() / "AppData" / "Roaming")
+        return pathlib.Path(appdata) / "Code"
+    return pathlib.Path.home() / ".config" / "Code"
+
+
 def _opencode_path() -> pathlib.Path:
     if sys.platform == "win32":
         appdata = os.environ.get("APPDATA", pathlib.Path.home() / "AppData" / "Roaming")
@@ -75,21 +113,25 @@ CLIENT_REGISTRY: dict[str, ClientInfo] = {
         name="Claude Desktop",
         config_path=_claude_desktop_path(),
         scope="global",
+        install_dir=_claude_desktop_install_dir(),
     ),
     "claude-code": ClientInfo(
         name="Claude Code",
         config_path=pathlib.Path.home() / ".claude.json",
         scope="global",
+        install_dir=pathlib.Path.home() / ".claude",
     ),
     "cursor": ClientInfo(
         name="Cursor",
         config_path=pathlib.Path.home() / ".cursor" / "mcp.json",
         scope="global",
+        install_dir=pathlib.Path.home() / ".cursor",
     ),
     "windsurf": ClientInfo(
         name="Windsurf",
         config_path=_windsurf_path(),
         scope="global",
+        install_dir=_windsurf_install_dir(),
     ),
     "kimi": ClientInfo(
         name="Kimi",
@@ -109,6 +151,7 @@ CLIENT_REGISTRY: dict[str, ClientInfo] = {
         scope="global",
         root_key="servers",
         entry_transformer=_vscode_transform,
+        install_dir=_vscode_install_dir(),
     ),
     "opencode": ClientInfo(
         name="OpenCode",
@@ -122,6 +165,7 @@ CLIENT_REGISTRY: dict[str, ClientInfo] = {
         config_path=_codex_path(),
         scope="global",
         is_toml=True,
+        install_dir=pathlib.Path.home() / ".codex",
     ),
     "generic": ClientInfo(
         name="Generic (stdout)",
@@ -133,12 +177,17 @@ CLIENT_REGISTRY: dict[str, ClientInfo] = {
 
 
 def detect_installed() -> list[str]:
-    """Return keys of clients whose config file or parent dir exists. Skips stdout_only.
+    """Return keys of clients whose config file, parent dir, or install_dir exists.
+    Skips stdout_only.
 
     The parent-dir fallback only counts when the parent is an app-specific
     directory (e.g. ~/.cursor). For clients whose config_path lives directly
     under $HOME (e.g. claude-code's ~/.claude.json), the parent is $HOME
-    itself — always present — so it is never treated as an install signal.
+    itself — always present — so it is never treated as an install signal on
+    its own. install_dir (mirrors BackendDescriptor.cs ConfigDir, ARC-0b) is
+    the authoritative "client is installed" signal and is checked
+    independently of config_path, since the CLI/app dir (e.g. ~/.claude) is
+    typically created before the MCP config file is ever written.
     """
     found = []
     home = pathlib.Path.home()
@@ -146,6 +195,10 @@ def detect_installed() -> list[str]:
         if info.stdout_only:
             continue
         parent = info.config_path.parent
-        if info.config_path.exists() or (parent != home and parent.exists()):
+        if (
+            info.config_path.exists()
+            or (parent != home and parent.exists())
+            or (info.install_dir is not None and info.install_dir.exists())
+        ):
             found.append(key)
     return found
