@@ -246,3 +246,47 @@ def test_write_kimi_mcp_config_returns_true_on_success(tmp_path):
 
 def test_write_agy_settings_returns_true_on_success(tmp_path):
     assert write_agy_settings(str(tmp_path), 9601) is True
+
+
+# ── DEV-56b: undecodable bytes (BOM/cp1252) must be treated as corrupt, not crash ──
+
+def test_write_kimi_mcp_config_returns_false_on_undecodable_bytes(tmp_path):
+    """A file that isn't valid UTF-8 (e.g. stray cp1252/UTF-16 bytes) must not
+    raise UnicodeDecodeError out of write_kimi_mcp_config — treated as corrupt,
+    left untouched, same as a JSON parse failure."""
+    path = tmp_path / "mcp.json"
+    corrupt = b'\xff\xfe{"mcpServers":{"other-server":{"command":"y"}}}'
+    path.write_bytes(corrupt)
+
+    result = write_kimi_mcp_config(str(tmp_path), 9601)
+
+    assert result is False
+    assert path.read_bytes() == corrupt
+
+
+def test_write_agy_settings_returns_false_on_undecodable_bytes(tmp_path):
+    """Same guarantee as above for write_agy_settings."""
+    path = tmp_path / "settings.json"
+    corrupt = b'\xff\xfe{"mcpServers":{"other-server":{"command":"y"}}}'
+    path.write_bytes(corrupt)
+
+    result = write_agy_settings(str(tmp_path), 9601)
+
+    assert result is False
+    assert path.read_bytes() == corrupt
+
+
+def test_write_kimi_mcp_config_returns_false_on_utf8_bom(tmp_path):
+    """Double-red note: a UTF-8 BOM ('\\ufeff' prefix) does NOT hit the new
+    UnicodeDecodeError branch — utf-8 decodes it fine as a character, and
+    json.loads then raises JSONDecodeError on the leading BOM char, so this
+    was already routed through the existing corrupt-JSON path before DEV-56b.
+    Kept here to document that the BOM case needs no separate fix."""
+    path = tmp_path / "mcp.json"
+    corrupt = b'\xef\xbb\xbf{"mcpServers":{"other-server":{"command":"y"}}}'
+    path.write_bytes(corrupt)
+
+    result = write_kimi_mcp_config(str(tmp_path), 9601)
+
+    assert result is False
+    assert path.read_bytes() == corrupt

@@ -44,7 +44,7 @@ def _atomic_write(path: str, content: str) -> None:
 
 
 def _read_existing_or_none(path: str) -> dict | None:
-    """Returns {} if missing, parsed dict if valid JSON, None if corrupt.
+    """Returns {} if missing, parsed dict if valid JSON, None if corrupt or undecodable.
 
     None means "do not touch this file" — a caller must never turn a parse
     failure into a wholesale overwrite (that would silently wipe every other
@@ -54,7 +54,7 @@ def _read_existing_or_none(path: str) -> dict | None:
         return {}
     try:
         return json.loads(Path(path).read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return None
 
 
