@@ -333,6 +333,38 @@ namespace UnityMCP.Editor.Tests
                 EditorPrefs.GetString(PrefKeys.LastSyncedVersionPrefix + _tmpDir, ""));
         }
 
+        // ── ARC-11 T3: integration proof via VersionCoherenceChecker ────────
+
+        [Test]
+        public void HandEditedPin_SurvivesReboot_ReportsIncoherentWithLivePlugin()
+        {
+            // Full Dmitrii scenario through real components, not a hand-built entry
+            // string: Run() writes 1.50.0, the user hand-rolls both the git-tag arg
+            // and the "_v" marker back to 1.49.0 (no "_pin" flag — exactly what a
+            // manual .mcp.json edit looks like), then the Editor "reboots" and
+            // Run() fires again with the live plugin version still 1.50.0 (package
+            // resolve never completed — ARC-10). T2's drift detection must Pin()
+            // rather than silently revert, and the banner the user actually sees
+            // (VersionCoherenceChecker) must report the mismatch instead of quietly
+            // agreeing the two versions match.
+            var keys = new HashSet<string> { "claude-code" };
+            var path = Path.Combine(_tmpDir, ".mcp.json");
+
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.50.0", keys);
+            var handEdited = File.ReadAllText(path)
+                .Replace("@v1.50.0#subdirectory=server", "@v1.49.0#subdirectory=server")
+                .Replace("\"_v\": \"1.50.0\"", "\"_v\": \"1.49.0\"");
+            File.WriteAllText(path, handEdited);
+
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.50.0", keys); // live version unchanged across "reboot"
+
+            RegisterCleanup(() => VersionCoherenceChecker._testConfigPath = null);
+            VersionCoherenceChecker._testConfigPath = path;
+
+            Assert.AreEqual("1.49.0", VersionCoherenceChecker.GetServerPinnedRef());
+            Assert.IsFalse(VersionCoherenceChecker.IsCoherent("1.50.0", VersionCoherenceChecker.GetServerPinnedRef()));
+        }
+
         [Test]
         [Platform(Exclude = "Win")]
         public void Run_UnwritableTargetDirectory_DoesNotThrow_LogsWarning()
