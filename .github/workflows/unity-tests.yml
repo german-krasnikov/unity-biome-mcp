@@ -154,6 +154,8 @@ jobs:
               raise SystemExit('Unity EditMode test run executed zero tests')
           icon    = '✅' if int(r.get('failed', '1')) == 0 else '❌'
           name    = os.environ['MATRIX_NAME']
+          if int(skipped) > 0:
+              print(f'::warning::{skipped} test(s) skipped on {name} leg — verify none regress a Windows-only fix')
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as f:
               f.write(f'## {icon} EditMode Tests — {name}\n\n')
               f.write('| Passed | Failed | Skipped | Total |\n')
