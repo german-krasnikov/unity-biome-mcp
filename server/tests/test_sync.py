@@ -1112,3 +1112,78 @@ async def test_sync_unity_reports_protocol_error_for_unknown_ack_verb():
     result = await _sync.sync_unity(timeout=60.0)
     assert "sync clean" not in result
     assert "STOP" in result
+
+
+# ── C1 r2 #7: poll loops must tolerate _send_raw's UnityUnavailableError ────
+
+@pytest.mark.asyncio
+async def test_sync_unity_survives_unity_unavailable_midpoll():
+    """server.py's _send_raw wraps every ConnectionError/TimeoutError/OSError
+    from bridge.send() (DomainReloadError included) into UnityUnavailableError
+    -- a ToolError subclass, not a ConnectionError. Wiring _sync._send to the
+    REAL _send_raw (not a hand-rolled fake that raises the bare exception
+    directly, bypassing _send_raw entirely) proves the sync_status poll loop
+    tolerates a mid-poll disconnect through the actual production path and
+    still reaches its own timeout/verdict instead of aborting on the first
+    transient failure."""
+    import unity_mcp.server as server_mod
+
+    class FakeBridge:
+        def __init__(self):
+            self._synced = False
+            self._status_polls = 0
+
+        async def send(self, cmd, args, timeout=30.0):
+            if cmd == "sync":
+                self._synced = True
+                return {"ok": True, "data": "sync_ack|epoch=1|will_compile=true"}
+            if cmd == "sync_status":
+                if not self._synced:
+                    return {"ok": True, "data": "epoch=0|state=idle"}  # pre-stamp read
+                self._status_polls += 1
+                if self._status_polls <= 2:
+                    raise ConnectionError("tcp gone")
+                return {"ok": True, "data": "epoch=1|state=ready"}
+            if cmd == "get_compile_errors":
+                return {"ok": True, "data": "No compilation errors"}
+            if cmd == "warm_type_cache":
+                return {"ok": True, "data": "ok:types=42"}
+            raise AssertionError(f"Unexpected cmd: {cmd}")
+
+    class FakeSlot:
+        bridge = FakeBridge()
+        def get(self, name): return None
+        def list(self): return {}
+
+    old_slot = server_mod.slot
+    server_mod.slot = FakeSlot()
+    _sync._send = server_mod._send_raw
+    try:
+        result = await _sync.sync_unity(timeout=10)
+    finally:
+        server_mod.slot = old_slot
+
+    assert "sync clean" in result
+
+
+@pytest.mark.asyncio
+async def test_sync_unity_read_only_blocked_not_tolerated_midpoll():
+    """Double-red companion: a plain ToolError (e.g. READ_ONLY_BLOCKED) is NOT
+    a UnityUnavailableError and must still abort the poll loop immediately --
+    the widened catch is typed, not a blanket `except ToolError`."""
+    synced = False
+
+    async def _send(cmd, args=None, **kwargs):
+        nonlocal synced
+        if cmd == "sync":
+            synced = True
+            return "sync_ack|epoch=1|will_compile=true"
+        if cmd == "sync_status":
+            if not synced:
+                return "epoch=0|state=idle"
+            raise ToolError("READ_ONLY_BLOCKED: 'sync_status' is a mutation command")
+        return ""
+
+    _sync._send = _send
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await _sync.sync_unity(timeout=10)

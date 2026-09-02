@@ -170,6 +170,7 @@ class _UnstructuredMCP(FastMCP):
 
 from .bridge_result import unwrap_bridge_result
 from .connection_slot import ConnectionSlot
+from .errors import UnityUnavailableError
 from .lockfile import acquire_lock, cleanup_stale_locks, release_lock, write_lock_metadata
 from .middleware import Middleware, wrap_send
 from .plugins import load_plugins
@@ -457,11 +458,11 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
     except (ConnectionError, TimeoutError, OSError) as e:
         ue = _classify_connection_error(e, probe)
         if ue is not None:
-            raise ToolError(
+            raise UnityUnavailableError(
                 f"[UNITY_UNAVAILABLE] state={ue.unity_state} transient={ue.is_transient} "
                 f"retry_after={ue.retry_after_seconds}s | {ue.message}"
             ) from e
-        raise ToolError(f"Unity connection lost: {e}. Retry or /mcp to reconnect.") from e
+        raise UnityUnavailableError(f"Unity connection lost: {e}. Retry or /mcp to reconnect.") from e
     except Exception as e:
         raise ToolError(f"Unexpected error: {type(e).__name__}: {e}") from e
     text, ok = unwrap_bridge_result(result)

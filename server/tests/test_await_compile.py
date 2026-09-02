@@ -685,3 +685,63 @@ async def test_await_compile_generation_reached_unreachable():
     _ci._send = _send
     result = await _ci._await_compile_generation(5.0, 1)
     assert result == editor_log.UNITY_UNREACHABLE
+
+
+# ── C1 r2 #7: compile_status fallback poll loop must tolerate UnityUnavailableError ──
+
+async def test_await_compile_survives_unity_unavailable_midpoll():
+    """server.py's _send_raw wraps every ConnectionError/TimeoutError/OSError
+    from bridge.send() into UnityUnavailableError -- a ToolError subclass, not
+    a ConnectionError. Wiring _ci._send to the REAL _send_raw (not a
+    hand-rolled fake that raises the bare exception directly, bypassing
+    _send_raw entirely) proves the compile_status fallback poll loop
+    (code_intel.py's line catching ConnectionError around the fallback poll)
+    tolerates a mid-poll disconnect through the actual production path."""
+    import unity_mcp.server as server_mod
+
+    class FakeBridge:
+        def __init__(self):
+            self._compile_polls = 0
+
+        async def send(self, cmd, args, timeout=30.0):
+            if cmd == "sync_status":
+                raise ConnectionError("Command not registered: sync_status")
+            if cmd == "compile_status":
+                self._compile_polls += 1
+                if self._compile_polls <= 2:
+                    raise ConnectionError("tcp gone")
+                return {"ok": True, "data": "idle|4.0"}
+            if cmd == "get_compile_errors":
+                return {"ok": True, "data": ""}
+            raise AssertionError(f"Unexpected cmd: {cmd}")
+
+    class FakeSlot:
+        bridge = FakeBridge()
+        def get(self, name): return None
+        def list(self): return {}
+
+    old_slot = server_mod.slot
+    server_mod.slot = FakeSlot()
+    _ci._send = server_mod._send_raw
+    try:
+        result = await _ci.await_compile(timeout=10)
+    finally:
+        server_mod.slot = old_slot
+
+    assert result == "compile clean (4.0s)"
+
+
+async def test_await_compile_read_only_blocked_not_tolerated_midpoll():
+    """Double-red companion: a plain ToolError (e.g. READ_ONLY_BLOCKED) is NOT
+    a UnityUnavailableError and must still abort the fallback poll loop
+    immediately -- the widened catch is typed, not a blanket `except ToolError`."""
+    async def _send(cmd, args=None, **kwargs):
+        if cmd == "sync_status":
+            raise ConnectionError("Command not registered: sync_status")
+        if cmd == "compile_status":
+            raise ToolError("READ_ONLY_BLOCKED: 'compile_status' is a mutation command")
+        return ""
+
+    _ci._send = _send
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await _ci.await_compile(timeout=10)

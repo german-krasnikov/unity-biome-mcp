@@ -3,6 +3,17 @@ import asyncio
 import enum
 from dataclasses import dataclass
 
+from mcp.server.fastmcp.exceptions import ToolError
+
+
+class UnityUnavailableError(ToolError):
+    """ToolError wrapper raised by server.py's _send_raw for a ConnectionError,
+    TimeoutError, or OSError coming out of bridge.send() (DomainReloadError
+    included, as a ConnectionError subclass). A poll loop that owns its own
+    deadline (sync_unity, await_compile) can catch this alongside the raw
+    exception types and keep polling instead of aborting on the first
+    transient disconnect (C1 r2 #7)."""
+
 
 class SessionIdentityMismatch(ConnectionError):
     """Non-retryable: reconnect landed on a different Unity Editor or project (MCP-SESS-024)."""
