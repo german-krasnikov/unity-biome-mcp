@@ -645,6 +645,29 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void StalenessWindowConstants_AreConsistentWithCeiling()
+        {
+            // Anchors every ISO staleness-window constant above to the ceiling
+            // constant they are meant to straddle. If the ceiling changes
+            // without recomputing these windows, this test must go red.
+            var ceiling = TestRunFinalizationCoordinator.SameSessionStalenessCeilingSeconds;
+
+            Assert.Less(
+                TestRunProtocol.ElapsedSeconds(Utc, UnderCeilingUtc), ceiling,
+                "UnderCeilingUtc must stay under the ceiling.");
+            Assert.Greater(
+                TestRunProtocol.ElapsedSeconds(Utc, PastCeilingUtc), ceiling,
+                "PastCeilingUtc must exceed the ceiling.");
+            Assert.Less(
+                TestRunProtocol.ElapsedSeconds(RecentBoundaryUtc, LongRunNowUtc), ceiling,
+                "RecentBoundaryUtc..LongRunNowUtc (boundary-anchored) must stay under the ceiling.");
+            Assert.Greater(
+                TestRunProtocol.ElapsedSeconds(Utc, LongRunNowUtc), ceiling,
+                "Utc..LongRunNowUtc (dispatch-anchored) must exceed the ceiling, proving the " +
+                "long-run scenario only survives because the ceiling anchors to the boundary.");
+        }
+
+        [Test]
         public void FilterAndMode_ArePassedToUtfWithoutWaitingForCallbacks()
         {
             var service = CreateService();

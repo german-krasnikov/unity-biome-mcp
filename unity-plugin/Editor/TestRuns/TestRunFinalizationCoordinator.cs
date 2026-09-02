@@ -30,7 +30,7 @@ namespace UnityMCP.Editor.TestRuns
         /// boundary's own occurred_utc (rather than dispatch) keeps this correct for
         /// runs that legitimately take longer than the ceiling to finish.
         /// </summary>
-        private const double SameSessionStalenessCeilingSeconds = 180d;
+        internal const double SameSessionStalenessCeilingSeconds = 180d;
 
         internal TestRunFinalizationCoordinator(
             TestRunStore store,
