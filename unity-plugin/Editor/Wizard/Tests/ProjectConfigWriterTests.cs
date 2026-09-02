@@ -37,6 +37,10 @@ namespace UnityMCP.Editor.Tests
             // requires.
             foreach (var target in ProjectConfigTargets.All)
                 ProtectEditorPrefString(ProjectConfigWriter.LastSyncedVersionKey(_tmpDir, target.Key));
+            // R2-01: the pre-C1-r2-#1 shared baseline key (projectRoot only, no target
+            // suffix) — some tests below seed it to simulate an existing user upgrading
+            // onto the per-target scheme before any per-target key has ever been written.
+            ProtectEditorPrefString(ProjectConfigWriter.LegacyLastSyncedVersionKey(_tmpDir));
         }
 
         // --- helpers ---
@@ -361,6 +365,48 @@ namespace UnityMCP.Editor.Tests
                 "claude-code must upgrade normally, not be false-pinned");
             Assert.IsFalse(ProjectConfigFormats.IsPinned(cursorText),
                 "cursor must upgrade normally, not be false-pinned by claude-code's baseline write");
+        }
+
+        // ── R2-01: fall back to the legacy shared baseline until a per-target one exists ──
+
+        [Test]
+        public void WriteOne_LegacyBaselineOnly_MarkerDiffers_PinsInsteadOfOverwrite()
+        {
+            // After ec3ddc9a scoped the baseline per target, an existing user has no
+            // per-target key yet -- only the old shared (projectRoot-only) one. Without
+            // falling back to it, GetLastSyncedVersion sees "no baseline recorded" and
+            // silently overwrites the user's own hand-edited "_v", instead of detecting
+            // the drift and pinning it like WriteOne_MarkerDiffersFromLastSynced_
+            // NoPinFlag_DoesNotOverwrite_PinsInstead already does for the per-target case.
+            EditorPrefs.SetString(ProjectConfigWriter.LegacyLastSyncedVersionKey(_tmpDir), "1.50.0");
+            var path = Path.Combine(_tmpDir, ".mcp.json");
+            File.WriteAllText(path,
+                "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\": \"uvx\",\"_v\": \"1.49.0\"}}}");
+
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.51.0", new HashSet<string> { "claude-code" });
+
+            var content = File.ReadAllText(path);
+            StringAssert.Contains("\"_v\": \"1.49.0\"", content);
+            StringAssert.Contains("\"_pin\": true", content);
+            StringAssert.DoesNotContain("\"_v\": \"1.51.0\"", content);
+        }
+
+        [Test]
+        public void WriteOne_LegacyBaselineOnly_MarkerMatches_Overwrites()
+        {
+            // Companion to the "differs" case above: when the on-disk marker still
+            // matches the legacy baseline, the entry is genuinely our own stale write
+            // (not a hand-edit) and must upgrade normally, not be pinned.
+            EditorPrefs.SetString(ProjectConfigWriter.LegacyLastSyncedVersionKey(_tmpDir), "1.50.0");
+            var path = Path.Combine(_tmpDir, ".mcp.json");
+            File.WriteAllText(path,
+                "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\": \"uvx\",\"_v\": \"1.50.0\"}}}");
+
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.51.0", new HashSet<string> { "claude-code" });
+
+            var content = File.ReadAllText(path);
+            StringAssert.Contains("\"_v\": \"1.51.0\"", content);
+            StringAssert.DoesNotContain("\"_pin\": true", content);
         }
 
         // ── ARC-11 T3: integration proof via VersionCoherenceChecker ────────

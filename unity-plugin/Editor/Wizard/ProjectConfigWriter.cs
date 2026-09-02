@@ -185,8 +185,23 @@ namespace UnityMCP.Editor.Wizard
         internal static string LastSyncedVersionKey(string projectRoot, string targetKey) =>
             PrefKeys.LastSyncedVersionPrefix + projectRoot + TargetKeySeparator + targetKey;
 
-        private static string GetLastSyncedVersion(string projectRoot, string targetKey) =>
-            EditorPrefs.GetString(LastSyncedVersionKey(projectRoot, targetKey), "");
+        // R2-01: the pre-C1-r2-#1 shared key (projectRoot only, no target suffix) -- kept
+        // as a fallback source so an existing user's real drift baseline isn't silently
+        // discarded on the first run after the per-target scheme shipped. internal (not
+        // private) so the test fixture seeds/protects the exact same key.
+        internal static string LegacyLastSyncedVersionKey(string projectRoot) =>
+            PrefKeys.LastSyncedVersionPrefix + projectRoot;
+
+        // A per-target baseline always wins once recorded. Only when it has never been
+        // written (empty) do we fall back to the legacy shared key, so a user upgrading
+        // onto the per-target scheme keeps their real drift baseline for exactly one run
+        // instead of it being misread as "no baseline yet" and silently overwritten.
+        private static string GetLastSyncedVersion(string projectRoot, string targetKey)
+        {
+            var perTarget = EditorPrefs.GetString(LastSyncedVersionKey(projectRoot, targetKey), "");
+            if (!string.IsNullOrEmpty(perTarget)) return perTarget;
+            return EditorPrefs.GetString(LegacyLastSyncedVersionKey(projectRoot), "");
+        }
 
         private static void SetLastSyncedVersion(string projectRoot, string targetKey, string version) =>
             EditorPrefs.SetString(LastSyncedVersionKey(projectRoot, targetKey), version);
