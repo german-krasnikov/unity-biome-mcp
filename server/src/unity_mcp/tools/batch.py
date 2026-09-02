@@ -136,9 +136,10 @@ def _build_send_args(
     # 25000 is C#'s own hardcoded internal batch-executor default (NOT Python's
     # local default above) -- only omit timeout_ms when it happens to match
     # what Unity would use anyway. Post-A4 the two deliberately diverge (75s
-    # client default -> 70000ms > Unity's old 25000ms floor), so timeout_ms is
-    # now sent on effectively every call; that's intentional, not a token-economy
-    # regression (see test_batch_timeout.py::test_batch_default_timeout_75s).
+    # client default -> clamped to the 60000ms DEV-55 ceiling, still above
+    # Unity's old 25000ms floor), so timeout_ms is now sent on effectively
+    # every call; that's intentional, not a token-economy regression (see
+    # test_batch_timeout.py::test_batch_default_timeout_75s).
     if timeout_ms != 25000:
         args["timeout_ms"] = timeout_ms
     if atomic:
@@ -168,7 +169,7 @@ def _merge_pre_errors(result: str, pre_errors: list[str], orig_indices: list[int
 
 async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
                 atomic: bool = False, validate_aliases: bool = False) -> str:
-    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75). atomic: on failure, reverts prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain. PREFER over individual tool calls."""
+    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75); the inner Unity-side soft-timeout derived from it is capped at 60s regardless of how high timeout is set. atomic: on failure, reverts prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain. PREFER over individual tool calls."""
     pre_errors: list[str] = []
     orig_indices: list[int] = []
     if on_error == "continue":

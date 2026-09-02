@@ -639,19 +639,25 @@ class UnityBridge(HeartbeatMixin):
                         )}
                 except Exception:
                     pass
-                # A1/C8: Unity has already dispatched a command before emitting
-                # this in-band hint, so use the same annotation-derived safety
-                # predicate as the exception path's SENT gate.
+                # A1/C8: this in-band hint comes from CommandRouter.CheckGuards,
+                # which runs and returns BEFORE the command is dispatched (e.g.
+                # "Unity is compiling, retry in 5s") -- Unity has NOT executed the
+                # command yet. Still apply the same annotation-derived safety
+                # predicate as the exception path's SENT gate: whether the resend
+                # is safe depends on the command's own retry annotation, not on
+                # execution state here.
                 if not self._retry_policy.allow_hint_retry(cmd):
                     return result
                 if attempt < MAX_RETRIES:
                     await asyncio.sleep(result["retry"] / 1000)
                     attempt += 1
-                    # DEV-59/P-322: Unity already dispatched this command before
-                    # replying with the in-band hint, so the resend must carry
-                    # retry_op_id too -- same dedup contract as the SENT/exception
-                    # retry path, otherwise C# DedupRegistry can't suppress a
-                    # second execution of the mutation.
+                    # DEV-59/P-322: attach retry_op_id on the resend regardless of
+                    # whether the prior attempt actually reached execution --
+                    # C# DedupRegistry only suppresses a *second* run of a command
+                    # that was already recorded, so sending it here is harmless
+                    # when this guard hint fired pre-dispatch and correct when a
+                    # command was in fact already dispatched (same dedup contract
+                    # as the SENT/exception retry path).
                     if op_id:
                         payload = _with_retry_op_id(payload, op_id)
                     continue
