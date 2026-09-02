@@ -207,6 +207,41 @@ def test_version_set_single_tool_only(install_mod):
     assert mock_merge.call_count == 1  # only claude-code, not cursor
 
 
+def test_version_set_only_writes_detected_clients(install_mod):
+    """C1 round1 #2 (MAJOR config-writers): `version --set` without --tool must
+    target only clients detect_installed() actually found -- never every
+    registered client -- or a single-tool user gets brand-new pinned configs
+    written for AI tools they never installed. Double-red: reverting
+    _target_clients to `list(CLIENT_REGISTRY.keys())` makes mock_merge fire
+    for cursor too, failing call_count == 1."""
+    mock_stop = MagicMock(return_value=True)
+    mock_merge = MagicMock()
+
+    def make_client(name):
+        c = MagicMock()
+        c.stdout_only = False
+        c.is_toml = False
+        c.root_key = "mcpServers"
+        c.entry_transformer = None
+        c.config_path = Path(f"/tmp/{name}.json")
+        return c
+
+    registry = {"claude-code": make_client("claude-code"), "cursor": make_client("cursor")}
+
+    args = Namespace(set_version="0.54.1", port=0, tool=None, list=False, online=False)
+
+    with patch.object(install_mod, "_load_stop_server", return_value=mock_stop), \
+         patch("unity_mcp.config.resolver.find_port", MagicMock(return_value=9500)), \
+         patch.object(install_mod, "merge_mcp_config", mock_merge), \
+         patch.object(install_mod, "CLIENT_REGISTRY", registry), \
+         patch.object(install_mod, "detect_installed", return_value=["claude-code"]), \
+         patch.object(install_mod, "backup", MagicMock()):
+        install_mod.cmd_version(args)
+
+    assert mock_merge.call_count == 1  # only the detected client, not cursor
+    assert mock_merge.call_args[0][0] == registry["claude-code"].config_path
+
+
 # ── install.py — version --set / --unpin pin support (ARC-0b T3) ────────────
 
 def test_version_set_adds_pin_to_entry(install_mod):
@@ -304,6 +339,34 @@ def test_version_set_vscode_pin_survives_reconfigure(tmp_path, install_mod):
         install_mod._reconfigure_detected_clients()
 
     assert cfg.read_text(encoding="utf-8") == pinned_text
+
+
+def test_unpin_only_targets_detected_clients(install_mod):
+    """C1 round1 #2 (MAJOR config-writers): `version --unpin` without --tool
+    must target only detect_installed() clients -- never every registered
+    client. Double-red: reverting _target_clients to
+    `list(CLIENT_REGISTRY.keys())` makes unpin_entry fire for cursor too,
+    failing call_count == 1."""
+    mock_unpin_entry = MagicMock(return_value=True)
+
+    def make_client(name):
+        c = MagicMock()
+        c.stdout_only = False
+        c.is_toml = False
+        c.root_key = "mcpServers"
+        c.config_path = Path(f"/tmp/{name}.json")
+        return c
+
+    registry = {"claude-code": make_client("claude-code"), "cursor": make_client("cursor")}
+    args = Namespace(set_version=None, port=0, tool=None, list=False, online=False, unpin=True)
+
+    with patch.object(install_mod, "CLIENT_REGISTRY", registry), \
+         patch.object(install_mod, "detect_installed", return_value=["claude-code"]), \
+         patch.object(install_mod, "unpin_entry", mock_unpin_entry):
+        install_mod.cmd_version(args)
+
+    assert mock_unpin_entry.call_count == 1  # only the detected client, not cursor
+    assert mock_unpin_entry.call_args[0][0] == registry["claude-code"].config_path
 
 
 def test_version_unpin_removes_pin_from_json_config(tmp_path, install_mod):

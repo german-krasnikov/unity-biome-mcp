@@ -13,7 +13,6 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).parent.resolve()
 SERVER_DIR = REPO_ROOT / "server"
 CODEX_DIR = REPO_ROOT / ".codex"
-MCP_JSON = REPO_ROOT / ".mcp.json"
 CODEX_CONFIG = CODEX_DIR / "config.toml"
 _UNITY_MCP_DATA_DIR = Path.home() / ".unity-biome-mcp"
 
@@ -35,7 +34,7 @@ try:
     _add_server_to_path()
     from unity_mcp.config.clients import CLIENT_REGISTRY, detect_installed
     from unity_mcp.config.merger import (
-        merge_mcp_config, merge_toml_mcp, SERVER_NAME,
+        merge_mcp_config, merge_toml_mcp, SERVER_NAME, PROJECT_CONFIG_FILENAME,
         is_entry_pinned, is_toml_pinned, unpin_entry, pin_toml_entry, unpin_toml_entry,
     )
     from unity_mcp.config.backup import backup
@@ -47,6 +46,7 @@ except ImportError:
     merge_mcp_config = None  # type: ignore[assignment]
     merge_toml_mcp = None  # type: ignore[assignment]
     SERVER_NAME = "unity-biome-mcp"  # type: ignore[assignment]
+    PROJECT_CONFIG_FILENAME = ".mcp.json"  # type: ignore[assignment]
     is_entry_pinned = lambda *a, **kw: False  # type: ignore[assignment]
     is_toml_pinned = lambda *a, **kw: False  # type: ignore[assignment]
     unpin_entry = lambda *a, **kw: False  # type: ignore[assignment]
@@ -56,6 +56,10 @@ except ImportError:
     build_server_entry = lambda port=0: {}  # type: ignore[assignment]
     GIT_INSTALL_URL = "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server"
     validate_config = lambda key: "not configured"  # type: ignore[assignment]
+
+# MCP_JSON depends on PROJECT_CONFIG_FILENAME above (single literal source,
+# C1 #2 follow-up) so its assignment must come after the import/fallback block.
+MCP_JSON = REPO_ROOT / PROJECT_CONFIG_FILENAME
 
 
 # ── thin wrappers (read module globals at call time so tests can patch) ───────
@@ -277,12 +281,12 @@ def cmd_stop(_args: argparse.Namespace) -> None:
 def _project_config_path(project: Path, tool_key: str) -> Path:
     """Return per-tool project-scoped config path."""
     paths = {
-        "claude-code": project / ".mcp.json",
+        "claude-code": project / PROJECT_CONFIG_FILENAME,
         "cursor": project / ".cursor" / "mcp.json",
         "vscode": project / ".vscode" / "mcp.json",
         "junie": project / ".junie" / "mcp" / "mcp.json",
     }
-    return paths.get(tool_key, project / ".mcp.json")
+    return paths.get(tool_key, project / PROJECT_CONFIG_FILENAME)
 
 
 _CHANGELOG_HEADING = re.compile(
@@ -316,9 +320,19 @@ def _plugin_upm_url(version: str) -> str:
     return f"https://github.com/german-krasnikov/unity-biome-mcp.git?path=unity-plugin#v{version}"
 
 
+def _target_clients(tool_key: str | None) -> list[str]:
+    """Client keys to operate on for `version --set`/`--unpin` without --tool.
+
+    C1 round1 #2 (MAJOR config-writers): must be the already-detected/configured
+    clients (matches _reconfigure_detected_clients), never every registered
+    client -- otherwise a single-tool user gets newly-pinned configs written
+    for AI tools they never installed."""
+    return [tool_key] if tool_key else detect_installed()
+
+
 def _unpin_configs(tool_key: str | None) -> None:
     """Remove the pin marker from configs (ARC-0b: `install.py version --unpin`)."""
-    tools = [tool_key] if tool_key else list(CLIENT_REGISTRY.keys())
+    tools = _target_clients(tool_key)
     for key in tools:
         client = CLIENT_REGISTRY.get(key)
         if client is None or client.stdout_only:
@@ -385,7 +399,7 @@ def cmd_version(args: argparse.Namespace) -> None:
 
     # Re-pin all (or one) detected configs
     tool_key = getattr(args, "tool", None)
-    tools = [tool_key] if tool_key else list(CLIENT_REGISTRY.keys())
+    tools = _target_clients(tool_key)
 
     for key in tools:
         client = CLIENT_REGISTRY.get(key)
