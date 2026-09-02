@@ -1,7 +1,9 @@
-// NUnit unit tests for DedupRegistry (P-322: mutation retry dedup).
+// NUnit unit tests for DedupRegistry (P-322: mutation retry dedup;
+// DEV-64: SessionState persistence across domain reload).
 // Zero Unity/AssetDatabase dependency — injectable clock for TTL tests.
 using System;
 using NUnit.Framework;
+using UnityEditor;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -14,8 +16,13 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void Setup()
         {
+            // DEV-64: DedupRegistry's ctor now restores from SessionState — clear
+            // the real key first so a leaked entry from another test can't bleed
+            // in, and register restoration so this test doesn't leak forward.
+            SessionState.EraseString(DedupRegistry.SessionKey);
             _nowTicks = DateTime.UtcNow.Ticks;
             _registry = new DedupRegistry(clock: () => _nowTicks);
+            RegisterCleanup(() => SessionState.EraseString(DedupRegistry.SessionKey));
         }
 
         [Test]
@@ -105,6 +112,39 @@ namespace UnityMCP.Editor.Tests
             var retrieved = _registry.TryGetResult("op-cached");
             Assert.AreEqual(result, retrieved,
                 "TryGetResult must return the stored result for a known op_id.");
+        }
+
+        // DEV-64: domain reload wipes the plain-static instance; SessionState
+        // (unmanaged, survives reload) must carry the cache forward so a
+        // Python retry after reload still finds the original mutation's result.
+
+        [Test]
+        public void SurvivesDomainReload()
+        {
+            const string result = "{\"ok\":true,\"data\":\"pre-reload\"}";
+            _registry.TryRegister("op-reload-survive", result);
+
+            // Simulate domain reload: a brand-new instance (as CommandRouter's
+            // static field would get after reload) sharing the same real
+            // SessionState the Editor keeps across the reload.
+            var reloaded = new DedupRegistry(clock: () => _nowTicks);
+
+            Assert.AreEqual(result, reloaded.TryGetResult("op-reload-survive"),
+                "Result registered before a simulated domain reload must be readable from a fresh instance.");
+        }
+
+        [Test]
+        public void SurvivesDomainReload_PastTTL_NotRestored()
+        {
+            _registry.TryRegister("op-reload-expired", "{\"ok\":true}");
+
+            // Age past TTL before the "reload" — restoration must still honor
+            // the TTL, not resurrect stale entries forever.
+            _nowTicks += TimeSpan.FromSeconds(DedupRegistry.TtlSeconds + 1).Ticks;
+            var reloaded = new DedupRegistry(clock: () => _nowTicks);
+
+            Assert.IsNull(reloaded.TryGetResult("op-reload-expired"),
+                "An entry older than TTL at restore time must not come back after a simulated reload.");
         }
     }
 }
