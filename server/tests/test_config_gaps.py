@@ -59,6 +59,28 @@ def test_validator_opencode_uses_mcp_root_key(tmp_path, monkeypatch):
     assert "not configured" not in result
 
 
+# ─── validator BOM tolerance (encoding.md): Windows Notepad/PowerShell 5.1 ──
+# Out-File/Set-Content default to a UTF-8-with-BOM encoding. merger.py's
+# writers already read with utf-8-sig (_READ_ENCODING) for exactly this
+# reason; validator.py's read used plain utf-8 and choked on the leading
+# BOM, misreporting a perfectly valid config as "invalid JSON".
+
+def test_validator_reads_bom_prefixed_config(tmp_path, monkeypatch):
+    """A UTF-8-BOM-prefixed config must still validate as configured."""
+    from unity_mcp.config import clients as c, validator
+
+    cfg = tmp_path / ".claude.json"
+    payload = json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "uvx"}}}).encode("utf-8")
+    cfg.write_bytes(b"\xef\xbb\xbf" + payload)
+
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "config_path", cfg)
+    monkeypatch.setattr(validator, "_port_reachable", lambda _: False)
+
+    result = validator.validate_config("claude-code")
+    assert "invalid JSON" not in result
+    assert "unity-biome-mcp entry" in result
+
+
 # ─── P2-C fallback: build_server_entry without uvx ───────────────────────────
 
 def test_build_server_entry_without_uvx():
