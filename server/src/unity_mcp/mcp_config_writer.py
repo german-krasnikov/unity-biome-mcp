@@ -4,12 +4,15 @@ Used by BackendDef.build_args() in backend_def.py.
 All paths are injectable (config_dir params) for testability.
 """
 import json
+import logging
 import os
 import shutil
 import sys
 from pathlib import Path
 
 from .config.merger import _OLD_NAMES, SERVER_NAME, _deep_merge
+
+log = logging.getLogger(__name__)
 
 
 def resolve_server_cmd() -> tuple[str, list[str]]:
@@ -40,6 +43,21 @@ def _atomic_write(path: str, content: str) -> None:
     os.replace(tmp, path)
 
 
+def _read_existing_or_none(path: str) -> dict | None:
+    """Returns {} if missing, parsed dict if valid JSON, None if corrupt.
+
+    None means "do not touch this file" — a caller must never turn a parse
+    failure into a wholesale overwrite (that would silently wipe every other
+    entry a user already has in the file).
+    """
+    if not os.path.exists(path):
+        return {}
+    try:
+        return json.loads(Path(path).read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+
+
 def write_claude_config(config_dir: str, mcp_port: int) -> str:
     """Writes unity-biome-mcp-config-{port}.json for --mcp-config. Returns absolute path.
 
@@ -56,18 +74,20 @@ def write_claude_config(config_dir: str, mcp_port: int) -> str:
     return path
 
 
-def write_kimi_mcp_config(config_dir: str, mcp_port: int) -> None:
-    """Writes mcp.json in config_dir. Merge-safe: preserves non-unity entries."""
+def write_kimi_mcp_config(config_dir: str, mcp_port: int) -> bool:
+    """Writes mcp.json in config_dir. Merge-safe: preserves non-unity entries.
+
+    Returns False (no write) if existing mcp.json has corrupt JSON — never
+    wipes it down to just our entry. Returns True on a successful write.
+    """
     os.makedirs(config_dir, exist_ok=True)
     path = os.path.join(config_dir, "mcp.json")
     cmd, args = resolve_server_cmd()
 
-    existing: dict = {}
-    if os.path.exists(path):
-        try:
-            existing = json.loads(Path(path).read_text(encoding="utf-8"))
-        except Exception:
-            existing = {}
+    existing = _read_existing_or_none(path)
+    if existing is None:
+        log.warning("Corrupt JSON in %s — skipping write to avoid data loss", path)
+        return False
 
     servers = existing.get("mcpServers", {})
     for old in _OLD_NAMES:
@@ -80,20 +100,23 @@ def write_kimi_mcp_config(config_dir: str, mcp_port: int) -> None:
     servers[SERVER_NAME] = _deep_merge(base, entry)
     existing["mcpServers"] = servers
     _atomic_write(path, json.dumps(existing, indent=2))
+    return True
 
 
-def write_agy_settings(settings_dir: str, mcp_port: int) -> None:
-    """Writes settings.json in settings_dir. Merge-safe: preserves non-unity entries."""
+def write_agy_settings(settings_dir: str, mcp_port: int) -> bool:
+    """Writes settings.json in settings_dir. Merge-safe: preserves non-unity entries.
+
+    Returns False (no write) if existing settings.json has corrupt JSON — never
+    wipes it down to just our entry. Returns True on a successful write.
+    """
     os.makedirs(settings_dir, exist_ok=True)
     path = os.path.join(settings_dir, "settings.json")
     cmd, args = resolve_server_cmd()
 
-    existing: dict = {}
-    if os.path.exists(path):
-        try:
-            existing = json.loads(Path(path).read_text(encoding="utf-8"))
-        except Exception:
-            existing = {}
+    existing = _read_existing_or_none(path)
+    if existing is None:
+        log.warning("Corrupt JSON in %s — skipping write to avoid data loss", path)
+        return False
 
     servers = existing.get("mcpServers", {})
     for old in _OLD_NAMES:
@@ -106,6 +129,7 @@ def write_agy_settings(settings_dir: str, mcp_port: int) -> None:
     servers[SERVER_NAME] = _deep_merge(base, entry)
     existing["mcpServers"] = servers
     _atomic_write(path, json.dumps(existing, indent=2))
+    return True
 
 
 def write_opencode_config(config_dir: str, mcp_port: int) -> str:

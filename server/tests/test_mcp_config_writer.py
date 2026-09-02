@@ -196,3 +196,53 @@ def test_agy_settings_preserves_custom_top_level_key_on_rewrite(tmp_path):
     assert entry["customFlag"] == "value"
     assert entry["command"] == "new"
     assert entry["trust"] is True
+
+
+# ── DEV-56: corrupt JSON must not wipe existing config (fail loud, don't overwrite) ──
+
+def test_write_kimi_mcp_config_refuses_to_wipe_on_corrupt_json(tmp_path):
+    """Corrupt mcp.json (unparseable) must be left untouched, not replaced with
+    an entry containing only our server — other-server must survive on disk."""
+    path = tmp_path / "mcp.json"
+    corrupt = '{"mcpServers": {"other-server": {"command": "y"}}} trailing garbage'
+    path.write_text(corrupt, encoding="utf-8")
+
+    write_kimi_mcp_config(str(tmp_path), 9601)
+
+    raw = path.read_text(encoding="utf-8")
+    assert "other-server" in raw
+    assert raw == corrupt
+
+
+def test_write_agy_settings_refuses_to_wipe_on_corrupt_json(tmp_path):
+    """Corrupt settings.json (unparseable) must be left untouched, not replaced
+    with an entry containing only our server — other-server must survive on disk."""
+    path = tmp_path / "settings.json"
+    corrupt = '{"mcpServers": {"other-server": {"command": "y"}}} trailing garbage'
+    path.write_text(corrupt, encoding="utf-8")
+
+    write_agy_settings(str(tmp_path), 9601)
+
+    raw = path.read_text(encoding="utf-8")
+    assert "other-server" in raw
+    assert raw == corrupt
+
+
+def test_write_kimi_mcp_config_returns_false_on_corrupt_json(tmp_path):
+    path = tmp_path / "mcp.json"
+    path.write_text("{ not json", encoding="utf-8")
+    assert write_kimi_mcp_config(str(tmp_path), 9601) is False
+
+
+def test_write_agy_settings_returns_false_on_corrupt_json(tmp_path):
+    path = tmp_path / "settings.json"
+    path.write_text("{ not json", encoding="utf-8")
+    assert write_agy_settings(str(tmp_path), 9601) is False
+
+
+def test_write_kimi_mcp_config_returns_true_on_success(tmp_path):
+    assert write_kimi_mcp_config(str(tmp_path), 9601) is True
+
+
+def test_write_agy_settings_returns_true_on_success(tmp_path):
+    assert write_agy_settings(str(tmp_path), 9601) is True

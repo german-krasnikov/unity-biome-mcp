@@ -218,7 +218,7 @@ def test_config_writer_chaos(writer_key: str, scenario: int,
     scenario 1: overwrite with different port → port updated
     scenario 2: unicode subdirectory path → creates file without error
     scenario 3: concurrent writes (two sequential calls same dir) → last port wins
-    scenario 4: pre-existing corrupted JSON → merge treats as empty, succeeds
+    scenario 4: pre-existing corrupted JSON → write skipped, corrupt file untouched
     scenario 5: write read-back round-trip → JSON deserializes cleanly
     """
     base = str(tmp_path)
@@ -258,11 +258,18 @@ def test_config_writer_chaos(writer_key: str, scenario: int,
         # Corrupt the pre-existing target file
         if writer_key in ("kimi", "agy"):
             existing = os.path.join(base, "mcp.json" if writer_key == "kimi" else "settings.json")
-            Path(existing).write_text("{{{INVALID_JSON}}}", encoding="utf-8")
-        # Writer should handle corrupt existing gracefully
-        path = _call_writer(writer_key, base, 9500)
-        data = json.loads(Path(path).read_text(encoding="utf-8"))
-        assert isinstance(data, dict)
+            corrupt = "{{{INVALID_JSON}}}"
+            Path(existing).write_text(corrupt, encoding="utf-8")
+            # Corrupt JSON must never be wiped down to just our entry (DEV-56) —
+            # writer skips the write and leaves the file exactly as it was.
+            _call_writer(writer_key, base, 9500)
+            assert Path(existing).read_text(encoding="utf-8") == corrupt
+        else:
+            # Non-merging writers (claude/claude_alt/opencode) always overwrite;
+            # no pre-existing-file contract to preserve here.
+            path = _call_writer(writer_key, base, 9500)
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+            assert isinstance(data, dict)
 
     else:  # scenario == 5
         path = _call_writer(writer_key, base, 9503)
