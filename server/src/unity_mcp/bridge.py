@@ -195,6 +195,16 @@ class CommandLedger:
             del self._store[k]
 
 
+def _with_retry_op_id(payload: bytes, op_id: str) -> bytes:
+    """P-322: rebuild payload with 'retry_op_id' so C# DedupRegistry can detect
+    and suppress re-execution of a command that was already dispatched. Shared
+    by both retry paths (exception-after-SENT and in-band Unity 'retry' hint) --
+    a frame reaching Unity via either path must be resend-tagged the same way."""
+    raw = json.loads(payload.decode("utf-8"))
+    raw["retry_op_id"] = op_id
+    return json.dumps(raw, ensure_ascii=False).encode("utf-8")
+
+
 class _CandidateIdentityError(ConnectionError):
     """A TCP endpoint answered, but could not prove it is the intended Editor."""
 
@@ -535,9 +545,7 @@ class UnityBridge(HeartbeatMixin):
                     # P-322: if payload was already written (SENT), the retry must carry
                     # retry_op_id so C# DedupRegistry can detect and suppress re-execution.
                     if delivery == DeliveryState.SENT and op_id:
-                        raw = json.loads(payload.decode("utf-8"))
-                        raw["retry_op_id"] = op_id
-                        payload = json.dumps(raw, ensure_ascii=False).encode("utf-8")
+                        payload = _with_retry_op_id(payload, op_id)
                     jitter = random.uniform(0, delay * 0.1)
                     if reason == "domain_reload":
                         self._reload_gate.clear()
@@ -584,6 +592,13 @@ class UnityBridge(HeartbeatMixin):
                 if attempt < MAX_RETRIES:
                     await asyncio.sleep(result["retry"] / 1000)
                     attempt += 1
+                    # DEV-59/P-322: Unity already dispatched this command before
+                    # replying with the in-band hint, so the resend must carry
+                    # retry_op_id too -- same dedup contract as the SENT/exception
+                    # retry path, otherwise C# DedupRegistry can't suppress a
+                    # second execution of the mutation.
+                    if op_id:
+                        payload = _with_retry_op_id(payload, op_id)
                     continue
                 return result
 
