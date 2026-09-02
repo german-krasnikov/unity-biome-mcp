@@ -11,6 +11,9 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class ProjectConfigWriterTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        private const int TestPort = 9500;
+        private const string SentinelUntouchedMarker = "sentinel-untouched";
+
         private string _tmpDir;
 
         [SetUp]
@@ -46,7 +49,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_WithAllKeysEnabled_CreatesAllSixTargetFiles()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", AllKeys());
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", AllKeys());
 
             foreach (var target in ProjectConfigTargets.All)
                 Assert.IsTrue(File.Exists(Path.Combine(_tmpDir, target.RelativePath)),
@@ -56,7 +59,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_WithNoEnabledKeys_WritesNoNewFiles()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string>());
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", new HashSet<string>());
 
             foreach (var target in ProjectConfigTargets.All)
                 Assert.IsFalse(File.Exists(Path.Combine(_tmpDir, target.RelativePath)),
@@ -66,7 +69,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_WithEnabledKeySubset_WritesOnlyThoseFiles()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", new HashSet<string> { "claude-code" });
 
             Assert.IsTrue(File.Exists(Path.Combine(_tmpDir, ".mcp.json")));
             Assert.IsFalse(File.Exists(Path.Combine(_tmpDir, ".cursor/mcp.json")));
@@ -85,14 +88,14 @@ namespace UnityMCP.Editor.Tests
                 "{\"mcpServers\":{\"unity-mcp\":{\"command\":\"uvx\",\"_v\":\"0.0.1\"}}}");
             // Sentinel proves no rewrite happened — a rewrite would regenerate fresh
             // content and silently drop this appended line.
-            File.AppendAllText(cursorPath, "\n// sentinel-untouched\n");
+            File.AppendAllText(cursorPath, $"\n// {SentinelUntouchedMarker}\n");
             var before = File.ReadAllText(cursorPath);
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", new HashSet<string> { "claude-code" });
 
             var after = File.ReadAllText(cursorPath);
             Assert.AreEqual(before, after);
-            StringAssert.Contains("sentinel-untouched", after);
+            StringAssert.Contains(SentinelUntouchedMarker, after);
             StringAssert.Contains("\"_v\":\"0.0.1\"", after);
         }
 
@@ -128,7 +131,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_UpdatesGitignore_WithOnlyActiveTargetPaths()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", new HashSet<string> { "claude-code" });
 
             var gitignore = File.ReadAllText(Path.Combine(_tmpDir, ".gitignore"));
             StringAssert.Contains(".mcp.json", gitignore);
@@ -161,19 +164,19 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_ExistingOwnedCurrentFile_DoesNotRewrite()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", new HashSet<string> { "claude-code" });
             var path = Path.Combine(_tmpDir, ".mcp.json");
             // Sentinel proves no rewrite happened — a rewrite would regenerate fresh
             // content and silently drop this, whereas plain string equality against
             // deterministic output would pass either way (same inputs → same bytes).
-            File.AppendAllText(path, "\n// sentinel-untouched\n");
+            File.AppendAllText(path, $"\n// {SentinelUntouchedMarker}\n");
             var before = File.ReadAllText(path);
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", new HashSet<string> { "claude-code" });
             var after = File.ReadAllText(path);
 
             Assert.AreEqual(before, after);
-            StringAssert.Contains("sentinel-untouched", after);
+            StringAssert.Contains(SentinelUntouchedMarker, after);
         }
 
         [Test]
@@ -195,8 +198,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_VersionChanged_RewritesFile()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.0.0", new HashSet<string> { "claude-code" });
-            ProjectConfigWriter.Run(_tmpDir, 9500, "2.0.0", new HashSet<string> { "claude-code" });
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.0.0", new HashSet<string> { "claude-code" });
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "2.0.0", new HashSet<string> { "claude-code" });
 
             var content = File.ReadAllText(Path.Combine(_tmpDir, ".mcp.json"));
             StringAssert.Contains("\"_v\": \"2.0.0\"", content);
@@ -213,7 +216,7 @@ namespace UnityMCP.Editor.Tests
             var handWritten = "{\"mcpServers\":{\"unity-mcp\":{\"command\":\"custom\"}}}";
             File.WriteAllText(path, handWritten);
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", new HashSet<string> { "claude-code" });
 
             var content = File.ReadAllText(path);
             StringAssert.Contains("\"_v\": \"1.2.3\"", content);
@@ -227,7 +230,7 @@ namespace UnityMCP.Editor.Tests
             var handWritten = "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"custom\"}}}";
             File.WriteAllText(path, handWritten);
 
-            ProjectConfigWriter.WriteOne(_tmpDir, ProjectConfigTargets.All[0], 9500, "1.2.3",
+            ProjectConfigWriter.WriteOne(_tmpDir, ProjectConfigTargets.All[0], TestPort, "1.2.3",
                 WizardConfigWriter.GitInstallUrlFor("1.2.3"));
 
             var content = File.ReadAllText(path);
@@ -248,15 +251,15 @@ namespace UnityMCP.Editor.Tests
                 + "\"_v\": \"1.49.0\","
                 + "\"_pin\": true"
                 + "}}}");
-            File.AppendAllText(path, "\n// sentinel-untouched\n");
+            File.AppendAllText(path, $"\n// {SentinelUntouchedMarker}\n");
             var before = File.ReadAllText(path);
 
-            ProjectConfigWriter.WriteOne(_tmpDir, ProjectConfigTargets.All[0], 9500, "1.50.0",
+            ProjectConfigWriter.WriteOne(_tmpDir, ProjectConfigTargets.All[0], TestPort, "1.50.0",
                 WizardConfigWriter.GitInstallUrlFor("1.50.0"));
 
             var after = File.ReadAllText(path);
             Assert.AreEqual(before, after);
-            StringAssert.Contains("sentinel-untouched", after);
+            StringAssert.Contains(SentinelUntouchedMarker, after);
         }
 
         // ── ARC-11 T2: baseline tracking + drift detection ──────────────────
@@ -266,8 +269,8 @@ namespace UnityMCP.Editor.Tests
         {
             var keys = new HashSet<string> { "claude-code" };
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.0.0", keys);
-            ProjectConfigWriter.Run(_tmpDir, 9500, "2.0.0", keys);
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.0.0", keys);
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "2.0.0", keys);
 
             Assert.AreEqual("2.0.0",
                 EditorPrefs.GetString(PrefKeys.LastSyncedVersionPrefix + _tmpDir, ""));
@@ -282,7 +285,7 @@ namespace UnityMCP.Editor.Tests
             var keys = new HashSet<string> { "claude-code" };
             var path = Path.Combine(_tmpDir, ".mcp.json");
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.50.0", keys);
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.50.0", keys);
             Assert.AreEqual("1.50.0",
                 EditorPrefs.GetString(PrefKeys.LastSyncedVersionPrefix + _tmpDir, ""),
                 "precondition: our own first write must record a baseline");
@@ -290,7 +293,7 @@ namespace UnityMCP.Editor.Tests
             var content = File.ReadAllText(path);
             File.WriteAllText(path, content.Replace("\"_v\": \"1.50.0\"", "\"_v\": \"1.49.0\""));
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.50.0", keys); // live version unchanged
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.50.0", keys); // live version unchanged
 
             var after = File.ReadAllText(path);
             StringAssert.Contains("\"_v\": \"1.49.0\"", after);
@@ -309,7 +312,7 @@ namespace UnityMCP.Editor.Tests
             File.WriteAllText(path,
                 "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\": \"uvx\",\"_v\": \"0.5.0\"}}}");
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", new HashSet<string> { "claude-code" });
 
             var content = File.ReadAllText(path);
             StringAssert.Contains("\"_v\": \"1.2.3\"", content);
@@ -327,7 +330,7 @@ namespace UnityMCP.Editor.Tests
             File.WriteAllText(path,
                 "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\": \"uvx\",\"_v\": \"1.2.3\"}}}");
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", new HashSet<string> { "claude-code" });
 
             Assert.AreEqual("1.2.3",
                 EditorPrefs.GetString(PrefKeys.LastSyncedVersionPrefix + _tmpDir, ""));
@@ -350,13 +353,13 @@ namespace UnityMCP.Editor.Tests
             var keys = new HashSet<string> { "claude-code" };
             var path = Path.Combine(_tmpDir, ".mcp.json");
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.50.0", keys);
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.50.0", keys);
             var handEdited = File.ReadAllText(path)
                 .Replace("@v1.50.0#subdirectory=server", "@v1.49.0#subdirectory=server")
                 .Replace("\"_v\": \"1.50.0\"", "\"_v\": \"1.49.0\"");
             File.WriteAllText(path, handEdited);
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.50.0", keys); // live version unchanged across "reboot"
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.50.0", keys); // live version unchanged across "reboot"
 
             RegisterCleanup(() => VersionCoherenceChecker._testConfigPath = null);
             VersionCoherenceChecker._testConfigPath = path;
@@ -375,7 +378,7 @@ namespace UnityMCP.Editor.Tests
             try
             {
                 Assert.DoesNotThrow(() =>
-                    ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", AllKeys()));
+                    ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", AllKeys()));
             }
             finally
             {
@@ -387,7 +390,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_UpdatesGitignore_WithAllSixPaths()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", AllKeys());
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", AllKeys());
 
             var gitignore = File.ReadAllText(Path.Combine(_tmpDir, ".gitignore"));
             foreach (var target in ProjectConfigTargets.All)
@@ -397,11 +400,11 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_GitignoreAlreadyPatched_SecondRunNoOp()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", AllKeys());
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", AllKeys());
             var path = Path.Combine(_tmpDir, ".gitignore");
             var before = File.ReadAllText(path);
 
-            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", AllKeys());
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", AllKeys());
             var after = File.ReadAllText(path);
 
             Assert.AreEqual(before, after);
@@ -410,7 +413,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Run_EmptyVersionString_FallsBackToUnpinnedGitInstallUrl()
         {
-            ProjectConfigWriter.Run(_tmpDir, 9500, "", new HashSet<string> { "claude-code" });
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "", new HashSet<string> { "claude-code" });
 
             var content = File.ReadAllText(Path.Combine(_tmpDir, ".mcp.json"));
             StringAssert.Contains(WizardConfigWriter.GitInstallUrl, content);

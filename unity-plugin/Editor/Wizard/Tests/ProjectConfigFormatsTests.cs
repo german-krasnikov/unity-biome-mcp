@@ -7,10 +7,12 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class ProjectConfigFormatsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        private const int TestPort = 9500;
+
         [Test]
         public void BuildEntry_ContainsMarkerVersion()
         {
-            var result = ProjectConfigFormats.BuildEntry(9500, WizardConfigWriter.GitInstallUrl, "1.2.3");
+            var result = ProjectConfigFormats.BuildEntry(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3");
             StringAssert.Contains("\"_v\": \"1.2.3\"", result);
         }
 
@@ -25,7 +27,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void BuildFresh_WrapsEntryUnderGivenRootKey_Servers()
         {
-            var result = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "servers");
+            var result = ProjectConfigFormats.BuildFresh(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3", "servers");
             StringAssert.Contains("\"servers\"", result);
             StringAssert.DoesNotContain("\"mcpServers\"", result);
         }
@@ -33,7 +35,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void BuildFresh_WrapsEntryUnderGivenRootKey_McpServers()
         {
-            var result = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
+            var result = ProjectConfigFormats.BuildFresh(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
             StringAssert.Contains("\"mcpServers\"", result);
         }
 
@@ -54,7 +56,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ExtractMarkerVersion_EntryWithMarker_ReturnsVersion()
         {
-            var entry = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
+            var entry = ProjectConfigFormats.BuildFresh(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
             Assert.AreEqual("1.2.3", ProjectConfigFormats.ExtractMarkerVersion(entry));
         }
 
@@ -69,7 +71,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Classify_NoUnityMcpEntry_ReturnsAbsent()
         {
-            var result = ProjectConfigFormats.Classify("{\"mcpServers\":{}}", 9500, "1.2.3");
+            var result = ProjectConfigFormats.Classify("{\"mcpServers\":{}}", TestPort, "1.2.3");
             Assert.AreEqual(EntryState.Absent, result);
         }
 
@@ -77,23 +79,23 @@ namespace UnityMCP.Editor.Tests
         public void Classify_EntryWithoutMarker_ReturnsForeign()
         {
             var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"uvx\"}}}";
-            var result = ProjectConfigFormats.Classify(existing, 9500, "1.2.3");
+            var result = ProjectConfigFormats.Classify(existing, TestPort, "1.2.3");
             Assert.AreEqual(EntryState.Foreign, result);
         }
 
         [Test]
         public void Classify_MarkerMatchesCurrentVersion_ReturnsOwnedCurrent()
         {
-            var fresh = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
-            var result = ProjectConfigFormats.Classify(fresh, 9500, "1.2.3");
+            var fresh = ProjectConfigFormats.BuildFresh(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
+            var result = ProjectConfigFormats.Classify(fresh, TestPort, "1.2.3");
             Assert.AreEqual(EntryState.OwnedCurrent, result);
         }
 
         [Test]
         public void Classify_MarkerVersionDiffers_ReturnsOwnedStale()
         {
-            var fresh = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
-            var result = ProjectConfigFormats.Classify(fresh, 9500, "1.3.0");
+            var fresh = ProjectConfigFormats.BuildFresh(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
+            var result = ProjectConfigFormats.Classify(fresh, TestPort, "1.3.0");
             Assert.AreEqual(EntryState.OwnedStale, result);
         }
 
@@ -101,7 +103,7 @@ namespace UnityMCP.Editor.Tests
         public void Classify_MarkerPortDiffers_ReturnsOwnedCurrent()
         {
             // Port is no longer written to JSON entries — port difference is not a staleness signal.
-            var fresh = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
+            var fresh = ProjectConfigFormats.BuildFresh(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
             var result = ProjectConfigFormats.Classify(fresh, 9501, "1.2.3");
             Assert.AreEqual(EntryState.OwnedCurrent, result);
         }
@@ -116,7 +118,7 @@ namespace UnityMCP.Editor.Tests
                 + "\"_pin\": true"
                 + "}}}";
 
-            var result = ProjectConfigFormats.Classify(existing, 9500, "1.50.0");
+            var result = ProjectConfigFormats.Classify(existing, TestPort, "1.50.0");
 
             Assert.AreEqual(EntryState.OwnedCurrent, result);
         }
@@ -130,7 +132,7 @@ namespace UnityMCP.Editor.Tests
                 + "\"_v\": \"1.49.0\""
                 + "}}}";
 
-            var result = ProjectConfigFormats.Classify(existing, 9500, "1.50.0");
+            var result = ProjectConfigFormats.Classify(existing, TestPort, "1.50.0");
 
             Assert.AreEqual(EntryState.OwnedStale, result);
         }
@@ -161,7 +163,7 @@ namespace UnityMCP.Editor.Tests
                 + "\"unity-mcp\":{\"command\":\"custom-launcher\",\"args\":[\"--special\"]}"
                 + "}}";
 
-            Assert.AreEqual(EntryState.Foreign, ProjectConfigFormats.Classify(existing, 9500, "1.2.3"));
+            Assert.AreEqual(EntryState.Foreign, ProjectConfigFormats.Classify(existing, TestPort, "1.2.3"));
             Assert.IsNull(ProjectConfigFormats.ExtractMarkerVersion(existing));
         }
 
@@ -188,7 +190,7 @@ namespace UnityMCP.Editor.Tests
                 + "\"env\": {\"UNITY_MCP_NO_GATING\": \"1\"}"
                 + "}}}";
 
-            var result = ProjectConfigFormats.Merge(existing, 9500, "NEW_URL_MARKER", "2.0.0", "mcpServers");
+            var result = ProjectConfigFormats.Merge(existing, TestPort, "NEW_URL_MARKER", "2.0.0", "mcpServers");
 
             StringAssert.Contains("UNITY_MCP_NO_GATING", result, "unknown env key must survive a version bump");
             StringAssert.Contains("\"_v\": \"2.0.0\"", result, "version marker must actually update");
@@ -209,7 +211,7 @@ namespace UnityMCP.Editor.Tests
                 + "\"env\": {\"FLAGS\": [\"a\", \"b\"], \"NESTED\": {\"deep\": \"1\"}}"
                 + "}}}";
 
-            var result = ProjectConfigFormats.Merge(existing, 9500, "NEW_URL", "2.0.0", "mcpServers");
+            var result = ProjectConfigFormats.Merge(existing, TestPort, "NEW_URL", "2.0.0", "mcpServers");
 
             StringAssert.Contains("\"NESTED\": {\"deep\": \"1\"}", result, "deeply nested unknown value must survive intact");
             StringAssert.Contains("NEW_URL", result);
@@ -230,7 +232,7 @@ namespace UnityMCP.Editor.Tests
                 + "\"env\":{\"X\":\"1\"}"
                 + "}}}";
 
-            var result = ProjectConfigFormats.Merge(existing, 9500, WizardConfigWriter.GitInstallUrl, "2.0.0", "mcpServers");
+            var result = ProjectConfigFormats.Merge(existing, TestPort, WizardConfigWriter.GitInstallUrl, "2.0.0", "mcpServers");
 
             StringAssert.Contains("\"args\": [", result, "args must be inserted, not left missing");
             StringAssert.Contains("\"X\":\"1\"", result, "unrelated env key must survive the insert");
@@ -251,7 +253,7 @@ namespace UnityMCP.Editor.Tests
                 + "\"args\":[\"--from\",\"OLD_URL\",\"unity-biome-mcp\"]"
                 + "}}}";
 
-            var result = ProjectConfigFormats.Merge(existing, 9500, "NEW_URL", "2.0.0", "mcpServers");
+            var result = ProjectConfigFormats.Merge(existing, TestPort, "NEW_URL", "2.0.0", "mcpServers");
 
             StringAssert.Contains("\"env\":{\"args\":\"x\",\"command\":\"y\"}", result,
                 "nested user object with colliding field names must survive byte-identical");
@@ -302,7 +304,7 @@ namespace UnityMCP.Editor.Tests
         {
             var text = "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"uvx\"}}}";
             var adopted = ProjectConfigFormats.Adopt(text, "1.2.3");
-            Assert.AreEqual(EntryState.OwnedCurrent, ProjectConfigFormats.Classify(adopted, 9500, "1.2.3"));
+            Assert.AreEqual(EntryState.OwnedCurrent, ProjectConfigFormats.Classify(adopted, TestPort, "1.2.3"));
         }
 
         // ── ARC-11 T1: Pin() surgical marker insert ─────────────────────────
@@ -333,7 +335,7 @@ namespace UnityMCP.Editor.Tests
                 + "}}}";
 
             var pinned = ProjectConfigFormats.Pin(existing);
-            var result = ProjectConfigFormats.Classify(pinned, 9500, "1.50.0");
+            var result = ProjectConfigFormats.Classify(pinned, TestPort, "1.50.0");
 
             // Arm B forbidden: `AreNotEqual(Absent, ...)` would also pass for
             // OwnedStale — the composition claim requires the exact value.
