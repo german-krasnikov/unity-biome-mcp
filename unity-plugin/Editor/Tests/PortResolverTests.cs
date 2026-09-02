@@ -516,5 +516,28 @@ namespace UnityMCP.Editor.Tests
             }
             finally { blocker.Stop(); result?.Stop(); }
         }
+
+        // ── Retry-loop off-by-one helpers (ARC-8 T1) ─────────────────────────
+        // Extracted so StartAsync's retry loops delegate instead of inlining
+        // the boundary math — same-port budget must mean exactly maxAttempts
+        // same-port tries, fallback only once that budget is exhausted.
+
+        [Test]
+        public void IsSamePortAttempt_AtBudgetBoundary_ReturnsFalse()
+        {
+            Assert.IsFalse(PortResolver.IsSamePortAttempt(6, 6));
+        }
+
+        [Test]
+        public void IsSamePortAttempt_OneBelowBudget_ReturnsTrue()
+        {
+            Assert.IsTrue(PortResolver.IsSamePortAttempt(5, 6));
+        }
+
+        [Test]
+        public void BackoffDelayMs_SixthAttempt_ContinuesLinearEscalation()
+        {
+            Assert.AreEqual(3600, PortResolver.BackoffDelayMs(5, 600));
+        }
     }
 }

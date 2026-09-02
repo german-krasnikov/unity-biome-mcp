@@ -296,12 +296,12 @@ namespace UnityMCP.Editor
                 const int maxAttempts = 6;  // macOS/Linux: match Windows budget (5 same-port + 1 fallback)
                 const int retryDelayMs = 400;
 #endif
-                for (int attempt = 0; attempt < maxAttempts; attempt++)
+                for (int attempt = 0; attempt <= maxAttempts; attempt++)
                 {
                     int bindPort = PortFileManager.Port;
                     try
                     {
-                        if (attempt == maxAttempts - 1)
+                        if (!PortResolver.IsSamePortAttempt(attempt, maxAttempts))
                         {
                             // BindFreePort: atomic scan+bind, eliminates TOCTOU. Handles socket opts internally.
                             _listener = PortResolver.BindFreePort(PortFileManager.Port + 1, skipPort: PortFileManager.ChatPort, skipPort2: PortFileManager.ReloadPort);
@@ -340,20 +340,20 @@ namespace UnityMCP.Editor
                     {
                         try { _listener?.Stop(); } catch { }
                         _listener = null;
-                        if (attempt == maxAttempts - 1) throw;
+                        if (!PortResolver.IsSamePortAttempt(attempt, maxAttempts)) throw;
                         var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Port {bp2} busy, retry {at + 1}/{maxAttempts - 1}..."));
-                        await Task.Delay(retryDelayMs * (attempt + 1), token).ConfigureAwait(false);
+                        await Task.Delay(PortResolver.BackoffDelayMs(attempt, retryDelayMs), token).ConfigureAwait(false);
                     }
                 }
 
                 // Chat listener — best-effort (non-fatal if chat port is unavailable)
                 var chatMainPort = PortFileManager.Port; // capture main port before chat loop
-                for (int attempt = 0; attempt < 3; attempt++)
+                for (int attempt = 0; attempt <= 3; attempt++)
                 {
                     int bindPort = PortFileManager.ChatPort;
                     try
                     {
-                        if (attempt == 2)
+                        if (!PortResolver.IsSamePortAttempt(attempt, 3))
                         {
                             // BindFreePort: atomic scan+bind, eliminates TOCTOU. Handles socket opts internally.
                             _chatListener = PortResolver.BindFreePort(PortFileManager.ChatPort + 1, skipPort: chatMainPort, skipPort2: PortFileManager.ReloadPort);
@@ -383,13 +383,13 @@ namespace UnityMCP.Editor
                     {
                         try { _chatListener?.Stop(); } catch { }
                         _chatListener = null;
-                        if (attempt == 2)
+                        if (!PortResolver.IsSamePortAttempt(attempt, 3))
                         {
                             var msg = se.Message; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {PortFileManager.ChatPort} unavailable after fallback: {msg}"));
                             break;
                         }
                         var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {bp2} busy, retry {at + 1}/2..."));
-                        await Task.Delay(300 * (attempt + 1), token).ConfigureAwait(false);
+                        await Task.Delay(PortResolver.BackoffDelayMs(attempt, 300), token).ConfigureAwait(false);
                     }
                     catch (SocketException se)
                     {
