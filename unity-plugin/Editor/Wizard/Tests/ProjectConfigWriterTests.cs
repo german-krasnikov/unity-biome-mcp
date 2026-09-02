@@ -378,7 +378,7 @@ namespace UnityMCP.Editor.Tests
             // silently overwrites the user's own hand-edited "_v", instead of detecting
             // the drift and pinning it like WriteOne_MarkerDiffersFromLastSynced_
             // NoPinFlag_DoesNotOverwrite_PinsInstead already does for the per-target case.
-            EditorPrefs.SetString(ProjectConfigWriter.LegacyLastSyncedVersionKey(_tmpDir), "1.50.0");
+            SetEditorPrefString(ProjectConfigWriter.LegacyLastSyncedVersionKey(_tmpDir), "1.50.0");
             var path = Path.Combine(_tmpDir, ".mcp.json");
             File.WriteAllText(path,
                 "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\": \"uvx\",\"_v\": \"1.49.0\"}}}");
@@ -397,7 +397,7 @@ namespace UnityMCP.Editor.Tests
             // Companion to the "differs" case above: when the on-disk marker still
             // matches the legacy baseline, the entry is genuinely our own stale write
             // (not a hand-edit) and must upgrade normally, not be pinned.
-            EditorPrefs.SetString(ProjectConfigWriter.LegacyLastSyncedVersionKey(_tmpDir), "1.50.0");
+            SetEditorPrefString(ProjectConfigWriter.LegacyLastSyncedVersionKey(_tmpDir), "1.50.0");
             var path = Path.Combine(_tmpDir, ".mcp.json");
             File.WriteAllText(path,
                 "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\": \"uvx\",\"_v\": \"1.50.0\"}}}");
