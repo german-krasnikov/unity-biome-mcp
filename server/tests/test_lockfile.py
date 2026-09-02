@@ -15,8 +15,8 @@ if sys.platform == "win32":
 import fcntl  # noqa: E402 — must be after the win32 guard
 
 from unity_mcp.lockfile import (
-    acquire_lock, release_lock, read_pid_from_port_file, is_pid_alive,
-    _lock_nb, _unlock,
+    acquire_lock, release_lock, read_pid_from_port_file, read_port_for_pid,
+    is_pid_alive, _lock_nb, _unlock,
 )
 
 
@@ -245,6 +245,74 @@ def test_read_pid_from_port_file_ignores_blank_project_path(tmp_path):
          patch("unity_mcp.lockfile.is_pid_alive", return_value=True), \
          patch("os.getcwd", return_value=str(expected_project)):
         assert read_pid_from_port_file(9600, project_path=expected_project) is None
+
+
+# ---------------------------------------------------------------------------
+# read_port_for_pid
+# ---------------------------------------------------------------------------
+
+def test_read_port_for_pid_returns_current_port(tmp_path):
+    """pid->port mirror of read_pid_from_port_file: reads {pid}.port by filename."""
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid = 12345
+    (ports_dir / f"{pid}.port").write_text(
+        "9501\n/path/to/project\nProj", encoding="utf-8"
+    )
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_port_for_pid(pid) == 9501
+
+
+def test_read_port_for_pid_matches_by_pid_not_any_port(tmp_path):
+    """Keyed by the pid's own filename — a stale port on another pid's file
+    must never leak into this pid's result."""
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid, other_pid = 12345, 67890
+    (ports_dir / f"{pid}.port").write_text(
+        "9501\n/path/to/project\nProj", encoding="utf-8"
+    )
+    (ports_dir / f"{other_pid}.port").write_text(
+        "9500\n/path/to/other\nOther", encoding="utf-8"
+    )
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_port_for_pid(pid) == 9501
+
+
+def test_read_port_for_pid_dead_pid_returns_none(tmp_path):
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid = 12345
+    (ports_dir / f"{pid}.port").write_text(
+        "9501\n/path/to/project\nProj", encoding="utf-8"
+    )
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=False):
+        assert read_port_for_pid(pid) is None
+
+
+def test_read_port_for_pid_no_file_returns_none(tmp_path):
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_port_for_pid(12345) is None
+
+
+def test_read_port_for_pid_project_path_mismatch_returns_none(tmp_path):
+    """Mirrors test_read_pid_from_port_file_ignores_blank_project_path: when
+    project_path is supplied, a blank/mismatched line 2 must never match."""
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    expected_project = tmp_path / "ExpectedProject"
+    expected_project.mkdir()
+    pid = 12345
+    (ports_dir / f"{pid}.port").write_text("9501\n\nProj\n", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_port_for_pid(pid, project_path=expected_project) is None
 
 
 # ---------------------------------------------------------------------------

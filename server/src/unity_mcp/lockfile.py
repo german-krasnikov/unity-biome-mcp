@@ -277,6 +277,44 @@ def read_pid_from_port_file(
     return candidates[0][1]
 
 
+def read_port_for_pid(
+    pid: int,
+    project_path: str | Path | None = None,
+) -> int | None:
+    """Read the current port for a given PID directly from its port file.
+
+    pid->port mirror of read_pid_from_port_file's port->pid lookup. Reads
+    {pid}.port by filename (checks both ~/.unity-biome-mcp/ports and legacy
+    ~/.unity-mcp/ports via iter_port_files), so a same-process port rebind
+    (Unity falling back to a new port after a bind conflict) is visible the
+    instant SaveRuntimePorts rewrites the file — no failed TCP connect
+    needed to notice it. Returns None if the pid is dead, no matching file
+    exists, the port field is not an integer, or project_path is supplied
+    but doesn't match line 2 (same semantics as read_pid_from_port_file).
+    """
+    if not is_pid_alive(pid):
+        return None
+    expected_project = (
+        _canonical_project_path(project_path) if project_path is not None else None
+    )
+    for f in _iter_port_files(f"{pid}.port", _ports_dir()):
+        try:
+            lines = _read_port_file_lines(f, max_lines=2)
+            if len(lines) < 1:
+                return None
+            port = int(lines[0])
+        except (ValueError, IndexError, OSError):
+            return None
+        if expected_project is not None:
+            if len(lines) < 2:
+                return None
+            project_line = lines[1].strip()
+            if not project_line or _canonical_project_path(project_line) != expected_project:
+                return None
+        return port
+    return None
+
+
 def _tcp_probe(port: int, timeout: float = 0.2) -> bool:
     """Return True if TCP port accepts connections."""
     try:
