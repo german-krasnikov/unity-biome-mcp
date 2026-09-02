@@ -617,6 +617,7 @@ async def run_tests_wait(
             # never crashes a caller that's already out of patience.
             disk_result = None
         if disk_result is not None:
+            _try_update_handle_from_result(resolved_run_id, disk_result)
             return disk_result
 
     streak_suffix = (

@@ -266,6 +266,34 @@ async def test_timeout_preserved_when_disk_fallback_finds_nothing():
     )
 
 
+async def test_disk_fallback_terminal_result_updates_registry_handle():
+    """The TIMEOUT-path disk fallback must feed its terminal result through
+    _try_update_handle_from_result, same as the wire path -- otherwise a
+    handle registered at dispatch time stays stale ("dispatched") even
+    though a valid terminal result was found on disk (item 7 / DEV-15 gap).
+    """
+    from unity_mcp.tools.run_handle import TestRunRegistry
+
+    registry = TestRunRegistry()
+    registry.register(RUN_ID, REQUEST_ID)
+    marked = json.dumps({**json.loads(_snapshot("terminal", "passed")), "read_via": "disk"})
+
+    with patch.object(testing, "_registry", registry), \
+         patch.object(testing, "run_tests", _started), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value="none")), \
+         patch.object(testing, "_read_disk_fallback", return_value=marked), \
+         patch("asyncio.sleep", AsyncMock()):
+        result = await testing.run_tests_wait(
+            request_id=REQUEST_ID, timeout=0.001, poll_interval=1.0
+        )
+
+    assert result == marked
+    handle = registry.get(RUN_ID)
+    assert handle.state == "passed"
+    assert handle.result == marked
+    assert handle.expected_count == 6964
+
+
 async def test_disk_fallback_not_attempted_without_a_resolved_run_id(monkeypatch):
     """No wire-correlated run_id at all (ACK lost, resolve finds nothing) means the
     disk fallback is never attempted -- there is no run_id to read a summary for.
