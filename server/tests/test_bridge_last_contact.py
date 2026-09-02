@@ -5,12 +5,39 @@ the heartbeat ping, or a completed send() round-trip. It must NOT be touched
 by a failed/timed-out attempt. `pending_queue_depth` is a plain getter over
 the existing send-queue depth; no new instrumentation.
 """
+import ast
 import asyncio
+import pathlib
 import time
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from helpers import make_writer
-from test_bridge_heartbeat import _make_connected_bridge
+from unity_mcp.bridge import UnityBridge
+
+
+def test_module_has_no_test_to_test_import():
+    """Guard: importing a helper from a sibling test_*.py module makes
+    collecting this file also execute that sibling's module-level code,
+    coupling the two files' futures (see C1-round2.md #8)."""
+    tree = ast.parse(pathlib.Path(__file__).read_text(encoding="utf-8"))
+    modules = [n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)]
+    assert not any(m and m.startswith("test_") for m in modules), modules
+
+
+def _make_connected_bridge() -> UnityBridge:
+    """Return a UnityBridge with a live writer mock so connected == True."""
+    from unity_mcp.compile_state import CompileStateProbe
+    probe = MagicMock(spec=CompileStateProbe)
+    probe.has_strong_busy_signal.return_value = False
+    probe.is_process_dead.return_value = False
+    probe.has_project = True
+    probe.mark_recompile_issued = MagicMock()
+    bridge = UnityBridge("127.0.0.1", 9999, probe=probe)
+    mock_writer = MagicMock()
+    mock_writer.is_closing.return_value = False
+    bridge._writer = mock_writer
+    bridge._reader = MagicMock()
+    return bridge
 
 
 async def test_updated_on_successful_ping():
