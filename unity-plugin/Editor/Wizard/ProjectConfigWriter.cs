@@ -94,7 +94,7 @@ namespace UnityMCP.Editor.Wizard
                     // ARC-11 T2: stamp the baseline here too (not only after a Merge
                     // below) so an already-synced project has one recorded before the
                     // next real version bump, instead of only after the first drift.
-                    SetLastSyncedVersion(projectRoot, version);
+                    SetLastSyncedVersion(projectRoot, target.Key, version);
                     return; // no-op, cheapest path
                 }
                 if (state == EntryState.Foreign)
@@ -116,7 +116,7 @@ namespace UnityMCP.Editor.Wizard
                     var marker = target.IsToml
                         ? ProjectConfigToml.ExtractMarkerVersion(existingText)
                         : ProjectConfigFormats.ExtractMarkerVersion(existingText);
-                    var baseline = GetLastSyncedVersion(projectRoot);
+                    var baseline = GetLastSyncedVersion(projectRoot, target.Key);
 
                     // ARC-11 T2 (P7 regression): the on-disk marker no longer matches
                     // the version WE last wrote, yet the entry isn't flagged "_pin" —
@@ -159,7 +159,7 @@ namespace UnityMCP.Editor.Wizard
 
                 // ARC-11 T2: record the version WE just wrote — the baseline the next
                 // run compares the on-disk marker against to detect a foreign edit.
-                SetLastSyncedVersion(projectRoot, version);
+                SetLastSyncedVersion(projectRoot, target.Key, version);
             }
             catch (Exception ex)
             {
@@ -168,14 +168,27 @@ namespace UnityMCP.Editor.Wizard
             }
         }
 
+        // C1 round2 #1: the separator between projectRoot and targetKey lives in one
+        // named place — never a bare literal repeated at each call site.
+        private const string TargetKeySeparator = ":";
+
         // ARC-11 T2: EditorPrefs, not SessionState — must survive Editor restart
         // (the "reboot" reported in P7 is exactly when SessionState resets).
         // Keyed by the raw projectRoot string — string.GetHashCode() is
         // process-randomized since .NET Core and would rotate the key every launch.
-        private static string GetLastSyncedVersion(string projectRoot) =>
-            EditorPrefs.GetString(PrefKeys.LastSyncedVersionPrefix + projectRoot, "");
+        // C1 round2 #1: also keyed by targetKey — the baseline used to be shared
+        // across all enabled targets (claude-code, cursor, ...), so writing the
+        // first target in Run()'s foreach clobbered the baseline before the next
+        // target's own on-disk marker was checked against it, false-pinning every
+        // target after the first on any version bump. internal (not private) so
+        // the test fixture builds the exact same key instead of re-deriving it.
+        internal static string LastSyncedVersionKey(string projectRoot, string targetKey) =>
+            PrefKeys.LastSyncedVersionPrefix + projectRoot + TargetKeySeparator + targetKey;
 
-        private static void SetLastSyncedVersion(string projectRoot, string version) =>
-            EditorPrefs.SetString(PrefKeys.LastSyncedVersionPrefix + projectRoot, version);
+        private static string GetLastSyncedVersion(string projectRoot, string targetKey) =>
+            EditorPrefs.GetString(LastSyncedVersionKey(projectRoot, targetKey), "");
+
+        private static void SetLastSyncedVersion(string projectRoot, string targetKey, string version) =>
+            EditorPrefs.SetString(LastSyncedVersionKey(projectRoot, targetKey), version);
     }
 }

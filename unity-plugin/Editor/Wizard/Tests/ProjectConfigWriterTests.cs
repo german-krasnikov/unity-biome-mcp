@@ -26,13 +26,17 @@ namespace UnityMCP.Editor.Tests
                 if (Directory.Exists(_tmpDir))
                     Directory.Delete(_tmpDir, true);
             });
-            // ARC-11 T2: _tmpDir is a fresh GUID per test, so this key never
-            // collides across tests — but it's still a new EditorPrefs key any
-            // test in this fixture may now write via ProjectConfigWriter's
-            // baseline stamping. Protect it here once so every test restores it
-            // (deletes it, since it never existed before) instead of leaking it,
-            // per the typed EditorPrefs ownership rule this codebase requires.
-            ProtectEditorPrefString(PrefKeys.LastSyncedVersionPrefix + _tmpDir);
+            // ARC-11 T2 / C1 round2 #1: _tmpDir is a fresh GUID per test, so these
+            // keys never collide across tests — but they are still new EditorPrefs
+            // keys any test in this fixture may write via ProjectConfigWriter's
+            // baseline stamping. The baseline is now scoped per target (not just
+            // per projectRoot), and different tests enable different target
+            // subsets (one key, two keys, or all six) — protect every target's
+            // key up front so every test restores whichever it touched instead of
+            // leaking it, per the typed EditorPrefs ownership rule this codebase
+            // requires.
+            foreach (var target in ProjectConfigTargets.All)
+                ProtectEditorPrefString(ProjectConfigWriter.LastSyncedVersionKey(_tmpDir, target.Key));
         }
 
         // --- helpers ---
@@ -273,7 +277,7 @@ namespace UnityMCP.Editor.Tests
             ProjectConfigWriter.Run(_tmpDir, TestPort, "2.0.0", keys);
 
             Assert.AreEqual("2.0.0",
-                EditorPrefs.GetString(PrefKeys.LastSyncedVersionPrefix + _tmpDir, ""));
+                EditorPrefs.GetString(ProjectConfigWriter.LastSyncedVersionKey(_tmpDir, "claude-code"), ""));
         }
 
         [Test]
@@ -287,7 +291,7 @@ namespace UnityMCP.Editor.Tests
 
             ProjectConfigWriter.Run(_tmpDir, TestPort, "1.50.0", keys);
             Assert.AreEqual("1.50.0",
-                EditorPrefs.GetString(PrefKeys.LastSyncedVersionPrefix + _tmpDir, ""),
+                EditorPrefs.GetString(ProjectConfigWriter.LastSyncedVersionKey(_tmpDir, "claude-code"), ""),
                 "precondition: our own first write must record a baseline");
 
             var content = File.ReadAllText(path);
@@ -333,7 +337,30 @@ namespace UnityMCP.Editor.Tests
             ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", new HashSet<string> { "claude-code" });
 
             Assert.AreEqual("1.2.3",
-                EditorPrefs.GetString(PrefKeys.LastSyncedVersionPrefix + _tmpDir, ""));
+                EditorPrefs.GetString(ProjectConfigWriter.LastSyncedVersionKey(_tmpDir, "claude-code"), ""));
+        }
+
+        [Test]
+        public void Run_TwoActiveTargets_VersionBump_BothUpgradeIndependently_NeitherFalsePinned()
+        {
+            // C1 round2 #1: the drift baseline used to be keyed by projectRoot ONLY, so
+            // writing target 1 (claude-code) clobbered the shared baseline before target 2
+            // (cursor) was checked against it -- cursor's still-old on-disk marker then
+            // looked like a hand-edit and got permanently Pin()'d at the stale version.
+            var keys = new HashSet<string> { "claude-code", "cursor" };
+
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.50.0", keys);
+            ProjectConfigWriter.Run(_tmpDir, TestPort, "1.51.0", keys);
+
+            var claudeText = File.ReadAllText(Path.Combine(_tmpDir, ".mcp.json"));
+            var cursorText = File.ReadAllText(Path.Combine(_tmpDir, ".cursor/mcp.json"));
+
+            StringAssert.Contains("\"_v\": \"1.51.0\"", claudeText);
+            StringAssert.Contains("\"_v\": \"1.51.0\"", cursorText);
+            Assert.IsFalse(ProjectConfigFormats.IsPinned(claudeText),
+                "claude-code must upgrade normally, not be false-pinned");
+            Assert.IsFalse(ProjectConfigFormats.IsPinned(cursorText),
+                "cursor must upgrade normally, not be false-pinned by claude-code's baseline write");
         }
 
         // ── ARC-11 T3: integration proof via VersionCoherenceChecker ────────
