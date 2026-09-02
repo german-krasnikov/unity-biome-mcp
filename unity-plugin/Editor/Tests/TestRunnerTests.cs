@@ -620,6 +620,31 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void ExistingActiveRun_SameSessionFinalizeThrowsDuringSelfHeal_StaysBlockedFailClosed()
+        {
+            // The self-heal attempt inside TryGetNonTerminalActiveOtherThan wraps
+            // _finalizer.TryFinalize in try/catch and must fail this dispatch
+            // closed (old active pointer preserved) rather than let the
+            // exception propagate or silently treat the run as free.
+            const string runId = "run-probe-any-throws";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed,
+                dispatchedUtc: Utc,
+                utfGuid: "utf-guid-stuck");
+            _framework.ProbeAnyError = new InvalidOperationException("boom");
+            var service = CreateService(utcNow: () => UnderCeilingUtc);
+
+            string response = null;
+            Assert.DoesNotThrow(() =>
+                response = service.Start("request-probe-any-throws", "EditMode", null, null));
+
+            StringAssert.Contains("test run already active: " + runId, DecodeReason(response));
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Finalizing, _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(0, _framework.ExecuteCalls);
+            Assert.AreEqual(runId, _store.ReadActive().run_id);
+        }
+
+        [Test]
         public void FilterAndMode_ArePassedToUtfWithoutWaitingForCallbacks()
         {
             var service = CreateService();
@@ -1932,6 +1957,7 @@ namespace UnityMCP.Editor.Tests
             internal string LastCancelledGuid;
             internal bool CancelResult = true;
             internal Exception CancelError;
+            internal Exception ProbeAnyError;
             internal UtfRunActivity Activity = UtfRunActivity.Active;
             internal UtfRunActivity AnyActivity = UtfRunActivity.Inactive;
             internal Action OnExecute;
@@ -1953,7 +1979,12 @@ namespace UnityMCP.Editor.Tests
             }
 
             public UtfRunActivity Probe(string utfGuid) => Activity;
-            public UtfRunActivity ProbeAny() => AnyActivity;
+
+            public UtfRunActivity ProbeAny()
+            {
+                if (ProbeAnyError != null) throw ProbeAnyError;
+                return AnyActivity;
+            }
         }
 
         private sealed class FakeEnvironment : ITestRunEnvironmentController
