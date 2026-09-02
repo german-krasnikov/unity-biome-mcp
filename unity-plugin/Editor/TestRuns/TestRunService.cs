@@ -607,7 +607,7 @@ namespace UnityMCP.Editor.TestRuns
             if (!summary.manifest_complete)
                 return "pending|run_id=" + resolved + "|no-progress-yet";
 
-            var elapsed = ElapsedSeconds(summary.started_utc, _utcNow());
+            var elapsed = TestRunProtocol.ElapsedSeconds(summary.started_utc, _utcNow());
             var completed = summary.completed_expected_count;
             var eta = completed > 0 && summary.expected_count > completed
                 ? Math.Max(0d, (summary.expected_count - completed) * elapsed / completed)
@@ -929,16 +929,6 @@ namespace UnityMCP.Editor.TestRuns
 
         private static TestMode ParseMode(string mode) =>
             mode == "PlayMode" ? TestMode.PlayMode : TestMode.EditMode;
-
-        private static double ElapsedSeconds(string startUtc, string nowUtc)
-        {
-            if (!DateTime.TryParse(startUtc, CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind, out var start) ||
-                !DateTime.TryParse(nowUtc, CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind, out var now))
-                return 0d;
-            return Math.Max(0d, (now - start).TotalSeconds);
-        }
     }
 }
 #endif

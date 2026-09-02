@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 
 #if UNITY_INCLUDE_TESTS
@@ -101,7 +100,7 @@ namespace UnityMCP.Editor.TestRuns
             var unmanagedWithoutEnvironment = IsUnmanagedWithoutEnvironment(run);
             var previousEditorSession = IsPreviousEditorSession(run);
             var staleBeyondCeiling = hasExecutionBoundary &&
-                ElapsedSeconds(run.dispatched_utc, _utcNow()) > SameSessionStalenessCeilingSeconds;
+                TestRunProtocol.ElapsedSeconds(run.dispatched_utc, _utcNow()) > SameSessionStalenessCeilingSeconds;
             if (!editorIsQuitting && !previousEditorSession && !staleBeyondCeiling)
             {
                 var anyActivity = _framework.ProbeAny();
@@ -297,16 +296,6 @@ namespace UnityMCP.Editor.TestRuns
 
         private static bool IsTerminalOutcome(string outcome) =>
             OutcomeRank(outcome) > 0;
-
-        private static double ElapsedSeconds(string dispatchedUtc, string nowUtc)
-        {
-            if (!DateTime.TryParse(dispatchedUtc, CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind, out var dispatched) ||
-                !DateTime.TryParse(nowUtc, CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind, out var now))
-                return 0d;
-            return Math.Max(0d, (now - dispatched).TotalSeconds);
-        }
 
         private static string NormalizeOutcome(string outcome) =>
             string.IsNullOrWhiteSpace(outcome) ? "" : outcome.Trim().ToLowerInvariant();
