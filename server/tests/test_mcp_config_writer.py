@@ -276,17 +276,20 @@ def test_write_agy_settings_returns_false_on_undecodable_bytes(tmp_path):
     assert path.read_bytes() == corrupt
 
 
-def test_write_kimi_mcp_config_returns_false_on_utf8_bom(tmp_path):
-    """Double-red note: a UTF-8 BOM ('\\ufeff' prefix) does NOT hit the new
-    UnicodeDecodeError branch — utf-8 decodes it fine as a character, and
-    json.loads then raises JSONDecodeError on the leading BOM char, so this
-    was already routed through the existing corrupt-JSON path before DEV-56b.
-    Kept here to document that the BOM case needs no separate fix."""
+def test_write_kimi_mcp_config_survives_utf8_bom(tmp_path):
+    """C1-FIX-01: a UTF-8 BOM ('\\ufeff' prefix, Windows Notepad/PowerShell
+    default) must not be classified as corrupt — _read_existing_or_none now
+    reads with utf-8-sig, which transparently strips the BOM before
+    json.loads. The existing sibling entry survives and the rewritten file
+    has no BOM."""
     path = tmp_path / "mcp.json"
-    corrupt = b'\xef\xbb\xbf{"mcpServers":{"other-server":{"command":"y"}}}'
-    path.write_bytes(corrupt)
+    bom_prefixed = b'\xef\xbb\xbf{"mcpServers":{"other-server":{"command":"y"}}}'
+    path.write_bytes(bom_prefixed)
 
     result = write_kimi_mcp_config(str(tmp_path), 9601)
 
-    assert result is False
-    assert path.read_bytes() == corrupt
+    assert result is True
+    assert path.read_bytes()[:3] != b"\xef\xbb\xbf"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert "other-server" in data["mcpServers"]
+    assert "unity-biome-mcp" in data["mcpServers"]

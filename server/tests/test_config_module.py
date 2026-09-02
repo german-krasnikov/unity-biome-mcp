@@ -885,6 +885,53 @@ def test_unpin_entry_returns_false_when_not_pinned(tmp_path):
     assert cfg.read_text(encoding="utf-8") == original  # untouched, no rewrite
 
 
+# ─── merger.py: BOM must never defeat pin detection (C1-FIX-01, windows-platform CRITICAL) ──
+
+def test_is_entry_pinned_true_on_bom_prefixed_config(tmp_path):
+    """A leading UTF-8 BOM (written by Windows Notepad / PowerShell 5.1
+    Out-File/Set-Content by default) is valid UTF-8 but makes plain
+    json.loads(text) raise JSONDecodeError -- is_entry_pinned must strip it
+    (utf-8-sig) instead of silently reporting "not pinned"."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    payload = json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": [], "_pin": True}}
+    }).encode("utf-8")
+    cfg.write_bytes(b"\xef\xbb\xbf" + payload)
+
+    assert merger.is_entry_pinned(cfg) is True
+
+
+def test_is_entry_pinned_false_on_bom_prefixed_config_without_pin(tmp_path):
+    """Double-red: BOM presence alone must not flip the result -- a BOM'd
+    config that genuinely lacks "_pin" still reads False."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    payload = json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": []}}
+    }).encode("utf-8")
+    cfg.write_bytes(b"\xef\xbb\xbf" + payload)
+
+    assert merger.is_entry_pinned(cfg) is False
+
+
+def test_merge_mcp_config_bom_prefixed_file_preserves_content(tmp_path):
+    """merge_mcp_config on a BOM-prefixed file must not raise and must not
+    wipe the sibling entry already in the file -- it merges like any other
+    valid JSON config. The rewritten file is plain UTF-8 (no BOM)."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    payload = json.dumps({"mcpServers": {"other-server": {"command": "x"}}}).encode("utf-8")
+    cfg.write_bytes(b"\xef\xbb\xbf" + payload)
+
+    merger.merge_mcp_config(cfg, {"command": "uvx", "args": []})
+
+    assert cfg.read_bytes()[:3] != b"\xef\xbb\xbf"
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    assert "other-server" in data["mcpServers"]
+    assert "unity-biome-mcp" in data["mcpServers"]
+
+
 def test_is_toml_pinned_false_without_marker(tmp_path):
     from unity_mcp.config import merger
     cfg = tmp_path / "config.toml"

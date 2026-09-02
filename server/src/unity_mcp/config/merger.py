@@ -13,6 +13,13 @@ SERVER_NAME = "unity-biome-mcp"
 # rename never leaves an orphaned duplicate server behind.
 _OLD_NAMES = ("unity-mcp",)
 
+# C1-FIX-01 (windows-platform CRITICAL): every config READ in this module uses
+# utf-8-sig, which transparently strips a leading UTF-8 BOM (Windows Notepad /
+# PowerShell 5.1 Out-File/Set-Content default) before json.loads/regex parsing.
+# Byte-identical to plain utf-8 decoding when no BOM is present, so this is a
+# strict superset — never used for WRITES, which stay plain "utf-8" (no BOM emitted).
+_READ_ENCODING = "utf-8-sig"
+
 # Matches OUR section [mcp_servers.unity-biome-mcp] AND old [mcp_servers.unity-mcp],
 # plus any dotted sub-sections (e.g. .env).
 # Shared by merge_toml_mcp (replace → migrates old to new) and remove_toml_mcp_entry
@@ -67,7 +74,7 @@ def merge_mcp_config(
     """Read → parse → patch unity-biome-mcp entry → write. Creates file if missing."""
     if config_path.exists():
         try:
-            data = json.loads(config_path.read_text(encoding="utf-8"))
+            data = json.loads(config_path.read_text(encoding=_READ_ENCODING))
         except json.JSONDecodeError as e:
             raise ValueError(f"Corrupt JSON in {config_path}: {e}") from e
     else:
@@ -101,7 +108,7 @@ def is_entry_pinned(
     if not config_path.exists():
         return False
     try:
-        data = json.loads(config_path.read_text(encoding="utf-8"))
+        data = json.loads(config_path.read_text(encoding=_READ_ENCODING))
     except json.JSONDecodeError:
         return False
     root = data.get(root_key)
@@ -121,7 +128,7 @@ def unpin_entry(
     if not config_path.exists():
         return False
     try:
-        data = json.loads(config_path.read_text(encoding="utf-8"))
+        data = json.loads(config_path.read_text(encoding=_READ_ENCODING))
     except json.JSONDecodeError:
         return False
     root = data.get(root_key)
@@ -142,7 +149,7 @@ def merge_toml_mcp(config_path: pathlib.Path, server_entry: dict) -> None:
     if config_path.exists():
         if not bak.exists():
             shutil.copy2(config_path, bak)
-        text = config_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+        text = config_path.read_text(encoding=_READ_ENCODING).replace("\r\n", "\n")
     else:
         text = ""
 
@@ -179,7 +186,7 @@ def is_toml_pinned(config_path: pathlib.Path) -> bool:
     """True if the marker comment directly above our TOML section ends " pinned"."""
     if not config_path.exists():
         return False
-    text = config_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    text = config_path.read_text(encoding=_READ_ENCODING).replace("\r\n", "\n")
     return bool(_TOML_PIN_RE.search(text))
 
 
@@ -189,7 +196,7 @@ def pin_toml_entry(config_path: pathlib.Path, version: str) -> None:
     calls merge_toml_mcp first, then this, so the section is always present by then."""
     if not config_path.exists():
         return
-    text = config_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    text = config_path.read_text(encoding=_READ_ENCODING).replace("\r\n", "\n")
     text = _TOML_MARKER_RE.sub("", text)  # drop any stale marker (pinned or not) first
     marker = f"# {SERVER_NAME} generated v{version} pinned\n"
     new_text, n = _UNITY_MCP_SECTION_RE.subn(lambda m: marker + m.group(0), text, count=1)
@@ -207,7 +214,7 @@ def unpin_toml_entry(config_path: pathlib.Path) -> bool:
     file/marker) -- mirrors unpin_entry's bool contract."""
     if not config_path.exists():
         return False
-    text = config_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    text = config_path.read_text(encoding=_READ_ENCODING).replace("\r\n", "\n")
     new_text = _TOML_PIN_RE.sub("", text)
     if new_text == text:
         return False
@@ -227,7 +234,7 @@ def remove_mcp_entry(config_path: pathlib.Path, root_key: str = "mcpServers") ->
     if not config_path.exists():
         return False
     try:
-        data = json.loads(config_path.read_text(encoding="utf-8"))
+        data = json.loads(config_path.read_text(encoding=_READ_ENCODING))
     except json.JSONDecodeError as e:
         raise ValueError(f"Corrupt JSON in {config_path}: {e}") from e
 
@@ -249,7 +256,7 @@ def remove_toml_mcp_entry(config_path: pathlib.Path) -> bool:
     """
     if not config_path.exists():
         return False
-    text = config_path.read_text(encoding="utf-8").replace("\r\n", "\n")
+    text = config_path.read_text(encoding=_READ_ENCODING).replace("\r\n", "\n")
     new_text, n = _UNITY_MCP_SECTION_RE.subn("", text)
     if n == 0:
         return False
