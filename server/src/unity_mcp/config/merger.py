@@ -108,14 +108,15 @@ def is_entry_pinned(
     """True if our entry carries "_pin": true. ARC-0b: a pinned entry is never
     overwritten by _reconfigure_detected_clients (install.py update).
 
-    False on a missing file, corrupt JSON, or a missing/non-dict entry —
-    "degrade, don't crash" (same contract as merge_mcp_config's corrupt-JSON path).
+    False on a missing file, corrupt JSON, undecodable bytes (e.g. a UTF-16
+    BOM or binary corruption), or a missing/non-dict entry — "degrade, don't
+    crash" (same contract as merge_mcp_config's corrupt-JSON path).
     """
     if not config_path.exists():
         return False
     try:
         data = json.loads(config_path.read_text(encoding=_READ_ENCODING))
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return False
     root = data.get(root_key)
     if not isinstance(root, dict):
@@ -130,12 +131,13 @@ def unpin_entry(
     server_name: str = SERVER_NAME,
 ) -> bool:
     """Remove "_pin" from our entry if present. Returns True iff a pin was removed
-    (no-op, no rewrite, on a missing file/entry/pin — `install.py version --unpin`)."""
+    (no-op, no rewrite, on a missing file/entry/pin, or undecodable bytes —
+    `install.py version --unpin`)."""
     if not config_path.exists():
         return False
     try:
         data = json.loads(config_path.read_text(encoding=_READ_ENCODING))
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return False
     root = data.get(root_key)
     entry = root.get(server_name) if isinstance(root, dict) else None
@@ -189,10 +191,16 @@ def merge_toml_mcp(config_path: pathlib.Path, server_entry: dict) -> None:
 
 
 def is_toml_pinned(config_path: pathlib.Path) -> bool:
-    """True if the marker comment directly above our TOML section ends " pinned"."""
+    """True if the marker comment directly above our TOML section ends " pinned".
+
+    False on undecodable bytes too — "degrade, don't crash" (mirrors
+    is_entry_pinned's contract)."""
     if not config_path.exists():
         return False
-    text = config_path.read_text(encoding=_READ_ENCODING).replace("\r\n", "\n")
+    try:
+        text = config_path.read_text(encoding=_READ_ENCODING).replace("\r\n", "\n")
+    except UnicodeDecodeError:
+        return False
     return bool(_TOML_PIN_RE.search(text))
 
 
@@ -217,10 +225,13 @@ def pin_toml_entry(config_path: pathlib.Path, version: str) -> None:
 def unpin_toml_entry(config_path: pathlib.Path) -> bool:
     """Remove the pin marker comment above our TOML section, if present.
     Returns True iff a marker was removed (no-op, no rewrite, on a missing
-    file/marker) -- mirrors unpin_entry's bool contract."""
+    file/marker, or undecodable bytes) -- mirrors unpin_entry's bool contract."""
     if not config_path.exists():
         return False
-    text = config_path.read_text(encoding=_READ_ENCODING).replace("\r\n", "\n")
+    try:
+        text = config_path.read_text(encoding=_READ_ENCODING).replace("\r\n", "\n")
+    except UnicodeDecodeError:
+        return False
     new_text = _TOML_PIN_RE.sub("", text)
     if new_text == text:
         return False

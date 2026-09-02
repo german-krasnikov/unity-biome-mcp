@@ -965,6 +965,36 @@ def test_merge_mcp_config_bom_prefixed_file_preserves_content(tmp_path):
     assert "unity-biome-mcp" in data["mcpServers"]
 
 
+# ─── merger.py: undecodable bytes must degrade, not crash (C1 r2 #3) ────────
+
+def test_is_entry_pinned_false_on_undecodable_bytes(tmp_path):
+    """A genuinely non-UTF-8 file (UTF-16 BOM, truncated multi-byte sequence,
+    binary corruption) raised an uncaught UnicodeDecodeError before this fix --
+    is_entry_pinned's docstring already promised "degrade, don't crash" for
+    corrupt JSON, but only caught JSONDecodeError. Left unhandled, this crashed
+    the fire-and-forget maybe_update background task on every reconnect for
+    that project (server_updater.py's _default_is_pinned has no try/except of
+    its own)."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    cfg.write_bytes(b"\xff\xfe" + '{"mcpServers": {}}'.encode("utf-16-le"))
+
+    assert merger.is_entry_pinned(cfg) is False
+
+
+def test_unpin_entry_false_on_undecodable_bytes_no_write(tmp_path):
+    """Double-red pair: unpin_entry must degrade the same way -- and, since it
+    mutates the file on a hit, must not attempt any write when the file can't
+    even be decoded."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    original = b"\xff\xfe" + '{"mcpServers": {}}'.encode("utf-16-le")
+    cfg.write_bytes(original)
+
+    assert merger.unpin_entry(cfg) is False
+    assert cfg.read_bytes() == original  # untouched, no rewrite attempted
+
+
 def test_is_toml_pinned_false_without_marker(tmp_path):
     from unity_mcp.config import merger
     cfg = tmp_path / "config.toml"
@@ -1023,3 +1053,26 @@ def test_unpin_toml_entry_returns_false_when_not_pinned(tmp_path):
 
     assert merger.unpin_toml_entry(cfg) is False
     assert cfg.read_text(encoding="utf-8") == original  # untouched, no rewrite
+
+
+def test_is_toml_pinned_false_on_undecodable_bytes(tmp_path):
+    """TOML analog of test_is_entry_pinned_false_on_undecodable_bytes -- the
+    read_text call here had no try/except at all before this fix (not even a
+    JSONDecodeError catch, since there's no JSON parser on this path)."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    cfg.write_bytes(b"\xff\xfe" + "[mcp_servers.unity-biome-mcp]\n".encode("utf-16-le"))
+
+    assert merger.is_toml_pinned(cfg) is False
+
+
+def test_unpin_toml_entry_false_on_undecodable_bytes_no_write(tmp_path):
+    """Double-red pair: unpin_toml_entry mutates the file on a hit, so an
+    undecodable file must return False without attempting any write."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    original = b"\xff\xfe" + "[mcp_servers.unity-biome-mcp]\n".encode("utf-16-le")
+    cfg.write_bytes(original)
+
+    assert merger.unpin_toml_entry(cfg) is False
+    assert cfg.read_bytes() == original  # untouched, no rewrite attempted

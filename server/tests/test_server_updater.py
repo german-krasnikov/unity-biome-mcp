@@ -7,7 +7,13 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from unity_mcp.config.merger import SERVER_NAME
-from unity_mcp.server_updater import ServerUpdater, _default_is_uvx_install, _updater as module_updater
+from unity_mcp.server_updater import (
+    _UpdateResult,
+    ServerUpdater,
+    _default_is_pinned,
+    _default_is_uvx_install,
+    _updater as module_updater,
+)
 
 
 def make_updater(current="1.0.0", uvx_found=True, subprocess_exit=0, exit_calls=None,
@@ -137,6 +143,30 @@ async def test_maybe_update_ignores_pin_when_project_path_omitted():
     r = await u.maybe_update("1.6.0")
     assert pin_calls == []
     assert r.reason == "started"
+
+
+# ─── C1-round2 #3: undecodable project config must not crash the pin check ──
+
+@pytest.mark.asyncio
+async def test_maybe_update_does_not_raise_on_undecodable_project_config(tmp_path):
+    """A UTF-16-BOM'd (or otherwise undecodable) .mcp.json used to raise
+    UnicodeDecodeError straight out of the real _default_is_pinned, which
+    maybe_update calls with zero try/except -- since this runs as a
+    fire-and-forget background task (bridge.py's _schedule_server_update),
+    the only visible symptom was an untracked 'Task exception was never
+    retrieved' log and self-update silently disabled for that project,
+    forever. Undecodable must degrade to "not pinned", not crash."""
+    (tmp_path / ".mcp.json").write_bytes(b"\xff\xfe" + '{"mcpServers": {}}'.encode("utf-16-le"))
+    subprocess_calls = []
+    u = make_updater(
+        current="1.5.0", subprocess_calls=subprocess_calls, is_pinned_fn=_default_is_pinned
+    )
+
+    r = await u.maybe_update("1.6.0", project_path=str(tmp_path))
+
+    assert isinstance(r, _UpdateResult)
+    assert r.reason == "started"  # degrades to not-pinned -> update proceeds
+    assert subprocess_calls != []
 
 
 @pytest.mark.asyncio
