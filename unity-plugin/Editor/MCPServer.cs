@@ -293,7 +293,7 @@ namespace UnityMCP.Editor
                 const int maxAttempts = 6;  // Windows TIME_WAIT can last 2+ minutes; more retries reduce fallback risk
                 const int retryDelayMs = 600;
 #else
-                const int maxAttempts = 6;  // macOS/Linux: match Windows budget (5 same-port + 1 fallback)
+                const int maxAttempts = 6;  // macOS/Linux: match Windows budget (6 same-port + 1 fallback)
                 const int retryDelayMs = 400;
 #endif
                 for (int attempt = 0; attempt <= maxAttempts; attempt++)
@@ -341,7 +341,7 @@ namespace UnityMCP.Editor
                         try { _listener?.Stop(); } catch { }
                         _listener = null;
                         if (!PortResolver.IsSamePortAttempt(attempt, maxAttempts)) throw;
-                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Port {bp2} busy, retry {at + 1}/{maxAttempts - 1}..."));
+                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Port {bp2} busy, retry {at + 1}/{maxAttempts}..."));
                         await Task.Delay(PortResolver.BackoffDelayMs(attempt, retryDelayMs), token).ConfigureAwait(false);
                     }
                 }
@@ -388,7 +388,7 @@ namespace UnityMCP.Editor
                             var msg = se.Message; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {PortFileManager.ChatPort} unavailable after fallback: {msg}"));
                             break;
                         }
-                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {bp2} busy, retry {at + 1}/2..."));
+                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {bp2} busy, retry {at + 1}/3..."));
                         await Task.Delay(PortResolver.BackoffDelayMs(attempt, 300), token).ConfigureAwait(false);
                     }
                     catch (SocketException se)
