@@ -11,6 +11,13 @@ from .tool_specs import _SPECS
 _send = None
 _args = None
 
+# DEV-55 [B3-#11]: ceiling for the caller-tunable inner timeout_ms sent to
+# Unity's batch executor. Must stay below MCPServer.cs's hardcoded outer
+# "batch" dispatch watchdog (65s) with margin -- otherwise the outer watchdog
+# kills the whole command before Unity's own soft-timeout can return a
+# graceful partial result. Mirrored by test_timing_invariants.py.
+_TIMEOUT_MS_CEILING = 60000
+
 # Tools that require their typed MCP wrapper (Python DSL expansion) — rejected inside batch.
 _dsl_tools: set[str] = set()
 
@@ -168,7 +175,7 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
         commands, pre_errors, orig_indices = _preprocess_continue_mode(commands)
     else:
         commands = _preprocess_stop_mode(commands)
-    timeout_ms = max(1000, int((timeout - 5) * 1000))
+    timeout_ms = min(_TIMEOUT_MS_CEILING, max(1000, int((timeout - 5) * 1000)))
     args = _build_send_args(commands, on_error, timeout_ms, atomic, validate_aliases)
     result = await _send("batch", args, timeout=timeout)
     result = _check_completeness(commands, result)

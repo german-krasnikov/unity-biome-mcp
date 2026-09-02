@@ -18,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from unity_mcp.timeout_categories import get_timeout
+from unity_mcp.tools.batch import _TIMEOUT_MS_CEILING
 
 _PROJECT = Path(__file__).parents[2]
 _MCP_SERVER_CS_PATH = _PROJECT / "unity-plugin/Editor/MCPServer.cs"
@@ -28,7 +29,7 @@ _MCP_SERVER_CS = _MCP_SERVER_CS_PATH.read_text(encoding="utf-8")
 # and its GetCommandTimeout default fallback. Guarded against silent drift by
 # test_csharp_command_timeouts_source_matches_fixture below.
 _CSHARP_DEFAULT_TIMEOUT = 25
-_CSHARP_OVERRIDES = {"run_tests": 130}
+_CSHARP_OVERRIDES = {"run_tests": 130, "batch": 65}
 
 
 def _csharp_timeout(cmd: str) -> int:
@@ -42,10 +43,22 @@ def test_csharp_command_timeouts_source_matches_fixture():
     before the cross-layer tests below can report a misleading pass/fail.
     """
     assert '{ "run_tests", 130 },' in _MCP_SERVER_CS
+    assert '{ "batch", 65 },' in _MCP_SERVER_CS
     assert (
         "return CommandTimeouts.TryGetValue(cmd, out var t) ? t : 25;"
         in _MCP_SERVER_CS
     )
+
+
+def test_batch_inner_timeout_ms_ceiling_under_csharp_batch_watchdog():
+    """DEV-55 [B3-#11]: batch's caller-tunable inner timeout_ms (sent as the
+    'timeout_ms' arg to Unity's batch executor) must stay strictly below
+    C#'s hardcoded outer 'batch' dispatch watchdog (MCPServer.cs
+    CommandTimeouts), or the outer watchdog kills the whole command before
+    Unity's own soft-timeout can return a graceful partial result.
+    """
+    assert _TIMEOUT_MS_CEILING == 60000
+    assert _TIMEOUT_MS_CEILING < _csharp_timeout("batch") * 1000
 
 
 # ARC-4 Section 2.1 rows where "Python timeout < C# timeout" holds.
