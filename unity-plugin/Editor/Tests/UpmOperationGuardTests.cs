@@ -71,16 +71,19 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(CompileNotifier.StaleCeilingSeconds, UpmOperationGuard.StaleCeilingSeconds);
         }
 
-        // QUALITY-FIX-CS #1: UpmPluginUpdater.Update() chains two sequential Client.Add
-        // calls (editor package, then reload package), each defaulting to a 120s
-        // timeout — worst-case legitimate in-flight duration is 240s. A ceiling below
-        // that (the old 180f) lets a second caller falsely reclaim the guard while a
-        // real, still-running update holds it — the P6-symptom of a parallel Add
-        // causing "UPM busy". The ceiling must outlive that worst case.
+        // QUALITY-FIX-CS #1: UpmPluginUpdater.Update() chains
+        // UpmPluginUpdater.ChainedPackageAdds sequential Client.Add calls (editor
+        // package, then reload package), each defaulting to
+        // UpmPluginUpdater.DefaultTimeoutSeconds — worst-case legitimate in-flight
+        // duration is their product. A ceiling below that (the old 180f) lets a second
+        // caller falsely reclaim the guard while a real, still-running update holds it —
+        // the P6-symptom of a parallel Add causing "UPM busy". The ceiling must outlive
+        // that worst case.
         [Test]
         public void TryBegin_AtWorstCaseUpmDuration_DoesNotFalselySelfHeal()
         {
-            const float worstCaseUpmDurationSeconds = 240f; // 2 x UpmPluginUpdater default 120s timeout
+            const float worstCaseUpmDurationSeconds =
+                (float)(UpmPluginUpdater.ChainedPackageAdds * UpmPluginUpdater.DefaultTimeoutSeconds);
             var now = 0f;
             UpmOperationGuard.NowSecondsFloat = () => now;
             Assert.IsTrue(UpmOperationGuard.TryBegin("1.0.0"));

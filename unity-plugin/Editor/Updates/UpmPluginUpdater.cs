@@ -9,6 +9,18 @@ namespace UnityMCP.Editor
         const string EditorPkg = "unity-plugin";
         const string ReloadPkg = "unity-plugin-reload";
 
+        /// <summary>Default per-package UPM <c>Client.Add</c> timeout used by <see cref="Update"/>.</summary>
+        internal const double DefaultTimeoutSeconds = 120.0;
+
+        /// <summary>
+        /// Number of sequential <c>Client.Add</c> calls <see cref="Update"/> chains
+        /// (editor package, then reload package). Combined with
+        /// <see cref="DefaultTimeoutSeconds"/>, this is the legitimate worst-case
+        /// in-flight duration that <see cref="UpmOperationGuard.StaleCeilingSeconds"/>
+        /// must outlive.
+        /// </summary>
+        internal const int ChainedPackageAdds = 2;
+
 #if UNITY_INCLUDE_TESTS
         internal static System.Func<double> _timeProvider = () => EditorApplication.timeSinceStartup;
         static double GetTime() => _timeProvider();
@@ -55,7 +67,7 @@ namespace UnityMCP.Editor
 
         /// <summary>Trigger UPM to update both editor + reload packages via git URL.</summary>
         internal static void Update(string version, System.Action<bool> onComplete = null,
-            double timeoutSeconds = 120.0)
+            double timeoutSeconds = DefaultTimeoutSeconds)
         {
             if (string.IsNullOrEmpty(version))
             {
