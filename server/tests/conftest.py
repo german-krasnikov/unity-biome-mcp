@@ -109,6 +109,16 @@ def _reset_diagnose_send():
 
 
 @pytest.fixture(autouse=True)
+def _reset_tcp_probe_grace():
+    """Clear lockfile._tcp_probe_fail_since so one test's port-probe grace-window
+    state (keyed by port-file path) never leaks into the next test's sweep."""
+    from unity_mcp.lockfile import _tcp_probe_fail_since
+    _tcp_probe_fail_since.clear()
+    yield
+    _tcp_probe_fail_since.clear()
+
+
+@pytest.fixture(autouse=True)
 def _clean_unity_env(monkeypatch):
     """Default-disable env-gated features. Tests opt in via their own monkeypatch.setenv."""
     for k in ("UNITY_MCP_HINTS", "UNITY_MCP_VALIDATE", "UNITY_MCP_VISUAL_VERIFY",

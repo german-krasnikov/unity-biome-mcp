@@ -361,6 +361,10 @@ def cleanup_stale_port_files(tcp_probe: bool = False, now_fn=time.monotonic) -> 
     sibling project's Unity mid-domain-reload or mid-bind-retry rather than a
     truly dead server (see PROBE_GRACE_S for the bind-retry-window
     derivation). A dead PID is still removed immediately, no grace applied.
+    A single one-shot call (e.g. the startup sweep in server.py:~524) can
+    therefore never delete a live PID's file on its own -- only a repeating
+    caller, such as the idle heartbeat, persists across enough calls to
+    outlast PROBE_GRACE_S and remove it.
     now_fn: injectable monotonic clock (default time.monotonic) so grace-period
     tests can advance time deterministically instead of monkeypatching the
     global time module.
