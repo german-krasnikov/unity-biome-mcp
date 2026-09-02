@@ -1,6 +1,7 @@
 """Tests for backend_def.py — all 5 CLI backends + resolve_binary. No real processes."""
 import asyncio
 import json
+import logging
 import os
 import sys
 from pathlib import Path
@@ -270,6 +271,32 @@ def test_kimi_no_resume():
     assert KimiDef().has_resume is False
 
 
+def test_kimi_build_args_logs_when_config_write_fails(tmp_path, monkeypatch, caplog):
+    # DEV-56 made write_kimi_mcp_config() return False on corrupt/BOM'd mcp.json
+    # instead of raising -- build_args() must not swallow that signal (C1 #5).
+    monkeypatch.setattr(
+        "unity_mcp.backend_def.mcp_config_writer.write_kimi_mcp_config",
+        lambda config_dir, mcp_port: False,
+    )
+    with caplog.at_level(logging.ERROR):
+        KimiDef().build_args(mode="ask", model=None, mcp_port=_TEST_PORT,
+                             prompt="x", config_dir=str(tmp_path))
+    errors = [r.message for r in caplog.records if r.levelno == logging.ERROR]
+    assert any("mcp.json" in msg for msg in errors), errors
+
+
+def test_kimi_build_args_silent_when_config_write_succeeds(tmp_path, monkeypatch, caplog):
+    # Double-red: a successful write must not emit the failure log.
+    monkeypatch.setattr(
+        "unity_mcp.backend_def.mcp_config_writer.write_kimi_mcp_config",
+        lambda config_dir, mcp_port: True,
+    )
+    with caplog.at_level(logging.ERROR):
+        KimiDef().build_args(mode="ask", model=None, mcp_port=_TEST_PORT,
+                             prompt="x", config_dir=str(tmp_path))
+    assert not [r for r in caplog.records if r.levelno == logging.ERROR]
+
+
 # ─── Agy (4 tests) ──────────────────────────────────────────────────────────
 
 def test_agy_ask_no_skip_permissions(tmp_path):
@@ -298,6 +325,32 @@ def test_agy_writes_settings_json(tmp_path):
     assert settings_path.exists()
     data = json.loads(settings_path.read_text(encoding="utf-8"))
     assert data["mcpServers"]["unity-biome-mcp"]["env"]["UNITY_MCP_PORT"] == str(_TEST_PORT)
+
+
+def test_agy_build_args_logs_when_config_write_fails(tmp_path, monkeypatch, caplog):
+    # DEV-58 made write_agy_settings() return False on corrupt/BOM'd settings.json
+    # instead of raising -- build_args() must not swallow that signal (C1 #5).
+    monkeypatch.setattr(
+        "unity_mcp.backend_def.mcp_config_writer.write_agy_settings",
+        lambda settings_dir, mcp_port: False,
+    )
+    with caplog.at_level(logging.ERROR):
+        AgyDef().build_args(mode="ask", model=None, mcp_port=_TEST_PORT,
+                            prompt="x", config_dir=str(tmp_path))
+    errors = [r.message for r in caplog.records if r.levelno == logging.ERROR]
+    assert any("settings.json" in msg for msg in errors), errors
+
+
+def test_agy_build_args_silent_when_config_write_succeeds(tmp_path, monkeypatch, caplog):
+    # Double-red: a successful write must not emit the failure log.
+    monkeypatch.setattr(
+        "unity_mcp.backend_def.mcp_config_writer.write_agy_settings",
+        lambda settings_dir, mcp_port: True,
+    )
+    with caplog.at_level(logging.ERROR):
+        AgyDef().build_args(mode="ask", model=None, mcp_port=_TEST_PORT,
+                            prompt="x", config_dir=str(tmp_path))
+    assert not [r for r in caplog.records if r.levelno == logging.ERROR]
 
 
 # ─── OpenCode (4 tests) ─────────────────────────────────────────────────────
