@@ -169,7 +169,7 @@ def _merge_pre_errors(result: str, pre_errors: list[str], orig_indices: list[int
 
 async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
                 atomic: bool = False, validate_aliases: bool = False) -> str:
-    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75); the inner Unity-side soft-timeout derived from it is capped at 60s regardless of how high timeout is set. atomic: on failure, reverts prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain. PREFER over individual tool calls."""
+    """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls."""
     pre_errors: list[str] = []
     orig_indices: list[int] = []
     if on_error == "continue":
