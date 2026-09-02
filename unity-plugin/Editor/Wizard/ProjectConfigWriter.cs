@@ -89,7 +89,14 @@ namespace UnityMCP.Editor.Wizard
                     ? ProjectConfigToml.Classify(existingText, port, version)
                     : ProjectConfigFormats.Classify(existingText, port, version);
 
-                if (state == EntryState.OwnedCurrent) return; // no-op, cheapest path
+                if (state == EntryState.OwnedCurrent)
+                {
+                    // ARC-11 T2: stamp the baseline here too (not only after a Merge
+                    // below) so an already-synced project has one recorded before the
+                    // next real version bump, instead of only after the first drift.
+                    SetLastSyncedVersion(projectRoot, version);
+                    return; // no-op, cheapest path
+                }
                 if (state == EntryState.Foreign)
                 {
                     Debug.Log($"{BiomeLabel.Tag} Adopting hand-edited entry in {target.RelativePath} (adding version marker).");
@@ -102,6 +109,36 @@ namespace UnityMCP.Editor.Wizard
                     if (exists) File.Delete(path);
                     File.Move(adoptTmp, path);
                     return;
+                }
+
+                if (state == EntryState.OwnedStale)
+                {
+                    var marker = target.IsToml
+                        ? ProjectConfigToml.ExtractMarkerVersion(existingText)
+                        : ProjectConfigFormats.ExtractMarkerVersion(existingText);
+                    var baseline = GetLastSyncedVersion(projectRoot);
+
+                    // ARC-11 T2 (P7 regression): the on-disk marker no longer matches
+                    // the version WE last wrote, yet the entry isn't flagged "_pin" —
+                    // a hand-edit happened outside the CLI (install.py version --set /
+                    // --unpin). Pin it instead of silently reverting the user's edit.
+                    // An empty or matching baseline means this is genuinely our own
+                    // stale write (or the first time we've ever recorded one) — fall
+                    // through to the normal overwrite below.
+                    if (!string.IsNullOrEmpty(baseline) && baseline != marker)
+                    {
+                        var pinned = target.IsToml
+                            ? ProjectConfigToml.Pin(existingText)
+                            : ProjectConfigFormats.Pin(existingText);
+                        if (!ReferenceEquals(pinned, existingText))
+                        {
+                            var pinTmp = path + ".tmp";
+                            File.WriteAllText(pinTmp, pinned, new UTF8Encoding(false));
+                            File.Delete(path);
+                            File.Move(pinTmp, path);
+                        }
+                        return;
+                    }
                 }
 
                 string content = target.IsToml
@@ -119,6 +156,10 @@ namespace UnityMCP.Editor.Wizard
                 File.WriteAllText(tmp, content, new UTF8Encoding(false));
                 if (exists) File.Delete(path);
                 File.Move(tmp, path);
+
+                // ARC-11 T2: record the version WE just wrote — the baseline the next
+                // run compares the on-disk marker against to detect a foreign edit.
+                SetLastSyncedVersion(projectRoot, version);
             }
             catch (Exception ex)
             {
@@ -126,5 +167,15 @@ namespace UnityMCP.Editor.Wizard
                 Debug.LogWarning($"unity-biome-mcp: could not write {target.RelativePath}: {ex.Message}");
             }
         }
+
+        // ARC-11 T2: EditorPrefs, not SessionState — must survive Editor restart
+        // (the "reboot" reported in P7 is exactly when SessionState resets).
+        // Keyed by the raw projectRoot string — string.GetHashCode() is
+        // process-randomized since .NET Core and would rotate the key every launch.
+        private static string GetLastSyncedVersion(string projectRoot) =>
+            EditorPrefs.GetString(PrefKeys.LastSyncedVersionPrefix + projectRoot, "");
+
+        private static void SetLastSyncedVersion(string projectRoot, string version) =>
+            EditorPrefs.SetString(PrefKeys.LastSyncedVersionPrefix + projectRoot, version);
     }
 }

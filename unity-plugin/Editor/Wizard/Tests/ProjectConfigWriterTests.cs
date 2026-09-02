@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using NUnit.Framework;
+using UnityEditor;
 using UnityMCP.Editor.Wizard;
 
 namespace UnityMCP.Editor.Tests
@@ -22,6 +23,13 @@ namespace UnityMCP.Editor.Tests
                 if (Directory.Exists(_tmpDir))
                     Directory.Delete(_tmpDir, true);
             });
+            // ARC-11 T2: _tmpDir is a fresh GUID per test, so this key never
+            // collides across tests — but it's still a new EditorPrefs key any
+            // test in this fixture may now write via ProjectConfigWriter's
+            // baseline stamping. Protect it here once so every test restores it
+            // (deletes it, since it never existed before) instead of leaking it,
+            // per the typed EditorPrefs ownership rule this codebase requires.
+            ProtectEditorPrefString(PrefKeys.LastSyncedVersionPrefix + _tmpDir);
         }
 
         // --- helpers ---
@@ -249,6 +257,80 @@ namespace UnityMCP.Editor.Tests
             var after = File.ReadAllText(path);
             Assert.AreEqual(before, after);
             StringAssert.Contains("sentinel-untouched", after);
+        }
+
+        // ── ARC-11 T2: baseline tracking + drift detection ──────────────────
+
+        [Test]
+        public void WriteOne_MarkerMatchesLastSynced_VersionBumped_OverwritesNormally()
+        {
+            var keys = new HashSet<string> { "claude-code" };
+
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.0.0", keys);
+            ProjectConfigWriter.Run(_tmpDir, 9500, "2.0.0", keys);
+
+            Assert.AreEqual("2.0.0",
+                EditorPrefs.GetString(PrefKeys.LastSyncedVersionPrefix + _tmpDir, ""));
+        }
+
+        [Test]
+        public void WriteOne_MarkerDiffersFromLastSynced_NoPinFlag_DoesNotOverwrite_PinsInstead()
+        {
+            // The P7 regression: after our own write recorded a baseline, the user
+            // hand-edits "_v" outside the CLI (no "_pin" flag) — the next Run must
+            // detect the drift and Pin() instead of silently reverting the edit.
+            var keys = new HashSet<string> { "claude-code" };
+            var path = Path.Combine(_tmpDir, ".mcp.json");
+
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.50.0", keys);
+            Assert.AreEqual("1.50.0",
+                EditorPrefs.GetString(PrefKeys.LastSyncedVersionPrefix + _tmpDir, ""),
+                "precondition: our own first write must record a baseline");
+
+            var content = File.ReadAllText(path);
+            File.WriteAllText(path, content.Replace("\"_v\": \"1.50.0\"", "\"_v\": \"1.49.0\""));
+
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.50.0", keys); // live version unchanged
+
+            var after = File.ReadAllText(path);
+            StringAssert.Contains("\"_v\": \"1.49.0\"", after);
+            StringAssert.DoesNotContain("\"_v\": \"1.50.0\"", after);
+            StringAssert.Contains("\"_pin\": true", after);
+        }
+
+        [Test]
+        public void WriteOne_NoBaselineYet_MarkerDiffersFromLive_OverwritesAsBefore()
+        {
+            // No prior Run() for this project — baseline was never recorded (e.g.
+            // first launch after upgrading the plugin onto an already-synced
+            // project). Pre-ARC-11 default must be preserved: an unpinned stale
+            // marker still gets overwritten.
+            var path = Path.Combine(_tmpDir, ".mcp.json");
+            File.WriteAllText(path,
+                "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\": \"uvx\",\"_v\": \"0.5.0\"}}}");
+
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+
+            var content = File.ReadAllText(path);
+            StringAssert.Contains("\"_v\": \"1.2.3\"", content);
+            StringAssert.DoesNotContain("\"_v\": \"0.5.0\"", content);
+        }
+
+        [Test]
+        public void WriteOne_OwnedCurrent_StampsBaselineOpportunistically()
+        {
+            // Entry already matches the live version but no baseline was ever
+            // recorded. A Run() that hits the OwnedCurrent no-op path must stamp
+            // the baseline immediately instead of waiting for the next real
+            // version bump.
+            var path = Path.Combine(_tmpDir, ".mcp.json");
+            File.WriteAllText(path,
+                "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\": \"uvx\",\"_v\": \"1.2.3\"}}}");
+
+            ProjectConfigWriter.Run(_tmpDir, 9500, "1.2.3", new HashSet<string> { "claude-code" });
+
+            Assert.AreEqual("1.2.3",
+                EditorPrefs.GetString(PrefKeys.LastSyncedVersionPrefix + _tmpDir, ""));
         }
 
         [Test]
