@@ -181,12 +181,13 @@ namespace UnityMCP.Editor.Tests
         // Guard pre-claimed by a different version forces UpmPluginUpdater.Update's
         // busy short-circuit, which resolves onComplete(false) synchronously and
         // network-free (mirrors UpmPluginUpdaterTests.Update_WhileGuardInFlight_
-        // SkipsAddAndInvokesCallbackFalse). This proves DoRollback's callback runs
-        // and restores the button via the shared RollbackButtonText(version) — the
-        // C1 #14 defect left the button disabled with in-progress text for the
-        // entire round trip because no callback ever touched it.
+        // SkipsAddAndInvokesCallbackFalse). This proves DoRollback's callback fires
+        // exactly once and restores the button via the shared
+        // RollbackButtonText(version) — a prior defect left the button disabled
+        // with in-progress text for the entire round trip because no callback ever
+        // touched it.
         [Test]
-        public void DoRollback_DisablesButtonAndShowsRollingBackText_BeforeUpmCall()
+        public void DoRollback_WhenGuardBusy_CallbackFiresAndRestoresButton()
         {
             Assert.IsTrue(UpmOperationGuard.TryBegin("9.9.9"));
             var btn = new Button { text = "placeholder" };

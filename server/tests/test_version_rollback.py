@@ -208,12 +208,12 @@ def test_version_set_single_tool_only(install_mod):
 
 
 def test_version_set_only_writes_detected_clients(install_mod):
-    """C1 round1 #2 (MAJOR config-writers): `version --set` without --tool must
-    target only clients detect_installed() actually found -- never every
-    registered client -- or a single-tool user gets brand-new pinned configs
-    written for AI tools they never installed. Double-red: reverting
-    _target_clients to `list(CLIENT_REGISTRY.keys())` makes mock_merge fire
-    for cursor too, failing call_count == 1."""
+    """`version --set` without --tool must target only clients
+    detect_installed() actually found -- never every registered client -- or
+    a single-tool user gets brand-new pinned configs written for AI tools
+    they never installed. Double-red: reverting _target_clients to
+    `list(CLIENT_REGISTRY.keys())` makes mock_merge fire for cursor too,
+    failing call_count == 1."""
     mock_stop = MagicMock(return_value=True)
     mock_merge = MagicMock()
 
@@ -342,11 +342,10 @@ def test_version_set_vscode_pin_survives_reconfigure(tmp_path, install_mod):
 
 
 def test_unpin_only_targets_detected_clients(install_mod):
-    """C1 round1 #2 (MAJOR config-writers): `version --unpin` without --tool
-    must target only detect_installed() clients -- never every registered
-    client. Double-red: reverting _target_clients to
-    `list(CLIENT_REGISTRY.keys())` makes unpin_entry fire for cursor too,
-    failing call_count == 1."""
+    """`version --unpin` without --tool must target only detect_installed()
+    clients -- never every registered client. Double-red: reverting
+    _target_clients to `list(CLIENT_REGISTRY.keys())` makes unpin_entry fire
+    for cursor too, failing call_count == 1."""
     mock_unpin_entry = MagicMock(return_value=True)
 
     def make_client(name):
