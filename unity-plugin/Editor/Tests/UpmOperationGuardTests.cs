@@ -98,10 +98,10 @@ namespace UnityMCP.Editor.Tests
         // R2 #5: a stale claim left by any reload OTHER than the update's own version
         // bump (an unrelated script save, entering Play Mode, a sync_unity recompile)
         // never runs CheckVersionChange's version-match release path, so nothing but
-        // this getter's own ceiling check can ever clear it. Proves the getter
+        // this method's own ceiling check can ever clear it. Proves the method
         // ACTIVELY clears the claim (Complete()), not merely reports staleness.
         [Test]
-        public void IsActive_PastCeiling_SelfHealsWithoutTryBegin()
+        public void IsActiveOrHeal_PastCeiling_SelfHealsWithoutTryBegin()
         {
             var now = 0f;
             UpmOperationGuard.NowSecondsFloat = () => now;
@@ -109,12 +109,12 @@ namespace UnityMCP.Editor.Tests
 
             now = UpmOperationGuard.StaleCeilingSeconds + 1f;
 
-            Assert.IsFalse(UpmOperationGuard.IsActive);
+            Assert.IsFalse(UpmOperationGuard.IsActiveOrHeal());
             Assert.IsFalse(UpmOperationGuard.IsInFlight);
         }
 
         [Test]
-        public void IsActive_UnderCeiling_StaysInFlight()
+        public void IsActiveOrHeal_UnderCeiling_StaysInFlight()
         {
             var now = 0f;
             UpmOperationGuard.NowSecondsFloat = () => now;
@@ -122,7 +122,7 @@ namespace UnityMCP.Editor.Tests
 
             now = UpmOperationGuard.StaleCeilingSeconds - 1f;
 
-            Assert.IsTrue(UpmOperationGuard.IsActive);
+            Assert.IsTrue(UpmOperationGuard.IsActiveOrHeal());
             Assert.IsTrue(UpmOperationGuard.IsInFlight);
         }
     }

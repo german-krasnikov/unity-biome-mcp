@@ -41,23 +41,21 @@ namespace UnityMCP.Editor
 
         /// <summary>
         /// True when a claim exists and has not exceeded <see cref="StaleCeilingSeconds"/>.
-        /// Read this instead of <see cref="IsInFlight"/> from any passive UI (LevelUpPanel,
-        /// VersionPickerPage) so a claim orphaned by a reload OTHER than the update's own
-        /// version bump (an unrelated script save, entering Play Mode, a sync_unity
-        /// recompile) still self-heals on the next rebuild instead of only clearing on
-        /// <c>CheckVersionChange</c>'s narrower version-match path (C1 r2 #5). Past the
-        /// ceiling this actively clears the claim via <see cref="Complete"/> and returns
-        /// false — it does not merely report staleness.
+        /// Call this instead of reading <see cref="IsInFlight"/> from any passive UI
+        /// (LevelUpPanel, VersionPickerPage) so a claim orphaned by a reload OTHER than
+        /// the update's own version bump (an unrelated script save, entering Play Mode, a
+        /// sync_unity recompile) still self-heals on the next rebuild instead of only
+        /// clearing on <c>CheckVersionChange</c>'s narrower version-match path (C1 r2 #5).
+        /// Past the ceiling this actively clears the claim via <see cref="Complete"/> and
+        /// returns false — it does not merely report staleness. A method, not a property,
+        /// because reading it can mutate SessionState (CA1024).
         /// </summary>
-        public static bool IsActive
+        public static bool IsActiveOrHeal()
         {
-            get
-            {
-                if (!IsInFlight) return false;
-                if (ElapsedSeconds <= StaleCeilingSeconds) return true;
-                Complete();
-                return false;
-            }
+            if (!IsInFlight) return false;
+            if (ElapsedSeconds <= StaleCeilingSeconds) return true;
+            Complete();
+            return false;
         }
 
         /// <summary>
@@ -67,7 +65,7 @@ namespace UnityMCP.Editor
         /// </summary>
         public static bool TryBegin(string version)
         {
-            if (IsActive)
+            if (IsActiveOrHeal())
                 return false;
 
             SessionState.SetBool(InFlightKey, true);
