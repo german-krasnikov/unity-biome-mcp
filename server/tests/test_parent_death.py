@@ -2,6 +2,7 @@
 import asyncio
 import contextlib
 import os
+import threading
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -91,7 +92,8 @@ async def test_parent_death_stops_heartbeat_no_systemexit():
          patch("unity_mcp.bridge_heartbeat.os.getppid", return_value=os.getppid()), \
          patch("unity_mcp.global_config.GlobalConfig.load", return_value=_cfg_no_terminate()), \
          patch("unity_mcp.bridge_heartbeat.threading.Timer"), \
-         patch("unity_mcp.bridge_heartbeat.os._exit"):
+         patch("unity_mcp.bridge_heartbeat.os._exit"), \
+         patch("asyncio.sleep", new=AsyncMock()):
         await bridge._heartbeat_tick(15.0)
         assert bridge._heartbeat_task is None  # stopped
 
@@ -105,7 +107,8 @@ async def test_single_ppid_mismatch_does_not_stop():
     fake_original = os.getppid() + 9999
     with patch.object(hb_module, "_ORIGINAL_PPID", fake_original), \
          patch("unity_mcp.bridge_heartbeat.os.getppid", return_value=os.getppid()), \
-         patch("unity_mcp.global_config.GlobalConfig.load", return_value=_cfg_long_grace()):
+         patch("unity_mcp.global_config.GlobalConfig.load", return_value=_cfg_long_grace()), \
+         patch("asyncio.sleep", new=AsyncMock()):
         await bridge._heartbeat_tick(15.0)
         assert bridge._ppid_mismatch_count == 1
         assert bridge._heartbeat_task is not None  # still running
@@ -145,3 +148,73 @@ async def test_parent_alive_no_exit():
          patch("asyncio.sleep", new=AsyncMock()):
         await bridge._heartbeat_tick(15.0)
         mock_exit.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# DEV-54 [B3-#13] — orphan path must yield to the event loop
+# ---------------------------------------------------------------------------
+
+
+def _cfg_permanent_orphan():
+    """Permanent-bridge-mode config: _check_orphan() returns True forever,
+    with no grace/hard-exit bookkeeping (terminate_orphan=False short-circuits
+    before the grace deadline check)."""
+    cfg = MagicMock()
+    cfg.effective_terminate_orphan.return_value = (False, "config")
+    cfg.effective_orphan_grace_s.return_value = (999, "config")
+    return cfg
+
+
+def test_heartbeat_orphan_yields_event_loop():
+    """_heartbeat_loop's orphan branch must suspend, not busy-loop.
+
+    Bug: _check_orphan() is synchronous; when it returns True (parent dead,
+    terminate_orphan=False), _heartbeat_tick used to return with no await on
+    that path, so `while True: await self._heartbeat_tick(...)` in
+    _heartbeat_loop never hit a suspension point — a pure CPU busy-loop that
+    starves every other coroutine on the same event loop forever (including
+    in-flight MCP request handling in production).
+
+    Runs the loop in its own thread + event loop with a bounded join(): a
+    regression makes the thread hang forever (as the real bug does — nothing
+    in the buggy code path ever yields, so no asyncio-level timeout can fire
+    either), and join(timeout=...) still returns on schedule so this test
+    fails fast instead of hanging the whole suite.
+    """
+    bridge = _make_bridge_mixin()
+    fake_original = os.getppid() + 9999
+    counter = {"n": 0}
+
+    async def _sibling() -> None:
+        while True:
+            counter["n"] += 1
+            await asyncio.sleep(0)
+
+    async def _run() -> None:
+        loop_task = asyncio.ensure_future(bridge._heartbeat_loop(15.0))
+        sibling_task = asyncio.ensure_future(_sibling())
+        await asyncio.sleep(0.2)
+        loop_task.cancel()
+        sibling_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await loop_task
+        with contextlib.suppress(asyncio.CancelledError):
+            await sibling_task
+
+    def _thread_main() -> None:
+        with patch.object(hb_module, "_ORIGINAL_PPID", fake_original), \
+             patch("unity_mcp.bridge_heartbeat.os.getppid", return_value=os.getppid()), \
+             patch("unity_mcp.global_config.GlobalConfig.load", return_value=_cfg_permanent_orphan()):
+            loop = asyncio.new_event_loop()
+            try:
+                loop.run_until_complete(_run())
+            finally:
+                loop.close()
+
+    t = threading.Thread(target=_thread_main, daemon=True)
+    t.start()
+    t.join(timeout=1.0)
+
+    assert counter["n"] > 0, (
+        "sibling task never ran — orphan path busy-loops the event loop"
+    )

@@ -20,6 +20,12 @@ RELOAD_BACKOFF_S: float = 1.0
 # ARC-7 T1: minimum interval between stale-port sweeps from the idle heartbeat
 # branch. Mirrors the reconnect-callback debounce precedent (server.py ~591).
 PORT_SWEEP_INTERVAL_S: float = 30.0
+# DEV-54: orphan-path recheck cadence. _check_orphan() is synchronous, so
+# without a yield point here the orphan branch of _heartbeat_loop's `while
+# True` never suspends — a busy-loop that starves every other coroutine
+# (including in-flight MCP request handling) until the parent-death grace
+# period expires or the process is reparented back.
+ORPHAN_CHECK_INTERVAL_S: float = 1.0
 
 _hard_exit_scheduled: bool = False
 
@@ -91,6 +97,7 @@ class HeartbeatMixin:
         # Never raise SystemExit/BaseException from a background task — it kills
         # the anyio task group, closing stdio → -32000 for any in-flight MCP call.
         if self._check_orphan():
+            await asyncio.sleep(ORPHAN_CHECK_INTERVAL_S)
             return
         if not self.connected:
             await self._tick_disconnected()

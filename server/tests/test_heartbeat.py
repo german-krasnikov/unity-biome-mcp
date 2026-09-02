@@ -84,7 +84,8 @@ async def test_p3_single_ppid_mismatch_does_not_exit():
     with patch("unity_mcp.bridge_heartbeat.os.getppid", return_value=_ORIGINAL_PPID + 999), \
          patch("unity_mcp.global_config.GlobalConfig.load", return_value=_cfg_mock(grace_s=120)), \
          patch("unity_mcp.bridge_heartbeat._schedule_hard_exit",
-               side_effect=lambda: schedule_calls.append(1)):
+               side_effect=lambda: schedule_calls.append(1)), \
+         patch("unity_mcp.bridge_heartbeat.asyncio.sleep", AsyncMock()):
         await bridge._heartbeat_tick(15.0)
 
     assert bridge._ppid_mismatch_count == 1
@@ -100,7 +101,8 @@ async def test_p3_grace_expired_stops_heartbeat():
     with patch("unity_mcp.bridge_heartbeat.os.getppid", return_value=_ORIGINAL_PPID + 999), \
          patch("unity_mcp.global_config.GlobalConfig.load", return_value=_cfg_mock(grace_s=0)), \
          patch("unity_mcp.bridge_heartbeat.threading.Timer"), \
-         patch("unity_mcp.bridge_heartbeat.os._exit"):
+         patch("unity_mcp.bridge_heartbeat.os._exit"), \
+         patch("unity_mcp.bridge_heartbeat.asyncio.sleep", AsyncMock()):
         await bridge._heartbeat_tick(15.0)
 
     assert bridge._heartbeat_task is None  # stop_heartbeat() was called
@@ -112,7 +114,8 @@ async def test_p3_ppid_recovery_resets_orphan():
 
     # First: mismatch
     with patch("unity_mcp.bridge_heartbeat.os.getppid", return_value=_ORIGINAL_PPID + 999), \
-         patch("unity_mcp.global_config.GlobalConfig.load", return_value=_cfg_mock(grace_s=120)):
+         patch("unity_mcp.global_config.GlobalConfig.load", return_value=_cfg_mock(grace_s=120)), \
+         patch("unity_mcp.bridge_heartbeat.asyncio.sleep", AsyncMock()):
         await bridge._heartbeat_tick(15.0)
     assert bridge._ppid_mismatch_count == 1
     assert bridge._orphan_detected_at is not None
@@ -137,7 +140,8 @@ async def test_p3_no_os_exit_used():
          patch("unity_mcp.bridge_heartbeat._schedule_hard_exit",
                side_effect=lambda: schedule_calls.append(1)), \
          patch("unity_mcp.bridge_heartbeat.threading.Timer"), \
-         patch("unity_mcp.bridge_heartbeat.os._exit"):
+         patch("unity_mcp.bridge_heartbeat.os._exit"), \
+         patch("unity_mcp.bridge_heartbeat.asyncio.sleep", AsyncMock()):
         await bridge._heartbeat_tick(15.0)
 
     assert len(schedule_calls) == 1
@@ -152,7 +156,8 @@ async def test_p3_terminate_orphan_false_never_exits():
     with patch("unity_mcp.bridge_heartbeat.os.getppid", return_value=_ORIGINAL_PPID + 999), \
          patch("unity_mcp.global_config.GlobalConfig.load", return_value=_cfg_mock(terminate=False)), \
          patch("unity_mcp.bridge_heartbeat._schedule_hard_exit",
-               side_effect=lambda: schedule_calls.append(1)):
+               side_effect=lambda: schedule_calls.append(1)), \
+         patch("unity_mcp.bridge_heartbeat.asyncio.sleep", AsyncMock()):
         await bridge._heartbeat_tick(15.0)
 
     assert len(schedule_calls) == 0
