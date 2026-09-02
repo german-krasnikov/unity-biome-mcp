@@ -8,6 +8,7 @@ Plans/consumer-reports/ARC-12-python-deep-merge.md.
 import json
 
 from unity_mcp.config.merger import merge_mcp_config
+from helpers import KEEPME_ENV
 
 
 def test_merge_preserves_custom_env_key_on_env_less_reentry(tmp_path):
@@ -19,7 +20,7 @@ def test_merge_preserves_custom_env_key_on_env_less_reentry(tmp_path):
             "unity-biome-mcp": {
                 "command": "old",
                 "args": [],
-                "env": {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"},
+                "env": dict(KEEPME_ENV),
             }
         }
     }
@@ -29,7 +30,7 @@ def test_merge_preserves_custom_env_key_on_env_less_reentry(tmp_path):
 
     data = json.loads(cfg.read_text(encoding="utf-8"))
     entry = data["mcpServers"]["unity-biome-mcp"]
-    assert entry["env"] == {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"}
+    assert entry["env"] == KEEPME_ENV
     assert entry["command"] == "new"
 
 
@@ -42,7 +43,7 @@ def test_merge_updates_only_specified_env_subkey(tmp_path):
             "unity-biome-mcp": {
                 "command": "old",
                 "args": [],
-                "env": {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"},
+                "env": dict(KEEPME_ENV),
             }
         }
     }
@@ -52,7 +53,7 @@ def test_merge_updates_only_specified_env_subkey(tmp_path):
 
     data = json.loads(cfg.read_text(encoding="utf-8"))
     entry = data["mcpServers"]["unity-biome-mcp"]
-    assert entry["env"] == {"UNITY_MCP_PORT": "9999", "CUSTOM_VAR": "keepme"}
+    assert entry["env"] == {**KEEPME_ENV, "UNITY_MCP_PORT": "9999"}
 
 
 def test_merge_preserves_unknown_top_level_key(tmp_path):

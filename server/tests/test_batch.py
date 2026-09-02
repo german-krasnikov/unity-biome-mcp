@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 from mcp.server.fastmcp.exceptions import ToolError
 
 from unity_mcp.server import batch
-from unity_mcp.tools.batch import validate_references
+from unity_mcp.tools.batch import validate_references, _TIMEOUT_MS_CEILING, _BATCH_DISPATCH_GUARD_S
 
 
 async def test_batch_text_forwarded(mock_bridge, bridge_response):
@@ -16,7 +16,7 @@ async def test_batch_text_forwarded(mock_bridge, bridge_response):
     # hardcoded 25000ms internal default either, so it's sent explicitly.
     mock_bridge.send.assert_called_once_with(
         "batch",
-        {"commands": commands, "timeout_ms": 60000},
+        {"commands": commands, "timeout_ms": _TIMEOUT_MS_CEILING},
         timeout=75.0,
     )
     assert result == "[0] ok: /A\n[1] ok"
@@ -36,7 +36,7 @@ async def test_batch_non_default_timeout_sent(mock_bridge, bridge_response):
     bridge_response(data="[0] ok: /A")
     await batch(commands="create_object name=A", timeout=60.0)
     call_args = mock_bridge.send.call_args[0]
-    assert call_args[1]["timeout_ms"] == 55000  # (60-5)*1000
+    assert call_args[1]["timeout_ms"] == int((60 - _BATCH_DISPATCH_GUARD_S) * 1000)
 
 
 async def test_batch_default_timeout_omitted(mock_bridge, bridge_response):
@@ -96,7 +96,7 @@ async def test_batch_single_command(mock_bridge):
     # hardcoded 25000ms internal default either, so it's sent explicitly.
     mock_bridge.send.assert_called_once_with(
         "batch",
-        {"commands": "create_object name=A primitive=Cube", "timeout_ms": 60000},
+        {"commands": "create_object name=A primitive=Cube", "timeout_ms": _TIMEOUT_MS_CEILING},
         timeout=75.0,
     )
     assert result == "[0] ok: /A"

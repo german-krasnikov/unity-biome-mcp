@@ -1219,6 +1219,9 @@ class _FakeDrift:
         return notice
 
 
+_PORT_DRIFT_NOTICE = "port changed 9500->9501"
+
+
 def _wire_drift(mock_bridge, notice):
     drift = _FakeDrift(notice)
     mock_bridge.peek_port_drift_notice = Mock(side_effect=drift.peek)
@@ -1229,11 +1232,11 @@ def _wire_drift(mock_bridge, notice):
 async def test_send_raw_prefixes_pending_port_drift_notice(mock_bridge):
     """First response after a drift carries the prefix; the second doesn't."""
     from unity_mcp.server import _send_raw
-    _wire_drift(mock_bridge, "port changed 9500->9501")
+    _wire_drift(mock_bridge, _PORT_DRIFT_NOTICE)
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
     result1 = await _send_raw("ping", {})
     result2 = await _send_raw("ping", {})
-    assert result1 == "[port changed 9500->9501]\nok"
+    assert result1 == f"[{_PORT_DRIFT_NOTICE}]\nok"
     assert result2 == "ok"
 
 
@@ -1284,14 +1287,14 @@ async def test_send_raw_does_not_prefix_json_response(mock_bridge):
     next safe response instead of being lost forever."""
     from unity_mcp.server import _send_raw
     json_text = '{"run_id": "abc", "state": "terminal"}'
-    _wire_drift(mock_bridge, "port changed 9500->9501")
+    _wire_drift(mock_bridge, _PORT_DRIFT_NOTICE)
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": json_text})
     result1 = await _send_raw("get_test_run", {})
     assert result1 == json_text
 
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
     result2 = await _send_raw("ping", {})
-    assert result2 == "[port changed 9500->9501]\nok"
+    assert result2 == f"[{_PORT_DRIFT_NOTICE}]\nok"
 
 
 async def test_send_raw_does_not_prefix_protocol_record_and_preserves_notice(mock_bridge):
@@ -1302,14 +1305,14 @@ async def test_send_raw_does_not_prefix_protocol_record_and_preserves_notice(moc
     The notice is queued, not lost -- it rides the next safe response."""
     from unity_mcp.server import _send_raw
     ack = "tests-started|request_id=r1|run_id=run1|utf_guid=g1|state=dispatched"
-    _wire_drift(mock_bridge, "port changed 9500->9501")
+    _wire_drift(mock_bridge, _PORT_DRIFT_NOTICE)
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": ack})
     result1 = await _send_raw("run_tests", {})
     assert result1 == ack
 
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "ok"})
     result2 = await _send_raw("ping", {})
-    assert result2 == "[port changed 9500->9501]\nok"
+    assert result2 == f"[{_PORT_DRIFT_NOTICE}]\nok"
 
 
 # ---------------------------------------------------------------------------

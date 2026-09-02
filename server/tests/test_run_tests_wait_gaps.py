@@ -4,11 +4,12 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import unity_mcp.tools.testing as testing
+from helpers import make_snapshot
 
 REQ = "req-gap"
 RUN = "run-gap"
 ACK = (
-    f"tests-started|request_id={REQ}|run_id={RUN}"
+    f"{testing._STARTED}|request_id={REQ}|run_id={RUN}"
     "|utf_guid=utf-gap|state=dispatched"
 )
 
@@ -99,12 +100,7 @@ async def test_multiple_reload_failures_do_not_replace_last_snapshot():
 
 
 def _running_with_health(health: str) -> str:
-    return json.dumps({
-        "request_id": REQ,
-        "run_id": RUN,
-        "state": "running",
-        "health": health,
-    })
+    return make_snapshot(REQ, RUN, "running", health=health)
 
 
 async def test_timeout_includes_health_streak_after_threshold():

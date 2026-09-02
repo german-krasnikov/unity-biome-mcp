@@ -6,21 +6,9 @@ load-bearing: OnBeforeReload() keeps the port file across a live domain
 reload, so sweeping there would delete a live Unity's port file.
 """
 import asyncio
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, call, patch
 
-from unity_mcp.bridge import UnityBridge
-
-
-def _make_bridge_disconnected(busy: bool = False) -> UnityBridge:
-    """Return a disconnected UnityBridge with a mocked probe (mirrors test_bridge_heartbeat.py)."""
-    from unity_mcp.compile_state import CompileStateProbe
-    probe = MagicMock(spec=CompileStateProbe)
-    probe.has_strong_busy_signal.return_value = busy
-    probe.is_process_dead.return_value = False
-    probe.has_project = True
-    probe.mark_recompile_issued = MagicMock()
-    bridge = UnityBridge("127.0.0.1", 9999, probe=probe)
-    return bridge
+from helpers import make_bridge_disconnected as _make_bridge_disconnected
 
 
 async def test_sweeps_stale_ports_when_idle():

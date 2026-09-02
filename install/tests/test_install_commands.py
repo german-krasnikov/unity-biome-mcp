@@ -15,6 +15,11 @@ _spec = importlib.util.spec_from_file_location("install_script", REPO_ROOT / "in
 inst = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(inst)
 
+# Shared "existing config carries a custom env var" fixture -- this file's
+# pytest root is separate from server/tests, so it keeps its own local
+# constant instead of importing server/tests/helpers.py's KEEPME_ENV.
+_KEEPME_ENV = {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"}
+
 # Lazy references — functions don't exist until Green phase
 def cmd_configure(*a, **kw): return inst.cmd_configure(*a, **kw)
 def cmd_uninstall(*a, **kw): return inst.cmd_uninstall(*a, **kw)
@@ -422,7 +427,7 @@ def test_reconfigure_detected_clients_preserves_custom_env_var(tmp_path):
             "unity-biome-mcp": {
                 "command": "old",
                 "args": [],
-                "env": {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"},
+                "env": dict(_KEEPME_ENV),
             }
         }
     }), encoding="utf-8")
@@ -437,7 +442,7 @@ def test_reconfigure_detected_clients_preserves_custom_env_var(tmp_path):
 
     data = json.loads(cfg.read_text(encoding="utf-8"))
     written = data["mcpServers"]["unity-biome-mcp"]
-    assert written["env"] == {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"}
+    assert written["env"] == _KEEPME_ENV
     assert written["command"] == "new"
 
 

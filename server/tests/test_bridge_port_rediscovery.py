@@ -10,6 +10,8 @@ import unity_mcp.bridge as bridge_mod
 from unity_mcp.bridge import UnityBridge
 from helpers import make_writer, make_idle_probe, ping_response, reconnect_preamble
 
+_PORT_DRIFT_NOTICE = "port changed 9500->9501"
+
 
 @pytest.fixture(autouse=True)
 def _fast_timeouts():
@@ -509,7 +511,7 @@ def test_pop_port_drift_notice_consumes_once():
     bridge = UnityBridge("127.0.0.1", 9500, probe=make_idle_probe())
     bridge._port_drift = (9500, 9501)
 
-    assert bridge.pop_port_drift_notice() == "port changed 9500->9501"
+    assert bridge.pop_port_drift_notice() == _PORT_DRIFT_NOTICE
     assert bridge.pop_port_drift_notice() is None
 
 
@@ -524,9 +526,9 @@ def test_peek_port_drift_notice_does_not_consume():
     bridge = UnityBridge("127.0.0.1", 9500, probe=make_idle_probe())
     bridge._port_drift = (9500, 9501)
 
-    assert bridge.peek_port_drift_notice() == "port changed 9500->9501"
-    assert bridge.peek_port_drift_notice() == "port changed 9500->9501"
-    assert bridge.pop_port_drift_notice() == "port changed 9500->9501"
+    assert bridge.peek_port_drift_notice() == _PORT_DRIFT_NOTICE
+    assert bridge.peek_port_drift_notice() == _PORT_DRIFT_NOTICE
+    assert bridge.pop_port_drift_notice() == _PORT_DRIFT_NOTICE
     assert bridge.peek_port_drift_notice() is None
 
 

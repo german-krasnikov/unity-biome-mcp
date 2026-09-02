@@ -1,4 +1,6 @@
 from unity_mcp.server import batch
+from unity_mcp.tools.batch import _TIMEOUT_MS_CEILING, _BATCH_DISPATCH_GUARD_S
+from test_timing_invariants import _CSHARP_OVERRIDES
 
 
 async def test_batch_default_timeout_75s(mock_bridge, bridge_response):
@@ -10,7 +12,7 @@ async def test_batch_default_timeout_75s(mock_bridge, bridge_response):
     bridge_response(data="ok:1")
     await batch(commands="get_hierarchy")
     args = mock_bridge.send.call_args[0][1]
-    assert args["timeout_ms"] == 60000
+    assert args["timeout_ms"] == _TIMEOUT_MS_CEILING
 
 
 async def test_batch_custom_timeout(mock_bridge, bridge_response):
@@ -18,7 +20,7 @@ async def test_batch_custom_timeout(mock_bridge, bridge_response):
     bridge_response(data="ok:1")
     await batch(commands="get_hierarchy", timeout=60.0)
     args = mock_bridge.send.call_args[0][1]
-    assert args["timeout_ms"] == 55000
+    assert args["timeout_ms"] == int((60 - _BATCH_DISPATCH_GUARD_S) * 1000)
 
 
 async def test_batch_default_timeout_exceeds_csharp_ceiling(mock_bridge, bridge_response):
@@ -28,7 +30,7 @@ async def test_batch_default_timeout_exceeds_csharp_ceiling(mock_bridge, bridge_
     bridge_response(data="ok:1")
     await batch(commands="get_hierarchy")
     call_args = mock_bridge.send.call_args
-    assert call_args[1]["timeout"] > 65.0
+    assert call_args[1]["timeout"] > _CSHARP_OVERRIDES["batch"]
 
 
 async def test_batch_timeout_ms_never_exceeds_csharp_ceiling(mock_bridge, bridge_response):
@@ -40,7 +42,7 @@ async def test_batch_timeout_ms_never_exceeds_csharp_ceiling(mock_bridge, bridge
     bridge_response(data="ok:1")
     await batch(commands="get_hierarchy", timeout=75.0)
     args = mock_bridge.send.call_args[0][1]
-    assert args["timeout_ms"] <= 60000
+    assert args["timeout_ms"] <= _TIMEOUT_MS_CEILING
 
 
 async def test_batch_low_timeout_ms_unaffected_by_ceiling_clamp(mock_bridge, bridge_response):

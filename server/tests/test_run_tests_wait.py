@@ -9,66 +9,16 @@ import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
 import unity_mcp.tools.testing as testing
+from helpers import REQUEST_ID, RUN_ID, make_snapshot
 
-
-REQUEST_ID = "req-1"
-RUN_ID = "run-1"
 ACK = (
-    f"tests-started|request_id={REQUEST_ID}|run_id={RUN_ID}"
+    f"{testing._STARTED}|request_id={REQUEST_ID}|run_id={RUN_ID}"
     "|utf_guid=utf-1|state=dispatched"
 )
 
 
 def _snapshot(state: str, outcome: str = "", health: str = "") -> str:
-    terminal = state == "terminal"
-    expected = 6964
-    failed = 1 if terminal and outcome == "failed" else 0
-    skipped = 1 if terminal else 0
-    passed = expected - failed - skipped if terminal else 4
-    # "incomplete" models an abandoned run: no real RunFinished evidence.
-    run_finished_observed = terminal and outcome != "incomplete"
-    data = {
-        "request_id": REQUEST_ID,
-        "run_id": RUN_ID,
-        "utf_guid": "utf-1",
-        "state": state,
-        "lifecycle": state,
-        "outcome": outcome,
-        "source": "mcp",
-        "mode": "EditMode",
-        "filter": "",
-        "is_terminal": terminal,
-        "execution_finished": terminal,
-        "cleanup_complete": terminal,
-        "run_started_observed": True,
-        "manifest_complete": True,
-        "run_finished_observed": run_finished_observed,
-        "build_coherent": True,
-        "utf_xml_scope": "complete" if terminal else "none",
-        "expected_count": expected,
-        "declared_expected_count": expected,
-        "readable_manifest_count": expected,
-        "completed_expected_count": expected if terminal else 4,
-        "unique_terminal_count": expected if terminal else 4,
-        "unmaterialized_expected_count": 0,
-        "missing_count": 0,
-        "unexpected_count": 0,
-        "conflict_count": 0,
-        "passed": passed,
-        "failed": failed,
-        "skipped": skipped,
-        "inconclusive": 0,
-        "cancelled": 0,
-        "invalid": 0,
-        "issues": [],
-        "counts": {
-            "expected": expected,
-            "finished": expected if terminal else 4,
-        },
-    }
-    if health:
-        data["health"] = health
-    return json.dumps(data)
+    return make_snapshot(REQUEST_ID, RUN_ID, state, outcome, health=health)
 
 
 async def _started(mode, filter=None, request_id=None):

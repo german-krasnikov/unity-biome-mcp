@@ -15,6 +15,8 @@ from unity_mcp.mcp_config_writer import (
     write_opencode_config,
 )
 
+from helpers import KEEPME_ENV
+
 
 def test_write_claude_config_creates_file(tmp_path):
     path = write_claude_config(str(tmp_path), 9601)
@@ -157,7 +159,7 @@ def test_kimi_config_preserves_custom_env_on_rewrite(tmp_path):
             "unity-biome-mcp": {
                 "command": "old",
                 "args": [],
-                "env": {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"},
+                "env": dict(KEEPME_ENV),
             }
         }
     }
@@ -168,7 +170,7 @@ def test_kimi_config_preserves_custom_env_on_rewrite(tmp_path):
 
     data = json.loads(path.read_text(encoding="utf-8"))
     entry = data["mcpServers"]["unity-biome-mcp"]
-    assert entry["env"] == {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"}
+    assert entry["env"] == KEEPME_ENV
     assert entry["command"] == "new"
 
 

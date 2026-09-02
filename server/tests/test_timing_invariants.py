@@ -19,6 +19,7 @@ import pytest
 
 from unity_mcp.timeout_categories import get_timeout
 from unity_mcp.tools.batch import _TIMEOUT_MS_CEILING, _UNITY_BATCH_DEFAULT_MS
+from unity_mcp.tools.tool_specs import DEFAULT_TIMEOUT
 
 _PROJECT = Path(__file__).parents[2]
 _MCP_SERVER_CS_PATH = _PROJECT / "unity-plugin/Editor/MCPServer.cs"
@@ -80,7 +81,7 @@ def test_batch_default_ms_source_matches_fixture():
 
 # ARC-4 Section 2.1 rows where "Python timeout < C# timeout" holds.
 _STRICT_ROWS = [
-    ("run_tests", 30.0),
+    ("run_tests", DEFAULT_TIMEOUT),
     ("get_test_run", 10.0),
     ("resolve_test_request", 10.0),
     ("cancel_test_run", 10.0),

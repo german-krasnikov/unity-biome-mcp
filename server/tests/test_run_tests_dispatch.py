@@ -13,8 +13,9 @@ import pytest
 import unity_mcp.tools.diagnose as diagnose
 import unity_mcp.tools.testing as testing
 from unity_mcp.timeout_categories import get_timeout
+from unity_mcp.tools.tool_specs import DEFAULT_TIMEOUT
 
-ACK = "tests-started|request_id=req-1|run_id=run-1|utf_guid=utf-1|state=dispatched"
+ACK = f"{testing._STARTED}|request_id=req-1|run_id=run-1|utf_guid=utf-1|state=dispatched"
 
 
 @pytest.fixture(autouse=True)
@@ -40,4 +41,4 @@ async def test_run_tests_dispatch_uses_spec_timeout(_patch_deps):
     dispatch_call = _patch_deps.call_args_list[-1]
     assert dispatch_call.args[0] == "run_tests"
     assert "timeout" not in dispatch_call.kwargs
-    assert get_timeout("run_tests") == 30.0
+    assert get_timeout("run_tests") == DEFAULT_TIMEOUT
