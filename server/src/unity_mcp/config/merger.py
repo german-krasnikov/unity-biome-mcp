@@ -116,6 +116,12 @@ def _replace_text_atomic(config_path: pathlib.Path, text: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(text)
+        # mkstemp creates the temp file at 0o600; without copying the existing
+        # file's mode first, os.replace would silently downgrade a 0o644
+        # client config (~/.claude.json, .mcp.json, ...) to 0o600.
+        with contextlib.suppress(OSError):
+            if config_path.exists():
+                shutil.copymode(config_path, tmp_name)
         os.replace(tmp_name, config_path)
     except BaseException:
         with contextlib.suppress(OSError):
