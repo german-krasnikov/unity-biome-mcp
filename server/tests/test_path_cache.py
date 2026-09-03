@@ -108,7 +108,7 @@ MULTI_SCENE_HIERARCHY = """\
 
 
 def test_path_cache_multiscene_same_path_both_scenes_tracked():
-    """P1: both scene-qualified paths should be stored in multi-scene hierarchy."""
+    """Both scene-qualified paths should be stored in multi-scene hierarchy. (P1)"""
     m = Middleware()
     m.update_path_cache("get_hierarchy", MULTI_SCENE_HIERARCHY)
     assert "Scene1:/Player" in m.known_paths

@@ -104,7 +104,7 @@ def _running_with_health(health: str) -> str:
 
 
 async def test_timeout_includes_health_streak_after_threshold():
-    """ARC-1 P2: 3+ consecutive suspected_stall polls annotate the TIMEOUT."""
+    """3+ consecutive suspected_stall polls annotate the TIMEOUT. (ARC-1 P2)"""
     stall = _running_with_health("suspected_stall")
     poll = AsyncMock(side_effect=[stall, stall, stall])
     with patch.object(testing, "run_tests", _started), \

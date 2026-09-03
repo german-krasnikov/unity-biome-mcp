@@ -125,7 +125,7 @@ def test_sampling_service_enabled_with_both_envs(monkeypatch):
 # ---------------------------------------------------------------------------
 
 async def test_init_corroboration_called_on_reconnect(monkeypatch):
-    """P9: _on_reconnect callback calls init_corroboration(port=...) to re-resolve project."""
+    """_on_reconnect callback calls init_corroboration(port=...) to re-resolve project. (P9)"""
     from unittest.mock import MagicMock, patch
     from unity_mcp import server as srv
 

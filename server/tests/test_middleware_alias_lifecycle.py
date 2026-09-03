@@ -48,7 +48,7 @@ def _make_mw(monkeypatch):
 # ── Category A: Alias Lifecycle ───────────────────────────────────────────────
 
 async def test_lifecycle_A1_first_hierarchy_fills_cache(monkeypatch):
-    """P0: get_hierarchy response populates alias cache; next call resolves $name."""
+    """get_hierarchy response populates alias cache; next call resolves $name. (P0)"""
     mw = _make_mw(monkeypatch)
     captured: dict = {}
 
@@ -68,7 +68,7 @@ async def test_lifecycle_A1_first_hierarchy_fills_cache(monkeypatch):
 
 
 async def test_lifecycle_A2_cache_replaced_on_new_hierarchy(monkeypatch):
-    """P0: Second get_hierarchy with changed aliases REPLACES cache (not merges)."""
+    """Second get_hierarchy with changed aliases REPLACES cache (not merges). (P0)"""
     mw = _make_mw(monkeypatch)
     responses = {"get_hierarchy": HIER_WITH_ALIASES}
 
@@ -88,7 +88,7 @@ async def test_lifecycle_A2_cache_replaced_on_new_hierarchy(monkeypatch):
 
 
 async def test_lifecycle_A3_no_change_preserves_cache(monkeypatch):
-    """P0: Incremental get_hierarchy (NO_CHANGE) does NOT wipe alias cache."""
+    """Incremental get_hierarchy (NO_CHANGE) does NOT wipe alias cache. (P0)"""
     mw = _make_mw(monkeypatch)
     call_n = {"n": 0}
 
@@ -108,7 +108,7 @@ async def test_lifecycle_A3_no_change_preserves_cache(monkeypatch):
 
 
 async def test_lifecycle_A4_no_aliases_block_preserves_cache(monkeypatch):
-    """P1: Filtered hierarchy (no ALIASES block) does NOT clear cache."""
+    """Filtered hierarchy (no ALIASES block) does NOT clear cache. (P1)"""
     mw = _make_mw(monkeypatch)
     responses = {"get_hierarchy": HIER_WITH_ALIASES}
 
@@ -125,7 +125,7 @@ async def test_lifecycle_A4_no_aliases_block_preserves_cache(monkeypatch):
 
 
 def test_lifecycle_A5_reset_session_clears_cache():
-    """P1: reset_session() must clear alias cache (stale aliases after reconnect)."""
+    """reset_session() must clear alias cache (stale aliases after reconnect). (P1)"""
     from unity_mcp.middleware import Middleware
     mw = Middleware()
     mw._alias_cache = {"player": "/Player|PlayerController|", "hp": "/Player|HP|health"}
@@ -136,7 +136,7 @@ def test_lifecycle_A5_reset_session_clears_cache():
 # ── Category B: Multi-tool Alias Resolution ───────────────────────────────────
 
 async def test_multitool_B1_inspect_comma_separated(monkeypatch):
-    """P0: inspect(paths='$player,$enemy') resolves both aliases."""
+    """inspect(paths='$player,$enemy') resolves both aliases. (P0)"""
     mw = _make_mw(monkeypatch)
     captured: dict = {}
 
@@ -156,7 +156,7 @@ async def test_multitool_B1_inspect_comma_separated(monkeypatch):
 
 
 async def test_multitool_B2_multiple_names_one_call(monkeypatch):
-    """P0: Multiple $names in one args dict each resolve independently."""
+    """Multiple $names in one args dict each resolve independently. (P0)"""
     mw = _make_mw(monkeypatch)
     captured: dict = {}
 
@@ -173,7 +173,7 @@ async def test_multitool_B2_multiple_names_one_call(monkeypatch):
 
 
 async def test_multitool_B3_queries_full_pipe(monkeypatch):
-    """P0: $name in 'queries' key returns full pipe value."""
+    """$name in 'queries' key returns full pipe value. (P0)"""
     mw = _make_mw(monkeypatch)
     captured: dict = {}
 
@@ -189,7 +189,7 @@ async def test_multitool_B3_queries_full_pipe(monkeypatch):
 
 
 async def test_multitool_B4_batch_inner_not_resolved(monkeypatch):
-    """P1: $name INSIDE batch DSL string is NOT resolved (documented limitation).
+    """$name INSIDE batch DSL string is NOT resolved (documented limitation). (P1)
     Batch commands string is a single arg value, not a whole-value $name match."""
     mw = _make_mw(monkeypatch)
     captured: dict = {}
@@ -208,7 +208,7 @@ async def test_multitool_B4_batch_inner_not_resolved(monkeypatch):
 
 
 async def test_multitool_B5_full_llm_flow(monkeypatch):
-    """P0: Simulates full LLM task: hierarchy → get_component → set_property via $aliases."""
+    """Simulates full LLM task: hierarchy → get_component → set_property via $aliases. (P0)"""
     mw = _make_mw(monkeypatch)
     log: list = []
 
@@ -233,7 +233,7 @@ async def test_multitool_B5_full_llm_flow(monkeypatch):
 # ── Category E: Error Scenarios ───────────────────────────────────────────────
 
 async def test_error_E1_unknown_dollar_name_passthrough(monkeypatch):
-    """P0: Unknown $name passes through unchanged — Unity handles bad path."""
+    """Unknown $name passes through unchanged — Unity handles bad path. (P0)"""
     mw = _make_mw(monkeypatch)
     captured: dict = {}
 
@@ -251,7 +251,7 @@ async def test_error_E1_unknown_dollar_name_passthrough(monkeypatch):
 # ── Category F: Pipeline Integration Order ────────────────────────────────────
 
 async def test_pipeline_F1_resolve_before_path_guard(monkeypatch):
-    """P0: $player resolves to /Player BEFORE send (Hook 1 runs early in pipeline)."""
+    """$player resolves to /Player BEFORE send (Hook 1 runs early in pipeline). (P0)"""
     mw = _make_mw(monkeypatch)
     send_log: list = []
 
@@ -268,7 +268,7 @@ async def test_pipeline_F1_resolve_before_path_guard(monkeypatch):
 
 
 async def test_pipeline_F2_aliases_survive_strip_defaults(monkeypatch):
-    """P1: parse_aliases_from_hierarchy sees result AFTER strip_defaults.
+    """parse_aliases_from_hierarchy sees result AFTER strip_defaults. (P1)
     strip_defaults must NOT remove the ALIASES block."""
     from unity_mcp.middleware_alias import parse_aliases_from_hierarchy
     from unity_mcp.compressor import strip_defaults
@@ -282,7 +282,7 @@ async def test_pipeline_F2_aliases_survive_strip_defaults(monkeypatch):
 
 
 async def test_pipeline_F3_hook_order(monkeypatch):
-    """P1: Hook 2 (parse) runs after get_hierarchy response; cache ready for NEXT call."""
+    """Hook 2 (parse) runs after get_hierarchy response; cache ready for NEXT call. (P1)"""
     mw = _make_mw(monkeypatch)
 
     async def fake_send(cmd, args, timeout=0):

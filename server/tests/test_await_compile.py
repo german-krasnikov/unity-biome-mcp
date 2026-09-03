@@ -349,7 +349,7 @@ async def test_await_compile_falls_back_to_compile_status_when_no_sync_status():
 
 # P3: sentinel strip — same shared function used by both code paths
 async def test_await_compile_sentinel_stripped_compile_status_path():
-    """P3: 'No compilation errors' sentinel stripped on compile_status fallback path."""
+    """'No compilation errors' sentinel stripped on compile_status fallback path. (P3)"""
     _ci._send = _make_send(["idle|2.0"], errors_response="No compilation errors")
     result = await _ci.await_compile(timeout=60.0)
     # Sentinel must be stripped; result is the compile-status clean message
@@ -362,7 +362,7 @@ async def test_await_compile_sentinel_stripped_compile_status_path():
 # ---------------------------------------------------------------------------
 
 def test_parse_sync_status_includes_stamp():
-    """P4: _parse_sync_status returns 4-tuple including stamp field."""
+    """_parse_sync_status returns 4-tuple including stamp field. (P4)"""
     result = _ci._parse_sync_status("epoch=3|state=ready|stamp=abc123:987654")
     assert len(result) == 4
     epoch, state, extra, stamp = result
@@ -372,19 +372,19 @@ def test_parse_sync_status_includes_stamp():
 
 
 def test_parse_sync_status_stamp_absent_returns_empty():
-    """P4: stamp= absent → stamp='' in 4-tuple."""
+    """stamp= absent → stamp='' in 4-tuple. (P4)"""
     epoch, state, extra, stamp = _ci._parse_sync_status("epoch=1|state=compiling|dur=1.2")
     assert stamp == ""
 
 
 def test_parse_status_idle_never_is_non_clean():
-    """P4: 'idle-never' must NOT be treated as idle/clean."""
+    """'idle-never' must NOT be treated as idle/clean. (P4)"""
     state, _ = _ci._parse_status("idle-never|0")
     assert state != "idle", "idle-never must be treated as non-idle (never compiled = not clean)"
 
 
 async def test_await_compile_stamp_unchanged_stale_domain():
-    """P4 + MCP091-018: same MVID + actual errors → STALE-DOMAIN; same MVID + no errors → clean."""
+    """Same MVID + actual errors → STALE-DOMAIN; same MVID + no errors → clean. (P4 + MCP091-018)"""
     mvid = "60d2de34-1234-5678-abcd-ef0123456789"
     stamp_pre = f"{mvid}:639169455305003280"
     stamp_post = f"{mvid}:639169455309999999"  # same MVID, different ticks
@@ -432,7 +432,7 @@ async def test_await_compile_stamp_unchanged_no_errors_returns_clean():
 
 
 async def test_await_compile_stamp_changed_clean():
-    """P4: different MVID before/after ready → compile clean (not STALE-DOMAIN)."""
+    """Different MVID before/after ready → compile clean (not STALE-DOMAIN). (P4)"""
     mvid_pre  = "aaaaaaaa-0000-0000-0000-000000000000"
     mvid_post = "bbbbbbbb-1111-1111-1111-111111111111"
     stamp_pre  = f"{mvid_pre}:100"

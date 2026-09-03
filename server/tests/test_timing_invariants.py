@@ -90,9 +90,9 @@ _STRICT_ROWS = [
 
 @pytest.mark.parametrize("cmd, py_timeout", _STRICT_ROWS)
 def test_python_timeout_under_csharp_budget(cmd, py_timeout):
-    """ARC-4 invariant: Python gives up strictly before C#'s own timeout, so
-    the caller sees C#'s structured error instead of Python closing a live
-    TCP read out from under an in-flight command.
+    """Python gives up strictly before C#'s own timeout, so the caller sees
+    C#'s structured error instead of Python closing a live TCP read out from
+    under an in-flight command. (ARC-4 invariant)
     """
     assert get_timeout(cmd) == py_timeout
     assert py_timeout < _csharp_timeout(cmd)

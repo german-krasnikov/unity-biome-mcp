@@ -149,7 +149,7 @@ def test_decision_reason_descriptive(tmp_path):
 
 
 def test_hit_rate_exactly_040_is_not_skipped(tmp_path):
-    """P2: hit_rate < 0.40 skips; exactly 0.40 should NOT be skipped."""
+    """hit_rate < 0.40 skips; exactly 0.40 should NOT be skipped. (P2)"""
     t = make_tracker(tmp_path)
     r = make_router(t, hit_rate_fn=lambda _: 0.40)
     d = r.should_run("scene_brief", 0.4)

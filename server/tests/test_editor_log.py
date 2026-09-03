@@ -721,10 +721,10 @@ def test_large_log_failure_in_tail_window(tmp_path):
 
 
 def test_large_log_failure_before_tail_window_found_via_full_file_read(tmp_path):
-    """P1: full-file rfind finds failure header even when pushed before the tail window.
+    """Full-file rfind finds failure header even when pushed before the tail window. (P1)
 
-    Before P1 fix: 256KB tail seek missed the header → returned [].
-    After P1 fix: full-file read → rfind finds it → errors returned.
+    Before the fix: 256KB tail seek missed the header → returned [].
+    After the fix: full-file read → rfind finds it → errors returned.
     The success block after the filler has NO ## Script Compilation Error header so
     it cannot produce a false-negative: rfind anchors on the failure header only.
     """
@@ -981,7 +981,7 @@ def test_find_plugin_source_files_no_editor_asmdef(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_strong_broken_codeless_gets_no_cs_code_suffix(tmp_path):
-    """P2: _collect_strong_broken / _collect_errors append [no-cs-code] sentinel."""
+    """_collect_strong_broken / _collect_errors append [no-cs-code] sentinel. (P2)"""
     content = (
         "##### ExitCode\n"
         "1\n"
@@ -997,7 +997,7 @@ def test_strong_broken_codeless_gets_no_cs_code_suffix(tmp_path):
 
 
 def test_corroborate_stale_log_not_resurrected_when_compile_status_idle(tmp_path):
-    """P2: stale log errors NOT resurrected when compile_status='idle' (3rd gate)."""
+    """Stale log errors NOT resurrected when compile_status='idle' (3rd gate). (P2)"""
     base_t = 1000000.0
     _make_dll(tmp_path, base_t)
     src = tmp_path / "src"
@@ -1019,7 +1019,7 @@ def test_corroborate_stale_log_not_resurrected_when_compile_status_idle(tmp_path
 
 
 def test_corroborate_stale_log_resurrected_when_compile_status_idle_failed(tmp_path):
-    """P2: stale log errors ARE resurrected when compile_status='idle-failed'."""
+    """Stale log errors ARE resurrected when compile_status='idle-failed'. (P2)"""
     base_t = 1000000.0
     _make_dll(tmp_path, base_t)
     src = tmp_path / "src"

@@ -339,7 +339,7 @@ def test_startup_in_progress_no_state_pid_alive_no_lock(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_stale_busy_state_pid_alive_returns_true():
-    """P6: state.is_stale=True AND is_busy=True AND PID alive → True (still compiling)."""
+    """state.is_stale=True AND is_busy=True AND PID alive → True (still compiling). (P6)"""
     state = _make_state(is_stale=True, is_busy=True)
     with patch("unity_mcp.compile_state.read_state_for_port", return_value=state), \
          patch("unity_mcp.compile_state.read_pid_from_port_file", return_value=12345), \
@@ -349,7 +349,7 @@ def test_stale_busy_state_pid_alive_returns_true():
 
 
 def test_stale_busy_state_pid_dead_returns_false():
-    """P6: state.is_stale=True AND is_busy=True AND PID dead → False (Unity gone)."""
+    """state.is_stale=True AND is_busy=True AND PID dead → False (Unity gone). (P6)"""
     state = _make_state(is_stale=True, is_busy=True)
     with patch("unity_mcp.compile_state.read_state_for_port", return_value=state), \
          patch("unity_mcp.compile_state.read_pid_from_port_file", return_value=99999), \
@@ -359,7 +359,7 @@ def test_stale_busy_state_pid_dead_returns_false():
 
 
 def test_stale_not_busy_state_returns_false():
-    """P6: state.is_stale=True AND is_busy=False → False (stale state not compiling)."""
+    """state.is_stale=True AND is_busy=False → False (stale state not compiling). (P6)"""
     state = _make_state(is_stale=True, is_busy=False)
     with patch("unity_mcp.compile_state.read_state_for_port", return_value=state):
         probe = CompileStateProbe(port=9500)

@@ -149,7 +149,7 @@ async def test_context_builder_fetch_exception_omits_slot():
 
 
 async def test_context_builder_connection_error_yields_unreachable_slot():
-    """ARC-6 T4: a dead-Unity provider gets an explicit slot, not silent omission."""
+    """A dead-Unity provider gets an explicit slot, not silent omission. (ARC-6 T4)"""
     builder = ContextBuilder(total_budget=2000, send=AsyncMock(return_value=""))
 
     dead = MagicMock()

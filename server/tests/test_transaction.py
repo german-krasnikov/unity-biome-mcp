@@ -111,9 +111,9 @@ class TestSceneChangePlan:
         assert "compile=clean" in result
 
     def test_compile_clean_false_for_unity_unreachable_sentinel(self):
-        """ARC-6: editor_log.UNITY_UNREACHABLE must never be treated as
-        compile-clean (pin -- _compile_clean already rejects it structurally
-        since none of its substrings match, this locks that in)."""
+        """editor_log.UNITY_UNREACHABLE must never be treated as compile-clean
+        (pin -- _compile_clean already rejects it structurally since none of
+        its substrings match, this locks that in). (ARC-6)"""
         from unity_mcp import editor_log
         assert tr._compile_clean(editor_log.UNITY_UNREACHABLE) is False
 

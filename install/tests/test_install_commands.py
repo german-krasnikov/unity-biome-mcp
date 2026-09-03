@@ -547,11 +547,11 @@ def test_reconfigure_detected_clients_skips_pinned_toml_entry(tmp_path):
 # ── _reconfigure_detected_clients: undecodable client config must not abort update ──
 
 def test_reconfigure_detected_clients_skips_undecodable_client_and_continues(tmp_path, capsys):
-    """C1-FIX-01 (config-writers MAJOR): a config file with genuinely
-    undecodable bytes (stray UTF-16 BOM / binary corruption) must not abort
-    the whole `for key in detect_installed()` loop -- the client after it
-    still gets reconfigured, and the corrupt file's on-disk bytes are never
-    touched.
+    """A config file with genuinely undecodable bytes (stray UTF-16 BOM /
+    binary corruption) must not abort the whole `for key in
+    detect_installed()` loop -- the client after it still gets reconfigured,
+    and the corrupt file's on-disk bytes are never touched. (C1-FIX-01,
+    config-writers MAJOR)
 
     Uses the REAL merge_mcp_config/backup (not test doubles): merge_mcp_config
     only catches json.JSONDecodeError on its own read, so undecodable bytes

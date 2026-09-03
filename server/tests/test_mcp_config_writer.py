@@ -279,11 +279,10 @@ def test_write_agy_settings_returns_false_on_undecodable_bytes(tmp_path):
 
 
 def test_write_kimi_mcp_config_survives_utf8_bom(tmp_path):
-    """C1-FIX-01: a UTF-8 BOM ('\\ufeff' prefix, Windows Notepad/PowerShell
-    default) must not be classified as corrupt — _read_existing_or_none now
-    reads with utf-8-sig, which transparently strips the BOM before
-    json.loads. The existing sibling entry survives and the rewritten file
-    has no BOM."""
+    """A UTF-8 BOM ('\\ufeff' prefix, Windows Notepad/PowerShell default) must
+    not be classified as corrupt — _read_existing_or_none now reads with
+    utf-8-sig, which transparently strips the BOM before json.loads. The
+    existing sibling entry survives and the rewritten file has no BOM. (C1-FIX-01)"""
     path = tmp_path / "mcp.json"
     bom_prefixed = b'\xef\xbb\xbf{"mcpServers":{"other-server":{"command":"y"}}}'
     path.write_bytes(bom_prefixed)

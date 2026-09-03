@@ -349,7 +349,7 @@ def _reset_bump_used():
 # Uses realistic <guid>:<ticks> format; MVID-only partition comparison
 @pytest.mark.asyncio
 async def test_stamp_changed_is_sync_clean():
-    """P5: different MVID halves → sync clean. Realistic guid:ticks fixtures."""
+    """Different MVID halves → sync clean. Realistic guid:ticks fixtures. (P5)"""
     pre_mvid  = "60d2de34-f1b2-4c3d-a5e6-789012345678"
     post_mvid = "99aabbcc-0011-2233-4455-667788990011"
     _sync._send = _make_send_with_stamp(
@@ -508,7 +508,7 @@ async def test_stamp_pre_from_failed_state():
 # P3: sentinel-strip — 'No compilation errors' must not leak as error payload in sync path
 @pytest.mark.asyncio
 async def test_sync_sentinel_stripped(_patch_corroborate):
-    """P3: get_corroborated_errors returns '' when C# says 'No compilation errors' → sync clean."""
+    """get_corroborated_errors returns '' when C# says 'No compilation errors' → sync clean. (P3)"""
     # The default _patch_corroborate fixture already strips the sentinel in _default_get_corroborated
     _sync._send = _make_send(
         "sync_ack|epoch=1|will_compile=true",
@@ -525,7 +525,7 @@ async def test_sync_sentinel_stripped(_patch_corroborate):
 # T2.1: dead TCP during get_corroborated_errors → sentinel, not a false "no errors"
 @pytest.mark.asyncio
 async def test_get_errors_connectionerror_returns_sentinel_not_empty(_patch_corroborate):
-    """ARC-6 T2: ConnectionError from get_corroborated_errors must surface UNITY_UNREACHABLE.
+    """ConnectionError from get_corroborated_errors must surface UNITY_UNREACHABLE. (ARC-6 T2)
 
     Red-precondition: before the fix, _get_errors' own except clause returned "" —
     indistinguishable from a genuinely clean compile.
@@ -548,7 +548,7 @@ async def test_get_errors_oserror_returns_sentinel_not_empty(_patch_corroborate)
 # sync_unity(), never a false "sync clean".
 @pytest.mark.asyncio
 async def test_sync_unity_ready_state_surfaces_unreachable_not_clean(_patch_corroborate):
-    """ARC-6 T2 end-to-end: sync_unity must not report clean when Unity is unreachable."""
+    """sync_unity must not report clean when Unity is unreachable, end to end. (ARC-6 T2)"""
     _patch_corroborate.get_corroborated_errors = editor_log.get_corroborated_errors
 
     async def _send(cmd, args=None, **kwargs):
@@ -634,7 +634,7 @@ async def test_no_compile_frozen_mvid_is_not_reimport_needed():
 # P1: MVID changed after force_refresh → _attempt_recovery returns None (healed)
 @pytest.mark.asyncio
 async def test_recovery_heals_when_mvid_changes(monkeypatch):
-    """P1: force_refresh succeeds + MVID delta → None (healed)."""
+    """force_refresh succeeds + MVID delta → None (healed). (P1)"""
     monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 5.0)
     mvid_pre  = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
     mvid_post = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
@@ -653,7 +653,7 @@ async def test_recovery_heals_when_mvid_changes(monkeypatch):
 # P2: MVID frozen after timeout → _attempt_recovery returns REIMPORT-NEEDED
 @pytest.mark.asyncio
 async def test_recovery_returns_reimport_when_mvid_frozen(monkeypatch):
-    """P2: force_refresh + frozen MVID for full timeout → REIMPORT-NEEDED verdict."""
+    """force_refresh + frozen MVID for full timeout → REIMPORT-NEEDED verdict. (P2)"""
     monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 0.0)  # instant timeout
     mvid = "cccccccc-cccc-cccc-cccc-cccccccccccc"
 
@@ -671,7 +671,7 @@ async def test_recovery_returns_reimport_when_mvid_frozen(monkeypatch):
 # P3: recovery called exactly once, no recursion from sync_unity
 @pytest.mark.asyncio
 async def test_recovery_called_exactly_once(monkeypatch):
-    """P3: sync_unity calls _attempt_recovery exactly once (no self-recursion)."""
+    """sync_unity calls _attempt_recovery exactly once (no self-recursion). (P3)"""
     monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 0.0)
     recovery_calls = []
 
@@ -696,7 +696,7 @@ async def test_recovery_called_exactly_once(monkeypatch):
 # P4: force_refresh sent with empty args {}
 @pytest.mark.asyncio
 async def test_recovery_sends_force_refresh_with_correct_args(monkeypatch):
-    """P4: _attempt_recovery sends force_refresh with args={}."""
+    """_attempt_recovery sends force_refresh with args={}. (P4)"""
     monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 0.0)
     captured = {}
 
@@ -715,7 +715,7 @@ async def test_recovery_sends_force_refresh_with_correct_args(monkeypatch):
 # P5: sync_status polled during recovery (MVID check happens)
 @pytest.mark.asyncio
 async def test_recovery_polls_sync_status(monkeypatch):
-    """P5: after force_refresh, recovery polls sync_status to check MVID."""
+    """After force_refresh, recovery polls sync_status to check MVID. (P5)"""
     monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 5.0)
     mvid_pre  = "11111111-1111-1111-1111-111111111111"
     mvid_post = "22222222-2222-2222-2222-222222222222"

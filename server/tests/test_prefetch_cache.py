@@ -72,10 +72,10 @@ def test_gate_priors_set_property():
 
 
 def test_gate_priors_excludes_recompile():
-    """ARC-5 T1: recompile acks BEFORE Unity compiles (async write) — it must
-    never drive this sync-write-assuming prefetch mechanism, or a background
+    """recompile acks BEFORE Unity compiles (async write) — it must never
+    drive this sync-write-assuming prefetch mechanism, or a background
     prefetch fires moments after the ack, populating a global-key cache slot
-    with pre-compile data that a later get_compile_errors call could reuse."""
+    with pre-compile data that a later get_compile_errors call could reuse. (ARC-5 T1)"""
     assert "recompile" not in GATE_PRIORS
 
 

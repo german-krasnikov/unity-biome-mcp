@@ -99,7 +99,7 @@ async def test_defs_already_prefixed_no_double(mock_bridge):
 
 
 async def test_defs_none_script_unchanged(mock_bridge):
-    """P0: defs=None (default) must not alter the script at all."""
+    """defs=None (default) must not alter the script at all. (P0)"""
     mock_bridge.send.return_value = {"ok": True, "data": "PASS"}
     script = "MOVE TO 0,0,0\nASSERT_CONSOLE_CLEAN"
     await run_playtest(script, defs=None)

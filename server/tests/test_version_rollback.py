@@ -245,8 +245,8 @@ def test_version_set_only_writes_detected_clients(install_mod):
 # ── install.py — version --set / --unpin pin support (ARC-0b T3) ────────────
 
 def test_version_set_adds_pin_to_entry(install_mod):
-    """ARC-0b: `version --set` must write "_pin": true into the entry so a
-    later `install.py update` skips it (_reconfigure_detected_clients)."""
+    """`version --set` must write "_pin": true into the entry so a later
+    `install.py update` skips it (_reconfigure_detected_clients). (ARC-0b)"""
     mock_stop = MagicMock(return_value=True)
     mock_merge = MagicMock()
     mock_client = MagicMock()
