@@ -62,6 +62,23 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("1.6.0", EditorPrefs.GetString(PluginUpdateMonitor.LastVersionKey, ""));
         }
 
+        // R3-04 Part D: a failed PackageInfo lookup (GetCurrentVersion's catch path)
+        // returns the "0.0.0" sentinel — that sentinel must never overwrite a real
+        // previously-recorded version, nor be reported as a version bump.
+        [Test]
+        public void CheckVersionChange_CurrentVersionUnknown_PreservesPreviousVersion_NoUpdateLogged()
+        {
+            SetEditorPrefString(PluginUpdateMonitor.LastVersionKey, "1.5.0");
+            PluginUpdateMonitor._versionOverride = PluginUpdateMonitor.UnknownVersion;
+
+            PluginUpdateMonitor.CheckVersionChange();
+
+            Assert.AreEqual("1.5.0", EditorPrefs.GetString(PluginUpdateMonitor.LastVersionKey, ""),
+                "an unknown-version sentinel must never overwrite a real previously recorded version");
+            Assert.IsFalse(SessionState.GetBool(PluginUpdateMonitor.UpdatedFlagKey, false),
+                "no update must be logged when the current version could not be determined");
+        }
+
         [Test]
         public void GetCurrentVersion_ReturnsNonEmpty()
         {

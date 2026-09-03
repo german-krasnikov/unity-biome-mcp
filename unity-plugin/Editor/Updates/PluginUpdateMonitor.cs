@@ -19,6 +19,9 @@ namespace UnityMCP.Editor
         internal const string LastVersionKey = "UnityMCP.PluginUpdateMonitor.LastVersion";
         internal const string UpdatedFlagKey = "UnityMCP.PluginUpdateMonitor.UpdatedThisSession";
 
+        /// <summary>Sentinel returned by GetCurrentVersion when PackageInfo lookup fails — never a real version.</summary>
+        internal const string UnknownVersion = "0.0.0";
+
         /// <summary>Override for tests — bypasses PackageInfo lookup.</summary>
         internal static string _versionOverride;
 
@@ -51,6 +54,7 @@ namespace UnityMCP.Editor
         internal static void CheckVersionChange()
         {
             var current  = GetCurrentVersion();
+            if (current == UnknownVersion) return; // PackageInfo lookup failed — never clobber the stored baseline with the sentinel
             var previous = EditorPrefs.GetString(LastVersionKey, "");
 
             if (!string.IsNullOrEmpty(previous) && previous != current)
@@ -79,11 +83,11 @@ namespace UnityMCP.Editor
             {
                 var info = UnityEditor.PackageManager.PackageInfo
                     .FindForAssembly(typeof(PluginUpdateMonitor).Assembly);
-                return (info?.version ?? "0.0.0").TrimStart('v');
+                return (info?.version ?? UnknownVersion).TrimStart('v');
             }
             catch
             {
-                return "0.0.0";
+                return UnknownVersion;
             }
         }
     }
