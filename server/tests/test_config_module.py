@@ -584,6 +584,32 @@ def test_validate_invalid_json(tmp_path, monkeypatch):
     assert "invalid json" in report.lower()
 
 
+def test_validate_config_survives_undecodable_json(tmp_path, monkeypatch):
+    """Genuinely non-UTF-8 bytes (stray UTF-16 BOM / binary corruption) raise
+    UnicodeDecodeError from read_text() itself, before json.loads ever runs --
+    the JSON branch's except clause only caught json.JSONDecodeError, so this
+    class of corruption crashed validate_config instead of degrading to a
+    status line like the JSONDecodeError case already does."""
+    from unity_mcp.config import clients as c, validator
+    bad = tmp_path / "bad.json"
+    bad.write_bytes(b"\xff\xfe{not valid utf-8")
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-desktop"], "config_path", bad)
+    report = validator.validate_config("claude-desktop")  # must not raise
+    assert "undecodable" in report.lower()
+
+
+def test_validate_config_survives_undecodable_toml(tmp_path, monkeypatch):
+    """Codex's TOML branch had no try/except at all around its read_text --
+    the same undecodable-bytes corruption must degrade to a status line
+    instead of propagating UnicodeDecodeError."""
+    from unity_mcp.config import clients as c, validator
+    bad = tmp_path / "config.toml"
+    bad.write_bytes(b"\xff\xfe[mcp_servers.unity-biome-mcp]\ninvalid \x80\x81")
+    monkeypatch.setattr(c.CLIENT_REGISTRY["codex"], "config_path", bad)
+    report = validator.validate_config("codex")  # must not raise
+    assert "undecodable" in report.lower()
+
+
 def test_validate_missing_unity_mcp_entry(tmp_path, monkeypatch):
     from unity_mcp.config import clients as c, validator
     cfg = tmp_path / "cfg.json"

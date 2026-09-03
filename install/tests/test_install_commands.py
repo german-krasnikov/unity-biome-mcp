@@ -592,6 +592,45 @@ def test_reconfigure_detected_clients_skips_undecodable_client_and_continues(tmp
     assert "Corrupt Tool" in out
 
 
+def test_reconfigure_detected_clients_survives_undecodable_config_in_real_validate_config(tmp_path, capsys):
+    """validate_config(key) itself raises UnicodeDecodeError on genuinely
+    undecodable bytes, and that call happens BEFORE the is_toml_pinned/is_entry_pinned
+    try block added for C1-FIX-01 -- so this earlier crash site was still fully reachable.
+    The sibling test above mocks validate_config to "Status: ok" and therefore never
+    calls the real function, hiding this exact path. This test calls the REAL
+    validate_config (unpatched) against the REAL CLIENT_REGISTRY entry for
+    claude-desktop, whose config_path is redirected to an undecodable file, to prove
+    the crash site is validate_config() itself, not just the pinned-check. (C1 r4 #1)"""
+    from unity_mcp.config import clients as real_clients
+    corrupt_bytes = b"\xff\xfe{not valid utf-8"
+    corrupt_cfg = tmp_path / "claude_desktop_config.json"
+    corrupt_cfg.write_bytes(corrupt_bytes)
+    good_cfg = tmp_path / "good.json"
+    good_cfg.write_text(json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "old", "args": []}}
+    }), encoding="utf-8")
+    good_client = _fake_registry(good_cfg)["fake-tool"]
+    good_client.name = "Good Tool"
+
+    claude_desktop = real_clients.CLIENT_REGISTRY["claude-desktop"]
+    original_path = claude_desktop.config_path
+    claude_desktop.config_path = corrupt_cfg
+    merged_registry = {"claude-desktop": claude_desktop, "good-tool": good_client}
+    try:
+        with patch.object(inst, "CLIENT_REGISTRY", merged_registry), \
+             patch.object(inst, "detect_installed", return_value=["claude-desktop", "good-tool"]), \
+             patch.object(inst, "build_server_entry", return_value={"command": "new", "args": []}):
+            inst._reconfigure_detected_clients()  # real validate_config -- must not raise
+    finally:
+        claude_desktop.config_path = original_path
+
+    assert corrupt_cfg.read_bytes() == corrupt_bytes  # untouched, never overwritten
+    good_data = json.loads(good_cfg.read_text(encoding="utf-8"))
+    assert good_data["mcpServers"]["unity-biome-mcp"]["command"] == "new"  # still reconfigured
+    out = capsys.readouterr().out
+    assert "Skipped" in out
+
+
 def test_reconfigure_detected_clients_updates_both_when_both_valid(tmp_path):
     """Double-red: with no corruption at all, both clients are still updated
     (the try/except around the pinned-check must not swallow the happy path)."""

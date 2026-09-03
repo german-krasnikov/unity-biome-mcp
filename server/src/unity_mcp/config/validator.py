@@ -28,7 +28,11 @@ def validate_config(client_key: str) -> str:
 
     if info.is_toml:
         if path.exists():
-            has_entry = SERVER_NAME in path.read_text(encoding=READ_ENCODING)
+            try:
+                has_entry = SERVER_NAME in path.read_text(encoding=READ_ENCODING)
+            except UnicodeDecodeError as e:
+                lines.append(f"Status: undecodable file ({e})")
+                return "\n".join(lines)
             lines.append(f"Status: {'configured' if has_entry else f'{SERVER_NAME} not found in TOML'}")
         else:
             lines.append("Status: file not found")
@@ -40,8 +44,9 @@ def validate_config(client_key: str) -> str:
 
     try:
         data = json.loads(path.read_text(encoding=READ_ENCODING))
-    except json.JSONDecodeError as e:
-        lines.append(f"Status: invalid JSON ({e})")
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        status = "undecodable file" if isinstance(e, UnicodeDecodeError) else "invalid JSON"
+        lines.append(f"Status: {status} ({e})")
         return "\n".join(lines)
 
     servers = data.get(info.root_key, {})
