@@ -6,6 +6,6 @@
   "tests_unity": 8292,
   "tests_unity_source": "static_grep",
   "tests_live": 634,
-  "server_version": "1.51.0",
-  "plugin_version": "1.51.0"
+  "server_version": "1.52.0",
+  "plugin_version": "1.52.0"
 }

@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 380" width="560" height="380"
      role="img" aria-labelledby="stats-title stats-desc">
   <title id="stats-title">Unity Biome MCP project inventory</title>
-  <desc id="stats-desc" data-biome-marker="STATS_DESC"><!-- BIOME:STATS_DESC -->160 registered MCP tools. Test inventory: 15788 entries: 6351 regular Python, 511 Python stress, 634 live Python, and 8292 Unity source attributes. Unity count source: static source scan. Server package version: v1.51.0.<!-- /BIOME:STATS_DESC --></desc>
+  <desc id="stats-desc" data-biome-marker="STATS_DESC"><!-- BIOME:STATS_DESC -->160 registered MCP tools. Test inventory: 15788 entries: 6351 regular Python, 511 Python stress, 634 live Python, and 8292 Unity source attributes. Unity count source: static source scan. Server package version: v1.52.0.<!-- /BIOME:STATS_DESC --></desc>
 
   <defs>
     <filter id="stats-core-glow" x="-80%" y="-80%" width="260%" height="260%">

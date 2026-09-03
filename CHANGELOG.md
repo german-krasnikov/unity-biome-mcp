@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.52.0] — 2026-09-03
+
 ### Fixed
 
 - **Test run timeout on Editor focus loss or domain reload:** `run_tests_wait`/`get_test_run` no longer hang indefinitely when the Editor loses focus or undergoes a domain reload. Implemented disk-fallback protocol and health-value gates to detect stalled test dispatch and recover via direct test-run store reads; durable protocol now includes explicit `health` field and `expected_count` for safer gate validation
@@ -3679,7 +3681,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.51.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.52.0...HEAD
+[v1.52.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.51.0...v1.52.0
 [v1.51.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.1...v1.51.0
 [v1.48.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.0...v1.48.1
 [v1.48.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.1...v1.48.0
