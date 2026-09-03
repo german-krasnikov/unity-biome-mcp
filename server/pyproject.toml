@@ -41,7 +41,7 @@ unity-biome-mcp-relay = "unity_mcp.chat_relay:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["src", "tests", "../scripts"]
+pythonpath = ["src", "tests", "../scripts", ".."]
 asyncio_mode = "auto"
 python_files = "test_*.py"
 addopts = ["--strict-markers", "--timeout=30"]
