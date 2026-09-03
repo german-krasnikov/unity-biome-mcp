@@ -138,6 +138,25 @@ namespace UnityMCP.Editor.Tests
                 "WriteAtomic must not delete the original before moving the replacement into place");
         }
 
+        // R5-02: when the swap itself throws, the .tmp must not be left behind and
+        // the original path must be untouched. `path` is a directory here so
+        // File.Exists(path) is false and WriteAtomic takes the File.Move branch,
+        // which throws on every platform when the destination is an existing
+        // directory \u2014 same try/finally that guards the File.Replace branch.
+        [Test]
+        public void WriteAtomic_WhenSwapFails_RemovesTempAndKeepsOriginal()
+        {
+            var path = Path.Combine(_tmpDir, "out.json");
+            Directory.CreateDirectory(path);
+
+            Assert.Catch(() => WizardConfigWriter.WriteAtomic(path, "new"));
+
+            Assert.IsFalse(File.Exists(path + ".tmp"),
+                "temp file must be cleaned up when the atomic swap fails");
+            Assert.IsTrue(Directory.Exists(path),
+                "original must be left untouched when the atomic swap fails");
+        }
+
         // Write() calls EditorUtility.DisplayDialog (modal) so it cannot be invoked
         // directly from a GUI-worker test — source-guard instead: prove Write() goes
         // through the shared atomic helper, not a direct File.WriteAllText(configPath...).
