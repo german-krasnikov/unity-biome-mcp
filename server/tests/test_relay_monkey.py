@@ -12,7 +12,7 @@ import struct
 import sys
 import pytest
 
-from unity_mcp.chat_relay import ChatRelay, _find_free_port, MAX_FRAME
+from unity_mcp.chat_relay import ChatRelay, MAX_FRAME
 
 pytestmark = pytest.mark.monkey
 
@@ -68,9 +68,9 @@ def _pid(data: str) -> int | None:
 @pytest.fixture
 async def relay_server():
     """Start ChatRelay on random port (no ppid watchdog). Yield (relay, port)."""
-    port = _find_free_port()
     relay = ChatRelay()
-    server = await asyncio.start_server(relay._handle_client, "127.0.0.1", port)
+    server = await asyncio.start_server(relay._handle_client, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
     yield relay, port
     server.close()
     await server.wait_closed()

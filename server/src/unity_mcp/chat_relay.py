@@ -460,7 +460,6 @@ def _extract_text_from_turn(line: str) -> str:
 async def _main() -> None:
     from .session_identity import cleanup_stale_sessions
     cleanup_stale_sessions()
-    port = _find_free_port()
     relay = ChatRelay()
     loop = asyncio.get_running_loop()
     try:
@@ -471,8 +470,13 @@ async def _main() -> None:
             )
     except NotImplementedError:
         pass
-    print(f"relay_port:{port}", flush=True)
-    await relay.serve(port)
+    # Bind port 0 (OS-assigned) instead of probing a free port and rebinding
+    # it — closes the probe-then-bind TOCTOU window (A06). serve() sets
+    # bound_port and fires _bound as soon as the real socket is live.
+    serve_task = asyncio.create_task(relay.serve(0))
+    await relay.wait_bound()
+    print(f"relay_port:{relay.bound_port}", flush=True)
+    await serve_task
 
 
 def main() -> None:

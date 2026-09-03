@@ -915,12 +915,58 @@ async def test_shutdown_kills_session():
     sess.kill.assert_called_once()
 
 
+async def test_main_binds_port_zero_and_reports_bound_port(capsys):
+    """_main() must bind port 0 (no probe-then-bind TOCTOU) and print the
+    actually-bound port, not a pre-probed guess (A06). Double-red: red if
+    _main still passes a nonzero pre-probed port to start_server, red if the
+    printed port doesn't match the real, connectable socket."""
+    loop = asyncio.get_running_loop()
+    real_start_server = asyncio.start_server
+    captured = {}
+
+    async def spy_start_server(client_cb, host, port):
+        server = await real_start_server(client_cb, host, port)
+        captured["port_arg"] = port
+        captured["bound_port"] = server.sockets[0].getsockname()[1]
+        return server
+
+    with patch.object(loop, "add_signal_handler", create=True), \
+         patch("unity_mcp.chat_relay.asyncio.start_server", side_effect=spy_start_server):
+        main_task = asyncio.create_task(_main())
+        out = ""
+        try:
+            for _ in range(200):
+                out += capsys.readouterr().out
+                if "relay_port:" in out:
+                    break
+                await asyncio.sleep(0.01)
+            else:
+                pytest.fail("relay_port: line never printed")
+        finally:
+            main_task.cancel()
+            try:
+                await main_task
+            except asyncio.CancelledError:
+                pass
+
+    assert captured["port_arg"] == 0, "must pass port=0 to start_server (no pre-probe)"
+    printed_port = int(out.split("relay_port:", 1)[1].split()[0])
+    assert printed_port == captured["bound_port"] > 0
+
+
+async def _fake_bound_serve(self, port):
+    """Test double for ChatRelay.serve: fires the real bound-port contract
+    (sets bound_port, wakes wait_bound()) without opening a real socket —
+    lets _main() reach its print/return path instead of hanging on wait_bound()."""
+    self.bound_port = 19999
+    self._bound.set()
+
+
 async def test_main_signal_handler_not_implemented_does_not_crash():
     """Windows ProactorEventLoop raises NotImplementedError on add_signal_handler — must not crash."""
     loop = asyncio.get_running_loop()
     with patch.object(loop, "add_signal_handler", side_effect=NotImplementedError, create=True), \
-         patch("unity_mcp.chat_relay._find_free_port", return_value=19999), \
-         patch("unity_mcp.chat_relay.ChatRelay.serve", new=AsyncMock()):
+         patch("unity_mcp.chat_relay.ChatRelay.serve", new=_fake_bound_serve):
         await _main()
 
 
@@ -928,8 +974,7 @@ async def test_main_registers_sigterm_and_sigint():
     """Normal path: both SIGTERM and SIGINT must be registered on the event loop."""
     loop = asyncio.get_running_loop()
     with patch.object(loop, "add_signal_handler", create=True) as mock_add, \
-         patch("unity_mcp.chat_relay._find_free_port", return_value=19999), \
-         patch("unity_mcp.chat_relay.ChatRelay.serve", new=AsyncMock()):
+         patch("unity_mcp.chat_relay.ChatRelay.serve", new=_fake_bound_serve):
         await _main()
     assert mock_add.call_count == 2
     registered = {call.args[0] for call in mock_add.call_args_list}

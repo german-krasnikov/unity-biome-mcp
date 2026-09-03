@@ -131,6 +131,19 @@ class CliSession:
 
 
 def _find_free_port() -> int:
+    """Probe-then-bind helper — carries an inherent TOCTOU window (another
+    process can claim the port between this probe and a later bind on it).
+    As of A06 there is no remaining in-process caller: chat_relay._main()
+    binds port 0 directly via ChatRelay.serve(0) and reads the OS-assigned
+    port back off the live socket via bound_port/wait_bound(), closing that
+    window. Kept for test coverage of this helper's own contract
+    (test_free_port_finds_available) and as a documented trap: a genuine
+    subprocess-owned bind (an external binary that must be told its port
+    before it starts, so the parent can't read the port back off a socket it
+    controls) cannot use this helper without reopening the same TOCTOU gap.
+    The only real fix for that case is a self-reporting handshake — bind 0 in
+    the child, have it report the real port back to the parent — the same
+    pattern serve()/_main() use here."""
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         return s.getsockname()[1]
