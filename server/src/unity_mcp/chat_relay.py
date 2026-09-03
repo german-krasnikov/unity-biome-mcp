@@ -474,7 +474,15 @@ async def _main() -> None:
     # it — closes the probe-then-bind TOCTOU window (A06). serve() sets
     # bound_port and fires _bound as soon as the real socket is live.
     serve_task = asyncio.create_task(relay.serve(0))
-    await relay.wait_bound()
+    bound_task = asyncio.create_task(relay.wait_bound())
+    # Race the two: if serve() raises before ever binding (e.g. OSError on an
+    # in-use port), waiting on wait_bound() alone would hang forever since
+    # _bound is never set. FIRST_COMPLETED lets a bind failure surface fast.
+    await asyncio.wait({serve_task, bound_task}, return_when=asyncio.FIRST_COMPLETED)
+    if serve_task.done() and not bound_task.done():
+        bound_task.cancel()
+        await serve_task   # re-raises the bind error cleanly
+    await bound_task
     print(f"relay_port:{relay.bound_port}", flush=True)
     await serve_task
 

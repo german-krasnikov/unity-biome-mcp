@@ -112,6 +112,7 @@ async def tcp_cmd(port, cmd, args=None, req_id="1"):
 
 
 _BOUND_WAIT_TIMEOUT_S = 2.0  # serve(0) must fire _bound well within this; a real hang is a bug
+_MAIN_FAIL_FAST_TIMEOUT_S = 1.0  # _main() must surface a bind failure well within this
 
 
 @pytest.fixture
@@ -952,6 +953,29 @@ async def test_main_binds_port_zero_and_reports_bound_port(capsys):
     assert captured["port_arg"] == 0, "must pass port=0 to start_server (no pre-probe)"
     printed_port = int(out.split("relay_port:", 1)[1].split()[0])
     assert printed_port == captured["bound_port"] > 0
+
+
+async def test_main_raises_when_serve_fails_to_bind():
+    """_main() must not hang forever if serve(0) fails before ever binding
+    (e.g. OSError: address in use). Double-red: red if the FIRST_COMPLETED
+    race guard is removed (hangs on wait_bound() forever → the surrounding
+    wait_for's own TimeoutError, not the real bind error), red if the assert
+    accepts TimeoutError instead of the real OSError."""
+    loop = asyncio.get_running_loop()
+
+    async def failing_start_server(client_cb, host, port):
+        raise OSError("port already in use (simulated)")
+
+    with patch.object(loop, "add_signal_handler", create=True), \
+         patch("unity_mcp.chat_relay.asyncio.start_server", side_effect=failing_start_server), \
+         pytest.raises(OSError) as exc_info:
+        await asyncio.wait_for(_main(), timeout=_MAIN_FAIL_FAST_TIMEOUT_S)
+
+    # TimeoutError is itself an OSError subclass, so a bare `pytest.raises(OSError)`
+    # would silently accept the hang-then-timeout failure mode this test exists to catch.
+    assert not isinstance(exc_info.value, TimeoutError), \
+        "must raise the real bind error, not asyncio.wait_for's own timeout"
+    assert "simulated" in str(exc_info.value)
 
 
 async def _fake_bound_serve(self, port):
