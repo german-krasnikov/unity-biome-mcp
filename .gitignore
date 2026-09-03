@@ -174,3 +174,4 @@ unity-test-project-ro/Packages/packages-lock.json
 unity-test-project-ro/InitTestScene*.unity*
 unity-test-project-ro/Assets/InitTestScene*.unity*
 .tmp_top100_live.md
+/full-baseline.json.tmp
