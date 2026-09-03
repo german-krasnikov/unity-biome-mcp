@@ -1179,3 +1179,77 @@ def test_project_config_targets_matches_csharp_source():
         for _key, rel_path, root_key, is_toml in matches
     )
     assert parsed == merger.PROJECT_CONFIG_TARGETS
+
+
+# ─── clients.py: install_dir parity with BackendDescriptor.cs ConfigDir (C1 r3 #8) ──
+
+_BACKEND_DESCRIPTOR_CS_PATH = _PROJECT / "unity-plugin/Editor/Wizard/BackendDescriptor.cs"
+assert _BACKEND_DESCRIPTOR_CS_PATH.exists(), (
+    f"C# source not found: {_BACKEND_DESCRIPTOR_CS_PATH}"
+)
+_BACKEND_DESCRIPTOR_CS = _BACKEND_DESCRIPTOR_CS_PATH.read_text(encoding="utf-8")
+
+
+def _home_tail(path: pathlib.Path) -> str:
+    """Path segments after $HOME, POSIX-joined, for matching against a C#
+    '~/...' literal (which is always POSIX-slashed regardless of platform)."""
+    return path.relative_to(pathlib.Path.home()).as_posix()
+
+
+def test_install_dir_matches_backend_descriptor_source(monkeypatch):
+    """install_dir per-platform literals (clients.py) must mirror
+    unity-plugin/Editor/Wizard/BackendDescriptor.cs's ConfigDir branches
+    (ARC-0b) -- carried only by comment before this test (C1 r3 #8), so an
+    independent edit to BackendDescriptor.cs (e.g. a Windsurf or VS Code path
+    change) would silently desync Python's detect_installed() with no test
+    to catch it. Checks verbatim presence of each literal path segment (not
+    full structural parity -- BackendDescriptor.cs uses #if platform guards
+    that can't be regex-extracted the way ProjectConfigTargets.cs's flat
+    array can), derived from the actual Python runtime values so a literal
+    changed on either side is caught."""
+    from unity_mcp.config import clients as c
+
+    # Static (platform-independent) literals: claude-code / cursor / codex.
+    for key in ("claude-code", "cursor", "codex"):
+        install_dir = c.CLIENT_REGISTRY[key].install_dir
+        assert install_dir is not None, f"{key} has no install_dir"
+        expected = f"~/{_home_tail(install_dir)}"
+        assert expected in _BACKEND_DESCRIPTOR_CS, (
+            f"{key} install_dir literal {expected!r} not found in BackendDescriptor.cs"
+        )
+
+    fake_appdata = pathlib.Path("/fake/appdata")
+    monkeypatch.setenv("APPDATA", str(fake_appdata))
+
+    # (function, platform, expects_appdata_root) -- expects_appdata_root=True
+    # means the win32 branch is rooted at %APPDATA%, not $HOME.
+    per_platform_funcs = {
+        "claude-desktop": c._claude_desktop_install_dir,
+        "windsurf": c._windsurf_install_dir,
+        "vscode": c._vscode_install_dir,
+    }
+    platforms_by_client = {
+        "claude-desktop": ("win32", "darwin", "linux"),
+        "windsurf": ("win32", "linux"),  # no separate darwin branch
+        "vscode": ("win32", "darwin", "linux"),
+    }
+
+    for client, platforms in platforms_by_client.items():
+        func = per_platform_funcs[client]
+        for plat in platforms:
+            monkeypatch.setattr(sys, "platform", plat)
+            result = func()
+            if plat == "win32":
+                parts = result.relative_to(fake_appdata).parts
+                for part in parts:
+                    literal = f'"{part}"'
+                    assert literal in _BACKEND_DESCRIPTOR_CS, (
+                        f"{client} win32 install_dir segment {literal!r} not found "
+                        "in BackendDescriptor.cs"
+                    )
+            else:
+                expected = f"~/{_home_tail(result)}"
+                assert expected in _BACKEND_DESCRIPTOR_CS, (
+                    f"{client} {plat} install_dir literal {expected!r} not found "
+                    "in BackendDescriptor.cs"
+                )
