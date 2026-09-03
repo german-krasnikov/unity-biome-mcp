@@ -7,6 +7,12 @@ from unity_mcp.config.merger import READ_ENCODING, SERVER_NAME
 from unity_mcp.constants import DEFAULT_PORT
 from unity_mcp.server_filtering import read_unity_port
 
+# Status markers embedded in validate_config's report text. install.py's
+# _is_configured gate checks for these substrings -- shared here (R5-01) so
+# the two sides can't silently desync if the wording changes.
+REPORT_NOT_CONFIGURED = "not configured"
+REPORT_NOT_FOUND = "not found"
+
 
 def _port_reachable(port: int) -> bool:
     """Quick TCP probe — returns True if something is listening."""
@@ -33,13 +39,13 @@ def validate_config(client_key: str) -> str:
             except UnicodeDecodeError as e:
                 lines.append(f"Status: undecodable file ({e})")
                 return "\n".join(lines)
-            lines.append(f"Status: {'configured' if has_entry else f'{SERVER_NAME} not found in TOML'}")
+            lines.append(f"Status: {'configured' if has_entry else f'{SERVER_NAME} {REPORT_NOT_FOUND} in TOML'}")
         else:
-            lines.append("Status: file not found")
+            lines.append(f"Status: file {REPORT_NOT_FOUND}")
         return "\n".join(lines)
 
     if not path.exists():
-        lines.append("Status: not found")
+        lines.append(f"Status: {REPORT_NOT_FOUND}")
         return "\n".join(lines)
 
     try:
@@ -51,7 +57,7 @@ def validate_config(client_key: str) -> str:
 
     servers = data.get(info.root_key, {})
     if SERVER_NAME not in servers:
-        lines.append(f"Status: not configured ({SERVER_NAME} missing from {info.root_key!r})")
+        lines.append(f"Status: {REPORT_NOT_CONFIGURED} ({SERVER_NAME} missing from {info.root_key!r})")
         return "\n".join(lines)
 
     entry = servers[SERVER_NAME]

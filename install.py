@@ -39,7 +39,7 @@ try:
     )
     from unity_mcp.config.backup import backup
     from unity_mcp.config.resolver import build_server_entry, GIT_INSTALL_URL
-    from unity_mcp.config.validator import validate_config
+    from unity_mcp.config.validator import validate_config, REPORT_NOT_CONFIGURED, REPORT_NOT_FOUND
 except ImportError:
     CLIENT_REGISTRY = {}  # type: ignore[assignment]
     detect_installed = lambda: []  # type: ignore[assignment]
@@ -56,6 +56,8 @@ except ImportError:
     build_server_entry = lambda port=0: {}  # type: ignore[assignment]
     GIT_INSTALL_URL = "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server"
     validate_config = lambda key: "not configured"  # type: ignore[assignment]
+    REPORT_NOT_CONFIGURED = "not configured"  # type: ignore[assignment]
+    REPORT_NOT_FOUND = "not found"  # type: ignore[assignment]
 
 # MCP_JSON depends on PROJECT_CONFIG_FILENAME above (single literal source,
 # C1 #2 follow-up) so its assignment must come after the import/fallback block.
@@ -102,7 +104,7 @@ def _is_configured(key: str) -> bool:
     directory/config file exists, not that unity-biome-mcp was ever set up
     for it."""
     report = validate_config(key)
-    return "not configured" not in report and "not found" not in report
+    return REPORT_NOT_CONFIGURED not in report and REPORT_NOT_FOUND not in report
 
 
 def _reconfigure_detected_clients() -> None:

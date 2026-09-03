@@ -71,6 +71,21 @@ def install_mod():
     return _import_install()
 
 
+# ── install.py — _is_configured shares validator's status markers (R5-01) ────
+
+def test_is_configured_uses_validator_status_constants(install_mod):
+    """_is_configured must key off validator.REPORT_NOT_CONFIGURED/REPORT_NOT_FOUND,
+    not private duplicated literals -- so the two can't silently desync if the
+    marker wording ever changes in validator.py."""
+    from unity_mcp.config import validator
+
+    with patch.object(install_mod, "validate_config", return_value=validator.REPORT_NOT_CONFIGURED):
+        assert install_mod._is_configured("claude-code") is False
+
+    with patch.object(install_mod, "validate_config", return_value="Status: configured, all good"):
+        assert install_mod._is_configured("claude-code") is True
+
+
 SAMPLE_CHANGELOG = textwrap.dedent("""\
     # Changelog
 
