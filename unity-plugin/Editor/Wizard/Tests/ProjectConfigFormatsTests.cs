@@ -219,6 +219,57 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Merge_UnmatchedClosingBraceInStringValue_DoesNotTruncateEntryBounds()
+        {
+            // A "}" inside a string value must not be mistaken for the entry's real
+            // closing brace — otherwise entry-bounds scanning stops one character too
+            // early, and the point-splice inserts the fresh "args" field one level too
+            // deep (inside "env" instead of as a sibling of "command"/"_v"), silently
+            // dropping the top-level args field entirely (C1 r3 cw-1).
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"0.1.0\","
+                + "\"env\": {\"GREETING\": \"hello } world\"}"
+                + "},"
+                + "\"other-server\":{\"command\": \"foo\"}"
+                + "}}";
+
+            var result = ProjectConfigFormats.Merge(existing, TestPort, WizardConfigWriter.GitInstallUrl, "2.0.0", "mcpServers");
+
+            StringAssert.Contains("\"env\": {\"GREETING\": \"hello } world\"}", result,
+                "the '}' inside the string value must not be treated as the entry's real closing brace — " +
+                "env must stay untouched, with args inserted as a sibling, not nested inside it");
+            StringAssert.Contains("\"other-server\":{\"command\": \"foo\"}", result,
+                "sibling entry after ours must remain byte-identical");
+        }
+
+        [Test]
+        public void Merge_UnmatchedOpenBraceInStringValue_DoesNotOverExtendEntryBounds()
+        {
+            // A "{" inside a string value must not be mistaken for a real nested open
+            // brace — otherwise entry-bounds scanning waits for one extra "}" and
+            // swallows the sibling "other-server" entry into our own entry's span,
+            // corrupting both (C1 r3 cw-1).
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"0.1.0\","
+                + "\"env\": {\"GREETING\": \"hello { world\"}"
+                + "},"
+                + "\"other-server\":{\"command\": \"foo\"}"
+                + "}}";
+
+            var result = ProjectConfigFormats.Merge(existing, TestPort, WizardConfigWriter.GitInstallUrl, "2.0.0", "mcpServers");
+
+            var argsIndex = result.IndexOf("\"args\":");
+            var otherServerIndex = result.IndexOf("\"other-server\"");
+            Assert.Greater(argsIndex, -1, "args field must be present in the result");
+            Assert.Greater(otherServerIndex, -1, "sibling other-server entry must survive");
+            Assert.Less(argsIndex, otherServerIndex,
+                "the '{' inside the string value must not be treated as an extra open brace — " +
+                "args must land inside our own entry (before the sibling key), not after it");
+        }
+
+        [Test]
         public void Merge_OldEntryMissingArgsKey_InsertsArgsWithoutDroppingOtherKeys()
         {
             // ARC-13 T2: a field present in the fresh template but absent from the

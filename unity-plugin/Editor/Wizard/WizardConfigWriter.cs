@@ -182,11 +182,23 @@ namespace UnityMCP.Editor.Wizard
             if (keyIdx < 0) return false;
             var braceStart = json.IndexOf('{', keyIdx + key.Length + 2);
             if (braceStart < 0) return false;
+            // Quote/escape-aware, same gate as DepthAt below — a brace-like character
+            // inside a string value (e.g. "env": {"GREETING": "hello } world"}) must
+            // never be mistaken for real JSON structure, or the point-splice below
+            // truncates/over-extends the entry and corrupts the config (C1 r3 cw-1).
             int depth = 1, pos = braceStart + 1;
+            bool inString = false;
             while (pos < json.Length && depth > 0)
             {
-                if (json[pos] == '{') depth++;
-                else if (json[pos] == '}') depth--;
+                var c = json[pos];
+                if (inString)
+                {
+                    if (c == '\\') pos++; // skip escaped char (e.g. \")
+                    else if (c == '"') inString = false;
+                }
+                else if (c == '"') inString = true;
+                else if (c == '{') depth++;
+                else if (c == '}') depth--;
                 pos++;
             }
             if (depth != 0) return false;
@@ -283,7 +295,8 @@ namespace UnityMCP.Editor.Wizard
 
         // Counts {}/[] nesting depth up to (not including) `pos`, skipping quoted
         // string content so brace-like characters inside a value never distort the
-        // count — a simple counter, same style as FindEntryBounds's brace-only scan.
+        // count — the same inString/escape-aware technique FindEntryBounds itself
+        // uses to scan its own {}-only entry bounds.
         private static int DepthAt(string text, int pos)
         {
             int depth = 0;
