@@ -157,7 +157,7 @@ async def test_epoch_race_no_premature_idle():
         ],
     )
     result = await _sync.sync_unity(timeout=60.0)
-    assert "sync clean" in result or result == ""
+    assert result == "sync clean"
 
 
 # #24: reconnect after domain reload — DomainReloadError then success
@@ -171,7 +171,7 @@ async def test_reconnect_after_domain_reload():
         ],
     )
     result = await _sync.sync_unity(timeout=60.0)
-    assert "sync clean" in result or result == ""
+    assert result == "sync clean"
 
 
 # #25: compile failed → return errors immediately, no reconnect wait
@@ -886,7 +886,7 @@ async def test_sync_no_false_backgrounded_on_early_dur_zero():
         ],
     )
     result = await _sync.sync_unity(timeout=60.0)
-    assert "sync clean" in result or result == ""
+    assert result == "sync clean"
 
 
 # FB-2: dur progresses 0.0 → nonzero → ready: must complete normally
@@ -907,7 +907,7 @@ async def test_sync_no_false_backgrounded_when_dur_progresses():
         ],
     )
     result = await _sync.sync_unity(timeout=60.0)
-    assert "sync clean" in result or result == ""
+    assert result == "sync clean"
 
 
 # A1 integration: sync_unity emits REIMPORT-NEEDED (not 'sync clean') when force_refresh TCP-dead
