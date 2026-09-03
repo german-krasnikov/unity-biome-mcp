@@ -153,9 +153,12 @@ def cmd_doctor(server_dir: Path, codex_config: Path, mcp_json: Path, ui,
     paths_ok = False
     stale_entry = False
     if codex_config.exists():
-        content = codex_config.read_text(encoding="utf-8")
-        paths_ok = str(py) in content
-        stale_entry = bool(re.search(r'^\[mcp_servers\.unity\]', content, re.MULTILINE))
+        try:
+            content = codex_config.read_text(encoding=READ_ENCODING)
+            paths_ok = str(py) in content
+            stale_entry = bool(re.search(r'^\[mcp_servers\.unity\]', content, re.MULTILINE))
+        except UnicodeDecodeError:
+            pass
     _check(".codex/config.toml paths correct", paths_ok)
     if stale_entry:
         ui.fail(".codex/config.toml has stale [mcp_servers.unity] — run: python install.py configure --tool codex")
@@ -177,7 +180,7 @@ def cmd_doctor(server_dir: Path, codex_config: Path, mcp_json: Path, ui,
             continue
         if info.config_path.exists():
             try:
-                content = info.config_path.read_text(encoding="utf-8")
+                content = info.config_path.read_text(encoding=READ_ENCODING)
                 has_entry = f'"{SERVER_NAME}"' in content
                 has_git_url = _GIT_URL in content
                 if has_entry and not has_git_url:
@@ -186,7 +189,7 @@ def cmd_doctor(server_dir: Path, codex_config: Path, mcp_json: Path, ui,
                 else:
                     _check(f"{info.name} config", has_entry,
                            str(info.config_path) if has_entry else f"{SERVER_NAME} missing")
-            except OSError:
+            except (OSError, UnicodeDecodeError):
                 pass
 
     port = discover_port()

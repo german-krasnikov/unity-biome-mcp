@@ -698,6 +698,50 @@ def test_cmd_doctor_imports_public_read_encoding():
     assert "_READ_ENCODING" not in imported
 
 
+def test_cmd_doctor_survives_undecodable_codex_config(tmp_path, capsys):
+    """.codex/config.toml with genuinely undecodable bytes (stray UTF-16 BOM
+    / binary corruption) must not crash doctor before it even reaches the
+    CLIENT_REGISTRY loop or the TCP check -- same 'degrade, don't crash'
+    contract as the .mcp.json check three lines below it. (C1 r4 #3)"""
+    import install.commands as commands
+    from install import ui as real_ui
+    server_dir = tmp_path / "server"
+    codex_config = tmp_path / "config.toml"
+    codex_config.write_bytes(b"\xff\xfe[mcp_servers.unity-biome-mcp]\ninvalid \x80\x81")
+    mcp_json = tmp_path / ".mcp.json"
+
+    commands.cmd_doctor(server_dir, codex_config, mcp_json, real_ui, argparse.Namespace())  # must not raise
+
+    out = capsys.readouterr().out
+    assert ".codex/config.toml paths correct" in out
+
+
+def test_cmd_doctor_survives_undecodable_client_config(tmp_path, capsys):
+    """An AI-tool config with genuinely undecodable bytes must not crash the
+    CLIENT_REGISTRY loop -- doctor must still reach the trailing TCP
+    reachability check instead of dying mid-loop with UnicodeDecodeError. (C1 r4 #3)"""
+    import install.commands as commands
+    from install import ui as real_ui
+    from unity_mcp.config import clients as real_clients
+
+    server_dir = tmp_path / "server"
+    codex_config = tmp_path / "missing_config.toml"
+    mcp_json = tmp_path / ".mcp.json"
+    corrupt_cfg = tmp_path / "claude_desktop_config.json"
+    corrupt_cfg.write_bytes(b"\xff\xfe{not valid utf-8")
+
+    claude_desktop = real_clients.CLIENT_REGISTRY["claude-desktop"]
+    original_path = claude_desktop.config_path
+    claude_desktop.config_path = corrupt_cfg
+    try:
+        commands.cmd_doctor(server_dir, codex_config, mcp_json, real_ui, argparse.Namespace())  # must not raise
+    finally:
+        claude_desktop.config_path = original_path
+
+    out = capsys.readouterr().out
+    assert "TCP :" in out
+
+
 def test_stop_argparse_requires_port():
     """'stop' without --port should fail argparse (SystemExit)."""
     import subprocess
