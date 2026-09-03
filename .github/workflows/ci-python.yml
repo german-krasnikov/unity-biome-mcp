@@ -69,7 +69,7 @@ jobs:
         working-directory: server
         env:
           PYTHONWARNDEFAULTENCODING: "1"
-        run: python -m pytest tests/ -m "not live and not monkey" -q --tb=short --cov=unity_mcp --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=reports/server-junit.xml
+        run: python -m pytest tests/ -m "not live and not monkey" -q --tb=short -n auto --dist load --durations=30 --durations-min=0.5 --cov=unity_mcp --cov-report=xml:coverage.xml --cov-report=term-missing --junitxml=reports/server-junit.xml
 
       - name: Run server unit tests
         if: "!(matrix.python-version == '3.14' && matrix.os == 'ubuntu-latest')"
@@ -78,7 +78,7 @@ jobs:
         working-directory: server
         env:
           PYTHONWARNDEFAULTENCODING: "1"
-        run: python -m pytest tests/ -m "not live and not monkey" -q --tb=short --timeout=30
+        run: python -m pytest tests/ -m "not live and not monkey" -q --tb=short --timeout=30 -n auto --dist load --durations=30 --durations-min=0.5
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.14' && matrix.os == 'ubuntu-latest'
