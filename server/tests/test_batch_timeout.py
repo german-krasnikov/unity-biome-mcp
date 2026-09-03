@@ -34,11 +34,11 @@ async def test_batch_default_timeout_exceeds_csharp_ceiling(mock_bridge, bridge_
 
 
 async def test_batch_timeout_ms_never_exceeds_csharp_ceiling(mock_bridge, bridge_response):
-    """DEV-55 [B3-#11]: the caller-tunable inner timeout_ms must never reach
-    C#'s hardcoded outer 'batch' dispatch watchdog (65s, MCPServer.cs
-    CommandTimeouts). Without the clamp, timeout=75 → timeout_ms=70000 >
-    65000 -- the outer watchdog kills the whole command before Unity's own
-    soft-timeout can return a partial result. Red before the fix (70000)."""
+    """The caller-tunable inner timeout_ms must never reach C#'s hardcoded
+    outer 'batch' dispatch watchdog (65s, MCPServer.cs CommandTimeouts).
+    Without the clamp, timeout=75 → timeout_ms=70000 > 65000 -- the outer
+    watchdog kills the whole command before Unity's own soft-timeout can
+    return a partial result. Red before the fix (70000). (DEV-55 B3-#11)"""
     bridge_response(data="ok:1")
     await batch(commands="get_hierarchy", timeout=75.0)
     args = mock_bridge.send.call_args[0][1]

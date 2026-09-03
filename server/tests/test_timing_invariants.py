@@ -60,11 +60,11 @@ def test_csharp_command_timeouts_source_matches_fixture():
 
 
 def test_batch_inner_timeout_ms_ceiling_under_csharp_batch_watchdog():
-    """DEV-55 [B3-#11]: batch's caller-tunable inner timeout_ms (sent as the
-    'timeout_ms' arg to Unity's batch executor) must stay strictly below
-    C#'s hardcoded outer 'batch' dispatch watchdog (MCPServer.cs
-    CommandTimeouts), or the outer watchdog kills the whole command before
-    Unity's own soft-timeout can return a graceful partial result.
+    """batch's caller-tunable inner timeout_ms (sent as the 'timeout_ms' arg
+    to Unity's batch executor) must stay strictly below C#'s hardcoded outer
+    'batch' dispatch watchdog (MCPServer.cs CommandTimeouts), or the outer
+    watchdog kills the whole command before Unity's own soft-timeout can
+    return a graceful partial result. (DEV-55 B3-#11)
     """
     assert _TIMEOUT_MS_CEILING == 60000
     assert _TIMEOUT_MS_CEILING < _csharp_timeout("batch") * 1000

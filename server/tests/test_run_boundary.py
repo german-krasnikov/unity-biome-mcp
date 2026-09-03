@@ -188,8 +188,8 @@ def _terminal_snapshot_json(expected_count: int, filter_name: str = "") -> str:
 
 
 async def test_get_test_run_rejects_zero_match_terminal_snapshot():
-    """DEV-09 gap: a direct get_test_run on a terminal zero-match snapshot
-    must fail closed instead of handing back a snapshot that looks passed."""
+    """A direct get_test_run on a terminal zero-match snapshot must fail
+    closed instead of handing back a snapshot that looks passed. (DEV-09 gap)"""
     registry = TestRunRegistry()
     raw = _terminal_snapshot_json(expected_count=0)
 

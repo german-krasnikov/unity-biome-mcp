@@ -138,15 +138,16 @@ async def test_retry_includes_retry_op_id():
 
 
 async def test_retry_hint_promotes_op_id():
-    """DEV-59/P-322: the in-band Unity 'retry' hint path must also promote
-    op_id to retry_op_id on resend -- Unity already dispatched the command
-    before replying with the hint, exactly like the exception-path SENT retry.
+    """The in-band Unity 'retry' hint path must also promote op_id to
+    retry_op_id on resend -- Unity already dispatched the command before
+    replying with the hint, exactly like the exception-path SENT retry.
 
     Without this, C# DedupRegistry has no retry_op_id to look up on the
     resend and cannot suppress re-execution, so a mutation (e.g. create_object)
     may run twice.
 
-    Red: the hint branch did `attempt += 1; continue` without rebuilding payload.
+    Red: the hint branch did `attempt += 1; continue` without rebuilding
+    payload. (DEV-59/P-322)
     """
     bridge = UnityBridge(
         port=9999,

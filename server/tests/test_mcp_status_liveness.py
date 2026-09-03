@@ -76,10 +76,10 @@ async def test_no_blank_line_when_unreachable(mock_bridge):
 
 
 async def test_liveness_flags_stall_when_bridge_status_disagrees_with_probe(mock_bridge):
-    """C1 #7: bridge.status="connected" (writer not yet closed — tolerated
-    stall window per reload-recovery skill §4) next to a failed get_status
-    probe must not print the bare, self-contradicting
-    'liveness=connected' + 'unity_status=unreachable' pair."""
+    """bridge.status="connected" (writer not yet closed — tolerated stall
+    window per reload-recovery skill §4) next to a failed get_status probe
+    must not print the bare, self-contradicting 'liveness=connected' +
+    'unity_status=unreachable' pair. (C1 #7)"""
     mock_bridge.status = "connected"
     mock_bridge.send = AsyncMock(side_effect=ToolError("[UNITY_UNAVAILABLE] gone"))
     from unity_mcp.tools.meta import mcp_status

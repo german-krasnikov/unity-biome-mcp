@@ -486,7 +486,7 @@ async def test_status_no_session():
 # ─── Switch (1 test) ────────────────────────────────────────────────────────
 
 async def test_switch_resets_seq_after_kill():
-    """C1 FIX: switch kills old session → buf cleared, but seq stays monotonic."""
+    """Switch kills old session → buf cleared, but seq stays monotonic. (C1 FIX)"""
     relay = ChatRelay()
     relay._enqueue("before_switch")  # seq=0
     old = mock_sess()
