@@ -234,6 +234,16 @@ namespace UnityMCP.Editor.TestRuns
                             (string.Equals(run.source, "unity-ui", StringComparison.Ordinal) &&
                              string.Equals(run.mode, "EditMode", StringComparison.Ordinal)));
 
+        // R8-01: decision extracted from RecoverTerminalEnvironments so the OR of
+        // "editor session changed" vs. "no UTF activity anywhere" is directly
+        // testable without a TestRunStore/active.json fixture.
+        internal static bool IsStaleActiveRun(
+            TestRunRecord run, UtfRunActivity ownActivity, UtfRunActivity anyActivity) =>
+            (!string.IsNullOrEmpty(run.editor_session_id) &&
+             !string.Equals(run.editor_session_id, TestRunBuildFingerprintProbe.EditorSessionId(),
+                 StringComparison.Ordinal)) ||
+            (ownActivity == UtfRunActivity.Inactive && anyActivity == UtfRunActivity.Inactive);
+
         private TestRunRecord AcquireForEvidence(string orphanReason)
         {
             if (_store.TryReadActive(out var pointer) &&
@@ -750,16 +760,11 @@ namespace UnityMCP.Editor.TestRuns
             {
                 try
                 {
-                    var staleEditorSession = !string.IsNullOrEmpty(activeRun.editor_session_id) &&
-                        !string.Equals(activeRun.editor_session_id,
-                            TestRunBuildFingerprintProbe.EditorSessionId(), StringComparison.Ordinal);
                     var ownActivity = string.IsNullOrEmpty(activeRun.utf_guid)
                         ? UtfRunActivity.Inactive
                         : Framework.Probe(activeRun.utf_guid);
                     var anyActivity = Framework.ProbeAny();
-                    if (staleEditorSession ||
-                        (ownActivity == UtfRunActivity.Inactive &&
-                         anyActivity == UtfRunActivity.Inactive))
+                    if (TestRunObserver.IsStaleActiveRun(activeRun, ownActivity, anyActivity))
                     {
                         activeRun.lifecycle = TestRunProtocol.Lifecycle.Finalizing;
                         activeRun.health = TestRunProtocol.Health.SuspectedStall;
