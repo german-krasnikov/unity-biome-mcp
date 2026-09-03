@@ -1106,6 +1106,44 @@ def test_unpin_toml_entry_false_on_undecodable_bytes_no_write(tmp_path):
     assert cfg.read_bytes() == original  # untouched, no rewrite attempted
 
 
+def test_toml_pin_roundtrip_survives_prerelease_version(tmp_path):
+    """C1 r3 #6: the marker/pin regex must accept a semver pre-release tag
+    (e.g. an RC build) -- before the fix, is_toml_pinned always returned
+    False for a pinned rc-tagged version because the version fragment
+    stopped matching at the first '-'."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    merger.merge_toml_mcp(cfg, {"command": "uvx", "args": []})
+
+    merger.pin_toml_entry(cfg, "1.51.0-rc.1")
+
+    assert merger.is_toml_pinned(cfg) is True
+
+    removed = merger.unpin_toml_entry(cfg)
+
+    assert removed is True
+    text = cfg.read_text(encoding="utf-8")
+    assert merger.is_toml_pinned(cfg) is False
+    assert "generated v1.51.0-rc.1" not in text
+
+
+def test_toml_version_fragment_matches_csharp_source():
+    """Parity guard (mirrors test_project_config_targets_matches_csharp_source
+    below): the C# VersionPattern constant (ProjectConfigToml.cs) must be the
+    byte-identical regex fragment as Python's _TOML_VERSION_RE_FRAGMENT, or the
+    two independent TOML writers/classifiers will silently disagree on which
+    versions look "owned" vs "foreign"."""
+    from unity_mcp.config import merger
+
+    cs_path = pathlib.Path(__file__).parents[2] / "unity-plugin/Editor/Wizard/ProjectConfigToml.cs"
+    assert cs_path.exists(), f"C# source not found: {cs_path}"
+    cs_text = cs_path.read_text(encoding="utf-8")
+
+    m = re.search(r'VersionPattern\s*=\s*@"([^"]*)"', cs_text)
+    assert m, "VersionPattern constant not found in ProjectConfigToml.cs"
+    assert m.group(1) == merger._TOML_VERSION_RE_FRAGMENT
+
+
 # ─── merger.py: PROJECT_CONFIG_TARGETS parity with ProjectConfigTargets.cs (C1 r2 #6) ──
 
 _PROJECT = pathlib.Path(__file__).parents[2]
