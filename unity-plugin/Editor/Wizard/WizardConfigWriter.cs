@@ -41,36 +41,18 @@ namespace UnityMCP.Editor.Wizard
         }
 
         // B3 #21: atomic write shared by every config writer (manual Configure here,
-        // ProjectConfigWriter's per-project sync) — write to tmp, then swap via
-        // File.Replace. Unlike delete-then-move, File.Replace has no intermediate
-        // state where the path is missing, so a sharing violation on the original
-        // (AV scan, sync client, another process) between delete and move can no
-        // longer permanently lose the original config (C1 r5 #2). Same pattern as
-        // SkillsInstaller.WriteVersionMarker, already proven cross-platform: the
-        // swap is wrapped in try/finally so a failed Replace/Move (original
-        // untouched either way) never leaves the .tmp behind (R5-02).
+        // ProjectConfigWriter's per-project sync) — write to tmp, then delegate the
+        // swap to the shared AtomicFile.Swap helper (Editor/AtomicFile.cs), which
+        // PortResolver's port-file writers also use (C1 r6 #1). Unlike
+        // delete-then-move, File.Replace has no intermediate state where the path
+        // is missing, so a sharing violation on the original (AV scan, sync
+        // client, another process) between delete and move can no longer
+        // permanently lose the original config (C1 r5 #2).
         internal static void WriteAtomic(string path, string content)
         {
             var tmp = path + ".tmp";
             File.WriteAllText(tmp, content, new UTF8Encoding(false));
-            try
-            {
-                if (File.Exists(path))
-                    File.Replace(tmp, path, null);
-                else
-                    File.Move(tmp, path);
-            }
-            finally
-            {
-                try
-                {
-                    if (File.Exists(tmp)) File.Delete(tmp);
-                }
-                catch
-                {
-                    // tmp cleanup must not mask the original Replace/Move error.
-                }
-            }
+            AtomicFile.Swap(tmp, path);
         }
 
         internal static string Fresh(int port) => Fresh(port, GitInstallUrl, "mcpServers");

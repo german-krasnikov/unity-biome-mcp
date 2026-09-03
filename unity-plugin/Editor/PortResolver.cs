@@ -191,8 +191,7 @@ namespace UnityMCP.Editor
                 System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(filePath));
                 var json = $"{{\"port\":{port},\"chatPort\":{chatPort},\"reloadPort\":{reloadPort}}}";
                 writeAllText(tmp, json);
-                if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
-                System.IO.File.Move(tmp, filePath);
+                AtomicFile.Swap(tmp, filePath);
                 return true;
             }
             catch
@@ -224,8 +223,7 @@ namespace UnityMCP.Editor
                     ? $"{{\"port\":{port},\"chatPort\":{chatPort},\"reloadPort\":{reloadPort.Value}}}"
                     : $"{{\"port\":{port},\"chatPort\":{chatPort}}}";
                 writeAllText(tmp, json);
-                if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
-                System.IO.File.Move(tmp, filePath);
+                AtomicFile.Swap(tmp, filePath);
                 return true;
             }
             catch

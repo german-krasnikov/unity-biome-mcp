@@ -461,6 +461,22 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(ok);
         }
 
+        // C1 r6 #1: TrySaveAllPorts/TrySavePorts must swap through the shared AtomicFile.Swap
+        // helper (same fix already proven for WizardConfigWriter.WriteAtomic, C1 r5 #2) instead
+        // of delete-then-move — a crash or lock (AV scan, sync client) between delete and
+        // move can leave MCP_Port.json missing entirely, which also silently skips the
+        // discovery-file rewrite ARC-9's fast path depends on.
+        [Test]
+        public void TrySaveAllPorts_UsesSharedAtomicSwap_NotDeleteThenMove()
+        {
+            var src = ReadRequiredPackageSource(typeof(PortResolver), "Editor/PortResolver.cs");
+            Assert.That(src, Does.Contain("AtomicFile.Swap(tmp, filePath)"),
+                "TrySaveAllPorts/TrySavePorts must swap the port file via the shared AtomicFile.Swap " +
+                "helper — a delete-then-move can leave MCP_Port.json missing on a locked path (C1 r6 #1)");
+            Assert.That(src, Does.Not.Contain("File.Delete(filePath)"),
+                "Port file writers must not delete the original before moving the replacement into place");
+        }
+
         // ── BindFreePort ──────────────────────────────────────────────────────
 
         [Test]
