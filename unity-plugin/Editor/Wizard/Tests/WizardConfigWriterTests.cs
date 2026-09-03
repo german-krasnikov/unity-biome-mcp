@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityMCP.Editor.Wizard;
 
@@ -155,6 +156,22 @@ namespace UnityMCP.Editor.Tests
                 "temp file must be cleaned up when the atomic swap fails");
             Assert.IsTrue(Directory.Exists(path),
                 "original must be left untouched when the atomic swap fails");
+        }
+
+        // If File.Delete(tmp) itself throws while an original Replace/Move exception
+        // is already in flight, an unguarded finally body replaces that original
+        // exception with the tmp-cleanup one, hiding the real failure from the
+        // caller (minor review finding). Source-guard: the finally body must wrap
+        // the cleanup in its own try/catch so tmp-cleanup can never mask the
+        // original error.
+        [Test]
+        public void WriteAtomic_TempCleanupNeverMasksTheOriginalException()
+        {
+            var src = ReadRequiredPackageSource(typeof(WizardConfigWriter), "Editor/Wizard/WizardConfigWriter.cs");
+            Assert.That(Regex.IsMatch(src,
+                    @"finally\s*\{\s*try\s*\{\s*if\s*\(File\.Exists\(tmp\)\)\s*File\.Delete\(tmp\);\s*\}\s*catch"),
+                "WriteAtomic's finally must wrap File.Delete(tmp) in its own try/catch " +
+                "so a failing cleanup never masks the original Replace/Move exception");
         }
 
         // Write() calls EditorUtility.DisplayDialog (modal) so it cannot be invoked

@@ -62,7 +62,14 @@ namespace UnityMCP.Editor.Wizard
             }
             finally
             {
-                if (File.Exists(tmp)) File.Delete(tmp);
+                try
+                {
+                    if (File.Exists(tmp)) File.Delete(tmp);
+                }
+                catch
+                {
+                    // tmp cleanup must not mask the original Replace/Move error.
+                }
             }
         }
 
