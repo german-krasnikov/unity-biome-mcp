@@ -14,18 +14,16 @@ namespace UnityMCP.Editor
     // that one — Drain snapshots the queue count before it starts dequeuing, so it never
     // drains its own re-entrant additions in the same pass. A future second entry point
     // into Drain (e.g. a SynchronizationContext pump) needs a reentrancy guard — one
-    // already exists below.
+    // already exists below. An idle tick costs a single IsEmpty check.
     [InitializeOnLoad]
     internal static class MainThreadDispatcher
     {
         private static readonly ConcurrentQueue<Action> _queue = new ConcurrentQueue<Action>();
-        private static bool _tickHooked;
         private static int _draining;
 
         static MainThreadDispatcher()
         {
-            if (_tickHooked) return;
-            _tickHooked = true;
+            // cctor runs once per domain; domain reload re-runs it.
             EditorApplication.update += Drain;
         }
 
@@ -47,6 +45,7 @@ namespace UnityMCP.Editor
         {
             if (queue == null) throw new ArgumentNullException(nameof(queue));
             if (shuttingDown) return;
+            if (queue.IsEmpty) return;
             if (Interlocked.CompareExchange(ref _draining, 1, 0) != 0) return;
             try
             {
