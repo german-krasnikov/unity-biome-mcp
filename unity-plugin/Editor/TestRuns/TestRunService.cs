@@ -626,11 +626,22 @@ namespace UnityMCP.Editor.TestRuns
                 !_store.TryReadRun(pointer.run_id, out run))
                 return false;
             if (run.lifecycle == TestRunProtocol.Lifecycle.Terminal) return false;
-            // Same-session Finalizing runs must also get a self-heal attempt: a
-            // stuck ProbeAny "Active" signal (e.g. zero-match filter dispatch)
-            // must not wedge every later dispatch just because the stuck run
-            // belongs to this editor session. The coordinator's own activity
-            // gate and staleness ceiling decide whether it is safe to finalize.
+            // Only a same-session run already in Finalizing, or a run from any
+            // OTHER editor session regardless of lifecycle, is eligible for a
+            // self-heal attempt here: a stuck ProbeAny "Active" signal (e.g. a
+            // zero-match filter dispatch) must not wedge every later dispatch
+            // just because the stuck run belongs to this editor session. A
+            // same-session Dispatched/Prepared/Running run has not reached
+            // Finalizing yet -- probing it this early can abandon a run that is
+            // still legitimately in flight (e.g. the main-thread queue has not
+            // drained its Execute() call), letting a lost-ACK retry steal the
+            // slot from its own first dispatch. Those lifecycles fail this
+            // dispatch closed instead. The coordinator's own activity gate and
+            // staleness ceiling decide whether it is safe to finalize a
+            // Finalizing/previous-session run.
+            if (run.lifecycle != TestRunProtocol.Lifecycle.Finalizing &&
+                !TestRunFinalizationCoordinator.IsPreviousEditorSession(run))
+                return true;
             try
             {
                 if (_finalizer.TryFinalize(run.run_id))

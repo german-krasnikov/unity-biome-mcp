@@ -522,6 +522,43 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void ExistingActiveRun_SameSessionDispatchedNoBoundary_ProbeGapMustNotAbandon()
+        {
+            // Reproduces the DEV-63 self-heal regression: a fresh same-session
+            // Dispatched run (no RunStarted/RunFinished boundary yet -- e.g. the
+            // main-thread queue has not drained the Execute() call) must not be
+            // probed for finalization just because ProbeAny/Probe both currently
+            // read Inactive (a normal gap before UTF reports activity). Only
+            // same-session Finalizing runs and previous-session runs of any
+            // lifecycle are eligible for the self-heal attempt; a same-session
+            // Dispatched run must fail this second dispatch closed instead of
+            // being abandoned and letting a retry steal the slot from the first.
+            const string runId = "run-fresh";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                source = "mcp",
+                lifecycle = TestRunProtocol.Lifecycle.Dispatched,
+                created_utc = Utc,
+                dispatched_utc = Utc,
+                utf_guid = "utf-guid-fresh",
+                build_coherent = true,
+                editor_process_identity = TestRunBuildFingerprintProbe.EditorProcessIdentity(),
+                editor_session_id = TestRunBuildFingerprintProbe.EditorSessionId()
+            });
+            _store.WriteActive(new TestRunPointer { run_id = runId, updated_utc = Utc });
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+            var service = CreateService();
+
+            var response = service.Start("request-second", "EditMode", null, null);
+
+            StringAssert.Contains("test run already active: " + runId, DecodeReason(response));
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Dispatched, _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(0, _framework.ExecuteCalls);
+        }
+
+        [Test]
         public void ExistingActiveRun_SameSessionFinalizingZeroMatchPastCeiling_SelfHealsAndAllowsDispatch()
         {
             // Reproduces the consumer symptom: a same-session run stuck in
