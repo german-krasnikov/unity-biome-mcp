@@ -262,6 +262,44 @@ setup, main, and teardown phases on Editor updates.
 See [`runtime-playtest.md`](runtime-playtest.md) for tool orchestration and
 [`playtest-dsl.md`](playtest-dsl.md) for grammar.
 
+## Main-Thread Dispatch & Configuration Persistence
+
+**Main-thread dispatcher:** `MainThreadDispatcher` is the single queueing point for
+all non-network Editor API calls. It uses `[InitializeOnLoad]` to subscribe directly
+to `EditorApplication.update`, independent of `MCPServer` lifecycle (so it remains
+active in batchmode and survives domain reloads). `Enqueue(action)` queues work;
+`Drain(shuttingDown)` executes a snapshot-bounded batch per tick, with per-action
+exception handling and reentrancy guards. This design prevents hangups when the
+Editor loses focus (e.g., Task Manager interaction) or during domain reload cycles.
+`EditorTickOnce` is retired; all callsites migrate to `Enqueue`. `delayCall` is
+restricted to GUI-only contexts (Chat/UI, Wizard, menu callbacks) via allowlist tests.
+
+**Atomic file writes:** Configuration, state, and test-run persistence files
+(`MCP_Port.json`, `{pid}.port`, editor state, wizard config, test-run store) use
+`AtomicFile.Swap(path, content)` to atomically replace files via temp + `File.Replace`.
+This prevents data loss under concurrent file-locking scenarios (Windows OneDrive,
+antivirus, network paths). The atomic pattern is standard and maintains durability
+even when writes are interrupted by process death or lock contention.
+
+**Durable test-run protocol:** Test run state is persisted to disk (`.unity-biome-mcp/tests/`)
+and survives transport disconnect and caller timeout. Results include:
+  - `health` (enum: `healthy`, `no_test_progress`, `editor_unresponsive`) — gate for
+    stalled dispatch detection and disk-fallback recovery
+  - `expected_count` (nullable int) — optional expected test count for zero-match validation
+  - `issues` (list of dicts) — includes `ZERO_TEST_MATCH` warning when a filter produces no tests
+  - Terminal states reconcile with the durable store on every query; if dispatch is stuck,
+    a disk-fallback read returns the last stable snapshot
+
+Lifecycle-gate self-heal: runs in `Finalizing` state longer than 180 seconds (since
+execution boundary events, not dispatch) are auto-purged if no new test output arrives,
+allowing subsequent runs to proceed.
+
+**Error classification (UNITY-UNREACHABLE):** When the Editor process is hung, dead, or
+otherwise unreachable, error responses now include explicit `UNITY-UNREACHABLE` verdict
+instead of silent empty errors or stalled connection states. Liveness detection uses
+~30-second ping intervals to catch dead processes quickly; `mcp_status` exposes
+`liveness` (connected, connected-stalled, unreachable) for diagnostics.
+
 ## Extension Boundaries
 
 Python plugins implement `register(mcp, send_fn, args_fn)` and use the supported

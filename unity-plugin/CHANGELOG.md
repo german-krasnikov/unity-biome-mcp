@@ -12,6 +12,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Test run timeout on Editor focus loss or domain reload:** `run_tests_wait`/`get_test_run` no longer hang indefinitely when the Editor loses focus or undergoes a domain reload. Implemented disk-fallback protocol and health-value gates to detect stalled test dispatch and recover via direct test-run store reads; durable protocol now includes explicit `health` field and `expected_count` for safer gate validation
+- **Zero-match filter produces silent failure or stuck `Finalizing` state:** Running tests with a filter that matches no tests (e.g., typo in filter name) now returns an explicit `ZERO_TEST_MATCH` issue in the result, allowing the next run to proceed instead of silently hanging or remaining in `Finalizing` state; added 180-second ceiling on `Finalizing` expiry tied to execution boundary events
+- **`await_compile` and `get_compile_errors` return stale cached results:** Removed compile results from the prefetch cache so each call after a C# edit immediately polls live compilation status instead of returning outdated `[CACHED]` responses
+- **Ghost Unity process appears alive to status checks:** `mcp_status` and error paths now return explicit `UNITY-UNREACHABLE` verdict when the Editor process is hung or dead, instead of silently reporting `connected` or empty error states. Improved liveness detection with shorter ping intervals (~30 seconds) to catch stalled processes
+- **After Editor restart, Python client loops on connection refused when port changes:** Added fast-path port rediscovery with explicit `[port changed]` warning when the Editor binds to a different TCP port after restart, eliminating repeated `ConnectionRefused` cycles; off-by-one fix in port-discovery logic
+- **"Level Up!" button in Setup Wizard hangs on double-click and shows `Unable to add package` error:** UPM operations now guarded by a single in-flight-state checker that disables the button during updates; safe to re-click immediately. `UpmErrorClassifier` and `UpmOperationGuard` prevent phantom "package add already running" errors
+- **Plugin or server update overwrites manual changes to `.env`, custom config keys, or TOML sections:** Configuration files now use atomic swap (`File.Replace`) instead of delete-then-move, preserving concurrent edits even under file-locking scenarios (Windows OneDrive/antivirus). Deep-merge strategy for TOML config; per-target `LastSyncedVersion` tracking prevents unnecessary rewrites
+- **Random HTTP/TLS probes on the TCP port flood the console with repeating desync warnings:** Added `DesyncWarnLimiter` to classify known foreign protocol probes (HTTP, TLS handshakes) and emit at most one warning per 30 seconds, reducing console noise
+- **`uitk_file` action on Windows fails reading `.uxml`/`.uss` files with `escapes Assets/` path validation error:** Path escaping now correctly handles Windows backslashes (`\`) as part of the canonical path, not as escape sequences; fixed `ToAbsPath` resolution for relative UXML/USS includes
+- **Setup Wizard enables configurations for all detected agent tools (VS Code, Codex) even if not installed:** Wizard now only enables agent configs for tools that are actually installed, preventing stale or phantom agent entries in the MCP configuration
+
+### Changed
+
+- **Main-thread dispatcher refactored to eliminate timeout windows:** Replaced `EditorTickOnce` with a centralized `MainThreadDispatcher` that uses `EditorApplication.update` directly (not `delayCall`), making it immune to focus loss and domain reload hangups. Dispatcher runs snapshot-bounded Drain cycles with per-action exception handling; `delayCall` now restricted to GUI-only contexts (Chat, Wizard, menus)
+- **Atomic file writes for all config and state files:** `MCP_Port.json`, `{pid}.port`, editor state, wizard config, and durable test-run store now use `AtomicFile.Swap` (temp file + `File.Replace`) to prevent data loss under concurrent file-locking (Windows OneDrive/antivirus/network paths)
+- **Durable test-run protocol gates for recovery:** Added `health` (no_test_progress, editor_unresponsive) and `expected_count` fields to test-run results for safer terminal-state detection; `ZERO_TEST_MATCH` warning flags empty-filter matches. Disk fallback and lifecycle-gate self-heal allow runs to recover without stalling
+- **Server detects unavailable/unreachable Unity as a distinct error state:** New `UNITY-UNREACHABLE` verdict in error responses when the Editor process is dead, hung, or unresponsive; replaces silent empty-error responses or stalled connection state
+
+### Documentation
+
+- Updated `AI/architecture.md` to document `MainThreadDispatcher`, `AtomicFile.Swap`, durable test-run protocol gates, and `UNITY-UNREACHABLE` error classification
+- Updated `AI/testing.md` with new test-run health fields, `expected_count` validation, and `ZERO_TEST_MATCH` issue type; test counts updated
+- Updated `AI/structure.md` with new C# modules: `AtomicFile.cs`, `MainThreadDispatcher.cs` (replacing `EditorTickOnce`), hygiene test guards, and desync limiters
+- Added Windows-specific installation guidance for atomic file handling and domain-reload safeguards
+
+### Test Results
+
+- **C# NUnit:** 9,276 passed / 0 failed / 34 skipped (×2 runs, run-6bf0491c, run-9b12374c; health=healthy, build_coherent)
+- **Python live:** 278 passed / 0 failed
+- **Python conformance/seams:** 290 passed / 42 failed (pre-existing; byte-identical to master):
+  - 41 failures: seams batch completeness/surface tests — `BatchHelper.cs` v1.41.0 (d3fc6c9f) writes `[N] {result}` while test expects `[N] ok:`; unrelated to this fix
+  - 1 failure: `test_screenshot_succeeds` — empty screenshot on background Editor; unrelated to this fix
+  - Note: seams live suite does not run in CI (`ci-conformance`: `-m "not live"`)
+- **Repository unit:** 1,180 passed / 1 failed (pre-existing: `test_installed_runtime_lease.py::test_installed_entrypoint_serves_public_stdio` — environment venv issue without mcp SDK, byte-identical to master)
+- **Install unit:** 89 passed / 1 skipped
+- **Server non-live unit:** 6,857 passed / 1 skipped / 634 deselected
+- **Wire protocol:** 26 passed
+- **Code quality (ruff):** All checks passed
+
 ## [v1.51.0] — 2026-09-01
 
 ### Added
