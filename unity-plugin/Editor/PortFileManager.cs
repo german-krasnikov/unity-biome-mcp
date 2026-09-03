@@ -311,11 +311,7 @@ namespace UnityMCP.Editor
                 // Invariant culture so decimal separator is always '.'
                 File.WriteAllText(tmp,
                     $"{state}\n{ts.ToString(System.Globalization.CultureInfo.InvariantCulture)}\n{pid}\n{epoch}");
-                // Unity editor scripting is still Mono/netstandard2.1 — no
-                // File.Move(string,string,bool) overload (CS1739). Delete+Move:
-                // tiny non-atomic window, readers retry so it's acceptable.
-                try { File.Delete(path); } catch { }
-                File.Move(tmp, path);
+                AtomicFile.Swap(tmp, path);
             }
             catch { }
         }

@@ -473,8 +473,9 @@ namespace UnityMCP.Editor.Tests
             Assert.That(src, Does.Contain("AtomicFile.Swap(tmp, filePath)"),
                 "TrySaveAllPorts/TrySavePorts must swap the port file via the shared AtomicFile.Swap " +
                 "helper — a delete-then-move can leave MCP_Port.json missing on a locked path (C1 r6 #1)");
-            Assert.That(src, Does.Not.Contain("File.Delete(filePath)"),
-                "Port file writers must not delete the original before moving the replacement into place");
+            Assert.That(src, Does.Not.Match(@"(System\.IO\.)?File\.Delete\(filePath\)"),
+                "Port file writers must not delete the original before moving the replacement into place, " +
+                "including via a fully-qualified System.IO.File.Delete(filePath) call");
         }
 
         // ── BindFreePort ──────────────────────────────────────────────────────

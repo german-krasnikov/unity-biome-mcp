@@ -212,6 +212,29 @@ namespace UnityMCP.Editor.Tests
             Assert.AreNotEqual(PortFileManager.ChatPort, reloadPort, "ReloadPort must not equal ChatPort");
         }
 
+        // ── WriteStateFile atomic swap guard ────────────────────────────────────
+
+        // CS-CLEANUP-6: WriteStateFile must swap the state file via the shared
+        // AtomicFile.Swap helper (same fix already proven for
+        // PortResolver.TrySaveAllPorts/TrySavePorts, C1 r6 #1) instead of a bare
+        // delete-then-move — the removed CS1739 comment described a "tiny
+        // non-atomic window" that AtomicFile.Swap closes.
+        [Test]
+        public void WriteStateFile_UsesSharedAtomicSwap_NotDeleteThenMove()
+        {
+            var src = ReadRequiredPackageSource(typeof(PortFileManager), "Editor/PortFileManager.cs");
+            var start = src.IndexOf("internal static void WriteStateFile(string state, string stateDirectory)");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "WriteStateFile method not found");
+            var end = src.IndexOf("internal static void DeleteStateFile", start);
+            Assert.That(end, Is.GreaterThan(start), "DeleteStateFile not found after WriteStateFile");
+            var body = src.Substring(start, end - start);
+
+            Assert.That(body, Does.Contain("AtomicFile.Swap(tmp, path)"),
+                "WriteStateFile must swap the state file via the shared AtomicFile.Swap helper");
+            Assert.That(body, Does.Not.Contain("File.Delete(path)"),
+                "WriteStateFile must not delete the original state file before moving the replacement into place");
+        }
+
         // ── Helpers ───────────────────────────────────────────────────────────
 
         private static bool IsProcessAlive(int pid)
