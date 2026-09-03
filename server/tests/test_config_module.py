@@ -993,7 +993,7 @@ def test_merge_mcp_config_bom_prefixed_file_preserves_content(tmp_path):
     assert "unity-biome-mcp" in data["mcpServers"]
 
 
-# ─── merger.py: undecodable bytes must degrade, not crash (C1 r2 #3) ────────
+# ─── merger.py: undecodable bytes must degrade, not crash ──────────────────
 
 def test_is_entry_pinned_false_on_undecodable_bytes(tmp_path):
     """A genuinely non-UTF-8 file (UTF-16 BOM, truncated multi-byte sequence,
@@ -1107,10 +1107,10 @@ def test_unpin_toml_entry_false_on_undecodable_bytes_no_write(tmp_path):
 
 
 def test_toml_pin_roundtrip_survives_prerelease_version(tmp_path):
-    """C1 r3 #6: the marker/pin regex must accept a semver pre-release tag
-    (e.g. an RC build) -- before the fix, is_toml_pinned always returned
-    False for a pinned rc-tagged version because the version fragment
-    stopped matching at the first '-'."""
+    """The marker/pin regex must accept a semver pre-release tag (e.g. an RC
+    build) -- before the fix, is_toml_pinned always returned False for a
+    pinned rc-tagged version because the version fragment stopped matching
+    at the first '-'."""
     from unity_mcp.config import merger
     cfg = tmp_path / "config.toml"
     merger.merge_toml_mcp(cfg, {"command": "uvx", "args": []})
@@ -1144,7 +1144,7 @@ def test_toml_version_fragment_matches_csharp_source():
     assert m.group(1) == merger._TOML_VERSION_RE_FRAGMENT
 
 
-# ─── merger.py: PROJECT_CONFIG_TARGETS parity with ProjectConfigTargets.cs (C1 r2 #6) ──
+# ─── merger.py: PROJECT_CONFIG_TARGETS parity with ProjectConfigTargets.cs ──
 
 _PROJECT = pathlib.Path(__file__).parents[2]
 _PROJECT_CONFIG_TARGETS_CS_PATH = (
@@ -1181,7 +1181,7 @@ def test_project_config_targets_matches_csharp_source():
     assert parsed == merger.PROJECT_CONFIG_TARGETS
 
 
-# ─── clients.py: install_dir parity with BackendDescriptor.cs ConfigDir (C1 r3 #8) ──
+# ─── clients.py: install_dir parity with BackendDescriptor.cs ConfigDir ────
 
 _BACKEND_DESCRIPTOR_CS_PATH = _PROJECT / "unity-plugin/Editor/Wizard/BackendDescriptor.cs"
 assert _BACKEND_DESCRIPTOR_CS_PATH.exists(), (
@@ -1199,7 +1199,7 @@ def _home_tail(path: pathlib.Path) -> str:
 def test_install_dir_matches_backend_descriptor_source(monkeypatch):
     """install_dir per-platform literals (clients.py) must mirror
     unity-plugin/Editor/Wizard/BackendDescriptor.cs's ConfigDir branches
-    (ARC-0b) -- carried only by comment before this test (C1 r3 #8), so an
+    (ARC-0b) -- carried only by comment before this test, so an
     independent edit to BackendDescriptor.cs (e.g. a Windsurf or VS Code path
     change) would silently desync Python's detect_installed() with no test
     to catch it. Checks verbatim presence of each literal path segment (not
