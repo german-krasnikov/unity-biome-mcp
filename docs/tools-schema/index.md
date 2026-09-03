@@ -7,7 +7,7 @@ hide:
 
 > **160 registered tools** — auto-generated from server tool definitions.
 
-> Quality: **83.7/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
+> Quality: **83.5/100** avg score · [Glama](https://glama.ai/mcp/servers/german-krasnikov/unity-biome-mcp/schema)
 
 ## Overview
 
@@ -76,7 +76,7 @@ hide:
 | [`get_test_count`](#get_test_count) | 🟢 95/100 | 🟢 low | Number of edit-mode and play-mode tests in the project. |
 | [`get_test_progress`](#get_test_progress) | 🟢 89/100 | 🟢 low | Legacy progress facade. Pass run_id to correlate the response. |
 | [`get_test_results`](#get_test_results) | 🟢 89/100 | 🟢 low | Legacy result facade. Pass run_id to prevent reading a stale latest run. |
-| [`get_test_run`](#get_test_run) | 🟢 93/100 | 🟢 low | Return the durable JSON snapshot for one exact test run. |
+| [`get_test_run`](#get_test_run) | 🟡 68/100 | 🔴 high | Return the durable JSON snapshot for one exact test run. |
 | [`get_unity_events`](#get_unity_events) | 🟢 90/100 | 🟡 medium | List all UnityEvent persistent listeners in the active scene. |
 | [`get_watches`](#get_watches) | 🟢 95/100 | 🟢 low | Get all active watches and recent log entries. |
 | [`inspect`](#inspect) | 🟢 90/100 | 🟢 low | Get components for multiple objects at once. paths: comma-separated. componen... |
@@ -96,7 +96,7 @@ hide:
 | [`manage_component`](#manage_component) | 🟡 77/100 | 🔴 high | Add or remove a component. Mutates scene. No confirmation required. action: '... |
 | [`material`](#material) | 🟡 78/100 | 🟡 medium | Material asset management (for quick color change use `set_material`). action... |
 | [`material_audit`](#material_audit) | 🟢 88/100 | 🟢 low | Material/texture scene-wide audit. |
-| [`mcp_status`](#mcp_status) | 🟢 95/100 | 🟢 low | Compact MCP status: scene, dirty, play/compile state, port, alias count, vers... |
+| [`mcp_status`](#mcp_status) | 🟢 95/100 | 🟢 low | Compact MCP status: scene, dirty, play/compile state, port, alias count, |
 | [`menu`](#menu) | 🟢 84/100 | 🟡 medium | Execute or list Unity Editor menu items. action: execute|list. execute: run m... |
 | [`move_to`](#move_to) | 🟢 81/100 | 🟡 medium | [Play Mode] Move character to position and wait for arrival. |
 | [`navmesh_query`](#navmesh_query) | 🟡 70/100 | 🔴 high | NavMesh queries and management. Bakes or clears NavMesh data for bake/clear a... |
@@ -1671,7 +1671,7 @@ Bake operations. target: lighting|occlusion. action (lighting): start(default)|s
 
 🟢 83/100 · Risk: 🔴 high
 
-Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75). atomic: on failure, reverts prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain. PREFER over individual tool calls.
+Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls.
 
 **Parameters:**
 
@@ -4406,9 +4406,9 @@ Legacy result facade. Pass run_id to prevent reading a stale latest run.
 
 ### `get_test_run`
 
-🟢 93/100 · Risk: 🟢 low
+🟡 68/100 · Risk: 🔴 high
 
-Return the durable JSON snapshot for one exact test run.
+Return the durable JSON snapshot for one exact test run.  Fails closed on terminal-invalid evidence: a snapshot claiming ``state == "terminal"`` that doesn't pass ARC-1/ARC-3 validation (an honest zero-match filter, a stalled/unresponsive terminal claim, a corrupted count) comes back as ``PROTOCOL-ERROR|run_id=...|reason=...|snapshot=...`` instead of the raw snapshot -- closes the direct-poll path around ``run_tests_wait``'s own validation.
 
 **Parameters:**
 
@@ -4417,11 +4417,14 @@ Return the durable JSON snapshot for one exact test run.
 | `run_id` | string | ✓ |  |
 
 <details>
-<summary>3 quality issues</summary>
+<summary>6 quality issues</summary>
 
+- **warning**: Tool appears to have side effects but the description does not state them clearly.
+- **warning**: Risky tool lacks a clear usage boundary.
 - **info**: Parameter 'run_id' has no description.
 - **info**: Free-form string parameter 'run_id' has no maxLength.
 - **warning**: outputSchema is missing.
+- **error**: Tool appears to have side effects but is annotated as read-only.
 
 </details>
 
@@ -5597,7 +5600,7 @@ Material/texture scene-wide audit. action: summary|materials|textures|duplicates
 
 🟢 95/100 · Risk: 🟢 low
 
-Compact MCP status: scene, dirty, play/compile state, port, alias count, version.
+Compact MCP status: scene, dirty, play/compile state, port, alias count, version — plus Python-side liveness diagnostics (ARC-7 T3) that answer honestly, never raising, when Unity itself is unreachable. liveness: connected | connected-stalled | waking | reconnecting | domain-reloading | dormant | disconnected | unknown
 
 <details>
 <summary>1 quality issues</summary>

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
   "label": "tool quality",
-  "message": "83.7/100 \u00b7 0 errors",
-  "color": "green"
+  "message": "83.5/100 \u00b7 1 errors",
+  "color": "yellow"
 }

@@ -1,23 +1,23 @@
 # Quality Report
 
-> Auto-generated on **2026-09-01** from commit `c6ccb91` (v1.51.0)
+> Auto-generated on **2026-09-03** from commit `c18b692` (v1.52.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.51.0 |
-| Commit | `c6ccb91` |
-| Date | 2026-09-01 |
+| Version | v1.52.0 |
+| Commit | `c18b692` |
+| Date | 2026-09-03 |
 | MCP Tools | 160 |
 
 ## Test Results
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.14) | 6115 | 0 | 3 | 6118 | ✅ |
-| Python Install | 79 | 0 | 0 | 79 | ✅ |
-| Python Scripts | 1180 | 0 | 0 | 1180 | ✅ |
+| Python Server (3.14) | 6348 | 0 | 3 | 6351 | ✅ |
+| Python Install | 90 | 0 | 0 | 90 | ✅ |
+| Python Scripts | 1181 | 0 | 0 | 1181 | ✅ |
 | C# EditMode (Linux) | 8939 | 0 | 186 | 9125 | ✅ |
 | C# EditMode (Windows) | 8825 | 0 | 300 | 9125 | ✅ |
 | C# EditMode (macOS) | 8939 | 0 | 186 | 9125 | ✅ |
@@ -26,7 +26,7 @@
 
 | Linter | Errors | Warnings | Score |
 |--------|--------|----------|-------|
-| mcp-tool-card-linter | 0 | 416 | 83.66/100 |
+| mcp-tool-card-linter | 1 | 418 | 83.51/100 |
 
 ### Per-Tool Scores
 
@@ -43,6 +43,7 @@
 | `screenshot` | 65 | 0 | 7 | medium |
 | `run_playtest_suite` | 67 | 0 | 5 | high |
 | `uitk_file` | 67 | 0 | 5 | high |
+| `get_test_run` | 68 | 1 | 3 | high |
 | `run_tests_wait` | 68 | 0 | 6 | high |
 | `screenshot_compare` | 68 | 0 | 5 | medium |
 | `watch` | 68 | 0 | 4 | high |
@@ -172,7 +173,6 @@
 | `smart_build` | 92 | 0 | 1 | low |
 | `ask` | 93 | 0 | 1 | low |
 | `ask_user` | 93 | 0 | 1 | low |
-| `get_test_run` | 93 | 0 | 1 | low |
 | `query_state` | 93 | 0 | 1 | medium |
 | `resolve_scene_refs` | 93 | 0 | 1 | medium |
 | `resolve_test_request` | 93 | 0 | 1 | low |
