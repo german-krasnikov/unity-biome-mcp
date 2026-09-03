@@ -427,6 +427,32 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
+        public void SetModeAsync_MarshalsCallbackThroughMainThreadDispatcher()
+        {
+            // Proves the callback is marshaled via MainThreadDispatcher, not
+            // EditorApplication.delayCall: a backgrounded Editor (no focus/render frames)
+            // still pumps EditorApplication.update, which drives MainThreadDispatcher.Drain(),
+            // but does not reliably drain delayCall. Draining synchronously with no frame wait
+            // — the way a delayCall-based callback never would be — proves the dispatcher path.
+            var b = new RelayBackend("claude", "ask", "", 9500);
+            bool? result = null;
+            try
+            {
+                b.SetModeAsync("agent", ok => result = ok);
+
+                MainThreadDispatcher.Drain();
+
+                Assert.IsTrue(result.HasValue,
+                    "callback must already be delivered by a synchronous MainThreadDispatcher.Drain(), not delayCall");
+                Assert.IsFalse(result.Value, "null proc must callback with false");
+            }
+            finally
+            {
+                MainThreadDispatcher.Clear();
+            }
+        }
+
+        [Test]
         public async Task SetModeAsync_WhenSendOk_CallsCallbackWithTrue()
         {
             // Arrange: fresh proc per test (don't share SetUp's _fakeProc)

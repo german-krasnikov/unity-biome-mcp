@@ -138,18 +138,21 @@ namespace UnityMCP.Editor.Chat
         /// <summary>
         /// Non-blocking mode switch: sends set_mode to the relay on a ThreadPool thread
         /// (relay kills and respawns the CLI subprocess internally),
-        /// then calls onDone(bool ok) on the main thread via EditorApplication.delayCall.
+        /// then calls onDone(bool ok) on the main thread via MainThreadDispatcher.
+        /// EditorApplication.delayCall is not reliably drained while the Editor is
+        /// backgrounded (no focus/render frames); MainThreadDispatcher.Drain() runs off
+        /// EditorApplication.update instead, which keeps ticking in that state.
         /// </summary>
         internal void SetModeAsync(string mode, Action<bool> onDone)
         {
             _mode = mode;
-            if (_proc == null) { EditorApplication.delayCall += () => onDone(false); return; }
+            if (_proc == null) { MainThreadDispatcher.Enqueue(() => onDone(false)); return; }
             var proc = _proc;
             var sid  = SessionId;
             System.Threading.ThreadPool.QueueUserWorkItem(_ =>
             {
                 bool ok = proc.SendSetMode(mode, sid);
-                EditorApplication.delayCall += () => onDone(ok);
+                MainThreadDispatcher.Enqueue(() => onDone(ok));
             });
         }
 
