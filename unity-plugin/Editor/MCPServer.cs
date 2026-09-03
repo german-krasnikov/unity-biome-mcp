@@ -205,7 +205,6 @@ namespace UnityMCP.Editor
             _lifecycleCallbacksRegistered = true;
             // Register WatchdogTick FIRST — so it survives even if PortFileManager throws below.
             EditorApplication.update += WatchdogTick;
-            EditorApplication.update += MainThreadDispatcher.Drain;
             EditorApplication.quitting += OnQuit;
             AssemblyReloadEvents.beforeAssemblyReload += OnBeforeReload;
             CompilationPipeline.compilationStarted += _ => OnCompilationStarted();
@@ -277,8 +276,6 @@ namespace UnityMCP.Editor
             // and EditorApplication.update fire after the full InitializeOnLoad sweep).
             CommandRegistry.InitDefaults();
             // Tier 0: re-register idempotently so restart after Stop() works
-            EditorApplication.update -= MainThreadDispatcher.Drain;
-            EditorApplication.update += MainThreadDispatcher.Drain;
             EditorApplication.update -= WatchdogTick;
             EditorApplication.update += WatchdogTick;
             CancellationTokenSource cts = null;
@@ -465,7 +462,6 @@ namespace UnityMCP.Editor
             try { _chatListener?.Server?.Shutdown(SocketShutdown.Both); } catch { }
             try { _chatListener?.Stop(); } catch { }
             _chatListener = null;
-            EditorApplication.update -= MainThreadDispatcher.Drain;
             EditorApplication.update -= WatchdogTick;
             MainThreadDispatcher.Clear();  // prevent queued actions after domain tear-down
         }

@@ -37,5 +37,18 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(slot.AnyConnected, "Freshly constructed ClientSlot must have no connections");
             Assert.AreEqual(0, slot.CountPhantoms(), "Freshly constructed ClientSlot must have no phantom entries");
         }
+
+        // ── TICK-DISPATCHER Part A: MainThreadDispatcher owns its own update hook ──
+
+        [Test]
+        public void MCPServer_DoesNotSubscribeMainThreadDispatcherDrain()
+        {
+            var src = ReadRequiredPackageSource(typeof(MCPServer), "Editor/MCPServer.cs");
+            Assert.That(src, Does.Not.Contain("update += MainThreadDispatcher.Drain"),
+                "MCPServer must not subscribe MainThreadDispatcher.Drain — the dispatcher hooks its " +
+                "own EditorApplication.update via its own [InitializeOnLoad] static constructor");
+            Assert.That(src, Does.Not.Contain("update -= MainThreadDispatcher.Drain"),
+                "MCPServer must not unsubscribe MainThreadDispatcher.Drain — it never subscribed it");
+        }
     }
 }
