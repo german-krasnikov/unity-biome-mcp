@@ -961,14 +961,38 @@ async def test_main_raises_when_serve_fails_to_bind():
     (e.g. OSError: address in use). Double-red: red if the FIRST_COMPLETED
     race guard is removed (hangs on wait_bound() forever → the surrounding
     wait_for's own TimeoutError, not the real bind error), red if the assert
-    accepts TimeoutError instead of the real OSError."""
+    accepts TimeoutError instead of the real OSError.
+
+    Also captures every Task _main() creates (via a create_task spy) and
+    asserts `bound_task` — the second one created — is fully done (not left
+    "cancelling") by the time the OSError surfaces here. `Future.__await__`
+    skips its `yield` when the future is already done, so the plain
+    `await serve_task` right after `bound_task.cancel()` never hands control
+    back to the loop for that cancellation to actually run — verified with a
+    standalone probe (asyncio debug logging) that `bound_task` is still
+    `done()=False` ("cancelling") at exactly this point without the drain,
+    and `done()=True, cancelled()=True` with it. A caplog-based check for
+    asyncio's "Task was destroyed but it is pending!" log line was tried
+    first and rejected: pytest-asyncio's own event-loop teardown drains any
+    dangling task before GC ever sees it pending, so that oracle passed even
+    on the unfixed code — a false negative. Double-red: red if the
+    `asyncio.gather(bound_task, return_exceptions=True)` drain in _main() is
+    removed, red if this assertion is loosened to accept `done() is False`."""
     loop = asyncio.get_running_loop()
+    created_tasks: list[asyncio.Task] = []
+    real_create_task = asyncio.create_task
+
+    def spying_create_task(coro, **kwargs):
+        task = real_create_task(coro, **kwargs)
+        created_tasks.append(task)
+        return task
 
     async def failing_start_server(client_cb, host, port):
         raise OSError("port already in use (simulated)")
 
     with patch.object(loop, "add_signal_handler", create=True), \
          patch("unity_mcp.chat_relay.asyncio.start_server", side_effect=failing_start_server), \
+         patch("unity_mcp.chat_relay.asyncio.create_task", side_effect=spying_create_task), \
          pytest.raises(OSError) as exc_info:
         await asyncio.wait_for(_main(), timeout=_MAIN_FAIL_FAST_TIMEOUT_S)
 
@@ -977,6 +1001,12 @@ async def test_main_raises_when_serve_fails_to_bind():
     assert not isinstance(exc_info.value, TimeoutError), \
         "must raise the real bind error, not asyncio.wait_for's own timeout"
     assert "simulated" in str(exc_info.value)
+
+    assert len(created_tasks) == 2, "expected exactly serve_task and bound_task"
+    bound_task = created_tasks[1]
+    assert bound_task.done(), \
+        "bound_task's cancellation must be fully drained before _main() re-raises"
+    assert bound_task.cancelled()
 
 
 async def _fake_bound_serve(self, port):

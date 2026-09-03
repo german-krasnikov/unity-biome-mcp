@@ -10,6 +10,8 @@ no collision possible.
 import asyncio
 import inspect
 
+import pytest
+
 from unity_mcp.chat_relay import ChatRelay
 
 from . import relay_helpers as _relay_helpers_mod
@@ -62,3 +64,34 @@ async def test_relay_server_fixture_port_is_the_actually_bound_port(relay_server
     relay, port = relay_server
     resp = await tcp_cmd(port, "status")
     assert resp["ok"] is True  # a real response proves the fixture's port is the live bound socket
+
+
+@pytest.fixture
+def _start_server_port_spy(monkeypatch):
+    """Wrap asyncio.start_server to record the `port` argument a caller passes
+    it, then call through to the real implementation. Declared before
+    `relay_server` in a test's parameter list: same-scope fixtures with no
+    dependency between them are set up in declared order, so this patch is
+    installed before relay_server's setup runs and calls the wrapped
+    start_server."""
+    recorded: dict[str, int] = {}
+    real_start_server = asyncio.start_server
+
+    async def _spy(client_cb, host, port):
+        recorded["port"] = port
+        return await real_start_server(client_cb, host, port)
+
+    monkeypatch.setattr(asyncio, "start_server", _spy)
+    return recorded
+
+
+async def test_relay_server_fixture_binds_port_zero_via_start_server(_start_server_port_spy, relay_server):  # noqa: F811
+    """Behavioral spy alongside the getsource guard above: proves relay_server
+    actually calls asyncio.start_server(..., 0) at runtime, not just that its
+    source text lacks `_find_free_port`. Double-red: red if relay_server
+    reverts to probing a port via _find_free_port() and passing that nonzero
+    probed port to start_server instead of 0."""
+    relay, port = relay_server
+    assert _start_server_port_spy["port"] == 0
+    resp = await tcp_cmd(port, "status")
+    assert resp["ok"] is True  # live round trip proves the recorded port is the real bound socket

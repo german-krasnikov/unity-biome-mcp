@@ -480,6 +480,15 @@ async def _main() -> None:
     await asyncio.wait({serve_task, bound_task}, return_when=asyncio.FIRST_COMPLETED)
     if serve_task.done() and not bound_task.done():
         bound_task.cancel()
+        # Awaiting an already-done Task/Future skips its internal `yield`
+        # (Future.__await__ returns immediately when done()), so the plain
+        # `await serve_task` below would never hand control back to the loop
+        # for the just-requested cancellation to actually run. Draining it
+        # here first ensures bound_task reaches a terminal state before this
+        # function's frame (and its last reference to bound_task) is dropped
+        # — otherwise GC finds a still-pending Task and logs "Task was
+        # destroyed but it is pending!" on the 'asyncio' logger.
+        await asyncio.gather(bound_task, return_exceptions=True)
         await serve_task   # re-raises the bind error cleanly
     await bound_task
     print(f"relay_port:{relay.bound_port}", flush=True)
