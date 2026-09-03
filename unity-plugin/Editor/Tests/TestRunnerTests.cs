@@ -1871,6 +1871,29 @@ namespace UnityMCP.Editor.Tests
                 "'invalid' has the highest rank and must override any other outcome.");
         }
 
+        [Test]
+        public void WriteAtomicTextWithoutLock_UsesSharedAtomicSwap_NotInlineReplaceMove()
+        {
+            // Source guard: the inline "File.Exists(path) ? File.Replace : File.Move"
+            // plus an unguarded `finally { File.Delete(temporary); }` could mask an
+            // original TestRunStoreException with a secondary delete failure. The
+            // shared AtomicFile.Swap helper (already proven for WizardConfigWriter
+            // and PortFileManager) owns that Replace/Move + guarded cleanup instead.
+            var src = ReadRequiredPackageSource(
+                typeof(TestRunStore), "Editor/TestRuns/TestRunStore.cs");
+            var start = src.IndexOf("private static void WriteAtomicTextWithoutLock");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0),
+                "WriteAtomicTextWithoutLock not found in TestRunStore.cs");
+            var body = src.Substring(start);
+
+            StringAssert.Contains("AtomicFile.Swap(", body,
+                "durable store writes must go through the shared atomic swap helper");
+            StringAssert.DoesNotContain("File.Replace(", body,
+                "inline File.Replace must not reappear alongside AtomicFile.Swap");
+            StringAssert.DoesNotContain("File.Move(", body,
+                "inline File.Move must not reappear alongside AtomicFile.Swap");
+        }
+
         private TestRunService CreateService(
             TestRunBuildFingerprint build = null,
             Action<string> afterDurableBoundary = null,
