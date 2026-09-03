@@ -498,7 +498,16 @@ namespace UnityMCP.Editor.Tests
             }
         }
 
-        // Issue #53 Fix C: BuildDllFreshness must complete in <500ms with seam (scan-once path)
+        // PRE-C2 #6: 500ms generous bound for the scan-once path itself, matching the
+        // original Issue #53 Fix C budget for real DLL mtime checks on slow CI disk I/O
+        // (fast dev machines see well under 100ms). Timing DiagnoseCommand.Execute("{}")
+        // instead of this scan directly used to fold in a full ParseEditorLog +
+        // DetectReloadFailed read of the real ~/Library/Logs/Unity/Editor.log (which can be
+        // tens of MB) on top of the scan, so the same 500ms budget could fail on an
+        // unrelated slow log read rather than a regression in the scan being measured.
+        const int BuildDllFreshnessBudgetMs = 500;
+
+        // Issue #53 Fix C: BuildDllFreshness must complete within budget (scan-once path)
         [Test]
         public void BuildDllFreshness_Performance()
         {
@@ -516,13 +525,12 @@ namespace UnityMCP.Editor.Tests
                 DiagnoseCommand.ScanPackages = ()  => new System.Collections.Generic.Dictionary<string, string>();
 
                 var sw = System.Diagnostics.Stopwatch.StartNew();
-                DiagnoseCommand.Execute("{}");
+                DiagnoseCommand.BuildDllFreshness();
                 sw.Stop();
 
-                // 500ms is generous to handle slow CI disk I/O for real DLL mtime checks.
-                // On fast dev machines this should be <100ms.
-                Assert.Less(sw.ElapsedMilliseconds, 500,
-                    $"BuildDllFreshness must complete in <500ms with scan-once seam, took {sw.ElapsedMilliseconds}ms");
+                Assert.Less(sw.ElapsedMilliseconds, BuildDllFreshnessBudgetMs,
+                    $"BuildDllFreshness must complete in <{BuildDllFreshnessBudgetMs}ms with scan-once seam, " +
+                    $"took {sw.ElapsedMilliseconds}ms");
             }
             finally
             {
