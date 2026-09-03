@@ -19,8 +19,17 @@ namespace UnityMCP.Editor.Wizard
         // Server name is "unity-biome-mcp" (one "mcp", distinct from the foreign bare
         // [mcp_servers.unity]). Regexes accept the OLD "unity-mcp" name too so an
         // existing install is migrated (replaced) rather than left as a duplicate.
+        // Version fragment for the marker comment: base semver (X.Y.Z) plus an
+        // optional dot-separated pre-release tag (e.g. "-rc.1"), per semver's
+        // pre-release grammar. Single named constant substituted into all 4 regexes
+        // below so a widening can't drift between SectionRe/MarkerVersionRe/PinRe/
+        // UnpinnedCommentLineRe. Mirrors Python's _TOML_VERSION_RE_FRAGMENT
+        // (merger.py) -- parity enforced by
+        // test_config_module.py::test_toml_version_fragment_matches_csharp_source.
+        private const string VersionPattern = @"[\d.]+(?:-[0-9A-Za-z.]+)?";
+
         private static readonly Regex SectionRe = new Regex(
-            @"(?:^# unity-(?:biome-mcp|mcp) generated v[\d.]+\r?\n)?" +
+            @"(?:^# unity-(?:biome-mcp|mcp) generated v" + VersionPattern + @"\r?\n)?" +
             @"\[mcp_servers\.unity-(?:biome-mcp|mcp)\]\r?\n" +
             @"(?:(?!\[)[^\r\n]*\r?\n)*" +
             @"(?:\[mcp_servers\.unity-(?:biome-mcp|mcp)\.[^\]]+\]\r?\n(?:(?!\[)[^\r\n]*\r?\n)*)*",
@@ -29,7 +38,7 @@ namespace UnityMCP.Editor.Wizard
         // Optional " pinned" suffix (ARC-0b Task 1) may follow the version on the same
         // comment line — ExtractMarkerVersion must still find the version in a pinned file.
         private static readonly Regex MarkerVersionRe = new Regex(
-            @"^# unity-(?:biome-mcp|mcp) generated v([\d.]+)(?: pinned)?\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\]", RegexOptions.Multiline);
+            @"^# unity-(?:biome-mcp|mcp) generated v(" + VersionPattern + @")(?: pinned)?\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\]", RegexOptions.Multiline);
 
         private static readonly Regex MarkerPortRe = new Regex(@"UNITY_MCP_PORT\s*=\s*'(\d+)'");
 
@@ -38,7 +47,7 @@ namespace UnityMCP.Editor.Wizard
         // immediately followed by our [mcp_servers.unity-...] header), so a sibling
         // section's comment never leaks into our classification.
         private static readonly Regex PinRe = new Regex(
-            @"^# unity-(?:biome-mcp|mcp) generated v[\d.]+ pinned\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\]",
+            @"^# unity-(?:biome-mcp|mcp) generated v" + VersionPattern + @" pinned\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\]",
             RegexOptions.Multiline);
 
         internal static string BuildFresh(int port, string gitUrl, string version) =>
@@ -84,7 +93,7 @@ namespace UnityMCP.Editor.Wizard
         // text up to (not including) the version's trailing newline — that's where
         // the " pinned" suffix gets inserted.
         private static readonly Regex UnpinnedCommentLineRe = new Regex(
-            @"^(# unity-(?:biome-mcp|mcp) generated v[\d.]+)(\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\])",
+            @"^(# unity-(?:biome-mcp|mcp) generated v" + VersionPattern + @")(\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\])",
             RegexOptions.Multiline);
 
         /// <summary>

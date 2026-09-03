@@ -134,6 +134,49 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(EntryState.Foreign, result);
         }
 
+        // C1 r3 #6: marker/pin regex must accept a semver pre-release tag (e.g. an
+        // RC build) -- before the fix, ExtractMarkerVersion never matched through
+        // to the section header because "-rc.1" broke the required immediate
+        // "\n[" continuation, so Classify permanently returned Foreign.
+        [Test]
+        public void Classify_PrereleaseVersionMarker_ReturnsOwnedCurrent()
+        {
+            var fresh = ProjectConfigToml.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.51.0-rc.1");
+            var result = ProjectConfigToml.Classify(fresh, 9500, "1.51.0-rc.1");
+            Assert.AreEqual(EntryState.OwnedCurrent, result);
+        }
+
+        // Reproduces the reported repro exactly: WriteOne only calls Adopt() when
+        // Classify() reports Foreign. Under the old regex, an rc-tagged marker never
+        // classified as OwnedCurrent, so every Editor restart re-adopted and stacked
+        // another marker comment line. This mirrors WriteOne's own guard (without
+        // touching ProjectConfigWriter.cs) across three simulated restarts.
+        [Test]
+        public void AdoptTwice_PrereleaseVersion_DoesNotDuplicateMarker()
+        {
+            const int port = 9500;
+            const string version = "1.51.0-rc.1";
+            var text = "[mcp_servers.unity-biome-mcp]\n" +
+                       "command = 'uvx'\n" +
+                       "\n" +
+                       "[mcp_servers.unity-biome-mcp.env]\n" +
+                       $"UNITY_MCP_PORT = '{port}'\n";
+
+            string SimulateEditorRestart(string existing) =>
+                ProjectConfigToml.Classify(existing, port, version) == EntryState.Foreign
+                    ? ProjectConfigToml.Adopt(existing, version)
+                    : existing;
+
+            var afterRestart1 = SimulateEditorRestart(text);
+            var afterRestart2 = SimulateEditorRestart(afterRestart1);
+            var afterRestart3 = SimulateEditorRestart(afterRestart2);
+
+            Assert.AreEqual(afterRestart1, afterRestart2);
+            Assert.AreEqual(afterRestart1, afterRestart3);
+            Assert.AreEqual(1, Regex.Matches(afterRestart3, "generated v").Count,
+                "each Editor restart on an rc-tagged install must not re-Adopt and duplicate the marker");
+        }
+
         [Test]
         public void Adopt_AddsCommentMarker()
         {
