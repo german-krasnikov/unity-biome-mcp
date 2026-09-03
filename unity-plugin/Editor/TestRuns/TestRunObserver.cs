@@ -649,7 +649,7 @@ namespace UnityMCP.Editor.TestRuns
                 Environment,
                 Framework,
                 UtcNow,
-                action => EditorApplication.delayCall += () => action());
+                EditorTickOnce.Schedule);
             Observer = new TestRunObserver(
                 Store,
                 Environment,
@@ -660,8 +660,8 @@ namespace UnityMCP.Editor.TestRuns
             TestRunnerApi.RegisterTestCallback(Observer, -1000);
             AssemblyReloadEvents.beforeAssemblyReload += MarkReloading;
             EditorApplication.quitting += FinalizeActiveOnEditorShutdown;
-            EditorApplication.delayCall += MarkHealthyAfterReload;
-            EditorApplication.delayCall += RecoverTerminalEnvironments;
+            EditorTickOnce.Schedule(MarkHealthyAfterReload);
+            EditorTickOnce.Schedule(RecoverTerminalEnvironments);
         }
 
         private static void FinalizeActiveOnEditorShutdown()
@@ -730,7 +730,7 @@ namespace UnityMCP.Editor.TestRuns
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
             {
-                EditorApplication.delayCall += RecoverTerminalEnvironments;
+                EditorApplication.update += WaitForPlayModeExit;
                 return;
             }
 
@@ -792,6 +792,18 @@ namespace UnityMCP.Editor.TestRuns
                         runId + ": " + e.Message);
                 }
             }
+        }
+
+        // DEV-66: self re-arming poll — same idiom as RuntimeHelper.TimeoutCheck — that
+        // replaces the old one-shot-requeue-on-every-tick trigger. Keeps ticking on
+        // EditorApplication.update until Play Mode has actually exited, then
+        // unsubscribes and resumes the recovery this guarded against re-entering
+        // mid-Play-Mode.
+        private static void WaitForPlayModeExit()
+        {
+            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+            EditorApplication.update -= WaitForPlayModeExit;
+            RecoverTerminalEnvironments();
         }
 
         private static string UtcNow() => DateTime.UtcNow.ToString("O");

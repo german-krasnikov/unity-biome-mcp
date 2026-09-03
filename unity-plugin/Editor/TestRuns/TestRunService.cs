@@ -144,7 +144,7 @@ namespace UnityMCP.Editor.TestRuns
                 _environment,
                 _framework,
                 _utcNow,
-                action => EditorApplication.delayCall += () => action(),
+                EditorTickOnce.Schedule,
                 _captureBuild);
         }
 
