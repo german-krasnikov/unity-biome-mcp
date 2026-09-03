@@ -1,5 +1,7 @@
 // TDD: LocalPluginUpdater — mock IProcessRunner injection.
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -101,6 +103,69 @@ namespace UnityMCP.Editor.Tests
                 onProgress: _ => { },
                 onComplete: _ => { }
             );
+        }
+
+        // ── DefaultRunner branch: MainThreadDispatcher, not delayCall (DEV-66 Part C3) ──
+
+        // Subclassing (rather than a fake IProcessRunner) is required here: UpdateAsync
+        // gates the background Task.Run + main-thread-marshal branch on `runner is
+        // DefaultRunner`, and a subclass satisfies that check via polymorphism without
+        // spawning a real git process.
+        private sealed class TestableDefaultRunner : LocalPluginUpdater.DefaultRunner
+        {
+            public int ExitCode;
+            public override int Run(string exe, string args, string workingDir) => ExitCode;
+        }
+
+        private static async Task<bool?> DrainUntilAsync(Func<bool?> read, int timeoutMs = 2000)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+            while (DateTime.UtcNow < deadline)
+            {
+                MainThreadDispatcher.Drain();
+                var value = read();
+                if (value.HasValue) return value;
+                await Task.Delay(10);
+            }
+            return read();
+        }
+
+        [Test]
+        public async Task UpdateAsync_DefaultRunnerBranch_MarshalsCompletionThroughMainThreadDispatcher_NotDelayCall()
+        {
+            // ExitCode=1 deliberately — the success path calls AssetDatabase.Refresh for
+            // real, which this test must not trigger against a shared Editor worker.
+            var fake = new TestableDefaultRunner { ExitCode = 1 };
+            bool? success = null;
+            LogAssert.Expect(LogType.Error, new System.Text.RegularExpressions.Regex("git pull failed"));
+
+            LocalPluginUpdater.UpdateAsync("/fake/repo", fake, _ => { }, s => success = s);
+
+            var result = await DrainUntilAsync(() => success);
+
+            Assert.IsTrue(result.HasValue,
+                "the DefaultRunner branch must marshal git-pull completion onto the main thread " +
+                "via MainThreadDispatcher");
+            Assert.IsFalse(result.Value, "a non-zero git exit code must callback with false");
+        }
+
+        [Test]
+        public void UpdateAsync_DefaultRunnerBranch_DoesNotDependOnDelayCall()
+        {
+            var src = ReadRequiredPackageSource(typeof(LocalPluginUpdater), "Editor/Updates/LocalPluginUpdater.cs");
+            var start = src.IndexOf("if (runner is DefaultRunner)");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "DefaultRunner branch not found");
+            var end = src.IndexOf("// Tests inject synchronous FakeRunner", start);
+            Assert.That(end, Is.GreaterThan(start), "test-only branch marker not found after the DefaultRunner branch");
+            var body = src.Substring(start, end - start);
+
+            StringAssert.Contains("MainThreadDispatcher.Enqueue", body,
+                "git-pull completion must marshal onto the main thread via MainThreadDispatcher — " +
+                "Task.Run's continuation runs on a background thread, and EditorApplication.delayCall " +
+                "+= is not thread-safe from there");
+            StringAssert.DoesNotContain("delayCall", body,
+                "the DefaultRunner branch must not depend on delayCall — a backgrounded Editor does " +
+                "not reliably drain it (RELAY-FIX, commit 1bcc90b7)");
         }
     }
 }

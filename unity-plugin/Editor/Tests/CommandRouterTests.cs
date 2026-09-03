@@ -1119,5 +1119,26 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(firstCalled, "First handler must be called");
             Assert.IsFalse(secondCalled, "Second RegisterAsync call must be silently skipped");
         }
+
+        // ── after_hook scheduling source guard (DEV-66 Part C1) ─────────────────
+
+        [Test]
+        public void AfterHook_SchedulesExecutionViaMainThreadDispatcher_NotDelayCall()
+        {
+            var src = ReadRequiredPackageSource(typeof(CommandRouter), "Editor/CommandRouter.cs");
+            var start = src.IndexOf("if (!string.IsNullOrEmpty(afterHook))");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "after_hook scheduling block not found");
+            var end = src.IndexOf("private static bool IsPlaytestSuccess", start);
+            Assert.That(end, Is.GreaterThan(start), "IsPlaytestSuccess not found after the after_hook block");
+            var body = src.Substring(start, end - start);
+
+            StringAssert.Contains("MainThreadDispatcher.Enqueue", body,
+                "after_hook must marshal CodeExecutor.Execute onto the main thread via " +
+                "MainThreadDispatcher — ContinueWith's default continuation runs on a ThreadPool " +
+                "thread, and EditorApplication.delayCall += is not thread-safe from there");
+            StringAssert.DoesNotContain("delayCall", body,
+                "after_hook must not depend on delayCall — a backgrounded Editor does not reliably " +
+                "drain it (RELAY-FIX, commit 1bcc90b7), and mutating it off the main thread is unsafe");
+        }
     }
 }

@@ -89,5 +89,27 @@ namespace UnityMCP.Editor.Tests
                 "reload that wipes any delayCall/update subscription registered inline here " +
                 "(RELAY-FIX, commit 1bcc90b7)");
         }
+
+        // ── force_refresh reload-nudge source guard (DEV-66 Part C2) ────────────
+
+        [Test]
+        public void ForceRefresh_SchedulesReloadViaEditorTickOnce_NotDelayCall()
+        {
+            var src = ReadRequiredPackageSource(typeof(CommandRouter), "Editor/CommandRouter.Registration.cs");
+            var start = src.IndexOf("CommandRegistry.Register(\"force_refresh\"");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "force_refresh registration not found");
+            var end = src.IndexOf("CommandRegistry.Register(\"search_scene\"", start);
+            Assert.That(end, Is.GreaterThan(start), "search_scene registration not found after force_refresh");
+            var body = src.Substring(start, end - start);
+
+            StringAssert.Contains("EditorTickOnce.Schedule", body,
+                "force_refresh's deferred RequestScriptReload must run via EditorTickOnce " +
+                "(EditorApplication.update-driven) — delayCall does not drain in a backgrounded Editor " +
+                "(RELAY-FIX, commit 1bcc90b7)");
+            StringAssert.Contains("!EditorApplication.isCompiling", body,
+                "the deferred reload must still guard on !isCompiling before requesting a reload");
+            StringAssert.DoesNotContain("delayCall", body,
+                "force_refresh must not depend on delayCall anywhere");
+        }
     }
 }

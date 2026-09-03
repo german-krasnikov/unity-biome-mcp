@@ -213,12 +213,14 @@ namespace UnityMCP.Editor
                 SyncHelper.Ops.Refresh();
                 SyncHelper.Ops.RequestScriptCompilation(RequestScriptCompilationOptions.None);
                 // Defer reload request — calling RequestScriptReload synchronously triggers
-                // immediate domain reload that wipes pending delayCall callbacks (B3 fix).
-                EditorApplication.delayCall += () =>
+                // immediate domain reload that wipes pending callbacks (B3 fix). EditorTickOnce
+                // (EditorApplication.update-driven) reaches a backgrounded Editor reliably
+                // (RELAY-FIX, commit 1bcc90b7).
+                EditorTickOnce.Schedule(() =>
                 {
                     if (!EditorApplication.isCompiling)
                         EditorUtility.RequestScriptReload();
-                };
+                });
                 InternalEditorUtility.RepaintAllViews();
                 SyncHelper.Ops.StartTickPump();
                 return "force_refresh triggered";
