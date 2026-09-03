@@ -921,6 +921,33 @@ def test_check_dll_freshness_chat_edit_not_stale(tmp_path):
     assert result is True  # chat edit doesn't make dll stale
 
 
+def test_check_dll_freshness_source_files_with_deleted_path_does_not_raise(tmp_path):
+    """A cached source_files list can outlive the process that built it — a plugin
+    file deleted after init_corroboration() cached find_plugin_source_files() must
+    not crash freshness checks with FileNotFoundError (DEV-67). The stale entry is
+    treated as absent; freshness is computed from whichever files still exist."""
+    base_t = 1000000.0
+    _make_dll(tmp_path, base_t + 50)
+    src = tmp_path / "src"
+    live_cs = _make_cs(src, base_t)  # older than dll → alone would be fresh
+    deleted_cs = src / "DeletedFile.cs"  # never created — simulates a stale cache entry
+
+    from unity_mcp.editor_log import check_dll_freshness
+    result = check_dll_freshness(tmp_path, source_files=[live_cs, deleted_cs])
+    assert result is True
+
+
+def test_check_dll_freshness_source_files_all_deleted_returns_none(tmp_path):
+    """Every cached path gone (e.g. a whole asmdef moved) → undeterminable, not a crash."""
+    _make_dll(tmp_path, 1000000.0)
+    src = tmp_path / "src"
+    src.mkdir()
+    deleted_cs = src / "DeletedFile.cs"
+
+    from unity_mcp.editor_log import check_dll_freshness
+    assert check_dll_freshness(tmp_path, source_files=[deleted_cs]) is None
+
+
 def test_find_plugin_source_files_no_editor_asmdef(tmp_path):
     """plugin_dir with ONLY a foreign asmdef (e.g. UnityMCP.Editor.Chat.asmdef) + .cs.
 
