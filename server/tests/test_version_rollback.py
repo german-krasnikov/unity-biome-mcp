@@ -168,6 +168,7 @@ def test_version_set_repins_with_tagged_url(install_mod):
          patch.object(install_mod, "merge_mcp_config", mock_merge), \
          patch.object(install_mod, "CLIENT_REGISTRY", {"claude-code": mock_client}), \
          patch.object(install_mod, "detect_installed", return_value=["claude-code"]), \
+         patch.object(install_mod, "validate_config", return_value="Status: configured"), \
          patch.object(install_mod, "backup", MagicMock()):
         install_mod.cmd_version(args)
 
@@ -235,10 +236,50 @@ def test_version_set_only_writes_detected_clients(install_mod):
          patch.object(install_mod, "merge_mcp_config", mock_merge), \
          patch.object(install_mod, "CLIENT_REGISTRY", registry), \
          patch.object(install_mod, "detect_installed", return_value=["claude-code"]), \
+         patch.object(install_mod, "validate_config", return_value="Status: configured"), \
          patch.object(install_mod, "backup", MagicMock()):
         install_mod.cmd_version(args)
 
     assert mock_merge.call_count == 1  # only the detected client, not cursor
+    assert mock_merge.call_args[0][0] == registry["claude-code"].config_path
+
+
+def test_version_set_skips_installed_but_unconfigured_clients(install_mod):
+    """C1 r5 #1: `version --set` without --tool must skip a client that
+    detect_installed() merely found on disk but that was never configured for
+    unity-biome-mcp -- else an installed-but-unconfigured Cursor user gets a
+    brand-new pinned config written for a tool they never asked to touch.
+    Double-red: reverting _target_clients to return detect_installed()
+    verbatim makes mock_merge fire for cursor too, failing call_count == 1."""
+    mock_stop = MagicMock(return_value=True)
+    mock_merge = MagicMock()
+
+    def make_client(name):
+        c = MagicMock()
+        c.stdout_only = False
+        c.is_toml = False
+        c.root_key = "mcpServers"
+        c.entry_transformer = None
+        c.config_path = Path(f"/tmp/{name}.json")
+        return c
+
+    registry = {"claude-code": make_client("claude-code"), "cursor": make_client("cursor")}
+
+    def fake_validate_config(key):
+        return "Status: configured" if key == "claude-code" else "Status: not configured (missing)"
+
+    args = Namespace(set_version="0.54.1", port=0, tool=None, list=False, online=False)
+
+    with patch.object(install_mod, "_load_stop_server", return_value=mock_stop), \
+         patch("unity_mcp.config.resolver.find_port", MagicMock(return_value=9500)), \
+         patch.object(install_mod, "merge_mcp_config", mock_merge), \
+         patch.object(install_mod, "CLIENT_REGISTRY", registry), \
+         patch.object(install_mod, "detect_installed", return_value=["claude-code", "cursor"]), \
+         patch.object(install_mod, "validate_config", side_effect=fake_validate_config), \
+         patch.object(install_mod, "backup", MagicMock()):
+        install_mod.cmd_version(args)
+
+    assert mock_merge.call_count == 1  # only claude-code, which was configured
     assert mock_merge.call_args[0][0] == registry["claude-code"].config_path
 
 
@@ -263,6 +304,7 @@ def test_version_set_adds_pin_to_entry(install_mod):
          patch.object(install_mod, "merge_mcp_config", mock_merge), \
          patch.object(install_mod, "CLIENT_REGISTRY", {"claude-code": mock_client}), \
          patch.object(install_mod, "detect_installed", return_value=["claude-code"]), \
+         patch.object(install_mod, "validate_config", return_value="Status: configured"), \
          patch.object(install_mod, "backup", MagicMock()):
         install_mod.cmd_version(args)
 
@@ -361,6 +403,7 @@ def test_unpin_only_targets_detected_clients(install_mod):
 
     with patch.object(install_mod, "CLIENT_REGISTRY", registry), \
          patch.object(install_mod, "detect_installed", return_value=["claude-code"]), \
+         patch.object(install_mod, "validate_config", return_value="Status: configured"), \
          patch.object(install_mod, "unpin_entry", mock_unpin_entry):
         install_mod.cmd_version(args)
 

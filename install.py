@@ -93,6 +93,18 @@ def _reinstall_uvx() -> None:
 _CLIENT_CONFIG_ERRORS = (json.JSONDecodeError, UnicodeDecodeError, ValueError, OSError)
 
 
+def _is_configured(key: str) -> bool:
+    """True if `key`'s client config already carries a unity-biome-mcp entry.
+
+    Shared gate (C1 r5 #1) between _reconfigure_detected_clients and
+    _target_clients so "not configured"/"not found" markers aren't checked in
+    two places -- detect_installed() alone only proves the client's own
+    directory/config file exists, not that unity-biome-mcp was ever set up
+    for it."""
+    report = validate_config(key)
+    return "not configured" not in report and "not found" not in report
+
+
 def _reconfigure_detected_clients() -> None:
     """Re-assert MCP entry for AI tools already configured. Never adds a new tool,
     never prompts — matches cmd_update's existing non-interactive contract.
@@ -108,8 +120,7 @@ def _reconfigure_detected_clients() -> None:
         client = CLIENT_REGISTRY[key]
         if client.stdout_only:
             continue
-        report = validate_config(key)
-        if "not configured" in report or "not found" in report:
+        if not _is_configured(key):
             continue
         try:
             pinned = (is_toml_pinned(client.config_path) if client.is_toml
@@ -323,11 +334,14 @@ def _plugin_upm_url(version: str) -> str:
 def _target_clients(tool_key: str | None) -> list[str]:
     """Client keys to operate on for `version --set`/`--unpin` without --tool.
 
-    C1 round1 #2 (MAJOR config-writers): must be the already-detected/configured
-    clients (matches _reconfigure_detected_clients), never every registered
-    client -- otherwise a single-tool user gets newly-pinned configs written
-    for AI tools they never installed."""
-    return [tool_key] if tool_key else detect_installed()
+    C1 round1 #2 / C1 round5 #1 (MAJOR config-writers): must be the
+    already-configured clients (matches _reconfigure_detected_clients), never
+    every detected-as-installed client -- detect_installed() alone only means
+    the client's own directory/config file exists on disk, not that
+    unity-biome-mcp was ever configured for it. Otherwise an
+    installed-but-unconfigured user gets a brand-new pinned config written for
+    an AI tool they never asked to touch."""
+    return [tool_key] if tool_key else [k for k in detect_installed() if _is_configured(k)]
 
 
 def _unpin_configs(tool_key: str | None) -> None:
