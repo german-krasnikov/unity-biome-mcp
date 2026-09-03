@@ -16,7 +16,7 @@ import signal
 
 from unity_mcp.chat_relay import (
     BufLine, CliSession, ChatRelay, SessionMeta, BACKENDS,
-    _esc, _find_free_port, main, _main,
+    _esc, main, _main,
     MAX_BUF, KILL_WAIT, PPID_POLL,
 )
 from unity_mcp.stream_transform import (
@@ -27,6 +27,7 @@ from unity_mcp.backend_def import (
     OUTPUT_FORMAT_STREAM_JSON, OUTPUT_FORMAT_PLAIN_TEXT,
     OUTPUT_FORMAT_CODEX_JSON, OUTPUT_FORMAT_OPENCODE_JSON, OUTPUT_FORMAT_KIMI_JSON,
 )
+from .relay_helpers import _find_free_port
 
 
 # ─── Entrypoint contract ───────────────────────────────────────────────────

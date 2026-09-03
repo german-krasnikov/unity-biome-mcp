@@ -1,12 +1,35 @@
 """Shared test helpers for monkey/stress chat relay tests (no Unity required)."""
 import asyncio
 import json
+import socket
 import struct
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from unity_mcp.chat_relay import ChatRelay
+
+
+def _find_free_port() -> int:
+    """Probe-then-bind helper — carries an inherent TOCTOU window (another
+    process can claim the port between this probe and a later bind on it).
+    There is no in-process production caller anywhere in this repo:
+    chat_relay._main() binds port 0 directly via ChatRelay.serve(0) and reads
+    the OS-assigned port back off the live socket via bound_port/wait_bound(),
+    closing that window (A06); the relay_server fixture below does the same.
+    Kept ONLY for test coverage of this helper's own contract
+    (test_free_port_finds_available) and as a documented trap: do not wire
+    this into relay_server or any other in-process fixture — that reopens the
+    exact TOCTOU gap A05/A06 closed (guarded by
+    test_relay_server_fixture_does_not_use_probe_then_bind_helper in
+    test_port_allocation.py). A genuine subprocess-owned bind (an external
+    binary that must be told its port before it starts, so the parent can't
+    read the port back off a socket it controls) cannot use this helper
+    without reopening the same gap either — the only real fix for that case
+    is a self-reporting handshake, the same pattern serve()/_main() use."""
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
 
 
 def make_proc(pid: int = 9999, returncode=None) -> MagicMock:

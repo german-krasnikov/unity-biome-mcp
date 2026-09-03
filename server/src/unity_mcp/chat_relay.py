@@ -32,7 +32,6 @@ from .cli_session import (  # noqa: F401
     BufLine,
     CliSession,
     SessionMeta,
-    _find_free_port,
 )
 from .relay_buffer import MAX_BUF, RelayBuffer  # noqa: F401
 from .stream_transform import (

@@ -8,6 +8,7 @@ directly and reads the OS-assigned port back off the live socket — no gap,
 no collision possible.
 """
 import asyncio
+import inspect
 
 from unity_mcp.chat_relay import ChatRelay
 
@@ -40,12 +41,20 @@ async def test_concurrent_free_port_probes_do_not_collide():
             await srv.wait_closed()
 
 
-def test_relay_helpers_no_longer_imports_probe_then_bind_helper():
-    """Structural guard: relay_server must bind port 0 directly. If `_find_free_port`
-    is reimported into relay_helpers, the probe-then-bind TOCTOU gap is back — this
-    goes red immediately and deterministically, independent of OS port-reuse timing
-    (a real collision under contention is real but not reliably forceable in-process)."""
-    assert not hasattr(_relay_helpers_mod, "_find_free_port")
+def test_relay_server_fixture_does_not_use_probe_then_bind_helper():
+    """Structural guard: relay_server must bind port 0 directly, not via
+    _find_free_port. `_find_free_port` legitimately lives in relay_helpers.py
+    now (moved there from cli_session.py — it has no production caller, kept
+    only as a documented, quarantined test helper), so a bare
+    `hasattr(module, "_find_free_port")` can no longer distinguish "safe to
+    exist" from "the fixture wired it back in". Checking the fixture's own
+    source is the precise guard: if relay_server starts calling
+    _find_free_port again, the probe-then-bind TOCTOU gap is back — this goes
+    red immediately and deterministically, independent of OS port-reuse
+    timing (a real collision under contention is real but not reliably
+    forceable in-process)."""
+    fixture_src = inspect.getsource(_relay_helpers_mod.relay_server)
+    assert "_find_free_port" not in fixture_src
 
 
 async def test_relay_server_fixture_port_is_the_actually_bound_port(relay_server):  # noqa: F811  (fixture param name; aliasing the import breaks pytest fixture discovery — verified empirically)
