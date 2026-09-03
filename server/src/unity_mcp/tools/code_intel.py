@@ -13,7 +13,6 @@ import os
 import time
 from typing import Any
 
-from unity_mcp.errors import UnityUnavailableError
 from unity_mcp.utils import parse_pipe_fields
 
 from ._common import bind
@@ -177,7 +176,7 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
             try:
                 raw = await _send("sync_status", {})
                 ep, st, err, stamp_post = _parse_sync_status(raw)
-            except (ConnectionError, UnityUnavailableError):
+            except ConnectionError:
                 await asyncio.sleep(1)
                 continue
 
@@ -212,7 +211,7 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
         # Fallback: compile_status poll (original behavior)
         try:
             status = await _send("compile_status", {})
-        except (ConnectionError, UnityUnavailableError):
+        except ConnectionError:
             # Domain reload: Unity is restarting — wait and retry
             await asyncio.sleep(1)
             continue

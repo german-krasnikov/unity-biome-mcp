@@ -751,6 +751,34 @@ async def test_recovery_connection_error_returns_sentinel_not_none():
     assert "REIMPORT-NEEDED" in result, f"Expected REIMPORT-NEEDED sentinel, got {result!r}"
 
 
+# R2-05b: main raising UnityUnavailableError must fall back to reload channel,
+# not leak an uncaught ToolError out of the recovery poll loop.
+@pytest.mark.asyncio
+async def test_attempt_recovery_tries_reload_channel_when_main_raises_unity_unavailable(
+    mock_bridge, monkeypatch
+):
+    """The real _send_raw wraps a dead main TCP into UnityUnavailableError; before
+    R2-05b it was a plain ToolError and none of the (ConnectionError, OSError)
+    guards around _send_with_fallback caught it, so it propagated uncaught instead
+    of falling back to the reload channel."""
+    from unity_mcp.server import _send as _send_main
+
+    mock_bridge.send = AsyncMock(side_effect=ConnectionError("Unity not running"))
+    monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 0.0)  # skip the MVID poll loop
+    reload_calls = []
+
+    async def _send_reload(cmd, args):
+        reload_calls.append(cmd)
+        return "force_refresh triggered"
+
+    result = await _sync._attempt_recovery(_send_main, "some-mvid", _send_reload)
+
+    assert reload_calls == ["force_refresh"], (
+        "main-down force_refresh must fall back to the reload channel, not raise"
+    )
+    assert result is not None and result.startswith("REIMPORT-NEEDED")
+
+
 # B1: REIMPORT-NEEDED from _attempt_recovery → escalates to run_ladder T2-T5
 @pytest.mark.asyncio
 async def test_sync_unity_escalates_to_run_ladder_on_reimport(monkeypatch):
@@ -1125,7 +1153,8 @@ async def test_sync_unity_survives_unity_unavailable_midpoll():
     directly, bypassing _send_raw entirely) proves the sync_status poll loop
     tolerates a mid-poll disconnect through the actual production path and
     still reaches its own timeout/verdict instead of aborting on the first
-    transient failure."""
+    transient failure. Real sleep is already short-circuited by the module's
+    autouse _patch_sleep fixture -- no per-test patch needed here."""
     import unity_mcp.server as server_mod
 
     class FakeBridge:

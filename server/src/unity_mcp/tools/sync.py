@@ -18,7 +18,6 @@ from mcp.server.fastmcp.exceptions import ToolError
 from unity_mcp import editor_log
 from unity_mcp.bridge import DomainReloadError
 from unity_mcp.constants import SESSION_TIMEOUT as _DEFAULT_TIMEOUT
-from unity_mcp.errors import UnityUnavailableError
 from unity_mcp.lockfile import read_reload_port
 from unity_mcp.tools.reload_ladder import _send_with_fallback, make_reload_send
 from unity_mcp.tools.reload_ladder import run_ladder as _run_ladder
@@ -69,7 +68,7 @@ async def _attempt_recovery(send, mvid_pre: str, send_reload=None, deadline: flo
             status = await _timed_send(send, "sync_status", {}, recovery_deadline)
         except TimeoutError:
             break
-        except (ConnectionError, DomainReloadError, UnityUnavailableError):
+        except (ConnectionError, DomainReloadError):
             continue
         stamp_post = _parse_stamp(status)
         if stamp_post:
@@ -213,7 +212,7 @@ async def sync_unity(
         except TimeoutError:
             return (f"STOP: reload did not converge in {timeout:.0f}s — Unity may be unfocused "
                     "or compile is wedged; check get_compile_errors")
-        except (ConnectionError, DomainReloadError, UnityUnavailableError):
+        except (ConnectionError, DomainReloadError):
             await asyncio.sleep(_POLL_INTERVAL)
             continue
 
