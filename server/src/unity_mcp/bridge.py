@@ -385,12 +385,13 @@ class UnityBridge(HeartbeatMixin):
         self._pin_candidate(self._port)
 
     async def _check_initial_protocol_version(self, reader, writer) -> None:
-        """DEV-60: client_hello + version check, mirroring _open_reconnect_candidate.
-        Only the frame read/parse is tolerant of a pre-hello plugin (ARC-17
-        wire-compat) — once a hello payload is parsed, going_away/capacity/
-        version-mismatch signals are handled exactly as in
-        _open_reconnect_candidate and propagate to connect()'s outer handler
-        (DEV-60b: these must not be swallowed as a non-fatal handshake failure)."""
+        """Negotiate the protocol version on the initial connect (client_hello +
+        version check), mirroring _open_reconnect_candidate (DEV-60). Only the
+        frame read/parse is tolerant of a pre-hello plugin (ARC-17 wire-compat)
+        — once a hello payload is parsed, going_away/capacity/version-mismatch
+        signals are handled exactly as in _open_reconnect_candidate and
+        propagate to connect()'s outer handler (these must not be swallowed as
+        a non-fatal handshake failure, DEV-60b)."""
         self._counter += 1
         hello_id = f"c{self._counter:04x}"
         frame_write(writer, self._build_hello(hello_id))
