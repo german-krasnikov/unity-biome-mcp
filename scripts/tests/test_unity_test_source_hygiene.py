@@ -115,6 +115,24 @@ def test_unity_tests_do_not_block_or_trigger_broad_refresh() -> None:
     assert offenders == []
 
 
+def test_unity_tests_do_not_invoke_shared_editor_delegates() -> None:
+    """Firing the shared multicast delegate reenters every other live subscriber
+    (e.g. the durable test-run driver stepping this very suite) instead of
+    exercising just the code under test — the exact failure mode behind the
+    06ce8a74 incident. Tests must call MainThreadDispatcher.Drain()/the queue-DI
+    overload, or DynamicInvoke() on a specific captured delegate, never invoke
+    the shared EditorApplication.update/delayCall delegate wholesale."""
+    forbidden = re.compile(
+        r"\bEditorApplication\s*\.\s*(?:update|delayCall)\s*\??\.\s*Invoke\s*\("
+    )
+    offenders = [
+        _relative(path)
+        for path in _sources(TEST_ROOTS)
+        if forbidden.search(_code(path))
+    ]
+    assert offenders == []
+
+
 def test_unity_tests_create_preview_scenes_only_through_owned_factory() -> None:
     forbidden = re.compile(r"\bNewPreviewScene\s*\(")
     offenders = [
