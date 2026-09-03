@@ -111,19 +111,40 @@ async def tcp_cmd(port, cmd, args=None, req_id="1"):
     return resp
 
 
+_BOUND_WAIT_TIMEOUT_S = 2.0  # serve(0) must fire _bound well within this; a real hang is a bug
+
+
 @pytest.fixture
 async def running_relay():
-    """Start a real ChatRelay TCP server on a free port."""
-    port = _find_free_port()
+    """Start a real ChatRelay TCP server on a free port (no TOCTOU probe)."""
     relay = ChatRelay()
-    server_task = asyncio.create_task(relay.serve(port))
-    await asyncio.sleep(0.05)  # let server bind
+    server_task = asyncio.create_task(relay.serve(0))
+    await asyncio.wait_for(relay._bound.wait(), timeout=_BOUND_WAIT_TIMEOUT_S)
+    port = relay.bound_port
     yield relay, port
     server_task.cancel()
     try:
         await server_task
     except asyncio.CancelledError:
         pass
+
+
+async def test_serve_port_zero_exposes_bound_port():
+    """serve(0) must expose the OS-assigned port via bound_port + fire _bound —
+    proves the TOCTOU-free discovery seam works, not just that some port is set."""
+    relay = ChatRelay()
+    server_task = asyncio.create_task(relay.serve(0))
+    try:
+        await asyncio.wait_for(relay._bound.wait(), timeout=_BOUND_WAIT_TIMEOUT_S)
+        assert relay.bound_port > 0
+        resp = await tcp_cmd(relay.bound_port, "status")
+        assert resp["ok"] is True  # live round-trip proves bound_port is the real, connectable socket
+    finally:
+        server_task.cancel()
+        try:
+            await server_task
+        except asyncio.CancelledError:
+            pass
 
 
 # ─── Buffer (8 tests) ───────────────────────────────────────────────────────

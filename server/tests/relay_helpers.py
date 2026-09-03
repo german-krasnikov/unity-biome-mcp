@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from unity_mcp.chat_relay import ChatRelay
-from unity_mcp.cli_session import _find_free_port
 
 
 def make_proc(pid: int = 9999, returncode=None) -> MagicMock:
@@ -68,9 +67,9 @@ async def tcp_cmd(port: int, cmd: str, args: dict = None, rid: str = "1") -> dic
 @pytest.fixture
 async def relay_server():
     """ChatRelay TCP server on free port, no ppid watchdog."""
-    port = _find_free_port()
     relay = ChatRelay()
-    server = await asyncio.start_server(relay._handle_client, "127.0.0.1", port)
+    server = await asyncio.start_server(relay._handle_client, "127.0.0.1", 0)
+    port = server.sockets[0].getsockname()[1]
     yield relay, port
     server.close()
     await server.wait_closed()

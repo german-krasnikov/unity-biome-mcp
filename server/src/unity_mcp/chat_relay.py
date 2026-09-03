@@ -80,12 +80,19 @@ class ChatRelay:
         self._turn_id:          int                        = 0
         self._context_file                                 = None  # set after first context write
         self._relay_seq:        int                        = 0   # monotonic seq for ACP events
+        self.bound_port:        int                        = 0   # set by serve() once the socket is live
+        self._bound:            asyncio.Event              = asyncio.Event()  # fires once bound_port is set
 
     # ── Public TCP server ────────────────────────────────────────────────
 
     async def serve(self, port: int) -> None:
+        """Bind and serve. Pass port=0 to let the OS pick one, then read it back
+        from `bound_port` (set `_bound` fires first) — avoids a probe-then-bind
+        TOCTOU gap for callers that don't already know their port."""
         server = await asyncio.start_server(
             self._handle_client, "127.0.0.1", port)
+        self.bound_port = server.sockets[0].getsockname()[1]
+        self._bound.set()
         self._watchdog_task = asyncio.create_task(self._ppid_watchdog())
         async with server:
             await server.serve_forever()
