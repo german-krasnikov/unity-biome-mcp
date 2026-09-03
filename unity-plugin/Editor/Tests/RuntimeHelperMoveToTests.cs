@@ -28,7 +28,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void MoveTo_ResolvesResult_WhenDelayCallNeverDrains()
+        public async Task MoveTo_ResolvesResult_WhenDelayCallNeverDrains()
         {
             var go = TrackOwnedObject(new GameObject("RuntimeHelperMoveToTarget"));
             go.AddComponent<SynchronousMoveComponent>();
@@ -60,8 +60,8 @@ namespace UnityMCP.Editor.Tests
 
             Assert.IsTrue(tcs.Task.IsCompleted,
                 "MoveTo result must resolve from an EditorApplication.update tick, not an undrained delayCall");
-            Assert.That(tcs.Task.Result, Does.StartWith("MoveTo arrived"),
-                $"got: {tcs.Task.Result}");
+            var result = await tcs.Task; // already completed — await returns immediately, no block
+            Assert.That(result, Does.StartWith("MoveTo arrived"), $"got: {result}");
         }
     }
 }
