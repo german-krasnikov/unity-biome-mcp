@@ -24,7 +24,27 @@ namespace UnityMCP.Editor
 
         static PluginUpdateMonitor()
         {
-            EditorApplication.delayCall += CheckVersionChange;
+            RegisterHooks();
+        }
+
+        // Extracted for testability — called from the static ctor. EditorApplication.update,
+        // not a one-shot deferred callback: a backgrounded Editor (no focus/render frames —
+        // this plugin's normal MCP-driven posture) keeps pumping update but does not
+        // reliably drain that older mechanism (RELAY-FIX, commit 1bcc90b7), so the guard-
+        // release fast path below could stay unreachable for the whole session, falling
+        // back to UpmOperationGuard's 300s staleness ceiling instead of the next tick.
+        internal static void RegisterHooks()
+        {
+            EditorApplication.update += RunOnce;
+        }
+
+        // Self-unsubscribing one-shot tick handler — fires on the next Editor update
+        // regardless of window focus, then removes itself. CheckVersionChange is
+        // idempotent (see SameVersionAfterReload_KeepsUpmOperationGuard).
+        internal static void RunOnce()
+        {
+            EditorApplication.update -= RunOnce;
+            CheckVersionChange();
         }
 
         /// <summary>Compare current vs stored version; log if updated. Internal for tests.</summary>
