@@ -635,6 +635,12 @@ namespace UnityMCP.Editor.TestRuns
         private static readonly TestRunFinalizationCoordinator Finalizer;
         private static readonly TestRunObserver Observer;
 
+        // Test seam — production default; tests substitute this to simulate Play Mode
+        // transitions without a real Play Mode entry (mirrors
+        // PlayModeEpochTracker.IsPlayingOrWillChange, same file family).
+        internal static Func<bool> IsPlayingOrWillChangePlaymode =
+            () => EditorApplication.isPlayingOrWillChangePlaymode;
+
         internal static string Generation { get; }
 
         static TestRunObserverRegistration()
@@ -726,10 +732,14 @@ namespace UnityMCP.Editor.TestRuns
             }
         }
 
-        private static void RecoverTerminalEnvironments()
+        internal static void RecoverTerminalEnvironments()
         {
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
+            if (IsPlayingOrWillChangePlaymode())
             {
+                // Idempotent: a second call while still in/entering Play Mode (e.g. a
+                // mid-Play-Mode script recompile re-running this static ctor) must not
+                // accumulate a duplicate WaitForPlayModeExit subscriber.
+                EditorApplication.update -= WaitForPlayModeExit;
                 EditorApplication.update += WaitForPlayModeExit;
                 return;
             }
@@ -799,12 +809,17 @@ namespace UnityMCP.Editor.TestRuns
         // EditorApplication.update until Play Mode has actually exited, then
         // unsubscribes and resumes the recovery this guarded against re-entering
         // mid-Play-Mode.
-        private static void WaitForPlayModeExit()
+        internal static void WaitForPlayModeExit()
         {
-            if (EditorApplication.isPlayingOrWillChangePlaymode) return;
+            if (IsPlayingOrWillChangePlaymode()) return;
             EditorApplication.update -= WaitForPlayModeExit;
             RecoverTerminalEnvironments();
         }
+
+        /// <summary>Restore the Play Mode seam to production behavior. Test seam — call
+        /// from RegisterCleanup only.</summary>
+        internal static void ResetPlayModeSeamForTest() =>
+            IsPlayingOrWillChangePlaymode = () => EditorApplication.isPlayingOrWillChangePlaymode;
 
         private static string UtcNow() => DateTime.UtcNow.ToString("O");
     }
