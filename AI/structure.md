@@ -70,7 +70,7 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/tests/` | Python unit, integration, conformance, and live tests. |
 | `server/tests/seams/` | Live conformance seam tests (round-trip, batch, surface, differential). |
 | `server/tests/wire/` | Protocol-level wire tests (no Unity, FakeServer, MITM, cassettes). |
-| `scripts/tests/test_docstring_hygiene.py` | Hygiene guard: prevents production module docstrings from containing ticket codes (which would leak internal identifiers into public tools and errors). Repository and production modules scanned. |
+| `server/tests/test_docstring_hygiene.py` | Hygiene guard: prevents production module docstrings from containing ticket codes (which would leak internal identifiers into public tools and errors). Repository and production modules scanned. |
 | `scripts/tests/test_unity_test_source_hygiene.py` | Hygiene guard: validates Unity C# test structure (fixture bases, ownership registration, async patterns, disposable-worker marking) to prevent false-green tests and coverage gaps. |
 
 Do not maintain a tool roster in this file. Derive it from `tool_specs.py` and

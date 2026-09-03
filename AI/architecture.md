@@ -294,11 +294,12 @@ Lifecycle-gate self-heal: runs in `Finalizing` state longer than 180 seconds (si
 execution boundary events, not dispatch) are auto-purged if no new test output arrives,
 allowing subsequent runs to proceed.
 
-**Error classification (UNITY-UNREACHABLE):** When the Editor process is hung, dead, or
-otherwise unreachable, error responses now include explicit `UNITY-UNREACHABLE` verdict
-instead of silent empty errors or stalled connection states. Liveness detection uses
-~30-second ping intervals to catch dead processes quickly; `mcp_status` exposes
-`liveness` (connected, connected-stalled, unreachable) for diagnostics.
+**Error classification (UNITY-UNREACHABLE):** Compile paths (`get_compile_errors`,
+`await_compile`, `sync_unity`) return explicit `UNITY-UNREACHABLE` error when the
+Editor process is hung, dead, or unresponsive, instead of timeout or stalled connection.
+`mcp_status` exposes `unity_status` (reachable/unreachable) and `liveness` (connected,
+connected-stalled, waking, reconnecting, domain-reloading, dormant, disconnected, unknown)
+for detailed diagnostics; ~30-second ping intervals detect dead processes quickly.
 
 ## Extension Boundaries
 

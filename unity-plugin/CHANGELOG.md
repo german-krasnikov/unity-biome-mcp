@@ -16,8 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Test run timeout on Editor focus loss or domain reload:** `run_tests_wait`/`get_test_run` no longer hang indefinitely when the Editor loses focus or undergoes a domain reload. Implemented disk-fallback protocol and health-value gates to detect stalled test dispatch and recover via direct test-run store reads; durable protocol now includes explicit `health` field and `expected_count` for safer gate validation
 - **Zero-match filter produces silent failure or stuck `Finalizing` state:** Running tests with a filter that matches no tests (e.g., typo in filter name) now returns an explicit `ZERO_TEST_MATCH` issue in the result, allowing the next run to proceed instead of silently hanging or remaining in `Finalizing` state; added 180-second ceiling on `Finalizing` expiry tied to execution boundary events
-- **`await_compile` and `get_compile_errors` return stale cached results:** Removed compile results from the prefetch cache so each call after a C# edit immediately polls live compilation status instead of returning outdated `[CACHED]` responses
-- **Ghost Unity process appears alive to status checks:** `mcp_status` and error paths now return explicit `UNITY-UNREACHABLE` verdict when the Editor process is hung or dead, instead of silently reporting `connected` or empty error states. Improved liveness detection with shorter ping intervals (~30 seconds) to catch stalled processes
+- **`await_compile` and `get_compile_errors` return stale cached results:** Removed `get_compile_errors` from `_READ_CACHEABLE` and `recompile` from `GATE_PRIORS` so each call after a C# edit immediately polls live compilation status instead of returning outdated `[CACHED]` responses
+- **Ghost Unity process appears alive to status checks:** Compile paths (`get_compile_errors`, `await_compile`, `sync_unity`) now return explicit `UNITY-UNREACHABLE` error when the Editor process is hung or dead; `mcp_status` exposes `unity_status=unreachable` via improved liveness detection (~30-second ping intervals)
 - **After Editor restart, Python client loops on connection refused when port changes:** Added fast-path port rediscovery with explicit `[port changed]` warning when the Editor binds to a different TCP port after restart, eliminating repeated `ConnectionRefused` cycles; off-by-one fix in port-discovery logic
 - **"Level Up!" button in Setup Wizard hangs on double-click and shows `Unable to add package` error:** UPM operations now guarded by a single in-flight-state checker that disables the button during updates; safe to re-click immediately. `UpmErrorClassifier` and `UpmOperationGuard` prevent phantom "package add already running" errors
 - **Plugin or server update overwrites manual changes to `.env`, custom config keys, or TOML sections:** Configuration files now use atomic swap (`File.Replace`) instead of delete-then-move, preserving concurrent edits even under file-locking scenarios (Windows OneDrive/antivirus). Deep-merge strategy for TOML config; per-target `LastSyncedVersion` tracking prevents unnecessary rewrites
@@ -30,14 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Main-thread dispatcher refactored to eliminate timeout windows:** Replaced `EditorTickOnce` with a centralized `MainThreadDispatcher` that uses `EditorApplication.update` directly (not `delayCall`), making it immune to focus loss and domain reload hangups. Dispatcher runs snapshot-bounded Drain cycles with per-action exception handling; `delayCall` now restricted to GUI-only contexts (Chat, Wizard, menus)
 - **Atomic file writes for all config and state files:** `MCP_Port.json`, `{pid}.port`, editor state, wizard config, and durable test-run store now use `AtomicFile.Swap` (temp file + `File.Replace`) to prevent data loss under concurrent file-locking (Windows OneDrive/antivirus/network paths)
 - **Durable test-run protocol gates for recovery:** Added `health` (no_test_progress, editor_unresponsive) and `expected_count` fields to test-run results for safer terminal-state detection; `ZERO_TEST_MATCH` warning flags empty-filter matches. Disk fallback and lifecycle-gate self-heal allow runs to recover without stalling
-- **Server detects unavailable/unreachable Unity as a distinct error state:** New `UNITY-UNREACHABLE` verdict in error responses when the Editor process is dead, hung, or unresponsive; replaces silent empty-error responses or stalled connection state
+- **Error classification on unreachable Editor:** Compile paths return explicit `UNITY-UNREACHABLE` error instead of timeout; `mcp_status` reports `unity_status=unreachable` alongside liveness values (`connected`, `connected-stalled`, etc.)
 
 ### Documentation
 
-- Updated `AI/architecture.md` to document `MainThreadDispatcher`, `AtomicFile.Swap`, durable test-run protocol gates, and `UNITY-UNREACHABLE` error classification
-- Updated `AI/testing.md` with new test-run health fields, `expected_count` validation, and `ZERO_TEST_MATCH` issue type; test counts updated
+- Updated `AI/architecture.md` to document `MainThreadDispatcher`, `AtomicFile.Swap`, durable test-run protocol gates, and error classification
 - Updated `AI/structure.md` with new C# modules: `AtomicFile.cs`, `MainThreadDispatcher.cs` (replacing `EditorTickOnce`), hygiene test guards, and desync limiters
-- Added Windows-specific installation guidance for atomic file handling and domain-reload safeguards
 
 ### Test Results
 
