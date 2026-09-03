@@ -172,7 +172,10 @@ async def test_maybe_update_does_not_raise_on_undecodable_project_config(tmp_pat
     fire-and-forget background task (bridge.py's _schedule_server_update),
     the only visible symptom was an untracked 'Task exception was never
     retrieved' log and self-update silently disabled for that project,
-    forever. Undecodable must degrade to "not pinned", not crash."""
+    forever. C1 r5 #3: undecodable must fail closed (treated as pinned), not
+    crash and not silently let the update through -- degrading to "not
+    pinned" would run uvx --reinstall despite a pin the tool simply
+    couldn't read back."""
     (tmp_path / ".mcp.json").write_bytes(b"\xff\xfe" + '{"mcpServers": {}}'.encode("utf-16-le"))
     subprocess_calls = []
     u = make_updater(
@@ -182,8 +185,9 @@ async def test_maybe_update_does_not_raise_on_undecodable_project_config(tmp_pat
     r = await u.maybe_update("1.6.0", project_path=str(tmp_path))
 
     assert isinstance(r, _UpdateResult)
-    assert r.reason == "started"  # degrades to not-pinned -> update proceeds
-    assert subprocess_calls != []
+    assert r.reason == "pinned"  # fail closed -> update blocked
+    assert r.triggered is False
+    assert subprocess_calls == []
 
 
 # ─── C1-round2 #6: pin must be honored in every project-scoped client config ──
