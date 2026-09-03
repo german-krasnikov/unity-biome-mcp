@@ -121,14 +121,20 @@ namespace UnityMCP.Editor.Wizard
 
         /// <summary>
         /// Returns a uvx --from URL pinned to a specific git tag.
-        /// ref = "0.54.1" or "v0.54.1" — both accepted.
+        /// ref = "0.54.1", "v0.54.1", or a semver pre-release tag like "1.51.0-rc.1"
+        /// (same pre-release grammar ProjectConfigToml/Formats' VersionPattern
+        /// accepts, 9725eddb) — all accepted.
         /// Returns the unpinned default URL when ref is null/empty.
         /// </summary>
         public static string GitInstallUrlFor(string @ref)
         {
             if (string.IsNullOrEmpty(@ref)) return GitInstallUrl;
             var clean = @ref.TrimStart('v');
-            var parts = clean.Split('.');
+            // Validate only the X.Y.Z base — an optional "-<pre-release>" suffix
+            // (which may itself contain dots, e.g. "-rc.1") passes through unvalidated.
+            var dashIdx = clean.IndexOf('-');
+            var basePart = dashIdx < 0 ? clean : clean.Substring(0, dashIdx);
+            var parts = basePart.Split('.');
             if (parts.Length != 3 || !AllDigits(parts))
                 throw new ArgumentException($"Invalid version ref: {@ref}");
             const string RepoBase = "git+https://github.com/german-krasnikov/unity-biome-mcp.git";

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEditor;
 using UnityMCP.Editor.Wizard;
@@ -491,6 +492,25 @@ namespace UnityMCP.Editor.Tests
 
             var content = File.ReadAllText(Path.Combine(_tmpDir, ".mcp.json"));
             StringAssert.Contains(WizardConfigWriter.GitInstallUrl, content);
+        }
+
+        // R3-04 Part E: companion regression guard for 4786ef01 (pre-release semver
+        // classification in TOML configs) — not a red->green cycle, this proves the fix
+        // stays correct under a repeated Run with the same pre-release version.
+        [Test]
+        public void Run_CodexPreReleaseVersion_TwiceConsecutively_ExactlyOneMarkerComment_ClassifiesOwnedCurrent()
+        {
+            const string version = "1.51.0-rc.1";
+            var keys = new HashSet<string> { "codex" };
+
+            ProjectConfigWriter.Run(_tmpDir, TestPort, version, keys);
+            ProjectConfigWriter.Run(_tmpDir, TestPort, version, keys);
+
+            var content = File.ReadAllText(Path.Combine(_tmpDir, ".codex/config.toml"));
+            var markerCount = Regex.Matches(content, "# unity-biome-mcp generated v").Count;
+            Assert.AreEqual(1, markerCount,
+                "a second Run with the same pre-release version must not duplicate the marker comment");
+            Assert.AreEqual(EntryState.OwnedCurrent, ProjectConfigToml.Classify(content, TestPort, version));
         }
 
         // C1 round3 #3/#4: a backgrounded Editor (no focus/render frames — this plugin's
