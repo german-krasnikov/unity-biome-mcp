@@ -481,9 +481,13 @@ def test_watchdog_registered_before_port_file_manager():
     assert idx_register < idx_clean, "Lifecycle callbacks must be registered before CleanStalePeerPortFiles()"
     assert idx_register < idx_save, "Lifecycle callbacks must be registered before SavePorts()"
 
+    # TICK-DISPATCHER: MainThreadDispatcher.Drain is no longer registered here — it
+    # hooks EditorApplication.update itself via its own [InitializeOnLoad] static
+    # constructor, independently of MCPServer's lifecycle. WatchdogTick is the only
+    # update callback RegisterLifecycleCallbacks() wires up, so there is no longer an
+    # ordering to assert against a Drain registration that does not exist in this scope.
     callbacks_start = src.find("internal static void RegisterLifecycleCallbacks()")
     callbacks_end = src.find("\n        private static void OnCompilationStarted()", callbacks_start)
     callbacks = src[callbacks_start:callbacks_end]
-    idx_watchdog = callbacks.find("EditorApplication.update += WatchdogTick")
-    idx_drain = callbacks.find("EditorApplication.update += MainThreadDispatcher.Drain")
-    assert 0 <= idx_watchdog < idx_drain, "WatchdogTick must be the first update callback"
+    assert "EditorApplication.update += WatchdogTick" in callbacks
+    assert "EditorApplication.update += MainThreadDispatcher.Drain" not in callbacks
