@@ -97,6 +97,10 @@ class ChatRelay:
         async with server:
             await server.serve_forever()
 
+    async def wait_bound(self) -> None:
+        """Await until serve() has bound its socket and set `bound_port`."""
+        await self._bound.wait()
+
     # ── Client handler ───────────────────────────────────────────────────
 
     async def _handle_client(self, reader: asyncio.StreamReader,

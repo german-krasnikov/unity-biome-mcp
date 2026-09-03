@@ -48,7 +48,7 @@ def test_relay_helpers_no_longer_imports_probe_then_bind_helper():
     assert not hasattr(_relay_helpers_mod, "_find_free_port")
 
 
-async def test_relay_server_fixture_port_is_the_actually_bound_port(relay_server):
+async def test_relay_server_fixture_port_is_the_actually_bound_port(relay_server):  # noqa: F811  (fixture param name; aliasing the import breaks pytest fixture discovery — verified empirically)
     """relay_helpers.relay_server's returned port must be live/reachable, not a stale probe value."""
     relay, port = relay_server
     resp = await tcp_cmd(port, "status")
