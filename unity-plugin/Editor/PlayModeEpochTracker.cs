@@ -29,6 +29,7 @@ namespace UnityMCP.Editor
         internal static Action RequestPlayModeExit = () => EditorApplication.isPlaying = false;
         internal static Action RequestPlayModeEnter = () => EditorApplication.isPlaying = true;
         internal static Func<bool> IsCompiling = () => EditorApplication.isCompiling;
+        internal static Func<bool> IsPlayingOrWillChange = () => EditorApplication.isPlayingOrWillChangePlaymode;
 
         static PlayModeEpochTracker()
         {
@@ -103,6 +104,19 @@ namespace UnityMCP.Editor
                 SessionState.EraseBool(PendingPlayStartKey);
                 SessionState.SetBool(PendingPlayStopKey, true);
                 RequestPlayModeEnter();
+
+                // Entry can still be refused (e.g. new compile errors, or the Editor
+                // already mid-transition) — Unity only actually enters on the next
+                // frame, so isPlayingOrWillChangePlaymode still reads true one tick
+                // later if entry was accepted, and false again if it was refused. On
+                // refusal, drop the flag armed above so it cannot force-stop the next
+                // unrelated Play Mode session the user starts. On acceptance the
+                // domain reload that follows wipes this callback before it can fire.
+                EditorTickOnce.Schedule(() =>
+                {
+                    if (!IsPlayingOrWillChange())
+                        SessionState.EraseBool(PendingPlayStopKey);
+                });
             }
             EditorApplication.update += Poll;
         }
@@ -132,6 +146,7 @@ namespace UnityMCP.Editor
             RequestPlayModeExit = () => EditorApplication.isPlaying = false;
             RequestPlayModeEnter = () => EditorApplication.isPlaying = true;
             IsCompiling = () => EditorApplication.isCompiling;
+            IsPlayingOrWillChange = () => EditorApplication.isPlayingOrWillChangePlaymode;
         }
 
         /// <summary>Clears a mid-wait WaitForCompileThenEnterPlayMode guard left by a test

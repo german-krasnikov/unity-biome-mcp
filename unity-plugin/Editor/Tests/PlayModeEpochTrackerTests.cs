@@ -22,8 +22,14 @@ namespace UnityMCP.Editor.Tests
                 PlayModeEpochTracker.RestoreForTest(savedEpoch, savedWorldReady);
                 PlayModeEpochTracker.ResetPlayModeSeamsForTest();
                 PlayModeEpochTracker.ResetWaitForCompileGuardForTest();
-                SessionState.SetBool(PlayModeEpochTracker.PendingPlayStopKey, savedPendingStop);
-                SessionState.SetBool(PlayModeEpochTracker.PendingPlayStartKey, savedPendingStart);
+                if (savedPendingStop)
+                    SessionState.SetBool(PlayModeEpochTracker.PendingPlayStopKey, true);
+                else
+                    SessionState.EraseBool(PlayModeEpochTracker.PendingPlayStopKey);
+                if (savedPendingStart)
+                    SessionState.SetBool(PlayModeEpochTracker.PendingPlayStartKey, true);
+                else
+                    SessionState.EraseBool(PlayModeEpochTracker.PendingPlayStartKey);
             });
             PlayModeEpochTracker.ResetForTest();
             SessionState.EraseBool(PlayModeEpochTracker.PendingPlayStopKey);
@@ -162,6 +168,65 @@ namespace UnityMCP.Editor.Tests
                 "otherwise an unrelated later Play Mode session would be unexpectedly interrupted");
             Assert.IsTrue(SessionState.GetBool(PlayModeEpochTracker.PendingPlayStartKey, false),
                 "the start flag must remain set while still waiting for compilation to finish");
+        }
+
+        // ── MAJOR (R3-05b): a refused Play Mode entry must not strand the stop flag ──
+
+        private Delegate[] ArmPollAndFireCompileFinishedTick()
+        {
+            SessionState.SetBool(PlayModeEpochTracker.PendingPlayStartKey, true);
+            PlayModeEpochTracker.IsCompiling = () => false;
+            PlayModeEpochTracker.RequestPlayModeEnter = () => { };
+
+            var beforePoll = EditorApplication.update?.GetInvocationList() ?? Array.Empty<Delegate>();
+            PlayModeEpochTracker.WaitForCompileThenEnterPlayMode();
+            var pollDelegates = (EditorApplication.update?.GetInvocationList() ?? Array.Empty<Delegate>())
+                .Except(beforePoll).ToArray();
+            RegisterCleanup(() =>
+            {
+                foreach (var d in pollDelegates) EditorApplication.update -= (EditorApplication.CallbackFunction)d;
+                PlayModeEpochTracker.ResetWaitForCompileGuardForTest();
+            });
+
+            var beforeFollowUp = EditorApplication.update?.GetInvocationList() ?? Array.Empty<Delegate>();
+            foreach (var d in pollDelegates) d.DynamicInvoke(); // compile-finished tick: requests entry
+            var followUp = (EditorApplication.update?.GetInvocationList() ?? Array.Empty<Delegate>())
+                .Except(beforeFollowUp).ToArray();
+            RegisterCleanup(() =>
+            {
+                foreach (var d in followUp) EditorApplication.update -= (EditorApplication.CallbackFunction)d;
+            });
+
+            Assert.IsTrue(SessionState.GetBool(PlayModeEpochTracker.PendingPlayStopKey, false),
+                "the stop flag is armed immediately when entry is requested");
+            Assert.AreEqual(1, followUp.Length,
+                "requesting entry must schedule exactly one follow-up tick to verify the outcome");
+            return followUp;
+        }
+
+        [Test]
+        public void WaitForCompileThenEnterPlayMode_EntryRefused_DoesNotLeaveStaleStopFlag()
+        {
+            var followUp = ArmPollAndFireCompileFinishedTick();
+            PlayModeEpochTracker.IsPlayingOrWillChange = () => false; // Unity refused entry
+
+            foreach (var d in followUp) d.DynamicInvoke(); // next tick: entry did not happen
+
+            Assert.IsFalse(SessionState.GetBool(PlayModeEpochTracker.PendingPlayStopKey, false),
+                "a refused Play Mode entry must not leave a stale stop flag for the next unrelated " +
+                "Play Mode session to be interrupted by");
+        }
+
+        [Test]
+        public void WaitForCompileThenEnterPlayMode_EntryAccepted_KeepsStopFlag()
+        {
+            var followUp = ArmPollAndFireCompileFinishedTick();
+            PlayModeEpochTracker.IsPlayingOrWillChange = () => true; // Unity is entering Play Mode
+
+            foreach (var d in followUp) d.DynamicInvoke(); // next tick: entry is underway
+
+            Assert.IsTrue(SessionState.GetBool(PlayModeEpochTracker.PendingPlayStopKey, false),
+                "an accepted Play Mode entry must keep the stop flag armed for its own domain reload to consume");
         }
     }
 }
