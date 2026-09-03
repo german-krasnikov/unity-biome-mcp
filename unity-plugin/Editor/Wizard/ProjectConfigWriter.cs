@@ -121,10 +121,7 @@ namespace UnityMCP.Editor.Wizard
                         ? ProjectConfigToml.Adopt(existingText, version)
                         : ProjectConfigFormats.Adopt(existingText, version);
                     if (ReferenceEquals(adopted, existingText)) return; // entry not found — leave intact
-                    var adoptTmp = path + ".tmp";
-                    File.WriteAllText(adoptTmp, adopted, new UTF8Encoding(false));
-                    if (exists) File.Delete(path);
-                    File.Move(adoptTmp, path);
+                    WizardConfigWriter.WriteAtomic(path, adopted);
                     return;
                 }
 
@@ -148,12 +145,7 @@ namespace UnityMCP.Editor.Wizard
                             ? ProjectConfigToml.Pin(existingText)
                             : ProjectConfigFormats.Pin(existingText);
                         if (!ReferenceEquals(pinned, existingText))
-                        {
-                            var pinTmp = path + ".tmp";
-                            File.WriteAllText(pinTmp, pinned, new UTF8Encoding(false));
-                            File.Delete(path);
-                            File.Move(pinTmp, path);
-                        }
+                            WizardConfigWriter.WriteAtomic(path, pinned);
                         return;
                     }
                 }
@@ -167,12 +159,7 @@ namespace UnityMCP.Editor.Wizard
                 var dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
 
-                // Atomic write: tmp + delete + move — File.Move(overwrite:true) does not
-                // exist in Unity's Mono/.NET Std 2.1 runtime.
-                var tmp = path + ".tmp";
-                File.WriteAllText(tmp, content, new UTF8Encoding(false));
-                if (exists) File.Delete(path);
-                File.Move(tmp, path);
+                WizardConfigWriter.WriteAtomic(path, content);
 
                 // ARC-11 T2: record the version WE just wrote — the baseline the next
                 // run compares the on-disk marker against to detect a foreign edit.

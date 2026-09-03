@@ -102,6 +102,45 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(WizardConfigWriter.HasBackup(cfg));
         }
 
+        // ── WriteAtomic (B3 #21: manual Configure output must never half-write) ─
+
+        [Test]
+        public void WriteAtomic_NoTempFileLeftBehind_ContentWrittenExactly()
+        {
+            var path = Path.Combine(_tmpDir, "out.json");
+
+            WizardConfigWriter.WriteAtomic(path, "{\"a\":1}");
+
+            Assert.IsTrue(File.Exists(path));
+            Assert.IsFalse(File.Exists(path + ".tmp"), "atomic write must not leave a .tmp file behind");
+            Assert.AreEqual("{\"a\":1}", File.ReadAllText(path));
+        }
+
+        [Test]
+        public void WriteAtomic_OverwritesExistingFile_NoTempFileLeftBehind()
+        {
+            var path = Path.Combine(_tmpDir, "out.json");
+            File.WriteAllText(path, "old");
+
+            WizardConfigWriter.WriteAtomic(path, "new");
+
+            Assert.AreEqual("new", File.ReadAllText(path));
+            Assert.IsFalse(File.Exists(path + ".tmp"), "atomic write must not leave a .tmp file behind");
+        }
+
+        // Write() calls EditorUtility.DisplayDialog (modal) so it cannot be invoked
+        // directly from a GUI-worker test — source-guard instead: prove Write() goes
+        // through the shared atomic helper, not a direct File.WriteAllText(configPath...).
+        [Test]
+        public void Write_UsesAtomicWrite_NotDirectFileWriteAllTextOnConfigPath()
+        {
+            var src = ReadRequiredPackageSource(typeof(WizardConfigWriter), "Editor/Wizard/WizardConfigWriter.cs");
+            Assert.That(src, Does.Not.Contain("File.WriteAllText(configPath"),
+                "Write must not call File.WriteAllText(configPath, ...) directly — a crash mid-write would leave a half-written config (B3 #21)");
+            Assert.That(src, Does.Contain("WriteAtomic(configPath"),
+                "Write must write through the shared atomic tmp+delete+move helper");
+        }
+
         // ── Merge / Fresh (existing behavior, regression guard) ───────────────
 
         [Test]

@@ -28,7 +28,7 @@ namespace UnityMCP.Editor.Wizard
                     merged = Fresh(port);
                 }
 
-                File.WriteAllText(configPath, merged, new UTF8Encoding(false));
+                WriteAtomic(configPath, merged);
                 UnityEditor.EditorUtility.DisplayDialog(
                     $"{toolName} — Config Written",
                     $"unity-biome-mcp added to:\n{configPath}", "OK");
@@ -38,6 +38,18 @@ namespace UnityMCP.Editor.Wizard
                 UnityEditor.EditorUtility.DisplayDialog(
                     "Write Failed", $"Could not write config:\n{ex.Message}", "OK");
             }
+        }
+
+        // B3 #21: atomic write shared by every config writer (manual Configure here,
+        // ProjectConfigWriter's per-project sync) — tmp + delete + move. File.Move(...,
+        // overwrite: true) does not exist in Unity's Mono/.NET Std 2.1 runtime, so a
+        // crash between write and move can never leave a half-written config behind.
+        internal static void WriteAtomic(string path, string content)
+        {
+            var tmp = path + ".tmp";
+            File.WriteAllText(tmp, content, new UTF8Encoding(false));
+            if (File.Exists(path)) File.Delete(path);
+            File.Move(tmp, path);
         }
 
         internal static string Fresh(int port) => Fresh(port, GitInstallUrl, "mcpServers");
