@@ -434,22 +434,21 @@ namespace UnityMCP.Editor.Chat.Tests
             // still pumps EditorApplication.update, which drives MainThreadDispatcher.Drain(),
             // but does not reliably drain delayCall. Draining synchronously with no frame wait
             // — the way a delayCall-based callback never would be — proves the dispatcher path.
+            // Drain (not Clear) as the safety-net cleanup: the queue is already
+            // empty after the Drain() call below runs the callback, so this only
+            // guards a mid-test failure — it never touches the production queue
+            // via the destructive Clear() the source-hygiene gate forbids in tests.
+            RegisterCleanup(MainThreadDispatcher.Drain);
+
             var b = new RelayBackend("claude", "ask", "", 9500);
             bool? result = null;
-            try
-            {
-                b.SetModeAsync("agent", ok => result = ok);
+            b.SetModeAsync("agent", ok => result = ok);
 
-                MainThreadDispatcher.Drain();
+            MainThreadDispatcher.Drain();
 
-                Assert.IsTrue(result.HasValue,
-                    "callback must already be delivered by a synchronous MainThreadDispatcher.Drain(), not delayCall");
-                Assert.IsFalse(result.Value, "null proc must callback with false");
-            }
-            finally
-            {
-                MainThreadDispatcher.Clear();
-            }
+            Assert.IsTrue(result.HasValue,
+                "callback must already be delivered by a synchronous MainThreadDispatcher.Drain(), not delayCall");
+            Assert.IsFalse(result.Value, "null proc must callback with false");
         }
 
         [Test]
