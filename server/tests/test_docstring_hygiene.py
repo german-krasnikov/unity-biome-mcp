@@ -17,6 +17,7 @@ install.py, and scripts/*.py.
 import ast
 import pathlib
 import re
+import sys
 
 _TICKET_PREFIX = re.compile(r"^\s*(ARC-\d|DEV-\d|C1[- ]|QUALITY-|B[23]-|R\d-\d|P\d+[: ])")
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
@@ -26,10 +27,22 @@ _PRODUCTION_GLOB_DIRS = ((_REPO_ROOT / "install", "*.py"), (_REPO_ROOT / "script
 _PRODUCTION_FILES = (_REPO_ROOT / "install.py",)
 
 
+def _parse_or_none(path: pathlib.Path):
+    """Parse a Python source file into an ast.Module, or None on SyntaxError
+    so a file mid-edit or an intentionally-invalid fixture cannot abort
+    either walker below."""
+    try:
+        return ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except SyntaxError:
+        return None
+
+
 def _iter_test_functions():
     for test_dir in _TEST_DIRS:
         for path in sorted(test_dir.glob("*.py")):
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            tree = _parse_or_none(path)
+            if tree is None:
+                continue
             for node in ast.walk(tree):
                 is_test_def = isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
                 if is_test_def and node.name.startswith("test_"):
@@ -48,7 +61,9 @@ def _production_paths():
 
 def _iter_production_definitions():
     for path in _production_paths():
-        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        tree = _parse_or_none(path)
+        if tree is None:
+            continue
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 yield path, node
@@ -79,3 +94,26 @@ def test_no_production_docstring_leads_with_a_ticket_code():
         if docstring and _TICKET_PREFIX.match(docstring):
             offenders.append(f"{path.relative_to(_REPO_ROOT)}:{node.lineno} {node.name}")
     assert not offenders, "Ticket-code-leading docstrings found:\n" + "\n".join(offenders)
+
+
+def test_walker_skips_unparsable_file(tmp_path, monkeypatch):
+    """A syntax-error file must not abort either docstring walker -- both
+    keep yielding definitions from the other files in the scanned
+    directory instead of letting ast.parse's SyntaxError propagate out of
+    the generator (a file mid-edit or an intentionally-invalid fixture
+    would otherwise fail collection for the whole hygiene suite)."""
+    (tmp_path / "test_good.py").write_text(
+        "def test_ok():\n    pass\n", encoding="utf-8")
+    (tmp_path / "test_bad.py").write_text(
+        "def test_broken(:\n    pass\n", encoding="utf-8")
+    module = sys.modules[__name__]
+    monkeypatch.setattr(module, "_TEST_DIRS", (tmp_path,))
+    monkeypatch.setattr(module, "_PRODUCTION_DIRS", (tmp_path,))
+    monkeypatch.setattr(module, "_PRODUCTION_GLOB_DIRS", ())
+    monkeypatch.setattr(module, "_PRODUCTION_FILES", ())
+
+    test_names = {node.name for _, node in _iter_test_functions()}
+    production_names = {node.name for _, node in _iter_production_definitions()}
+
+    assert test_names == {"test_ok"}
+    assert "test_ok" in production_names
