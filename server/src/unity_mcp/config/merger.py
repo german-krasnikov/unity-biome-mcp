@@ -1,9 +1,11 @@
 """Patch only <root_key>[SERVER_NAME] in an existing config file."""
+import contextlib
 import json
 import os
 import pathlib  # noqa: TC003
 import re
 import shutil
+import tempfile
 from collections.abc import Callable  # noqa: TC003
 
 # Our MCP server name (config key). "unity-biome-mcp" — one "mcp", and distinct from
@@ -97,6 +99,36 @@ def _deep_merge(base: dict, overlay: dict) -> dict:
     return base
 
 
+def _replace_text_atomic(config_path: pathlib.Path, text: str) -> None:
+    """Write text next to config_path via a uniquely-named temp file, then
+    atomically replace config_path with it.
+
+    Sonar S2083: the temp path comes from tempfile.mkstemp (a fresh unique
+    name each call), never from `config_path.with_suffix(...)` — so it is
+    never constructed from tainted data, and concurrent writers to
+    different-but-same-suffix targets (e.g. two ".mcp.json" writes) can't
+    collide on a shared ".tmp" name. On any failure the temp file is removed
+    and the original config_path is left untouched.
+    """
+    fd, tmp_name = tempfile.mkstemp(
+        dir=config_path.parent, prefix=config_path.name + ".", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp_name, config_path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+        raise
+
+
+def _replace_json_atomic(config_path: pathlib.Path, data: dict) -> None:
+    """Write data as indent=2/ensure_ascii=False JSON and atomically replace
+    config_path with it (see _replace_text_atomic)."""
+    _replace_text_atomic(config_path, json.dumps(data, indent=2, ensure_ascii=False))
+
+
 def merge_mcp_config(
     config_path: pathlib.Path,
     server_entry: dict,
@@ -121,9 +153,7 @@ def merge_mcp_config(
     base = current if isinstance(current, dict) else {}
     data[root_key][SERVER_NAME] = _deep_merge(base, entry)
 
-    tmp = config_path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    os.replace(str(tmp), str(config_path))
+    _replace_json_atomic(config_path, data)
 
 
 def is_entry_pinned(
@@ -171,9 +201,7 @@ def unpin_entry(
         return False
     del entry["_pin"]
 
-    tmp = config_path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    os.replace(str(tmp), str(config_path))
+    _replace_json_atomic(config_path, data)
     return True
 
 
@@ -211,9 +239,7 @@ def merge_toml_mcp(config_path: pathlib.Path, server_entry: dict) -> None:
     else:
         text = text.rstrip() + "\n\n" + block
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = config_path.with_suffix(".tmp")
-    tmp.write_text(text, encoding="utf-8")
-    os.replace(str(tmp), str(config_path))
+    _replace_text_atomic(config_path, text)
 
 
 def is_toml_pinned(config_path: pathlib.Path) -> bool:
@@ -243,9 +269,7 @@ def pin_toml_entry(config_path: pathlib.Path, version: str) -> None:
     if n == 0:
         return
 
-    tmp = config_path.with_suffix(".tmp")
-    tmp.write_text(new_text, encoding="utf-8")
-    os.replace(str(tmp), str(config_path))
+    _replace_text_atomic(config_path, new_text)
 
 
 def unpin_toml_entry(config_path: pathlib.Path) -> bool:
@@ -262,9 +286,7 @@ def unpin_toml_entry(config_path: pathlib.Path) -> bool:
     if new_text == text:
         return False
 
-    tmp = config_path.with_suffix(".tmp")
-    tmp.write_text(new_text, encoding="utf-8")
-    os.replace(str(tmp), str(config_path))
+    _replace_text_atomic(config_path, new_text)
     return True
 
 
@@ -286,9 +308,7 @@ def remove_mcp_entry(config_path: pathlib.Path, root_key: str = "mcpServers") ->
     if not removed:
         return False
 
-    tmp = config_path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
-    os.replace(str(tmp), str(config_path))
+    _replace_json_atomic(config_path, data)
     return True
 
 
@@ -304,7 +324,5 @@ def remove_toml_mcp_entry(config_path: pathlib.Path) -> bool:
     if n == 0:
         return False
 
-    tmp = config_path.with_suffix(".tmp")
-    tmp.write_text(new_text, encoding="utf-8")
-    os.replace(str(tmp), str(config_path))
+    _replace_text_atomic(config_path, new_text)
     return True
