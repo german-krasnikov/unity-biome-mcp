@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
 using UnityMCP.Editor.Wizard;
@@ -490,6 +491,41 @@ namespace UnityMCP.Editor.Tests
 
             var content = File.ReadAllText(Path.Combine(_tmpDir, ".mcp.json"));
             StringAssert.Contains(WizardConfigWriter.GitInstallUrl, content);
+        }
+
+        // C1 round3 #3/#4: a backgrounded Editor (no focus/render frames — this plugin's
+        // normal MCP-driven posture) keeps pumping EditorApplication.update but does not
+        // reliably drain delayCall (RELAY-FIX, commit 1bcc90b7). The static ctor's only
+        // trigger must therefore be update-based, never delayCall-only, or the per-project
+        // config/pin sync can silently never run for the whole session.
+        [Test]
+        public void ProjectConfigWriter_SelfHealsViaEditorApplicationUpdate_NotDelayCall()
+        {
+            var src = ReadRequiredPackageSource(typeof(ProjectConfigWriter), "Editor/Wizard/ProjectConfigWriter.cs");
+            Assert.That(src, Does.Contain("EditorApplication.update"),
+                "ProjectConfigWriter must self-heal via EditorApplication.update — delayCall alone does not drain in a backgrounded Editor (see RELAY-FIX, commit 1bcc90b7)");
+            Assert.That(src, Does.Not.Contain("delayCall"),
+                "ProjectConfigWriter must not depend on delayCall anywhere — it does not drain in a backgrounded Editor");
+        }
+
+        // Companion behavioral check: RunOnce must remove itself from
+        // EditorApplication.update after firing, so it never re-fires on the next tick.
+        // EditorApplication.update is a plain public field (not a C# event), so its
+        // invocation list is directly readable — same technique already used by
+        // MCPChatWindowTestIsolationTests.ResumeCallbacksFor for delayCall.
+        [Test]
+        public void RunOnce_WhenInvoked_UnsubscribesFromEditorApplicationUpdate()
+        {
+            EditorApplication.update += ProjectConfigWriter.RunOnce;
+            RegisterCleanup(() => EditorApplication.update -= ProjectConfigWriter.RunOnce);
+
+            ProjectConfigWriter.RunOnce();
+
+            var stillSubscribed = (EditorApplication.update?.GetInvocationList() ?? Array.Empty<Delegate>())
+                .Any(d => d.Method.Name == nameof(ProjectConfigWriter.RunOnce)
+                    && d.Method.DeclaringType == typeof(ProjectConfigWriter));
+            Assert.IsFalse(stillSubscribed,
+                "RunOnce must remove itself from EditorApplication.update after firing once");
         }
     }
 }

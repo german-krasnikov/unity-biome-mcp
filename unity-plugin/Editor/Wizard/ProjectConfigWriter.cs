@@ -22,7 +22,24 @@ namespace UnityMCP.Editor.Wizard
             // PackageInfo.version is available (it is not in the static ctor). A plugin update
             // triggers a domain reload; the new version yields a fresh key, so the config is
             // rewritten for the new version without any cross-assembly call from UpdateDispatcher.
-            EditorApplication.delayCall += RunFromEditorState;
+            //
+            // EditorApplication.update, not a one-shot deferred callback: a backgrounded
+            // Editor (no focus/render frames — this plugin's normal MCP-driven posture)
+            // keeps pumping update but does not reliably drain that older mechanism
+            // (RELAY-FIX, commit 1bcc90b7), so relying on it alone could leave the
+            // per-project config/pin sync unrun for the whole session.
+            EditorApplication.update += RunOnce;
+        }
+
+        // Self-unsubscribing one-shot — fires on the next Editor tick regardless of window
+        // focus, then removes itself. RunFromEditorState's own SessionState version-guard
+        // below keeps this idempotent per version-per-session, so this is a pure
+        // trigger-mechanism swap, not a behavior change. Internal so tests can invoke it
+        // directly without waiting for a real Editor tick.
+        internal static void RunOnce()
+        {
+            EditorApplication.update -= RunOnce;
+            RunFromEditorState();
         }
 
         // Thin wrapper — supplies real Editor state to the testable core.
@@ -44,7 +61,7 @@ namespace UnityMCP.Editor.Wizard
         }
 
         // Testable core — uses EditorPrefs via AgentConfigPrefs when enabledKeys is null.
-        // Always called synchronously on the main thread via delayCall.
+        // Always called synchronously on the main thread via the EditorApplication.update tick.
         // enabledKeys: injected by tests; null means read from AgentConfigPrefs (production path).
         internal static void Run(string projectRoot, int port, string version,
             IEnumerable<string> enabledKeys = null)
@@ -163,7 +180,7 @@ namespace UnityMCP.Editor.Wizard
             }
             catch (Exception ex)
             {
-                // Read-only FS / permission denied / etc — never throw out of delayCall.
+                // Read-only FS / permission denied / etc — never throw out of the Editor-tick trigger.
                 Debug.LogWarning($"unity-biome-mcp: could not write {target.RelativePath}: {ex.Message}");
             }
         }
