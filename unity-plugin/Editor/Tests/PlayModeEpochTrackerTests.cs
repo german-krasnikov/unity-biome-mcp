@@ -220,5 +220,40 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(SessionState.GetBool(PlayModeEpochTracker.PendingPlayStopKey, false),
                 "an accepted Play Mode entry must keep the stop flag armed for its own domain reload to consume");
         }
+
+        // ── EnterPlayModeWithPendingStop (C1 r6 #2): shared by the compiling-branch poll
+        // above AND force_play_stop's direct (non-compiling) branch in
+        // CommandRouter.Registration.cs — same refusal-safety contract must hold when
+        // called directly, not just via the compile-wait poll. RequestPlayModeEnter is
+        // stubbed below so this never triggers a real Play Mode transition.
+
+        [Test]
+        public void EnterPlayModeWithPendingStop_EntryRefused_DoesNotLeaveStaleStopFlag()
+        {
+            SessionState.EraseBool(PlayModeEpochTracker.PendingPlayStopKey);
+            PlayModeEpochTracker.RequestPlayModeEnter = () => { };
+            PlayModeEpochTracker.IsPlayingOrWillChange = () => false; // Unity refused entry
+
+            PlayModeEpochTracker.EnterPlayModeWithPendingStop();
+            MainThreadDispatcher.Drain(); // next tick: entry did not happen
+
+            Assert.IsFalse(SessionState.GetBool(PlayModeEpochTracker.PendingPlayStopKey, false),
+                "a refused Play Mode entry must not leave a stale stop flag for the next unrelated " +
+                "Play Mode session to be interrupted by (C1 r6 #2)");
+        }
+
+        [Test]
+        public void EnterPlayModeWithPendingStop_EntryAccepted_KeepsStopFlag()
+        {
+            SessionState.EraseBool(PlayModeEpochTracker.PendingPlayStopKey);
+            PlayModeEpochTracker.RequestPlayModeEnter = () => { };
+            PlayModeEpochTracker.IsPlayingOrWillChange = () => true; // Unity is entering Play Mode
+
+            PlayModeEpochTracker.EnterPlayModeWithPendingStop();
+            MainThreadDispatcher.Drain(); // next tick: entry is underway
+
+            Assert.IsTrue(SessionState.GetBool(PlayModeEpochTracker.PendingPlayStopKey, false),
+                "an accepted Play Mode entry must keep the stop flag armed for its own domain reload to consume");
+        }
     }
 }

@@ -78,9 +78,10 @@ namespace UnityMCP.Editor.Tests
             Assert.That(end, Is.GreaterThan(start), "set_client_label registration not found after force_play_stop");
             var body = src.Substring(start, end - start);
 
-            StringAssert.Contains("PendingPlayStopKey", body,
-                "force_play_stop must persist a SessionState flag that survives the domain reload " +
-                "triggered by entering Play Mode");
+            StringAssert.Contains("EnterPlayModeWithPendingStop", body,
+                "force_play_stop's direct branch must go through the shared reload-survival helper " +
+                "so a refused entry cannot strand PendingPlayStopKey for an unrelated later Play " +
+                "Mode session (C1 r6 #2)");
             StringAssert.Contains("PendingPlayStartKey", body,
                 "force_play_stop's compiling branch must persist a SessionState flag that survives " +
                 "a domain reload while waiting for compilation to finish");

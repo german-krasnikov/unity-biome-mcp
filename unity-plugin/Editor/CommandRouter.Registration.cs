@@ -61,8 +61,12 @@ namespace UnityMCP.Editor
                     PlayModeEpochTracker.WaitForCompileThenEnterPlayMode();
                     return "play_stop queued (waiting for compile)";
                 }
-                SessionState.SetBool(PlayModeEpochTracker.PendingPlayStopKey, true);
-                EditorApplication.isPlaying = true;
+                // Direct (non-compiling) entry: EditorApplication.isCompiling being false does
+                // not guarantee isPlaying = true actually succeeds (leftover compile errors from
+                // a finished build, or an in-progress unrelated transition can silently refuse
+                // it) — go through the same reload-survival helper the compiling branch above
+                // uses, so a refused entry here cannot strand PendingPlayStopKey either (C1 r6 #2).
+                PlayModeEpochTracker.EnterPlayModeWithPendingStop();
                 return "play_stop triggered";
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
             CommandRegistry.Register("set_client_label", args =>

@@ -102,23 +102,34 @@ namespace UnityMCP.Editor
                 _waitingForCompileToStart = false;
                 EditorApplication.update -= Poll;
                 SessionState.EraseBool(PendingPlayStartKey);
-                SessionState.SetBool(PendingPlayStopKey, true);
-                RequestPlayModeEnter();
-
-                // Entry can still be refused (e.g. new compile errors, or the Editor
-                // already mid-transition) — Unity only actually enters on the next
-                // frame, so isPlayingOrWillChangePlaymode still reads true one tick
-                // later if entry was accepted, and false again if it was refused. On
-                // refusal, drop the flag armed above so it cannot force-stop the next
-                // unrelated Play Mode session the user starts. On acceptance the
-                // domain reload that follows wipes this callback before it can fire.
-                MainThreadDispatcher.Enqueue(() =>
-                {
-                    if (!IsPlayingOrWillChange())
-                        SessionState.EraseBool(PendingPlayStopKey);
-                });
+                EnterPlayModeWithPendingStop();
             }
             EditorApplication.update += Poll;
+        }
+
+        /// <summary>Arms PendingPlayStopKey, requests Play Mode entry via the seam, and
+        /// enqueues a same-tick follow-up that drops the flag if entry was refused (compile
+        /// errors left over from a finished build, or a mid-transition state). Shared by
+        /// WaitForCompileThenEnterPlayMode's compile-wait poll and force_play_stop's direct
+        /// (non-compiling) branch in CommandRouter.Registration.cs, so neither path can
+        /// strand the flag and force-stop an unrelated later Play Mode session (C1 r6 #2).</summary>
+        internal static void EnterPlayModeWithPendingStop()
+        {
+            SessionState.SetBool(PendingPlayStopKey, true);
+            RequestPlayModeEnter();
+
+            // Entry can still be refused (e.g. new compile errors, or the Editor already
+            // mid-transition) — Unity only actually enters on the next frame, so
+            // isPlayingOrWillChangePlaymode still reads true one tick later if entry was
+            // accepted, and false again if it was refused. On refusal, drop the flag armed
+            // above so it cannot force-stop the next unrelated Play Mode session the user
+            // starts. On acceptance the domain reload that follows wipes this callback
+            // before it can fire.
+            MainThreadDispatcher.Enqueue(() =>
+            {
+                if (!IsPlayingOrWillChange())
+                    SessionState.EraseBool(PendingPlayStopKey);
+            });
         }
 
         /// <summary>Restore to specific state. Test seam — call from RegisterCleanup only.</summary>
