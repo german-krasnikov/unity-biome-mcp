@@ -69,7 +69,7 @@ class TestPython314Compliance:
         text = pyproject.read_text(encoding="utf-8")
         assert 'requires-python = ">=3.14"' in text, "requires-python must be >=3.14"
 
-    def test_all_annotations_resolve(self):
+    def test_all_annotations_resolve(self, monkeypatch):
         """Every public callable's annotations must resolve under PEP 649.
 
         Catches regressions where ruff --unsafe-fixes moved a runtime import to
@@ -79,6 +79,18 @@ class TestPython314Compliance:
         import pkgutil
 
         pkg = importlib.import_module("unity_mcp")
+        # The walk below imports EVERY submodule under unity_mcp, including
+        # unity_mcp.__version__ (a real file, src/unity_mcp/__version__.py).
+        # Python's import system unconditionally rebinds
+        # sys.modules['unity_mcp'].__version__ to that submodule object once
+        # it's imported, silently shadowing the package's version STRING (set
+        # in __init__.py) for the rest of the process — a module-state leak
+        # that surfaced under pytest-xdist's --dist loadfile (worker reuse
+        # across files) as a failure in test_mcp_status_version.py. Snapshot
+        # the string here and explicitly undo() after the walk (not just
+        # end-of-test teardown) so this test is self-contained and doesn't
+        # leak process-global state to whatever runs after it.
+        monkeypatch.setattr(pkg, "__version__", pkg.__version__)
         failures = []
         for info in pkgutil.walk_packages(pkg.__path__, prefix="unity_mcp."):
             try:
@@ -95,3 +107,8 @@ class TestPython314Compliance:
                 except Exception as e:
                     failures.append(f"{info.name}.{name}: {e}")
         assert not failures, "Annotation resolution failures:\n" + "\n".join(failures)
+        monkeypatch.undo()  # restore pkg.__version__ now, not just at test teardown
+        assert isinstance(pkg.__version__, str), (
+            "walking unity_mcp.__version__ as a submodule must not leave "
+            "unity_mcp.__version__ rebound to the module object"
+        )
