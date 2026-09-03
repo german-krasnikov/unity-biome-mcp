@@ -65,5 +65,29 @@ namespace UnityMCP.Editor.Tests
             Assert.Contains("get_hierarchy", registered, "read bucket");
             Assert.Contains("watch_add", registered, "WatchCommandHandler.RegisterAll() delegation");
         }
+
+        // ── force_play_stop reload-survival source guard (DEV-66 Part B) ────────
+
+        [Test]
+        public void ForcePlayStop_DoesNotDependOnDelayCall()
+        {
+            var src = ReadRequiredPackageSource(typeof(CommandRouter), "Editor/CommandRouter.Registration.cs");
+            var start = src.IndexOf("CommandRegistry.Register(\"force_play_stop\"");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "force_play_stop registration not found");
+            var end = src.IndexOf("CommandRegistry.Register(\"set_client_label\"", start);
+            Assert.That(end, Is.GreaterThan(start), "set_client_label registration not found after force_play_stop");
+            var body = src.Substring(start, end - start);
+
+            StringAssert.Contains("PendingPlayStopKey", body,
+                "force_play_stop must persist a SessionState flag that survives the domain reload " +
+                "triggered by entering Play Mode");
+            StringAssert.Contains("PendingPlayStartKey", body,
+                "force_play_stop's compiling branch must persist a SessionState flag that survives " +
+                "a domain reload while waiting for compilation to finish");
+            StringAssert.DoesNotContain("delayCall", body,
+                "force_play_stop must not depend on delayCall — entering Play Mode triggers a domain " +
+                "reload that wipes any delayCall/update subscription registered inline here " +
+                "(RELAY-FIX, commit 1bcc90b7)");
+        }
     }
 }

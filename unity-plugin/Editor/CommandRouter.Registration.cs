@@ -48,19 +48,21 @@ namespace UnityMCP.Editor
                 alwaysAllowed: true, allowedDuringCompile: true);
             // T5 recovery: play+stop cycle forces domain reload without going through SecurityScan.
             // allowedDuringCompile=true so it works in compile-latch state.
-            // play→stop queued via delayCall; command returns immediately.
+            // Entering Play Mode triggers a domain reload in this project (full domain
+            // reload, not the fast-enter-play-mode option), which wipes any delayCall/update
+            // subscription registered inline here (RELAY-FIX, commit 1bcc90b7) — the pending
+            // stop/start survives via SessionState instead, consumed by PlayModeEpochTracker,
+            // whose static-ctor subscription re-arms on every domain reload.
             CommandRegistry.Register("force_play_stop", _ =>
             {
                 if (EditorApplication.isCompiling)
                 {
-                    EditorApplication.delayCall += () => {
-                        EditorApplication.isPlaying = true;
-                        EditorApplication.delayCall += () => { EditorApplication.isPlaying = false; };
-                    };
+                    SessionState.SetBool(PlayModeEpochTracker.PendingPlayStartKey, true);
+                    PlayModeEpochTracker.WaitForCompileThenEnterPlayMode();
                     return "play_stop queued (waiting for compile)";
                 }
+                SessionState.SetBool(PlayModeEpochTracker.PendingPlayStopKey, true);
                 EditorApplication.isPlaying = true;
-                EditorApplication.delayCall += () => { EditorApplication.isPlaying = false; };
                 return "play_stop triggered";
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
             CommandRegistry.Register("set_client_label", args =>
