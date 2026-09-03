@@ -245,12 +245,12 @@ def test_version_set_only_writes_detected_clients(install_mod):
 
 
 def test_version_set_skips_installed_but_unconfigured_clients(install_mod):
-    """C1 r5 #1: `version --set` without --tool must skip a client that
-    detect_installed() merely found on disk but that was never configured for
-    unity-biome-mcp -- else an installed-but-unconfigured Cursor user gets a
-    brand-new pinned config written for a tool they never asked to touch.
-    Double-red: reverting _target_clients to return detect_installed()
-    verbatim makes mock_merge fire for cursor too, failing call_count == 1."""
+    """`version --set` without --tool must skip a client that detect_installed()
+    merely found on disk but that was never configured for unity-biome-mcp --
+    else an installed-but-unconfigured Cursor user gets a brand-new pinned
+    config written for a tool they never asked to touch. Double-red:
+    reverting _target_clients to return detect_installed() verbatim makes
+    mock_merge fire for cursor too, failing call_count == 1."""
     mock_stop = MagicMock(return_value=True)
     mock_merge = MagicMock()
 
