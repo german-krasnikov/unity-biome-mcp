@@ -27,7 +27,6 @@ _PATCH_TARGETS: tuple[tuple[str, str], ...] = (
     ("unity_mcp.bridge", "RELOAD_BACKOFF_S"),
     ("unity_mcp.bridge", "_CAPACITY_RETRY_AFTER_DEFAULT_S"),
     ("unity_mcp.bridge_retry", "_RETRY_BACKOFF_BASE_S"),
-    ("unity_mcp.bridge_retry", "_RETRY_BACKOFF_CAP_S"),
     ("unity_mcp.bridge_retry", "_TRANSIENT_RETRY_DELAY_S"),
 )
 
