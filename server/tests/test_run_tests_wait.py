@@ -610,3 +610,22 @@ async def test_mode_filter_and_request_identity_are_forwarded():
         "filter": "ClassA|ClassB",
         "request_id": REQUEST_ID,
     }
+
+
+@pytest.mark.asyncio
+async def test_fetch_test_run_json_expected_count_injection_preserves_cyrillic():
+    """_fetch_test_run_json's expected_count injection re-serializes the whole
+    snapshot -- it must keep ensure_ascii=False so a Cyrillic filter/name already
+    in the payload survives as UTF-8, not a \\uXXXX-escaped blob."""
+    run_id = "run-cyrillic-expected-count"
+    handle = testing._registry.register(run_id, REQUEST_ID)
+    handle.expected_count = 3
+    raw = json.dumps({"run_id": run_id, "state": "running", "filter": "Тест"})
+
+    with patch.object(testing, "_send", AsyncMock(return_value=raw)):
+        result = await testing._fetch_test_run_json(run_id)
+
+    assert "\\u" not in result, f"Cyrillic must not be ASCII-escaped: {result!r}"
+    assert json.loads(result) == {
+        "run_id": run_id, "state": "running", "filter": "Тест", "expected_count": 3,
+    }

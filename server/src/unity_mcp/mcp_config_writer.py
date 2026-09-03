@@ -10,7 +10,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from .config.merger import _OLD_NAMES, _READ_ENCODING, SERVER_NAME, _deep_merge
+from .config.merger import _OLD_NAMES, READ_ENCODING, SERVER_NAME, _deep_merge
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ def _read_existing_or_none(path: str) -> dict | None:
     if not os.path.exists(path):
         return {}
     try:
-        return json.loads(Path(path).read_text(encoding=_READ_ENCODING))
+        return json.loads(Path(path).read_text(encoding=READ_ENCODING))
     except (json.JSONDecodeError, UnicodeDecodeError):
         return None
 

@@ -3,7 +3,7 @@ import json
 import socket
 
 from unity_mcp.config.clients import CLIENT_REGISTRY
-from unity_mcp.config.merger import _READ_ENCODING, SERVER_NAME
+from unity_mcp.config.merger import READ_ENCODING, SERVER_NAME
 from unity_mcp.constants import DEFAULT_PORT
 from unity_mcp.server_filtering import read_unity_port
 
@@ -28,7 +28,7 @@ def validate_config(client_key: str) -> str:
 
     if info.is_toml:
         if path.exists():
-            has_entry = SERVER_NAME in path.read_text(encoding=_READ_ENCODING)
+            has_entry = SERVER_NAME in path.read_text(encoding=READ_ENCODING)
             lines.append(f"Status: {'configured' if has_entry else f'{SERVER_NAME} not found in TOML'}")
         else:
             lines.append("Status: file not found")
@@ -39,7 +39,7 @@ def validate_config(client_key: str) -> str:
         return "\n".join(lines)
 
     try:
-        data = json.loads(path.read_text(encoding=_READ_ENCODING))
+        data = json.loads(path.read_text(encoding=READ_ENCODING))
     except json.JSONDecodeError as e:
         lines.append(f"Status: invalid JSON ({e})")
         return "\n".join(lines)

@@ -129,7 +129,7 @@ def cmd_update(server_dir: Path, codex_dir: Path, codex_config: Path, ui,
 
 def cmd_doctor(server_dir: Path, codex_config: Path, mcp_json: Path, ui,
                _args: argparse.Namespace) -> None:
-    from unity_mcp.config.merger import _READ_ENCODING, SERVER_NAME
+    from unity_mcp.config.merger import READ_ENCODING, SERVER_NAME
 
     def _check(label: str, result: bool, info: str = "") -> None:
         suffix = f" ({info})" if info else ""
@@ -163,7 +163,7 @@ def cmd_doctor(server_dir: Path, codex_config: Path, mcp_json: Path, ui,
     mcp_ok = False
     if mcp_json.exists():
         try:
-            data = json.loads(mcp_json.read_text(encoding=_READ_ENCODING))
+            data = json.loads(mcp_json.read_text(encoding=READ_ENCODING))
             mcp_ok = SERVER_NAME in data.get("mcpServers", {})
         except Exception:
             pass

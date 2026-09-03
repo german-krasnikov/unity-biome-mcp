@@ -41,13 +41,13 @@ def test_detect_installed_no_false_positive_claude_code(tmp_path, monkeypatch):
 
 
 def test_detect_installed_claude_code_dir_without_json(tmp_path, monkeypatch):
-    """DEV-57b: `claude` CLI creates ~/.claude/ on first run, before
-    ~/.claude.json necessarily exists. detect_installed must still report
-    claude-code installed via the install_dir signal — mirrors
+    """`claude` CLI creates ~/.claude/ on first run, before ~/.claude.json
+    necessarily exists. detect_installed must still report claude-code
+    installed via the install_dir signal — mirrors
     unity-plugin/Editor/Wizard/BackendDescriptor.cs's ConfigDir='~/.claude'
     (ARC-0b single source of truth). Without the fix, this is a false
     negative: install.py --all / the interactive default silently skips the
-    project's primary client."""
+    project's primary client. (DEV-57b)"""
     from unity_mcp.config import clients as c
     fake_home = tmp_path
     monkeypatch.setattr(pathlib.Path, "home", classmethod(lambda cls: fake_home))
@@ -147,6 +147,33 @@ def test_opencode_config_path_platform_specific():
 
 
 # ─── merger.py ──────────────────────────────────────────────────────────────
+
+def test_read_encoding_is_public_and_matches_private_alias():
+    """READ_ENCODING is the public name; _READ_ENCODING stays as a compat alias
+    so existing internal references keep working (B4 minor)."""
+    from unity_mcp.config import merger
+    assert merger.READ_ENCODING == "utf-8-sig"
+    assert merger._READ_ENCODING is merger.READ_ENCODING
+
+
+def test_mcp_config_writer_and_validator_import_public_read_encoding():
+    """Cross-module importers (mcp_config_writer, config.validator) must import
+    the public READ_ENCODING name, not the private alias (B4 minor)."""
+    import ast
+    import inspect
+    from unity_mcp import mcp_config_writer
+    from unity_mcp.config import validator
+
+    for mod in (mcp_config_writer, validator):
+        tree = ast.parse(inspect.getsource(mod))
+        imported = {
+            alias.name
+            for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+            for alias in node.names
+        }
+        assert "READ_ENCODING" in imported, f"{mod.__name__} must import READ_ENCODING"
+        assert "_READ_ENCODING" not in imported, f"{mod.__name__} must not import the private alias"
+
 
 def test_merge_creates_new_config_file(tmp_path):
     from unity_mcp.config import merger

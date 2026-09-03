@@ -670,7 +670,7 @@ async def _fetch_test_run_json(run_id: str) -> str:
                 and "expected_count" not in data
             ):
                 data["expected_count"] = handle.expected_count
-                result = json.dumps(data, separators=(",", ":"))
+                result = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
     except (TypeError, ValueError):
         pass
 

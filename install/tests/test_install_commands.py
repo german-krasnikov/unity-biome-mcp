@@ -1,6 +1,8 @@
 """Tests for install.py new subcommands: configure (tool mode), uninstall."""
 import argparse
+import ast
 import importlib.util
+import inspect
 import json
 import subprocess
 import sys
@@ -641,6 +643,20 @@ def test_stop_subcommand_registered():
     # Simulate what main() should register; verify it doesn't error
     # We test this by calling parse_args on a fresh module import
     assert callable(inst.main)
+
+
+def test_cmd_doctor_imports_public_read_encoding():
+    """install/commands.py's cmd_doctor must import merger's public READ_ENCODING
+    name, not the private _READ_ENCODING alias (B4 minor)."""
+    import install.commands as commands
+    tree = ast.parse(inspect.getsource(commands))
+    imported = {
+        alias.name
+        for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    }
+    assert "READ_ENCODING" in imported
+    assert "_READ_ENCODING" not in imported
 
 
 def test_stop_argparse_requires_port():

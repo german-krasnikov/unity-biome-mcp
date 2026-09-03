@@ -696,7 +696,9 @@ async def test_await_compile_survives_unity_unavailable_midpoll():
     hand-rolled fake that raises the bare exception directly, bypassing
     _send_raw entirely) proves the compile_status fallback poll loop
     (code_intel.py's line catching ConnectionError around the fallback poll)
-    tolerates a mid-poll disconnect through the actual production path."""
+    tolerates a mid-poll disconnect through the actual production path. Real
+    sleep is already short-circuited by the module's autouse _patch_sleep
+    fixture -- no per-test patch needed here."""
     import unity_mcp.server as server_mod
 
     class FakeBridge:

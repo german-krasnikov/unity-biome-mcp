@@ -18,9 +18,15 @@ from unity_mcp.bridge import UnityBridge
 def test_module_has_no_test_to_test_import():
     """Guard: importing a helper from a sibling test_*.py module makes
     collecting this file also execute that sibling's module-level code,
-    coupling the two files' futures (see C1-round2.md #8)."""
+    coupling the two files' futures (see C1-round2.md #8). Covers both
+    `from test_x import y` and a bare `import test_x`."""
     tree = ast.parse(pathlib.Path(__file__).read_text(encoding="utf-8"))
-    modules = [n.module for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)]
+    modules = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            modules.append(node.module)
+        elif isinstance(node, ast.Import):
+            modules.extend(alias.name for alias in node.names)
     assert not any(m and m.startswith("test_") for m in modules), modules
 
 
