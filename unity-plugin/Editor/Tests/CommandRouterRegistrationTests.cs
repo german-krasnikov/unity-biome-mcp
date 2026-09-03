@@ -93,7 +93,7 @@ namespace UnityMCP.Editor.Tests
         // ── force_refresh reload-nudge source guard (DEV-66 Part C2) ────────────
 
         [Test]
-        public void ForceRefresh_SchedulesReloadViaEditorTickOnce_NotDelayCall()
+        public void ForceRefresh_SchedulesReloadViaMainThreadDispatcher_NotDelayCall()
         {
             var src = ReadRequiredPackageSource(typeof(CommandRouter), "Editor/CommandRouter.Registration.cs");
             var start = src.IndexOf("CommandRegistry.Register(\"force_refresh\"");
@@ -102,8 +102,8 @@ namespace UnityMCP.Editor.Tests
             Assert.That(end, Is.GreaterThan(start), "search_scene registration not found after force_refresh");
             var body = src.Substring(start, end - start);
 
-            StringAssert.Contains("EditorTickOnce.Schedule", body,
-                "force_refresh's deferred RequestScriptReload must run via EditorTickOnce " +
+            StringAssert.Contains("MainThreadDispatcher.Enqueue", body,
+                "force_refresh's deferred RequestScriptReload must run via MainThreadDispatcher " +
                 "(EditorApplication.update-driven) — delayCall does not drain in a backgrounded Editor " +
                 "(RELAY-FIX, commit 1bcc90b7)");
             StringAssert.Contains("!EditorApplication.isCompiling", body,

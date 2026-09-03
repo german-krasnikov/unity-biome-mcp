@@ -213,10 +213,11 @@ namespace UnityMCP.Editor
                 SyncHelper.Ops.Refresh();
                 SyncHelper.Ops.RequestScriptCompilation(RequestScriptCompilationOptions.None);
                 // Defer reload request — calling RequestScriptReload synchronously triggers
-                // immediate domain reload that wipes pending callbacks (B3 fix). EditorTickOnce
-                // (EditorApplication.update-driven) reaches a backgrounded Editor reliably
-                // (RELAY-FIX, commit 1bcc90b7).
-                EditorTickOnce.Schedule(() =>
+                // immediate domain reload that wipes pending callbacks (B3 fix).
+                // MainThreadDispatcher (EditorApplication.update-driven) reaches a backgrounded
+                // Editor reliably (RELAY-FIX, commit 1bcc90b7); its next-tick guarantee comes
+                // from Drain's snapshot-count pass, not a self-unsubscribing one-shot.
+                MainThreadDispatcher.Enqueue(() =>
                 {
                     if (!EditorApplication.isCompiling)
                         EditorUtility.RequestScriptReload();

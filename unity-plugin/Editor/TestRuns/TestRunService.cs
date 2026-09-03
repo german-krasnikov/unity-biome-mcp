@@ -144,7 +144,7 @@ namespace UnityMCP.Editor.TestRuns
                 _environment,
                 _framework,
                 _utcNow,
-                EditorTickOnce.Schedule,
+                MainThreadDispatcher.Enqueue,
                 _captureBuild);
         }
 

@@ -11,11 +11,11 @@ namespace UnityMCP.Editor.Tests
     public class TestRunPostReloadRecoveryTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
-        public void TestRunService_SchedulesFinalizationViaEditorTickOnce_NotDelayCall()
+        public void TestRunService_SchedulesFinalizationViaMainThreadDispatcher_NotDelayCall()
         {
             var src = ReadRequiredPackageSource(typeof(TestRunService), "Editor/TestRuns/TestRunService.cs");
-            Assert.That(src, Does.Contain("EditorTickOnce.Schedule"),
-                "TestRunService must schedule finalization via EditorTickOnce (EditorApplication.update-driven) — delayCall does not drain in a backgrounded Editor (see RELAY-FIX, commit 1bcc90b7)");
+            Assert.That(src, Does.Contain("MainThreadDispatcher.Enqueue"),
+                "TestRunService must schedule finalization via MainThreadDispatcher (EditorApplication.update-driven) — delayCall does not drain in a backgrounded Editor (see RELAY-FIX, commit 1bcc90b7)");
             Assert.That(src, Does.Not.Contain("delayCall"),
                 "TestRunService must not depend on delayCall anywhere — it does not drain in a backgrounded Editor");
         }

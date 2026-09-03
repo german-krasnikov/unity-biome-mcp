@@ -86,7 +86,9 @@ namespace UnityMCP.Editor
             if (exitCode == 0)
             {
                 onProgress?.Invoke("Refreshing Unity assets …");
-                EditorApplication.delayCall += () => AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
+                // Same mechanism as the DefaultRunner branch above — one dispatcher queue,
+                // not two deferral mechanisms (RELAY-FIX, commit 1bcc90b7).
+                MainThreadDispatcher.Enqueue(() => AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate));
                 onComplete?.Invoke(true);
             }
             else

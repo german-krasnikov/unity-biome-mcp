@@ -112,7 +112,7 @@ namespace UnityMCP.Editor
                 // refusal, drop the flag armed above so it cannot force-stop the next
                 // unrelated Play Mode session the user starts. On acceptance the
                 // domain reload that follows wipes this callback before it can fire.
-                EditorTickOnce.Schedule(() =>
+                MainThreadDispatcher.Enqueue(() =>
                 {
                     if (!IsPlayingOrWillChange())
                         SessionState.EraseBool(PendingPlayStopKey);

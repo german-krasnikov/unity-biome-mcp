@@ -167,5 +167,25 @@ namespace UnityMCP.Editor.Tests
                 "the DefaultRunner branch must not depend on delayCall — a backgrounded Editor does " +
                 "not reliably drain it (RELAY-FIX, commit 1bcc90b7)");
         }
+
+        // ── FakeRunner (synchronous test) branch: MainThreadDispatcher, not delayCall
+        // (TICK-DISPATCHER Part B) — EditorTickOnce is gone; every deferred callback in
+        // this file goes through the same dispatcher queue now, GUI-click allowlist or not.
+
+        [Test]
+        public void UpdateAsync_FakeRunnerBranch_RefreshesAssetsThroughMainThreadDispatcher_NotDelayCall()
+        {
+            var src = ReadRequiredPackageSource(typeof(LocalPluginUpdater), "Editor/Updates/LocalPluginUpdater.cs");
+            var start = src.IndexOf("// Tests inject synchronous FakeRunner");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "FakeRunner branch marker not found");
+            var body = src.Substring(start);
+
+            StringAssert.Contains("MainThreadDispatcher.Enqueue", body,
+                "the FakeRunner branch's asset refresh must marshal through MainThreadDispatcher, " +
+                "the same mechanism as the DefaultRunner branch above");
+            StringAssert.DoesNotContain("delayCall", body,
+                "the FakeRunner branch must not depend on delayCall — a backgrounded Editor does " +
+                "not reliably drain it (RELAY-FIX, commit 1bcc90b7)");
+        }
     }
 }

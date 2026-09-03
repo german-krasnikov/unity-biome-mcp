@@ -649,7 +649,7 @@ namespace UnityMCP.Editor.TestRuns
                 Environment,
                 Framework,
                 UtcNow,
-                EditorTickOnce.Schedule);
+                MainThreadDispatcher.Enqueue);
             Observer = new TestRunObserver(
                 Store,
                 Environment,
@@ -660,8 +660,8 @@ namespace UnityMCP.Editor.TestRuns
             TestRunnerApi.RegisterTestCallback(Observer, -1000);
             AssemblyReloadEvents.beforeAssemblyReload += MarkReloading;
             EditorApplication.quitting += FinalizeActiveOnEditorShutdown;
-            EditorTickOnce.Schedule(MarkHealthyAfterReload);
-            EditorTickOnce.Schedule(RecoverTerminalEnvironments);
+            MainThreadDispatcher.Enqueue(MarkHealthyAfterReload);
+            MainThreadDispatcher.Enqueue(RecoverTerminalEnvironments);
         }
 
         private static void FinalizeActiveOnEditorShutdown()

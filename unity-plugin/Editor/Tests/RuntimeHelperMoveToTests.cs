@@ -34,6 +34,8 @@ namespace UnityMCP.Editor.Tests
             go.AddComponent<SynchronousMoveComponent>();
             var path = ComponentSerializer.GetPath(go);
 
+            // TimeoutCheck (unrelated to tcs resolution) still arms a plain
+            // EditorApplication.update subscriber — capture and clean that one up.
             var before = EditorApplication.update?.GetInvocationList() ?? Array.Empty<Delegate>();
             var tcs = new TaskCompletionSource<string>();
 
@@ -41,7 +43,7 @@ namespace UnityMCP.Editor.Tests
 
             Assert.IsFalse(tcs.Task.IsCompleted,
                 "the movement callback ran synchronously but must defer tcs resolution to the " +
-                "next Editor tick, never inline");
+                "main-thread dispatcher queue, never inline");
 
             var added = (EditorApplication.update?.GetInvocationList() ?? Array.Empty<Delegate>())
                 .Except(before).ToArray();
@@ -51,15 +53,13 @@ namespace UnityMCP.Editor.Tests
             });
 
             Assert.GreaterOrEqual(added.Length, 1,
-                "MoveTo must arm at least one EditorApplication.update subscriber to resolve later");
+                "MoveTo must still arm its TimeoutCheck EditorApplication.update subscriber even " +
+                "though tcs resolution now runs through the main-thread dispatcher queue");
 
-            // Simulate exactly the next Editor tick for each newly-armed subscriber
-            // (the tcs-resolving one-shot and RuntimeHelper's own TimeoutCheck).
-            // delayCall is never pumped anywhere in this test.
-            foreach (var d in added) d.DynamicInvoke();
+            MainThreadDispatcher.Drain();
 
             Assert.IsTrue(tcs.Task.IsCompleted,
-                "MoveTo result must resolve from an EditorApplication.update tick, not an undrained delayCall");
+                "MoveTo result must resolve once the main-thread dispatcher queue is drained");
             var result = await tcs.Task; // already completed — await returns immediately, no block
             Assert.That(result, Does.StartWith("MoveTo arrived"), $"got: {result}");
         }

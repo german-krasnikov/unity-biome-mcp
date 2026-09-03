@@ -172,7 +172,7 @@ namespace UnityMCP.Editor.Tests
 
         // ── MAJOR (R3-05b): a refused Play Mode entry must not strand the stop flag ──
 
-        private Delegate[] ArmPollAndFireCompileFinishedTick()
+        private void ArmPollAndFireCompileFinishedTick()
         {
             SessionState.SetBool(PlayModeEpochTracker.PendingPlayStartKey, true);
             PlayModeEpochTracker.IsCompiling = () => false;
@@ -188,29 +188,21 @@ namespace UnityMCP.Editor.Tests
                 PlayModeEpochTracker.ResetWaitForCompileGuardForTest();
             });
 
-            var beforeFollowUp = EditorApplication.update?.GetInvocationList() ?? Array.Empty<Delegate>();
-            foreach (var d in pollDelegates) d.DynamicInvoke(); // compile-finished tick: requests entry
-            var followUp = (EditorApplication.update?.GetInvocationList() ?? Array.Empty<Delegate>())
-                .Except(beforeFollowUp).ToArray();
-            RegisterCleanup(() =>
-            {
-                foreach (var d in followUp) EditorApplication.update -= (EditorApplication.CallbackFunction)d;
-            });
+            // compile-finished tick: requests entry and enqueues the outcome follow-up
+            // onto the main-thread dispatcher queue (no longer a new update subscriber).
+            foreach (var d in pollDelegates) d.DynamicInvoke();
 
             Assert.IsTrue(SessionState.GetBool(PlayModeEpochTracker.PendingPlayStopKey, false),
                 "the stop flag is armed immediately when entry is requested");
-            Assert.AreEqual(1, followUp.Length,
-                "requesting entry must schedule exactly one follow-up tick to verify the outcome");
-            return followUp;
         }
 
         [Test]
         public void WaitForCompileThenEnterPlayMode_EntryRefused_DoesNotLeaveStaleStopFlag()
         {
-            var followUp = ArmPollAndFireCompileFinishedTick();
+            ArmPollAndFireCompileFinishedTick();
             PlayModeEpochTracker.IsPlayingOrWillChange = () => false; // Unity refused entry
 
-            foreach (var d in followUp) d.DynamicInvoke(); // next tick: entry did not happen
+            MainThreadDispatcher.Drain(); // next tick: entry did not happen
 
             Assert.IsFalse(SessionState.GetBool(PlayModeEpochTracker.PendingPlayStopKey, false),
                 "a refused Play Mode entry must not leave a stale stop flag for the next unrelated " +
@@ -220,10 +212,10 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void WaitForCompileThenEnterPlayMode_EntryAccepted_KeepsStopFlag()
         {
-            var followUp = ArmPollAndFireCompileFinishedTick();
+            ArmPollAndFireCompileFinishedTick();
             PlayModeEpochTracker.IsPlayingOrWillChange = () => true; // Unity is entering Play Mode
 
-            foreach (var d in followUp) d.DynamicInvoke(); // next tick: entry is underway
+            MainThreadDispatcher.Drain(); // next tick: entry is underway
 
             Assert.IsTrue(SessionState.GetBool(PlayModeEpochTracker.PendingPlayStopKey, false),
                 "an accepted Play Mode entry must keep the stop flag armed for its own domain reload to consume");
