@@ -469,18 +469,24 @@ namespace UnityMCP.Editor.Tests
             }
         }
 
-        private static async Task AwaitConditionAsync(
+        // internal (not private) so HttpGarbageProbeTests can reuse the same polling
+        // helper instead of duplicating it — DRY, matching how RunAcceptLoop and the
+        // TCP framing helpers below are already shared.
+        internal static async Task AwaitConditionAsync(
             Func<bool> condition, TimeSpan timeout, string timeoutMessage)
         {
             var deadline = DateTime.UtcNow + timeout;
             while (!condition() && DateTime.UtcNow < deadline)
-                await Task.Delay(10);
+                await Task.Delay(10).ConfigureAwait(false);
             Assert.IsTrue(condition(), timeoutMessage);
         }
 
         // ── TCP protocol helpers (used by T-C#2) ─────────────────────────────
 
-        private static void TcpSendFrame(NetworkStream stream, string json)
+        // internal (not private) so HttpGarbageProbeTests can reuse the same framing
+        // helpers for its post-probe liveness check — DRY, matching how RunAcceptLoop
+        // is already reused across test files.
+        internal static void TcpSendFrame(NetworkStream stream, string json)
         {
             var payload = Encoding.UTF8.GetBytes(json);
             var header = new byte[4];
@@ -493,7 +499,7 @@ namespace UnityMCP.Editor.Tests
             stream.Flush();
         }
 
-        private static string TcpReadFrame(NetworkStream stream)
+        internal static string TcpReadFrame(NetworkStream stream)
         {
             var header = new byte[4];
             int read = 0;

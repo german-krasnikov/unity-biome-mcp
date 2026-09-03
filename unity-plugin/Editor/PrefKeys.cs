@@ -40,5 +40,11 @@ namespace UnityMCP.Editor
 
         // Agent config writing — EditorPrefs (comma-separated key list, e.g. "claude-code,cursor")
         public const string EnabledAgentConfigs = "UnityMCP_EnabledAgentConfigs";
+
+        // ARC-11 T2: version drift baseline — EditorPrefs (survives Editor restart,
+        // unlike SessionState), keyed by raw project root path appended to this
+        // prefix. Never hash the path: string.GetHashCode() is process-randomized
+        // since .NET Core and would rotate the key every launch.
+        public const string LastSyncedVersionPrefix = "UnityMCP_LastSyncedVersion:";
     }
 }

@@ -70,6 +70,32 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(TestRunObserver.ShouldPrepareManagedEnvironment(null));
         }
 
+        // ── IsStaleActiveRun (R8-01: the RecoverTerminalEnvironments OR-decision
+        // had zero direct coverage — an ||→&& inversion passed the whole suite) ──
+
+        private static readonly string CurrentEditorSessionId =
+            TestRunBuildFingerprintProbe.EditorSessionId();
+
+        [TestCase("other-session", UtfRunActivity.Active, UtfRunActivity.Active, true,
+            TestName = "IsStaleActiveRun_SessionMismatchBothActive_TrueProvesOr")]
+        [TestCase(null, UtfRunActivity.Inactive, UtfRunActivity.Inactive, true,
+            TestName = "IsStaleActiveRun_MatchingSessionBothInactive_True")]
+        [TestCase(null, UtfRunActivity.Active, UtfRunActivity.Inactive, false,
+            TestName = "IsStaleActiveRun_MatchingSessionOwnActive_False")]
+        [TestCase(null, UtfRunActivity.Inactive, UtfRunActivity.Active, false,
+            TestName = "IsStaleActiveRun_MatchingSessionAnyActiveOnly_False")]
+        [TestCase("", UtfRunActivity.Inactive, UtfRunActivity.Inactive, true,
+            TestName = "IsStaleActiveRun_EmptySessionBothInactive_True")]
+        public void IsStaleActiveRun_EvaluatesOrOfSessionMismatchAndInactivity(
+            string editorSessionId, UtfRunActivity ownActivity, UtfRunActivity anyActivity, bool expected)
+        {
+            var run = new TestRunRecord { editor_session_id = editorSessionId ?? CurrentEditorSessionId };
+
+            var result = TestRunObserver.IsStaleActiveRun(run, ownActivity, anyActivity);
+
+            Assert.That(result, Is.EqualTo(expected));
+        }
+
         // ── MapLeafOutcome null adaptor overload ──
 
         [Test]

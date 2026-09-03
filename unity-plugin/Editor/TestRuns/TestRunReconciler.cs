@@ -314,6 +314,15 @@ namespace UnityMCP.Editor.TestRuns
                 AddWarning(issues, "MANIFEST_COUNT_MISMATCH", "", 0, runId,
                     $"Manifest seal expects {sealedCount} leaves, but {manifests.Count} unique leaves were readable.");
             }
+            if (manifestSealSeen && sealedCount == 0)
+            {
+                // An honest sealed manifest of zero leaves is valid evidence (the
+                // filter simply matched nothing) — it must not flip invalidEvidence
+                // or outcome, only flag the run as distinguishable from a healthy
+                // non-empty pass. See ARC-3 Task C1.
+                AddWarning(issues, "ZERO_TEST_MATCH", "", 0, runId,
+                    "The sealed manifest has zero leaves; no test matched the requested filter.");
+            }
 
             if (runFinishedObserved && !runStartedObserved)
             {

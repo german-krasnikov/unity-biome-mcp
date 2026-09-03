@@ -159,6 +159,27 @@ namespace UnityMCP.Editor.Tests
                 "MCPServer must set linger=0 before teardown to avoid TIME_WAIT on Windows");
         }
 
+        // ARC-8 T1: StartAsync's main + chat retry loops must delegate their
+        // same-port-vs-fallback boundary math to PortResolver, not inline it —
+        // the inline form silently dropped the last budgeted same-port retry.
+        [Test]
+        public void MCPServer_RetryLoopsDelegateToPortResolver()
+        {
+            var src = ReadRequiredPackageSource(typeof(MCPServer), "Editor/MCPServer.cs");
+            Assert.That(src, Does.Contain("PortResolver.IsSamePortAttempt"),
+                "StartAsync retry loops must call PortResolver.IsSamePortAttempt for the same-port-vs-fallback branch");
+            Assert.That(src, Does.Contain("PortResolver.BackoffDelayMs"),
+                "StartAsync retry loops must call PortResolver.BackoffDelayMs for the retry delay");
+        }
+
+        [Test]
+        public void MCPServer_RetryLoopsNoInlineOffByOneLiteral()
+        {
+            var src = ReadRequiredPackageSource(typeof(MCPServer), "Editor/MCPServer.cs");
+            Assert.That(src, Does.Not.Contain("attempt == maxAttempts - 1"),
+                "StartAsync must not inline the off-by-one boundary check — use PortResolver.IsSamePortAttempt");
+        }
+
         // ---------------------------------------------------------------------------
         // WP9: SO_REUSEPORT must be macOS-only (Linux uses different constant = 15)
         // ---------------------------------------------------------------------------

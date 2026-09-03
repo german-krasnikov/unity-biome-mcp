@@ -461,6 +461,23 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(ok);
         }
 
+        // C1 r6 #1: TrySaveAllPorts/TrySavePorts must swap through the shared AtomicFile.Swap
+        // helper (same fix already proven for WizardConfigWriter.WriteAtomic, C1 r5 #2) instead
+        // of delete-then-move — a crash or lock (AV scan, sync client) between delete and
+        // move can leave MCP_Port.json missing entirely, which also silently skips the
+        // discovery-file rewrite ARC-9's fast path depends on.
+        [Test]
+        public void TrySaveAllPorts_UsesSharedAtomicSwap_NotDeleteThenMove()
+        {
+            var src = ReadRequiredPackageSource(typeof(PortResolver), "Editor/PortResolver.cs");
+            Assert.That(src, Does.Contain("AtomicFile.Swap(tmp, filePath)"),
+                "TrySaveAllPorts/TrySavePorts must swap the port file via the shared AtomicFile.Swap " +
+                "helper — a delete-then-move can leave MCP_Port.json missing on a locked path (C1 r6 #1)");
+            Assert.That(src, Does.Not.Match(@"(System\.IO\.)?File\.Delete\(filePath\)"),
+                "Port file writers must not delete the original before moving the replacement into place, " +
+                "including via a fully-qualified System.IO.File.Delete(filePath) call");
+        }
+
         // ── BindFreePort ──────────────────────────────────────────────────────
 
         [Test]
@@ -515,6 +532,29 @@ namespace UnityMCP.Editor.Tests
                 Assert.IsTrue(PortResolver.IsValidPort(resultPort));
             }
             finally { blocker.Stop(); result?.Stop(); }
+        }
+
+        // ── Retry-loop off-by-one helpers (ARC-8 T1) ─────────────────────────
+        // Extracted so StartAsync's retry loops delegate instead of inlining
+        // the boundary math — same-port budget must mean exactly maxAttempts
+        // same-port tries, fallback only once that budget is exhausted.
+
+        [Test]
+        public void IsSamePortAttempt_AtBudgetBoundary_ReturnsFalse()
+        {
+            Assert.IsFalse(PortResolver.IsSamePortAttempt(6, 6));
+        }
+
+        [Test]
+        public void IsSamePortAttempt_OneBelowBudget_ReturnsTrue()
+        {
+            Assert.IsTrue(PortResolver.IsSamePortAttempt(5, 6));
+        }
+
+        [Test]
+        public void BackoffDelayMs_SixthAttempt_ContinuesLinearEscalation()
+        {
+            Assert.AreEqual(3600, PortResolver.BackoffDelayMs(5, 600));
         }
     }
 }

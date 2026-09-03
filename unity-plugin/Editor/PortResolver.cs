@@ -58,6 +58,13 @@ namespace UnityMCP.Editor
 
         internal static bool IsValidPort(int port) => port >= 1024 && port <= 65535;
 
+        // Retry-loop off-by-one helpers (ARC-8 T1). attempt is 0-based; maxAttempts
+        // is the same-port retry budget. attempt == maxAttempts is the one fallback
+        // iteration that follows the exhausted same-port budget.
+        internal static bool IsSamePortAttempt(int attempt, int maxAttempts) => attempt < maxAttempts;
+
+        internal static int BackoffDelayMs(int attemptIndex, int baseDelayMs) => baseDelayMs * (attemptIndex + 1);
+
         internal static int FindFreePort(int startFrom, int skipPort = -1)
         {
             for (var port = startFrom; port <= 9699; port++)
@@ -184,8 +191,7 @@ namespace UnityMCP.Editor
                 System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(filePath));
                 var json = $"{{\"port\":{port},\"chatPort\":{chatPort},\"reloadPort\":{reloadPort}}}";
                 writeAllText(tmp, json);
-                if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
-                System.IO.File.Move(tmp, filePath);
+                AtomicFile.Swap(tmp, filePath);
                 return true;
             }
             catch
@@ -217,8 +223,7 @@ namespace UnityMCP.Editor
                     ? $"{{\"port\":{port},\"chatPort\":{chatPort},\"reloadPort\":{reloadPort.Value}}}"
                     : $"{{\"port\":{port},\"chatPort\":{chatPort}}}";
                 writeAllText(tmp, json);
-                if (System.IO.File.Exists(filePath)) System.IO.File.Delete(filePath);
-                System.IO.File.Move(tmp, filePath);
+                AtomicFile.Swap(tmp, filePath);
                 return true;
             }
             catch

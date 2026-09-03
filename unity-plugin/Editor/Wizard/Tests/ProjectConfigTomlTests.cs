@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityMCP.Editor.Wizard;
 
@@ -107,11 +108,73 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Classify_PinnedToml_ReturnsOwnedCurrent()
+        {
+            // ARC-0b Task 1: " pinned" suffix must win over both a stale version AND a
+            // stale port — proves the pin check overrides the whole staleness condition,
+            // not just the version half of it.
+            var existing =
+                "# unity-biome-mcp generated v1.49.0 pinned\n" +
+                "[mcp_servers.unity-biome-mcp]\n" +
+                "command = 'uvx'\n" +
+                "\n" +
+                "[mcp_servers.unity-biome-mcp.env]\n" +
+                "UNITY_MCP_PORT = '9500'\n";
+
+            var result = ProjectConfigToml.Classify(existing, 9600, "1.50.0");
+
+            Assert.AreEqual(EntryState.OwnedCurrent, result);
+        }
+
+        [Test]
         public void Classify_NoMarkerComment_ReturnsForeign()
         {
             var existing = "[mcp_servers.unity-mcp]\ncommand = 'uvx'\n";
             var result = ProjectConfigToml.Classify(existing, 9500, "1.2.3");
             Assert.AreEqual(EntryState.Foreign, result);
+        }
+
+        // C1 r3 #6: marker/pin regex must accept a semver pre-release tag (e.g. an
+        // RC build) -- before the fix, ExtractMarkerVersion never matched through
+        // to the section header because "-rc.1" broke the required immediate
+        // "\n[" continuation, so Classify permanently returned Foreign.
+        [Test]
+        public void Classify_PrereleaseVersionMarker_ReturnsOwnedCurrent()
+        {
+            var fresh = ProjectConfigToml.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.51.0-rc.1");
+            var result = ProjectConfigToml.Classify(fresh, 9500, "1.51.0-rc.1");
+            Assert.AreEqual(EntryState.OwnedCurrent, result);
+        }
+
+        // Reproduces the reported repro exactly: WriteOne only calls Adopt() when
+        // Classify() reports Foreign. Under the old regex, an rc-tagged marker never
+        // classified as OwnedCurrent, so every Editor restart re-adopted and stacked
+        // another marker comment line. This mirrors WriteOne's own guard (without
+        // touching ProjectConfigWriter.cs) across three simulated restarts.
+        [Test]
+        public void AdoptTwice_PrereleaseVersion_DoesNotDuplicateMarker()
+        {
+            const int port = 9500;
+            const string version = "1.51.0-rc.1";
+            var text = "[mcp_servers.unity-biome-mcp]\n" +
+                       "command = 'uvx'\n" +
+                       "\n" +
+                       "[mcp_servers.unity-biome-mcp.env]\n" +
+                       $"UNITY_MCP_PORT = '{port}'\n";
+
+            string SimulateEditorRestart(string existing) =>
+                ProjectConfigToml.Classify(existing, port, version) == EntryState.Foreign
+                    ? ProjectConfigToml.Adopt(existing, version)
+                    : existing;
+
+            var afterRestart1 = SimulateEditorRestart(text);
+            var afterRestart2 = SimulateEditorRestart(afterRestart1);
+            var afterRestart3 = SimulateEditorRestart(afterRestart2);
+
+            Assert.AreEqual(afterRestart1, afterRestart2);
+            Assert.AreEqual(afterRestart1, afterRestart3);
+            Assert.AreEqual(1, Regex.Matches(afterRestart3, "generated v").Count,
+                "each Editor restart on an rc-tagged install must not re-Adopt and duplicate the marker");
         }
 
         [Test]
@@ -137,6 +200,74 @@ namespace UnityMCP.Editor.Tests
             var text = "[mcp_servers.unity-mcp]\ncommand = 'uvx'\n";
             var result = ProjectConfigToml.Adopt(text, "2.0.0");
             Assert.AreEqual("2.0.0", ProjectConfigToml.ExtractMarkerVersion(result));
+        }
+
+        // ── ARC-11 T1: Pin() surgical marker insert (TOML mirror) ───────────
+
+        [Test]
+        public void Pin_TomlEntry_InsertsPinnedSuffixOnCommentLine()
+        {
+            var fresh = ProjectConfigToml.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3");
+
+            var result = ProjectConfigToml.Pin(fresh);
+
+            // Arm B forbidden: `result != null` would pass against a stub that
+            // returns the input unchanged.
+            StringAssert.Contains("# unity-biome-mcp generated v1.2.3 pinned", result);
+        }
+
+        [Test]
+        public void Pin_ThenClassify_Toml_ReturnsOwnedCurrent()
+        {
+            var fresh = ProjectConfigToml.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3");
+
+            var pinned = ProjectConfigToml.Pin(fresh);
+            var result = ProjectConfigToml.Classify(pinned, 9600, "1.50.0");
+
+            // Arm B forbidden: `AreNotEqual(Absent, ...)` would also pass for
+            // OwnedStale.
+            Assert.AreEqual(EntryState.OwnedCurrent, result);
+        }
+
+        [Test]
+        public void Pin_TomlNoSectionFound_ReturnsOriginalUnchanged()
+        {
+            var text = "[some_other_tool]\nkey = 'value'\n";
+            var result = ProjectConfigToml.Pin(text);
+            Assert.IsTrue(ReferenceEquals(result, text));
+        }
+
+        [Test]
+        public void Pin_AlreadyPinnedToml_IsIdempotent_NoDuplicateSuffix()
+        {
+            var fresh = ProjectConfigToml.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3");
+
+            var pinnedOnce = ProjectConfigToml.Pin(fresh);
+            var pinnedTwice = ProjectConfigToml.Pin(pinnedOnce);
+
+            Assert.AreEqual(1, Regex.Matches(pinnedTwice, "pinned").Count,
+                "a repeated Pin() must never duplicate the ' pinned' suffix");
+            Assert.AreEqual(pinnedOnce, pinnedTwice);
+        }
+
+        [Test]
+        public void Pin_TomlPreservesOtherTablesByteForByte()
+        {
+            var existing =
+                "[some_other_tool]\n" +
+                "key = 'value'\n" +
+                "\n" +
+                "# unity-biome-mcp generated v1.49.0\n" +
+                "[mcp_servers.unity-biome-mcp]\n" +
+                "command = 'uvx'\n" +
+                "\n" +
+                "[mcp_servers.unity-biome-mcp.env]\n" +
+                "UNITY_MCP_PORT = '9500'\n";
+
+            var result = ProjectConfigToml.Pin(existing);
+
+            StringAssert.Contains("[some_other_tool]\nkey = 'value'\n", result);
+            StringAssert.Contains("UNITY_MCP_PORT = '9500'", result);
         }
     }
 }

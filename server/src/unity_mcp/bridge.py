@@ -105,6 +105,9 @@ CONNECT_TIMEOUT = float(os.environ.get("UNITY_MCP_CONNECT_TIMEOUT", "5.0"))
 MAX_RETRIES = int(os.environ.get("UNITY_MCP_MAX_RETRIES", "3"))
 MIN_RECONNECT_INTERVAL = float(os.environ.get("UNITY_MCP_MIN_RECONNECT_INTERVAL", "5.0"))
 STARTUP_GRACE_S = float(os.environ.get("UNITY_MCP_STARTUP_GRACE", "90.0"))
+# Fallback when Unity's CLIENT_CAPACITY_BUSY hello omits retry_after_seconds.
+# Reuses bridge_heartbeat's backoff floor instead of a second hardcoded 5.0.
+_CAPACITY_RETRY_AFTER_DEFAULT_S = BACKOFF_MIN_S
 
 
 class BridgeState(enum.Enum):
@@ -195,6 +198,16 @@ class CommandLedger:
             del self._store[k]
 
 
+def _with_retry_op_id(payload: bytes, op_id: str) -> bytes:
+    """P-322: rebuild payload with 'retry_op_id' so C# DedupRegistry can detect
+    and suppress re-execution of a command that was already dispatched. Shared
+    by both retry paths (exception-after-SENT and in-band Unity 'retry' hint) --
+    a frame reaching Unity via either path must be resend-tagged the same way."""
+    raw = json.loads(payload.decode("utf-8"))
+    raw["retry_op_id"] = op_id
+    return json.dumps(raw, ensure_ascii=False).encode("utf-8")
+
+
 class _CandidateIdentityError(ConnectionError):
     """A TCP endpoint answered, but could not prove it is the intended Editor."""
 
@@ -236,6 +249,11 @@ class UnityBridge(HeartbeatMixin):
         self._first_failure_ts: float | None = None
         self._reconnect_started_at: float | None = None
         self._hard_deadline_started_at: float | None = None
+        # ARC-7 T1: throttle clock for the periodic stale-port sweep (bridge_heartbeat.py).
+        self._last_port_sweep_at: float = 0.0
+        # ARC-7 T2: monotonic timestamp of the last *successful* contact with Unity
+        # (heartbeat pong or a completed send() round-trip). None until either occurs.
+        self._last_contact_at: float | None = None
         self._state: BridgeState = BridgeState.DISCONNECTED
         self._on_reconnect_callbacks: list = []
         self._crash_log = CrashLogger()
@@ -254,6 +272,9 @@ class UnityBridge(HeartbeatMixin):
         self._orphan_detected_at: float | None = None
         self._pinned_port: int | None = None
         self._pinned_pid: int | None = None
+        # ARC-9 T2: one-shot (old_port, new_port) set when a same-pid port
+        # rebind is adopted; consumed via pop_port_drift_notice().
+        self._port_drift: tuple[int, int] | None = None
         self._bridge_id: str = f"br-{os.getpid():x}-{id(self) & 0xFFFF:04x}"
         self._is_retry_safe: Callable[[str], bool] = is_retry_safe or (lambda cmd: False)
         self._retry_policy = RetryPolicy(
@@ -348,12 +369,42 @@ class UnityBridge(HeartbeatMixin):
         _apply_socket_options(writer.get_extra_info("socket"))
         try:
             await self._verify_candidate_project(reader, writer, self._port)
+            # DEV-60: negotiate protocol version on the very first connect too —
+            # previously only _reconnect() did this, so a mixed-version pair
+            # went undetected until the first reconnect (or never, for a
+            # long-lived single connection). Gated the same as the project
+            # check above: an unknown project means no real Unity endpoint is
+            # pinned yet (e.g. ad hoc/test bridges), so skip the extra round trip.
+            if self._expected_project_path is not None:
+                await self._check_initial_protocol_version(reader, writer)
         except BaseException:
             await self._close_candidate(writer)
             raise
         self._reader = reader
         self._writer = writer
         self._pin_candidate(self._port)
+
+    async def _check_initial_protocol_version(self, reader, writer) -> None:
+        """Negotiate the protocol version on the initial connect (client_hello +
+        version check), mirroring _open_reconnect_candidate (DEV-60). Only the
+        frame read/parse is tolerant of a pre-hello plugin (ARC-17 wire-compat)
+        — once a hello payload is parsed, going_away/capacity/version-mismatch
+        signals are handled exactly as in _open_reconnect_candidate and
+        propagate to connect()'s outer handler (these must not be swallowed as
+        a non-fatal handshake failure, DEV-60b)."""
+        self._counter += 1
+        hello_id = f"c{self._counter:04x}"
+        frame_write(writer, self._build_hello(hello_id))
+        await writer.drain()
+        try:
+            hello_raw = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
+            hello = json.loads(hello_raw.decode("utf-8"))
+        except Exception as exc:
+            logger.warning("client_hello handshake failed during connect (non-fatal): %s", exc)
+            return
+
+        if not await self._dispatch_client_hello_response(hello, reload_context="initial connect"):
+            await self._fetch_and_check_version(reader, writer)
 
     def should_retry(self, error: Exception, attempt: int, session_deadline: float,
                       cmd: str = "") -> tuple[bool, float, str]:
@@ -425,6 +476,7 @@ class UnityBridge(HeartbeatMixin):
             try:
                 result = await self._send_with_retry(cmd, payload, msg_id, timeout, deadline, op_id)
                 self._ledger.record(op_id, CommandStatus.COMPLETED, result)  # MCP-TRANS-008
+                self._last_contact_at = time.monotonic()  # ARC-7 T2
                 if not future.done():
                     future.set_result(result)
             except asyncio.CancelledError:
@@ -526,9 +578,7 @@ class UnityBridge(HeartbeatMixin):
                     # P-322: if payload was already written (SENT), the retry must carry
                     # retry_op_id so C# DedupRegistry can detect and suppress re-execution.
                     if delivery == DeliveryState.SENT and op_id:
-                        raw = json.loads(payload.decode("utf-8"))
-                        raw["retry_op_id"] = op_id
-                        payload = json.dumps(raw, ensure_ascii=False).encode("utf-8")
+                        payload = _with_retry_op_id(payload, op_id)
                     jitter = random.uniform(0, delay * 0.1)
                     if reason == "domain_reload":
                         self._reload_gate.clear()
@@ -567,14 +617,27 @@ class UnityBridge(HeartbeatMixin):
                         )}
                 except Exception:
                     pass
-                # A1/C8: Unity has already dispatched a command before emitting
-                # this in-band hint, so use the same annotation-derived safety
-                # predicate as the exception path's SENT gate.
+                # A1/C8: this in-band hint comes from CommandRouter.CheckGuards,
+                # which runs and returns BEFORE the command is dispatched (e.g.
+                # "Unity is compiling, retry in 5s") -- Unity has NOT executed the
+                # command yet. Still apply the same annotation-derived safety
+                # predicate as the exception path's SENT gate: whether the resend
+                # is safe depends on the command's own retry annotation, not on
+                # execution state here.
                 if not self._retry_policy.allow_hint_retry(cmd):
                     return result
                 if attempt < MAX_RETRIES:
                     await asyncio.sleep(result["retry"] / 1000)
                     attempt += 1
+                    # DEV-59/P-322: attach retry_op_id on the resend regardless of
+                    # whether the prior attempt actually reached execution --
+                    # C# DedupRegistry only suppresses a *second* run of a command
+                    # that was already recorded, so sending it here is harmless
+                    # when this guard hint fired pre-dispatch and correct when a
+                    # command was in fact already dispatched (same dedup contract
+                    # as the SENT/exception retry path).
+                    if op_id:
+                        payload = _with_retry_op_id(payload, op_id)
                     continue
                 return result
 
@@ -654,6 +717,50 @@ class UnityBridge(HeartbeatMixin):
                 f"{stored.project_path!r} to {new.project_path!r}"
             )
 
+    async def _dispatch_client_hello_response(self, hello: dict, *, reload_context: str) -> bool:
+        """Shared client_hello response dispatch for connect() and reconnect() (C1 #9).
+
+        Both call sites send their own client_hello (id prefix `c`/`rc`) and
+        read/parse the raw frame themselves; only the parsed payload is
+        handled here. going_away and CLIENT_CAPACITY_BUSY propagate as
+        DomainReloadError / CapacityBusyError to the caller unchanged. A
+        modern ok+helloVersion hello captures/checks editor identity
+        (MCP-SESS-024) and the protocol version, returning True. Any other
+        hello (old C#, no client_hello support) returns False so the caller
+        runs its own legacy get_version fallback.
+        """
+        if hello.get("ev") == "going_away":
+            raise DomainReloadError(f"Unity going_away during {reload_context}")
+
+        if hello.get("error") == "CLIENT_CAPACITY_BUSY":
+            from .errors import CapacityBusyError
+            raise CapacityBusyError(
+                f"Unity at capacity: {hello.get('active', '?')}/{hello.get('capacity', '?')} clients",
+                retry_after_seconds=float(
+                    hello.get("retry_after_seconds", _CAPACITY_RETRY_AFTER_DEFAULT_S)
+                ),
+                capacity=int(hello.get("capacity", 0)),
+                active=int(hello.get("active", 0)),
+            )
+
+        if not (hello.get("ok") and hello.get("helloVersion")):
+            return False
+
+        # T19: extract stable project identity (cloudProjectId or sha256[:12])
+        project_id = hello.get("projectId", "")
+        if isinstance(project_id, str) and project_id.strip():
+            self._project_id = project_id.strip()
+        # MCP-SESS-024: capture/enforce editor identity on every handshake
+        _pid = project_id.strip() if isinstance(project_id, str) else ""
+        _raw_path = hello.get("projectPath", "") or ""
+        _canon = (
+            self._canonical_project_path(_raw_path.strip())
+            if _raw_path.strip() else ""
+        )
+        self._capture_or_check_identity(project_id=_pid, project_path=_canon)
+        await self._check_version_from_hello(hello)
+        return True
+
     @staticmethod
     async def _close_candidate(writer) -> None:
         writer.close()
@@ -729,46 +836,29 @@ class UnityBridge(HeartbeatMixin):
             hello_raw = await frame_read_with_timeout(reader, CONNECT_TIMEOUT)
             hello = json.loads(hello_raw.decode("utf-8"))
 
-            if hello.get("ev") == "going_away":
-                raise DomainReloadError("Unity going_away during reconnect")
+            # New C#: combined response contains version + projectPath — 1 roundtrip.
+            # Checked ahead of the shared dispatch below because it must raise
+            # before identity capture, and only ever applies to an
+            # ok+helloVersion hello (going_away/capacity hellos never satisfy
+            # that guard, so evaluation order between them doesn't matter).
+            if (
+                hello.get("ok")
+                and hello.get("helloVersion")
+                and self._expected_project_path is not None
+            ):
+                reported = hello.get("projectPath", "")
+                if not isinstance(reported, str) or not reported.strip():
+                    raise _CandidateIdentityError(
+                        f"Unity on port {port} returned empty projectPath in client_hello"
+                    )
+                actual = self._canonical_project_path(reported.strip())
+                if actual != self._expected_project_path:
+                    raise _CandidateIdentityError(
+                        f"Refusing Unity on port {port}: expected project "
+                        f"{self._expected_project_path!r}, received {actual!r}"
+                    )
 
-            if hello.get("error") == "CLIENT_CAPACITY_BUSY":
-                from .errors import CapacityBusyError
-                raise CapacityBusyError(
-                    f"Unity at capacity: {hello.get('active', '?')}/{hello.get('capacity', '?')} clients",
-                    retry_after_seconds=float(hello.get("retry_after_seconds", 5.0)),
-                    capacity=int(hello.get("capacity", 0)),
-                    active=int(hello.get("active", 0)),
-                )
-
-            if hello.get("ok") and hello.get("helloVersion"):
-                # New C#: combined response contains version + projectPath — 1 roundtrip.
-                if self._expected_project_path is not None:
-                    reported = hello.get("projectPath", "")
-                    if not isinstance(reported, str) or not reported.strip():
-                        raise _CandidateIdentityError(
-                            f"Unity on port {port} returned empty projectPath in client_hello"
-                        )
-                    actual = self._canonical_project_path(reported.strip())
-                    if actual != self._expected_project_path:
-                        raise _CandidateIdentityError(
-                            f"Refusing Unity on port {port}: expected project "
-                            f"{self._expected_project_path!r}, received {actual!r}"
-                        )
-                # T19: extract stable project identity (cloudProjectId or sha256[:12])
-                project_id = hello.get("projectId", "")
-                if isinstance(project_id, str) and project_id.strip():
-                    self._project_id = project_id.strip()
-                # MCP-SESS-024: capture/enforce editor identity on every handshake
-                _pid = project_id.strip() if isinstance(project_id, str) else ""
-                _raw_path = hello.get("projectPath", "") or ""
-                _canon = (
-                    self._canonical_project_path(_raw_path.strip())
-                    if _raw_path.strip() else ""
-                )
-                self._capture_or_check_identity(project_id=_pid, project_path=_canon)
-                await self._check_version_from_hello(hello)
-            else:
+            if not await self._dispatch_client_hello_response(hello, reload_context="reconnect"):
                 # Old C#: hello returned ok:false — fallback to project check + get_version.
                 # Connection is already proven live (we got a response), skip extra ping.
                 await self._verify_candidate_project(reader, writer, port)
@@ -779,6 +869,25 @@ class UnityBridge(HeartbeatMixin):
             await self._close_candidate(writer)
             raise
 
+    def _schedule_server_update(self, info) -> None:
+        """Schedule a background maybe_update check for a newly parsed plugin
+        version, passing the canonical project path (editor identity, captured
+        before either version-check call site runs — MCP-SESS-024) so a
+        per-project pin can block self-reinstall (C1 #12). DRY for both
+        _check_version_from_hello (modern hello) and _fetch_and_check_version
+        (legacy get_version fallback, which may have no identity yet)."""
+        if not info.plugin:
+            return
+        from .server_updater import _updater
+        identity = self._editor_identity
+        project_path = (
+            identity.project_path if identity and identity.project_path
+            else self._expected_project_path
+        )
+        task = asyncio.create_task(_updater.maybe_update(info.plugin, project_path=project_path))
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+
     async def _check_version_from_hello(self, hello: dict) -> None:
         """Parse version from a client_hello response; non-fatal unless proto mismatch."""
         version_str = hello.get("version", "")
@@ -787,11 +896,7 @@ class UnityBridge(HeartbeatMixin):
         try:
             info = parse_version_string(version_str)
             check_protocol_version(PROTOCOL_VERSION, info.proto)
-            if info.plugin:
-                from .server_updater import _updater
-                task = asyncio.create_task(_updater.maybe_update(info.plugin))
-                _background_tasks.add(task)
-                task.add_done_callback(_background_tasks.discard)
+            self._schedule_server_update(info)
         except ConnectionError:
             raise
         except Exception as exc:
@@ -813,11 +918,7 @@ class UnityBridge(HeartbeatMixin):
             if version_response.get("ok") and version_response.get("data"):
                 info = parse_version_string(version_response["data"])
                 check_protocol_version(PROTOCOL_VERSION, info.proto)
-                if info.plugin:
-                    from .server_updater import _updater
-                    task = asyncio.create_task(_updater.maybe_update(info.plugin))
-                    _background_tasks.add(task)
-                    task.add_done_callback(_background_tasks.discard)
+                self._schedule_server_update(info)
         except ConnectionError:
             raise
         except Exception as exc:
@@ -860,6 +961,30 @@ class UnityBridge(HeartbeatMixin):
         except Exception:
             return None
 
+    def _current_port_for_pid(self, pid: int) -> int | None:
+        try:
+            from unity_mcp.lockfile import read_port_for_pid
+            return read_port_for_pid(pid, project_path=self._expected_project_path)
+        except Exception:
+            return None
+
+    def peek_port_drift_notice(self) -> str | None:
+        """Non-destructive twin of pop_port_drift_notice(). Lets a caller
+        check whether a notice is pending before deciding it's safe to
+        consume (e.g. skipping a protocol-record or JSON response)."""
+        drift = self._port_drift
+        if drift is None:
+            return None
+        old_port, new_port = drift
+        return f"port changed {old_port}->{new_port}"
+
+    def pop_port_drift_notice(self) -> str | None:
+        """Consume-once notice for a same-pid port rebind adopted by the
+        fast path in _reconnect(). Returns None once already consumed."""
+        notice = self.peek_port_drift_notice()
+        self._port_drift = None
+        return notice
+
     async def _reconnect(self, fire_callbacks: bool = True):
         await self.close()
         pinned_is_live = (
@@ -875,6 +1000,14 @@ class UnityBridge(HeartbeatMixin):
                 self._pinned_port = None
                 self._pinned_pid = None
                 pinned_is_live = False
+        if pinned_is_live:
+            # ARC-9 T2: my own pid may have rebound to a new port (bind
+            # conflict fallback) without dying. Reading its port file
+            # directly beats waiting for a doomed connect + backoff cycle.
+            current_port = self._current_port_for_pid(self._pinned_pid)
+            if current_port is not None and current_port != self._pinned_port:
+                self._port_drift = (self._pinned_port, current_port)
+                self._pinned_port = current_port
         candidate_port = self._pinned_port if pinned_is_live else self._discover_port()
         if candidate_port is None:
             candidate_port = self._port
@@ -939,6 +1072,21 @@ class UnityBridge(HeartbeatMixin):
         if self._state == BridgeState.FAILED:
             return "tcp:failed"
         return "tcp:reconnecting"
+
+    @property
+    def last_contact_age_s(self) -> float | None:
+        """Seconds since the last successful contact with Unity (heartbeat pong
+        or a completed send() round-trip). None until either has ever occurred
+        — ARC-7 T2, diagnostic input for mcp_status (T3)."""
+        if self._last_contact_at is None:
+            return None
+        return time.monotonic() - self._last_contact_at
+
+    @property
+    def pending_queue_depth(self) -> int:
+        """Number of commands queued for the serial send consumer, not yet
+        dispatched to Unity — a plain getter over the existing queue (ARC-7 T2)."""
+        return self._send_queue.qsize()
 
     async def close(self):
         if asyncio.current_task() is not self._heartbeat_task:

@@ -15,8 +15,8 @@ if sys.platform == "win32":
 import fcntl  # noqa: E402 — must be after the win32 guard
 
 from unity_mcp.lockfile import (
-    acquire_lock, release_lock, read_pid_from_port_file, is_pid_alive,
-    _lock_nb, _unlock,
+    acquire_lock, release_lock, read_pid_from_port_file, read_port_for_pid,
+    is_pid_alive, _lock_nb, _unlock,
 )
 
 
@@ -245,6 +245,74 @@ def test_read_pid_from_port_file_ignores_blank_project_path(tmp_path):
          patch("unity_mcp.lockfile.is_pid_alive", return_value=True), \
          patch("os.getcwd", return_value=str(expected_project)):
         assert read_pid_from_port_file(9600, project_path=expected_project) is None
+
+
+# ---------------------------------------------------------------------------
+# read_port_for_pid
+# ---------------------------------------------------------------------------
+
+def test_read_port_for_pid_returns_current_port(tmp_path):
+    """pid->port mirror of read_pid_from_port_file: reads {pid}.port by filename."""
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid = 12345
+    (ports_dir / f"{pid}.port").write_text(
+        "9501\n/path/to/project\nProj", encoding="utf-8"
+    )
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_port_for_pid(pid) == 9501
+
+
+def test_read_port_for_pid_matches_by_pid_not_any_port(tmp_path):
+    """Keyed by the pid's own filename — a stale port on another pid's file
+    must never leak into this pid's result."""
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid, other_pid = 12345, 67890
+    (ports_dir / f"{pid}.port").write_text(
+        "9501\n/path/to/project\nProj", encoding="utf-8"
+    )
+    (ports_dir / f"{other_pid}.port").write_text(
+        "9500\n/path/to/other\nOther", encoding="utf-8"
+    )
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_port_for_pid(pid) == 9501
+
+
+def test_read_port_for_pid_dead_pid_returns_none(tmp_path):
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid = 12345
+    (ports_dir / f"{pid}.port").write_text(
+        "9501\n/path/to/project\nProj", encoding="utf-8"
+    )
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=False):
+        assert read_port_for_pid(pid) is None
+
+
+def test_read_port_for_pid_no_file_returns_none(tmp_path):
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_port_for_pid(12345) is None
+
+
+def test_read_port_for_pid_project_path_mismatch_returns_none(tmp_path):
+    """Mirrors test_read_pid_from_port_file_ignores_blank_project_path: when
+    project_path is supplied, a blank/mismatched line 2 must never match."""
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    expected_project = tmp_path / "ExpectedProject"
+    expected_project.mkdir()
+    pid = 12345
+    (ports_dir / f"{pid}.port").write_text("9501\n\nProj\n", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_port_for_pid(pid, project_path=expected_project) is None
 
 
 # ---------------------------------------------------------------------------
@@ -511,18 +579,62 @@ def test_cleanup_stale_port_files_cleans_chat_port(tmp_path):
 
 
 def test_cleanup_stale_port_files_tcp_probe_dead_port(tmp_path):
-    """PID alive but port not listening → file deleted (AssetImportWorker case)."""
-    from unity_mcp.lockfile import cleanup_stale_port_files
+    """PID alive but port not listening → file deleted only once the probe
+    failure PERSISTS across a full sweep interval (C1 #11). A single failed
+    probe (first sweep) must be tolerated — Unity's own same-port bind-retry
+    loop can leave the port transiently unbound — so cleanup on the first
+    call must be a no-op, and only the second call (now_fn advanced by
+    PROBE_GRACE_S) actually deletes the file."""
+    from unity_mcp.lockfile import PROBE_GRACE_S, cleanup_stale_port_files
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     f = ports_dir / "11111.port"
     f.write_text("9511\n/path\n", encoding="utf-8")
+    clock = [1_000.0]
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=True), \
          patch("unity_mcp.lockfile._tcp_probe", return_value=False):
-        cleaned = cleanup_stale_port_files(tcp_probe=True)
-    assert cleaned == 1
+        first = cleanup_stale_port_files(tcp_probe=True, now_fn=lambda: clock[0])
+        assert first == 0, "a single probe failure must not delete a live-PID file"
+        assert f.exists()
+
+        clock[0] += PROBE_GRACE_S
+        second = cleanup_stale_port_files(tcp_probe=True, now_fn=lambda: clock[0])
+    assert second == 1
     assert not f.exists()
+
+
+def test_cleanup_stale_port_files_tcp_probe_recovery_resets_grace(tmp_path):
+    """A probe that recovers between sweeps clears the grace-tracking entry —
+    a later failure must start a fresh grace window rather than reusing the
+    stale first-failure timestamp (which would otherwise delete on the very
+    next failed sweep)."""
+    from unity_mcp.lockfile import PROBE_GRACE_S, cleanup_stale_port_files
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    f = ports_dir / "11115.port"
+    f.write_text("9515\n/path\n", encoding="utf-8")
+    clock = [2_000.0]
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        with patch("unity_mcp.lockfile._tcp_probe", return_value=False):
+            cleaned = cleanup_stale_port_files(tcp_probe=True, now_fn=lambda: clock[0])
+        assert cleaned == 0
+        assert f.exists()
+
+        clock[0] += 1.0  # probe recovers well inside the grace window
+        with patch("unity_mcp.lockfile._tcp_probe", return_value=True):
+            cleaned = cleanup_stale_port_files(tcp_probe=True, now_fn=lambda: clock[0])
+        assert cleaned == 0
+        assert f.exists()
+
+        # PROBE_GRACE_S has now elapsed since the ORIGINAL failure, but the
+        # recovery must have reset it -- this new failure needs its own grace.
+        clock[0] += PROBE_GRACE_S
+        with patch("unity_mcp.lockfile._tcp_probe", return_value=False):
+            cleaned = cleanup_stale_port_files(tcp_probe=True, now_fn=lambda: clock[0])
+        assert cleaned == 0, "reset must not be short-circuited by the original timestamp"
+        assert f.exists()
 
 
 def test_cleanup_stale_port_files_tcp_probe_live_port_kept(tmp_path):

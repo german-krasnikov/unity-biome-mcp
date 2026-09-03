@@ -1,14 +1,31 @@
 using System;
 using System.Collections.Concurrent;
+using System.Threading;
+using UnityEditor;
 
 namespace UnityMCP.Editor
 {
     // Marshals actions queued from ThreadPool (post-ConfigureAwait(false) continuations
     // in StartAsync / ClientConnectionHandler) back onto the Unity main thread. Drained
     // once per EditorApplication.update tick. Extracted from MCPServer (Phase 2, M1).
+    //
+    // Contract: Enqueue from any thread; the action runs on the next Editor update tick
+    // on the main thread. Enqueue from inside a running action lands on the tick after
+    // that one — Drain snapshots the queue count before it starts dequeuing, so it never
+    // drains its own re-entrant additions in the same pass. A future second entry point
+    // into Drain (e.g. a SynchronizationContext pump) needs a reentrancy guard — one
+    // already exists below. An idle tick costs a single IsEmpty check.
+    [InitializeOnLoad]
     internal static class MainThreadDispatcher
     {
         private static readonly ConcurrentQueue<Action> _queue = new ConcurrentQueue<Action>();
+        private static int _draining;
+
+        static MainThreadDispatcher()
+        {
+            // cctor runs once per domain; domain reload re-runs it.
+            EditorApplication.update += Drain;
+        }
 
         internal static void Enqueue(Action action) => Enqueue(_queue, action);
 
@@ -28,16 +45,26 @@ namespace UnityMCP.Editor
         {
             if (queue == null) throw new ArgumentNullException(nameof(queue));
             if (shuttingDown) return;
-            while (queue.TryDequeue(out var action))
+            if (queue.IsEmpty) return;
+            if (Interlocked.CompareExchange(ref _draining, 1, 0) != 0) return;
+            try
             {
-                try
+                int n = queue.Count;
+                for (int i = 0; i < n && queue.TryDequeue(out var action); i++)
                 {
-                    action();
+                    try
+                    {
+                        action();
+                    }
+                    catch (Exception e)
+                    {
+                        UnityEngine.Debug.LogException(e);
+                    }
                 }
-                catch (Exception e)
-                {
-                    UnityEngine.Debug.LogException(e);
-                }
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _draining, 0);
             }
         }
 

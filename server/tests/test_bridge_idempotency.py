@@ -137,6 +137,71 @@ async def test_retry_includes_retry_op_id():
     )
 
 
+async def test_retry_hint_promotes_op_id():
+    """The in-band Unity 'retry' hint path must also promote op_id to
+    retry_op_id on resend -- Unity already dispatched the command before
+    replying with the hint, exactly like the exception-path SENT retry.
+
+    Without this, C# DedupRegistry has no retry_op_id to look up on the
+    resend and cannot suppress re-execution, so a mutation (e.g. create_object)
+    may run twice.
+
+    Red: the hint branch did `attempt += 1; continue` without rebuilding
+    payload. (DEV-59/P-322)
+    """
+    bridge = UnityBridge(
+        port=9999,
+        is_retry_safe=lambda cmd: cmd == "get_hierarchy",
+    )
+    writer = MagicMock()
+    writer.is_closing.return_value = False
+    writer.drain = AsyncMock()
+    bridge._writer = writer
+    bridge._reader = MagicMock()
+    bridge._state = BridgeState.CONNECTED
+
+    sent_raws: list[bytes] = []
+
+    def capture_write(_writer, data):
+        sent_raws.append(data)
+
+    read_results = [
+        {"id": "0001", "ok": False, "err": "Unity is compiling", "retry": 10},
+        {"id": "0001", "ok": True, "data": "ok"},
+    ]
+
+    async def mock_read_response():
+        return read_results.pop(0)
+
+    payload = json.dumps({
+        "id": "0001", "cmd": "get_hierarchy", "args": {},
+        "op_id": "hint-op",
+    }).encode("utf-8")
+
+    with (
+        patch.object(bridge_module, "frame_write", side_effect=capture_write),
+        patch.object(bridge, "_read_response", side_effect=mock_read_response),
+        patch.object(bridge, "close", new_callable=AsyncMock),
+        patch.object(bridge_module.asyncio, "sleep", new_callable=AsyncMock),
+    ):
+        result = await bridge._send_with_retry(
+            "get_hierarchy", payload, "0001", 1.0,
+            time.monotonic() + 60, "hint-op",
+        )
+
+    assert result["ok"] is True
+    assert len(sent_raws) == 2
+    first = json.loads(sent_raws[0].decode("utf-8"))
+    second = json.loads(sent_raws[1].decode("utf-8"))
+
+    # Double-red: the first (original) frame must never carry retry_op_id.
+    assert "retry_op_id" not in first, f"First payload must not carry retry_op_id: {first}"
+    assert "retry_op_id" in second, f"Hint-retry payload missing retry_op_id: {second}"
+    assert second["retry_op_id"] == first["op_id"], (
+        f"retry_op_id {second.get('retry_op_id')!r} != original op_id {first['op_id']!r}"
+    )
+
+
 async def test_unsent_unsafe_command_may_reconnect_then_write_exactly_once():
     """A reconnect failure before writer acceptance cannot duplicate a mutation."""
     bridge = _make_bridge()  # default predicate is fail-closed/unsafe

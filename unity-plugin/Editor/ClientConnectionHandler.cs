@@ -17,6 +17,8 @@ namespace UnityMCP.Editor
     internal static class ClientConnectionHandler
     {
         private const int MaxMessageSize = 10_000_000;
+        // Rate-limit window for the unrecognized-desync warning path (ARC-15 T2).
+        private const int DesyncWarnWindowSeconds = 30;
 
         internal static async Task RunAcceptLoop(TcpListener listener, ClientSlot slot, string label,
             CancellationTokenSource masterCts, CancellationToken token)
@@ -103,6 +105,109 @@ namespace UnityMCP.Editor
             cmd != "ping" && cmd != "get_version" && cmd != "status" &&
             cmd != "get_enabled_tools" && cmd != "client_hello";
 
+        // ARC-15 T1: exact 4-byte ASCII prefixes of the HTTP methods an AV/EDR scanner or
+        // health-checker probe most commonly opens with. Verified (ARC-15-http-garbage-detect.md
+        // §1) as BE-uint32 values that all comfortably exceed MaxMessageSize, so this classifier
+        // is only ever consulted from the existing overflow branch — never a legitimate frame.
+        private static readonly byte[][] KnownHttpProbePrefixes =
+        {
+            Encoding.ASCII.GetBytes("GET "),
+            Encoding.ASCII.GetBytes("POST"),
+            Encoding.ASCII.GetBytes("HEAD"),
+            Encoding.ASCII.GetBytes("PUT "),
+            Encoding.ASCII.GetBytes("DELE"), // (TE)
+            Encoding.ASCII.GetBytes("OPTI"), // (ONS)
+            Encoding.ASCII.GetBytes("HTTP"), // (/1.x response)
+        };
+
+        private const byte TlsHandshakeContentType = 0x16;
+
+        // internal so tests can classify a raw 4-byte header without opening a socket.
+        // Pure/static, no Unity API: called only after the existing length-prefix overflow
+        // check reinterprets the header bytes as ASCII/TLS — the header itself is never mutated.
+        internal static bool IsKnownForeignProtocolProbe(byte[] header)
+        {
+            if (header == null || header.Length < 4) return false;
+            if (header[0] == TlsHandshakeContentType) return true;
+            foreach (var prefix in KnownHttpProbePrefixes)
+            {
+                if (header[0] == prefix[0] && header[1] == prefix[1] &&
+                    header[2] == prefix[2] && header[3] == prefix[3])
+                    return true;
+            }
+            return false;
+        }
+
+        // ARC-15 T2: rate limiter for the *unrecognized* desync-warning path only — a probe
+        // classified by IsKnownForeignProtocolProbe never reaches this (routes to Debug.Log
+        // instead). At most one LogWarning per window; calls inside the window are silently
+        // counted and folded into the next window-opening call's suppressed count. Pure
+        // function of an injected nowTicks — tests never sleep the real window.
+        // internal so tests can drive it without waiting on a real clock; nested here since
+        // ClientConnectionHandler already co-locates several such single-purpose helpers.
+        internal sealed class DesyncWarnLimiter
+        {
+            private readonly long _windowTicks;
+            private readonly object _lock = new object();
+            private long _windowStartTicks;
+            private bool _hasLogged;
+            private int _suppressedCount;
+
+            internal DesyncWarnLimiter(long windowTicks) => _windowTicks = windowTicks;
+
+            // Returns shouldLog=true at most once per window; suppressed is the exact count of
+            // calls silently dropped since the last logged call, folded into the call that
+            // (re)opens the next window.
+            internal (bool shouldLog, int suppressed) Record(long nowTicks)
+            {
+                lock (_lock)
+                {
+                    if (!_hasLogged || nowTicks - _windowStartTicks >= _windowTicks)
+                    {
+                        var suppressed = _hasLogged ? _suppressedCount : 0;
+                        _windowStartTicks = nowTicks;
+                        _hasLogged = true;
+                        _suppressedCount = 0;
+                        return (true, suppressed);
+                    }
+
+                    _suppressedCount++;
+                    return (false, 0);
+                }
+            }
+        }
+
+        // ARC-15 T3: single process-wide limiter instance shared by every connection —
+        // intentional (ARC-15-http-garbage-detect.md §6): one cap on total warning volume,
+        // not a per-connection or per-port limiter. DesyncWarnLimiter.Record is lock-guarded
+        // so concurrent ThreadPool handler threads share it safely. Not readonly: see
+        // ResetDesyncLimiterForTests below.
+        private static DesyncWarnLimiter _desyncLimiter =
+            new DesyncWarnLimiter(TimeSpan.FromSeconds(DesyncWarnWindowSeconds).Ticks);
+
+#if UNITY_INCLUDE_TESTS
+        // Test-only seam (mirrors MCPServer.ResetDomainStateForTests). Re-creates the shared
+        // limiter so repeated full-suite EditMode runs in the same Editor domain don't
+        // inherit real-clock suppression state — a real 30s window would otherwise make
+        // "first call after reset logs" nondeterministic across runs less than 30s apart.
+        internal static void ResetDesyncLimiterForTests() =>
+            _desyncLimiter = new DesyncWarnLimiter(TimeSpan.FromSeconds(DesyncWarnWindowSeconds).Ticks);
+#endif
+
+        // Renders a 4-byte header as printable ASCII (non-printable -> '.') for the quiet
+        // probe log, so a human (and the loopback test) can see e.g. "GET " without
+        // decoding hex. Never throws — same defensive shape as IsKnownForeignProtocolProbe.
+        private static string HeaderAsciiPreview(byte[] header)
+        {
+            var chars = new char[header.Length];
+            for (int i = 0; i < header.Length; i++)
+            {
+                var b = header[i];
+                chars[i] = (b >= 0x20 && b < 0x7F) ? (char)b : '.';
+            }
+            return new string(chars);
+        }
+
         // internal so tests can verify the cross-language response format without TCP.
         // helloVersion:2 is the Python discriminant: present → fast-path (1 RTT), absent → 3-RTT fallback.
         // T19: projectId added (cloudProjectId or sha256[:12]) — stable across path moves.
@@ -164,7 +269,26 @@ namespace UnityMCP.Editor
                         var length = BinaryPrimitives.ReadUInt32BigEndian(header);
                         if (length > MaxMessageSize)
                         {
-                            var len = length; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Protocol desync: length prefix {len} bytes (0x{len:X8}) exceeds {MaxMessageSize} — reconnecting"));
+                            var len = length;
+                            if (IsKnownForeignProtocolProbe(header))
+                            {
+                                // ARC-15 T1/T3: AV/EDR scanners and health-checkers HTTP/TLS-probe
+                                // the raw port constantly — informational only, never Warning, so
+                                // it drops out of ASSERT_CONSOLE_CLEAN.
+                                var preview = HeaderAsciiPreview(header);
+                                MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} Foreign protocol probe (\"{preview}\" 0x{len:X8}) — closing quietly"));
+                            }
+                            else
+                            {
+                                // Honest desync: rate-limited so a stuck/misbehaving peer can't
+                                // spam the console (ARC-15 T2/T3).
+                                var (shouldLog, suppressed) = _desyncLimiter.Record(DateTime.UtcNow.Ticks);
+                                if (shouldLog)
+                                {
+                                    var suffix = suppressed > 0 ? $" (+{suppressed} suppressed)" : "";
+                                    MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Protocol desync: length prefix {len} bytes (0x{len:X8}) exceeds {MaxMessageSize} — reconnecting{suffix}"));
+                                }
+                            }
                             break;
                         }
 

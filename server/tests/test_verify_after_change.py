@@ -6,6 +6,7 @@ import json
 import pytest
 from unittest.mock import AsyncMock, patch
 
+from unity_mcp import editor_log
 import unity_mcp.tools.verify as _v
 
 # Patch targets (verify.py uses module references, not function references)
@@ -30,6 +31,12 @@ def test_is_compile_clean_variants():
     assert _is_compile_clean("No compilation errors.")  # period suffix
     assert not _is_compile_clean("error CS0234: bad type")
     assert not _is_compile_clean("1 compilation error(s):")
+
+
+def test_is_compile_clean_rejects_unreachable_sentinel():
+    # ARC-6 T5: a dead-Unity UNITY_UNREACHABLE sentinel must never be
+    # mistaken for "compile clean" by the mandatory verify gate.
+    assert not _v._is_compile_clean(editor_log.UNITY_UNREACHABLE)
 
 
 def _run_snapshot(
@@ -142,6 +149,42 @@ def test_playtest_suite_gate_accepts_nonempty_complete_clean_result():
     )
 
 
+def test_is_suite_pass_matches_real_producer_output():
+    # DEV-52: runtime.py's _format_suite_report always appends
+    # " terminal:true play_stopped:<bool>" (and optionally " timed_out:true")
+    # to the first line. The gate must accept this real shape.
+    assert _v._is_suite_pass(
+        "SUITE: 3/3 passed (12.3s) terminal:true play_stopped:true"
+    )
+
+
+def test_is_suite_pass_rejects_corrupted_first_line_with_flags():
+    # Double-red guard: a fix that just accepts "anything with flags" is
+    # still wrong — the ratio/word structure of the first line still matters.
+    assert not _v._is_suite_pass(
+        "SUITE: three/3 passed (12.3s) terminal:true play_stopped:true"
+    )
+
+
+def test_is_suite_pass_rejects_timed_out_suite_even_if_ratio_full():
+    # DEV-52b: runtime.py's _format_suite_report appends " timed_out:true"
+    # on timeout, even when every already-run file passed (passed == total
+    # of the files that got to run before the deadline). The old keyword
+    # check `\bTIMEOUT\b` never matches "timed_out" (different word), so
+    # the gate falsely PASSed a suite that actually timed out.
+    assert not _v._is_suite_pass(
+        "SUITE: 3/3 passed (12.3s) terminal:true play_stopped:true timed_out:true"
+    )
+
+
+def test_is_suite_pass_accepts_same_result_without_timed_out():
+    # Double-red guard: the fix must not start rejecting clean, non-timed-out
+    # results that otherwise look identical.
+    assert _v._is_suite_pass(
+        "SUITE: 3/3 passed (12.3s) terminal:true play_stopped:true"
+    )
+
+
 @pytest.mark.parametrize("field", [
     "is_terminal",
     "execution_finished",
@@ -189,6 +232,28 @@ async def test_verify_all_pass():
 
 
 @pytest.mark.asyncio
+async def test_verify_all_pass_with_real_producer_suite_format():
+    # DEV-52 symptom: run_playtest_suite's real output always carries the
+    # " terminal:true play_stopped:true" suffix on its first line. Before the
+    # fix, _is_suite_pass's re.fullmatch never matched this shape, so the
+    # mandatory playtest-suite gate always FAILed even on a clean suite.
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value="compile clean (5s)")),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_GET_CONSOLE_SINCE, AsyncMock(return_value="")),
+        patch(_RUN_TESTS_WAIT, AsyncMock(return_value=_run_snapshot())),
+        patch(_RUN_SUITE, AsyncMock(
+            return_value="SUITE: 3/3 passed (12.3s) terminal:true play_stopped:true"
+        )),
+    ):
+        result = await _v.verify_after_change(
+            mark_id=MARK, run_tests_mode="EditMode", playtests="Tests/*.playtest"
+        )
+    assert result.startswith("PASS("), f"Expected PASS(N/5): prefix, got: {result!r}"
+    assert "playtests(3/3)" in result
+
+
+@pytest.mark.asyncio
 async def test_verify_compile_errors_fail():
     with (
         patch(_AWAIT_COMPILE, AsyncMock(return_value="error CS0246: type not found")),
@@ -198,6 +263,20 @@ async def test_verify_compile_errors_fail():
         result = await _v.verify_after_change(run_tests_mode="EditMode")
     assert result.startswith("FAIL: await_compile")
     assert "CS0246" in result
+
+
+@pytest.mark.asyncio
+async def test_verify_compile_unreachable_sentinel_fails_gate():
+    # ARC-6 T5 integration proof: a dead Unity connection must FAIL the
+    # mandatory gate, never PASS as if Unity were clean.
+    with (
+        patch(_AWAIT_COMPILE, AsyncMock(return_value=editor_log.UNITY_UNREACHABLE)),
+        patch(_GET_ERRORS, AsyncMock(return_value="")),
+        patch(_RUN_TESTS_WAIT, AsyncMock(return_value="should not be called")),
+    ):
+        result = await _v.verify_after_change(run_tests_mode="EditMode")
+    assert result.startswith("FAIL: await_compile")
+    assert editor_log.UNITY_UNREACHABLE in result
 
 
 @pytest.mark.asyncio

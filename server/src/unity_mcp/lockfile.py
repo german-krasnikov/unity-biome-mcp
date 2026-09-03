@@ -5,6 +5,7 @@ import logging
 import os
 import socket
 import sys
+import time
 from pathlib import Path
 
 from .constants import DEFAULT_PORT
@@ -277,6 +278,70 @@ def read_pid_from_port_file(
     return candidates[0][1]
 
 
+def read_port_for_pid(
+    pid: int,
+    project_path: str | Path | None = None,
+) -> int | None:
+    """Read the current port for a given PID directly from its port file.
+
+    pid->port mirror of read_pid_from_port_file's port->pid lookup. Reads
+    {pid}.port by filename (checks both ~/.unity-biome-mcp/ports and legacy
+    ~/.unity-mcp/ports via iter_port_files), so a same-process port rebind
+    (Unity falling back to a new port after a bind conflict) is visible the
+    instant SaveRuntimePorts rewrites the file — no failed TCP connect
+    needed to notice it. Returns None if the pid is dead, no matching file
+    exists, the port field is not an integer, or project_path is supplied
+    but doesn't match line 2 (same semantics as read_pid_from_port_file).
+    """
+    if not is_pid_alive(pid):
+        return None
+    expected_project = (
+        _canonical_project_path(project_path) if project_path is not None else None
+    )
+    for f in _iter_port_files(f"{pid}.port", _ports_dir()):
+        try:
+            lines = _read_port_file_lines(f, max_lines=2)
+            if len(lines) < 1:
+                return None
+            port = int(lines[0])
+        except (ValueError, IndexError, OSError):
+            return None
+        if expected_project is not None:
+            if len(lines) < 2:
+                return None
+            project_line = lines[1].strip()
+            if not project_line or _canonical_project_path(project_line) != expected_project:
+                return None
+        return port
+    return None
+
+
+# Cadence for the idle-heartbeat stale-port sweep (bridge_heartbeat throttles
+# _maybe_sweep_stale_ports to at most once per this interval), and therefore
+# the minimum real-world spacing between two tcp_probe=True calls from that
+# caller. Defined here rather than in bridge_heartbeat.py (which imports
+# cleanup_stale_port_files from this module) so PROBE_GRACE_S below can
+# derive from it without an import cycle.
+PORT_SWEEP_INTERVAL_S: float = 30.0
+
+# C1 #11: a single failed tcp_probe must NOT delete a live-PID port file.
+# Unity's own same-port bind-retry loop can leave the port briefly unbound
+# while retrying after a bind conflict. Worst case (MCPServer.cs, Windows):
+# 6 same-port attempts, linear backoff PortResolver.BackoffDelayMs(i) =
+# 600ms * (i + 1) for i in 0..5:
+#   sum_{i=0}^{5} 600*(i+1) = 600*(1+2+3+4+5+6) = 600*21 = 12600ms = 12.6s
+# PROBE_GRACE_S must clear that window with margin. Reusing the sweep cadence
+# means "failure persisted" reads as "still failing on the NEXT sweep, ~30s
+# later" instead of inventing a second magic number.
+PROBE_GRACE_S: float = PORT_SWEEP_INTERVAL_S  # 30.0s >> 12.6s worst case
+
+# port-file-path (str) -> monotonic time of its first consecutive probe
+# failure. Module-level because cleanup_stale_port_files is invoked
+# repeatedly (once per idle heartbeat tick) against the same files, so the
+# grace window must survive across calls.
+_tcp_probe_fail_since: dict[str, float] = {}
+
+
 def _tcp_probe(port: int, timeout: float = 0.2) -> bool:
     """Return True if TCP port accepts connections."""
     try:
@@ -286,32 +351,57 @@ def _tcp_probe(port: int, timeout: float = 0.2) -> bool:
         return False
 
 
-def cleanup_stale_port_files(tcp_probe: bool = False) -> int:
+def cleanup_stale_port_files(tcp_probe: bool = False, now_fn=time.monotonic) -> int:
     """Delete port files for dead PIDs. Returns count cleaned.
 
-    tcp_probe=True: also removes files where PID is alive but port is not listening
-    (catches AssetImportWorker processes that hold a PID but lost the TCP server).
+    tcp_probe=True: also removes files where PID is alive but port is not
+    listening (catches AssetImportWorker processes that hold a PID but lost
+    the TCP server). A live-PID file is only deleted once its probe failure
+    has PERSISTED for at least PROBE_GRACE_S: a single failed probe can be a
+    sibling project's Unity mid-domain-reload or mid-bind-retry rather than a
+    truly dead server (see PROBE_GRACE_S for the bind-retry-window
+    derivation). A dead PID is still removed immediately, no grace applied.
+    A single one-shot call (e.g. the startup sweep in server.py:~524) can
+    therefore never delete a live PID's file on its own -- only a repeating
+    caller, such as the idle heartbeat, persists across enough calls to
+    outlast PROBE_GRACE_S and remove it.
+    now_fn: injectable monotonic clock (default time.monotonic) so grace-period
+    tests can advance time deterministically instead of monkeypatching the
+    global time module.
     """
     ports_dir = _ports_dir()
     if not ports_dir.exists():
         return 0
+    if tcp_probe:
+        # Entries for files removed by another path (or a previous sweep)
+        # must not accumulate forever.
+        for key in [k for k in _tcp_probe_fail_since if not Path(k).exists()]:
+            _tcp_probe_fail_since.pop(key, None)
+    now = now_fn()
     cleaned = 0
     for pattern in ("*.port", "*.chat-port", "*.reload-port"):
         for f in ports_dir.glob(pattern):
+            key = str(f)
             try:
                 pid = int(f.stem)
                 if not is_pid_alive(pid):
                     f.unlink()
                     cleaned += 1
+                    _tcp_probe_fail_since.pop(key, None)
                     continue
                 if tcp_probe:
                     lines = _read_port_file_lines(f, max_lines=1)
                     if not lines:
                         continue
                     port = int(lines[0])
-                    if not _tcp_probe(port):
+                    if _tcp_probe(port):
+                        _tcp_probe_fail_since.pop(key, None)
+                        continue
+                    first_fail = _tcp_probe_fail_since.setdefault(key, now)
+                    if now - first_fail >= PROBE_GRACE_S:
                         f.unlink()
                         cleaned += 1
+                        _tcp_probe_fail_since.pop(key, None)
             except (ValueError, OSError):
                 pass
     return cleaned

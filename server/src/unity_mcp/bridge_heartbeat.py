@@ -7,6 +7,7 @@ import threading
 import time
 
 from unity_mcp.bridge_socket import DomainReloadError, frame_write
+from unity_mcp.lockfile import PORT_SWEEP_INTERVAL_S, cleanup_stale_port_files
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,21 @@ BACKOFF_MAX_S: float = 60.0
 # Fast reconnect backoff for expected domain reloads (PlayMode enter/exit).
 # Keep separate from BACKOFF_MIN_S so unexpected disconnects still back off at 5s.
 RELOAD_BACKOFF_S: float = 1.0
+# ARC-7 T1: minimum interval between stale-port sweeps from the idle heartbeat
+# branch. Mirrors the reconnect-callback debounce precedent (server.py ~591).
+# PORT_SWEEP_INTERVAL_S itself lives in lockfile.py (imported above) — it also
+# derives PROBE_GRACE_S from this value, and one source avoids an import cycle.
+# DEV-54: orphan-path recheck cadence. _check_orphan() is synchronous, so
+# without a yield point here the orphan branch of _heartbeat_loop's `while
+# True` never suspends — a busy-loop that starves every other coroutine
+# (including in-flight MCP request handling) until the parent-death grace
+# period expires or the process is reparented back.
+ORPHAN_CHECK_INTERVAL_S: float = 1.0
+# _tick_disconnected per-branch sleep durations (C1 #11 follow-up: name the
+# literals that used to be bare `wait = 5.0` / `wait = 2.0`). Behavior
+# unchanged — same values, now named.
+BUSY_TICK_S: float = 5.0  # Unity compiling/reloading — poll gently while it works
+IDLE_TICK_S: float = 2.0  # fully idle — also the cadence gate for _maybe_sweep_stale_ports
 
 _hard_exit_scheduled: bool = False
 
@@ -87,6 +103,7 @@ class HeartbeatMixin:
         # Never raise SystemExit/BaseException from a background task — it kills
         # the anyio task group, closing stdio → -32000 for any in-flight MCP call.
         if self._check_orphan():
+            await asyncio.sleep(ORPHAN_CHECK_INTERVAL_S)
             return
         if not self.connected:
             await self._tick_disconnected()
@@ -173,9 +190,10 @@ class HeartbeatMixin:
             self._reconnect_backoff = min(self._reconnect_backoff, RELOAD_BACKOFF_S)
             wait = RELOAD_BACKOFF_S
         elif busy:
-            wait = 5.0
+            wait = BUSY_TICK_S
         else:
-            wait = 2.0
+            wait = IDLE_TICK_S
+            self._maybe_sweep_stale_ports()
         await asyncio.sleep(wait)
 
         if self._check_hard_deadline():
@@ -187,6 +205,22 @@ class HeartbeatMixin:
             self._startup_grace_expired = True
             return
         await self._try_reconnect()
+
+    def _maybe_sweep_stale_ports(self) -> None:
+        """Periodic ghost-port cleanup — only reached from the idle disconnected branch.
+
+        Reuses cleanup_stale_port_files(tcp_probe=True) unchanged (PID-check first,
+        cheap; TCP-probe second, only for PID-alive entries). Throttled by
+        PORT_SWEEP_INTERVAL_S so every idle tick doesn't re-scan the ports dir.
+        """
+        now = time.monotonic()
+        # getattr default: HeartbeatMixin is also exercised via bare test stubs
+        # that don't carry every UnityBridge field (not in the documented
+        # contract above) — mirrors _hard_deadline_started_at's own guard.
+        if now - getattr(self, "_last_port_sweep_at", 0.0) < PORT_SWEEP_INTERVAL_S:
+            return
+        self._last_port_sweep_at = now
+        cleanup_stale_port_files(tcp_probe=True)
 
     async def _handle_ping_timeout(self) -> None:
         """Handle TimeoutError from ping: apply stall counter, close only when dead or stalled."""
@@ -270,3 +304,4 @@ class HeartbeatMixin:
             on_ta = getattr(self, "_on_transport_activity", None)
             if on_ta is not None:
                 on_ta()
+            self._last_contact_at = time.monotonic()  # ARC-7 T2: confirmed pong

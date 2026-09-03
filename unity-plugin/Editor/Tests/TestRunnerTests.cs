@@ -146,6 +146,41 @@ namespace UnityMCP.Editor.Tests
                 issue.message.Contains("scene baseline is not empty")));
         }
 
+        [Test]
+        public void Start_FilterMatchesZeroTests_AckIncludesExpectedCountZero()
+        {
+            _framework.OnExecute = () =>
+            {
+                // Mirrors UTF's own empty-filter behavior: RunStarted/ManifestSealed
+                // both fire synchronously inside Execute(), before it returns.
+                var runId = _store.ReadRequest("request-zero-match").run_id;
+                _store.SealManifest(runId, new TestRunEvent
+                {
+                    run_id = runId,
+                    event_type = TestRunProtocol.EventType.ManifestSealed,
+                    occurred_utc = Utc,
+                    observer_generation = "test-generation",
+                    expected_count = 0
+                });
+            };
+
+            var ack = CreateService().Start(
+                "request-zero-match", "EditMode", null, "NoSuchClass");
+
+            StringAssert.EndsWith("|expected_count=0", ack);
+        }
+
+        [Test]
+        public void Start_ManifestNotYetSealed_AckOmitsExpectedCount()
+        {
+            // Normal fake driver: no seal is written before Execute() returns,
+            // matching the common case where UTF seals the manifest asynchronously.
+            var ack = CreateService().Start(
+                "request-no-seal", "EditMode", null, "RunnerTests");
+
+            StringAssert.DoesNotContain("expected_count=", ack);
+        }
+
         [TestCase("request-intent-persisted", 1, true)]
         [TestCase("run-record-persisted", 1, true)]
         [TestCase("prepared-pointer-persisted", 1, true)]
@@ -470,6 +505,10 @@ namespace UnityMCP.Editor.Tests
                 run_id = "run-active",
                 updated_utc = Utc
             });
+            // Genuinely running: ProbeAny must report Active so the self-heal
+            // attempt (now made unconditionally, see below) correctly declines
+            // to finalize a run that is not actually stuck.
+            _framework.AnyActivity = UtfRunActivity.Active;
             var service = CreateService();
 
             var response = service.Start("request-blocked", "EditMode", null, null);
@@ -480,6 +519,189 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(0, _framework.ExecuteCalls);
             var blocked = _store.ReadRun(_store.ReadRequest("request-blocked").run_id);
             Assert.AreEqual(TestRunProtocol.RunOutcome.DispatchFailed, blocked.outcome);
+        }
+
+        [Test]
+        public void ExistingActiveRun_SameSessionDispatchedNoBoundary_ProbeGapMustNotAbandon()
+        {
+            // Reproduces the DEV-63 self-heal regression: a fresh same-session
+            // Dispatched run (no RunStarted/RunFinished boundary yet -- e.g. the
+            // main-thread queue has not drained the Execute() call) must not be
+            // probed for finalization just because ProbeAny/Probe both currently
+            // read Inactive (a normal gap before UTF reports activity). Only
+            // same-session Finalizing runs and previous-session runs of any
+            // lifecycle are eligible for the self-heal attempt; a same-session
+            // Dispatched run must fail this second dispatch closed instead of
+            // being abandoned and letting a retry steal the slot from the first.
+            const string runId = "run-fresh";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                source = "mcp",
+                lifecycle = TestRunProtocol.Lifecycle.Dispatched,
+                created_utc = Utc,
+                dispatched_utc = Utc,
+                utf_guid = "utf-guid-fresh",
+                build_coherent = true,
+                editor_process_identity = TestRunBuildFingerprintProbe.EditorProcessIdentity(),
+                editor_session_id = TestRunBuildFingerprintProbe.EditorSessionId()
+            });
+            _store.WriteActive(new TestRunPointer { run_id = runId, updated_utc = Utc });
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+            var service = CreateService();
+
+            var response = service.Start("request-second", "EditMode", null, null);
+
+            StringAssert.Contains("test run already active: " + runId, DecodeReason(response));
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Dispatched, _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(0, _framework.ExecuteCalls);
+        }
+
+        [Test]
+        public void ExistingActiveRun_SameSessionFinalizingZeroMatchPastCeiling_SelfHealsAndAllowsDispatch()
+        {
+            // Reproduces the consumer symptom: a same-session run stuck in
+            // Finalizing (e.g. a zero-match --filter dispatch) with a durable
+            // RunFinished boundary already recorded, but its own UTF guid keeps
+            // probing "Active" forever (FakeFrameworkDriver.Activity defaults to
+            // Active) even though nothing else is running (AnyActivity defaults
+            // to Inactive). Past the staleness ceiling this must self-heal
+            // instead of permanently blocking every later dispatch.
+            const string runId = "run-zero-match-finalizing";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed,
+                dispatchedUtc: Utc,
+                utfGuid: "utf-guid-stuck");
+            var service = CreateService(utcNow: () => PastCeilingUtc);
+
+            var response = service.Start("request-after-zero-match", "EditMode", null, null);
+
+            StringAssert.StartsWith("tests-started|request_id=request-after-zero-match|", response);
+            Assert.AreEqual(1, _framework.ExecuteCalls);
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Terminal, _store.ReadRun(runId).lifecycle);
+        }
+
+        [Test]
+        public void ExistingActiveRun_SameSessionFinalizingUnderCeiling_StillBlocksDispatch()
+        {
+            // Double-red guard: below the ceiling the same stuck-Active own-guid
+            // probe must still block dispatch. Forcing must require both the
+            // boundary AND the ceiling, not either alone.
+            const string runId = "run-under-ceiling";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed,
+                dispatchedUtc: Utc,
+                utfGuid: "utf-guid-stuck");
+            var service = CreateService(utcNow: () => UnderCeilingUtc);
+
+            var response = service.Start("request-under-ceiling", "EditMode", null, null);
+
+            StringAssert.Contains("test run already active: " + runId, DecodeReason(response));
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Finalizing, _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(0, _framework.ExecuteCalls);
+        }
+
+        [Test]
+        public void ExistingActiveRun_SameSessionFinalizingLongRunRecentBoundary_StillBlocksDispatch()
+        {
+            // A full-suite run can dispatch long before its RunFinished boundary
+            // lands (durable suites run minutes, not seconds), but the staleness
+            // ceiling must anchor to when that boundary was recorded, not to
+            // dispatch. Elapsed-since-dispatch here is 1800s (>> the 180s
+            // ceiling), which would wrongly self-heal under a dispatch-anchored
+            // ceiling and silently disable the activity gate below. Anchored to
+            // the boundary, elapsed is only 120s, so the gate must still apply.
+            const string runId = "run-long-run-recent-boundary";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed,
+                dispatchedUtc: Utc,
+                utfGuid: "utf-guid-stuck",
+                boundaryOccurredUtc: RecentBoundaryUtc);
+            var service = CreateService(utcNow: () => LongRunNowUtc);
+
+            var response = service.Start("request-long-run", "EditMode", null, null);
+
+            StringAssert.Contains("test run already active: " + runId, DecodeReason(response));
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Finalizing, _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(0, _framework.ExecuteCalls);
+        }
+
+        [Test]
+        public void ExistingActiveRun_SameSessionFinalizingPastCeilingWithoutBoundary_StaysBlocked()
+        {
+            // DEV-05 guardrail: without a durable execution boundary the
+            // staleness ceiling must never force finalization on its own -
+            // that would risk mislabeling a genuinely abandoned/still-running
+            // run as healthy. It must stay blocked until ProbeAny itself goes
+            // Inactive (the existing abandonment path already handles that).
+            const string runId = "run-no-boundary-past-ceiling";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                source = "mcp",
+                lifecycle = TestRunProtocol.Lifecycle.Finalizing,
+                created_utc = Utc,
+                dispatched_utc = Utc,
+                utf_guid = "utf-guid-stuck",
+                build_coherent = true
+            });
+            _store.WriteActive(new TestRunPointer { run_id = runId, updated_utc = Utc });
+            var service = CreateService(utcNow: () => PastCeilingUtc);
+
+            var response = service.Start("request-no-boundary", "EditMode", null, null);
+
+            StringAssert.Contains("test run already active: " + runId, DecodeReason(response));
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Finalizing, _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(0, _framework.ExecuteCalls);
+        }
+
+        [Test]
+        public void ExistingActiveRun_SameSessionFinalizeThrowsDuringSelfHeal_StaysBlockedFailClosed()
+        {
+            // The self-heal attempt inside TryGetNonTerminalActiveOtherThan wraps
+            // _finalizer.TryFinalize in try/catch and must fail this dispatch
+            // closed (old active pointer preserved) rather than let the
+            // exception propagate or silently treat the run as free.
+            const string runId = "run-probe-any-throws";
+            WriteFinalizingRun(runId, "mcp",
+                runFinishedOutcome: TestRunProtocol.RunOutcome.Passed,
+                dispatchedUtc: Utc,
+                utfGuid: "utf-guid-stuck");
+            _framework.ProbeAnyError = new InvalidOperationException("boom");
+            var service = CreateService(utcNow: () => UnderCeilingUtc);
+
+            string response = null;
+            Assert.DoesNotThrow(() =>
+                response = service.Start("request-probe-any-throws", "EditMode", null, null));
+
+            StringAssert.Contains("test run already active: " + runId, DecodeReason(response));
+            Assert.AreEqual(TestRunProtocol.Lifecycle.Finalizing, _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(0, _framework.ExecuteCalls);
+            Assert.AreEqual(runId, _store.ReadActive().run_id);
+        }
+
+        [Test]
+        public void StalenessWindowConstants_AreConsistentWithCeiling()
+        {
+            // Anchors every ISO staleness-window constant above to the ceiling
+            // constant they are meant to straddle. If the ceiling changes
+            // without recomputing these windows, this test must go red.
+            var ceiling = TestRunFinalizationCoordinator.SameSessionStalenessCeilingSeconds;
+
+            Assert.Less(
+                TestRunProtocol.ElapsedSeconds(Utc, UnderCeilingUtc), ceiling,
+                "UnderCeilingUtc must stay under the ceiling.");
+            Assert.Greater(
+                TestRunProtocol.ElapsedSeconds(Utc, PastCeilingUtc), ceiling,
+                "PastCeilingUtc must exceed the ceiling.");
+            Assert.Less(
+                TestRunProtocol.ElapsedSeconds(RecentBoundaryUtc, LongRunNowUtc), ceiling,
+                "RecentBoundaryUtc..LongRunNowUtc (boundary-anchored) must stay under the ceiling.");
+            Assert.Greater(
+                TestRunProtocol.ElapsedSeconds(Utc, LongRunNowUtc), ceiling,
+                "Utc..LongRunNowUtc (dispatch-anchored) must exceed the ceiling, proving the " +
+                "long-run scenario only survives because the ceiling anchors to the boundary.");
         }
 
         [Test]
@@ -884,7 +1106,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void MtimeCoherence_IdleNeverStatus_Throws()
+        public void ValidateMtimeCoherence_IdleNever_DoesNotThrow()
         {
             var original = TestRunAssemblyFingerprint.CompileStatusGetter;
             try
@@ -892,10 +1114,10 @@ namespace UnityMCP.Editor.Tests
                 TestRunAssemblyFingerprint.CompileStatusGetter = () => "idle-never|0";
                 var older = DateTime.UtcNow.AddSeconds(-10);
                 var newer = DateTime.UtcNow;
-                Assert.Throws<InvalidDataException>(() =>
+                Assert.DoesNotThrow(() =>
                     TestRunAssemblyFingerprint.ValidateMtimeCoherence(
                         "TestAsm", older, newer, "Source.cs"),
-                    "idle-never means no compile ran: stale DLL must throw");
+                    "idle-never means Bee decided nothing needed compiling: DLL is correct, must not throw");
             }
             finally { TestRunAssemblyFingerprint.CompileStatusGetter = original; }
         }
@@ -913,6 +1135,43 @@ namespace UnityMCP.Editor.Tests
                     TestRunAssemblyFingerprint.ValidateMtimeCoherence(
                         "TestAsm", older, newer, "Source.cs"),
                     "compiling status means DLL is not yet fresh: must throw");
+            }
+            finally { TestRunAssemblyFingerprint.CompileStatusGetter = original; }
+        }
+
+        // DEV-62: pins the explicit allow-list (only "idle|" and "idle-never|" bypass the
+        // gate) against a status that superficially looks idle but signals a wedged or
+        // failed compile — must stay fail-closed, never silently added to the allow-list.
+        [Test]
+        public void MtimeCoherence_IdleStaleStatus_Throws()
+        {
+            var original = TestRunAssemblyFingerprint.CompileStatusGetter;
+            try
+            {
+                TestRunAssemblyFingerprint.CompileStatusGetter = () => "idle-stale|1.0";
+                var older = DateTime.UtcNow.AddSeconds(-10);
+                var newer = DateTime.UtcNow;
+                Assert.Throws<InvalidDataException>(() =>
+                    TestRunAssemblyFingerprint.ValidateMtimeCoherence(
+                        "TestAsm", older, newer, "Source.cs"),
+                    "idle-stale means a wedged compile: must stay fail-closed, must throw");
+            }
+            finally { TestRunAssemblyFingerprint.CompileStatusGetter = original; }
+        }
+
+        [Test]
+        public void MtimeCoherence_IdleFailedStatus_Throws()
+        {
+            var original = TestRunAssemblyFingerprint.CompileStatusGetter;
+            try
+            {
+                TestRunAssemblyFingerprint.CompileStatusGetter = () => "idle-failed|1.0";
+                var older = DateTime.UtcNow.AddSeconds(-10);
+                var newer = DateTime.UtcNow;
+                Assert.Throws<InvalidDataException>(() =>
+                    TestRunAssemblyFingerprint.ValidateMtimeCoherence(
+                        "TestAsm", older, newer, "Source.cs"),
+                    "idle-failed means a failed compile: must stay fail-closed, must throw");
             }
             finally { TestRunAssemblyFingerprint.CompileStatusGetter = original; }
         }
@@ -1027,6 +1286,86 @@ namespace UnityMCP.Editor.Tests
 
             Assert.AreEqual(
                 "running|0|0|0|0|0|0.0|eta=0s|run_id=" + runId, result);
+        }
+
+        [Test]
+        public void Reconcile_ManifestSealedZero_AddsZeroTestMatchWarning()
+        {
+            const string runId = "run-zero-match";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                lifecycle = TestRunProtocol.Lifecycle.Running,
+                created_utc = Utc,
+                utf_guid = "utf-guid-1",
+                build_coherent = true
+            });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.RunStarted,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 0
+            });
+            _store.SealManifest(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.ManifestSealed,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 0
+            });
+
+            var summary = _store.Reconcile(runId);
+
+            Assert.IsTrue(summary.issues.Any(issue =>
+                issue.code == "ZERO_TEST_MATCH" &&
+                issue.severity == TestRunProtocol.IssueSeverity.Warning));
+        }
+
+        [Test]
+        public void Reconcile_ManifestSealedZeroWithRunFinished_DoesNotChangeOutcome()
+        {
+            const string runId = "run-zero-match-finished";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                lifecycle = TestRunProtocol.Lifecycle.Finalizing,
+                created_utc = Utc,
+                utf_guid = "utf-guid-1",
+                build_coherent = true
+            });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.RunStarted,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 0
+            });
+            _store.SealManifest(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.ManifestSealed,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 0
+            });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.RunFinished,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                outcome = TestRunProtocol.RunOutcome.Passed,
+                root_trusted = true,
+                has_aggregate = true
+            });
+
+            var summary = _store.Reconcile(runId);
+
+            Assert.AreEqual(TestRunProtocol.RunOutcome.Passed, summary.outcome);
         }
 
         // ── Cancel edge cases ──
@@ -1338,6 +1677,42 @@ namespace UnityMCP.Editor.Tests
                 "Abandoned event must be appended when no execution boundary exists.");
             Assert.AreEqual(TestRunProtocol.Lifecycle.Terminal,
                 _store.ReadRun(runId).lifecycle);
+            Assert.AreEqual(TestRunProtocol.Health.NoTestProgress,
+                _store.ReadRun(runId).health,
+                "An abandoned run with zero TestStarted events never executed a test.");
+        }
+
+        [Test]
+        public void TryFinalizeCore_NoExecutionBoundary_WithTestStarted_SetsEditorUnresponsive()
+        {
+            const string runId = "run-no-boundary-started";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                source = "mcp",
+                lifecycle = TestRunProtocol.Lifecycle.Finalizing,
+                created_utc = Utc,
+                build_coherent = true
+            });
+            _store.WriteActive(new TestRunPointer { run_id = runId, updated_utc = Utc });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.TestStarted,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                unique_name = "Some.Test",
+                test_id = "Some.Test",
+                full_name = "Some.Test"
+            });
+            _framework.AnyActivity = UtfRunActivity.Inactive;
+            _framework.Activity = UtfRunActivity.Inactive;
+
+            CreateFinalizer().TryFinalize(runId);
+
+            Assert.AreEqual(TestRunProtocol.Health.EditorUnresponsive,
+                _store.ReadRun(runId).health,
+                "A run that started at least one test before going silent was underway, not never-started.");
         }
 
         [Test]
@@ -1496,9 +1871,33 @@ namespace UnityMCP.Editor.Tests
                 "'invalid' has the highest rank and must override any other outcome.");
         }
 
+        [Test]
+        public void WriteAtomicTextWithoutLock_UsesSharedAtomicSwap_NotInlineReplaceMove()
+        {
+            // Source guard: the inline "File.Exists(path) ? File.Replace : File.Move"
+            // plus an unguarded `finally { File.Delete(temporary); }` could mask an
+            // original TestRunStoreException with a secondary delete failure. The
+            // shared AtomicFile.Swap helper (already proven for WizardConfigWriter
+            // and PortFileManager) owns that Replace/Move + guarded cleanup instead.
+            var src = ReadRequiredPackageSource(
+                typeof(TestRunStore), "Editor/TestRuns/TestRunStore.cs");
+            var start = src.IndexOf("private static void WriteAtomicTextWithoutLock");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0),
+                "WriteAtomicTextWithoutLock not found in TestRunStore.cs");
+            var body = src.Substring(start);
+
+            StringAssert.Contains("AtomicFile.Swap(", body,
+                "durable store writes must go through the shared atomic swap helper");
+            StringAssert.DoesNotContain("File.Replace(", body,
+                "inline File.Replace must not reappear alongside AtomicFile.Swap");
+            StringAssert.DoesNotContain("File.Move(", body,
+                "inline File.Move must not reappear alongside AtomicFile.Swap");
+        }
+
         private TestRunService CreateService(
             TestRunBuildFingerprint build = null,
-            Action<string> afterDurableBoundary = null) =>
+            Action<string> afterDurableBoundary = null,
+            Func<string> utcNow = null) =>
             new TestRunService(
                 _store,
                 _environment,
@@ -1507,7 +1906,7 @@ namespace UnityMCP.Editor.Tests
                 () => false,
                 () => false,
                 () => true,
-                () => Utc,
+                utcNow ?? (() => Utc),
                 afterDurableBoundary);
 
         private TestRunFinalizationCoordinator CreateFinalizer(
@@ -1533,7 +1932,10 @@ namespace UnityMCP.Editor.Tests
             string runId,
             string source,
             string provisionalOutcome = "",
-            string runFinishedOutcome = TestRunProtocol.RunOutcome.Invalid)
+            string runFinishedOutcome = TestRunProtocol.RunOutcome.Invalid,
+            string dispatchedUtc = null,
+            string utfGuid = "",
+            string boundaryOccurredUtc = null)
         {
             _store.WriteRun(new TestRunRecord
             {
@@ -1541,6 +1943,8 @@ namespace UnityMCP.Editor.Tests
                 source = source,
                 lifecycle = TestRunProtocol.Lifecycle.Finalizing,
                 created_utc = Utc,
+                dispatched_utc = dispatchedUtc ?? "",
+                utf_guid = utfGuid,
                 build_coherent = true,
                 utf_version = "1.6.0"
             });
@@ -1578,7 +1982,7 @@ namespace UnityMCP.Editor.Tests
             {
                 run_id = runId,
                 event_type = TestRunProtocol.EventType.RunFinished,
-                occurred_utc = Utc,
+                occurred_utc = boundaryOccurredUtc ?? Utc,
                 observer_generation = "test-generation",
                 outcome = runFinishedOutcome,
                 root_trusted = true,
@@ -1617,6 +2021,16 @@ namespace UnityMCP.Editor.Tests
         }
 
         private const string Utc = "2026-08-02T12:00:00.0000000Z";
+        // Same-session Finalizing staleness ceiling is 180s (see
+        // TestRunFinalizationCoordinator.SameSessionStalenessCeilingSeconds).
+        private const string UnderCeilingUtc = "2026-08-02T12:01:00.0000000Z"; // +60s
+        private const string PastCeilingUtc = "2026-08-02T12:03:01.0000000Z"; // +181s
+        // Long-run scenario: dispatch was long ago but the execution-boundary
+        // event itself is recent. The ceiling must anchor to the boundary, not
+        // to dispatch, so this pair stays under the 180s ceiling even though
+        // elapsed-since-dispatch (Utc -> LongRunNowUtc) is 1800s.
+        private const string LongRunNowUtc = "2026-08-02T12:30:00.0000000Z"; // +1800s from dispatch
+        private const string RecentBoundaryUtc = "2026-08-02T12:28:00.0000000Z"; // 120s before LongRunNowUtc
 
         private sealed class FakeFrameworkDriver : ITestFrameworkDriver
         {
@@ -1626,6 +2040,7 @@ namespace UnityMCP.Editor.Tests
             internal string LastCancelledGuid;
             internal bool CancelResult = true;
             internal Exception CancelError;
+            internal Exception ProbeAnyError;
             internal UtfRunActivity Activity = UtfRunActivity.Active;
             internal UtfRunActivity AnyActivity = UtfRunActivity.Inactive;
             internal Action OnExecute;
@@ -1647,7 +2062,12 @@ namespace UnityMCP.Editor.Tests
             }
 
             public UtfRunActivity Probe(string utfGuid) => Activity;
-            public UtfRunActivity ProbeAny() => AnyActivity;
+
+            public UtfRunActivity ProbeAny()
+            {
+                if (ProbeAnyError != null) throw ProbeAnyError;
+                return AnyActivity;
+            }
         }
 
         private sealed class FakeEnvironment : ITestRunEnvironmentController

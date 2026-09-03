@@ -77,5 +77,15 @@ def check_dll_freshness(
         return None
 
     dll_mtime = dll.stat().st_mtime
-    max_cs_mtime = max(f.stat().st_mtime for f in cs_files)
-    return (dll_mtime + grace_s) >= max_cs_mtime
+    # A cached source_files list can outlive the process that built it — a file
+    # deleted after the cache was populated must not crash freshness checks
+    # (DEV-67). Treat a missing path as absent, not as an error.
+    mtimes = []
+    for f in cs_files:
+        try:
+            mtimes.append(f.stat().st_mtime)
+        except FileNotFoundError:
+            continue
+    if not mtimes:
+        return None
+    return (dll_mtime + grace_s) >= max(mtimes)

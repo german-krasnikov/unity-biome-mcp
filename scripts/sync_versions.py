@@ -80,6 +80,18 @@ def _update_plugin_version_cs(path: Path, version: str) -> str:
     return new_text
 
 
+def _update_biome_version_cs(path: Path, version: str) -> str:
+    text = path.read_text(encoding="utf-8")
+    new_text, count = re.subn(
+        r'(public const string Plugin = ")[^"]*(")',
+        rf'\g<1>{version}\g<2>',
+        text, count=1,
+    )
+    if count == 0:
+        raise ValueError(f"BiomeVersion.Plugin pattern not found in {path}")
+    return new_text
+
+
 def _atomic_write(path: Path, content: str) -> None:
     _atomic_write_bytes(path, content.encode("utf-8"))
 
@@ -102,6 +114,7 @@ def _artifact_paths(root: Path) -> dict:
         "__version__.py": root / "server" / "src" / "unity_mcp" / "__version__.py",
         "_meta.json": root / "docs" / "assets" / "_meta.json",
         "MCPServer.cs": root / "unity-plugin" / "Editor" / "MCPServer.cs",
+        "BiomeVersion.cs": root / "unity-plugin" / "Editor" / "BiomeVersion.cs",
         "release-policy.json": root / "scripts" / "gauntlet" / "release-policy.json",
     }
 
@@ -116,6 +129,7 @@ def _read_version(name: str, path: Path) -> str:
         "package.json": r'"version":\s*"([^"]*)"',
         "__version__.py": r'__version__ = "([^"]*)"',
         "MCPServer.cs": r'internal static string PluginVersion => "([^"]*)"',
+        "BiomeVersion.cs": r'public const string Plugin = "([^"]*)"',
         "release-policy.json": r'"activation_product_version":\s*"([^"]*)"',
     }
     m = re.search(patterns[name], text, re.MULTILINE)
@@ -164,6 +178,7 @@ def _sync(root: Path, version: str, *, update_canonical: bool) -> None:
         "__version__.py": (root / "server" / "src" / "unity_mcp" / "__version__.py", _update_version_py),
         "_meta.json": (root / "docs" / "assets" / "_meta.json", _update_meta_json),
         "MCPServer.cs": (root / "unity-plugin" / "Editor" / "MCPServer.cs", _update_plugin_version_cs),
+        "BiomeVersion.cs": (root / "unity-plugin" / "Editor" / "BiomeVersion.cs", _update_biome_version_cs),
         "release-policy.json": (root / "scripts" / "gauntlet" / "release-policy.json", _update_release_policy),
         # Canonical source is replaced last so a failed bump never advertises a
         # version whose generated copies were not written.

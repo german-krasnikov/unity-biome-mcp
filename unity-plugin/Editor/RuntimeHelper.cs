@@ -268,7 +268,12 @@ namespace UnityMCP.Editor
             {
                 completed = true;
                 float elapsed = Time.realtimeSinceStartup - startTime;
-                EditorApplication.delayCall += () =>
+                // MainThreadDispatcher (EditorApplication.update-driven), not delayCall —
+                // a backgrounded Editor does not reliably drain delayCall (RELAY-FIX,
+                // commit 1bcc90b7), which left completed=true visible to TimeoutCheck
+                // below while this resolution never ran, reporting a finished move as
+                // a timeout.
+                MainThreadDispatcher.Enqueue(() =>
                 {
                     lock (_activeTcs) _activeTcs.Remove(tcs);
                     tcs.TrySetResult($"MoveTo {(success ? "arrived" : "blocked")} at " +
@@ -276,7 +281,7 @@ namespace UnityMCP.Editor
                         $"{target.y.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}," +
                         $"{target.z.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}) after " +
                         elapsed.ToString("F1", System.Globalization.CultureInfo.InvariantCulture) + "s");
-                };
+                });
             };
 
             try { method.Invoke(comp, new object[] { target, callback }); }

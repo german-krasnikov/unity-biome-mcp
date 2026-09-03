@@ -1,24 +1,43 @@
 """Tests for ServerUpdater — auto-restart MCP server on UPM plugin update."""
 import asyncio
 import json
+import logging
 import struct
 import sys
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from unity_mcp.server_updater import ServerUpdater, _default_is_uvx_install, _updater as module_updater
+from unity_mcp.config.merger import SERVER_NAME
+from unity_mcp.server_updater import (
+    _REINSTALL_COOLDOWN_S,
+    _UpdateResult,
+    ServerUpdater,
+    _default_is_pinned,
+    _default_is_uvx_install,
+    _updater as module_updater,
+)
 
 
-def make_updater(current="1.0.0", uvx_found=True, subprocess_exit=0, exit_calls=None):
+def make_updater(current="1.0.0", uvx_found=True, subprocess_exit=0, exit_calls=None,
+                  subprocess_calls=None, is_pinned_fn=None, now_fn=None):
     if exit_calls is None:
         exit_calls = []
 
     async def fake_subprocess(*args, **kwargs):
+        if subprocess_calls is not None:
+            subprocess_calls.append(args)
+
         class FakeProc:
             async def wait(self):
                 return subprocess_exit
 
         return FakeProc()
+
+    kwargs = {}
+    if is_pinned_fn is not None:
+        kwargs["is_pinned_fn"] = is_pinned_fn
+    if now_fn is not None:
+        kwargs["now_fn"] = now_fn
 
     return ServerUpdater(
         install_url="git+https://example.com",
@@ -27,7 +46,21 @@ def make_updater(current="1.0.0", uvx_found=True, subprocess_exit=0, exit_calls=
         subprocess_fn=fake_subprocess,
         exit_fn=lambda code: exit_calls.append(code),
         is_uvx_install_fn=lambda: True,
+        **kwargs,
     )
+
+
+class _FakeClock:
+    """Monotonic-clock stub for cooldown tests — advances only when told to."""
+
+    def __init__(self, start: float = 0.0):
+        self._t = start
+
+    def __call__(self) -> float:
+        return self._t
+
+    def advance(self, delta: float) -> None:
+        self._t += delta
 
 
 @pytest.mark.asyncio
@@ -80,6 +113,228 @@ async def test_debounce_prevents_double_update():
     r = await u.maybe_update("1.6.0")
     assert r.reason == "already_running"
     assert calls == []
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_skips_reinstall_when_project_pinned(tmp_path):
+    """A project .mcp.json with "_pin": true blocks self-reinstall (ARC-0b/ARC-11)."""
+    (tmp_path / ".mcp.json").write_text(
+        f'''{{"mcpServers": {{"{SERVER_NAME}": {{"_pin": true, "command": "x"}}}}}}''',
+        encoding="utf-8",
+    )
+    subprocess_calls = []
+    u = make_updater(current="1.5.0", subprocess_calls=subprocess_calls)
+    r = await u.maybe_update("1.6.0", project_path=str(tmp_path))
+    assert r.reason == "pinned"
+    assert r.triggered is False
+    assert subprocess_calls == []
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_reinstalls_when_project_not_pinned(tmp_path):
+    """Double-red pair: same project dir, no .mcp.json pin — guard stays conditional."""
+    u = make_updater(current="1.5.0")
+    r = await u.maybe_update("1.6.0", project_path=str(tmp_path))
+    assert r.reason == "started"
+    assert r.triggered is True
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_skips_pin_check_when_not_needed(tmp_path):
+    """The pin-guard must run only when an update would actually trigger, not
+    on every reconnect. Double-red: reverting the pin-check back before
+    _is_update_needed makes is_pinned_fn fire (reading .mcp.json) on every
+    call even when versions already match."""
+    pin_calls = []
+    u = make_updater(current="1.5.0", is_pinned_fn=lambda p: pin_calls.append(p) or True)
+    r = await u.maybe_update("1.5.0", project_path=str(tmp_path))
+    assert pin_calls == []
+    assert r.reason == "not_needed"
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_ignores_pin_when_project_path_omitted():
+    """No project_path means no pin lookup — legacy callers keep prior behavior."""
+    pin_calls = []
+    u = make_updater(current="1.5.0", is_pinned_fn=lambda p: pin_calls.append(p) or True)
+    r = await u.maybe_update("1.6.0")
+    assert pin_calls == []
+    assert r.reason == "started"
+
+
+# ─── C1-round2 #3: undecodable project config must not crash the pin check ──
+
+@pytest.mark.asyncio
+async def test_maybe_update_does_not_raise_on_undecodable_project_config(tmp_path):
+    """A UTF-16-BOM'd (or otherwise undecodable) .mcp.json used to raise
+    UnicodeDecodeError straight out of the real _default_is_pinned, which
+    maybe_update calls with zero try/except -- since this runs as a
+    fire-and-forget background task (bridge.py's _schedule_server_update),
+    the only visible symptom was an untracked 'Task exception was never
+    retrieved' log and self-update silently disabled for that project,
+    forever. C1 r5 #3: undecodable must fail closed (treated as pinned), not
+    crash and not silently let the update through -- degrading to "not
+    pinned" would run uvx --reinstall despite a pin the tool simply
+    couldn't read back."""
+    (tmp_path / ".mcp.json").write_bytes(b"\xff\xfe" + '{"mcpServers": {}}'.encode("utf-16-le"))
+    subprocess_calls = []
+    u = make_updater(
+        current="1.5.0", subprocess_calls=subprocess_calls, is_pinned_fn=_default_is_pinned
+    )
+
+    r = await u.maybe_update("1.6.0", project_path=str(tmp_path))
+
+    assert isinstance(r, _UpdateResult)
+    assert r.reason == "pinned"  # fail closed -> update blocked
+    assert r.triggered is False
+    assert subprocess_calls == []
+
+
+# ─── C1-round2 #6: pin must be honored in every project-scoped client config ──
+
+@pytest.mark.asyncio
+async def test_maybe_update_skips_reinstall_when_project_scoped_client_config_pinned(tmp_path):
+    """A pin in .cursor/mcp.json (no .mcp.json in the project at all) must
+    block reinstall -- _default_is_pinned checks every client config
+    ProjectConfigWriter (C#) can pin, not only Claude Code's .mcp.json."""
+    cursor_cfg = tmp_path / ".cursor" / "mcp.json"
+    cursor_cfg.parent.mkdir(parents=True)
+    cursor_cfg.write_text(
+        f'{{"mcpServers": {{"{SERVER_NAME}": {{"_pin": true, "command": "x"}}}}}}',
+        encoding="utf-8",
+    )
+    subprocess_calls = []
+    u = make_updater(
+        current="1.5.0", subprocess_calls=subprocess_calls, is_pinned_fn=_default_is_pinned
+    )
+
+    r = await u.maybe_update("1.6.0", project_path=str(tmp_path))
+
+    assert r.reason == "pinned"
+    assert r.triggered is False
+    assert subprocess_calls == []
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_reinstalls_when_cursor_config_not_pinned(tmp_path):
+    """Double-red pair: same .cursor/mcp.json file present, but without _pin."""
+    cursor_cfg = tmp_path / ".cursor" / "mcp.json"
+    cursor_cfg.parent.mkdir(parents=True)
+    cursor_cfg.write_text(
+        f'{{"mcpServers": {{"{SERVER_NAME}": {{"command": "x"}}}}}}',
+        encoding="utf-8",
+    )
+    subprocess_calls = []
+    u = make_updater(
+        current="1.5.0", subprocess_calls=subprocess_calls, is_pinned_fn=_default_is_pinned
+    )
+
+    r = await u.maybe_update("1.6.0", project_path=str(tmp_path))
+
+    assert r.reason == "started"
+    assert r.triggered is True
+
+
+def test_default_is_pinned_logs_the_matching_config_path(tmp_path, caplog):
+    """A pin match should be debug-loggable for diagnosis -- silent True/False
+    gives no clue which of PROJECT_CONFIG_TARGETS actually matched."""
+    cfg = tmp_path / ".mcp.json"
+    cfg.write_text(
+        f'{{"mcpServers": {{"{SERVER_NAME}": {{"_pin": true, "command": "x"}}}}}}',
+        encoding="utf-8",
+    )
+    with caplog.at_level(logging.DEBUG, logger="unity_mcp"):
+        assert _default_is_pinned(str(tmp_path)) is True
+
+    assert any("pin found" in r.message and str(cfg) in r.getMessage() for r in caplog.records)
+
+
+def test_default_is_pinned_continues_past_oserror_from_one_candidate(tmp_path, monkeypatch):
+    """Narrowing the except clause to OSError only (C1 r2 #9 follow-up; the
+    UnicodeDecodeError arm is now dead -- merger's is_entry_pinned/
+    is_toml_pinned already degrade undecodable bytes to False internally)
+    must still let one candidate's OSError be skipped in favor of the next."""
+    import unity_mcp.server_updater as server_updater
+
+    (tmp_path / ".cursor").mkdir()
+    (tmp_path / ".cursor" / "mcp.json").write_text("{}", encoding="utf-8")
+    real_is_entry_pinned = server_updater.is_entry_pinned
+
+    def flaky_is_entry_pinned(path, root_key="mcpServers"):
+        if path.parent.name == ".cursor":
+            raise OSError("simulated permission error")
+        return real_is_entry_pinned(path, root_key=root_key)
+
+    monkeypatch.setattr(server_updater, "is_entry_pinned", flaky_is_entry_pinned)
+
+    assert _default_is_pinned(str(tmp_path)) is False  # degrades, does not raise
+
+
+# ─── C1-round2 #9: cooldown between repeated failed reinstall attempts ──────
+
+@pytest.mark.asyncio
+async def test_maybe_update_skips_second_reinstall_within_cooldown_after_failure():
+    """A failed reinstall starts a cooldown window; a reconnect within
+    _REINSTALL_COOLDOWN_S must not retry the subprocess. Before this fix,
+    the only re-entry guard was _updating, which resets as soon as one
+    attempt completes -- every subsequent reconnect/reload retried
+    immediately with zero backoff."""
+    clock = _FakeClock()
+    subprocess_calls = []
+    u = make_updater(
+        current="1.5.0", subprocess_exit=1, subprocess_calls=subprocess_calls, now_fn=clock
+    )
+    r1 = await u.maybe_update("1.6.0")
+    assert r1.reason == "reinstall_failed"
+    assert len(subprocess_calls) == 1
+
+    clock.advance(60.0)
+    r2 = await u.maybe_update("1.6.0")
+
+    assert r2.reason == "cooldown"
+    assert r2.triggered is False
+    assert len(subprocess_calls) == 1  # not retried
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_retries_after_cooldown_window_elapses():
+    """Double-red pair: once the cooldown window fully elapses, retry resumes."""
+    clock = _FakeClock()
+    subprocess_calls = []
+    u = make_updater(
+        current="1.5.0", subprocess_exit=1, subprocess_calls=subprocess_calls, now_fn=clock
+    )
+    await u.maybe_update("1.6.0")
+    assert len(subprocess_calls) == 1
+
+    clock.advance(_REINSTALL_COOLDOWN_S + 1.0)
+    r2 = await u.maybe_update("1.6.0")
+
+    assert r2.reason == "reinstall_failed"
+    assert len(subprocess_calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_maybe_update_skips_pin_scan_during_cooldown():
+    """Cooldown is a cheap monotonic-clock compare; the pin scan reads up to
+    len(PROJECT_CONFIG_TARGETS) project config files. Checking cooldown first
+    must short-circuit before that I/O runs at all once an attempt has
+    already failed and is still cooling down."""
+    clock = _FakeClock()
+    pin_calls = []
+    subprocess_calls = []
+    u = make_updater(
+        current="1.5.0", subprocess_exit=1, subprocess_calls=subprocess_calls,
+        now_fn=clock, is_pinned_fn=lambda p: pin_calls.append(p) or True,
+    )
+    await u.maybe_update("1.6.0")  # first attempt fails, starts the cooldown
+    assert len(subprocess_calls) == 1
+
+    clock.advance(60.0)
+    r2 = await u.maybe_update("1.6.0", project_path="/tmp/whatever")
+
+    assert r2.reason == "cooldown"
+    assert pin_calls == []  # pin scan never ran -- cooldown short-circuited first
 
 
 @pytest.mark.asyncio
@@ -167,7 +422,7 @@ async def test_bridge_schedules_update_task_when_plugin_newer():
     scheduled = []
 
     class FakeUpdater:
-        async def maybe_update(self, plugin_version):
+        async def maybe_update(self, plugin_version, project_path=None):
             scheduled.append(plugin_version)
 
     # Build fake TCP frames: ping pong + project check + version with newer plugin
@@ -212,6 +467,7 @@ async def test_bridge_schedules_update_task_when_plugin_newer():
                     bridge._bridge_id = "br-test"
                     bridge._started_at_utc = "2026-01-01T00:00:00Z"
                     bridge._expected_project_path = None
+                    bridge._editor_identity = None
                     bridge._probe = Mock()
                     bridge._probe.project_uuid = "project-uuid"
 
@@ -224,6 +480,35 @@ async def test_bridge_schedules_update_task_when_plugin_newer():
     await asyncio.sleep(0)
 
     assert "99.0.0" in scheduled
+
+
+@pytest.mark.asyncio
+async def test_check_version_from_hello_uses_editor_identity_project_path(monkeypatch):
+    """_check_version_from_hello passes the canonical editor-identity project path
+    to maybe_update (DRY via _schedule_server_update), so per-project pins apply
+    to the hello-based version-check path, not just the legacy get_version path."""
+    from unity_mcp.bridge import EditorIdentity, UnityBridge, _background_tasks
+    from unity_mcp.server_updater import _updater as module_updater
+
+    calls = []
+
+    async def fake_maybe_update(plugin_version, project_path=None):
+        calls.append((plugin_version, project_path))
+
+    monkeypatch.setattr(module_updater, "maybe_update", fake_maybe_update)
+
+    bridge = UnityBridge.__new__(UnityBridge)
+    bridge._editor_identity = EditorIdentity(project_id="p1", project_path="/canon/project")
+    bridge._expected_project_path = None
+
+    await bridge._check_version_from_hello({"version": "proto:3|plugin:9.9.9|stamp:abc"})
+
+    assert len(_background_tasks) == 1
+    task = next(iter(_background_tasks))
+    await task
+
+    assert calls == [("9.9.9", "/canon/project")]
+    assert len(_background_tasks) == 0
 
 
 # M4: Tests for _default_is_uvx_install — positive identification only

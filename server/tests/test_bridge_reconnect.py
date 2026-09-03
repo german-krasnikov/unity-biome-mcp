@@ -341,32 +341,35 @@ async def test_grace_not_expired_after_becoming_idle_post_busy():
     #   (a) set _reconnect_started_at (first tick only)
     #   (b) set _hard_deadline_started_at (first tick only — never reset while busy)
     #   (c) busy=True → reset _reconnect_started_at
+    #   (f) not-busy idle branch only: ARC-7 T1 sweep throttle check (mocked no-op below)
+    #   (e) hard_elapsed = monotonic() - _hard_deadline_started_at (checked first)
     #   (d) elapsed = monotonic() - _reconnect_started_at
-    #   (e) hard_elapsed = monotonic() - _hard_deadline_started_at
     time_seq = iter([
         1000.0,  # tick 1(a): set _reconnect_started_at = 1000
         1000.0,  # tick 1(b): set _hard_deadline_started_at = 1000
         1000.0,  # tick 1(c): busy → reset _reconnect_started_at = 1000
-        1000.0,  # tick 1(d): elapsed = 1000-1000 = 0s (under grace)
         1000.0,  # tick 1(e): hard_elapsed = 1000-1000 = 0s (under hard deadline)
+        1000.0,  # tick 1(d): elapsed = 1000-1000 = 0s (under grace)
         1200.0,  # tick 2(c): busy → reset _reconnect_started_at = 1200
-        1200.0,  # tick 2(d): elapsed = 1200-1200 = 0s (just reset)
         1200.0,  # tick 2(e): hard_elapsed = 1200-1000 = 200s (under 450s deadline)
-        1250.0,  # tick 3(d): elapsed = 1250-1200 = 50s < 90s → no grace latch
+        1200.0,  # tick 2(d): elapsed = 1200-1200 = 0s (just reset)
+        1250.0,  # tick 3(f): sweep throttle check (not busy branch) — value unused
         1250.0,  # tick 3(e): hard_elapsed = 1250-1000 = 250s < 450s → no hard latch
+        1250.0,  # tick 3(d): elapsed = 1250-1200 = 50s < 90s → no grace latch
     ])
 
     with patch("unity_mcp.bridge_heartbeat.time.monotonic", side_effect=lambda: next(time_seq)):
         with patch("unity_mcp.bridge_heartbeat.asyncio.sleep", new_callable=AsyncMock):
-            with patch.object(bridge, "_reconnect_cooldown_ok", return_value=False):
-                # tick 1: busy
-                bridge._probe_busy = Mock(return_value=True)
-                await bridge._heartbeat_tick(15.0)
-                # tick 2: busy (200s later in wall time, but timer should reset)
-                await bridge._heartbeat_tick(15.0)
-                # tick 3: NOT busy, only 50s since last reset → should NOT latch
-                bridge._probe_busy = Mock(return_value=False)
-                await bridge._heartbeat_tick(15.0)
+            with patch("unity_mcp.bridge_heartbeat.cleanup_stale_port_files"):
+                with patch.object(bridge, "_reconnect_cooldown_ok", return_value=False):
+                    # tick 1: busy
+                    bridge._probe_busy = Mock(return_value=True)
+                    await bridge._heartbeat_tick(15.0)
+                    # tick 2: busy (200s later in wall time, but timer should reset)
+                    await bridge._heartbeat_tick(15.0)
+                    # tick 3: NOT busy, only 50s since last reset → should NOT latch
+                    bridge._probe_busy = Mock(return_value=False)
+                    await bridge._heartbeat_tick(15.0)
 
     assert bridge._startup_grace_expired is False, \
         "Grace should NOT expire — only 50s elapsed since Unity became idle"

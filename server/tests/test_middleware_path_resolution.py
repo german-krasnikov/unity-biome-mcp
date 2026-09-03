@@ -101,7 +101,7 @@ async def test_wrap_send_resolves_path_arg(mw):
 
 
 async def test_resolve_path_live_spaced_name_candidate_extracted_correctly(mw):
-    """P3: line.split()[0] truncated paths with spaces — fixed to split on ' #'."""
+    """line.split()[0] truncated paths with spaces — fixed to split on ' #'. (P3)"""
     mw.known_paths = {"/Root/Other"}
     # search_scene line format: "path #instanceId [Components]" (SearchHelper.cs:30)
     send_fn = AsyncMock(return_value="/[NAME WITH SPACE]/Child #12345 [Transform]")
@@ -135,7 +135,7 @@ async def test_resolve_path_live_strips_hash_with_long_suffix(mw):
 
 
 async def test_resolve_path_live_bracket_name_leaf_extracted_correctly(mw):
-    """P2: rsplit('/') was bracket-blind — leaf of '/Root/[Zone_A/B]' should be '[Zone_A/B]'."""
+    """rsplit('/') was bracket-blind — leaf of '/Root/[Zone_A/B]' should be '[Zone_A/B]'. (P2)"""
     mw.known_paths = {"/Root/Other"}
     send_fn = AsyncMock(return_value="")
     await mw.resolve_path_live("/Root/[Zone_A/B]", send_fn)

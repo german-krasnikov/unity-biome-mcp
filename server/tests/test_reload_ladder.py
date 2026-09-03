@@ -419,6 +419,39 @@ async def test_send_with_fallback_falls_to_reload_on_connection_error():
     send_reload.assert_called_once_with("diagnose", {})
 
 
+# ── Test 15b: _send_with_fallback falls back on UnityUnavailableError (R2-05b) ─
+
+@pytest.mark.asyncio
+async def test_send_with_fallback_falls_to_reload_on_unity_unavailable_error():
+    """UnityUnavailableError (ToolError raised by server._send_raw for a dead main
+    TCP) must be treated as transient here too — not just a raw ConnectionError."""
+    from unity_mcp.errors import UnityUnavailableError
+
+    send_main = AsyncMock(side_effect=UnityUnavailableError("[UNITY_UNAVAILABLE] main dead"))
+    send_reload = AsyncMock(return_value="reload-ok")
+
+    result = await _ladder._send_with_fallback(send_main, send_reload, "force_refresh", {})
+
+    assert result == "reload-ok"
+    send_reload.assert_called_once_with("force_refresh", {})
+
+
+# ── Test 15c: a plain ToolError (not Unity-unavailability) must NOT fall back ──
+
+@pytest.mark.asyncio
+async def test_send_with_fallback_does_not_catch_plain_tool_error():
+    """A non-transient ToolError (e.g. READ_ONLY_BLOCKED) must propagate — only
+    UnityUnavailableError is transient enough to justify the reload channel."""
+    from mcp.server.fastmcp.exceptions import ToolError
+
+    send_main = AsyncMock(side_effect=ToolError("READ_ONLY_BLOCKED: 'force_refresh' is a mutation command"))
+    send_reload = AsyncMock(return_value="reload-ok")
+
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await _ladder._send_with_fallback(send_main, send_reload, "force_refresh", {})
+    send_reload.assert_not_called()
+
+
 # ── Test 16: run_ladder uses send_reload for T0 diagnose when main dead ──────
 
 @pytest.mark.asyncio

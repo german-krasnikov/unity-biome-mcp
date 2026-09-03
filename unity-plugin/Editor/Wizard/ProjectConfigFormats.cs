@@ -11,6 +11,9 @@ namespace UnityMCP.Editor.Wizard
     {
         private static readonly Regex MarkerVersionRe = new Regex("\"_v\"\\s*:\\s*\"([^\"]+)\"");
         private static readonly Regex MarkerPortRe = new Regex("\"UNITY_MCP_PORT\"\\s*:\\s*\"(\\d+)\"");
+        private static readonly Regex MarkerPinRe = new Regex("\"_pin\"\\s*:\\s*true");
+        // Insert literal for Pin() — matched by MarkerPinRe's flexible-whitespace pattern above.
+        private const string PinFieldJson = "\"_pin\": true";
 
         // Builds the full unity-biome-mcp entry: WizardConfigWriter.Entry(port, gitUrl) plus a
         // trailing "_v": version marker key, inserted just before the closing brace.
@@ -54,6 +57,17 @@ namespace UnityMCP.Editor.Wizard
             return m.Success ? int.Parse(m.Groups[1].Value) : (int?)null;
         }
 
+        // ARC-0b Task 1: "_pin": true sibling of "_v" inside OUR entry marks it as
+        // user-pinned — Classify() must return OwnedCurrent regardless of version
+        // mismatch. Scoped via FindOurEntry, same as ExtractMarkerVersion/Port, so a
+        // sibling MCP server's own "_pin" never leaks into our classification.
+        internal static bool IsPinned(string existingText)
+        {
+            if (!FindOurEntry(existingText, out var start, out var end))
+                return false;
+            return MarkerPinRe.Match(existingText, start, end - start).Success;
+        }
+
         /// <summary>
         /// Insert a "_v" marker into a Foreign entry without rewriting any other content.
         /// After this call, Classify() returns OwnedCurrent for the given version.
@@ -68,6 +82,25 @@ namespace UnityMCP.Editor.Wizard
                 + existingText.Substring(end);
         }
 
+        /// <summary>
+        /// ARC-11 T1: insert a "_pin": true marker as a sibling of "_v" inside our
+        /// entry — surgical insert like Adopt(), reusing WizardConfigWriter's
+        /// point-splice primitive (InsertFieldBeforeClosingBrace) so every other key
+        /// (env, custom args, ...) is preserved byte-for-byte instead of re-parsed.
+        /// Idempotent: returns the input unchanged when already pinned, so a
+        /// repeated call never duplicates the marker. Returns the original
+        /// reference unchanged when no unity-biome-mcp entry is found (mirrors
+        /// Adopt_NoEntry).
+        /// </summary>
+        internal static string Pin(string existingText)
+        {
+            if (!FindOurEntry(existingText, out var start, out var end)) return existingText;
+            if (IsPinned(existingText)) return existingText;
+            var oldSpan = existingText.Substring(start, end - start);
+            var patchedSpan = WizardConfigWriter.InsertFieldBeforeClosingBrace(oldSpan, PinFieldJson);
+            return existingText.Substring(0, start) + patchedSpan + existingText.Substring(end);
+        }
+
         internal static EntryState Classify(string existingText, int port, string version)
         {
             if (string.IsNullOrEmpty(existingText) ||
@@ -78,6 +111,9 @@ namespace UnityMCP.Editor.Wizard
             var markerVersion = ExtractMarkerVersion(existingText);
             if (markerVersion == null)
                 return EntryState.Foreign;
+
+            if (IsPinned(existingText))
+                return EntryState.OwnedCurrent;
 
             // Port is no longer written to JSON entries (discovery via .port files).
             // Staleness is version-only; port parameter kept for API compatibility.

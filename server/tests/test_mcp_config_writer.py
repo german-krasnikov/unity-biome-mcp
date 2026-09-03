@@ -15,6 +15,8 @@ from unity_mcp.mcp_config_writer import (
     write_opencode_config,
 )
 
+from helpers import KEEPME_ENV
+
 
 def test_write_claude_config_creates_file(tmp_path):
     path = write_claude_config(str(tmp_path), 9601)
@@ -143,3 +145,152 @@ def test_kimi_config_nonzero_port_includes_env(tmp_path):
     data = json.loads((tmp_path / "mcp.json").read_text(encoding="utf-8"))
     entry = data["mcpServers"]["unity-biome-mcp"]
     assert entry["env"]["UNITY_MCP_PORT"] == "9601"
+
+
+# ── ARC-12 T2: writers must deep-merge, not wholesale-replace the entry ──────
+
+def test_kimi_config_preserves_custom_env_on_rewrite(tmp_path):
+    """A pre-existing custom env var (or any key next to UNITY_MCP_PORT) must
+    survive a re-write that omits it (port=0 shape), while our own keys still
+    get updated. Reproduces RC2 (mcp_config_writer.py hand-rolled replace)."""
+    path = tmp_path / "mcp.json"
+    existing = {
+        "mcpServers": {
+            "unity-biome-mcp": {
+                "command": "old",
+                "args": [],
+                "env": dict(KEEPME_ENV),
+            }
+        }
+    }
+    path.write_text(json.dumps(existing), encoding="utf-8")
+
+    with patch("unity_mcp.mcp_config_writer.resolve_server_cmd", return_value=("new", ["-m", "x"])):
+        write_kimi_mcp_config(str(tmp_path), 0)
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    entry = data["mcpServers"]["unity-biome-mcp"]
+    assert entry["env"] == KEEPME_ENV
+    assert entry["command"] == "new"
+
+
+def test_agy_settings_preserves_custom_top_level_key_on_rewrite(tmp_path):
+    """A hand-added top-level key (e.g. 'customFlag') must survive a re-write,
+    while our own keys (command, trust) still get updated."""
+    path = tmp_path / "settings.json"
+    existing = {
+        "mcpServers": {
+            "unity-biome-mcp": {
+                "command": "old",
+                "args": [],
+                "trust": True,
+                "customFlag": "value",
+            }
+        }
+    }
+    path.write_text(json.dumps(existing), encoding="utf-8")
+
+    with patch("unity_mcp.mcp_config_writer.resolve_server_cmd", return_value=("new", ["-m", "x"])):
+        write_agy_settings(str(tmp_path), 0)
+
+    data = json.loads(path.read_text(encoding="utf-8"))
+    entry = data["mcpServers"]["unity-biome-mcp"]
+    assert entry["customFlag"] == "value"
+    assert entry["command"] == "new"
+    assert entry["trust"] is True
+
+
+# ── DEV-56: corrupt JSON must not wipe existing config (fail loud, don't overwrite) ──
+
+def test_write_kimi_mcp_config_refuses_to_wipe_on_corrupt_json(tmp_path):
+    """Corrupt mcp.json (unparseable) must be left untouched, not replaced with
+    an entry containing only our server — other-server must survive on disk."""
+    path = tmp_path / "mcp.json"
+    corrupt = '{"mcpServers": {"other-server": {"command": "y"}}} trailing garbage'
+    path.write_text(corrupt, encoding="utf-8")
+
+    write_kimi_mcp_config(str(tmp_path), 9601)
+
+    raw = path.read_text(encoding="utf-8")
+    assert "other-server" in raw
+    assert raw == corrupt
+
+
+def test_write_agy_settings_refuses_to_wipe_on_corrupt_json(tmp_path):
+    """Corrupt settings.json (unparseable) must be left untouched, not replaced
+    with an entry containing only our server — other-server must survive on disk."""
+    path = tmp_path / "settings.json"
+    corrupt = '{"mcpServers": {"other-server": {"command": "y"}}} trailing garbage'
+    path.write_text(corrupt, encoding="utf-8")
+
+    write_agy_settings(str(tmp_path), 9601)
+
+    raw = path.read_text(encoding="utf-8")
+    assert "other-server" in raw
+    assert raw == corrupt
+
+
+def test_write_kimi_mcp_config_returns_false_on_corrupt_json(tmp_path):
+    path = tmp_path / "mcp.json"
+    path.write_text("{ not json", encoding="utf-8")
+    assert write_kimi_mcp_config(str(tmp_path), 9601) is False
+
+
+def test_write_agy_settings_returns_false_on_corrupt_json(tmp_path):
+    path = tmp_path / "settings.json"
+    path.write_text("{ not json", encoding="utf-8")
+    assert write_agy_settings(str(tmp_path), 9601) is False
+
+
+def test_write_kimi_mcp_config_returns_true_on_success(tmp_path):
+    assert write_kimi_mcp_config(str(tmp_path), 9601) is True
+
+
+def test_write_agy_settings_returns_true_on_success(tmp_path):
+    assert write_agy_settings(str(tmp_path), 9601) is True
+
+
+# ── DEV-56b: undecodable bytes (BOM/cp1252) must be treated as corrupt, not crash ──
+
+def test_write_kimi_mcp_config_returns_false_on_undecodable_bytes(tmp_path):
+    """A file that isn't valid UTF-8 (e.g. stray cp1252/UTF-16 bytes) must not
+    raise UnicodeDecodeError out of write_kimi_mcp_config — treated as corrupt,
+    left untouched, same as a JSON parse failure."""
+    path = tmp_path / "mcp.json"
+    corrupt = b'\xff\xfe{"mcpServers":{"other-server":{"command":"y"}}}'
+    path.write_bytes(corrupt)
+
+    result = write_kimi_mcp_config(str(tmp_path), 9601)
+
+    assert result is False
+    assert path.read_bytes() == corrupt
+
+
+def test_write_agy_settings_returns_false_on_undecodable_bytes(tmp_path):
+    """Same guarantee as above for write_agy_settings."""
+    path = tmp_path / "settings.json"
+    corrupt = b'\xff\xfe{"mcpServers":{"other-server":{"command":"y"}}}'
+    path.write_bytes(corrupt)
+
+    result = write_agy_settings(str(tmp_path), 9601)
+
+    assert result is False
+    assert path.read_bytes() == corrupt
+
+
+def test_write_kimi_mcp_config_survives_utf8_bom(tmp_path):
+    """A UTF-8 BOM ('\\ufeff' prefix, Windows Notepad/PowerShell default) must
+    not be classified as corrupt — _read_existing_or_none now reads with
+    utf-8-sig, which transparently strips the BOM before json.loads. The
+    existing sibling entry survives and the rewritten file has no BOM. (C1-FIX-01)"""
+    path = tmp_path / "mcp.json"
+    bom_prefixed = b'\xef\xbb\xbf{"mcpServers":{"other-server":{"command":"y"}}}'
+    path.write_bytes(bom_prefixed)
+
+    result = write_kimi_mcp_config(str(tmp_path), 9601)
+
+    assert result is True
+    assert path.read_bytes()[:3] != b"\xef\xbb\xbf"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert "other-server" in data["mcpServers"]
+    assert "unity-biome-mcp" in data["mcpServers"]

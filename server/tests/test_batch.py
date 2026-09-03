@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 from mcp.server.fastmcp.exceptions import ToolError
 
 from unity_mcp.server import batch
-from unity_mcp.tools.batch import validate_references
+from unity_mcp.tools.batch import validate_references, _TIMEOUT_MS_CEILING, _BATCH_DISPATCH_GUARD_S
 
 
 async def test_batch_text_forwarded(mock_bridge, bridge_response):
@@ -11,11 +11,12 @@ async def test_batch_text_forwarded(mock_bridge, bridge_response):
     bridge_response(data="[0] ok: /A\n[1] ok")
     commands = "create_object name=A primitive=Cube\nset_material path=/A color=#FF0000"
     result = await batch(commands=commands)
-    # A4: default timeout=75.0 -> timeout_ms=70000, which no longer matches
-    # C#'s hardcoded 25000ms default, so it's now sent explicitly.
+    # A4/DEV-55: default timeout=75.0 -> raw (75-5)*1000=70000, clamped to
+    # 60000 (below C#'s 65s outer "batch" watchdog); no longer matches C#'s
+    # hardcoded 25000ms internal default either, so it's sent explicitly.
     mock_bridge.send.assert_called_once_with(
         "batch",
-        {"commands": commands, "timeout_ms": 70000},
+        {"commands": commands, "timeout_ms": _TIMEOUT_MS_CEILING},
         timeout=75.0,
     )
     assert result == "[0] ok: /A\n[1] ok"
@@ -35,14 +36,14 @@ async def test_batch_non_default_timeout_sent(mock_bridge, bridge_response):
     bridge_response(data="[0] ok: /A")
     await batch(commands="create_object name=A", timeout=60.0)
     call_args = mock_bridge.send.call_args[0]
-    assert call_args[1]["timeout_ms"] == 55000  # (60-5)*1000
+    assert call_args[1]["timeout_ms"] == int((60 - _BATCH_DISPATCH_GUARD_S) * 1000)
 
 
 async def test_batch_default_timeout_omitted(mock_bridge, bridge_response):
     """A4: timeout_ms is only omitted when it matches C#'s own hardcoded
     internal batch-executor default (25000ms) -- NOT Python's local default.
-    Post-A4 the two deliberately diverge (75s client default -> 70000ms), so
-    timeout_ms is present at the default now; see
+    Post-A4 the two deliberately diverge (75s client default -> 60000ms
+    post-DEV-55 ceiling clamp), so timeout_ms is present at the default now; see
     test_batch_timeout.py::test_batch_default_timeout_75s for the authoritative
     coverage of that value. This test locks in the *mechanism*: a timeout that
     genuinely resolves to 25000ms (Unity's own default) still omits the key."""
@@ -90,11 +91,12 @@ async def test_batch_single_command(mock_bridge):
     """Single line command works."""
     mock_bridge.send = AsyncMock(return_value={"ok": True, "data": "[0] ok: /A"})
     result = await batch(commands="create_object name=A primitive=Cube")
-    # A4: default timeout=75.0 -> timeout_ms=70000, no longer matches C#'s
-    # hardcoded 25000ms default, so it's now sent explicitly.
+    # A4/DEV-55: default timeout=75.0 -> raw (75-5)*1000=70000, clamped to
+    # 60000 (below C#'s 65s outer "batch" watchdog); no longer matches C#'s
+    # hardcoded 25000ms internal default either, so it's sent explicitly.
     mock_bridge.send.assert_called_once_with(
         "batch",
-        {"commands": "create_object name=A primitive=Cube", "timeout_ms": 70000},
+        {"commands": "create_object name=A primitive=Cube", "timeout_ms": _TIMEOUT_MS_CEILING},
         timeout=75.0,
     )
     assert result == "[0] ok: /A"

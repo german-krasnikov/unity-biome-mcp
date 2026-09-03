@@ -6,6 +6,7 @@ writes) is injectable via config_dir so unit tests never touch real FS paths.
 """
 
 import asyncio
+import logging
 import os
 import re
 import shlex
@@ -23,6 +24,8 @@ if sys.platform == "win32":
     import winreg
 else:
     winreg = None  # type: ignore[assignment]  # seam for monkeypatching in tests on non-Windows CI
+
+log = logging.getLogger(__name__)
 
 # ── Permission constants (mirrors PermissionConfig.cs) ───────────────────────
 # NOT SERVER_NAME.replace('-', '_') — hyphens are legal in MCP tool-name
@@ -358,7 +361,9 @@ class KimiDef(BackendDef):
     def build_args(self, mode, model, mcp_port, prompt="", session_id=None,
                    config_dir=None, extra_args=None, **kwargs):
         config_dir = config_dir or tempfile.gettempdir()
-        mcp_config_writer.write_kimi_mcp_config(config_dir, mcp_port)
+        if not mcp_config_writer.write_kimi_mcp_config(config_dir, mcp_port):
+            config_path = os.path.join(config_dir, "mcp.json")
+            log.error("kimi mcp.json not written (existing file unreadable): %s — Unity tools unavailable this session", config_path)
 
         argv: list[str] = ["-p", prompt, "--output-format", "stream-json"]
         if model:
@@ -385,7 +390,9 @@ class AgyDef(BackendDef):
     def build_args(self, mode, model, mcp_port, prompt="", session_id=None,
                    config_dir=None, extra_args=None, **kwargs):
         config_dir = config_dir or tempfile.gettempdir()
-        mcp_config_writer.write_agy_settings(config_dir, mcp_port)
+        if not mcp_config_writer.write_agy_settings(config_dir, mcp_port):
+            config_path = os.path.join(config_dir, "settings.json")
+            log.error("agy settings.json not written (existing file unreadable): %s — Unity tools unavailable this session", config_path)
 
         argv: list[str] = ["-p", prompt]
         if model:

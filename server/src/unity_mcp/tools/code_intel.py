@@ -125,12 +125,13 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
     Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'.
     Handles domain reload disconnects transparently. timeout=0 → immediate check, no loop.
     Epoch-aware via sync_status when available (+10 from MAJOR-1); falls back to compile_status."""
+    from .. import editor_log
+
     if expected_generation is not None:
         return await _await_compile_generation(timeout, expected_generation)
 
     async def _get_errors(compile_status: str = "") -> str:
         # Sentinel-strip lives in get_corroborated_errors (P3 DRY).
-        from .. import editor_log
         return await editor_log.get_corroborated_errors(_send, compile_status=compile_status)
 
     # timeout=0: single check, no loop
@@ -163,6 +164,10 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
         elapsed_total = time.monotonic() - (deadline - timeout)
         if time.monotonic() > deadline:
             errors = await _get_errors()
+            # C1 #6: a dead TCP link is a single, primary verdict — don't bury
+            # it inside a "timeout ... " message that implies Unity is merely slow.
+            if errors == editor_log.UNITY_UNREACHABLE:
+                return errors
             msg = f"timeout after {elapsed_total:.1f}s — compile still in progress"
             return f"{msg}\n{errors}" if errors else msg
 
@@ -184,6 +189,10 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
                         if mvid_pre == mvid_post:
                             # MCP091-018: no-IL-change compile → check errors first
                             errors = await _get_errors(compile_status="idle")
+                            # C1 #6: dead TCP wins outright — don't wrap it in a
+                            # STALE-DOMAIN verdict that implies a corroborated diagnosis.
+                            if errors == editor_log.UNITY_UNREACHABLE:
+                                return errors
                             if not errors:
                                 return "compile clean (no IL change)"
                             return (

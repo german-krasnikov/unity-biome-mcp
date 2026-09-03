@@ -110,6 +110,13 @@ class TestSceneChangePlan:
         assert "plan_id=" in result, f"plan not created: {result}"
         assert "compile=clean" in result
 
+    def test_compile_clean_false_for_unity_unreachable_sentinel(self):
+        """editor_log.UNITY_UNREACHABLE must never be treated as compile-clean
+        (pin -- _compile_clean already rejects it structurally since none of
+        its substrings match, this locks that in). (ARC-6)"""
+        from unity_mcp import editor_log
+        assert tr._compile_clean(editor_log.UNITY_UNREACHABLE) is False
+
     async def test_dry_run_true_returns_preflight_no_plan_id(self):
         result = await tr.scene_change_plan("wire unlock", dry_run=True)
         assert "preflight=clean" in result

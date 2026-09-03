@@ -127,11 +127,12 @@ async def test_batch_physics_workflow(mock_bridge):
         "set_property path=/Obj component=Rigidbody prop=m_Mass value=10"
     )
     result = await batch(commands=commands)
-    # A4: default timeout=75.0 -> timeout_ms=70000, no longer matches C#'s
-    # hardcoded 25000ms default, so it's now sent explicitly.
+    # A4/DEV-55: default timeout=75.0 -> raw (75-5)*1000=70000, clamped to
+    # 60000 (below C#'s 65s outer "batch" watchdog); no longer matches C#'s
+    # hardcoded 25000ms internal default either, so it's sent explicitly.
     mock_bridge.send.assert_called_once_with(
         "batch",
-        {"commands": commands, "timeout_ms": 70000},
+        {"commands": commands, "timeout_ms": 60000},
         timeout=75.0,
     )
     assert "[0] ok" in result

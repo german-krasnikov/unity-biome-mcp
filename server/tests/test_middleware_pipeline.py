@@ -86,6 +86,16 @@ def test_check_prefetch_cache_hit_returns_cached():
     assert "cached hierarchy data" in result
 
 
+def test_read_cacheable_excludes_get_compile_errors():
+    """get_compile_errors' truth changes autonomously (manual edit, Hot
+    Reload, another session, or plain wall-clock progress after a recompile)
+    with no tracked write in this pipeline to key an invalidation off.
+    Membership in _READ_CACHEABLE is the sole "safe to serve up to TTL
+    stale" contract — this command must never re-enter it. (ARC-5 T2)"""
+    from unity_mcp.middleware_types import _READ_CACHEABLE
+    assert "get_compile_errors" not in _READ_CACHEABLE
+
+
 # ── TestServeCachedPrefetch ───────────────────────────────────────────────────
 
 class TestServeCachedPrefetch:

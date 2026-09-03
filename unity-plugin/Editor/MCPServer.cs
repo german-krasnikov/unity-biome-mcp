@@ -46,6 +46,8 @@ namespace UnityMCP.Editor
         internal static volatile string _lastWrittenState = "";
         // Set when TCP bind falls back to a non-configured port; cleared on each StartAsync entry.
         internal static volatile bool _portFallback;
+        // Base backoff (ms) between chat-listener bind retries — see PortResolver.BackoffDelayMs.
+        private const int ChatPortRetryBaseMs = 300;
 
         public static MCPStatusModel.SubState CurrentSubState => MCPStatusModel.GetSubState(
             isCompiling: _isCompiling,
@@ -203,7 +205,6 @@ namespace UnityMCP.Editor
             _lifecycleCallbacksRegistered = true;
             // Register WatchdogTick FIRST — so it survives even if PortFileManager throws below.
             EditorApplication.update += WatchdogTick;
-            EditorApplication.update += MainThreadDispatcher.Drain;
             EditorApplication.quitting += OnQuit;
             AssemblyReloadEvents.beforeAssemblyReload += OnBeforeReload;
             CompilationPipeline.compilationStarted += _ => OnCompilationStarted();
@@ -275,8 +276,6 @@ namespace UnityMCP.Editor
             // and EditorApplication.update fire after the full InitializeOnLoad sweep).
             CommandRegistry.InitDefaults();
             // Tier 0: re-register idempotently so restart after Stop() works
-            EditorApplication.update -= MainThreadDispatcher.Drain;
-            EditorApplication.update += MainThreadDispatcher.Drain;
             EditorApplication.update -= WatchdogTick;
             EditorApplication.update += WatchdogTick;
             CancellationTokenSource cts = null;
@@ -293,15 +292,15 @@ namespace UnityMCP.Editor
                 const int maxAttempts = 6;  // Windows TIME_WAIT can last 2+ minutes; more retries reduce fallback risk
                 const int retryDelayMs = 600;
 #else
-                const int maxAttempts = 6;  // macOS/Linux: match Windows budget (5 same-port + 1 fallback)
+                const int maxAttempts = 6;  // macOS/Linux: match Windows budget (6 same-port + 1 fallback)
                 const int retryDelayMs = 400;
 #endif
-                for (int attempt = 0; attempt < maxAttempts; attempt++)
+                for (int attempt = 0; attempt <= maxAttempts; attempt++)
                 {
                     int bindPort = PortFileManager.Port;
                     try
                     {
-                        if (attempt == maxAttempts - 1)
+                        if (!PortResolver.IsSamePortAttempt(attempt, maxAttempts))
                         {
                             // BindFreePort: atomic scan+bind, eliminates TOCTOU. Handles socket opts internally.
                             _listener = PortResolver.BindFreePort(PortFileManager.Port + 1, skipPort: PortFileManager.ChatPort, skipPort2: PortFileManager.ReloadPort);
@@ -340,20 +339,20 @@ namespace UnityMCP.Editor
                     {
                         try { _listener?.Stop(); } catch { }
                         _listener = null;
-                        if (attempt == maxAttempts - 1) throw;
-                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Port {bp2} busy, retry {at + 1}/{maxAttempts - 1}..."));
-                        await Task.Delay(retryDelayMs * (attempt + 1), token).ConfigureAwait(false);
+                        if (!PortResolver.IsSamePortAttempt(attempt, maxAttempts)) throw;
+                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Port {bp2} busy, retry {at + 1}/{maxAttempts}..."));
+                        await Task.Delay(PortResolver.BackoffDelayMs(attempt, retryDelayMs), token).ConfigureAwait(false);
                     }
                 }
 
                 // Chat listener — best-effort (non-fatal if chat port is unavailable)
                 var chatMainPort = PortFileManager.Port; // capture main port before chat loop
-                for (int attempt = 0; attempt < 3; attempt++)
+                for (int attempt = 0; attempt <= 3; attempt++)
                 {
                     int bindPort = PortFileManager.ChatPort;
                     try
                     {
-                        if (attempt == 2)
+                        if (!PortResolver.IsSamePortAttempt(attempt, 3))
                         {
                             // BindFreePort: atomic scan+bind, eliminates TOCTOU. Handles socket opts internally.
                             _chatListener = PortResolver.BindFreePort(PortFileManager.ChatPort + 1, skipPort: chatMainPort, skipPort2: PortFileManager.ReloadPort);
@@ -383,13 +382,13 @@ namespace UnityMCP.Editor
                     {
                         try { _chatListener?.Stop(); } catch { }
                         _chatListener = null;
-                        if (attempt == 2)
+                        if (!PortResolver.IsSamePortAttempt(attempt, 3))
                         {
                             var msg = se.Message; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {PortFileManager.ChatPort} unavailable after fallback: {msg}"));
                             break;
                         }
-                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {bp2} busy, retry {at + 1}/2..."));
-                        await Task.Delay(300 * (attempt + 1), token).ConfigureAwait(false);
+                        var bp2 = bindPort; var at = attempt; MainThreadDispatcher.Enqueue(() => Debug.LogWarning($"{BiomeLabel.Tag} Chat port {bp2} busy, retry {at + 1}/3..."));
+                        await Task.Delay(PortResolver.BackoffDelayMs(attempt, ChatPortRetryBaseMs), token).ConfigureAwait(false);
                     }
                     catch (SocketException se)
                     {
@@ -463,7 +462,6 @@ namespace UnityMCP.Editor
             try { _chatListener?.Server?.Shutdown(SocketShutdown.Both); } catch { }
             try { _chatListener?.Stop(); } catch { }
             _chatListener = null;
-            EditorApplication.update -= MainThreadDispatcher.Drain;
             EditorApplication.update -= WatchdogTick;
             MainThreadDispatcher.Clear();  // prevent queued actions after domain tear-down
         }
@@ -529,7 +527,7 @@ namespace UnityMCP.Editor
         // ── Tier 4b: status response format ──────────────────────────────────
 
         // synced by sync_versions.py — do not edit manually
-        internal static string PluginVersion => "1.51.0";
+        internal static string PluginVersion => "1.52.0";
 
         internal static string BuildVersionString(string stamp, string pluginVersion)
         {

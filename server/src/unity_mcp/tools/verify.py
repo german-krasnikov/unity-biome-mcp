@@ -120,7 +120,7 @@ def _is_suite_pass(result: str) -> bool:
     if not result:
         return False
     first_line = result.strip().splitlines()[0]
-    match = re.fullmatch(
+    match = re.match(
         r"SUITE:\s*(\d+)\s*/\s*(\d+)\s+passed\s*\([^)]*\)",
         first_line,
         re.IGNORECASE,
@@ -131,7 +131,9 @@ def _is_suite_pass(result: str) -> bool:
     if total <= 0 or passed != total:
         return False
     return not re.search(
-        r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT)\b", result, re.IGNORECASE
+        r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT)\b|timed_out:true",
+        result,
+        re.IGNORECASE,
     )
 
 

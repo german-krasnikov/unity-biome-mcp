@@ -9,61 +9,16 @@ import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
 import unity_mcp.tools.testing as testing
+from helpers import REQUEST_ID, RUN_ID, make_snapshot
 
-
-REQUEST_ID = "req-cancel-1"
-RUN_ID = "run-cancel-1"
 ACK = (
-    f"tests-started|request_id={REQUEST_ID}|run_id={RUN_ID}"
+    f"{testing._STARTED}|request_id={REQUEST_ID}|run_id={RUN_ID}"
     "|utf_guid=utf-1|state=dispatched"
 )
 
 
-def _snapshot(state: str, outcome: str = "") -> str:
-    terminal = state == "terminal"
-    expected = 6964
-    failed = 1 if terminal and outcome == "failed" else 0
-    skipped = 1 if terminal else 0
-    passed = expected - failed - skipped if terminal else 4
-    return json.dumps({
-        "request_id": REQUEST_ID,
-        "run_id": RUN_ID,
-        "utf_guid": "utf-1",
-        "state": state,
-        "lifecycle": state,
-        "outcome": outcome,
-        "source": "mcp",
-        "mode": "EditMode",
-        "filter": "",
-        "is_terminal": terminal,
-        "execution_finished": terminal,
-        "cleanup_complete": terminal,
-        "run_started_observed": True,
-        "manifest_complete": True,
-        "run_finished_observed": terminal,
-        "build_coherent": True,
-        "utf_xml_scope": "complete" if terminal else "none",
-        "expected_count": expected,
-        "declared_expected_count": expected,
-        "readable_manifest_count": expected,
-        "completed_expected_count": expected if terminal else 4,
-        "unique_terminal_count": expected if terminal else 4,
-        "unmaterialized_expected_count": 0,
-        "missing_count": 0,
-        "unexpected_count": 0,
-        "conflict_count": 0,
-        "passed": passed,
-        "failed": failed,
-        "skipped": skipped,
-        "inconclusive": 0,
-        "cancelled": 0,
-        "invalid": 0,
-        "issues": [],
-        "counts": {
-            "expected": expected,
-            "finished": expected if terminal else 4,
-        },
-    })
+def _snapshot(state: str, outcome: str = "", health: str = "") -> str:
+    return make_snapshot(REQUEST_ID, RUN_ID, state, outcome, health=health)
 
 
 async def _started(mode, filter=None, request_id=None):
@@ -75,7 +30,7 @@ async def _started(mode, filter=None, request_id=None):
 async def test_wait_cancelled_during_poll_preserves_run_identity():
     """CancelledError from get_test_run mid-poll propagates; never swallowed by the loop."""
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(side_effect=asyncio.CancelledError())), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(side_effect=asyncio.CancelledError())), \
          patch("asyncio.sleep", AsyncMock()):
         with pytest.raises(asyncio.CancelledError):
             await testing.run_tests_wait(
@@ -93,7 +48,7 @@ async def test_empty_exact_filter_rejected_before_dispatch(monkeypatch):
             call_count["run_tests"] += 1
             request_id = args.get("request_id", "")
             return (
-                f"tests-started|request_id={request_id}"
+                f"{testing._STARTED}|request_id={request_id}"
                 "|run_id=run-empty|utf_guid=utf-1|state=dispatched|expected_count=0"
             )
         return "none"
@@ -114,7 +69,7 @@ async def test_empty_filter_validated_on_zero_expected_count_in_ack(monkeypatch)
         if command == "run_tests":
             request_id = args.get("request_id", "")
             return (
-                f"tests-started|request_id={request_id}"
+                f"{testing._STARTED}|request_id={request_id}"
                 f"|run_id={run_id}|utf_guid=utf-1|state=dispatched|expected_count=0"
             )
         return "none"
@@ -137,7 +92,7 @@ async def test_wait_reconnect_mid_poll_resumes_same_run_id():
         terminal,
     ]
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(side_effect=polls)) as get_run, \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(side_effect=polls)) as get_run, \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=10.0, poll_interval=1.0
@@ -156,7 +111,7 @@ async def test_wait_300s_timeout_terminates_within_deadline():
     running = _snapshot("running")
     started_at = time.monotonic()
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(return_value=running)), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value=running)), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=0.05, poll_interval=1.0
@@ -175,7 +130,7 @@ async def test_run_tests_wait_propagates_tool_error_for_zero_match(monkeypatch):
         if command == "run_tests":
             request_id = args.get("request_id", "")
             return (
-                f"tests-started|request_id={request_id}"
+                f"{testing._STARTED}|request_id={request_id}"
                 "|run_id=run-zero-wait|utf_guid=utf-1|state=dispatched|expected_count=0"
             )
         return "none"
@@ -194,7 +149,7 @@ async def test_expected_count_one_does_not_raise(monkeypatch):
         if command == "run_tests":
             request_id = args.get("request_id", "")
             return (
-                f"tests-started|request_id={request_id}"
+                f"{testing._STARTED}|request_id={request_id}"
                 f"|run_id={run_id}|utf_guid=utf-1|state=dispatched|expected_count=1"
             )
         return "none"

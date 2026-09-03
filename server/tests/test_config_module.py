@@ -1,6 +1,7 @@
 """Tests for config auto-generation module (clients, merger, backup, validator, resolver)."""
 import json
 import pathlib
+import re
 import sys
 from unittest.mock import patch
 
@@ -18,12 +19,60 @@ def test_detect_finds_claude_desktop_when_dir_exists(tmp_path, monkeypatch):
     assert "claude-desktop" in found
 
 
+def test_detect_installed_no_false_positive_claude_code(tmp_path, monkeypatch):
+    """claude-code's config_path is ~/.claude.json — its parent IS $HOME, which
+    always exists. The old `parent.exists()` fallback therefore reported
+    claude-code as installed on every machine (DEV-57), since Path.home()
+    always exists. A fake home without .claude.json (and without ~/.claude/,
+    isolated via install_dir so this test doesn't depend on this machine's
+    real ~/.claude) must NOT be detected."""
+    from unity_mcp.config import clients as c
+    fake_home = tmp_path  # tmp_path always exists, standing in for $HOME
+    monkeypatch.setattr(pathlib.Path, "home", classmethod(lambda cls: fake_home))
+    cfg = fake_home / ".claude.json"
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "config_path", cfg)
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "install_dir", fake_home / ".claude")
+    assert not cfg.exists()
+    assert "claude-code" not in c.detect_installed()
+
+    # Double-red: creating the actual file must still be detected.
+    cfg.touch()
+    assert "claude-code" in c.detect_installed()
+
+
+def test_detect_installed_claude_code_dir_without_json(tmp_path, monkeypatch):
+    """`claude` CLI creates ~/.claude/ on first run, before ~/.claude.json
+    necessarily exists. detect_installed must still report claude-code
+    installed via the install_dir signal — mirrors
+    unity-plugin/Editor/Wizard/BackendDescriptor.cs's ConfigDir='~/.claude'
+    (ARC-0b single source of truth). Without the fix, this is a false
+    negative: install.py --all / the interactive default silently skips the
+    project's primary client. (DEV-57b)"""
+    from unity_mcp.config import clients as c
+    fake_home = tmp_path
+    monkeypatch.setattr(pathlib.Path, "home", classmethod(lambda cls: fake_home))
+    claude_dir = fake_home / ".claude"
+    claude_dir.mkdir()
+    cfg = fake_home / ".claude.json"  # deliberately absent
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "config_path", cfg)
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "install_dir", claude_dir)
+    assert not cfg.exists()
+    assert "claude-code" in c.detect_installed()
+
+    # Double-red: without ~/.claude/ either, it must NOT be detected.
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "install_dir", fake_home / "no_such_claude_dir")
+    assert "claude-code" not in c.detect_installed()
+
+
 def test_detect_returns_empty_when_nothing_installed(tmp_path, monkeypatch):
     from unity_mcp.config import clients as c
     # Point to a nested path whose parent also doesn't exist
     missing = tmp_path / "no_such_dir" / "nonexistent.json"
+    missing_dir = tmp_path / "no_such_install_dir"
     for info in c.CLIENT_REGISTRY.values():
         monkeypatch.setattr(info, "config_path", missing)
+        if info.install_dir is not None:
+            monkeypatch.setattr(info, "install_dir", missing_dir)
     result = c.detect_installed()
     assert result == []
 
@@ -99,6 +148,33 @@ def test_opencode_config_path_platform_specific():
 
 # ─── merger.py ──────────────────────────────────────────────────────────────
 
+def test_read_encoding_is_public_and_matches_private_alias():
+    """READ_ENCODING is the public name; _READ_ENCODING stays as a compat alias
+    so existing internal references keep working (B4 minor)."""
+    from unity_mcp.config import merger
+    assert merger.READ_ENCODING == "utf-8-sig"
+    assert merger._READ_ENCODING is merger.READ_ENCODING
+
+
+def test_mcp_config_writer_and_validator_import_public_read_encoding():
+    """Cross-module importers (mcp_config_writer, config.validator) must import
+    the public READ_ENCODING name, not the private alias (B4 minor)."""
+    import ast
+    import inspect
+    from unity_mcp import mcp_config_writer
+    from unity_mcp.config import validator
+
+    for mod in (mcp_config_writer, validator):
+        tree = ast.parse(inspect.getsource(mod))
+        imported = {
+            alias.name
+            for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+            for alias in node.names
+        }
+        assert "READ_ENCODING" in imported, f"{mod.__name__} must import READ_ENCODING"
+        assert "_READ_ENCODING" not in imported, f"{mod.__name__} must not import the private alias"
+
+
 def test_merge_creates_new_config_file(tmp_path):
     from unity_mcp.config import merger
     cfg = tmp_path / "config.json"
@@ -172,6 +248,39 @@ def test_merger_default_root_key_unchanged(tmp_path):
     data = json.loads(cfg.read_text(encoding="utf-8"))
     assert "mcpServers" in data
     assert "other" in data["mcpServers"]
+
+
+def test_merge_mcp_config_writes_cyrillic_env_value_without_unicode_escape(tmp_path):
+    """Cyrillic env values (e.g. a Windows username in a path) must round-trip
+    as literal UTF-8 bytes, not \\uXXXX escapes -- json.dumps' default
+    (ensure_ascii=True) would silently balloon tokens and hide corruption."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    entry = {"command": "uvx", "args": ["unity-biome-mcp"], "env": {"USER_NOTE": "Привет"}}
+    merger.merge_mcp_config(cfg, entry)
+    raw = cfg.read_bytes()
+    assert "Привет".encode("utf-8") in raw
+    assert b"\\u" not in raw
+
+
+def test_unpin_entry_preserves_cyrillic_without_escaping(tmp_path):
+    """unpin_entry rewrites the whole file on a hit -- must not re-escape
+    Cyrillic already present elsewhere in the config."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    payload = {
+        "mcpServers": {
+            "unity-biome-mcp": {"command": "uvx", "args": [], "_pin": True},
+            "other": {"note": "Привет"},
+        }
+    }
+    cfg.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    assert merger.unpin_entry(cfg) is True
+
+    raw = cfg.read_bytes()
+    assert "Привет".encode("utf-8") in raw
+    assert b"\\u" not in raw
 
 
 def test_merge_toml_strips_stale_unity_entry(tmp_path):
@@ -475,6 +584,32 @@ def test_validate_invalid_json(tmp_path, monkeypatch):
     assert "invalid json" in report.lower()
 
 
+def test_validate_config_survives_undecodable_json(tmp_path, monkeypatch):
+    """Genuinely non-UTF-8 bytes (stray UTF-16 BOM / binary corruption) raise
+    UnicodeDecodeError from read_text() itself, before json.loads ever runs --
+    the JSON branch's except clause only caught json.JSONDecodeError, so this
+    class of corruption crashed validate_config instead of degrading to a
+    status line like the JSONDecodeError case already does."""
+    from unity_mcp.config import clients as c, validator
+    bad = tmp_path / "bad.json"
+    bad.write_bytes(b"\xff\xfe{not valid utf-8")
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-desktop"], "config_path", bad)
+    report = validator.validate_config("claude-desktop")  # must not raise
+    assert "undecodable" in report.lower()
+
+
+def test_validate_config_survives_undecodable_toml(tmp_path, monkeypatch):
+    """Codex's TOML branch had no try/except at all around its read_text --
+    the same undecodable-bytes corruption must degrade to a status line
+    instead of propagating UnicodeDecodeError."""
+    from unity_mcp.config import clients as c, validator
+    bad = tmp_path / "config.toml"
+    bad.write_bytes(b"\xff\xfe[mcp_servers.unity-biome-mcp]\ninvalid \x80\x81")
+    monkeypatch.setattr(c.CLIENT_REGISTRY["codex"], "config_path", bad)
+    report = validator.validate_config("codex")  # must not raise
+    assert "undecodable" in report.lower()
+
+
 def test_validate_missing_unity_mcp_entry(tmp_path, monkeypatch):
     from unity_mcp.config import clients as c, validator
     cfg = tmp_path / "cfg.json"
@@ -641,6 +776,53 @@ def test_opencode_transform_passes_env():
     assert "env" not in result
 
 
+# ─── transform: preserve "_pin" and other unknown keys (DEV-58 / B2-P7) ─────
+# Both transforms whole-replace the entry from an allowlist (type/command/args/env),
+# so "_pin" — set by `install.py version --set` BEFORE merge_mcp_config applies the
+# transformer (merger.py:77) — was silently dropped, making is_entry_pinned() always
+# False for vscode/opencode and letting `install.py update` clobber a pinned version.
+
+def test_vscode_transform_preserves_pin():
+    from unity_mcp.config.clients import _vscode_transform
+    entry = {"command": "uvx", "args": [], "_pin": True}
+    result = _vscode_transform(entry)
+    assert result["_pin"] is True
+
+
+def test_vscode_transform_omits_pin_when_absent():
+    from unity_mcp.config.clients import _vscode_transform
+    entry = {"command": "uvx", "args": []}
+    result = _vscode_transform(entry)
+    assert "_pin" not in result
+
+
+def test_opencode_transform_preserves_pin():
+    from unity_mcp.config.clients import _opencode_transform
+    entry = {"command": "uvx", "args": [], "_pin": True}
+    result = _opencode_transform(entry)
+    assert result["_pin"] is True
+
+
+def test_opencode_transform_omits_pin_when_absent():
+    from unity_mcp.config.clients import _opencode_transform
+    entry = {"command": "uvx", "args": []}
+    result = _opencode_transform(entry)
+    assert "_pin" not in result
+
+
+def test_opencode_transform_pin_and_env_together_no_duplicate_env():
+    """Renamed source keys ("env" -> "environment", "args" folded into "command")
+    must not leak back in as stray literal keys once unknown keys are preserved."""
+    from unity_mcp.config.clients import _opencode_transform
+    entry = {"command": "uvx", "args": ["unity-biome-mcp"], "env": {"PORT": "9500"}, "_pin": True}
+    result = _opencode_transform(entry)
+    assert result["_pin"] is True
+    assert result["environment"] == {"PORT": "9500"}
+    assert "env" not in result
+    assert "args" not in result
+    assert result["command"] == ["uvx", "unity-biome-mcp"]
+
+
 # ─── merger.py: invalid JSON raises ─────────────────────────────────────────
 
 def test_merge_invalid_json_raises_valueerror(tmp_path):
@@ -706,3 +888,394 @@ def test_project_merge_preserves_existing_servers(tmp_path):
     data = json.loads(cfg.read_text(encoding="utf-8"))
     assert "filesystem" in data["mcpServers"]
     assert "unity-biome-mcp" in data["mcpServers"]
+
+
+# ─── merger.py: pin support (ARC-0b T3) ──────────────────────────────────────
+
+def test_is_entry_pinned_false_when_file_missing(tmp_path):
+    from unity_mcp.config import merger
+    assert merger.is_entry_pinned(tmp_path / "nope.json") is False
+
+
+def test_is_entry_pinned_false_when_absent(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": []}}}), encoding="utf-8")
+    assert merger.is_entry_pinned(cfg) is False
+
+
+def test_is_entry_pinned_true_when_pin_true(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": [], "_pin": True}}
+    }), encoding="utf-8")
+    assert merger.is_entry_pinned(cfg) is True
+
+
+def test_is_entry_pinned_true_through_vscode_transformer(tmp_path):
+    """Integration: merge_mcp_config with the real vscode entry_transformer must
+    not strip "_pin" before is_entry_pinned reads it back (DEV-58 / B2-P7)."""
+    from unity_mcp.config import merger
+    from unity_mcp.config.clients import _vscode_transform
+    cfg = tmp_path / "mcp.json"
+    entry = {"command": "uvx", "args": ["unity-biome-mcp"], "_pin": True}
+    merger.merge_mcp_config(cfg, entry, root_key="servers", entry_transformer=_vscode_transform)
+    assert merger.is_entry_pinned(cfg, root_key="servers") is True
+
+
+def test_is_entry_pinned_true_through_opencode_transformer(tmp_path):
+    """Same guarantee for OpenCode's command-as-array transform."""
+    from unity_mcp.config import merger
+    from unity_mcp.config.clients import _opencode_transform
+    cfg = tmp_path / "opencode.json"
+    entry = {"command": "uvx", "args": ["unity-biome-mcp"], "_pin": True}
+    merger.merge_mcp_config(cfg, entry, root_key="mcp", entry_transformer=_opencode_transform)
+    assert merger.is_entry_pinned(cfg, root_key="mcp") is True
+
+
+def test_is_entry_pinned_ignores_sibling_entry_pin(tmp_path):
+    """A sibling MCP server's own "_pin" must never leak into our classification."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({
+        "mcpServers": {
+            "other-mcp": {"command": "x", "_pin": True},
+            "unity-biome-mcp": {"command": "uvx", "args": []},
+        }
+    }), encoding="utf-8")
+    assert merger.is_entry_pinned(cfg) is False
+
+
+def test_unpin_entry_removes_pin_key(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    cfg.write_text(json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": [], "_pin": True}}
+    }), encoding="utf-8")
+
+    removed = merger.unpin_entry(cfg)
+
+    assert removed is True
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    assert "_pin" not in data["mcpServers"]["unity-biome-mcp"]
+    assert data["mcpServers"]["unity-biome-mcp"]["command"] == "uvx"
+
+
+def test_unpin_entry_returns_false_when_not_pinned(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    original = json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": []}}})
+    cfg.write_text(original, encoding="utf-8")
+
+    assert merger.unpin_entry(cfg) is False
+    assert cfg.read_text(encoding="utf-8") == original  # untouched, no rewrite
+
+
+# ─── merger.py: BOM must never defeat pin detection (C1-FIX-01, windows-platform CRITICAL) ──
+
+def test_is_entry_pinned_true_on_bom_prefixed_config(tmp_path):
+    """A leading UTF-8 BOM (written by Windows Notepad / PowerShell 5.1
+    Out-File/Set-Content by default) is valid UTF-8 but makes plain
+    json.loads(text) raise JSONDecodeError -- is_entry_pinned must strip it
+    (utf-8-sig) instead of silently reporting "not pinned"."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    payload = json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": [], "_pin": True}}
+    }).encode("utf-8")
+    cfg.write_bytes(b"\xef\xbb\xbf" + payload)
+
+    assert merger.is_entry_pinned(cfg) is True
+
+
+def test_is_entry_pinned_false_on_bom_prefixed_config_without_pin(tmp_path):
+    """Double-red: BOM presence alone must not flip the result -- a BOM'd
+    config that genuinely lacks "_pin" still reads False."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    payload = json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "uvx", "args": []}}
+    }).encode("utf-8")
+    cfg.write_bytes(b"\xef\xbb\xbf" + payload)
+
+    assert merger.is_entry_pinned(cfg) is False
+
+
+def test_merge_mcp_config_bom_prefixed_file_preserves_content(tmp_path):
+    """merge_mcp_config on a BOM-prefixed file must not raise and must not
+    wipe the sibling entry already in the file -- it merges like any other
+    valid JSON config. The rewritten file is plain UTF-8 (no BOM)."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    payload = json.dumps({"mcpServers": {"other-server": {"command": "x"}}}).encode("utf-8")
+    cfg.write_bytes(b"\xef\xbb\xbf" + payload)
+
+    merger.merge_mcp_config(cfg, {"command": "uvx", "args": []})
+
+    assert cfg.read_bytes()[:3] != b"\xef\xbb\xbf"
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    assert "other-server" in data["mcpServers"]
+    assert "unity-biome-mcp" in data["mcpServers"]
+
+
+# ─── merger.py: undecodable bytes must degrade, not crash ──────────────────
+
+def test_is_entry_pinned_false_on_undecodable_bytes(tmp_path):
+    """A genuinely non-UTF-8 file (UTF-16 BOM, truncated multi-byte sequence,
+    binary corruption) raised an uncaught UnicodeDecodeError before this fix --
+    is_entry_pinned's docstring already promised "degrade, don't crash" for
+    corrupt JSON, but only caught JSONDecodeError. Left unhandled, this crashed
+    the fire-and-forget maybe_update background task on every reconnect for
+    that project (server_updater.py's _default_is_pinned has no try/except of
+    its own)."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    cfg.write_bytes(b"\xff\xfe" + '{"mcpServers": {}}'.encode("utf-16-le"))
+
+    assert merger.is_entry_pinned(cfg) is False
+
+
+def test_unpin_entry_false_on_undecodable_bytes_no_write(tmp_path):
+    """Double-red pair: unpin_entry must degrade the same way -- and, since it
+    mutates the file on a hit, must not attempt any write when the file can't
+    even be decoded."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.json"
+    original = b"\xff\xfe" + '{"mcpServers": {}}'.encode("utf-16-le")
+    cfg.write_bytes(original)
+
+    assert merger.unpin_entry(cfg) is False
+    assert cfg.read_bytes() == original  # untouched, no rewrite attempted
+
+
+def test_is_toml_pinned_false_without_marker(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    cfg.write_text("[mcp_servers.unity-biome-mcp]\ncommand = 'uvx'\nargs = []\n", encoding="utf-8")
+    assert merger.is_toml_pinned(cfg) is False
+
+
+def test_is_toml_pinned_false_when_file_missing(tmp_path):
+    from unity_mcp.config import merger
+    assert merger.is_toml_pinned(tmp_path / "nope.toml") is False
+
+
+def test_is_toml_pinned_true_with_marker(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    cfg.write_text(
+        "# unity-biome-mcp generated v0.54.1 pinned\n[mcp_servers.unity-biome-mcp]\ncommand = 'uvx'\nargs = []\n",
+        encoding="utf-8",
+    )
+    assert merger.is_toml_pinned(cfg) is True
+
+
+def test_pin_toml_entry_writes_marker(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    merger.merge_toml_mcp(cfg, {"command": "uvx", "args": []})
+
+    merger.pin_toml_entry(cfg, "0.54.1")
+
+    text = cfg.read_text(encoding="utf-8")
+    assert "# unity-biome-mcp generated v0.54.1 pinned\n[mcp_servers.unity-biome-mcp]" in text
+    assert merger.is_toml_pinned(cfg) is True
+
+
+def test_unpin_toml_entry_removes_marker(tmp_path):
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    merger.merge_toml_mcp(cfg, {"command": "uvx", "args": []})
+    merger.pin_toml_entry(cfg, "0.54.1")
+
+    removed = merger.unpin_toml_entry(cfg)
+
+    assert removed is True
+    text = cfg.read_text(encoding="utf-8")
+    assert merger.is_toml_pinned(cfg) is False
+    assert "[mcp_servers.unity-biome-mcp]" in text
+    assert "command = 'uvx'" in text
+
+
+def test_unpin_toml_entry_returns_false_when_not_pinned(tmp_path):
+    """Symmetric with unpin_entry's bool contract (test_unpin_entry_returns_false_when_not_pinned)."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    merger.merge_toml_mcp(cfg, {"command": "uvx", "args": []})
+    original = cfg.read_text(encoding="utf-8")
+
+    assert merger.unpin_toml_entry(cfg) is False
+    assert cfg.read_text(encoding="utf-8") == original  # untouched, no rewrite
+
+
+def test_is_toml_pinned_false_on_undecodable_bytes(tmp_path):
+    """TOML analog of test_is_entry_pinned_false_on_undecodable_bytes -- the
+    read_text call here had no try/except at all before this fix (not even a
+    JSONDecodeError catch, since there's no JSON parser on this path)."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    cfg.write_bytes(b"\xff\xfe" + "[mcp_servers.unity-biome-mcp]\n".encode("utf-16-le"))
+
+    assert merger.is_toml_pinned(cfg) is False
+
+
+def test_unpin_toml_entry_false_on_undecodable_bytes_no_write(tmp_path):
+    """Double-red pair: unpin_toml_entry mutates the file on a hit, so an
+    undecodable file must return False without attempting any write."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    original = b"\xff\xfe" + "[mcp_servers.unity-biome-mcp]\n".encode("utf-16-le")
+    cfg.write_bytes(original)
+
+    assert merger.unpin_toml_entry(cfg) is False
+    assert cfg.read_bytes() == original  # untouched, no rewrite attempted
+
+
+def test_toml_pin_roundtrip_survives_prerelease_version(tmp_path):
+    """The marker/pin regex must accept a semver pre-release tag (e.g. an RC
+    build) -- before the fix, is_toml_pinned always returned False for a
+    pinned rc-tagged version because the version fragment stopped matching
+    at the first '-'."""
+    from unity_mcp.config import merger
+    cfg = tmp_path / "config.toml"
+    merger.merge_toml_mcp(cfg, {"command": "uvx", "args": []})
+
+    merger.pin_toml_entry(cfg, "1.51.0-rc.1")
+
+    assert merger.is_toml_pinned(cfg) is True
+
+    removed = merger.unpin_toml_entry(cfg)
+
+    assert removed is True
+    text = cfg.read_text(encoding="utf-8")
+    assert merger.is_toml_pinned(cfg) is False
+    assert "generated v1.51.0-rc.1" not in text
+
+
+def test_toml_version_fragment_matches_csharp_source():
+    """Parity guard (mirrors test_project_config_targets_matches_csharp_source
+    below): the C# VersionPattern constant (ProjectConfigToml.cs) must be the
+    byte-identical regex fragment as Python's _TOML_VERSION_RE_FRAGMENT, or the
+    two independent TOML writers/classifiers will silently disagree on which
+    versions look "owned" vs "foreign"."""
+    from unity_mcp.config import merger
+
+    cs_path = pathlib.Path(__file__).parents[2] / "unity-plugin/Editor/Wizard/ProjectConfigToml.cs"
+    assert cs_path.exists(), f"C# source not found: {cs_path}"
+    cs_text = cs_path.read_text(encoding="utf-8")
+
+    m = re.search(r'VersionPattern\s*=\s*@"([^"]*)"', cs_text)
+    assert m, "VersionPattern constant not found in ProjectConfigToml.cs"
+    assert m.group(1) == merger._TOML_VERSION_RE_FRAGMENT
+
+
+# ─── merger.py: PROJECT_CONFIG_TARGETS parity with ProjectConfigTargets.cs ──
+
+_PROJECT = pathlib.Path(__file__).parents[2]
+_PROJECT_CONFIG_TARGETS_CS_PATH = (
+    _PROJECT / "unity-plugin/Editor/Wizard/ProjectConfigTargets.cs"
+)
+assert _PROJECT_CONFIG_TARGETS_CS_PATH.exists(), (
+    f"C# source not found: {_PROJECT_CONFIG_TARGETS_CS_PATH}"
+)
+_PROJECT_CONFIG_TARGETS_CS = _PROJECT_CONFIG_TARGETS_CS_PATH.read_text(encoding="utf-8")
+
+# Captures (key, relativePath, rootKey, isToml) from each
+# `new ProjectConfigTarget("key", "relPath", rootKeyOrNull, true|false)` row.
+_CS_PROJECT_CONFIG_TARGET_RE = re.compile(
+    r'new ProjectConfigTarget\('
+    r'"([^"]+)",\s*"([^"]+)",\s*(null|"[^"]+"),\s*(true|false)\)'
+)
+
+
+def test_project_config_targets_matches_csharp_source():
+    """PROJECT_CONFIG_TARGETS (merger.py) must mirror ProjectConfigTargets.All
+    (C#) -- the two lists are independent by necessity (different runtimes),
+    but a drift here means _default_is_pinned silently stops protecting a
+    client's pin, exactly what C1-round2 #6 found for every non-Claude-Code
+    client. This is a content AND order guard: both lists compare as tuples."""
+    from unity_mcp.config import merger
+
+    matches = _CS_PROJECT_CONFIG_TARGET_RE.findall(_PROJECT_CONFIG_TARGETS_CS)
+    assert matches, "ProjectConfigTargets.cs regex found no matches -- source format changed"
+
+    parsed = tuple(
+        (rel_path, "" if root_key == "null" else root_key.strip('"'), is_toml == "true")
+        for _key, rel_path, root_key, is_toml in matches
+    )
+    assert parsed == merger.PROJECT_CONFIG_TARGETS
+
+
+# ─── clients.py: install_dir parity with BackendDescriptor.cs ConfigDir ────
+
+_BACKEND_DESCRIPTOR_CS_PATH = _PROJECT / "unity-plugin/Editor/Wizard/BackendDescriptor.cs"
+assert _BACKEND_DESCRIPTOR_CS_PATH.exists(), (
+    f"C# source not found: {_BACKEND_DESCRIPTOR_CS_PATH}"
+)
+_BACKEND_DESCRIPTOR_CS = _BACKEND_DESCRIPTOR_CS_PATH.read_text(encoding="utf-8")
+
+
+def _home_tail(path: pathlib.Path) -> str:
+    """Path segments after $HOME, POSIX-joined, for matching against a C#
+    '~/...' literal (which is always POSIX-slashed regardless of platform)."""
+    return path.relative_to(pathlib.Path.home()).as_posix()
+
+
+def test_install_dir_matches_backend_descriptor_source(monkeypatch):
+    """install_dir per-platform literals (clients.py) must mirror
+    unity-plugin/Editor/Wizard/BackendDescriptor.cs's ConfigDir branches
+    (ARC-0b) -- carried only by comment before this test, so an
+    independent edit to BackendDescriptor.cs (e.g. a Windsurf or VS Code path
+    change) would silently desync Python's detect_installed() with no test
+    to catch it. Checks verbatim presence of each literal path segment (not
+    full structural parity -- BackendDescriptor.cs uses #if platform guards
+    that can't be regex-extracted the way ProjectConfigTargets.cs's flat
+    array can), derived from the actual Python runtime values so a literal
+    changed on either side is caught."""
+    from unity_mcp.config import clients as c
+
+    # Static (platform-independent) literals: claude-code / cursor / codex.
+    for key in ("claude-code", "cursor", "codex"):
+        install_dir = c.CLIENT_REGISTRY[key].install_dir
+        assert install_dir is not None, f"{key} has no install_dir"
+        expected = f"~/{_home_tail(install_dir)}"
+        assert expected in _BACKEND_DESCRIPTOR_CS, (
+            f"{key} install_dir literal {expected!r} not found in BackendDescriptor.cs"
+        )
+
+    fake_appdata = pathlib.Path("/fake/appdata")
+    monkeypatch.setenv("APPDATA", str(fake_appdata))
+
+    # (function, platform, expects_appdata_root) -- expects_appdata_root=True
+    # means the win32 branch is rooted at %APPDATA%, not $HOME.
+    per_platform_funcs = {
+        "claude-desktop": c._claude_desktop_install_dir,
+        "windsurf": c._windsurf_install_dir,
+        "vscode": c._vscode_install_dir,
+    }
+    platforms_by_client = {
+        "claude-desktop": ("win32", "darwin", "linux"),
+        "windsurf": ("win32", "linux"),  # no separate darwin branch
+        "vscode": ("win32", "darwin", "linux"),
+    }
+
+    for client, platforms in platforms_by_client.items():
+        func = per_platform_funcs[client]
+        for plat in platforms:
+            monkeypatch.setattr(sys, "platform", plat)
+            result = func()
+            if plat == "win32":
+                parts = result.relative_to(fake_appdata).parts
+                for part in parts:
+                    literal = f'"{part}"'
+                    assert literal in _BACKEND_DESCRIPTOR_CS, (
+                        f"{client} win32 install_dir segment {literal!r} not found "
+                        "in BackendDescriptor.cs"
+                    )
+            else:
+                expected = f"~/{_home_tail(result)}"
+                assert expected in _BACKEND_DESCRIPTOR_CS, (
+                    f"{client} {plat} install_dir literal {expected!r} not found "
+                    "in BackendDescriptor.cs"
+                )

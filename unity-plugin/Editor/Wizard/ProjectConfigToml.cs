@@ -19,17 +19,39 @@ namespace UnityMCP.Editor.Wizard
         // Server name is "unity-biome-mcp" (one "mcp", distinct from the foreign bare
         // [mcp_servers.unity]). Regexes accept the OLD "unity-mcp" name too so an
         // existing install is migrated (replaced) rather than left as a duplicate.
+        // Version fragment for the marker comment: base semver (X.Y.Z) plus an
+        // optional dot-separated pre-release tag (e.g. "-rc.1"), per semver's
+        // pre-release grammar. Single named constant substituted into all 4 regexes
+        // below so a widening can't drift between SectionRe/MarkerVersionRe/PinRe/
+        // UnpinnedCommentLineRe. Mirrors Python's _TOML_VERSION_RE_FRAGMENT
+        // (merger.py) -- parity enforced by
+        // test_config_module.py::test_toml_version_fragment_matches_csharp_source.
+        // Internal (not private): WizardConfigWriter.GitInstallUrlFor reuses this
+        // exact grammar to validate a git-ref pre-release suffix, so the TOML
+        // marker and the install URL never accept different characters there.
+        internal const string VersionPattern = @"[\d.]+(?:-[0-9A-Za-z.]+)?";
+
         private static readonly Regex SectionRe = new Regex(
-            @"(?:^# unity-(?:biome-mcp|mcp) generated v[\d.]+\r?\n)?" +
+            @"(?:^# unity-(?:biome-mcp|mcp) generated v" + VersionPattern + @"\r?\n)?" +
             @"\[mcp_servers\.unity-(?:biome-mcp|mcp)\]\r?\n" +
             @"(?:(?!\[)[^\r\n]*\r?\n)*" +
             @"(?:\[mcp_servers\.unity-(?:biome-mcp|mcp)\.[^\]]+\]\r?\n(?:(?!\[)[^\r\n]*\r?\n)*)*",
             RegexOptions.Multiline);
 
+        // Optional " pinned" suffix (ARC-0b Task 1) may follow the version on the same
+        // comment line — ExtractMarkerVersion must still find the version in a pinned file.
         private static readonly Regex MarkerVersionRe = new Regex(
-            @"^# unity-(?:biome-mcp|mcp) generated v([\d.]+)\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\]", RegexOptions.Multiline);
+            @"^# unity-(?:biome-mcp|mcp) generated v(" + VersionPattern + @")(?: pinned)?\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\]", RegexOptions.Multiline);
 
         private static readonly Regex MarkerPortRe = new Regex(@"UNITY_MCP_PORT\s*=\s*'(\d+)'");
+
+        // ARC-0b Task 1: " pinned" suffix on the marker comment line, directly above
+        // our own section header — same scoping guarantee as MarkerVersionRe (must be
+        // immediately followed by our [mcp_servers.unity-...] header), so a sibling
+        // section's comment never leaks into our classification.
+        private static readonly Regex PinRe = new Regex(
+            @"^# unity-(?:biome-mcp|mcp) generated v" + VersionPattern + @" pinned\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\]",
+            RegexOptions.Multiline);
 
         internal static string BuildFresh(int port, string gitUrl, string version) =>
             $"# {PermissionConfig.SERVER_NAME} generated v{version}\n" +
@@ -65,6 +87,36 @@ namespace UnityMCP.Editor.Wizard
             return m.Success ? int.Parse(m.Groups[1].Value) : (int?)null;
         }
 
+        internal static bool IsPinned(string existingText) =>
+            !string.IsNullOrEmpty(existingText) && PinRe.IsMatch(existingText);
+
+        // ARC-11 T1: matches the unpinned marker comment line directly above our
+        // section header — same adjacency scoping as MarkerVersionRe/PinRe, so a
+        // sibling section's comment never leaks into Pin(). Group 1 is the comment
+        // text up to (not including) the version's trailing newline — that's where
+        // the " pinned" suffix gets inserted.
+        private static readonly Regex UnpinnedCommentLineRe = new Regex(
+            @"^(# unity-(?:biome-mcp|mcp) generated v" + VersionPattern + @")(\r?\n\[mcp_servers\.unity-(?:biome-mcp|mcp)\])",
+            RegexOptions.Multiline);
+
+        /// <summary>
+        /// Insert the " pinned" suffix onto the version-marker comment line, directly
+        /// above our own section header — surgical insert, mirrors Adopt()'s
+        /// comment-line insertion technique. Idempotent: returns the input unchanged
+        /// when already pinned (never produces "pinned pinned"). Returns the
+        /// original reference unchanged when no comment+section-header pair is
+        /// found — Pin() is only ever invoked on an already-OwnedStale entry, which
+        /// by Classify()'s own contract already has a version marker comment.
+        /// </summary>
+        internal static string Pin(string existingText)
+        {
+            if (string.IsNullOrEmpty(existingText) || IsPinned(existingText)) return existingText;
+            var m = UnpinnedCommentLineRe.Match(existingText);
+            if (!m.Success) return existingText;
+            var insertAt = m.Groups[1].Index + m.Groups[1].Length;
+            return existingText.Substring(0, insertAt) + " pinned" + existingText.Substring(insertAt);
+        }
+
         /// <summary>
         /// Insert the version marker comment before the section header of a Foreign entry.
         /// After this call, Classify() returns OwnedCurrent when the existing entry's port matches.
@@ -91,6 +143,9 @@ namespace UnityMCP.Editor.Wizard
             var markerVersion = ExtractMarkerVersion(existingText);
             if (markerVersion == null)
                 return EntryState.Foreign;
+
+            if (IsPinned(existingText))
+                return EntryState.OwnedCurrent;
 
             var markerPort = ExtractMarkerPort(existingText);
             return markerVersion == version && markerPort == port

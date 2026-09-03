@@ -9,61 +9,16 @@ import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
 import unity_mcp.tools.testing as testing
+from helpers import REQUEST_ID, RUN_ID, make_snapshot
 
-
-REQUEST_ID = "req-1"
-RUN_ID = "run-1"
 ACK = (
-    f"tests-started|request_id={REQUEST_ID}|run_id={RUN_ID}"
+    f"{testing._STARTED}|request_id={REQUEST_ID}|run_id={RUN_ID}"
     "|utf_guid=utf-1|state=dispatched"
 )
 
 
-def _snapshot(state: str, outcome: str = "") -> str:
-    terminal = state == "terminal"
-    expected = 6964
-    failed = 1 if terminal and outcome == "failed" else 0
-    skipped = 1 if terminal else 0
-    passed = expected - failed - skipped if terminal else 4
-    return json.dumps({
-        "request_id": REQUEST_ID,
-        "run_id": RUN_ID,
-        "utf_guid": "utf-1",
-        "state": state,
-        "lifecycle": state,
-        "outcome": outcome,
-        "source": "mcp",
-        "mode": "EditMode",
-        "filter": "",
-        "is_terminal": terminal,
-        "execution_finished": terminal,
-        "cleanup_complete": terminal,
-        "run_started_observed": True,
-        "manifest_complete": True,
-        "run_finished_observed": terminal,
-        "build_coherent": True,
-        "utf_xml_scope": "complete" if terminal else "none",
-        "expected_count": expected,
-        "declared_expected_count": expected,
-        "readable_manifest_count": expected,
-        "completed_expected_count": expected if terminal else 4,
-        "unique_terminal_count": expected if terminal else 4,
-        "unmaterialized_expected_count": 0,
-        "missing_count": 0,
-        "unexpected_count": 0,
-        "conflict_count": 0,
-        "passed": passed,
-        "failed": failed,
-        "skipped": skipped,
-        "inconclusive": 0,
-        "cancelled": 0,
-        "invalid": 0,
-        "issues": [],
-        "counts": {
-            "expected": expected,
-            "finished": expected if terminal else 4,
-        },
-    })
+def _snapshot(state: str, outcome: str = "", health: str = "") -> str:
+    return make_snapshot(REQUEST_ID, RUN_ID, state, outcome, health=health)
 
 
 async def _started(mode, filter=None, request_id=None):
@@ -75,7 +30,7 @@ async def _started(mode, filter=None, request_id=None):
 async def test_wait_returns_only_the_terminal_snapshot_for_exact_run():
     polls = [_snapshot("running"), _snapshot("terminal", "passed")]
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(side_effect=polls)) as get_run, \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(side_effect=polls)) as get_run, \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=2.0, poll_interval=1.0
@@ -101,7 +56,7 @@ async def test_wait_polls_exact_run_before_first_sleep():
         order.append(("sleep", None))
 
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", poll), \
+         patch.object(testing, "_fetch_test_run_json", poll), \
          patch("asyncio.sleep", sleep):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=10.0, poll_interval=5.0
@@ -122,7 +77,7 @@ async def test_finalizing_dispatch_failure_is_polled_by_exact_run_id():
     terminal = _snapshot("terminal", "dispatch_failed")
     get_run = AsyncMock(return_value=terminal)
     with patch.object(testing, "run_tests", finalizing), \
-         patch.object(testing, "get_test_run", get_run), \
+         patch.object(testing, "_fetch_test_run_json", get_run), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=1.0, poll_interval=1.0
@@ -147,7 +102,7 @@ async def test_lost_ack_resolves_correlated_terminal_status_then_polls():
              testing, "resolve_test_request", AsyncMock(return_value=status)
          ), \
          patch.object(
-             testing, "get_test_run", AsyncMock(return_value=terminal)
+             testing, "_fetch_test_run_json", AsyncMock(return_value=terminal)
          ) as get_run, \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
@@ -162,7 +117,7 @@ async def test_lost_ack_resolves_correlated_terminal_status_then_polls():
 async def test_timeout_is_nonterminal_and_keeps_identity_and_last_snapshot():
     running = _snapshot("running")
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(return_value=running)), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value=running)), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=0.001, poll_interval=1.0
@@ -182,7 +137,7 @@ async def test_blocked_preflight_is_propagated_without_polling():
 
     poll = AsyncMock()
     with patch.object(testing, "run_tests", blocked), \
-         patch.object(testing, "get_test_run", poll):
+         patch.object(testing, "_fetch_test_run_json", poll):
         with pytest.raises(ToolError, match="BLOCKED"):
             await testing.run_tests_wait(request_id=REQUEST_ID)
 
@@ -197,7 +152,7 @@ async def test_poll_transport_failure_keeps_last_snapshot_and_recovers():
         _snapshot("terminal", "failed"),
     ]
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(side_effect=polls)), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(side_effect=polls)), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=3.0, poll_interval=1.0
@@ -220,7 +175,7 @@ async def test_lost_start_ack_is_resolved_before_exact_polling():
              "resolve_test_request",
              AsyncMock(side_effect=["none", ACK]),
          ) as resolve, \
-         patch.object(testing, "get_test_run", AsyncMock(return_value=terminal)) as get_run, \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value=terminal)) as get_run, \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=3.0, poll_interval=1.0
@@ -251,7 +206,7 @@ async def test_lost_ack_prepared_intent_is_resumed_with_same_immutable_payload()
              testing, "resolve_test_request", AsyncMock(return_value=prepared)
          ) as resolve, \
          patch.object(
-             testing, "get_test_run", AsyncMock(return_value=terminal)
+             testing, "_fetch_test_run_json", AsyncMock(return_value=terminal)
          ) as get_run:
         result = await testing.run_tests_wait(
             mode="EditMode",
@@ -355,7 +310,7 @@ async def test_snapshot_identity_mismatch_is_protocol_error():
         "outcome": "passed",
     })
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", AsyncMock(return_value=mismatched)), \
+         patch.object(testing, "_fetch_test_run_json", AsyncMock(return_value=mismatched)), \
          patch("asyncio.sleep", AsyncMock()):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=1.0, poll_interval=1.0
@@ -384,7 +339,7 @@ async def test_snapshot_requires_both_correlation_identities(
     snapshot.pop(missing_field)
     with patch.object(testing, "run_tests", _started), \
          patch.object(
-             testing, "get_test_run", AsyncMock(return_value=json.dumps(snapshot))
+             testing, "_fetch_test_run_json", AsyncMock(return_value=json.dumps(snapshot))
          ):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=1.0, poll_interval=1.0
@@ -408,7 +363,7 @@ async def test_terminal_snapshot_requires_explicit_completion_evidence(field, re
     snapshot.pop(field)
     with patch.object(testing, "run_tests", _started), \
          patch.object(
-             testing, "get_test_run", AsyncMock(return_value=json.dumps(snapshot))
+             testing, "_fetch_test_run_json", AsyncMock(return_value=json.dumps(snapshot))
          ):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=1.0, poll_interval=1.0
@@ -423,7 +378,7 @@ async def test_terminal_snapshot_must_match_requested_mode_and_filter():
     snapshot["filter"] = "Old.Filter"
     with patch.object(testing, "run_tests", _started), \
          patch.object(
-             testing, "get_test_run", AsyncMock(return_value=json.dumps(snapshot))
+             testing, "_fetch_test_run_json", AsyncMock(return_value=json.dumps(snapshot))
          ):
         result = await testing.run_tests_wait(
             filter="New.Filter", request_id=REQUEST_ID, timeout=1.0, poll_interval=1.0
@@ -432,9 +387,36 @@ async def test_terminal_snapshot_must_match_requested_mode_and_filter():
     assert "reason=request-intent-mismatch" in result
 
 
+def test_terminal_snapshot_error_reports_no_test_progress():
+    snapshot = json.loads(
+        _snapshot("terminal", "incomplete", health="no_test_progress")
+    )
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=""
+    ) == "run-health-no-test-progress"
+
+
+def test_terminal_snapshot_error_reports_editor_unresponsive():
+    snapshot = json.loads(
+        _snapshot("terminal", "incomplete", health="editor_unresponsive")
+    )
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=""
+    ) == "run-health-editor-unresponsive"
+
+
+def test_terminal_snapshot_error_ignores_missing_health_for_wire_compat():
+    """Old plugin never emits `health` -- absence must not change behavior."""
+    snapshot = json.loads(_snapshot("terminal", "passed"))
+    assert "health" not in snapshot
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=""
+    ) is None
+
+
 def test_terminal_validator_rejects_partial_or_untrusted_evidence():
     mutations = (
-        (lambda snapshot: snapshot.update(expected_count=0), "expected-count-invalid"),
+        (lambda snapshot: snapshot.update(expected_count=0), "run-zero-match-filter"),
         (lambda snapshot: snapshot.update(build_coherent=False), "build-incoherent"),
         (
             lambda snapshot: snapshot.update(completed_expected_count=6963),
@@ -461,6 +443,52 @@ def test_terminal_validator_rejects_partial_or_untrusted_evidence():
         assert testing._terminal_snapshot_error(
             snapshot, mode="EditMode", filter_name=""
         ) == expected_reason
+
+
+def test_zero_match_filter_with_regex_metachar_reason():
+    """A nested-class filter's '+' is a .NET separator UTF regex-matches as a
+    quantifier, usually zero-matching. Flag it distinctly from an honest miss."""
+    filter_name = "...StatSheetTests+OrderIndependence"
+    snapshot = json.loads(_snapshot("terminal", "passed"))
+    snapshot["filter"] = filter_name
+    snapshot["expected_count"] = 0
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=filter_name
+    ) == "run-zero-match-metachar"
+
+
+def test_zero_match_filter_without_metachar_reason():
+    """Arm B: a plain non-empty filter with zero matches must not be
+    misreported as a metachar typo -- discriminates an "always metachar" fix."""
+    filter_name = "NoSuchClass"
+    snapshot = json.loads(_snapshot("terminal", "passed"))
+    snapshot["filter"] = filter_name
+    snapshot["expected_count"] = 0
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=filter_name
+    ) == "run-zero-match-filter"
+
+
+def test_zero_match_filter_with_group_separator_reason():
+    """'|' is UTF's legal multi-group filter separator ("TestA|TestB"), never
+    misinterpreted by the engine -- it must not trigger the metachar hint."""
+    filter_name = "TestA|TestB"
+    snapshot = json.loads(_snapshot("terminal", "passed"))
+    snapshot["filter"] = filter_name
+    snapshot["expected_count"] = 0
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=filter_name
+    ) == "run-zero-match-filter"
+
+
+def test_terminal_snapshot_error_negative_expected_count_stays_invalid():
+    """A negative expected_count is corrupted evidence, not a zero-match --
+    the original reason must survive the taxonomy split."""
+    snapshot = json.loads(_snapshot("terminal", "passed"))
+    snapshot["expected_count"] = -1
+    assert testing._terminal_snapshot_error(
+        snapshot, mode="EditMode", filter_name=""
+    ) == "expected-count-invalid"
 
 
 def test_unfiltered_editmode_one_test_can_be_green():
@@ -497,7 +525,7 @@ async def test_wait_accepts_unfiltered_editmode_one_test_terminal_snapshot():
 
     with patch.object(testing, "run_tests", _started), patch.object(
         testing,
-        "get_test_run",
+        "_fetch_test_run_json",
         AsyncMock(return_value=json.dumps(snapshot)),
     ):
         result = await testing.run_tests_wait(
@@ -537,7 +565,7 @@ async def test_wait_timeout_bounds_a_hung_poll_by_wall_clock():
 
     started_at = time.monotonic()
     with patch.object(testing, "run_tests", _started), \
-         patch.object(testing, "get_test_run", hung_poll):
+         patch.object(testing, "_fetch_test_run_json", hung_poll):
         result = await testing.run_tests_wait(
             request_id=REQUEST_ID, timeout=0.03, poll_interval=0.01
         )
@@ -547,6 +575,19 @@ async def test_wait_timeout_bounds_a_hung_poll_by_wall_clock():
         f"TIMEOUT|request_id={REQUEST_ID}|run_id={RUN_ID}|snapshot="
     )
     assert elapsed < 0.2
+
+
+def test_compact_snapshot_preserves_cyrillic_without_escaping():
+    raw = json.dumps({"run_id": RUN_ID, "request_id": REQUEST_ID, "filter": "Проверка"})
+    result = testing._compact_snapshot(raw)
+    assert "Проверка" in result
+    assert "\\u" not in result
+
+
+def test_compact_snapshot_ascii_only_is_unchanged_by_ensure_ascii():
+    raw = json.dumps({"run_id": RUN_ID, "request_id": REQUEST_ID, "filter": "Fixture.Test"})
+    result = testing._compact_snapshot(raw)
+    assert result == json.dumps(json.loads(raw), separators=(",", ":"), sort_keys=True)
 
 
 @pytest.mark.asyncio
@@ -568,4 +609,23 @@ async def test_mode_filter_and_request_identity_are_forwarded():
         "mode": "PlayMode",
         "filter": "ClassA|ClassB",
         "request_id": REQUEST_ID,
+    }
+
+
+@pytest.mark.asyncio
+async def test_fetch_test_run_json_expected_count_injection_preserves_cyrillic():
+    """_fetch_test_run_json's expected_count injection re-serializes the whole
+    snapshot -- it must keep ensure_ascii=False so a Cyrillic filter/name already
+    in the payload survives as UTF-8, not a \\uXXXX-escaped blob."""
+    run_id = "run-cyrillic-expected-count"
+    handle = testing._registry.register(run_id, REQUEST_ID)
+    handle.expected_count = 3
+    raw = json.dumps({"run_id": run_id, "state": "running", "filter": "Тест"})
+
+    with patch.object(testing, "_send", AsyncMock(return_value=raw)):
+        result = await testing._fetch_test_run_json(run_id)
+
+    assert "\\u" not in result, f"Cyrillic must not be ASCII-escaped: {result!r}"
+    assert json.loads(result) == {
+        "run_id": run_id, "state": "running", "filter": "Тест", "expected_count": 3,
     }

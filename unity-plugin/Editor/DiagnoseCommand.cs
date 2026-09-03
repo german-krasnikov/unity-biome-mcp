@@ -124,7 +124,10 @@ namespace UnityMCP.Editor
             return $"{statePart}  {epochPart}";
         }
 
-        static string BuildDllFreshness()
+        // Exposed internal so a perf test can time this scan directly, without the
+        // rest of Execute()'s work (Editor.log parse, reload-failed detection, etc.)
+        // muddying the measurement (PRE-C2 #6).
+        internal static string BuildDllFreshness()
         {
             var projectPath = UnityEngine.Application.dataPath;
             var projectRoot = Path.GetDirectoryName(projectPath) ?? "";

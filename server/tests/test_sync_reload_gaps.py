@@ -3,6 +3,7 @@ import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 
 import unity_mcp.tools.sync as _sync
+from unity_mcp import editor_log
 from unity_mcp.bridge import DomainReloadError
 
 
@@ -73,6 +74,8 @@ def _patch_corroborate():
         mock_el.corroborate = lambda s: s
         mock_el.init_corroboration = MagicMock()
         mock_el.get_corroborated_errors = _default_get_corroborated
+        # ARC-6 T2: keep the real sentinel value reachable through the mocked module.
+        mock_el.UNITY_UNREACHABLE = editor_log.UNITY_UNREACHABLE
         yield mock_el
 
 
@@ -90,8 +93,12 @@ async def test_sync_unity_two_consecutive_domain_reload_errors():
     assert "sync clean" in result
 
 
-# T4: fast path (will_compile=false) + ConnectionError on get_compile_errors → clean, no raise
-async def test_sync_unity_fast_path_connection_error_on_get_errors(_patch_corroborate):
+# T4 (ARC-6 T2 red-flip): fast path (will_compile=false) + dead TCP on get_compile_errors
+# must surface UNITY_UNREACHABLE, not a false "sync clean"/"". Renamed from
+# test_sync_unity_fast_path_connection_error_on_get_errors — same scenario, corrected
+# verdict; the old `"sync clean" in result or result == ""` assertion pinned the ARC-6
+# bug (a dead-Unity ConnectionError was silently reported clean).
+async def test_sync_unity_fast_path_connection_error_on_get_errors_returns_unreachable(_patch_corroborate):
     async def _dead_errors(send, **kwargs):
         raise ConnectionError("TCP gone during error fetch")
 
@@ -101,6 +108,6 @@ async def test_sync_unity_fast_path_connection_error_on_get_errors(_patch_corrob
         "sync_ack|epoch=1|will_compile=false",
         status_seq=[],
     )
-    # Must not raise — ConnectionError swallowed in _get_errors()
+    # Must not raise — ConnectionError caught in _get_errors(), surfaced as the sentinel.
     result = await _sync.sync_unity(timeout=60.0)
-    assert "sync clean" in result or result == ""
+    assert result == editor_log.UNITY_UNREACHABLE

@@ -11,6 +11,21 @@ namespace UnityMCP.Editor.TestRuns
     {
         public const int SchemaVersion = 1;
 
+        /// <summary>
+        /// Wall-clock seconds between two ISO-8601 round-trip UTC timestamps, floored at
+        /// zero. Returns 0 when either timestamp fails to parse. Shared by TestRunService
+        /// and TestRunFinalizationCoordinator so their staleness gates use one definition.
+        /// </summary>
+        internal static double ElapsedSeconds(string fromUtc, string toUtc)
+        {
+            if (!DateTime.TryParse(fromUtc, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var from) ||
+                !DateTime.TryParse(toUtc, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var to))
+                return 0d;
+            return Math.Max(0d, (to - from).TotalSeconds);
+        }
+
         public static class Lifecycle
         {
             public const string Prepared = "prepared";

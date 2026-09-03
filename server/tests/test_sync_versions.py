@@ -17,6 +17,7 @@ VERSION_ARTIFACTS = (
     "__version__.py",
     "_meta.json",
     "MCPServer.cs",
+    "BiomeVersion.cs",
     "release-policy.json",
 )
 
@@ -56,6 +57,12 @@ def _write_fixture(root: Path, versions: dict) -> None:
     (root / "unity-plugin" / "Editor" / "MCPServer.cs").write_text(
         "internal static class MCPServer {\n"
         f'    internal static string PluginVersion => "{versions["MCPServer.cs"]}";\n'
+        "}\n",
+        encoding="utf-8",
+    )
+    (root / "unity-plugin" / "Editor" / "BiomeVersion.cs").write_text(
+        "internal static class BiomeVersion {\n"
+        f'    public const string Plugin = "{versions["BiomeVersion.cs"]}";\n'
         "}\n",
         encoding="utf-8",
     )
@@ -127,6 +134,7 @@ def test_check_rejects_missing_version_patterns(tmp_path):
         tmp_path / "unity-plugin" / "package.json",
         tmp_path / "server" / "src" / "unity_mcp" / "__version__.py",
         tmp_path / "unity-plugin" / "Editor" / "MCPServer.cs",
+        tmp_path / "unity-plugin" / "Editor" / "BiomeVersion.cs",
     ):
         path.write_text("no version here\n", encoding="utf-8")
     (tmp_path / "docs" / "assets" / "_meta.json").write_text(
@@ -159,7 +167,7 @@ def test_sync_uses_pyproject_as_canonical_source(tmp_path):
     assert "versions in sync: 1.2.3" in check.stdout
 
 
-@pytest.mark.parametrize("failure_index", range(1, 8))
+@pytest.mark.parametrize("failure_index", range(1, 9))
 def test_sync_rolls_back_every_artifact_on_replace_failure(
     tmp_path, monkeypatch, failure_index
 ):
@@ -171,6 +179,7 @@ def test_sync_rolls_back_every_artifact_on_replace_failure(
         tmp_path / "server" / "src" / "unity_mcp" / "__version__.py",
         tmp_path / "docs" / "assets" / "_meta.json",
         tmp_path / "unity-plugin" / "Editor" / "MCPServer.cs",
+        tmp_path / "unity-plugin" / "Editor" / "BiomeVersion.cs",
         tmp_path / "scripts" / "gauntlet" / "release-policy.json",
     ]
     originals = {path: path.read_bytes() for path in paths}

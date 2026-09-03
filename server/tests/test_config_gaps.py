@@ -59,6 +59,28 @@ def test_validator_opencode_uses_mcp_root_key(tmp_path, monkeypatch):
     assert "not configured" not in result
 
 
+# ─── validator BOM tolerance (encoding.md): Windows Notepad/PowerShell 5.1 ──
+# Out-File/Set-Content default to a UTF-8-with-BOM encoding. merger.py's
+# writers already read with utf-8-sig (_READ_ENCODING) for exactly this
+# reason; validator.py's read used plain utf-8 and choked on the leading
+# BOM, misreporting a perfectly valid config as "invalid JSON".
+
+def test_validator_reads_bom_prefixed_config(tmp_path, monkeypatch):
+    """A UTF-8-BOM-prefixed config must still validate as configured."""
+    from unity_mcp.config import clients as c, validator
+
+    cfg = tmp_path / ".claude.json"
+    payload = json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "uvx"}}}).encode("utf-8")
+    cfg.write_bytes(b"\xef\xbb\xbf" + payload)
+
+    monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "config_path", cfg)
+    monkeypatch.setattr(validator, "_port_reachable", lambda _: False)
+
+    result = validator.validate_config("claude-code")
+    assert "invalid JSON" not in result
+    assert "unity-biome-mcp entry" in result
+
+
 # ─── P2-C fallback: build_server_entry without uvx ───────────────────────────
 
 def test_build_server_entry_without_uvx():
@@ -183,6 +205,67 @@ def test_cmd_doctor_detects_configured_mcp_json(tmp_path, monkeypatch):
 
     assert any(".mcp.json configured" in m for m in captured_ok), \
         f"Expected .mcp.json configured OK, got: {captured_ok}"
+
+
+def _run_doctor_against_mcp_json(tmp_path, monkeypatch, mcp_json_bytes: bytes):
+    """Shared rig for the BOM-tolerance tests below: isolates every other
+    doctor check so only the .mcp.json read path is exercised."""
+    import install.commands as cmd
+    from unity_mcp.config import clients as c
+
+    monkeypatch.setattr(cmd, "discover_port", lambda: 0)
+    missing = tmp_path / "nonexistent" / "file.json"
+    for key in list(c.CLIENT_REGISTRY):
+        monkeypatch.setattr(c.CLIENT_REGISTRY[key], "config_path", missing)
+
+    mcp_json = tmp_path / ".mcp.json"
+    mcp_json.write_bytes(mcp_json_bytes)
+
+    server_dir = tmp_path / "server"          # deliberately absent
+    codex_config = tmp_path / "config.toml"   # deliberately absent
+
+    captured_ok, captured_fail = [], []
+
+    class FakeUI:
+        def box(self, lines): pass
+        def ok(self, msg): captured_ok.append(msg)
+        def fail(self, msg): captured_fail.append(msg)
+        def info(self, msg): pass
+        def error(self, msg): pass
+
+    with patch("install.commands.socket.create_connection", side_effect=OSError):
+        cmd.cmd_doctor(server_dir, codex_config, mcp_json, FakeUI(), None)
+
+    return captured_ok, captured_fail
+
+
+def test_cmd_doctor_detects_bom_prefixed_mcp_json(tmp_path, monkeypatch):
+    """A UTF-8 BOM ('\\xef\\xbb\\xbf', Windows Notepad / PowerShell 5.1 default)
+    is valid UTF-8, so read_text(encoding="utf-8") succeeds — but json.loads
+    then raises on the leading BOM char, and the bare except in cmd_doctor
+    swallowed it, misreporting a correctly-configured .mcp.json as missing."""
+    from unity_mcp.config.merger import SERVER_NAME
+
+    payload = json.dumps({"mcpServers": {SERVER_NAME: {"command": "uvx"}}}).encode()
+    captured_ok, captured_fail = _run_doctor_against_mcp_json(
+        tmp_path, monkeypatch, b"\xef\xbb\xbf" + payload
+    )
+
+    assert any(".mcp.json configured" in m for m in captured_ok), \
+        f"Expected .mcp.json configured OK, got ok={captured_ok} fail={captured_fail}"
+
+
+def test_cmd_doctor_bom_prefixed_mcp_json_without_server_entry_still_fails(tmp_path, monkeypatch):
+    """Double-red: a BOM'd file that genuinely lacks the server entry must
+    still land in captured_fail — proves the fix reads content correctly
+    rather than papering over every BOM'd file as configured."""
+    payload = json.dumps({"mcpServers": {"someone-elses-server": {"command": "uvx"}}}).encode()
+    captured_ok, captured_fail = _run_doctor_against_mcp_json(
+        tmp_path, monkeypatch, b"\xef\xbb\xbf" + payload
+    )
+
+    assert any(".mcp.json configured" in m for m in captured_fail), \
+        f"Expected .mcp.json configured FAIL, got ok={captured_ok} fail={captured_fail}"
 
 
 # ─── P2-C: Python version error message ──────────────────────────────────────

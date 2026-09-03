@@ -12,6 +12,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from mcp.server.fastmcp.exceptions import ToolError
 
 import unity_mcp.tools.sync as _sync
+from unity_mcp import editor_log
 from unity_mcp.bridge import DomainReloadError
 
 
@@ -104,6 +105,9 @@ def _patch_corroborate():
         mock_el.corroborate = lambda s: s  # kept for back-compat with test_both_signals_required
         mock_el.init_corroboration = MagicMock()
         mock_el.get_corroborated_errors = _default_get_corroborated
+        # ARC-6 T2: keep the real sentinel value reachable through the mocked module
+        # so production code's `editor_log.UNITY_UNREACHABLE` isn't a stray MagicMock.
+        mock_el.UNITY_UNREACHABLE = editor_log.UNITY_UNREACHABLE
         yield mock_el
 
 
@@ -153,7 +157,7 @@ async def test_epoch_race_no_premature_idle():
         ],
     )
     result = await _sync.sync_unity(timeout=60.0)
-    assert "sync clean" in result or result == ""
+    assert result == "sync clean"
 
 
 # #24: reconnect after domain reload — DomainReloadError then success
@@ -167,7 +171,7 @@ async def test_reconnect_after_domain_reload():
         ],
     )
     result = await _sync.sync_unity(timeout=60.0)
-    assert "sync clean" in result or result == ""
+    assert result == "sync clean"
 
 
 # #25: compile failed → return errors immediately, no reconnect wait
@@ -345,7 +349,7 @@ def _reset_bump_used():
 # Uses realistic <guid>:<ticks> format; MVID-only partition comparison
 @pytest.mark.asyncio
 async def test_stamp_changed_is_sync_clean():
-    """P5: different MVID halves → sync clean. Realistic guid:ticks fixtures."""
+    """Different MVID halves → sync clean. Realistic guid:ticks fixtures. (P5)"""
     pre_mvid  = "60d2de34-f1b2-4c3d-a5e6-789012345678"
     post_mvid = "99aabbcc-0011-2233-4455-667788990011"
     _sync._send = _make_send_with_stamp(
@@ -504,7 +508,7 @@ async def test_stamp_pre_from_failed_state():
 # P3: sentinel-strip — 'No compilation errors' must not leak as error payload in sync path
 @pytest.mark.asyncio
 async def test_sync_sentinel_stripped(_patch_corroborate):
-    """P3: get_corroborated_errors returns '' when C# says 'No compilation errors' → sync clean."""
+    """get_corroborated_errors returns '' when C# says 'No compilation errors' → sync clean. (P3)"""
     # The default _patch_corroborate fixture already strips the sentinel in _default_get_corroborated
     _sync._send = _make_send(
         "sync_ack|epoch=1|will_compile=true",
@@ -515,6 +519,51 @@ async def test_sync_sentinel_stripped(_patch_corroborate):
     assert "No compilation errors" not in result
     assert "sync clean" in result
 
+
+# ── ARC-6 T2: sync.py._get_errors mirrors the UNITY_UNREACHABLE sentinel ─────
+
+# T2.1: dead TCP during get_corroborated_errors → sentinel, not a false "no errors"
+@pytest.mark.asyncio
+async def test_get_errors_connectionerror_returns_sentinel_not_empty(_patch_corroborate):
+    """ConnectionError from get_corroborated_errors must surface UNITY_UNREACHABLE. (ARC-6 T2)
+
+    Red-precondition: before the fix, _get_errors' own except clause returned "" —
+    indistinguishable from a genuinely clean compile.
+    """
+    _patch_corroborate.get_corroborated_errors = AsyncMock(side_effect=ConnectionError("gone"))
+    result = await _sync._get_errors()
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
+# T2.2: same, OSError (bridge_socket.py's raise surface includes bare OSError/TimeoutError)
+@pytest.mark.asyncio
+async def test_get_errors_oserror_returns_sentinel_not_empty(_patch_corroborate):
+    _patch_corroborate.get_corroborated_errors = AsyncMock(side_effect=OSError("disk full"))
+    result = await _sync._get_errors()
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
+# T2.3 (integration): real editor_log.get_corroborated_errors wired in — dead TCP on
+# get_compile_errors during the ready-state arm must surface UNITY_UNREACHABLE through
+# sync_unity(), never a false "sync clean".
+@pytest.mark.asyncio
+async def test_sync_unity_ready_state_surfaces_unreachable_not_clean(_patch_corroborate):
+    """sync_unity must not report clean when Unity is unreachable, end to end. (ARC-6 T2)"""
+    _patch_corroborate.get_corroborated_errors = editor_log.get_corroborated_errors
+
+    async def _send(cmd, args=None, **kwargs):
+        if cmd == "sync":
+            return "sync_ack|epoch=1|will_compile=true"
+        if cmd == "sync_status":
+            return "epoch=1|state=ready"
+        if cmd == "get_compile_errors":
+            raise ConnectionError("Unity closed")
+        return ""
+
+    _sync._send = _send
+    result = await _sync.sync_unity(timeout=60.0)
+    assert "sync clean" not in result
+    assert editor_log.UNITY_UNREACHABLE in result
 
 
 # G18: ready arm MVID unchanged after expected compile → REIMPORT-NEEDED
@@ -585,7 +634,7 @@ async def test_no_compile_frozen_mvid_is_not_reimport_needed():
 # P1: MVID changed after force_refresh → _attempt_recovery returns None (healed)
 @pytest.mark.asyncio
 async def test_recovery_heals_when_mvid_changes(monkeypatch):
-    """P1: force_refresh succeeds + MVID delta → None (healed)."""
+    """force_refresh succeeds + MVID delta → None (healed). (P1)"""
     monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 5.0)
     mvid_pre  = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
     mvid_post = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
@@ -604,7 +653,7 @@ async def test_recovery_heals_when_mvid_changes(monkeypatch):
 # P2: MVID frozen after timeout → _attempt_recovery returns REIMPORT-NEEDED
 @pytest.mark.asyncio
 async def test_recovery_returns_reimport_when_mvid_frozen(monkeypatch):
-    """P2: force_refresh + frozen MVID for full timeout → REIMPORT-NEEDED verdict."""
+    """force_refresh + frozen MVID for full timeout → REIMPORT-NEEDED verdict. (P2)"""
     monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 0.0)  # instant timeout
     mvid = "cccccccc-cccc-cccc-cccc-cccccccccccc"
 
@@ -622,7 +671,7 @@ async def test_recovery_returns_reimport_when_mvid_frozen(monkeypatch):
 # P3: recovery called exactly once, no recursion from sync_unity
 @pytest.mark.asyncio
 async def test_recovery_called_exactly_once(monkeypatch):
-    """P3: sync_unity calls _attempt_recovery exactly once (no self-recursion)."""
+    """sync_unity calls _attempt_recovery exactly once (no self-recursion). (P3)"""
     monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 0.0)
     recovery_calls = []
 
@@ -647,7 +696,7 @@ async def test_recovery_called_exactly_once(monkeypatch):
 # P4: force_refresh sent with empty args {}
 @pytest.mark.asyncio
 async def test_recovery_sends_force_refresh_with_correct_args(monkeypatch):
-    """P4: _attempt_recovery sends force_refresh with args={}."""
+    """_attempt_recovery sends force_refresh with args={}. (P4)"""
     monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 0.0)
     captured = {}
 
@@ -666,7 +715,7 @@ async def test_recovery_sends_force_refresh_with_correct_args(monkeypatch):
 # P5: sync_status polled during recovery (MVID check happens)
 @pytest.mark.asyncio
 async def test_recovery_polls_sync_status(monkeypatch):
-    """P5: after force_refresh, recovery polls sync_status to check MVID."""
+    """After force_refresh, recovery polls sync_status to check MVID. (P5)"""
     monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 5.0)
     mvid_pre  = "11111111-1111-1111-1111-111111111111"
     mvid_post = "22222222-2222-2222-2222-222222222222"
@@ -700,6 +749,34 @@ async def test_recovery_connection_error_returns_sentinel_not_none():
     result = await _sync._attempt_recovery(_tcp_dead, "some-mvid")
     assert result is not None, "ConnectionError must NOT return None (false heal)"
     assert "REIMPORT-NEEDED" in result, f"Expected REIMPORT-NEEDED sentinel, got {result!r}"
+
+
+# R2-05b: main raising UnityUnavailableError must fall back to reload channel,
+# not leak an uncaught ToolError out of the recovery poll loop.
+@pytest.mark.asyncio
+async def test_attempt_recovery_tries_reload_channel_when_main_raises_unity_unavailable(
+    mock_bridge, monkeypatch
+):
+    """The real _send_raw wraps a dead main TCP into UnityUnavailableError; before
+    R2-05b it was a plain ToolError and none of the (ConnectionError, OSError)
+    guards around _send_with_fallback caught it, so it propagated uncaught instead
+    of falling back to the reload channel."""
+    from unity_mcp.server import _send as _send_main
+
+    mock_bridge.send = AsyncMock(side_effect=ConnectionError("Unity not running"))
+    monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 0.0)  # skip the MVID poll loop
+    reload_calls = []
+
+    async def _send_reload(cmd, args):
+        reload_calls.append(cmd)
+        return "force_refresh triggered"
+
+    result = await _sync._attempt_recovery(_send_main, "some-mvid", _send_reload)
+
+    assert reload_calls == ["force_refresh"], (
+        "main-down force_refresh must fall back to the reload channel, not raise"
+    )
+    assert result is not None and result.startswith("REIMPORT-NEEDED")
 
 
 # B1: REIMPORT-NEEDED from _attempt_recovery → escalates to run_ladder T2-T5
@@ -809,7 +886,7 @@ async def test_sync_no_false_backgrounded_on_early_dur_zero():
         ],
     )
     result = await _sync.sync_unity(timeout=60.0)
-    assert "sync clean" in result or result == ""
+    assert result == "sync clean"
 
 
 # FB-2: dur progresses 0.0 → nonzero → ready: must complete normally
@@ -830,7 +907,7 @@ async def test_sync_no_false_backgrounded_when_dur_progresses():
         ],
     )
     result = await _sync.sync_unity(timeout=60.0)
-    assert "sync clean" in result or result == ""
+    assert result == "sync clean"
 
 
 # A1 integration: sync_unity emits REIMPORT-NEEDED (not 'sync clean') when force_refresh TCP-dead
@@ -1023,3 +1100,119 @@ async def test_sync_survives_warm_cache_connection_error():
     _sync._send = _send
     result = await _sync.sync_unity(timeout=60.0)
     assert "sync clean" in result
+
+
+# ── DEV-53: _parse_ack must check verb prefix, not just parse fields ────────
+
+# Red: "wedged|epoch=7" was previously parsed as {'epoch': '7'} by bare
+# parse_pipe_fields — no "will_compile" key → fast path → false "sync clean".
+@pytest.mark.asyncio
+async def test_sync_unity_reports_wedge_not_clean():
+    _sync._send = _make_send(
+        "wedged|epoch=7",
+        status_seq=[],  # never polled — wedge is detected from the ack itself
+    )
+    result = await _sync.sync_unity(timeout=60.0)
+    assert "wedge" in result.lower()
+    assert "sync clean" not in result
+
+
+# Double-red companion: legitimate 'sync_ack|...|will_compile=false' must
+# still report clean — proves the verb check doesn't over-reject real acks.
+@pytest.mark.asyncio
+async def test_sync_unity_still_clean_for_real_ack():
+    _sync._send = _make_send(
+        "sync_ack|epoch=7|will_compile=false",
+        status_seq=[],
+    )
+    result = await _sync.sync_unity(timeout=60.0)
+    assert "sync clean" in result
+
+
+# Unknown verb (protocol drift / corruption) must not be silently treated as
+# a valid ack via the old permissive parse_pipe_fields() fallback.
+@pytest.mark.asyncio
+async def test_sync_unity_reports_protocol_error_for_unknown_ack_verb():
+    _sync._send = _make_send(
+        "bogus|epoch=1",
+        status_seq=[],
+    )
+    result = await _sync.sync_unity(timeout=60.0)
+    assert "sync clean" not in result
+    assert "STOP" in result
+
+
+# ── C1 r2 #7: poll loops must tolerate _send_raw's UnityUnavailableError ────
+
+@pytest.mark.asyncio
+async def test_sync_unity_survives_unity_unavailable_midpoll():
+    """server.py's _send_raw wraps every ConnectionError/TimeoutError/OSError
+    from bridge.send() (DomainReloadError included) into UnityUnavailableError
+    -- a ToolError subclass, not a ConnectionError. Wiring _sync._send to the
+    REAL _send_raw (not a hand-rolled fake that raises the bare exception
+    directly, bypassing _send_raw entirely) proves the sync_status poll loop
+    tolerates a mid-poll disconnect through the actual production path and
+    still reaches its own timeout/verdict instead of aborting on the first
+    transient failure. Real sleep is already short-circuited by the module's
+    autouse _patch_sleep fixture -- no per-test patch needed here."""
+    import unity_mcp.server as server_mod
+
+    class FakeBridge:
+        def __init__(self):
+            self._synced = False
+            self._status_polls = 0
+
+        async def send(self, cmd, args, timeout=30.0):
+            if cmd == "sync":
+                self._synced = True
+                return {"ok": True, "data": "sync_ack|epoch=1|will_compile=true"}
+            if cmd == "sync_status":
+                if not self._synced:
+                    return {"ok": True, "data": "epoch=0|state=idle"}  # pre-stamp read
+                self._status_polls += 1
+                if self._status_polls <= 2:
+                    raise ConnectionError("tcp gone")
+                return {"ok": True, "data": "epoch=1|state=ready"}
+            if cmd == "get_compile_errors":
+                return {"ok": True, "data": "No compilation errors"}
+            if cmd == "warm_type_cache":
+                return {"ok": True, "data": "ok:types=42"}
+            raise AssertionError(f"Unexpected cmd: {cmd}")
+
+    class FakeSlot:
+        bridge = FakeBridge()
+        def get(self, name): return None
+        def list(self): return {}
+
+    old_slot = server_mod.slot
+    server_mod.slot = FakeSlot()
+    _sync._send = server_mod._send_raw
+    try:
+        result = await _sync.sync_unity(timeout=10)
+    finally:
+        server_mod.slot = old_slot
+
+    assert "sync clean" in result
+
+
+@pytest.mark.asyncio
+async def test_sync_unity_read_only_blocked_not_tolerated_midpoll():
+    """Double-red companion: a plain ToolError (e.g. READ_ONLY_BLOCKED) is NOT
+    a UnityUnavailableError and must still abort the poll loop immediately --
+    the widened catch is typed, not a blanket `except ToolError`."""
+    synced = False
+
+    async def _send(cmd, args=None, **kwargs):
+        nonlocal synced
+        if cmd == "sync":
+            synced = True
+            return "sync_ack|epoch=1|will_compile=true"
+        if cmd == "sync_status":
+            if not synced:
+                return "epoch=0|state=idle"
+            raise ToolError("READ_ONLY_BLOCKED: 'sync_status' is a mutation command")
+        return ""
+
+    _sync._send = _send
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await _sync.sync_unity(timeout=10)

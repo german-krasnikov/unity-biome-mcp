@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, patch
 from mcp.server.fastmcp.exceptions import ToolError
 
 import unity_mcp.tools.code_intel as _ci
+from unity_mcp import editor_log
 from unity_mcp.bridge import DomainReloadError
 
 
@@ -224,11 +225,14 @@ async def test_malformed_status_treated_as_idle():
     assert "compile clean" in result
 
 
-async def test_get_errors_connection_failure_returns_clean():
-    """compile_status idle, get_compile_errors raises ConnectionError → 'compile clean'."""
+# ARC-6 T3: declared red-flip (ARC-19 §3) — was
+# test_get_errors_connection_failure_returns_clean, asserting "compile clean" in result.
+# A dead TCP link during error fetch must never be reported as a clean compile.
+async def test_get_errors_connection_failure_returns_unreachable():
+    """compile_status idle, get_compile_errors raises ConnectionError → UNITY_UNREACHABLE, not clean."""
     _ci._send = _make_send(["idle|2.0"], errors_response=ConnectionError("tcp gone"))
     result = await _ci.await_compile(timeout=60.0)
-    assert "compile clean" in result
+    assert result == editor_log.UNITY_UNREACHABLE
 
 
 async def test_get_errors_tool_error_propagates():
@@ -266,6 +270,74 @@ async def test_await_compile_uses_sync_status_epoch():
     assert "No compilation errors" not in result
 
 
+# ARC-6 T3: epoch-ready path (code_intel.py ~L193) must surface UNITY_UNREACHABLE,
+# not silently report "compile clean (sync)", when the TCP link dies mid-fetch.
+async def test_await_compile_epoch_ready_unreachable():
+    """Epoch-aware ready path + dead TCP during get_compile_errors → UNITY_UNREACHABLE."""
+    call_log = []
+
+    async def _epoch_send(cmd, args=None, **kwargs):
+        call_log.append(cmd)
+        if cmd == "sync_status":
+            if call_log.count("sync_status") == 1:
+                return "epoch=5|state=compiling|dur=1.2"
+            return "epoch=5|state=ready"
+        if cmd == "get_compile_errors":
+            raise ConnectionError("tcp gone")
+        raise AssertionError(f"Unexpected: {cmd}")
+
+    _ci._send = _epoch_send
+    result = await _ci.await_compile(timeout=60.0)
+    assert result == editor_log.UNITY_UNREACHABLE
+    assert result != "compile clean (sync)"
+
+
+# C1 #6: timeout branch (code_intel.py ~L165) must not concatenate the
+# UNITY_UNREACHABLE sentinel into a self-contradicting "timeout after Xs ...
+# \nUNITY-UNREACHABLE: ..." message. A dead TCP link is a single, primary
+# verdict — the sentinel wins outright.
+async def test_timeout_with_dead_tcp_returns_bare_unreachable():
+    """Timeout loop + fully-dead TCP (every send raises) → bare sentinel, no
+    'timeout after Xs — compile still in progress' prefix concatenated in."""
+    async def _dead_send(cmd, args=None, **kwargs):
+        raise ConnectionError("tcp gone")
+
+    _ci._send = _dead_send
+    result = await _ci.await_compile(timeout=0.001)
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
+# Double-red guard for #6: a real (non-sentinel) timeout must keep the
+# original concatenated verdict — see test_timeout_returns_best_effort above.
+# If the sentinel guard were made unconditional (always short-circuit), that
+# test would break; this comment documents the coupling, no new test needed.
+
+
+# C1 #6: STALE-DOMAIN branch (code_intel.py ~L186, matching-MVID gate) must
+# not concatenate the sentinel into "STALE-DOMAIN: ...\nUNITY-UNREACHABLE: ...".
+async def test_stale_domain_dead_tcp_during_error_fetch_returns_bare_unreachable():
+    """Matching MVID (no-IL-change) + dead TCP during the error fetch →
+    bare sentinel, not a concatenated STALE-DOMAIN + sentinel string."""
+    mvid = "60d2de34-1234-5678-abcd-ef0123456789"
+    stamp_pre = f"{mvid}:100"
+    stamp_post = f"{mvid}:200"
+    call_log = []
+
+    async def _send(cmd, args=None, **kwargs):
+        call_log.append(cmd)
+        if cmd == "sync_status":
+            if call_log.count("sync_status") == 1:
+                return f"epoch=5|state=compiling|dur=1.0|stamp={stamp_pre}"
+            return f"epoch=5|state=ready|stamp={stamp_post}"
+        if cmd == "get_compile_errors":
+            raise ConnectionError("tcp gone")
+        raise AssertionError(f"Unexpected: {cmd}")
+
+    _ci._send = _send
+    result = await _ci.await_compile(timeout=60.0)
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
 # Fallback: sync_status unavailable → compile_status fallback still works
 async def test_await_compile_falls_back_to_compile_status_when_no_sync_status():
     """When sync_status is not available, await_compile still works via compile_status fallback."""
@@ -277,7 +349,7 @@ async def test_await_compile_falls_back_to_compile_status_when_no_sync_status():
 
 # P3: sentinel strip — same shared function used by both code paths
 async def test_await_compile_sentinel_stripped_compile_status_path():
-    """P3: 'No compilation errors' sentinel stripped on compile_status fallback path."""
+    """'No compilation errors' sentinel stripped on compile_status fallback path. (P3)"""
     _ci._send = _make_send(["idle|2.0"], errors_response="No compilation errors")
     result = await _ci.await_compile(timeout=60.0)
     # Sentinel must be stripped; result is the compile-status clean message
@@ -290,7 +362,7 @@ async def test_await_compile_sentinel_stripped_compile_status_path():
 # ---------------------------------------------------------------------------
 
 def test_parse_sync_status_includes_stamp():
-    """P4: _parse_sync_status returns 4-tuple including stamp field."""
+    """_parse_sync_status returns 4-tuple including stamp field. (P4)"""
     result = _ci._parse_sync_status("epoch=3|state=ready|stamp=abc123:987654")
     assert len(result) == 4
     epoch, state, extra, stamp = result
@@ -300,19 +372,19 @@ def test_parse_sync_status_includes_stamp():
 
 
 def test_parse_sync_status_stamp_absent_returns_empty():
-    """P4: stamp= absent → stamp='' in 4-tuple."""
+    """stamp= absent → stamp='' in 4-tuple. (P4)"""
     epoch, state, extra, stamp = _ci._parse_sync_status("epoch=1|state=compiling|dur=1.2")
     assert stamp == ""
 
 
 def test_parse_status_idle_never_is_non_clean():
-    """P4: 'idle-never' must NOT be treated as idle/clean."""
+    """'idle-never' must NOT be treated as idle/clean. (P4)"""
     state, _ = _ci._parse_status("idle-never|0")
     assert state != "idle", "idle-never must be treated as non-idle (never compiled = not clean)"
 
 
 async def test_await_compile_stamp_unchanged_stale_domain():
-    """P4 + MCP091-018: same MVID + actual errors → STALE-DOMAIN; same MVID + no errors → clean."""
+    """Same MVID + actual errors → STALE-DOMAIN; same MVID + no errors → clean. (P4 + MCP091-018)"""
     mvid = "60d2de34-1234-5678-abcd-ef0123456789"
     stamp_pre = f"{mvid}:639169455305003280"
     stamp_post = f"{mvid}:639169455309999999"  # same MVID, different ticks
@@ -360,7 +432,7 @@ async def test_await_compile_stamp_unchanged_no_errors_returns_clean():
 
 
 async def test_await_compile_stamp_changed_clean():
-    """P4: different MVID before/after ready → compile clean (not STALE-DOMAIN)."""
+    """Different MVID before/after ready → compile clean (not STALE-DOMAIN). (P4)"""
     mvid_pre  = "aaaaaaaa-0000-0000-0000-000000000000"
     mvid_post = "bbbbbbbb-1111-1111-1111-111111111111"
     stamp_pre  = f"{mvid_pre}:100"
@@ -572,3 +644,106 @@ async def test_await_compile_settle_returns_clean_if_still_idle():
         result = await _ci.await_compile(timeout=30.0)
 
     assert "compile clean" in result
+
+
+# ---------------------------------------------------------------------------
+# ARC-6 T3: _await_compile_generation must surface UNITY_UNREACHABLE, not
+# silently report clean, when get_compile_errors hits a dead TCP link.
+# ---------------------------------------------------------------------------
+
+async def test_await_compile_generation_no_gen_info_unreachable():
+    """Old plugin (no gen field) + dead TCP during error fetch → UNITY_UNREACHABLE.
+
+    Covers code_intel.py's "no gen info" branch — previously fell back to
+    'compile clean (no gen info)' on a dead read.
+    """
+    async def _send(cmd, args=None, **kwargs):
+        if cmd == "sync_status":
+            return "epoch=0|state=idle"
+        if cmd == "get_compile_errors":
+            raise ConnectionError("tcp gone")
+        raise AssertionError(f"Unexpected: {cmd}")
+
+    _ci._send = _send
+    result = await _ci._await_compile_generation(5.0, 1)
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
+async def test_await_compile_generation_reached_unreachable():
+    """Target generation reached + dead TCP during error fetch → UNITY_UNREACHABLE.
+
+    Covers code_intel.py's "gen >= expected" branch — previously fell back to
+    'compile clean (gen N)' on a dead read.
+    """
+    async def _send(cmd, args=None, **kwargs):
+        if cmd == "sync_status":
+            return "gen=1|epoch=0|state=idle"
+        if cmd == "get_compile_errors":
+            raise ConnectionError("tcp gone")
+        raise AssertionError(f"Unexpected: {cmd}")
+
+    _ci._send = _send
+    result = await _ci._await_compile_generation(5.0, 1)
+    assert result == editor_log.UNITY_UNREACHABLE
+
+
+# ── C1 r2 #7: compile_status fallback poll loop must tolerate UnityUnavailableError ──
+
+async def test_await_compile_survives_unity_unavailable_midpoll():
+    """server.py's _send_raw wraps every ConnectionError/TimeoutError/OSError
+    from bridge.send() into UnityUnavailableError -- a ToolError subclass, not
+    a ConnectionError. Wiring _ci._send to the REAL _send_raw (not a
+    hand-rolled fake that raises the bare exception directly, bypassing
+    _send_raw entirely) proves the compile_status fallback poll loop
+    (code_intel.py's line catching ConnectionError around the fallback poll)
+    tolerates a mid-poll disconnect through the actual production path. Real
+    sleep is already short-circuited by the module's autouse _patch_sleep
+    fixture -- no per-test patch needed here."""
+    import unity_mcp.server as server_mod
+
+    class FakeBridge:
+        def __init__(self):
+            self._compile_polls = 0
+
+        async def send(self, cmd, args, timeout=30.0):
+            if cmd == "sync_status":
+                raise ConnectionError("Command not registered: sync_status")
+            if cmd == "compile_status":
+                self._compile_polls += 1
+                if self._compile_polls <= 2:
+                    raise ConnectionError("tcp gone")
+                return {"ok": True, "data": "idle|4.0"}
+            if cmd == "get_compile_errors":
+                return {"ok": True, "data": ""}
+            raise AssertionError(f"Unexpected cmd: {cmd}")
+
+    class FakeSlot:
+        bridge = FakeBridge()
+        def get(self, name): return None
+        def list(self): return {}
+
+    old_slot = server_mod.slot
+    server_mod.slot = FakeSlot()
+    _ci._send = server_mod._send_raw
+    try:
+        result = await _ci.await_compile(timeout=10)
+    finally:
+        server_mod.slot = old_slot
+
+    assert result == "compile clean (4.0s)"
+
+
+async def test_await_compile_read_only_blocked_not_tolerated_midpoll():
+    """Double-red companion: a plain ToolError (e.g. READ_ONLY_BLOCKED) is NOT
+    a UnityUnavailableError and must still abort the fallback poll loop
+    immediately -- the widened catch is typed, not a blanket `except ToolError`."""
+    async def _send(cmd, args=None, **kwargs):
+        if cmd == "sync_status":
+            raise ConnectionError("Command not registered: sync_status")
+        if cmd == "compile_status":
+            raise ToolError("READ_ONLY_BLOCKED: 'compile_status' is a mutation command")
+        return ""
+
+    _ci._send = _send
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await _ci.await_compile(timeout=10)

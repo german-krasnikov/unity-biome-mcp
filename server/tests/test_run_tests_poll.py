@@ -74,7 +74,7 @@ async def test_valid_ack_is_returned_immediately(monkeypatch):
         (
             "run_tests",
             {"mode": "EditMode", "request_id": "req-1"},
-            {"timeout": 8.0},
+            {},
         ),
     ]
 

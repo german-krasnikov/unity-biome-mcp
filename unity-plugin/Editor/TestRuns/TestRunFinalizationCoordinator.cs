@@ -20,6 +20,18 @@ namespace UnityMCP.Editor.TestRuns
         private readonly Func<TestRunBuildFingerprint> _captureBuild;
         private readonly HashSet<string> _queued = new HashSet<string>(StringComparer.Ordinal);
 
+        /// <summary>
+        /// A same-session run stuck in Finalizing past this many seconds since its
+        /// execution boundary (RunFinished/DispatchFailed/Abandoned/Cancelled) was
+        /// recorded is forced through the activity gate below, but only when that
+        /// boundary already exists. This heals a persistent ProbeAny "Active" false
+        /// signal (observed with zero-match filter dispatches) without ever
+        /// finalizing a run that is genuinely still executing. Anchoring to the
+        /// boundary's own occurred_utc (rather than dispatch) keeps this correct for
+        /// runs that legitimately take longer than the ceiling to finish.
+        /// </summary>
+        internal const double SameSessionStalenessCeilingSeconds = 180d;
+
         internal TestRunFinalizationCoordinator(
             TestRunStore store,
             ITestRunEnvironmentController environment,
@@ -83,13 +95,16 @@ namespace UnityMCP.Editor.TestRuns
             }
 
             var journal = _store.ReadJournal(runId);
-            var hasExecutionBoundary = HasExecutionBoundary(journal);
+            var executionBoundary = FindExecutionBoundary(journal);
+            var hasExecutionBoundary = executionBoundary != null;
             if (editorIsQuitting && !hasExecutionBoundary)
                 return false;
 
             var unmanagedWithoutEnvironment = IsUnmanagedWithoutEnvironment(run);
             var previousEditorSession = IsPreviousEditorSession(run);
-            if (!editorIsQuitting && !previousEditorSession)
+            var staleBeyondCeiling = hasExecutionBoundary &&
+                TestRunProtocol.ElapsedSeconds(executionBoundary.occurred_utc, _utcNow()) > SameSessionStalenessCeilingSeconds;
+            if (!editorIsQuitting && !previousEditorSession && !staleBeyondCeiling)
             {
                 var anyActivity = _framework.ProbeAny();
                 var ownActivity = string.IsNullOrEmpty(run.utf_guid)
@@ -184,7 +199,9 @@ namespace UnityMCP.Editor.TestRuns
             terminalOutcome = SelectTerminalOutcome(run, summary, journal);
             run.lifecycle = TestRunProtocol.Lifecycle.Terminal;
             run.outcome = terminalOutcome;
-            run.health = TestRunProtocol.Health.Healthy;
+            run.health = hasExecutionBoundary
+                ? TestRunProtocol.Health.Healthy
+                : DeriveAbandonedHealth(journal);
             if (string.IsNullOrEmpty(run.finished_utc)) run.finished_utc = _utcNow();
             _store.WriteRun(run);
             TerminalizeRequest(run);
@@ -203,13 +220,35 @@ namespace UnityMCP.Editor.TestRuns
             return true;
         }
 
-        private static bool HasExecutionBoundary(TestRunJournal journal) =>
-            journal != null && (journal.events ?? Array.Empty<TestRunEvent>()).Any(e =>
-                e != null &&
-                (e.event_type == TestRunProtocol.EventType.RunFinished ||
-                 e.event_type == TestRunProtocol.EventType.DispatchFailed ||
-                 e.event_type == TestRunProtocol.EventType.Abandoned ||
-                 e.event_type == TestRunProtocol.EventType.Cancelled));
+        /// <summary>
+        /// An abandoned run (no RunFinished/DispatchFailed/Cancelled evidence) is
+        /// never stamped Healthy. Whether any TestStarted event ever landed tells
+        /// apart "never began" from "began, then UTF went silent."
+        /// </summary>
+        private static string DeriveAbandonedHealth(TestRunJournal journal) =>
+            (journal?.events ?? Array.Empty<TestRunEvent>()).Any(e =>
+                e != null && e.event_type == TestRunProtocol.EventType.TestStarted)
+                ? TestRunProtocol.Health.EditorUnresponsive
+                : TestRunProtocol.Health.NoTestProgress;
+
+        private static bool IsExecutionBoundary(TestRunEvent e) =>
+            e != null &&
+            (e.event_type == TestRunProtocol.EventType.RunFinished ||
+             e.event_type == TestRunProtocol.EventType.DispatchFailed ||
+             e.event_type == TestRunProtocol.EventType.Abandoned ||
+             e.event_type == TestRunProtocol.EventType.Cancelled);
+
+        /// <summary>
+        /// The execution-boundary event that anchors the same-session staleness
+        /// ceiling above. The journal is append-only (TestRunStore.AppendEvent
+        /// appends; ReadJournal reads the events file in write order), so the
+        /// last matching event is also the latest by occurred_utc - no separate
+        /// timestamp parsing/sorting is needed.
+        /// </summary>
+        private static TestRunEvent FindExecutionBoundary(TestRunJournal journal) =>
+            (journal?.events ?? Array.Empty<TestRunEvent>())
+                .Where(IsExecutionBoundary)
+                .LastOrDefault();
 
         private static bool HasValidFinalizedOutcome(TestRunJournal journal) =>
             FinalizedOutcomes(journal).Any();

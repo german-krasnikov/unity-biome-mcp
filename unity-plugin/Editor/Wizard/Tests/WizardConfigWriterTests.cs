@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityMCP.Editor.Wizard;
 
@@ -102,6 +103,93 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(WizardConfigWriter.HasBackup(cfg));
         }
 
+        // ── WriteAtomic (B3 #21: manual Configure output must never half-write) ─
+
+        [Test]
+        public void WriteAtomic_NoTempFileLeftBehind_ContentWrittenExactly()
+        {
+            var path = Path.Combine(_tmpDir, "out.json");
+
+            WizardConfigWriter.WriteAtomic(path, "{\"a\":1}");
+
+            Assert.IsTrue(File.Exists(path));
+            Assert.IsFalse(File.Exists(path + ".tmp"), "atomic write must not leave a .tmp file behind");
+            Assert.AreEqual("{\"a\":1}", File.ReadAllText(path));
+        }
+
+        [Test]
+        public void WriteAtomic_OverwritesExistingFile_NoTempFileLeftBehind()
+        {
+            var path = Path.Combine(_tmpDir, "out.json");
+            File.WriteAllText(path, "old");
+
+            WizardConfigWriter.WriteAtomic(path, "new");
+
+            Assert.AreEqual("new", File.ReadAllText(path));
+            Assert.IsFalse(File.Exists(path + ".tmp"), "atomic write must not leave a .tmp file behind");
+        }
+
+        // C1 r6 #1: the atomic swap itself moved into the shared AtomicFile.Swap helper
+        // (Editor/AtomicFile.cs) so PortResolver's port-file writers can reuse it too —
+        // WriteAtomic now delegates instead of inlining File.Replace/Move itself.
+        [Test]
+        public void WriteAtomic_UsesFileReplace_NotDeleteThenMove()
+        {
+            var src = ReadRequiredPackageSource(typeof(WizardConfigWriter), "Editor/AtomicFile.cs");
+            Assert.That(src, Does.Contain("File.Replace(tmp, path"),
+                "AtomicFile.Swap must swap via File.Replace \u2014 a Windows sharing violation between delete and move can permanently lose the original (C1 r5 #2)");
+            Assert.That(src, Does.Not.Contain("File.Delete(path)"),
+                "AtomicFile.Swap must not delete the original before moving the replacement into place");
+        }
+
+        // R5-02: when the swap itself throws, the .tmp must not be left behind and
+        // the original path must be untouched. `path` is a directory here so
+        // File.Exists(path) is false and WriteAtomic takes the File.Move branch,
+        // which throws on every platform when the destination is an existing
+        // directory \u2014 same try/finally that guards the File.Replace branch.
+        [Test]
+        public void WriteAtomic_WhenSwapFails_RemovesTempAndKeepsOriginal()
+        {
+            var path = Path.Combine(_tmpDir, "out.json");
+            Directory.CreateDirectory(path);
+
+            Assert.Catch(() => WizardConfigWriter.WriteAtomic(path, "new"));
+
+            Assert.IsFalse(File.Exists(path + ".tmp"),
+                "temp file must be cleaned up when the atomic swap fails");
+            Assert.IsTrue(Directory.Exists(path),
+                "original must be left untouched when the atomic swap fails");
+        }
+
+        // If File.Delete(tmp) itself throws while an original Replace/Move exception
+        // is already in flight, an unguarded finally body replaces that original
+        // exception with the tmp-cleanup one, hiding the real failure from the
+        // caller (minor review finding). Source-guard: the finally body must wrap
+        // the cleanup in its own try/catch so tmp-cleanup can never mask the
+        // original error.
+        [Test]
+        public void WriteAtomic_TempCleanupNeverMasksTheOriginalException()
+        {
+            var src = ReadRequiredPackageSource(typeof(WizardConfigWriter), "Editor/AtomicFile.cs");
+            Assert.That(Regex.IsMatch(src,
+                    @"finally\s*\{\s*try\s*\{\s*if\s*\(File\.Exists\(tmp\)\)\s*File\.Delete\(tmp\);\s*\}\s*catch"),
+                "AtomicFile.Swap's finally must wrap File.Delete(tmp) in its own try/catch " +
+                "so a failing cleanup never masks the original Replace/Move exception");
+        }
+
+        // Write() calls EditorUtility.DisplayDialog (modal) so it cannot be invoked
+        // directly from a GUI-worker test — source-guard instead: prove Write() goes
+        // through the shared atomic helper, not a direct File.WriteAllText(configPath...).
+        [Test]
+        public void Write_UsesAtomicWrite_NotDirectFileWriteAllTextOnConfigPath()
+        {
+            var src = ReadRequiredPackageSource(typeof(WizardConfigWriter), "Editor/Wizard/WizardConfigWriter.cs");
+            Assert.That(src, Does.Not.Contain("File.WriteAllText(configPath"),
+                "Write must not call File.WriteAllText(configPath, ...) directly — a crash mid-write would leave a half-written config (B3 #21)");
+            Assert.That(src, Does.Contain("WriteAtomic(configPath"),
+                "Write must write through the shared atomic WriteAtomic helper");
+        }
+
         // ── Merge / Fresh (existing behavior, regression guard) ───────────────
 
         [Test]
@@ -119,6 +207,28 @@ namespace UnityMCP.Editor.Tests
             var result = WizardConfigWriter.Merge(existing, 9500);
             StringAssert.Contains("theme", result);
             StringAssert.Contains("unity-biome-mcp", result);
+        }
+
+        [Test]
+        public void Merge_PreservesUnknownEntryKeys()
+        {
+            // ARC-13 T1: the non-versioned call site (AiConfigScreen "Write Config"
+            // button -> Merge) shares MergeWithEntry with ProjectConfigFormats.Merge —
+            // an unrelated "cwd" key a user hand-added must survive here too.
+            // OLD_URL_MARKER (not the real GitInstallUrl) proves args actually gets
+            // patched: with the real URL pre-seeded, old and new args values were
+            // identical, so a no-op Merge that touches nothing would still "pass".
+            const string OldUrlMarker = "OLD_URL_MARKER";
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"args\": [\"--from\", \"" + OldUrlMarker + "\", \"unity-biome-mcp\"],"
+                + "\"cwd\": \"/custom/path\""
+                + "}}}";
+
+            var result = WizardConfigWriter.Merge(existing, 9500);
+
+            StringAssert.Contains("/custom/path", result, "unknown cwd key must survive a Merge");
+            StringAssert.DoesNotContain(OldUrlMarker, result, "args value must actually be replaced, not a no-op merge");
         }
 
         // ── Fresh — port and key presence ─────────────────────────────────────

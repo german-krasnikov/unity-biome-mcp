@@ -8,8 +8,16 @@ namespace UnityMCP.Editor
 {
     internal static class LevelUpPanel
     {
+        const string FailureReasonClass = "lvlup-failure-reason";
+
         internal static VisualElement Build(VisualElement scheduleHost)
         {
+            // Read UpmOperationGuard fresh on every Build() — it is SessionState-backed,
+            // so a rebuild after a domain reload sees the same in-flight claim without
+            // any static UI cache surviving the reload itself (ARC-10 T4). IsActiveOrHeal
+            // (not the raw IsInFlight) so a reload other than the update's own version bump
+            // still self-heals past the staleness ceiling on any rebuild (C1 r2 #5).
+            if (UpmOperationGuard.IsActiveOrHeal()) return BuildBusy();
             if (!UpdateChecker.HasUpdate) return null;
 
             var fromVer = UpdateChecker.GetCurrentVersion();
@@ -23,6 +31,44 @@ namespace UnityMCP.Editor
 
             ShowIdle(root, scheduleHost, fromVer, toVer);
             return root;
+        }
+
+        static VisualElement BuildBusy()
+        {
+            var root = new VisualElement();
+            root.AddToClassList("lvlup-cta");
+
+            var ss = MCPEditorUtils.LoadStyleSheet("Updates/LevelUpAnim.uss");
+            if (ss != null) root.styleSheets.Add(ss);
+
+            var title = new Label($"Update to v{UpmOperationGuard.InFlightVersion} in progress…");
+            title.AddToClassList("lvlup-title");
+            root.Add(title);
+
+            var sub = new Label($"{(int)UpmOperationGuard.ElapsedSeconds}s elapsed");
+            sub.AddToClassList("lvlup-subtitle");
+            root.Add(sub);
+
+            return root;
+        }
+
+        /// <summary>
+        /// Renders <see cref="UpmPluginUpdater.LastFailureReason"/> into <paramref name="root"/>
+        /// so a failed update is explained in the panel itself, not only in the Console
+        /// (ARC-10 T4). Idempotent — updates an existing label instead of duplicating it,
+        /// and adds nothing when there is no reason to show.
+        /// </summary>
+        internal static void ShowFailureReason(VisualElement root)
+        {
+            var reason = UpmPluginUpdater.LastFailureReason;
+            if (string.IsNullOrEmpty(reason)) return;
+
+            var existing = root.Q<Label>(className: FailureReasonClass);
+            if (existing != null) { existing.text = reason; return; }
+
+            var label = new Label(reason);
+            label.AddToClassList(FailureReasonClass);
+            root.Add(label);
         }
 
         static void ShowIdle(VisualElement root, VisualElement scheduleHost, string from, string to)
@@ -133,6 +179,7 @@ namespace UnityMCP.Editor
                 if (!ok)
                 {
                     root.Query<Button>().ForEach(b => b.SetEnabled(true));
+                    ShowFailureReason(root);
                     return;
                 }
                 root.Clear();

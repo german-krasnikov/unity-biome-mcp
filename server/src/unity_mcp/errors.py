@@ -3,6 +3,22 @@ import asyncio
 import enum
 from dataclasses import dataclass
 
+from mcp.server.fastmcp.exceptions import ToolError
+
+
+class UnityUnavailableError(ToolError, ConnectionError):
+    """Raised by server.py's _send_raw for a ConnectionError, TimeoutError, or
+    OSError coming out of bridge.send() (DomainReloadError included, as a
+    ConnectionError subclass).
+
+    Double inheritance is deliberate (R2-05b): ToolError so the MCP layer
+    reports it to the agent like any other tool failure; ConnectionError so
+    every existing ``except (ConnectionError, OSError)`` poll/fallback guard
+    across sync.py, code_intel.py, and reload_ladder.py treats it as transient
+    automatically, with no per-site listing needed. MRO is unambiguous —
+    ToolError and ConnectionError share no common ancestor below Exception.
+    """
+
 
 class SessionIdentityMismatch(ConnectionError):
     """Non-retryable: reconnect landed on a different Unity Editor or project (MCP-SESS-024)."""

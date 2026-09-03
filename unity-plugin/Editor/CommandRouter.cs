@@ -461,11 +461,14 @@ namespace UnityMCP.Editor
             PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure, fresh,
                 strict: pathArg != null);
 
+            // ContinueWith's default continuation runs on a ThreadPool thread.
+            // MainThreadDispatcher.Enqueue is a thread-safe ConcurrentQueue.Enqueue, drained on
+            // EditorApplication.update regardless of Editor focus (RELAY-FIX, commit 1bcc90b7).
             if (!string.IsNullOrEmpty(afterHook))
             {
                 var capturedHook = afterHook;
                 inner.Task.ContinueWith(_ =>
-                    EditorApplication.delayCall += () => CodeExecutor.Execute(capturedHook, "MCP after_hook"));
+                    MainThreadDispatcher.Enqueue(() => CodeExecutor.Execute(capturedHook, "MCP after_hook")));
             }
 
             CompleteFromInner(id, inner.Task, tcs, "run_playtest",

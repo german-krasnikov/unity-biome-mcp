@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from unity_mcp import editor_log
 from unity_mcp.brief_builder import (
     CompileErrorsProvider,
     ConsoleProvider,
@@ -145,6 +146,74 @@ async def test_context_builder_fetch_exception_omits_slot():
     brief = await builder.build()
 
     assert "console" not in {s.kind for s in brief.slots}
+
+
+async def test_context_builder_connection_error_yields_unreachable_slot():
+    """A dead-Unity provider gets an explicit slot, not silent omission. (ARC-6 T4)"""
+    builder = ContextBuilder(total_budget=2000, send=AsyncMock(return_value=""))
+
+    dead = MagicMock()
+    dead.kind = "compile_errors"
+    dead.priority = "critical"
+    dead.token_budget = 200
+    dead.fetch = AsyncMock(side_effect=ConnectionError("dead TCP"))
+
+    builder.register(dead)
+    brief = await builder.build()
+
+    assert len(brief.slots) == 1
+    assert brief.slots[0].kind == "compile_errors"
+    assert brief.slots[0].content == editor_log.UNITY_UNREACHABLE
+
+
+async def test_context_builder_timeout_error_yields_unreachable_slot():
+    """OSError family (TimeoutError) gets the same honest slot as ConnectionError."""
+    builder = ContextBuilder(total_budget=2000, send=AsyncMock(return_value=""))
+
+    dead = MagicMock()
+    dead.kind = "console"
+    dead.priority = "critical"
+    dead.token_budget = 300
+    dead.fetch = AsyncMock(side_effect=TimeoutError("no response"))
+
+    builder.register(dead)
+    brief = await builder.build()
+
+    assert len(brief.slots) == 1
+    assert brief.slots[0].content == editor_log.UNITY_UNREACHABLE
+
+
+async def test_context_builder_provider_returns_sentinel_content_preserved():
+    """A provider that already resolved to the sentinel (no exception) passes through untouched."""
+    builder = ContextBuilder(total_budget=2000, send=AsyncMock(return_value=""))
+
+    p = MagicMock()
+    p.kind = "compile_errors"
+    p.priority = "critical"
+    p.token_budget = 200
+    p.fetch = AsyncMock(return_value=editor_log.UNITY_UNREACHABLE)
+
+    builder.register(p)
+    brief = await builder.build()
+
+    assert len(brief.slots) == 1
+    assert brief.slots[0].content == editor_log.UNITY_UNREACHABLE
+
+
+async def test_context_builder_empty_content_still_skipped():
+    """Genuinely empty content (no exception) is still omitted — unchanged behavior."""
+    builder = ContextBuilder(total_budget=2000, send=AsyncMock(return_value=""))
+
+    p = MagicMock()
+    p.kind = "selection"
+    p.priority = "low"
+    p.token_budget = 150
+    p.fetch = AsyncMock(return_value="")
+
+    builder.register(p)
+    brief = await builder.build()
+
+    assert "selection" not in {s.kind for s in brief.slots}
 
 
 async def test_context_builder_kinds_filter():

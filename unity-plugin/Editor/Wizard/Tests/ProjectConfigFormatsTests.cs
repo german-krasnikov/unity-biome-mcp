@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityMCP.Editor.Wizard;
 
@@ -6,10 +7,12 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class ProjectConfigFormatsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        private const int TestPort = 9500;
+
         [Test]
         public void BuildEntry_ContainsMarkerVersion()
         {
-            var result = ProjectConfigFormats.BuildEntry(9500, WizardConfigWriter.GitInstallUrl, "1.2.3");
+            var result = ProjectConfigFormats.BuildEntry(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3");
             StringAssert.Contains("\"_v\": \"1.2.3\"", result);
         }
 
@@ -24,7 +27,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void BuildFresh_WrapsEntryUnderGivenRootKey_Servers()
         {
-            var result = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "servers");
+            var result = ProjectConfigFormats.BuildFresh(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3", "servers");
             StringAssert.Contains("\"servers\"", result);
             StringAssert.DoesNotContain("\"mcpServers\"", result);
         }
@@ -32,7 +35,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void BuildFresh_WrapsEntryUnderGivenRootKey_McpServers()
         {
-            var result = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
+            var result = ProjectConfigFormats.BuildFresh(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
             StringAssert.Contains("\"mcpServers\"", result);
         }
 
@@ -53,7 +56,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ExtractMarkerVersion_EntryWithMarker_ReturnsVersion()
         {
-            var entry = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
+            var entry = ProjectConfigFormats.BuildFresh(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
             Assert.AreEqual("1.2.3", ProjectConfigFormats.ExtractMarkerVersion(entry));
         }
 
@@ -68,7 +71,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Classify_NoUnityMcpEntry_ReturnsAbsent()
         {
-            var result = ProjectConfigFormats.Classify("{\"mcpServers\":{}}", 9500, "1.2.3");
+            var result = ProjectConfigFormats.Classify("{\"mcpServers\":{}}", TestPort, "1.2.3");
             Assert.AreEqual(EntryState.Absent, result);
         }
 
@@ -76,23 +79,23 @@ namespace UnityMCP.Editor.Tests
         public void Classify_EntryWithoutMarker_ReturnsForeign()
         {
             var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"uvx\"}}}";
-            var result = ProjectConfigFormats.Classify(existing, 9500, "1.2.3");
+            var result = ProjectConfigFormats.Classify(existing, TestPort, "1.2.3");
             Assert.AreEqual(EntryState.Foreign, result);
         }
 
         [Test]
         public void Classify_MarkerMatchesCurrentVersion_ReturnsOwnedCurrent()
         {
-            var fresh = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
-            var result = ProjectConfigFormats.Classify(fresh, 9500, "1.2.3");
+            var fresh = ProjectConfigFormats.BuildFresh(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
+            var result = ProjectConfigFormats.Classify(fresh, TestPort, "1.2.3");
             Assert.AreEqual(EntryState.OwnedCurrent, result);
         }
 
         [Test]
         public void Classify_MarkerVersionDiffers_ReturnsOwnedStale()
         {
-            var fresh = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
-            var result = ProjectConfigFormats.Classify(fresh, 9500, "1.3.0");
+            var fresh = ProjectConfigFormats.BuildFresh(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
+            var result = ProjectConfigFormats.Classify(fresh, TestPort, "1.3.0");
             Assert.AreEqual(EntryState.OwnedStale, result);
         }
 
@@ -100,9 +103,51 @@ namespace UnityMCP.Editor.Tests
         public void Classify_MarkerPortDiffers_ReturnsOwnedCurrent()
         {
             // Port is no longer written to JSON entries — port difference is not a staleness signal.
-            var fresh = ProjectConfigFormats.BuildFresh(9500, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
+            var fresh = ProjectConfigFormats.BuildFresh(TestPort, WizardConfigWriter.GitInstallUrl, "1.2.3", "mcpServers");
             var result = ProjectConfigFormats.Classify(fresh, 9501, "1.2.3");
             Assert.AreEqual(EntryState.OwnedCurrent, result);
+        }
+
+        [Test]
+        public void Classify_PinnedJson_ReturnsOwnedCurrent()
+        {
+            // ARC-0b Task 1: "_pin": true must win over a stale "_v" — the P7 fix.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\","
+                + "\"_pin\": true"
+                + "}}}";
+
+            var result = ProjectConfigFormats.Classify(existing, TestPort, "1.50.0");
+
+            Assert.AreEqual(EntryState.OwnedCurrent, result);
+        }
+
+        [Test]
+        public void Classify_UnpinnedJson_StaleVersion_ReturnsOwnedStale()
+        {
+            // Existing behavior preserved: no "_pin" key, stale "_v" still stales.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\""
+                + "}}}";
+
+            var result = ProjectConfigFormats.Classify(existing, TestPort, "1.50.0");
+
+            Assert.AreEqual(EntryState.OwnedStale, result);
+        }
+
+        [Test]
+        public void IsPinned_SiblingServerHasPin_OurEntryDoesNot_ReturnsFalse()
+        {
+            // A sibling MCP server's own "_pin" must never leak into our classification —
+            // same scoping guarantee ExtractMarkerVersion already has (FindOurEntry).
+            var existing = "{\"mcpServers\":{"
+                + "\"other-mcp\":{\"command\":\"uvx\",\"_v\":\"3.0.0\",\"_pin\": true},"
+                + "\"unity-biome-mcp\":{\"command\":\"uvx\",\"_v\":\"1.49.0\"}"
+                + "}}";
+
+            Assert.IsFalse(ProjectConfigFormats.IsPinned(existing));
         }
 
         [Test]
@@ -118,7 +163,7 @@ namespace UnityMCP.Editor.Tests
                 + "\"unity-mcp\":{\"command\":\"custom-launcher\",\"args\":[\"--special\"]}"
                 + "}}";
 
-            Assert.AreEqual(EntryState.Foreign, ProjectConfigFormats.Classify(existing, 9500, "1.2.3"));
+            Assert.AreEqual(EntryState.Foreign, ProjectConfigFormats.Classify(existing, TestPort, "1.2.3"));
             Assert.IsNull(ProjectConfigFormats.ExtractMarkerVersion(existing));
         }
 
@@ -130,6 +175,161 @@ namespace UnityMCP.Editor.Tests
             var result = ProjectConfigFormats.Merge(existing, 9502, WizardConfigWriter.GitInstallUrl, "2.0.0", "mcpServers");
             StringAssert.Contains("other-tool", result);
             StringAssert.Contains("\"_v\": \"2.0.0\"", result);
+        }
+
+        [Test]
+        public void Merge_PreservesUnknownEntryKeys_OnVersionBump()
+        {
+            // ARC-13 T1: a version bump (OwnedStale -> Merge) must point-splice only
+            // command/args/_v, never whole-replace the entry — an unrelated "env" key
+            // a user hand-added (e.g. UNITY_MCP_NO_GATING) must survive.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"args\": [\"--from\", \"OLD_URL_MARKER\", \"unity-biome-mcp\"],"
+                + "\"_v\": \"0.1.0\","
+                + "\"env\": {\"UNITY_MCP_NO_GATING\": \"1\"}"
+                + "}}}";
+
+            var result = ProjectConfigFormats.Merge(existing, TestPort, "NEW_URL_MARKER", "2.0.0", "mcpServers");
+
+            StringAssert.Contains("UNITY_MCP_NO_GATING", result, "unknown env key must survive a version bump");
+            StringAssert.Contains("\"_v\": \"2.0.0\"", result, "version marker must actually update");
+            StringAssert.Contains("NEW_URL_MARKER", result, "args value must actually be replaced");
+            StringAssert.DoesNotContain("OLD_URL_MARKER", result, "old args value must not survive");
+        }
+
+        [Test]
+        public void Merge_NestedBracesInUnknownValue_DoesNotBreakFieldSearch()
+        {
+            // A user-added "env" key with its own nested object AND array must not
+            // confuse the outer entry-bounds brace-counting or the "args" field's own
+            // bracket-depth matching during point-splice.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"args\": [\"--from\", \"OLD_URL\", \"unity-biome-mcp\"],"
+                + "\"_v\": \"0.1.0\","
+                + "\"env\": {\"FLAGS\": [\"a\", \"b\"], \"NESTED\": {\"deep\": \"1\"}}"
+                + "}}}";
+
+            var result = ProjectConfigFormats.Merge(existing, TestPort, "NEW_URL", "2.0.0", "mcpServers");
+
+            StringAssert.Contains("\"NESTED\": {\"deep\": \"1\"}", result, "deeply nested unknown value must survive intact");
+            StringAssert.Contains("NEW_URL", result);
+            StringAssert.DoesNotContain("OLD_URL", result);
+        }
+
+        [Test]
+        public void Merge_UnmatchedClosingBraceInStringValue_DoesNotTruncateEntryBounds()
+        {
+            // A "}" inside a string value must not be mistaken for the entry's real
+            // closing brace — otherwise entry-bounds scanning stops one character too
+            // early, and the point-splice inserts the fresh "args" field one level too
+            // deep (inside "env" instead of as a sibling of "command"/"_v"), silently
+            // dropping the top-level args field entirely (C1 r3 cw-1).
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"0.1.0\","
+                + "\"env\": {\"GREETING\": \"hello } world\"}"
+                + "},"
+                + "\"other-server\":{\"command\": \"foo\"}"
+                + "}}";
+
+            var result = ProjectConfigFormats.Merge(existing, TestPort, WizardConfigWriter.GitInstallUrl, "2.0.0", "mcpServers");
+
+            StringAssert.Contains("\"env\": {\"GREETING\": \"hello } world\"}", result,
+                "the '}' inside the string value must not be treated as the entry's real closing brace — " +
+                "env must stay untouched, with args inserted as a sibling, not nested inside it");
+            StringAssert.Contains("\"other-server\":{\"command\": \"foo\"}", result,
+                "sibling entry after ours must remain byte-identical");
+        }
+
+        [Test]
+        public void Merge_UnmatchedOpenBraceInStringValue_DoesNotOverExtendEntryBounds()
+        {
+            // A "{" inside a string value must not be mistaken for a real nested open
+            // brace — otherwise entry-bounds scanning waits for one extra "}" and
+            // swallows the sibling "other-server" entry into our own entry's span,
+            // corrupting both (C1 r3 cw-1).
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"0.1.0\","
+                + "\"env\": {\"GREETING\": \"hello { world\"}"
+                + "},"
+                + "\"other-server\":{\"command\": \"foo\"}"
+                + "}}";
+
+            var result = ProjectConfigFormats.Merge(existing, TestPort, WizardConfigWriter.GitInstallUrl, "2.0.0", "mcpServers");
+
+            var argsIndex = result.IndexOf("\"args\":");
+            var otherServerIndex = result.IndexOf("\"other-server\"");
+            Assert.Greater(argsIndex, -1, "args field must be present in the result");
+            Assert.Greater(otherServerIndex, -1, "sibling other-server entry must survive");
+            Assert.Less(argsIndex, otherServerIndex,
+                "the '{' inside the string value must not be treated as an extra open brace — " +
+                "args must land inside our own entry (before the sibling key), not after it");
+        }
+
+        [Test]
+        public void Merge_OldEntryMissingArgsKey_InsertsArgsWithoutDroppingOtherKeys()
+        {
+            // ARC-13 T2: a field present in the fresh template but absent from the
+            // old entry (e.g. a very old hand-edited entry with no "args") must be
+            // inserted, not silently left missing forever — and inserting it must
+            // not disturb an unrelated key. Two-part assertion is deliberate:
+            // loosening to only check "env" would pass even with "args" missing.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\":\"uvx\","
+                + "\"_v\":\"0.1.0\","
+                + "\"env\":{\"X\":\"1\"}"
+                + "}}}";
+
+            var result = ProjectConfigFormats.Merge(existing, TestPort, WizardConfigWriter.GitInstallUrl, "2.0.0", "mcpServers");
+
+            StringAssert.Contains("\"args\": [", result, "args must be inserted, not left missing");
+            StringAssert.Contains("\"X\":\"1\"", result, "unrelated env key must survive the insert");
+            AssertBalancedJson(result);
+        }
+
+        [Test]
+        public void Merge_UserNestedObjectHasSameFieldNames_TopLevelFieldsUpdatedEnvUntouched()
+        {
+            // ARC-13 T2 review: FindFieldSegment must only match "command"/"args" at
+            // depth 1 (a direct child of our own entry). Without a depth guard,
+            // Regex.Match takes the FIRST textual occurrence — here that's inside a
+            // user's nested "env" object using the same key names — and the splice
+            // corrupts user data instead of touching our own top-level fields.
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"env\":{\"args\":\"x\",\"command\":\"y\"},"
+                + "\"command\":\"uvx\","
+                + "\"args\":[\"--from\",\"OLD_URL\",\"unity-biome-mcp\"]"
+                + "}}}";
+
+            var result = ProjectConfigFormats.Merge(existing, TestPort, "NEW_URL", "2.0.0", "mcpServers");
+
+            StringAssert.Contains("\"env\":{\"args\":\"x\",\"command\":\"y\"}", result,
+                "nested user object with colliding field names must survive byte-identical");
+            StringAssert.Contains("NEW_URL", result, "top-level args must still be updated");
+            StringAssert.DoesNotContain("OLD_URL", result, "top-level args old value must not survive");
+            AssertBalancedJson(result);
+        }
+
+        // Lightweight structural-validity check (no JSON parser in this codebase by
+        // design, ARC-13 §2) — proves point-splice/insert never leaves an unbalanced
+        // brace/bracket behind.
+        private static void AssertBalancedJson(string json)
+        {
+            int braces = 0, brackets = 0;
+            foreach (var c in json)
+            {
+                if (c == '{') braces++;
+                else if (c == '}') braces--;
+                else if (c == '[') brackets++;
+                else if (c == ']') brackets--;
+                Assert.GreaterOrEqual(braces, 0, "unbalanced '}' in: " + json);
+                Assert.GreaterOrEqual(brackets, 0, "unbalanced ']' in: " + json);
+            }
+            Assert.AreEqual(0, braces, "unbalanced braces in: " + json);
+            Assert.AreEqual(0, brackets, "unbalanced brackets in: " + json);
         }
 
         [Test]
@@ -155,7 +355,83 @@ namespace UnityMCP.Editor.Tests
         {
             var text = "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"uvx\"}}}";
             var adopted = ProjectConfigFormats.Adopt(text, "1.2.3");
-            Assert.AreEqual(EntryState.OwnedCurrent, ProjectConfigFormats.Classify(adopted, 9500, "1.2.3"));
+            Assert.AreEqual(EntryState.OwnedCurrent, ProjectConfigFormats.Classify(adopted, TestPort, "1.2.3"));
+        }
+
+        // ── ARC-11 T1: Pin() surgical marker insert ─────────────────────────
+
+        [Test]
+        public void Pin_OwnedStaleEntry_InsertsPinMarker_PreservesVersion()
+        {
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\""
+                + "}}}";
+
+            var result = ProjectConfigFormats.Pin(existing);
+
+            // Arm B forbidden: `result != null` would pass against a stub that
+            // returns the input unchanged — assert the exact inserted substring
+            // AND that the pre-existing version marker survives untouched.
+            StringAssert.Contains("\"_pin\": true", result);
+            StringAssert.Contains("\"_v\": \"1.49.0\"", result);
+        }
+
+        [Test]
+        public void Pin_ThenClassify_ReturnsOwnedCurrent_RegardlessOfVersionMismatch()
+        {
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\""
+                + "}}}";
+
+            var pinned = ProjectConfigFormats.Pin(existing);
+            var result = ProjectConfigFormats.Classify(pinned, TestPort, "1.50.0");
+
+            // Arm B forbidden: `AreNotEqual(Absent, ...)` would also pass for
+            // OwnedStale — the composition claim requires the exact value.
+            Assert.AreEqual(EntryState.OwnedCurrent, result);
+        }
+
+        [Test]
+        public void Pin_NoOurEntryFound_ReturnsOriginalUnchanged()
+        {
+            var text = "{\"mcpServers\":{}}";
+            var result = ProjectConfigFormats.Pin(text);
+            Assert.IsTrue(ReferenceEquals(result, text));
+        }
+
+        [Test]
+        public void Pin_AlreadyPinned_IsIdempotent_NoDuplicateMarker()
+        {
+            var existing = "{\"mcpServers\":{\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\""
+                + "}}}";
+
+            var pinnedOnce = ProjectConfigFormats.Pin(existing);
+            var pinnedTwice = ProjectConfigFormats.Pin(pinnedOnce);
+
+            Assert.AreEqual(1, Regex.Matches(pinnedTwice, "\"_pin\"").Count,
+                "a repeated Pin() must never duplicate the marker");
+            Assert.AreEqual(pinnedOnce, pinnedTwice);
+        }
+
+        [Test]
+        public void Pin_PreservesEnvAndSiblingKeys()
+        {
+            var existing = "{\"mcpServers\":{"
+                + "\"other-tool\":{\"command\":\"x\"},"
+                + "\"unity-biome-mcp\":{"
+                + "\"command\": \"uvx\","
+                + "\"_v\": \"1.49.0\","
+                + "\"env\": {\"UNITY_MCP_NO_GATING\": \"1\"}"
+                + "}}}";
+
+            var result = ProjectConfigFormats.Pin(existing);
+
+            StringAssert.Contains("\"other-tool\":{\"command\":\"x\"}", result);
+            StringAssert.Contains("\"env\": {\"UNITY_MCP_NO_GATING\": \"1\"}", result);
         }
     }
 }

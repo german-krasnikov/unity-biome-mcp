@@ -11,9 +11,13 @@ namespace UnityMCP.Editor
             int Run(string exe, string args, string workingDir);
         }
 
-        class DefaultRunner : IProcessRunner
+        // internal + virtual: lets tests inject a subclass that exercises the production
+        // Task.Run + MainThreadDispatcher branch (via `runner is DefaultRunner`) without
+        // spawning a real git process — same polymorphic test-seam pattern as
+        // ShellHelper.RunOverride, applied through inheritance instead of a delegate field.
+        internal class DefaultRunner : IProcessRunner
         {
-            public int Run(string exe, string args, string workingDir)
+            public virtual int Run(string exe, string args, string workingDir)
             {
                 var psi = new System.Diagnostics.ProcessStartInfo(exe, args)
                 {
@@ -50,13 +54,16 @@ namespace UnityMCP.Editor
             // --autostash: stash dirty WD automatically, pull, pop — safe for local dev installs.
             const string GitArgs = "pull --tags --autostash";
 
-            // Production: offload blocking WaitForExit to background thread, marshal back via delayCall.
+            // Production: offload blocking WaitForExit to background thread, marshal back
+            // via MainThreadDispatcher — a thread-safe ConcurrentQueue.Enqueue, unlike
+            // EditorApplication.delayCall += from a ThreadPool thread, and reliably drained
+            // on EditorApplication.update regardless of Editor focus (RELAY-FIX, commit 1bcc90b7).
             if (runner is DefaultRunner)
             {
                 System.Threading.Tasks.Task.Run(() =>
                 {
                     var code = runner.Run("git", GitArgs, repoRoot);
-                    EditorApplication.delayCall += () =>
+                    MainThreadDispatcher.Enqueue(() =>
                     {
                         if (code == 0)
                         {
@@ -69,7 +76,7 @@ namespace UnityMCP.Editor
                             Debug.LogError($"{BiomeLabel.Tag} git pull failed (exit {code}).\nRun manually:\n  cd \"{repoRoot}\"\n  git stash && git pull --tags && git stash pop");
                             onComplete?.Invoke(false);
                         }
-                    };
+                    });
                 });
                 return;
             }
@@ -79,7 +86,9 @@ namespace UnityMCP.Editor
             if (exitCode == 0)
             {
                 onProgress?.Invoke("Refreshing Unity assets …");
-                EditorApplication.delayCall += () => AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate);
+                // Same mechanism as the DefaultRunner branch above — one dispatcher queue,
+                // not two deferral mechanisms (RELAY-FIX, commit 1bcc90b7).
+                MainThreadDispatcher.Enqueue(() => AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate));
                 onComplete?.Invoke(true);
             }
             else

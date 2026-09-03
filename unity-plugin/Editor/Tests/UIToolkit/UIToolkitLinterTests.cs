@@ -26,13 +26,16 @@ namespace UnityMCP.Editor.Tests
                 AssetDatabase.DeleteAsset("Assets/TestsTemp/UIToolkitLinter");
         }
 
-        // Write a temp file and track it for cleanup.
+        // Write a temp file and track it for cleanup. Returns the Assets/-relative
+        // wire path — the real contract LintUITK receives in production (uitk.py:50) —
+        // not the OS-absolute disk path (ARC-16 T3 convention realignment).
         private string WriteTempFile(string name, string content)
         {
             string absPath = Path.Combine(_tempDir, name);
             File.WriteAllText(absPath, content);
-            TrackOwnedAsset("Assets/TestsTemp/UIToolkitLinter/" + name);
-            return absPath;
+            string assetPath = "Assets/TestsTemp/UIToolkitLinter/" + name;
+            TrackOwnedAsset(assetPath);
+            return assetPath;
         }
 
         // ── A1: well-formed XML ──────────────────────────────────────────────
@@ -196,6 +199,25 @@ namespace UnityMCP.Editor.Tests
 
             Assert.That(result, Does.StartWith("err:").And.Contain("not supported"));
             CollectionAssert.AreEqual(before, File.ReadAllBytes(path));
+        }
+
+        // ── Path guard (ARC-16 T3) ────────────────────────────────────────────
+        // lint_uitk must route through UIFileHelper.ToAbsPath like uitk_file does,
+        // not File.Exists() on the raw arg (works only by CWD accident, no
+        // containment check at all).
+
+        [Test]
+        public void LintUITK_PathOutsideAssets_ReturnsAssetsPrefixError()
+        {
+            string result = UILinter.LintUITK("NotAssets/foo.uxml", false);
+            StringAssert.Contains("must start with 'Assets/'", result);
+        }
+
+        [Test]
+        public void LintUITK_PathWithParentTraversal_ReturnsPathGuardError()
+        {
+            string result = UILinter.LintUITK("Assets/../Outside.uxml", false);
+            StringAssert.Contains("must not contain '..'", result);
         }
     }
 }

@@ -29,7 +29,14 @@ GATE_PRIORS: dict[str, Callable[[dict], tuple[str, dict] | None]] = {
         if a.get("action") == "add" and a.get("path") else None
     ),
     "delete_object":    lambda a: ("get_hierarchy", {"summary": "true"}),
-    "recompile":        lambda a: ("get_compile_errors", {}),
+    # ARC-5 T1: "recompile" is intentionally absent. Every entry above acks
+    # AFTER its write completes synchronously — its predicted read is valid
+    # the instant the ack arrives. "recompile" acks BEFORE Unity has even
+    # started compiling (see console.py docstring: "Returns immediately; use
+    # await_compile to block until done"). Firing get_compile_errors here
+    # races a background prefetch against Unity's actual compile, populating
+    # a global-key, TTL-bound cache slot with pre-compile data that
+    # await_compile's own post-compile read can then reuse as stale.
 }
 
 

@@ -184,8 +184,11 @@ namespace UnityMCP.Editor.TestRuns
         }
 
         // Throws when assemblyWrite < latestSourceWrite AND the compile status is not
-        // "idle|..." (Bee cache-hit). A Bee cache-hit means the DLL is current despite
-        // an mtime discrepancy from git operations — mirrors DiagnoseCommand.GetDllFreshnessToken.
+        // "idle|..." (Bee cache-hit) or "idle-never|..." (Bee decided nothing needed
+        // compiling — DLL is correct). Both mean the DLL is current despite an mtime
+        // discrepancy from git operations / overnight Unity open — mirrors
+        // DiagnoseCommand.GetDllFreshnessToken. "idle-stale|..." and "idle-failed|..."
+        // deliberately stay fail-closed: those indicate a wedged or failed compile.
         internal static void ValidateMtimeCoherence(
             string assemblyName,
             DateTime assemblyWrite,
@@ -194,7 +197,8 @@ namespace UnityMCP.Editor.TestRuns
         {
             if (assemblyWrite >= latestSourceWrite) return;
             var status = CompileStatusGetter();
-            if (!status.StartsWith("idle|", StringComparison.Ordinal))
+            if (!status.StartsWith("idle|", StringComparison.Ordinal) &&
+                !status.StartsWith("idle-never|", StringComparison.Ordinal))
                 throw new InvalidDataException(
                     $"compiled assembly '{assemblyName}' is older than source " + latestSource);
         }

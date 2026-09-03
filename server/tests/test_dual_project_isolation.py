@@ -127,3 +127,53 @@ def test_on_port_change_atomic(tmp_path):
     acquire_indices = [i for i, (op, _) in enumerate(events) if op == "acquired"]
     release_indices = [i for i, (op, _) in enumerate(events) if op == "released"]
     assert acquire_indices[-1] < release_indices[0], "new port must be acquired before any release"
+
+
+# ---------------------------------------------------------------------------
+# 5. tcp_probe grace period: a genuinely live PID (this test process) must
+#    survive one failed probe (C1 #11 — a sibling project's Unity mid
+#    bind-retry can fail one sweep and recover before the next).
+# ---------------------------------------------------------------------------
+
+def test_cleanup_stale_port_files_live_pid_survives_single_probe_failure(tmp_path):
+    """No is_pid_alive mocking — os.getpid() is a real, currently-running PID.
+    A dead-listener probe failure must NOT delete its file on the first
+    sweep; only a failure that persists for PROBE_GRACE_S deletes it."""
+    from unity_mcp.lockfile import PROBE_GRACE_S
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    f = _make_port_file(ports_dir, os.getpid(), 9520, str(tmp_path / "ProjectC"))
+    clock = [10_000.0]
+
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile._tcp_probe", return_value=False):
+        cleaned = cleanup_stale_port_files(tcp_probe=True, now_fn=lambda: clock[0])
+        assert cleaned == 0, "a single probe failure against a live PID must be tolerated"
+        assert f.exists()
+
+        clock[0] += PROBE_GRACE_S
+        cleaned = cleanup_stale_port_files(tcp_probe=True, now_fn=lambda: clock[0])
+    assert cleaned == 1, "failure persisting across a full sweep interval must be cleaned"
+    assert not f.exists()
+
+
+def test_cleanup_stale_port_files_live_pid_probe_recovery_keeps_file(tmp_path):
+    """A probe that recovers before PROBE_GRACE_S elapses must reset the
+    grace window — a later `now` that is far past the ORIGINAL failure must
+    not delete the file if the probe itself is passing again."""
+    from unity_mcp.lockfile import PROBE_GRACE_S
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    f = _make_port_file(ports_dir, os.getpid(), 9521, str(tmp_path / "ProjectD"))
+    clock = [20_000.0]
+
+    with patch.object(Path, "home", return_value=tmp_path):
+        with patch("unity_mcp.lockfile._tcp_probe", return_value=False):
+            cleanup_stale_port_files(tcp_probe=True, now_fn=lambda: clock[0])
+
+        clock[0] += PROBE_GRACE_S * 5  # far past the original grace deadline
+        with patch("unity_mcp.lockfile._tcp_probe", return_value=True):
+            cleaned = cleanup_stale_port_files(tcp_probe=True, now_fn=lambda: clock[0])
+
+    assert cleaned == 0, "a recovered probe must never delete the file"
+    assert f.exists()

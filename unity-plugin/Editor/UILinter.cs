@@ -148,7 +148,8 @@ namespace UnityMCP.Editor
             rootGO == null || c.transform.IsChildOf(rootGO.transform);
 
         // Called by ExecLintUITK.
-        // path: absolute path to a .uxml or .uss file.
+        // path: Assets/-relative wire path to a .uxml or .uss file (same contract as
+        // uitk_file — routed through UIFileHelper.ToAbsPath for containment, DRY).
         // fix: retained for API compatibility; auto-fix is not implemented.
         // Returns: "ok: 0 issues" or "warn: N issues\n[AX] ..." text.
         internal static string LintUITK(string path, bool fix)
@@ -159,7 +160,9 @@ namespace UnityMCP.Editor
                 return "err: fix=true is not supported; lint_uitk is read-only. Call with fix=false.";
             if (string.IsNullOrEmpty(path))
                 return "err: path is required";
-            if (!File.Exists(path))
+            var abs = UIFileHelper.ToAbsPath(path, out var pathErr);
+            if (pathErr != null) return pathErr;
+            if (!File.Exists(abs))
                 return $"err: file not found: {path}";
 
             bool isUxml = path.EndsWith(".uxml", StringComparison.OrdinalIgnoreCase);
@@ -167,10 +170,10 @@ namespace UnityMCP.Editor
             if (!isUxml && !isUss)
                 return $"err: unsupported extension (expected .uxml or .uss): {path}";
 
-            string text = File.ReadAllText(path);
+            string text = File.ReadAllText(abs);
             var issues = new List<string>();
 
-            if (isUxml) LintUxmlContent(text, path, issues);
+            if (isUxml) LintUxmlContent(text, abs, issues);
             else        LintUssContent(text, issues);
 
             if (issues.Count == 0) return "ok: 0 issues";

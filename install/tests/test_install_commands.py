@@ -1,6 +1,8 @@
 """Tests for install.py new subcommands: configure (tool mode), uninstall."""
 import argparse
+import ast
 import importlib.util
+import inspect
 import json
 import subprocess
 import sys
@@ -14,6 +16,11 @@ REPO_ROOT = Path(__file__).parent.parent.parent
 _spec = importlib.util.spec_from_file_location("install_script", REPO_ROOT / "install.py")
 inst = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(inst)
+
+# Shared "existing config carries a custom env var" fixture -- this file's
+# pytest root is separate from server/tests, so it keeps its own local
+# constant instead of importing server/tests/helpers.py's KEEPME_ENV.
+_KEEPME_ENV = {"UNITY_MCP_PORT": "9500", "CUSTOM_VAR": "keepme"}
 
 # Lazy references — functions don't exist until Green phase
 def cmd_configure(*a, **kw): return inst.cmd_configure(*a, **kw)
@@ -412,6 +419,35 @@ def test_reconfigure_detected_clients_skips_unconfigured_tools(tmp_path):
     assert merge_calls == [cfg_claude]
 
 
+def test_reconfigure_detected_clients_preserves_custom_env_var(tmp_path):
+    """E2E regression: install.py update must not wipe a user's
+    custom env var. Reproduces a bug through the real call chain — real merge,
+    real file write, no merge_mcp_config patch."""
+    cfg = tmp_path / "mcp.json"
+    cfg.write_text(json.dumps({
+        "mcpServers": {
+            "unity-biome-mcp": {
+                "command": "old",
+                "args": [],
+                "env": dict(_KEEPME_ENV),
+            }
+        }
+    }), encoding="utf-8")
+    registry = _fake_registry(cfg)
+    entry = {"command": "new", "args": ["-m", "unity_mcp.server"]}  # RC3: no env key (port=0 shape)
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["fake-tool"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry):
+        inst._reconfigure_detected_clients()
+
+    data = json.loads(cfg.read_text(encoding="utf-8"))
+    written = data["mcpServers"]["unity-biome-mcp"]
+    assert written["env"] == _KEEPME_ENV
+    assert written["command"] == "new"
+
+
 def test_reconfigure_detected_clients_never_prompts(tmp_path):
     """Reconfigure must never call prompt_yn — it's a non-interactive re-assert."""
     cfg = tmp_path / "claude.json"
@@ -430,6 +466,211 @@ def test_reconfigure_detected_clients_never_prompts(tmp_path):
         inst._reconfigure_detected_clients()  # must not raise
 
 
+# ── _reconfigure_detected_clients: pin support ───────────────────────────────
+
+def test_reconfigure_detected_clients_skips_pinned_entry(tmp_path):
+    """A "_pin": true entry must survive install.py update byte-for-byte —
+    merge_mcp_config must not even be called for that client."""
+    cfg = tmp_path / "claude.json"
+    original = json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "old", "args": [], "_pin": True}}
+    })
+    cfg.write_text(original, encoding="utf-8")
+    registry = _fake_registry(cfg)
+    entry = {"command": "new", "args": []}
+    merge_calls = []
+
+    def fake_merge(path, e, root_key="mcpServers", entry_transformer=None):
+        merge_calls.append(path)
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["fake-tool"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry), \
+         patch.object(inst, "merge_mcp_config", fake_merge):
+        inst._reconfigure_detected_clients()
+
+    assert merge_calls == []
+    assert cfg.read_text(encoding="utf-8") == original  # untouched, byte-for-byte
+
+
+def test_reconfigure_detected_clients_updates_unpinned_entry(tmp_path):
+    """Regression guard: an entry without "_pin" must still be reconfigured."""
+    cfg = tmp_path / "claude.json"
+    cfg.write_text(json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "old", "args": []}}
+    }), encoding="utf-8")
+    registry = _fake_registry(cfg)
+    entry = {"command": "new", "args": []}
+    merge_calls = []
+
+    def fake_merge(path, e, root_key="mcpServers", entry_transformer=None):
+        merge_calls.append(path)
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["fake-tool"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry), \
+         patch.object(inst, "merge_mcp_config", fake_merge):
+        inst._reconfigure_detected_clients()
+
+    assert merge_calls == [cfg]
+
+
+def test_reconfigure_detected_clients_skips_pinned_toml_entry(tmp_path):
+    """Codex-style TOML entry pinned via its comment marker must not be re-merged."""
+    cfg = tmp_path / "config.toml"
+    original = (
+        "# unity-biome-mcp generated v0.54.1 pinned\n"
+        "[mcp_servers.unity-biome-mcp]\ncommand = 'old'\nargs = []\n"
+    )
+    cfg.write_text(original, encoding="utf-8")
+    registry = _fake_registry(cfg)
+    registry["fake-tool"].is_toml = True
+    entry = {"command": "new", "args": []}
+    merge_calls = []
+
+    def fake_merge_toml(path, e):
+        merge_calls.append(path)
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["fake-tool"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry), \
+         patch.object(inst, "merge_toml_mcp", fake_merge_toml):
+        inst._reconfigure_detected_clients()
+
+    assert merge_calls == []
+    assert cfg.read_text(encoding="utf-8") == original
+
+
+# ── _reconfigure_detected_clients: undecodable client config must not abort update ──
+
+def test_reconfigure_detected_clients_skips_undecodable_client_and_continues(tmp_path, capsys):
+    """A config file with genuinely undecodable bytes (stray UTF-16 BOM /
+    binary corruption) must not abort the whole `for key in
+    detect_installed()` loop -- the client after it still gets reconfigured,
+    and the corrupt file's on-disk bytes are never touched. (C1-FIX-01,
+    config-writers MAJOR)
+
+    Uses the REAL merge_mcp_config/backup (not test doubles): merge_mcp_config
+    only catches json.JSONDecodeError on its own read, so undecodable bytes
+    raise UnicodeDecodeError out of the read step, before merge_mcp_config
+    ever writes -- install.py's `_CLIENT_CONFIG_ERRORS` guard around that call
+    is the actual safety net (is_entry_pinned degrading to False on the same
+    bytes, C1 r2 #3, means the pinned-check no longer raises first, but the
+    merge call's own guard still catches it). A prior version of this test
+    mocked merge_mcp_config with a no-op double that never re-read the file,
+    which hid this real safety net and went red for the wrong reason when
+    is_entry_pinned stopped raising."""
+    corrupt_bytes = b'\xff\xfe{"mcpServers": invalid \x80\x81'
+    corrupt_cfg = tmp_path / "corrupt.json"
+    corrupt_cfg.write_bytes(corrupt_bytes)
+    good_cfg = tmp_path / "good.json"
+    good_cfg.write_text(json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "old", "args": []}}
+    }), encoding="utf-8")
+
+    corrupt_client = _fake_registry(corrupt_cfg)["fake-tool"]
+    corrupt_client.name = "Corrupt Tool"
+    good_client = _fake_registry(good_cfg)["fake-tool"]
+    good_client.name = "Good Tool"
+    registry = {"corrupt-tool": corrupt_client, "good-tool": good_client}
+    entry = {"command": "new", "args": []}
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["corrupt-tool", "good-tool"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry):
+        inst._reconfigure_detected_clients()  # must not raise UnicodeDecodeError
+
+    assert corrupt_cfg.read_bytes() == corrupt_bytes  # untouched, never overwritten
+    good_data = json.loads(good_cfg.read_text(encoding="utf-8"))
+    assert good_data["mcpServers"]["unity-biome-mcp"]["command"] == "new"  # still reconfigured
+    out = capsys.readouterr().out
+    assert "Skipped" in out
+    assert "Corrupt Tool" in out
+
+
+def test_reconfigure_detected_clients_survives_undecodable_config_in_real_validate_config(tmp_path, capsys):
+    """validate_config(key) itself raises UnicodeDecodeError on genuinely
+    undecodable bytes, and that call happens BEFORE the is_toml_pinned/is_entry_pinned
+    try block added for C1-FIX-01 -- so this earlier crash site was still fully reachable.
+    The sibling test above mocks validate_config to "Status: ok" and therefore never
+    calls the real function, hiding this exact path. This test calls the REAL
+    validate_config (unpatched) against the REAL CLIENT_REGISTRY entry for
+    claude-desktop, whose config_path is redirected to an undecodable file, to prove
+    the crash site is validate_config() itself, not just the pinned-check. (C1 r4 #1)"""
+    from unity_mcp.config import clients as real_clients
+    corrupt_bytes = b"\xff\xfe{not valid utf-8"
+    corrupt_cfg = tmp_path / "claude_desktop_config.json"
+    corrupt_cfg.write_bytes(corrupt_bytes)
+    good_cfg = tmp_path / "good.json"
+    good_cfg.write_text(json.dumps({
+        "mcpServers": {"unity-biome-mcp": {"command": "old", "args": []}}
+    }), encoding="utf-8")
+    good_client = _fake_registry(good_cfg)["fake-tool"]
+    good_client.name = "Good Tool"
+
+    claude_desktop = real_clients.CLIENT_REGISTRY["claude-desktop"]
+    original_path = claude_desktop.config_path
+    claude_desktop.config_path = corrupt_cfg
+    merged_registry = {"claude-desktop": claude_desktop, "good-tool": good_client}
+    try:
+        with patch.object(inst, "CLIENT_REGISTRY", merged_registry), \
+             patch.object(inst, "detect_installed", return_value=["claude-desktop", "good-tool"]), \
+             patch.object(inst, "build_server_entry", return_value={"command": "new", "args": []}):
+            inst._reconfigure_detected_clients()  # real validate_config -- must not raise
+    finally:
+        claude_desktop.config_path = original_path
+
+    assert corrupt_cfg.read_bytes() == corrupt_bytes  # untouched, never overwritten
+    good_data = json.loads(good_cfg.read_text(encoding="utf-8"))
+    assert good_data["mcpServers"]["unity-biome-mcp"]["command"] == "new"  # still reconfigured
+    out = capsys.readouterr().out
+    assert "Skipped" in out
+
+
+def test_reconfigure_detected_clients_updates_both_when_both_valid(tmp_path):
+    """Double-red: with no corruption at all, both clients are still updated
+    (the try/except around the pinned-check must not swallow the happy path)."""
+    cfg_a = tmp_path / "a.json"
+    cfg_a.write_text(json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "old", "args": []}}}), encoding="utf-8")
+    cfg_b = tmp_path / "b.json"
+    cfg_b.write_text(json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "old", "args": []}}}), encoding="utf-8")
+
+    client_a = _fake_registry(cfg_a)["fake-tool"]
+    client_b = _fake_registry(cfg_b)["fake-tool"]
+    registry = {"tool-a": client_a, "tool-b": client_b}
+    entry = {"command": "new", "args": []}
+    merge_calls = []
+
+    def fake_merge(path, e, root_key="mcpServers", entry_transformer=None):
+        merge_calls.append(path)
+
+    with patch.object(inst, "CLIENT_REGISTRY", registry), \
+         patch.object(inst, "detect_installed", return_value=["tool-a", "tool-b"]), \
+         patch.object(inst, "validate_config", return_value="Status: ok"), \
+         patch.object(inst, "build_server_entry", return_value=entry), \
+         patch.object(inst, "merge_mcp_config", fake_merge), \
+         patch.object(inst, "backup", MagicMock()):
+        inst._reconfigure_detected_clients()
+
+    assert merge_calls == [cfg_a, cfg_b]
+
+
+# ── version --unpin flag ──────────────────────────────────────────────────────
+
+def test_version_unpin_flag_in_help():
+    """install.py version --help must document --unpin."""
+    r = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "install.py"), "version", "--help"],
+        capture_output=True, encoding="utf-8",
+    )
+    assert r.returncode == 0
+    assert "--unpin" in r.stdout
+
+
 # ── stop subcommand argparse wiring ──────────────────────────────────────────
 
 def test_stop_subcommand_registered():
@@ -441,6 +682,64 @@ def test_stop_subcommand_registered():
     # Simulate what main() should register; verify it doesn't error
     # We test this by calling parse_args on a fresh module import
     assert callable(inst.main)
+
+
+def test_cmd_doctor_imports_public_read_encoding():
+    """install/commands.py's cmd_doctor must import merger's public READ_ENCODING
+    name, not the private _READ_ENCODING alias (B4 minor)."""
+    import install.commands as commands
+    tree = ast.parse(inspect.getsource(commands))
+    imported = {
+        alias.name
+        for node in ast.walk(tree) if isinstance(node, ast.ImportFrom)
+        for alias in node.names
+    }
+    assert "READ_ENCODING" in imported
+    assert "_READ_ENCODING" not in imported
+
+
+def test_cmd_doctor_survives_undecodable_codex_config(tmp_path, capsys):
+    """.codex/config.toml with genuinely undecodable bytes (stray UTF-16 BOM
+    / binary corruption) must not crash doctor before it even reaches the
+    CLIENT_REGISTRY loop or the TCP check -- same 'degrade, don't crash'
+    contract as the .mcp.json check three lines below it. (C1 r4 #3)"""
+    import install.commands as commands
+    from install import ui as real_ui
+    server_dir = tmp_path / "server"
+    codex_config = tmp_path / "config.toml"
+    codex_config.write_bytes(b"\xff\xfe[mcp_servers.unity-biome-mcp]\ninvalid \x80\x81")
+    mcp_json = tmp_path / ".mcp.json"
+
+    commands.cmd_doctor(server_dir, codex_config, mcp_json, real_ui, argparse.Namespace())  # must not raise
+
+    out = capsys.readouterr().out
+    assert ".codex/config.toml paths correct" in out
+
+
+def test_cmd_doctor_survives_undecodable_client_config(tmp_path, capsys):
+    """An AI-tool config with genuinely undecodable bytes must not crash the
+    CLIENT_REGISTRY loop -- doctor must still reach the trailing TCP
+    reachability check instead of dying mid-loop with UnicodeDecodeError. (C1 r4 #3)"""
+    import install.commands as commands
+    from install import ui as real_ui
+    from unity_mcp.config import clients as real_clients
+
+    server_dir = tmp_path / "server"
+    codex_config = tmp_path / "missing_config.toml"
+    mcp_json = tmp_path / ".mcp.json"
+    corrupt_cfg = tmp_path / "claude_desktop_config.json"
+    corrupt_cfg.write_bytes(b"\xff\xfe{not valid utf-8")
+
+    claude_desktop = real_clients.CLIENT_REGISTRY["claude-desktop"]
+    original_path = claude_desktop.config_path
+    claude_desktop.config_path = corrupt_cfg
+    try:
+        commands.cmd_doctor(server_dir, codex_config, mcp_json, real_ui, argparse.Namespace())  # must not raise
+    finally:
+        claude_desktop.config_path = original_path
+
+    out = capsys.readouterr().out
+    assert "TCP :" in out
 
 
 def test_stop_argparse_requires_port():

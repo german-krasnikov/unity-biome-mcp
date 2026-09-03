@@ -1062,19 +1062,17 @@ namespace UnityMCP.Editor.TestRuns
                     stream.Flush(true);
                 }
 
-                if (File.Exists(path))
-                    File.Replace(temporary, path, null);
-                else
-                    File.Move(temporary, path);
+                AtomicFile.Swap(temporary, path);
             }
             catch (Exception e)
             {
+                // AtomicFile.Swap already cleans up temporary on its own
+                // Replace/Move failure; this guarded delete only covers a
+                // failure before Swap runs (e.g. during the write above). A
+                // cleanup failure here must never mask the original error.
+                try { if (File.Exists(temporary)) File.Delete(temporary); } catch { }
                 throw new TestRunStoreException(
                     $"Could not atomically write durable protocol file '{path}'.", e);
-            }
-            finally
-            {
-                if (File.Exists(temporary)) File.Delete(temporary);
             }
         }
     }

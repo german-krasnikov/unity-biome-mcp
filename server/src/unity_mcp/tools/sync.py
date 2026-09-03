@@ -101,7 +101,15 @@ def _package_json_path() -> Path | None:
 
 
 def _parse_ack(ack: str) -> tuple[int, bool]:
-    """Parse 'sync_ack|epoch=N|will_compile=bool' → (epoch, will_compile)."""
+    """Parse 'sync_ack|epoch=N|will_compile=bool' → (epoch, will_compile).
+
+    Raises ValueError if the verb (first pipe field) is not 'sync_ack' —
+    callers must special-case TriggerSync's 'wedged|epoch=N' re-wedge guard
+    before calling this (see sync_unity).
+    """
+    verb = ack.partition("|")[0]
+    if verb != "sync_ack":
+        raise ValueError(f"unexpected sync ack verb: {verb!r}")
     parts = parse_pipe_fields(ack)
     epoch = int(parts.get("epoch", "0"))
     will_compile = parts.get("will_compile", "false").lower() == "true"
@@ -172,10 +180,16 @@ async def sync_unity(
     except ConnectionError as e:
         raise ToolError(f"Unity unreachable: {e}") from e
 
+    # SyncHelper.TriggerSync's re-wedge guard: compile already stuck, no new
+    # epoch bumped — must not fall through to the will_compile fast path
+    # (DEV-53: that previously reported "sync clean" for a wedged pipeline).
+    if ack == "wedged" or ack.startswith("wedged|"):
+        return f"GUARD-WEDGED: TriggerSync re-wedge guard fired ({ack}); check get_compile_errors"
+
     try:
         epoch, will_compile = _parse_ack(ack)
     except (ValueError, KeyError, IndexError):
-        epoch, will_compile = 0, True  # conservative
+        return f"STOP: unrecognized sync ack {ack!r} — Unity plugin/server protocol mismatch"
 
     # Step 3: fast path — nothing to compile
     if not will_compile:
@@ -268,12 +282,14 @@ async def _get_errors() -> str:
     """Get compile errors from C# and corroborate with editor_log (both-signals gate).
 
     Delegates to get_corroborated_errors — sentinel-strip lives there (P3 DRY).
-    Swallows ConnectionError/OSError: TCP gone during error fetch is treated as no errors.
+    ARC-6: a dead TCP call during error fetch surfaces editor_log.UNITY_UNREACHABLE,
+    not "" — this local catch is defense-in-depth in case editor_log.py's own
+    (ConnectionError, OSError) guard ever regresses back to a silent "".
     """
     try:
         return await editor_log.get_corroborated_errors(_send)
     except (ConnectionError, OSError):
-        return ""
+        return editor_log.UNITY_UNREACHABLE
 
 
 async def _warm_type_cache() -> None:

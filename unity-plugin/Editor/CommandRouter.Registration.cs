@@ -48,19 +48,25 @@ namespace UnityMCP.Editor
                 alwaysAllowed: true, allowedDuringCompile: true);
             // T5 recovery: play+stop cycle forces domain reload without going through SecurityScan.
             // allowedDuringCompile=true so it works in compile-latch state.
-            // play→stop queued via delayCall; command returns immediately.
+            // Entering Play Mode triggers a domain reload in this project (full domain
+            // reload, not the fast-enter-play-mode option), which wipes any delayCall/update
+            // subscription registered inline here (RELAY-FIX, commit 1bcc90b7) — the pending
+            // stop/start survives via SessionState instead, consumed by PlayModeEpochTracker,
+            // whose static-ctor subscription re-arms on every domain reload.
             CommandRegistry.Register("force_play_stop", _ =>
             {
                 if (EditorApplication.isCompiling)
                 {
-                    EditorApplication.delayCall += () => {
-                        EditorApplication.isPlaying = true;
-                        EditorApplication.delayCall += () => { EditorApplication.isPlaying = false; };
-                    };
+                    SessionState.SetBool(PlayModeEpochTracker.PendingPlayStartKey, true);
+                    PlayModeEpochTracker.WaitForCompileThenEnterPlayMode();
                     return "play_stop queued (waiting for compile)";
                 }
-                EditorApplication.isPlaying = true;
-                EditorApplication.delayCall += () => { EditorApplication.isPlaying = false; };
+                // Direct (non-compiling) entry: EditorApplication.isCompiling being false does
+                // not guarantee isPlaying = true actually succeeds (leftover compile errors from
+                // a finished build, or an in-progress unrelated transition can silently refuse
+                // it) — go through the same reload-survival helper the compiling branch above
+                // uses, so a refused entry here cannot strand PendingPlayStopKey either (C1 r6 #2).
+                PlayModeEpochTracker.EnterPlayModeWithPendingStop();
                 return "play_stop triggered";
             }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
             CommandRegistry.Register("set_client_label", args =>
@@ -211,12 +217,15 @@ namespace UnityMCP.Editor
                 SyncHelper.Ops.Refresh();
                 SyncHelper.Ops.RequestScriptCompilation(RequestScriptCompilationOptions.None);
                 // Defer reload request — calling RequestScriptReload synchronously triggers
-                // immediate domain reload that wipes pending delayCall callbacks (B3 fix).
-                EditorApplication.delayCall += () =>
+                // immediate domain reload that wipes pending callbacks (B3 fix).
+                // MainThreadDispatcher (EditorApplication.update-driven) reaches a backgrounded
+                // Editor reliably (RELAY-FIX, commit 1bcc90b7); its next-tick guarantee comes
+                // from Drain's snapshot-count pass, not a self-unsubscribing one-shot.
+                MainThreadDispatcher.Enqueue(() =>
                 {
                     if (!EditorApplication.isCompiling)
                         EditorUtility.RequestScriptReload();
-                };
+                });
                 InternalEditorUtility.RepaintAllViews();
                 SyncHelper.Ops.StartTickPump();
                 return "force_refresh triggered";

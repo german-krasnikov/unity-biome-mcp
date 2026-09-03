@@ -1004,7 +1004,7 @@ async def test_concurrent_sends_use_unique_message_ids():
 # ---------------------------------------------------------------------------
 
 async def test_heartbeat_ping_mismatch_raises_protocol_desync():
-    """P7: ID mismatch in _raw_ping raises ProtocolDesyncError (not generic ConnectionError)."""
+    """ID mismatch in _raw_ping raises ProtocolDesyncError (not generic ConnectionError). (P7)"""
     from unity_mcp.bridge_heartbeat import ProtocolDesyncError
 
     idle_probe = make_idle_probe()
@@ -1023,7 +1023,7 @@ async def test_heartbeat_ping_mismatch_raises_protocol_desync():
 
 
 async def test_heartbeat_hard_deadline_latches_grace_expired():
-    """P7: HARD_DEADLINE_S reached while disconnected → _startup_grace_expired=True."""
+    """HARD_DEADLINE_S reached while disconnected → _startup_grace_expired=True. (P7)"""
     import time as _time
     import unity_mcp.bridge_heartbeat as _bh
     from unittest.mock import AsyncMock as _AsyncMock

@@ -65,7 +65,8 @@ namespace UnityMCP.Editor.Tests
                 $"{{\"id\":\"ro-uitk-write\",\"cmd\":\"uitk_file\",\"args\":{{\"path\":\"{path}\",\"action\":\"write\",\"content\":\"x\"}}}}");
 
             StringAssert.DoesNotContain("READ_ONLY_BLOCKED", read, read);
-            Assert.IsTrue(read.Contains("file not found") || read.Contains("escapes Assets"), read);
+            StringAssert.Contains("file not found", read, read);
+            StringAssert.DoesNotContain("escapes Assets", read, read);
             StringAssert.Contains("READ_ONLY_BLOCKED", write, write);
         }
 
@@ -88,7 +89,8 @@ namespace UnityMCP.Editor.Tests
             var write = await writeTcs.Task;
 
             StringAssert.DoesNotContain("READ_ONLY_BLOCKED", read, read);
-            Assert.IsTrue(read.Contains("file not found") || read.Contains("escapes Assets"), read);
+            StringAssert.Contains("file not found", read, read);
+            StringAssert.DoesNotContain("escapes Assets", read, read);
             StringAssert.Contains("READ_ONLY_BLOCKED", write, write);
         }
 

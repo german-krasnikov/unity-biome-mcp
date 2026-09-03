@@ -145,7 +145,8 @@ namespace UnityMCP.Editor
             if (assetPath.Contains(".."))
                 { err = "err: path must not contain '..'"; return null; }
             var abs = Path.GetFullPath(Path.Combine(Application.dataPath, "..", assetPath));
-            if (!abs.StartsWith(Application.dataPath, StringComparison.Ordinal))
+            var dataPathAbs = Path.GetFullPath(Application.dataPath);
+            if (!abs.StartsWith(dataPathAbs, StringComparison.OrdinalIgnoreCase))
                 { err = $"err: resolved path escapes Assets/: {abs}"; return null; }
             return abs;
         }

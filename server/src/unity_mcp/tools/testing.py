@@ -6,10 +6,13 @@ import json
 import math
 import re
 import uuid
+from pathlib import Path  # noqa: TC003 — get_type_hints() requires runtime (test_python314_compat)
 from typing import Any
 
 from mcp.server.fastmcp.exceptions import ToolError
 
+from ..compile_state import CompileStateProbe
+from . import run_disk_fallback
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
@@ -18,6 +21,7 @@ from .run_handle import TestRunRegistry
 
 _send = None
 _args = None
+_get_slot = None
 _registry = TestRunRegistry()
 
 # STALE-DOMAIN: defensive -- unreachable with expected_compile=False, guards
@@ -35,6 +39,9 @@ _TERMINAL_OUTCOMES = {
     "passed", "failed", "cancelled", "incomplete", "invalid", "dispatch_failed",
 }
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
+# Mirrors bridge_heartbeat.py's _ping_failures threshold (3): gates a
+# diagnostic TIMEOUT suffix only, never control flow.
+_HEALTH_STREAK_TIMEOUT_THRESHOLD = 3
 
 
 def _try_update_handle_from_result(run_id: str, result: str) -> None:
@@ -144,7 +151,9 @@ def _unknown_start(request_id: str, reason: str) -> str:
 def _compact_snapshot(value: str) -> str:
     """Keep timeout diagnostics precise without pretty-printed JSON noise."""
     try:
-        return json.dumps(json.loads(value), separators=(",", ":"), sort_keys=True)
+        return json.dumps(
+            json.loads(value), separators=(",", ":"), sort_keys=True, ensure_ascii=False
+        )
     except (TypeError, ValueError, json.JSONDecodeError):
         return value or "none"
 
@@ -186,6 +195,26 @@ def _snapshot_matches_intent(
     )
 
 
+# UTF's TestRunService feeds the raw filter into Filter.groupNames,
+# regex-matched. A nested-class filter like "Foo+Bar" ('+' is .NET's nested
+# -class separator) is reinterpreted as a quantifier -- usually zero matches.
+# '.' is excluded: it's the universal namespace/method separator, flagging it
+# would make every filter look suspicious. '|' is excluded too: it's UTF's
+# legal separator for multi-group filters ("TestA|TestB"), never
+# misinterpreted by the matching engine -- an "escape it" hint would mislead.
+_REGEX_METACHARS = frozenset("+*?()[]{}^$\\")
+
+
+def _filter_has_regex_metachar(filter_name: str) -> bool:
+    return any(ch in _REGEX_METACHARS for ch in filter_name)
+
+
+def _zero_match_reason(filter_name: str) -> str:
+    if _filter_has_regex_metachar(filter_name):
+        return "run-zero-match-metachar"
+    return "run-zero-match-filter"
+
+
 def _terminal_snapshot_error(
     snapshot: dict[str, Any], *, mode: str, filter_name: str
 ) -> str | None:
@@ -194,6 +223,12 @@ def _terminal_snapshot_error(
         return "lifecycle-mismatch"
     if not _snapshot_matches_intent(snapshot, mode=mode, filter_name=filter_name):
         return "request-intent-mismatch"
+
+    health = snapshot.get("health")
+    if health == "no_test_progress":
+        return "run-health-no-test-progress"
+    if health == "editor_unresponsive":
+        return "run-health-editor-unresponsive"
 
     required_flags = (
         ("is_terminal", "terminal-flag-missing"),
@@ -215,27 +250,37 @@ def _terminal_snapshot_error(
     if snapshot.get("utf_xml_scope") not in {"complete", "partial"}:
         return "utf-xml-scope-missing"
 
+    # ARC-17 X1 (DEV-16 review): an old plugin's terminal snapshot may omit
+    # `expected_count` entirely -- absence must be inert, not fail-closed
+    # (ARC-17 §4). Only a *present but corrupted* value (bool, non-int,
+    # negative, or an honest zero) still triggers a reason below.
     expected = snapshot.get("expected_count")
-    if isinstance(expected, bool) or not isinstance(expected, int) or expected <= 0:
-        return "expected-count-invalid"
-    for field in (
-        "declared_expected_count",
-        "readable_manifest_count",
-        "completed_expected_count",
-        "unique_terminal_count",
-    ):
-        value = snapshot.get(field)
-        if isinstance(value, bool) or not isinstance(value, int) or value != expected:
-            return "terminal-count-invariant"
-    for field in (
-        "unmaterialized_expected_count",
-        "missing_count",
-        "unexpected_count",
-        "conflict_count",
-    ):
-        value = snapshot.get(field)
-        if isinstance(value, bool) or not isinstance(value, int) or value != 0:
-            return "terminal-count-invariant"
+    has_expected = expected is not None
+    if has_expected:
+        if isinstance(expected, bool) or not isinstance(expected, int):
+            return "expected-count-invalid"
+        if expected == 0:
+            return _zero_match_reason(filter_name)
+        if expected < 0:
+            return "expected-count-invalid"
+        for field in (
+            "declared_expected_count",
+            "readable_manifest_count",
+            "completed_expected_count",
+            "unique_terminal_count",
+        ):
+            value = snapshot.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or value != expected:
+                return "terminal-count-invariant"
+        for field in (
+            "unmaterialized_expected_count",
+            "missing_count",
+            "unexpected_count",
+            "conflict_count",
+        ):
+            value = snapshot.get(field)
+            if isinstance(value, bool) or not isinstance(value, int) or value != 0:
+                return "terminal-count-invariant"
 
     statuses = (
         "passed", "failed", "skipped", "inconclusive", "cancelled", "invalid",
@@ -246,7 +291,7 @@ def _terminal_snapshot_error(
         if isinstance(value, bool) or not isinstance(value, int) or value < 0:
             return "terminal-status-count-invalid"
         status_total += value
-    if status_total != expected:
+    if has_expected and status_total != expected:
         return "terminal-status-total-mismatch"
 
     issues = snapshot.get("issues")
@@ -325,7 +370,13 @@ async def run_tests(
             )
             if not recoverable_prepared:
                 try:
-                    current = await get_test_run(existing_status["run_id"])
+                    # Raw fetch, not the validating get_test_run wrapper: this
+                    # branch does its own correlation + intent check right
+                    # below, same reason run_tests_wait bypasses it (see
+                    # _fetch_test_run_json docstring) -- a PROTOCOL-ERROR
+                    # string here would otherwise fail _decode_snapshot's
+                    # JSON parse and get masked as "intent-check-invalid".
+                    current = await _fetch_test_run_json(existing_status["run_id"])
                 except Exception as exc:
                     return _unknown_start(
                         stable_request_id, f"intent-check-{type(exc).__name__}"
@@ -357,7 +408,7 @@ async def run_tests(
         args["filter"] = filter
 
     try:
-        result = await _send("run_tests", args, timeout=8.0)
+        result = await _send("run_tests", args)
     except Exception as exc:
         return _unknown_start(stable_request_id, type(exc).__name__)
 
@@ -370,7 +421,15 @@ async def run_tests(
             except (TypeError, ValueError):
                 expected_count = None
             if expected_count == 0:
-                raise ToolError("BLOCKED: Empty manifest: no tests match filter")
+                hint = ""
+                if filter and _filter_has_regex_metachar(filter):
+                    hint = (
+                        " (filter contains a regex metacharacter -- escape it "
+                        "or use exact test names)"
+                    )
+                raise ToolError(
+                    f"BLOCKED: Empty manifest: no tests match filter{hint}"
+                )
             handle = _registry.register(correlated["run_id"], stable_request_id)
             if expected_count is not None:
                 handle.expected_count = expected_count
@@ -408,6 +467,7 @@ async def run_tests_wait(
     loop = asyncio.get_running_loop()
     deadline = loop.time() + max(0.0, float(timeout))
     last_snapshot = "none"
+    health_streak = 0
 
     for attempt in range(attempts):
         if not run_id:
@@ -482,12 +542,15 @@ async def run_tests_wait(
                 break
             try:
                 current = await asyncio.wait_for(
-                    get_test_run(run_id), timeout=remaining
+                    _fetch_test_run_json(run_id), timeout=remaining
                 )
             except TimeoutError:
                 break
             except Exception:
+                # Transport hiccup, not confirmed dead -- counts toward the
+                # same diagnostic streak as an explicit suspected_stall.
                 current = ""
+                health_streak += 1
             if current not in ("", "none", "pending"):
                 last_snapshot = current
                 snapshot, protocol_error = _decode_snapshot(
@@ -517,6 +580,12 @@ async def run_tests_wait(
                             f"|snapshot={_compact_snapshot(current)}"
                         )
                     snapshot_state = state or lifecycle
+                    if snapshot_state != "terminal":
+                        health = snapshot.get("health")
+                        if health == "suspected_stall":
+                            health_streak += 1
+                        elif health in ("healthy", "reloading"):
+                            health_streak = 0
                 if snapshot is not None and snapshot_state == "terminal":
                     terminal_error = _terminal_snapshot_error(
                         snapshot, mode=mode, filter_name=filter or ""
@@ -536,10 +605,33 @@ async def run_tests_wait(
             if remaining > 0:
                 await asyncio.sleep(min(interval, remaining))
 
+    resolved_run_id = run_id or known_run_id
+    if resolved_run_id:
+        try:
+            disk_result = _read_disk_fallback(
+                resolved_run_id,
+                mode=mode,
+                filter_name=filter or "",
+                expected_request_id=stable_request_id,
+            )
+        except Exception:
+            # A filesystem hiccup degrades to the pre-existing TIMEOUT below,
+            # never crashes a caller that's already out of patience.
+            disk_result = None
+        if disk_result is not None:
+            _try_update_handle_from_result(resolved_run_id, disk_result)
+            return disk_result
+
+    streak_suffix = (
+        f"|health_streak={health_streak}"
+        if health_streak >= _HEALTH_STREAK_TIMEOUT_THRESHOLD
+        else ""
+    )
     return (
         f"TIMEOUT|request_id={stable_request_id}"
         f"|run_id={run_id or known_run_id or 'unknown'}"
         f"|snapshot={_compact_snapshot(last_snapshot)}"
+        f"{streak_suffix}"
     )
 
 
@@ -548,8 +640,15 @@ async def resolve_test_request(request_id: str) -> str:
     return await _send("resolve_test_request", {"request_id": request_id})
 
 
-async def get_test_run(run_id: str) -> str:
-    """Return the durable JSON snapshot for one exact test run."""
+async def _fetch_test_run_json(run_id: str) -> str:
+    """Return the raw durable JSON snapshot for one exact test run.
+
+    Unvalidated by design: ``run_tests_wait`` polls through this directly and
+    does its own richer, intent-aware validation right after. Routing it
+    through the fail-closed ``get_test_run`` wrapper instead would let a
+    ``PROTOCOL-ERROR`` string get silently swallowed by ``_decode_snapshot``'s
+    non-JSON path and surface as a masked ``TIMEOUT``.
+    """
     handle = _registry.get(run_id)
     if handle is not None and handle.result is not None:
         return handle.result  # cached terminal result
@@ -571,12 +670,41 @@ async def get_test_run(run_id: str) -> str:
                 and "expected_count" not in data
             ):
                 data["expected_count"] = handle.expected_count
-                result = json.dumps(data, separators=(",", ":"))
+                result = json.dumps(data, separators=(",", ":"), ensure_ascii=False)
     except (TypeError, ValueError):
         pass
 
     _try_update_handle_from_result(run_id, result)
     return result
+
+
+async def get_test_run(run_id: str) -> str:
+    """Return the durable JSON snapshot for one exact test run.
+
+    Fails closed on terminal-invalid evidence: a snapshot claiming
+    ``state == "terminal"`` that doesn't pass ARC-1/ARC-3 validation (an
+    honest zero-match filter, a stalled/unresponsive terminal claim, a
+    corrupted count) comes back as
+    ``PROTOCOL-ERROR|run_id=...|reason=...|snapshot=...`` instead of the raw
+    snapshot -- closes the direct-poll path around ``run_tests_wait``'s own
+    validation.
+    """
+    result = await _fetch_test_run_json(run_id)
+    try:
+        data = json.loads(result)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return result
+    if not isinstance(data, dict) or data.get("state") != "terminal":
+        return result
+    reason = _terminal_snapshot_error(
+        data, mode=str(data.get("mode") or ""), filter_name=str(data.get("filter") or "")
+    )
+    if reason is None:
+        return result
+    return (
+        f"PROTOCOL-ERROR|run_id={run_id}|reason={reason}"
+        f"|snapshot={_compact_snapshot(result)}"
+    )
 
 
 async def cancel_test_run(run_id: str) -> str:
@@ -612,8 +740,60 @@ async def get_test_count() -> str:
     return await _send("get_test_count", {})
 
 
-def register(mcp, send, args):
+def _resolve_project_path() -> Path | None:
+    """Resolve the connected Unity project's path: get_slot -> port -> autodetect.
+
+    Fail-inert by design (returns None on any missing link) — a project-path
+    miss must degrade the disk fallback (D3/D4) to a no-op, never raise.
+    """
+    if _get_slot is None:
+        return None
+    slot = _get_slot()
+    if slot is None:
+        return None
+    return CompileStateProbe.autodetect_project_path(port=slot.port)
+
+
+def _read_disk_fallback(
+    run_id: str,
+    *,
+    mode: str,
+    filter_name: str,
+    expected_request_id: str,
+) -> str | None:
+    """Last-resort disk read of a durable terminal test-run summary (ARC-2).
+
+    Single-shot: called only from run_tests_wait's TIMEOUT return. Reuses
+    _decode_snapshot/_terminal_snapshot_error verbatim against disk JSON
+    instead of wire JSON -- one validation path, no new rules. Fail-inert by
+    design: an unresolved project path, an unsafe run_id, a missing/empty/
+    corrupt file, a non-terminal snapshot, or failed terminal invariants all
+    return None -- never an exception, so a filesystem hiccup degrades to the
+    pre-existing TIMEOUT instead of crashing it.
+    """
+    if not _valid_identity(run_id):
+        return None
+    project_path = _resolve_project_path()
+    if project_path is None:
+        return None
+    raw = run_disk_fallback.read_terminal_summary(project_path, run_id)
+    if raw is None:
+        return None
+    snapshot, protocol_error = _decode_snapshot(
+        raw, expected_request_id=expected_request_id, expected_run_id=run_id
+    )
+    if protocol_error is not None or snapshot is None:
+        return None
+    if _terminal_snapshot_error(snapshot, mode=mode, filter_name=filter_name) is not None:
+        return None
+    snapshot["read_via"] = run_disk_fallback.READ_VIA_DISK
+    return json.dumps(snapshot, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
+
+
+def register(mcp, send, args, *, get_slot=None):
     bind(globals(), send, args)
+    global _get_slot
+    _get_slot = get_slot
     # The bridge may retry run_tests only because every retry carries the same
     # durable request_id. run_tests_wait is a composite operation, not idempotent.
     mcp.tool(annotations=_RW_IDEM)(run_tests)

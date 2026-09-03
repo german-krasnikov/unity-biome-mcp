@@ -70,6 +70,8 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/tests/` | Python unit, integration, conformance, and live tests. |
 | `server/tests/seams/` | Live conformance seam tests (round-trip, batch, surface, differential). |
 | `server/tests/wire/` | Protocol-level wire tests (no Unity, FakeServer, MITM, cassettes). |
+| `server/tests/test_docstring_hygiene.py` | Hygiene guard: prevents production module docstrings from containing ticket codes (which would leak internal identifiers into public tools and errors). Repository and production modules scanned. |
+| `scripts/tests/test_unity_test_source_hygiene.py` | Hygiene guard: validates Unity C# test structure (fixture bases, ownership registration, async patterns, disposable-worker marking) to prevent false-green tests and coverage gaps. |
 
 Do not maintain a tool roster in this file. Derive it from `tool_specs.py` and
 the registration/parity tests. Public parameter documentation is generated into
@@ -83,6 +85,8 @@ by runtime boundary:
 | Path | Primary responsibility |
 |---|---|
 | `unity-plugin/Editor/MCPServer.cs` | Unity listener lifecycle, connection ownership, and dispatch scheduling. |
+| `unity-plugin/Editor/MainThreadDispatcher.cs` | Single queueing point for non-network Editor API calls; subscribed to `EditorApplication.update` to survive focus loss and domain reload. Replaces `EditorTickOnce`. |
+| `unity-plugin/Editor/AtomicFile.cs` | Atomic file writes via temp + `File.Replace` for configuration, state, and test-run store files to prevent data loss under file-locking (Windows OneDrive/AV). |
 | `unity-plugin/Editor/CommandRouter.cs` and `CommandRouter.*.cs` | Guarded command dispatch and domain registrations. |
 | `unity-plugin/Editor/CommandRegistry.cs` | Command handlers and their mutability, runtime, validation, dispatch, and trust metadata. |
 | `unity-plugin/Editor/CommandOptions.cs` | Internal structured registration options behind the public bool overloads. |
@@ -91,6 +95,9 @@ by runtime boundary:
 | `unity-plugin/Editor/ObjectIdCompat.cs` | Platform compat bridge for Unity 6.0–6.3 (instance-ID) and 6.4+ (EntityId) object identity APIs. |
 | `unity-plugin/Editor/UIPanelHost.cs` | Compat layer for `UIDocument` (Unity 6.0) and `PanelRenderer` (Unity 6.4+); used by playtest UI commands and intent tools. |
 | `unity-plugin/Editor/PlaytestParser.cs` and `PlaytestRunner*.cs` | Playtest DSL parsing and execution. |
+| `unity-plugin/Editor/Tests/DelayCallSourceHygieneTests.cs` | Hygiene guard: prevents non-GUI modules from using `delayCall` (which silently fails when Editor loses focus). Allowlist: GUI-only contexts (Chat, Wizard, menus, status bar). |
+| `unity-plugin/Editor/Tests/DesyncWarnLimiterTests.cs` | Hygiene guard: HTTP/TLS probes on the TCP port classified as known foreign protocol and throttled to one warning per 30 seconds. |
+| `unity-plugin/Editor/Tests/HttpGarbageProbeTests.cs` | Protocol resilience: recognizes HTTP GET and TLS handshakes misrouted to TCP listener and classifies as recoverable desync, not fatal errors. |
 | `unity-plugin/Editor/SourcePatch/` (neutral asmdef) | Optional Source Patch provider contract: immutable DTOs, state machine (`Unavailable`/`Off`/`OnReady`/`Busy`/`Disabling`/`Recovery`), coordinator, and registration slot. Depends on no FSR/Harmony/provider types; main Editor depends on it. |
 | `unity-plugin/Editor/SourcePatchHost.cs` | Seam in `asset(write_text)` path; routes `.cs` writes to provider or legacy based on intent/capability. |
 | `unity-plugin/Editor/SourcePatchPathGuard.cs` | Pre-effect path boundary check (ROI #1): rejects empty/absolute/non-.cs paths, paths outside `Assets/`, and `..` traversal before any Read/Write/Lease effects. Pure string/Path logic, fully unit-testable without live Editor. |

@@ -144,7 +144,7 @@ namespace UnityMCP.Editor.TestRuns
                 _environment,
                 _framework,
                 _utcNow,
-                action => EditorApplication.delayCall += () => action(),
+                MainThreadDispatcher.Enqueue,
                 _captureBuild);
         }
 
@@ -329,7 +329,7 @@ namespace UnityMCP.Editor.TestRuns
                 _store.WriteRequest(request);
                 Checkpoint(TestRunDurableBoundary.RequestAcknowledged);
                 _store.WriteActive(Pointer(run, run.dispatched_utc));
-                return Ack(run);
+                return Ack(run, TryGetSealedManifestCount(run.run_id));
             }
             catch (Exception e) when (!(e is TestRunInjectedCrashException))
             {
@@ -353,7 +353,7 @@ namespace UnityMCP.Editor.TestRuns
                 return RequestStatus(request, run, run.outcome, startFailure);
             return string.IsNullOrEmpty(run.utf_guid)
                 ? RequestStatus(request, run, run.outcome)
-                : Ack(run);
+                : Ack(run, TryGetSealedManifestCount(run.run_id));
         }
 
         internal string GetRunJson(string runId)
@@ -487,6 +487,17 @@ namespace UnityMCP.Editor.TestRuns
             return true;
         }
 
+        // Best-effort: UTF usually seals the manifest asynchronously, well after
+        // Ack() has already returned, so a null result here is the common case,
+        // not a failure. Only the synchronous empty-filter fast path observes a
+        // seal this early.
+        private int? TryGetSealedManifestCount(string runId)
+        {
+            var sealEvent = _store.ReadJournal(runId).events.FirstOrDefault(e =>
+                e != null && e.event_type == TestRunProtocol.EventType.ManifestSealed);
+            return sealEvent != null ? (int?)sealEvent.expected_count : null;
+        }
+
         private string FailFastAfterRunStartFailure(
             TestRunRecord run,
             TestRunRequestRecord request,
@@ -596,7 +607,7 @@ namespace UnityMCP.Editor.TestRuns
             if (!summary.manifest_complete)
                 return "pending|run_id=" + resolved + "|no-progress-yet";
 
-            var elapsed = ElapsedSeconds(summary.started_utc, _utcNow());
+            var elapsed = TestRunProtocol.ElapsedSeconds(summary.started_utc, _utcNow());
             var completed = summary.completed_expected_count;
             var eta = completed > 0 && summary.expected_count > completed
                 ? Math.Max(0d, (summary.expected_count - completed) * elapsed / completed)
@@ -615,20 +626,33 @@ namespace UnityMCP.Editor.TestRuns
                 !_store.TryReadRun(pointer.run_id, out run))
                 return false;
             if (run.lifecycle == TestRunProtocol.Lifecycle.Terminal) return false;
-            if (TestRunFinalizationCoordinator.IsPreviousEditorSession(run))
+            // Only a same-session run already in Finalizing, or a run from any
+            // OTHER editor session regardless of lifecycle, is eligible for a
+            // self-heal attempt here: a stuck ProbeAny "Active" signal (e.g. a
+            // zero-match filter dispatch) must not wedge every later dispatch
+            // just because the stuck run belongs to this editor session. A
+            // same-session Dispatched/Prepared/Running run has not reached
+            // Finalizing yet -- probing it this early can abandon a run that is
+            // still legitimately in flight (e.g. the main-thread queue has not
+            // drained its Execute() call), letting a lost-ACK retry steal the
+            // slot from its own first dispatch. Those lifecycles fail this
+            // dispatch closed instead. The coordinator's own activity gate and
+            // staleness ceiling decide whether it is safe to finalize a
+            // Finalizing/previous-session run.
+            if (run.lifecycle != TestRunProtocol.Lifecycle.Finalizing &&
+                !TestRunFinalizationCoordinator.IsPreviousEditorSession(run))
+                return true;
+            try
             {
-                try
+                if (_finalizer.TryFinalize(run.run_id))
                 {
-                    if (_finalizer.TryFinalize(run.run_id))
-                    {
-                        run = _store.ReadRun(run.run_id);
-                        return run.lifecycle != TestRunProtocol.Lifecycle.Terminal;
-                    }
+                    run = _store.ReadRun(run.run_id);
+                    return run.lifecycle != TestRunProtocol.Lifecycle.Terminal;
                 }
-                catch
-                {
-                    // Preserve the old active pointer and fail this dispatch closed.
-                }
+            }
+            catch
+            {
+                // Preserve the old active pointer and fail this dispatch closed.
             }
             return true;
         }
@@ -806,11 +830,14 @@ namespace UnityMCP.Editor.TestRuns
             }
         }
 
-        private static string Ack(TestRunRecord run) =>
+        private static string Ack(TestRunRecord run, int? expectedCount = null) =>
             "tests-started|request_id=" + run.request_id +
             "|run_id=" + run.run_id +
             "|utf_guid=" + run.utf_guid +
-            "|state=dispatched";
+            "|state=dispatched" +
+            (expectedCount.HasValue
+                ? "|expected_count=" + expectedCount.Value.ToString(CultureInfo.InvariantCulture)
+                : "");
 
         private static string CancelAck(TestRunRecord run) =>
             "cancel-requested|run_id=" + run.run_id + "|utf_guid=" + run.utf_guid;
@@ -913,16 +940,6 @@ namespace UnityMCP.Editor.TestRuns
 
         private static TestMode ParseMode(string mode) =>
             mode == "PlayMode" ? TestMode.PlayMode : TestMode.EditMode;
-
-        private static double ElapsedSeconds(string startUtc, string nowUtc)
-        {
-            if (!DateTime.TryParse(startUtc, CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind, out var start) ||
-                !DateTime.TryParse(nowUtc, CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind, out var now))
-                return 0d;
-            return Math.Max(0d, (now - start).TotalSeconds);
-        }
     }
 }
 #endif
