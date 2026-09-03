@@ -41,15 +41,20 @@ namespace UnityMCP.Editor.Wizard
         }
 
         // B3 #21: atomic write shared by every config writer (manual Configure here,
-        // ProjectConfigWriter's per-project sync) — tmp + delete + move. File.Move(...,
-        // overwrite: true) does not exist in Unity's Mono/.NET Std 2.1 runtime, so a
-        // crash between write and move can never leave a half-written config behind.
+        // ProjectConfigWriter's per-project sync) — write to tmp, then swap via
+        // File.Replace. Unlike delete-then-move, File.Replace has no intermediate
+        // state where the path is missing, so a sharing violation on the original
+        // (AV scan, sync client, another process) between delete and move can no
+        // longer permanently lose the original config (C1 r5 #2). Same pattern as
+        // SkillsInstaller.WriteVersionMarker, already proven cross-platform.
         internal static void WriteAtomic(string path, string content)
         {
             var tmp = path + ".tmp";
             File.WriteAllText(tmp, content, new UTF8Encoding(false));
-            if (File.Exists(path)) File.Delete(path);
-            File.Move(tmp, path);
+            if (File.Exists(path))
+                File.Replace(tmp, path, null);
+            else
+                File.Move(tmp, path);
         }
 
         internal static string Fresh(int port) => Fresh(port, GitInstallUrl, "mcpServers");

@@ -128,6 +128,16 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(File.Exists(path + ".tmp"), "atomic write must not leave a .tmp file behind");
         }
 
+        [Test]
+        public void WriteAtomic_UsesFileReplace_NotDeleteThenMove()
+        {
+            var src = ReadRequiredPackageSource(typeof(WizardConfigWriter), "Editor/Wizard/WizardConfigWriter.cs");
+            Assert.That(src, Does.Contain("File.Replace(tmp, path"),
+                "WriteAtomic must swap via File.Replace \u2014 a Windows sharing violation between delete and move can permanently lose the config (C1 r5 #2)");
+            Assert.That(src, Does.Not.Contain("File.Delete(path)"),
+                "WriteAtomic must not delete the original before moving the replacement into place");
+        }
+
         // Write() calls EditorUtility.DisplayDialog (modal) so it cannot be invoked
         // directly from a GUI-worker test — source-guard instead: prove Write() goes
         // through the shared atomic helper, not a direct File.WriteAllText(configPath...).
@@ -138,7 +148,7 @@ namespace UnityMCP.Editor.Tests
             Assert.That(src, Does.Not.Contain("File.WriteAllText(configPath"),
                 "Write must not call File.WriteAllText(configPath, ...) directly — a crash mid-write would leave a half-written config (B3 #21)");
             Assert.That(src, Does.Contain("WriteAtomic(configPath"),
-                "Write must write through the shared atomic tmp+delete+move helper");
+                "Write must write through the shared atomic WriteAtomic helper");
         }
 
         // ── Merge / Fresh (existing behavior, regression guard) ───────────────
