@@ -122,16 +122,22 @@ namespace UnityMCP.Editor.Wizard
         /// <summary>
         /// Returns a uvx --from URL pinned to a specific git tag.
         /// ref = "0.54.1", "v0.54.1", or a semver pre-release tag like "1.51.0-rc.1"
-        /// (same pre-release grammar ProjectConfigToml/Formats' VersionPattern
-        /// accepts, 9725eddb) — all accepted.
+        /// (same pre-release grammar ProjectConfigToml.VersionPattern accepts for
+        /// TOML markers — shared, not duplicated) — all accepted.
         /// Returns the unpinned default URL when ref is null/empty.
         /// </summary>
         public static string GitInstallUrlFor(string @ref)
         {
             if (string.IsNullOrEmpty(@ref)) return GitInstallUrl;
             var clean = @ref.TrimStart('v');
-            // Validate only the X.Y.Z base — an optional "-<pre-release>" suffix
-            // (which may itself contain dots, e.g. "-rc.1") passes through unvalidated.
+            // Whole-ref grammar check first — rejects any character in a
+            // "-<pre-release>" suffix that ProjectConfigToml's shared VersionPattern
+            // wouldn't accept in a TOML marker (e.g. "rc_1" or "rc/1").
+            if (!Regex.IsMatch(clean, "^" + ProjectConfigToml.VersionPattern + "$"))
+                throw new ArgumentException($"Invalid version ref: {@ref}");
+            // VersionPattern's base component ([\d.]+) doesn't require exactly
+            // three numeric parts — that stricter X.Y.Z shape is this call site's
+            // own requirement, still enforced here.
             var dashIdx = clean.IndexOf('-');
             var basePart = dashIdx < 0 ? clean : clean.Substring(0, dashIdx);
             var parts = basePart.Split('.');

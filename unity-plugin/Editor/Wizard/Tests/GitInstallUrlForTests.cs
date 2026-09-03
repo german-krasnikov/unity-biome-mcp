@@ -75,5 +75,16 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(url.Contains("@v1.51.0-rc.1"), $"URL should contain @v1.51.0-rc.1 but was: {url}");
             Assert.IsTrue(url.Contains("#subdirectory=server"), $"URL should contain #subdirectory=server but was: {url}");
         }
+
+        // Minor review follow-up: the pre-release suffix used to pass through
+        // unvalidated (any character accepted), diverging from the grammar
+        // ProjectConfigToml.VersionPattern enforces for the same kind of tag
+        // in TOML markers. Both writers now share that one grammar.
+        [TestCase("1.51.0-rc_1")]
+        [TestCase("1.51.0-rc/1")]
+        public void GitInstallUrlFor_PreReleaseRefWithInvalidCharacters_Throws(string @ref)
+        {
+            Assert.Throws<System.ArgumentException>(() => WizardConfigWriter.GitInstallUrlFor(@ref));
+        }
     }
 }

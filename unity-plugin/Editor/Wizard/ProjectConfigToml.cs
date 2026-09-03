@@ -26,7 +26,10 @@ namespace UnityMCP.Editor.Wizard
         // UnpinnedCommentLineRe. Mirrors Python's _TOML_VERSION_RE_FRAGMENT
         // (merger.py) -- parity enforced by
         // test_config_module.py::test_toml_version_fragment_matches_csharp_source.
-        private const string VersionPattern = @"[\d.]+(?:-[0-9A-Za-z.]+)?";
+        // Internal (not private): WizardConfigWriter.GitInstallUrlFor reuses this
+        // exact grammar to validate a git-ref pre-release suffix, so the TOML
+        // marker and the install URL never accept different characters there.
+        internal const string VersionPattern = @"[\d.]+(?:-[0-9A-Za-z.]+)?";
 
         private static readonly Regex SectionRe = new Regex(
             @"(?:^# unity-(?:biome-mcp|mcp) generated v" + VersionPattern + @"\r?\n)?" +
