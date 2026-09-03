@@ -23,6 +23,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
+pytest_plugins = ["_fast_clock"]
+
 
 _OR_ASSERT_RE = _re.compile(
     r'assert\s+["\'][^"\']+["\']\s+in\s+\S+\s+or\s+["\'][^"\']+["\']\s+in\s+'

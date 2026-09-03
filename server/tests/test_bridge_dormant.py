@@ -50,6 +50,8 @@ async def test_suspend_transitions_to_dormant():
     assert bridge._reader is None
 
 
+@pytest.mark.real_clock  # A03: asserts against the module-top-frozen real
+# BACKOFF_MIN_S import; production suspend() reads the fixture-patched value.
 async def test_suspend_resets_cooldown():
     """suspend() resets _last_reconnect_at to 0.0 and backoff to BACKOFF_MIN_S."""
     bridge = _connected_bridge()

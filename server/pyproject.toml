@@ -61,6 +61,7 @@ markers = [
     "stateful: Hypothesis RuleBasedStateMachine tests — no Unity, finds sequence bugs",
     "asyncio: mark test as asyncio (auto-registered by pytest-asyncio; explicit here for --strict-markers)",
     "wire: wire-protocol contract tests — no Unity, no live marker, runs in ci-python.yml",
+    "real_clock: opts out of tests/_fast_clock.py's autouse fixture — use for a test that legitimately asserts a real backoff/timer constant value",
 ]
 
 [tool.ruff]

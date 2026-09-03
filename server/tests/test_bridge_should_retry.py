@@ -9,6 +9,10 @@ from unity_mcp.bridge import UnityBridge, MAX_RETRIES, SESSION_TIMEOUT
 from unity_mcp.bridge_socket import DomainReloadError
 from helpers import make_idle_probe
 
+# A03: this whole module asserts the real backoff formula's numeric values
+# (2.0/4.0/8.0) via bridge.should_retry() -- opt out of the fast-clock fixture.
+pytestmark = pytest.mark.real_clock
+
 
 def _make_bridge() -> UnityBridge:
     probe = make_idle_probe()

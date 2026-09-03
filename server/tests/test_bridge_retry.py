@@ -1,7 +1,15 @@
 """TDD: bridge_retry.py — #05 ConnectionRefused exponential backoff."""
 import time
 from unittest.mock import MagicMock
+
+import pytest
+
 from unity_mcp.bridge_retry import RetryPolicy
+
+# A03: this whole module asserts the real backoff formula's numeric values
+# (2.0/4.0/8.0) — opt out of tests/_fast_clock.py's autouse fixture, which
+# would otherwise zero RetryPolicy's backoff constants.
+pytestmark = pytest.mark.real_clock
 
 
 def _policy(max_retries=3):

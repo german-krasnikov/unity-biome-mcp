@@ -625,6 +625,9 @@ def test_reconnect_cooldown_default_5s():
     assert MIN_RECONNECT_INTERVAL == 5.0
 
 
+@pytest.mark.real_clock  # A03: needs a real positive BACKOFF_MIN_S floor —
+# a patched 0.0 makes any nonzero elapsed time satisfy the cooldown, defeating
+# the exact gate this test proves exists.
 def test_reconnect_cooldown_blocks_rapid_reconnect():
     """_reconnect_cooldown_ok() returns False within cooldown window."""
     import time as _time
@@ -641,6 +644,8 @@ def test_reconnect_cooldown_allows_after_interval():
     assert bridge._reconnect_cooldown_ok()
 
 
+@pytest.mark.real_clock  # A03: same cooldown-floor reason as
+# test_reconnect_cooldown_blocks_rapid_reconnect above.
 async def test_heartbeat_respects_reconnect_cooldown():
     """Heartbeat skips reconnect if cooldown hasn't elapsed."""
     import time as _time
@@ -1141,6 +1146,7 @@ async def test_heartbeat_domain_reload_sets_reload_tracker():
 
 # ── Fix 1: retry delays must be 2s→4s→8s (not 1s→2s→4s) ────────────────────
 
+@pytest.mark.real_clock  # A03: asserts real backoff values 2.0/4.0/8.0
 def test_should_retry_domain_reload_delay_sequence():
     """DomainReloadError: delay must be 2**( attempt+1) → 2s, 4s, 8s."""
     from unity_mcp.bridge import DomainReloadError
@@ -1155,6 +1161,7 @@ def test_should_retry_domain_reload_delay_sequence():
         assert delay == exp_delay, f"attempt {attempt}: expected delay={exp_delay}, got {delay}"
 
 
+@pytest.mark.real_clock  # A03: asserts real backoff values 2.0/4.0/8.0
 def test_should_retry_busy_delay_sequence():
     """Busy path: delay must be 2**(attempt+1) → 2s, 4s, 8s."""
     import time
