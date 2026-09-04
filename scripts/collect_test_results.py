@@ -18,14 +18,16 @@ import json
 import pathlib
 import xml.etree.ElementTree as ET
 
+from test_timeline import parse_nunit_case_durations
+
 
 def parse_pytest_junit(path: pathlib.Path) -> dict:
-    """Parse pytest junitxml → {passed, failed, skipped, errors, total}."""
+    """Parse pytest junitxml → {passed, failed, skipped, total, duration}."""
     tree = ET.parse(path)
     root = tree.getroot()
     ts = root.find("testsuite") if root.tag != "testsuite" else root
     if ts is None:
-        return {"passed": 0, "failed": 0, "skipped": 0, "total": 0}
+        return {"passed": 0, "failed": 0, "skipped": 0, "total": 0, "duration": 0.0}
     tests = int(ts.get("tests", 0))
     failures = int(ts.get("failures", 0))
     errors = int(ts.get("errors", 0))
@@ -35,18 +37,26 @@ def parse_pytest_junit(path: pathlib.Path) -> dict:
         "failed": failures + errors,
         "skipped": skipped,
         "total": tests,
+        "duration": float(ts.get("time", 0.0)),
     }
 
 
 def parse_nunit(path: pathlib.Path) -> dict:
-    """Parse NUnit XML → {passed, failed, skipped, total}."""
-    tree = ET.parse(path)
-    root = tree.getroot()
+    """Parse NUnit XML → {passed, failed, skipped, total, duration}.
+
+    duration sums each <test-case>'s `duration` attribute via
+    test_timeline.parse_nunit_case_durations -- the single reused XML walker,
+    not a second hand-rolled one.
+    """
+    xml_text = path.read_text(encoding="utf-8")
+    root = ET.fromstring(xml_text)
+    duration = sum(case.duration_s for case in parse_nunit_case_durations(xml_text))
     return {
         "passed": int(root.get("passed", 0)),
         "failed": int(root.get("failed", 0)),
         "skipped": int(root.get("skipped", 0)) + int(root.get("inconclusive", 0)),
         "total": int(root.get("total", 0)),
+        "duration": duration,
     }
 
 
