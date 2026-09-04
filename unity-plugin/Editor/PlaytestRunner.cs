@@ -20,6 +20,7 @@ namespace UnityMCP.Editor
             _moveTcs = null;
             _mcpTcs = null;
             _activeSimulator = null;
+            ReapOrphanedSentinels(); // C05: converts sentinels orphaned by a killed domain into ABORTED receipts
         }
 
         // B13: $RUN_ID is a reserved system VAL — a user script cannot redeclare it (that would
@@ -154,6 +155,7 @@ namespace UnityMCP.Editor
             PlaytestStep currentExpanded = null; // VAR-expanded clone of current step
             int failedBeforeStep = 0;           // captured before each step to detect setup failures
             PlaytestRunState.Begin(effectiveRunId, stepStartUtc); // B14: observable slice
+            WriteSentinel(effectiveRunId); // C05: reload sentinel — deleted by FinishRun() below
             var stepReceipts = new List<PlaytestStepReceipt>(); // B16: structured step ledger
             bool abortedRun = false; // B16: outer.teardown_ok is false only when this is set
 
@@ -172,10 +174,10 @@ namespace UnityMCP.Editor
                 var sceneClean = requiresPlayMode || PlaytestIsolationScope.RefuseIfDirty() == null;
                 var json = BuildJsonReport(effectiveRunId, stepReceipts, passed, failed, elapsedSeconds,
                     teardownOk: !abortedRun, sceneClean: sceneClean, textReport: report);
-                var receiptPath = Path.GetFullPath(Path.Combine(
-                    Application.dataPath, "..", PlaytestReceiptStore.ReceiptPath(effectiveRunId)));
+                var receiptPath = ProjectRelativePath(PlaytestReceiptStore.ReceiptPath(effectiveRunId));
                 Directory.CreateDirectory(Path.GetDirectoryName(receiptPath));
                 File.WriteAllText(receiptPath, json, new System.Text.UTF8Encoding(false));
+                DeleteSentinel(effectiveRunId); // C05: run reached FinishRun() normally — no orphan to reap
 
                 tcs.TrySetResult(format == "json" ? json : report);
             }

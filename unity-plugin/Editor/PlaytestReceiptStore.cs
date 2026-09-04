@@ -10,7 +10,9 @@ namespace UnityMCP.Editor
         internal const string Root = "Library/UnityMCP/playtest";
 
         private const string ReceiptExtension = ".json";
-        private const string SentinelExtension = ".running";
+        // C05: internal (not private) so PlaytestRunner.Sentinel.cs can glob orphaned
+        // sentinels by extension without re-typing the literal (R-05 grep gate).
+        internal const string SentinelExtension = ".running";
 
         internal static string ReceiptPath(string runId) => BuildPath(runId, ReceiptExtension);
         internal static string SentinelPath(string runId) => BuildPath(runId, SentinelExtension);
