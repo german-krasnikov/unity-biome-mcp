@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 import contextlib  # noqa: E402
 from collections.abc import Callable  # noqa: TC003
 
+from unity_mcp.bridge_cassette import record as _record_cassette
 from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, RELOAD_BACKOFF_S, HeartbeatMixin
 from unity_mcp.bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
 from unity_mcp.bridge_retry import RetryPolicy
@@ -457,10 +458,15 @@ class UnityBridge(HeartbeatMixin):
             self._queue_consumer_task = asyncio.create_task(self._queue_consumer())
         await self._send_queue.put((cmd, payload, msg_id, timeout, session_deadline, operation_id, future))
         try:
-            return await future
+            result = await future
         except asyncio.CancelledError:
             await self.close()
             raise
+        except Exception as exc:
+            _record_cassette(cmd, args, {"ok": False, "err": str(exc)})
+            raise
+        _record_cassette(cmd, args, result)
+        return result
 
     async def _queue_consumer(self) -> None:
         """Serial consumer: processes one send at a time so the circuit breaker
