@@ -13,11 +13,13 @@ fixture-level view built on top of it.
 import argparse
 import json
 import statistics
+import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import NamedTuple
 
 DEFAULT_TOP_N = 20
+EXIT_INPUT_ERROR = 2  # missing/malformed input; never a bare traceback
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_PROJECT = REPO_ROOT / "unity-test-project"  # mirrors run_unity_tests.py:30
 
@@ -84,10 +86,13 @@ def _is_full_unfiltered_editmode(summary: dict) -> bool:
 def _resolve_latest_full_run_xml(project: Path) -> Path:
     """Find the newest full-EditMode run under <project>/Library/UnityMCP/TestRuns/runs
     (unity-plugin/Editor/TestRuns/TestRunStore.cs:37-78) and return its utf-results.xml path.
+
+    Ties on mtime (a same-second CI write is plausible) are broken by the run
+    directory name, lexically largest wins -- deterministic regardless of the
+    order the filesystem's iterdir() happens to yield.
     """
     runs_root = project / "Library" / "UnityMCP" / "TestRuns" / "runs"
-    newest_mtime = None
-    newest_run_dir = None
+    candidates: list[tuple[float, str, Path]] = []
     for run_dir in runs_root.iterdir() if runs_root.is_dir() else []:
         summary_path = run_dir / "summary.json"
         if not summary_path.is_file():
@@ -98,11 +103,10 @@ def _resolve_latest_full_run_xml(project: Path) -> Path:
             continue
         if not _is_full_unfiltered_editmode(summary):
             continue
-        mtime = summary_path.stat().st_mtime
-        if newest_mtime is None or mtime > newest_mtime:
-            newest_mtime, newest_run_dir = mtime, run_dir
-    if newest_run_dir is None:
+        candidates.append((summary_path.stat().st_mtime, run_dir.name, run_dir))
+    if not candidates:
         raise FileNotFoundError(f"no full unfiltered EditMode run found under {runs_root}")
+    _, _, newest_run_dir = max(candidates, key=lambda candidate: candidate[:2])
     return newest_run_dir / "utf-results.xml"
 
 
@@ -123,21 +127,29 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if args.nunit_xml:
-        xml_path = args.nunit_xml
-    elif args.latest_full:
-        xml_path = _resolve_latest_full_run_xml(args.project)
-    else:
-        parser.error("one of --nunit-xml or --latest-full is required")
-        return 2  # unreachable: parser.error() exits
+    try:
+        if args.nunit_xml:
+            xml_path = args.nunit_xml
+        elif args.latest_full:
+            xml_path = _resolve_latest_full_run_xml(args.project)
+        else:
+            parser.error("one of --nunit-xml or --latest-full is required")
+            return EXIT_INPUT_ERROR  # unreachable: parser.error() exits
 
-    xml_text = xml_path.read_text(encoding="utf-8")
-    if args.by == "case":
-        rows = [(case.name, case.duration_s) for case in parse_nunit_case_durations(xml_text)]
-        label = "test_case"
-    else:
-        rows = parse_nunit_durations(xml_text)
-        label = "fixture"
+        xml_text = xml_path.read_text(encoding="utf-8")
+        if args.by == "case":
+            rows = [(case.name, case.duration_s) for case in parse_nunit_case_durations(xml_text)]
+            label = "test_case"
+        else:
+            rows = parse_nunit_durations(xml_text)
+            label = "fixture"
+    except (OSError, ET.ParseError) as error:
+        # Missing/malformed input is a clean one-line stderr message, never a
+        # bare traceback (missing file -> OSError incl. FileNotFoundError;
+        # --latest-full with nothing matching -> FileNotFoundError; malformed
+        # XML -> ET.ParseError).
+        print(f"error: {error}", file=sys.stderr)
+        return EXIT_INPUT_ERROR
 
     print(f"{'duration_s':>12}  {label}")
     for name, duration in top_n(rows, args.top):

@@ -74,14 +74,11 @@ async def test_disabled_tier1_tool_hidden(monkeypatch):
     import unity_mcp.tools.gating as gating
     gating.reset()
     monkeypatch.setattr(srv, "_disabled_tools_cache", {"screenshot"})
-    try:
-        tools = [_tool("screenshot"), _tool("get_hierarchy")]
-        result = await _filter_tools(tools, None)
-        names = {t.name for t in result}
-        assert "screenshot" not in names, "Disabled TIER1 tool must be hidden"
-        assert "get_hierarchy" in names
-    finally:
-        gating.reset()
+    tools = [_tool("screenshot"), _tool("get_hierarchy")]
+    result = await _filter_tools(tools, None)
+    names = {t.name for t in result}
+    assert "screenshot" not in names, "Disabled TIER1 tool must be hidden"
+    assert "get_hierarchy" in names
 
 
 def test_intent_tools_in_schema_keep_full():
@@ -105,16 +102,13 @@ async def test_core_tools_survive_disabled(monkeypatch):
     monkeypatch.setattr(
         srv, "_disabled_tools_cache", {"inspect", "set_property", "create_object", "screenshot"}
     )
-    try:
-        tools = [_tool("inspect"), _tool("set_property"), _tool("create_object"), _tool("screenshot")]
-        result = await _filter_tools(tools, None)
-        names = {t.name for t in result}
-        assert "inspect" in names, "CORE 'inspect' must survive disabled set"
-        assert "set_property" in names, "CORE 'set_property' must survive disabled set"
-        assert "create_object" in names, "CORE 'create_object' (A2 gap) must survive disabled set"
-        assert "screenshot" not in names, "Non-CORE disabled tool must be hidden"
-    finally:
-        gating.reset()
+    tools = [_tool("inspect"), _tool("set_property"), _tool("create_object"), _tool("screenshot")]
+    result = await _filter_tools(tools, None)
+    names = {t.name for t in result}
+    assert "inspect" in names, "CORE 'inspect' must survive disabled set"
+    assert "set_property" in names, "CORE 'set_property' must survive disabled set"
+    assert "create_object" in names, "CORE 'create_object' (A2 gap) must survive disabled set"
+    assert "screenshot" not in names, "Non-CORE disabled tool must be hidden"
 
 
 async def test_disabled_cache_none_no_hiding(monkeypatch):
@@ -123,15 +117,12 @@ async def test_disabled_cache_none_no_hiding(monkeypatch):
     import unity_mcp.tools.gating as gating
     gating.reset()
     monkeypatch.setattr(srv, "_disabled_tools_cache", None)
-    try:
-        tools = [_tool("screenshot"), _tool("get_hierarchy")]
-        result = await _filter_tools(tools, None)
-        names = {t.name for t in result}
-        # Both are TIER1, gating keeps them; disabled cache is None so no hiding
-        assert "screenshot" in names
-        assert "get_hierarchy" in names
-    finally:
-        gating.reset()
+    tools = [_tool("screenshot"), _tool("get_hierarchy")]
+    result = await _filter_tools(tools, None)
+    names = {t.name for t in result}
+    # Both are TIER1, gating keeps them; disabled cache is None so no hiding
+    assert "screenshot" in names
+    assert "get_hierarchy" in names
 
 
 # --- Cache interaction tests (disabled-set semantics) ---
@@ -535,14 +526,11 @@ async def test_plugin_tool_disabled_removes_only_it(monkeypatch):
     import unity_mcp.tools.gating as gating
     gating.reset()
     monkeypatch.setattr(srv, "_disabled_tools_cache", {"blender_do"})
-    try:
-        tools = [_tool("blender_do"), _tool("blender_info")]
-        result = await _filter_tools(tools, None)
-        names = {t.name for t in result}
-        assert "blender_do" not in names, "Disabled plugin tool must be hidden"
-        assert "blender_info" in names, "Sibling plugin tool must remain visible"
-    finally:
-        gating.reset()
+    tools = [_tool("blender_do"), _tool("blender_info")]
+    result = await _filter_tools(tools, None)
+    names = {t.name for t in result}
+    assert "blender_do" not in names, "Disabled plugin tool must be hidden"
+    assert "blender_info" in names, "Sibling plugin tool must remain visible"
 
 
 async def test_plugin_tool_csv_roundtrip(monkeypatch):

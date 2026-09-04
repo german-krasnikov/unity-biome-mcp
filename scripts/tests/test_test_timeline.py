@@ -1,6 +1,8 @@
 """TDD tests for scripts/test_timeline.py (A08: top-N fixture duration reporter)."""
 
 import importlib.util
+import json
+import os
 import pathlib
 import sys
 
@@ -99,3 +101,74 @@ def test_cli_prints_top_n_table_and_returns_zero(tmp_path, capsys):
     assert exit_code == 0
     assert "FixtureB" in captured.out
     assert "FixtureA" in captured.out
+
+
+def test_main_missing_xml_returns_input_error(tmp_path, capsys):
+    """A --nunit-xml path that does not exist must fail closed with a clean
+    one-line stderr message and EXIT_INPUT_ERROR, never an uncaught traceback.
+
+    Double-red: red today (FileNotFoundError propagates out of main() with a
+    traceback and no clean exit code), red again if the except clause is
+    removed/widened to swallow everything silently (exit_code would drift or
+    a traceback would reappear)."""
+    missing = tmp_path / "does-not-exist.xml"
+    exit_code = main(["--nunit-xml", str(missing)])
+    captured = capsys.readouterr()
+    assert exit_code == tt.EXIT_INPUT_ERROR
+    assert "Traceback" not in captured.err
+    assert str(missing) in captured.err
+
+
+def test_main_malformed_xml_returns_input_error(tmp_path, capsys):
+    """Malformed XML must fail closed the same way as a missing file."""
+    bad_xml = tmp_path / "utf-results.xml"
+    bad_xml.write_text("<test-run><unclosed>", encoding="utf-8")
+    exit_code = main(["--nunit-xml", str(bad_xml)])
+    captured = capsys.readouterr()
+    assert exit_code == tt.EXIT_INPUT_ERROR
+    assert "Traceback" not in captured.err
+
+
+def test_main_latest_full_no_matching_run_returns_input_error(tmp_path, capsys):
+    """--latest-full with no matching run under --project must fail closed,
+    not raise an uncaught FileNotFoundError."""
+    exit_code = main(["--latest-full", "--project", str(tmp_path)])
+    captured = capsys.readouterr()
+    assert exit_code == tt.EXIT_INPUT_ERROR
+    assert "Traceback" not in captured.err
+
+
+def test_resolve_latest_full_run_tie_break_is_deterministic(tmp_path, monkeypatch):
+    """Two full-EditMode runs sharing an mtime (a plausible same-second CI
+    write) must resolve deterministically by (mtime, run_dir.name) -- the
+    lexically larger name wins a tie -- never by whatever order the
+    filesystem happens to yield from iterdir().
+
+    Double-red: iterdir() is forced to yield the ascending-name order
+    (run-aaa before run-zzz) that discriminates the old 'keep the first
+    equal-mtime candidate' bug (would return run-aaa) from the fixed
+    max-by-(mtime, name) behavior (returns run-zzz)."""
+    runs_root = tmp_path / "Library" / "UnityMCP" / "TestRuns" / "runs"
+    runs_root.mkdir(parents=True)
+    summary_json = json.dumps({"mode": "EditMode", "filter": "", "group": ""})
+    same_time = 1_700_000_000
+    run_dirs = []
+    for name in ("run-aaa", "run-zzz"):
+        run_dir = runs_root / name
+        run_dir.mkdir()
+        summary_path = run_dir / "summary.json"
+        summary_path.write_text(summary_json, encoding="utf-8")
+        os.utime(summary_path, (same_time, same_time))
+        run_dirs.append(run_dir)
+
+    original_iterdir = pathlib.Path.iterdir
+
+    def fixed_order_iterdir(self):
+        if self == runs_root:
+            return iter(run_dirs)
+        return original_iterdir(self)
+
+    monkeypatch.setattr(pathlib.Path, "iterdir", fixed_order_iterdir)
+
+    result = tt._resolve_latest_full_run_xml(tmp_path)
+    assert result == runs_root / "run-zzz" / "utf-results.xml"
