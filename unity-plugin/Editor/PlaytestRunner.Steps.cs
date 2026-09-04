@@ -9,7 +9,7 @@ namespace UnityMCP.Editor
 {
     internal static partial class PlaytestRunner
     {
-        static void ExecuteStep(PlaytestStep step, PlaytestConfig config, List<string> results,
+        internal static void ExecuteStep(PlaytestStep step, PlaytestConfig config, List<string> results,
             ref Phase phase, ref float phaseStart, ref int passed, ref int failed, int stepIdx, PlaytestState state,
             bool snapshotOnFailure = false, string runId = null, PlaytestVarRegistry varRegistry = null)
         {
@@ -731,12 +731,31 @@ namespace UnityMCP.Editor
                 {
                     // C03 — executes the step through the real CommandRouter.ProcessAsync
                     // path, polled via Phase.WaitingMcp (mirrors StepType.Move/Phase.Moving
-                    // exactly). ProcessAsync never throws past its own internal catch, so no
-                    // try/catch is needed here — see PlaytestRunner.Mcp.cs.
-                    var envelope = BuildMcpEnvelope(runId, stepIdx, step.Method, step.Args);
-                    _mcpTcs = new TaskCompletionSource<string>();
-                    CommandRouter.ProcessAsync(envelope, _mcpTcs);
-                    phase = Phase.WaitingMcp;
+                    // exactly). ProcessAsync never throws past its own internal catch, so the
+                    // try/catch below exists for C04's runtime denylist re-check (and any
+                    // future dispatch-time exception) — not for ProcessAsync itself: an
+                    // uncaught exception here would otherwise escape to Tick()'s outer catch
+                    // and abort the whole run without teardown, instead of failing just this
+                    // one step.
+                    try
+                    {
+                        // C04 — belt and suspenders: re-check the same hard denylist
+                        // Validate() enforces at compile time (C02), in case this step was
+                        // constructed directly and never went through Validate/parsing.
+                        if (PlaytestMcpPolicy.IsHardDenied(step.Method))
+                            throw new InvalidOperationException(PlaytestMcpPolicy.HardDenialReason);
+
+                        var envelope = BuildMcpEnvelope(runId, stepIdx, step.Method, step.Args);
+                        _mcpTcs = new TaskCompletionSource<string>();
+                        CommandRouter.ProcessAsync(envelope, _mcpTcs);
+                        phase = Phase.WaitingMcp;
+                    }
+                    catch (Exception e)
+                    {
+                        results.Add($"{label} MCP {step.Method} — FAIL: {e.Message}");
+                        failed++;
+                        phase = Phase.Done;
+                    }
                     break;
                 }
             }

@@ -23,6 +23,17 @@ namespace UnityMCP.Editor
             "smart_build", "run_tests", "run_playtest", "package", "build",
         };
 
+        internal const string HardDenialReason =
+            "denied — reload/recursive/mode-transition command not allowed inside a playtest";
+
+        /// <summary>
+        /// C04 — runtime defense-in-depth: the same hard denylist <see cref="Validate"/>
+        /// enforces at compile time, exposed so ExecuteStep can re-check immediately before
+        /// dispatch (belt and suspenders for a step that was constructed directly and never
+        /// went through Validate/parsing).
+        /// </summary>
+        internal static bool IsHardDenied(string cmd) => _hardDenylist.Contains(cmd);
+
         /// <summary>
         /// Validates every MCP step in <paramref name="steps"/>. Appends one message per
         /// violation to <paramref name="errors"/> (creating the list on first violation).
@@ -45,7 +56,7 @@ namespace UnityMCP.Editor
         {
             var cmd = step.Method;
             if (_hardDenylist.Contains(cmd))
-                return "denied — reload/recursive/mode-transition command not allowed inside a playtest";
+                return HardDenialReason;
             if (cmd == "editor" && JsonHelper.ExtractString(step.Args, "action") == "play")
                 return "denied — Play Mode transitions are not allowed inside a playtest";
             if (isEditModeRun && CommandRegistry.IsRuntime(cmd))

@@ -12,7 +12,7 @@ namespace UnityMCP.Editor
     [InitializeOnLoad]
     internal static partial class PlaytestRunner
     {
-        enum Phase { Ready, LoadingFresh, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, CapturingFrames, WaitingStable, WaitingMcp, Done }
+        internal enum Phase { Ready, LoadingFresh, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, CapturingFrames, WaitingStable, WaitingMcp, Done }
         internal enum StepAdvanceDecision { Continue, JumpToTeardown, AbortRun }
 
         static PlaytestRunner()

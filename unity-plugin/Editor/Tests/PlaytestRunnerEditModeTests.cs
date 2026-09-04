@@ -310,5 +310,58 @@ namespace UnityMCP.Editor.Tests
                 result);
             StringAssert.Contains("PLAYTEST: 0/2", result);
         }
+
+        // ── C04: guard interactions + runtime denylist defense-in-depth ────────────
+
+        [Test]
+        public async Task Run_McpStep_MutatingCommandInPlayMode_BlockedByExistingGuard()
+        {
+            // Proves CommandRouter's existing Play-mode guard already covers MCP DSL
+            // steps end-to-end through ProcessAsync — zero new production code needed.
+            var savedIsPlayMode = CommandRouter.IsPlayMode;
+            CommandRouter.IsPlayMode = () => true;
+            try
+            {
+                var tcs = new TaskCompletionSource<string>();
+                PlaytestRunner.Run(
+                    "MCP set_property path=/NoSuchObject component=Transform prop=x value=1\n",
+                    5f, tcs, requiresPlayMode: false);
+                var result = await AwaitBoundedAsync(tcs);
+
+                StringAssert.Contains(
+                    "[1] MCP set_property — FAIL: Play mode active — changes will be lost. Stop play mode first.",
+                    result);
+                StringAssert.Contains("PLAYTEST: 0/1", result);
+            }
+            finally
+            {
+                CommandRouter.IsPlayMode = savedIsPlayMode;
+            }
+        }
+
+        [Test]
+        public void Run_McpStep_DenylistedCommandAtRuntime_NeverReached()
+        {
+            // Belt and suspenders: construct the Mcp step directly, bypassing the parser
+            // (and therefore Validate()'s compile-time C02 policy gate entirely), and prove
+            // ExecuteStep's own runtime re-check still refuses it before ever building an
+            // envelope or touching CommandRouter.
+            // sync_unity: hard-denylisted (C02) AND a Python-only tool (CommandRouter's own
+            // guard) — even if this test's production check were mistakenly disabled,
+            // dispatch could not trigger a real Editor refresh/reload as a side effect.
+            var step = new PlaytestStep { Type = StepType.Mcp, Method = "sync_unity", Args = "{}" };
+            var results = new List<string>();
+            var phase = PlaytestRunner.Phase.Ready;
+            float phaseStart = 0f;
+            int passed = 0, failed = 0;
+            var state = new PlaytestState();
+
+            PlaytestRunner.ExecuteStep(step, null, results, ref phase, ref phaseStart, ref passed, ref failed, 0, state);
+
+            Assert.AreEqual(0, passed);
+            Assert.AreEqual(1, failed);
+            Assert.AreEqual(PlaytestRunner.Phase.Done, phase);
+            StringAssert.Contains("denied", results[0]);
+        }
     }
 }
