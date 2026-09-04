@@ -141,11 +141,13 @@ namespace UnityMCP.Editor
             DateTime stepStartUtc = DateTime.Now;
             PlaytestStep currentExpanded = null; // VAR-expanded clone of current step
             int failedBeforeStep = 0;           // captured before each step to detect setup failures
+            PlaytestRunState.Begin(effectiveRunId, stepStartUtc); // B14: observable slice
 
             void FinishRun()
             {
                 EditorApplication.update -= Tick;
                 _isRunning = false;
+                PlaytestRunState.Finish(passed, failed); // B14: observable slice
                 var report = BuildReport(results, passed, failed, testStart);
                 var stateReport = state.BuildReport();
                 if (stateReport != null) report += "\n" + stateReport;
@@ -175,6 +177,7 @@ namespace UnityMCP.Editor
                 stepStartUtc = DateTime.Now;
                 currentExpanded = null;
                 phase = Phase.Ready;
+                PlaytestRunState.Update(stepIdx, passed, failed); // B14: observable slice
                 if (stepIdx >= steps.Count)
                     FinishRun();
             }
