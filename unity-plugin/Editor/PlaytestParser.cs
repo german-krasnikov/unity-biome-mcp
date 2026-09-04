@@ -8,7 +8,7 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured, AssertOneActive, AssertChanged, CaptureFrames, AssertFramesDiffer, AssertFramesStatic, SetActive, Setup, Teardown, WaitStable, CaptureMin, CaptureMax, AssertMin, AssertMax, Fill, Focus }
+    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured, AssertOneActive, AssertChanged, CaptureFrames, AssertFramesDiffer, AssertFramesStatic, SetActive, Setup, Teardown, WaitStable, CaptureMin, CaptureMax, AssertMin, AssertMax, Fill, Focus, Mcp }
 
     /// <summary>A script line with origin metadata (file, line number, macro call chain).</summary>
     internal struct SourcedLine
@@ -47,6 +47,7 @@ namespace UnityMCP.Editor
         public bool IsOr;        // true = OR logic for compound WAIT_UNTIL, false = AND
         public bool AbortOnFail; // true = stop Play Mode on timeout
         public string Label;     // set by preceding DESC line
+        public string ResultVar; // MCP ... INTO $name — capture name without '$'; null = no capture
 
         // Provenance — null when not tracked (inline scripts with no INCLUDE/MACRO)
         public string   SourceFile;     // origin file path; null = main inline script
@@ -77,7 +78,7 @@ namespace UnityMCP.Editor
             ExpandedRawLine = ExpandedRawLine,
             BatchOps = BatchOps, BatchValues = BatchValues,
             SimulatorName = SimulatorName, IsOr = IsOr,
-            AbortOnFail = AbortOnFail, Label = Label,
+            AbortOnFail = AbortOnFail, Label = Label, ResultVar = ResultVar,
             SourceFile = SourceFile, SourceLine = SourceLine,
             MacroStack = MacroStack, SectionContext = SectionContext
         };
@@ -1034,6 +1035,10 @@ namespace UnityMCP.Editor
                         step.Value = tokens[3];
                         break;
                     }
+
+                    case "MCP":
+                        ParseMcpStep(step, line);
+                        break;
 
                     default:
                         throw new ArgumentException($"Unknown command: {cmd}");

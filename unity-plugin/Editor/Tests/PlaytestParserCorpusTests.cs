@@ -144,5 +144,97 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(expectedNeedsEditmode, result.Header.NeedsEditmode,
                 $"{fileName}: @needs editmode header mismatch");
         }
+
+        // ── C01 — `MCP <cmd> key=value... [INTO $result]` parsing + JSON assembler ──
+
+        [Test]
+        public void Parse_McpSimpleCommand_ProducesMcpStep()
+        {
+            var result = PlaytestParser.Parse("MCP get_hierarchy depth=2");
+            Assert.IsNull(result.Errors);
+            Assert.AreEqual(1, result.Steps.Count);
+            var step = result.Steps[0];
+            Assert.AreEqual(StepType.Mcp, step.Type);
+            Assert.AreEqual("get_hierarchy", step.Method);
+            Assert.AreEqual("{\"depth\":2}", step.Args);
+            Assert.IsNull(step.ResultVar);
+        }
+
+        [Test]
+        public void Parse_McpKeyValueTypes_InfersBoolIntStringCorrectly()
+        {
+            var result = PlaytestParser.Parse("MCP fake_cmd flag=TRUE count=3 ratio=2.5 label=hello");
+            Assert.IsNull(result.Errors);
+            var step = result.Steps[0];
+            Assert.AreEqual("{\"flag\":true,\"count\":3,\"ratio\":2.5,\"label\":\"hello\"}", step.Args);
+        }
+
+        [Test]
+        public void Parse_McpNullArrayAndObject_PreserveJsonTypes()
+        {
+            var result = PlaytestParser.Parse("MCP fake_cmd n=null arr=[1,2,\"x\"] obj={\"x\":1}");
+            Assert.IsNull(result.Errors);
+            var step = result.Steps[0];
+            Assert.AreEqual("{\"n\":null,\"arr\":[1,2,\"x\"],\"obj\":{\"x\":1}}", step.Args);
+        }
+
+        [Test]
+        public void Parse_McpQuotedValueWithSpaces_PreservesAsString()
+        {
+            var result = PlaytestParser.Parse("MCP fake_cmd label=\"hello world\"");
+            Assert.IsNull(result.Errors);
+            var step = result.Steps[0];
+            Assert.AreEqual("{\"label\":\"hello world\"}", step.Args);
+        }
+
+        [Test]
+        public void Parse_McpValRunIdSubstitution_ExpandsBeforeTokenizing()
+        {
+            var result = PlaytestParser.Parse("VAL $RUN_ID abc12345\nMCP create_object name=pt_$RUN_ID");
+            Assert.IsNull(result.Errors);
+            var step = result.Steps[0];
+            Assert.AreEqual("{\"name\":\"pt_abc12345\"}", step.Args);
+        }
+
+        [Test]
+        public void Parse_McpInto_CapturesFinalSigilWithoutPuttingItInArgs()
+        {
+            var result = PlaytestParser.Parse("MCP get_hierarchy depth=2 INTO $tree");
+            Assert.IsNull(result.Errors);
+            var step = result.Steps[0];
+            Assert.AreEqual("tree", step.ResultVar);
+            Assert.AreEqual("{\"depth\":2}", step.Args);
+        }
+
+        [Test]
+        public void Parse_McpMalformedObjectValue_ThrowsCompileError()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(
+                () => PlaytestParser.Parse("MCP fake_cmd obj={\"x\":}"));
+            StringAssert.Contains("malformed JSON value", ex.Message);
+        }
+
+        [TestCase("MCP fake_cmd key=1 INTO")]                  // missing destination
+        [TestCase("MCP fake_cmd key=1 INTO result")]            // non-sigil destination
+        [TestCase("MCP fake_cmd INTO $result key=1")]           // not the final token
+        public void Parse_McpMalformedInto_Throws(string script)
+        {
+            Assert.Throws<System.ArgumentException>(() => PlaytestParser.Parse(script));
+        }
+
+        [Test]
+        public void Parse_UnknownTopLevelKeyword_StillThrows()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() => PlaytestParser.Parse("TOTALLY_UNKNOWN_CMD 1"));
+            StringAssert.Contains("Unknown command: TOTALLY_UNKNOWN_CMD", ex.Message);
+        }
+
+        [Test]
+        public void Parse_McpStep_RawLineRoundTripsForComposerPreservation()
+        {
+            const string line = "MCP get_hierarchy depth=2 INTO $tree";
+            var result = PlaytestParser.Parse(line);
+            Assert.AreEqual(line, result.Steps[0].RawLine);
+        }
     }
 }
