@@ -18,6 +18,7 @@ from tests.live.unity_state_owner import (
     OwnershipPolicy,
     UnityStateSnapshot,
     build_ownership_plan,
+    _needs_owned_scene_reset,
 )
 from tests.live._markers import strip_markers  # noqa: F401 — re-exported for test imports
 
@@ -724,6 +725,9 @@ async def _restore_owned_state(
 ) -> None:
     after = await _capture_unity_state(bridge)
     plan = build_ownership_plan(before, after, policy)
+    # Decided from this first, raw post-test capture — before any play-mode
+    # or time-scale restoration below can reassign `after` out from under it.
+    must_reset_owned_scene = _needs_owned_scene_reset(policy, before, after)
     errors = list(plan.violations)
     block_global_reset = plan.has_unowned_state
 
@@ -773,7 +777,6 @@ async def _restore_owned_state(
             await _delete_owned_asset(bridge, path)
         except Exception as exc:
             errors.append(str(exc))
-    must_reset_owned_scene = bool(policy.reset_scene_path)
     reset_completed = False
     if must_reset_owned_scene and not block_global_reset:
         try:
