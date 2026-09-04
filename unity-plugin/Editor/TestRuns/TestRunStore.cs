@@ -517,6 +517,20 @@ namespace UnityMCP.Editor.TestRuns
                    EvidenceWriteTicks(events) == summary.event_write_utc_ticks;
         }
 
+        // Instance-scoped: cleared whenever a new TestRunStore is constructed
+        // (mirrors TestRunAssemblyFingerprint.HashFile's cache lifetime, scoped
+        // down to this store since every ReadJournal caller already holds one
+        // long-lived instance for the run it is finalizing/polling). Keyed by
+        // absolute file path; an entry is only reused while both the file's
+        // mtime AND length are unchanged.
+        private readonly Dictionary<string, (DateTime mtime, long length, object value, TestProtocolIssue[] issues)>
+            _journalFileCache = new Dictionary<string, (DateTime, long, object, TestProtocolIssue[])>(
+                StringComparer.Ordinal);
+
+        // Injectable seam: unit tests observe this to count real per-file parses
+        // that the cache above falls through to. Production is a no-op.
+        internal Action<string> OnJournalFileParsed = _ => { };
+
         public TestRunJournal ReadJournal(string runId)
         {
             ValidateIdentity(runId, nameof(runId));
@@ -534,24 +548,58 @@ namespace UnityMCP.Editor.TestRuns
             lock (FileGate)
             {
                 if (journal.run_record_exists)
-                    journal.run = TryReadJson<TestRunRecord>(runPath, "RUN_RECORD_CORRUPT", issues);
+                    journal.run = ReadCachedJournalFile<TestRunRecord>(runPath,
+                        localIssues => TryReadJson<TestRunRecord>(
+                            runPath, "RUN_RECORD_CORRUPT", localIssues),
+                        issues);
                 else
                     issues.Add(Issue("RUN_RECORD_MISSING", runPath, 0, runId,
                         "The durable run record does not exist."));
 
                 journal.manifest = journal.manifest_file_exists
-                    ? ReadJsonLines<TestLeafManifestEntry>(
-                        manifestPath, "MANIFEST_LINE_CORRUPT", issues).ToArray()
+                    ? ReadCachedJournalFile<TestLeafManifestEntry[]>(manifestPath,
+                        localIssues => ReadJsonLines<TestLeafManifestEntry>(
+                            manifestPath, "MANIFEST_LINE_CORRUPT", localIssues).ToArray(),
+                        issues)
                     : Array.Empty<TestLeafManifestEntry>();
 
                 journal.events = journal.events_file_exists
-                    ? ReadJsonLines<TestRunEvent>(
-                        eventsPath, "EVENT_LINE_CORRUPT", issues).ToArray()
+                    ? ReadCachedJournalFile<TestRunEvent[]>(eventsPath,
+                        localIssues => ReadJsonLines<TestRunEvent>(
+                            eventsPath, "EVENT_LINE_CORRUPT", localIssues).ToArray(),
+                        issues)
                     : Array.Empty<TestRunEvent>();
             }
 
             journal.issues = issues.ToArray();
             return journal;
+        }
+
+        // Parses at most once per (path, mtime, length) triple, re-emitting the
+        // issues collected during that parse on every cache hit so a corrupt-file
+        // issue keeps surfacing while the corruption is still on disk. Must run
+        // inside `lock (FileGate)` -- callers above already hold it.
+        private T ReadCachedJournalFile<T>(
+            string path,
+            Func<List<TestProtocolIssue>, T> parse,
+            ICollection<TestProtocolIssue> issues)
+        {
+            var info = new FileInfo(path);
+            var mtime = info.LastWriteTimeUtc;
+            var length = info.Length;
+            if (_journalFileCache.TryGetValue(path, out var cached) &&
+                cached.mtime == mtime && cached.length == length)
+            {
+                foreach (var issue in cached.issues) issues.Add(issue);
+                return (T)cached.value;
+            }
+
+            OnJournalFileParsed(path);
+            var localIssues = new List<TestProtocolIssue>();
+            var value = parse(localIssues);
+            _journalFileCache[path] = (mtime, length, value, localIssues.ToArray());
+            foreach (var issue in localIssues) issues.Add(issue);
+            return value;
         }
 
         public TestRunSummary Reconcile(string runId, bool persistSummary = true)

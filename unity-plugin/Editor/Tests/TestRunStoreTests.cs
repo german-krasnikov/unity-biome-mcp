@@ -1,8 +1,10 @@
 // TDD -- TestRunStore.PruneOldRuns retention (count 50 / window 7d), R-17: a
 // non-terminal run must never be reaped by retention regardless of age or rank.
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
@@ -148,6 +150,61 @@ namespace UnityMCP.Editor.Tests
                 "even though an earlier-ranked run failed to delete");
             Assert.That(Directory.Exists(victimDir), Is.True,
                 "the undeletable run must remain on disk rather than corrupt/vanish");
+        }
+
+        // TDD -- A25: TestRunStore.ReadJournal caches each parsed file by
+        // (mtime, length) so a finalization pass that re-reads the same
+        // unchanged journal performs 0 additional real parses.
+        [Test]
+        public void ReadJournal_CalledTwiceWithNoFileChange_ParsesOnlyOnce()
+        {
+            var store = CreateIsolatedStore();
+            const string runId = "run-journal-cache-1";
+            WriteTerminalRun(store, runId, DateTime.UtcNow.ToString("O"));
+            store.AppendExpectedTest(runId,
+                new TestLeafManifestEntry { run_id = runId, unique_name = "leaf-a" });
+            store.AppendEvent(runId,
+                new TestRunEvent { run_id = runId, event_type = TestRunProtocol.EventType.RunStarted });
+
+            var parsedPaths = new List<string>();
+            store.OnJournalFileParsed = path => parsedPaths.Add(path);
+
+            store.ReadJournal(runId);
+            store.ReadJournal(runId);
+
+            Assert.That(parsedPaths.Count, Is.EqualTo(3),
+                "run record + manifest + events must each be parsed exactly once " +
+                "across two unchanged ReadJournal calls, not once per call: " +
+                string.Join(", ", parsedPaths));
+        }
+
+        [Test]
+        public void ReadJournal_AfterAppendEvent_ReParsesEventsFile()
+        {
+            var store = CreateIsolatedStore();
+            const string runId = "run-journal-cache-2";
+            WriteTerminalRun(store, runId, DateTime.UtcNow.ToString("O"));
+            store.AppendExpectedTest(runId,
+                new TestLeafManifestEntry { run_id = runId, unique_name = "leaf-a" });
+            store.AppendEvent(runId,
+                new TestRunEvent { run_id = runId, event_type = TestRunProtocol.EventType.RunStarted });
+            var eventsPath = store.GetEventsPath(runId);
+            var runPath = store.GetRunRecordPath(runId);
+
+            var parsedPaths = new List<string>();
+            store.OnJournalFileParsed = path => parsedPaths.Add(path);
+            store.ReadJournal(runId);
+            Assert.That(parsedPaths.Count(p => p == eventsPath), Is.EqualTo(1));
+
+            store.AppendEvent(runId,
+                new TestRunEvent { run_id = runId, event_type = TestRunProtocol.EventType.RunFinished });
+            store.ReadJournal(runId);
+
+            Assert.That(parsedPaths.Count(p => p == eventsPath), Is.EqualTo(2),
+                "appending a new event must change events.jsonl's (mtime, length) " +
+                "and force a re-parse, not serve a stale mid-run cache entry");
+            Assert.That(parsedPaths.Count(p => p == runPath), Is.EqualTo(1),
+                "the run record file did not change and must not be re-parsed");
         }
 
         private static void MakeDirectoryUndeletable(string path) => RunChmod(path, "555");
