@@ -189,6 +189,21 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(1, steps.Count);
         }
 
+        // ── Header (B04): ParseResult.Header is always populated, never null ────
+
+        [Test]
+        public void Parse_ScriptWithNeedsEditmode_PopulatesResultHeader()
+        {
+            var withHeader = PlaytestParser.Parse("# @needs editmode\nASSERT_CONSOLE_CLEAN");
+            Assert.IsNotNull(withHeader.Header, "Header must be assigned, never left null");
+            Assert.IsTrue(withHeader.Header.NeedsEditmode);
+
+            // NPE trap: a header-less script must still get a defaulted Header, never null.
+            var withoutHeader = PlaytestParser.Parse("ASSERT_CONSOLE_CLEAN");
+            Assert.IsNotNull(withoutHeader.Header, "header-less script must still get a defaulted Header");
+            Assert.IsFalse(withoutHeader.Header.NeedsEditmode);
+        }
+
         [Test]
         public void Parse_EmptyScript_ReturnsEmptyList()
         {

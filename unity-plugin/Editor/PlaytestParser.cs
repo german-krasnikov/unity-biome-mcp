@@ -103,6 +103,9 @@ namespace UnityMCP.Editor
         public bool HasGlobalAbort { get; set; }
         /// <summary>SET_DEFAULT_TIMEOUT value in seconds. 0 = not set (runner uses 5f fallback).</summary>
         public float DefaultTimeout { get; set; }
+        /// <summary>Parsed `# @directive` header metadata (B03/B04). Never null — a header-less
+        /// script still gets a defaulted <see cref="PlaytestHeader"/> (no NPE trap for consumers).</summary>
+        public PlaytestHeader Header { get; set; }
 
         public int Count => Steps.Count;
         public PlaytestStep this[int i] => Steps[i];
@@ -117,7 +120,7 @@ namespace UnityMCP.Editor
     /// <summary>Resolves INCLUDE directives — returns full file content as a string.</summary>
     internal delegate string IncludeResolver(string filename);
 
-    internal static class PlaytestParser
+    internal static partial class PlaytestParser
     {
         // Matches $name sigils — ASCII-only names starting with letter or _
         internal static readonly Regex SigilRegex = new Regex(
@@ -147,6 +150,9 @@ namespace UnityMCP.Editor
         public static ParseResult Parse(string script, IncludeResolver resolver = null, bool strict = false)
         {
             var rawLines = script.Split('\n');
+
+            // Phase -2: scan `# @directive` header lines, pre-INCLUDE (B03/B04).
+            var header = ScanHeader(script);
 
             // Phase -1: expand INCLUDE directives (before any other processing)
             var sourcedLines = ExpandIncludes(rawLines, 0, resolver);
@@ -1086,7 +1092,8 @@ namespace UnityMCP.Editor
                 Warnings = warnings,
                 Errors = errors,
                 HasGlobalAbort = hasGlobalAbort,
-                DefaultTimeout = defaultTimeout
+                DefaultTimeout = defaultTimeout,
+                Header = header
             };
         }
 
