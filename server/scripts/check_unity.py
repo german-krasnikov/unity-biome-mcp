@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Unity health diagnostic — stdlib only, single-line output."""
 
+import json
 import os
 import re
 import socket
 import struct
-import json
+import sys
 from pathlib import Path
 
 _PORTS_DIR = Path.home() / ".unity-biome-mcp/ports"
@@ -19,11 +20,11 @@ def _editor_log_path() -> Path:
     s = platform.system()
     if s == "Darwin":
         return Path.home() / "Library/Logs/Unity/Editor.log"
-    elif s == "Windows":
+    if s == "Windows":
         local = os.environ.get("LOCALAPPDATA", "")
         return Path(local) / "Unity/Editor/Editor.log" if local else Path("Editor.log")
-    else:  # Linux
-        return Path.home() / ".config/unity3d/Editor.log"
+    # Linux
+    return Path.home() / ".config/unity3d/Editor.log"
 
 
 def _read_log(path: str | Path) -> str:
@@ -115,10 +116,17 @@ def _discover_ports(ports_dir: str | Path) -> tuple[int | None, int | None]:
     return main_port, reload_port
 
 
-def tcp_probe(port: int, timeout: float = _TCP_TIMEOUT, retries: int = 3) -> dict | None:
-    """Probe Unity TCP port with retry. Returns parsed dict, empty dict (alive but busy), or None (dead)."""
+def tcp_probe(
+    port: int,
+    cmd: str = "diagnose",
+    args: dict | None = None,
+    timeout: float = _TCP_TIMEOUT,
+    retries: int = 3,
+) -> dict | None:
+    """Probe Unity TCP port with retry (parsed dict / {} busy / None dead).
+    Default cmd="diagnose", args=None sends the exact prior frame, untouched."""
     import time
-    msg = json.dumps({"cmd": "diagnose", "args": {}, "id": "chk"}).encode()
+    msg = json.dumps({"cmd": cmd, "args": args or {}, "id": "chk"}).encode()
     frame = struct.pack(">I", len(msg)) + msg
     for attempt in range(retries):
         try:
@@ -173,7 +181,7 @@ def _recvexactly(s: socket.socket, n: int) -> bytes | None:
     return buf
 
 
-def _probe_guard_locked(port: int, timeout: float = 2.0) -> "bool | None":
+def _probe_guard_locked(port: int, timeout: float = 2.0) -> bool | None:
     """Returns True=wedged, False=clear, None=unable to query."""
     code = 'UnityEditor.SessionState.GetBool("MCP_ReloadGuardLocked", false).ToString();'
     msg = json.dumps({"cmd": "execute_code", "args": {"code": code}, "id": "chk-g"}).encode()
@@ -214,7 +222,22 @@ def _parse_stale_dlls(probe: dict) -> list[str]:
     return stale
 
 
-def main() -> None:
+# check_unity_probe.py owns the status/scenes CLI dispatch (300-line budget);
+# it imports tcp_probe/_discover_ports/_PORTS_DIR back lazily (function-local).
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_unity_probe import (  # noqa: E402
+    _DIAG_COMPILING_KEY,  # noqa: F401
+    _parse_read_args,
+    _run_read_subcommand,
+    probe_open_scenes,  # noqa: F401
+    probe_status,  # noqa: F401
+)
+
+
+def main(argv: list[str] | None = None) -> None:
+    ns = _parse_read_args(argv if argv is not None else [])
+    if ns.subcommand:
+        raise SystemExit(_run_read_subcommand(ns.subcommand))
     try:
         log_text = _read_log(_editor_log_path())
         log_result = parse_log(log_text)
@@ -270,8 +293,8 @@ def main() -> None:
         raise
     except Exception as exc:
         print(f"SCRIPT_ERROR  {type(exc).__name__}: {exc}")
-        raise SystemExit(5)
+        raise SystemExit(5) from exc
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])
