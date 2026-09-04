@@ -1556,6 +1556,48 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("none", result);
         }
 
+        [Test]
+        public void GetRunJson_CompactTrue_OmitsLeafDetailArrays()
+        {
+            const string runId = "run-compact-non-terminal";
+            SeedRunWithMissingLeaf(runId, TestRunProtocol.Lifecycle.Running);
+            var service = CreateService();
+
+            var full = service.GetRunJson(runId);
+            var compact = service.GetRunJson(runId, compact: true);
+
+            StringAssert.Contains("\"missing_tests\":[\"Suite.Test2\"]", full,
+                "Precondition: the non-compact snapshot must actually carry leaf detail.");
+            StringAssert.Contains("\"leaves\":[{", full,
+                "Precondition: Suite.Test1 completed, so leaves[] must be non-empty too.");
+            StringAssert.Contains("\"missing_tests\":[]", compact);
+            StringAssert.Contains("\"unexpected_tests\":[]", compact);
+            StringAssert.Contains("\"conflicting_tests\":[]", compact);
+            StringAssert.Contains("\"leaves\":[]", compact);
+            StringAssert.Contains("\"issues\":[]", compact);
+            Assert.Less(compact.Length, full.Length,
+                "Compact must strictly shrink the payload, not merely look smaller.");
+            // Must not strip fields unrelated to leaf detail.
+            StringAssert.Contains("\"expected_count\":2", compact);
+            StringAssert.Contains("\"lifecycle\":\"running\"", compact);
+        }
+
+        [Test]
+        public void GetRunJson_CompactTrue_TerminalState_StillReturnsFullDetail()
+        {
+            const string runId = "run-compact-terminal";
+            SeedRunWithMissingLeaf(runId, TestRunProtocol.Lifecycle.Terminal);
+            var service = CreateService();
+
+            var full = service.GetRunJson(runId);
+            var compact = service.GetRunJson(runId, compact: true);
+
+            Assert.AreEqual(full, compact,
+                "A terminal snapshot must ignore compact=true and return identical full detail.");
+            StringAssert.Contains("\"missing_tests\":[\"Suite.Test2\"]", compact);
+            StringAssert.Contains("\"leaves\":[{", compact);
+        }
+
         // ── ListRunsJson ──
 
         [Test]
@@ -2087,6 +2129,70 @@ namespace UnityMCP.Editor.Tests
                 run_id = runId,
                 lifecycle = TestRunProtocol.Lifecycle.Prepared,
                 created_utc = createdUtc
+            });
+        }
+
+        // Two manifest leaves: Suite.Test1 completes (populates leaves[]),
+        // Suite.Test2 is sealed but never observed as terminal (populates
+        // missing_tests[]). Both arrays are genuinely non-empty so GetRunJson's
+        // compact-mode tests can prove the 5-field clearing actually removes
+        // something, not that the fields merely started empty (A26).
+        private void SeedRunWithMissingLeaf(string runId, string lifecycle)
+        {
+            var terminal = string.Equals(lifecycle, TestRunProtocol.Lifecycle.Terminal,
+                StringComparison.Ordinal);
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                lifecycle = lifecycle,
+                // ValidateInitialRun requires a valid outcome exactly when the
+                // run is created already-terminal; Suite.Test2 never completes,
+                // so "incomplete" is the honest outcome either way.
+                outcome = terminal ? TestRunProtocol.RunOutcome.Incomplete : "",
+                created_utc = Utc,
+                build_coherent = true,
+                utf_version = "1.6.0"
+            });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.RunStarted,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 2
+            });
+            _store.AppendExpectedTest(runId, new TestLeafManifestEntry
+            {
+                run_id = runId,
+                unique_name = "Suite.Test1",
+                full_name = "Suite.Test1",
+                mode = "EditMode"
+            });
+            _store.AppendExpectedTest(runId, new TestLeafManifestEntry
+            {
+                run_id = runId,
+                unique_name = "Suite.Test2",
+                full_name = "Suite.Test2",
+                mode = "EditMode"
+            });
+            _store.SealManifest(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.ManifestSealed,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 2
+            });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.TestFinished,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                unique_name = "Suite.Test1",
+                full_name = "Suite.Test1",
+                outcome = TestRunProtocol.LeafOutcome.Passed,
+                result_state = "Passed"
             });
         }
 

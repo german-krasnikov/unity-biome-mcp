@@ -63,6 +63,15 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void GetTestRun_RegistrationAcceptsCompactArg()
+        {
+            Assert.IsTrue(CommandRegistry.TryGetContract(
+                "get_test_run", out var required, out var optional, out _));
+            CollectionAssert.AreEqual(new[] { "run_id" }, required);
+            CollectionAssert.AreEqual(new[] { "compact" }, optional);
+        }
+
+        [Test]
         public void RegisterAll_CallsAllFourBucketsAndDelegatesToWatchAndPlugins()
         {
             CommandRegistry.Clear();

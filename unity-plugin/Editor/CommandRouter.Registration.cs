@@ -336,8 +336,9 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(args, "request_id")),
                 required: "request_id", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("get_test_run", args => TestRunner.GetRun(
-                    JsonHelper.ExtractString(args, "run_id")),
-                required: "run_id", optional: "", allowedDuringCompile: true);
+                    JsonHelper.ExtractString(args, "run_id"),
+                    JsonHelper.ExtractString(args, "compact") == "true"),
+                required: "run_id", optional: "compact", allowedDuringCompile: true);
             CommandRegistry.Register("list_test_runs", args => TestRunner.ListRuns(
                     ExtractInt(args, "limit", 20)),
                 required: "", optional: "limit", allowedDuringCompile: true);

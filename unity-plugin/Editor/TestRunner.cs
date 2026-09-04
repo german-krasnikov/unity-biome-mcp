@@ -89,10 +89,10 @@ namespace UnityMCP.Editor
 #endif
         }
 
-        public static string GetRun(string runId)
+        public static string GetRun(string runId, bool compact = false)
         {
 #if UNITY_INCLUDE_TESTS
-            return Service.GetRunJson(runId);
+            return Service.GetRunJson(runId, compact);
 #else
             return "none";
 #endif

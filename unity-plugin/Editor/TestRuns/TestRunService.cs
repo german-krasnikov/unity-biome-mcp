@@ -383,13 +383,20 @@ namespace UnityMCP.Editor.TestRuns
                 : Ack(run, TryGetSealedManifestCount(run.run_id));
         }
 
-        internal string GetRunJson(string runId)
+        internal string GetRunJson(string runId, bool compact = false)
         {
             if (string.IsNullOrWhiteSpace(runId)) return "none";
             try
             {
                 if (!Directory.Exists(_store.GetRunDirectory(runId))) return "none";
-                return JsonUtility.ToJson(ReadSnapshot(runId), false);
+                var summary = ReadSnapshot(runId);
+                // Only trim non-terminal polls -- a terminal snapshot is read once
+                // (or a handful of times) and Python's validate_terminal (A23a)
+                // requires full detail, so never compact it regardless of the
+                // caller's request.
+                if (compact && !summary.is_terminal)
+                    ClearLeafDetailArrays(summary);
+                return JsonUtility.ToJson(summary, false);
             }
             catch (Exception e)
             {
@@ -823,16 +830,24 @@ namespace UnityMCP.Editor.TestRuns
             return _store.Reconcile(runId, false);
         }
 
+        // Shared by ReadCompactSnapshot (ListRunsJson, always compact) and
+        // GetRunJson(compact: true) (A26) -- one place clears the leaf-detail
+        // arrays so both trimming paths can never drift apart.
+        private static void ClearLeafDetailArrays(TestRunSummary summary)
+        {
+            summary.missing_tests = Array.Empty<string>();
+            summary.unexpected_tests = Array.Empty<string>();
+            summary.conflicting_tests = Array.Empty<string>();
+            summary.leaves = Array.Empty<ReconciledLeafResult>();
+            summary.issues = Array.Empty<TestProtocolIssue>();
+        }
+
         private TestRunSummary ReadCompactSnapshot(string runId)
         {
             try
             {
                 var summary = ReadSnapshot(runId);
-                summary.missing_tests = Array.Empty<string>();
-                summary.unexpected_tests = Array.Empty<string>();
-                summary.conflicting_tests = Array.Empty<string>();
-                summary.leaves = Array.Empty<ReconciledLeafResult>();
-                summary.issues = Array.Empty<TestProtocolIssue>();
+                ClearLeafDetailArrays(summary);
                 return summary;
             }
             catch (Exception e)
