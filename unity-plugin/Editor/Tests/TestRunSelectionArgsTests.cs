@@ -9,7 +9,7 @@ namespace UnityMCP.Editor.Tests
     /// comma-separated string (CLI ergonomics for a hand-typed command).
     /// </summary>
     [TestFixture]
-    internal sealed class TestRunSelectionArgsTests
+    internal sealed class TestRunSelectionArgsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]
         public void Execute_ParsesArraySelectionArgs_JsonArray()

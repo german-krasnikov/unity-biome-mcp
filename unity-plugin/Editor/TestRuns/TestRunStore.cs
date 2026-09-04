@@ -579,6 +579,9 @@ namespace UnityMCP.Editor.TestRuns
         // issues collected during that parse on every cache hit so a corrupt-file
         // issue keeps surfacing while the corruption is still on disk. Must run
         // inside `lock (FileGate)` -- callers above already hold it.
+        // T must be a reference type (the tuple boxes value types): every call
+        // site above passes TestRunRecord or an array (TestLeafManifestEntry[],
+        // TestRunEvent[]), both reference types.
         private T ReadCachedJournalFile<T>(
             string path,
             Func<List<TestProtocolIssue>, T> parse,
