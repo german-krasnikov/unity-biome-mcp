@@ -52,6 +52,9 @@ namespace UnityMCP.Editor.Testing
         private HashSet<EditorWindow> _editorWindowBaseline;
         private bool _isolationActive;
         private bool _cleanupStarted;
+        private static int s_editorWindowBaselineCount = -1;
+        private static HashSet<EditorWindow> s_editorWindowBaselineCache;
+        protected static int EditorWindowBaselineRebuildCount;
 
         [SetUp]
         public void BeginUnityMcpIsolation()
@@ -115,8 +118,17 @@ namespace UnityMCP.Editor.Testing
                 _reloadGuardIsolation = ReloadGuard.BeginTestIsolation(
                     new IsolatedReloadGuardOps(), isolationOwnerId);
                 _chatWindowIsolation = MCPChatWindow.BeginTestIsolation(isolationOwnerId);
-                _editorWindowBaseline = new HashSet<EditorWindow>(
-                    Resources.FindObjectsOfTypeAll<EditorWindow>());
+                var openWindows = Resources.FindObjectsOfTypeAll<EditorWindow>();
+                if (s_editorWindowBaselineCache != null &&
+                    openWindows.Length == s_editorWindowBaselineCount)
+                {
+                    _editorWindowBaseline = s_editorWindowBaselineCache;
+                }
+                else
+                {
+                    _editorWindowBaseline = new HashSet<EditorWindow>(openWindows);
+                    EditorWindowBaselineRebuildCount++;
+                }
             }
             catch (Exception setupError)
             {
@@ -554,6 +566,10 @@ namespace UnityMCP.Editor.Testing
                 catch (Exception) { /* m_Parent null — window was never shown */ }
                 if (w != null) UnityEngine.Object.DestroyImmediate(w);
             }
+            // Cache the post-cleanup baseline so the next test's SetUp can skip
+            // rebuilding the HashSet when the window count has not changed.
+            s_editorWindowBaselineCache = _editorWindowBaseline;
+            s_editorWindowBaselineCount = _editorWindowBaseline.Count;
             _editorWindowBaseline = null;
         }
 

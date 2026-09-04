@@ -582,6 +582,46 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void BeginUnityMcpIsolation_NoNewEditorWindows_SkipsHashSetAllocation()
+        {
+            var warmup = new CleanupProbe(new List<string>());
+            warmup.BeginUnityMcpIsolation();
+            warmup.EndUnityMcpIsolation();
+
+            CleanupProbe.ResetEditorWindowBaselineRebuildCountForTest();
+            var probe = new CleanupProbe(new List<string>());
+            probe.BeginUnityMcpIsolation();
+            probe.EndUnityMcpIsolation();
+
+            Assert.That(CleanupProbe.GetEditorWindowBaselineRebuildCountForTest(), Is.Zero,
+                "An unchanged EditorWindow count must reuse the cached baseline instead of rebuilding it.");
+        }
+
+        [Test]
+        public void BeginUnityMcpIsolation_WindowCountChangedSincePreviousBaseline_RebuildsHashSet()
+        {
+            var warmup = new CleanupProbe(new List<string>());
+            warmup.BeginUnityMcpIsolation();
+            warmup.EndUnityMcpIsolation();
+
+            var phantom = ScriptableObject.CreateInstance<EditorWindow>();
+            try
+            {
+                CleanupProbe.ResetEditorWindowBaselineRebuildCountForTest();
+                var probe = new CleanupProbe(new List<string>());
+                probe.BeginUnityMcpIsolation();
+                probe.EndUnityMcpIsolation();
+
+                Assert.That(CleanupProbe.GetEditorWindowBaselineRebuildCountForTest(), Is.Not.Zero,
+                    "A changed EditorWindow count must force a full baseline rebuild.");
+            }
+            finally
+            {
+                if (phantom != null) UnityEngine.Object.DestroyImmediate(phantom);
+            }
+        }
+
+        [Test]
         public void SceneSpecializationsShareTheCommonIsolationBase()
         {
             Assert.That(typeof(SceneCleanTestBase).IsSubclassOf(typeof(SceneTestBase)), Is.True);
@@ -614,6 +654,12 @@ namespace UnityMCP.Editor.Tests
 
             internal void SetFloatPref(string key, float value) =>
                 SetEditorPrefFloat(key, value);
+
+            internal static void ResetEditorWindowBaselineRebuildCountForTest() =>
+                EditorWindowBaselineRebuildCount = 0;
+
+            internal static int GetEditorWindowBaselineRebuildCountForTest() =>
+                EditorWindowBaselineRebuildCount;
 
             protected override void OnBeforeIsolationCleanup()
             {
