@@ -88,7 +88,7 @@ namespace McpFeedbackFixture.Tests
             const string scenePath = "Assets/MCPFeedbackFixture/McpFeedbackFixture.unity";
 
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(scenePath) == null)
-                Assert.Ignore($"McpFeedbackFixture scene not found at {scenePath}");
+                Assert.Fail($"McpFeedbackFixture scene not found at {scenePath}");
 
             var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
             TrackOwnedScene(scene);
