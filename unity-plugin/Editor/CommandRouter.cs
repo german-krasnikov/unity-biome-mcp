@@ -469,6 +469,18 @@ namespace UnityMCP.Editor
                     "err: fresh is incompatible with @needs editmode"));
                 return;
             }
+            if (header.NeedsEditmode)
+            {
+                // B07: an Edit-mode script mutates persisted scene state directly (no
+                // Play-mode reload isolation), so refuse before Run() if any loaded
+                // scene is dirty.
+                var dirtyError = PlaytestIsolationScope.RefuseIfDirty();
+                if (dirtyError != null)
+                {
+                    tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, dirtyError));
+                    return;
+                }
+            }
 
             var timeout = ExtractFloat(argsJson, "timeout", 120f);
             if (timeout <= 0) timeout = 120f;
