@@ -34,5 +34,33 @@ namespace UnityMCP.Editor.Tests
             var result = PlaytestLinter.LintScript(script);
             StringAssert.DoesNotContain("TIMESCALE_WARN", result);
         }
+
+        // ── C11: MCP without a following evidence step ─────────────────────────
+
+        [Test]
+        public void LintScript_McpStepWithNoFollowingEvidence_ReportsWarn()
+        {
+            var script = "MCP get_hierarchy depth=2\nLOG hello" + Cleanup;
+            var result = PlaytestLinter.LintScript(script);
+            StringAssert.Contains("WARN", result);
+            StringAssert.Contains("MCP", result);
+            StringAssert.Contains("evidence", result);
+        }
+
+        [Test]
+        public void LintScript_McpStepFollowedByAssert_NoWarn()
+        {
+            var script = "MCP get_hierarchy depth=2 INTO $tree\nASSERT $tree contains foo" + Cleanup;
+            var result = PlaytestLinter.LintScript(script);
+            StringAssert.DoesNotContain("has no following evidence step", result);
+        }
+
+        [Test]
+        public void LintScript_McpInTeardown_NoWarn()
+        {
+            var script = "ASSERT_CONSOLE_CLEAN\nTEARDOWN\nMCP delete_object path=/Obj\nTEARDOWN_END";
+            var result = PlaytestLinter.LintScript(script);
+            StringAssert.DoesNotContain("has no following evidence step", result);
+        }
     }
 }
