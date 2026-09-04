@@ -6,6 +6,7 @@
 using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using UnityEditor;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -33,7 +34,15 @@ namespace UnityMCP.Editor.Tests
             var json = $"{{\"id\":\"t\",\"cmd\":\"run_playtest\",\"args\":{{{argsJson}}}}}";
             var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             CommandRouter.ProcessAsync(json, tcs);
-            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(5)));
+            return await AwaitBoundedAsync(tcs);
+        }
+
+        // Bounded wait shared by every test in this fixture: races the TCS against a fixed
+        // timeout rather than an unbounded Task.Delay spin (B06 — the first tests to ever
+        // exercise Tick() outside Play Mode, where completion rides EditorApplication.update).
+        private static async Task<string> AwaitBoundedAsync(TaskCompletionSource<string> tcs, double timeoutSeconds = 5.0)
+        {
+            var completed = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(timeoutSeconds)));
             Assert.AreSame(tcs.Task, completed, "TCS did not complete in time");
             return await tcs.Task;
         }
@@ -68,6 +77,29 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("err:", result);
             StringAssert.Contains("fresh", result);
             StringAssert.Contains("editmode", result);
+        }
+
+        // ── B06: Tick() itself must honor requiresPlayMode, not just the entry gate ─
+
+        [Test]
+        public async Task Run_EditModeAllowed_LogAndWait_CompletesInEditMode()
+        {
+            Assert.IsFalse(EditorApplication.isPlaying, "Precondition: test runs in Edit Mode");
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run("LOG hello", 5f, tcs, requiresPlayMode: false);
+            var result = await AwaitBoundedAsync(tcs);
+            StringAssert.DoesNotContain("ABORTED", result);
+            StringAssert.Contains("PLAYTEST: 1/1", result);
+        }
+
+        [Test]
+        public async Task Run_LegacyDefault_EditMode_AbortsImmediately()
+        {
+            Assert.IsFalse(EditorApplication.isPlaying, "Precondition: test runs in Edit Mode");
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run("LOG hello", 5f, tcs); // requiresPlayMode defaults to true (legacy)
+            var result = await AwaitBoundedAsync(tcs);
+            StringAssert.Contains("[1] ABORTED: Play Mode stopped", result);
         }
     }
 }

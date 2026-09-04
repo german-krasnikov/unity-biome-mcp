@@ -20,7 +20,8 @@ namespace UnityMCP.Editor
         }
 
         // requiresPlayMode: threaded by B05's caller-side header gate (CommandRouter.AsyncRunPlaytest).
-        // Not yet consumed here — B06 wires it into the Tick() Play-mode abort at line ~152.
+        // Consumed in Tick()'s Play-mode abort below (B06) — the caller decides via the parsed
+        // header; Run()/Tick() never re-parses it.
         public static void Run(string script, float globalTimeout, TaskCompletionSource<string> tcs,
             bool abortOnFail = false, bool snapshotOnFailure = false, bool fresh = false,
             bool strict = false, bool requiresPlayMode = true)
@@ -151,7 +152,7 @@ namespace UnityMCP.Editor
             {
                 try
                 {
-                if (!EditorApplication.isPlaying)
+                if (requiresPlayMode && !EditorApplication.isPlaying)
                 {
                     EditorApplication.update -= Tick;
                     _isRunning = false;
