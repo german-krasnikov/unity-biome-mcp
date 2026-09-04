@@ -65,6 +65,9 @@ def record(cmd: str, args: dict, result: dict) -> None:
         with open(path, "a", encoding="utf-8") as f:
             f.write(line + "\n")
     except Exception as exc:
+        # Expected: TypeError/ValueError (unserializable cmd/args/result) or
+        # OSError (unwritable trace path, disk full, permission denied).
+        # Caught broadly because this recorder must never break send().
         if not _warned:
             logger.warning("cassette recorder: could not write to %s: %s", path, exc)
             _warned = True

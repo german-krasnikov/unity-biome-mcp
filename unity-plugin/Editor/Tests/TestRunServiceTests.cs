@@ -148,39 +148,10 @@ namespace UnityMCP.Editor.Tests
                 IsCoherent = true
             };
 
-        private sealed class FakeFrameworkDriver : ITestFrameworkDriver
-        {
-            internal ExecutionSettings LastSettings;
-
-            public string Execute(ExecutionSettings settings)
-            {
-                LastSettings = settings;
-                return "utf-guid-1";
-            }
-
-            public bool Cancel(string utfGuid) => true;
-            public UtfRunActivity Probe(string utfGuid) => UtfRunActivity.Active;
-            public UtfRunActivity ProbeAny() => UtfRunActivity.Inactive;
-        }
-
-        private sealed class FakeEnvironment : ITestRunEnvironmentController
-        {
-            public TestRunEnvironmentRecord Prepare(
-                TestRunStore store, string runId, string utcNow)
-            {
-                if (store.TryReadEnvironment(runId, out var existing)) return existing;
-                var environment = new TestRunEnvironmentRecord
-                {
-                    run_id = runId,
-                    prepared_utc = utcNow
-                };
-                store.WriteEnvironment(environment);
-                return environment;
-            }
-
-            public void Restore(TestRunStore store, string runId, string utcNow)
-            {
-            }
-        }
+        // FakeFrameworkDriver/FakeEnvironment moved to TestRunFakes.cs (shared with
+        // TestRunnerTests.cs, A20/A21 review minor). This fixture only asserts on
+        // LastSettings, which the shared fake still captures identically; its
+        // default Activity=Active/AnyActivity=Inactive match what this fixture's
+        // own hardcoded Probe/ProbeAny used to return.
     }
 }
