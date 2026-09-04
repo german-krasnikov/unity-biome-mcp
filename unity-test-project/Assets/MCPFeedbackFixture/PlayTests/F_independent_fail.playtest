@@ -1,3 +1,4 @@
+# @needs editmode
 INCLUDE common.defs
 # Intentional failure: 999 != 100 (ResetState sets Value to 100)
 INVOKE /Fixture/State FixtureState ResetState

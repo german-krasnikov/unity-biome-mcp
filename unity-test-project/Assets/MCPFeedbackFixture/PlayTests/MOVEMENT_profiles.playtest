@@ -1,3 +1,4 @@
+# @needs editmode
 INCLUDE common.defs
 # Teleport stores method name as lastFirstArgument via state.Record(nameof(Teleport), ...)
 INVOKE /Fixture/Actor FixtureMoveAdapter Teleport 1.0,2.0,3.0

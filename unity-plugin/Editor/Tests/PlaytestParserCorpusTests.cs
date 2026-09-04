@@ -119,5 +119,30 @@ namespace UnityMCP.Editor.Tests
             var result = PlaytestParser.Parse("MOVE TO 1,0,0");
             Assert.IsNull(result.Errors, "Play-default script must be unaffected by the editmode-only rejection");
         }
+
+        // B20 — census of which MCPFeedbackFixture .playtest files are actually Edit-capable:
+        // FixtureAsyncState.StartOperation / FixtureState.CompleteAfterSeconds use
+        // StartCoroutine (Play-only); FixtureMoveAdapter/FixtureMover are synchronous, so
+        // scripts that only touch FixtureState/FixtureMoveAdapter run fine under EditMode.
+        // C_shared_finish, DSL_types and I3_independent_pass touch the async/coroutine
+        // path and stay Play-bound (no header).
+        [TestCase("A_shared_setup.playtest", true)]
+        [TestCase("B_shared_continue.playtest", true)]
+        [TestCase("F_independent_fail.playtest", true)]
+        [TestCase("I1_independent_pass.playtest", true)]
+        [TestCase("I2_independent_pass.playtest", true)]
+        [TestCase("INVOKE_arguments.playtest", true)]
+        [TestCase("L_long_pass.playtest", true)]
+        [TestCase("MOVEMENT_profiles.playtest", true)]
+        [TestCase("C_shared_finish.playtest", false)]
+        [TestCase("DSL_types.playtest", false)]
+        [TestCase("I3_independent_pass.playtest", false)]
+        public void Parse_EditCapableFiles_HeaderHonored(string fileName, bool expectedNeedsEditmode)
+        {
+            var raw = File.ReadAllText(Path.Combine(FixtureDir, fileName));
+            var result = PlaytestParser.Parse(raw, resolver: ResolvePlaytestDefs);
+            Assert.AreEqual(expectedNeedsEditmode, result.Header.NeedsEditmode,
+                $"{fileName}: @needs editmode header mismatch");
+        }
     }
 }
