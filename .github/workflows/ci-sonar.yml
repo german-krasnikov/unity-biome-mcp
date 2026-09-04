@@ -24,6 +24,7 @@ permissions:
 jobs:
   changes:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       csharp: ${{ steps.filter.outputs.csharp }}
     steps:
@@ -38,6 +39,7 @@ jobs:
 
   python-coverage:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
@@ -67,6 +69,7 @@ jobs:
 
   csharp-inspect:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     needs: [changes]
     if: needs.changes.outputs.csharp == 'true'
     steps:
@@ -169,6 +172,7 @@ jobs:
 
   sonar-scan:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: [python-coverage, csharp-inspect]
     if: |
       always() &&
