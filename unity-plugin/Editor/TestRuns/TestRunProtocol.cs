@@ -284,6 +284,10 @@ namespace UnityMCP.Editor.TestRuns
         public string mode = "";
         public string group = "";
         public string filter = "";
+        public string[] categories = Array.Empty<string>();
+        public string[] assemblies = Array.Empty<string>();
+        public string[] tests = Array.Empty<string>();
+        public string selection_sha256 = "";
         public string project_identity = "";
         public string editor_process_identity = "";
         public string editor_session_id = "";

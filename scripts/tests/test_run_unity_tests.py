@@ -43,6 +43,14 @@ class FakeSocket:
 
 
 def passing_snapshot(project: Path) -> dict[str, object]:
+    # get_test_run's TestRunSummary (post-A23a) always carries a real
+    # selection_sha256 -- computed here via the function under test itself
+    # (not a hardcoded literal; frozen hex belongs only to
+    # test_selection_sha256_matches_csharp_vectors) -- so every pre-existing
+    # no-selection call site keeps validating without per-test edits.
+    no_selection_sha = runner.compute_selection_sha256(
+        "EditMode", "Fixture.Test", "", [], [], []
+    )
     return {
         "request_id": "request-1",
         "run_id": "run-1",
@@ -63,6 +71,10 @@ def passing_snapshot(project: Path) -> dict[str, object]:
         "mode": "EditMode",
         "filter": "Fixture.Test",
         "group": "",
+        "categories": [],
+        "assemblies": [],
+        "tests": [],
+        "selection_sha256": no_selection_sha,
         "expected_count": 2,
         "declared_expected_count": 2,
         "readable_manifest_count": 2,
@@ -685,6 +697,13 @@ def test_partial_full_editmode_catalog_cannot_be_accepted(tmp_path: Path) -> Non
     _write_baseline(baseline, 5000)
     snapshot = passing_snapshot(tmp_path)
     snapshot["filter"] = ""
+    # The fixture's default selection_sha256 is computed for filter=
+    # "Fixture.Test" -- override to match this test's own filter_name=""
+    # so the unconditional sha check does not fire before the
+    # minimum_tests floor this test actually exercises.
+    snapshot["selection_sha256"] = runner.compute_selection_sha256(
+        "EditMode", "", "", [], [], []
+    )
     for name in (
         "expected_count",
         "declared_expected_count",
@@ -853,24 +872,42 @@ def test_validate_terminal_rejects_snapshot_with_mismatched_selection(
         )
 
 
-def test_validate_terminal_ignores_missing_selection_fields(tmp_path: Path) -> None:
-    """Today's real get_test_run wire projection (TestRunSummary) does not
-    yet carry categories/assemblies/tests/selection_sha256 at all (confirmed
-    against a live --assembly run's terminal JSON, A22 evidence) --
-    validate_terminal must stay backward-compatible and not reject an
-    otherwise-valid terminal snapshot just because those keys are absent,
-    even when a selection was requested. This guard is what keeps
-    --category/--assembly usable through the CLI until a future item
-    extends TestRunSummary to surface these fields end-to-end.
+def test_validate_terminal_requires_selection_fields(tmp_path: Path) -> None:
+    """get_test_run's TestRunSummary now carries selection_sha256 for every
+    dispatched run, selection or not (A23a) -- the check is unconditional.
+    A snapshot missing it means the connected worker plugin predates this
+    runner's selection support, which must fail loudly rather than silently
+    pass.
 
-    Double-red: red if the presence guard is removed (an absent key would
-    then always read as a mismatch against any non-empty requested
-    selection)."""
-    snapshot = passing_snapshot(tmp_path)
-    assert "categories" not in snapshot and "selection_sha256" not in snapshot
+    Double-red: red before the presence guard was dropped (case (a) used to
+    pass silently); red if the check is re-guarded on the request having a
+    selection (case (b') would then wrongly pass instead of raising)."""
+    # (a) Selection requested; snapshot has the matching list but omits
+    # selection_sha256 entirely -> reject.
+    selected = passing_snapshot(tmp_path)
+    selected["assemblies"] = ["UnityMCP.Editor.Chat.Tests.View"]
+    del selected["selection_sha256"]
+    with pytest.raises(runner.RunnerError, match="selection_sha256"):
+        runner.validate_terminal(
+            selected, project=tmp_path, mode="EditMode", filter_name="Fixture.Test",
+            group="", expected_utf="1.6.0", allow_empty=False,
+            assemblies=["UnityMCP.Editor.Chat.Tests.View"],
+        )
 
+    # (b) No selection requested; snapshot carries the correct
+    # empty-selection sha (the real wire shape post-A23a) -> passes.
+    no_selection = passing_snapshot(tmp_path)
     runner.validate_terminal(
-        snapshot, project=tmp_path, mode="EditMode", filter_name="Fixture.Test",
+        no_selection, project=tmp_path, mode="EditMode", filter_name="Fixture.Test",
         group="", expected_utf="1.6.0", allow_empty=False,
-        assemblies=["UnityMCP.Editor.Chat.Tests.View"],
     )
+
+    # (b') No selection requested; snapshot has no selection_sha256 at all
+    # (a worker plugin older than this runner) -> reject, loudly.
+    legacy = passing_snapshot(tmp_path)
+    del legacy["selection_sha256"]
+    with pytest.raises(runner.RunnerError, match="selection_sha256"):
+        runner.validate_terminal(
+            legacy, project=tmp_path, mode="EditMode", filter_name="Fixture.Test",
+            group="", expected_utf="1.6.0", allow_empty=False,
+        )

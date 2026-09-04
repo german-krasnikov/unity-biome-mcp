@@ -658,26 +658,30 @@ def validate_terminal(
         raise RunnerError("terminal filter does not match the request")
     if str(snapshot.get("group") or "") != group:
         raise RunnerError("terminal group does not match the request")
-    # TestRunSummary (the get_test_run wire projection) does not yet surface
-    # categories/assemblies/tests/selection_sha256 at all (confirmed against
-    # a live --assembly run's terminal JSON) -- only validate a field when
-    # the snapshot actually carries it, so --category/--assembly stay usable
-    # through the CLI until a future item extends TestRunSummary end-to-end.
+    # TestRunSummary (the get_test_run wire projection, A23a) surfaces
+    # categories/assemblies/tests/selection_sha256 for every dispatched run,
+    # selection or not -- validated unconditionally, no presence guard.
     for name, requested_list in (
         ("categories", categories),
         ("assemblies", assemblies),
         ("tests", tests),
     ):
-        if name in snapshot and canonicalize_selection_list(
+        if canonicalize_selection_list(
             snapshot.get(name) or []
         ) != canonicalize_selection_list(requested_list):
             raise RunnerError(f"terminal {name} does not match the request")
-    if "selection_sha256" in snapshot:
-        expected_sha = compute_selection_sha256(
-            mode, filter_name, group, categories, assemblies, tests
+    expected_sha = compute_selection_sha256(
+        mode, filter_name, group, categories, assemblies, tests
+    )
+    actual_sha = str(snapshot.get("selection_sha256") or "")
+    if not actual_sha:
+        raise RunnerError(
+            "terminal snapshot has no selection_sha256 -- the connected "
+            "Unity worker plugin predates this runner's selection support; "
+            "rerun sync_unity"
         )
-        if str(snapshot.get("selection_sha256") or "") != expected_sha:
-            raise RunnerError("terminal selection_sha256 does not match the request")
+    if actual_sha != expected_sha:
+        raise RunnerError("terminal selection_sha256 does not match the request")
 
     expected = snapshot.get("expected_count")
     if (

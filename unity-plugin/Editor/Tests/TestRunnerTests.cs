@@ -6,6 +6,7 @@ using System.Text;
 using NUnit.Framework;
 using UnityEditor.TestTools.TestRunner.Api;
 using UnityEngine;
+using UnityMCP.Editor;
 using UnityMCP.Editor.TestRuns;
 
 namespace UnityMCP.Editor.Tests
@@ -732,6 +733,75 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("\"state\":\"dispatched\"", json);
             StringAssert.Contains("\"expected_count\":0", json);
             StringAssert.Contains("\"build_coherent\":true", json);
+        }
+
+        [Test]
+        public void GetRunJson_CarriesSelectionFieldsAndSha()
+        {
+            var service = CreateService();
+
+            // Sub-case 1: a run started with a selection -- JSON carries the
+            // exact arrays plus the sha equal to the run record's own sha.
+            var selection = new TestRunSelection(
+                Array.Empty<string>(),
+                new[] { "UnityMCP.Editor.Chat.Tests.View" },
+                Array.Empty<string>());
+            service.Start("request-selection-json", "EditMode", "", "", selection);
+            var runId = _store.ReadRequest("request-selection-json").run_id;
+            var expectedSha = _store.ReadRun(runId).selection_sha256;
+
+            var json = service.GetRunJson(runId);
+
+            StringAssert.Contains("\"categories\":[]", json);
+            StringAssert.Contains(
+                "\"assemblies\":[\"UnityMCP.Editor.Chat.Tests.View\"]", json);
+            StringAssert.Contains("\"tests\":[]", json);
+            StringAssert.Contains("\"selection_sha256\":\"" + expectedSha + "\"", json);
+
+            // Sub-case 2: pre-A20 legacy run.json (no selection keys at all)
+            // -- the projection must surface empty arrays and "" via
+            // TestRunRecord's own field-initializer fallback (same evidence
+            // pattern as
+            // TestRunRecord_DeserializesLegacyJsonWithMissingSelectionFields).
+            const string legacyRunId = "legacy-run-json";
+            const string legacyJson =
+                "{\"schema_version\":1,\"run_id\":\"legacy-run-json\",\"request_id\":\"\"," +
+                "\"utf_guid\":\"\",\"source\":\"unity-ui\",\"lifecycle\":\"running\"," +
+                "\"outcome\":\"\",\"health\":\"healthy\"," +
+                "\"created_utc\":\"2026-08-02T12:00:00.0000000Z\",\"dispatched_utc\":\"\"," +
+                "\"started_utc\":\"\",\"finished_utc\":\"\",\"project_identity\":\"\"," +
+                "\"editor_process_identity\":\"\",\"editor_session_id\":\"\"," +
+                "\"build_fingerprint\":\"\",\"utf_version\":\"1.6.0\",\"assembly_path\":\"\"," +
+                "\"source_path\":\"\",\"assembly_write_utc\":\"\",\"source_write_utc\":\"\"," +
+                "\"build_coherent\":true,\"build_error\":\"\",\"mode\":\"\",\"group\":\"\"," +
+                "\"filter\":\"\"}";
+            var legacyPath = _store.GetRunRecordPath(legacyRunId);
+            Directory.CreateDirectory(Path.GetDirectoryName(legacyPath));
+            File.WriteAllText(legacyPath, legacyJson, JsonHelper.Utf8NoBom);
+
+            var legacyOut = service.GetRunJson(legacyRunId);
+
+            StringAssert.Contains("\"categories\":[]", legacyOut);
+            StringAssert.Contains("\"assemblies\":[]", legacyOut);
+            StringAssert.Contains("\"tests\":[]", legacyOut);
+            StringAssert.Contains("\"selection_sha256\":\"\"", legacyOut);
+
+            // Sub-case 3: run directory exists but run.json is entirely
+            // missing (journal.run == null) -- the fallback must still
+            // surface empty arrays and "" instead of a null/omitted field.
+            // Neither sub-case 1 nor 2 exercises this: TestRunRecord's own
+            // field initializers already guarantee non-null arrays in both,
+            // so only a genuinely-null run object exercises the
+            // "?? Array.Empty<string>()" fallback itself.
+            const string missingRunId = "run-missing-record-json";
+            Directory.CreateDirectory(_store.GetRunDirectory(missingRunId));
+
+            var missingOut = service.GetRunJson(missingRunId);
+
+            StringAssert.Contains("\"categories\":[]", missingOut);
+            StringAssert.Contains("\"assemblies\":[]", missingOut);
+            StringAssert.Contains("\"tests\":[]", missingOut);
+            StringAssert.Contains("\"selection_sha256\":\"\"", missingOut);
         }
 
         [Test]
