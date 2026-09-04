@@ -451,11 +451,29 @@ namespace UnityMCP.Editor
                 return;
             }
 
+            // B05: the Play-mode gate moved here, past parsing (registration no longer flags
+            // run_playtest runtime:true). A header-less script keeps the exact legacy text
+            // and timing (INV-005); "# @needs editmode" opts out, but never combined with a
+            // fresh reload — fresh targets a Play session, which @needs editmode has none of.
+            var header = PlaytestHeaderScanner.Scan(script);
+            var fresh = JsonHelper.ExtractString(argsJson, "fresh") == "true";
+            if (!header.NeedsEditmode && !EditorApplication.isPlaying)
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null,
+                    "Not in Play Mode. Use editor(action='play') first."));
+                return;
+            }
+            if (header.NeedsEditmode && fresh)
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null,
+                    "err: fresh is incompatible with @needs editmode"));
+                return;
+            }
+
             var timeout = ExtractFloat(argsJson, "timeout", 120f);
             if (timeout <= 0) timeout = 120f;
             var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true";
             var snapshotOnFailure = JsonHelper.ExtractString(argsJson, "snapshot_on_failure") == "true";
-            var fresh = JsonHelper.ExtractString(argsJson, "fresh") == "true";
             var beforeHook = JsonHelper.ExtractString(argsJson, "before_hook");
             var afterHook = JsonHelper.ExtractString(argsJson, "after_hook");
 
@@ -464,7 +482,7 @@ namespace UnityMCP.Editor
 
             var inner = new TaskCompletionSource<string>();
             PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure, fresh,
-                strict: pathArg != null);
+                strict: pathArg != null, requiresPlayMode: !header.NeedsEditmode);
 
             // ContinueWith's default continuation runs on a ThreadPool thread.
             // MainThreadDispatcher.Enqueue is a thread-safe ConcurrentQueue.Enqueue, drained on

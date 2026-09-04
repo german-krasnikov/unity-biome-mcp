@@ -19,9 +19,11 @@ namespace UnityMCP.Editor
             _activeSimulator = null;
         }
 
+        // requiresPlayMode: threaded by B05's caller-side header gate (CommandRouter.AsyncRunPlaytest).
+        // Not yet consumed here — B06 wires it into the Tick() Play-mode abort at line ~152.
         public static void Run(string script, float globalTimeout, TaskCompletionSource<string> tcs,
             bool abortOnFail = false, bool snapshotOnFailure = false, bool fresh = false,
-            bool strict = false)
+            bool strict = false, bool requiresPlayMode = true)
         {
             if (_isRunning) { tcs.TrySetResult("ERROR: Playtest already running. Wait for completion."); return; }
             _freshMode = fresh;

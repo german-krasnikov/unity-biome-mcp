@@ -159,13 +159,15 @@ namespace UnityMCP.Editor.Tests
         [TestCase("wait_until",             ExpectedResult = true)]
         [TestCase("move_to",                ExpectedResult = true)]
         [TestCase("query_state",            ExpectedResult = true)]
-        [TestCase("run_playtest",           ExpectedResult = true)]
         public bool Registry_IsRuntime_RuntimeCommands(string cmd)
             => CommandRegistry.IsRuntime(cmd);
 
         [TestCase("ping")]
         [TestCase("set_property")]
         [TestCase("get_hierarchy")]
+        // B05: run_playtest's Play-mode gate moved past parsing (AsyncRunPlaytest scans the
+        // script's header itself) — registration no longer flags it runtime:true.
+        [TestCase("run_playtest")]
         public void Registry_IsRuntime_NonRuntimeCommands_ReturnFalse(string cmd)
             => Assert.IsFalse(CommandRegistry.IsRuntime(cmd));
 

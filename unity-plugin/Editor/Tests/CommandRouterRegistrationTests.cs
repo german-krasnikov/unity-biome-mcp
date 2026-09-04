@@ -52,6 +52,19 @@ namespace UnityMCP.Editor.Tests
                 Assert.IsTrue(CommandRegistry.HasAsyncHandler(cmd, out _), $"{cmd} should be async-registered");
         }
 
+        // B05: the Play-mode gate moved past parsing — registration must no longer flag
+        // run_playtest runtime:true, or CheckGuards blocks Edit-mode scripts before their
+        // header (`# @needs editmode`) is ever read.
+        [Test]
+        public void RegisterAsyncCommands_RunPlaytest_NotFlaggedRuntime()
+        {
+            CommandRegistry.Clear();
+            CommandRouter.RegisterAsyncCommands();
+            Assert.IsFalse(CommandRegistry.IsRuntime("run_playtest"),
+                "run_playtest's Play-mode gate moved into AsyncRunPlaytest's header check (B05) — " +
+                "registration must not pre-block Edit-mode scripts before the header is read");
+        }
+
         [Test]
         public void RunTests_RegistrationAcceptsSelectionArgs()
         {

@@ -46,6 +46,9 @@ namespace UnityMCP.Editor
             var header = new PlaytestHeader();
             if (string.IsNullOrEmpty(script)) return header;
 
+            var tags = new HashSet<string>();
+            // By design: scans all lines, not just the leading comment block — @directives
+            // may appear after code lines.
             foreach (var rawLine in script.Split('\n'))
             {
                 var match = DirectiveLine.Match(rawLine.Trim());
@@ -53,12 +56,16 @@ namespace UnityMCP.Editor
 
                 var key = match.Groups[1].Value.ToLowerInvariant();
                 var rest = match.Groups[2].Value.Trim();
-                ApplyDirective(header, key, rest);
+                ApplyDirective(header, tags, key, rest);
             }
+            // Dedup + sort for determinism — HashSet iteration order is not guaranteed.
+            var sortedTags = new List<string>(tags);
+            sortedTags.Sort(StringComparer.Ordinal);
+            header.Tags = sortedTags;
             return header;
         }
 
-        private static void ApplyDirective(PlaytestHeader header, string key, string rest)
+        private static void ApplyDirective(PlaytestHeader header, HashSet<string> tags, string key, string rest)
         {
             switch (key)
             {
@@ -73,7 +80,8 @@ namespace UnityMCP.Editor
                     break;
 
                 case DirectiveTags:
-                    header.Tags.AddRange(rest.Split(Space, StringSplitOptions.RemoveEmptyEntries));
+                    foreach (var t in rest.Split(Space, StringSplitOptions.RemoveEmptyEntries))
+                        tags.Add(t);
                     break;
 
                 case DirectiveExpect:

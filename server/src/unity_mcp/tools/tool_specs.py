@@ -165,7 +165,12 @@ _SPECS: dict[str, ToolSpec] = {
     'resolve_tool_schema': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     # timeout_s is a fallback ceiling only -- tools/runtime.py always passes
     # timeout+20.0 explicitly.
-    'run_playtest': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, runtime_only=True, mutability='write', direct_only=True, unity_transport=True),
+    # B05/R-05: runtime_only intentionally NOT set here — C#'s CommandRouter.Registration.cs
+    # registration (runtime: false) is the sole authority now that the Play-mode gate moved
+    # past parsing into AsyncRunPlaytest's own `# @needs editmode` header check. A static
+    # True here would reintroduce a second, stale Python-only authority (see
+    # test_runtime_only_single_source).
+    'run_playtest': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, mutability='write', direct_only=True, unity_transport=True),
     'run_playtest_suite': ToolSpec(category='TESTS', tier1=True, timeout_s=3600.0, mutability='write', direct_only=True),
     'runtime_snapshot': ToolSpec(category='RUNTIME', mutability='read'),
     'run_tests': ToolSpec(category='TESTS', tier1=True, timeout_s=30.0, direct_only=True, unity_transport=True),

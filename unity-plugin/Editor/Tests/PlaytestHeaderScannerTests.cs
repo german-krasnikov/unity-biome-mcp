@@ -33,7 +33,19 @@ namespace UnityMCP.Editor.Tests
         {
             var header = PlaytestHeaderScanner.Scan("# @tags smoke protocol\nASSERT_CONSOLE_CLEAN");
 
-            CollectionAssert.AreEqual(new[] { "smoke", "protocol" }, header.Tags);
+            // Sorted for determinism (review minor) — ordinal order, not insertion order.
+            CollectionAssert.AreEqual(new[] { "protocol", "smoke" }, header.Tags);
+        }
+
+        [Test]
+        public void Scan_DuplicateTags_Deduplicated()
+        {
+            // Double-red: a naive AddRange (no dedup) would keep all 3 entries incl. the
+            // repeat; an implementation that dedups but doesn't sort would be nondeterministic
+            // (HashSet iteration order is not guaranteed) instead of exactly ["protocol","smoke"].
+            var header = PlaytestHeaderScanner.Scan("# @tags smoke protocol smoke\nASSERT_CONSOLE_CLEAN");
+
+            CollectionAssert.AreEqual(new[] { "protocol", "smoke" }, header.Tags);
         }
 
         [Test]
@@ -60,7 +72,8 @@ namespace UnityMCP.Editor.Tests
             // (overwrite) instead of accumulating across lines would keep only "protocol".
             var header = PlaytestHeaderScanner.Scan("# @tags smoke\n# @tags protocol\nASSERT_CONSOLE_CLEAN");
 
-            CollectionAssert.AreEqual(new[] { "smoke", "protocol" }, header.Tags);
+            // Sorted for determinism (review minor) — ordinal order, not insertion order.
+            CollectionAssert.AreEqual(new[] { "protocol", "smoke" }, header.Tags);
         }
 
         [Test]
