@@ -30,6 +30,15 @@ PORTS_DIR = Path.home() / ".unity-biome-mcp" / "ports"
 DEFAULT_PROJECT = Path(__file__).resolve().parent / "unity-test-project"
 IDENTITY_RE = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
 RUN_STATES = {"prepared", "dispatched", "running", "finalizing", "terminal"}
+# Dispatch-preflight outcomes: Unity can, in principle, know immediately (before
+# a run ever reaches "running"/"finalizing") that there is nothing to execute.
+# No emitter currently produces either literal (grepped unity-plugin/Editor/
+# TestRuns/TestRunProtocol.cs's RunOutcome: only Passed/Failed/Cancelled/
+# Incomplete/Invalid/DispatchFailed exist; a dirty-scene preflight failure is
+# already surfaced as DispatchFailed, and "no tests matched" is represented via
+# expected_count==0 + --allow-empty, not a distinct outcome) -- recognizing
+# them here is forward-compatibility, not a fixed gain today.
+EARLY_EXIT_OUTCOMES = {"no_tests_matched", "dirty_scene_blocked"}
 TERMINAL_OUTCOMES = {
     "passed",
     "failed",
@@ -37,9 +46,10 @@ TERMINAL_OUTCOMES = {
     "incomplete",
     "invalid",
     "dispatch_failed",
-}
+} | EARLY_EXIT_OUTCOMES
 MAX_FILE_RESPONSE_BYTES = 64 * 1024 * 1024
 CANONICAL_FULL_EDITMODE_MINIMUM = 6001
+DEFAULT_POLL_INTERVAL_S = 1.0
 
 
 class RunnerError(RuntimeError):
@@ -508,7 +518,12 @@ async def wait_for_terminal(
                         + (f" current={current}" if current else "")
                     )
                     last_state = state
-                if state == "terminal":
+                # A provisional outcome (e.g. passed/failed) can legitimately
+                # appear before state=="terminal" (TestRunFinalizationCoordinator's
+                # SelectTerminalOutcome), so only these two dispatch-preflight
+                # outcomes bypass the state check -- they signal there was
+                # never going to be a "running"/"finalizing" phase at all.
+                if state == "terminal" or last_snapshot.get("outcome") in EARLY_EXIT_OUTCOMES:
                     return last_snapshot
         except TransportUncertain:
             must_reconfirm = True
@@ -750,7 +765,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--group", default="")
     parser.add_argument("--request-id")
     parser.add_argument("--timeout", type=float, default=1800.0)
-    parser.add_argument("--poll-interval", type=float, default=5.0)
+    parser.add_argument(
+        "--poll-interval",
+        type=float,
+        default=DEFAULT_POLL_INTERVAL_S,
+        help=f"seconds between status polls (default: {DEFAULT_POLL_INTERVAL_S})",
+    )
     parser.add_argument("--expected-utf", default="1.6.0")
     parser.add_argument("--allow-empty", action="store_true")
     parser.add_argument(

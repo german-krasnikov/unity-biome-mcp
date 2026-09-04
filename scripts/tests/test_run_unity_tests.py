@@ -369,6 +369,76 @@ def test_terminal_poll_reconfirms_same_request_after_transient(
     assert "run_tests" not in calls
 
 
+def test_no_tests_matched_is_terminal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A get_test_run snapshot whose outcome is no_tests_matched must
+    terminate the poll loop immediately even though state never reaches
+    'terminal' -- otherwise the caller spins to its deadline for nothing
+    instead of failing fast (validate_terminal then rejects it cleanly:
+    'state and lifecycle must both be terminal').
+
+    Double-red: red today (outcome not recognized as an early-exit signal,
+    loop spins to the deadline and raises TimeoutError instead of
+    returning), red again if the outcome set is emptied.
+    """
+    snapshot = {
+        "request_id": "request-1",
+        "run_id": "run-1",
+        "state": "running",
+        "outcome": "no_tests_matched",
+    }
+
+    async def fake_read(_project, _port, _command, _args):
+        return json.dumps(snapshot)
+
+    monkeypatch.setattr(runner, "read_with_rediscovery", fake_read)
+
+    result = asyncio.run(
+        runner.wait_for_terminal(
+            tmp_path, 10600, "request-1", "run-1",
+            runner.time.monotonic() + 0.05, 0.001,
+        )
+    )
+    assert result == snapshot
+
+
+def test_dirty_scene_blocked_is_terminal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same as test_no_tests_matched_is_terminal for dirty_scene_blocked."""
+    snapshot = {
+        "request_id": "request-1",
+        "run_id": "run-1",
+        "state": "running",
+        "outcome": "dirty_scene_blocked",
+    }
+
+    async def fake_read(_project, _port, _command, _args):
+        return json.dumps(snapshot)
+
+    monkeypatch.setattr(runner, "read_with_rediscovery", fake_read)
+
+    result = asyncio.run(
+        runner.wait_for_terminal(
+            tmp_path, 10600, "request-1", "run-1",
+            runner.time.monotonic() + 0.05, 0.001,
+        )
+    )
+    assert result == snapshot
+
+
+def test_poll_interval_default_is_fast() -> None:
+    """Default --poll-interval must be the fast named constant, not the old
+    5.0s default that made every wait needlessly sluggish.
+
+    Double-red: red if the default reverts to 5.0, red if the named
+    constant is removed/renamed (AttributeError)."""
+    args = runner.parse_args(["EditMode"])
+    assert args.poll_interval == runner.DEFAULT_POLL_INTERVAL_S
+    assert runner.DEFAULT_POLL_INTERVAL_S == 1.0
+
+
 def test_terminal_poll_rejects_changed_run_id_during_recovery(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
