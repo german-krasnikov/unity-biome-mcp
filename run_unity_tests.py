@@ -48,7 +48,9 @@ TERMINAL_OUTCOMES = {
     "dispatch_failed",
 } | EARLY_EXIT_OUTCOMES
 MAX_FILE_RESPONSE_BYTES = 64 * 1024 * 1024
-CANONICAL_FULL_EDITMODE_MINIMUM = 6001
+# Unfiltered EditMode's minimum-test floor is measured, not guessed: recorded
+# by A01's real full-suite run and promoted verbatim into this tracked file.
+FULL_BASELINE_PATH = Path(__file__).resolve().parent / "full-baseline.json"
 DEFAULT_POLL_INTERVAL_S = 1.0
 
 
@@ -541,18 +543,39 @@ def _require_equal(snapshot: dict[str, Any], names: tuple[str, ...], expected: i
         raise RunnerError("terminal count invariant failed: " + ", ".join(failures))
 
 
+def _read_full_baseline(path: Path) -> int:
+    """Read the measured full-EditMode expected_count from a tracked JSON
+    file. Fails closed (RunnerError) on any missing/malformed input --
+    never silently falls back to 0, which would let a truncated run pass."""
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise RunnerError(f"full EditMode baseline file missing: {path}") from error
+    try:
+        data = json.loads(raw)
+        expected = data["expected_count"]
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        raise RunnerError(f"full EditMode baseline file is malformed: {path}") from error
+    if not isinstance(expected, int) or isinstance(expected, bool) or expected <= 0:
+        raise RunnerError(
+            f"full EditMode baseline expected_count must be a positive int: {path}"
+        )
+    return expected
+
+
 def required_minimum_tests(
     mode: str,
     filter_name: str,
     group: str,
     requested: int | None,
     allow_empty: bool,
+    baseline_path: Path = FULL_BASELINE_PATH,
 ) -> int:
     if requested is not None and requested < 0:
         raise RunnerError("minimum_tests cannot be negative")
     baseline = 0 if allow_empty else 1
     if mode == "EditMode" and not filter_name and not group:
-        baseline = CANONICAL_FULL_EDITMODE_MINIMUM
+        baseline = _read_full_baseline(baseline_path)
     if requested is not None:
         baseline = max(baseline, requested)
     return baseline
@@ -788,7 +811,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help=(
             "minimum discovered leaves; unfiltered EditMode runs always require "
-            f"at least {CANONICAL_FULL_EDITMODE_MINIMUM}"
+            f"the expected_count recorded in {FULL_BASELINE_PATH.name}"
         ),
     )
     parser.add_argument("--json", action="store_true")

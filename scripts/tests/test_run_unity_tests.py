@@ -546,19 +546,79 @@ def test_zero_discovery_requires_explicit_override(tmp_path: Path) -> None:
     )
 
 
-def test_unfiltered_editmode_requires_more_than_six_thousand_tests() -> None:
+def _write_baseline(path: Path, expected_count: object) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "expected_count": expected_count,
+                "captured_utc": "2026-09-04T00:00:00Z",
+                "source_run_id": "run-fixture",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_required_minimum_tests_reads_full_baseline_json(tmp_path: Path) -> None:
+    """Unfiltered EditMode's minimum-test floor comes from full-baseline.json's
+    expected_count, not a hardcoded constant.
+
+    Double-red: red today (the hardcoded 6001 constant is consulted
+    regardless of this file's content -- required_minimum_tests doesn't even
+    accept a baseline_path); red if a malformed file (missing expected_count)
+    is silently accepted instead of failing closed.
+    """
+    baseline = tmp_path / "full-baseline.json"
+    _write_baseline(baseline, 12345)
     assert runner.required_minimum_tests(
-        "EditMode", "", "", None, False
-    ) == 6001
+        "EditMode", "", "", None, False, baseline_path=baseline
+    ) == 12345
+
+    malformed = tmp_path / "malformed.json"
+    malformed.write_text(json.dumps({"captured_utc": "x"}), encoding="utf-8")
+    with pytest.raises(runner.RunnerError):
+        runner.required_minimum_tests(
+            "EditMode", "", "", None, False, baseline_path=malformed
+        )
+
+
+def test_required_minimum_tests_fails_closed_on_missing_baseline_file(
+    tmp_path: Path,
+) -> None:
+    """A missing full-baseline.json must fail loudly (RunnerError), never
+    silently fall back to a minimum of 0 -- that would let a truncated
+    EditMode run masquerade as complete."""
+    missing = tmp_path / "does-not-exist.json"
+    with pytest.raises(runner.RunnerError):
+        runner.required_minimum_tests(
+            "EditMode", "", "", None, False, baseline_path=missing
+        )
+
+
+def test_unfiltered_editmode_requires_full_baseline_count(tmp_path: Path) -> None:
+    """Only an unfiltered, ungrouped EditMode run is held to the full
+    baseline's expected_count; a filtered run or PlayMode still only
+    requires at least 1 discovered test (the plan's original intent, now
+    against a file-backed baseline instead of a fixed 6001)."""
+    baseline = tmp_path / "full-baseline.json"
+    _write_baseline(baseline, 5000)
     assert runner.required_minimum_tests(
-        "EditMode", "Fixture.Test", "", None, False
+        "EditMode", "", "", None, False, baseline_path=baseline
+    ) == 5000
+    assert runner.required_minimum_tests(
+        "EditMode", "Fixture.Test", "", None, False, baseline_path=baseline
     ) == 1
     assert runner.required_minimum_tests(
-        "PlayMode", "", "", None, False
+        "PlayMode", "", "", None, False, baseline_path=baseline
     ) == 1
 
 
 def test_partial_full_editmode_catalog_cannot_be_accepted(tmp_path: Path) -> None:
+    """An unfiltered EditMode run whose expected_count falls short of the
+    full baseline must be rejected -- a partial catalog (e.g. a truncated
+    domain reload) must never be silently accepted as a complete run."""
+    baseline = tmp_path / "full-baseline.json"
+    _write_baseline(baseline, 5000)
     snapshot = passing_snapshot(tmp_path)
     snapshot["filter"] = ""
     for name in (
@@ -572,7 +632,7 @@ def test_partial_full_editmode_catalog_cannot_be_accepted(tmp_path: Path) -> Non
         snapshot[name] = 3000
     snapshot["skipped"] = 0
 
-    with pytest.raises(runner.RunnerError, match="minimum_tests=6001"):
+    with pytest.raises(runner.RunnerError, match="minimum_tests=5000"):
         runner.validate_terminal(
             snapshot,
             project=tmp_path,
@@ -582,6 +642,6 @@ def test_partial_full_editmode_catalog_cannot_be_accepted(tmp_path: Path) -> Non
             expected_utf="1.6.0",
             allow_empty=False,
             minimum_tests=runner.required_minimum_tests(
-                "EditMode", "", "", None, False
+                "EditMode", "", "", None, False, baseline_path=baseline
             ),
         )
