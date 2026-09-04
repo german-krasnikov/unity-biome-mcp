@@ -153,6 +153,8 @@ python3 run_unity_tests.py EditMode \
 Omit `--filter` for a complete suite. Do not open a second ordinary Editor.
 Only explicit fault and reload lanes create a disposable project copy.
 
+For a lighter-weight, read-only compile/scene-hygiene pre-check with no MCP round trip, `python3 server/scripts/check_unity.py [status|scenes]` is the sanctioned direct-TCP surface (`.claude/skills/reload-recovery/SKILL.md` §1a). It is diagnostic input only — a fresh `sync_unity` call in the same turn is still required immediately before dispatching `run_unity_tests.py`.
+
 Every run is identified by `request_id`, `run_id`, and `utf_guid`. A disconnect,
 caller timeout, partial aggregate, or uncorrelated latest result is not a
 verdict. Only a reconciled terminal snapshot for the exact run is evidence.
