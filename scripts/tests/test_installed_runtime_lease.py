@@ -132,6 +132,7 @@ def test_runtime_install_uses_pip_fallback_when_uv_is_unavailable(
 
 
 @pytest.mark.venv
+@pytest.mark.timeout(120)
 @REQUIRES_POSIX_SUPERVISOR
 def test_runtime_install_receipt_proves_installed_origin(
     tmp_path: Path,
