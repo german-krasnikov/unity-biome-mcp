@@ -70,6 +70,7 @@ class _RealTimeBridge(HeartbeatMixin):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.timeout(120)
+@pytest.mark.slow  # A07a: genuine ~80s wall-clock — routed to nightly, not the PR lane
 @pytest.mark.real_clock  # A03: real ~80s wallclock by design (module-top-frozen
 # BACKOFF_MIN_S/BACKOFF_MAX_S import means the fixture couldn't reach it anyway)
 async def test_antispam_dead_port_real_wallclock(unused_tcp_port):
