@@ -162,6 +162,8 @@ namespace UnityMCP.Editor.Tests
                    }))
             {
                 proc?.WaitForExit();
+                Assert.That(proc, Is.Not.Null, "/bin/chmod failed to start");
+                Assert.That(proc.ExitCode, Is.Zero, "/bin/chmod exited non-zero");
             }
         }
     }
