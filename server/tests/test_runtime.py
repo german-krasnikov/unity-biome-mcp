@@ -105,6 +105,30 @@ async def test_run_playtest_abort_on_fail_default_omits(mock_bridge):
     assert "abort_on_fail" not in sent
 
 
+async def test_run_playtest_format_default_omits(mock_bridge):
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+    await run_playtest("ASSERT_CONSOLE_CLEAN")
+    sent = mock_bridge.send.call_args[0][1]
+    assert "format" not in sent
+
+
+async def test_run_playtest_format_json_passes_arg_and_skips_compression(mock_bridge, monkeypatch):
+    from unity_mcp.tools import runtime
+
+    long_json = '{"steps":[' + ",".join(f'{{"index":{i}}}' for i in range(60)) + "]}"
+    assert len(long_json) > 300
+    mock_bridge.send.return_value = {"ok": True, "data": long_json}
+    monkeypatch.setenv("UNITY_MCP_VISUAL_VERIFY", "1")
+    monkeypatch.setattr(runtime._sampling, "summarize", AsyncMock(return_value="MUTATED_SUMMARY"))
+
+    result = await run_playtest("LOG hi", format="json")
+
+    sent = mock_bridge.send.call_args[0][1]
+    assert sent["format"] == "json"
+    # Neither compressed nor summarized — the exact receipt JSON round-trips.
+    assert result == long_json
+
+
 async def test_query_state_sends_correct_command(mock_bridge):
     mock_bridge.send.return_value = {"ok": True, "data": "GridPlayer.Score=5\nGridPlayer.PosX=3"}
     result = await query_state("/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX")

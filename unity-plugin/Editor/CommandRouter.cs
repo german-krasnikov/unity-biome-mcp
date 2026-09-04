@@ -488,13 +488,16 @@ namespace UnityMCP.Editor
             var snapshotOnFailure = JsonHelper.ExtractString(argsJson, "snapshot_on_failure") == "true";
             var beforeHook = JsonHelper.ExtractString(argsJson, "before_hook");
             var afterHook = JsonHelper.ExtractString(argsJson, "after_hook");
+            // B16: caller-selectable response representation; canonical JSON is always persisted
+            // regardless of this value (see PlaytestRunner.FinishRun).
+            var format = JsonHelper.ExtractString(argsJson, "format") ?? "text";
 
             if (!string.IsNullOrEmpty(beforeHook))
                 CodeExecutor.Execute(beforeHook, "MCP before_hook");
 
             var inner = new TaskCompletionSource<string>();
             PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure, fresh,
-                strict: pathArg != null, requiresPlayMode: !header.NeedsEditmode);
+                strict: pathArg != null, requiresPlayMode: !header.NeedsEditmode, format: format);
 
             // ContinueWith's default continuation runs on a ThreadPool thread.
             // MainThreadDispatcher.Enqueue is a thread-safe ConcurrentQueue.Enqueue, drained on

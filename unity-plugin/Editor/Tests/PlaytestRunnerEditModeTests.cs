@@ -4,10 +4,12 @@
 // Dispatched end-to-end through CommandRouter.ProcessAsync (same pattern as PlaytestPathTests.cs)
 // since AsyncRunPlaytest is a private handler reachable only through the command dispatch path.
 using System;
+using System.IO;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -160,6 +162,53 @@ namespace UnityMCP.Editor.Tests
             var result = await tcs.Task;
             StringAssert.Contains("RUN_ID", result);
             StringAssert.Contains("reserved", result);
+        }
+
+        // ── B16: format=json threading + receipt persistence ────────────────────────
+
+        private static string ReceiptFullPath(string runId) => Path.GetFullPath(
+            Path.Combine(Application.dataPath, "..", PlaytestReceiptStore.ReceiptPath(runId)));
+
+        [Test]
+        public async Task Run_FormatText_Default_Unchanged_AndPersistsCanonicalReceipt()
+        {
+            const string runId = "b16text01";
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run("LOG hello", 5f, tcs, requiresPlayMode: false, runId: runId);
+            var result = await AwaitBoundedAsync(tcs);
+
+            StringAssert.Contains("PLAYTEST: 1/1", result);
+            StringAssert.DoesNotContain("{", result);
+
+            var receiptPath = ReceiptFullPath(runId);
+            RegisterCleanup(() => { if (File.Exists(receiptPath)) File.Delete(receiptPath); });
+            Assert.IsTrue(File.Exists(receiptPath), $"Expected canonical receipt at {receiptPath}");
+            var json = File.ReadAllText(receiptPath, System.Text.Encoding.UTF8);
+            StringAssert.Contains($"\"run_id\":\"{runId}\"", json);
+            StringAssert.Contains($"\"text_report\":\"{result}\"", json);
+        }
+
+        [Test]
+        public async Task Run_FormatJson_EmitsOuterAndSteps()
+        {
+            const string runId = "b16json01";
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run(RunIdProbeScript, 5f, tcs, requiresPlayMode: false, runId: runId, format: "json");
+            var result = await AwaitBoundedAsync(tcs);
+
+            StringAssert.StartsWith("{", result);
+            StringAssert.Contains("\"teardown_ok\":", result);
+            StringAssert.Contains("\"scene_clean\":", result);
+            StringAssert.Contains("\"steps\":[{", result);
+            // RunIdProbeScript = "LOG $RUN_ID\nASSERT ...==1" — one passing step, one failing step.
+            StringAssert.Contains("\"type\":\"Log\",\"ok\":true,", result);
+            StringAssert.Contains("\"raw_passed\":true,\"expected_fail\":false", result);
+            StringAssert.Contains("\"ok\":false,", result);
+            StringAssert.Contains("\"raw_passed\":false,\"expected_fail\":false", result);
+
+            var receiptPath = ReceiptFullPath(runId);
+            RegisterCleanup(() => { if (File.Exists(receiptPath)) File.Delete(receiptPath); });
+            Assert.IsTrue(File.Exists(receiptPath), $"Expected canonical receipt at {receiptPath}");
         }
     }
 }

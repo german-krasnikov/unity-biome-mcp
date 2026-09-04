@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -43,7 +44,7 @@ namespace UnityMCP.Editor
         // runId: B13 — caller-preallocated identity (e.g. E02's async dispatch); null generates one.
         public static void Run(string script, float globalTimeout, TaskCompletionSource<string> tcs,
             bool abortOnFail = false, bool snapshotOnFailure = false, bool fresh = false,
-            bool strict = false, bool requiresPlayMode = true, string runId = null)
+            bool strict = false, bool requiresPlayMode = true, string runId = null, string format = "text")
         {
             if (_isRunning) { tcs.TrySetResult("ERROR: Playtest already running. Wait for completion."); return; }
             if (_reservedRunIdVal.IsMatch(script))
@@ -147,6 +148,8 @@ namespace UnityMCP.Editor
             PlaytestStep currentExpanded = null; // VAR-expanded clone of current step
             int failedBeforeStep = 0;           // captured before each step to detect setup failures
             PlaytestRunState.Begin(effectiveRunId, stepStartUtc); // B14: observable slice
+            var stepReceipts = new List<PlaytestStepReceipt>(); // B16: structured step ledger
+            bool abortedRun = false; // B16: outer.teardown_ok is false only when this is set
 
             void FinishRun()
             {
@@ -156,13 +159,35 @@ namespace UnityMCP.Editor
                 var report = BuildReport(results, passed, failed, testStart);
                 var stateReport = state.BuildReport();
                 if (stateReport != null) report += "\n" + stateReport;
-                tcs.TrySetResult(report);
+
+                // B16: canonical JSON is always built and persisted regardless of requested
+                // format — only the RETURNED representation below depends on it.
+                var elapsedSeconds = Time.realtimeSinceStartup - testStart;
+                var sceneClean = requiresPlayMode || PlaytestIsolationScope.RefuseIfDirty() == null;
+                var json = BuildJsonReport(effectiveRunId, stepReceipts, passed, failed, elapsedSeconds,
+                    teardownOk: !abortedRun, sceneClean: sceneClean, textReport: report);
+                var receiptPath = Path.GetFullPath(Path.Combine(
+                    Application.dataPath, "..", PlaytestReceiptStore.ReceiptPath(effectiveRunId)));
+                Directory.CreateDirectory(Path.GetDirectoryName(receiptPath));
+                File.WriteAllText(receiptPath, json, new System.Text.UTF8Encoding(false));
+
+                tcs.TrySetResult(format == "json" ? json : report);
             }
 
             void AdvanceStep()
             {
                 if (CheckStepConsoleErrors(steps[stepIdx], stepIdx, stepStartUtc, results))
                     failed++;
+                // B16: one structured receipt per completed step, built at this single choke
+                // point (every step-completion call site funnels through AdvanceStep) so every
+                // step type gets a ledger entry without touching each phase's own results.Add
+                // site. expected_fail is always false until a future wave wires an EXPECT_FAIL
+                // keyword — ok == raw_passed trivially until then.
+                var completedStep = steps[stepIdx];
+                stepReceipts.Add(new PlaytestStepReceipt(
+                    stepIdx, completedStep.Type.ToString(), (DateTime.Now - stepStartUtc).TotalMilliseconds,
+                    completedStep.SourceFile, completedStep.SourceLine,
+                    rawPassed: failed == failedBeforeStep, expectedFail: false));
                 stepIdx++;
                 var decision = DetermineStepAdvance(
                     globalAbort, failedBeforeStep, failed, stepIdx, setupEndIdx, teardownStartIdx);
@@ -170,6 +195,7 @@ namespace UnityMCP.Editor
                 {
                     EditorApplication.isPlaying = false;
                     PlaytestIsolationScope.RevertGroup(groupId);
+                    abortedRun = true; // B16: outer.teardown_ok reflects this
                     FinishRun();
                     return;
                 }
@@ -193,21 +219,23 @@ namespace UnityMCP.Editor
                 {
                 if (requiresPlayMode && !EditorApplication.isPlaying)
                 {
-                    EditorApplication.update -= Tick;
-                    _isRunning = false;
+                    // B16: routed through FinishRun() (was a hand-inlined duplicate of its body)
+                    // so the canonical JSON receipt is built/persisted here too, and B14's
+                    // PlaytestRunState.Finish is no longer silently skipped on this abort path.
                     results.Add($"[{stepIdx + 1}] ABORTED: Play Mode stopped");
-                    tcs.TrySetResult(BuildReport(results, passed, failed, testStart));
+                    abortedRun = true;
+                    FinishRun();
                     return;
                 }
 
                 if (Time.realtimeSinceStartup - testStart > globalTimeout)
                 {
-                    EditorApplication.update -= Tick;
-                    _isRunning = false;
+                    // B16: see note above — routed through FinishRun() instead of duplicating it.
                     if (globalAbort) EditorApplication.isPlaying = false;
                     PlaytestIsolationScope.RevertGroup(groupId);
                     results.Add($"[{stepIdx + 1}] ABORTED: global timeout {globalTimeout}s");
-                    tcs.TrySetResult(BuildReport(results, passed, failed, testStart));
+                    abortedRun = true;
+                    FinishRun();
                     return;
                 }
 
@@ -682,6 +710,36 @@ namespace UnityMCP.Editor
                     sb.AppendLine(r);
             if (hasMonitor) sb.AppendLine(monitorReport);
             return sb.ToString().TrimEnd();
+        }
+
+        /// <summary>
+        /// B16: canonical JSON receipt — schema_version/run_id/passed/failed/duration_seconds/
+        /// steps (one PlaytestStepReceipt each) / outer (teardown_ok/scene_clean) / text_report
+        /// (the exact legacy text, for the durable byte-exact representation). Hand-rolled
+        /// StringBuilder, matching PlayerPlaytestReceipts.cs's style — no System.Text.Json.
+        /// </summary>
+        internal static string BuildJsonReport(string runId, List<PlaytestStepReceipt> steps, int passed,
+            int failed, float elapsedSeconds, bool teardownOk, bool sceneClean, string textReport)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("{\"schema_version\":1,");
+            sb.Append("\"run_id\":\"").Append(runId).Append("\",");
+            sb.Append("\"passed\":").Append(passed).Append(',');
+            sb.Append("\"failed\":").Append(failed).Append(',');
+            sb.Append("\"duration_seconds\":")
+              .Append(elapsedSeconds.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)).Append(',');
+            sb.Append("\"steps\":[");
+            for (var i = 0; i < steps.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append(steps[i].ToJson());
+            }
+            sb.Append("],");
+            sb.Append("\"outer\":{\"teardown_ok\":").Append(teardownOk ? "true" : "false")
+              .Append(",\"scene_clean\":").Append(sceneClean ? "true" : "false").Append("},");
+            sb.Append("\"text_report\":\"").Append(PlaytestStepReceipt.EscapeJsonString(textReport)).Append("\"");
+            sb.Append('}');
+            return sb.ToString();
         }
 
         static void CompleteRunCleanup()

@@ -155,7 +155,8 @@ async def run_playtest(script: str | None = None, timeout: float = 120.0,
                        snapshot_on_failure: bool = False,
                        fresh: bool = False,
                        before_hook: str | None = None,
-                       after_hook: str | None = None) -> str:
+                       after_hook: str | None = None,
+                       format: str = "text") -> str:
     """[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`).
     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |
     ASSERT_CONSOLE_CLEAN [IGNORE "pat"] | SNAPSHOT queries | INVOKE path comp method args |
@@ -165,7 +166,8 @@ async def run_playtest(script: str | None = None, timeout: float = 120.0,
     SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f |
     CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED.
     defs: inline VAL definitions prepended to script.
-    abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown."""
+    abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown.
+    format="json": return the canonical step-ledger receipt instead of the legacy text report; skips compression/summarization."""
     if script and path:
         raise ValueError("script and path are mutually exclusive")
     if not script and not path:
@@ -184,7 +186,8 @@ async def run_playtest(script: str | None = None, timeout: float = 120.0,
             snapshot_on_failure="true" if snapshot_on_failure else None,
             fresh=None,
             before_hook=before_hook, after_hook=after_hook,
-            defs=_normalize_defs(defs), _explicit_path="true"),
+            defs=_normalize_defs(defs), _explicit_path="true",
+            format=None if format == "text" else format),
                           timeout=timeout + _TCP_PLAYTEST_BUFFER)
     else:
         if defs:
@@ -196,8 +199,13 @@ async def run_playtest(script: str | None = None, timeout: float = 120.0,
             abort_on_fail="true" if abort_on_fail else None,
             snapshot_on_failure="true" if snapshot_on_failure else None,
             fresh=None,
-            before_hook=before_hook, after_hook=after_hook),
+            before_hook=before_hook, after_hook=after_hook,
+            format=None if format == "text" else format),
                           timeout=timeout + _TCP_PLAYTEST_BUFFER)
+    if format == "json":
+        # Compression/summarization are text-report-oriented and would mangle or replace the
+        # canonical JSON receipt — the caller explicitly asked for the raw structured shape.
+        return raw
     compressed = _compress_report(raw)
     if len(compressed) > 300:
         svc = _sampling
