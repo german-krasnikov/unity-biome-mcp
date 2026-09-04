@@ -68,7 +68,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Install VC++ 2010 runtime (Unity 6 dependency)
-        if: runner.os == 'Windows'
+        if: |
+          runner.os == 'Windows' &&
+          (github.event_name != 'pull_request' || matrix.name == 'Linux')
         shell: powershell
         run: choco install vcredist2010 -y
 
@@ -97,6 +99,7 @@ jobs:
             upm-${{ runner.os }}-
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
+        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
         timeout-minutes: 60
         with:
           unity-version: 6000.0.65f1
@@ -105,6 +108,7 @@ jobs:
           hub-version: ${{ matrix.hub-version }}
 
       - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
+        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
         with:
           license: 'Personal'
           username: ${{ secrets.UNITY_EMAIL }}
@@ -112,6 +116,7 @@ jobs:
 
       - uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         name: Run EditMode Tests
+        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
         with:
           build-target: ${{ matrix.build-target }}
           editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
