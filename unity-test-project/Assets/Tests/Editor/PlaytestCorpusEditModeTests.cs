@@ -9,6 +9,7 @@
 // a plain additive EditorSceneManager.OpenScene + TrackOwnedScene is NOT worker-only — these
 // tests must stay ordinary (non-Explicit) so they count in the honest EditMode CI total.
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -62,10 +63,10 @@ namespace UnityMCP.TestProject
         }
 
         private static async Task<string> RunScriptAsync(
-            string script, float globalTimeout = 5f, double outerTimeoutSeconds = 5.0)
+            string script, float globalTimeout = 5f, double outerTimeoutSeconds = 5.0, string format = "text")
         {
             var tcs = new TaskCompletionSource<string>();
-            PlaytestRunner.Run(script, globalTimeout, tcs, requiresPlayMode: false);
+            PlaytestRunner.Run(script, globalTimeout, tcs, requiresPlayMode: false, format: format);
             return await AwaitBoundedAsync(tcs, outerTimeoutSeconds);
         }
 
@@ -195,6 +196,62 @@ namespace UnityMCP.TestProject
             CollectionAssert.DoesNotContain(loose, "C_shared_finish.playtest");
             CollectionAssert.Contains(loose, "F_independent_fail.playtest");
             CollectionAssert.Contains(loose, "I1_independent_pass.playtest");
+        }
+
+        // ── C10: biome_smoke — the flagship self-hosting-Biome vertical slice ──────
+        // [Repeat(20)] was verified against this exact UTF 1.6 pinned worker before use
+        // (not assumed): a throwaway probe test proved the async Task body genuinely
+        // re-executes on every repeat (20 distinct GUIDs appended to a scratch file
+        // across 20 repeats), and a second probe with a deliberate failure on repeat #5
+        // proved NUnit's RepeatAttribute stops immediately on the first failure and
+        // reports a single aggregated "failed" outcome (only 5 of the 20 lines were
+        // written) rather than silently swallowing it — so a single "passed" outcome
+        // from this [Repeat(20)] test is equivalent evidentiary weight to 20 discrete
+        // green runs, not a weaker signal. NUnit brackets [SetUp]/[TearDown] around the
+        // whole repeated sequence exactly once, not once per repeat.
+        private static readonly HashSet<string> _biomeSmokeRunIds = new HashSet<string>();
+
+        // Idempotent: [Repeat(20)] re-invokes this whole method body 20x with SetUp/
+        // TearDown bracketing only the outer sequence, so a plain OpenFixtureSceneAsync()
+        // call here would reopen (and re-register via TrackOwnedScene) the same scene 20
+        // times. Skip once it is already loaded.
+        private async Task EnsureFixtureSceneOpenAsync()
+        {
+            var scene = UnityEngine.SceneManagement.SceneManager.GetSceneByPath(ScenePath);
+            if (scene.IsValid() && scene.isLoaded) return;
+            await OpenFixtureSceneAsync();
+        }
+
+        [Test]
+        [Repeat(20)]
+        public async Task Run_BiomeSmoke_CreateCaptureAssertSetPropertyAssertDelete_Passes()
+        {
+            await EnsureFixtureSceneOpenAsync();
+
+            var script = ReadProjectRelativeScript("Assets/Playtests/biome_smoke.playtest");
+            var result = await RunScriptAsync(script, format: "json");
+
+            // Canonical receipt proof, not scene-mutation-only (INV per C10's TESTS
+            // FIRST spec): step index 1 is `MCP get_hierarchy ... INTO $tree` and index
+            // 2 is the following `ASSERT $tree contains ...` that consumes the capture —
+            // both must show ok:true, pinned to their exact step index so this proves
+            // the specific read-and-capture pair ran, not merely that some assert in the
+            // script happened to pass.
+            StringAssert.Contains("\"index\":1,\"type\":\"Mcp\",\"ok\":true,", result);
+            StringAssert.Contains("\"index\":2,\"type\":\"Assert\",\"ok\":true,", result);
+            StringAssert.Contains("\"passed\":9", result);
+            StringAssert.Contains("\"failed\":0", result);
+
+            var runId = JsonHelper.ExtractString(result, "run_id");
+            Assert.IsNotEmpty(runId, "canonical receipt must carry a run_id");
+            Assert.IsTrue(_biomeSmokeRunIds.Add(runId),
+                $"run_id '{runId}' repeated — every iteration must get a unique run_id");
+
+            // Effect-spy, not a text-only assertion: confirms TEARDOWN's MCP
+            // delete_object actually removed the object (not merely that the receipt
+            // self-reports ok:true), proving no state leak into the next repeat.
+            Assert.IsNull(GameObject.Find($"pt_{runId}"),
+                "biome_smoke's TEARDOWN must leave no state for the next iteration");
         }
     }
 }
