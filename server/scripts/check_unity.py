@@ -222,19 +222,12 @@ def _parse_stale_dlls(probe: dict) -> list[str]:
     return stale
 
 
-# check_unity_probe.py owns the status/scenes CLI dispatch (300-line budget);
-# it imports tcp_probe/_discover_ports/_PORTS_DIR back lazily (function-local).
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from check_unity_probe import (  # noqa: E402
-    _DIAG_COMPILING_KEY,  # noqa: F401
-    _parse_read_args,
-    _run_read_subcommand,
-    probe_open_scenes,  # noqa: F401
-    probe_status,  # noqa: F401
-)
-
-
 def main(argv: list[str] | None = None) -> None:
+    # only seam: probe depends on this module (tcp_probe/_discover_ports/
+    # _PORTS_DIR), never the reverse -- check_unity_probe.py owns the
+    # status/scenes CLI dispatch (kept out-of-line for the 300-line budget).
+    from check_unity_probe import _parse_read_args, _run_read_subcommand
+
     ns = _parse_read_args(argv if argv is not None else [])
     if ns.subcommand:
         raise SystemExit(_run_read_subcommand(ns.subcommand))

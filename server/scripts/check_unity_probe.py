@@ -2,26 +2,24 @@
 """Direct-TCP status/scenes read surface -- split out of check_unity.py to
 stay under its 300-line budget (A11a, Plans/Reviews/ARCH-STF-unity-access-policy.md
 §probe_script_spec). Owns the closed CLI dispatch and the probe_status/
-probe_open_scenes primitives; check_unity.py re-exports both for callers.
+probe_open_scenes primitives.
 
-tcp_probe/_discover_ports/_PORTS_DIR are imported back from check_unity.py
-lazily (inside each function body, not at module level) -- check_unity.py
-imports this module at its own top level, so a top-level reverse import here
-would deadlock on the circular reference.
+Dependency is strictly one-directional: this module imports check_unity.py,
+never the reverse. check_unity.py imports this module only from inside its
+own main() (the single documented seam), which runs after check_unity's own
+top-level code has already fully executed -- so by the time anything ever
+imports this module, check_unity is guaranteed fully initialised and this
+top-level import is safe.
 """
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-# DiagnoseCommand.cs's iscompiling=<bool> field (distinct from get_status's
+# DiagnoseCommand.cs:69's iscompiling=<bool> field (distinct from get_status's
 # own compiling= field) -- the gate probe_open_scenes() checks before ever
 # sending 'scene' (allowedDuringCompile=false).
 _DIAG_COMPILING_KEY = "iscompiling"
 
-
 _ENVELOPE_ONLY_KEYS = frozenset({"id", "ok", "data", "err"})
+
+from check_unity import _PORTS_DIR, _discover_ports, tcp_probe  # noqa: E402
 
 
 def probe_status(port: int) -> dict:
@@ -31,8 +29,6 @@ def probe_status(port: int) -> dict:
     stripped of the raw JSON envelope's own id/ok/data/err keys (real Unity
     responses are JSON-enveloped, so tcp_probe's dict otherwise carries both
     the folded fields and the raw envelope side by side)."""
-    from check_unity import tcp_probe
-
     result = tcp_probe(port, cmd="get_status") or {}
     return {k: v for k, v in result.items() if k not in _ENVELOPE_ONLY_KEYS}
 
@@ -46,8 +42,6 @@ def probe_open_scenes(port: int, diag: dict | None = None) -> list[str] | None:
     must never be sent while Unity is compiling. Pass a pre-fetched `diag`
     to avoid a redundant probe when the caller already has one.
     """
-    from check_unity import tcp_probe
-
     if diag is None:
         diag = tcp_probe(port)
     if diag is None or str(diag.get(_DIAG_COMPILING_KEY, "")).lower() == "true":
@@ -72,8 +66,6 @@ def _parse_read_args(argv: list[str]):
 def _run_read_subcommand(subcommand: str) -> int:
     """status/scenes exit codes: 0 printed (incl. graceful COMPILING), 1
     transport error, 5 SCRIPT_ERROR."""
-    from check_unity import _PORTS_DIR, _discover_ports, tcp_probe
-
     try:
         main_port, _reload_port = _discover_ports(_PORTS_DIR)
         if not main_port:

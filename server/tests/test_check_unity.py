@@ -16,6 +16,14 @@ spec = importlib.util.spec_from_file_location("check_unity", _SCRIPT)
 cu = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cu)
 
+# Register under the exact name check_unity_probe.py's own top-level
+# `from check_unity import ...` resolves -- without this, that import would
+# re-import check_unity.py fresh from disk (a second, separate module
+# instance), rather than reusing this test's own `cu`.
+sys.modules["check_unity"] = cu
+sys.path.insert(0, str(_SCRIPT.parent))
+import check_unity_probe as cp  # noqa: E402
+
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
@@ -513,7 +521,7 @@ def test_probe_status_parses_fields(monkeypatch):
     fake = _FakeUnitySocket(text)
     monkeypatch.setattr(cu.socket, "create_connection", lambda *a, **kw: fake)
 
-    result = cu.probe_status(9500)
+    result = cp.probe_status(9500)
 
     assert result == {
         "scene": "SampleScene",
@@ -540,7 +548,7 @@ def test_probe_status_excludes_raw_envelope_keys(monkeypatch):
     fake = _FakeUnitySocket(envelope)
     monkeypatch.setattr(cu.socket, "create_connection", lambda *a, **kw: fake)
 
-    result = cu.probe_status(9500)
+    result = cp.probe_status(9500)
 
     assert result == {"scene": "SampleScene", "dirty": "False"}
 
@@ -570,7 +578,7 @@ def test_probe_open_scenes_parses_leftover(monkeypatch):
     sockets = iter([diag_socket, scene_socket])
     monkeypatch.setattr(cu.socket, "create_connection", lambda *a, **kw: next(sockets))
 
-    result = cu.probe_open_scenes(9500)
+    result = cp.probe_open_scenes(9500)
 
     assert result == [
         "* SampleScene  Assets/Scenes/SampleScene.unity  9 objs",
@@ -593,13 +601,13 @@ def test_probe_open_scenes_skips_during_compile(monkeypatch):
     connections: list[_FakeUnitySocket] = []
 
     def _fake_create_connection(*_args, **_kwargs):
-        fake = _FakeUnitySocket(f"{cu._DIAG_COMPILING_KEY}=True\n")
+        fake = _FakeUnitySocket(f"{cp._DIAG_COMPILING_KEY}=True\n")
         connections.append(fake)
         return fake
 
     monkeypatch.setattr(cu.socket, "create_connection", _fake_create_connection)
 
-    result = cu.probe_open_scenes(9500)
+    result = cp.probe_open_scenes(9500)
 
     assert result is None
     assert len(connections) == 1  # only the diagnose gate; scene never sent
@@ -612,7 +620,7 @@ def test_no_forbidden_wire_commands():
     check_unity.py and its sibling check_unity_probe.py (the CLI dispatch
     lives there, split out for the 300-line budget).
 
-    Double-red: red today (cu._parse_read_args doesn't exist yet --
+    Double-red: red today (cp._parse_read_args doesn't exist yet --
     AttributeError); red again if a future edit adds a forbidden literal,
     a passthrough flag, or drops the closed argparse `choices=`."""
     probe_script = _SCRIPT.parent / "check_unity_probe.py"
@@ -625,4 +633,23 @@ def test_no_forbidden_wire_commands():
     assert "--args" not in source
 
     with pytest.raises(SystemExit):
-        cu._parse_read_args(["not-a-real-subcommand"])
+        cp._parse_read_args(["not-a-real-subcommand"])
+
+
+def test_check_unity_is_single_module_instance(monkeypatch):
+    """check_unity_probe.py's top-level `from check_unity import ...` must
+    resolve to this test's own `cu` instance, not silently re-import
+    check_unity.py fresh from disk as a second, separate module object --
+    that second instance would ignore monkeypatches applied to `cu` (e.g.
+    `patch.object(cu, "tcp_probe", ...)`), a real, hard-to-notice bug.
+
+    Double-red: red if the `sys.modules["check_unity"] = cu` registration
+    (module header) is removed -- calling a probe function would then bind
+    check_unity_probe's tcp_probe/_discover_ports/_PORTS_DIR to a fresh,
+    different check_unity module object."""
+    fake = _FakeUnitySocket("scene=Foo\n")
+    monkeypatch.setattr(cu.socket, "create_connection", lambda *a, **kw: fake)
+
+    cp.probe_status(9500)
+
+    assert sys.modules["check_unity"] is cu
