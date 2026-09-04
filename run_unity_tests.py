@@ -569,6 +569,15 @@ def validate_terminal(
     allow_empty: bool,
     minimum_tests: int = 0,
 ) -> None:
+    state_terminal = (
+        snapshot.get("state") == "terminal" and snapshot.get("lifecycle") == "terminal"
+    )
+    # A dispatch-preflight outcome can legitimately reach here with state/
+    # lifecycle never having become "terminal" at all (there was never a
+    # "running"/"finalizing" phase). Surface *why* the run ended early
+    # instead of the generic messages below, which name no outcome.
+    if not state_terminal and snapshot.get("outcome") in EARLY_EXIT_OUTCOMES:
+        raise RunnerError(f"run ended early with outcome={snapshot.get('outcome')}")
     required_true = (
         "is_terminal",
         "execution_finished",
@@ -581,7 +590,7 @@ def validate_terminal(
     missing_flags = [name for name in required_true if snapshot.get(name) is not True]
     if missing_flags:
         raise RunnerError("terminal evidence is incomplete: " + ", ".join(missing_flags))
-    if snapshot.get("state") != "terminal" or snapshot.get("lifecycle") != "terminal":
+    if not state_terminal:
         raise RunnerError("state and lifecycle must both be terminal")
     if snapshot.get("outcome") not in TERMINAL_OUTCOMES:
         raise RunnerError(f"unknown terminal outcome: {snapshot.get('outcome')!r}")

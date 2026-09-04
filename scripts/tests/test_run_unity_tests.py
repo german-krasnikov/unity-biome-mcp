@@ -428,6 +428,30 @@ def test_dirty_scene_blocked_is_terminal(
     assert result == snapshot
 
 
+@pytest.mark.parametrize("outcome", ("no_tests_matched", "dirty_scene_blocked"))
+def test_validate_terminal_early_exit_outcome_message_includes_literal(
+    outcome: str, tmp_path: Path
+) -> None:
+    """An early-exit snapshot (state never reached 'terminal') must surface
+    its outcome literal in the raised error -- e.g.
+    'run ended early with outcome=no_tests_matched' -- not the generic
+    'state and lifecycle must both be terminal' message, which tells the
+    caller nothing about *why* the run ended early.
+
+    Double-red: red today (the generic/incomplete-evidence message fires
+    instead and never mentions the outcome), red again if the early-exit
+    check is removed and the generic message returns.
+    """
+    snapshot = {
+        "request_id": "request-1",
+        "run_id": "run-1",
+        "state": "running",
+        "outcome": outcome,
+    }
+    with pytest.raises(runner.RunnerError, match=f"outcome={outcome}"):
+        validate(snapshot, tmp_path)
+
+
 def test_poll_interval_default_is_fast() -> None:
     """Default --poll-interval must be the fast named constant, not the old
     5.0s default that made every wait needlessly sluggish.

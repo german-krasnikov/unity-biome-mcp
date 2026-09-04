@@ -64,6 +64,14 @@ def test_parse_nunit(nunit_xml, tmp_path):
 
 
 def test_add_manual(tmp_path):
+    """--add-manual rows must carry a numeric `duration` (0.0 -- a manual
+    entry has no measured wall-clock) so every persisted suite row has the
+    same `duration` field, not just pytest/nunit-sourced ones.
+
+    Double-red: red today (KeyError -- the key is absent for manual rows),
+    red if the field is ever set to something other than a number (e.g. the
+    default constant is dropped/renamed to a non-numeric placeholder).
+    """
     out = tmp_path / "tests.json"
     r = subprocess.run(
         [sys.executable, SCRIPT, "--add-manual",
@@ -74,6 +82,7 @@ def test_add_manual(tmp_path):
     assert r.returncode == 0
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["suites"][0]["passed"] == 284
+    assert data["suites"][0]["duration"] == 0.0
 
 
 def test_multiple_suites_accumulate(junit_xml, nunit_xml, tmp_path):

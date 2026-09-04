@@ -20,6 +20,8 @@ import xml.etree.ElementTree as ET
 
 from test_timeline import parse_nunit_case_durations
 
+MANUAL_DURATION_S = 0.0  # a manual entry has no measured wall-clock
+
 
 def parse_pytest_junit(path: pathlib.Path) -> dict:
     """Parse pytest junitxml → {passed, failed, skipped, total, duration}."""
@@ -97,6 +99,7 @@ def main() -> None:
             "failed": args.failed,
             "skipped": args.skipped,
             "total": args.passed + args.failed + args.skipped,
+            "duration": MANUAL_DURATION_S,
         }
     else:
         parser.error("One of --add-pytest, --add-nunit, or --add-manual required")
