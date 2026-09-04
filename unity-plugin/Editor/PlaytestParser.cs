@@ -1052,9 +1052,12 @@ namespace UnityMCP.Editor
                 }
             }
 
+            // Phase 0.75 (B09 / INV-022): reject Play-bound verbs under `@needs editmode` —
+            // a compile error, not a runtime failure. Lives in PlaytestParser.Directives.cs (R-04).
+            List<string> errors = RejectPlayBoundVerbsUnderEditmode(header, steps, setupSteps, teardownSteps);
+
             // Phase 0.8: warn on unresolved $sigils (always — even without any VAL/VAR defs)
             List<string> warnings = collisionWarnings.Count > 0 ? collisionWarnings : null;
-            List<string> errors = null;
             foreach (var expandedLine in lines)
             {
                 var lt = expandedLine.Trim();
