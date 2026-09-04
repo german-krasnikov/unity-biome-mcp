@@ -121,6 +121,19 @@ def _reset_tcp_probe_grace():
 
 
 @pytest.fixture(autouse=True)
+def _reset_gating_session_enabled():
+    """Fresh gating._session_enabled per test. Without this, a test that calls
+    enable_category(...) without a matching reset() (e.g. test_phase1_reorg.py's
+    test_demoted_tools_visible_after_discover) poisons every later test's tier
+    filtering regardless of monkeypatching (A07b: real root cause of the A07a
+    incidental xdist --dist load flake)."""
+    from unity_mcp.tools import gating
+    gating.reset()
+    yield
+    gating.reset()
+
+
+@pytest.fixture(autouse=True)
 def _clean_unity_env(monkeypatch):
     """Default-disable env-gated features. Tests opt in via their own monkeypatch.setenv."""
     for k in ("UNITY_MCP_HINTS", "UNITY_MCP_VALIDATE", "UNITY_MCP_VISUAL_VERIFY",

@@ -1,4 +1,5 @@
 """Tests for dynamic MCP tool filtering based on Unity MCPSettings."""
+import ast
 import os
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,86 +19,68 @@ ALL_TOOLS = [_tool("get_hierarchy"), _tool("scene"), _tool("shader"), _tool("get
 
 # --- test _filter_tools fallback (gating only, no Unity cache) ---
 
-async def test_filter_tools_fallback_when_bridge_none():
+async def test_filter_tools_fallback_when_bridge_none(monkeypatch):
     """Phase 1b: get_enabled_tools demoted from TIER1; scene promoted (Phase 1a)."""
     import unity_mcp.server as srv
-    orig = srv._disabled_tools_cache
-    try:
-        srv._disabled_tools_cache = None
-        result = await _filter_tools(ALL_TOOLS, None)
-        names = {t.name for t in result}
-        assert "get_hierarchy" in names
-        assert "scene" in names  # tier1 after Phase 1a
-        assert "get_enabled_tools" not in names  # demoted to Tier2 in Phase 1b
-        assert "shader" not in names  # gated out (not in TIER1)
-    finally:
-        srv._disabled_tools_cache = orig
+    monkeypatch.setattr(srv, "_disabled_tools_cache", None)
+    result = await _filter_tools(ALL_TOOLS, None)
+    names = {t.name for t in result}
+    assert "get_hierarchy" in names
+    assert "scene" in names  # tier1 after Phase 1a
+    assert "get_enabled_tools" not in names  # demoted to Tier2 in Phase 1b
+    assert "shader" not in names  # gated out (not in TIER1)
 
 
-async def test_filter_tools_fallback_when_disconnected():
+async def test_filter_tools_fallback_when_disconnected(monkeypatch):
     import unity_mcp.server as srv
-    orig = srv._disabled_tools_cache
+    monkeypatch.setattr(srv, "_disabled_tools_cache", None)
     bridge = AsyncMock()
     bridge.connected = False
-    try:
-        srv._disabled_tools_cache = None
-        result = await _filter_tools(ALL_TOOLS, bridge)
-        names = {t.name for t in result}
-        assert "get_hierarchy" in names
-        assert "shader" not in names
-    finally:
-        srv._disabled_tools_cache = orig
+    result = await _filter_tools(ALL_TOOLS, bridge)
+    names = {t.name for t in result}
+    assert "get_hierarchy" in names
+    assert "shader" not in names
 
 
-async def test_filter_tools_fallback_on_send_error():
+async def test_filter_tools_fallback_on_send_error(monkeypatch):
     import unity_mcp.server as srv
-    orig = srv._disabled_tools_cache
+    monkeypatch.setattr(srv, "_disabled_tools_cache", None)
     bridge = AsyncMock()
     bridge.connected = True
     bridge.send = AsyncMock(side_effect=ConnectionError("lost"))
-    try:
-        srv._disabled_tools_cache = None
-        result = await _filter_tools(ALL_TOOLS, bridge)
-        names = {t.name for t in result}
-        assert "get_hierarchy" in names
-        assert "shader" not in names
-    finally:
-        srv._disabled_tools_cache = orig
+    result = await _filter_tools(ALL_TOOLS, bridge)
+    names = {t.name for t in result}
+    assert "get_hierarchy" in names
+    assert "shader" not in names
 
 
-async def test_filter_tools_fallback_on_unity_error():
+async def test_filter_tools_fallback_on_unity_error(monkeypatch):
     import unity_mcp.server as srv
-    orig = srv._disabled_tools_cache
+    monkeypatch.setattr(srv, "_disabled_tools_cache", None)
     bridge = AsyncMock()
     bridge.connected = True
     bridge.send = AsyncMock(return_value={"ok": False, "err": "fail"})
-    try:
-        srv._disabled_tools_cache = None
-        result = await _filter_tools(ALL_TOOLS, bridge)
-        names = {t.name for t in result}
-        assert "get_hierarchy" in names
-        assert "shader" not in names
-    finally:
-        srv._disabled_tools_cache = orig
+    result = await _filter_tools(ALL_TOOLS, bridge)
+    names = {t.name for t in result}
+    assert "get_hierarchy" in names
+    assert "shader" not in names
 
 
 # --- Core bug-fix: disabled-set semantics ---
 
-async def test_disabled_tier1_tool_hidden():
+async def test_disabled_tier1_tool_hidden(monkeypatch):
     """CORE BUG FIX: unchecking screenshot in Unity form must remove it from ListTools."""
     import unity_mcp.server as srv
     import unity_mcp.tools.gating as gating
     gating.reset()
-    orig = srv._disabled_tools_cache
+    monkeypatch.setattr(srv, "_disabled_tools_cache", {"screenshot"})
     try:
-        srv._disabled_tools_cache = {"screenshot"}
         tools = [_tool("screenshot"), _tool("get_hierarchy")]
         result = await _filter_tools(tools, None)
         names = {t.name for t in result}
         assert "screenshot" not in names, "Disabled TIER1 tool must be hidden"
         assert "get_hierarchy" in names
     finally:
-        srv._disabled_tools_cache = orig
         gating.reset()
 
 
@@ -107,7 +90,7 @@ def test_intent_tools_in_schema_keep_full():
         assert name in _SCHEMA_KEEP_FULL, f"{name} must be in _SCHEMA_KEEP_FULL"
 
 
-async def test_core_tools_survive_disabled():
+async def test_core_tools_survive_disabled(monkeypatch):
     """_CORE_TOOLS must never be hidden even if in disabled set.
 
     A2 regression: server_filtering.py:97 used to check the hand-typed
@@ -118,10 +101,11 @@ async def test_core_tools_survive_disabled():
     import unity_mcp.server as srv
     import unity_mcp.tools.gating as gating
     gating.reset()
-    orig = srv._disabled_tools_cache
+    # Wave 2: 'do' demoted from CORE to SYSTEM direct_only; use 'inspect' instead
+    monkeypatch.setattr(
+        srv, "_disabled_tools_cache", {"inspect", "set_property", "create_object", "screenshot"}
+    )
     try:
-        # Wave 2: 'do' demoted from CORE to SYSTEM direct_only; use 'inspect' instead
-        srv._disabled_tools_cache = {"inspect", "set_property", "create_object", "screenshot"}
         tools = [_tool("inspect"), _tool("set_property"), _tool("create_object"), _tool("screenshot")]
         result = await _filter_tools(tools, None)
         names = {t.name for t in result}
@@ -130,18 +114,16 @@ async def test_core_tools_survive_disabled():
         assert "create_object" in names, "CORE 'create_object' (A2 gap) must survive disabled set"
         assert "screenshot" not in names, "Non-CORE disabled tool must be hidden"
     finally:
-        srv._disabled_tools_cache = orig
         gating.reset()
 
 
-async def test_disabled_cache_none_no_hiding():
+async def test_disabled_cache_none_no_hiding(monkeypatch):
     """None cache = gating-only fallback, nothing extra hidden."""
     import unity_mcp.server as srv
     import unity_mcp.tools.gating as gating
     gating.reset()
-    orig = srv._disabled_tools_cache
+    monkeypatch.setattr(srv, "_disabled_tools_cache", None)
     try:
-        srv._disabled_tools_cache = None
         tools = [_tool("screenshot"), _tool("get_hierarchy")]
         result = await _filter_tools(tools, None)
         names = {t.name for t in result}
@@ -149,13 +131,12 @@ async def test_disabled_cache_none_no_hiding():
         assert "screenshot" in names
         assert "get_hierarchy" in names
     finally:
-        srv._disabled_tools_cache = orig
         gating.reset()
 
 
 # --- Cache interaction tests (disabled-set semantics) ---
 
-async def test_filter_tools_uses_cache_when_available():
+async def test_filter_tools_uses_cache_when_available(monkeypatch):
     """With disabled cache populated, _filter_tools must NOT call bridge.send."""
     from unittest.mock import Mock
     import unity_mcp.server as srv
@@ -167,19 +148,15 @@ async def test_filter_tools_uses_cache_when_available():
     bridge = AsyncMock()
     bridge.send = AsyncMock()
 
-    orig = srv._disabled_tools_cache
-    try:
-        srv._disabled_tools_cache = set()  # empty disabled set = nothing hidden
-        bridge.send.reset_mock()
-        result = await srv._filter_tools([tool_a, tool_b], bridge)
-        bridge.send.assert_not_called()
-        assert tool_a in result
-        assert tool_b in result
-    finally:
-        srv._disabled_tools_cache = orig
+    monkeypatch.setattr(srv, "_disabled_tools_cache", set())  # empty disabled set = nothing hidden
+    bridge.send.reset_mock()
+    result = await srv._filter_tools([tool_a, tool_b], bridge)
+    bridge.send.assert_not_called()
+    assert tool_a in result
+    assert tool_b in result
 
 
-async def test_filter_tools_fallback_when_cache_empty():
+async def test_filter_tools_fallback_when_cache_empty(monkeypatch):
     """With None cache, _apply_gating is used (no TCP)."""
     from unittest.mock import Mock
     import unity_mcp.server as srv
@@ -189,18 +166,14 @@ async def test_filter_tools_fallback_when_cache_empty():
     bridge = AsyncMock()
     bridge.connected = False
 
-    orig = srv._disabled_tools_cache
-    try:
-        srv._disabled_tools_cache = None
-        bridge.send.reset_mock()
-        result = await srv._filter_tools([tool_a], bridge)
-        bridge.send.assert_not_called()
-        assert any(t.name == "get_hierarchy" for t in result)
-    finally:
-        srv._disabled_tools_cache = orig
+    monkeypatch.setattr(srv, "_disabled_tools_cache", None)
+    bridge.send.reset_mock()
+    result = await srv._filter_tools([tool_a], bridge)
+    bridge.send.assert_not_called()
+    assert any(t.name == "get_hierarchy" for t in result)
 
 
-async def test_disabled_tools_cache_populated_on_reconnect():
+async def test_disabled_tools_cache_populated_on_reconnect(monkeypatch):
     """Reconnect populates _disabled_tools_cache via get_disabled_tools."""
     from unittest.mock import AsyncMock
     import unity_mcp.server as srv
@@ -209,19 +182,13 @@ async def test_disabled_tools_cache_populated_on_reconnect():
     bridge.connected = True
     bridge.send = AsyncMock(return_value={"ok": True, "data": "screenshot,shader"})
 
-    orig = srv._disabled_tools_cache
-    orig_lock = srv._refresh_tools_lock
-    try:
-        srv._disabled_tools_cache = None
-        srv._refresh_tools_lock = None
-        await srv._refresh_tools_cache(bridge)
-        assert srv._disabled_tools_cache == {"screenshot", "shader"}
-    finally:
-        srv._disabled_tools_cache = orig
-        srv._refresh_tools_lock = orig_lock
+    monkeypatch.setattr(srv, "_disabled_tools_cache", None)
+    monkeypatch.setattr(srv, "_refresh_tools_lock", None)
+    await srv._refresh_tools_cache(bridge)
+    assert srv._disabled_tools_cache == {"screenshot", "shader"}
 
 
-async def test_disabled_tools_empty_csv_gives_empty_set():
+async def test_disabled_tools_empty_csv_gives_empty_set(monkeypatch):
     """Empty CSV from Unity must produce empty set, not {''}."""
     from unittest.mock import AsyncMock
     import unity_mcp.server as srv
@@ -230,16 +197,10 @@ async def test_disabled_tools_empty_csv_gives_empty_set():
     bridge.connected = True
     bridge.send = AsyncMock(return_value={"ok": True, "data": ""})
 
-    orig = srv._disabled_tools_cache
-    orig_lock = srv._refresh_tools_lock
-    try:
-        srv._disabled_tools_cache = None
-        srv._refresh_tools_lock = None
-        await srv._refresh_tools_cache(bridge)
-        assert srv._disabled_tools_cache == set(), f"Expected empty set, got {srv._disabled_tools_cache}"
-    finally:
-        srv._disabled_tools_cache = orig
-        srv._refresh_tools_lock = orig_lock
+    monkeypatch.setattr(srv, "_disabled_tools_cache", None)
+    monkeypatch.setattr(srv, "_refresh_tools_lock", None)
+    await srv._refresh_tools_cache(bridge)
+    assert srv._disabled_tools_cache == set(), f"Expected empty set, got {srv._disabled_tools_cache}"
 
 
 # ---------------------------------------------------------------------------
@@ -247,7 +208,7 @@ async def test_disabled_tools_empty_csv_gives_empty_set():
 # set actually changes — closes Gap B (client never re-fetches ListTools).
 # ---------------------------------------------------------------------------
 
-async def test_refresh_tools_cache_notifies_session_on_disabled_set_change():
+async def test_refresh_tools_cache_notifies_session_on_disabled_set_change(monkeypatch):
     import unity_mcp.server as srv
 
     bridge = AsyncMock()
@@ -255,20 +216,14 @@ async def test_refresh_tools_cache_notifies_session_on_disabled_set_change():
     bridge.send = AsyncMock(return_value={"ok": True, "data": "screenshot"})
 
     fake_session = AsyncMock()
-    orig_cache = srv._disabled_tools_cache
-    orig_lock = srv._refresh_tools_lock
-    try:
-        srv._disabled_tools_cache = set()  # differs from the new {"screenshot"} value
-        srv._refresh_tools_lock = None
-        with patch("unity_mcp.server_filtering.get_active_session", return_value=fake_session):
-            await srv._refresh_tools_cache(bridge)
-        fake_session.send_tool_list_changed.assert_awaited_once()
-    finally:
-        srv._disabled_tools_cache = orig_cache
-        srv._refresh_tools_lock = orig_lock
+    monkeypatch.setattr(srv, "_disabled_tools_cache", set())  # differs from the new {"screenshot"} value
+    monkeypatch.setattr(srv, "_refresh_tools_lock", None)
+    with patch("unity_mcp.server_filtering.get_active_session", return_value=fake_session):
+        await srv._refresh_tools_cache(bridge)
+    fake_session.send_tool_list_changed.assert_awaited_once()
 
 
-async def test_refresh_tools_cache_no_notify_when_disabled_set_unchanged():
+async def test_refresh_tools_cache_no_notify_when_disabled_set_unchanged(monkeypatch):
     import unity_mcp.server as srv
 
     bridge = AsyncMock()
@@ -276,37 +231,25 @@ async def test_refresh_tools_cache_no_notify_when_disabled_set_unchanged():
     bridge.send = AsyncMock(return_value={"ok": True, "data": "screenshot"})
 
     fake_session = AsyncMock()
-    orig_cache = srv._disabled_tools_cache
-    orig_lock = srv._refresh_tools_lock
-    try:
-        srv._disabled_tools_cache = {"screenshot"}  # same as the new value
-        srv._refresh_tools_lock = None
-        with patch("unity_mcp.server_filtering.get_active_session", return_value=fake_session):
-            await srv._refresh_tools_cache(bridge)
-        fake_session.send_tool_list_changed.assert_not_awaited()
-    finally:
-        srv._disabled_tools_cache = orig_cache
-        srv._refresh_tools_lock = orig_lock
+    monkeypatch.setattr(srv, "_disabled_tools_cache", {"screenshot"})  # same as the new value
+    monkeypatch.setattr(srv, "_refresh_tools_lock", None)
+    with patch("unity_mcp.server_filtering.get_active_session", return_value=fake_session):
+        await srv._refresh_tools_cache(bridge)
+    fake_session.send_tool_list_changed.assert_not_awaited()
 
 
-async def test_refresh_tools_cache_no_notify_when_no_session_captured():
+async def test_refresh_tools_cache_no_notify_when_no_session_captured(monkeypatch):
     import unity_mcp.server as srv
 
     bridge = AsyncMock()
     bridge.connected = True
     bridge.send = AsyncMock(return_value={"ok": True, "data": "screenshot"})
 
-    orig_cache = srv._disabled_tools_cache
-    orig_lock = srv._refresh_tools_lock
-    try:
-        srv._disabled_tools_cache = set()
-        srv._refresh_tools_lock = None
-        with patch("unity_mcp.server_filtering.get_active_session", return_value=None):
-            await srv._refresh_tools_cache(bridge)  # must not raise
-        assert srv._disabled_tools_cache == {"screenshot"}
-    finally:
-        srv._disabled_tools_cache = orig_cache
-        srv._refresh_tools_lock = orig_lock
+    monkeypatch.setattr(srv, "_disabled_tools_cache", set())
+    monkeypatch.setattr(srv, "_refresh_tools_lock", None)
+    with patch("unity_mcp.server_filtering.get_active_session", return_value=None):
+        await srv._refresh_tools_cache(bridge)  # must not raise
+    assert srv._disabled_tools_cache == {"screenshot"}
 
 
 def test_filter_tools_hides_disabled():
@@ -331,7 +274,7 @@ def test_request_handler_is_patched():
 
 # --- TDD F4: handler strips deferred / preserves core ---
 
-async def test_handler_strips_non_core_schema():
+async def test_handler_strips_non_core_schema(monkeypatch):
     """_filter_tools returns STUB schema for non-core tools."""
     import unity_mcp.server as srv
     from unity_mcp.tools.schema_registry import STUB_SCHEMA
@@ -342,18 +285,14 @@ async def test_handler_strips_non_core_schema():
     tool_noncore = _tool("animation")
     tool_noncore.inputSchema = full
 
-    orig_cache = srv._disabled_tools_cache
-    try:
-        srv._disabled_tools_cache = None
-        result = await srv._filter_tools([tool_core, tool_noncore], None)
-        names = {t.name: t for t in result}
-        # get_hierarchy passes gating — verify its schema kept (if returned)
-        if "get_hierarchy" in names:
-            assert names["get_hierarchy"].inputSchema == full
-        # animation gets gated out by tier filter (not in TIER1 and not enabled)
-        assert "animation" not in names
-    finally:
-        srv._disabled_tools_cache = orig_cache
+    monkeypatch.setattr(srv, "_disabled_tools_cache", None)
+    result = await srv._filter_tools([tool_core, tool_noncore], None)
+    names = {t.name: t for t in result}
+    # get_hierarchy passes gating — verify its schema kept (if returned)
+    if "get_hierarchy" in names:
+        assert names["get_hierarchy"].inputSchema == full
+    # animation gets gated out by tier filter (not in TIER1 and not enabled)
+    assert "animation" not in names
 
 
 async def test_handler_preserves_core_full_schema():
@@ -590,40 +529,32 @@ def test_stale_reload_port_cleanup_no_dir():
 # Task 3: Plugin subcategory — per-tool disabled semantics
 # ---------------------------------------------------------------------------
 
-async def test_plugin_tool_disabled_removes_only_it():
+async def test_plugin_tool_disabled_removes_only_it(monkeypatch):
     """Disabling one plugin tool removes only that tool; sibling stays visible."""
     import unity_mcp.server as srv
     import unity_mcp.tools.gating as gating
     gating.reset()
-    orig = srv._disabled_tools_cache
+    monkeypatch.setattr(srv, "_disabled_tools_cache", {"blender_do"})
     try:
-        srv._disabled_tools_cache = {"blender_do"}
         tools = [_tool("blender_do"), _tool("blender_info")]
         result = await _filter_tools(tools, None)
         names = {t.name for t in result}
         assert "blender_do" not in names, "Disabled plugin tool must be hidden"
         assert "blender_info" in names, "Sibling plugin tool must remain visible"
     finally:
-        srv._disabled_tools_cache = orig
         gating.reset()
 
 
-async def test_plugin_tool_csv_roundtrip():
+async def test_plugin_tool_csv_roundtrip(monkeypatch):
     """CSV from Unity containing plugin tool names is parsed into _disabled_tools_cache correctly."""
     import unity_mcp.server as srv
     bridge = AsyncMock()
     bridge.connected = True
     bridge.send = AsyncMock(return_value={"ok": True, "data": "blender_do,blender_render"})
-    orig = srv._disabled_tools_cache
-    orig_lock = srv._refresh_tools_lock
-    try:
-        srv._disabled_tools_cache = None
-        srv._refresh_tools_lock = None
-        await srv._refresh_tools_cache(bridge)
-        assert srv._disabled_tools_cache == {"blender_do", "blender_render"}
-    finally:
-        srv._disabled_tools_cache = orig
-        srv._refresh_tools_lock = orig_lock
+    monkeypatch.setattr(srv, "_disabled_tools_cache", None)
+    monkeypatch.setattr(srv, "_refresh_tools_lock", None)
+    await srv._refresh_tools_cache(bridge)
+    assert srv._disabled_tools_cache == {"blender_do", "blender_render"}
 
 
 # --- Item 1: empty disabled=set() must not be treated as falsy ---
@@ -828,3 +759,31 @@ def test_background_tasks_is_module_level_set():
     import unity_mcp.server_filtering as sf
     assert hasattr(sf, "_background_tasks")
     assert isinstance(sf._background_tasks, set)
+
+
+# ---------------------------------------------------------------------------
+# A07b: guard against reintroducing bare `srv.X = value` module-state
+# mutation in this file (the A07a incidental xdist-lane flake root cause).
+# ---------------------------------------------------------------------------
+
+_LEAK_PRONE_MODULE_ATTRS = ("_disabled_tools_cache", "_refresh_tools_lock")
+
+
+def test_server_filtering_does_not_leak_module_state():
+    """Every mutation of unity_mcp.server's _disabled_tools_cache/
+    _refresh_tools_lock in this file must go through monkeypatch.setattr
+    (auto-restoring), never a bare `srv.X = value` relying on a manual
+    try/finally -- the manual pattern is what let one xdist worker observe
+    another test's half-restored state (A07a incidental finding)."""
+    source = Path(__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source, filename=__file__)
+    offending_lines = [
+        node.lineno
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assign)
+        for target in node.targets
+        if isinstance(target, ast.Attribute)
+        and target.attr in _LEAK_PRONE_MODULE_ATTRS
+        and isinstance(target.value, ast.Name) and target.value.id == "srv"
+    ]
+    assert not offending_lines, f"direct 'srv.X = ...' assignment(s) at line(s) {offending_lines}"

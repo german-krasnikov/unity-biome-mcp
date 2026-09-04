@@ -10,6 +10,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_PATH = REPO_ROOT / ".github" / "workflows" / "ci-python.yml"
+REQUIRED_EXCLUDES = ("not slow", "not live", "not monkey")
 
 
 def _pytest_run_steps() -> list[str]:
@@ -27,7 +28,7 @@ def test_ci_python_lane_excludes_slow():
     steps = _pytest_run_steps()
     assert steps, "expected at least one 'pytest tests/' run step in ci-python.yml"
     for run in steps:
+        # Assumes -m "..." is double-quoted, matching ci-python.yml's convention.
         marker_expr = run.split('-m "', 1)[1].split('"', 1)[0]
-        assert "not slow" in marker_expr, f"missing 'not slow' in: {marker_expr}"
-        assert "not live" in marker_expr, f"missing 'not live' in: {marker_expr}"
-        assert "not monkey" in marker_expr, f"missing 'not monkey' in: {marker_expr}"
+        for required in REQUIRED_EXCLUDES:
+            assert required in marker_expr, f"missing '{required}' in: {marker_expr}"
