@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
@@ -19,14 +20,32 @@ namespace UnityMCP.Editor
             _activeSimulator = null;
         }
 
+        // B13: $RUN_ID is a reserved system VAL — a user script cannot redeclare it (that would
+        // let a script silently fork the run's own identity via VAL's last-write-wins semantics).
+        // Checked against the raw `script` argument only, before any system VAL is concatenated in,
+        // so the system's own injected line is never mistaken for a user declaration.
+        static readonly Regex _reservedRunIdVal = new Regex(@"^\s*VAL\s+\$RUN_ID(\s|$)",
+            RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+        internal const int RunIdHexLength = 8;
+
+        /// <summary>Generates a fresh lowercase-hex run id for the parallel-safe $RUN_ID VAL.</summary>
+        internal static string CreateRunId() => Guid.NewGuid().ToString("N").Substring(0, RunIdHexLength);
+
         // requiresPlayMode: threaded by B05's caller-side header gate (CommandRouter.AsyncRunPlaytest).
         // Consumed in Tick()'s Play-mode abort below (B06) — the caller decides via the parsed
         // header; Run()/Tick() never re-parses it.
+        // runId: B13 — caller-preallocated identity (e.g. E02's async dispatch); null generates one.
         public static void Run(string script, float globalTimeout, TaskCompletionSource<string> tcs,
             bool abortOnFail = false, bool snapshotOnFailure = false, bool fresh = false,
-            bool strict = false, bool requiresPlayMode = true)
+            bool strict = false, bool requiresPlayMode = true, string runId = null)
         {
             if (_isRunning) { tcs.TrySetResult("ERROR: Playtest already running. Wait for completion."); return; }
+            if (_reservedRunIdVal.IsMatch(script))
+            {
+                tcs.TrySetResult("PARSE ERROR: VAL $RUN_ID is a reserved system alias and cannot be declared by user script");
+                return;
+            }
             _freshMode = fresh;
             _freshReloadDone = false;
             _freshLoadInProgress = false;
@@ -46,7 +65,11 @@ namespace UnityMCP.Editor
             var cfgBlock = config?.aliases?.Count > 0
                 ? PlaytestAliasHelpers.FormatVALBlock(config.aliases) + "\n"
                 : "";
-            var resolvedScript = tagLines + "\n" + cfgBlock + script;
+            // B13: $RUN_ID goes last, right before the (already-verified-clean) user script, so
+            // last-write-wins can never let an earlier tag/config alias clobber it.
+            var effectiveRunId = runId ?? CreateRunId();
+            var runIdLine = $"VAL $RUN_ID {effectiveRunId}\n";
+            var resolvedScript = tagLines + "\n" + cfgBlock + runIdLine + script;
 
             ParseResult parseResult = null;
             List<PlaytestStep> steps;

@@ -4,6 +4,7 @@
 // Dispatched end-to-end through CommandRouter.ProcessAsync (same pattern as PlaytestPathTests.cs)
 // since AsyncRunPlaytest is a private handler reachable only through the command dispatch path.
 using System;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
@@ -100,6 +101,65 @@ namespace UnityMCP.Editor.Tests
             PlaytestRunner.Run("LOG hello", 5f, tcs); // requiresPlayMode defaults to true (legacy)
             var result = await AwaitBoundedAsync(tcs);
             StringAssert.Contains("[1] ABORTED: Play Mode stopped", result);
+        }
+
+        // ── B13: $RUN_ID injected as a parallel-safe VAL ─────────────────────────────
+        // LOG's message survives into the report text only when the report takes the
+        // detailed (non-compact) branch, i.e. when the run has a failure — hence the
+        // trailing ASSERT against a nonexistent object, which fails synchronously.
+        private const string RunIdProbeScript = "LOG $RUN_ID\nASSERT /NoSuchObject|C|f == 1";
+
+        private static string ExtractRunIdFromLog(string report)
+        {
+            var match = Regex.Match(report, @"LOG (\S+)");
+            Assert.IsTrue(match.Success, $"Expected a LOG line in report:\n{report}");
+            return match.Groups[1].Value;
+        }
+
+        [Test]
+        public async Task Run_InjectsRunIdVal_UniquePerRun()
+        {
+            var tcs1 = new TaskCompletionSource<string>();
+            PlaytestRunner.Run(RunIdProbeScript, 5f, tcs1, requiresPlayMode: false);
+            var result1 = await AwaitBoundedAsync(tcs1);
+
+            var tcs2 = new TaskCompletionSource<string>();
+            PlaytestRunner.Run(RunIdProbeScript, 5f, tcs2, requiresPlayMode: false);
+            var result2 = await AwaitBoundedAsync(tcs2);
+
+            var id1 = ExtractRunIdFromLog(result1);
+            var id2 = ExtractRunIdFromLog(result2);
+            Assert.AreNotEqual(id1, id2, $"Expected unique $RUN_ID per run.\nrun1: {result1}\nrun2: {result2}");
+        }
+
+        [Test]
+        public async Task Run_InjectsRunIdVal_MatchesHexFormat()
+        {
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run(RunIdProbeScript, 5f, tcs, requiresPlayMode: false);
+            var result = await AwaitBoundedAsync(tcs);
+            var id = ExtractRunIdFromLog(result);
+            StringAssert.IsMatch($"^[0-9a-f]{{{PlaytestRunner.RunIdHexLength}}}$", id);
+        }
+
+        [Test]
+        public async Task Run_PreallocatedRunId_IsUsedEverywhere()
+        {
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run(RunIdProbeScript, 5f, tcs, requiresPlayMode: false, runId: "cafebabe");
+            var result = await AwaitBoundedAsync(tcs);
+            Assert.AreEqual("cafebabe", ExtractRunIdFromLog(result));
+        }
+
+        [Test]
+        public async Task Parse_UserRunIdDeclaration_IsRejected()
+        {
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run("VAL $RUN_ID myid\nLOG hi", 5f, tcs, requiresPlayMode: false);
+            Assert.IsTrue(tcs.Task.IsCompleted, "Reserved-name rejection must short-circuit before Tick()");
+            var result = await tcs.Task;
+            StringAssert.Contains("RUN_ID", result);
+            StringAssert.Contains("reserved", result);
         }
     }
 }
