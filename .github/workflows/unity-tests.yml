@@ -107,6 +107,7 @@ jobs:
             unity-test-project/Library/SourceAssetDB
             unity-test-project/Library/ScriptAssemblies
             unity-test-project/Library/StateCache
+          # key excludes C# source on purpose; Unity's ArtifactDB inside the cached Artifacts/ drives incremental recompilation
           key: unity-library-${{ runner.os }}-${{ hashFiles('unity-test-project/Packages/packages-lock.json', 'unity-test-project/ProjectSettings/**') }}
           restore-keys: |
             unity-library-${{ runner.os }}-
