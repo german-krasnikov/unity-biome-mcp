@@ -513,6 +513,29 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void RepairAndDescribeViolation_OwnedCleanSceneWithRoots_DestroysRootsWithoutFullRestore()
+        {
+            var handleBefore = SceneManager.GetActiveScene().handle;
+            var root = new GameObject("clean-scene-root");
+
+            var probe = new CleanupProbe(new List<string>());
+            probe.BeginUnityMcpIsolation();
+            try
+            {
+                var afterBegin = SceneManager.GetActiveScene();
+                Assert.That(afterBegin.handle, Is.EqualTo(handleBefore),
+                    "A full restore closes and reopens the scene, producing a new handle; " +
+                    "the fast path must reuse the same in-memory scene.");
+                Assert.That(root == null, Is.True, "The leaked root must be destroyed.");
+                Assert.That(afterBegin.GetRootGameObjects(), Is.Empty);
+            }
+            finally
+            {
+                probe.EndUnityMcpIsolation();
+            }
+        }
+
+        [Test]
         public void EnvironmentPreparation_DirtySceneFailsClosedWithoutChangingIt()
         {
             var scene = SceneManager.GetActiveScene();

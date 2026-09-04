@@ -978,24 +978,39 @@ namespace UnityMCP.Editor.Testing
             var dirtyUnowned = new List<string>();
             var recoveryPaths = new List<string>();
             var alreadyClean = !assetWasMissing && loaded.Count == 1;
+            var canDestroyRootsOnly = !assetWasMissing && loaded.Count == 1;
 
             foreach (var scene in loaded)
             {
-                if (!string.Equals(scene.path, ownedPath, StringComparison.Ordinal) ||
-                    scene.isDirty || scene.GetRootGameObjects().Length != 0)
-                    alreadyClean = false;
                 var isRunOwnedScene = string.Equals(
                     scene.path, ownedPath, StringComparison.Ordinal);
+                if (!isRunOwnedScene || scene.isDirty || scene.GetRootGameObjects().Length != 0)
+                    alreadyClean = false;
+                if (!isRunOwnedScene || scene.isDirty || scene.GetRootGameObjects().Length == 0)
+                    canDestroyRootsOnly = false;
                 if (scene.isDirty && !string.IsNullOrEmpty(scene.path) &&
                     !isRunOwnedScene &&
                     !UnityMcpTestAssetOwnership.IsOwnedPath(scene.path))
                     dirtyUnowned.Add(scene.path);
             }
 
-            if (!alreadyClean)
-                recoveryPaths.AddRange(RestoreOwnedScene(loaded, ownedPath));
-            else
+            if (alreadyClean)
+            {
                 Undo.ClearAll();
+            }
+            else if (canDestroyRootsOnly)
+            {
+                // Single owned, non-dirty scene with leftover roots: destroying them
+                // in place is equivalent to (and far cheaper than) the full
+                // NewScene + close/reopen restore below.
+                foreach (var root in loaded[0].GetRootGameObjects())
+                    UnityEngine.Object.DestroyImmediate(root);
+                Undo.ClearAll();
+            }
+            else
+            {
+                recoveryPaths.AddRange(RestoreOwnedScene(loaded, ownedPath));
+            }
 
             var violations = new List<string>();
             if (assetWasMissing)
