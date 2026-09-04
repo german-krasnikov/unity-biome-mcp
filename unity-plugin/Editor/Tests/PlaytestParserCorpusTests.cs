@@ -2,7 +2,7 @@
 // Mode to do anything, so they are a compile error under `# @needs editmode` rather than a
 // silent no-op or a runtime failure. MOVE_PATH/SWEEP_PATH desugar to StepType.Move at parse
 // time, so checking the expanded step is enough to cover both surface keywords.
-// This file also hosts B11's golden parser corpus.
+// This file also hosts B11's golden parser corpus and B12's negative parser corpus.
 using System.IO;
 using NUnit.Framework;
 using UnityMCP.Editor;
@@ -46,6 +46,37 @@ namespace UnityMCP.Editor.Tests
             var result = PlaytestParser.Parse(raw, resolver: ResolvePlaytestDefs);
             Assert.IsNull(result.Errors, $"{fileName}: unexpected parse errors");
             Assert.AreEqual(expectedStepCount, result.Steps.Count, $"{fileName}: hand-counted step count mismatch");
+        }
+
+        // B12 — negative parser corpus: freeze the exact error text of the three
+        // existing parse-time rejection paths so a future refactor can't silently
+        // change or drop them.
+
+        [Test]
+        public void Parse_UnknownCommand_ThrowsWithCommandName()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() => PlaytestParser.Parse("FOOBAR_CMD arg1"));
+            StringAssert.Contains("Unknown command: FOOBAR_CMD", ex.Message);
+        }
+
+        [Test]
+        public void Parse_IncludeTraversal_Rejected()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() => PlaytestParser.Parse("INCLUDE ../../etc/passwd"));
+            StringAssert.Contains("path traversal not allowed", ex.Message);
+        }
+
+        [Test]
+        public void Parse_IncludeOutsidePlaytestDefs_Rejected()
+        {
+            // A single "." does not contain ".." and is not rooted, so it slips past the
+            // traversal guard; Path.GetFullPath(Combine("Assets/PlaytestDefs/", ".")) then
+            // resolves to the PlaytestDefs directory itself *without* the trailing
+            // separator the precomputed base path has, so the StartsWith check fails and
+            // this hits the "outside PlaytestDefs/" branch specifically (resolver: null
+            // forces the hardcoded Assets/PlaytestDefs/ branch rather than a caller resolver).
+            var ex = Assert.Throws<System.ArgumentException>(() => PlaytestParser.Parse("INCLUDE .", resolver: null));
+            StringAssert.Contains("path outside PlaytestDefs/", ex.Message);
         }
 
         [Test]
