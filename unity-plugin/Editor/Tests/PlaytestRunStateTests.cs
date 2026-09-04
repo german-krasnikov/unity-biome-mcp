@@ -51,6 +51,10 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(PlaytestRunState.RunPhase.Running, snap.Phase);
             Assert.Less((DateTime.Now - snap.StartUtc).TotalSeconds, 10.0);
 
+            // Review note (B14, closed as comment only): if an assertion above throws before this
+            // drain runs, PlaytestRunner's `_isRunning` flag is left stuck true — no ForceStop()/
+            // abort API exists yet to recover the runner for the next test in the same session.
+            // Not fixed here; flagged so a future flake traces back to this known gap.
             await AwaitBoundedAsync(tcs, timeoutSeconds: 10.0); // drain — avoid leaking a running playtest
         }
 

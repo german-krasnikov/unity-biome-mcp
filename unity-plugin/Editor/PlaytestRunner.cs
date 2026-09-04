@@ -24,6 +24,11 @@ namespace UnityMCP.Editor
         // let a script silently fork the run's own identity via VAL's last-write-wins semantics).
         // Checked against the raw `script` argument only, before any system VAL is concatenated in,
         // so the system's own injected line is never mistaken for a user declaration.
+        // Review note (B13, closed as comment only): this regex runs BEFORE any INCLUDE file is
+        // expanded/concatenated in, so an INCLUDEd file that itself declares `VAL $RUN_ID ...` is
+        // NOT caught here and can still override the system alias via VAL's last-write-wins
+        // semantics — a pre-INCLUDE check is a known, deliberate gap, not an oversight. Tracked for
+        // Wave D's parser unification (INCLUDE handling moves earlier in the pipeline there).
         static readonly Regex _reservedRunIdVal = new Regex(@"^\s*VAL\s+\$RUN_ID(\s|$)",
             RegexOptions.IgnoreCase | RegexOptions.Multiline);
 

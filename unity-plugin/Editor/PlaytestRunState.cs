@@ -31,6 +31,11 @@ namespace UnityMCP.Editor
 
         static readonly PlaytestRunState _idle = new PlaytestRunState(null, -1, RunPhase.Idle, default, 0, 0);
 
+        // Review note (B14, closed as comment only): this setter is a plain auto-property, not
+        // `volatile` and not behind a memory barrier. Safe today because every writer
+        // (Begin/Update/Finish) and every reader run on Unity's main thread via
+        // EditorApplication.update. Wave P's planned TCP reader will read `Current` from a
+        // different thread — add `volatile` (or a proper lock/Interlocked swap) before that lands.
         internal static PlaytestRunState Current { get; private set; } = _idle;
 
         internal static void Begin(string runId, DateTime startUtc)
