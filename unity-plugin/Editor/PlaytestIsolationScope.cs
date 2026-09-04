@@ -24,5 +24,24 @@ namespace UnityMCP.Editor
             }
             return null;
         }
+
+        /// <summary>
+        /// Opens a named Undo group for an Edit-mode playtest run. Thin wrapper over
+        /// <see cref="UndoGroupHelper.OpenNamedGroup"/> — pair with <see cref="RevertGroup"/>
+        /// on abort/timeout so an interrupted run cannot leave partial mutations behind.
+        /// </summary>
+        internal static int OpenGroup(string name) => UndoGroupHelper.OpenNamedGroup(name);
+
+        /// <summary>
+        /// Reverts every Undo-recorded mutation made since <paramref name="groupId"/> was opened.
+        /// Safe to call with an unopened group id (guarded by <see cref="UndoGroupHelper.CanRevert"/>) —
+        /// callers do not need to track whether a group was actually opened for this run.
+        /// INVOKE-driven mutations are not Undo-recorded and are NOT covered by this revert.
+        /// </summary>
+        internal static void RevertGroup(int groupId)
+        {
+            if (UndoGroupHelper.CanRevert(groupId))
+                UndoGroupHelper.RevertToBeforeGroup(groupId);
+        }
     }
 }

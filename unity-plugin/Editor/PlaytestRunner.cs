@@ -101,6 +101,13 @@ namespace UnityMCP.Editor
             bool snapOnFail = snapshotOnFailure;
             float defaultTimeout = parseResult.DefaultTimeout > 0 ? parseResult.DefaultTimeout : 5f;
 
+            // B08: an Edit-mode run mutates persisted scene state directly (no Play-mode
+            // reload to fall back on), so it gets an Undo group that abort/timeout/outer-catch
+            // revert below. Play-mode runs keep groupId == -1 — RevertGroup is then a no-op.
+            int groupId = -1;
+            if (!requiresPlayMode)
+                groupId = PlaytestIsolationScope.OpenGroup("MCP Playtest (Edit Mode)");
+
             var results = new List<string>();
             int stepIdx = 0;
             var phase = Phase.Ready;
@@ -132,6 +139,7 @@ namespace UnityMCP.Editor
                 if (decision == StepAdvanceDecision.AbortRun)
                 {
                     EditorApplication.isPlaying = false;
+                    PlaytestIsolationScope.RevertGroup(groupId);
                     FinishRun();
                     return;
                 }
@@ -166,6 +174,7 @@ namespace UnityMCP.Editor
                     EditorApplication.update -= Tick;
                     _isRunning = false;
                     if (globalAbort) EditorApplication.isPlaying = false;
+                    PlaytestIsolationScope.RevertGroup(groupId);
                     results.Add($"[{stepIdx + 1}] ABORTED: global timeout {globalTimeout}s");
                     tcs.TrySetResult(BuildReport(results, passed, failed, testStart));
                     return;
@@ -402,6 +411,7 @@ namespace UnityMCP.Editor
                 {
                     EditorApplication.update -= Tick;
                     _isRunning = false;
+                    PlaytestIsolationScope.RevertGroup(groupId);
                     CompleteRunCleanup();
                     tcs.TrySetResult("ERROR: " + e.Message);
                 }
