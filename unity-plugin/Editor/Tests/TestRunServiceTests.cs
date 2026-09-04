@@ -122,6 +122,34 @@ namespace UnityMCP.Editor.Tests
             Assert.AreNotEqual(request.selection_sha256, otherSha);
         }
 
+        [Test]
+        public void ComputeSha256_KnownInput_MatchesFrozenVector()
+        {
+            // Canonical form: mode|filter|group|categories|assemblies|tests,
+            // each array sorted ordinal + "\n"-joined (TestRunSelection.Canonicalize).
+            // Frozen hex computed independently:
+            // python3 -c "import hashlib; print(hashlib.sha256('<canonical>'.encode('utf-8')).hexdigest())"
+            // canonical_a = "EditMode||||UnityMCP.Editor.Chat.Tests.View|"
+            var assembliesOnly = new TestRunSelection(
+                Array.Empty<string>(),
+                new[] { "UnityMCP.Editor.Chat.Tests.View" },
+                Array.Empty<string>());
+            Assert.AreEqual(
+                "e944be3f753540a8f201a310b10ba9ad6c6bc996d1f929fbaa97d03c382c6390",
+                TestRunSelection.ComputeSha256("EditMode", "", "", assembliesOnly));
+
+            // Non-ASCII + multi-item + unsorted input, proving ordinal sort and
+            // UTF-8 canonicalization (not just an ASCII single-item happy path).
+            // canonical_b = "PlayMode|Foo|Bar|Smoke|Zeta\nalpha\nÄrger||A.T1\nB.T2"
+            var multi = new TestRunSelection(
+                new[] { "Zeta", "Ärger", "alpha" },
+                Array.Empty<string>(),
+                new[] { "B.T2", "A.T1" });
+            Assert.AreEqual(
+                "6d3f0f555fb69d40d036b2dc3db99997ef0fded91c84d5caac1afc2126d9fba3",
+                TestRunSelection.ComputeSha256("PlayMode", "Foo|Bar", "Smoke", multi));
+        }
+
         private void SeedPreparedRun(
             string requestId,
             string runId,
