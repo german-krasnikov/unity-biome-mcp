@@ -11,7 +11,7 @@ namespace UnityMCP.Editor
     {
         static void ExecuteStep(PlaytestStep step, PlaytestConfig config, List<string> results,
             ref Phase phase, ref float phaseStart, ref int passed, ref int failed, int stepIdx, PlaytestState state,
-            bool snapshotOnFailure = false)
+            bool snapshotOnFailure = false, string runId = null, PlaytestVarRegistry varRegistry = null)
         {
             var label = $"[{stepIdx + 1}]";
             switch (step.Type)
@@ -25,10 +25,23 @@ namespace UnityMCP.Editor
                         _waitPollErrors = 0;
                         break;
                     }
-                    var (ap, ac, af) = PlaytestParser.ResolveQuery(step.Query, config);
                     try
                     {
-                        var actual = ReadValue(ap, ac, af);
+                        // C03: an exact $name sigil that was captured by a prior MCP ... INTO
+                        // step resolves to that captured value instead of a Unity path|comp|
+                        // field query. A $name that is a live VAR binding is already expanded
+                        // to path|comp|field by ExpandStep before ExecuteStep ever sees it, so
+                        // this check never races existing VAR semantics.
+                        string actual;
+                        if (varRegistry != null && varRegistry.TryGetCaptured(step.Query, out var captured))
+                        {
+                            actual = captured;
+                        }
+                        else
+                        {
+                            var (ap, ac, af) = PlaytestParser.ResolveQuery(step.Query, config);
+                            actual = ReadValue(ap, ac, af);
+                        }
                         var ok = PlaytestParser.Compare(actual, step.Op, step.Value);
                         var asLabel = !string.IsNullOrEmpty(step.Message) ? $" [{step.Message}]" : "";
                         var assertLine = $"{label} ASSERT {step.Query}{step.Op}{step.Value} — {(ok ? "PASS" : "FAIL")} ({actual}){asLabel}";
@@ -713,6 +726,19 @@ namespace UnityMCP.Editor
                     catch (Exception e) { results.Add($"{label} ASSERT_MAX {step.Message} — ERR: {e.Message}"); failed++; }
                     phase = Phase.Done;
                     break;
+
+                case StepType.Mcp:
+                {
+                    // C03 — executes the step through the real CommandRouter.ProcessAsync
+                    // path, polled via Phase.WaitingMcp (mirrors StepType.Move/Phase.Moving
+                    // exactly). ProcessAsync never throws past its own internal catch, so no
+                    // try/catch is needed here — see PlaytestRunner.Mcp.cs.
+                    var envelope = BuildMcpEnvelope(runId, stepIdx, step.Method, step.Args);
+                    _mcpTcs = new TaskCompletionSource<string>();
+                    CommandRouter.ProcessAsync(envelope, _mcpTcs);
+                    phase = Phase.WaitingMcp;
+                    break;
+                }
             }
         }
     }

@@ -12,12 +12,13 @@ namespace UnityMCP.Editor
     [InitializeOnLoad]
     internal static partial class PlaytestRunner
     {
-        enum Phase { Ready, LoadingFresh, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, CapturingFrames, WaitingStable, Done }
+        enum Phase { Ready, LoadingFresh, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, CapturingFrames, WaitingStable, WaitingMcp, Done }
         internal enum StepAdvanceDecision { Continue, JumpToTeardown, AbortRun }
 
         static PlaytestRunner()
         {
             _moveTcs = null;
+            _mcpTcs = null;
             _activeSimulator = null;
         }
 
@@ -285,7 +286,7 @@ namespace UnityMCP.Editor
                     case Phase.Ready:
                         failedBeforeStep = failed; // capture before step so AdvanceStep can detect failures
                         currentExpanded = varRegistry.HasAny ? varRegistry.ExpandStep(step) : step;
-                        ExecuteStep(currentExpanded, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state, snapOnFail);
+                        ExecuteStep(currentExpanded, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state, snapOnFail, effectiveRunId, varRegistry);
                         if (phase == Phase.Done) AdvanceStep();
                         break;
 
@@ -293,6 +294,15 @@ namespace UnityMCP.Editor
                         if (_moveTcs == null || !_moveTcs.Task.IsCompleted) return;
                         results.Add($"[{stepIdx + 1}] MOVE — {_moveTcs.Task.Result}");
                         passed++;
+                        phase = Phase.Done;
+                        AdvanceStep();
+                        break;
+
+                    case Phase.WaitingMcp:
+                        if (_mcpTcs == null || !_mcpTcs.Task.IsCompleted) return;
+                        var mcpResponse = _mcpTcs.Task.Result;
+                        _mcpTcs = null;
+                        ApplyMcpResult(currentExpanded ?? step, stepIdx, mcpResponse, results, varRegistry, ref passed, ref failed);
                         phase = Phase.Done;
                         AdvanceStep();
                         break;
@@ -485,6 +495,7 @@ namespace UnityMCP.Editor
         }
 
         static TaskCompletionSource<string> _moveTcs;
+        static TaskCompletionSource<string> _mcpTcs;
         static IPlaytestSimulator _activeSimulator;
         static bool _isRunning;
         // CAPTURE_FRAMES state
@@ -549,11 +560,12 @@ namespace UnityMCP.Editor
 
         /// <summary>Execute a single synchronous step. Returns true if step completed (phase=Done), false if async.</summary>
         internal static bool ExecuteSyncStep(PlaytestStep step, PlaytestConfig config, List<string> results,
-            ref int passed, ref int failed, int stepIdx, PlaytestState state = null, bool snapshotOnFailure = false)
+            ref int passed, ref int failed, int stepIdx, PlaytestState state = null, bool snapshotOnFailure = false,
+            string runId = null, PlaytestVarRegistry varRegistry = null)
         {
             var phase = Phase.Done;
             float phaseStart = 0;
-            ExecuteStep(step, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state ?? new PlaytestState(), snapshotOnFailure);
+            ExecuteStep(step, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state ?? new PlaytestState(), snapshotOnFailure, runId, varRegistry);
             return phase == Phase.Done;
         }
 
@@ -754,6 +766,7 @@ namespace UnityMCP.Editor
             PlaytestMonitorRegistry.StopAll();
             _activeSimulator = null;
             _moveTcs = null;
+            _mcpTcs = null;
             _cachedConfig = null;
             _freshMode = false;
             _freshReloadDone = false;
