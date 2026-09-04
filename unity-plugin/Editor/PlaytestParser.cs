@@ -48,6 +48,7 @@ namespace UnityMCP.Editor
         public bool AbortOnFail; // true = stop Play Mode on timeout
         public string Label;     // set by preceding DESC line
         public string ResultVar; // MCP ... INTO $name — capture name without '$'; null = no capture
+        public bool ExpectFail;  // C06: set by a preceding EXPECT_FAIL line; inverts this step's pass/fail
 
         // Provenance — null when not tracked (inline scripts with no INCLUDE/MACRO)
         public string   SourceFile;     // origin file path; null = main inline script
@@ -78,7 +79,7 @@ namespace UnityMCP.Editor
             ExpandedRawLine = ExpandedRawLine,
             BatchOps = BatchOps, BatchValues = BatchValues,
             SimulatorName = SimulatorName, IsOr = IsOr,
-            AbortOnFail = AbortOnFail, Label = Label, ResultVar = ResultVar,
+            AbortOnFail = AbortOnFail, Label = Label, ResultVar = ResultVar, ExpectFail = ExpectFail,
             SourceFile = SourceFile, SourceLine = SourceLine,
             MacroStack = MacroStack, SectionContext = SectionContext
         };
@@ -246,6 +247,7 @@ namespace UnityMCP.Editor
             List<PlaytestStep> setupSteps = null;
             List<PlaytestStep> teardownSteps = null;
             string pendingLabel = null;
+            bool pendingExpectFail = false; // C06: EXPECT_FAIL — pendingLabel-style single slot
             bool hasGlobalAbort = false;
             float defaultTimeout = 0f;
             string currentSection = null;
@@ -1040,6 +1042,10 @@ namespace UnityMCP.Editor
                         ParseMcpStep(step, line);
                         break;
 
+                    case "EXPECT_FAIL":
+                        SetPendingExpectFail(ref pendingExpectFail);
+                        continue; // directive — no step emitted (mirrors DESC)
+
                     default:
                         throw new ArgumentException($"Unknown command: {cmd}");
                 }
@@ -1049,6 +1055,7 @@ namespace UnityMCP.Editor
                 step.SectionContext = currentSection;
                 step.Label = pendingLabel;
                 pendingLabel = null;
+                ConsumePendingExpectFail(step, ref pendingExpectFail);
                 switch (parsingSection)
                 {
                     case 1: setupSteps.Add(step); break;

@@ -560,6 +560,23 @@ namespace UnityMCP.Editor
         internal static bool ShouldStopPlayModeOnPollTimeout(bool stepAbortOnFail, bool globalAbort)
             => stepAbortOnFail || globalAbort;
 
+        /// <summary>
+        /// C06 — pure EXPECT_FAIL inversion. Compares the run's passed/failed counters before and
+        /// after one step to see which counter the step itself moved, then (when expectFail is
+        /// set) flips that single outcome: a raw failure becomes a pass, a raw pass becomes a
+        /// failure (an expected-fail step that unexpectedly passes IS a failure). Neither counter
+        /// moving (e.g. a step still polling) is left alone. No Editor context — same style as
+        /// <see cref="DetermineStepAdvance"/>.
+        /// </summary>
+        internal static (int passed, int failed) ApplyExpectFail(
+            int passedBefore, int failedBefore, int passedAfter, int failedAfter, bool expectFail)
+        {
+            if (!expectFail) return (passedAfter, failedAfter);
+            if (passedAfter > passedBefore) return (passedAfter - 1, failedAfter + 1);
+            if (failedAfter > failedBefore) return (passedAfter + 1, failedAfter - 1);
+            return (passedAfter, failedAfter);
+        }
+
         /// <summary>Execute a single synchronous step. Returns true if step completed (phase=Done), false if async.</summary>
         internal static bool ExecuteSyncStep(PlaytestStep step, PlaytestConfig config, List<string> results,
             ref int passed, ref int failed, int stepIdx, PlaytestState state = null, bool snapshotOnFailure = false,

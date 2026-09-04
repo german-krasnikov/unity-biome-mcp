@@ -48,5 +48,22 @@ namespace UnityMCP.Editor
             }
             return errors;
         }
+
+        // C06 — EXPECT_FAIL directive: a pendingLabel-style single-slot flag. The keyword line
+        // itself carries no step (Parse()'s "EXPECT_FAIL" case `continue`s); the flag is set here
+        // and consumed by the very next parsed step's own PlaytestStep.ExpectFail field, mirroring
+        // how DESC's pendingLabel is consumed at the same point in Parse(). Kept here per R-04 —
+        // PlaytestParser.cs itself gains only the field and a one-line case delegation.
+
+        /// <summary>Marks that the next parsed step is expected to fail.</summary>
+        internal static void SetPendingExpectFail(ref bool pendingExpectFail) => pendingExpectFail = true;
+
+        /// <summary>Consumes the pending flag into <paramref name="step"/> and resets the slot,
+        /// exactly like pendingLabel's own consumption just above this call site in Parse().</summary>
+        internal static void ConsumePendingExpectFail(PlaytestStep step, ref bool pendingExpectFail)
+        {
+            step.ExpectFail = pendingExpectFail;
+            pendingExpectFail = false;
+        }
     }
 }
