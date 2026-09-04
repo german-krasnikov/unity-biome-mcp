@@ -6,6 +6,14 @@ TestRunSelection.ComputeSha256 canonical form -- stay unit-testable without
 growing the main script past its established size, mirroring how
 scripts/tests/*.py already import small sibling support modules (e.g.
 release_gate_test_support.py).
+
+Ordinal-sort equivalence caveat: Python's default str sort is codepoint
+order; C#'s StringComparer.Ordinal sorts UTF-16 code units. These are
+verified byte-for-byte identical only for BMP inputs (the frozen vectors in
+TestRunServiceTests.ComputeSha256_KnownInput_MatchesFrozenVector /
+test_selection_sha256_matches_csharp_vectors). Astral-plane characters
+(surrogate pairs) are NOT verified and may sort differently between the two
+languages.
 """
 
 from __future__ import annotations
@@ -20,19 +28,26 @@ if TYPE_CHECKING:
 
 def parse_tests_file(path: Path) -> list[str]:
     """One full test name per line; blank lines and '#'-comment lines are
-    stripped. Mirrors --tests-file's documented format."""
+    stripped, and duplicate lines are collapsed to their first occurrence
+    (order-preserving) -- mirrors TestRunSelection.Canonicalize's
+    ordinal-distinct dedupe so a repeated line never inflates the
+    file-length --minimum-tests default or the wire selection payload."""
     lines = path.read_text(encoding="utf-8").splitlines()
     stripped = (line.strip() for line in lines)
-    return [line for line in stripped if line and not line.startswith("#")]
+    filtered = [line for line in stripped if line and not line.startswith("#")]
+    return list(dict.fromkeys(filtered))
 
 
 def canonicalize_selection_list(values: Sequence[str]) -> str:
-    """Ordinal-sorted, newline-joined form. Must match
-    TestRunSelection.Canonicalize (TestRunSelection.cs) byte-for-byte --
-    Python's default str sort is codepoint order, which equals C#'s
-    StringComparer.Ordinal for the BMP characters exercised by
-    TestRunServiceTests.ComputeSha256_KnownInput_MatchesFrozenVector."""
-    return "\n".join(sorted(values))
+    """Ordinal-distinct (deduped) + ordinal-sorted, newline-joined form.
+    Must match TestRunSelection.Canonicalize (TestRunSelection.cs)
+    byte-for-byte -- Python's default str sort is codepoint order, which
+    equals C#'s StringComparer.Ordinal for the BMP characters exercised by
+    TestRunServiceTests.ComputeSha256_KnownInput_MatchesFrozenVector.
+    Astral/surrogate-pair ordering is NOT verified: C# sorts UTF-16 code
+    units, which diverges from Python's codepoint-order sort outside the
+    BMP."""
+    return "\n".join(sorted(set(values)))
 
 
 def compute_selection_sha256(

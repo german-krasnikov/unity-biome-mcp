@@ -29,8 +29,9 @@ namespace UnityMCP.Editor.TestRuns
         /// <summary>
         /// THE single canonical selection hash. SHA-256 hex of
         /// "mode|filter|group|categories|assemblies|tests" where each array is
-        /// sorted ordinal and newline-joined before the pipe-join. Python (A23)
-        /// must reproduce this exact layout byte-for-byte to validate against it.
+        /// de-duplicated (ordinal) and sorted ordinal, then newline-joined
+        /// before the pipe-join. Python (A23) must reproduce this exact
+        /// layout byte-for-byte to validate against it.
         /// </summary>
         internal static string ComputeSha256(
             string mode, string filter, string group, TestRunSelection selection)
@@ -53,6 +54,6 @@ namespace UnityMCP.Editor.TestRuns
         }
 
         private static string Canonicalize(string[] values) =>
-            string.Join("\n", values.OrderBy(v => v, StringComparer.Ordinal));
+            string.Join("\n", values.Distinct().OrderBy(v => v, StringComparer.Ordinal));
     }
 }

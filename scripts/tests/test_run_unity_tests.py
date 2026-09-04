@@ -751,6 +751,30 @@ def test_tests_file_sets_default_minimum_to_file_length(tmp_path: Path) -> None:
     assert explicit.minimum_tests == 1
 
 
+def test_tests_file_dedupes_lines_for_minimum_and_selection(tmp_path: Path) -> None:
+    """Duplicate lines in a --tests-file must be deduped once, both for the
+    default --minimum-tests floor (len(args.tests)) and for the selection
+    forwarded on the wire -- otherwise a file with repeated lines silently
+    inflates the floor and the selection payload with duplicate entries.
+
+    Double-red: red today (parse_tests_file keeps duplicates, so the file's
+    3 raw lines -- one of them a repeat -- would set minimum_tests=3 and
+    command_args['tests'] would carry the duplicate); red if dedup drops
+    first-seen order (e.g. sorted(set(...)) instead of dict.fromkeys) --
+    the file's lines are deliberately out of alphabetical order."""
+    tests_file = tmp_path / "tests.txt"
+    tests_file.write_text("Suite.B\nSuite.A\nSuite.B\n", encoding="utf-8")
+
+    args = runner.parse_args(["EditMode", "--tests-file", str(tests_file)])
+    runner.resolve_args(args)
+
+    assert args.tests == ["Suite.B", "Suite.A"]
+    assert args.minimum_tests == 2
+
+    command_args = runner.build_command_args(args, request_id="request-1")
+    assert command_args["tests"] == ["Suite.B", "Suite.A"]
+
+
 def test_selection_sha256_matches_csharp_vectors() -> None:
     """compute_selection_sha256 must reproduce
     UnityMCP.Editor.TestRuns.TestRunSelection.ComputeSha256's canonical form
@@ -767,6 +791,16 @@ def test_selection_sha256_matches_csharp_vectors() -> None:
         "PlayMode", "Foo|Bar", "Smoke",
         ["Zeta", "Ärger", "alpha"], [], ["B.T2", "A.T1"],
     ) == "6d3f0f555fb69d40d036b2dc3db99997ef0fded91c84d5caac1afc2126d9fba3"
+
+    # Duplicates + unsorted input, proving ordinal-distinct dedupe happens
+    # before the ordinal sort (not just sort-then-hope-duplicates-collapse).
+    # canonical_c = "EditMode|||Alpha\nBeta\nalpha|Foo.Assembly|Suite.T1\nSuite.T2"
+    assert runner.compute_selection_sha256(
+        "EditMode", "", "",
+        ["Beta", "Alpha", "Beta", "alpha"],
+        ["Foo.Assembly", "Foo.Assembly"],
+        ["Suite.T2", "Suite.T1", "Suite.T2"],
+    ) == "bbb73e9fbb8cf7d41afcd2cf5f694dbe8816e714750edfa1df02e65ac752e6dc"
 
 
 def test_validate_terminal_rejects_snapshot_with_mismatched_selection(

@@ -148,6 +148,18 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(
                 "6d3f0f555fb69d40d036b2dc3db99997ef0fded91c84d5caac1afc2126d9fba3",
                 TestRunSelection.ComputeSha256("PlayMode", "Foo|Bar", "Smoke", multi));
+
+            // Duplicates + unsorted input, proving ordinal-distinct dedupe
+            // happens before the ordinal sort (not just sort-then-hope-
+            // duplicates-collapse). Python must reproduce the same dedupe.
+            // canonical_c = "EditMode|||Alpha\nBeta\nalpha|Foo.Assembly|Suite.T1\nSuite.T2"
+            var withDuplicates = new TestRunSelection(
+                new[] { "Beta", "Alpha", "Beta", "alpha" },
+                new[] { "Foo.Assembly", "Foo.Assembly" },
+                new[] { "Suite.T2", "Suite.T1", "Suite.T2" });
+            Assert.AreEqual(
+                "bbb73e9fbb8cf7d41afcd2cf5f694dbe8816e714750edfa1df02e65ac752e6dc",
+                TestRunSelection.ComputeSha256("EditMode", "", "", withDuplicates));
         }
 
         private void SeedPreparedRun(

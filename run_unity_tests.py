@@ -584,6 +584,12 @@ def required_minimum_tests(
     if requested is not None and requested < 0:
         raise RunnerError("minimum_tests cannot be negative")
     baseline = 0 if allow_empty else 1
+    # Any non-empty categories/assemblies/tests value -- including an
+    # exclusion-only pattern like '!^Stress$' -- counts as "filtered" here,
+    # same as --filter's pre-existing semantics: it drops the floor straight
+    # to 1 regardless of whether it excludes or includes tests. Pair an
+    # exclusion-only selection with an explicit --minimum-tests when a
+    # meaningful floor is needed.
     is_unfiltered = (
         mode == "EditMode"
         and not filter_name
@@ -859,7 +865,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="append",
         default=[],
         dest="categories",
-        help="UTF category filter, repeatable (e.g. --category '!^Stress$' --category Slow)",
+        help=(
+            "UTF category filter, repeatable (e.g. --category '!^Stress$' "
+            "--category Slow); an exclusion-only pattern like '!^Stress$' "
+            "still counts as 'filtered' and drops the minimum-tests floor "
+            "to 1 -- pair with --minimum-tests for a meaningful floor "
+            "(same pre-existing semantics as --filter)"
+        ),
     )
     parser.add_argument(
         "--assembly",
