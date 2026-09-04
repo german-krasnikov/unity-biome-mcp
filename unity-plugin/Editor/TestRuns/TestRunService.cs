@@ -148,16 +148,20 @@ namespace UnityMCP.Editor.TestRuns
                 _captureBuild);
         }
 
-        internal string Start(string requestId, string mode, string group, string filter)
+        internal string Start(
+            string requestId, string mode, string group, string filter,
+            TestRunSelection selection = null)
         {
             if (!IsSafeIdentity(requestId))
                 return "Error: request_id must contain 1-200 ASCII letters, digits, '.', '_' or '-'";
 
             lock (StartGate)
-                return StartCore(requestId, mode, group, filter);
+                return StartCore(requestId, mode, group, filter, selection);
         }
 
-        private string StartCore(string requestId, string mode, string group, string filter)
+        private string StartCore(
+            string requestId, string mode, string group, string filter,
+            TestRunSelection selection)
         {
             try
             {
@@ -173,6 +177,9 @@ namespace UnityMCP.Editor.TestRuns
             var requestedMode = NormalizeMode(mode);
             var requestedGroup = group ?? "";
             var requestedFilter = filter ?? "";
+            var requestedSelection = selection ?? TestRunSelection.Empty;
+            var selectionSha256 = TestRunSelection.ComputeSha256(
+                requestedMode, requestedFilter, requestedGroup, requestedSelection);
             var request = _store.CreateRequestOnce(new TestRunRequestRecord
             {
                 request_id = requestId,
@@ -181,6 +188,10 @@ namespace UnityMCP.Editor.TestRuns
                 mode = requestedMode,
                 group = requestedGroup,
                 filter = requestedFilter,
+                categories = requestedSelection.Categories,
+                assemblies = requestedSelection.Assemblies,
+                tests = requestedSelection.Tests,
+                selection_sha256 = selectionSha256,
                 state = TestRunProtocol.Lifecycle.Prepared,
                 created_utc = now
             }, out var requestCreated);
@@ -897,7 +908,11 @@ namespace UnityMCP.Editor.TestRuns
                 created_utc = request.created_utc,
                 mode = request.mode ?? "",
                 group = request.group ?? "",
-                filter = request.filter ?? ""
+                filter = request.filter ?? "",
+                categories = request.categories ?? Array.Empty<string>(),
+                assemblies = request.assemblies ?? Array.Empty<string>(),
+                tests = request.tests ?? Array.Empty<string>(),
+                selection_sha256 = request.selection_sha256 ?? ""
             };
 
         private static bool RunMatchesIntent(

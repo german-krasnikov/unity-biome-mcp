@@ -53,6 +53,16 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void RunTests_RegistrationAcceptsSelectionArgs()
+        {
+            Assert.IsTrue(CommandRegistry.TryGetContract(
+                "run_tests", out _, out var optional, out _));
+            CollectionAssert.AreEqual(
+                new[] { "mode", "filter", "group", "categories", "assemblies", "tests" },
+                optional);
+        }
+
+        [Test]
         public void RegisterAll_CallsAllFourBucketsAndDelegatesToWatchAndPlugins()
         {
             CommandRegistry.Clear();

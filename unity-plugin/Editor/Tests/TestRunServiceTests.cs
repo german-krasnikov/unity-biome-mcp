@@ -90,6 +90,38 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNull(filter.testNames);
         }
 
+        [Test]
+        public void Start_WithSelection_PersistsSelectionOnRequestAndRun()
+        {
+            var selection = new TestRunSelection(
+                new[] { "Fast", "!Stress" },
+                new[] { "UnityMCP.Editor.Tests" },
+                new[] { "Suite.TestA" });
+            var otherSelection = new TestRunSelection(
+                new[] { "Slow" }, Array.Empty<string>(), Array.Empty<string>());
+
+            CreateService().Start("request-selection", "EditMode", "", "", selection);
+            CreateService().Start("request-selection-repeat", "EditMode", "", "", selection);
+            CreateService().Start("request-selection-other", "EditMode", "", "", otherSelection);
+
+            var request = _store.ReadRequest("request-selection");
+            CollectionAssert.AreEqual(new[] { "Fast", "!Stress" }, request.categories);
+            CollectionAssert.AreEqual(new[] { "UnityMCP.Editor.Tests" }, request.assemblies);
+            CollectionAssert.AreEqual(new[] { "Suite.TestA" }, request.tests);
+            Assert.IsNotEmpty(request.selection_sha256);
+
+            var run = _store.ReadRun(request.run_id);
+            CollectionAssert.AreEqual(new[] { "Fast", "!Stress" }, run.categories);
+            CollectionAssert.AreEqual(new[] { "UnityMCP.Editor.Tests" }, run.assemblies);
+            CollectionAssert.AreEqual(new[] { "Suite.TestA" }, run.tests);
+            Assert.AreEqual(request.selection_sha256, run.selection_sha256);
+
+            var repeatSha = _store.ReadRequest("request-selection-repeat").selection_sha256;
+            var otherSha = _store.ReadRequest("request-selection-other").selection_sha256;
+            Assert.AreEqual(request.selection_sha256, repeatSha);
+            Assert.AreNotEqual(request.selection_sha256, otherSha);
+        }
+
         private void SeedPreparedRun(
             string requestId,
             string runId,

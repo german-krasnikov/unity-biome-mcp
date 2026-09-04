@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
+using UnityMCP.Editor.TestRuns;
 
 [assembly: InternalsVisibleTo("UnityMCP.TestProject")]
 
@@ -298,11 +299,15 @@ namespace UnityMCP.Editor
             var group = JsonHelper.ExtractString(argsJson, "group");
             var filter = JsonHelper.ExtractString(argsJson, "filter");
             var requestId = JsonHelper.ExtractString(argsJson, "request_id");
-            TestRunner.Execute(mode, result =>
+            var selection = new TestRunSelection(
+                TestRunSelectionArgs.ParseList(argsJson, "categories"),
+                TestRunSelectionArgs.ParseList(argsJson, "assemblies"),
+                TestRunSelectionArgs.ParseList(argsJson, "tests"));
+            TestRunner.ExecuteWithSelection(mode, result =>
             {
                 var (ok, text) = TestRunner.FinishRun(result);
                 tcs.TrySetResult(ok ? BuildResponse(id, text) : JsonHelper.FormatResponse(id, false, null, text));
-            }, group, filter, requestId);
+            }, group, filter, requestId, selection);
         }
 
         private static void AsyncBuild(string id, string argsJson, TaskCompletionSource<string> tcs)
