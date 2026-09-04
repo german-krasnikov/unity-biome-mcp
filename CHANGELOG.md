@@ -12,6 +12,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Test selection flags in runner:** `run_unity_tests.py` now accepts `--category` and `--assembly` for targeted test runs; `--tests-file` allows filtering from a newline-delimited file with validation and deduplication by canonical form
+- **Test run retention and pruning:** `TestRunStore.PruneOldRuns` implements 50-run cap with 7-day staleness floor; runs older than 7 days are retained only if under 50 total
+- **Dispatch-failure visibility:** `TestRunReconciler` now surfaces the exact failure reason in `dispatch_issue` field instead of generic dispatch status
+- **Cassette recorder for protocol testing:** New `bridge_cassette.py` module records and replays TCP exchanges for deterministic wire protocol testing
+- **Full baseline migration:** `full-baseline.json` replaces hardcoded 6001 Unity version constant
+
+### Changed
+
+- **PR-lane Python test speed:** 262s → 35s via selective test-class filtering and focused pytest markers (M-wave-a)
+- **Test run polling compaction:** `get_test_run` responses omit full detail for non-terminal states, keeping compact snapshots until terminal verdict
+- **CI timeout consistency:** Timeout-minutes now explicitly set across all job lanes; Linux-only Unity compile on PR lanes (v1.17.0 contracts)
+- **Library/.meta cache strategy:** Library artifacts cached across runs with mtime validation; .meta GUID conflicts pre-checked on import
+
+### Test Results
+
+- **C# EditMode:** 9,310 passed
+- **Python PR-lane:** 35s (35× speedup)
+
 ## [v1.52.0] — 2026-09-03
 
 ### Fixed
