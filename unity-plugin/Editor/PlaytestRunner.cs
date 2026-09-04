@@ -154,6 +154,7 @@ namespace UnityMCP.Editor
             DateTime stepStartUtc = DateTime.Now;
             PlaytestStep currentExpanded = null; // VAR-expanded clone of current step
             int failedBeforeStep = 0;           // captured before each step to detect setup failures
+            int passedBeforeStep = 0;           // C07: EXPECT_FAIL's pre-step baseline for `passed`
             PlaytestRunState.Begin(effectiveRunId, stepStartUtc); // B14: observable slice
             WriteSentinel(effectiveRunId); // C05: reload sentinel — deleted by FinishRun() below
             var stepReceipts = new List<PlaytestStepReceipt>(); // B16: structured step ledger
@@ -184,18 +185,24 @@ namespace UnityMCP.Editor
 
             void AdvanceStep()
             {
-                if (CheckStepConsoleErrors(steps[stepIdx], stepIdx, stepStartUtc, results))
+                var completedStep = steps[stepIdx];
+                bool rawPassed = failed == failedBeforeStep; // step's own outcome, before inversion
+                // C07: EXPECT_FAIL inversion runs BEFORE CheckStepConsoleErrors below, on
+                // purpose — the console-error channel is structurally separate and must never
+                // be inverted, so a step that expected-fails for its own DSL reason but also
+                // logs a genuine Debug.LogError still reports that error as a real failure.
+                if (completedStep.ExpectFail)
+                    (passed, failed) = ApplyExpectFail(passedBeforeStep, failedBeforeStep, passed, failed, true);
+                if (CheckStepConsoleErrors(completedStep, stepIdx, stepStartUtc, results))
                     failed++;
                 // B16: one structured receipt per completed step, built at this single choke
                 // point (every step-completion call site funnels through AdvanceStep) so every
                 // step type gets a ledger entry without touching each phase's own results.Add
-                // site. expected_fail is always false until a future wave wires an EXPECT_FAIL
-                // keyword — ok == raw_passed trivially until then.
-                var completedStep = steps[stepIdx];
+                // site. C07: expected_fail now reflects the real EXPECT_FAIL modifier.
                 stepReceipts.Add(new PlaytestStepReceipt(
                     stepIdx, completedStep.Type.ToString(), (DateTime.Now - stepStartUtc).TotalMilliseconds,
                     completedStep.SourceFile, completedStep.SourceLine,
-                    rawPassed: failed == failedBeforeStep, expectedFail: false));
+                    rawPassed: rawPassed, expectedFail: completedStep.ExpectFail));
                 stepIdx++;
                 var decision = DetermineStepAdvance(
                     globalAbort, failedBeforeStep, failed, stepIdx, setupEndIdx, teardownStartIdx);
@@ -286,7 +293,13 @@ namespace UnityMCP.Editor
                 switch (phase)
                 {
                     case Phase.Ready:
+                        // C07: this is the one entry point every step type passes through before
+                        // ExecuteStep can move it into any other phase (Moving/WaitingPoll/
+                        // WaitingMcp/...), so capturing the before-step baseline here — instead of
+                        // in AdvanceStep itself — makes it reachable from every phase path,
+                        // including a step that only reaches AdvanceStep many ticks later via polling.
                         failedBeforeStep = failed; // capture before step so AdvanceStep can detect failures
+                        passedBeforeStep = passed; // mirrors failedBeforeStep for EXPECT_FAIL's inversion
                         currentExpanded = varRegistry.HasAny ? varRegistry.ExpandStep(step) : step;
                         ExecuteStep(currentExpanded, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state, snapOnFail, effectiveRunId, varRegistry);
                         if (phase == Phase.Done) AdvanceStep();

@@ -363,5 +363,48 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(PlaytestRunner.Phase.Done, phase);
             StringAssert.Contains("denied", results[0]);
         }
+
+        // ── C07: EXPECT_FAIL wired into AdvanceStep, console-error carve-out ────────
+
+        [Test]
+        public async Task Run_ExpectFailStep_ConsoleErrorStillFails()
+        {
+            // The MCP step itself raw-fails (unregistered command — same as
+            // Run_McpStep_UnknownCommand_ReportsFailNotCrash) AND CommandRouter logs a real
+            // Debug.LogError for that same failure. EXPECT_FAIL must invert the step's own
+            // raw fail into a pass, but the separately-counted console error must still stand
+            // — the console-error channel is never inverted.
+            UnityEngine.TestTools.LogAssert.Expect(
+                UnityEngine.LogType.Error,
+                new System.Text.RegularExpressions.Regex("Command failed: STATE: Command not registered: totally_unknown_command_xyz"));
+
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run("EXPECT_FAIL\nMCP totally_unknown_command_xyz\n", 5f, tcs, requiresPlayMode: false);
+            var result = await AwaitBoundedAsync(tcs);
+
+            // 1 passed (the raw MCP fail inverted by EXPECT_FAIL) + 1 failed (the console
+            // error, never inverted) — NOT "0/2" (no inversion) and NOT "1/1" (console
+            // channel swallowed by the inversion).
+            StringAssert.Contains("PLAYTEST: 1/2", result);
+            StringAssert.Contains("CONSOLE_ERR", result);
+            StringAssert.DoesNotContain("ABORTED", result);
+        }
+
+        [Test]
+        public async Task Run_ExpectFailOnPolledStep_Works()
+        {
+            // WAIT_UNTIL always resolves through Phase.WaitingPoll (never synchronously in
+            // Phase.Ready), proving EXPECT_FAIL's before/after baseline survives a step that
+            // spans multiple Tick() calls before AdvanceStep is finally reached. The query
+            // targets a nonexistent object, so ReadValue throws on every poll tick; after 3
+            // consecutive exceptions the poll gives up and raw-fails without waiting out the
+            // full timeout.
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run("EXPECT_FAIL\nWAIT_UNTIL /NoSuchC07PollObject|Foo|bar == 1\n", 5f, tcs, requiresPlayMode: false);
+            var result = await AwaitBoundedAsync(tcs);
+
+            StringAssert.Contains("PLAYTEST: 1/1", result);
+            StringAssert.DoesNotContain("ABORTED", result);
+        }
     }
 }
