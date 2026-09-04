@@ -50,7 +50,7 @@ jobs:
       - name: Install and run tests with coverage
         run: |
           pip install "./server[dev]"
-          cd server && PYTHONWARNDEFAULTENCODING=1 python -m pytest tests -m "not live and not monkey" -q \
+          cd server && PYTHONWARNDEFAULTENCODING=1 python -m pytest tests -m "$(python ../scripts/gen_lane_args.py pytest master-conformance)" -q \
             --cov=unity_mcp --cov-report=xml:coverage.xml --cov-config=pyproject.toml
         continue-on-error: true
 
