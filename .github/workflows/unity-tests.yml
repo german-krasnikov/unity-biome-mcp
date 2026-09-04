@@ -97,6 +97,20 @@ jobs:
           key: upm-${{ runner.os }}-${{ hashFiles('unity-test-project/Packages/packages-lock.json') }}
           restore-keys: |
             upm-${{ runner.os }}-
+
+      - name: Cache Unity Library
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: |
+            unity-test-project/Library/Artifacts
+            unity-test-project/Library/ArtifactDB
+            unity-test-project/Library/SourceAssetDB
+            unity-test-project/Library/ScriptAssemblies
+            unity-test-project/Library/StateCache
+          key: unity-library-${{ runner.os }}-${{ hashFiles('unity-test-project/Packages/packages-lock.json', 'unity-test-project/ProjectSettings/**') }}
+          restore-keys: |
+            unity-library-${{ runner.os }}-
+
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
         if: github.event_name != 'pull_request' || matrix.name == 'Linux'
