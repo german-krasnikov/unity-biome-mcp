@@ -1,5 +1,6 @@
 """Runtime Play Mode tools — blocked outside Play Mode by Unity guard."""
 import asyncio
+import json
 import re
 
 from ..sampling import sampling_service as _sampling
@@ -289,12 +290,44 @@ async def _transition_play_state(expected: bool) -> None:
     await _wait_for_play_state(expected, action)
 
 
-def _is_playtest_pass(result: str) -> bool:
+def _is_playtest_pass(result: str, format: str | None = None) -> bool:
     """Require a non-empty, complete PLAYTEST ratio and no failure signals.
 
-    Scans all lines so that prepended middleware warnings (e.g. ⚡ consecutive
-    write guard) do not mask a genuine PLAYTEST: X/Y line (MCP-GUARD-007).
+    B17: format is passed explicitly by the one production caller (R-07,
+    explicit over implicit) — mirrors CommandRouter.IsPlaytestSuccess. The
+    ``{``-sniff below is only a fallback for a missing/unknown format
+    (legacy callers, including this module's own pre-B17 test suite).
     """
+    if not result:
+        return False
+    if format == "json":
+        return _is_playtest_pass_from_ledger(result)
+    if format == "text":
+        return _is_playtest_pass_from_text(result)
+    return (
+        _is_playtest_pass_from_ledger(result)
+        if result.lstrip().startswith("{")
+        else _is_playtest_pass_from_text(result)
+    )
+
+
+def _is_playtest_pass_from_ledger(result: str) -> bool:
+    """B16's canonical JSON receipt: outer.teardown_ok plus one {"ok": ...} entry
+    per step. A step's `ok` is the ledger fact — never re-derived from scanning
+    report text (the B17 bug: a step's source_file containing " OK" made the
+    legacy substring check say "pass")."""
+    try:
+        receipt = json.loads(result)
+    except ValueError:
+        return False
+    if receipt.get("outer", {}).get("teardown_ok") is not True:
+        return False
+    return all(step.get("ok") is True for step in receipt.get("steps", []))
+
+
+def _is_playtest_pass_from_text(result: str) -> bool:
+    """Scans all lines so that prepended middleware warnings (e.g. ⚡ consecutive
+    write guard) do not mask a genuine PLAYTEST: X/Y line (MCP-GUARD-007)."""
     for line in (result.splitlines() if result else []):
         match = re.match(r"PLAYTEST:\s*(\d+)\s*/\s*(\d+)\b", line)
         if match:
@@ -364,7 +397,9 @@ async def _run_single_file(
         # P-336: capture network/timeout exceptions as failed results
         raw = f"PLAYTEST: 0/0 ERROR: {type(exc).__name__}: {exc}"
     elapsed = _time.monotonic() - t0
-    return filepath, raw, elapsed, _is_playtest_pass(raw)
+    # This caller never requests format="json" (no `format` key in the _args above), so the
+    # response is always the legacy text report — pass that explicitly (B17, R-07).
+    return filepath, raw, elapsed, _is_playtest_pass(raw, "text")
 
 
 async def _suite_body(

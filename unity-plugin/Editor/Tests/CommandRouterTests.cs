@@ -174,23 +174,15 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void IsPlaytestSuccess_DetailedAllPassedReport_ReturnsTrue()
         {
-            var method = typeof(CommandRouter).GetMethod("IsPlaytestSuccess",
-                BindingFlags.NonPublic | BindingFlags.Static);
-            Assert.IsNotNull(method);
-
             var report = "PLAYTEST: 4/4 (0.0s)\n[1] LOG smoke\n[2] SNAPSHOT\nRigidbody.mass=4";
-            Assert.IsTrue((bool)method.Invoke(null, new object[] { report }));
+            Assert.IsTrue(InvokeIsPlaytestSuccess(report));
         }
 
         [Test]
         public void IsPlaytestSuccess_DetailedFailedReport_ReturnsFalse()
         {
-            var method = typeof(CommandRouter).GetMethod("IsPlaytestSuccess",
-                BindingFlags.NonPublic | BindingFlags.Static);
-            Assert.IsNotNull(method);
-
             var report = "PLAYTEST: 3/4 (0.0s)\n[4] ASSERT x -- FAIL";
-            Assert.IsFalse((bool)method.Invoke(null, new object[] { report }));
+            Assert.IsFalse(InvokeIsPlaytestSuccess(report));
         }
 
         // ── CommandRegistry.IsRegistered ─────────────────────────────────────
@@ -877,11 +869,15 @@ namespace UnityMCP.Editor.Tests
 
         // ── IsPlaytestSuccess edge cases (Task 4) ────────────────────────────
 
-        private static bool InvokeIsPlaytestSuccess(string report)
+        // B17: format is a real parameter of the production method now (explicit over
+        // implicit — R-07). This test-only wrapper keeps a default so every pre-existing
+        // single-arg call site below is unchanged text (the legacy format this file has always
+        // exercised); only the two new adversarial tests pass format explicitly.
+        private static bool InvokeIsPlaytestSuccess(string report, string format = "text")
         {
             var m = typeof(CommandRouter).GetMethod("IsPlaytestSuccess",
                 BindingFlags.NonPublic | BindingFlags.Static);
-            return (bool)m.Invoke(null, new object[] { report });
+            return (bool)m.Invoke(null, new object[] { report, format });
         }
 
         [Test]
@@ -907,6 +903,35 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void IsPlaytestSuccess_PartialPassMinimalFormat_ReturnsFalse()
             => Assert.IsFalse(InvokeIsPlaytestSuccess("PLAYTEST: 3/4 (0.0s)"));
+
+        // ── B17: both verdict sites read the ledger, not a text/regex scan ──────
+
+        [Test]
+        public void IsPlaytestSuccess_JsonReport_UsesLedgerNotRegex()
+        {
+            // source_file deliberately contains " OK" — the legacy text substring shortcut
+            // would say "pass" on sight, but the structured ledger's ok:false must win when
+            // format="json" is requested explicitly.
+            var json = "{\"schema_version\":1,\"run_id\":\"r1\",\"passed\":0,\"failed\":1," +
+                "\"duration_seconds\":\"0.100\",\"steps\":[{\"index\":0,\"type\":\"Assert\"," +
+                "\"ok\":false,\"ms\":1.000,\"source_file\":\"Foo OK.playtest\",\"source_line\":1," +
+                "\"raw_passed\":false,\"expected_fail\":false}]," +
+                "\"outer\":{\"teardown_ok\":true,\"scene_clean\":true},\"text_report\":\"whatever\"}";
+
+            Assert.IsFalse(InvokeIsPlaytestSuccess(json, "json"));
+        }
+
+        [Test]
+        public void IsPlaytestSuccess_TextReportWithLeadingBrace_StillUsesRegex()
+        {
+            // Text report happens to start with '{'. Requesting format="text" explicitly must
+            // skip the JSON-detection sniff entirely and use the legacy text scan (which honors
+            // the " OK" substring shortcut, INV-005) — proving the sniff is a fallback for a
+            // missing/unknown format, never a rule that overrides an explicit caller.
+            var report = "{weird-prefix} Test run OK";
+
+            Assert.IsTrue(InvokeIsPlaytestSuccess(report, "text"));
+        }
 
         // ── CheckGuards: server-not-ready and python-only (Task 5) ───────────
 

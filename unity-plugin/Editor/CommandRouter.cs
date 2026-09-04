@@ -510,10 +510,46 @@ namespace UnityMCP.Editor
             }
 
             CompleteFromInner(id, inner.Task, tcs, "run_playtest",
-                IsPlaytestSuccess);
+                report => IsPlaytestSuccess(report, format));
         }
 
-        private static bool IsPlaytestSuccess(string report)
+        // B17: the caller (AsyncRunPlaytest, above) already knows which representation it
+        // requested — format is passed explicitly (R-07 explicit-over-implicit) rather than
+        // re-derived here. The `{`-sniff below survives only as a fallback for a legacy/unknown
+        // format argument; it is never reached from the one production call site, which always
+        // resolves format to "text" or "json" before calling in (line ~493).
+        private static bool IsPlaytestSuccess(string report, string format)
+        {
+            if (string.IsNullOrEmpty(report)) return false;
+            if (format == "json") return IsPlaytestSuccessFromLedger(report);
+            if (format == "text") return IsPlaytestSuccessFromText(report);
+            return report.TrimStart().StartsWith("{", StringComparison.Ordinal)
+                ? IsPlaytestSuccessFromLedger(report)
+                : IsPlaytestSuccessFromText(report);
+        }
+
+        // B16's canonical JSON receipt: "outer":{"teardown_ok":...} plus one
+        // {"ok":true/false,...} entry per step (PlaytestStepReceipt.ToJson). A step's `ok` is the
+        // ledger fact — never re-derived from scanning report text (that was the B17 bug: a
+        // step's source_file containing " OK" made the legacy substring check say "pass").
+        private static bool IsPlaytestSuccessFromLedger(string report)
+        {
+            var outer = JsonHelper.ExtractObject(report, "outer");
+            if (JsonHelper.ExtractString(outer, "teardown_ok") != "true") return false;
+
+            var stepsArray = JsonHelper.ExtractArray(report, "steps");
+            var pos = 0;
+            string stepJson;
+            while ((stepJson = JsonHelper.ExtractNextArrayObject(stepsArray, ref pos)) != null)
+            {
+                if (JsonHelper.ExtractString(stepJson, "ok") != "true") return false;
+            }
+            return true;
+        }
+
+        // INV-005 / v1 §41: the legacy text scan. Untouched by B17 — deleting it is gated on
+        // Player/Wave-D parity, not this item.
+        private static bool IsPlaytestSuccessFromText(string report)
         {
             if (string.IsNullOrEmpty(report)) return false;
             if (report.Contains(" OK")) return true;

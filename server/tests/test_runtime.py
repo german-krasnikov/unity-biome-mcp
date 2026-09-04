@@ -946,3 +946,33 @@ def test_is_playtest_pass_zero_total():
     """_is_playtest_pass returns False for 0/0 (no assertions)."""
     from unity_mcp.tools.runtime import _is_playtest_pass
     assert _is_playtest_pass("PLAYTEST: 0/0 (0.0s) OK") is False
+
+
+# ── B17: both verdict sites read the ledger, not a text/regex scan ────────────
+
+def _ledger_json(step_ok: bool, teardown_ok: bool = True) -> str:
+    """Canonical B16 JSON receipt shape, one step whose source_file deliberately
+    contains " OK" — the legacy text substring shortcut would say "pass" on
+    sight; the ledger's `ok` field must be what actually decides the verdict."""
+    import json as _json
+    return _json.dumps({
+        "schema_version": 1,
+        "run_id": "r1",
+        "passed": 1 if step_ok else 0,
+        "failed": 0 if step_ok else 1,
+        "duration_seconds": 0.1,
+        "steps": [{
+            "index": 0, "type": "Assert", "ok": step_ok, "ms": 1.0,
+            "source_file": "Foo OK.playtest", "source_line": 1,
+            "raw_passed": step_ok, "expected_fail": False,
+        }],
+        "outer": {"teardown_ok": teardown_ok, "scene_clean": True},
+        "text_report": "whatever",
+    })
+
+
+def test_is_playtest_pass_reads_ledger_when_json():
+    """format="json": all steps ok + teardown_ok -> True; one step false -> False."""
+    from unity_mcp.tools.runtime import _is_playtest_pass
+    assert _is_playtest_pass(_ledger_json(step_ok=True), "json") is True
+    assert _is_playtest_pass(_ledger_json(step_ok=False), "json") is False
