@@ -172,8 +172,12 @@ jobs:
         shell: python
         run: |
           import json
+          import sys
           import xml.etree.ElementTree as ET
           from pathlib import Path
+
+          sys.path.insert(0, "scripts")
+          import playtest_check
 
           json_path = Path("artifacts/player-playtest.json")
           junit_path = Path("artifacts/player-playtest.xml")
@@ -185,8 +189,13 @@ jobs:
               raise SystemExit(f"player PlayTest failed: {payload!r}")
           if not payload.get("steps"):
               raise SystemExit("player PlayTest emitted no step receipts")
-          if len(payload.get("steps", [])) != 14:
-              raise SystemExit(f"player success PlayTest executed unexpected step count: {payload!r}")
+          try:
+              print(playtest_check.check(
+                  Path("unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest"),
+                  json_path,
+              ))
+          except ValueError as exc:
+              raise SystemExit(str(exc))
           suite = ET.parse(junit_path).getroot()
           if suite.get("name") != "UnityMCP.PlayerPlaytest":
               raise SystemExit(f"unexpected JUnit suite: {suite.get('name')!r}")
@@ -288,14 +297,24 @@ jobs:
         shell: python
         run: |
           import json
+          import sys
           import xml.etree.ElementTree as ET
           from pathlib import Path
 
-          payload = json.loads(Path("artifacts/player-playtest-graphics.json").read_text(encoding="utf-8"))
+          sys.path.insert(0, "scripts")
+          import playtest_check
+
+          json_path = Path("artifacts/player-playtest-graphics.json")
+          payload = json.loads(json_path.read_text(encoding="utf-8"))
           if payload.get("failed") != 0:
               raise SystemExit(f"graphics PlayTest failed: {payload!r}")
-          if len(payload.get("steps", [])) != 4:
-              raise SystemExit(f"graphics PlayTest executed unexpected step count: {payload!r}")
+          try:
+              print(playtest_check.check(
+                  Path("unity-test-project/Assets/StreamingAssets/Playtests/player_ci_graphics_smoke.playtest"),
+                  json_path,
+              ))
+          except ValueError as exc:
+              raise SystemExit(str(exc))
           suite = ET.parse("artifacts/player-playtest-graphics.xml").getroot()
           if suite.get("name") != "UnityMCP.PlayerPlaytest":
               raise SystemExit(f"unexpected graphics JUnit suite: {suite.get('name')!r}")

@@ -184,13 +184,20 @@ def test_player_playtest_workflow_validates_player_playtest_receipts() -> None:
     assert "Validate Player PlayTest Receipts" in text
     assert "Validate Player PlayTest Expected Failure Receipts" in text
     assert "player JSON receipt must be UTF-8 without BOM" in text
-    assert "player success PlayTest executed unexpected step count" in text
     assert "expected-failure PlayTest did not fail" in text
     assert "expected-failure PlayTest timeout step was not recorded" in text
     assert "player PlayTest emitted no step receipts" in text
     assert "UnityMCP.PlayerPlaytest" in text
     assert 'suite.get("failures") != "0"' in text
     assert 'suite.get("failures") == "0"' in text
+
+    # B19: header-driven playtest_check.py replaces the hardcoded step-count
+    # literals — the two retired blocks must never reappear (retirement gate).
+    assert "import playtest_check" in text
+    assert "player_ci_smoke.playtest" in text
+    assert "player_ci_graphics_smoke.playtest" in text
+    assert 'len(payload.get("steps", [])) != 14' not in text
+    assert 'len(payload.get("steps", [])) != 4' not in text
 
 
 def test_player_playtest_workflow_writes_evidence_receipt() -> None:

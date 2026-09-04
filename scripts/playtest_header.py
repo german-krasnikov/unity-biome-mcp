@@ -8,8 +8,6 @@ Mirrors `unity-plugin/Editor/PlaytestHeaderScanner.cs` (`@needs`, `@tags`, `@exp
 This is the only Python header scanner in the repo (B18). B19, C08, C18 and E05
 import it — a second ad-hoc `@`-line regex in Python is a review rejection.
 """
-from __future__ import annotations
-
 import re
 from dataclasses import dataclass, field
 
