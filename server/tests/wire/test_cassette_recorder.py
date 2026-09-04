@@ -7,6 +7,7 @@ no-op unless the env var is set, and the recorded shape must round-trip
 through load_cassette without hand-editing.
 """
 import json
+import logging
 
 import pytest
 
@@ -130,3 +131,17 @@ async def test_send_records_error_response_with_cassette_error_key(
 
     assert result["ok"] is False
     assert result["err"] == "boom"
+
+
+def test_record_swallows_unserializable_args(monkeypatch, tmp_path, caplog):
+    """json.dumps on an unserializable value (e.g. a bare object() slipped
+    into args) must not escape record() — the docstring's 'Never raises'
+    promise has to cover serialization failures, not just OSError on write."""
+    trace_path = tmp_path / "trace.jsonl"
+    monkeypatch.setenv(bridge_cassette.TRACE_FILE_ENV, str(trace_path))
+
+    with caplog.at_level(logging.WARNING, logger="unity_mcp.bridge_cassette"):
+        bridge_cassette.record("cmd", {"p": object()}, {"ok": True, "data": ""})
+
+    assert not trace_path.exists()
+    assert len(caplog.records) == 1

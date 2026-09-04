@@ -57,14 +57,14 @@ def record(cmd: str, args: dict, result: dict) -> None:
     path = _trace_path()
     if path is None:
         return
-    line = json.dumps(
-        {"cmd": cmd, "args": args, "response": _as_cassette_response(result)},
-        ensure_ascii=False,
-    )
     try:
+        line = json.dumps(
+            {"cmd": cmd, "args": args, "response": _as_cassette_response(result)},
+            ensure_ascii=False,
+        )
         with open(path, "a", encoding="utf-8") as f:
             f.write(line + "\n")
-    except OSError as exc:
+    except Exception as exc:
         if not _warned:
             logger.warning("cassette recorder: could not write to %s: %s", path, exc)
             _warned = True
