@@ -108,6 +108,11 @@ namespace UnityMCP.Editor
                 return;
             }
 
+            // C02: post-parse, pre-execution Biome command policy for MCP steps. Reuses the
+            // existing parseResult.Errors short-circuit below — no dispatch, no isolation
+            // group, no side effect happens for a rejected script.
+            parseResult.Errors = PlaytestMcpPolicy.Validate(steps, parseResult.Errors, isEditModeRun: !requiresPlayMode);
+
             if (parseResult.Warnings != null)
                 foreach (var w in parseResult.Warnings)
                     Debug.LogWarning($"[Playtest] {w}");
