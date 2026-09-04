@@ -18,7 +18,7 @@ namespace UnityMCP.Editor.TestRuns
     /// Project-scoped durable storage for test-run intent and evidence. The root is
     /// injectable so protocol tests never touch production state.
     /// </summary>
-    public sealed class TestRunStore
+    public sealed partial class TestRunStore
     {
         private static readonly object FileGate = new object();
         private static readonly UTF8Encoding Utf8WithoutBom = new UTF8Encoding(false);

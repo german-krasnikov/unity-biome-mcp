@@ -159,6 +159,15 @@ namespace UnityMCP.Editor.TestRuns
 
         private string StartCore(string requestId, string mode, string group, string filter)
         {
+            try
+            {
+                _store.PruneOldRuns();
+            }
+            catch (Exception)
+            {
+                // Opportunistic retention -- a prune failure must never block dispatch.
+            }
+
             var now = _utcNow();
             var requestedMode = NormalizeMode(mode);
             var requestedGroup = group ?? "";
