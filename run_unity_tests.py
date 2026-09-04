@@ -26,6 +26,12 @@ import uuid
 from collections.abc import Sequence
 from typing import Any
 
+from run_unity_tests_selection import (
+    canonicalize_selection_list,
+    compute_selection_sha256,
+    parse_tests_file,
+)
+
 
 PORTS_DIR = Path.home() / ".unity-biome-mcp" / "ports"
 DEFAULT_PROJECT = Path(__file__).resolve().parent / "unity-test-project"
@@ -603,6 +609,9 @@ def validate_terminal(
     expected_utf: str,
     allow_empty: bool,
     minimum_tests: int = 0,
+    categories: Sequence[str] = (),
+    assemblies: Sequence[str] = (),
+    tests: Sequence[str] = (),
 ) -> None:
     state_terminal = (
         snapshot.get("state") == "terminal" and snapshot.get("lifecycle") == "terminal"
@@ -643,6 +652,26 @@ def validate_terminal(
         raise RunnerError("terminal filter does not match the request")
     if str(snapshot.get("group") or "") != group:
         raise RunnerError("terminal group does not match the request")
+    # TestRunSummary (the get_test_run wire projection) does not yet surface
+    # categories/assemblies/tests/selection_sha256 at all (confirmed against
+    # a live --assembly run's terminal JSON) -- only validate a field when
+    # the snapshot actually carries it, so --category/--assembly stay usable
+    # through the CLI until a future item extends TestRunSummary end-to-end.
+    for name, requested_list in (
+        ("categories", categories),
+        ("assemblies", assemblies),
+        ("tests", tests),
+    ):
+        if name in snapshot and canonicalize_selection_list(
+            snapshot.get(name) or []
+        ) != canonicalize_selection_list(requested_list):
+            raise RunnerError(f"terminal {name} does not match the request")
+    if "selection_sha256" in snapshot:
+        expected_sha = compute_selection_sha256(
+            mode, filter_name, group, categories, assemblies, tests
+        )
+        if str(snapshot.get("selection_sha256") or "") != expected_sha:
+            raise RunnerError("terminal selection_sha256 does not match the request")
 
     expected = snapshot.get("expected_count")
     if (
@@ -717,6 +746,8 @@ def build_command_args(args: argparse.Namespace, request_id: str) -> dict[str, o
         command_args["categories"] = args.categories
     if args.assemblies:
         command_args["assemblies"] = args.assemblies
+    if args.tests:
+        command_args["tests"] = args.tests
     return command_args
 
 
@@ -727,6 +758,7 @@ async def run(args: argparse.Namespace) -> int:
     request_id = args.request_id or "standalone-" + uuid.uuid4().hex
     if IDENTITY_RE.fullmatch(request_id) is None:
         raise RunnerError("request_id must use 1-200 ASCII letters, digits, '.', '_' or '-'")
+    resolve_args(args)
     minimum_tests = required_minimum_tests(
         args.mode,
         args.filter,
@@ -735,6 +767,7 @@ async def run(args: argparse.Namespace) -> int:
         args.allow_empty,
         categories=args.categories,
         assemblies=args.assemblies,
+        tests=args.tests,
     )
     deadline = time.monotonic() + args.timeout
     port = await wait_for_verified_port(
@@ -799,6 +832,9 @@ async def run(args: argparse.Namespace) -> int:
         expected_utf=args.expected_utf,
         allow_empty=args.allow_empty,
         minimum_tests=minimum_tests,
+        categories=args.categories,
+        assemblies=args.assemblies,
+        tests=args.tests,
     )
     if args.json:
         print(json.dumps(snapshot, indent=2, sort_keys=True))
@@ -832,6 +868,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         dest="assemblies",
         help="assembly name filter, repeatable (e.g. --assembly UnityMCP.Editor.Chat.Tests.View)",
     )
+    parser.add_argument(
+        "--tests-file",
+        type=Path,
+        default=None,
+        help=(
+            "path to a file with one full test name per line (blank/'#' "
+            "lines ignored); forwarded as command_args['tests'] and used as "
+            "the default --minimum-tests when --minimum-tests is not given"
+        ),
+    )
     parser.add_argument("--request-id")
     parser.add_argument("--timeout", type=float, default=1800.0)
     parser.add_argument(
@@ -855,7 +901,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     if args.timeout <= 0 or args.poll_interval <= 0:
         parser.error("timeouts must be positive")
+    # Populated by resolve_args() (needs file I/O, kept out of this parser);
+    # defaulted here so build_command_args()/required_minimum_tests() never
+    # see a missing attribute for a caller that skips resolve_args().
+    args.tests = []
     return args
+
+
+def resolve_args(args: argparse.Namespace) -> None:
+    """Apply --tests-file: populate args.tests and, when --minimum-tests was
+    not given explicitly, default it to the file's (post-filter) line count.
+    Kept separate from parse_args() so the argument parser itself never
+    touches the filesystem."""
+    if args.tests_file is not None:
+        args.tests = parse_tests_file(args.tests_file)
+        if args.minimum_tests is None:
+            args.minimum_tests = len(args.tests)
 
 
 def main() -> int:

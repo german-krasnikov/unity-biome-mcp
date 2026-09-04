@@ -2,11 +2,17 @@ import asyncio
 import importlib.util
 import json
 import struct
+import sys
 from pathlib import Path
 
 import pytest
 
 MODULE_PATH = Path(__file__).resolve().parents[2] / "run_unity_tests.py"
+# run_unity_tests.py imports its sibling run_unity_tests_selection.py by plain
+# module name; that only resolves automatically when run_unity_tests.py is
+# executed as __main__ (Python adds its own directory to sys.path). Dynamic
+# loading via spec_from_file_location below does not get that for free.
+sys.path.insert(0, str(MODULE_PATH.parent))
 SPEC = importlib.util.spec_from_file_location("standalone_unity_tests", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
 runner = importlib.util.module_from_spec(SPEC)
@@ -703,3 +709,134 @@ def test_partial_full_editmode_catalog_cannot_be_accepted(tmp_path: Path) -> Non
                 "EditMode", "", "", None, False, baseline_path=baseline
             ),
         )
+
+
+def test_tests_file_flag_populates_command_args_tests_list(tmp_path: Path) -> None:
+    """--tests-file reads one full test name per line, stripping blank and
+    '#'-comment lines, and forwards the result as command_args['tests'].
+
+    Double-red: red today (no --tests-file flag / no runner.resolve_args),
+    red if the blank/comment stripping is removed (a literal '# a comment'
+    line would then leak into command_args['tests'])."""
+    tests_file = tmp_path / "tests.txt"
+    tests_file.write_text("Suite.A\n# a comment\n\nSuite.B\n", encoding="utf-8")
+
+    args = runner.parse_args(["EditMode", "--tests-file", str(tests_file)])
+    runner.resolve_args(args)
+    command_args = runner.build_command_args(args, request_id="request-1")
+
+    assert command_args["tests"] == ["Suite.A", "Suite.B"]
+
+
+def test_tests_file_sets_default_minimum_to_file_length(tmp_path: Path) -> None:
+    """No explicit --minimum-tests -> the floor defaults to the tests
+    file's (post-filter) line count; an explicit --minimum-tests is never
+    overwritten by that default.
+
+    Double-red: red today (args.minimum_tests stays None, so
+    required_minimum_tests falls back to its own default instead of 3); red
+    if the explicit-value guard is dropped and 3 always wins over an
+    explicit --minimum-tests."""
+    tests_file = tmp_path / "tests.txt"
+    tests_file.write_text("Suite.A\nSuite.B\nSuite.C\n", encoding="utf-8")
+
+    args = runner.parse_args(["EditMode", "--tests-file", str(tests_file)])
+    runner.resolve_args(args)
+    assert args.minimum_tests == 3
+
+    explicit = runner.parse_args(
+        ["EditMode", "--tests-file", str(tests_file), "--minimum-tests", "1"]
+    )
+    runner.resolve_args(explicit)
+    assert explicit.minimum_tests == 1
+
+
+def test_selection_sha256_matches_csharp_vectors() -> None:
+    """compute_selection_sha256 must reproduce
+    UnityMCP.Editor.TestRuns.TestRunSelection.ComputeSha256's canonical form
+    byte-for-byte -- both frozen vectors from
+    TestRunServiceTests.ComputeSha256_KnownInput_MatchesFrozenVector.
+
+    Double-red: red if the separator, sort order, or join deviates from the
+    C# form (either frozen hex would then not match)."""
+    assert runner.compute_selection_sha256(
+        "EditMode", "", "", [], ["UnityMCP.Editor.Chat.Tests.View"], [],
+    ) == "e944be3f753540a8f201a310b10ba9ad6c6bc996d1f929fbaa97d03c382c6390"
+
+    assert runner.compute_selection_sha256(
+        "PlayMode", "Foo|Bar", "Smoke",
+        ["Zeta", "Ärger", "alpha"], [], ["B.T2", "A.T1"],
+    ) == "6d3f0f555fb69d40d036b2dc3db99997ef0fded91c84d5caac1afc2126d9fba3"
+
+
+def test_validate_terminal_rejects_snapshot_with_mismatched_selection(
+    tmp_path: Path,
+) -> None:
+    """A terminal snapshot that itself carries categories/assemblies/tests/
+    selection_sha256 (once TestRunSummary is extended to surface them) must
+    match the requested selection -- lists compare by canonical joined form,
+    selection_sha256 by exact value.
+
+    Double-red: red today (validate_terminal has no
+    categories/assemblies/tests parameters, so a mismatched selection is
+    silently accepted); red if the comparison is inverted (accepts a
+    mismatch, rejects a match)."""
+    categories, assemblies, tests = ["Fast"], ["A.Tests"], ["Suite.T1"]
+    sha = runner.compute_selection_sha256(
+        "EditMode", "Fixture.Test", "", categories, assemblies, tests
+    )
+    snapshot = passing_snapshot(tmp_path)
+    snapshot.update(
+        categories=categories, assemblies=assemblies, tests=tests,
+        selection_sha256=sha,
+    )
+
+    # Matching selection: accepted.
+    runner.validate_terminal(
+        snapshot, project=tmp_path, mode="EditMode", filter_name="Fixture.Test",
+        group="", expected_utf="1.6.0", allow_empty=False,
+        categories=categories, assemblies=assemblies, tests=tests,
+    )
+
+    # Mismatched list: rejected.
+    mismatched = dict(snapshot, categories=["Slow"])
+    with pytest.raises(runner.RunnerError, match="categories"):
+        runner.validate_terminal(
+            mismatched, project=tmp_path, mode="EditMode",
+            filter_name="Fixture.Test", group="", expected_utf="1.6.0",
+            allow_empty=False, categories=categories, assemblies=assemblies,
+            tests=tests,
+        )
+
+    # Mismatched hash: rejected.
+    wrong_sha = dict(snapshot, selection_sha256="0" * 64)
+    with pytest.raises(runner.RunnerError, match="selection_sha256"):
+        runner.validate_terminal(
+            wrong_sha, project=tmp_path, mode="EditMode",
+            filter_name="Fixture.Test", group="", expected_utf="1.6.0",
+            allow_empty=False, categories=categories, assemblies=assemblies,
+            tests=tests,
+        )
+
+
+def test_validate_terminal_ignores_missing_selection_fields(tmp_path: Path) -> None:
+    """Today's real get_test_run wire projection (TestRunSummary) does not
+    yet carry categories/assemblies/tests/selection_sha256 at all (confirmed
+    against a live --assembly run's terminal JSON, A22 evidence) --
+    validate_terminal must stay backward-compatible and not reject an
+    otherwise-valid terminal snapshot just because those keys are absent,
+    even when a selection was requested. This guard is what keeps
+    --category/--assembly usable through the CLI until a future item
+    extends TestRunSummary to surface these fields end-to-end.
+
+    Double-red: red if the presence guard is removed (an absent key would
+    then always read as a mismatch against any non-empty requested
+    selection)."""
+    snapshot = passing_snapshot(tmp_path)
+    assert "categories" not in snapshot and "selection_sha256" not in snapshot
+
+    runner.validate_terminal(
+        snapshot, project=tmp_path, mode="EditMode", filter_name="Fixture.Test",
+        group="", expected_utf="1.6.0", allow_empty=False,
+        assemblies=["UnityMCP.Editor.Chat.Tests.View"],
+    )
