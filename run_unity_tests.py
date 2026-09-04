@@ -23,6 +23,7 @@ import struct
 import sys
 import time
 import uuid
+from collections.abc import Sequence
 from typing import Any
 
 
@@ -570,11 +571,22 @@ def required_minimum_tests(
     requested: int | None,
     allow_empty: bool,
     baseline_path: Path = FULL_BASELINE_PATH,
+    categories: Sequence[str] = (),
+    assemblies: Sequence[str] = (),
+    tests: Sequence[str] = (),
 ) -> int:
     if requested is not None and requested < 0:
         raise RunnerError("minimum_tests cannot be negative")
     baseline = 0 if allow_empty else 1
-    if mode == "EditMode" and not filter_name and not group:
+    is_unfiltered = (
+        mode == "EditMode"
+        and not filter_name
+        and not group
+        and not categories
+        and not assemblies
+        and not tests
+    )
+    if is_unfiltered:
         baseline = _read_full_baseline(baseline_path)
     if requested is not None:
         baseline = max(baseline, requested)
@@ -692,6 +704,22 @@ def validate_terminal(
         )
 
 
+def build_command_args(args: argparse.Namespace, request_id: str) -> dict[str, object]:
+    command_args: dict[str, object] = {
+        "mode": args.mode,
+        "request_id": request_id,
+    }
+    if args.filter:
+        command_args["filter"] = args.filter
+    if args.group:
+        command_args["group"] = args.group
+    if args.categories:
+        command_args["categories"] = args.categories
+    if args.assemblies:
+        command_args["assemblies"] = args.assemblies
+    return command_args
+
+
 async def run(args: argparse.Namespace) -> int:
     project = args.project.resolve()
     if not (project / "Assets").is_dir() or not (project / "Packages").is_dir():
@@ -705,6 +733,8 @@ async def run(args: argparse.Namespace) -> int:
         args.group,
         args.minimum_tests,
         args.allow_empty,
+        categories=args.categories,
+        assemblies=args.assemblies,
     )
     deadline = time.monotonic() + args.timeout
     port = await wait_for_verified_port(
@@ -714,14 +744,7 @@ async def run(args: argparse.Namespace) -> int:
     print(f"port={port}")
     print(f"request_id={request_id}")
 
-    command_args: dict[str, object] = {
-        "mode": args.mode,
-        "request_id": request_id,
-    }
-    if args.filter:
-        command_args["filter"] = args.filter
-    if args.group:
-        command_args["group"] = args.group
+    command_args = build_command_args(args, request_id)
 
     initial = ""
     while time.monotonic() < deadline:
@@ -795,6 +818,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=int(os.environ.get("UNITY_MCP_PORT", "0")) or None)
     parser.add_argument("--filter", default="")
     parser.add_argument("--group", default="")
+    parser.add_argument(
+        "--category",
+        action="append",
+        default=[],
+        dest="categories",
+        help="UTF category filter, repeatable (e.g. --category '!^Stress$' --category Slow)",
+    )
+    parser.add_argument(
+        "--assembly",
+        action="append",
+        default=[],
+        dest="assemblies",
+        help="assembly name filter, repeatable (e.g. --assembly UnityMCP.Editor.Chat.Tests.View)",
+    )
     parser.add_argument("--request-id")
     parser.add_argument("--timeout", type=float, default=1800.0)
     parser.add_argument(

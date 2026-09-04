@@ -463,6 +463,32 @@ def test_poll_interval_default_is_fast() -> None:
     assert runner.DEFAULT_POLL_INTERVAL_S == 1.0
 
 
+def test_category_flag_is_repeatable_and_forwarded() -> None:
+    """--category is repeatable and forwarded verbatim as a JSON list.
+
+    Double-red: red if the flag doesn't exist yet (parse_args raises
+    SystemExit / build_command_args is missing), red if repetition
+    overwrites the previous value instead of appending (action='store'
+    instead of 'append')."""
+    args = runner.parse_args(
+        ["EditMode", "--category", "!^Stress$", "--category", "Slow"]
+    )
+    command_args = runner.build_command_args(args, request_id="request-1")
+    assert command_args["categories"] == ["!^Stress$", "Slow"]
+
+
+def test_assembly_flag_is_repeatable_and_forwarded() -> None:
+    """--assembly is repeatable and forwarded verbatim as a JSON list.
+
+    Double-red: same shape as test_category_flag_is_repeatable_and_forwarded,
+    against the independent --assembly/assemblies flag."""
+    args = runner.parse_args(
+        ["EditMode", "--assembly", "A.Tests", "--assembly", "B.Tests"]
+    )
+    command_args = runner.build_command_args(args, request_id="request-1")
+    assert command_args["assemblies"] == ["A.Tests", "B.Tests"]
+
+
 def test_terminal_poll_rejects_changed_run_id_during_recovery(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -610,6 +636,38 @@ def test_unfiltered_editmode_requires_full_baseline_count(tmp_path: Path) -> Non
     ) == 1
     assert runner.required_minimum_tests(
         "PlayMode", "", "", None, False, baseline_path=baseline
+    ) == 1
+
+
+def test_required_minimum_tests_treats_selection_flags_as_filtered(
+    tmp_path: Path,
+) -> None:
+    """categories/assemblies/tests selection is filtering too -- an
+    unfiltered-looking EditMode call (no --filter/--group) that supplies
+    an assembly/category/tests selection must NOT be held to the full
+    EditMode baseline; otherwise --assembly/--category/--tests-file could
+    never be used through the CLI's own minimum-tests floor.
+
+    Double-red: red today (the function has no categories/assemblies/tests
+    parameters, so a selection-only call is still treated as unfiltered and
+    the full baseline is enforced); red if the fix over-corrects and skips
+    the baseline for every unfiltered call regardless of selection --
+    covered by test_unfiltered_editmode_requires_full_baseline_count
+    staying green.
+    """
+    baseline = tmp_path / "full-baseline.json"
+    _write_baseline(baseline, 9310)
+    assert runner.required_minimum_tests(
+        "EditMode", "", "", None, False,
+        baseline_path=baseline, assemblies=["UnityMCP.Editor.Chat.Tests.View"],
+    ) == 1
+    assert runner.required_minimum_tests(
+        "EditMode", "", "", None, False,
+        baseline_path=baseline, categories=["Fast"],
+    ) == 1
+    assert runner.required_minimum_tests(
+        "EditMode", "", "", None, False,
+        baseline_path=baseline, tests=["Suite.T1"],
     ) == 1
 
 
