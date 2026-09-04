@@ -8,6 +8,7 @@ from .middleware_types import (
     BLAST_RADIUS,
     READ_CMDS,
     SCENE_STATE_NEUTRAL_WRITES,
+    VERIFICATION_NUDGE_NEUTRAL_WRITES,
     is_write,
 )
 from .utils import parse_kv_line
@@ -127,7 +128,7 @@ class MiddlewareGuardsMixin:
     def check_verification_needed(self, cmd: str, args: dict | None = None) -> str | None:
         if cmd == "batch" and args and _is_batch_readonly(args.get("commands", "")):
             return None
-        if is_write(cmd, args) and cmd not in SCENE_STATE_NEUTRAL_WRITES:
+        if is_write(cmd, args) and cmd not in VERIFICATION_NUDGE_NEUTRAL_WRITES:
             self._mutation_count += 1
             if self._mutation_count % 10 == 0:
                 return f"⚡ VERIFICATION CHECKPOINT ({self._mutation_count} mutations): verify state is consistent with goal before continuing."

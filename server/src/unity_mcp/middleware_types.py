@@ -53,6 +53,20 @@ SCENE_STATE_NEUTRAL_WRITES: frozenset[str] = frozenset({
     "run_playtest_suite",
 })
 
+# check_verification_needed's advisory every-10th-mutation nudge must count an
+# Edit-mode run_playtest as a real scene-state write: C03 wired `MCP
+# create_object`/`set_property` steps through CommandRouter.ProcessAsync, so a
+# playtest script can now mutate the scene directly, not just verify it.
+# transition()'s consecutive-write guard (MCP-GUARD-007),
+# _maybe_prefetch_background's cache invalidation, and _reset_write_caches's
+# diff-cache reset stay on SCENE_STATE_NEUTRAL_WRITES unchanged — those are
+# Play-mode-oriented consumers where treating run_playtest as "verification,
+# not a blind write" remains correct (a playtest run typically ends in
+# ASSERTs), so the run_playtest classification isn't silently broadened there.
+VERIFICATION_NUDGE_NEUTRAL_WRITES: frozenset[str] = (
+    SCENE_STATE_NEUTRAL_WRITES - frozenset({"run_playtest"})
+)
+
 # editor actions that are reads; all others (play/stop/pause/step/select) are writes
 _EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})
 

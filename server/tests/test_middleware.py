@@ -494,6 +494,18 @@ def test_screenshot_does_not_advance_scene_mutation_checkpoint(mw):
     assert mw._mutation_count == 10
 
 
+def test_run_playtest_is_not_scene_neutral(mw):
+    """C03a: Edit-mode MCP steps inside run_playtest genuinely mutate scene
+    state (C03 wired MCP create_object/set_property through
+    CommandRouter.ProcessAsync), so the mutation-count nudge must count it —
+    unlike screenshot, which stays neutral.
+    """
+    mw._mutation_count = 9
+    result = mw.check_verification_needed("run_playtest", {"script": "LOG hi"})
+    assert "VERIFICATION" in result
+    assert mw._mutation_count == 10
+
+
 def test_transition_readonly_batch_resets_consecutive_writes(mw):
     mw._consecutive_writes = 2
     mw.transition("batch", {"commands": "get_component path=Foo type=Bar"})
