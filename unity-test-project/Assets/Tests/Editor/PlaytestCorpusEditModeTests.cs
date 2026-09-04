@@ -135,6 +135,18 @@ namespace UnityMCP.TestProject
         [Test]
         public async Task Run_CiSmoke_ReportsConsoleClean()
         {
+            // B23 gate: ASSERT_CONSOLE_CLEAN (PlaytestRunner.Steps.cs) reads the last 20
+            // global error-level entries via ConsoleCapture.GetLogs(20, "error") — it is
+            // not time-windowed like PlaytestRunner's per-step CONSOLE_ERR check (which
+            // uses GetErrorsSince(stepStart, ...)). In the full-suite run this fixture is
+            // one of 9000+ tests; many others (MaterialShaderTests, AssetTests,
+            // CommandRouterErrorTests, UpmPluginUpdaterTests, ...) deliberately log
+            // expected errors via LogAssert.Expect. Whichever land last before this test
+            // runs would otherwise poison ASSERT_CONSOLE_CLEAN with unrelated history.
+            // This test's contract is "nothing goes wrong during THIS playtest run" —
+            // reset the console immediately beforehand so only new errors count.
+            ConsoleCapture.Clear();
+
             // No /Fixture/... references in this file — the fixture scene is not needed.
             var script = ReadProjectRelativeScript("Playtests/ci_smoke.playtest");
             var result = await RunScriptAsync(script);

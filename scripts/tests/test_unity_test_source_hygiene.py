@@ -73,6 +73,11 @@ def test_unity_source_has_no_version_branch_compatibility_shims() -> None:
 
 
 def test_unity_tests_use_task_first_async_contract() -> None:
+    # "Awaitable.NextFrameAsync" is PlayMode-only (AI/testing.md): EditMode tests
+    # must use the bounded "WaitForEditorUpdatesAsync" helper instead, but a
+    # PlayMode fixture legitimately awaits real frames this way. Scope that one
+    # rule off any path with a "PlayMode" segment; every other rule here still
+    # applies to PlayMode sources too.
     forbidden = {
         "Unity lifecycle coroutine attribute": re.compile(
             r"\[\s*(?:UnityTest|UnitySetUp|UnityTearDown)\b"
@@ -84,6 +89,8 @@ def test_unity_tests_use_task_first_async_contract() -> None:
         "blocking NUnit async assertion": re.compile(
             r"\bAssert\s*\.\s*(?:ThrowsAsync|DoesNotThrowAsync)\s*\("
         ),
+    }
+    editmode_only_forbidden = {
         "EditMode Awaitable.NextFrameAsync": re.compile(
             r"\bAwaitable\s*\.\s*NextFrameAsync\s*\("
         ),
@@ -94,6 +101,10 @@ def test_unity_tests_use_task_first_async_contract() -> None:
         for label, pattern in forbidden.items():
             if pattern.search(code):
                 offenders.append(f"{_relative(path)}: {label}")
+        if "PlayMode" not in path.parts:
+            for label, pattern in editmode_only_forbidden.items():
+                if pattern.search(code):
+                    offenders.append(f"{_relative(path)}: {label}")
     assert offenders == []
 
 

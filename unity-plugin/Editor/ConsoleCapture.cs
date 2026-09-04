@@ -187,8 +187,14 @@ namespace UnityMCP.Editor
                         found++;
                     }
                 }
-                string result = sb.Length > 0 ? sb.ToString().TrimEnd() : "";
-                result = AppendDroppedSuffix(result);
+                // Issue B23 (MCP-CONSOLE-032 class): GetErrorsSince is a delta/watermark query
+                // like GetLogs(sinceSeconds>0) -- it must never manufacture a phantom result
+                // from the lifetime-global _droppedProblemCount when this specific since-window
+                // matched zero problem entries. Otherwise console pollution from earlier,
+                // unrelated tests (overflowing the 20-entry persisted-problem FIFO) makes every
+                // later step in a full-suite run report a false CONSOLE_ERR.
+                if (found == 0) return null;
+                string result = AppendDroppedSuffix(sb.ToString().TrimEnd());
                 return string.IsNullOrEmpty(result) ? null : result;
             }
         }
