@@ -319,6 +319,9 @@ namespace UnityMCP.Editor.TestRuns
         public int finished_attempt_count;
         public int test_started_callback_count;
         public int finish_without_start_count;
+        public double base_setup_ms;
+        public int scene_repairs;
+        public int scene_repair_full;
         public int passed;
         public int failed;
         public int skipped;

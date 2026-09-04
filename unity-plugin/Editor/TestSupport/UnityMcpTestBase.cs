@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -55,10 +56,12 @@ namespace UnityMCP.Editor.Testing
         private static int s_editorWindowBaselineCount = -1;
         private static HashSet<EditorWindow> s_editorWindowBaselineCache;
         protected static int EditorWindowBaselineRebuildCount;
+        private Stopwatch _isolationStopwatch;
 
         [SetUp]
         public void BeginUnityMcpIsolation()
         {
+            _isolationStopwatch = Stopwatch.StartNew();
             if (_isolationActive)
                 throw new InvalidOperationException("The test isolation scope is already active.");
 
@@ -146,6 +149,20 @@ namespace UnityMCP.Editor.Testing
                 throw;
             }
             RequireReadWriteBoundary();
+        }
+
+        /// <summary>
+        /// Best-effort instrumentation: accumulates into the active run's
+        /// summary.json (via TestRunStore.StampInstrumentation). A missing run id
+        /// means there is no durable run to stamp into (e.g. a standalone manual
+        /// test outside a durable dispatch) -- silently skipped, never thrown.
+        /// </summary>
+        private static void RecordBaseSetupMs(double elapsedMs)
+        {
+            var runId = SessionState.GetString(TestRunAssetOwnership.OwnedRunIdSessionKey, "");
+            if (string.IsNullOrEmpty(runId)) return;
+            var key = TestRunInstrumentationKeys.BaseSetupMs(runId);
+            SessionState.SetFloat(key, SessionState.GetFloat(key, 0f) + (float)elapsedMs);
         }
 
         [TearDown]
@@ -281,6 +298,10 @@ namespace UnityMCP.Editor.Testing
                 () => LogAssert.ignoreFailingMessages = _logAssertIgnoreBaseline,
                 "Unity log assertion policy restoration",
                 errors);
+            RunCleanup(
+                () => RecordBaseSetupMs(_isolationStopwatch?.Elapsed.TotalMilliseconds ?? 0),
+                "base setup timing instrumentation",
+                errors);
 
             _cleanupActions.Clear();
             _assetCleanupActions.Clear();
@@ -306,6 +327,7 @@ namespace UnityMCP.Editor.Testing
             _relaySpawnIsolation = null;
             _previewSceneCountBaseline = 0;
             _editorWindowBaseline = null;
+            _isolationStopwatch = null;
             _isolationActive = false;
 
             if (errors.Count > 0)
@@ -967,6 +989,21 @@ namespace UnityMCP.Editor.Testing
         internal const string OwnedSceneSessionKey =
             "UnityMCP_active_owned_test_scene_v1";
 
+        /// <summary>
+        /// Best-effort instrumentation: see UnityMcpTestBase.RecordBaseSetupMs for
+        /// the missing-run-id skip rationale.
+        /// </summary>
+        private static void RecordSceneRepair(bool wasFullRestore)
+        {
+            var runId = SessionState.GetString(
+                TestRunAssetOwnership.OwnedRunIdSessionKey, "");
+            if (string.IsNullOrEmpty(runId)) return;
+            var key = wasFullRestore
+                ? TestRunInstrumentationKeys.SceneRepairFull(runId)
+                : TestRunInstrumentationKeys.SceneRepairs(runId);
+            SessionState.SetInt(key, SessionState.GetInt(key, 0) + 1);
+        }
+
         internal static void RequirePreparedEnvironment()
         {
             var ownedPath = SessionState.GetString(OwnedSceneSessionKey, "");
@@ -1022,10 +1059,12 @@ namespace UnityMCP.Editor.Testing
                 foreach (var root in loaded[0].GetRootGameObjects())
                     UnityEngine.Object.DestroyImmediate(root);
                 Undo.ClearAll();
+                RecordSceneRepair(wasFullRestore: false);
             }
             else
             {
                 recoveryPaths.AddRange(RestoreOwnedScene(loaded, ownedPath));
+                RecordSceneRepair(wasFullRestore: true);
             }
 
             var violations = new List<string>();

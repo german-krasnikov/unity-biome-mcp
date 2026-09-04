@@ -609,6 +609,7 @@ namespace UnityMCP.Editor.TestRuns
         {
             var summary = TestRunReconciler.Reconcile(runId, ReadJournal(runId));
             StampEvidence(summary);
+            StampInstrumentation(summary);
             if (persistSummary) WriteSummary(summary);
             return summary;
         }
