@@ -286,6 +286,12 @@ namespace UnityMCP.Editor.TestRuns
                 if (!string.IsNullOrEmpty(run.filter))
                     executionFilter.groupNames = run.filter.Split(
                         new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
+                if (run.categories?.Length > 0)
+                    executionFilter.categoryNames = run.categories;
+                if (run.assemblies?.Length > 0)
+                    executionFilter.assemblyNames = run.assemblies;
+                if (run.tests?.Length > 0)
+                    executionFilter.testNames = run.tests;
 
                 // Persist the dispatch boundary before calling UTF. A reload or
                 // process loss between Execute and its returned GUID must never make
