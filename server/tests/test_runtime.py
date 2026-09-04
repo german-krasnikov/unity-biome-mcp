@@ -976,3 +976,25 @@ def test_is_playtest_pass_reads_ledger_when_json():
     from unity_mcp.tools.runtime import _is_playtest_pass
     assert _is_playtest_pass(_ledger_json(step_ok=True), "json") is True
     assert _is_playtest_pass(_ledger_json(step_ok=False), "json") is False
+
+
+def test_is_playtest_pass_ledger_teardown_ok_false():
+    """format="json": every step ok, but outer.teardown_ok is false -> False.
+
+    A clean step ledger is not sufficient on its own; a failed teardown must
+    still fail the whole run (B16's `outer.teardown_ok` gate)."""
+    from unity_mcp.tools.runtime import _is_playtest_pass
+    assert _is_playtest_pass(_ledger_json(step_ok=True, teardown_ok=False), "json") is False
+
+
+def test_is_playtest_pass_text_with_leading_brace():
+    """format="text": a text report that happens to start with '{' must still
+    use the regex path, not be mistaken for JSON (mirrors C#
+    IsPlaytestSuccess_TextReportWithLeadingBrace_StillUsesRegex). This is what
+    makes the {-sniff a fallback for a missing format, not the rule: without
+    the explicit dispatch, the sniff would route this into
+    _is_playtest_pass_from_ledger, which fails json.loads() on this
+    multi-line text and returns False instead of True."""
+    from unity_mcp.tools.runtime import _is_playtest_pass
+    text = '{"source_file": "weird.playtest"}\nPLAYTEST: 2/2 (1.0s) OK'
+    assert _is_playtest_pass(text, "text") is True
