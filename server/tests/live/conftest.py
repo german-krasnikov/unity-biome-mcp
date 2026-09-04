@@ -725,9 +725,10 @@ async def _restore_owned_state(
 ) -> None:
     after = await _capture_unity_state(bridge)
     plan = build_ownership_plan(before, after, policy)
-    # Decided from this first, raw post-test capture — before any play-mode
-    # or time-scale restoration below can reassign `after` out from under it.
-    must_reset_owned_scene = _needs_owned_scene_reset(policy, before, after)
+    # Decided from this first, raw post-test capture and its already-built
+    # plan — before any play-mode or time-scale restoration below can
+    # reassign `after`/`plan` out from under it.
+    must_reset_owned_scene = _needs_owned_scene_reset(policy, plan, after.is_playing)
     errors = list(plan.violations)
     block_global_reset = plan.has_unowned_state
 

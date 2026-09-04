@@ -360,22 +360,24 @@ def build_ownership_plan(
 
 def _needs_owned_scene_reset(
     policy: OwnershipPolicy,
-    before: UnityStateSnapshot,
-    after: UnityStateSnapshot,
+    plan: OwnershipPlan,
+    after_is_playing: bool,
 ) -> bool:
     """True when the owned reset-scene needs a reset before finishing the test.
 
-    `after` must be the raw state captured immediately after the test body
-    ran, before any of this restore pass's own play-mode/time-scale side
-    effects can change it. Play Mode always needs a reset: ephemeral
-    runtime-only objects (no global_id) can appear and vanish during Play
-    without ever showing up in a snapshot diff. Outside Play Mode, reuse
-    `build_ownership_plan`'s own `reset_owned_scene` field — the same
-    plan-derived mutation signal the post-cleanup verification already
-    checks — instead of inventing a second diff mechanism.
+    `plan` must already be built from the raw state captured immediately
+    after the test body ran, before any of this restore pass's own
+    play-mode/time-scale side effects can change it — this function never
+    rebuilds the plan itself, it only reads `plan.reset_owned_scene`. Play
+    Mode always needs a reset: ephemeral runtime-only objects (no
+    global_id) can appear and vanish during Play without ever showing up
+    in a snapshot diff. Outside Play Mode, reuse the plan's own
+    `reset_owned_scene` field — the same plan-derived mutation signal the
+    post-cleanup verification already checks — instead of inventing a
+    second diff mechanism.
     """
     if not policy.reset_scene_path:
         return False
-    if after.is_playing:
+    if after_is_playing:
         return True
-    return build_ownership_plan(before, after, policy).reset_owned_scene
+    return plan.reset_owned_scene

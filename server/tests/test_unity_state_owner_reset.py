@@ -10,6 +10,7 @@ reset when nothing changed, still reset when the plan-derived
 import pytest
 
 from tests.live import conftest as live_conftest
+from tests.live import unity_state_owner as state_owner_module
 from tests.live.unity_state_owner import ObjectState, OwnershipPolicy, SceneState, UnityStateSnapshot
 
 
@@ -30,6 +31,26 @@ def _snapshot(*, scenes, objects=(), assets=()):
     )
 
 
+def _spy_on_build_ownership_plan(monkeypatch):
+    """Count every `build_ownership_plan` call, from either module's own
+    reference to it, and still delegate to the real implementation.
+
+    Proves M1's fix: the reset decision reuses the plan already built at
+    the call site instead of asking `_needs_owned_scene_reset` to rebuild
+    an identical one internally.
+    """
+    calls = []
+    real_build = live_conftest.build_ownership_plan
+
+    def counting_build(before_, after_, policy_):
+        calls.append(1)
+        return real_build(before_, after_, policy_)
+
+    monkeypatch.setattr(live_conftest, "build_ownership_plan", counting_build)
+    monkeypatch.setattr(state_owner_module, "build_ownership_plan", counting_build)
+    return calls
+
+
 @pytest.mark.asyncio
 async def test_restore_owned_state_skips_reset_when_plan_shows_no_scene_mutation(monkeypatch):
     path = "Assets/TestsTemp/Owned.unity"
@@ -40,6 +61,7 @@ async def test_restore_owned_state_skips_reset_when_plan_shows_no_scene_mutation
     )
     captures = iter((snapshot, snapshot))
     resets = []
+    plan_calls = _spy_on_build_ownership_plan(monkeypatch)
 
     async def fake_capture(_bridge):
         return next(captures)
@@ -57,6 +79,7 @@ async def test_restore_owned_state_skips_reset_when_plan_shows_no_scene_mutation
     )
 
     assert resets == []
+    assert len(plan_calls) == 2, "reset decision must reuse the already-built plan, not rebuild it"
 
 
 @pytest.mark.asyncio
@@ -67,6 +90,7 @@ async def test_restore_owned_state_resets_when_plan_shows_scene_mutation(monkeyp
     mutated = _snapshot(scenes=[_scene(path, dirty=True)], objects=[stable], assets=[path])
     captures = iter((mutated, before))
     resets = []
+    plan_calls = _spy_on_build_ownership_plan(monkeypatch)
 
     async def fake_capture(_bridge):
         return next(captures)
@@ -84,3 +108,4 @@ async def test_restore_owned_state_resets_when_plan_shows_scene_mutation(monkeyp
     )
 
     assert resets == [(path, False)]
+    assert len(plan_calls) == 2, "reset decision must reuse the already-built plan, not rebuild it"
