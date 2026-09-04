@@ -239,7 +239,7 @@ namespace UnityMCP.TestProject
             // script happened to pass.
             StringAssert.Contains("\"index\":1,\"type\":\"Mcp\",\"ok\":true,", result);
             StringAssert.Contains("\"index\":2,\"type\":\"Assert\",\"ok\":true,", result);
-            StringAssert.Contains("\"passed\":9", result);
+            StringAssert.Contains("\"passed\":9,", result);
             StringAssert.Contains("\"failed\":0", result);
 
             var runId = JsonHelper.ExtractString(result, "run_id");
