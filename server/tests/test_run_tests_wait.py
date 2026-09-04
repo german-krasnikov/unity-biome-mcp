@@ -48,7 +48,7 @@ async def test_wait_polls_exact_run_before_first_sleep():
     order = []
     terminal = _snapshot("terminal", "passed")
 
-    async def poll(run_id):
+    async def poll(run_id, compact=False):
         order.append(("poll", run_id))
         return terminal
 
@@ -84,7 +84,7 @@ async def test_finalizing_dispatch_failure_is_polled_by_exact_run_id():
         )
 
     assert json.loads(result)["outcome"] == "dispatch_failed"
-    get_run.assert_awaited_once_with(RUN_ID)
+    get_run.assert_awaited_once_with(RUN_ID, compact=True)
 
 
 @pytest.mark.asyncio
@@ -110,7 +110,7 @@ async def test_lost_ack_resolves_correlated_terminal_status_then_polls():
         )
 
     assert json.loads(result)["outcome"] == "dispatch_failed"
-    get_run.assert_awaited_once_with(RUN_ID)
+    get_run.assert_awaited_once_with(RUN_ID, compact=True)
 
 
 @pytest.mark.asyncio
@@ -183,7 +183,7 @@ async def test_lost_start_ack_is_resolved_before_exact_polling():
 
     assert json.loads(result)["outcome"] == "passed"
     assert resolve.await_count == 2
-    get_run.assert_awaited_once_with(RUN_ID)
+    get_run.assert_awaited_once_with(RUN_ID, compact=True)
 
 
 @pytest.mark.asyncio
@@ -222,7 +222,7 @@ async def test_lost_ack_prepared_intent_is_resumed_with_same_immutable_payload()
         ("EditMode", None, REQUEST_ID),
     ]
     resolve.assert_awaited_once_with(REQUEST_ID)
-    get_run.assert_awaited_once_with(RUN_ID)
+    get_run.assert_awaited_once_with(RUN_ID, compact=True)
 
 
 @pytest.mark.asyncio
@@ -629,3 +629,39 @@ async def test_fetch_test_run_json_expected_count_injection_preserves_cyrillic()
     assert json.loads(result) == {
         "run_id": run_id, "state": "running", "filter": "Тест", "expected_count": 3,
     }
+
+
+@pytest.mark.asyncio
+async def test_run_tests_wait_polls_with_compact_true():
+    """A26 added get_test_run's compact param so a tight-cadence poll doesn't
+    keep re-transmitting leaf detail on every non-terminal snapshot. Poll must
+    opt in; a direct get_test_run call must not (see
+    test_get_test_run_tool_defaults_to_full_detail)."""
+    req_id = "req-compact-poll"
+    run_id = "run-compact-poll"
+    ack = (
+        f"{testing._STARTED}|request_id={req_id}|run_id={run_id}"
+        "|utf_guid=utf-1|state=dispatched"
+    )
+    sent_args = []
+
+    async def started(mode, filter=None, request_id=None):
+        return ack
+
+    async def fake_send(command, args):
+        assert command == "get_test_run"
+        sent_args.append(args)
+        state = "terminal" if len(sent_args) > 1 else "running"
+        outcome = "passed" if state == "terminal" else ""
+        return make_snapshot(req_id, run_id, state, outcome)
+
+    with patch.object(testing, "run_tests", started), \
+         patch.object(testing, "_send", fake_send), \
+         patch("asyncio.sleep", AsyncMock()):
+        result = await testing.run_tests_wait(
+            request_id=req_id, timeout=2.0, poll_interval=1.0
+        )
+
+    assert json.loads(result)["outcome"] == "passed"
+    assert len(sent_args) >= 1, "the poll loop must call get_test_run at least once"
+    assert all(args.get("compact") is True for args in sent_args), sent_args
