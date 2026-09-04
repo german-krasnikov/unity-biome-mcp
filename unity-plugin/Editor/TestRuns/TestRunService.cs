@@ -163,9 +163,10 @@ namespace UnityMCP.Editor.TestRuns
             {
                 _store.PruneOldRuns();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 // Opportunistic retention -- a prune failure must never block dispatch.
+                Debug.LogWarning($"[TestRunStore] PruneOldRuns failed (dispatch unaffected): {ex.Message}");
             }
 
             var now = _utcNow();

@@ -72,8 +72,19 @@ namespace UnityMCP.Editor.TestRuns
                     var beyondKeepCount = rank >= keepCount;
                     var beyondWindow = TestRunProtocol.ElapsedSeconds(createdUtc, nowUtc) >
                         window.TotalSeconds;
-                    if (beyondKeepCount || beyondWindow)
+                    if (!beyondKeepCount && !beyondWindow) continue;
+
+                    try
+                    {
                         Directory.Delete(GetRunDirectory(runId), true);
+                    }
+                    catch (Exception ex)
+                    {
+                        // One undeletable run must never abort the rest of the pass.
+                        UnityEngine.Debug.LogWarning(
+                            $"[TestRunStore] PruneOldRuns could not delete run '{runId}' " +
+                            $"(skipped, others still pruned): {ex.Message}");
+                    }
                 }
             }
         }

@@ -1,8 +1,12 @@
 // TDD -- TestRunStore.PruneOldRuns retention (count 50 / window 7d), R-17: a
 // non-terminal run must never be reaped by retention regardless of age or rank.
 using System;
+using System.Diagnostics;
 using System.IO;
+using System.Text.RegularExpressions;
 using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.TestTools;
 using UnityMCP.Editor.TestRuns;
 using UnityMCP.Editor.Testing;
 
@@ -113,6 +117,52 @@ namespace UnityMCP.Editor.Tests
             Assert.That(store.TryReadRun("run-live-old", out var survivor), Is.True,
                 "a non-terminal run must never be reaped by retention, regardless of age");
             Assert.That(survivor.lifecycle, Is.EqualTo(TestRunProtocol.Lifecycle.Running));
+        }
+
+        [Test]
+        public void PruneOldRuns_OneUndeletableRun_StillPrunesTheOthers()
+        {
+            if (Application.platform == RuntimePlatform.WindowsEditor)
+            {
+                Assert.Ignore("chmod-based undeletable-directory reproduction requires a POSIX filesystem.");
+                return;
+            }
+
+            var store = CreateIsolatedStore();
+            var now = DateTime.UtcNow;
+            // Both are beyond the 7d window; the victim is ranked ahead of the
+            // survivor (newer created_utc sorts first) so an unguarded exception
+            // deleting the victim would abort the pass before the survivor is
+            // ever reached -- proving this test double-reds without the fix.
+            WriteTerminalRun(store, "run-victim", now.AddDays(-30).ToString("O"));
+            WriteTerminalRun(store, "run-survivor", now.AddDays(-31).ToString("O"));
+            var victimDir = Path.Combine(RunsPath(store), "run-victim");
+            MakeDirectoryUndeletable(victimDir);
+            RegisterCleanup(() => RestoreDirectoryDeletable(victimDir));
+            LogAssert.Expect(LogType.Warning, new Regex("PruneOldRuns could not delete run 'run-victim'"));
+
+            store.PruneOldRuns(keepWindow: TimeSpan.FromDays(7));
+
+            Assert.That(store.TryReadRun("run-survivor", out _), Is.False,
+                "the survivor is also beyond the window and must still be pruned " +
+                "even though an earlier-ranked run failed to delete");
+            Assert.That(Directory.Exists(victimDir), Is.True,
+                "the undeletable run must remain on disk rather than corrupt/vanish");
+        }
+
+        private static void MakeDirectoryUndeletable(string path) => RunChmod(path, "555");
+
+        private static void RestoreDirectoryDeletable(string path) => RunChmod(path, "755");
+
+        private static void RunChmod(string path, string mode)
+        {
+            using (var proc = Process.Start(new ProcessStartInfo("/bin/chmod", $"{mode} \"{path}\"")
+                   {
+                       UseShellExecute = false
+                   }))
+            {
+                proc?.WaitForExit();
+            }
         }
     }
 }
