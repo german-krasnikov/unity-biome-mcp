@@ -240,6 +240,10 @@ namespace UnityMCP.Editor.TestRuns
 
                     case TestRunProtocol.EventType.DispatchFailed:
                         dispatchFailed = true;
+                        AddError(issues, "DISPATCH_FAILED", "", 0, runId,
+                            string.IsNullOrEmpty(testEvent.message)
+                                ? "Test dispatch failed."
+                                : testEvent.message);
                         break;
 
                     case TestRunProtocol.EventType.CancelRequested:
