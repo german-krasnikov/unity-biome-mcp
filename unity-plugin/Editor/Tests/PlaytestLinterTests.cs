@@ -62,5 +62,19 @@ namespace UnityMCP.Editor.Tests
             var result = PlaytestLinter.LintScript(script);
             StringAssert.DoesNotContain("has no following evidence step", result);
         }
+
+        // ── C12: unknown-verb regression guard ──────────────────────────────────
+
+        [Test]
+        public void LintScript_UnknownDslKeywordAfterMcpAdded_StillErrorsAsParseError()
+        {
+            // Proves adding the "MCP" case to PlaytestParser's switch(cmd) did not
+            // loosen the `default: throw new ArgumentException(...)` catch-all into
+            // something that silently accepts any other unrecognized top-level verb.
+            var script = "BOGUS_COMMAND_XYZ foo" + Cleanup;
+            var result = PlaytestLinter.LintScript(script);
+            StringAssert.Contains("ERROR", result);
+            StringAssert.Contains("parse error", result);
+        }
     }
 }
