@@ -5,6 +5,8 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("UnityMCP.Editor.Tests")]
 [assembly: InternalsVisibleTo("UnityMCP.Editor.TestSupport")]
 [assembly: InternalsVisibleTo("UnityMCP.TestProject")]
+// B22: PlayMode carrier for the 3 Play-bound MCPFeedbackFixture .playtest files
+[assembly: InternalsVisibleTo("UnityMCP.TestProject.PlayMode")]
 // grants Chat.Tests access to JsonHelper parse helpers
 [assembly: InternalsVisibleTo("UnityMCP.Editor.Chat.Tests")]
 [assembly: InternalsVisibleTo("UnityMCP.Editor.Chat.Tests.CLI")]

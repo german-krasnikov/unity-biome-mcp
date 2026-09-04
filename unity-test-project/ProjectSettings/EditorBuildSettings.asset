@@ -8,4 +8,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/SampleScene.unity
     guid: 8c9cfa26abfee488c85f1582747f6a02
+  - enabled: 1
+    path: Assets/MCPFeedbackFixture/McpFeedbackFixture.unity
+    guid: 6df8114d1cf024a4c8559b232c7bcb9a
   m_configObjects: {}
