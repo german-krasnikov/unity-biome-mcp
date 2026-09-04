@@ -105,6 +105,10 @@ namespace UnityMCP.Editor.TestRuns
         public string mode = "";
         public string group = "";
         public string filter = "";
+        public string[] categories = Array.Empty<string>();
+        public string[] assemblies = Array.Empty<string>();
+        public string[] tests = Array.Empty<string>();
+        public string selection_sha256 = "";
         public string state = "prepared";
         public string created_utc = "";
         public string acknowledged_utc = "";
@@ -139,6 +143,10 @@ namespace UnityMCP.Editor.TestRuns
         public string mode = "";
         public string group = "";
         public string filter = "";
+        public string[] categories = Array.Empty<string>();
+        public string[] assemblies = Array.Empty<string>();
+        public string[] tests = Array.Empty<string>();
+        public string selection_sha256 = "";
     }
 
     [Serializable]

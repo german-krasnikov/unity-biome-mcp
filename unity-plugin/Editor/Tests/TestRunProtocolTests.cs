@@ -540,6 +540,40 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void TestRunRequestRecord_SelectionFields_DefaultToEmpty()
+        {
+            var request = new TestRunRequestRecord();
+
+            Assert.AreEqual(0, request.categories.Length);
+            Assert.AreEqual(0, request.assemblies.Length);
+            Assert.AreEqual(0, request.tests.Length);
+            Assert.AreEqual("", request.selection_sha256);
+        }
+
+        [Test]
+        public void TestRunRecord_RoundTripsSelectionFieldsThroughJsonUtility()
+        {
+            const string runId = "run-selection-fields";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                lifecycle = TestRunProtocol.Lifecycle.Prepared,
+                created_utc = "2026-08-02T12:00:00.0000000Z",
+                categories = new[] { "Fast", "!Stress" },
+                assemblies = new[] { "UnityMCP.Editor.Tests" },
+                tests = new[] { "Suite.TestA", "Suite.TestB" },
+                selection_sha256 = "deadbeef"
+            });
+
+            var readBack = _store.ReadRun(runId);
+
+            CollectionAssert.AreEqual(new[] { "Fast", "!Stress" }, readBack.categories);
+            CollectionAssert.AreEqual(new[] { "UnityMCP.Editor.Tests" }, readBack.assemblies);
+            CollectionAssert.AreEqual(new[] { "Suite.TestA", "Suite.TestB" }, readBack.tests);
+            Assert.AreEqual("deadbeef", readBack.selection_sha256);
+        }
+
+        [Test]
         public void ValidActivePointerIsNeverQuarantined()
         {
             _store.WriteActive(new TestRunPointer
