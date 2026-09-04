@@ -10,6 +10,7 @@
 // tests must stay ordinary (non-Explicit) so they count in the honest EditMode CI total.
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -161,6 +162,27 @@ namespace UnityMCP.TestProject
             var resultB = await RunFixtureAsync("B_shared_continue.playtest");
             StringAssert.Contains("PLAYTEST: 3/3", resultB);
             StringAssert.Contains(" OK", resultB);
+        }
+
+        // ── B22a: @suite-only excludes A/B/C from loose corpus iteration ────────────
+
+        [Test]
+        public void SuiteOnly_TaggedFiles_ExcludedFromLooseCorpusIteration()
+        {
+            var dir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", FixtureDir));
+            var allFiles = Directory.GetFiles(dir, "*.playtest");
+            var loose = allFiles
+                .Where(f => !PlaytestHeaderScanner.Scan(File.ReadAllText(f, Encoding.UTF8)).SuiteOnly)
+                .Select(Path.GetFileName)
+                .ToList();
+
+            Assert.AreEqual(allFiles.Length - 3, loose.Count,
+                "@suite-only tagging must exclude exactly A/B/C from the loose corpus count");
+            CollectionAssert.DoesNotContain(loose, "A_shared_setup.playtest");
+            CollectionAssert.DoesNotContain(loose, "B_shared_continue.playtest");
+            CollectionAssert.DoesNotContain(loose, "C_shared_finish.playtest");
+            CollectionAssert.Contains(loose, "F_independent_fail.playtest");
+            CollectionAssert.Contains(loose, "I1_independent_pass.playtest");
         }
     }
 }

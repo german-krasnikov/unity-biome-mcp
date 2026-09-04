@@ -1,3 +1,4 @@
+# @suite-only
 INCLUDE common.defs
 ASSERT $state == 102
 INVOKE /Fixture/State FixtureState CompleteAfterSeconds 0.1
