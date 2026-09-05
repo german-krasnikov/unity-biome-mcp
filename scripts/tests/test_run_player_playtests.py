@@ -12,6 +12,8 @@ import xml.etree.ElementTree as ET
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 
@@ -97,6 +99,40 @@ def test_build_player_args_shape():
         "-unityMcpPlaytestExit",
         "-force-glcore",
     ]
+
+
+# ===========================================================================
+# Group B2: --extra-arg CLI parsing (dash-prefixed values need `=` form)
+# ===========================================================================
+
+def test_parse_args_rejects_dash_value_in_space_separated_form():
+    """Documents the argparse gotcha that broke CI: with action='append',
+    a bare `--extra-arg -nographics` makes argparse treat `-nographics` as
+    an unrecognized option, not a value, and exit(2) instead of appending it."""
+    with pytest.raises(SystemExit):
+        rpp._parse_args(["--player", "/Player", "--extra-arg", "-nographics", "*.playtest"])
+
+
+def test_parse_args_matches_exact_ci_fanout_invocation():
+    """Pins the exact Linux-leg argv unity-player-playtest.yml's "Run Player
+    Fan-Out" step builds (FANOUT_ARGS with `--extra-arg=<flag>` `=` form) --
+    the fix for the SystemExit above."""
+    argv = [
+        "--player", "/artifacts/player-smoke/UnityMCP",
+        "--jobs", "2",
+        "--out", "artifacts/player-playtest-fanout.xml",
+        "--extra-arg=-nographics",
+        "--extra-arg=-force-glcore",
+        "unity-test-project/Assets/StreamingAssets/Playtests/*.playtest",
+    ]
+
+    args = rpp._parse_args(argv)
+
+    assert args.extra_args == ["-nographics", "-force-glcore"]
+    assert args.player == "/artifacts/player-smoke/UnityMCP"
+    assert args.jobs == 2
+    assert args.out == "artifacts/player-playtest-fanout.xml"
+    assert args.glob == "unity-test-project/Assets/StreamingAssets/Playtests/*.playtest"
 
 
 # ===========================================================================

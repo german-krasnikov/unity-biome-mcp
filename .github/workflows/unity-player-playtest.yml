@@ -289,9 +289,9 @@ jobs:
           fi
           test -n "$PLAYER"
           chmod +x "$PLAYER" 2>/dev/null || true
-          FANOUT_ARGS=(--player "$PLAYER" --jobs 2 --out artifacts/player-playtest-fanout.xml --extra-arg -nographics)
+          FANOUT_ARGS=(--player "$PLAYER" --jobs 2 --out artifacts/player-playtest-fanout.xml --extra-arg=-nographics)
           if [[ "$RUNNER_OS" == "Linux" ]]; then
-            FANOUT_ARGS+=(--extra-arg -force-glcore)
+            FANOUT_ARGS+=(--extra-arg=-force-glcore)
             xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" \
               python3 scripts/run_player_playtests.py "${FANOUT_ARGS[@]}" \
               "unity-test-project/Assets/StreamingAssets/Playtests/*.playtest"

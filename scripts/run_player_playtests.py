@@ -187,7 +187,8 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--out", default="artifacts/player-playtests-merged.xml")
     parser.add_argument(
         "--extra-arg", action="append", default=[], dest="extra_args",
-        help="extra Player CLI arg, repeatable (e.g. --extra-arg -force-glcore)",
+        help="extra Player CLI arg, repeatable; dash-prefixed values need "
+        "'=' form, e.g. --extra-arg=-force-glcore (see argparse dash-prefix rejection)",
     )
     parser.add_argument(
         "--timeout", type=float, default=_DEFAULT_PLAYER_TIMEOUT_S,
