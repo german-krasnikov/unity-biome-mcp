@@ -195,3 +195,24 @@ def test_python_only_tools_without_c_handler_are_direct_only():
             f"{name} has no C# handler but direct_only=False — "
             "batch will forward it to C# and get 'Unknown command'"
         )
+
+
+# ── PR-01B / F8: _INTERNAL category audit for the read-only gate ────────────
+
+def test_internal_health_probes_are_explicit_reads():
+    """ping/get_version are pure health/version probes — must be explicit
+    mutability='read' so removing the _INTERNAL category filter from
+    WRITE_CMDS doesn't newly block the pipeline's alive-check (ping)."""
+    from unity_mcp.tools.tool_specs import _SPECS
+    assert _SPECS["ping"].mutability == "read"
+    assert _SPECS["get_version"].mutability == "read"
+
+
+def test_internal_mutating_wrappers_are_explicit_writes():
+    """start_playtest/source_patch_write/export_package/import_package are
+    genuine mutations wired only as internal wire commands — must resolve to
+    mutability='write' (the dataclass default already gives this; pinned
+    explicitly so a future default change can't silently reopen the gate)."""
+    from unity_mcp.tools.tool_specs import _SPECS
+    for name in ("start_playtest", "source_patch_write", "export_package", "import_package"):
+        assert _SPECS[name].mutability == "write", name

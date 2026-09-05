@@ -1,6 +1,7 @@
 """Tests for run_playtest tool."""
 import pytest
 from unittest.mock import AsyncMock
+from mcp.server.fastmcp.exceptions import ToolError
 from unity_mcp.server import run_playtest
 from unity_mcp.tools.runtime import _compress_report
 
@@ -224,3 +225,35 @@ async def test_defs_inline_collision_script_wins(mock_bridge):
     idx_defs = sent.index("VAL hp /P|HP|health")
     idx_script = sent.index("VAL $hp 100")
     assert idx_defs < idx_script  # defs first, script after → script overrides
+
+
+# ── PR-01B / F8: read-only gate must block both sync and async playtest routes ──
+
+
+async def test_run_playtest_sync_blocked_in_readonly(mock_bridge, monkeypatch):
+    """Regression guard: sync run_playtest (timeout<=120) is already correctly
+    blocked today — must stay blocked after the _INTERNAL filter fix."""
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await run_playtest("SET /A T x 1", timeout=120.0)
+    mock_bridge.send.assert_not_called()
+
+
+async def test_run_playtest_async_start_poll_blocked_in_readonly(mock_bridge, monkeypatch):
+    """A14 reproduction: timeout>120 routes through start_playtest, which was
+    silently excluded from WRITE_CMDS by the _INTERNAL category filter and
+    reached the bridge unblocked in read-only mode."""
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await run_playtest("SET /A T x 1", timeout=121.0)
+    mock_bridge.send.assert_not_called()
+
+
+@pytest.mark.parametrize("timeout", [1.0, 120.0, 120.01, 300.0])
+async def test_run_playtest_readonly_blocks_regardless_of_sync_ceiling(mock_bridge, monkeypatch, timeout):
+    """Read-only policy must be identical on both sides of the 120s sync/async
+    boundary — no route-dependent policy."""
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await run_playtest("SET /A T x 1", timeout=timeout)
+    mock_bridge.send.assert_not_called()

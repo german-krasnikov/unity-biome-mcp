@@ -152,7 +152,7 @@ class MiddlewareGuardsMixin:
         """Block mutation commands when the endpoint is in read-only mode."""
         if not self.is_read_only:
             return None
-        if is_write(cmd, args):
+        if is_write(cmd, args, unknown_is_write=True):
             return f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
         return None
 

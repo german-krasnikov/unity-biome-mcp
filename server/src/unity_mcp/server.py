@@ -399,7 +399,7 @@ def _check_read_only(cmd: str, args: dict) -> None:
     if os.environ.get("UNITY_MCP_READ_ONLY", "0") != "1":
         return
     from .middleware_types import is_write
-    if is_write(cmd, args):
+    if is_write(cmd, args, unknown_is_write=True):
         raise ToolError(
             f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
         )

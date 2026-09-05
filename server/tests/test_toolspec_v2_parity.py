@@ -137,4 +137,8 @@ def test_write_cmds_bounded_size():
     # plus the raw navmesh transport alias used by navmesh_query.
     # test_step, run_playtest, run_playtest_suite, screenshot_baseline,
     # verify_after_change, and conditionally mutating doctor.
-    assert len(WRITE_CMDS) <= 87, f"WRITE_CMDS grew to {len(WRITE_CMDS)} — annotate new tools with mutability='read' if they don't mutate"
+    # PR-01B/F8: 87 -> 91 -- removed the _INTERNAL category filter from
+    # WRITE_CMDS (it silently excluded genuine writes from read-only
+    # authorization); adds export_package, import_package, source_patch_write,
+    # start_playtest. ping/get_version stay out -- reclassified read.
+    assert len(WRITE_CMDS) <= 91, f"WRITE_CMDS grew to {len(WRITE_CMDS)} — annotate new tools with mutability='read' if they don't mutate"

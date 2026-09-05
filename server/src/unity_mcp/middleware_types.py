@@ -2,6 +2,10 @@
 import time
 
 from .tools.tool_specs import _SPECS as _TOOL_SPECS
+from .tools._annotations import _INTERNAL_RETRY_SAFE_CMDS as _KNOWN_SAFE_READS
+# get_status/sync_status: pure-read wire commands with no ToolSpec entry
+# (audited in tools/_annotations.py). Reused here, not duplicated, so the
+# read-only gate and the retry-safety allowlist can never drift apart.
 
 _STRIP_CMDS: frozenset = frozenset({"get_component", "inspect", "get_object_detail"})
 
@@ -19,7 +23,7 @@ BLAST_RADIUS = {
 #   server._warm_cmd_flags (.update() from C# get_capabilities)
 WRITE_CMDS: set[str] = {
     n for n, s in _TOOL_SPECS.items()
-    if s.mutability == 'write' and s.category != '_INTERNAL'
+    if s.mutability == 'write'
 }
 READ_CMDS: set[str] = {
     n for n, s in _TOOL_SPECS.items()
@@ -51,6 +55,7 @@ SCENE_STATE_NEUTRAL_WRITES: frozenset[str] = frozenset({
     "screenshot",
     "run_playtest",
     "run_playtest_suite",
+    "start_playtest",           # same Play-mode-neutral scene-state axis as run_playtest
 })
 
 # check_verification_needed's advisory every-10th-mutation nudge must count an
@@ -64,7 +69,7 @@ SCENE_STATE_NEUTRAL_WRITES: frozenset[str] = frozenset({
 # not a blind write" remains correct (a playtest run typically ends in
 # ASSERTs), so the run_playtest classification isn't silently broadened there.
 VERIFICATION_NUDGE_NEUTRAL_WRITES: frozenset[str] = (
-    SCENE_STATE_NEUTRAL_WRITES - frozenset({"run_playtest"})
+    SCENE_STATE_NEUTRAL_WRITES - frozenset({"run_playtest", "start_playtest"})
 )
 
 # editor actions that are reads; all others (play/stop/pause/step/select) are writes
@@ -98,15 +103,25 @@ ACTION_READS: dict[str, frozenset[str]] = {
 }
 
 
-def is_write(cmd: str, args: dict | None = None) -> bool:
+def is_write(cmd: str, args: dict | None = None, *, unknown_is_write: bool = False) -> bool:
     """Return True iff cmd+args represents a mutation.
 
     For action-parameterised commands in WRITE_CMDS, check args["action"].
     Unknown/absent action → True (conservative).
-    Commands not in WRITE_CMDS are never writes (returns False).
+    Commands not in WRITE_CMDS are never writes (returns False) UNLESS cmd is
+    also absent from READ_CMDS, in which case the unknown_is_write kwarg
+    decides: False (default, unchanged) is what every existing advisory
+    caller gets — check_retry/check_verification_needed/transition/
+    log_mutation treat an unrecognized cmd as a non-write; the worst case is
+    a missed nudge. Read-only AUTHORIZATION callers (check_read_only in
+    middleware_guards.py and server.py) pass True: a wire command absent
+    from _SPECS must fail closed, not silently pass through, in read-only
+    mode.
     """
-    if cmd not in WRITE_CMDS:
+    if cmd in _KNOWN_SAFE_READS:
         return False
+    if cmd not in WRITE_CMDS:
+        return False if cmd in READ_CMDS else unknown_is_write
     # doctor is observational by default, but fix=True deletes stale local
     # discovery files. Treat unknown truthy values conservatively as writes.
     if cmd == "doctor":

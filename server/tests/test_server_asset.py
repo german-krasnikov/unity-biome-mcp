@@ -377,3 +377,39 @@ async def test_asset_write_text_cs_sends_exactly_once_regardless_of_route(mock_b
     await asset(action="write_text", path="Assets/f.cs", content="data")
 
     assert mock_bridge.send.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# PR-01B / F8: read-only gate must block .cs writes on BOTH routes
+# (source_patch_write was silently excluded from WRITE_CMDS by the
+# _INTERNAL category filter and reached the bridge unblocked).
+# ---------------------------------------------------------------------------
+
+async def test_asset_write_cs_source_patch_blocked_in_readonly(mock_bridge, monkeypatch):
+    """A14 reproduction: SourcePatch intent ON must block write_text on .cs."""
+    monkeypatch.setattr("unity_mcp.tools.asset._source_patch_mutation_is_on", lambda: True)
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await asset(action="write_text", path="Assets/Audit.cs", content="x")
+    mock_bridge.send.assert_not_called()
+
+
+async def test_asset_write_cs_legacy_route_blocked_in_readonly(mock_bridge, monkeypatch):
+    """Symmetry pin: SourcePatch intent OFF (legacy `asset` route) was already
+    correctly blocked — must stay blocked."""
+    monkeypatch.setattr("unity_mcp.tools.asset._source_patch_mutation_is_on", lambda: False)
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await asset(action="write_text", path="Assets/Audit.cs", content="x")
+    mock_bridge.send.assert_not_called()
+
+
+@pytest.mark.parametrize("mutation_on", [True, False])
+async def test_asset_write_non_cs_blocked_in_readonly(mock_bridge, monkeypatch, mutation_on):
+    """No route-confusion regression: a non-.cs write stays blocked regardless
+    of SourcePatch intent state (it never reroutes)."""
+    monkeypatch.setattr("unity_mcp.tools.asset._source_patch_mutation_is_on", lambda: mutation_on)
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await asset(action="write_text", path="Assets/f.txt", content="data")
+    mock_bridge.send.assert_not_called()

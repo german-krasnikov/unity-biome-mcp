@@ -18,6 +18,10 @@ class ToolSpec:
     tier1: always-visible but not core.
     timeout_s: per-command TCP timeout; DEFAULT_TIMEOUT (30s) if unset.
     mutability: 'read' = never mutates scene/state; 'write' = may mutate (default = fail-closed).
+    For category='_INTERNAL' entries this field is now load-bearing, not just
+    documentation: middleware_types.WRITE_CMDS derives from it with no
+    category filter, so an unmarked _INTERNAL write silently bypasses the
+    UNITY_MCP_READ_ONLY gate (PR-01B/F8).
     runtime_only: True = Play Mode required; blocked before TCP when is_playing=False.
     direct_only: True = callable through its typed MCP wrapper, but not inside batch.
     unity_transport: a direct-only wrapper delegates the same command name to Unity.
@@ -126,7 +130,7 @@ _SPECS: dict[str, ToolSpec] = {
     'get_test_run': ToolSpec(category='TESTS', timeout_s=10.0, mutability='read'),
     'get_unity_events': ToolSpec(category='SCENE', mutability='read'),
     'list_events': ToolSpec(category='COMPONENTS', mutability='read'),
-    'get_version': ToolSpec(category='_INTERNAL', timeout_s=5.0),
+    'get_version': ToolSpec(category='_INTERNAL', timeout_s=5.0, mutability='read'),
     'get_watches': ToolSpec(category='RUNTIME', mutability='read'),
     'import_package': ToolSpec(category='_INTERNAL', timeout_s=120.0),
     'inspect': ToolSpec(category='CORE', core=True, mutability='read'),
@@ -150,7 +154,7 @@ _SPECS: dict[str, ToolSpec] = {
     'object_diff': ToolSpec(category='SCENE', mutability='read'),
     'particle': ToolSpec(category='MEDIA'),
     'permission_prompt': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
-    'ping': ToolSpec(category='_INTERNAL', timeout_s=5.0),
+    'ping': ToolSpec(category='_INTERNAL', timeout_s=5.0, mutability='read'),
     'ping_object': ToolSpec(category='SCENE', mutability='read'),
     'prefab': ToolSpec(category='ASSETS'),
     'profile': ToolSpec(category='RUNTIME', runtime_only=True),
