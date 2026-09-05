@@ -156,7 +156,7 @@ namespace UnityMCP.Editor
             PlaytestStep currentExpanded = null; // VAR-expanded clone of current step
             int failedBeforeStep = 0;           // captured before each step to detect setup failures
             int passedBeforeStep = 0;           // C07: EXPECT_FAIL's pre-step baseline for `passed`
-            PlaytestRunState.Begin(effectiveRunId, stepStartUtc); // B14: observable slice
+            PlaytestRunState.Begin(effectiveRunId, stepStartUtc, steps.Count); // B14/E01: observable slice
             WriteSentinel(effectiveRunId); // C05: reload sentinel — deleted by FinishRun() below
             var stepReceipts = new List<PlaytestStepReceipt>(); // B16: structured step ledger
             bool abortedRun = false; // B16: outer.teardown_ok is false only when this is set
@@ -165,7 +165,6 @@ namespace UnityMCP.Editor
             {
                 EditorApplication.update -= Tick;
                 _isRunning = false;
-                PlaytestRunState.Finish(passed, failed); // B14: observable slice
                 var report = BuildReport(results, passed, failed, testStart);
                 var stateReport = state.BuildReport();
                 if (stateReport != null) report += "\n" + stateReport;
@@ -181,7 +180,12 @@ namespace UnityMCP.Editor
                 File.WriteAllText(receiptPath, json, new System.Text.UTF8Encoding(false));
                 DeleteSentinel(effectiveRunId); // C05: run reached FinishRun() normally — no orphan to reap
 
-                tcs.TrySetResult(format == "json" ? json : report);
+                // E01: terminalText is exactly what the caller's tcs receives below — Finish()
+                // now carries it so get_playtest_run can return it verbatim, byte-identical,
+                // without re-rendering through a second formatter.
+                var terminalText = format == "json" ? json : report;
+                PlaytestRunState.Finish(passed, failed, terminalText); // B14/E01: observable slice
+                tcs.TrySetResult(terminalText);
             }
 
             void AdvanceStep()

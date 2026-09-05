@@ -1,6 +1,8 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -70,6 +72,56 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("deadbeef", snap.RunId);
             Assert.AreEqual(PlaytestRunState.RunPhase.Passed, snap.Phase);
             Assert.AreEqual(0, snap.failed);
+        }
+
+        // ── E01: Wave E's async-dispatch contract — total step count + terminal text/receipt ──
+
+        [Test]
+        public async Task Current_DuringRun_TotalStepsMatchesScript()
+        {
+            var tcs = new TaskCompletionSource<string>();
+            // 3 steps: LOG, WAIT, LOG — WAIT keeps the run mid-flight long enough to observe.
+            PlaytestRunner.Run("LOG a\nWAIT 2.0\nLOG b", 10f, tcs, requiresPlayMode: false, runId: "e01steps");
+
+            await WaitForEditorUpdatesAsync(2);
+            Assert.AreEqual(3, PlaytestRunState.Current.TotalSteps);
+
+            await AwaitBoundedAsync(tcs, timeoutSeconds: 10.0); // drain
+        }
+
+        [Test]
+        public async Task Current_AfterFinish_TerminalTextMatchesCallerResultAndReceipt()
+        {
+            const string runId = "e01term1";
+            var receiptPath = Path.GetFullPath(
+                Path.Combine(Application.dataPath, "..", PlaytestReceiptStore.ReceiptPath(runId)));
+            RegisterCleanup(() => { if (File.Exists(receiptPath)) File.Delete(receiptPath); });
+
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run("LOG hello", 5f, tcs, requiresPlayMode: false, runId: runId);
+            var result = await AwaitBoundedAsync(tcs);
+
+            var snap = PlaytestRunState.Current;
+            Assert.AreEqual(result, snap.TerminalText,
+                "Current.TerminalText must be exactly what the caller's tcs received");
+
+            Assert.IsTrue(File.Exists(receiptPath));
+            var json = File.ReadAllText(receiptPath, System.Text.Encoding.UTF8);
+            StringAssert.Contains($"\"text_report\":\"{result}\"", json,
+                "the persisted receipt's text_report must match the same terminal text");
+        }
+
+        [Test]
+        public void UnknownRunId_IsNotActiveAndHasNoReceipt()
+        {
+            const string unknownId = "e01ghost";
+            var receiptPath = Path.GetFullPath(
+                Path.Combine(Application.dataPath, "..", PlaytestReceiptStore.ReceiptPath(unknownId)));
+
+            Assert.AreNotEqual(unknownId, PlaytestRunState.Current.RunId,
+                "a never-dispatched id must not appear as the active run");
+            Assert.IsFalse(File.Exists(receiptPath),
+                "a never-dispatched id must have no persisted receipt either");
         }
     }
 }

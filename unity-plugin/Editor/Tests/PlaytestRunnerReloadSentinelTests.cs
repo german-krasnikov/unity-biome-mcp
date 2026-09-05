@@ -50,7 +50,7 @@ namespace UnityMCP.Editor.Tests
             Directory.CreateDirectory(Path.GetDirectoryName(orphanSentinel));
             File.WriteAllText(orphanSentinel, "");
             File.WriteAllText(liveSentinel, "");
-            PlaytestRunState.Begin(liveRunId, DateTime.Now); // simulates a run genuinely still in flight
+            PlaytestRunState.Begin(liveRunId, DateTime.Now, totalSteps: 1); // simulates a run genuinely still in flight
 
             PlaytestRunner.ReapOrphanedSentinels(); // the internal seam the static ctor delegates to
 
