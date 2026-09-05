@@ -32,42 +32,98 @@ def _find_pytest_python(repo_root: pathlib.Path) -> str:
 # Individual counters (re-exported for backward compat with update_readme)
 # ---------------------------------------------------------------------------
 
-def _count_public_tool_specs(specs_file: pathlib.Path) -> int:
-    """Count public ToolSpec entries while excluding protocol-only commands."""
-    tree = ast.parse(specs_file.read_text(encoding="utf-8"), filename=str(specs_file))
-    specs_dict: ast.Dict | None = None
+def _category_of(node: ast.AST, container_desc: str) -> str:
+    """Extract the string 'category' keyword/key from a ToolSpec(...) call or a
+    plain dict literal (SPEC_KWARGS entries use the latter -- see PR-04)."""
+    if isinstance(node, ast.Call):
+        pairs = [(kw.arg, kw.value) for kw in node.keywords]
+    elif isinstance(node, ast.Dict):
+        pairs = [
+            (key.value, value)
+            for key, value in zip(node.keys, node.values, strict=False)
+            if isinstance(key, ast.Constant)
+        ]
+    else:
+        raise ValueError(f"Unexpected entry in {container_desc}")
+    category = next((value for key, value in pairs if key == "category"), None)
+    if not isinstance(category, ast.Constant) or not isinstance(category.value, str):
+        raise ValueError(f"category must be a string in {container_desc}")
+    return category.value
+
+
+def _find_dict_literal(tree: ast.Module, name: str) -> ast.Dict | None:
+    """Find a top-level `name = {...}` or `name: T = {...}` dict literal."""
     for node in tree.body:
         if (
             isinstance(node, ast.AnnAssign)
             and isinstance(node.target, ast.Name)
-            and node.target.id == "_SPECS"
+            and node.target.id == name
             and isinstance(node.value, ast.Dict)
         ):
-            specs_dict = node.value
-            break
+            return node.value
         if (
             isinstance(node, ast.Assign)
             and isinstance(node.value, ast.Dict)
-            and any(isinstance(target, ast.Name) and target.id == "_SPECS" for target in node.targets)
+            and any(isinstance(target, ast.Name) and target.id == name for target in node.targets)
         ):
-            specs_dict = node.value
-            break
+            return node.value
+    return None
 
+
+def _count_owner_module_contribution(tools_dir: pathlib.Path, module_name: str) -> int:
+    """Count non-_INTERNAL entries in <module_name>.py's own SPEC_KWARGS dict
+    literal (PR-04 physical registration pilot: tool_specs.py merges these into
+    _SPECS at import time via a for-loop the static scan below can't see)."""
+    mod_file = tools_dir / f"{module_name}.py"
+    tree = ast.parse(mod_file.read_text(encoding="utf-8"), filename=str(mod_file))
+    spec_kwargs = _find_dict_literal(tree, "SPEC_KWARGS")
+    if spec_kwargs is None:
+        raise ValueError(f"SPEC_KWARGS dictionary not found in {mod_file}")
+    return sum(
+        1 for value in spec_kwargs.values
+        if _category_of(value, str(mod_file)) != "_INTERNAL"
+    )
+
+
+def _find_merged_owner_modules(tree: ast.Module) -> list[str]:
+    """Recognize `from .<mod> import SPEC_KWARGS as <alias>` + a top-level
+    `for _, _ in <alias>.items(): _SPECS[...] = ToolSpec(**...)` loop (the one
+    PR-04 merge shape) and return the owner module name(s) found."""
+    aliases: dict[str, str] = {}
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module:
+            for alias in node.names:
+                if alias.name == "SPEC_KWARGS" and alias.asname:
+                    aliases[alias.asname] = node.module.lstrip(".")
+    modules = []
+    for node in tree.body:
+        if not isinstance(node, ast.For):
+            continue
+        it = node.iter
+        if (
+            isinstance(it, ast.Call)
+            and isinstance(it.func, ast.Attribute)
+            and it.func.attr == "items"
+            and isinstance(it.func.value, ast.Name)
+            and it.func.value.id in aliases
+        ):
+            modules.append(aliases[it.func.value.id])
+    return modules
+
+
+def _count_public_tool_specs(specs_file: pathlib.Path) -> int:
+    """Count public ToolSpec entries while excluding protocol-only commands."""
+    tree = ast.parse(specs_file.read_text(encoding="utf-8"), filename=str(specs_file))
+    specs_dict = _find_dict_literal(tree, "_SPECS")
     if specs_dict is None:
         raise ValueError(f"_SPECS dictionary not found in {specs_file}")
 
-    count = 0
-    for value in specs_dict.values:
-        if not isinstance(value, ast.Call):
-            raise ValueError(f"Unexpected _SPECS entry in {specs_file}")
-        category = next(
-            (keyword.value for keyword in value.keywords if keyword.arg == "category"),
-            None,
-        )
-        if not isinstance(category, ast.Constant) or not isinstance(category.value, str):
-            raise ValueError(f"ToolSpec category must be a string in {specs_file}")
-        if category.value != "_INTERNAL":
-            count += 1
+    count = sum(
+        1 for value in specs_dict.values
+        if _category_of(value, str(specs_file)) != "_INTERNAL"
+    )
+    for module_name in _find_merged_owner_modules(tree):
+        count += _count_owner_module_contribution(specs_file.parent, module_name)
     return count
 
 

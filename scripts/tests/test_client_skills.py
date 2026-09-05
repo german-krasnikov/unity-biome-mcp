@@ -95,8 +95,68 @@ def shipped_markdown(repo_root: pathlib.Path) -> list[pathlib.Path]:
     return sorted([*root.glob("skills/**/*.md"), *root.glob("agents/*.md")])
 
 
+def _owner_module_spec_kwargs(tools_dir: pathlib.Path, module_name: str) -> dict[str, str]:
+    """PR-04 physical registration pilot: tool_specs.py merges some entries into
+    _SPECS at import time from an owner module's own SPEC_KWARGS dict literal
+    (e.g. tools/watch.py) instead of hand-typing them. Read that module's own
+    literal directly so this test's cross-check still sees those tool names."""
+    mod_file = tools_dir / f"{module_name}.py"
+    tree = ast.parse(mod_file.read_text(encoding="utf-8"))
+    for node in tree.body:
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "SPEC_KWARGS"
+            and isinstance(node.value, ast.Dict)
+        ):
+            entries: dict[str, str] = {}
+            for key, value in zip(node.value.keys, node.value.values, strict=False):
+                if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+                    continue
+                category = next(
+                    (
+                        v.value
+                        for k, v in zip(value.keys, value.values, strict=False)
+                        if isinstance(k, ast.Constant) and k.value == "category"
+                        and isinstance(v, ast.Constant) and isinstance(v.value, str)
+                    ),
+                    None,
+                )
+                assert category is not None, key.value
+                entries[key.value] = category
+            return entries
+    raise AssertionError(f"SPEC_KWARGS dictionary not found in {mod_file}")
+
+
+def _merged_owner_modules(tree: ast.Module) -> list[str]:
+    """Recognize `from .<mod> import SPEC_KWARGS as <alias>` + a top-level
+    `for _, _ in <alias>.items(): _SPECS[...] = ToolSpec(**...)` loop (the one
+    PR-04 merge shape) and return the owner module name(s) found."""
+    aliases: dict[str, str] = {}
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module:
+            for alias in node.names:
+                if alias.name == "SPEC_KWARGS" and alias.asname:
+                    aliases[alias.asname] = node.module.lstrip(".")
+    modules = []
+    for node in tree.body:
+        if not isinstance(node, ast.For):
+            continue
+        it = node.iter
+        if (
+            isinstance(it, ast.Call)
+            and isinstance(it.func, ast.Attribute)
+            and it.func.attr == "items"
+            and isinstance(it.func.value, ast.Name)
+            and it.func.value.id in aliases
+        ):
+            modules.append(aliases[it.func.value.id])
+    return modules
+
+
 def tool_specs(repo_root: pathlib.Path) -> dict[str, str]:
-    source = repo_root / "server" / "src" / "unity_mcp" / "tools" / "tool_specs.py"
+    tools_dir = repo_root / "server" / "src" / "unity_mcp" / "tools"
+    source = tools_dir / "tool_specs.py"
     tree = ast.parse(source.read_text(encoding="utf-8"))
     for node in tree.body:
         if (
@@ -120,6 +180,8 @@ def tool_specs(repo_root: pathlib.Path) -> dict[str, str]:
                             category = keyword.value.value
                 assert category is not None, key.value
                 specs[key.value] = category
+            for module_name in _merged_owner_modules(tree):
+                specs.update(_owner_module_spec_kwargs(tools_dir, module_name))
             return specs
     raise AssertionError("_SPECS dictionary not found")
 

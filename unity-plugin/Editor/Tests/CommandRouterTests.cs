@@ -1133,6 +1133,88 @@ namespace UnityMCP.Editor.Tests
                 "alwaysAllowed must not affect batchability");
         }
 
+        // ── PR-04: owner-declared policy generic seam ─────────────────────────
+
+        [Test]
+        public void Register_OwnerDeclaredPolicy_HonoredByIsMutatingAndIsBatchable_WithoutRegistryEdit()
+        {
+            // Exit criterion: adding a 6th command's mutation/batch policy requires editing
+            // only its own registration call site — never CommandRegistry.cs's cascades.
+            // Proven with a throwaway command whose base `mutating` flag is false: the owner
+            // policy alone decides IsMutating, independent of that base flag.
+            var snapshot = CommandRegistry.CaptureForTest();
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.Register("pr04_seam_cmd", _ => "ok", mutating: false,
+                required: "", optional: "",
+                mutatingArgsPolicy: json => JsonHelper.ExtractString(json, "action") == "mutate",
+                notBatchable: true);
+
+            Assert.IsTrue(CommandRegistry.IsMutating("pr04_seam_cmd", "{\"action\":\"mutate\"}"),
+                "owner policy must classify a matching action as mutating");
+            Assert.IsFalse(CommandRegistry.IsMutating("pr04_seam_cmd", "{\"action\":\"other\"}"),
+                "owner policy must classify a non-matching action as non-mutating");
+            Assert.IsFalse(CommandRegistry.IsBatchable("pr04_seam_cmd"),
+                "NotBatchable must be honored generically");
+        }
+
+        // ── PR-04: policy vectors for the 5 designated commands (inspect,
+        // set_property, editor, run_playtest, uitk_file). uitk_file's IsMutating
+        // action-dependence and IsBatchable=false are already covered by
+        // Registry_IsMutating_UitkFile_DependsOnAction / Registry_UitkFile_IsNotBatchable
+        // above (unchanged by the PR-04 refactor) — not duplicated here. Cross-referenced
+        // by comment with server/tests/test_pr04_policy_vectors.py (same 5 commands,
+        // Python-authoritative side).
+
+        [TestCase("inspect", ExpectedResult = true)]
+        [TestCase("set_property", ExpectedResult = true)]
+        [TestCase("editor", ExpectedResult = true)]
+        [TestCase("run_playtest", ExpectedResult = true)]
+        [TestCase("uitk_file", ExpectedResult = true)]
+        public bool Pr04_IsRegistered_FiveCommands(string cmd)
+            => CommandRegistry.IsRegistered(cmd);
+
+        // Base (no-args) mutating flag. run_playtest and editor are both registered
+        // non-mutating at the base level -- editor because play/stop/select don't
+        // corrupt scene data, run_playtest because Play-mode scenario execution is not
+        // itself an Edit-mode scene mutation (see SCENE_STATE_NEUTRAL_WRITES on the
+        // Python side). uitk_file's base flag is true but is superseded per-call by its
+        // MutatingArgsPolicy -- see Registry_IsMutating_UitkFile_DependsOnAction.
+        [TestCase("inspect", ExpectedResult = false)]
+        [TestCase("set_property", ExpectedResult = true)]
+        [TestCase("editor", ExpectedResult = false)]
+        [TestCase("run_playtest", ExpectedResult = false)]
+        public bool Pr04_IsMutating_BaseFlag_FourCommands(string cmd)
+            => CommandRegistry.IsMutating(cmd);
+
+        [TestCase("inspect", ExpectedResult = true)]
+        [TestCase("set_property", ExpectedResult = true)]
+        [TestCase("editor", ExpectedResult = true)]
+        [TestCase("run_playtest", ExpectedResult = false)]   // RegisterAsync -- direct-only
+        [TestCase("uitk_file", ExpectedResult = false)]      // NotBatchable (PR-04 owner policy)
+        public bool Pr04_IsBatchable_FiveCommands(string cmd)
+            => CommandRegistry.IsBatchable(cmd);
+
+        [TestCase("inspect", ExpectedResult = false)]
+        [TestCase("set_property", ExpectedResult = false)]
+        [TestCase("editor", ExpectedResult = false)]
+        [TestCase("run_playtest", ExpectedResult = false)]
+        [TestCase("uitk_file", ExpectedResult = false)]
+        public bool Pr04_IsRuntime_FiveCommands(string cmd)
+            => CommandRegistry.IsRuntime(cmd);
+
+        [Test]
+        public void Pr04_EditorPlayAction_IsMutating_False_AsymmetricWithPython()
+        {
+            // Discovered, characterized cross-route asymmetry (not fixed, not a bug per
+            // se): Python's is_write("editor", {"action":"play"}) returns True
+            // (middleware_types.py's _EDITOR_READ_ACTIONS only exempts state/
+            // project_path), but C# here returns False ("play/stop/select don't corrupt
+            // scene data"). See server/tests/test_pr04_policy_vectors.py::
+            // test_editor_play_action_write_classification_asymmetric_with_csharp for the
+            // pinned Python-side counterpart.
+            Assert.IsFalse(CommandRegistry.IsMutating("editor", "{\"action\":\"play\"}"));
+        }
+
         // ── AlreadyRegistered: double registration guard ──────────────────────
 
         [Test]

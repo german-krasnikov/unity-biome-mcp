@@ -135,5 +135,19 @@ namespace UnityMCP.Editor.Tests
             var result = CommandRegistry.Execute("watch_reset", @"{""id"":""w999""}");
             StringAssert.Contains("not found", result);
         }
+
+        // --- PR-04: owner-declared batch policy ---
+
+        [Test]
+        public void WatchAdd_IsNotBatchable()
+        {
+            Assert.IsFalse(CommandRegistry.IsBatchable("watch_add"));
+        }
+
+        [Test]
+        public void GetWatches_RemainsBatchable()
+        {
+            Assert.IsTrue(CommandRegistry.IsBatchable("get_watches"));
+        }
     }
 }

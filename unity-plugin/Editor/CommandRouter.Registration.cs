@@ -592,9 +592,12 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("attach_uitk", ExecAttachUITK, mutating: true,
                 required: "path",
                 optional: "uxml,panel_settings,sort_order");
+            // PR-04: mutation classification and batch exclusion now declared here by the
+            // owner, not hardcoded in CommandRegistry.IsMutating/IsBatchable.
             CommandRegistry.Register("uitk_file", ExecUitkFile, mutating: true,
                 required: "path",
-                optional: "action,content,selector,attr,value,class,parent,tag,attrs,prop");
+                optional: "action,content,selector,attr,value,class,parent,tag,attrs,prop",
+                mutatingArgsPolicy: IsUitkFileMutating, notBatchable: true);
 
             // Action-based (Phase 26, mutating). Per-action params genuinely vary (e.g. asset's
             // create/move/delete each need different fields) — flat contract is intentionally

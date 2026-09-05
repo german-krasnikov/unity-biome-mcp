@@ -329,6 +329,16 @@ namespace UnityMCP.Editor
                 prop:     JsonHelper.ExtractString(args, "prop"));
         }
 
+        // PR-04: owner-declared mutation policy, replacing the CommandRegistry.IsMutating
+        // central name-switch branch for uitk_file. Behavior unchanged: ExecUitkFile defaults
+        // a missing action to read; every other action writes, reverts, or is conservatively
+        // treated as a possible external file mutation.
+        private static bool IsUitkFileMutating(string argsJson)
+        {
+            var action = JsonHelper.ExtractString(argsJson, "action") ?? "read";
+            return !action.Equals("read", StringComparison.Ordinal);
+        }
+
         private static string ExecEditor(string args)
         {
             var action = JsonHelper.ExtractString(args, "action") ?? "state";

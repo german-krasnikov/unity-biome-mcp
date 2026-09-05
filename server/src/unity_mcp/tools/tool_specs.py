@@ -131,7 +131,6 @@ _SPECS: dict[str, ToolSpec] = {
     'get_unity_events': ToolSpec(category='SCENE', mutability='read'),
     'list_events': ToolSpec(category='COMPONENTS', mutability='read'),
     'get_version': ToolSpec(category='_INTERNAL', timeout_s=5.0, mutability='read'),
-    'get_watches': ToolSpec(category='RUNTIME', mutability='read'),
     'import_package': ToolSpec(category='_INTERNAL', timeout_s=120.0),
     'inspect': ToolSpec(category='CORE', core=True, mutability='read'),
     'invoke_method': ToolSpec(category='RUNTIME', runtime_only=True),
@@ -241,6 +240,17 @@ _SPECS: dict[str, ToolSpec] = {
     'uitk_intent': ToolSpec(category='UITOOLKIT', tier1=True, direct_only=True, timeout_s=60.0),
     'lint_ugui': ToolSpec(category='UGUI', tier1=False, mutability='read', timeout_s=15.0),
     'wait_until': ToolSpec(category='RUNTIME', runtime_only=True, direct_only=True, unity_transport=True),
-    'watch': ToolSpec(category='RUNTIME', direct_only=True),
     'wire_event': ToolSpec(category='COMPONENTS'),
 }
+
+# PR-04 pilot: watch/get_watches ToolSpec entries are owned by tools/watch.py
+# (mirrors the C# WatchCommandHandler.RegisterAll physical pilot). One-way
+# import only (tool_specs -> watch, never the reverse) -- see Plans/PR-04.md
+# "Ordering trace" for why. watch.py exports plain kwargs, not ToolSpec
+# instances, so it never needs to import ToolSpec back from this module.
+from .watch import SPEC_KWARGS as _WATCH_SPEC_KWARGS  # noqa: E402
+
+_SPEC_OWNERS: dict[str, str] = {}
+for _name, _kwargs in _WATCH_SPEC_KWARGS.items():
+    _SPECS[_name] = ToolSpec(**_kwargs)
+    _SPEC_OWNERS[_name] = "watch"

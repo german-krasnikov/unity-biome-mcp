@@ -1,7 +1,11 @@
 """Tests for Watch System tools (B4c: collapsed into single watch(action=...) dispatcher)."""
+from unittest.mock import AsyncMock
+
 import pytest
 from mcp.server.fastmcp.exceptions import ToolError
-from unity_mcp.server import watch, get_watches
+
+from unity_mcp.server import get_watches, watch
+from unity_mcp.tools.watch import WatchModule, register
 
 
 async def test_watch_add_dispatches_watch_add_command(mock_bridge):
@@ -96,3 +100,55 @@ async def test_watch_add_action_log_omitted_as_default(mock_bridge):
 async def test_watch_unknown_action_raises_tool_error():
     with pytest.raises(ToolError, match="Unknown watch action"):
         await watch("bogus")
+
+
+def _plain_args(**kwargs) -> dict:
+    """Mirrors server.py's own _args(**kwargs) factory (drop None values)."""
+    return {k: v for k, v in kwargs.items() if v is not None}
+
+
+async def test_two_watch_module_instances_do_not_cross_contaminate():
+    """Instance-scoped _send/_args: two WatchModule objects must never share state.
+    A naive module-global `bind(globals(), ...)` design fails this because a second
+    register() call overwrites the shared _send/_args globals -- mod_a would start
+    hitting send_b after mod_b is created."""
+    # WatchModule awaits _send(...) directly and returns its result unwrapped --
+    # the real server.py's _send() already unwraps {"ok":...,"data":...} before
+    # returning, so a bound send callable here returns a plain string, matching
+    # the contract WatchModule actually depends on.
+    send_a = AsyncMock(return_value="from_a")
+    send_b = AsyncMock(return_value="from_b")
+    mod_a = WatchModule(send_a, _plain_args)
+    mod_b = WatchModule(send_b, _plain_args)
+
+    result_a1 = await mod_a.get_watches()
+    send_a.assert_called_once()
+    send_b.assert_not_called()
+    assert result_a1 == "from_a"
+
+    result_b1 = await mod_b.get_watches()
+    send_b.assert_called_once()
+    assert result_b1 == "from_b"
+
+    # mod_a must still hit send_a after mod_b was used.
+    result_a2 = await mod_a.get_watches()
+    assert send_a.call_count == 2
+    assert send_b.call_count == 1
+    assert result_a2 == "from_a"
+
+
+def test_register_called_twice_returns_independently_bound_modules():
+    """The module-level register(mcp, send, args) compat shim remains a process-wide
+    singleton pointer (documented, accepted scope limit) -- but each call must still
+    return a fully independent WatchModule bound to its own send/args."""
+    fake_mcp_a = type("FakeMcp", (), {"tool": lambda self, **_: (lambda fn: fn)})()
+    fake_mcp_b = type("FakeMcp", (), {"tool": lambda self, **_: (lambda fn: fn)})()
+    send_a = AsyncMock(return_value={"ok": True, "data": "from_a"})
+    send_b = AsyncMock(return_value={"ok": True, "data": "from_b"})
+
+    mod_a = register(fake_mcp_a, send_a, _plain_args)
+    mod_b = register(fake_mcp_b, send_b, _plain_args)
+
+    assert mod_a is not mod_b
+    assert mod_a._send is send_a
+    assert mod_b._send is send_b
