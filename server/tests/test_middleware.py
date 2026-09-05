@@ -1137,6 +1137,177 @@ async def test_screenshot_preserves_scene_state_caches():
     assert "/Ghost" in mw._negative_path_cache
 
 
+# ── PR-01D F2: scene-cache invalidation after a playtest scenario ─────────
+
+
+def _seed_scene_caches(mw) -> dict:
+    """Seed the four scene-derived caches invalidate_scene_caches() targets.
+
+    Mirrors test_screenshot_preserves_scene_state_caches's setup exactly, plus
+    a _component_cache entry (that test never populates one, since screenshot
+    never touches manage_component's own targeted invalidation).
+    """
+    import time as time_mod
+
+    from unity_mcp.prefetch_cache import PrefetchCache
+
+    mw._prefetch_cache = PrefetchCache()
+    component_args = {"path": "/Cube", "type": "Transform"}
+    mw._prefetch_cache.put("get_component", component_args, "cached transform")
+    mw._last_hierarchy_full = "Cube &1"
+    mw._negative_path_cache = {"/Ghost": time_mod.monotonic() + 999}
+    mw._component_cache["/Cube"] = {"Transform"}
+    return component_args
+
+
+def _assert_scene_caches_cleared(mw, component_args: dict) -> None:
+    assert mw._prefetch_cache.get("get_component", component_args) is None
+    assert mw._last_hierarchy_full is None
+    assert mw._negative_path_cache == {}
+    assert "/Cube" not in mw._component_cache
+
+
+def _assert_scene_caches_preserved(mw, component_args: dict) -> None:
+    assert mw._prefetch_cache.get("get_component", component_args) is not None
+    assert mw._last_hierarchy_full == "Cube &1"
+    assert "/Ghost" in mw._negative_path_cache
+    assert "/Cube" in mw._component_cache
+
+
+async def test_run_playtest_terminal_response_invalidates_scene_caches():
+    """F2 #1: a completed run_playtest scenario must drop all scene-derived
+    caches — today _reset_write_caches skips run_playtest entirely because
+    it's in SCENE_STATE_NEUTRAL_WRITES (finding #2)."""
+    mw = Middleware()
+    component_args = _seed_scene_caches(mw)
+
+    async def send_fn(cmd, args, timeout=30.0):
+        return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+
+    await wrap_send(send_fn, mw)("run_playtest", {"script": "LOG hi"})
+
+    _assert_scene_caches_cleared(mw, component_args)
+
+
+async def test_run_playtest_failure_also_invalidates_scene_caches():
+    """F2 #2: invalidation is outcome-content-agnostic — a FAIL report still
+    proves the scenario is finished and may have mutated the scene."""
+    mw = Middleware()
+    component_args = _seed_scene_caches(mw)
+
+    async def send_fn(cmd, args, timeout=30.0):
+        return {"ok": True, "data": "PLAYTEST: 0/1 (0.1s)\n[1] ASSERT HP==1 — FAIL (0)"}
+
+    await wrap_send(send_fn, mw)("run_playtest", {"script": "ASSERT HP==1"})
+
+    _assert_scene_caches_cleared(mw, component_args)
+
+
+async def test_get_playtest_run_running_phase_preserves_scene_caches():
+    """F2 #3: a mid-scenario poll must not wastefully wipe caches."""
+    mw = Middleware()
+    component_args = _seed_scene_caches(mw)
+
+    async def send_fn(cmd, args, timeout=30.0):
+        return {"ok": True, "data": "phase=running|step=1/3|elapsed_ms=500"}
+
+    await wrap_send(send_fn, mw)("get_playtest_run", {"run_id": "abc"})
+
+    _assert_scene_caches_preserved(mw, component_args)
+
+
+async def test_get_playtest_run_terminal_phase_invalidates_scene_caches():
+    """F2 #4: a terminal poll response must invalidate, same as run_playtest."""
+    mw = Middleware()
+    component_args = _seed_scene_caches(mw)
+
+    async def send_fn(cmd, args, timeout=30.0):
+        return {"ok": True, "data": "PLAYTEST: 2/2 (3.0s) OK"}
+
+    await wrap_send(send_fn, mw)("get_playtest_run", {"run_id": "abc"})
+
+    _assert_scene_caches_cleared(mw, component_args)
+
+
+async def test_start_playtest_ack_preserves_scene_caches():
+    """F2 #6: dispatch ack alone (start_playtest) never carries an outcome and
+    must never invalidate (finding #6)."""
+    mw = Middleware()
+    component_args = _seed_scene_caches(mw)
+
+    async def send_fn(cmd, args, timeout=30.0):
+        return {"ok": True, "data": "run_id=abc123"}
+
+    await wrap_send(send_fn, mw)("start_playtest", {"script": "LOG hi"})
+
+    _assert_scene_caches_preserved(mw, component_args)
+
+
+async def test_run_playtest_wire_exception_invalidates_scene_caches():
+    """F2 #7: a wire-level exception on a playtest cmd without a full
+    reconnect (finding #11's remaining gap) must still invalidate — we can't
+    prove the scenario didn't mutate the scene before the drop."""
+    mw = Middleware()
+    component_args = _seed_scene_caches(mw)
+
+    async def send_fn(cmd, args, timeout=30.0):
+        raise ConnectionError("dropped")
+
+    wrapped = wrap_send(send_fn, mw)
+    with pytest.raises(ConnectionError):
+        await wrapped("run_playtest", {"script": "LOG hi"})
+
+    _assert_scene_caches_cleared(mw, component_args)
+
+
+async def test_ordinary_write_exception_does_not_use_playtest_fencing():
+    """F2 #8: the new except-clause is scoped to PLAYTEST_SCENARIO_CMDS only —
+    an ordinary write's exception must not bump _scene_generation (unchanged
+    pre-existing behavior for every other command)."""
+    mw = Middleware()
+    _seed_scene_caches(mw)
+    generation_before = mw._scene_generation
+
+    async def send_fn(cmd, args, timeout=30.0):
+        raise ConnectionError("dropped")
+
+    wrapped = wrap_send(send_fn, mw)
+    with pytest.raises(ConnectionError):
+        await wrapped("create_object", {"name": "Ghost"})
+
+    assert mw._scene_generation == generation_before
+
+
+async def test_force_scene_invalidate_flag_invalidates_without_terminal_text():
+    """F2 #9: the give-up path's forced flag must invalidate even though the
+    response text itself is non-terminal (component 6's contract)."""
+    mw = Middleware()
+    component_args = _seed_scene_caches(mw)
+
+    async def send_fn(cmd, args, timeout=30.0):
+        return {"ok": True, "data": "phase=running|step=9/9"}
+
+    await wrap_send(send_fn, mw)(
+        "get_playtest_run", {"run_id": "x", "_force_scene_invalidate": "true"}
+    )
+
+    _assert_scene_caches_cleared(mw, component_args)
+
+
+async def test_transition_still_treats_run_playtest_as_neutral_write():
+    """F2 #10: this PR must not touch transition()'s advisory-guard semantics
+    (SCENE_STATE_NEUTRAL_WRITES membership is unchanged) — regression guard."""
+    mw = Middleware()
+    mw.transition("set_property", {})
+    mw.transition("set_property", {})
+    assert mw._consecutive_writes == 2
+
+    result = mw.transition("run_playtest", {"script": "LOG hi"})
+
+    assert result is None
+    assert mw._consecutive_writes == 0
+
+
 # ── Item 9: reset_session must cancel bg tasks ─────────────────────────────
 
 

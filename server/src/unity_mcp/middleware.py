@@ -37,6 +37,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
     def __init__(self):
         self._retry_cache: OrderedDict = OrderedDict()  # h -> (timestamp, retry_gen)
         self._retry_generation: int = 0
+        self._scene_generation: int = 0
         self._RETRY_TTL = float(os.environ.get("UNITY_MCP_RETRY_TTL", "5.0"))
         self._RETRY_MAX = 32
         self.confidence: float = 1.0
@@ -119,6 +120,21 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         if self._prefetch_cache is not None:
             self._prefetch_cache.invalidate_by_path(path)
 
+    def invalidate_scene_caches(self) -> None:
+        """Conservative invalidation for scene-derived reads after an event
+        that may have changed the scene without an exact changed-path (a
+        playtest scenario, or an uncertain/exception outcome for one).
+        Bumps _scene_generation FIRST so a _background_prefetch task already
+        in flight cannot repopulate the cache with pre-invalidation data.
+        """
+        self._scene_generation += 1
+        self._last_hierarchy_full = None
+        if self._negative_path_cache:
+            self._negative_path_cache.clear()
+        self._component_cache.clear()
+        if self._prefetch_cache is not None:
+            self._prefetch_cache.clear()
+
     def get_components_for_path(self, path: str):
         return self._component_cache.get(path)
 
@@ -130,6 +146,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
 
     def reset_session(self) -> None:
         """Drop volatile in-flight state on reconnect."""
+        self._scene_generation += 1
         self._retry_cache.clear()
         self._error_dedup.clear()
         self._negative_path_cache.clear()

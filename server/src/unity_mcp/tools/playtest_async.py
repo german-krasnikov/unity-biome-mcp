@@ -9,6 +9,7 @@ the bounded poll loop — runtime.py only branches into it (R-04: no polling
 state machine in runtime.py).
 """
 import asyncio
+import contextlib
 
 # Must stay < MCPServer.RunPlaytestTimeoutSeconds (unity-plugin/Editor/MCPServer.cs:65);
 # the margin absorbs transport + dispatch. Cross-checked by
@@ -55,6 +56,16 @@ async def run_via_start_poll(send, args: dict, timeout: float, tcp_buffer: float
         poll_raw = await send("get_playtest_run", {"run_id": run_id}, timeout=tcp_buffer)
         if not (poll_raw or "").strip().startswith(_RUNNING_PHASE_PREFIX):
             return poll_raw
+    # Poll budget exhausted while Unity was still "running": we cannot prove
+    # the scenario is done, so force the same conservative invalidation a
+    # terminal response would trigger (F2). Best-effort — a failure here
+    # (e.g. circuit open) must not mask the real TimeoutError below.
+    with contextlib.suppress(Exception):
+        await send(
+            "get_playtest_run",
+            {"run_id": run_id, "_force_scene_invalidate": "true"},
+            timeout=tcp_buffer,
+        )
     raise TimeoutError(
         f"run_playtest(timeout={timeout}) did not reach a terminal state after "
         f"{max_polls} polls (run_id={run_id})"

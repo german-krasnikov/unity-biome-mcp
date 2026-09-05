@@ -13,8 +13,10 @@ from .middleware_hooks import register_post, run_post_hooks
 from .middleware_types import (
     _READ_CACHEABLE,
     _STRIP_CMDS,
+    PLAYTEST_SCENARIO_CMDS,
     SCENE_STATE_NEUTRAL_WRITES,
     WRITE_CMDS,
+    is_scenario_terminal,
 )
 from .prefetch_cache import GATE_PRIORS
 
@@ -26,7 +28,8 @@ def _hook_track_hierarchy_call(cmd: str, args: dict, result: str, mw) -> str:
 
 
 _INTERNAL_FLAGS = frozenset(
-    {"_no_reflect", "_no_distill", "_explicit_path", "_no_validate", "_no_strip"}
+    {"_no_reflect", "_no_distill", "_explicit_path", "_no_validate", "_no_strip",
+     "_force_scene_invalidate"}
 )
 
 
@@ -272,12 +275,22 @@ def _maybe_prefetch_background(cmd: str, args: dict, mw: Any, send_fn) -> None:
             t.add_done_callback(mw._bg_tasks.discard)
 
 
-def _reset_write_caches(cmd: str, args: dict, result: str, mw: Any) -> None:
-    """HierarchyDiff reset + component cache invalidate on writes."""
+def _reset_write_caches(cmd: str, args: dict, result: str, mw: Any, flags: dict) -> None:
+    """HierarchyDiff reset + component cache invalidate on writes.
+
+    Scene-derived caches are ALSO conservatively dropped in full
+    (Middleware.invalidate_scene_caches) when a playtest response is
+    terminal (is_scenario_terminal) or when the caller could not prove
+    termination (_force_scene_invalidate — the give-up path). Mutually
+    exclusive with the ordinary-write branch: no cmd is ever both in
+    WRITE_CMDS-minus-neutral AND a playtest scenario cmd.
+    """
     if cmd in WRITE_CMDS and cmd not in SCENE_STATE_NEUTRAL_WRITES:
         mw._last_hierarchy_full = None
         if mw._negative_path_cache:
             mw._negative_path_cache.clear()
+    if flags.get("_force_scene_invalidate") or is_scenario_terminal(cmd, result):
+        mw.invalidate_scene_caches()
     if cmd == "manage_component" and not result.startswith("err"):
         mc_path = args.get("path", "")
         if mc_path:
@@ -373,7 +386,7 @@ async def _post_process(
     inferred_tags = ctx.inferred_tags
 
     _maybe_prefetch_background(cmd, args, mw, send_fn)
-    _reset_write_caches(cmd, args, result, mw)
+    _reset_write_caches(cmd, args, result, mw, flags)
 
     # Post-call updates
     mw.log_mutation(cmd, args, result)
@@ -441,9 +454,14 @@ def wrap_send(send_fn, mw: Any = None):
             return pre
         cmd, args, resolve_marker, inferred_tags = pre
 
-        result, protocol_err = await _execute_cmd(
-            cmd, args, send_fn, mw, timeout, probe_active, no_strip=flags["_no_strip"]
-        )
+        try:
+            result, protocol_err = await _execute_cmd(
+                cmd, args, send_fn, mw, timeout, probe_active, no_strip=flags["_no_strip"]
+            )
+        except Exception:
+            if cmd in PLAYTEST_SCENARIO_CMDS:
+                mw.invalidate_scene_caches()
+            raise
 
         ctx = ctx._replace(resolve_marker=resolve_marker, inferred_tags=inferred_tags)
         return await _post_process(cmd, args, result, mw, send_fn, ctx, protocol_err)
