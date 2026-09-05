@@ -1,7 +1,7 @@
 {
     "name": "UnityMCP.TestProject",
     "rootNamespace": "",
-    "references": ["UnityMCP.Editor", "UnityMCP.Editor.TestSupport", "UnityEngine.TestRunner", "UnityEditor.TestRunner", "Unity.Timeline", "Unity.Timeline.Editor", "TestHelpers", "UnityMCP.Editor.Tests"],
+    "references": ["UnityMCP.Editor", "UnityMCP.Editor.TestSupport", "UnityEngine.TestRunner", "UnityEditor.TestRunner", "Unity.Timeline", "Unity.Timeline.Editor", "TestHelpers", "UnityMCP.Editor.Tests", "UnityMCP.Playtest.Core"],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
