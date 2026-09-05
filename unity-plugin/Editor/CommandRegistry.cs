@@ -72,10 +72,18 @@ namespace UnityMCP.Editor
         private static string[] Split(string csv) =>
             csv == null ? null : (csv.Length == 0 ? Array.Empty<string>() : csv.Split(','));
 
-        /// <summary>Guards against double-registration. Returns true (and logs) if `cmd` is already taken.</summary>
+        /// <summary>
+        /// Guards against double-registration. A built-in colliding with another built-in
+        /// warns and skips (unchanged legacy behavior). A plugin colliding with any existing
+        /// command (CallerIsPlugin == true) throws instead — partial/silent registration for
+        /// plugins is a diagnosable failure, not a warning (Task F3, PR-03).
+        /// </summary>
         private static bool AlreadyRegistered(string cmd)
         {
             if (!_commands.ContainsKey(cmd)) return false;
+            if (CallerIsPlugin)
+                throw new InvalidOperationException(
+                    $"{BiomeLabel.Tag} Command '{cmd}' already registered — plugin cannot override");
             UnityEngine.Debug.LogWarning($"{BiomeLabel.Tag} Command '{cmd}' already registered, skipping duplicate");
             return true;
         }
@@ -349,6 +357,9 @@ namespace UnityMCP.Editor
             }
         }
 
+        // Despite the "ForTest" name, also used in production by PluginRegistry.RegisterAllPlugins()
+        // (Task F3, PR-03) to snapshot/roll back one plugin's registrations on failure. Renaming is
+        // tracked as a separate, out-of-scope cleanup (12+ existing test call sites).
         internal static TestSnapshot CaptureForTest() => new TestSnapshot();
 
         internal static void RestoreForTest(TestSnapshot snapshot)

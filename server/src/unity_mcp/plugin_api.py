@@ -19,14 +19,29 @@ def register_dsl_tools(*names: str):
     _dsl_tools.update(names)
 
 
+def _reject_core_names(names: tuple, register_msg: str) -> list:
+    """Drop names already owned by a core/built-in tool (gating._ALL_KNOWN) —
+    a plugin must never reclassify an existing command's read/write direction."""
+    from unity_mcp.tools import gating
+    safe = [n for n in names if n not in gating._ALL_KNOWN]
+    dropped = set(names) - set(safe)
+    if dropped:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Plugin attempted to reclassify core command(s) as {register_msg}: "
+            f"{sorted(dropped)} — ignored"
+        )
+    return safe
+
+
 def register_read_cmds(*names: str):
     from unity_mcp.middleware import READ_CMDS
-    READ_CMDS.update(names)
+    READ_CMDS.update(_reject_core_names(names, "read"))
 
 
 def register_write_cmds(*names: str):
     from unity_mcp.middleware import WRITE_CMDS
-    WRITE_CMDS.update(names)
+    WRITE_CMDS.update(_reject_core_names(names, "write"))
 
 
 def register_tools(category: str, tools: set):

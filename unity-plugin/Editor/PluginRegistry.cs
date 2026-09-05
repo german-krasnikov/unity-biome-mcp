@@ -28,10 +28,17 @@ namespace UnityMCP.Editor
             _failedPlugins.Clear();
             foreach (var plugin in _plugins)
             {
+                // Task F3 (PR-03): snapshot CommandRegistry before this plugin's
+                // RegisterCommands() runs, and roll back on any exception (including a
+                // duplicate-command InvalidOperationException from AlreadyRegistered) —
+                // a plugin that registers N commands then throws must lose all N, not
+                // leave a partial registration live.
+                var snapshot = CommandRegistry.CaptureForTest();
                 CommandRegistry.CallerIsPlugin = true;
                 try { plugin.RegisterCommands(); }
                 catch (System.Exception e)
                 {
+                    CommandRegistry.RestoreForTest(snapshot);
                     _failedPlugins.Add((plugin.Name, e.Message));
                     UnityEngine.Debug.LogError($"{BiomeLabel.Tag} Plugin '{plugin.Name}' RegisterCommands failed: {e.Message}");
                 }
