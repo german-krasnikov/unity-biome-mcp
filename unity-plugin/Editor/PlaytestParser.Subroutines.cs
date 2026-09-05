@@ -4,7 +4,6 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using UnityEngine;
 
 namespace UnityMCP.Editor
 {
@@ -471,12 +470,12 @@ namespace UnityMCP.Editor
             return line;
         }
 
-        internal static (string path, string comp, string field) ResolveQuery(string query, PlaytestConfig config)
+        internal static (string path, string comp, string field) ResolveQuery(string query, IAliasSource config)
         {
             if (config != null)
             {
                 var alias = config.FindAlias(query);
-                if (alias != null) return (alias.path, alias.component, alias.field);
+                if (alias != null) return (alias.Value.Path, alias.Value.Component, alias.Value.Field);
             }
             var parts = query.Split('|');
             if (parts.Length >= 4 &&

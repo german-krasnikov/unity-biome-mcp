@@ -159,6 +159,32 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("Z", field);
         }
 
+        // D06-blocker fix (D09 pulled forward): a hand-written fake IAliasSource — no
+        // PlaytestConfig, no ScriptableObject — proving ResolveQuery resolves an alias without
+        // any Unity asset. This is the test that proves the decoupling, not a regression check.
+        // Double-red: fails to compile if ResolveQuery still demands a concrete PlaytestConfig.
+        private class FakeAliasSource : IAliasSource
+        {
+            private readonly System.Collections.Generic.Dictionary<string, AliasMatch> _map = new();
+            public void Add(string name, string path, string component, string field) =>
+                _map[name] = new AliasMatch(path, component, field);
+            public AliasMatch? FindAlias(string name) =>
+                _map.TryGetValue(name, out var m) ? m : (AliasMatch?)null;
+        }
+
+        [Test]
+        public void ResolveQuery_WithFakeAliasSource_ResolvesWithoutPlaytestConfig()
+        {
+            var fake = new FakeAliasSource();
+            fake.Add("hp", "/Player", "Health", "current");
+
+            var (path, comp, field) = PlaytestParser.ResolveQuery("hp", fake);
+
+            Assert.AreEqual("/Player", path);
+            Assert.AreEqual("Health", comp);
+            Assert.AreEqual("current", field);
+        }
+
         // ── Parse: ASSERT line ───────────────────────────────────────────────────
 
         [Test]

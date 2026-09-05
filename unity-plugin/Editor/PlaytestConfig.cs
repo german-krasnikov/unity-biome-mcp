@@ -5,7 +5,7 @@ using UnityEngine;
 namespace UnityMCP.Editor
 {
     [CreateAssetMenu(menuName = "🧬MCP/Playtest Config")]
-    public class PlaytestConfig : ScriptableObject
+    public class PlaytestConfig : ScriptableObject, IAliasSource
     {
         [Header("Character Movement")]
         public string characterPath = "";
@@ -27,7 +27,14 @@ namespace UnityMCP.Editor
         [Header("Aliases")]
         public List<QueryAlias> aliases = new();
 
-        public QueryAlias FindAlias(string name) => aliases.Find(a => a.alias == name);
+        // IAliasSource — decouples PlaytestParser.ResolveQuery from this ScriptableObject
+        // (D06/D09). Was `QueryAlias FindAlias(string)`; changed in place per the plan's own
+        // verified "exactly one call site" audit (PlaytestParser.Subroutines.cs's ResolveQuery).
+        public AliasMatch? FindAlias(string name)
+        {
+            var a = aliases.Find(x => x.alias == name);
+            return a != null ? new AliasMatch(a.path, a.component, a.field) : (AliasMatch?)null;
+        }
     }
 
     public enum AliasType
