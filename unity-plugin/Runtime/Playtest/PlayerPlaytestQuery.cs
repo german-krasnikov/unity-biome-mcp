@@ -12,6 +12,21 @@ namespace UnityMCP.Playtest
         {
             try
             {
+                // Bool shorthand: a step can arrive with no operator (e.g.
+                // ASSERT /path with no comparison) — treat it as an implicit
+                // "== True" (or "== False" when negated), mirroring Core's own
+                // bool-shorthand semantics instead of failing Compare().
+                if (string.IsNullOrEmpty(step.Op))
+                {
+                    var negated = step.Query.StartsWith("!", StringComparison.Ordinal);
+                    var query = negated ? step.Query.Substring(1) : step.Query;
+                    var expected = negated ? "False" : "True";
+                    var boolActual = ReadQuery(query);
+                    return string.Equals(boolActual, expected, StringComparison.OrdinalIgnoreCase)
+                        ? StepResult.Pass(step.RawLine, $"{boolActual} == {expected}")
+                        : StepResult.Fail(step.RawLine, $"actual={boolActual}, expected {expected}");
+                }
+
                 var actual = ReadQuery(step.Query);
                 return PlaytestParser.Compare(actual, step.Op, step.Value)
                     ? StepResult.Pass(step.RawLine, $"{actual} {step.Op} {step.Value}")
@@ -42,12 +57,12 @@ namespace UnityMCP.Playtest
             return StepResult.Pass(step.RawLine, string.Join(";", parts));
         }
 
-        private static StepResult ExecuteInvoke(PlaytestStep step)
+        internal static StepResult ExecuteInvoke(PlaytestStep step)
         {
             try
             {
                 var component = FindComponent(FindObject(step.Path), step.Component);
-                var argTokens = SplitWords(step.Args ?? "");
+                var argTokens = PlaytestParser.SplitTokens(step.Args ?? "");
                 var result = InvokeBestMatch(component, step.Method, argTokens, 0);
                 if (result is string message && message.StartsWith("error:", StringComparison.OrdinalIgnoreCase))
                     return StepResult.Fail(step.RawLine, message);
@@ -59,7 +74,7 @@ namespace UnityMCP.Playtest
             }
         }
 
-        private static StepResult ExecuteSet(PlaytestStep step)
+        internal static StepResult ExecuteSet(PlaytestStep step)
         {
             try
             {
@@ -202,14 +217,14 @@ namespace UnityMCP.Playtest
                 return float.Parse(raw, CultureInfo.InvariantCulture);
             if (targetType == typeof(double))
                 return double.Parse(raw, CultureInfo.InvariantCulture);
+            if (targetType == typeof(Vector3))
+            {
+                var f = NumericParsing.ParseFloats(raw, 3);
+                return new Vector3(f[0], f[1], f[2]);
+            }
             if (targetType.IsEnum)
                 return Enum.Parse(targetType, raw, true);
             return Convert.ChangeType(raw, targetType, CultureInfo.InvariantCulture);
-        }
-
-        private static string[] SplitWords(string step)
-        {
-            return step.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         }
 
         private static string FormatValue(object value)
