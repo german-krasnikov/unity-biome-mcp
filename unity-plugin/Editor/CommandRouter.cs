@@ -568,6 +568,57 @@ namespace UnityMCP.Editor
             tcs.TrySetResult(BuildResponse(id, "run_id=" + runId));
         }
 
+        // E03: compact poll — the read half of the async start/poll pair. First matches
+        // PlaytestRunState.Current: still running → compact "phase=running|step=N/M|elapsed_ms=X"
+        // sentinel; already terminal → E01's TerminalText, verbatim (never re-rendered through a
+        // second formatter). Once in-memory state no longer matches (cleared by a domain reload,
+        // or genuinely a different/older run), falls back to the canonical receipt on disk —
+        // validated against a corrupt/mismatched run_id before trusting it. An id that is neither
+        // the active run nor has a receipt is genuinely unknown and fails closed.
+        private static void AsyncGetPlaytestRun(string id, string argsJson, TaskCompletionSource<string> tcs)
+        {
+            var runId = JsonHelper.ExtractString(argsJson, "run_id");
+            if (string.IsNullOrEmpty(runId))
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: run_id required"));
+                return;
+            }
+
+            var current = PlaytestRunState.Current;
+            if (current.RunId == runId)
+            {
+                if (current.Phase == PlaytestRunState.RunPhase.Running)
+                {
+                    var elapsedMs = (int)(DateTime.Now - current.StartUtc).TotalMilliseconds;
+                    tcs.TrySetResult(BuildResponse(id,
+                        $"phase=running|step={current.StepIndex + 1}/{current.TotalSteps}|elapsed_ms={elapsedMs}"));
+                    return;
+                }
+                if (current.TerminalText != null)
+                {
+                    tcs.TrySetResult(BuildResponse(id, current.TerminalText));
+                    return;
+                }
+                // Terminal in PlaytestRunState but TerminalText somehow unset — fall through to
+                // the receipt below rather than trust a half-populated in-memory state.
+            }
+
+            var receiptPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", PlaytestReceiptStore.ReceiptPath(runId)));
+            if (!File.Exists(receiptPath))
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, $"err: unknown playtest run_id: {runId}"));
+                return;
+            }
+
+            var json = File.ReadAllText(receiptPath, Encoding.UTF8);
+            if (JsonHelper.ExtractString(json, "run_id") != runId)
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, $"err: corrupt receipt for run_id: {runId}"));
+                return;
+            }
+            tcs.TrySetResult(BuildResponse(id, JsonHelper.ExtractString(json, "text_report")));
+        }
+
         // B17: the caller (AsyncRunPlaytest, above) already knows which representation it
         // requested — format is passed explicitly (R-07 explicit-over-implicit) rather than
         // re-derived here. The `{`-sniff below survives only as a fallback for a legacy/unknown
