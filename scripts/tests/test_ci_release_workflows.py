@@ -74,15 +74,19 @@ def test_unity_tests_workflow_triggers_on_playtest_corpus() -> None:
 
 
 def test_unity_tests_workflow_keeps_editmode_lane_fast() -> None:
+    # Scoped to the `test` job specifically (E06a added a sibling `playmode-test`
+    # job to this same file that legitimately uses -testFilter for a narrow,
+    # separate PlayMode corpus run — see test_ci_playmode_corpus_job.py).
     text = _workflow("unity-tests.yml")
+    test_job = text[text.index("\n  test:") : text.index("\n  playmode-test:")]
 
-    assert "Run EditMode Tests" in text
-    assert "timeout-minutes: 60" in text
-    assert "-testFilter" not in text
-    assert "Unity EditMode test run executed zero tests" in text
-    assert "Build Standalone Player Smoke" not in text
-    assert "Run Player PlayTest Smoke" not in text
-    assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" not in text
+    assert "Run EditMode Tests" in test_job
+    assert "timeout-minutes: 60" in test_job
+    assert "-testFilter" not in test_job
+    assert "Unity EditMode test run executed zero tests" in test_job
+    assert "Build Standalone Player Smoke" not in test_job
+    assert "Run Player PlayTest Smoke" not in test_job
+    assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" not in test_job
 
 
 def test_unity_tests_workflow_can_optionally_call_player_playtest_lane() -> None:
