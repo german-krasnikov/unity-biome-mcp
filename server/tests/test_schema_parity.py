@@ -35,9 +35,6 @@ _CS_PROTOCOL_ONLY = {
     "warm_type_cache",     # internal (sync_unity warms TypeCache after domain reload)
     "checkpoint_undo_restore",  # T19: internal C# command called by checkpoint_restore tool
     "get_profile_context",     # T22: TCP command for profiler data, not an MCP tool
-    "start_playtest",  # E02: Wave E async playtest dispatch — internal wire command, no
-                        # @mcp.tool() until E04 wires run_playtest(timeout>120) through it
-    "get_playtest_run",  # E03: Wave E async playtest poll — same reasoning as start_playtest
 }
 
 # _SPECS entries with no dedicated C# command (Python-only MCP tools).

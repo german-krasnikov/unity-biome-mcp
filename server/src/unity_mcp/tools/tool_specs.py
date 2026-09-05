@@ -113,6 +113,10 @@ _SPECS: dict[str, ToolSpec] = {
     'get_memory': ToolSpec(category='RUNTIME', mutability='read'),
     'get_metrics': ToolSpec(category='RUNTIME', direct_only=True),
     'get_object_detail': ToolSpec(category='SCENE', mutability='read'),
+    # E03: Wave E async playtest poll — internal wire command, not @mcp.tool() until E04
+    # wires run_playtest(timeout>120) through the async start/poll pair. Same shape as
+    # source_patch_write below (RegisterAsync in C#, no Python-typed wrapper yet).
+    'get_playtest_run': ToolSpec(category='_INTERNAL', mutability='read', direct_only=True, unity_transport=True),
     'get_schema': ToolSpec(category='SYSTEM', mutability='read'),
     'get_selection': ToolSpec(category='SCENE', mutability='read'),
     'get_spatial_context': ToolSpec(category='SCENE', mutability='read'),
@@ -207,6 +211,9 @@ _SPECS: dict[str, ToolSpec] = {
     # MCP tool, never batchable (see server/tests/test_source_patch_boundary.py).
     'source_patch_write': ToolSpec(category='_INTERNAL', direct_only=True, unity_transport=True),
     'spatial_query': ToolSpec(category='SCENE', mutability='read'),
+    # E02: Wave E non-blocking playtest dispatch — internal wire command, no @mcp.tool()
+    # until E04. Same shape as source_patch_write above.
+    'start_playtest': ToolSpec(category='_INTERNAL', direct_only=True, unity_transport=True),
     'sync_playtest_aliases_from_defs': ToolSpec(category='TESTS'),
     'sync_unity': ToolSpec(category='SYSTEM', tier1=True, direct_only=True),
     'test_step': ToolSpec(category='TESTS', runtime_only=True, mutability='write', direct_only=True, unity_transport=True),
