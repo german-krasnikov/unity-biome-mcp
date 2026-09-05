@@ -28,11 +28,13 @@ namespace UnityMCP.Editor.Tests
         // EditMode execution. PlaytestCorpusPlayModeTests is the repo's first PlayMode NUnit
         // fixture (B22, orchestrator-approved 2026-09-04) -- see the design note at the top of
         // that file for why a plain [TestFixture] is correct there instead of retrofitting
-        // unproven EditMode isolation machinery onto Play Mode.
+        // unproven EditMode isolation machinery onto Play Mode. FixtureAsyncStatePlayModeTests
+        // is the same sanctioned PlayMode exception, added for its terminal-transition coverage.
         private static readonly HashSet<string> IsolationBaseExemptFixtures =
             new HashSet<string>(StringComparer.Ordinal)
             {
                 "UnityMCP.TestProject.PlayMode:UnityMCP.TestProject.PlaytestCorpusPlayModeTests",
+                "UnityMCP.TestProject.PlayMode:UnityMCP.TestProject.FixtureAsyncStatePlayModeTests",
             };
 
         [Test]
