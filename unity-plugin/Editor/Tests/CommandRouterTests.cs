@@ -1153,7 +1153,10 @@ namespace UnityMCP.Editor.Tests
         public void AfterHook_SchedulesExecutionViaMainThreadDispatcher_NotDelayCall()
         {
             var src = ReadRequiredPackageSource(typeof(CommandRouter), "Editor/CommandRouter.cs");
-            var start = src.IndexOf("if (!string.IsNullOrEmpty(afterHook))");
+            // E02: afterHook now lives on the shared PlaytestRunRequest (req.AfterHook) after the
+            // AsyncRunPlaytest/AsyncStartPlaytest gate-logic extraction — same scheduling code,
+            // renamed local.
+            var start = src.IndexOf("if (!string.IsNullOrEmpty(req.AfterHook))");
             Assert.That(start, Is.GreaterThanOrEqualTo(0), "after_hook scheduling block not found");
             var end = src.IndexOf("private static bool IsPlaytestSuccess", start);
             Assert.That(end, Is.GreaterThan(start), "IsPlaytestSuccess not found after the after_hook block");

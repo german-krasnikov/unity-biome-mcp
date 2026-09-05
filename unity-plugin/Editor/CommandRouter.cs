@@ -411,15 +411,30 @@ namespace UnityMCP.Editor
                 r => !r.StartsWith("Error:") && !r.StartsWith("err:"));
         }
 
-        private static void AsyncRunPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
+        // E02: everything run_playtest and start_playtest share — building the script from
+        // path/script, and the header/dirty gates before either ever calls PlaytestRunner.Run.
+        // Extracted from AsyncRunPlaytest (pure Extract-Method, no behavior change) so the two
+        // entry points cannot drift on gate logic; they differ only in how they wire completion.
+        private struct PlaytestRunRequest
         {
+            internal string Script, Format, BeforeHook, AfterHook;
+            internal float Timeout;
+            internal bool AbortOnFail, SnapshotOnFailure, Fresh, Strict, RequiresPlayMode;
+        }
+
+        // Returns false when a gate already set tcs — caller must return immediately without
+        // touching PlaytestRunner.
+        private static bool TryBuildPlaytestRunRequest(string id, string argsJson,
+            TaskCompletionSource<string> tcs, out PlaytestRunRequest request)
+        {
+            request = default;
             var pathArg   = JsonHelper.ExtractString(argsJson, "path");
             var scriptArg = JsonHelper.ExtractString(argsJson, "script");
 
             if (pathArg != null && scriptArg != null)
             {
                 tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: use path or script, not both"));
-                return;
+                return false;
             }
 
             string script;
@@ -431,12 +446,12 @@ namespace UnityMCP.Editor
                 if (fullPath != projectRootNoSlash && !fullPath.StartsWith(projectRoot, StringComparison.Ordinal))
                 {
                     tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: path must be inside project"));
-                    return;
+                    return false;
                 }
                 if (!File.Exists(fullPath))
                 {
                     tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: file not found: " + pathArg));
-                    return;
+                    return false;
                 }
                 script = File.ReadAllText(fullPath, Encoding.UTF8);
                 var defs = JsonHelper.ExtractString(argsJson, "defs");
@@ -449,7 +464,7 @@ namespace UnityMCP.Editor
             else
             {
                 tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: script or path required"));
-                return;
+                return false;
             }
 
             // B05: the Play-mode gate moved here, past parsing (registration no longer flags
@@ -462,13 +477,13 @@ namespace UnityMCP.Editor
             {
                 tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null,
                     "Not in Play Mode. Use editor(action='play') first."));
-                return;
+                return false;
             }
             if (header.NeedsEditmode && fresh)
             {
                 tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null,
                     "err: fresh is incompatible with @needs editmode"));
-                return;
+                return false;
             }
             if (header.NeedsEditmode)
             {
@@ -479,39 +494,78 @@ namespace UnityMCP.Editor
                 if (dirtyError != null)
                 {
                     tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, dirtyError));
-                    return;
+                    return false;
                 }
             }
 
             var timeout = ExtractFloat(argsJson, "timeout", 120f);
             if (timeout <= 0) timeout = 120f;
-            var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true";
-            var snapshotOnFailure = JsonHelper.ExtractString(argsJson, "snapshot_on_failure") == "true";
-            var beforeHook = JsonHelper.ExtractString(argsJson, "before_hook");
-            var afterHook = JsonHelper.ExtractString(argsJson, "after_hook");
-            // B16: caller-selectable response representation; canonical JSON is always persisted
-            // regardless of this value (see PlaytestRunner.FinishRun).
-            var format = JsonHelper.ExtractString(argsJson, "format") ?? "text";
+            request = new PlaytestRunRequest
+            {
+                Script = script,
+                Timeout = timeout,
+                AbortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true",
+                SnapshotOnFailure = JsonHelper.ExtractString(argsJson, "snapshot_on_failure") == "true",
+                Fresh = fresh,
+                Strict = pathArg != null,
+                RequiresPlayMode = !header.NeedsEditmode,
+                // B16: caller-selectable response representation; canonical JSON is always
+                // persisted regardless of this value (see PlaytestRunner.FinishRun).
+                Format = JsonHelper.ExtractString(argsJson, "format") ?? "text",
+                BeforeHook = JsonHelper.ExtractString(argsJson, "before_hook"),
+                AfterHook = JsonHelper.ExtractString(argsJson, "after_hook"),
+            };
+            return true;
+        }
 
-            if (!string.IsNullOrEmpty(beforeHook))
-                CodeExecutor.Execute(beforeHook, "MCP before_hook");
+        private static void AsyncRunPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
+        {
+            if (!TryBuildPlaytestRunRequest(id, argsJson, tcs, out var req)) return;
+
+            if (!string.IsNullOrEmpty(req.BeforeHook))
+                CodeExecutor.Execute(req.BeforeHook, "MCP before_hook");
 
             var inner = new TaskCompletionSource<string>();
-            PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure, fresh,
-                strict: pathArg != null, requiresPlayMode: !header.NeedsEditmode, format: format);
+            PlaytestRunner.Run(req.Script, req.Timeout, inner, req.AbortOnFail, req.SnapshotOnFailure, req.Fresh,
+                strict: req.Strict, requiresPlayMode: req.RequiresPlayMode, format: req.Format);
 
             // ContinueWith's default continuation runs on a ThreadPool thread.
             // MainThreadDispatcher.Enqueue is a thread-safe ConcurrentQueue.Enqueue, drained on
             // EditorApplication.update regardless of Editor focus (RELAY-FIX, commit 1bcc90b7).
-            if (!string.IsNullOrEmpty(afterHook))
+            if (!string.IsNullOrEmpty(req.AfterHook))
             {
-                var capturedHook = afterHook;
+                var capturedHook = req.AfterHook;
                 inner.Task.ContinueWith(_ =>
                     MainThreadDispatcher.Enqueue(() => CodeExecutor.Execute(capturedHook, "MCP after_hook")));
             }
 
             CompleteFromInner(id, inner.Task, tcs, "run_playtest",
-                report => IsPlaytestSuccess(report, format));
+                report => IsPlaytestSuccess(report, req.Format));
+        }
+
+        // E02: non-blocking dispatch — returns a "run_id=xxxxxxxx" sentinel immediately instead
+        // of waiting for the whole playtest to finish. Shares every gate with AsyncRunPlaytest via
+        // TryBuildPlaytestRunRequest; differs only in how it wires PlaytestRunner.Run's completion.
+        private static void AsyncStartPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
+        {
+            if (!TryBuildPlaytestRunRequest(id, argsJson, tcs, out var req)) return;
+
+            var runId = PlaytestRunner.CreateRunId();
+            var inner = new TaskCompletionSource<string>();
+            PlaytestRunner.Run(req.Script, req.Timeout, inner, req.AbortOnFail, req.SnapshotOnFailure, req.Fresh,
+                strict: req.Strict, requiresPlayMode: req.RequiresPlayMode, runId: runId, format: req.Format);
+
+            // Run()'s early-return guards (already running / reserved $RUN_ID / parse error /
+            // 0 steps) call inner.TrySetResult(...) synchronously before PlaytestRunState.Begin
+            // or any artifact is ever touched — the freshly-generated runId was never real, so it
+            // must never be surfaced here. Surface Run()'s own error text instead.
+            if (inner.Task.IsCompleted)
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, inner.Task.Result));
+                return;
+            }
+
+            tcs.TrySetResult(BuildResponse(id, "run_id=" + runId));
         }
 
         // B17: the caller (AsyncRunPlaytest, above) already knows which representation it
