@@ -119,9 +119,12 @@ def test_player_playtest_workflow_runs_standalone_build_smoke() -> None:
     assert "Build Standalone Player Smoke" in text
     assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" in text
     assert "-ciBuildOutput" in text
-    # D18: no single-scene override — CiBuildSmoke.SelectedScenes falls through
-    # to the EditorBuildSettings list (GridTest.unity + McpFeedbackFixture.unity).
-    assert "-ciBuildScene" not in text
+    # ff7db948 restored the explicit override: CiBuildSmoke.SelectedScenes()
+    # ignores EditorBuildSettings.scenes whenever -ciBuildScene is passed, and
+    # without it the Player booted scene[0] (SampleScene) instead of GridTest,
+    # breaking player_ci_smoke.playtest. EditorBuildSettings.asset still lists
+    # McpFeedbackFixture separately for B22's PlayMode needs.
+    assert "-ciBuildScene Assets/Scenes/GridTest.unity" in text
     assert "timeout-minutes: 35" in build_block[:300]
     assert "-quit" in build_block[:500]
     assert "player-playtest-${{ matrix.name }}" in text
