@@ -1123,6 +1123,39 @@ prevents script failures mid-run and ensures deterministic behavior across platf
 
 ---
 
+## Async Dispatch (Long-Running Playtests)
+
+`run_playtest()` with `timeout > 120s` automatically routes through the **async dispatch pair**:
+1. `start_playtest` — non-blocking dispatch, returns `run_id=<hex-id>`
+2. `get_playtest_run` — compact poll, returns running status or terminal report
+
+The internal constant `_RUN_PLAYTEST_SYNC_CEILING_S = 120.0` (Python) and
+`RunPlaytestTimeoutSeconds` (C# in `MCPServer.cs`) define when to switch
+strategies. Single TCP calls blocking longer than this threshold would timeout
+before completion.
+
+**Flow (transparent to agents):**
+```
+run_playtest(script="...", timeout=300)
+  → start_playtest(script="...", timeout=20)  [non-blocking]
+    returns: "run_id=abc123"
+  ← poll loop (timeout budget = 300s, interval = 1s, tcp_buffer = 20s)
+      get_playtest_run(run_id="abc123", timeout=20)
+      → "phase=running|step=1/5|elapsed_ms=2000"
+      → "phase=running|step=3/5|elapsed_ms=4500"
+      → "PLAYTEST: 5/5 passed (12.3s)" [terminal]
+    returns: final report
+```
+
+**Poll response formats:**
+- Running: `phase=running|step=N/M|elapsed_ms=<ms>`
+- Terminal (success): `PLAYTEST: M/M passed/failed (Ts) ...`
+- Terminal (error): Error detail or exception message
+
+Internal module: `playtest_async.run_via_start_poll()` owns dispatch and
+bounded polling; `runtime.py` branches into it only when the timeout criterion
+is met (R-04).
+
 **See also:** `run_playtest` (inline `script=` or file `path=`) in
 `AI/runtime-playtest.md`, `AI/playtest-composer.md` for the visual editor, and
 `unity-plugin/ClientSkills/skills/unity-testing-verification/references/playtest-dsl.md`

@@ -8,6 +8,68 @@ Mode. `run_playtest_suite(auto_play=True)` can enter Play Mode itself. Static
 tools such as `lint_playtest`, `lint_playtest_suite`,
 `validate_playtest_aliases`, `resolve_scene_refs`, and `lint_scene_refs` do not.
 
+## Async Dispatch: Internal Wire Commands (E02–E04)
+
+Two **internal** wire-level commands (not exposed as user-facing MCP tools)
+enable non-blocking playtest dispatch for long-running scripts:
+
+### start_playtest (E02)
+
+**Wire command** (ToolSpec: `_INTERNAL` category, `direct_only=True`).
+
+**Purpose:** Dispatch a playtest run asynchronously. Returns immediately with a
+run ID instead of blocking until completion.
+
+**Args:** Same as `run_playtest` (script, path, timeout, abort_on_fail, defs, etc.)
+
+**Response:** `run_id=<hex-id>` on success, or error text.
+
+**Gate:** Accepts identical parse/validation as `run_playtest` via shared
+`CommandRouter.TryBuildPlaytestRunRequest`.
+
+### get_playtest_run (E03)
+
+**Wire command** (ToolSpec: `_INTERNAL` category, `direct_only=True`).
+
+**Purpose:** Poll a running or completed playtest. Non-blocking; returns
+immediately.
+
+**Args:** `{"run_id": "<hex-id>"}`
+
+**Response format:**
+- **Running:** `phase=running|step=N/M|elapsed_ms=<ms>` — N steps done of M total, elapsed time
+- **Terminal (pass):** `PLAYTEST: M/M passed (Ts)` — M steps all passed, duration T seconds
+- **Terminal (fail):** `PLAYTEST: M/M (X failed) (Ts) ...` — X failures recorded
+- **Error/receipt after reload:** Stored in `PlaytestReceiptStore.ReceiptPath(run_id)`; fallback when run state is lost
+
+**Poll interval:** 1 second (client-side in `playtest_async.py`)
+
+**Run ID lifetime:** 600+ seconds; persisted across domain reloads via receipt store
+
+### Dispatch/Poll Pattern (E04)
+
+The Python module `playtest_async.py` owns the dispatch/poll state machine:
+
+```python
+# Threshold: if timeout > _RUN_PLAYTEST_SYNC_CEILING_S (120s), route to async
+_RUN_PLAYTEST_SYNC_CEILING_S = 120.0  # seconds
+
+# Poll every 1s; grid = floor(timeout / 1.0) + 1
+_PLAYTEST_POLL_INTERVAL_S = 1.0  # seconds
+
+# Coroutine: run_via_start_poll(send, args, timeout, tcp_buffer)
+#   dispatch: start_playtest(args, timeout=tcp_buffer)
+#   poll loop: get_playtest_run(run_id, timeout=tcp_buffer) × N
+#   tcp_buffer reused from run_playtest's _TCP_PLAYTEST_BUFFER = 20.0s
+```
+
+**Cross-language contract:**
+- Python `_RUN_PLAYTEST_SYNC_CEILING_S = 120.0` ← must be < C# `RunPlaytestTimeoutSeconds` (130s in MCPServer.cs:65)
+- Margin absorbs TCP transport + dispatch overhead
+- Verified by `tests/test_playtest_async.py::test_cross_language_ceiling_contract`
+
+**Agent use:** Transparent — `run_playtest()` auto-selects sync or async based on timeout. Agents never call `start_playtest` or `get_playtest_run` directly.
+
 ## Play Mode Readiness (MCP-LIFE-004)
 
 **PlayReadinessTracker:** Waits for actual world readiness, not just `playing=True`.

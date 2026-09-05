@@ -8,17 +8,27 @@ The canonical Unity test project uses Unity `6000.0.65f1` and the Editor's
 built-in Unity Test Framework `1.6.0`. Product code, fixtures, and runners target
 the Unity `6000.0` contract; do not add newer-Unity compatibility branches.
 
-## Two Test Projects (both run on CI)
+## Three Test Carriers (CI & local)
 
-Tests live in TWO locations — CI runs both, local runs often miss one:
+Tests live in **three** locations; different CI lanes exercise each:
 
-| Location | What | When to update |
-|----------|------|----------------|
-| `unity-plugin/Editor/Tests/` | Plugin unit tests (shipped in UPM) | Always — primary test location |
-| `unity-test-project/Assets/Tests/` | Consumer-facing integration tests | When plugin API or contract changes |
+| Location | What | CI Lane | Mode | When to update |
+|----------|------|---------|------|----------------|
+| `unity-plugin/Editor/Tests/` | Plugin unit tests (shipped in UPM) | pr-unity-core, master-conformance | EditMode, PlayMode | Always — primary location |
+| `unity-test-project/Assets/Tests/Editor/` | EditMode corpus and integration | pr-unity-core | EditMode | When plugin API or contract changes |
+| `unity-test-project/Assets/Tests/PlayMode/` | PlayMode corpus (E06a, E06b) | unity-tests.yml PlayMode job | PlayMode | When runtime DSL/MCP protocol changes |
+
+**Coverage (Wave E):**
+- **EditMode:** 9 fixture files (F, I1, I2, I3, A/B/C chain, INVOKE args, L long, MOVEMENT profiles) via `PlaytestCorpusEditModeTests`
+- **PlayMode:** 3 Play-bound files (C_shared_finish coroutines, DSL_types, I3_independent_pass) via `PlaytestCorpusPlayModeTests` (E06b, `-testPlatform PlayMode --filter PlaytestCorpusPlayModeTests`)
+- **Player (fan-out):** 6 `.playtest` files in `StreamingAssets/Playtests/` via `scripts/run_player_playtests.py` (`--jobs N`, `@needs player` tag filter) — runs Player builds on Linux, macOS, Windows
+- **Python .suite lane:** Stress-tests EditMode + PlayMode carriers with stateful A→B→C chain via `run_playtest_suite(tag="@suite-only")` (tests/live/test_playtest_suite_corpus.py)
+
+**Total honest CI coverage: 18/22 files** (9 EditMode + 3 PlayMode + 6 Player).
 
 When changing RefManager, ComponentSerializer, ValueParser, or any public API:
-grep for stale references in BOTH test projects before committing.
+grep for stale references in BOTH C# test projects before committing. Player
+tests verify parity via the `Compare()` core contract.
 
 ## Version-Agnostic Tests (no `#if` in test code)
 
@@ -317,8 +327,32 @@ warnings still require human triage. The checker is a heuristic static guard, so
 even a clean report does not prove that a workflow remains semantically current.
 Review the affected instructions against the live tool and product contracts.
 
-## Acceptance Order
+## CI Lanes and Acceptance Order
 
+**Four CI lanes** (data-driven by `Tests/biome-test-lanes.json`):
+- `pr-python-core`: Python quick-check (35s via focused markers)
+- `pr-unity-core`: C# EditMode + PlayMode corpus on PR branches (pr-gating)
+- `master-conformance`: Seams/conformance live suite on master branch
+- `nightly-full`: Complete Python live suite + Player fan-out (requires graphics)
+
+**Player fan-out runner** (v0.81.4+):
+```bash
+python scripts/run_player_playtests.py \
+  --jobs 2 \
+  --project /path/to/unity-test-project \
+  --timeout 1800 \
+  --builds-dir /tmp/player_builds
+```
+Filters `.playtest` files by `@needs player` tag, builds standalone Player for
+each platform (Linux, macOS, Windows), runs in parallel, returns matrix:
+```
+Player CI: 6/6 passed
+  Linux:   3/3 passed
+  macOS:   3/3 passed
+  Windows: 3/3 passed (skipped on infrastructure)
+```
+
+**Acceptance Order (pre-release):**
 Freeze executable files before a formal release gate. Run these lanes
 sequentially, with no edits or parallel test process:
 
@@ -327,8 +361,10 @@ sequentially, with no edits or parallel test process:
 3. From `server`: `uv run pytest tests -m 'not live' -q`
 4. Complete C# EditMode suite twice against one disposable worker, followed by
    cleanup fault injection and the domain-reload scenarios.
-5. Rediscover and verify the final worker port.
-6. From `server`, run project-pinned deterministic `tests/live` with the final
+5. Python `.suite` lane: `uv run pytest tests/live/test_playtest_suite_corpus.py -m "live" --tag @suite-only -q`
+6. Player fan-out: `python scripts/run_player_playtests.py --jobs 2 --project ... --timeout 1800`
+7. Rediscover and verify the final worker port.
+8. From `server`, run project-pinned deterministic `tests/live` with the final
    host, port, and `UNITY_MCP_PROJECT_PATH`.
 
 Retain commands, counts, durations, run identities, port transitions, and paid
