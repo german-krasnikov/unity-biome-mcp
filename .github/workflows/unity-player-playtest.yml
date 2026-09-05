@@ -294,7 +294,14 @@ jobs:
           # process (observed hanging on macOS) let the GH Actions step kill everything
           # before run_player_playtests.py's own per-file TimeoutExpired handling could
           # report results. Worst case with --jobs 2 / 3 files is 2x this value.
-          FANOUT_ARGS=(--player "$PLAYER" --jobs 2 --timeout 240 --out artifacts/player-playtest-fanout.xml --extra-arg=-nographics)
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            # Two simultaneous headless Players under -nographics contend for
+            # audio/window-server resources on macOS only (Linux/Windows pass
+            # at --jobs 2). Serialize and give each file more headroom.
+            FANOUT_ARGS=(--player "$PLAYER" --jobs 1 --timeout 360 --out artifacts/player-playtest-fanout.xml --extra-arg=-nographics)
+          else
+            FANOUT_ARGS=(--player "$PLAYER" --jobs 2 --timeout 240 --out artifacts/player-playtest-fanout.xml --extra-arg=-nographics)
+          fi
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             FANOUT_ARGS+=(--extra-arg=-force-glcore)
             xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" \
