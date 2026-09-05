@@ -72,7 +72,10 @@ namespace UnityMCP.Editor.Tests
         public void GetErrorsSince_DroppedCountAboveZeroButNoNewErrors_ReturnsNull()
         {
             InjectPersistenceOverflow(); // _droppedProblemCount > 0, all entries in the past
-            var since = DateTime.Now;    // window starts strictly after every injected entry
+            // +50ms buffer: DateTime.Now has ~15.6ms resolution on Windows, so without
+            // this an injected entry can share the same tick as `since` and the GetErrorsSince
+            // >= comparison would wrongly include it.
+            var since = DateTime.Now.AddMilliseconds(50); // window starts strictly after every injected entry
 
             var result = ConsoleCapture.GetErrorsSince(since, maxCount: 5);
 
