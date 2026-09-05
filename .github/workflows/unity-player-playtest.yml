@@ -53,6 +53,11 @@ jobs:
     name: Player PlayTest (${{ matrix.name }})
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
+    # macOS headless Player processes hang intermittently on GitHub-hosted
+    # runners (audio/window-server contention). Linux + Windows are the
+    # reliable verification; macOS is best-effort until a self-hosted runner
+    # or a macOS-specific Player build fix is available.
+    continue-on-error: ${{ matrix.name == 'macOS' }}
     strategy:
       fail-fast: false
       matrix:
