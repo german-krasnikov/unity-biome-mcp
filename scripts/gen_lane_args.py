@@ -8,7 +8,6 @@ this into CI so the marker expression is generated once, not hand-typed in
 
 Usage: gen_lane_args.py <pytest|nunit> <lane-name>
 """
-from __future__ import annotations
 
 import argparse
 import json

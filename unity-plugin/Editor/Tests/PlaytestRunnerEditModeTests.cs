@@ -364,6 +364,83 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("denied", results[0]);
         }
 
+        // ── C20 WAVE C GATE: self-hosting Biome — scalar + composite JSON args reach a
+        // registered plugin-style command through the real CommandRouter.ProcessAsync path ──
+
+        [Test]
+        public async Task Run_McpStep_PluginCommandReceivesScalarAndCompositeJsonArgs_ThroughRealRouterPath()
+        {
+            // Simulates a plugin registering its own command outside the parser/runner
+            // assemblies — same idiom as PlaytestMcpPolicyTests.Validate_
+            // RegisteredPluginCommandAllowedWithoutParserChange (C02) — then proves the
+            // DSL's scalar/composite JSON assembly (C01) survives byte-for-byte all the way
+            // through PlaytestRunner.Run -> BuildMcpEnvelope -> CommandRouter.ProcessAsync ->
+            // CommandRegistry.Execute into the handler's own `args` parameter.
+            var snapshot = CommandRegistry.CaptureForTest();
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            string capturedArgs = null;
+            CommandRegistry.Register(
+                "test_c20_plugin_cmd",
+                args => { capturedArgs = args; return "captured"; },
+                required: "", optional: "n,flag,tags,obj,label");
+
+            const string runId = "c20gate01";
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run(
+                "MCP test_c20_plugin_cmd n=42 flag=true tags=[1,2,\"x\"] obj={\"k\":1} label=hi\n",
+                5f, tcs, requiresPlayMode: false, runId: runId, format: "json");
+            var result = await AwaitBoundedAsync(tcs);
+
+            var receiptPath = ReceiptFullPath(runId);
+            RegisterCleanup(() => { if (File.Exists(receiptPath)) File.Delete(receiptPath); });
+
+            StringAssert.Contains("\"type\":\"Mcp\",\"ok\":true,", result);
+            Assert.AreEqual(
+                "{\"n\":42,\"flag\":true,\"tags\":[1,2,\"x\"],\"obj\":{\"k\":1},\"label\":\"hi\"}",
+                capturedArgs,
+                "the plugin handler must receive the exact int/bool/array/object/string JSON " +
+                "the DSL line encoded, through the real dispatch path, not a parser-only echo");
+        }
+
+        [Test]
+        public void CommandRegistry_EnumerateCountAndHardDenylistSubset_AtGateTime()
+        {
+            // C20 WAVE C GATE: "enumerate the current CommandRegistry count and exact
+            // policy-denied subset at implementation time (no approximate hardcoded target)".
+            // PlaytestMcpPolicy's own doc comment says the hard denylist is "independent of
+            // registration" — this test proves that literally: some denylisted names (Python
+            // MCP-tool names) currently have no same-named raw C# CommandRegistry entry at
+            // all, so denial for them is pure defense-in-depth, not registry policing.
+            var hardDenylist = new[]
+            {
+                "execute_code", "create_script", "sync_unity", "await_compile",
+                "smart_build", "run_tests", "run_playtest", "package", "build",
+            };
+            foreach (var name in hardDenylist)
+                Assert.IsTrue(PlaytestMcpPolicy.IsHardDenied(name),
+                    $"'{name}' must be in PlaytestMcpPolicy's hard denylist");
+
+            var registered = new HashSet<string>(CommandRegistry.GetAllCommands());
+            var deniedAndRegistered = new List<string>();
+            var deniedButUnregistered = new List<string>();
+            foreach (var name in hardDenylist)
+                (registered.Contains(name) ? deniedAndRegistered : deniedButUnregistered).Add(name);
+
+            TestContext.WriteLine($"CommandRegistry total={registered.Count}");
+            TestContext.WriteLine(
+                $"hard-denylisted AND registered ({deniedAndRegistered.Count}): {string.Join(",", deniedAndRegistered)}");
+            TestContext.WriteLine(
+                $"hard-denylisted but not a raw registered command ({deniedButUnregistered.Count}): " +
+                string.Join(",", deniedButUnregistered));
+
+            CollectionAssert.AreEquivalent(
+                new[] { "execute_code", "run_tests", "run_playtest", "package", "build" },
+                deniedAndRegistered);
+            CollectionAssert.AreEquivalent(
+                new[] { "create_script", "sync_unity", "await_compile", "smart_build" },
+                deniedButUnregistered);
+        }
+
         // ── C07: EXPECT_FAIL wired into AdvanceStep, console-error carve-out ────────
 
         [Test]

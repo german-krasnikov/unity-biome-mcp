@@ -31,7 +31,6 @@ the registry, never an unused-but-declared const, so a reserved category
 needs no allow-list entry of its own. Deleting the const would be a C#
 change, out of this lint's (and this session's Python/YAML-only) scope.
 """
-from __future__ import annotations
 
 import json
 import re
