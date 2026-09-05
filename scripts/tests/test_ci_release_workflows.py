@@ -115,7 +115,9 @@ def test_player_playtest_workflow_runs_standalone_build_smoke() -> None:
     assert "Build Standalone Player Smoke" in text
     assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" in text
     assert "-ciBuildOutput" in text
-    assert "-ciBuildScene Assets/Scenes/GridTest.unity" in text
+    # D18: no single-scene override — CiBuildSmoke.SelectedScenes falls through
+    # to the EditorBuildSettings list (GridTest.unity + McpFeedbackFixture.unity).
+    assert "-ciBuildScene" not in text
     assert "timeout-minutes: 35" in build_block[:300]
     assert "-quit" in build_block[:500]
     assert "player-playtest-${{ matrix.name }}" in text

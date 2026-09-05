@@ -123,12 +123,14 @@ def test_unity_plugin_has_runtime_player_playtest_runner() -> None:
     assert "schema_version" in receipts
     assert "new(false)" in receipts
     assert "<testsuite name=\\\"UnityMCP.PlayerPlaytest\\\" tests=\\\"" in receipts
-    assert "WAIT_UNTIL " in runner
-    assert "ASSERT " in runner
-    assert "TIMESCALE " in runner
-    assert "INVOKE " in runner
-    assert "SET " in runner
-    assert "SNAPSHOT " in runner
+    # D-wave: Player dispatches on the shared Core StepType enum, not on raw
+    # keyword string literals (parsing itself lives only in PlaytestParser.Core).
+    assert "case StepType.WaitUntil" in runner
+    assert "case StepType.Assert" in runner
+    assert "case StepType.TimeScale" in runner
+    assert "case StepType.Invoke" in runner
+    assert "case StepType.Set" in runner
+    assert "case StepType.Snapshot" in runner
     assert "ReadComponentValue" in query
     assert "ExecuteInvoke" in query
     assert "ExecuteSet" in query
