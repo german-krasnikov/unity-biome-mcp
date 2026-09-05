@@ -10,6 +10,8 @@ from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 from .editor_state import parse_editor_field as _editor_field
 from .editor_state import parse_world_ready as _parse_world_ready
+from .playtest_async import _RUN_PLAYTEST_SYNC_CEILING_S
+from .playtest_async import run_via_start_poll as _run_via_start_poll
 
 _send = None
 _args = None
@@ -149,7 +151,7 @@ async def _enter_fresh_play() -> None:
     )
 
 
-async def run_playtest(script: str | None = None, timeout: float = 120.0,
+async def run_playtest(script: str | None = None, timeout: float = _RUN_PLAYTEST_SYNC_CEILING_S,
                        abort_on_fail: bool = False,
                        defs: str | None = None,
                        path: str | None = None,
@@ -181,28 +183,34 @@ async def run_playtest(script: str | None = None, timeout: float = 120.0,
             return f"PLAYTEST: 0/1 ERROR: timeout entering Play Mode after {_FRESH_READINESS_TIMEOUT}s"
     # lifecycle handled above; not passed to C#
     if path:
-        raw = await _send("run_playtest", _args(
+        wire_args = _args(
             path=path, timeout=str(timeout),
             abort_on_fail="true" if abort_on_fail else None,
             snapshot_on_failure="true" if snapshot_on_failure else None,
             fresh=None,
             before_hook=before_hook, after_hook=after_hook,
             defs=_normalize_defs(defs), _explicit_path="true",
-            format=None if format == "text" else format),
-                          timeout=timeout + _TCP_PLAYTEST_BUFFER)
+            format=None if format == "text" else format)
     else:
         if defs:
             normalized = _normalize_defs(defs)
             if normalized:
                 script = normalized + "\n" + script
-        raw = await _send("run_playtest", _args(
+        wire_args = _args(
             script=script, timeout=str(timeout),
             abort_on_fail="true" if abort_on_fail else None,
             snapshot_on_failure="true" if snapshot_on_failure else None,
             fresh=None,
             before_hook=before_hook, after_hook=after_hook,
-            format=None if format == "text" else format),
-                          timeout=timeout + _TCP_PLAYTEST_BUFFER)
+            format=None if format == "text" else format)
+
+    # E04: a script timeout beyond the sync ceiling would otherwise race Unity's own
+    # per-command dispatch cutoff (MCPServer.cs's RunPlaytestTimeoutSeconds) — route
+    # through the non-blocking start/poll pair instead of one blocking TCP call.
+    if timeout > _RUN_PLAYTEST_SYNC_CEILING_S:
+        raw = await _run_via_start_poll(_send, wire_args, timeout, _TCP_PLAYTEST_BUFFER)
+    else:
+        raw = await _send("run_playtest", wire_args, timeout=timeout + _TCP_PLAYTEST_BUFFER)
     if format == "json":
         # Compression/summarization are text-report-oriented and would mangle or replace the
         # canonical JSON receipt — the caller explicitly asked for the raw structured shape.
