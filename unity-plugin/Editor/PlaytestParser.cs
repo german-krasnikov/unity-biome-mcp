@@ -24,7 +24,7 @@ namespace UnityMCP.Editor
     {
         public StepType Type;
         public string Path;
-        public Vector3 Position;
+        public Float3 Position;
         public string RawPosition; // null = literal in Position; non-null = deferred @-expression
         public float Delay;
         public string Query;
@@ -1343,7 +1343,7 @@ namespace UnityMCP.Editor
             else
             {
                 var f = ValueParser.ParseFloats(token, 3);
-                step.Position = new Vector3(f[0], f[1], f[2]);
+                step.Position = new Float3(f[0], f[1], f[2]);
             }
         }
 

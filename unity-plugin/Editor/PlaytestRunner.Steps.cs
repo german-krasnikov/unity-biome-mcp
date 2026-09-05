@@ -99,7 +99,7 @@ namespace UnityMCP.Editor
                     {
                         pos = step.RawPosition != null
                             ? PlaytestPositionResolver.Resolve(step.RawPosition)
-                            : step.Position;
+                            : new Vector3(step.Position.x, step.Position.y, step.Position.z);
                     }
                     catch (Exception e)
                     {
@@ -182,7 +182,7 @@ namespace UnityMCP.Editor
                         if (tgo == null) throw new ArgumentException($"Object not found: {step.Path}");
                         tgo.transform.position = step.RawPosition != null
                             ? PlaytestPositionResolver.Resolve(step.RawPosition)
-                            : step.Position;
+                            : new Vector3(step.Position.x, step.Position.y, step.Position.z);
                         Physics.SyncTransforms();
                         // G28: explicitly sync Rigidbody position so the physics world
                         // reflects the new location without waiting for the next FixedUpdate.

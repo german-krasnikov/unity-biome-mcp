@@ -33,7 +33,9 @@ namespace UnityMCP.TestProject.Runtime
             Assert.That(steps.Count, Is.EqualTo(1));
             Assert.That(steps[0].Type, Is.EqualTo(StepType.Move));
             Assert.That(steps[0].Path, Is.EqualTo("/GridPlayer"));
-            Assert.That(steps[0].Position, Is.EqualTo(new Vector3(1, 2, 3)));
+            Assert.That(steps[0].Position.x, Is.EqualTo(1f));
+            Assert.That(steps[0].Position.y, Is.EqualTo(2f));
+            Assert.That(steps[0].Position.z, Is.EqualTo(3f));
         }
 
         [Test]
@@ -42,7 +44,9 @@ namespace UnityMCP.TestProject.Runtime
             var steps = PlaytestParser.Parse("MOVE TO 1,2,3");
             Assert.That(steps[0].Type, Is.EqualTo(StepType.Move));
             Assert.That(steps[0].Path, Is.Null);
-            Assert.That(steps[0].Position, Is.EqualTo(new Vector3(1, 2, 3)));
+            Assert.That(steps[0].Position.x, Is.EqualTo(1f));
+            Assert.That(steps[0].Position.y, Is.EqualTo(2f));
+            Assert.That(steps[0].Position.z, Is.EqualTo(3f));
         }
 
         [Test]
@@ -254,7 +258,9 @@ namespace UnityMCP.TestProject.Runtime
             Assert.That(steps.Count, Is.EqualTo(1));
             Assert.That(steps[0].Type, Is.EqualTo(StepType.Teleport));
             Assert.That(steps[0].Path, Is.EqualTo("/GridPlayer"));
-            Assert.That(steps[0].Position, Is.EqualTo(new Vector3(5, 0, 3)));
+            Assert.That(steps[0].Position.x, Is.EqualTo(5f));
+            Assert.That(steps[0].Position.y, Is.EqualTo(0f));
+            Assert.That(steps[0].Position.z, Is.EqualTo(3f));
         }
 
         // ---------- ASSERT_BATCH Tests ----------

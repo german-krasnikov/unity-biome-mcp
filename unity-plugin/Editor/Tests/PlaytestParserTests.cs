@@ -548,7 +548,9 @@ namespace UnityMCP.Editor.Tests
             var s = r[0];
             Assert.AreEqual(StepType.Teleport, s.Type);
             Assert.AreEqual("/obj", s.Path);
-            Assert.AreEqual(new Vector3(1, 2, 3), s.Position);
+            Assert.AreEqual(1f, s.Position.x);
+            Assert.AreEqual(2f, s.Position.y);
+            Assert.AreEqual(3f, s.Position.z);
             Assert.IsNull(s.RawPosition);
         }
 
@@ -559,7 +561,9 @@ namespace UnityMCP.Editor.Tests
             var s = r[0];
             Assert.AreEqual(StepType.Teleport, s.Type);
             Assert.AreEqual("@/Ref.position", s.RawPosition);
-            Assert.AreEqual(Vector3.zero, s.Position);
+            Assert.AreEqual(0f, s.Position.x);
+            Assert.AreEqual(0f, s.Position.y);
+            Assert.AreEqual(0f, s.Position.z);
         }
 
         [Test]
@@ -724,7 +728,9 @@ namespace UnityMCP.Editor.Tests
             var s = r[0];
             Assert.AreEqual(StepType.Move, s.Type);
             Assert.AreEqual("@/Ref.position", s.RawPosition);
-            Assert.AreEqual(Vector3.zero, s.Position);
+            Assert.AreEqual(0f, s.Position.x);
+            Assert.AreEqual(0f, s.Position.y);
+            Assert.AreEqual(0f, s.Position.z);
         }
 
         [Test]

@@ -156,6 +156,25 @@ namespace UnityMCP.Editor.Tests
             Assert.That(parsed[0].Position.x, Is.EqualTo(1f).Within(0.01f));
         }
 
+        // D04: proves Float3 survives the full Composer round trip — VisualStep.position
+        // (Vector3 setter, converts to Float3) → PlaytestDslExporter.Export (Vector3 getter,
+        // converts back) → DSL text → PlaytestParser.Parse (Float3 via SetPosition).
+        [Test]
+        public void Roundtrip_Teleport_PreservesPositionAndPath()
+        {
+            var steps = new List<VisualStep>
+            {
+                new VisualStep { type = StepType.Teleport, path = "/Enemy", position = new Vector3(-1f, 4f, 2f) }
+            };
+            var parsed = PlaytestParser.Parse(PlaytestDslExporter.Export(steps, false));
+            Assert.AreEqual(1, parsed.Count);
+            Assert.AreEqual(StepType.Teleport, parsed[0].Type);
+            Assert.AreEqual("/Enemy", parsed[0].Path);
+            Assert.That(parsed[0].Position.x, Is.EqualTo(-1f).Within(0.01f));
+            Assert.That(parsed[0].Position.y, Is.EqualTo(4f).Within(0.01f));
+            Assert.That(parsed[0].Position.z, Is.EqualTo(2f).Within(0.01f));
+        }
+
         [Test]
         public void Roundtrip_WaitUntil_PreservesAll()
         {
