@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace UnityMCP.Editor
 {
@@ -22,6 +23,7 @@ namespace UnityMCP.Editor
             this.z = z;
         }
 
-        public override string ToString() => $"{x},{y},{z}";
+        public override string ToString() =>
+            $"{x.ToString(CultureInfo.InvariantCulture)},{y.ToString(CultureInfo.InvariantCulture)},{z.ToString(CultureInfo.InvariantCulture)}";
     }
 }

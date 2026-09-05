@@ -36,5 +36,25 @@ namespace UnityMCP.Editor.Tests
             var v = new Float3(1f, 2f, 3f);
             Assert.AreEqual("1,2,3", v.ToString());
         }
+
+        // Double-red: fails under a comma-decimal culture (e.g. de-DE) if ToString
+        // does not force InvariantCulture per-component — "1,5,2,5,3,5" would be
+        // ambiguous with the field separator itself.
+        [Test]
+        public void ToString_FractionalValues_UsesInvariantCultureDecimalPoint()
+        {
+            var saved = System.Threading.Thread.CurrentThread.CurrentCulture;
+            try
+            {
+                System.Threading.Thread.CurrentThread.CurrentCulture =
+                    new System.Globalization.CultureInfo("de-DE");
+                var v = new Float3(1.5f, 2.5f, 3.5f);
+                Assert.AreEqual("1.5,2.5,3.5", v.ToString());
+            }
+            finally
+            {
+                System.Threading.Thread.CurrentThread.CurrentCulture = saved;
+            }
+        }
     }
 }
