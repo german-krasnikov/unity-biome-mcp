@@ -8,12 +8,12 @@ namespace UnityMCP.Playtest
 {
     public sealed partial class PlayerPlaytestRunner
     {
-        private static StepResult EvaluateAssert(PlaytestStep step)
+        internal static StepResult EvaluateAssert(PlaytestStep step)
         {
             try
             {
                 var actual = ReadQuery(step.Query);
-                return Compare(actual, step.Op, step.Value)
+                return PlaytestParser.Compare(actual, step.Op, step.Value)
                     ? StepResult.Pass(step.RawLine, $"{actual} {step.Op} {step.Value}")
                     : StepResult.Fail(step.RawLine, $"actual={actual}, expected {step.Op} {step.Value}");
             }
@@ -210,31 +210,6 @@ namespace UnityMCP.Playtest
         private static string[] SplitWords(string step)
         {
             return step.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        }
-
-        private static bool Compare(string actual, string op, string expected)
-        {
-            if (float.TryParse(actual, NumberStyles.Float, CultureInfo.InvariantCulture, out var a) &&
-                float.TryParse(expected, NumberStyles.Float, CultureInfo.InvariantCulture, out var e))
-            {
-                return op switch
-                {
-                    "==" => Math.Abs(a - e) < 0.001f,
-                    "!=" => Math.Abs(a - e) >= 0.001f,
-                    ">" => a > e,
-                    ">=" => a >= e,
-                    "<" => a < e,
-                    "<=" => a <= e,
-                    _ => false,
-                };
-            }
-            return op switch
-            {
-                "==" => string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase),
-                "!=" => !string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase),
-                "contains" => actual?.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0,
-                _ => false,
-            };
         }
 
         private static string FormatValue(object value)
