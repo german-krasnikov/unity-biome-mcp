@@ -25,6 +25,40 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("\"expected_fail\":false", json);
         }
 
+        // ── F7: ConsoleErrored must override a raw-passing/EXPECT_FAIL-inverted step ──
+
+        [Test]
+        public void Ok_ConsoleErrored_OverridesPassingRawPassed_ReturnsFalse()
+        {
+            var receipt = new PlaytestStepReceipt(
+                index: 0, type: "Assert", ms: 1.0, sourceFile: "f.playtest",
+                sourceLine: 1, rawPassed: true, expectedFail: false, consoleErrored: true);
+
+            Assert.IsFalse(receipt.Ok);
+        }
+
+        [Test]
+        public void Ok_ConsoleErrored_ExpectFailStepStillFails_ReturnsFalse()
+        {
+            // today's formula (RawPassed != ExpectedFail) would say true here — the
+            // EXPECT_FAIL inversion must not absorb a genuine console error.
+            var receipt = new PlaytestStepReceipt(
+                index: 0, type: "MCP", ms: 1.0, sourceFile: "f.playtest",
+                sourceLine: 1, rawPassed: false, expectedFail: true, consoleErrored: true);
+
+            Assert.IsFalse(receipt.Ok);
+        }
+
+        [Test]
+        public void Ok_NoConsoleError_Unaffected()
+        {
+            var receipt = new PlaytestStepReceipt(
+                index: 0, type: "Assert", ms: 1.0, sourceFile: "f.playtest",
+                sourceLine: 1, rawPassed: true, expectedFail: false, consoleErrored: false);
+
+            Assert.IsTrue(receipt.Ok);
+        }
+
         [Test]
         public void ReceiptStore_ReceiptAndSentinelPaths_ShareOneRoot()
         {

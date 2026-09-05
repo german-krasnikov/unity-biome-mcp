@@ -921,6 +921,38 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(InvokeIsPlaytestSuccess(json, "json"));
         }
 
+        // ── F7: an abort marker must fail-closed even after a fully-passing ratio ────
+
+        [Test]
+        public void IsPlaytestSuccess_TextAbortedAfterPassingStep_ReturnsFalse()
+            => Assert.IsFalse(InvokeIsPlaytestSuccess("PLAYTEST: 1/1 (1.0s)\n[2] ABORTED: global timeout 1s"));
+
+        // ── F7: json ledger must reject a self-contradictory or empty receipt ───────
+
+        [Test]
+        public void IsPlaytestSuccess_JsonContradictoryAggregate_ReturnsFalse()
+        {
+            // aggregate failed=1 but the (only) step's own ok is true — the receipt
+            // disagrees with itself and must be rejected even though every listed step
+            // looks fine in isolation.
+            var json = "{\"schema_version\":1,\"passed\":1,\"failed\":1," +
+                "\"outer\":{\"teardown_ok\":true,\"scene_clean\":true}," +
+                "\"steps\":[{\"index\":0,\"type\":\"Assert\",\"ok\":true,\"ms\":1.000," +
+                "\"source_file\":\"f.playtest\",\"source_line\":1," +
+                "\"raw_passed\":true,\"expected_fail\":false}]}";
+
+            Assert.IsFalse(InvokeIsPlaytestSuccess(json, "json"));
+        }
+
+        [Test]
+        public void IsPlaytestSuccess_JsonEmptySteps_ReturnsFalse()
+        {
+            var json = "{\"passed\":0,\"failed\":0,\"text_report\":\"\"," +
+                "\"outer\":{\"teardown_ok\":true},\"steps\":[]}";
+
+            Assert.IsFalse(InvokeIsPlaytestSuccess(json, "json"));
+        }
+
         [Test]
         public void IsPlaytestSuccess_TextReportWithLeadingBrace_StillUsesRegex()
         {

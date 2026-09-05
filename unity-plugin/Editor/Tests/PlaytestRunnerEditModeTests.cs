@@ -510,6 +510,43 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public async Task Run_ExpectFailStep_ConsoleErrorStillFails_JsonStepMarkedNotOk()
+        {
+            // F7: same reproducer as Run_ExpectFailStep_ConsoleErrorStillFails above, but reads
+            // the per-step JSON ledger instead of the aggregate text ratio — proves the console
+            // error is now recorded on the receipt itself (PlaytestStepReceipt.Ok), not just
+            // folded into the aggregate `failed` counter.
+            UnityEngine.TestTools.LogAssert.Expect(
+                UnityEngine.LogType.Error,
+                new System.Text.RegularExpressions.Regex("Command failed: STATE: Command not registered: totally_unknown_command_xyz"));
+
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run("EXPECT_FAIL\nMCP totally_unknown_command_xyz\n", 5f, tcs,
+                requiresPlayMode: false, format: "json");
+            var result = await AwaitBoundedAsync(tcs);
+
+            StringAssert.Contains("\"ok\":false", result);
+        }
+
+        // ── F7 Step 3: global-timeout abort after a passing step must fail the outer
+        // TCP envelope, not just the text report body (CommandRouter.IsPlaytestSuccessFromText
+        // now rejects on sight when the report contains "ABORTED") ─────────────────
+
+        [Test]
+        public async Task AsyncRunPlaytest_GlobalTimeoutAfterPassingStep_EnvelopeReportsFailure()
+        {
+            TrackOwnedObject(new GameObject("F7TimeoutProbe"));
+
+            var result = await GetResultAsync(
+                "\"script\":\"# @needs editmode\\nLOG first\\n" +
+                "WAIT_UNTIL /F7TimeoutProbe|Transform|position == 999,999,999\\n\"," +
+                "\"timeout\":\"0.5\"");
+
+            StringAssert.Contains("\"ok\":false", result);
+            StringAssert.Contains("ABORTED: global timeout", result);
+        }
+
+        [Test]
         public async Task Run_ExpectFailOnPolledStep_Works()
         {
             // WAIT_UNTIL always resolves through Phase.WaitingPoll (never synchronously in

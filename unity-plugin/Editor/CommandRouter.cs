@@ -642,15 +642,22 @@ namespace UnityMCP.Editor
         {
             var outer = JsonHelper.ExtractObject(report, "outer");
             if (JsonHelper.ExtractString(outer, "teardown_ok") != "true") return false;
+            // F7: aggregate cross-check — a receipt whose own `failed` count disagrees with
+            // its per-step ok:true entries is definitionally suspect. Missing key defaults to
+            // -1 (fail-closed): production always emits `failed` (BuildJsonReport), so this
+            // only rejects a malformed/hand-crafted receipt.
+            if (JsonHelper.ExtractInt(report, "failed", -1) != 0) return false;
 
             var stepsArray = JsonHelper.ExtractArray(report, "steps");
             var pos = 0;
             string stepJson;
+            var stepCount = 0;
             while ((stepJson = JsonHelper.ExtractNextArrayObject(stepsArray, ref pos)) != null)
             {
+                stepCount++;
                 if (JsonHelper.ExtractString(stepJson, "ok") != "true") return false;
             }
-            return true;
+            return stepCount > 0; // F7: an empty ledger is not a pass
         }
 
         // INV-005 / v1 §41: the legacy text scan. Untouched by B17 — deleting it is gated on
@@ -658,6 +665,10 @@ namespace UnityMCP.Editor
         private static bool IsPlaytestSuccessFromText(string report)
         {
             if (string.IsNullOrEmpty(report)) return false;
+            // F7: fail-closed on an abort marker before either shortcut below — BuildReport
+            // never emits "ABORTED" in the same report as the " OK" one-liner, so this can only
+            // remove a false positive, never flip an already-correct pass to a false negative.
+            if (report.Contains("ABORTED")) return false;
             if (report.Contains(" OK")) return true;
             if (!report.StartsWith("PLAYTEST:", StringComparison.Ordinal)) return false;
 

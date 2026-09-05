@@ -987,6 +987,54 @@ def test_is_playtest_pass_ledger_teardown_ok_false():
     assert _is_playtest_pass(_ledger_json(step_ok=True, teardown_ok=False), "json") is False
 
 
+def test_is_playtest_pass_ledger_contradictory_aggregate_is_false():
+    """format="json": aggregate failed=1 but the only step's own ok is true — the
+    receipt disagrees with itself and must be rejected (mirrors C#
+    IsPlaytestSuccess_JsonContradictoryAggregate_ReturnsFalse)."""
+    from unity_mcp.tools.runtime import _is_playtest_pass
+    import json as _json
+    receipt = _json.dumps({
+        "schema_version": 1, "passed": 1, "failed": 1,
+        "outer": {"teardown_ok": True, "scene_clean": True},
+        "steps": [{
+            "index": 0, "type": "Assert", "ok": True, "ms": 1.0,
+            "source_file": "f.playtest", "source_line": 1,
+            "raw_passed": True, "expected_fail": False,
+        }],
+    })
+    assert _is_playtest_pass(receipt, "json") is False
+
+
+def test_is_playtest_pass_ledger_empty_steps_is_false():
+    """format="json": teardown_ok true but zero steps must not read as a pass
+    (mirrors C# IsPlaytestSuccess_JsonEmptySteps_ReturnsFalse)."""
+    from unity_mcp.tools.runtime import _is_playtest_pass
+    import json as _json
+    receipt = _json.dumps({
+        "passed": 0, "failed": 0, "text_report": "",
+        "outer": {"teardown_ok": True}, "steps": [],
+    })
+    assert _is_playtest_pass(receipt, "json") is False
+
+
+def test_is_playtest_pass_ledger_missing_steps_key_is_false():
+    """format="json": no "steps" key at all (not just an empty array) must still
+    reduce to falsy — receipt.get("steps", []) covers the missing-key case too."""
+    from unity_mcp.tools.runtime import _is_playtest_pass
+    import json as _json
+    receipt = _json.dumps({"passed": 0, "failed": 0, "outer": {"teardown_ok": True}})
+    assert _is_playtest_pass(receipt, "json") is False
+
+
+def test_is_playtest_pass_text_aborted_after_passing_step_is_false():
+    """An ABORTED marker (e.g. global timeout after a step already passed) must
+    fail-closed even though the ratio line reads a full pass (mirrors C#
+    IsPlaytestSuccess_TextAbortedAfterPassingStep_ReturnsFalse)."""
+    from unity_mcp.tools.runtime import _is_playtest_pass
+    text = "PLAYTEST: 1/1 (1.0s)\n[2] ABORTED: global timeout 1s"
+    assert _is_playtest_pass(text, "text") is False
+
+
 def test_is_playtest_pass_text_with_leading_brace():
     """format="text": a text report that happens to start with '{' must still
     use the regex path, not be mistaken for JSON (mirrors C#
