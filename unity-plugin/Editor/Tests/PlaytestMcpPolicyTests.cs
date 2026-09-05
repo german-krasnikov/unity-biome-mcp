@@ -53,6 +53,21 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(before, CommandRouter.LastCommandName);
         }
 
+        [TestCase("stop")]
+        [TestCase("pause")]
+        [TestCase("unpause")]
+        public void Validate_EditorStopPause_Rejected(string action)
+        {
+            var before = CommandRouter.LastCommandName;
+
+            var errors = PlaytestMcpPolicy.Validate(
+                new List<PlaytestStep> { McpStep("editor", $"{{\"action\":\"{action}\"}}") }, null, isEditModeRun: false);
+
+            Assert.IsNotNull(errors, $"editor(action={action}) must be rejected — it can stop/pause Play Mode mid-playtest");
+            Assert.IsTrue(errors.Exists(e => e.Contains("editor")));
+            Assert.AreEqual(before, CommandRouter.LastCommandName, "policy validation must never dispatch the denied command");
+        }
+
         [Test]
         public void Validate_EditModeRuntimeCommandRejectedBeforeDispatch()
         {
