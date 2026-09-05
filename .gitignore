@@ -30,6 +30,15 @@ ENV/
 *.swo
 *~
 
+# D15: unity-plugin/Tests~/ is a real, tracked dotnet-test project — the trailing
+# `~` is load-bearing for Unity's importer (see UnityMCP.Playtest.Core.Tests.csproj),
+# not an editor backup file matched by the generic `*~` rule above. Re-include the
+# project, then re-exclude its own build output.
+!unity-plugin/Tests~/
+!unity-plugin/Tests~/**
+unity-plugin/Tests~/Pure/bin/
+unity-plugin/Tests~/Pure/obj/
+
 # macOS
 .DS_Store
 .AppleDouble

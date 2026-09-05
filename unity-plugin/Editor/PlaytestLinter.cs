@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {
@@ -124,6 +125,21 @@ namespace UnityMCP.Editor
                 if (hasEvidence && !HasCleanup(parsed))
                     issues.Add(Issue("ERROR", fileLabel, 0,
                         "no ASSERT_CONSOLE_CLEAN at end; add ASSERT_CONSOLE_CLEAN or 'CALL finish_clean'"));
+
+                // C11: an MCP step whose next main-section step isn't an evidence
+                // step is likely a call whose result nobody checked. Main steps
+                // only (parsed.Steps never contains TEARDOWN — those live in
+                // parsed.TeardownSteps — so a cleanup MCP there is never scanned).
+                for (int mi = 0; mi < parsed.Steps.Count; mi++)
+                {
+                    if (parsed.Steps[mi].Type != StepType.Mcp) continue;
+                    var following = mi + 1 < parsed.Steps.Count ? parsed.Steps[mi + 1] : null;
+                    if (following == null || !_evidenceTypes.Contains(following.Type))
+                        issues.Add(Issue("WARN", fileLabel, 0,
+                            $"MCP step '{parsed.Steps[mi].Method}' has no following evidence step " +
+                            "(ASSERT/WAIT_UNTIL/ASSERT_CONSOLE_CLEAN/ASSERT_BATCH/ASSERT_CAPTURED/" +
+                            "CAPTURE/ASSERT_ONE_ACTIVE/ASSERT_CHANGED/ASSERT_FRAMES_DIFFER/ASSERT_FRAMES_STATIC)"));
+                }
             }
 
             return FormatReport(fileLabel, issues);

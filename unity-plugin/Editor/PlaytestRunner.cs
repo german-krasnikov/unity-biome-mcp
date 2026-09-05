@@ -1,29 +1,60 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {
     [InitializeOnLoad]
     internal static partial class PlaytestRunner
     {
-        enum Phase { Ready, LoadingFresh, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, CapturingFrames, WaitingStable, Done }
+        internal enum Phase { Ready, LoadingFresh, Moving, WaitingDelay, WaitingPoll, Simulating, WaitingCapturedDelta, CapturingFrames, WaitingStable, WaitingMcp, Done }
         internal enum StepAdvanceDecision { Continue, JumpToTeardown, AbortRun }
 
         static PlaytestRunner()
         {
             _moveTcs = null;
+            _mcpTcs = null;
             _activeSimulator = null;
+            ReapOrphanedSentinels(); // C05: converts sentinels orphaned by a killed domain into ABORTED receipts
         }
 
+        // B13: $RUN_ID is a reserved system VAL — a user script cannot redeclare it (that would
+        // let a script silently fork the run's own identity via VAL's last-write-wins semantics).
+        // Checked against the raw `script` argument only, before any system VAL is concatenated in,
+        // so the system's own injected line is never mistaken for a user declaration.
+        // Review note (B13, closed as comment only): this regex runs BEFORE any INCLUDE file is
+        // expanded/concatenated in, so an INCLUDEd file that itself declares `VAL $RUN_ID ...` is
+        // NOT caught here and can still override the system alias via VAL's last-write-wins
+        // semantics — a pre-INCLUDE check is a known, deliberate gap, not an oversight. Tracked for
+        // Wave D's parser unification (INCLUDE handling moves earlier in the pipeline there).
+        static readonly Regex _reservedRunIdVal = new Regex(@"^\s*VAL\s+\$RUN_ID(\s|$)",
+            RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+        internal const int RunIdHexLength = 8;
+
+        /// <summary>Generates a fresh lowercase-hex run id for the parallel-safe $RUN_ID VAL.</summary>
+        internal static string CreateRunId() => Guid.NewGuid().ToString("N").Substring(0, RunIdHexLength);
+
+        // requiresPlayMode: threaded by B05's caller-side header gate (CommandRouter.AsyncRunPlaytest).
+        // Consumed in Tick()'s Play-mode abort below (B06) — the caller decides via the parsed
+        // header; Run()/Tick() never re-parses it.
+        // runId: B13 — caller-preallocated identity (e.g. E02's async dispatch); null generates one.
         public static void Run(string script, float globalTimeout, TaskCompletionSource<string> tcs,
             bool abortOnFail = false, bool snapshotOnFailure = false, bool fresh = false,
-            bool strict = false)
+            bool strict = false, bool requiresPlayMode = true, string runId = null, string format = "text")
         {
             if (_isRunning) { tcs.TrySetResult("ERROR: Playtest already running. Wait for completion."); return; }
+            if (_reservedRunIdVal.IsMatch(script))
+            {
+                tcs.TrySetResult("PARSE ERROR: VAL $RUN_ID is a reserved system alias and cannot be declared by user script");
+                return;
+            }
             _freshMode = fresh;
             _freshReloadDone = false;
             _freshLoadInProgress = false;
@@ -43,7 +74,11 @@ namespace UnityMCP.Editor
             var cfgBlock = config?.aliases?.Count > 0
                 ? PlaytestAliasHelpers.FormatVALBlock(config.aliases) + "\n"
                 : "";
-            var resolvedScript = tagLines + "\n" + cfgBlock + script;
+            // B13: $RUN_ID goes last, right before the (already-verified-clean) user script, so
+            // last-write-wins can never let an earlier tag/config alias clobber it.
+            var effectiveRunId = runId ?? CreateRunId();
+            var runIdLine = $"VAL $RUN_ID {effectiveRunId}\n";
+            var resolvedScript = tagLines + "\n" + cfgBlock + runIdLine + script;
 
             ParseResult parseResult = null;
             List<PlaytestStep> steps;
@@ -76,6 +111,11 @@ namespace UnityMCP.Editor
                 return;
             }
 
+            // C02: post-parse, pre-execution Biome command policy for MCP steps. Reuses the
+            // existing parseResult.Errors short-circuit below — no dispatch, no isolation
+            // group, no side effect happens for a rejected script.
+            parseResult.Errors = PlaytestMcpPolicy.Validate(steps, parseResult.Errors, isEditModeRun: !requiresPlayMode);
+
             if (parseResult.Warnings != null)
                 foreach (var w in parseResult.Warnings)
                     Debug.LogWarning($"[Playtest] {w}");
@@ -98,6 +138,13 @@ namespace UnityMCP.Editor
             bool snapOnFail = snapshotOnFailure;
             float defaultTimeout = parseResult.DefaultTimeout > 0 ? parseResult.DefaultTimeout : 5f;
 
+            // B08: an Edit-mode run mutates persisted scene state directly (no Play-mode
+            // reload to fall back on), so it gets an Undo group that abort/timeout/outer-catch
+            // revert below. Play-mode runs keep groupId == -1 — RevertGroup is then a no-op.
+            int groupId = -1;
+            if (!requiresPlayMode)
+                groupId = PlaytestIsolationScope.OpenGroup("MCP Playtest (Edit Mode)");
+
             var results = new List<string>();
             int stepIdx = 0;
             var phase = Phase.Ready;
@@ -108,6 +155,11 @@ namespace UnityMCP.Editor
             DateTime stepStartUtc = DateTime.Now;
             PlaytestStep currentExpanded = null; // VAR-expanded clone of current step
             int failedBeforeStep = 0;           // captured before each step to detect setup failures
+            int passedBeforeStep = 0;           // C07: EXPECT_FAIL's pre-step baseline for `passed`
+            PlaytestRunState.Begin(effectiveRunId, stepStartUtc, steps.Count); // B14/E01: observable slice
+            WriteSentinel(effectiveRunId); // C05: reload sentinel — deleted by FinishRun() below
+            var stepReceipts = new List<PlaytestStepReceipt>(); // B16: structured step ledger
+            bool abortedRun = false; // B16: outer.teardown_ok is false only when this is set
 
             void FinishRun()
             {
@@ -116,19 +168,54 @@ namespace UnityMCP.Editor
                 var report = BuildReport(results, passed, failed, testStart);
                 var stateReport = state.BuildReport();
                 if (stateReport != null) report += "\n" + stateReport;
-                tcs.TrySetResult(report);
+
+                // B16: canonical JSON is always built and persisted regardless of requested
+                // format — only the RETURNED representation below depends on it.
+                var elapsedSeconds = Time.realtimeSinceStartup - testStart;
+                var sceneClean = requiresPlayMode || PlaytestIsolationScope.RefuseIfDirty() == null;
+                var json = BuildJsonReport(effectiveRunId, stepReceipts, passed, failed, elapsedSeconds,
+                    teardownOk: !abortedRun, sceneClean: sceneClean, textReport: report);
+                var receiptPath = ProjectRelativePath(PlaytestReceiptStore.ReceiptPath(effectiveRunId));
+                Directory.CreateDirectory(Path.GetDirectoryName(receiptPath));
+                File.WriteAllText(receiptPath, json, new System.Text.UTF8Encoding(false));
+                DeleteSentinel(effectiveRunId); // C05: run reached FinishRun() normally — no orphan to reap
+
+                // E01: terminalText is exactly what the caller's tcs receives below — Finish()
+                // now carries it so get_playtest_run can return it verbatim, byte-identical,
+                // without re-rendering through a second formatter.
+                var terminalText = format == "json" ? json : report;
+                PlaytestRunState.Finish(passed, failed, terminalText); // B14/E01: observable slice
+                tcs.TrySetResult(terminalText);
             }
 
             void AdvanceStep()
             {
-                if (CheckStepConsoleErrors(steps[stepIdx], stepIdx, stepStartUtc, results))
+                var completedStep = steps[stepIdx];
+                bool rawPassed = failed == failedBeforeStep; // step's own outcome, before inversion
+                // C07: EXPECT_FAIL inversion runs BEFORE CheckStepConsoleErrors below, on
+                // purpose — the console-error channel is structurally separate and must never
+                // be inverted, so a step that expected-fails for its own DSL reason but also
+                // logs a genuine Debug.LogError still reports that error as a real failure.
+                if (completedStep.ExpectFail)
+                    (passed, failed) = ApplyExpectFail(passedBeforeStep, failedBeforeStep, passed, failed, true);
+                if (CheckStepConsoleErrors(completedStep, stepIdx, stepStartUtc, results))
                     failed++;
+                // B16: one structured receipt per completed step, built at this single choke
+                // point (every step-completion call site funnels through AdvanceStep) so every
+                // step type gets a ledger entry without touching each phase's own results.Add
+                // site. C07: expected_fail now reflects the real EXPECT_FAIL modifier.
+                stepReceipts.Add(new PlaytestStepReceipt(
+                    stepIdx, completedStep.Type.ToString(), (DateTime.Now - stepStartUtc).TotalMilliseconds,
+                    completedStep.SourceFile, completedStep.SourceLine,
+                    rawPassed: rawPassed, expectedFail: completedStep.ExpectFail));
                 stepIdx++;
                 var decision = DetermineStepAdvance(
                     globalAbort, failedBeforeStep, failed, stepIdx, setupEndIdx, teardownStartIdx);
                 if (decision == StepAdvanceDecision.AbortRun)
                 {
                     EditorApplication.isPlaying = false;
+                    PlaytestIsolationScope.RevertGroup(groupId);
+                    abortedRun = true; // B16: outer.teardown_ok reflects this
                     FinishRun();
                     return;
                 }
@@ -141,6 +228,7 @@ namespace UnityMCP.Editor
                 stepStartUtc = DateTime.Now;
                 currentExpanded = null;
                 phase = Phase.Ready;
+                PlaytestRunState.Update(stepIdx, passed, failed); // B14: observable slice
                 if (stepIdx >= steps.Count)
                     FinishRun();
             }
@@ -149,22 +237,25 @@ namespace UnityMCP.Editor
             {
                 try
                 {
-                if (!EditorApplication.isPlaying)
+                if (requiresPlayMode && !EditorApplication.isPlaying)
                 {
-                    EditorApplication.update -= Tick;
-                    _isRunning = false;
+                    // B16: routed through FinishRun() (was a hand-inlined duplicate of its body)
+                    // so the canonical JSON receipt is built/persisted here too, and B14's
+                    // PlaytestRunState.Finish is no longer silently skipped on this abort path.
                     results.Add($"[{stepIdx + 1}] ABORTED: Play Mode stopped");
-                    tcs.TrySetResult(BuildReport(results, passed, failed, testStart));
+                    abortedRun = true;
+                    FinishRun();
                     return;
                 }
 
                 if (Time.realtimeSinceStartup - testStart > globalTimeout)
                 {
-                    EditorApplication.update -= Tick;
-                    _isRunning = false;
+                    // B16: see note above — routed through FinishRun() instead of duplicating it.
                     if (globalAbort) EditorApplication.isPlaying = false;
+                    PlaytestIsolationScope.RevertGroup(groupId);
                     results.Add($"[{stepIdx + 1}] ABORTED: global timeout {globalTimeout}s");
-                    tcs.TrySetResult(BuildReport(results, passed, failed, testStart));
+                    abortedRun = true;
+                    FinishRun();
                     return;
                 }
 
@@ -207,9 +298,15 @@ namespace UnityMCP.Editor
                 switch (phase)
                 {
                     case Phase.Ready:
+                        // C07: this is the one entry point every step type passes through before
+                        // ExecuteStep can move it into any other phase (Moving/WaitingPoll/
+                        // WaitingMcp/...), so capturing the before-step baseline here — instead of
+                        // in AdvanceStep itself — makes it reachable from every phase path,
+                        // including a step that only reaches AdvanceStep many ticks later via polling.
                         failedBeforeStep = failed; // capture before step so AdvanceStep can detect failures
+                        passedBeforeStep = passed; // mirrors failedBeforeStep for EXPECT_FAIL's inversion
                         currentExpanded = varRegistry.HasAny ? varRegistry.ExpandStep(step) : step;
-                        ExecuteStep(currentExpanded, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state, snapOnFail);
+                        ExecuteStep(currentExpanded, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state, snapOnFail, effectiveRunId, varRegistry, isEditModeRun: !requiresPlayMode);
                         if (phase == Phase.Done) AdvanceStep();
                         break;
 
@@ -217,6 +314,15 @@ namespace UnityMCP.Editor
                         if (_moveTcs == null || !_moveTcs.Task.IsCompleted) return;
                         results.Add($"[{stepIdx + 1}] MOVE — {_moveTcs.Task.Result}");
                         passed++;
+                        phase = Phase.Done;
+                        AdvanceStep();
+                        break;
+
+                    case Phase.WaitingMcp:
+                        if (_mcpTcs == null || !_mcpTcs.Task.IsCompleted) return;
+                        var mcpResponse = _mcpTcs.Task.Result;
+                        _mcpTcs = null;
+                        ApplyMcpResult(currentExpanded ?? step, stepIdx, mcpResponse, results, varRegistry, ref passed, ref failed);
                         phase = Phase.Done;
                         AdvanceStep();
                         break;
@@ -397,10 +503,14 @@ namespace UnityMCP.Editor
                 }
                 catch (Exception e)
                 {
-                    EditorApplication.update -= Tick;
-                    _isRunning = false;
-                    CompleteRunCleanup();
-                    tcs.TrySetResult("ERROR: " + e.Message);
+                    // Blocker 1: this 5th termination path used to bypass FinishRun() entirely
+                    // (no receipt, no sentinel deletion, no PlaytestRunState.Finish) — routed
+                    // through FinishRun() now, exactly like the Play-mode-stopped and
+                    // global-timeout abort paths above.
+                    PlaytestIsolationScope.RevertGroup(groupId);
+                    results.Add($"[{stepIdx + 1}] ABORTED: unhandled exception: {e.Message}");
+                    abortedRun = true;
+                    FinishRun();
                 }
             }
 
@@ -408,6 +518,7 @@ namespace UnityMCP.Editor
         }
 
         static TaskCompletionSource<string> _moveTcs;
+        static TaskCompletionSource<string> _mcpTcs;
         static IPlaytestSimulator _activeSimulator;
         static bool _isRunning;
         // CAPTURE_FRAMES state
@@ -470,13 +581,31 @@ namespace UnityMCP.Editor
         internal static bool ShouldStopPlayModeOnPollTimeout(bool stepAbortOnFail, bool globalAbort)
             => stepAbortOnFail || globalAbort;
 
+        /// <summary>
+        /// C06 — pure EXPECT_FAIL inversion. Compares the run's passed/failed counters before and
+        /// after one step to see which counter the step itself moved, then (when expectFail is
+        /// set) flips that single outcome: a raw failure becomes a pass, a raw pass becomes a
+        /// failure (an expected-fail step that unexpectedly passes IS a failure). Neither counter
+        /// moving (e.g. a step still polling) is left alone. No Editor context — same style as
+        /// <see cref="DetermineStepAdvance"/>.
+        /// </summary>
+        internal static (int passed, int failed) ApplyExpectFail(
+            int passedBefore, int failedBefore, int passedAfter, int failedAfter, bool expectFail)
+        {
+            if (!expectFail) return (passedAfter, failedAfter);
+            if (passedAfter > passedBefore) return (passedAfter - 1, failedAfter + 1);
+            if (failedAfter > failedBefore) return (passedAfter + 1, failedAfter - 1);
+            return (passedAfter, failedAfter);
+        }
+
         /// <summary>Execute a single synchronous step. Returns true if step completed (phase=Done), false if async.</summary>
         internal static bool ExecuteSyncStep(PlaytestStep step, PlaytestConfig config, List<string> results,
-            ref int passed, ref int failed, int stepIdx, PlaytestState state = null, bool snapshotOnFailure = false)
+            ref int passed, ref int failed, int stepIdx, PlaytestState state = null, bool snapshotOnFailure = false,
+            string runId = null, PlaytestVarRegistry varRegistry = null, bool isEditModeRun = false)
         {
             var phase = Phase.Done;
             float phaseStart = 0;
-            ExecuteStep(step, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state ?? new PlaytestState(), snapshotOnFailure);
+            ExecuteStep(step, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state ?? new PlaytestState(), snapshotOnFailure, runId, varRegistry, isEditModeRun);
             return phase == Phase.Done;
         }
 
@@ -640,6 +769,36 @@ namespace UnityMCP.Editor
             return sb.ToString().TrimEnd();
         }
 
+        /// <summary>
+        /// B16: canonical JSON receipt — schema_version/run_id/passed/failed/duration_seconds/
+        /// steps (one PlaytestStepReceipt each) / outer (teardown_ok/scene_clean) / text_report
+        /// (the exact legacy text, for the durable byte-exact representation). Hand-rolled
+        /// StringBuilder, matching PlayerPlaytestReceipts.cs's style — no System.Text.Json.
+        /// </summary>
+        internal static string BuildJsonReport(string runId, List<PlaytestStepReceipt> steps, int passed,
+            int failed, float elapsedSeconds, bool teardownOk, bool sceneClean, string textReport)
+        {
+            var sb = new System.Text.StringBuilder();
+            sb.Append("{\"schema_version\":1,");
+            sb.Append("\"run_id\":\"").Append(runId).Append("\",");
+            sb.Append("\"passed\":").Append(passed).Append(',');
+            sb.Append("\"failed\":").Append(failed).Append(',');
+            sb.Append("\"duration_seconds\":")
+              .Append(elapsedSeconds.ToString("F3", System.Globalization.CultureInfo.InvariantCulture)).Append(',');
+            sb.Append("\"steps\":[");
+            for (var i = 0; i < steps.Count; i++)
+            {
+                if (i > 0) sb.Append(',');
+                sb.Append(steps[i].ToJson());
+            }
+            sb.Append("],");
+            sb.Append("\"outer\":{\"teardown_ok\":").Append(teardownOk ? "true" : "false")
+              .Append(",\"scene_clean\":").Append(sceneClean ? "true" : "false").Append("},");
+            sb.Append("\"text_report\":\"").Append(PlaytestStepReceipt.EscapeJsonString(textReport)).Append("\"");
+            sb.Append('}');
+            return sb.ToString();
+        }
+
         static void CompleteRunCleanup()
         {
             _isRunning = false;
@@ -647,6 +806,7 @@ namespace UnityMCP.Editor
             PlaytestMonitorRegistry.StopAll();
             _activeSimulator = null;
             _moveTcs = null;
+            _mcpTcs = null;
             _cachedConfig = null;
             _freshMode = false;
             _freshReloadDone = false;

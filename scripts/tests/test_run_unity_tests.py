@@ -2,11 +2,17 @@ import asyncio
 import importlib.util
 import json
 import struct
+import sys
 from pathlib import Path
 
 import pytest
 
 MODULE_PATH = Path(__file__).resolve().parents[2] / "run_unity_tests.py"
+# run_unity_tests.py imports its sibling run_unity_tests_selection.py by plain
+# module name; that only resolves automatically when run_unity_tests.py is
+# executed as __main__ (Python adds its own directory to sys.path). Dynamic
+# loading via spec_from_file_location below does not get that for free.
+sys.path.insert(0, str(MODULE_PATH.parent))
 SPEC = importlib.util.spec_from_file_location("standalone_unity_tests", MODULE_PATH)
 assert SPEC is not None and SPEC.loader is not None
 runner = importlib.util.module_from_spec(SPEC)
@@ -37,6 +43,14 @@ class FakeSocket:
 
 
 def passing_snapshot(project: Path) -> dict[str, object]:
+    # get_test_run's TestRunSummary (post-A23a) always carries a real
+    # selection_sha256 -- computed here via the function under test itself
+    # (not a hardcoded literal; frozen hex belongs only to
+    # test_selection_sha256_matches_csharp_vectors) -- so every pre-existing
+    # no-selection call site keeps validating without per-test edits.
+    no_selection_sha = runner.compute_selection_sha256(
+        "EditMode", "Fixture.Test", "", [], [], []
+    )
     return {
         "request_id": "request-1",
         "run_id": "run-1",
@@ -57,6 +71,10 @@ def passing_snapshot(project: Path) -> dict[str, object]:
         "mode": "EditMode",
         "filter": "Fixture.Test",
         "group": "",
+        "categories": [],
+        "assemblies": [],
+        "tests": [],
+        "selection_sha256": no_selection_sha,
         "expected_count": 2,
         "declared_expected_count": 2,
         "readable_manifest_count": 2,
@@ -369,6 +387,126 @@ def test_terminal_poll_reconfirms_same_request_after_transient(
     assert "run_tests" not in calls
 
 
+def test_no_tests_matched_is_terminal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A get_test_run snapshot whose outcome is no_tests_matched must
+    terminate the poll loop immediately even though state never reaches
+    'terminal' -- otherwise the caller spins to its deadline for nothing
+    instead of failing fast (validate_terminal then rejects it cleanly:
+    'state and lifecycle must both be terminal').
+
+    Double-red: red today (outcome not recognized as an early-exit signal,
+    loop spins to the deadline and raises TimeoutError instead of
+    returning), red again if the outcome set is emptied.
+    """
+    snapshot = {
+        "request_id": "request-1",
+        "run_id": "run-1",
+        "state": "running",
+        "outcome": "no_tests_matched",
+    }
+
+    async def fake_read(_project, _port, _command, _args):
+        return json.dumps(snapshot)
+
+    monkeypatch.setattr(runner, "read_with_rediscovery", fake_read)
+
+    result = asyncio.run(
+        runner.wait_for_terminal(
+            tmp_path, 10600, "request-1", "run-1",
+            runner.time.monotonic() + 0.05, 0.001,
+        )
+    )
+    assert result == snapshot
+
+
+def test_dirty_scene_blocked_is_terminal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Same as test_no_tests_matched_is_terminal for dirty_scene_blocked."""
+    snapshot = {
+        "request_id": "request-1",
+        "run_id": "run-1",
+        "state": "running",
+        "outcome": "dirty_scene_blocked",
+    }
+
+    async def fake_read(_project, _port, _command, _args):
+        return json.dumps(snapshot)
+
+    monkeypatch.setattr(runner, "read_with_rediscovery", fake_read)
+
+    result = asyncio.run(
+        runner.wait_for_terminal(
+            tmp_path, 10600, "request-1", "run-1",
+            runner.time.monotonic() + 0.05, 0.001,
+        )
+    )
+    assert result == snapshot
+
+
+@pytest.mark.parametrize("outcome", ("no_tests_matched", "dirty_scene_blocked"))
+def test_validate_terminal_early_exit_outcome_message_includes_literal(
+    outcome: str, tmp_path: Path
+) -> None:
+    """An early-exit snapshot (state never reached 'terminal') must surface
+    its outcome literal in the raised error -- e.g.
+    'run ended early with outcome=no_tests_matched' -- not the generic
+    'state and lifecycle must both be terminal' message, which tells the
+    caller nothing about *why* the run ended early.
+
+    Double-red: red today (the generic/incomplete-evidence message fires
+    instead and never mentions the outcome), red again if the early-exit
+    check is removed and the generic message returns.
+    """
+    snapshot = {
+        "request_id": "request-1",
+        "run_id": "run-1",
+        "state": "running",
+        "outcome": outcome,
+    }
+    with pytest.raises(runner.RunnerError, match=f"outcome={outcome}"):
+        validate(snapshot, tmp_path)
+
+
+def test_poll_interval_default_is_fast() -> None:
+    """Default --poll-interval must be the fast named constant, not the old
+    5.0s default that made every wait needlessly sluggish.
+
+    Double-red: red if the default reverts to 5.0, red if the named
+    constant is removed/renamed (AttributeError)."""
+    args = runner.parse_args(["EditMode"])
+    assert args.poll_interval == runner.DEFAULT_POLL_INTERVAL_S
+    assert runner.DEFAULT_POLL_INTERVAL_S == 1.0
+
+
+def test_category_flag_is_repeatable_and_forwarded() -> None:
+    """--category is repeatable and forwarded verbatim as a JSON list.
+
+    Double-red: red if the flag doesn't exist yet (parse_args raises
+    SystemExit / build_command_args is missing), red if repetition
+    overwrites the previous value instead of appending (action='store'
+    instead of 'append')."""
+    args = runner.parse_args(
+        ["EditMode", "--category", "!^Stress$", "--category", "Slow"]
+    )
+    command_args = runner.build_command_args(args, request_id="request-1")
+    assert command_args["categories"] == ["!^Stress$", "Slow"]
+
+
+def test_assembly_flag_is_repeatable_and_forwarded() -> None:
+    """--assembly is repeatable and forwarded verbatim as a JSON list.
+
+    Double-red: same shape as test_category_flag_is_repeatable_and_forwarded,
+    against the independent --assembly/assemblies flag."""
+    args = runner.parse_args(
+        ["EditMode", "--assembly", "A.Tests", "--assembly", "B.Tests"]
+    )
+    command_args = runner.build_command_args(args, request_id="request-1")
+    assert command_args["assemblies"] == ["A.Tests", "B.Tests"]
+
+
 def test_terminal_poll_rejects_changed_run_id_during_recovery(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -452,21 +590,120 @@ def test_zero_discovery_requires_explicit_override(tmp_path: Path) -> None:
     )
 
 
-def test_unfiltered_editmode_requires_more_than_six_thousand_tests() -> None:
+def _write_baseline(path: Path, expected_count: object) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "expected_count": expected_count,
+                "captured_utc": "2026-09-04T00:00:00Z",
+                "source_run_id": "run-fixture",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def test_required_minimum_tests_reads_full_baseline_json(tmp_path: Path) -> None:
+    """Unfiltered EditMode's minimum-test floor comes from full-baseline.json's
+    expected_count, not a hardcoded constant.
+
+    Double-red: red today (the hardcoded 6001 constant is consulted
+    regardless of this file's content -- required_minimum_tests doesn't even
+    accept a baseline_path); red if a malformed file (missing expected_count)
+    is silently accepted instead of failing closed.
+    """
+    baseline = tmp_path / "full-baseline.json"
+    _write_baseline(baseline, 12345)
     assert runner.required_minimum_tests(
-        "EditMode", "", "", None, False
-    ) == 6001
+        "EditMode", "", "", None, False, baseline_path=baseline
+    ) == 12345
+
+    malformed = tmp_path / "malformed.json"
+    malformed.write_text(json.dumps({"captured_utc": "x"}), encoding="utf-8")
+    with pytest.raises(runner.RunnerError):
+        runner.required_minimum_tests(
+            "EditMode", "", "", None, False, baseline_path=malformed
+        )
+
+
+def test_required_minimum_tests_fails_closed_on_missing_baseline_file(
+    tmp_path: Path,
+) -> None:
+    """A missing full-baseline.json must fail loudly (RunnerError), never
+    silently fall back to a minimum of 0 -- that would let a truncated
+    EditMode run masquerade as complete."""
+    missing = tmp_path / "does-not-exist.json"
+    with pytest.raises(runner.RunnerError):
+        runner.required_minimum_tests(
+            "EditMode", "", "", None, False, baseline_path=missing
+        )
+
+
+def test_unfiltered_editmode_requires_full_baseline_count(tmp_path: Path) -> None:
+    """Only an unfiltered, ungrouped EditMode run is held to the full
+    baseline's expected_count; a filtered run or PlayMode still only
+    requires at least 1 discovered test (the plan's original intent, now
+    against a file-backed baseline instead of a fixed 6001)."""
+    baseline = tmp_path / "full-baseline.json"
+    _write_baseline(baseline, 5000)
     assert runner.required_minimum_tests(
-        "EditMode", "Fixture.Test", "", None, False
+        "EditMode", "", "", None, False, baseline_path=baseline
+    ) == 5000
+    assert runner.required_minimum_tests(
+        "EditMode", "Fixture.Test", "", None, False, baseline_path=baseline
     ) == 1
     assert runner.required_minimum_tests(
-        "PlayMode", "", "", None, False
+        "PlayMode", "", "", None, False, baseline_path=baseline
+    ) == 1
+
+
+def test_required_minimum_tests_treats_selection_flags_as_filtered(
+    tmp_path: Path,
+) -> None:
+    """categories/assemblies/tests selection is filtering too -- an
+    unfiltered-looking EditMode call (no --filter/--group) that supplies
+    an assembly/category/tests selection must NOT be held to the full
+    EditMode baseline; otherwise --assembly/--category/--tests-file could
+    never be used through the CLI's own minimum-tests floor.
+
+    Double-red: red today (the function has no categories/assemblies/tests
+    parameters, so a selection-only call is still treated as unfiltered and
+    the full baseline is enforced); red if the fix over-corrects and skips
+    the baseline for every unfiltered call regardless of selection --
+    covered by test_unfiltered_editmode_requires_full_baseline_count
+    staying green.
+    """
+    baseline = tmp_path / "full-baseline.json"
+    _write_baseline(baseline, 9310)
+    assert runner.required_minimum_tests(
+        "EditMode", "", "", None, False,
+        baseline_path=baseline, assemblies=["UnityMCP.Editor.Chat.Tests.View"],
+    ) == 1
+    assert runner.required_minimum_tests(
+        "EditMode", "", "", None, False,
+        baseline_path=baseline, categories=["Fast"],
+    ) == 1
+    assert runner.required_minimum_tests(
+        "EditMode", "", "", None, False,
+        baseline_path=baseline, tests=["Suite.T1"],
     ) == 1
 
 
 def test_partial_full_editmode_catalog_cannot_be_accepted(tmp_path: Path) -> None:
+    """An unfiltered EditMode run whose expected_count falls short of the
+    full baseline must be rejected -- a partial catalog (e.g. a truncated
+    domain reload) must never be silently accepted as a complete run."""
+    baseline = tmp_path / "full-baseline.json"
+    _write_baseline(baseline, 5000)
     snapshot = passing_snapshot(tmp_path)
     snapshot["filter"] = ""
+    # The fixture's default selection_sha256 is computed for filter=
+    # "Fixture.Test" -- override to match this test's own filter_name=""
+    # so the unconditional sha check does not fire before the
+    # minimum_tests floor this test actually exercises.
+    snapshot["selection_sha256"] = runner.compute_selection_sha256(
+        "EditMode", "", "", [], [], []
+    )
     for name in (
         "expected_count",
         "declared_expected_count",
@@ -478,7 +715,7 @@ def test_partial_full_editmode_catalog_cannot_be_accepted(tmp_path: Path) -> Non
         snapshot[name] = 3000
     snapshot["skipped"] = 0
 
-    with pytest.raises(runner.RunnerError, match="minimum_tests=6001"):
+    with pytest.raises(runner.RunnerError, match="minimum_tests=5000"):
         runner.validate_terminal(
             snapshot,
             project=tmp_path,
@@ -488,6 +725,189 @@ def test_partial_full_editmode_catalog_cannot_be_accepted(tmp_path: Path) -> Non
             expected_utf="1.6.0",
             allow_empty=False,
             minimum_tests=runner.required_minimum_tests(
-                "EditMode", "", "", None, False
+                "EditMode", "", "", None, False, baseline_path=baseline
             ),
+        )
+
+
+def test_tests_file_flag_populates_command_args_tests_list(tmp_path: Path) -> None:
+    """--tests-file reads one full test name per line, stripping blank and
+    '#'-comment lines, and forwards the result as command_args['tests'].
+
+    Double-red: red today (no --tests-file flag / no runner.resolve_args),
+    red if the blank/comment stripping is removed (a literal '# a comment'
+    line would then leak into command_args['tests'])."""
+    tests_file = tmp_path / "tests.txt"
+    tests_file.write_text("Suite.A\n# a comment\n\nSuite.B\n", encoding="utf-8")
+
+    args = runner.parse_args(["EditMode", "--tests-file", str(tests_file)])
+    runner.resolve_args(args)
+    command_args = runner.build_command_args(args, request_id="request-1")
+
+    assert command_args["tests"] == ["Suite.A", "Suite.B"]
+
+
+def test_tests_file_sets_default_minimum_to_file_length(tmp_path: Path) -> None:
+    """No explicit --minimum-tests -> the floor defaults to the tests
+    file's (post-filter) line count; an explicit --minimum-tests is never
+    overwritten by that default.
+
+    Double-red: red today (args.minimum_tests stays None, so
+    required_minimum_tests falls back to its own default instead of 3); red
+    if the explicit-value guard is dropped and 3 always wins over an
+    explicit --minimum-tests."""
+    tests_file = tmp_path / "tests.txt"
+    tests_file.write_text("Suite.A\nSuite.B\nSuite.C\n", encoding="utf-8")
+
+    args = runner.parse_args(["EditMode", "--tests-file", str(tests_file)])
+    runner.resolve_args(args)
+    assert args.minimum_tests == 3
+
+    explicit = runner.parse_args(
+        ["EditMode", "--tests-file", str(tests_file), "--minimum-tests", "1"]
+    )
+    runner.resolve_args(explicit)
+    assert explicit.minimum_tests == 1
+
+
+def test_tests_file_dedupes_lines_for_minimum_and_selection(tmp_path: Path) -> None:
+    """Duplicate lines in a --tests-file must be deduped once, both for the
+    default --minimum-tests floor (len(args.tests)) and for the selection
+    forwarded on the wire -- otherwise a file with repeated lines silently
+    inflates the floor and the selection payload with duplicate entries.
+
+    Double-red: red today (parse_tests_file keeps duplicates, so the file's
+    3 raw lines -- one of them a repeat -- would set minimum_tests=3 and
+    command_args['tests'] would carry the duplicate); red if dedup drops
+    first-seen order (e.g. sorted(set(...)) instead of dict.fromkeys) --
+    the file's lines are deliberately out of alphabetical order."""
+    tests_file = tmp_path / "tests.txt"
+    tests_file.write_text("Suite.B\nSuite.A\nSuite.B\n", encoding="utf-8")
+
+    args = runner.parse_args(["EditMode", "--tests-file", str(tests_file)])
+    runner.resolve_args(args)
+
+    assert args.tests == ["Suite.B", "Suite.A"]
+    assert args.minimum_tests == 2
+
+    command_args = runner.build_command_args(args, request_id="request-1")
+    assert command_args["tests"] == ["Suite.B", "Suite.A"]
+
+
+def test_selection_sha256_matches_csharp_vectors() -> None:
+    """compute_selection_sha256 must reproduce
+    UnityMCP.Editor.TestRuns.TestRunSelection.ComputeSha256's canonical form
+    byte-for-byte -- both frozen vectors from
+    TestRunServiceTests.ComputeSha256_KnownInput_MatchesFrozenVector.
+
+    Double-red: red if the separator, sort order, or join deviates from the
+    C# form (either frozen hex would then not match)."""
+    assert runner.compute_selection_sha256(
+        "EditMode", "", "", [], ["UnityMCP.Editor.Chat.Tests.View"], [],
+    ) == "e944be3f753540a8f201a310b10ba9ad6c6bc996d1f929fbaa97d03c382c6390"
+
+    assert runner.compute_selection_sha256(
+        "PlayMode", "Foo|Bar", "Smoke",
+        ["Zeta", "Ärger", "alpha"], [], ["B.T2", "A.T1"],
+    ) == "6d3f0f555fb69d40d036b2dc3db99997ef0fded91c84d5caac1afc2126d9fba3"
+
+    # Duplicates + unsorted input, proving ordinal-distinct dedupe happens
+    # before the ordinal sort (not just sort-then-hope-duplicates-collapse).
+    # canonical_c = "EditMode|||Alpha\nBeta\nalpha|Foo.Assembly|Suite.T1\nSuite.T2"
+    assert runner.compute_selection_sha256(
+        "EditMode", "", "",
+        ["Beta", "Alpha", "Beta", "alpha"],
+        ["Foo.Assembly", "Foo.Assembly"],
+        ["Suite.T2", "Suite.T1", "Suite.T2"],
+    ) == "bbb73e9fbb8cf7d41afcd2cf5f694dbe8816e714750edfa1df02e65ac752e6dc"
+
+
+def test_validate_terminal_rejects_snapshot_with_mismatched_selection(
+    tmp_path: Path,
+) -> None:
+    """A terminal snapshot that itself carries categories/assemblies/tests/
+    selection_sha256 (once TestRunSummary is extended to surface them) must
+    match the requested selection -- lists compare by canonical joined form,
+    selection_sha256 by exact value.
+
+    Double-red: red today (validate_terminal has no
+    categories/assemblies/tests parameters, so a mismatched selection is
+    silently accepted); red if the comparison is inverted (accepts a
+    mismatch, rejects a match)."""
+    categories, assemblies, tests = ["Fast"], ["A.Tests"], ["Suite.T1"]
+    sha = runner.compute_selection_sha256(
+        "EditMode", "Fixture.Test", "", categories, assemblies, tests
+    )
+    snapshot = passing_snapshot(tmp_path)
+    snapshot.update(
+        categories=categories, assemblies=assemblies, tests=tests,
+        selection_sha256=sha,
+    )
+
+    # Matching selection: accepted.
+    runner.validate_terminal(
+        snapshot, project=tmp_path, mode="EditMode", filter_name="Fixture.Test",
+        group="", expected_utf="1.6.0", allow_empty=False,
+        categories=categories, assemblies=assemblies, tests=tests,
+    )
+
+    # Mismatched list: rejected.
+    mismatched = dict(snapshot, categories=["Slow"])
+    with pytest.raises(runner.RunnerError, match="categories"):
+        runner.validate_terminal(
+            mismatched, project=tmp_path, mode="EditMode",
+            filter_name="Fixture.Test", group="", expected_utf="1.6.0",
+            allow_empty=False, categories=categories, assemblies=assemblies,
+            tests=tests,
+        )
+
+    # Mismatched hash: rejected.
+    wrong_sha = dict(snapshot, selection_sha256="0" * 64)
+    with pytest.raises(runner.RunnerError, match="selection_sha256"):
+        runner.validate_terminal(
+            wrong_sha, project=tmp_path, mode="EditMode",
+            filter_name="Fixture.Test", group="", expected_utf="1.6.0",
+            allow_empty=False, categories=categories, assemblies=assemblies,
+            tests=tests,
+        )
+
+
+def test_validate_terminal_requires_selection_fields(tmp_path: Path) -> None:
+    """get_test_run's TestRunSummary now carries selection_sha256 for every
+    dispatched run, selection or not (A23a) -- the check is unconditional.
+    A snapshot missing it means the connected worker plugin predates this
+    runner's selection support, which must fail loudly rather than silently
+    pass.
+
+    Double-red: red before the presence guard was dropped (case (a) used to
+    pass silently); red if the check is re-guarded on the request having a
+    selection (case (b') would then wrongly pass instead of raising)."""
+    # (a) Selection requested; snapshot has the matching list but omits
+    # selection_sha256 entirely -> reject.
+    selected = passing_snapshot(tmp_path)
+    selected["assemblies"] = ["UnityMCP.Editor.Chat.Tests.View"]
+    del selected["selection_sha256"]
+    with pytest.raises(runner.RunnerError, match="selection_sha256"):
+        runner.validate_terminal(
+            selected, project=tmp_path, mode="EditMode", filter_name="Fixture.Test",
+            group="", expected_utf="1.6.0", allow_empty=False,
+            assemblies=["UnityMCP.Editor.Chat.Tests.View"],
+        )
+
+    # (b) No selection requested; snapshot carries the correct
+    # empty-selection sha (the real wire shape post-A23a) -> passes.
+    no_selection = passing_snapshot(tmp_path)
+    runner.validate_terminal(
+        no_selection, project=tmp_path, mode="EditMode", filter_name="Fixture.Test",
+        group="", expected_utf="1.6.0", allow_empty=False,
+    )
+
+    # (b') No selection requested; snapshot has no selection_sha256 at all
+    # (a worker plugin older than this runner) -> reject, loudly.
+    legacy = passing_snapshot(tmp_path)
+    del legacy["selection_sha256"]
+    with pytest.raises(runner.RunnerError, match="selection_sha256"):
+        runner.validate_terminal(
+            legacy, project=tmp_path, mode="EditMode", filter_name="Fixture.Test",
+            group="", expected_utf="1.6.0", allow_empty=False,
         )

@@ -1,3 +1,4 @@
+# @needs editmode
 INCLUDE common.defs
 INVOKE /Fixture/State FixtureState ResetState
 INVOKE /Fixture/State FixtureState Record hello,world,42

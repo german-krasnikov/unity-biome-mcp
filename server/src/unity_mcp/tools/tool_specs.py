@@ -113,6 +113,10 @@ _SPECS: dict[str, ToolSpec] = {
     'get_memory': ToolSpec(category='RUNTIME', mutability='read'),
     'get_metrics': ToolSpec(category='RUNTIME', direct_only=True),
     'get_object_detail': ToolSpec(category='SCENE', mutability='read'),
+    # E03: Wave E async playtest poll — internal wire command, not @mcp.tool() until E04
+    # wires run_playtest(timeout>120) through the async start/poll pair. Same shape as
+    # source_patch_write below (RegisterAsync in C#, no Python-typed wrapper yet).
+    'get_playtest_run': ToolSpec(category='_INTERNAL', mutability='read', direct_only=True, unity_transport=True),
     'get_schema': ToolSpec(category='SYSTEM', mutability='read'),
     'get_selection': ToolSpec(category='SCENE', mutability='read'),
     'get_spatial_context': ToolSpec(category='SCENE', mutability='read'),
@@ -165,7 +169,12 @@ _SPECS: dict[str, ToolSpec] = {
     'resolve_tool_schema': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     # timeout_s is a fallback ceiling only -- tools/runtime.py always passes
     # timeout+20.0 explicitly.
-    'run_playtest': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, runtime_only=True, mutability='write', direct_only=True, unity_transport=True),
+    # B05/R-05: runtime_only intentionally NOT set here — C#'s CommandRouter.Registration.cs
+    # registration (runtime: false) is the sole authority now that the Play-mode gate moved
+    # past parsing into AsyncRunPlaytest's own `# @needs editmode` header check. A static
+    # True here would reintroduce a second, stale Python-only authority (see
+    # test_runtime_only_single_source).
+    'run_playtest': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, mutability='write', direct_only=True, unity_transport=True),
     'run_playtest_suite': ToolSpec(category='TESTS', tier1=True, timeout_s=3600.0, mutability='write', direct_only=True),
     'runtime_snapshot': ToolSpec(category='RUNTIME', mutability='read'),
     'run_tests': ToolSpec(category='TESTS', tier1=True, timeout_s=30.0, direct_only=True, unity_transport=True),
@@ -202,6 +211,9 @@ _SPECS: dict[str, ToolSpec] = {
     # MCP tool, never batchable (see server/tests/test_source_patch_boundary.py).
     'source_patch_write': ToolSpec(category='_INTERNAL', direct_only=True, unity_transport=True),
     'spatial_query': ToolSpec(category='SCENE', mutability='read'),
+    # E02: Wave E non-blocking playtest dispatch — internal wire command, no @mcp.tool()
+    # until E04. Same shape as source_patch_write above.
+    'start_playtest': ToolSpec(category='_INTERNAL', direct_only=True, unity_transport=True),
     'sync_playtest_aliases_from_defs': ToolSpec(category='TESTS'),
     'sync_unity': ToolSpec(category='SYSTEM', tier1=True, direct_only=True),
     'test_step': ToolSpec(category='TESTS', runtime_only=True, mutability='write', direct_only=True, unity_transport=True),

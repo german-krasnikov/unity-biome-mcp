@@ -89,6 +89,16 @@ namespace UnityMCP.Editor.TestRuns
             return CleanupForRun(RequireActiveRunId(), preserveAssetPath);
         }
 
+        // Injectable seams (mirror TestRunAssemblyFingerprint.HashFileImpl): unit
+        // tests substitute these to prove the fast path below never touches the
+        // ledger or the reserved root, and to simulate an absent root without
+        // deleting the real, shared "Assets/TestsTemp" folder -- once any
+        // fixture creates it, it persists for the rest of the Editor session,
+        // so asserting on its real absence would be flaky by construction.
+        internal static Func<bool> RootIsValidFolderImpl = () => AssetDatabase.IsValidFolder(Root);
+        internal static Func<string, IReadOnlyList<string>> ReadLedgerImpl = ReadLedgerCore;
+        internal static Action<string> SweepReservedRootImpl = SweepReservedRootCore;
+
         public static TestRunAssetCleanupReport CleanupForRun(
             string runId,
             string preserveAssetPath,
@@ -103,6 +113,16 @@ namespace UnityMCP.Editor.TestRuns
                 throw new ArgumentException(
                     "A run-level sweep may preserve only that run's exact owned scene.",
                     nameof(preserveAssetPath));
+
+            // Fast path: nothing to clean when the reserved root was never
+            // created and no ledger was ever written for this run -- the
+            // overwhelming majority of ordinary (non-asset-creating) tests.
+            // Both checks above (run-id safety, preserve-path validation) stay
+            // unconditional: cheap and correctness-critical regardless of
+            // whether there is any real work to do below.
+            if (!RootIsValidFolderImpl() && !LedgerExists(runId))
+                return new TestRunAssetCleanupReport();
+
             if (!allowCompileAffectingAssets)
                 RequireNoCompileAffectingAssetsInRoot();
             MigrateLegacyAutoSuffixedRoots();
@@ -111,7 +131,7 @@ namespace UnityMCP.Editor.TestRuns
             IReadOnlyList<string> registered;
             try
             {
-                registered = ReadLedger(runId);
+                registered = ReadLedgerImpl(runId);
             }
             catch (Exception error)
             {
@@ -121,7 +141,7 @@ namespace UnityMCP.Editor.TestRuns
                 registered = Array.Empty<string>();
             }
 
-            SweepReservedRoot(preserve);
+            SweepReservedRootImpl(preserve);
 
             var survivors = registered
                 .Where(path => !IsPreserved(path, preserve) && AssetExists(path))
@@ -216,7 +236,7 @@ namespace UnityMCP.Editor.TestRuns
             return runId;
         }
 
-        private static void SweepReservedRoot(string preserve)
+        private static void SweepReservedRootCore(string preserve)
         {
             var absoluteRoot = Path.Combine(ProjectRoot(), Root);
             if (!Directory.Exists(absoluteRoot)) return;
@@ -391,7 +411,7 @@ namespace UnityMCP.Editor.TestRuns
             !string.IsNullOrEmpty(preserve) &&
             string.Equals(candidate, preserve + ".meta", StringComparison.OrdinalIgnoreCase);
 
-        private static IReadOnlyList<string> ReadLedger(string runId)
+        private static IReadOnlyList<string> ReadLedgerCore(string runId)
         {
             var path = LedgerPath(runId);
             if (!File.Exists(path)) return Array.Empty<string>();
@@ -456,6 +476,8 @@ namespace UnityMCP.Editor.TestRuns
 
         private static string LedgerPath(string runId) => Path.Combine(
             ProjectRoot(), "Library", "UnityMCP", "TestOwnership", runId + ".assets");
+
+        private static bool LedgerExists(string runId) => File.Exists(LedgerPath(runId));
 
         private static string ProjectRoot() =>
             Path.GetFullPath(Path.Combine(Application.dataPath, ".."));

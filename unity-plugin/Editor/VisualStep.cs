@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {
@@ -13,7 +14,8 @@ namespace UnityMCP.Editor
         public StepType type      { get => _step.Type;         set => _step.Type = value; }
         public string description { get => _step.Label ?? "";  set => _step.Label = value; }
         public string path        { get => _step.Path ?? "";   set => _step.Path = value; }
-        public Vector3 position   { get => _step.Position;     set => _step.Position = value; }
+        public Vector3 position   { get => new Vector3(_step.Position.x, _step.Position.y, _step.Position.z);
+                                     set => _step.Position = new Float3(value.x, value.y, value.z); }
         public float delay        { get => _step.Delay;        set => _step.Delay = value; }
         public string query       { get => _step.Query ?? "";  set => _step.Query = value; }
         public string op          { get => _step.Op ?? "==";   set => _step.Op = value; }

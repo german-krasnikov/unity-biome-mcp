@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {

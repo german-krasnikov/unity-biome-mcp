@@ -35,7 +35,9 @@ _OLD_READ_CMDS = {
 _OLD_RUNTIME_ONLY = {
     "invoke_method", "set_runtime_property",
     "wait_until", "move_to", "query_state", "test_step",
-    "run_playtest",
+    # run_playtest removed (B05/R-05): C#'s registration is now the sole authority for
+    # its Play-mode gate (moved past parsing into a header-driven check); a static
+    # Python-side runtime_only=True would reintroduce a stale second authority.
     "get_frame_stats", "debug_animator", "debug_physics",
     "watch_add",
     "profile",
@@ -94,12 +96,14 @@ def test_spec_runtime_only_matches_runtime_cmds():
                 f"{cmd} in _RUNTIME_ONLY_CMDS but _SPECS[{cmd}].runtime_only=False"
 
 
-def test_runtime_only_11_known_tools():
-    """All 11 known runtime-only MCP tools are present."""
+def test_runtime_only_10_known_tools():
+    """All 10 known runtime-only MCP tools are present.
+    B05/R-05: run_playtest dropped from 11 to 10 — its gate is now solely C#'s
+    (see test_runtime_only_single_source in test_tool_specs.py)."""
     from unity_mcp.middleware_types import _RUNTIME_ONLY_CMDS
     expected = {
         "invoke_method", "set_runtime_property", "wait_until", "move_to",
-        "query_state", "test_step", "run_playtest",
+        "query_state", "test_step",
         "get_frame_stats", "debug_animator", "debug_physics", "profile",
     }
     missing = expected - _RUNTIME_ONLY_CMDS

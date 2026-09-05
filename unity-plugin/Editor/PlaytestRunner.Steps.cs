@@ -4,14 +4,16 @@ using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {
     internal static partial class PlaytestRunner
     {
-        static void ExecuteStep(PlaytestStep step, PlaytestConfig config, List<string> results,
+        internal static void ExecuteStep(PlaytestStep step, PlaytestConfig config, List<string> results,
             ref Phase phase, ref float phaseStart, ref int passed, ref int failed, int stepIdx, PlaytestState state,
-            bool snapshotOnFailure = false)
+            bool snapshotOnFailure = false, string runId = null, PlaytestVarRegistry varRegistry = null,
+            bool isEditModeRun = false)
         {
             var label = $"[{stepIdx + 1}]";
             switch (step.Type)
@@ -25,10 +27,23 @@ namespace UnityMCP.Editor
                         _waitPollErrors = 0;
                         break;
                     }
-                    var (ap, ac, af) = PlaytestParser.ResolveQuery(step.Query, config);
                     try
                     {
-                        var actual = ReadValue(ap, ac, af);
+                        // C03: an exact $name sigil that was captured by a prior MCP ... INTO
+                        // step resolves to that captured value instead of a Unity path|comp|
+                        // field query. A $name that is a live VAR binding is already expanded
+                        // to path|comp|field by ExpandStep before ExecuteStep ever sees it, so
+                        // this check never races existing VAR semantics.
+                        string actual;
+                        if (varRegistry != null && varRegistry.TryGetCaptured(step.Query, out var captured))
+                        {
+                            actual = captured;
+                        }
+                        else
+                        {
+                            var (ap, ac, af) = PlaytestParser.ResolveQuery(step.Query, config);
+                            actual = ReadValue(ap, ac, af);
+                        }
                         var ok = PlaytestParser.Compare(actual, step.Op, step.Value);
                         var asLabel = !string.IsNullOrEmpty(step.Message) ? $" [{step.Message}]" : "";
                         var assertLine = $"{label} ASSERT {step.Query}{step.Op}{step.Value} — {(ok ? "PASS" : "FAIL")} ({actual}){asLabel}";
@@ -86,7 +101,7 @@ namespace UnityMCP.Editor
                     {
                         pos = step.RawPosition != null
                             ? PlaytestPositionResolver.Resolve(step.RawPosition)
-                            : step.Position;
+                            : new Vector3(step.Position.x, step.Position.y, step.Position.z);
                     }
                     catch (Exception e)
                     {
@@ -169,7 +184,7 @@ namespace UnityMCP.Editor
                         if (tgo == null) throw new ArgumentException($"Object not found: {step.Path}");
                         tgo.transform.position = step.RawPosition != null
                             ? PlaytestPositionResolver.Resolve(step.RawPosition)
-                            : step.Position;
+                            : new Vector3(step.Position.x, step.Position.y, step.Position.z);
                         Physics.SyncTransforms();
                         // G28: explicitly sync Rigidbody position so the physics world
                         // reflects the new location without waiting for the next FixedUpdate.
@@ -713,6 +728,40 @@ namespace UnityMCP.Editor
                     catch (Exception e) { results.Add($"{label} ASSERT_MAX {step.Message} — ERR: {e.Message}"); failed++; }
                     phase = Phase.Done;
                     break;
+
+                case StepType.Mcp:
+                {
+                    // C03 — executes the step through the real CommandRouter.ProcessAsync
+                    // path, polled via Phase.WaitingMcp (mirrors StepType.Move/Phase.Moving
+                    // exactly). ProcessAsync never throws past its own internal catch, so the
+                    // try/catch below exists for C04's runtime denylist re-check (and any
+                    // future dispatch-time exception) — not for ProcessAsync itself: an
+                    // uncaught exception here would otherwise escape to Tick()'s outer catch
+                    // and abort the whole run without teardown, instead of failing just this
+                    // one step.
+                    try
+                    {
+                        // C04/C04b — belt and suspenders: re-run the FULL policy check
+                        // Validate() enforces at compile time (C02), in case this step was
+                        // constructed directly and never went through Validate/parsing, OR its
+                        // Method/Args were resolved from a VAR sigil AFTER Validate() already ran.
+                        var denyReason = PlaytestMcpPolicy.CheckStep(step, isEditModeRun);
+                        if (denyReason != null)
+                            throw new InvalidOperationException(denyReason);
+
+                        var envelope = BuildMcpEnvelope(runId, stepIdx, step.Method, step.Args);
+                        _mcpTcs = new TaskCompletionSource<string>();
+                        CommandRouter.ProcessAsync(envelope, _mcpTcs);
+                        phase = Phase.WaitingMcp;
+                    }
+                    catch (Exception e)
+                    {
+                        results.Add($"{label} MCP {step.Method} — FAIL: {e.Message}");
+                        failed++;
+                        phase = Phase.Done;
+                    }
+                    break;
+                }
             }
         }
     }

@@ -23,13 +23,29 @@ import struct
 import sys
 import time
 import uuid
+from collections.abc import Sequence
 from typing import Any
+
+from run_unity_tests_selection import (
+    canonicalize_selection_list,
+    compute_selection_sha256,
+    parse_tests_file,
+)
 
 
 PORTS_DIR = Path.home() / ".unity-biome-mcp" / "ports"
 DEFAULT_PROJECT = Path(__file__).resolve().parent / "unity-test-project"
 IDENTITY_RE = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
 RUN_STATES = {"prepared", "dispatched", "running", "finalizing", "terminal"}
+# Dispatch-preflight outcomes: Unity can, in principle, know immediately (before
+# a run ever reaches "running"/"finalizing") that there is nothing to execute.
+# No emitter currently produces either literal (grepped unity-plugin/Editor/
+# TestRuns/TestRunProtocol.cs's RunOutcome: only Passed/Failed/Cancelled/
+# Incomplete/Invalid/DispatchFailed exist; a dirty-scene preflight failure is
+# already surfaced as DispatchFailed, and "no tests matched" is represented via
+# expected_count==0 + --allow-empty, not a distinct outcome) -- recognizing
+# them here is forward-compatibility, not a fixed gain today.
+EARLY_EXIT_OUTCOMES = {"no_tests_matched", "dirty_scene_blocked"}
 TERMINAL_OUTCOMES = {
     "passed",
     "failed",
@@ -37,9 +53,12 @@ TERMINAL_OUTCOMES = {
     "incomplete",
     "invalid",
     "dispatch_failed",
-}
+} | EARLY_EXIT_OUTCOMES
 MAX_FILE_RESPONSE_BYTES = 64 * 1024 * 1024
-CANONICAL_FULL_EDITMODE_MINIMUM = 6001
+# Unfiltered EditMode's minimum-test floor is measured, not guessed: recorded
+# by A01's real full-suite run and promoted verbatim into this tracked file.
+FULL_BASELINE_PATH = Path(__file__).resolve().parent / "full-baseline.json"
+DEFAULT_POLL_INTERVAL_S = 1.0
 
 
 class RunnerError(RuntimeError):
@@ -508,7 +527,12 @@ async def wait_for_terminal(
                         + (f" current={current}" if current else "")
                     )
                     last_state = state
-                if state == "terminal":
+                # A provisional outcome (e.g. passed/failed) can legitimately
+                # appear before state=="terminal" (TestRunFinalizationCoordinator's
+                # SelectTerminalOutcome), so only these two dispatch-preflight
+                # outcomes bypass the state check -- they signal there was
+                # never going to be a "running"/"finalizing" phase at all.
+                if state == "terminal" or last_snapshot.get("outcome") in EARLY_EXIT_OUTCOMES:
                     return last_snapshot
         except TransportUncertain:
             must_reconfirm = True
@@ -526,18 +550,56 @@ def _require_equal(snapshot: dict[str, Any], names: tuple[str, ...], expected: i
         raise RunnerError("terminal count invariant failed: " + ", ".join(failures))
 
 
+def _read_full_baseline(path: Path) -> int:
+    """Read the measured full-EditMode expected_count from a tracked JSON
+    file. Fails closed (RunnerError) on any missing/malformed input --
+    never silently falls back to 0, which would let a truncated run pass."""
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as error:
+        raise RunnerError(f"full EditMode baseline file missing: {path}") from error
+    try:
+        data = json.loads(raw)
+        expected = data["expected_count"]
+    except (json.JSONDecodeError, KeyError, TypeError) as error:
+        raise RunnerError(f"full EditMode baseline file is malformed: {path}") from error
+    if not isinstance(expected, int) or isinstance(expected, bool) or expected <= 0:
+        raise RunnerError(
+            f"full EditMode baseline expected_count must be a positive int: {path}"
+        )
+    return expected
+
+
 def required_minimum_tests(
     mode: str,
     filter_name: str,
     group: str,
     requested: int | None,
     allow_empty: bool,
+    baseline_path: Path = FULL_BASELINE_PATH,
+    categories: Sequence[str] = (),
+    assemblies: Sequence[str] = (),
+    tests: Sequence[str] = (),
 ) -> int:
     if requested is not None and requested < 0:
         raise RunnerError("minimum_tests cannot be negative")
     baseline = 0 if allow_empty else 1
-    if mode == "EditMode" and not filter_name and not group:
-        baseline = CANONICAL_FULL_EDITMODE_MINIMUM
+    # Any non-empty categories/assemblies/tests value -- including an
+    # exclusion-only pattern like '!^Stress$' -- counts as "filtered" here,
+    # same as --filter's pre-existing semantics: it drops the floor straight
+    # to 1 regardless of whether it excludes or includes tests. Pair an
+    # exclusion-only selection with an explicit --minimum-tests when a
+    # meaningful floor is needed.
+    is_unfiltered = (
+        mode == "EditMode"
+        and not filter_name
+        and not group
+        and not categories
+        and not assemblies
+        and not tests
+    )
+    if is_unfiltered:
+        baseline = _read_full_baseline(baseline_path)
     if requested is not None:
         baseline = max(baseline, requested)
     return baseline
@@ -553,7 +615,19 @@ def validate_terminal(
     expected_utf: str,
     allow_empty: bool,
     minimum_tests: int = 0,
+    categories: Sequence[str] = (),
+    assemblies: Sequence[str] = (),
+    tests: Sequence[str] = (),
 ) -> None:
+    state_terminal = (
+        snapshot.get("state") == "terminal" and snapshot.get("lifecycle") == "terminal"
+    )
+    # A dispatch-preflight outcome can legitimately reach here with state/
+    # lifecycle never having become "terminal" at all (there was never a
+    # "running"/"finalizing" phase). Surface *why* the run ended early
+    # instead of the generic messages below, which name no outcome.
+    if not state_terminal and snapshot.get("outcome") in EARLY_EXIT_OUTCOMES:
+        raise RunnerError(f"run ended early with outcome={snapshot.get('outcome')}")
     required_true = (
         "is_terminal",
         "execution_finished",
@@ -566,7 +640,7 @@ def validate_terminal(
     missing_flags = [name for name in required_true if snapshot.get(name) is not True]
     if missing_flags:
         raise RunnerError("terminal evidence is incomplete: " + ", ".join(missing_flags))
-    if snapshot.get("state") != "terminal" or snapshot.get("lifecycle") != "terminal":
+    if not state_terminal:
         raise RunnerError("state and lifecycle must both be terminal")
     if snapshot.get("outcome") not in TERMINAL_OUTCOMES:
         raise RunnerError(f"unknown terminal outcome: {snapshot.get('outcome')!r}")
@@ -584,6 +658,30 @@ def validate_terminal(
         raise RunnerError("terminal filter does not match the request")
     if str(snapshot.get("group") or "") != group:
         raise RunnerError("terminal group does not match the request")
+    # TestRunSummary (the get_test_run wire projection, A23a) surfaces
+    # categories/assemblies/tests/selection_sha256 for every dispatched run,
+    # selection or not -- validated unconditionally, no presence guard.
+    for name, requested_list in (
+        ("categories", categories),
+        ("assemblies", assemblies),
+        ("tests", tests),
+    ):
+        if canonicalize_selection_list(
+            snapshot.get(name) or []
+        ) != canonicalize_selection_list(requested_list):
+            raise RunnerError(f"terminal {name} does not match the request")
+    expected_sha = compute_selection_sha256(
+        mode, filter_name, group, categories, assemblies, tests
+    )
+    actual_sha = str(snapshot.get("selection_sha256") or "")
+    if not actual_sha:
+        raise RunnerError(
+            "terminal snapshot has no selection_sha256 -- the connected "
+            "Unity worker plugin predates this runner's selection support; "
+            "rerun sync_unity"
+        )
+    if actual_sha != expected_sha:
+        raise RunnerError("terminal selection_sha256 does not match the request")
 
     expected = snapshot.get("expected_count")
     if (
@@ -645,6 +743,24 @@ def validate_terminal(
         )
 
 
+def build_command_args(args: argparse.Namespace, request_id: str) -> dict[str, object]:
+    command_args: dict[str, object] = {
+        "mode": args.mode,
+        "request_id": request_id,
+    }
+    if args.filter:
+        command_args["filter"] = args.filter
+    if args.group:
+        command_args["group"] = args.group
+    if args.categories:
+        command_args["categories"] = args.categories
+    if args.assemblies:
+        command_args["assemblies"] = args.assemblies
+    if args.tests:
+        command_args["tests"] = args.tests
+    return command_args
+
+
 async def run(args: argparse.Namespace) -> int:
     project = args.project.resolve()
     if not (project / "Assets").is_dir() or not (project / "Packages").is_dir():
@@ -652,12 +768,16 @@ async def run(args: argparse.Namespace) -> int:
     request_id = args.request_id or "standalone-" + uuid.uuid4().hex
     if IDENTITY_RE.fullmatch(request_id) is None:
         raise RunnerError("request_id must use 1-200 ASCII letters, digits, '.', '_' or '-'")
+    resolve_args(args)
     minimum_tests = required_minimum_tests(
         args.mode,
         args.filter,
         args.group,
         args.minimum_tests,
         args.allow_empty,
+        categories=args.categories,
+        assemblies=args.assemblies,
+        tests=args.tests,
     )
     deadline = time.monotonic() + args.timeout
     port = await wait_for_verified_port(
@@ -667,14 +787,7 @@ async def run(args: argparse.Namespace) -> int:
     print(f"port={port}")
     print(f"request_id={request_id}")
 
-    command_args: dict[str, object] = {
-        "mode": args.mode,
-        "request_id": request_id,
-    }
-    if args.filter:
-        command_args["filter"] = args.filter
-    if args.group:
-        command_args["group"] = args.group
+    command_args = build_command_args(args, request_id)
 
     initial = ""
     while time.monotonic() < deadline:
@@ -729,6 +842,9 @@ async def run(args: argparse.Namespace) -> int:
         expected_utf=args.expected_utf,
         allow_empty=args.allow_empty,
         minimum_tests=minimum_tests,
+        categories=args.categories,
+        assemblies=args.assemblies,
+        tests=args.tests,
     )
     if args.json:
         print(json.dumps(snapshot, indent=2, sort_keys=True))
@@ -748,9 +864,44 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--port", type=int, default=int(os.environ.get("UNITY_MCP_PORT", "0")) or None)
     parser.add_argument("--filter", default="")
     parser.add_argument("--group", default="")
+    parser.add_argument(
+        "--category",
+        action="append",
+        default=[],
+        dest="categories",
+        help=(
+            "UTF category filter, repeatable (e.g. --category '!^Stress$' "
+            "--category Slow); an exclusion-only pattern like '!^Stress$' "
+            "still counts as 'filtered' and drops the minimum-tests floor "
+            "to 1 -- pair with --minimum-tests for a meaningful floor "
+            "(same pre-existing semantics as --filter)"
+        ),
+    )
+    parser.add_argument(
+        "--assembly",
+        action="append",
+        default=[],
+        dest="assemblies",
+        help="assembly name filter, repeatable (e.g. --assembly UnityMCP.Editor.Chat.Tests.View)",
+    )
+    parser.add_argument(
+        "--tests-file",
+        type=Path,
+        default=None,
+        help=(
+            "path to a file with one full test name per line (blank/'#' "
+            "lines ignored); forwarded as command_args['tests'] and used as "
+            "the default --minimum-tests when --minimum-tests is not given"
+        ),
+    )
     parser.add_argument("--request-id")
     parser.add_argument("--timeout", type=float, default=1800.0)
-    parser.add_argument("--poll-interval", type=float, default=5.0)
+    parser.add_argument(
+        "--poll-interval",
+        type=float,
+        default=DEFAULT_POLL_INTERVAL_S,
+        help=f"seconds between status polls (default: {DEFAULT_POLL_INTERVAL_S})",
+    )
     parser.add_argument("--expected-utf", default="1.6.0")
     parser.add_argument("--allow-empty", action="store_true")
     parser.add_argument(
@@ -759,14 +910,29 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help=(
             "minimum discovered leaves; unfiltered EditMode runs always require "
-            f"at least {CANONICAL_FULL_EDITMODE_MINIMUM}"
+            f"the expected_count recorded in {FULL_BASELINE_PATH.name}"
         ),
     )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     if args.timeout <= 0 or args.poll_interval <= 0:
         parser.error("timeouts must be positive")
+    # Populated by resolve_args() (needs file I/O, kept out of this parser);
+    # defaulted here so build_command_args()/required_minimum_tests() never
+    # see a missing attribute for a caller that skips resolve_args().
+    args.tests = []
     return args
+
+
+def resolve_args(args: argparse.Namespace) -> None:
+    """Apply --tests-file: populate args.tests and, when --minimum-tests was
+    not given explicitly, default it to the file's (post-filter) line count.
+    Kept separate from parse_args() so the argument parser itself never
+    touches the filesystem."""
+    if args.tests_file is not None:
+        args.tests = parse_tests_file(args.tests_file)
+        if args.minimum_tests is None:
+            args.minimum_tests = len(args.tests)
 
 
 def main() -> int:

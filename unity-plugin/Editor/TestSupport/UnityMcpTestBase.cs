@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -52,10 +53,15 @@ namespace UnityMCP.Editor.Testing
         private HashSet<EditorWindow> _editorWindowBaseline;
         private bool _isolationActive;
         private bool _cleanupStarted;
+        private static int s_editorWindowBaselineCount = -1;
+        private static HashSet<EditorWindow> s_editorWindowBaselineCache;
+        protected static int EditorWindowBaselineRebuildCount;
+        private Stopwatch _isolationStopwatch;
 
         [SetUp]
         public void BeginUnityMcpIsolation()
         {
+            _isolationStopwatch = Stopwatch.StartNew();
             if (_isolationActive)
                 throw new InvalidOperationException("The test isolation scope is already active.");
 
@@ -115,8 +121,17 @@ namespace UnityMCP.Editor.Testing
                 _reloadGuardIsolation = ReloadGuard.BeginTestIsolation(
                     new IsolatedReloadGuardOps(), isolationOwnerId);
                 _chatWindowIsolation = MCPChatWindow.BeginTestIsolation(isolationOwnerId);
-                _editorWindowBaseline = new HashSet<EditorWindow>(
-                    Resources.FindObjectsOfTypeAll<EditorWindow>());
+                var openWindows = Resources.FindObjectsOfTypeAll<EditorWindow>();
+                if (s_editorWindowBaselineCache != null &&
+                    openWindows.Length == s_editorWindowBaselineCount)
+                {
+                    _editorWindowBaseline = s_editorWindowBaselineCache;
+                }
+                else
+                {
+                    _editorWindowBaseline = new HashSet<EditorWindow>(openWindows);
+                    EditorWindowBaselineRebuildCount++;
+                }
             }
             catch (Exception setupError)
             {
@@ -134,6 +149,20 @@ namespace UnityMCP.Editor.Testing
                 throw;
             }
             RequireReadWriteBoundary();
+        }
+
+        /// <summary>
+        /// Best-effort instrumentation: accumulates into the active run's
+        /// summary.json (via TestRunStore.StampInstrumentation). A missing run id
+        /// means there is no durable run to stamp into (e.g. a standalone manual
+        /// test outside a durable dispatch) -- silently skipped, never thrown.
+        /// </summary>
+        private static void RecordBaseSetupMs(double elapsedMs)
+        {
+            var runId = SessionState.GetString(TestRunAssetOwnership.OwnedRunIdSessionKey, "");
+            if (string.IsNullOrEmpty(runId)) return;
+            var key = TestRunInstrumentationKeys.BaseSetupMs(runId);
+            SessionState.SetFloat(key, SessionState.GetFloat(key, 0f) + (float)elapsedMs);
         }
 
         [TearDown]
@@ -269,6 +298,10 @@ namespace UnityMCP.Editor.Testing
                 () => LogAssert.ignoreFailingMessages = _logAssertIgnoreBaseline,
                 "Unity log assertion policy restoration",
                 errors);
+            RunCleanup(
+                () => RecordBaseSetupMs(_isolationStopwatch?.Elapsed.TotalMilliseconds ?? 0),
+                "base setup timing instrumentation",
+                errors);
 
             _cleanupActions.Clear();
             _assetCleanupActions.Clear();
@@ -294,6 +327,7 @@ namespace UnityMCP.Editor.Testing
             _relaySpawnIsolation = null;
             _previewSceneCountBaseline = 0;
             _editorWindowBaseline = null;
+            _isolationStopwatch = null;
             _isolationActive = false;
 
             if (errors.Count > 0)
@@ -554,6 +588,10 @@ namespace UnityMCP.Editor.Testing
                 catch (Exception) { /* m_Parent null — window was never shown */ }
                 if (w != null) UnityEngine.Object.DestroyImmediate(w);
             }
+            // Cache the post-cleanup baseline so the next test's SetUp can skip
+            // rebuilding the HashSet when the window count has not changed.
+            s_editorWindowBaselineCache = _editorWindowBaseline;
+            s_editorWindowBaselineCount = _editorWindowBaseline.Count;
             _editorWindowBaseline = null;
         }
 
@@ -951,6 +989,21 @@ namespace UnityMCP.Editor.Testing
         internal const string OwnedSceneSessionKey =
             "UnityMCP_active_owned_test_scene_v1";
 
+        /// <summary>
+        /// Best-effort instrumentation: see UnityMcpTestBase.RecordBaseSetupMs for
+        /// the missing-run-id skip rationale.
+        /// </summary>
+        private static void RecordSceneRepair(bool wasFullRestore)
+        {
+            var runId = SessionState.GetString(
+                TestRunAssetOwnership.OwnedRunIdSessionKey, "");
+            if (string.IsNullOrEmpty(runId)) return;
+            var key = wasFullRestore
+                ? TestRunInstrumentationKeys.SceneRepairFull(runId)
+                : TestRunInstrumentationKeys.SceneRepairs(runId);
+            SessionState.SetInt(key, SessionState.GetInt(key, 0) + 1);
+        }
+
         internal static void RequirePreparedEnvironment()
         {
             var ownedPath = SessionState.GetString(OwnedSceneSessionKey, "");
@@ -978,24 +1031,41 @@ namespace UnityMCP.Editor.Testing
             var dirtyUnowned = new List<string>();
             var recoveryPaths = new List<string>();
             var alreadyClean = !assetWasMissing && loaded.Count == 1;
+            var canDestroyRootsOnly = !assetWasMissing && loaded.Count == 1;
 
             foreach (var scene in loaded)
             {
-                if (!string.Equals(scene.path, ownedPath, StringComparison.Ordinal) ||
-                    scene.isDirty || scene.GetRootGameObjects().Length != 0)
-                    alreadyClean = false;
                 var isRunOwnedScene = string.Equals(
                     scene.path, ownedPath, StringComparison.Ordinal);
+                if (!isRunOwnedScene || scene.isDirty || scene.GetRootGameObjects().Length != 0)
+                    alreadyClean = false;
+                if (!isRunOwnedScene || scene.isDirty || scene.GetRootGameObjects().Length == 0)
+                    canDestroyRootsOnly = false;
                 if (scene.isDirty && !string.IsNullOrEmpty(scene.path) &&
                     !isRunOwnedScene &&
                     !UnityMcpTestAssetOwnership.IsOwnedPath(scene.path))
                     dirtyUnowned.Add(scene.path);
             }
 
-            if (!alreadyClean)
-                recoveryPaths.AddRange(RestoreOwnedScene(loaded, ownedPath));
-            else
+            if (alreadyClean)
+            {
                 Undo.ClearAll();
+            }
+            else if (canDestroyRootsOnly)
+            {
+                // Single owned, non-dirty scene with leftover roots: destroying them
+                // in place is equivalent to (and far cheaper than) the full
+                // NewScene + close/reopen restore below.
+                foreach (var root in loaded[0].GetRootGameObjects())
+                    UnityEngine.Object.DestroyImmediate(root);
+                Undo.ClearAll();
+                RecordSceneRepair(wasFullRestore: false);
+            }
+            else
+            {
+                recoveryPaths.AddRange(RestoreOwnedScene(loaded, ownedPath));
+                RecordSceneRepair(wasFullRestore: true);
+            }
 
             var violations = new List<string>();
             if (assetWasMissing)

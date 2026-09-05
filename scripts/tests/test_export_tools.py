@@ -94,6 +94,30 @@ def _load_export_tools(mcp_obj=None):
     return export_tools
 
 
+_FAKE_MODULE_KEYS = (
+    "unity_mcp",
+    "unity_mcp.server",
+    "unity_mcp.tools",
+    "unity_mcp.tools.tool_specs",
+    "export_tools",
+)
+
+
+@pytest.fixture(autouse=True)
+def _restore_sys_modules():
+    """`_inject_fake_modules` shadows the real `unity_mcp` package name in
+    `sys.modules`. Restore pre-test state so other test files sharing this
+    process (e.g. install/tests importing the real package) are not polluted.
+    """
+    saved = {key: sys.modules.get(key) for key in _FAKE_MODULE_KEYS}
+    yield
+    for key, mod in saved.items():
+        if mod is None:
+            sys.modules.pop(key, None)
+        else:
+            sys.modules[key] = mod
+
+
 # ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------

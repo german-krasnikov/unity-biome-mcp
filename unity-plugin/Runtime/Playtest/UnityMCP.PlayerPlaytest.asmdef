@@ -1,7 +1,9 @@
 {
     "name": "UnityMCP.PlayerPlaytest",
     "rootNamespace": "UnityMCP.Playtest",
-    "references": [],
+    "references": [
+        "UnityMCP.Playtest.Core"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

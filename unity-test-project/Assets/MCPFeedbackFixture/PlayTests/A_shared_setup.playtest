@@ -1,3 +1,5 @@
+# @needs editmode
+# @suite-only
 INCLUDE common.defs
 INVOKE /Fixture/State FixtureState ResetState
 ASSERT $state == 100

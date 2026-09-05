@@ -72,6 +72,8 @@ async def test_connect_timeout_fast_fail(monkeypatch):
 
 # ── Test 6: ECONNREFUSED retries with backoff (#05) ──────────────────────────
 
+@pytest.mark.real_clock  # A03: asserts the real backoff formula's first-attempt
+# value (~2.0s) via bridge_retry._capped_backoff.
 async def test_econnrefused_retries_with_backoff(monkeypatch):
     """#05: ConnectionRefusedError → retries with exponential backoff (domain reload),
     eventually raises after max_retries. Sleep mocked to avoid actual delays."""

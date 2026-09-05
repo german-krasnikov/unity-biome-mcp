@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
+using UnityMCP.Editor.TestRuns;
+using UnityMCP.Playtest.Core;
 
 [assembly: InternalsVisibleTo("UnityMCP.TestProject")]
 
@@ -298,11 +300,15 @@ namespace UnityMCP.Editor
             var group = JsonHelper.ExtractString(argsJson, "group");
             var filter = JsonHelper.ExtractString(argsJson, "filter");
             var requestId = JsonHelper.ExtractString(argsJson, "request_id");
-            TestRunner.Execute(mode, result =>
+            var selection = new TestRunSelection(
+                TestRunSelectionArgs.ParseList(argsJson, "categories"),
+                TestRunSelectionArgs.ParseList(argsJson, "assemblies"),
+                TestRunSelectionArgs.ParseList(argsJson, "tests"));
+            TestRunner.ExecuteWithSelection(mode, result =>
             {
                 var (ok, text) = TestRunner.FinishRun(result);
                 tcs.TrySetResult(ok ? BuildResponse(id, text) : JsonHelper.FormatResponse(id, false, null, text));
-            }, group, filter, requestId);
+            }, group, filter, requestId, selection);
         }
 
         private static void AsyncBuild(string id, string argsJson, TaskCompletionSource<string> tcs)
@@ -405,15 +411,30 @@ namespace UnityMCP.Editor
                 r => !r.StartsWith("Error:") && !r.StartsWith("err:"));
         }
 
-        private static void AsyncRunPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
+        // E02: everything run_playtest and start_playtest share — building the script from
+        // path/script, and the header/dirty gates before either ever calls PlaytestRunner.Run.
+        // Extracted from AsyncRunPlaytest (pure Extract-Method, no behavior change) so the two
+        // entry points cannot drift on gate logic; they differ only in how they wire completion.
+        private struct PlaytestRunRequest
         {
+            internal string Script, Format, BeforeHook, AfterHook;
+            internal float Timeout;
+            internal bool AbortOnFail, SnapshotOnFailure, Fresh, Strict, RequiresPlayMode;
+        }
+
+        // Returns false when a gate already set tcs — caller must return immediately without
+        // touching PlaytestRunner.
+        private static bool TryBuildPlaytestRunRequest(string id, string argsJson,
+            TaskCompletionSource<string> tcs, out PlaytestRunRequest request)
+        {
+            request = default;
             var pathArg   = JsonHelper.ExtractString(argsJson, "path");
             var scriptArg = JsonHelper.ExtractString(argsJson, "script");
 
             if (pathArg != null && scriptArg != null)
             {
                 tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: use path or script, not both"));
-                return;
+                return false;
             }
 
             string script;
@@ -425,12 +446,12 @@ namespace UnityMCP.Editor
                 if (fullPath != projectRootNoSlash && !fullPath.StartsWith(projectRoot, StringComparison.Ordinal))
                 {
                     tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: path must be inside project"));
-                    return;
+                    return false;
                 }
                 if (!File.Exists(fullPath))
                 {
                     tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: file not found: " + pathArg));
-                    return;
+                    return false;
                 }
                 script = File.ReadAllText(fullPath, Encoding.UTF8);
                 var defs = JsonHelper.ExtractString(argsJson, "defs");
@@ -443,39 +464,198 @@ namespace UnityMCP.Editor
             else
             {
                 tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: script or path required"));
-                return;
+                return false;
+            }
+
+            // B05: the Play-mode gate moved here, past parsing (registration no longer flags
+            // run_playtest runtime:true). A header-less script keeps the exact legacy text
+            // and timing (INV-005); "# @needs editmode" opts out, but never combined with a
+            // fresh reload — fresh targets a Play session, which @needs editmode has none of.
+            var header = PlaytestHeaderScanner.Scan(script);
+            var fresh = JsonHelper.ExtractString(argsJson, "fresh") == "true";
+            if (!header.NeedsEditmode && !EditorApplication.isPlaying)
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null,
+                    "Not in Play Mode. Use editor(action='play') first."));
+                return false;
+            }
+            if (header.NeedsEditmode && fresh)
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null,
+                    "err: fresh is incompatible with @needs editmode"));
+                return false;
+            }
+            if (header.NeedsEditmode)
+            {
+                // B07: an Edit-mode script mutates persisted scene state directly (no
+                // Play-mode reload isolation), so refuse before Run() if any loaded
+                // scene is dirty.
+                var dirtyError = PlaytestIsolationScope.RefuseIfDirty();
+                if (dirtyError != null)
+                {
+                    tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, dirtyError));
+                    return false;
+                }
             }
 
             var timeout = ExtractFloat(argsJson, "timeout", 120f);
             if (timeout <= 0) timeout = 120f;
-            var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true";
-            var snapshotOnFailure = JsonHelper.ExtractString(argsJson, "snapshot_on_failure") == "true";
-            var fresh = JsonHelper.ExtractString(argsJson, "fresh") == "true";
-            var beforeHook = JsonHelper.ExtractString(argsJson, "before_hook");
-            var afterHook = JsonHelper.ExtractString(argsJson, "after_hook");
+            request = new PlaytestRunRequest
+            {
+                Script = script,
+                Timeout = timeout,
+                AbortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true",
+                SnapshotOnFailure = JsonHelper.ExtractString(argsJson, "snapshot_on_failure") == "true",
+                Fresh = fresh,
+                Strict = pathArg != null,
+                RequiresPlayMode = !header.NeedsEditmode,
+                // B16: caller-selectable response representation; canonical JSON is always
+                // persisted regardless of this value (see PlaytestRunner.FinishRun).
+                Format = JsonHelper.ExtractString(argsJson, "format") ?? "text",
+                BeforeHook = JsonHelper.ExtractString(argsJson, "before_hook"),
+                AfterHook = JsonHelper.ExtractString(argsJson, "after_hook"),
+            };
+            return true;
+        }
 
-            if (!string.IsNullOrEmpty(beforeHook))
-                CodeExecutor.Execute(beforeHook, "MCP before_hook");
+        private static void AsyncRunPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
+        {
+            if (!TryBuildPlaytestRunRequest(id, argsJson, tcs, out var req)) return;
+
+            if (!string.IsNullOrEmpty(req.BeforeHook))
+                CodeExecutor.Execute(req.BeforeHook, "MCP before_hook");
 
             var inner = new TaskCompletionSource<string>();
-            PlaytestRunner.Run(script, timeout, inner, abortOnFail, snapshotOnFailure, fresh,
-                strict: pathArg != null);
+            PlaytestRunner.Run(req.Script, req.Timeout, inner, req.AbortOnFail, req.SnapshotOnFailure, req.Fresh,
+                strict: req.Strict, requiresPlayMode: req.RequiresPlayMode, format: req.Format);
 
             // ContinueWith's default continuation runs on a ThreadPool thread.
             // MainThreadDispatcher.Enqueue is a thread-safe ConcurrentQueue.Enqueue, drained on
             // EditorApplication.update regardless of Editor focus (RELAY-FIX, commit 1bcc90b7).
-            if (!string.IsNullOrEmpty(afterHook))
+            if (!string.IsNullOrEmpty(req.AfterHook))
             {
-                var capturedHook = afterHook;
+                var capturedHook = req.AfterHook;
                 inner.Task.ContinueWith(_ =>
                     MainThreadDispatcher.Enqueue(() => CodeExecutor.Execute(capturedHook, "MCP after_hook")));
             }
 
             CompleteFromInner(id, inner.Task, tcs, "run_playtest",
-                IsPlaytestSuccess);
+                report => IsPlaytestSuccess(report, req.Format));
         }
 
-        private static bool IsPlaytestSuccess(string report)
+        // E02: non-blocking dispatch — returns a "run_id=xxxxxxxx" sentinel immediately instead
+        // of waiting for the whole playtest to finish. Shares every gate with AsyncRunPlaytest via
+        // TryBuildPlaytestRunRequest; differs only in how it wires PlaytestRunner.Run's completion.
+        private static void AsyncStartPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
+        {
+            if (!TryBuildPlaytestRunRequest(id, argsJson, tcs, out var req)) return;
+
+            var runId = PlaytestRunner.CreateRunId();
+            var inner = new TaskCompletionSource<string>();
+            PlaytestRunner.Run(req.Script, req.Timeout, inner, req.AbortOnFail, req.SnapshotOnFailure, req.Fresh,
+                strict: req.Strict, requiresPlayMode: req.RequiresPlayMode, runId: runId, format: req.Format);
+
+            // Run()'s early-return guards (already running / reserved $RUN_ID / parse error /
+            // 0 steps) call inner.TrySetResult(...) synchronously before PlaytestRunState.Begin
+            // or any artifact is ever touched — the freshly-generated runId was never real, so it
+            // must never be surfaced here. Surface Run()'s own error text instead.
+            if (inner.Task.IsCompleted)
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, inner.Task.Result));
+                return;
+            }
+
+            tcs.TrySetResult(BuildResponse(id, "run_id=" + runId));
+        }
+
+        // E03: compact poll — the read half of the async start/poll pair. First matches
+        // PlaytestRunState.Current: still running → compact "phase=running|step=N/M|elapsed_ms=X"
+        // sentinel; already terminal → E01's TerminalText, verbatim (never re-rendered through a
+        // second formatter). Once in-memory state no longer matches (cleared by a domain reload,
+        // or genuinely a different/older run), falls back to the canonical receipt on disk —
+        // validated against a corrupt/mismatched run_id before trusting it. An id that is neither
+        // the active run nor has a receipt is genuinely unknown and fails closed.
+        private static void AsyncGetPlaytestRun(string id, string argsJson, TaskCompletionSource<string> tcs)
+        {
+            var runId = JsonHelper.ExtractString(argsJson, "run_id");
+            if (string.IsNullOrEmpty(runId))
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: run_id required"));
+                return;
+            }
+
+            var current = PlaytestRunState.Current;
+            if (current.RunId == runId)
+            {
+                if (current.Phase == PlaytestRunState.RunPhase.Running)
+                {
+                    var elapsedMs = (int)(DateTime.Now - current.StartUtc).TotalMilliseconds;
+                    tcs.TrySetResult(BuildResponse(id,
+                        $"phase=running|step={current.StepIndex + 1}/{current.TotalSteps}|elapsed_ms={elapsedMs}"));
+                    return;
+                }
+                if (current.TerminalText != null)
+                {
+                    tcs.TrySetResult(BuildResponse(id, current.TerminalText));
+                    return;
+                }
+                // Terminal in PlaytestRunState but TerminalText somehow unset — fall through to
+                // the receipt below rather than trust a half-populated in-memory state.
+            }
+
+            var receiptPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", PlaytestReceiptStore.ReceiptPath(runId)));
+            if (!File.Exists(receiptPath))
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, $"err: unknown playtest run_id: {runId}"));
+                return;
+            }
+
+            var json = File.ReadAllText(receiptPath, Encoding.UTF8);
+            if (JsonHelper.ExtractString(json, "run_id") != runId)
+            {
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, $"err: corrupt receipt for run_id: {runId}"));
+                return;
+            }
+            tcs.TrySetResult(BuildResponse(id, JsonHelper.ExtractString(json, "text_report")));
+        }
+
+        // B17: the caller (AsyncRunPlaytest, above) already knows which representation it
+        // requested — format is passed explicitly (R-07 explicit-over-implicit) rather than
+        // re-derived here. The `{`-sniff below survives only as a fallback for a legacy/unknown
+        // format argument; it is never reached from the one production call site, which always
+        // resolves format to "text" or "json" before calling in (line ~493).
+        private static bool IsPlaytestSuccess(string report, string format)
+        {
+            if (string.IsNullOrEmpty(report)) return false;
+            if (format == "json") return IsPlaytestSuccessFromLedger(report);
+            if (format == "text") return IsPlaytestSuccessFromText(report);
+            return report.TrimStart().StartsWith("{", StringComparison.Ordinal)
+                ? IsPlaytestSuccessFromLedger(report)
+                : IsPlaytestSuccessFromText(report);
+        }
+
+        // B16's canonical JSON receipt: "outer":{"teardown_ok":...} plus one
+        // {"ok":true/false,...} entry per step (PlaytestStepReceipt.ToJson). A step's `ok` is the
+        // ledger fact — never re-derived from scanning report text (that was the B17 bug: a
+        // step's source_file containing " OK" made the legacy substring check say "pass").
+        private static bool IsPlaytestSuccessFromLedger(string report)
+        {
+            var outer = JsonHelper.ExtractObject(report, "outer");
+            if (JsonHelper.ExtractString(outer, "teardown_ok") != "true") return false;
+
+            var stepsArray = JsonHelper.ExtractArray(report, "steps");
+            var pos = 0;
+            string stepJson;
+            while ((stepJson = JsonHelper.ExtractNextArrayObject(stepsArray, ref pos)) != null)
+            {
+                if (JsonHelper.ExtractString(stepJson, "ok") != "true") return false;
+            }
+            return true;
+        }
+
+        // INV-005 / v1 §41: the legacy text scan. Untouched by B17 — deleting it is gated on
+        // Player/Wave-D parity, not this item.
+        private static bool IsPlaytestSuccessFromText(string report)
         {
             if (string.IsNullOrEmpty(report)) return false;
             if (report.Contains(" OK")) return true;

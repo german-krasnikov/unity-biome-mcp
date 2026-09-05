@@ -23,7 +23,7 @@ namespace UnityMCP.Editor.Tests
         private static readonly string[] AsyncCommands =
         {
             "run_tests", "ask_user", "wait_until", "move_to", "test_step", "run_playtest",
-            "build", "package", "source_patch_write",
+            "start_playtest", "get_playtest_run", "build", "package", "source_patch_write",
         };
 
         [TearDown]
@@ -50,6 +50,38 @@ namespace UnityMCP.Editor.Tests
             CollectionAssert.AreEquivalent(AsyncCommands, CommandRegistry.GetAllCommands());
             foreach (var cmd in AsyncCommands)
                 Assert.IsTrue(CommandRegistry.HasAsyncHandler(cmd, out _), $"{cmd} should be async-registered");
+        }
+
+        // B05: the Play-mode gate moved past parsing — registration must no longer flag
+        // run_playtest runtime:true, or CheckGuards blocks Edit-mode scripts before their
+        // header (`# @needs editmode`) is ever read.
+        [Test]
+        public void RegisterAsyncCommands_RunPlaytest_NotFlaggedRuntime()
+        {
+            CommandRegistry.Clear();
+            CommandRouter.RegisterAsyncCommands();
+            Assert.IsFalse(CommandRegistry.IsRuntime("run_playtest"),
+                "run_playtest's Play-mode gate moved into AsyncRunPlaytest's header check (B05) — " +
+                "registration must not pre-block Edit-mode scripts before the header is read");
+        }
+
+        [Test]
+        public void RunTests_RegistrationAcceptsSelectionArgs()
+        {
+            Assert.IsTrue(CommandRegistry.TryGetContract(
+                "run_tests", out _, out var optional, out _));
+            CollectionAssert.AreEqual(
+                new[] { "mode", "filter", "group", "categories", "assemblies", "tests" },
+                optional);
+        }
+
+        [Test]
+        public void GetTestRun_RegistrationAcceptsCompactArg()
+        {
+            Assert.IsTrue(CommandRegistry.TryGetContract(
+                "get_test_run", out var required, out var optional, out _));
+            CollectionAssert.AreEqual(new[] { "run_id" }, required);
+            CollectionAssert.AreEqual(new[] { "compact" }, optional);
         }
 
         [Test]

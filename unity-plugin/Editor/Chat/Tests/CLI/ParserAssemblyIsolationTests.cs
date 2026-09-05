@@ -32,14 +32,8 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void ParsersAssembly_HasNoUnityEngineOrEditorReferences()
         {
-            if (_parsersAsm == null) Assert.Ignore("Assembly not loaded — see ISO-1");
-            foreach (var r in _parsersAsm.GetReferencedAssemblies())
-            {
-                Assert.IsFalse(r.Name.StartsWith("UnityEngine", StringComparison.Ordinal),
-                    $"Parsers must not reference UnityEngine (found: {r.Name})");
-                Assert.IsFalse(r.Name.StartsWith("UnityEditor", StringComparison.Ordinal),
-                    $"Parsers must not reference UnityEditor (found: {r.Name})");
-            }
+            UnityMCP.Editor.Testing.AssemblyIsolationAssert.HasNoEngineReferences(
+                "UnityMCP.Editor.Chat.Parsers");
         }
 
         // ISO-3: the three Phase-2/3 stubs are present

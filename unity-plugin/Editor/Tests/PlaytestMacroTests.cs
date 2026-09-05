@@ -2,6 +2,7 @@
 using System;
 using NUnit.Framework;
 using UnityMCP.Editor;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -50,7 +51,9 @@ CALL move_to 4 5 6";
             var steps = PlaytestParser.Parse(script);
             Assert.AreEqual(1, steps.Count);
             Assert.AreEqual(StepType.Move, steps[0].Type);
-            Assert.AreEqual(new UnityEngine.Vector3(4, 5, 6), steps[0].Position);
+            Assert.AreEqual(4f, steps[0].Position.x);
+            Assert.AreEqual(5f, steps[0].Position.y);
+            Assert.AreEqual(6f, steps[0].Position.z);
         }
 
         // ── 4. Circular macro call throws depth limit ─────────────────────────────

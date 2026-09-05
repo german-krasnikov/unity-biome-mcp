@@ -2,7 +2,6 @@
 import asyncio
 import contextlib
 import os
-import socket
 from dataclasses import dataclass, field
 
 KILL_WAIT = 2.0        # seconds between SIGTERM and SIGKILL
@@ -128,9 +127,3 @@ class CliSession:
     @property
     def exit_code(self) -> int | None:
         return self._proc.returncode if self._proc else None
-
-
-def _find_free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]

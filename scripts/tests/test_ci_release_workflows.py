@@ -74,15 +74,19 @@ def test_unity_tests_workflow_triggers_on_playtest_corpus() -> None:
 
 
 def test_unity_tests_workflow_keeps_editmode_lane_fast() -> None:
+    # Scoped to the `test` job specifically (E06a added a sibling `playmode-test`
+    # job to this same file that legitimately uses -testFilter for a narrow,
+    # separate PlayMode corpus run — see test_ci_playmode_corpus_job.py).
     text = _workflow("unity-tests.yml")
+    test_job = text[text.index("\n  test:") : text.index("\n  playmode-test:")]
 
-    assert "Run EditMode Tests" in text
-    assert "timeout-minutes: 60" in text
-    assert "-testFilter" not in text
-    assert "Unity EditMode test run executed zero tests" in text
-    assert "Build Standalone Player Smoke" not in text
-    assert "Run Player PlayTest Smoke" not in text
-    assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" not in text
+    assert "Run EditMode Tests" in test_job
+    assert "timeout-minutes: 60" in test_job
+    assert "-testFilter" not in test_job
+    assert "Unity EditMode test run executed zero tests" in test_job
+    assert "Build Standalone Player Smoke" not in test_job
+    assert "Run Player PlayTest Smoke" not in test_job
+    assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" not in test_job
 
 
 def test_unity_tests_workflow_can_optionally_call_player_playtest_lane() -> None:
@@ -115,6 +119,11 @@ def test_player_playtest_workflow_runs_standalone_build_smoke() -> None:
     assert "Build Standalone Player Smoke" in text
     assert "-executeMethod UnityMCP.CI.CiBuildSmoke.Build" in text
     assert "-ciBuildOutput" in text
+    # ff7db948 restored the explicit override: CiBuildSmoke.SelectedScenes()
+    # ignores EditorBuildSettings.scenes whenever -ciBuildScene is passed, and
+    # without it the Player booted scene[0] (SampleScene) instead of GridTest,
+    # breaking player_ci_smoke.playtest. EditorBuildSettings.asset still lists
+    # McpFeedbackFixture separately for B22's PlayMode needs.
     assert "-ciBuildScene Assets/Scenes/GridTest.unity" in text
     assert "timeout-minutes: 35" in build_block[:300]
     assert "-quit" in build_block[:500]
@@ -184,13 +193,20 @@ def test_player_playtest_workflow_validates_player_playtest_receipts() -> None:
     assert "Validate Player PlayTest Receipts" in text
     assert "Validate Player PlayTest Expected Failure Receipts" in text
     assert "player JSON receipt must be UTF-8 without BOM" in text
-    assert "player success PlayTest executed unexpected step count" in text
     assert "expected-failure PlayTest did not fail" in text
     assert "expected-failure PlayTest timeout step was not recorded" in text
     assert "player PlayTest emitted no step receipts" in text
     assert "UnityMCP.PlayerPlaytest" in text
     assert 'suite.get("failures") != "0"' in text
     assert 'suite.get("failures") == "0"' in text
+
+    # B19: header-driven playtest_check.py replaces the hardcoded step-count
+    # literals — the two retired blocks must never reappear (retirement gate).
+    assert "import playtest_check" in text
+    assert "player_ci_smoke.playtest" in text
+    assert "player_ci_graphics_smoke.playtest" in text
+    assert 'len(payload.get("steps", [])) != 14' not in text
+    assert 'len(payload.get("steps", [])) != 4' not in text
 
 
 def test_player_playtest_workflow_writes_evidence_receipt() -> None:

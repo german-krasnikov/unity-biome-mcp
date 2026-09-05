@@ -403,7 +403,38 @@ namespace UnityMCP.Editor.TestRuns
         private static string NormalizePath(string path) =>
             Path.GetFullPath(path).Replace('\\', '/');
 
-        private static string HashFile(string path)
+        // Injectable seam: unit tests wrap this to count real SHA-256 computations
+        // that HashFile's (path, mtime, size) cache falls through to. Production
+        // always computes the real hash.
+        internal static Func<string, string> HashFileImpl = ComputeFileHash;
+
+        // Cache is static and cleared naturally by domain reload (mirrors
+        // CompileStatusGetter's own static-seam lifetime). Keyed by absolute path;
+        // an entry is only reused while both the file's mtime AND size are
+        // unchanged -- mtime alone is unsafe under clock skew / mtime granularity,
+        // and a same-mtime rewrite can still change length.
+        // Capture() (the only real caller chain: TestRunBuildFingerprint.Capture ->
+        // TestRunObserver/TestRunEnvironmentController/TestRunner) is always
+        // synchronous and main-thread-only -- none of those call sites are async or
+        // use ConfigureAwait(false)/Task.Run, and they call UnityEditor-only APIs
+        // that require the main thread anyway -- so no lock is needed here.
+        private static readonly Dictionary<string, (DateTime mtime, long size, string hash)>
+            HashCache = new Dictionary<string, (DateTime, long, string)>(StringComparer.Ordinal);
+
+        internal static string HashFile(string path)
+        {
+            var info = new FileInfo(path);
+            var mtime = info.LastWriteTimeUtc;
+            var size = info.Length;
+            if (HashCache.TryGetValue(path, out var cached) &&
+                cached.mtime == mtime && cached.size == size)
+                return cached.hash;
+            var hash = HashFileImpl(path);
+            HashCache[path] = (mtime, size, hash);
+            return hash;
+        }
+
+        private static string ComputeFileHash(string path)
         {
             using var algorithm = SHA256.Create();
             using var stream = File.OpenRead(path);

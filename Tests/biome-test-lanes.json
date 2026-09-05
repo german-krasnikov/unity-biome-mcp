@@ -1,0 +1,58 @@
+{
+  "$note": "4 lanes matching today's real CI invocations (plan item C15), not aspirational ones. Each lane's `filter` is exactly scripts/test_selection.py's TestSelectionFilter shape (C14): 8 snake_case keys, no extras, so a later consumer can round-trip it via TestSelectionFilter.from_dict(lane['filter']) unmodified. `modes`/`speeds`/`include_tags`/`exclude_tags`/`exclude_capabilities` values must be dimension names from Tests/taxonomy-map.json (C13) -- scripts/tests/test_lanes_config.py cross-checks this by reusing scripts/tests/test_taxonomy_map.py's known_dimension_names(). `layers`/`environments` are source-bucket labels (which directory/job a lane's tests come from), not taxonomy dimensions, so they are left empty here rather than inventing unproven vocabulary -- see plan C13's 'no new vocabulary' constraint.",
+  "lanes": {
+    "pr-python-core": {
+      "source": "ci-python.yml:72,81 (server/tests/, marker-filtered); install/tests and scripts/tests run unfiltered in the same job",
+      "filter": {
+        "layers": [],
+        "modes": [],
+        "environments": [],
+        "speeds": [],
+        "include_tags": [],
+        "exclude_tags": [],
+        "exclude_capabilities": ["live", "monkey", "slow"],
+        "allow_empty": false
+      }
+    },
+    "pr-unity-core": {
+      "source": "unity-tests.yml EditMode Tests job (-testPlatform EditMode, unfiltered)",
+      "filter": {
+        "layers": [],
+        "modes": ["editmode"],
+        "environments": [],
+        "speeds": [],
+        "include_tags": [],
+        "exclude_tags": [],
+        "exclude_capabilities": [],
+        "allow_empty": false
+      }
+    },
+    "master-conformance": {
+      "source": "ci-conformance.yml unit-gate job (pytest -m \"not live and not monkey\"); the hosted-disposable-unity job runs scripts/run_hosted_conformance.py, a script-driven Unity+Python round trip outside this filter's expressive scope",
+      "filter": {
+        "layers": [],
+        "modes": [],
+        "environments": [],
+        "speeds": [],
+        "include_tags": [],
+        "exclude_tags": [],
+        "exclude_capabilities": ["live", "monkey"],
+        "allow_empty": false
+      }
+    },
+    "nightly-full": {
+      "source": "nightly.yml:34 (python-full job: pytest -m \"not live\")",
+      "note": "Deliberately includes monkey and slow (unlike pr-python-core and master-conformance) -- must never be silently unified with pr-python-core.",
+      "filter": {
+        "layers": [],
+        "modes": [],
+        "environments": [],
+        "speeds": [],
+        "include_tags": [],
+        "exclude_tags": [],
+        "exclude_capabilities": ["live"],
+        "allow_empty": false
+      }
+    }
+  }
+}

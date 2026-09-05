@@ -22,12 +22,28 @@ namespace UnityMCP.Editor.Tests
                 .GroupBy(opCode => opCode.Value)
                 .ToDictionary(group => group.Key, group => group.First());
 
+        // Exact fixtures allowed to skip UnityMcpTestBase. UnityMcpTestBase and its isolation
+        // machinery (RequireDisposableWorkerBoundary, UnityMcpManagedSceneSafety, chat-window/
+        // reload-guard repair) live in Editor-only assemblies and were only ever exercised for
+        // EditMode execution. PlaytestCorpusPlayModeTests is the repo's first PlayMode NUnit
+        // fixture (B22, orchestrator-approved 2026-09-04) -- see the design note at the top of
+        // that file for why a plain [TestFixture] is correct there instead of retrofitting
+        // unproven EditMode isolation machinery onto Play Mode. FixtureAsyncStatePlayModeTests
+        // is the same sanctioned PlayMode exception, added for its terminal-transition coverage.
+        private static readonly HashSet<string> IsolationBaseExemptFixtures =
+            new HashSet<string>(StringComparer.Ordinal)
+            {
+                "UnityMCP.TestProject.PlayMode:UnityMCP.TestProject.PlaytestCorpusPlayModeTests",
+                "UnityMCP.TestProject.PlayMode:UnityMCP.TestProject.FixtureAsyncStatePlayModeTests",
+            };
+
         [Test]
         public void EveryUnityMcpFixture_InheritsCommonIsolationBase()
         {
             var offenders = DiscoverTestFixtureTypes()
                 .Where(type => !typeof(UnityMcpTestBase).IsAssignableFrom(type))
                 .Select(type => type.Assembly.GetName().Name + ":" + type.FullName)
+                .Where(name => !IsolationBaseExemptFixtures.Contains(name))
                 .OrderBy(value => value, StringComparer.Ordinal)
                 .ToArray();
 

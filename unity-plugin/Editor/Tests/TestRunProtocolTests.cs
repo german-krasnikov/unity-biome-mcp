@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
+using UnityMCP.Editor;
 using UnityMCP.Editor.TestRuns;
 
 namespace UnityMCP.Editor.Tests
@@ -537,6 +538,98 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("OriginalGroup", durable.group);
             Assert.AreEqual("OriginalFilter", durable.filter);
             Assert.IsTrue(durable.intent_complete);
+        }
+
+        [Test]
+        public void TestRunRequestRecord_SelectionFields_DefaultToEmpty()
+        {
+            var request = new TestRunRequestRecord();
+
+            Assert.AreEqual(0, request.categories.Length);
+            Assert.AreEqual(0, request.assemblies.Length);
+            Assert.AreEqual(0, request.tests.Length);
+            Assert.AreEqual("", request.selection_sha256);
+        }
+
+        [Test]
+        public void TestRunRecord_RoundTripsSelectionFieldsThroughJsonUtility()
+        {
+            const string runId = "run-selection-fields";
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                lifecycle = TestRunProtocol.Lifecycle.Prepared,
+                created_utc = "2026-08-02T12:00:00.0000000Z",
+                categories = new[] { "Fast", "!Stress" },
+                assemblies = new[] { "UnityMCP.Editor.Tests" },
+                tests = new[] { "Suite.TestA", "Suite.TestB" },
+                selection_sha256 = "deadbeef"
+            });
+
+            var readBack = _store.ReadRun(runId);
+
+            CollectionAssert.AreEqual(new[] { "Fast", "!Stress" }, readBack.categories);
+            CollectionAssert.AreEqual(new[] { "UnityMCP.Editor.Tests" }, readBack.assemblies);
+            CollectionAssert.AreEqual(new[] { "Suite.TestA", "Suite.TestB" }, readBack.tests);
+            Assert.AreEqual("deadbeef", readBack.selection_sha256);
+        }
+
+        // Pre-A20 files never had categories/assemblies/tests/selection_sha256 keys
+        // at all (not merely empty) -- proves JsonUtility's field-initializer
+        // fallback (not a JSON-side default) is what keeps old durable files readable.
+        [Test]
+        public void TestRunRecord_DeserializesLegacyJsonWithMissingSelectionFields()
+        {
+            const string runId = "legacy-run";
+            const string legacyJson =
+                "{\"schema_version\":1,\"run_id\":\"legacy-run\",\"request_id\":\"\"," +
+                "\"utf_guid\":\"\",\"source\":\"unity-ui\",\"lifecycle\":\"running\"," +
+                "\"outcome\":\"\",\"health\":\"healthy\"," +
+                "\"created_utc\":\"2026-08-02T12:00:00.0000000Z\",\"dispatched_utc\":\"\"," +
+                "\"started_utc\":\"\",\"finished_utc\":\"\",\"project_identity\":\"\"," +
+                "\"editor_process_identity\":\"\",\"editor_session_id\":\"\"," +
+                "\"build_fingerprint\":\"\",\"utf_version\":\"1.6.0\",\"assembly_path\":\"\"," +
+                "\"source_path\":\"\",\"assembly_write_utc\":\"\",\"source_write_utc\":\"\"," +
+                "\"build_coherent\":true,\"build_error\":\"\",\"mode\":\"\",\"group\":\"\"," +
+                "\"filter\":\"\"}";
+            var path = _store.GetRunRecordPath(runId);
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            File.WriteAllText(path, legacyJson, JsonHelper.Utf8NoBom);
+
+            var run = _store.ReadRun(runId);
+
+            Assert.IsNotNull(run.categories);
+            Assert.AreEqual(0, run.categories.Length);
+            Assert.IsNotNull(run.assemblies);
+            Assert.AreEqual(0, run.assemblies.Length);
+            Assert.IsNotNull(run.tests);
+            Assert.AreEqual(0, run.tests.Length);
+            Assert.AreEqual("", run.selection_sha256);
+        }
+
+        [Test]
+        public void TestRunRequestRecord_DeserializesLegacyJsonWithMissingSelectionFields()
+        {
+            const string requestId = "legacy-request";
+            const string legacyJson =
+                "{\"schema_version\":1,\"request_id\":\"legacy-request\"," +
+                "\"run_id\":\"legacy-run-req\",\"intent_complete\":true," +
+                "\"mode\":\"EditMode\",\"group\":\"\",\"filter\":\"\"," +
+                "\"state\":\"prepared\",\"created_utc\":\"2026-08-02T12:00:00.0000000Z\"," +
+                "\"acknowledged_utc\":\"\"}";
+            var path = _store.GetRequestPath(requestId);
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            File.WriteAllText(path, legacyJson, JsonHelper.Utf8NoBom);
+
+            var request = _store.ReadRequest(requestId);
+
+            Assert.IsNotNull(request.categories);
+            Assert.AreEqual(0, request.categories.Length);
+            Assert.IsNotNull(request.assemblies);
+            Assert.AreEqual(0, request.assemblies.Length);
+            Assert.IsNotNull(request.tests);
+            Assert.AreEqual(0, request.tests.Length);
+            Assert.AreEqual("", request.selection_sha256);
         }
 
         [Test]

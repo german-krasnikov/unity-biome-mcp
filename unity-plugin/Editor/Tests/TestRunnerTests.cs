@@ -6,6 +6,7 @@ using System.Text;
 using NUnit.Framework;
 using UnityEditor.TestTools.TestRunner.Api;
 using UnityEngine;
+using UnityMCP.Editor;
 using UnityMCP.Editor.TestRuns;
 
 namespace UnityMCP.Editor.Tests
@@ -732,6 +733,75 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("\"state\":\"dispatched\"", json);
             StringAssert.Contains("\"expected_count\":0", json);
             StringAssert.Contains("\"build_coherent\":true", json);
+        }
+
+        [Test]
+        public void GetRunJson_CarriesSelectionFieldsAndSha()
+        {
+            var service = CreateService();
+
+            // Sub-case 1: a run started with a selection -- JSON carries the
+            // exact arrays plus the sha equal to the run record's own sha.
+            var selection = new TestRunSelection(
+                Array.Empty<string>(),
+                new[] { "UnityMCP.Editor.Chat.Tests.View" },
+                Array.Empty<string>());
+            service.Start("request-selection-json", "EditMode", "", "", selection);
+            var runId = _store.ReadRequest("request-selection-json").run_id;
+            var expectedSha = _store.ReadRun(runId).selection_sha256;
+
+            var json = service.GetRunJson(runId);
+
+            StringAssert.Contains("\"categories\":[]", json);
+            StringAssert.Contains(
+                "\"assemblies\":[\"UnityMCP.Editor.Chat.Tests.View\"]", json);
+            StringAssert.Contains("\"tests\":[]", json);
+            StringAssert.Contains("\"selection_sha256\":\"" + expectedSha + "\"", json);
+
+            // Sub-case 2: pre-A20 legacy run.json (no selection keys at all)
+            // -- the projection must surface empty arrays and "" via
+            // TestRunRecord's own field-initializer fallback (same evidence
+            // pattern as
+            // TestRunRecord_DeserializesLegacyJsonWithMissingSelectionFields).
+            const string legacyRunId = "legacy-run-json";
+            const string legacyJson =
+                "{\"schema_version\":1,\"run_id\":\"legacy-run-json\",\"request_id\":\"\"," +
+                "\"utf_guid\":\"\",\"source\":\"unity-ui\",\"lifecycle\":\"running\"," +
+                "\"outcome\":\"\",\"health\":\"healthy\"," +
+                "\"created_utc\":\"2026-08-02T12:00:00.0000000Z\",\"dispatched_utc\":\"\"," +
+                "\"started_utc\":\"\",\"finished_utc\":\"\",\"project_identity\":\"\"," +
+                "\"editor_process_identity\":\"\",\"editor_session_id\":\"\"," +
+                "\"build_fingerprint\":\"\",\"utf_version\":\"1.6.0\",\"assembly_path\":\"\"," +
+                "\"source_path\":\"\",\"assembly_write_utc\":\"\",\"source_write_utc\":\"\"," +
+                "\"build_coherent\":true,\"build_error\":\"\",\"mode\":\"\",\"group\":\"\"," +
+                "\"filter\":\"\"}";
+            var legacyPath = _store.GetRunRecordPath(legacyRunId);
+            Directory.CreateDirectory(Path.GetDirectoryName(legacyPath));
+            File.WriteAllText(legacyPath, legacyJson, JsonHelper.Utf8NoBom);
+
+            var legacyOut = service.GetRunJson(legacyRunId);
+
+            StringAssert.Contains("\"categories\":[]", legacyOut);
+            StringAssert.Contains("\"assemblies\":[]", legacyOut);
+            StringAssert.Contains("\"tests\":[]", legacyOut);
+            StringAssert.Contains("\"selection_sha256\":\"\"", legacyOut);
+
+            // Sub-case 3: run directory exists but run.json is entirely
+            // missing (journal.run == null) -- the fallback must still
+            // surface empty arrays and "" instead of a null/omitted field.
+            // Neither sub-case 1 nor 2 exercises this: TestRunRecord's own
+            // field initializers already guarantee non-null arrays in both,
+            // so only a genuinely-null run object exercises the
+            // "?? Array.Empty<string>()" fallback itself.
+            const string missingRunId = "run-missing-record-json";
+            Directory.CreateDirectory(_store.GetRunDirectory(missingRunId));
+
+            var missingOut = service.GetRunJson(missingRunId);
+
+            StringAssert.Contains("\"categories\":[]", missingOut);
+            StringAssert.Contains("\"assemblies\":[]", missingOut);
+            StringAssert.Contains("\"tests\":[]", missingOut);
+            StringAssert.Contains("\"selection_sha256\":\"\"", missingOut);
         }
 
         [Test]
@@ -1486,6 +1556,48 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("none", result);
         }
 
+        [Test]
+        public void GetRunJson_CompactTrue_OmitsLeafDetailArrays()
+        {
+            const string runId = "run-compact-non-terminal";
+            SeedRunWithMissingLeaf(runId, TestRunProtocol.Lifecycle.Running);
+            var service = CreateService();
+
+            var full = service.GetRunJson(runId);
+            var compact = service.GetRunJson(runId, compact: true);
+
+            StringAssert.Contains("\"missing_tests\":[\"Suite.Test2\"]", full,
+                "Precondition: the non-compact snapshot must actually carry leaf detail.");
+            StringAssert.Contains("\"leaves\":[{", full,
+                "Precondition: Suite.Test1 completed, so leaves[] must be non-empty too.");
+            StringAssert.Contains("\"missing_tests\":[]", compact);
+            StringAssert.Contains("\"unexpected_tests\":[]", compact);
+            StringAssert.Contains("\"conflicting_tests\":[]", compact);
+            StringAssert.Contains("\"leaves\":[]", compact);
+            StringAssert.Contains("\"issues\":[]", compact);
+            Assert.Less(compact.Length, full.Length,
+                "Compact must strictly shrink the payload, not merely look smaller.");
+            // Must not strip fields unrelated to leaf detail.
+            StringAssert.Contains("\"expected_count\":2", compact);
+            StringAssert.Contains("\"lifecycle\":\"running\"", compact);
+        }
+
+        [Test]
+        public void GetRunJson_CompactTrue_TerminalState_StillReturnsFullDetail()
+        {
+            const string runId = "run-compact-terminal";
+            SeedRunWithMissingLeaf(runId, TestRunProtocol.Lifecycle.Terminal);
+            var service = CreateService();
+
+            var full = service.GetRunJson(runId);
+            var compact = service.GetRunJson(runId, compact: true);
+
+            Assert.AreEqual(full, compact,
+                "A terminal snapshot must ignore compact=true and return identical full detail.");
+            StringAssert.Contains("\"missing_tests\":[\"Suite.Test2\"]", compact);
+            StringAssert.Contains("\"leaves\":[{", compact);
+        }
+
         // ── ListRunsJson ──
 
         [Test]
@@ -2020,6 +2132,70 @@ namespace UnityMCP.Editor.Tests
             });
         }
 
+        // Two manifest leaves: Suite.Test1 completes (populates leaves[]),
+        // Suite.Test2 is sealed but never observed as terminal (populates
+        // missing_tests[]). Both arrays are genuinely non-empty so GetRunJson's
+        // compact-mode tests can prove the 5-field clearing actually removes
+        // something, not that the fields merely started empty (A26).
+        private void SeedRunWithMissingLeaf(string runId, string lifecycle)
+        {
+            var terminal = string.Equals(lifecycle, TestRunProtocol.Lifecycle.Terminal,
+                StringComparison.Ordinal);
+            _store.WriteRun(new TestRunRecord
+            {
+                run_id = runId,
+                lifecycle = lifecycle,
+                // ValidateInitialRun requires a valid outcome exactly when the
+                // run is created already-terminal; Suite.Test2 never completes,
+                // so "incomplete" is the honest outcome either way.
+                outcome = terminal ? TestRunProtocol.RunOutcome.Incomplete : "",
+                created_utc = Utc,
+                build_coherent = true,
+                utf_version = "1.6.0"
+            });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.RunStarted,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 2
+            });
+            _store.AppendExpectedTest(runId, new TestLeafManifestEntry
+            {
+                run_id = runId,
+                unique_name = "Suite.Test1",
+                full_name = "Suite.Test1",
+                mode = "EditMode"
+            });
+            _store.AppendExpectedTest(runId, new TestLeafManifestEntry
+            {
+                run_id = runId,
+                unique_name = "Suite.Test2",
+                full_name = "Suite.Test2",
+                mode = "EditMode"
+            });
+            _store.SealManifest(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.ManifestSealed,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                expected_count = 2
+            });
+            _store.AppendEvent(runId, new TestRunEvent
+            {
+                run_id = runId,
+                event_type = TestRunProtocol.EventType.TestFinished,
+                occurred_utc = Utc,
+                observer_generation = "test-generation",
+                unique_name = "Suite.Test1",
+                full_name = "Suite.Test1",
+                outcome = TestRunProtocol.LeafOutcome.Passed,
+                result_state = "Passed"
+            });
+        }
+
         private const string Utc = "2026-08-02T12:00:00.0000000Z";
         // Same-session Finalizing staleness ceiling is 180s (see
         // TestRunFinalizationCoordinator.SameSessionStalenessCeilingSeconds).
@@ -2032,71 +2208,7 @@ namespace UnityMCP.Editor.Tests
         private const string LongRunNowUtc = "2026-08-02T12:30:00.0000000Z"; // +1800s from dispatch
         private const string RecentBoundaryUtc = "2026-08-02T12:28:00.0000000Z"; // 120s before LongRunNowUtc
 
-        private sealed class FakeFrameworkDriver : ITestFrameworkDriver
-        {
-            internal int ExecuteCalls;
-            internal int CancelCalls;
-            internal ExecutionSettings LastSettings;
-            internal string LastCancelledGuid;
-            internal bool CancelResult = true;
-            internal Exception CancelError;
-            internal Exception ProbeAnyError;
-            internal UtfRunActivity Activity = UtfRunActivity.Active;
-            internal UtfRunActivity AnyActivity = UtfRunActivity.Inactive;
-            internal Action OnExecute;
-
-            public string Execute(ExecutionSettings settings)
-            {
-                ExecuteCalls++;
-                LastSettings = settings;
-                OnExecute?.Invoke();
-                return "utf-guid-1";
-            }
-
-            public bool Cancel(string utfGuid)
-            {
-                CancelCalls++;
-                LastCancelledGuid = utfGuid;
-                if (CancelError != null) throw CancelError;
-                return CancelResult;
-            }
-
-            public UtfRunActivity Probe(string utfGuid) => Activity;
-
-            public UtfRunActivity ProbeAny()
-            {
-                if (ProbeAnyError != null) throw ProbeAnyError;
-                return AnyActivity;
-            }
-        }
-
-        private sealed class FakeEnvironment : ITestRunEnvironmentController
-        {
-            internal int PrepareCalls;
-            internal int RestoreCalls;
-            internal Exception PrepareError;
-            internal Exception RestoreError;
-
-            public TestRunEnvironmentRecord Prepare(
-                TestRunStore store, string runId, string utcNow)
-            {
-                PrepareCalls++;
-                if (PrepareError != null) throw PrepareError;
-                if (store.TryReadEnvironment(runId, out var existing)) return existing;
-                var environment = new TestRunEnvironmentRecord
-                {
-                    run_id = runId,
-                    prepared_utc = utcNow
-                };
-                store.WriteEnvironment(environment);
-                return environment;
-            }
-
-            public void Restore(TestRunStore store, string runId, string utcNow)
-            {
-                RestoreCalls++;
-                if (RestoreError != null) throw RestoreError;
-            }
-        }
+        // FakeFrameworkDriver/FakeEnvironment moved to TestRunFakes.cs (shared with
+        // TestRunServiceTests.cs, A20/A21 review minor).
     }
 }

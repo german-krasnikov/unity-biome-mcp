@@ -208,3 +208,60 @@ async def test_auto_play_true_skips_play_when_already_playing(mock_bridge):
     play_calls = [c for c in mock_bridge.send.call_args_list
                   if c[0][0] == "editor" and c[0][1].get("action") == "play"]
     assert not play_calls, "auto_play=True must not call play when already playing"
+
+
+# ── C08: --tag filtering (B18 playtest_header.scan, synthetic fixtures only) ──
+
+def _write_playtest(tmp_path, name, tags, body="LOG hi\n"):
+    """Real .playtest fixture on disk — comma-separated `pattern=` reads these
+    paths directly (no glob, no list_playtest_files round trip), and the tag
+    filter itself reads the same paths locally via pathlib (encoding="utf-8")."""
+    header = f"# @tags {tags}\n" if tags else ""
+    path = tmp_path / name
+    path.write_text(header + body, encoding="utf-8")
+    return str(path)
+
+
+async def test_suite_filters_by_tag_includes_matching_files(mock_bridge, tmp_path):
+    """Only files whose `# @tags` header contains the requested tag are run."""
+    smoke = _write_playtest(tmp_path, "smoke.playtest", "smoke")
+    other = _write_playtest(tmp_path, "other.playtest", "other")
+    mock_bridge.send.side_effect = _make_dispatch([])  # no glob — list_playtest_files unused
+
+    result = await run_playtest_suite(f"{smoke},{other}", tag="smoke", stop_after=False)
+
+    run_calls = [c for c in mock_bridge.send.call_args_list if c[0][0] == "run_playtest"]
+    assert len(run_calls) == 1
+    assert run_calls[0][0][1]["path"] == smoke
+    assert "SUITE: 1/1" in result
+    assert "other.playtest" not in result
+
+
+async def test_suite_no_tag_filter_runs_all(mock_bridge, tmp_path):
+    """Regression: tag=None (default) keeps current behavior — every resolved
+    file runs, exactly like before --tag filtering existed."""
+    smoke = _write_playtest(tmp_path, "smoke.playtest", "smoke")
+    other = _write_playtest(tmp_path, "other.playtest", "other")
+    mock_bridge.send.side_effect = _make_dispatch([])
+
+    result = await run_playtest_suite(f"{smoke},{other}", stop_after=False)
+
+    run_calls = [c for c in mock_bridge.send.call_args_list if c[0][0] == "run_playtest"]
+    assert len(run_calls) == 2
+    assert "SUITE: 2/2" in result
+
+
+async def test_suite_tag_matches_none_fails_closed(mock_bridge, tmp_path):
+    """INV-017: a --tag filter that matches zero files is a failure, not a
+    silent 0/0 success — same fail-closed shape as an empty glob/suite match."""
+    smoke = _write_playtest(tmp_path, "smoke.playtest", "smoke")
+    other = _write_playtest(tmp_path, "other.playtest", "other")
+    mock_bridge.send.side_effect = _make_dispatch([])
+
+    result = await run_playtest_suite(f"{smoke},{other}", tag="nope", stop_after=False)
+
+    run_calls = [c for c in mock_bridge.send.call_args_list if c[0][0] == "run_playtest"]
+    assert not run_calls, "a fail-closed tag filter must not execute any file"
+    assert "SUITE: 0/0" in result
+    assert "FAIL suite input:" in result
+    assert "nope" in result

@@ -52,7 +52,7 @@ namespace UnityMCP.Playtest
             return sb.ToString();
         }
 
-        private readonly struct StepResult
+        internal readonly struct StepResult
         {
             public readonly string Raw;
             public readonly bool Passed;

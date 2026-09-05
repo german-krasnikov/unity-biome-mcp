@@ -581,7 +581,10 @@ async def test_every_playmode_test_reloads_owned_primary_scene(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_clean_editmode_test_still_reloads_owned_primary_scene(monkeypatch):
+async def test_clean_editmode_test_skips_redundant_scene_reset(monkeypatch):
+    # A17: an EditMode run with zero plan-derived scene mutation no longer
+    # pays for a reload — see test_unity_state_owner_reset.py for the
+    # dedicated skip/reset pair this behavior change was built against.
     path = "Assets/TestsTemp/Owned.unity"
     snapshot = _snapshot(
         scenes=[_scene(path)],
@@ -610,7 +613,7 @@ async def test_clean_editmode_test_still_reloads_owned_primary_scene(monkeypatch
         ),
     )
 
-    assert resets == [(path, False)]
+    assert resets == []
 
 
 @pytest.mark.asyncio

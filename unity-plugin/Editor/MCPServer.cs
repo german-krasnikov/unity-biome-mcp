@@ -57,12 +57,17 @@ namespace UnityMCP.Editor
 
         public static void SavePorts(int port, int chatPort) => PortFileManager.SavePorts(port, chatPort);
 
+        // E04: named so server/tests/test_playtest_async.py can cross-check Python's
+        // _RUN_PLAYTEST_SYNC_CEILING_S stays below this value — value unchanged, only
+        // the literal is named.
+        private const int RunPlaytestTimeoutSeconds = 130;
+
         // Per-command timeout overrides (seconds). Default: 25s.
         private static readonly System.Collections.Generic.Dictionary<string, int> CommandTimeouts =
             new System.Collections.Generic.Dictionary<string, int>
             {
                 { "run_tests", 130 },
-                { "run_playtest", 130 },
+                { "run_playtest", RunPlaytestTimeoutSeconds },
                 { "batch", 65 },
                 { "wait_until", 30 },
                 { "move_to", 30 },
@@ -527,7 +532,7 @@ namespace UnityMCP.Editor
         // ── Tier 4b: status response format ──────────────────────────────────
 
         // synced by sync_versions.py — do not edit manually
-        internal static string PluginVersion => "1.52.0";
+        internal static string PluginVersion => "1.53.0";
 
         internal static string BuildVersionString(string stamp, string pluginVersion)
         {

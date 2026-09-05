@@ -512,3 +512,72 @@ async def test_reconnect_ping_includes_role_mcp(monkeypatch):
     """Reconnect ping must include role='mcp' by default."""
     ping = await _run_reconnect_and_capture_ping(monkeypatch)
     assert ping.get("role") == "mcp", f"Expected role=mcp, got: {ping}"
+
+
+# ---------------------------------------------------------------------------
+# A03: fast-clock autouse fixture (server/tests/_fast_clock.py) patches
+# bridge/bridge_heartbeat/bridge_retry module constants before any bridge
+# is constructed, so retry/reconnect/heartbeat waits don't cost real wall time.
+# ---------------------------------------------------------------------------
+
+def test_reconnect_backoff_uses_patched_constant_at_construction():
+    """__init__ seeds _reconnect_backoff from unity_mcp.bridge.BACKOFF_MIN_S.
+
+    Double-red: red if the fixture patches bridge_heartbeat.BACKOFF_MIN_S only
+    (bridge.py's own re-exported copy, read here, stays at the real 5.0);
+    red if the fixture is removed entirely.
+    """
+    bridge = UnityBridge("127.0.0.1", 9999)
+    assert bridge._reconnect_backoff == 0.0, (
+        f"expected fast-clock-patched BACKOFF_MIN_S=0.0, got {bridge._reconnect_backoff}"
+    )
+
+
+async def test_reload_gate_wait_is_not_slowed_by_real_backoff():
+    """The domain_reload branch's gate wait_for (bridge.py send()'s retry loop,
+    :583-587) must resolve fast — proves the *delay* from RetryPolicy.decide()
+    is ~0, not that the gate opened (the gate is never set here, only timed out).
+
+    Double-red: red if only unity_mcp.bridge.* is patched (bridge_retry's
+    _RETRY_BACKOFF_BASE_S/_RETRY_BACKOFF_CAP_S untouched -> real 2.0s delay);
+    red if the fixture is removed (real 2.0s delay either way).
+    """
+    bridge = UnityBridge("127.0.0.1", 9999)
+    bridge._reload_gate.clear()
+    do_retry, delay, reason = bridge.should_retry(
+        DomainReloadError("reload"), attempt=0, session_deadline=time.monotonic() + 60.0
+    )
+    assert reason == "domain_reload"
+
+    start = time.monotonic()
+    try:
+        await asyncio.wait_for(bridge._reload_gate.wait(), timeout=delay)
+    except TimeoutError:
+        pass
+    elapsed = time.monotonic() - start
+
+    assert elapsed < 0.05, f"gate wait took {elapsed:.3f}s; expected <0.05s (patched backoff)"
+
+
+async def test_heartbeat_tick_wait_uses_patched_heartbeat_constants():
+    """_tick_disconnected's idle-branch sleep must read bridge_heartbeat's OWN
+    IDLE_TICK_S (HeartbeatMixin methods resolve names via bridge_heartbeat's
+    module globals, a separate binding from unity_mcp.bridge's re-exported copy).
+
+    Double-red: red if only unity_mcp.bridge.* is patched (bridge_heartbeat's
+    own IDLE_TICK_S stays at the real 2.0); red if the fixture is removed.
+    """
+    from helpers import make_idle_probe
+    probe = make_idle_probe()
+    probe.has_strong_busy_signal.return_value = False
+    bridge = UnityBridge("127.0.0.1", 9999, probe=probe)
+    bridge._writer = None  # disconnected
+
+    sleep_mock = AsyncMock()
+    with patch("unity_mcp.bridge_heartbeat.asyncio.sleep", new=sleep_mock), \
+         patch.object(bridge, "_try_reconnect", new=AsyncMock()):
+        await bridge._tick_disconnected()
+
+    sleep_mock.assert_awaited_once()
+    wait_arg = sleep_mock.await_args[0][0]
+    assert wait_arg == 0.0, f"expected patched IDLE_TICK_S=0.0, got {wait_arg}"

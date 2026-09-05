@@ -1,9 +1,11 @@
 // TDD: PlaytestParser pure-logic tests — no Unity API, EditMode safe.
 // Compare drives every ASSERT in playtests; a bug silently passes all assertions.
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -159,6 +161,32 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("Z", field);
         }
 
+        // D06-blocker fix (D09 pulled forward): a hand-written fake IAliasSource — no
+        // PlaytestConfig, no ScriptableObject — proving ResolveQuery resolves an alias without
+        // any Unity asset. This is the test that proves the decoupling, not a regression check.
+        // Double-red: fails to compile if ResolveQuery still demands a concrete PlaytestConfig.
+        private class FakeAliasSource : IAliasSource
+        {
+            private readonly System.Collections.Generic.Dictionary<string, AliasMatch> _map = new();
+            public void Add(string name, string path, string component, string field) =>
+                _map[name] = new AliasMatch(path, component, field);
+            public AliasMatch? FindAlias(string name) =>
+                _map.TryGetValue(name, out var m) ? m : (AliasMatch?)null;
+        }
+
+        [Test]
+        public void ResolveQuery_WithFakeAliasSource_ResolvesWithoutPlaytestConfig()
+        {
+            var fake = new FakeAliasSource();
+            fake.Add("hp", "/Player", "Health", "current");
+
+            var (path, comp, field) = PlaytestParser.ResolveQuery("hp", fake);
+
+            Assert.AreEqual("/Player", path);
+            Assert.AreEqual("Health", comp);
+            Assert.AreEqual("current", field);
+        }
+
         // ── Parse: ASSERT line ───────────────────────────────────────────────────
 
         [Test]
@@ -187,6 +215,21 @@ namespace UnityMCP.Editor.Tests
         {
             var steps = PlaytestParser.Parse("# this is a comment\nASSERT /X|C|f == 1");
             Assert.AreEqual(1, steps.Count);
+        }
+
+        // ── Header (B04): ParseResult.Header is always populated, never null ────
+
+        [Test]
+        public void Parse_ScriptWithNeedsEditmode_PopulatesResultHeader()
+        {
+            var withHeader = PlaytestParser.Parse("# @needs editmode\nASSERT_CONSOLE_CLEAN");
+            Assert.IsNotNull(withHeader.Header, "Header must be assigned, never left null");
+            Assert.IsTrue(withHeader.Header.NeedsEditmode);
+
+            // NPE trap: a header-less script must still get a defaulted Header, never null.
+            var withoutHeader = PlaytestParser.Parse("ASSERT_CONSOLE_CLEAN");
+            Assert.IsNotNull(withoutHeader.Header, "header-less script must still get a defaulted Header");
+            Assert.IsFalse(withoutHeader.Header.NeedsEditmode);
         }
 
         [Test]
@@ -533,7 +576,9 @@ namespace UnityMCP.Editor.Tests
             var s = r[0];
             Assert.AreEqual(StepType.Teleport, s.Type);
             Assert.AreEqual("/obj", s.Path);
-            Assert.AreEqual(new Vector3(1, 2, 3), s.Position);
+            Assert.AreEqual(1f, s.Position.x);
+            Assert.AreEqual(2f, s.Position.y);
+            Assert.AreEqual(3f, s.Position.z);
             Assert.IsNull(s.RawPosition);
         }
 
@@ -544,7 +589,9 @@ namespace UnityMCP.Editor.Tests
             var s = r[0];
             Assert.AreEqual(StepType.Teleport, s.Type);
             Assert.AreEqual("@/Ref.position", s.RawPosition);
-            Assert.AreEqual(Vector3.zero, s.Position);
+            Assert.AreEqual(0f, s.Position.x);
+            Assert.AreEqual(0f, s.Position.y);
+            Assert.AreEqual(0f, s.Position.z);
         }
 
         [Test]
@@ -709,7 +756,9 @@ namespace UnityMCP.Editor.Tests
             var s = r[0];
             Assert.AreEqual(StepType.Move, s.Type);
             Assert.AreEqual("@/Ref.position", s.RawPosition);
-            Assert.AreEqual(Vector3.zero, s.Position);
+            Assert.AreEqual(0f, s.Position.x);
+            Assert.AreEqual(0f, s.Position.y);
+            Assert.AreEqual(0f, s.Position.z);
         }
 
         [Test]
@@ -1040,6 +1089,32 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("INCREASED_BY", s.Op);
             Assert.AreEqual(">=", s.Args);
             Assert.AreEqual("10", s.Value);
+        }
+
+        // ── D10: injectable IncludeResolver bypasses the hardcoded Assets/PlaytestDefs/
+        // path — the generic seam PlayerPlaytestRunner.ResolveInclude (D11) relies on ──
+
+        [Test]
+        public void Parse_WithHandWrittenIncludeResolver_NeverConsultsDefaultPlaytestDefsPath()
+        {
+            var resolvedFilenames = new List<string>();
+            IncludeResolver resolver = filename =>
+            {
+                resolvedFilenames.Add(filename);
+                return "LOG line one\nLOG line two";
+            };
+
+            // This filename does not exist under Assets/PlaytestDefs/ — if the default
+            // path were still consulted instead of the resolver, this would throw
+            // ArgumentException (wrapping FileNotFoundException), not return steps.
+            var r = PlaytestParser.Parse("INCLUDE player_defs_that_do_not_exist.defs", resolver);
+
+            Assert.AreEqual(new[] { "player_defs_that_do_not_exist.defs" }, resolvedFilenames.ToArray());
+            Assert.AreEqual(2, r.Count);
+            Assert.AreEqual(StepType.Log, r[0].Type);
+            Assert.AreEqual("line one", r[0].Message);
+            Assert.AreEqual(StepType.Log, r[1].Type);
+            Assert.AreEqual("line two", r[1].Message);
         }
     }
 }

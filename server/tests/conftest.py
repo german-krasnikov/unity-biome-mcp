@@ -23,6 +23,8 @@ import pytest
 from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
+pytest_plugins = ["_fast_clock"]
+
 
 _OR_ASSERT_RE = _re.compile(
     r'assert\s+["\'][^"\']+["\']\s+in\s+\S+\s+or\s+["\'][^"\']+["\']\s+in\s+'
@@ -116,6 +118,19 @@ def _reset_tcp_probe_grace():
     _tcp_probe_fail_since.clear()
     yield
     _tcp_probe_fail_since.clear()
+
+
+@pytest.fixture(autouse=True)
+def _reset_gating_session_enabled():
+    """Fresh gating._session_enabled per test. Without this, a test that calls
+    enable_category(...) without a matching reset() (e.g. test_phase1_reorg.py's
+    test_demoted_tools_visible_after_discover) poisons every later test's tier
+    filtering regardless of monkeypatching (A07b: real root cause of the A07a
+    incidental xdist --dist load flake)."""
+    from unity_mcp.tools import gating
+    gating.reset()
+    yield
+    gating.reset()
 
 
 @pytest.fixture(autouse=True)

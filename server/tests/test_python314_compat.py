@@ -81,6 +81,12 @@ class TestPython314Compliance:
         pkg = importlib.import_module("unity_mcp")
         failures = []
         for info in pkgutil.walk_packages(pkg.__path__, prefix="unity_mcp."):
+            # unity_mcp.__version__ is a real submodule (src/unity_mcp/__version__.py).
+            # Importing it here rebinds sys.modules['unity_mcp'].__version__ from
+            # the package's version STRING (set in __init__.py) to this submodule
+            # object — skip it so the walk doesn't corrupt process-global state.
+            if info.name.endswith(".__version__"):
+                continue
             try:
                 mod = importlib.import_module(info.name)
             except Exception as e:
@@ -95,3 +101,7 @@ class TestPython314Compliance:
                 except Exception as e:
                     failures.append(f"{info.name}.{name}: {e}")
         assert not failures, "Annotation resolution failures:\n" + "\n".join(failures)
+        assert isinstance(pkg.__version__, str), (
+            "walking unity_mcp.__version__ as a submodule must not leave "
+            "unity_mcp.__version__ rebound to the module object"
+        )

@@ -13,6 +13,7 @@ namespace UnityMCP.CI
             var target = EditorUserBuildSettings.activeBuildTarget;
             var output = GetArgument("-ciBuildOutput") ?? DefaultOutput(target);
             var scenes = SelectedScenes(GetArgument("-ciBuildScene"));
+            UnityEngine.Debug.Log($"CiBuildSmoke scenes: {string.Join(", ", scenes)}");
 
             Directory.CreateDirectory(Path.GetDirectoryName(output) ?? ".");
 

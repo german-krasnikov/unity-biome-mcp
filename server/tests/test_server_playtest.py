@@ -33,6 +33,52 @@ async def test_run_playtest_default_timeout(mock_bridge):
     assert call[1]["timeout"] == 140.0
 
 
+async def test_run_playtest_timeout_at_ceiling_stays_sync(mock_bridge):
+    """timeout == 120.0 is NOT > the sync ceiling — stays on the single blocking
+    run_playtest call (boundary pin for E04's `>` comparison)."""
+    mock_bridge.send.return_value = {"ok": True, "data": "PASS"}
+    await run_playtest("WAIT 1", timeout=120.0)
+    mock_bridge.send.assert_called_once()
+    assert mock_bridge.send.call_args[0][0] == "run_playtest"
+
+
+async def test_run_playtest_long_timeout_routes_through_start_poll(mock_bridge, monkeypatch):
+    """timeout > 120.0 (E04's _RUN_PLAYTEST_SYNC_CEILING_S) dispatches start_playtest
+    then polls get_playtest_run, instead of one blocking run_playtest call."""
+    from unity_mcp.tools import playtest_async
+    monkeypatch.setattr(playtest_async.asyncio, "sleep", AsyncMock())
+    mock_bridge.send.side_effect = [
+        {"ok": True, "data": "run_id=abc123"},
+        {"ok": True, "data": "phase=running|step=1/2|elapsed_ms=500"},
+        {"ok": True, "data": "PLAYTEST: 2/2 (3.0s) OK"},
+    ]
+
+    result = await run_playtest("WAIT 1", timeout=300.0)
+
+    calls = mock_bridge.send.call_args_list
+    assert [c[0][0] for c in calls] == ["start_playtest", "get_playtest_run", "get_playtest_run"]
+    assert calls[0][0][1] == {"script": "WAIT 1", "timeout": "300.0"}
+    assert calls[1][0][1] == {"run_id": "abc123"}
+    assert calls[0][1]["timeout"] == 20.0  # _TCP_PLAYTEST_BUFFER, not timeout+buffer
+    assert result == "PLAYTEST: 2/2 (3.0s) OK"
+
+
+async def test_run_playtest_long_timeout_never_sends_run_playtest_directly(mock_bridge, monkeypatch):
+    """Double-red guard: if the >120 branch were removed/bypassed, this would fail
+    because a single 'run_playtest' send would appear in the call list."""
+    from unity_mcp.tools import playtest_async
+    monkeypatch.setattr(playtest_async.asyncio, "sleep", AsyncMock())
+    mock_bridge.send.side_effect = [
+        {"ok": True, "data": "run_id=xyz"},
+        {"ok": True, "data": "PLAYTEST: 1/1 OK"},
+    ]
+
+    await run_playtest("LOG hi", timeout=121.0)
+
+    sent_cmds = [c[0][0] for c in mock_bridge.send.call_args_list]
+    assert "run_playtest" not in sent_cmds
+
+
 def test_compress_report_all_pass_returns_compact():
     report = "PLAYTEST: 3/3 (1.2s) OK"
     assert _compress_report(report) == report

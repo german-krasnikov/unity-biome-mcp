@@ -31,7 +31,7 @@ jobs:
         working-directory: server
         env:
           PYTHONWARNDEFAULTENCODING: '1'
-        run: python -m pytest tests/ -m "not live" -q --tb=short --timeout=120
+        run: python -m pytest tests/ -m "$(python ../scripts/gen_lane_args.py pytest nightly-full)" -q --tb=short --timeout=120
 
       - name: Run install tests
         if: always()

@@ -142,6 +142,50 @@ def test_conditional_and_file_side_effect_tools_fail_closed_as_write():
         assert _SPECS[name].mutability == "write", name
 
 
+def test_runtime_only_single_source():
+    """R-05: run_playtest's Play-mode gate has exactly one authority — C#'s
+    CommandRouter.Registration.cs registration (runtime: false since B05 moved the gate
+    past parsing into AsyncRunPlaytest's own header check). tool_specs.py's static
+    runtime_only flag must NOT also flag it True: that would reintroduce a stale second
+    authority Python cannot keep in sync with C#'s per-header decision — exactly the
+    failure mode described in the plan's "Why merged" note for B05/B10.
+
+    Double-red: red if C#'s registration reverts to runtime: true (assertion 1), red if
+    tool_specs.py's static flag is reintroduced (assertions 2-3), red if the live C#
+    export mechanism that back-fills _RUNTIME_ONLY_CMDS for every OTHER runtime-only
+    command stops populating anything at all (assertion 4 — a regression there would
+    silently open every Play-mode gate, not just run_playtest's).
+    """
+    from pathlib import Path
+    from unity_mcp.tools.tool_specs import _SPECS
+    from unity_mcp.middleware_types import _RUNTIME_ONLY_CMDS
+
+    project_root = Path(__file__).parents[2]
+    cs_path = project_root / "unity-plugin/Editor/CommandRouter.Registration.cs"
+    assert cs_path.exists(), f"C# source not found: {cs_path}"
+    cs_source = cs_path.read_text(encoding="utf-8")
+
+    assert 'CommandRegistry.RegisterAsync("run_playtest", AsyncRunPlaytest, runtime: false,' in cs_source, (
+        "C# registration must keep runtime: false — the gate moved past parsing into "
+        "AsyncRunPlaytest's header check (B05); reverting here re-blocks every "
+        "Edit-mode run_playtest before its header is ever read"
+    )
+    assert _SPECS["run_playtest"].runtime_only is False, (
+        "tool_specs.py must not flag run_playtest runtime_only=True — that would "
+        "reintroduce a second, Python-only authority the C# header gate cannot "
+        "override, pre-blocking Edit-mode playtests again"
+    )
+    assert "run_playtest" not in _RUNTIME_ONLY_CMDS
+
+    # The static baseline (from _SPECS) remains the fail-safe authority for every OTHER
+    # runtime-only command; a regression that stopped the derivation from populating
+    # ANYTHING would silently open every one of those gates instead of failing loudly.
+    assert len(_RUNTIME_ONLY_CMDS) > 0, (
+        "_RUNTIME_ONLY_CMDS derived empty — this would silently open every Play-mode "
+        "gate (invoke_method, wait_until, move_to, ...) instead of failing loudly"
+    )
+
+
 def test_python_only_tools_without_c_handler_are_direct_only():
     """B1/B2: checkpoint_create, checkpoint_restore, brief_build, get_changeset have no
     C# handler — must be direct_only=True so batch rejects them before forwarding to C#."""

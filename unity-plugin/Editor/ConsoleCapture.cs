@@ -63,7 +63,13 @@ namespace UnityMCP.Editor
             }
         }
 
-        private static void OnLogReceived(string message, string stackTrace, LogType type)
+        private static void OnLogReceived(string message, string stackTrace, LogType type) =>
+            RecordEntry(message, stackTrace, type, DateTime.Now);
+
+        // Issue B23-Win (Windows CI race): split out so test seams can pin an exact
+        // Timestamp instead of racing two independent DateTime.Now calls (see
+        // GetErrorsSince_ReturnsError_WhenTimestampExactlyEqualsSince).
+        private static void RecordEntry(string message, string stackTrace, LogType type, DateTime timestamp)
         {
             lock (_lock)
             {
@@ -74,7 +80,7 @@ namespace UnityMCP.Editor
                         ? stackTrace.Substring(0, MAX_STACKTRACE_LENGTH)
                         : stackTrace,
                     Type = type,
-                    Timestamp = DateTime.Now
+                    Timestamp = timestamp
                 };
 
                 // M9: ConsoleProblemPersistence's own FIFO cap (20) can evict independently of
@@ -181,14 +187,23 @@ namespace UnityMCP.Editor
                 foreach (var e in combined)
                 {
                     if (found >= maxCount) break;
-                    if (e.Timestamp > since && Array.IndexOf(ProblemTypes, e.Type) >= 0)
+                    // Issue B23-Win: >= not > — stepStart and a step's own error can share the
+                    // exact same DateTime.Now tick on Windows' coarser clock resolution; excluding
+                    // ties silently dropped that step's genuine console error (CI-reproducible).
+                    if (e.Timestamp >= since && Array.IndexOf(ProblemTypes, e.Type) >= 0)
                     {
                         sb.AppendLine(e.Message);
                         found++;
                     }
                 }
-                string result = sb.Length > 0 ? sb.ToString().TrimEnd() : "";
-                result = AppendDroppedSuffix(result);
+                // Issue B23 (MCP-CONSOLE-032 class): GetErrorsSince is a delta/watermark query
+                // like GetLogs(sinceSeconds>0) -- it must never manufacture a phantom result
+                // from the lifetime-global _droppedProblemCount when this specific since-window
+                // matched zero problem entries. Otherwise console pollution from earlier,
+                // unrelated tests (overflowing the 20-entry persisted-problem FIFO) makes every
+                // later step in a full-suite run report a false CONSOLE_ERR.
+                if (found == 0) return null;
+                string result = AppendDroppedSuffix(sb.ToString().TrimEnd());
                 return string.IsNullOrEmpty(result) ? null : result;
             }
         }
@@ -233,6 +248,13 @@ namespace UnityMCP.Editor
         internal static void InjectForTest(string message, LogType type, string stackTrace = null)
         {
             OnLogReceived(message, stackTrace, type);
+        }
+
+        // Test seam: pins an exact Timestamp instead of DateTime.Now, so boundary races
+        // (e.g. Timestamp == since) can be reproduced deterministically.
+        internal static void InjectForTestAt(string message, LogType type, DateTime timestamp, string stackTrace = null)
+        {
+            RecordEntry(message, stackTrace, type, timestamp);
         }
 
         /// <summary>Test seam: simulate domain reload — wipes in-memory state, leaves

@@ -170,6 +170,7 @@ async def test_send_exhausts_domain_reload_retries_raises_connection_error():
 
 # ── Test 4 ───────────────────────────────────────────────────────────────────
 
+@pytest.mark.real_clock  # A03: asserts real backoff values 2.0/4.0
 def test_retry_policy_decide_returns_domain_reload_reason():
     """RetryPolicy.decide(DomainReloadError, attempt=0) → (True, 2.0, 'domain_reload')."""
     probe = make_idle_probe()
@@ -268,6 +269,9 @@ async def test_send_connection_refused_uses_sleep_not_gate():
 
 # ── Test 7 ───────────────────────────────────────────────────────────────────
 
+@pytest.mark.real_clock  # A03: needs the real ~2s backoff budget to outlast
+# the real 20ms concurrent gate-set below (retries would exhaust near-instantly
+# under the fast-clock fixture, before the 20ms task ever fires).
 async def test_send_wakes_early_when_concurrent_reconnect_sets_gate():
     """Gate set by concurrent task wakes send() well before the 2s backoff timeout."""
     bridge, writer = _make_bridge_and_writer()

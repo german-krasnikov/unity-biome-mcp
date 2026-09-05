@@ -16,7 +16,7 @@ import signal
 
 from unity_mcp.chat_relay import (
     BufLine, CliSession, ChatRelay, SessionMeta, BACKENDS,
-    _esc, _find_free_port, main, _main,
+    _esc, main, _main,
     MAX_BUF, KILL_WAIT, PPID_POLL,
 )
 from unity_mcp.stream_transform import (
@@ -27,6 +27,7 @@ from unity_mcp.backend_def import (
     OUTPUT_FORMAT_STREAM_JSON, OUTPUT_FORMAT_PLAIN_TEXT,
     OUTPUT_FORMAT_CODEX_JSON, OUTPUT_FORMAT_OPENCODE_JSON, OUTPUT_FORMAT_KIMI_JSON,
 )
+from .relay_helpers import _find_free_port
 
 
 # ─── Entrypoint contract ───────────────────────────────────────────────────
@@ -111,19 +112,41 @@ async def tcp_cmd(port, cmd, args=None, req_id="1"):
     return resp
 
 
+_BOUND_WAIT_TIMEOUT_S = 2.0  # serve(0) must fire _bound well within this; a real hang is a bug
+_MAIN_FAIL_FAST_TIMEOUT_S = 1.0  # _main() must surface a bind failure well within this
+
+
 @pytest.fixture
 async def running_relay():
-    """Start a real ChatRelay TCP server on a free port."""
-    port = _find_free_port()
+    """Start a real ChatRelay TCP server on a free port (no TOCTOU probe)."""
     relay = ChatRelay()
-    server_task = asyncio.create_task(relay.serve(port))
-    await asyncio.sleep(0.05)  # let server bind
+    server_task = asyncio.create_task(relay.serve(0))
+    await asyncio.wait_for(relay.wait_bound(), timeout=_BOUND_WAIT_TIMEOUT_S)
+    port = relay.bound_port
     yield relay, port
     server_task.cancel()
     try:
         await server_task
     except asyncio.CancelledError:
         pass
+
+
+async def test_serve_port_zero_exposes_bound_port():
+    """serve(0) must expose the OS-assigned port via bound_port + fire _bound —
+    proves the TOCTOU-free discovery seam works, not just that some port is set."""
+    relay = ChatRelay()
+    server_task = asyncio.create_task(relay.serve(0))
+    try:
+        await asyncio.wait_for(relay.wait_bound(), timeout=_BOUND_WAIT_TIMEOUT_S)
+        assert relay.bound_port > 0
+        resp = await tcp_cmd(relay.bound_port, "status")
+        assert resp["ok"] is True  # live round-trip proves bound_port is the real, connectable socket
+    finally:
+        server_task.cancel()
+        try:
+            await server_task
+        except asyncio.CancelledError:
+            pass
 
 
 # ─── Buffer (8 tests) ───────────────────────────────────────────────────────
@@ -894,12 +917,111 @@ async def test_shutdown_kills_session():
     sess.kill.assert_called_once()
 
 
+async def test_main_binds_port_zero_and_reports_bound_port(capsys):
+    """_main() must bind port 0 (no probe-then-bind TOCTOU) and print the
+    actually-bound port, not a pre-probed guess (A06). Double-red: red if
+    _main still passes a nonzero pre-probed port to start_server, red if the
+    printed port doesn't match the real, connectable socket."""
+    loop = asyncio.get_running_loop()
+    real_start_server = asyncio.start_server
+    captured = {}
+
+    async def spy_start_server(client_cb, host, port):
+        server = await real_start_server(client_cb, host, port)
+        captured["port_arg"] = port
+        captured["bound_port"] = server.sockets[0].getsockname()[1]
+        return server
+
+    with patch.object(loop, "add_signal_handler", create=True), \
+         patch("unity_mcp.chat_relay.asyncio.start_server", side_effect=spy_start_server):
+        main_task = asyncio.create_task(_main())
+        out = ""
+        try:
+            for _ in range(200):
+                out += capsys.readouterr().out
+                if "relay_port:" in out:
+                    break
+                await asyncio.sleep(0.01)
+            else:
+                pytest.fail("relay_port: line never printed")
+        finally:
+            main_task.cancel()
+            try:
+                await main_task
+            except asyncio.CancelledError:
+                pass
+
+    assert captured["port_arg"] == 0, "must pass port=0 to start_server (no pre-probe)"
+    printed_port = int(out.split("relay_port:", 1)[1].split()[0])
+    assert printed_port == captured["bound_port"] > 0
+
+
+async def test_main_raises_when_serve_fails_to_bind():
+    """_main() must not hang forever if serve(0) fails before ever binding
+    (e.g. OSError: address in use). Double-red: red if the FIRST_COMPLETED
+    race guard is removed (hangs on wait_bound() forever → the surrounding
+    wait_for's own TimeoutError, not the real bind error), red if the assert
+    accepts TimeoutError instead of the real OSError.
+
+    Also captures every Task _main() creates (via a create_task spy) and
+    asserts `bound_task` — the second one created — is fully done (not left
+    "cancelling") by the time the OSError surfaces here. `Future.__await__`
+    skips its `yield` when the future is already done, so the plain
+    `await serve_task` right after `bound_task.cancel()` never hands control
+    back to the loop for that cancellation to actually run — verified with a
+    standalone probe (asyncio debug logging) that `bound_task` is still
+    `done()=False` ("cancelling") at exactly this point without the drain,
+    and `done()=True, cancelled()=True` with it. A caplog-based check for
+    asyncio's "Task was destroyed but it is pending!" log line was tried
+    first and rejected: pytest-asyncio's own event-loop teardown drains any
+    dangling task before GC ever sees it pending, so that oracle passed even
+    on the unfixed code — a false negative. Double-red: red if the
+    `asyncio.gather(bound_task, return_exceptions=True)` drain in _main() is
+    removed, red if this assertion is loosened to accept `done() is False`."""
+    loop = asyncio.get_running_loop()
+    created_tasks: list[asyncio.Task] = []
+    real_create_task = asyncio.create_task
+
+    def spying_create_task(coro, **kwargs):
+        task = real_create_task(coro, **kwargs)
+        created_tasks.append(task)
+        return task
+
+    async def failing_start_server(client_cb, host, port):
+        raise OSError("port already in use (simulated)")
+
+    with patch.object(loop, "add_signal_handler", create=True), \
+         patch("unity_mcp.chat_relay.asyncio.start_server", side_effect=failing_start_server), \
+         patch("unity_mcp.chat_relay.asyncio.create_task", side_effect=spying_create_task), \
+         pytest.raises(OSError) as exc_info:
+        await asyncio.wait_for(_main(), timeout=_MAIN_FAIL_FAST_TIMEOUT_S)
+
+    # TimeoutError is itself an OSError subclass, so a bare `pytest.raises(OSError)`
+    # would silently accept the hang-then-timeout failure mode this test exists to catch.
+    assert not isinstance(exc_info.value, TimeoutError), \
+        "must raise the real bind error, not asyncio.wait_for's own timeout"
+    assert "simulated" in str(exc_info.value)
+
+    assert len(created_tasks) == 2, "expected exactly serve_task and bound_task"
+    bound_task = created_tasks[1]
+    assert bound_task.done(), \
+        "bound_task's cancellation must be fully drained before _main() re-raises"
+    assert bound_task.cancelled()
+
+
+async def _fake_bound_serve(self, port):
+    """Test double for ChatRelay.serve: fires the real bound-port contract
+    (sets bound_port, wakes wait_bound()) without opening a real socket —
+    lets _main() reach its print/return path instead of hanging on wait_bound()."""
+    self.bound_port = 19999
+    self._bound.set()
+
+
 async def test_main_signal_handler_not_implemented_does_not_crash():
     """Windows ProactorEventLoop raises NotImplementedError on add_signal_handler — must not crash."""
     loop = asyncio.get_running_loop()
     with patch.object(loop, "add_signal_handler", side_effect=NotImplementedError, create=True), \
-         patch("unity_mcp.chat_relay._find_free_port", return_value=19999), \
-         patch("unity_mcp.chat_relay.ChatRelay.serve", new=AsyncMock()):
+         patch("unity_mcp.chat_relay.ChatRelay.serve", new=_fake_bound_serve):
         await _main()
 
 
@@ -907,8 +1029,7 @@ async def test_main_registers_sigterm_and_sigint():
     """Normal path: both SIGTERM and SIGINT must be registered on the event loop."""
     loop = asyncio.get_running_loop()
     with patch.object(loop, "add_signal_handler", create=True) as mock_add, \
-         patch("unity_mcp.chat_relay._find_free_port", return_value=19999), \
-         patch("unity_mcp.chat_relay.ChatRelay.serve", new=AsyncMock()):
+         patch("unity_mcp.chat_relay.ChatRelay.serve", new=_fake_bound_serve):
         await _main()
     assert mock_add.call_count == 2
     registered = {call.args[0] for call in mock_add.call_args_list}

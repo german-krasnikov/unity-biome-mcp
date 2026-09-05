@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {
@@ -18,7 +19,30 @@ namespace UnityMCP.Editor
         readonly Dictionary<string, (string path, string comp, string field)> _bindings =
             new Dictionary<string, (string, string, string)>(StringComparer.OrdinalIgnoreCase);
 
+        // C03 — name (without '$') → value captured by a prior `MCP ... INTO $name` step.
+        // Separate from _bindings: a captured value has no Unity path|comp|field to re-read,
+        // it is a fixed string snapshotted at capture time.
+        readonly Dictionary<string, string> _captured =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         public bool HasAny => _bindings.Count > 0;
+
+        /// <summary>Stores a value captured by `MCP ... INTO $name` (name without '$').</summary>
+        public void SetCaptured(string name, string value) => _captured[name] = value;
+
+        /// <summary>
+        /// Resolves an exact `$name` sigil (the whole string, not embedded text) against a
+        /// previously captured value. Returns false for anything else, including a query
+        /// that merely contains a sigil — ASSERT/WAIT keep resolving those as Unity queries.
+        /// </summary>
+        public bool TryGetCaptured(string query, out string value)
+        {
+            value = null;
+            if (string.IsNullOrEmpty(query)) return false;
+            var m = PlaytestParser.SigilRegex.Match(query);
+            if (!m.Success || m.Value != query) return false;
+            return _captured.TryGetValue(m.Groups[1].Value, out value);
+        }
 
         /// <param name="readValue">Delegate for reading Unity values. Null = use PlaytestRunner.ReadValue.</param>
         public PlaytestVarRegistry(ReadValueFn readValue = null)

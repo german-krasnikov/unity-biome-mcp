@@ -44,6 +44,19 @@ def test_guard_passes_watch_remove():
     assert mw.check_play_mode_required("watch_remove") is None
 
 
+# ── B05: run_playtest's Play-mode gate moved past parsing (C#-side, header-driven) ──
+# Python must no longer pre-block it — a second, Python-only authority is exactly the
+# failure mode B05 removes (R-05: C# is now the sole authority).
+
+def test_run_playtest_not_in_runtime_only_cmds():
+    assert "run_playtest" not in _RUNTIME_ONLY_CMDS
+
+
+def test_guard_passes_run_playtest_edit_mode():
+    mw = _make_mw(play_state_known=True, is_playing=False)
+    assert mw.check_play_mode_required("run_playtest") is None
+
+
 # ── track_editor_state sets _play_state_known ────────────────────────────────
 
 def test_track_editor_state_sets_known():

@@ -6,12 +6,6 @@ from unittest.mock import patch
 
 import pytest
 
-# install/ lives at repo root (../.. from server/tests/) — add to path so tests can import it
-_INSTALL_DIR = Path(__file__).parent.parent.parent
-if str(_INSTALL_DIR) not in sys.path:
-    sys.path.insert(0, str(_INSTALL_DIR))
-
-
 # ─── P1-C: validator uses info.root_key ──────────────────────────────────────
 
 def test_validator_uses_root_key(tmp_path, monkeypatch):

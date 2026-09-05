@@ -148,21 +148,38 @@ namespace UnityMCP.Editor.TestRuns
                 _captureBuild);
         }
 
-        internal string Start(string requestId, string mode, string group, string filter)
+        internal string Start(
+            string requestId, string mode, string group, string filter,
+            TestRunSelection selection = null)
         {
             if (!IsSafeIdentity(requestId))
                 return "Error: request_id must contain 1-200 ASCII letters, digits, '.', '_' or '-'";
 
             lock (StartGate)
-                return StartCore(requestId, mode, group, filter);
+                return StartCore(requestId, mode, group, filter, selection);
         }
 
-        private string StartCore(string requestId, string mode, string group, string filter)
+        private string StartCore(
+            string requestId, string mode, string group, string filter,
+            TestRunSelection selection)
         {
+            try
+            {
+                _store.PruneOldRuns();
+            }
+            catch (Exception ex)
+            {
+                // Opportunistic retention -- a prune failure must never block dispatch.
+                Debug.LogWarning($"[TestRunStore] PruneOldRuns failed (dispatch unaffected): {ex.Message}");
+            }
+
             var now = _utcNow();
             var requestedMode = NormalizeMode(mode);
             var requestedGroup = group ?? "";
             var requestedFilter = filter ?? "";
+            var requestedSelection = selection ?? TestRunSelection.Empty;
+            var selectionSha256 = TestRunSelection.ComputeSha256(
+                requestedMode, requestedFilter, requestedGroup, requestedSelection);
             var request = _store.CreateRequestOnce(new TestRunRequestRecord
             {
                 request_id = requestId,
@@ -171,6 +188,10 @@ namespace UnityMCP.Editor.TestRuns
                 mode = requestedMode,
                 group = requestedGroup,
                 filter = requestedFilter,
+                categories = requestedSelection.Categories,
+                assemblies = requestedSelection.Assemblies,
+                tests = requestedSelection.Tests,
+                selection_sha256 = selectionSha256,
                 state = TestRunProtocol.Lifecycle.Prepared,
                 created_utc = now
             }, out var requestCreated);
@@ -276,6 +297,12 @@ namespace UnityMCP.Editor.TestRuns
                 if (!string.IsNullOrEmpty(run.filter))
                     executionFilter.groupNames = run.filter.Split(
                         new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
+                if (run.categories?.Length > 0)
+                    executionFilter.categoryNames = run.categories;
+                if (run.assemblies?.Length > 0)
+                    executionFilter.assemblyNames = run.assemblies;
+                if (run.tests?.Length > 0)
+                    executionFilter.testNames = run.tests;
 
                 // Persist the dispatch boundary before calling UTF. A reload or
                 // process loss between Execute and its returned GUID must never make
@@ -356,13 +383,20 @@ namespace UnityMCP.Editor.TestRuns
                 : Ack(run, TryGetSealedManifestCount(run.run_id));
         }
 
-        internal string GetRunJson(string runId)
+        internal string GetRunJson(string runId, bool compact = false)
         {
             if (string.IsNullOrWhiteSpace(runId)) return "none";
             try
             {
                 if (!Directory.Exists(_store.GetRunDirectory(runId))) return "none";
-                return JsonUtility.ToJson(ReadSnapshot(runId), false);
+                var summary = ReadSnapshot(runId);
+                // Only trim non-terminal polls -- a terminal snapshot is read once
+                // (or a handful of times) and Python's validate_terminal (A23a)
+                // requires full detail, so never compact it regardless of the
+                // caller's request.
+                if (compact && !summary.is_terminal)
+                    ClearLeafDetailArrays(summary);
+                return JsonUtility.ToJson(summary, false);
             }
             catch (Exception e)
             {
@@ -796,16 +830,24 @@ namespace UnityMCP.Editor.TestRuns
             return _store.Reconcile(runId, false);
         }
 
+        // Shared by ReadCompactSnapshot (ListRunsJson, always compact) and
+        // GetRunJson(compact: true) (A26) -- one place clears the leaf-detail
+        // arrays so both trimming paths can never drift apart.
+        private static void ClearLeafDetailArrays(TestRunSummary summary)
+        {
+            summary.missing_tests = Array.Empty<string>();
+            summary.unexpected_tests = Array.Empty<string>();
+            summary.conflicting_tests = Array.Empty<string>();
+            summary.leaves = Array.Empty<ReconciledLeafResult>();
+            summary.issues = Array.Empty<TestProtocolIssue>();
+        }
+
         private TestRunSummary ReadCompactSnapshot(string runId)
         {
             try
             {
                 var summary = ReadSnapshot(runId);
-                summary.missing_tests = Array.Empty<string>();
-                summary.unexpected_tests = Array.Empty<string>();
-                summary.conflicting_tests = Array.Empty<string>();
-                summary.leaves = Array.Empty<ReconciledLeafResult>();
-                summary.issues = Array.Empty<TestProtocolIssue>();
+                ClearLeafDetailArrays(summary);
                 return summary;
             }
             catch (Exception e)
@@ -881,7 +923,11 @@ namespace UnityMCP.Editor.TestRuns
                 created_utc = request.created_utc,
                 mode = request.mode ?? "",
                 group = request.group ?? "",
-                filter = request.filter ?? ""
+                filter = request.filter ?? "",
+                categories = request.categories ?? Array.Empty<string>(),
+                assemblies = request.assemblies ?? Array.Empty<string>(),
+                tests = request.tests ?? Array.Empty<string>(),
+                selection_sha256 = request.selection_sha256 ?? ""
             };
 
         private static bool RunMatchesIntent(

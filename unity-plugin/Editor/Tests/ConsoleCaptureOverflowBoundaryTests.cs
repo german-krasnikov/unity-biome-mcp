@@ -1,5 +1,6 @@
 // TDD: ConsoleCapture overflow boundary — sentinel format and capacity enforcement.
 // MCP-CONSOLE-032: tests the dropped-count sentinel on full vs. watermark queries.
+using System;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
@@ -59,6 +60,26 @@ namespace UnityMCP.Editor.Tests
                 "Watermark path must not append the [+N...dropped] sentinel");
             StringAssert.DoesNotContain("#MCP_INTERNAL", result,
                 "Watermark path must not append any #MCP_INTERNAL marker when dropped > 0");
+        }
+
+        // Regression (B23 gate): GetErrorsSince is itself a delta/watermark query, exactly
+        // like the GetLogs(sinceSeconds>0) path documented above -- it must never manufacture
+        // a phantom result from the global _droppedProblemCount when its own since-window has
+        // zero new problem entries. This was the root cause of PlaytestCorpusEditModeTests
+        // reporting false CONSOLE_ERR failures on every step once a full-suite run had already
+        // overflowed the 20-entry persisted-problem FIFO from earlier, unrelated tests.
+        [Test]
+        public void GetErrorsSince_DroppedCountAboveZeroButNoNewErrors_ReturnsNull()
+        {
+            InjectPersistenceOverflow(); // _droppedProblemCount > 0, all entries in the past
+            // +50ms buffer: DateTime.Now has ~15.6ms resolution on Windows, so without
+            // this an injected entry can share the same tick as `since` and the GetErrorsSince
+            // >= comparison would wrongly include it.
+            var since = DateTime.Now.AddMilliseconds(50); // window starts strictly after every injected entry
+
+            var result = ConsoleCapture.GetErrorsSince(since, maxCount: 5);
+
+            Assert.IsNull(result, $"Expected null (no new errors since the window start), got: {result}");
         }
 
         // MCP-CONSOLE-032 (Test 3): Injecting more entries than total capacity

@@ -28,7 +28,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from unity_mcp.backend_def import BACKENDS, ClaudeDef, CodexDef, KimiDef, AgyDef, OpenCodeDef
-from unity_mcp.chat_relay import ChatRelay, CliSession, SessionMeta, MAX_BUF, _find_free_port
+from unity_mcp.chat_relay import ChatRelay, CliSession, SessionMeta, MAX_BUF
 from .relay_helpers import make_proc, mock_sess, fresh_relay  # noqa: F401
 
 pytestmark = pytest.mark.monkey
@@ -491,9 +491,9 @@ async def test_multiturn_error_recovery_restart_at_turn3() -> None:
 
 async def test_multiturn_domain_reload_disconnect_reconnect() -> None:
     """Buffer survives disconnect; reconnecting client sees buffered events."""
-    port  = _find_free_port()
     relay = fresh_relay()
-    srv   = await asyncio.start_server(relay._handle_client, "127.0.0.1", port)
+    srv   = await asyncio.start_server(relay._handle_client, "127.0.0.1", 0)
+    port  = srv.sockets[0].getsockname()[1]
 
     # inject buffered lines simulating output before disconnect
     for i in range(5):

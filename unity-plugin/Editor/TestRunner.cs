@@ -89,10 +89,10 @@ namespace UnityMCP.Editor
 #endif
         }
 
-        public static string GetRun(string runId)
+        public static string GetRun(string runId, bool compact = false)
         {
 #if UNITY_INCLUDE_TESTS
-            return Service.GetRunJson(runId);
+            return Service.GetRunJson(runId, compact);
 #else
             return "none";
 #endif
@@ -133,13 +133,27 @@ namespace UnityMCP.Editor
             Action<string> onComplete,
             string group,
             string filter,
-            string requestId)
+            string requestId) =>
+            ExecuteWithSelection(mode, onComplete, group, filter, requestId, null);
+
+        /// <summary>
+        /// Same as Execute, plus a categories/assemblies/tests selection. Kept
+        /// internal (not an Execute overload) because TestRunSelection is
+        /// internal -- a public overload exposing it would be CS0051.
+        /// </summary>
+        internal static void ExecuteWithSelection(
+            string mode,
+            Action<string> onComplete,
+            string group,
+            string filter,
+            string requestId,
+            TestRunSelection selection)
         {
             if (onComplete == null) throw new ArgumentNullException(nameof(onComplete));
 #if UNITY_INCLUDE_TESTS
             try
             {
-                onComplete(Service.Start(requestId, mode, group, filter));
+                onComplete(Service.Start(requestId, mode, group, filter, selection));
             }
             catch (Exception e)
             {

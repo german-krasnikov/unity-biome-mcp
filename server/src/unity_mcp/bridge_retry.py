@@ -11,6 +11,20 @@ from dataclasses import dataclass
 from .bridge_reload_state import DomainReloadTracker  # noqa: TC001
 from .compile_state import CompileStateProbe  # noqa: TC001
 
+# Exponential retry backoff for domain_reload/busy/connection_refused reasons:
+# BASE**(attempt+1) capped at CAP_S (2/4/8s in production). Named so
+# tests/_fast_clock.py's autouse fixture can zero them out pre-construction
+# instead of paying real wall-clock backoff on every retry-path test.
+_RETRY_BACKOFF_BASE_S: float = 2.0
+_RETRY_BACKOFF_CAP_S: float = 8.0
+# Flat retry delay for the first-attempt "transient" fallback reason.
+_TRANSIENT_RETRY_DELAY_S: float = 1.0
+
+
+def _capped_backoff(attempt: int) -> float:
+    """Exponential backoff: _RETRY_BACKOFF_BASE_S**(attempt+1), capped at _RETRY_BACKOFF_CAP_S."""
+    return min(_RETRY_BACKOFF_BASE_S ** (attempt + 1), _RETRY_BACKOFF_CAP_S)
+
 
 @dataclass
 class RetryPolicy:
@@ -40,12 +54,12 @@ class RetryPolicy:
             return True, error.retry_after_seconds, "capacity_busy"
 
         if isinstance(error, DomainReloadError):
-            delay = min(2 ** (attempt + 1), 8.0)
+            delay = _capped_backoff(attempt)
             return True, delay, "domain_reload"
 
         busy = self.reload.is_active() or self.probe_busy()
         if busy:
-            delay = min(2 ** (attempt + 1), 8.0)
+            delay = _capped_backoff(attempt)
             return True, delay, "busy"
 
         # ConnectionRefused during domain reload: Unity TCP server is briefly down.
@@ -54,11 +68,11 @@ class RetryPolicy:
         if isinstance(error, ConnectionRefusedError):
             if self.probe.is_process_dead():
                 return False, 0.0, "process_dead"
-            delay = min(2 ** (attempt + 1), 8.0)  # 2 / 4 / 8s
+            delay = _capped_backoff(attempt)  # 2 / 4 / 8s
             return True, delay, "connection_refused"
 
         if attempt < 1:
-            return True, 1.0, "transient"
+            return True, _TRANSIENT_RETRY_DELAY_S, "transient"
 
         return False, 0.0, "grace_expired"
 

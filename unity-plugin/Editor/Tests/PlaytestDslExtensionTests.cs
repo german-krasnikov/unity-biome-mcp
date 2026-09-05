@@ -3,6 +3,7 @@
 using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -58,9 +59,9 @@ namespace UnityMCP.Editor.Tests
             var steps = PlaytestParser.Parse("MOVE_PATH 1,0,0 > 5,0,0 > 10,0,3");
             Assert.AreEqual(3, steps.Count);
             Assert.AreEqual(StepType.Move, steps[0].Type);
-            Assert.AreEqual(new Vector3(1f, 0f, 0f), steps[0].Position);
-            Assert.AreEqual(new Vector3(5f, 0f, 0f), steps[1].Position);
-            Assert.AreEqual(new Vector3(10f, 0f, 3f), steps[2].Position);
+            Assert.AreEqual(1f, steps[0].Position.x); Assert.AreEqual(0f, steps[0].Position.y); Assert.AreEqual(0f, steps[0].Position.z);
+            Assert.AreEqual(5f, steps[1].Position.x); Assert.AreEqual(0f, steps[1].Position.y); Assert.AreEqual(0f, steps[1].Position.z);
+            Assert.AreEqual(10f, steps[2].Position.x); Assert.AreEqual(0f, steps[2].Position.y); Assert.AreEqual(3f, steps[2].Position.z);
         }
 
         [Test]
@@ -112,7 +113,7 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(7, steps.Count);
             Assert.AreEqual(StepType.Move,      steps[0].Type);
             Assert.AreEqual("/Player",            steps[0].Path);
-            Assert.AreEqual(new Vector3(1,0,0), steps[0].Position);
+            Assert.AreEqual(1f, steps[0].Position.x); Assert.AreEqual(0f, steps[0].Position.y); Assert.AreEqual(0f, steps[0].Position.z);
             Assert.AreEqual(StepType.Wait,      steps[1].Type);
             Assert.AreEqual(0.4f,               steps[1].Delay, 0.001f);
             Assert.AreEqual(StepType.Move,      steps[2].Type);

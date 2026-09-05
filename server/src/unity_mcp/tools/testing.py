@@ -542,7 +542,7 @@ async def run_tests_wait(
                 break
             try:
                 current = await asyncio.wait_for(
-                    _fetch_test_run_json(run_id), timeout=remaining
+                    _fetch_test_run_json(run_id, compact=True), timeout=remaining
                 )
             except TimeoutError:
                 break
@@ -640,7 +640,7 @@ async def resolve_test_request(request_id: str) -> str:
     return await _send("resolve_test_request", {"request_id": request_id})
 
 
-async def _fetch_test_run_json(run_id: str) -> str:
+async def _fetch_test_run_json(run_id: str, *, compact: bool = False) -> str:
     """Return the raw durable JSON snapshot for one exact test run.
 
     Unvalidated by design: ``run_tests_wait`` polls through this directly and
@@ -648,12 +648,21 @@ async def _fetch_test_run_json(run_id: str) -> str:
     through the fail-closed ``get_test_run`` wrapper instead would let a
     ``PROTOCOL-ERROR`` string get silently swallowed by ``_decode_snapshot``'s
     non-JSON path and surface as a masked ``TIMEOUT``.
+
+    compact (A27): only ``run_tests_wait``'s tight-cadence poll loop opts in
+    (Unity's A26 trims leaf-detail arrays on a non-terminal snapshot). Omitted
+    from the wire args entirely when False, so a caller reading a snapshot in
+    full (e.g. the direct ``get_test_run`` tool) sends the exact same payload
+    shape as before this existed.
     """
     handle = _registry.get(run_id)
     if handle is not None and handle.result is not None:
         return handle.result  # cached terminal result
 
-    result = await _send("get_test_run", {"run_id": run_id})
+    args = {"run_id": run_id}
+    if compact:
+        args["compact"] = True
+    result = await _send("get_test_run", args)
 
     if handle is None and result in ("none", "null", ""):
         return f"NOT_FOUND|run_id={run_id}"

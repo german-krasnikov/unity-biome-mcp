@@ -533,6 +533,54 @@ LOG Combat finished
 
 ---
 
+### MCP
+
+Execute an MCP command through the CommandRouter, capturing output into an optional result variable for later assertions.
+
+```
+MCP create_object name=TestCube primitive=Cube
+MCP get_hierarchy depth=2 INTO $tree
+ASSERT $tree contains TestCube
+MCP set_property path=/TestCube component=Transform prop=position value=1,2,3
+ASSERT /TestCube|Transform|position.x == 1
+```
+
+**Syntax:** `MCP <cmd> param1=value1 [param2=value2 ...] [INTO $varname]`
+
+**Parameters:** MCP command parameters as `key=value` pairs (no spaces around `=`). See `tool_specs.py` for available commands and their parameter names.
+
+**INTO clause (optional):** Capture the raw response into a VAL for use in subsequent steps:
+```
+MCP get_component path=/TestCube component=Transform INTO $result
+ASSERT $result contains "position"
+```
+
+**System variable `$RUN_ID`:** Automatically injected parallel-safe unique ID per playtest run (hexadecimal, fixed length). Use in object names to avoid collisions:
+```
+MCP create_object name=obj_$RUN_ID primitive=Cube
+MCP delete_object path=/obj_$RUN_ID
+```
+
+**EXPECT_FAIL modifier (single step):** Expect a step to fail (error, missing path, type mismatch). Inverts pass/fail for that step only; console errors are still checked unless EXPECT_FAIL precedes:
+```
+EXPECT_FAIL
+MCP set_property path=/NonexistentObject component=Transform prop=position value=1,2,3
+```
+
+**MCP Command Restrictions (enforced at compile time):**
+- Play Mode gate: MCP steps require Play Mode unless the script has `# @needs editmode` header
+- EditMode execution policy: `# @needs editmode` scripts may call MCP commands only if the target tools support EditMode dispatch
+- Denied commands (9): `play`, `stop`, `pause`, `step`, `set_timescale`, `editor(action='play')`, `editor(action='stop')`, `editor(action='play_single')` (mode-transition and timing-control commands always require Play Mode state transition)
+- Runtime mutation guard: mutations (`set_property`, `set_active`, `create_object`, etc.) are rejected at dispatch time if called during Play Mode simulation
+
+**Format and receipts:**
+- Default format is text (human-readable report)
+- `run_playtest(format="json")` produces structured output with per-step receipt objects
+- Each MCP step receipt includes `command`, `status` (ok/error), `error_message` (if failed), and response data
+- Canonical receipt JSON persisted to `PlaytestReceiptStore.ReceiptPath(runId)` for archival
+
+---
+
 ### MACRO / CALL
 
 Define reusable command blocks with positional parameters. Macros are collected in phase 0 (before ALIAS), expanded in place. Nesting up to 10 levels. Cannot nest MACRO definitions.
@@ -1040,7 +1088,73 @@ MOVE_PATH $patrol_start_0 > $patrol_start_1
 **Label format:** `$<sanitized_label>` — lowercase, underscores, stripped special chars  
 **Annotation types:** `Point` → single VAL; `Path` → `_start`/`_end` pair + vertex list `_0`, `_1`, …
 
+## Player Runtime Support (v1.53.0+)
+
+The playtest DSL can run in Player builds as well as EditMode/PlayMode. Player runtime is
+enabled by the `UnityMCP.Playtest.Core` engine-free assembly and shared `Compare()` 
+evaluation logic.
+
+### Supported Step Types in Player
+
+Player runtime supports 9 core step verbs (validation, assertions, and flow):
+
+1. `ASSERT` — test value with operators (`==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`)
+2. `ASSERT_BATCH` — multiple assertions, stop at first failure
+3. `ASSERT_NEAR` — distance check between GameObjects
+4. `ASSERT_CONSOLE_CLEAN` — verify no console errors
+5. `WAIT` — simple delay by seconds
+6. `WAIT_UNTIL` — loop until condition true or timeout
+7. `LOG` — write to console
+8. `SNAPSHOT` — capture query values (no-op in Player, logged)
+9. `INVOKE` — call method by reflection with parse-time argument binding
+
+Unsupported: `MCP` (no Player bridge), `MOVE`, `TELEPORT`, `CLICK`, `FILL`, `FOCUS` (Editor-only verbs).
+
+### Pre-Scan Gate (Player Load-Time Validation)
+
+Before any Player script runs, `PlayerPlaytestRunner.Parse()` performs a pre-scan that:
+- Rejects scripts with unsupported verbs (e.g., `MCP`, `MOVE`)
+- Rejects `# @needs editmode` header (EditMode-only directive)
+- Validates path syntax and operator tokens
+- Returns a **detailed error** naming the offending line
+
+Failed pre-scan halts execution without entering Play Mode simulation. This catch-all gate
+prevents script failures mid-run and ensures deterministic behavior across platform builds.
+
 ---
+
+## Async Dispatch (Long-Running Playtests)
+
+`run_playtest()` with `timeout > 120s` automatically routes through the **async dispatch pair**:
+1. `start_playtest` — non-blocking dispatch, returns `run_id=<hex-id>`
+2. `get_playtest_run` — compact poll, returns running status or terminal report
+
+The internal constant `_RUN_PLAYTEST_SYNC_CEILING_S = 120.0` (Python) and
+`RunPlaytestTimeoutSeconds` (C# in `MCPServer.cs`) define when to switch
+strategies. Single TCP calls blocking longer than this threshold would timeout
+before completion.
+
+**Flow (transparent to agents):**
+```
+run_playtest(script="...", timeout=300)
+  → start_playtest(script="...", timeout=20)  [non-blocking]
+    returns: "run_id=abc123"
+  ← poll loop (timeout budget = 300s, interval = 1s, tcp_buffer = 20s)
+      get_playtest_run(run_id="abc123", timeout=20)
+      → "phase=running|step=1/5|elapsed_ms=2000"
+      → "phase=running|step=3/5|elapsed_ms=4500"
+      → "PLAYTEST: 5/5 passed (12.3s)" [terminal]
+    returns: final report
+```
+
+**Poll response formats:**
+- Running: `phase=running|step=N/M|elapsed_ms=<ms>`
+- Terminal (success): `PLAYTEST: M/M passed/failed (Ts) ...`
+- Terminal (error): Error detail or exception message
+
+Internal module: `playtest_async.run_via_start_poll()` owns dispatch and
+bounded polling; `runtime.py` branches into it only when the timeout criterion
+is met (R-04).
 
 **See also:** `run_playtest` (inline `script=` or file `path=`) in
 `AI/runtime-playtest.md`, `AI/playtest-composer.md` for the visual editor, and

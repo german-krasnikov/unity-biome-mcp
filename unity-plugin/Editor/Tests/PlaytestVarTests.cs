@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {

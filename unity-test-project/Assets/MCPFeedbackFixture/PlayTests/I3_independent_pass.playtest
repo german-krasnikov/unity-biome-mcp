@@ -1,5 +1,5 @@
 INCLUDE common.defs
 INVOKE /Fixture/Async FixtureAsyncState Reset
 INVOKE /Fixture/Async FixtureAsyncState StartOperation 0.5
-WAIT_UNTIL $async_progress == 1 TIMEOUT 5
-ASSERT $async_running == False
+WAIT_UNTIL $async_running == False TIMEOUT 5
+ASSERT $async_progress == 1

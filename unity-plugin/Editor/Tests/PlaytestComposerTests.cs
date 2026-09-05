@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine.UIElements;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {

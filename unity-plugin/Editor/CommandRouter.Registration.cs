@@ -336,8 +336,9 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(args, "request_id")),
                 required: "request_id", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("get_test_run", args => TestRunner.GetRun(
-                    JsonHelper.ExtractString(args, "run_id")),
-                required: "run_id", optional: "", allowedDuringCompile: true);
+                    JsonHelper.ExtractString(args, "run_id"),
+                    JsonHelper.ExtractString(args, "compact") == "true"),
+                required: "run_id", optional: "compact", allowedDuringCompile: true);
             CommandRegistry.Register("list_test_runs", args => TestRunner.ListRuns(
                     ExtractInt(args, "limit", 20)),
                 required: "", optional: "limit", allowedDuringCompile: true);
@@ -627,7 +628,7 @@ namespace UnityMCP.Editor
         internal static void RegisterAsyncCommands()
         {
             CommandRegistry.RegisterAsync("run_tests", AsyncRunTests,
-                required: "request_id", optional: "mode,filter,group");
+                required: "request_id", optional: "mode,filter,group,categories,assemblies,tests");
             CommandRegistry.RegisterAsync("ask_user", AsyncAskUser, required: "", optional: "questions",
                 alwaysAllowed: true, allowedDuringCompile: true);  // UI-only card, no assembly access
             CommandRegistry.RegisterAsync("wait_until", AsyncWaitUntil, mutating: true, runtime: true,
@@ -636,8 +637,20 @@ namespace UnityMCP.Editor
                 required: "path,position", optional: "timeout");
             CommandRegistry.RegisterAsync("test_step", AsyncTestStep, runtime: true,
                 required: "path,position", optional: "checks_before,checks_after,wait_after,timeout");
-            CommandRegistry.RegisterAsync("run_playtest", AsyncRunPlaytest, runtime: true,
+            // B05: the Play-mode gate moved past parsing — AsyncRunPlaytest scans the script's
+            // `# @needs editmode` header itself and decides, instead of registration pre-blocking
+            // every Edit-mode call before the header is ever read.
+            CommandRegistry.RegisterAsync("run_playtest", AsyncRunPlaytest, runtime: false,
                 required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure,fresh");
+            // E02: internal wire command (not @mcp.tool() until E04) — non-blocking playtest
+            // dispatch, paired with get_playtest_run's poll. Same gates as run_playtest above.
+            CommandRegistry.RegisterAsync("start_playtest", AsyncStartPlaytest, runtime: false,
+                required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure,fresh");
+            // E03: internal wire command (not @mcp.tool() until E04) — compact poll for
+            // start_playtest. allowedDuringCompile mirrors get_test_run so polling survives an
+            // unrelated compile.
+            CommandRegistry.RegisterAsync("get_playtest_run", AsyncGetPlaytestRun,
+                required: "run_id", optional: "", allowedDuringCompile: true);
             CommandRegistry.RegisterAsync("build", AsyncBuild,
                 required: "action", optional: "target,scenes,path,dev");
             CommandRegistry.RegisterAsync("package", AsyncPackage,

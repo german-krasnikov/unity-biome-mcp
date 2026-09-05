@@ -1,0 +1,116 @@
+{
+  "$note": "Single source of truth for cross-language test taxonomy dimensions (plan item C13, attempt #6 of this vocabulary — the only difference this time is that C18's lint turns an unknown dimension into a CI failure). Each dimension maps onto its representation in each test language: pytest_marker (server/pyproject.toml [tool.pytest.ini_options].markers), csharp_category (unity-plugin/Editor/TestSupport/TestCategories.cs public const string), and dsl_header_value (a .playtest '# @needs'/'# @tags' token recognized by PlaytestHeaderScanner.cs). A null field means that language/layer has no equivalent for this dimension. scripts/tests/test_taxonomy_map.py cross-checks every non-null pytest_marker/csharp_category value against its real source of truth, independently in both directions.",
+  "dimensions": {
+    "live": {
+      "pytest_marker": "live",
+      "csharp_category": null,
+      "dsl_header_value": null,
+      "applies_to_sources": ["python_server"]
+    },
+    "live_cli": {
+      "pytest_marker": "live_cli",
+      "csharp_category": "LiveCLI",
+      "dsl_header_value": null,
+      "applies_to_sources": ["python_server", "csharp_editmode"]
+    },
+    "monkey": {
+      "pytest_marker": "monkey",
+      "csharp_category": "Stress",
+      "dsl_header_value": null,
+      "applies_to_sources": ["python_server", "csharp_editmode"]
+    },
+    "live_chat": {
+      "pytest_marker": "live_chat",
+      "csharp_category": null,
+      "dsl_header_value": null,
+      "applies_to_sources": ["python_server"]
+    },
+    "conformance": {
+      "pytest_marker": "conformance",
+      "csharp_category": null,
+      "dsl_header_value": null,
+      "applies_to_sources": ["python_server"]
+    },
+    "requires_graphics": {
+      "pytest_marker": "requires_graphics",
+      "csharp_category": "RequiresGraphics",
+      "dsl_header_value": null,
+      "applies_to_sources": ["python_server", "csharp_editmode", "csharp_playmode"]
+    },
+    "cross_project": {
+      "pytest_marker": "cross_project",
+      "csharp_category": null,
+      "dsl_header_value": null,
+      "applies_to_sources": ["python_server"]
+    },
+    "slow": {
+      "pytest_marker": "slow",
+      "csharp_category": "Slow",
+      "dsl_header_value": null,
+      "applies_to_sources": ["python_server", "csharp_editmode"]
+    },
+    "stateful": {
+      "pytest_marker": "stateful",
+      "csharp_category": null,
+      "dsl_header_value": null,
+      "applies_to_sources": ["python_server"]
+    },
+    "wire": {
+      "pytest_marker": "wire",
+      "csharp_category": null,
+      "dsl_header_value": null,
+      "applies_to_sources": ["python_server"]
+    },
+    "real_clock": {
+      "pytest_marker": "real_clock",
+      "csharp_category": null,
+      "dsl_header_value": null,
+      "applies_to_sources": ["python_server"]
+    },
+    "fault_injection": {
+      "pytest_marker": null,
+      "csharp_category": "FaultInjection",
+      "dsl_header_value": null,
+      "applies_to_sources": ["csharp_editmode"]
+    },
+    "interactive_visual": {
+      "pytest_marker": null,
+      "csharp_category": "InteractiveVisual",
+      "dsl_header_value": null,
+      "applies_to_sources": ["csharp_editmode"]
+    },
+    "perf": {
+      "pytest_marker": null,
+      "csharp_category": "Perf",
+      "dsl_header_value": null,
+      "applies_to_sources": []
+    },
+    "worker_only": {
+      "pytest_marker": null,
+      "csharp_category": "WorkerOnly",
+      "dsl_header_value": null,
+      "applies_to_sources": ["csharp_editmode"]
+    },
+    "editmode": {
+      "pytest_marker": null,
+      "csharp_category": null,
+      "dsl_header_value": "editmode",
+      "applies_to_sources": ["dsl_playtest", "csharp_editmode"]
+    },
+    "playmode": {
+      "pytest_marker": null,
+      "csharp_category": null,
+      "dsl_header_value": "playmode",
+      "applies_to_sources": ["dsl_playtest", "csharp_playmode"]
+    }
+  },
+  "_excluded_pytest_markers": {
+    "timeout": "per-test timeout override (pytest-timeout), a pytest mechanism, not a taxonomy dimension",
+    "asyncio": "auto-registered by pytest-asyncio; registered explicitly only because of --strict-markers, not a taxonomy dimension"
+  },
+  "_audit_notes": [
+    "TestCategories.Perf has 0 usages as [Category(TestCategories.Perf)] anywhere under unity-plugin/ or unity-test-project/ (verified 2026-09-05 via grep -rn \"TestCategories\\.Perf\" --include=\"*.cs\" — no hits outside the const declaration in TestCategories.cs itself).",
+    "CleanupOrderingSentinel.Category (unity-plugin/Editor/Tests/FaultInjection/CleanupOrderingFaultInjectionTests.cs) has 6 usages as [Category(CleanupOrderingSentinel.Category)] but is a test-local ad hoc category string, NOT declared as a public const in TestCategories.cs — intentionally excluded from this map.",
+    "TestCategories.Slow has 1 usage: unity-test-project/Assets/Tests/Editor/PlaytestCorpusEditModeTests.cs:117 [Category(TestCategories.Slow)] (verified 2026-09-05 via the same grep pattern)."
+  ]
+}

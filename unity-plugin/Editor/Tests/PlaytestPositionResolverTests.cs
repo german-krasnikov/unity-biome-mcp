@@ -2,6 +2,7 @@
 using System;
 using NUnit.Framework;
 using UnityEngine;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -135,7 +136,9 @@ namespace UnityMCP.Editor.Tests
             var steps = PlaytestParser.Parse("MOVE TO 1,2,3");
             Assert.AreEqual(1, steps.Count);
             Assert.IsNull(steps[0].RawPosition);
-            Assert.AreEqual(new Vector3(1f, 2f, 3f), steps[0].Position);
+            Assert.AreEqual(1f, steps[0].Position.x);
+            Assert.AreEqual(2f, steps[0].Position.y);
+            Assert.AreEqual(3f, steps[0].Position.z);
         }
 
         // ── T13: parser — MOVE @-expr → RawPosition set, Position default ─────────
@@ -146,7 +149,9 @@ namespace UnityMCP.Editor.Tests
             var steps = PlaytestParser.Parse("MOVE TO @/P.position");
             Assert.AreEqual(1, steps.Count);
             Assert.AreEqual("@/P.position", steps[0].RawPosition);
-            Assert.AreEqual(Vector3.zero, steps[0].Position);
+            Assert.AreEqual(0f, steps[0].Position.x);
+            Assert.AreEqual(0f, steps[0].Position.y);
+            Assert.AreEqual(0f, steps[0].Position.z);
         }
 
         // ── T14: parser — TELEPORT @-expr → RawPosition set ──────────────────────
@@ -168,12 +173,16 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(3, steps.Count);
             // first: literal
             Assert.IsNull(steps[0].RawPosition);
-            Assert.AreEqual(Vector3.zero, steps[0].Position);
+            Assert.AreEqual(0f, steps[0].Position.x);
+            Assert.AreEqual(0f, steps[0].Position.y);
+            Assert.AreEqual(0f, steps[0].Position.z);
             // second: @-ref
             Assert.AreEqual("@/A.position", steps[1].RawPosition);
             // third: literal
             Assert.IsNull(steps[2].RawPosition);
-            Assert.AreEqual(new Vector3(5f, 0f, 5f), steps[2].Position);
+            Assert.AreEqual(5f, steps[2].Position.x);
+            Assert.AreEqual(0f, steps[2].Position.y);
+            Assert.AreEqual(5f, steps[2].Position.z);
         }
     }
 }

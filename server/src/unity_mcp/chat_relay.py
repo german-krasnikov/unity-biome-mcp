@@ -32,7 +32,6 @@ from .cli_session import (  # noqa: F401
     BufLine,
     CliSession,
     SessionMeta,
-    _find_free_port,
 )
 from .relay_buffer import MAX_BUF, RelayBuffer  # noqa: F401
 from .stream_transform import (
@@ -80,15 +79,26 @@ class ChatRelay:
         self._turn_id:          int                        = 0
         self._context_file                                 = None  # set after first context write
         self._relay_seq:        int                        = 0   # monotonic seq for ACP events
+        self.bound_port:        int                        = 0   # set by serve() once the socket is live
+        self._bound:            asyncio.Event              = asyncio.Event()  # fires once bound_port is set
 
     # ── Public TCP server ────────────────────────────────────────────────
 
     async def serve(self, port: int) -> None:
+        """Bind and serve. Pass port=0 to let the OS pick one, then read it back
+        from `bound_port` (set `_bound` fires first) — avoids a probe-then-bind
+        TOCTOU gap for callers that don't already know their port."""
         server = await asyncio.start_server(
             self._handle_client, "127.0.0.1", port)
+        self.bound_port = server.sockets[0].getsockname()[1]
+        self._bound.set()
         self._watchdog_task = asyncio.create_task(self._ppid_watchdog())
         async with server:
             await server.serve_forever()
+
+    async def wait_bound(self) -> None:
+        """Await until serve() has bound its socket and set `bound_port`."""
+        await self._bound.wait()
 
     # ── Client handler ───────────────────────────────────────────────────
 
@@ -449,7 +459,6 @@ def _extract_text_from_turn(line: str) -> str:
 async def _main() -> None:
     from .session_identity import cleanup_stale_sessions
     cleanup_stale_sessions()
-    port = _find_free_port()
     relay = ChatRelay()
     loop = asyncio.get_running_loop()
     try:
@@ -460,8 +469,30 @@ async def _main() -> None:
             )
     except NotImplementedError:
         pass
-    print(f"relay_port:{port}", flush=True)
-    await relay.serve(port)
+    # Bind port 0 (OS-assigned) instead of probing a free port and rebinding
+    # it — closes the probe-then-bind TOCTOU window (A06). serve() sets
+    # bound_port and fires _bound as soon as the real socket is live.
+    serve_task = asyncio.create_task(relay.serve(0))
+    bound_task = asyncio.create_task(relay.wait_bound())
+    # Race the two: if serve() raises before ever binding (e.g. OSError on an
+    # in-use port), waiting on wait_bound() alone would hang forever since
+    # _bound is never set. FIRST_COMPLETED lets a bind failure surface fast.
+    await asyncio.wait({serve_task, bound_task}, return_when=asyncio.FIRST_COMPLETED)
+    if serve_task.done() and not bound_task.done():
+        bound_task.cancel()
+        # Awaiting an already-done Task/Future skips its internal `yield`
+        # (Future.__await__ returns immediately when done()), so the plain
+        # `await serve_task` below would never hand control back to the loop
+        # for the just-requested cancellation to actually run. Draining it
+        # here first ensures bound_task reaches a terminal state before this
+        # function's frame (and its last reference to bound_task) is dropped
+        # — otherwise GC finds a still-pending Task and logs "Task was
+        # destroyed but it is pending!" on the 'asyncio' logger.
+        await asyncio.gather(bound_task, return_exceptions=True)
+        await serve_task   # re-raises the bind error cleanly
+    await bound_task
+    print(f"relay_port:{relay.bound_port}", flush=True)
+    await serve_task
 
 
 def main() -> None:

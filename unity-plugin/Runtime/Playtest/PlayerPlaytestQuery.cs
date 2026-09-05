@@ -2,39 +2,45 @@ using System;
 using System.Globalization;
 using System.Reflection;
 using UnityEngine;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Playtest
 {
     public sealed partial class PlayerPlaytestRunner
     {
-        private static StepResult EvaluateAssert(string step)
+        internal static StepResult EvaluateAssert(PlaytestStep step)
         {
-            var expression = step.Substring("ASSERT ".Length).Trim();
-            foreach (var op in new[] { " contains ", " == ", " != ", " >= ", " <= ", " > ", " < " })
+            try
             {
-                var index = expression.IndexOf(op, StringComparison.OrdinalIgnoreCase);
-                if (index < 0)
-                    continue;
-                var query = expression.Substring(0, index).Trim();
-                var expected = expression.Substring(index + op.Length).Trim();
-                try
+                // Bool shorthand: a step can arrive with no operator (e.g.
+                // ASSERT /path with no comparison) — treat it as an implicit
+                // "== True" (or "== False" when negated), mirroring Core's own
+                // bool-shorthand semantics instead of failing Compare().
+                if (string.IsNullOrEmpty(step.Op))
                 {
-                    var actual = ReadQuery(query);
-                    return Compare(actual, op.Trim(), expected)
-                        ? StepResult.Pass(step, $"{actual} {op.Trim()} {expected}")
-                        : StepResult.Fail(step, $"actual={actual}, expected {op.Trim()} {expected}");
+                    var negated = step.Query.StartsWith("!", StringComparison.Ordinal);
+                    var query = negated ? step.Query.Substring(1) : step.Query;
+                    var expected = negated ? "False" : "True";
+                    var boolActual = ReadQuery(query);
+                    return string.Equals(boolActual, expected, StringComparison.OrdinalIgnoreCase)
+                        ? StepResult.Pass(step.RawLine, $"{boolActual} == {expected}")
+                        : StepResult.Fail(step.RawLine, $"actual={boolActual}, expected {expected}");
                 }
-                catch (Exception e)
-                {
-                    return StepResult.Fail(step, e.Message);
-                }
+
+                var actual = ReadQuery(step.Query);
+                return PlaytestParser.Compare(actual, step.Op, step.Value)
+                    ? StepResult.Pass(step.RawLine, $"{actual} {step.Op} {step.Value}")
+                    : StepResult.Fail(step.RawLine, $"actual={actual}, expected {step.Op} {step.Value}");
             }
-            return StepResult.Fail(step, "missing comparison operator");
+            catch (Exception e)
+            {
+                return StepResult.Fail(step.RawLine, e.Message);
+            }
         }
 
-        private static StepResult ExecuteSnapshot(string step)
+        private static StepResult ExecuteSnapshot(PlaytestStep step)
         {
-            var queries = step.Substring("SNAPSHOT ".Length).Split(',');
+            var queries = step.Queries ?? Array.Empty<string>();
             var parts = new string[queries.Length];
             for (var i = 0; i < queries.Length; i++)
             {
@@ -45,48 +51,43 @@ namespace UnityMCP.Playtest
                 }
                 catch (Exception e)
                 {
-                    return StepResult.Fail(step, e.Message);
+                    return StepResult.Fail(step.RawLine, e.Message);
                 }
             }
-            return StepResult.Pass(step, string.Join(";", parts));
+            return StepResult.Pass(step.RawLine, string.Join(";", parts));
         }
 
-        private static StepResult ExecuteInvoke(string step)
+        internal static StepResult ExecuteInvoke(PlaytestStep step)
         {
-            var tokens = SplitWords(step);
-            if (tokens.Length < 4)
-                return StepResult.Fail(step, "INVOKE syntax: INVOKE /path Component Method [args]");
-
+            // C# reflection-call failures throw and are caught below; a component's own
+            // return value (even one that happens to read "error:...", e.g. GridPlayer.Move
+            // reporting a rejected boundary move) is just data — the Editor's own INVOKE
+            // handler (PlaytestRunner.Steps.cs) never inspects it either, and only a thrown
+            // exception marks the step failed. See player_ci_bounds.playtest.
             try
             {
-                var component = FindComponent(FindObject(tokens[1]), tokens[2]);
-                var result = InvokeBestMatch(component, tokens[3], tokens, 4);
-                if (result is string message && message.StartsWith("error:", StringComparison.OrdinalIgnoreCase))
-                    return StepResult.Fail(step, message);
-                return StepResult.Pass(step, FormatValue(result));
+                var component = FindComponent(FindObject(step.Path), step.Component);
+                var argTokens = PlaytestParser.SplitTokens(step.Args ?? "");
+                var result = InvokeBestMatch(component, step.Method, argTokens, 0);
+                return StepResult.Pass(step.RawLine, FormatValue(result));
             }
             catch (Exception e)
             {
-                return StepResult.Fail(step, e.Message);
+                return StepResult.Fail(step.RawLine, e.Message);
             }
         }
 
-        private static StepResult ExecuteSet(string step)
+        internal static StepResult ExecuteSet(PlaytestStep step)
         {
-            var tokens = SplitWords(step);
-            if (tokens.Length < 5)
-                return StepResult.Fail(step, "SET syntax: SET /path Component field value");
-
             try
             {
-                var component = FindComponent(FindObject(tokens[1]), tokens[2]);
-                var value = string.Join(" ", tokens, 4, tokens.Length - 4);
-                SetMember(component, tokens[3], value);
-                return StepResult.Pass(step, $"{tokens[3]}={value}");
+                var component = FindComponent(FindObject(step.Path), step.Component);
+                SetMember(component, step.Method, step.Args);
+                return StepResult.Pass(step.RawLine, $"{step.Method}={step.Args}");
             }
             catch (Exception e)
             {
-                return StepResult.Fail(step, e.Message);
+                return StepResult.Fail(step.RawLine, e.Message);
             }
         }
 
@@ -219,39 +220,14 @@ namespace UnityMCP.Playtest
                 return float.Parse(raw, CultureInfo.InvariantCulture);
             if (targetType == typeof(double))
                 return double.Parse(raw, CultureInfo.InvariantCulture);
+            if (targetType == typeof(Vector3))
+            {
+                var f = NumericParsing.ParseFloats(raw, 3);
+                return new Vector3(f[0], f[1], f[2]);
+            }
             if (targetType.IsEnum)
                 return Enum.Parse(targetType, raw, true);
             return Convert.ChangeType(raw, targetType, CultureInfo.InvariantCulture);
-        }
-
-        private static string[] SplitWords(string step)
-        {
-            return step.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        }
-
-        private static bool Compare(string actual, string op, string expected)
-        {
-            if (float.TryParse(actual, NumberStyles.Float, CultureInfo.InvariantCulture, out var a) &&
-                float.TryParse(expected, NumberStyles.Float, CultureInfo.InvariantCulture, out var e))
-            {
-                return op switch
-                {
-                    "==" => Math.Abs(a - e) < 0.001f,
-                    "!=" => Math.Abs(a - e) >= 0.001f,
-                    ">" => a > e,
-                    ">=" => a >= e,
-                    "<" => a < e,
-                    "<=" => a <= e,
-                    _ => false,
-                };
-            }
-            return op switch
-            {
-                "==" => string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase),
-                "!=" => !string.Equals(actual, expected, StringComparison.OrdinalIgnoreCase),
-                "contains" => actual?.IndexOf(expected, StringComparison.OrdinalIgnoreCase) >= 0,
-                _ => false,
-            };
         }
 
         private static string FormatValue(object value)

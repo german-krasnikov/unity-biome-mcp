@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEditor;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {

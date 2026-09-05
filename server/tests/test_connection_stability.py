@@ -139,6 +139,9 @@ async def test_cooldown_not_rearmed_when_cooldown_not_ok():
 # B1: Exponential backoff + storm test
 # ---------------------------------------------------------------------------
 
+@pytest.mark.real_clock  # A03: drives a simulated clock via fake_sleep(n) that
+# advances by whatever `n` production passes for IDLE_TICK_S/BUSY_TICK_S -- a
+# patched 0.0 never advances the virtual clock, hitting pytest-timeout.
 async def test_exponential_backoff_storm():
     """B1: always-failing reconnect over 10 virtual minutes.
 

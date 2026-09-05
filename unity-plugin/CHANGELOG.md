@@ -12,6 +12,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.53.0] — 2026-09-05
+
+### Added
+
+- **Async playtest dispatch (Wave E, E02–E04):** Non-blocking `start_playtest` + polling `get_playtest_run` for scripts with `timeout > 120s`; threshold `_RUN_PLAYTEST_SYNC_CEILING_S` (Python) and `RunPlaytestTimeoutSeconds` (C#) prevent single blocking TCP calls from timeout. Transparent routing in `run_playtest()` via `playtest_async.run_via_start_poll()` (R-04); run ID persisted in `PlaytestReceiptStore` across domain reloads
+- **PlayMode corpus and CI job (Wave E, E06a–E06b):** 3 Play-bound `.playtest` files in `unity-test-project/Assets/Tests/PlayMode/` via `PlaytestCorpusPlayModeTests`; CI lane `unity-tests.yml` PlayMode job with `-testPlatform PlayMode --filter PlaytestCorpusPlayModeTests` filter; validates runtime coroutines and Play-only DSL operations
+- **Player fan-out runner (Wave E, E07–E09):** New `scripts/run_player_playtests.py` with `--jobs N` parallelism; filters `.playtest` by `@needs player` tag; builds standalone Player for Linux/macOS/Windows; runs sequentially or in parallel; returns matrix report. 6 `.playtest` files in `StreamingAssets/Playtests/` under CI nightly-full lane
+- **Honest test coverage (Wave E, E11):** Updated taxonomy and CI lanes: 9 EditMode corpus files + 3 PlayMode corpus files + 6 Player files = **18/22 total coverage**. Python `.suite` lane stress-tests stateful A→B→C runner via `run_playtest_suite(tag="@suite-only")`
+- **MCP verb DSL steps:** `MCP <cmd> key=value [INTO $var]` executes MCP commands from playtest scripts; $RUN_ID injected as parallel-safe unique identifier per run; EXPECT_FAIL modifier inverts pass/fail for single step; format=json outputs structured per-step receipt objects with command, status, and response data persisted for archival
+- **EditMode DSL execution:** `# @needs editmode` header opt-out of Play Mode gate; `PlaytestRunner.Run(..., requiresPlayMode: false)` runs steps through `EditorApplication.update` ticks (not delayCall) via centralized `MainThreadDispatcher`; MCP mutations validated at dispatch time
+- **Playtest corpus carriers:** 9 Edit-capable MCPFeedbackFixture files run through `PlaytestCorpusEditModeTests` (B21); 3 Play-bound-only files (`C_shared_finish`, `DSL_types`, `I3_independent_pass`) run through `PlaytestCorpusPlayModeTests` (B22) for runtime coroutine validation; Python `.suite` lane stress-tests stateful A/B/C chain via `run_playtest_suite(tag="@suite-only")`
+- **Test taxonomy and lanes (data-driven):** `Tests/taxonomy-map.json` (C13) canonical cross-language taxonomy (pytest markers, C# TestCategories, DSL @needs values); `Tests/biome-test-lanes.json` (C15) 4 lanes (pr-python-core, pr-unity-core, master-conformance, nightly-full) with filter configs; `scripts/check_test_metadata.py` (C18) enforces unknown category/tag = CI failure
+- **Test selection flags in runner:** `run_unity_tests.py` now accepts `--category` and `--assembly` for targeted test runs; `--tests-file` allows filtering from a newline-delimited file with validation and deduplication by canonical form
+- **Test run retention and pruning:** `TestRunStore.PruneOldRuns` implements 50-run cap with 7-day staleness floor; runs older than 7 days are retained only if under 50 total
+- **Dispatch-failure visibility:** `TestRunReconciler` now surfaces the exact failure reason in `dispatch_issue` field instead of generic dispatch status
+- **Tag filtering for playtest suites:** `run_playtest_suite(tag=...)` filters files by `# @tags` header value; zero matches fail-closed
+- **Cassette recorder for protocol testing:** New `bridge_cassette.py` module records and replays TCP exchanges for deterministic wire protocol testing
+- **Full baseline migration:** `full-baseline.json` replaces hardcoded 6001 Unity version constant
+- **Engine-free Core assembly (Wave D):** New `UnityMCP.Playtest.Core` runtime assembly with `noEngineReferences: true` (D16) extracts parser, Compare logic, and utilities from Editor; consumed by both Editor playtest runner and Player runtime without Unity dependency. Enables pure dotnet testing lane and player builds.
+- **Unified playtest parser (Wave D, D14, D18):** `PlaytestParser.cs` moved from Editor to Core and split into logical files (Directives, Internals, Mcp, Subroutines). New `PlaytestHeaderScanner` parses DSL headers at load time. Unified `Compare()` logic serves Editor DSL, Player runtime, and pure dotnet tests.
+- **Pure dotnet test lane (Wave D, D15):** New `unity-plugin/Tests~/Pure/UnityMCP.Playtest.Core.Tests.csproj` runs NUnit tests outside Unity using `dotnet test` with zero dependency on Editor or runtime. Tilde folder prevents Microsoft.NET.Test.Sdk from breaking Editor compilation. Validates parser correctness and Compare parity.
+- **Player runtime playtest support (Wave D, D17):** `PlayerPlaytestRunner` reuses Core parser and validates scripts via pre-scan gate that rejects unsupported verbs (MCP, MOVE, CLICK) and `# @needs editmode` before execution. Supports 9 core step types: ASSERT, ASSERT_BATCH, ASSERT_NEAR, ASSERT_CONSOLE_CLEAN, WAIT, WAIT_UNTIL, LOG, SNAPSHOT, INVOKE.
+- **Numeric utilities (Wave D):** New `Float3.cs` immutable 3D vector type and `NumericParsing.cs` utilities for decimal/float parsing with culture-invariant rounding. `IAliasSource` interface (D20) allows custom alias providers to inject VAL definitions at runtime.
+
+### Changed
+
+- **PR-lane Python test speed:** 262s → 35s via selective test-class filtering and focused pytest markers (M-wave-a)
+- **Test run polling compaction:** `get_test_run` responses omit full detail for non-terminal states, keeping compact snapshots until terminal verdict
+- **CI timeout consistency:** Timeout-minutes now explicitly set across all job lanes; Linux-only Unity compile on PR lanes (v1.17.0 contracts)
+- **Library/.meta cache strategy:** Library artifacts cached across runs with mtime validation; .meta GUID conflicts pre-checked on import
+
+### Test Results
+
+- **C# EditMode:** 9,310 passed
+- **Python PR-lane:** 35s (35× speedup)
+
 ## [v1.52.0] — 2026-09-03
 
 ### Fixed
@@ -3681,7 +3717,12 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.52.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.53.0...HEAD
+[v1.52.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.51.0...v1.52.0
+[v1.51.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.1...v1.51.0
+[v1.48.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.0...v1.48.1
+[v1.48.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.47.1...v1.48.0
+[v1.53.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.52.0...v1.53.0
 [v1.52.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.51.0...v1.52.0
 [v1.51.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.1...v1.51.0
 [v1.48.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.0...v1.48.1

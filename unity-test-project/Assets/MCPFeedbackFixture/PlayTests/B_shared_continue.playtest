@@ -1,3 +1,5 @@
+# @needs editmode
+# @suite-only
 INCLUDE common.defs
 ASSERT $state == 101
 INVOKE /Fixture/State FixtureState Increment

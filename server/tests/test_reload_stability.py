@@ -7,16 +7,12 @@ import struct
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from unity_mcp.bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
 from unity_mcp.compile_state import _DISCONNECT_WINDOW_S, CompileStateProbe
 from unity_mcp.lockfile import (
     cleanup_stale_port_files,
     read_pid_from_port_file,
 )
-
-pytestmark = pytest.mark.slow
 
 # ---------------------------------------------------------------------------
 # Paths to C# source files (Group C)

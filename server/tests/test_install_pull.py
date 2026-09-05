@@ -1,16 +1,10 @@
 """Tests for cmd_pull (git pull for local installs) in install/commands.py."""
 import subprocess
-import sys
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 import pytest
 
-# install/ is at repo root, two levels up from server/tests/
-REPO_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(REPO_ROOT))
-
-import install.commands as cmds  # noqa: E402
+import install.commands as cmds
 
 
 class FakeUI:

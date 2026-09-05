@@ -1,5 +1,6 @@
 """Runtime Play Mode tools — blocked outside Play Mode by Unity guard."""
 import asyncio
+import json
 import re
 
 from ..sampling import sampling_service as _sampling
@@ -9,6 +10,8 @@ from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 from .editor_state import parse_editor_field as _editor_field
 from .editor_state import parse_world_ready as _parse_world_ready
+from .playtest_async import _RUN_PLAYTEST_SYNC_CEILING_S
+from .playtest_async import run_via_start_poll as _run_via_start_poll
 
 _send = None
 _args = None
@@ -148,14 +151,15 @@ async def _enter_fresh_play() -> None:
     )
 
 
-async def run_playtest(script: str | None = None, timeout: float = 120.0,
+async def run_playtest(script: str | None = None, timeout: float = _RUN_PLAYTEST_SYNC_CEILING_S,
                        abort_on_fail: bool = False,
                        defs: str | None = None,
                        path: str | None = None,
                        snapshot_on_failure: bool = False,
                        fresh: bool = False,
                        before_hook: str | None = None,
-                       after_hook: str | None = None) -> str:
+                       after_hook: str | None = None,
+                       format: str = "text") -> str:
     """[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`).
     Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |
     ASSERT_CONSOLE_CLEAN [IGNORE "pat"] | SNAPSHOT queries | INVOKE path comp method args |
@@ -165,7 +169,8 @@ async def run_playtest(script: str | None = None, timeout: float = 120.0,
     SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f |
     CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED.
     defs: inline VAL definitions prepended to script.
-    abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown."""
+    abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown.
+    format="json": return the canonical step-ledger receipt instead of the legacy text report; skips compression/summarization."""
     if script and path:
         raise ValueError("script and path are mutually exclusive")
     if not script and not path:
@@ -178,26 +183,38 @@ async def run_playtest(script: str | None = None, timeout: float = 120.0,
             return f"PLAYTEST: 0/1 ERROR: timeout entering Play Mode after {_FRESH_READINESS_TIMEOUT}s"
     # lifecycle handled above; not passed to C#
     if path:
-        raw = await _send("run_playtest", _args(
+        wire_args = _args(
             path=path, timeout=str(timeout),
             abort_on_fail="true" if abort_on_fail else None,
             snapshot_on_failure="true" if snapshot_on_failure else None,
             fresh=None,
             before_hook=before_hook, after_hook=after_hook,
-            defs=_normalize_defs(defs), _explicit_path="true"),
-                          timeout=timeout + _TCP_PLAYTEST_BUFFER)
+            defs=_normalize_defs(defs), _explicit_path="true",
+            format=None if format == "text" else format)
     else:
         if defs:
             normalized = _normalize_defs(defs)
             if normalized:
                 script = normalized + "\n" + script
-        raw = await _send("run_playtest", _args(
+        wire_args = _args(
             script=script, timeout=str(timeout),
             abort_on_fail="true" if abort_on_fail else None,
             snapshot_on_failure="true" if snapshot_on_failure else None,
             fresh=None,
-            before_hook=before_hook, after_hook=after_hook),
-                          timeout=timeout + _TCP_PLAYTEST_BUFFER)
+            before_hook=before_hook, after_hook=after_hook,
+            format=None if format == "text" else format)
+
+    # E04: a script timeout beyond the sync ceiling would otherwise race Unity's own
+    # per-command dispatch cutoff (MCPServer.cs's RunPlaytestTimeoutSeconds) — route
+    # through the non-blocking start/poll pair instead of one blocking TCP call.
+    if timeout > _RUN_PLAYTEST_SYNC_CEILING_S:
+        raw = await _run_via_start_poll(_send, wire_args, timeout, _TCP_PLAYTEST_BUFFER)
+    else:
+        raw = await _send("run_playtest", wire_args, timeout=timeout + _TCP_PLAYTEST_BUFFER)
+    if format == "json":
+        # Compression/summarization are text-report-oriented and would mangle or replace the
+        # canonical JSON receipt — the caller explicitly asked for the raw structured shape.
+        return raw
     compressed = _compress_report(raw)
     if len(compressed) > 300:
         svc = _sampling
@@ -281,12 +298,44 @@ async def _transition_play_state(expected: bool) -> None:
     await _wait_for_play_state(expected, action)
 
 
-def _is_playtest_pass(result: str) -> bool:
+def _is_playtest_pass(result: str, format: str | None = None) -> bool:
     """Require a non-empty, complete PLAYTEST ratio and no failure signals.
 
-    Scans all lines so that prepended middleware warnings (e.g. ⚡ consecutive
-    write guard) do not mask a genuine PLAYTEST: X/Y line (MCP-GUARD-007).
+    B17: format is passed explicitly by the one production caller (R-07,
+    explicit over implicit) — mirrors CommandRouter.IsPlaytestSuccess. The
+    ``{``-sniff below is only a fallback for a missing/unknown format
+    (legacy callers, including this module's own pre-B17 test suite).
     """
+    if not result:
+        return False
+    if format == "json":
+        return _is_playtest_pass_from_ledger(result)
+    if format == "text":
+        return _is_playtest_pass_from_text(result)
+    return (
+        _is_playtest_pass_from_ledger(result)
+        if result.lstrip().startswith("{")
+        else _is_playtest_pass_from_text(result)
+    )
+
+
+def _is_playtest_pass_from_ledger(result: str) -> bool:
+    """B16's canonical JSON receipt: outer.teardown_ok plus one {"ok": ...} entry
+    per step. A step's `ok` is the ledger fact — never re-derived from scanning
+    report text (the B17 bug: a step's source_file containing " OK" made the
+    legacy substring check say "pass")."""
+    try:
+        receipt = json.loads(result)
+    except ValueError:
+        return False
+    if receipt.get("outer", {}).get("teardown_ok") is not True:
+        return False
+    return all(step.get("ok") is True for step in receipt.get("steps", []))
+
+
+def _is_playtest_pass_from_text(result: str) -> bool:
+    """Scans all lines so that prepended middleware warnings (e.g. ⚡ consecutive
+    write guard) do not mask a genuine PLAYTEST: X/Y line (MCP-GUARD-007)."""
     for line in (result.splitlines() if result else []):
         match = re.match(r"PLAYTEST:\s*(\d+)\s*/\s*(\d+)\b", line)
         if match:
@@ -340,6 +389,32 @@ async def _resolve_file_list(
     return (file_list, None) if file_list else ([], "no files matched")
 
 
+def _filter_files_by_tag(file_list: list[str], tag: str) -> tuple[list[str], str | None]:
+    """Keep only files whose `# @tags` header (B18's playtest_header.scan) includes
+    `tag`. Reads each path directly off the local filesystem — the suite runner
+    already does this for suite_path's own .suite file, unlike a single opaque
+    run_playtest(path=...) call that only Unity ever reads. A file this process
+    can't read locally (e.g. a Unity-project-relative glob match) can't be proven
+    tagged, so it's excluded rather than crashing the suite.
+    INV-017 (fail-closed): filtering down to zero files is reported the same way
+    _resolve_file_list reports an empty match — as an empty_reason, not a silent
+    0/0 success."""
+    try:
+        import playtest_header
+    except ImportError as exc:
+        return [], f"tag filtering unavailable: {exc}"
+    import pathlib as _pathlib
+    matched = []
+    for filepath in file_list:
+        try:
+            text = _pathlib.Path(filepath).read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if tag in playtest_header.scan(text).tags:
+            matched.append(filepath)
+    return (matched, None) if matched else ([], f"no files matched tag '{tag}'")
+
+
 async def _run_single_file(
     filepath: str, timeout_per_test: float
 ) -> tuple[str, str, float, bool]:
@@ -356,7 +431,9 @@ async def _run_single_file(
         # P-336: capture network/timeout exceptions as failed results
         raw = f"PLAYTEST: 0/0 ERROR: {type(exc).__name__}: {exc}"
     elapsed = _time.monotonic() - t0
-    return filepath, raw, elapsed, _is_playtest_pass(raw)
+    # This caller never requests format="json" (no `format` key in the _args above), so the
+    # response is always the legacy text report — pass that explicitly (B17, R-07).
+    return filepath, raw, elapsed, _is_playtest_pass(raw, "text")
 
 
 async def _suite_body(
@@ -368,6 +445,7 @@ async def _suite_body(
     restart_between: bool,
     timeout_per_test: float,
     stop_on_fail: bool,
+    tag: str | None = None,
 ) -> str | None:
     """Execute suite: setup, resolve files, run loop. Returns empty_reason or None."""
     if auto_play:
@@ -377,6 +455,8 @@ async def _suite_body(
             return None
 
     file_list, empty_reason = await _resolve_file_list(pattern, suite_path)
+    if empty_reason is None and tag:
+        file_list, empty_reason = _filter_files_by_tag(file_list, tag)
     file_list_out[:] = file_list  # persist for timeout reporting before the loop
     if empty_reason is not None:
         return empty_reason
@@ -406,6 +486,7 @@ async def run_playtest_suite(
     auto_play: bool = False,
     restart_between: bool = False,
     suite_timeout: float = 300.0,
+    tag: str | None = None,
 ) -> str:
     """Run multiple .playtest files sequentially and return a compact matrix.
     Side effects: auto_play/restart_between may enter or restart Play Mode;
@@ -420,6 +501,10 @@ async def run_playtest_suite(
     restart_between=True: stop+play between each file to reset runtime state;
     with auto_play=True, also resets an already-running editor before file one.
     suite_timeout: total suite wall-clock deadline in seconds (default 300s).
+    tag: only run files whose `# @tags` header (space-separated) includes this
+    tag; matches after pattern/suite_path resolution. A tag that matches zero
+    files fails closed (same shape as an empty pattern/suite match), it never
+    silently runs the unfiltered set.
     Lifecycle commands must return successfully and reach their observed state.
     A failed transition stops the suite and is reported as a failed row.
     Empty matches return a failing SUITE: 0/0 report.
@@ -442,7 +527,7 @@ async def run_playtest_suite(
     try:
         empty_reason = await asyncio.wait_for(
             _suite_body(results, file_list_resolved, pattern, suite_path,
-                        auto_play, restart_between, timeout_per_test, stop_on_fail),
+                        auto_play, restart_between, timeout_per_test, stop_on_fail, tag),
             timeout=suite_timeout,
         )
     except TimeoutError:

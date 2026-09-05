@@ -1,0 +1,16 @@
+# @needs editmode
+# @tags smoke protocol
+# Vertical slice: proves the DSL self-hosts Biome through the real
+# CommandRouter dispatch path (create -> read-and-capture -> assert captured
+# data -> mutate -> assert mutation -> delete), not a mocked shortcut.
+SETUP
+MCP create_object name=pt_$RUN_ID primitive=Cube
+MCP get_hierarchy depth=2 INTO $tree
+ASSERT $tree contains pt_$RUN_ID
+ASSERT /pt_$RUN_ID|activeSelf
+MCP set_property path=/pt_$RUN_ID component=Transform prop=position value=1,2,3
+ASSERT /pt_$RUN_ID|Transform|localPosition.x == 1
+ASSERT /pt_$RUN_ID|Transform|localPosition.y == 2
+ASSERT /pt_$RUN_ID|Transform|localPosition.z == 3
+TEARDOWN
+MCP delete_object path=/pt_$RUN_ID

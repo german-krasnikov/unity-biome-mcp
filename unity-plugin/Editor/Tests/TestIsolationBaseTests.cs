@@ -513,6 +513,29 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void RepairAndDescribeViolation_OwnedCleanSceneWithRoots_DestroysRootsWithoutFullRestore()
+        {
+            var handleBefore = SceneManager.GetActiveScene().handle;
+            var root = new GameObject("clean-scene-root");
+
+            var probe = new CleanupProbe(new List<string>());
+            probe.BeginUnityMcpIsolation();
+            try
+            {
+                var afterBegin = SceneManager.GetActiveScene();
+                Assert.That(afterBegin.handle, Is.EqualTo(handleBefore),
+                    "A full restore closes and reopens the scene, producing a new handle; " +
+                    "the fast path must reuse the same in-memory scene.");
+                Assert.That(root == null, Is.True, "The leaked root must be destroyed.");
+                Assert.That(afterBegin.GetRootGameObjects(), Is.Empty);
+            }
+            finally
+            {
+                probe.EndUnityMcpIsolation();
+            }
+        }
+
+        [Test]
         public void EnvironmentPreparation_DirtySceneFailsClosedWithoutChangingIt()
         {
             var scene = SceneManager.GetActiveScene();
@@ -559,6 +582,100 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void BeginUnityMcpIsolation_NoNewEditorWindows_SkipsHashSetAllocation()
+        {
+            var warmup = new CleanupProbe(new List<string>());
+            warmup.BeginUnityMcpIsolation();
+            warmup.EndUnityMcpIsolation();
+
+            CleanupProbe.ResetEditorWindowBaselineRebuildCountForTest();
+            var probe = new CleanupProbe(new List<string>());
+            probe.BeginUnityMcpIsolation();
+            probe.EndUnityMcpIsolation();
+
+            Assert.That(CleanupProbe.GetEditorWindowBaselineRebuildCountForTest(), Is.Zero,
+                "An unchanged EditorWindow count must reuse the cached baseline instead of rebuilding it.");
+        }
+
+        [Test]
+        public void BeginUnityMcpIsolation_WindowCountChangedSincePreviousBaseline_RebuildsHashSet()
+        {
+            var warmup = new CleanupProbe(new List<string>());
+            warmup.BeginUnityMcpIsolation();
+            warmup.EndUnityMcpIsolation();
+
+            var phantom = ScriptableObject.CreateInstance<EditorWindow>();
+            try
+            {
+                CleanupProbe.ResetEditorWindowBaselineRebuildCountForTest();
+                var probe = new CleanupProbe(new List<string>());
+                probe.BeginUnityMcpIsolation();
+                probe.EndUnityMcpIsolation();
+
+                Assert.That(CleanupProbe.GetEditorWindowBaselineRebuildCountForTest(), Is.Not.Zero,
+                    "A changed EditorWindow count must force a full baseline rebuild.");
+            }
+            finally
+            {
+                if (phantom != null) UnityEngine.Object.DestroyImmediate(phantom);
+            }
+        }
+
+        [Test]
+        public void EndUnityMcpIsolation_RecordsBaseSetupMs()
+        {
+            var runId = SessionState.GetString(
+                TestRunAssetOwnership.OwnedRunIdSessionKey, "");
+            var before = SessionState.GetFloat(
+                TestRunInstrumentationKeys.BaseSetupMs(runId), 0f);
+
+            var probe = new CleanupProbe(new List<string>());
+            probe.BeginUnityMcpIsolation();
+            probe.EndUnityMcpIsolation();
+
+            var after = SessionState.GetFloat(
+                TestRunInstrumentationKeys.BaseSetupMs(runId), 0f);
+            Assert.That(after, Is.GreaterThan(before),
+                "A full Begin/End isolation cycle must record a positive elapsed-ms contribution.");
+        }
+
+        [Test]
+        public void EndUnityMcpIsolation_RecordsSceneRepairSplit()
+        {
+            var runId = SessionState.GetString(
+                TestRunAssetOwnership.OwnedRunIdSessionKey, "");
+            var fastBefore = SessionState.GetInt(
+                TestRunInstrumentationKeys.SceneRepairs(runId), 0);
+            var fullBefore = SessionState.GetInt(
+                TestRunInstrumentationKeys.SceneRepairFull(runId), 0);
+
+            var fastRoot = new GameObject("instrumentation-fast-repair-root");
+            var fastProbe = new CleanupProbe(new List<string>());
+            fastProbe.BeginUnityMcpIsolation();
+            fastProbe.EndUnityMcpIsolation();
+
+            var afterFast = SessionState.GetInt(
+                TestRunInstrumentationKeys.SceneRepairs(runId), 0);
+            var afterFastFull = SessionState.GetInt(
+                TestRunInstrumentationKeys.SceneRepairFull(runId), 0);
+            Assert.That(afterFast, Is.EqualTo(fastBefore + 1),
+                "The fast repair path must record exactly one scene_repairs increment.");
+            Assert.That(afterFastFull, Is.EqualTo(fullBefore),
+                "The fast repair path must not also record a full-restore repair.");
+
+            var fullRoot = new GameObject("instrumentation-full-repair-root");
+            EditorSceneManager.MarkSceneDirty(SceneManager.GetActiveScene());
+            var fullProbe = new CleanupProbe(new List<string>());
+            fullProbe.BeginUnityMcpIsolation();
+            fullProbe.EndUnityMcpIsolation();
+
+            var afterFull = SessionState.GetInt(
+                TestRunInstrumentationKeys.SceneRepairFull(runId), 0);
+            Assert.That(afterFull, Is.EqualTo(afterFastFull + 1),
+                "The dirty-scene fallback must record exactly one scene_repair_full increment.");
+        }
+
+        [Test]
         public void SceneSpecializationsShareTheCommonIsolationBase()
         {
             Assert.That(typeof(SceneCleanTestBase).IsSubclassOf(typeof(SceneTestBase)), Is.True);
@@ -591,6 +708,12 @@ namespace UnityMCP.Editor.Tests
 
             internal void SetFloatPref(string key, float value) =>
                 SetEditorPrefFloat(key, value);
+
+            internal static void ResetEditorWindowBaselineRebuildCountForTest() =>
+                EditorWindowBaselineRebuildCount = 0;
+
+            internal static int GetEditorWindowBaselineRebuildCountForTest() =>
+                EditorWindowBaselineRebuildCount;
 
             protected override void OnBeforeIsolationCleanup()
             {

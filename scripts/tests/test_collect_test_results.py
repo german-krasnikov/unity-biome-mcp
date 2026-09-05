@@ -64,6 +64,14 @@ def test_parse_nunit(nunit_xml, tmp_path):
 
 
 def test_add_manual(tmp_path):
+    """--add-manual rows must carry a numeric `duration` (0.0 -- a manual
+    entry has no measured wall-clock) so every persisted suite row has the
+    same `duration` field, not just pytest/nunit-sourced ones.
+
+    Double-red: red today (KeyError -- the key is absent for manual rows),
+    red if the field is ever set to something other than a number (e.g. the
+    default constant is dropped/renamed to a non-numeric placeholder).
+    """
     out = tmp_path / "tests.json"
     r = subprocess.run(
         [sys.executable, SCRIPT, "--add-manual",
@@ -74,6 +82,7 @@ def test_add_manual(tmp_path):
     assert r.returncode == 0
     data = json.loads(out.read_text(encoding="utf-8"))
     assert data["suites"][0]["passed"] == 284
+    assert data["suites"][0]["duration"] == 0.0
 
 
 def test_multiple_suites_accumulate(junit_xml, nunit_xml, tmp_path):
@@ -92,6 +101,63 @@ def test_multiple_suites_accumulate(junit_xml, nunit_xml, tmp_path):
     assert len(data["suites"]) == 2
     names = {s["name"] for s in data["suites"]}
     assert names == {"Python", "C#"}
+
+
+@pytest.fixture()
+def junit_xml_with_duration(tmp_path):
+    xml = tmp_path / "junit_duration.xml"
+    xml.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<testsuites><testsuite name="tests" tests="10" failures="0" errors="0" '
+        'skipped="0" time="12.5"></testsuite></testsuites>',
+        encoding="utf-8",
+    )
+    return xml
+
+
+@pytest.fixture()
+def nunit_xml_with_duration(tmp_path):
+    xml = tmp_path / "nunit_duration.xml"
+    xml.write_text(
+        '<?xml version="1.0" encoding="utf-8"?>\n'
+        '<test-run total="2" passed="2" failed="0" skipped="0" inconclusive="0">'
+        '<test-suite type="TestSuite">'
+        '<test-case classname="FixtureA" fullname="FixtureA.T1" name="T1" duration="1.5" />'
+        '<test-case classname="FixtureA" fullname="FixtureA.T2" name="T2" duration="2.75" />'
+        "</test-suite></test-run>",
+        encoding="utf-8",
+    )
+    return xml
+
+
+def test_collected_results_retain_duration_field(
+    junit_xml_with_duration, nunit_xml_with_duration, tmp_path
+):
+    """Persisted suite record carries a numeric `duration`: JUnit sources it
+    from the testsuite `time` attribute, NUnit sums per-case `duration`
+    attributes via test_timeline.parse_nunit_case_durations (reused, not
+    re-walked).
+
+    Double-red: fails if `duration` is dropped from the record (KeyError),
+    and fails if the wrong source attribute is read for either format --
+    a wrong attribute name silently defaults to 0.0, which does not match
+    either fixture's nonzero expected value.
+    """
+    out = tmp_path / "tests.json"
+    subprocess.run(
+        [sys.executable, SCRIPT, "--add-pytest", str(junit_xml_with_duration),
+         "--suite", "Python", "--out", str(out)],
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
+    )
+    subprocess.run(
+        [sys.executable, SCRIPT, "--add-nunit", str(nunit_xml_with_duration),
+         "--suite", "C#", "--out", str(out)],
+        capture_output=True, text=True, encoding="utf-8", timeout=60,
+    )
+    data = json.loads(out.read_text(encoding="utf-8"))
+    suites = {s["name"]: s for s in data["suites"]}
+    assert suites["Python"]["duration"] == pytest.approx(12.5)
+    assert suites["C#"]["duration"] == pytest.approx(4.25)
 
 
 def test_duplicate_suite_replaces(junit_xml, tmp_path):

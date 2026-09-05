@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Playtest.Core
 {
-    internal static class StringDistance
+    public static class StringDistance
     {
         /// <summary>Returns closest match within maxDist edits, or null.</summary>
         public static string ClosestMatch(string input, IEnumerable<string> candidates, int maxDist = 3)

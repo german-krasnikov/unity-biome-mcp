@@ -8,6 +8,68 @@ Mode. `run_playtest_suite(auto_play=True)` can enter Play Mode itself. Static
 tools such as `lint_playtest`, `lint_playtest_suite`,
 `validate_playtest_aliases`, `resolve_scene_refs`, and `lint_scene_refs` do not.
 
+## Async Dispatch: Internal Wire Commands (E02–E04)
+
+Two **internal** wire-level commands (not exposed as user-facing MCP tools)
+enable non-blocking playtest dispatch for long-running scripts:
+
+### start_playtest (E02)
+
+**Wire command** (ToolSpec: `_INTERNAL` category, `direct_only=True`).
+
+**Purpose:** Dispatch a playtest run asynchronously. Returns immediately with a
+run ID instead of blocking until completion.
+
+**Args:** Same as `run_playtest` (script, path, timeout, abort_on_fail, defs, etc.)
+
+**Response:** `run_id=<hex-id>` on success, or error text.
+
+**Gate:** Accepts identical parse/validation as `run_playtest` via shared
+`CommandRouter.TryBuildPlaytestRunRequest`.
+
+### get_playtest_run (E03)
+
+**Wire command** (ToolSpec: `_INTERNAL` category, `direct_only=True`).
+
+**Purpose:** Poll a running or completed playtest. Non-blocking; returns
+immediately.
+
+**Args:** `{"run_id": "<hex-id>"}`
+
+**Response format:**
+- **Running:** `phase=running|step=N/M|elapsed_ms=<ms>` — N steps done of M total, elapsed time
+- **Terminal (pass):** `PLAYTEST: M/M passed (Ts)` — M steps all passed, duration T seconds
+- **Terminal (fail):** `PLAYTEST: M/M (X failed) (Ts) ...` — X failures recorded
+- **Error/receipt after reload:** Stored in `PlaytestReceiptStore.ReceiptPath(run_id)`; fallback when run state is lost
+
+**Poll interval:** 1 second (client-side in `playtest_async.py`)
+
+**Run ID lifetime:** 600+ seconds; persisted across domain reloads via receipt store
+
+### Dispatch/Poll Pattern (E04)
+
+The Python module `playtest_async.py` owns the dispatch/poll state machine:
+
+```python
+# Threshold: if timeout > _RUN_PLAYTEST_SYNC_CEILING_S (120s), route to async
+_RUN_PLAYTEST_SYNC_CEILING_S = 120.0  # seconds
+
+# Poll every 1s; grid = floor(timeout / 1.0) + 1
+_PLAYTEST_POLL_INTERVAL_S = 1.0  # seconds
+
+# Coroutine: run_via_start_poll(send, args, timeout, tcp_buffer)
+#   dispatch: start_playtest(args, timeout=tcp_buffer)
+#   poll loop: get_playtest_run(run_id, timeout=tcp_buffer) × N
+#   tcp_buffer reused from run_playtest's _TCP_PLAYTEST_BUFFER = 20.0s
+```
+
+**Cross-language contract:**
+- Python `_RUN_PLAYTEST_SYNC_CEILING_S = 120.0` ← must be < C# `RunPlaytestTimeoutSeconds` (130s in MCPServer.cs:65)
+- Margin absorbs TCP transport + dispatch overhead
+- Verified by `tests/test_playtest_async.py::test_cross_language_ceiling_contract`
+
+**Agent use:** Transparent — `run_playtest()` auto-selects sync or async based on timeout. Agents never call `start_playtest` or `get_playtest_run` directly.
+
 ## Play Mode Readiness (MCP-LIFE-004)
 
 **PlayReadinessTracker:** Waits for actual world readiness, not just `playing=True`.
@@ -142,7 +204,7 @@ CONSOLE: no errors
 
 **RW Annotation:** Mutating (movement + snapshots).
 
-## run_playtest(script=None, timeout=120.0, abort_on_fail=False, defs=None, path=None, snapshot_on_failure=False, fresh=False, before_hook=None, after_hook=None)
+## run_playtest(script=None, timeout=120.0, abort_on_fail=False, defs=None, path=None, snapshot_on_failure=False, fresh=False, before_hook=None, after_hook=None, format="text")
 
 **Purpose:** Execute a playtest DSL script and wait for its final report.
 
@@ -173,6 +235,10 @@ after hook is scheduled on `EditorApplication.delayCall` after the runner task
 finishes, so the returned report does not prove that asynchronous cleanup hook
 completed. Prefer DSL `SETUP`/`TEARDOWN` when its command set is sufficient and
 reserve hooks for code-only setup or cleanup.
+
+**format:** Output format for the playtest report. Allowed values:
+- `"text"` (default): Human-readable summary with compressed passing steps
+- `"json"`: Full step-ledger receipt JSON with structured per-step objects, no compression. Each step includes command, status, error (if failed), and response data. The canonical receipt is persisted to disk and suitable for archival/CI analysis.
 
 **Setup/Teardown Blocks:**
 - `SETUP` → steps → `SETUP_END`: Runs before main steps. Without global abort,
@@ -242,7 +308,7 @@ await run_playtest(
 - A compile or domain reload interrupts the in-memory runner. Complete
   `sync_unity`, then start the playtest again; there is no mid-script resume.
 
-## run_playtest_suite(pattern=None, suite_path=None, timeout_per_test=120.0, stop_on_fail=False, stop_after=True, auto_play=False, restart_between=False)
+## run_playtest_suite(pattern=None, suite_path=None, timeout_per_test=120.0, stop_on_fail=False, stop_after=True, auto_play=False, restart_between=False, suite_timeout=300.0, tag=None)
 
 **Purpose:** Run multiple `.playtest` files sequentially; return a compact pass/fail matrix.
 
@@ -266,6 +332,10 @@ that never reaches the requested value is reported as a suite failure rather
 than treated as a successful restart. With both `auto_play=True` and
 `restart_between=True`, an already-running Editor is also restarted before the
 first file.
+
+**suite_timeout:** Total wall-clock deadline for the entire suite in seconds (default 300s). Enforced at the suite level, not per-file.
+
+**tag:** Filter files by `# @tags` header value (space-separated tags). Only files whose header includes this exact tag are executed. Filters applied after pattern/suite_path resolution. If the filter matches zero files, the suite returns a fail-closed `SUITE: 0/0` report instead of silently running the unfiltered set.
 
 **Output format:**
 ```
