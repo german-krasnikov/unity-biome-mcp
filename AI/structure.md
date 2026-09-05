@@ -94,7 +94,8 @@ by runtime boundary:
 | `unity-plugin/Editor/SyncHelper.cs` | Epoch-based compile/reload state machine used by `sync_unity`. |
 | `unity-plugin/Editor/ObjectIdCompat.cs` | Platform compat bridge for Unity 6.0–6.3 (instance-ID) and 6.4+ (EntityId) object identity APIs. |
 | `unity-plugin/Editor/UIPanelHost.cs` | Compat layer for `UIDocument` (Unity 6.0) and `PanelRenderer` (Unity 6.4+); used by playtest UI commands and intent tools. |
-| `unity-plugin/Editor/PlaytestParser.cs` and `PlaytestRunner*.cs` | Playtest DSL parsing and execution. |
+| `unity-plugin/Runtime/Playtest/Core/` | Engine-free playtest parser core (v1.53.0+): `PlaytestParser.cs` and split files (Directives, Internals, Mcp, Subroutines), `PlaytestHeaderScanner`, utility types (`Float3`, `NumericParsing`, `StringDistance`), and `IAliasSource` interface. Assembly definition includes `noEngineReferences: true` to prevent Editor imports. Consumed by both Editor runner and Player runtime. |
+| `unity-plugin/Editor/PlaytestRunner*.cs` | PlayMode and EditMode DSL execution with support for MCP step dispatch and stateful DSL playtest corpus. |
 | `unity-plugin/Editor/Tests/DelayCallSourceHygieneTests.cs` | Hygiene guard: prevents non-GUI modules from using `delayCall` (which silently fails when Editor loses focus). Allowlist: GUI-only contexts (Chat, Wizard, menus, status bar). |
 | `unity-plugin/Editor/Tests/DesyncWarnLimiterTests.cs` | Hygiene guard: HTTP/TLS probes on the TCP port classified as known foreign protocol and throttled to one warning per 30 seconds. |
 | `unity-plugin/Editor/Tests/HttpGarbageProbeTests.cs` | Protocol resilience: recognizes HTTP GET and TLS handshakes misrouted to TCP listener and classifies as recoverable desync, not fatal errors. |
@@ -108,6 +109,7 @@ by runtime boundary:
 | `unity-plugin/Editor/Chat/` | In-Unity chat presentation and relay integration. |
 | `unity-plugin/Editor/Tests/` | EditMode and PlayMode implementation fixtures. |
 | `unity-plugin/Runtime/` | Runtime/player assemblies and test helpers. |
+| `unity-plugin/Tests~/Pure/` | Pure dotnet test lane for Core parser (v1.53.0+): `UnityMCP.Playtest.Core.Tests.csproj` runs NUnit tests with zero Unity install. The folder name ends in `~` intentionally — Unity's asset importer skips `~` paths, keeping `Microsoft.NET.Test.Sdk` references invisible to the Editor. Source files compiled from `Runtime/Playtest/Core/*.cs` in isolation. |
 | `unity-plugin/ClientSkills/` | Canonical bundled skills, agents, and conversion support. |
 
 Unity `.meta` files are package assets. Preserve them when moving or adding Unity

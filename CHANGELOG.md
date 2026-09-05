@@ -24,6 +24,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tag filtering for playtest suites:** `run_playtest_suite(tag=...)` filters files by `# @tags` header value; zero matches fail-closed
 - **Cassette recorder for protocol testing:** New `bridge_cassette.py` module records and replays TCP exchanges for deterministic wire protocol testing
 - **Full baseline migration:** `full-baseline.json` replaces hardcoded 6001 Unity version constant
+- **Engine-free Core assembly (Wave D):** New `UnityMCP.Playtest.Core` runtime assembly with `noEngineReferences: true` (D16) extracts parser, Compare logic, and utilities from Editor; consumed by both Editor playtest runner and Player runtime without Unity dependency. Enables pure dotnet testing lane and player builds.
+- **Unified playtest parser (Wave D, D14, D18):** `PlaytestParser.cs` moved from Editor to Core and split into logical files (Directives, Internals, Mcp, Subroutines). New `PlaytestHeaderScanner` parses DSL headers at load time. Unified `Compare()` logic serves Editor DSL, Player runtime, and pure dotnet tests.
+- **Pure dotnet test lane (Wave D, D15):** New `unity-plugin/Tests~/Pure/UnityMCP.Playtest.Core.Tests.csproj` runs NUnit tests outside Unity using `dotnet test` with zero dependency on Editor or runtime. Tilde folder prevents Microsoft.NET.Test.Sdk from breaking Editor compilation. Validates parser correctness and Compare parity.
+- **Player runtime playtest support (Wave D, D17):** `PlayerPlaytestRunner` reuses Core parser and validates scripts via pre-scan gate that rejects unsupported verbs (MCP, MOVE, CLICK) and `# @needs editmode` before execution. Supports 9 core step types: ASSERT, ASSERT_BATCH, ASSERT_NEAR, ASSERT_CONSOLE_CLEAN, WAIT, WAIT_UNTIL, LOG, SNAPSHOT, INVOKE.
+- **Numeric utilities (Wave D):** New `Float3.cs` immutable 3D vector type and `NumericParsing.cs` utilities for decimal/float parsing with culture-invariant rounding. `IAliasSource` interface (D20) allows custom alias providers to inject VAL definitions at runtime.
 
 ### Changed
 

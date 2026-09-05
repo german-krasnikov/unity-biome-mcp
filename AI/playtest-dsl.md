@@ -1088,6 +1088,39 @@ MOVE_PATH $patrol_start_0 > $patrol_start_1
 **Label format:** `$<sanitized_label>` — lowercase, underscores, stripped special chars  
 **Annotation types:** `Point` → single VAL; `Path` → `_start`/`_end` pair + vertex list `_0`, `_1`, …
 
+## Player Runtime Support (v1.53.0+)
+
+The playtest DSL can run in Player builds as well as EditMode/PlayMode. Player runtime is
+enabled by the `UnityMCP.Playtest.Core` engine-free assembly and shared `Compare()` 
+evaluation logic.
+
+### Supported Step Types in Player
+
+Player runtime supports 9 core step verbs (validation, assertions, and flow):
+
+1. `ASSERT` — test value with operators (`==`, `!=`, `>`, `<`, `>=`, `<=`, `contains`)
+2. `ASSERT_BATCH` — multiple assertions, stop at first failure
+3. `ASSERT_NEAR` — distance check between GameObjects
+4. `ASSERT_CONSOLE_CLEAN` — verify no console errors
+5. `WAIT` — simple delay by seconds
+6. `WAIT_UNTIL` — loop until condition true or timeout
+7. `LOG` — write to console
+8. `SNAPSHOT` — capture query values (no-op in Player, logged)
+9. `INVOKE` — call method by reflection with parse-time argument binding
+
+Unsupported: `MCP` (no Player bridge), `MOVE`, `TELEPORT`, `CLICK`, `FILL`, `FOCUS` (Editor-only verbs).
+
+### Pre-Scan Gate (Player Load-Time Validation)
+
+Before any Player script runs, `PlayerPlaytestRunner.Parse()` performs a pre-scan that:
+- Rejects scripts with unsupported verbs (e.g., `MCP`, `MOVE`)
+- Rejects `# @needs editmode` header (EditMode-only directive)
+- Validates path syntax and operator tokens
+- Returns a **detailed error** naming the offending line
+
+Failed pre-scan halts execution without entering Play Mode simulation. This catch-all gate
+prevents script failures mid-run and ensures deterministic behavior across platform builds.
+
 ---
 
 **See also:** `run_playtest` (inline `script=` or file `path=`) in

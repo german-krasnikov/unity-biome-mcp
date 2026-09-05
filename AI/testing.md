@@ -239,6 +239,23 @@ The playtest DSL now supports EditMode execution through the `# @needs editmode`
 - **Fixture scene** (B21): EditMode carrier opens the MCPFeedbackFixture via `EditorSceneManager.OpenScene(..., Additive)` to resolve loose ASSERT/INVOKE paths against real GameObjects
 - **No `fresh` in EditMode** (B05): `run_playtest(fresh=true, script="# @needs editmode")` errors before Run() — Play Mode restart cannot be used in EditMode scripts
 
+## Pure Dotnet Lane for Parser Core
+
+The engine-free `UnityMCP.Playtest.Core` assembly (v1.53.0+) can be tested outside Unity using dotnet:
+
+```bash
+dotnet test unity-plugin/Tests~/Pure/UnityMCP.Playtest.Core.Tests.csproj -c Release
+```
+
+**Why the `~` folder name:** Unity's asset importer automatically skips folders ending with `~`, so this project folder and its compiled artifacts stay invisible to the Editor. This prevents `Microsoft.NET.Test.Sdk` references (which are incompatible with Editor compilation) from breaking the Editor assembly build. The `.csproj` pulls `Runtime/Playtest/Core/*.cs` files directly, avoiding any Unity-specific dependencies.
+
+Use this lane for:
+- Parser correctness (DSL tokenization, operator precedence, macro expansion, etc.)
+- Numeric utilities (`Float3`, `NumericParsing`)
+- `Compare()` parity across platforms
+
+Tests here must not reference Unity or Editor types. Any new utility pulled from Core must have matching coverage in this lane before merging.
+
 ## Test Taxonomy and Lanes
 
 Test organization is data-driven via two canonical JSON files:
