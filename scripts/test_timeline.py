@@ -148,7 +148,10 @@ def main(argv: list[str] | None = None) -> int:
         # bare traceback (missing file -> OSError incl. FileNotFoundError;
         # --latest-full with nothing matching -> FileNotFoundError; malformed
         # XML -> ET.ParseError).
-        print(f"error: {error}", file=sys.stderr)
+        # Use getattr for .filename (OSError) to avoid repr()-doubled backslashes
+        # on Windows that break cross-platform test assertions.
+        path_hint = getattr(error, "filename", None)
+        print(f"error: {path_hint or error}", file=sys.stderr)
         return EXIT_INPUT_ERROR
 
     print(f"{'duration_s':>12}  {label}")

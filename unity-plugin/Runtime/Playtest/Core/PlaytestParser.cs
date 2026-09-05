@@ -150,7 +150,7 @@ namespace UnityMCP.Playtest.Core
 
         public static ParseResult Parse(string script, IncludeResolver resolver = null, bool strict = false)
         {
-            var rawLines = script.Split('\n');
+            var rawLines = script.Replace("\r\n", "\n").Replace("\r", "\n").Split('\n');
 
             // Phase -2: scan `# @directive` header lines, pre-INCLUDE (B03/B04).
             var header = ScanHeader(script);
