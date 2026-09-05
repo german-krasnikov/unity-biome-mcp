@@ -26,6 +26,10 @@ namespace UnityMCP.Playtest
         private string _jsonPath;
         private string _junitPath;
         private bool _exitWhenDone;
+        // Blocker 2: set by ExecuteStepSafely's catch when a step handler throws; checked by
+        // Run() right after each yield so the loop can stop and still fall through to the
+        // unconditional WriteReceipts()/Application.Quit() below it.
+        private Exception _stepException;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void AutoStart()
@@ -80,7 +84,18 @@ namespace UnityMCP.Playtest
                 {
                     var step = steps[i];
                     var before = _results.Count;
-                    yield return Execute(step);
+                    yield return ExecuteStepSafely(step);
+                    if (_stepException != null)
+                    {
+                        // Blocker 2: a step handler threw mid-run (e.g. NullReferenceException
+                        // from a destroyed scene object). Record it as a failure and stop the
+                        // run here instead of letting the exception propagate out of this
+                        // coroutine uncaught — Unity would otherwise abandon the coroutine
+                        // silently, skipping WriteReceipts()/Application.Quit() below entirely.
+                        _results.Add(StepResult.Fail(step.RawLine, "unhandled exception: " + _stepException));
+                        _stepException = null;
+                        break;
+                    }
                     if (_results.Count == before)
                         _results.Add(StepResult.Fail(step.RawLine, "step produced no result"));
                 }
@@ -132,6 +147,35 @@ namespace UnityMCP.Playtest
                 case StepType.WaitUntil:
                     yield return WaitUntil(step);
                     yield break;
+            }
+        }
+
+        /// <summary>
+        /// Blocker 2: drives Execute(step)'s enumerator one MoveNext() at a time so a thrown
+        /// exception is caught HERE, in our own call stack. A plain `yield return Execute(step);`
+        /// in Run() cannot catch it: Unity's coroutine engine pushes the returned enumerator onto
+        /// its own internal stack and drives it directly on subsequent frames — by the time a step
+        /// handler throws, Run()'s frame is not on the call chain at all, so a try/catch written
+        /// around that yield statement would never see the exception (and C# disallows `yield
+        /// return` inside a try block with a catch clause in the first place).
+        /// </summary>
+        private IEnumerator ExecuteStepSafely(PlaytestStep step)
+        {
+            var stepEnum = Execute(step);
+            while (true)
+            {
+                bool moved;
+                try
+                {
+                    moved = stepEnum.MoveNext();
+                }
+                catch (Exception e)
+                {
+                    _stepException = e;
+                    yield break;
+                }
+                if (!moved) yield break;
+                yield return stepEnum.Current;
             }
         }
 
