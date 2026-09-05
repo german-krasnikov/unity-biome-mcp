@@ -503,11 +503,14 @@ namespace UnityMCP.Editor
                 }
                 catch (Exception e)
                 {
-                    EditorApplication.update -= Tick;
-                    _isRunning = false;
+                    // Blocker 1: this 5th termination path used to bypass FinishRun() entirely
+                    // (no receipt, no sentinel deletion, no PlaytestRunState.Finish) — routed
+                    // through FinishRun() now, exactly like the Play-mode-stopped and
+                    // global-timeout abort paths above.
                     PlaytestIsolationScope.RevertGroup(groupId);
-                    CompleteRunCleanup();
-                    tcs.TrySetResult("ERROR: " + e.Message);
+                    results.Add($"[{stepIdx + 1}] ABORTED: unhandled exception: {e.Message}");
+                    abortedRun = true;
+                    FinishRun();
                 }
             }
 

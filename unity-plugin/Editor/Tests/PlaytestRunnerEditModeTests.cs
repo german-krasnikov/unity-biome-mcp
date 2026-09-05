@@ -213,6 +213,47 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(File.Exists(receiptPath), $"Expected canonical receipt at {receiptPath}");
         }
 
+        // ── Blocker 1: Tick()'s outer catch must route through FinishRun() ──────────
+        // A step-handler exception mid-Tick (PollExtrema's readFn is not wrapped in a
+        // try/catch, unlike every per-phase branch) used to hit a 5th termination path
+        // that skipped FinishRun() entirely: no receipt, no sentinel deletion, no
+        // PlaytestRunState.Finish. CAPTURE_MIN registers a tracker whose query is
+        // re-evaluated by PollExtrema on every tick regardless of phase; destroying its
+        // target object before the next tick makes ReadValue throw ArgumentException
+        // ("Object not found") uncaught, exactly like the review's MissingReferenceException
+        // scenario (a step handler throwing mid-run after its target is deleted).
+
+        [Test]
+        public async Task Run_UnhandledExceptionMidTick_WritesReceiptDeletesSentinelAndReachesTerminalPhase()
+        {
+            const string runId = "blocker1err";
+            var probe = TrackOwnedObject(new GameObject("Blocker1Probe"));
+
+            var tcs = new TaskCompletionSource<string>();
+            PlaytestRunner.Run(
+                "CAPTURE_MIN $probe /Blocker1Probe|Transform|position\nLOG done",
+                5f, tcs, requiresPlayMode: false, runId: runId);
+            // Destroyed before the tracker is ever polled — the first Tick() call only
+            // registers it; the second Tick() call's PollExtrema is where the un-caught
+            // "Object not found" exception fires, past every per-phase try/catch.
+            UnityEngine.Object.DestroyImmediate(probe);
+
+            var result = await AwaitBoundedAsync(tcs);
+
+            var receiptPath = ReceiptFullPath(runId);
+            RegisterCleanup(() => { if (File.Exists(receiptPath)) File.Delete(receiptPath); });
+            Assert.IsTrue(File.Exists(receiptPath),
+                $"Expected a durable receipt at {receiptPath} even after an unhandled Tick() exception:\n{result}");
+
+            var sentinelPath = Path.GetFullPath(Path.Combine(
+                Application.dataPath, "..", PlaytestReceiptStore.SentinelPath(runId)));
+            Assert.IsFalse(File.Exists(sentinelPath),
+                "Sentinel must be deleted once FinishRun() completes, even on the outer-catch path");
+
+            Assert.AreNotEqual(PlaytestRunState.RunPhase.Running, PlaytestRunState.Current.Phase);
+            Assert.AreNotEqual(PlaytestRunState.RunPhase.Idle, PlaytestRunState.Current.Phase);
+        }
+
         // ── C03: MCP DSL steps execute through the real CommandRouter.ProcessAsync path ────
 
         [Test]
