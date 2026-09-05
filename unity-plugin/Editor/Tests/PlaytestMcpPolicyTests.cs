@@ -37,6 +37,20 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Validate_BatchCommand_Rejected()
+        {
+            var before = CommandRouter.LastCommandName;
+
+            var errors = PlaytestMcpPolicy.Validate(
+                new List<PlaytestStep> { McpStep("batch", "{\"commands\":\"editor action=stop\"}") },
+                null, isEditModeRun: false);
+
+            Assert.IsNotNull(errors, "'batch' must be rejected — nested commands bypass step-level policy checks");
+            Assert.IsTrue(errors.Exists(e => e.Contains("batch")));
+            Assert.AreEqual(before, CommandRouter.LastCommandName, "policy validation must never dispatch the denied command");
+        }
+
+        [Test]
         public void Validate_EditorPlayRejected_EditorSelectAllowed()
         {
             var before = CommandRouter.LastCommandName;
