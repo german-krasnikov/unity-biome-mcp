@@ -35,14 +35,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void CoreAssembly_HasNoUnityEngineOrEditorReferences()
         {
-            if (_coreAsm == null) Assert.Ignore("Assembly not loaded — see CoreAssembly_IsLoaded");
-            foreach (var r in _coreAsm.GetReferencedAssemblies())
-            {
-                Assert.IsFalse(r.Name.StartsWith("UnityEngine", StringComparison.Ordinal),
-                    $"UnityMCP.Playtest.Core must not reference UnityEngine (found: {r.Name})");
-                Assert.IsFalse(r.Name.StartsWith("UnityEditor", StringComparison.Ordinal),
-                    $"UnityMCP.Playtest.Core must not reference UnityEditor (found: {r.Name})");
-            }
+            UnityMCP.Editor.Testing.AssemblyIsolationAssert.HasNoEngineReferences(
+                "UnityMCP.Playtest.Core");
         }
     }
 }
