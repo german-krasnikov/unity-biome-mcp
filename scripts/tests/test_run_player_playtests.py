@@ -53,6 +53,23 @@ def _write_receipt_pair(json_path: Path, junit_path: Path, steps: list[str], fai
 # Group A: file selection honors `# @needs player`
 # ===========================================================================
 
+def test_select_files_against_real_streaming_assets_glob_matches_e06_fixtures():
+    """E06: pins exactly which shipped fixtures the CI fan-out step selects —
+    the 3 previously CI-uncovered Player fixtures (bounds/multi_move/reset),
+    not the 3 already individually scripted in unity-player-playtest.yml
+    (smoke/expected_failure/graphics_smoke stay untagged to avoid redundant
+    Player invocations of files already validated with precise assertions)."""
+    pattern = str(REPO_ROOT / "unity-test-project/Assets/StreamingAssets/Playtests/*.playtest")
+
+    selected = {Path(p).name for p in rpp.select_files(pattern)}
+
+    assert selected == {
+        "player_ci_bounds.playtest",
+        "player_ci_multi_move.playtest",
+        "player_ci_reset.playtest",
+    }
+
+
 def test_select_files_filters_by_needs_player(tmp_path):
     (tmp_path / "a.playtest").write_text("# @needs player\nLOG a\n", encoding="utf-8")
     (tmp_path / "b.playtest").write_text("# @needs editmode\nLOG b\n", encoding="utf-8")

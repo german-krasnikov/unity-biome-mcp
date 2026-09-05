@@ -1,3 +1,4 @@
+# @needs player
 LOG Player PlayTest CI multi-move sequence
 TIMESCALE 10
 INVOKE /GridPlayer GridPlayer ResetState
