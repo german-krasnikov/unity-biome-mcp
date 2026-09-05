@@ -47,13 +47,17 @@ namespace McpFeedbackFixture
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
+                if (elapsed >= duration)
+                {
+                    progress = 1f;
+                    isRunning = false;
+                    terminalCount++;
+                    activeCoroutine = null;
+                    yield break;
+                }
                 progress = Mathf.Clamp01(elapsed / duration);
                 yield return null;
             }
-            progress = 1f;
-            activeCoroutine = null;
-            isRunning = false;
-            terminalCount++;
         }
     }
 }

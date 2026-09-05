@@ -1,7 +1,7 @@
 {
     "name": "UnityMCP.TestProject.PlayMode",
     "rootNamespace": "",
-    "references": ["UnityMCP.Editor", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
+    "references": ["UnityMCP.Editor", "McpFeedbackFixture", "UnityEngine.TestRunner", "UnityEditor.TestRunner"],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
