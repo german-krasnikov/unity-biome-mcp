@@ -32,6 +32,7 @@ from gauntlet.player_playtest_evidence import (  # noqa: E402
 
 _MERGED_SUITE_NAME = "UnityMCP.PlayerPlaytestFanOut"
 _STDERR_TAIL_CHARS = 2000
+_DEFAULT_PLAYER_TIMEOUT_S = 600
 
 
 @dataclass
@@ -80,13 +81,28 @@ def _safe_stem(playtest_file: str) -> str:
     return re.sub(r"[^A-Za-z0-9_.-]", "_", playtest_file)
 
 
-def run_one_file(player: str, playtest_file: str, work_dir: str, extra_args: list[str]) -> FileRunResult:
-    """Module-level (picklable) worker body — required for ProcessPoolExecutor."""
+def run_one_file(
+    player: str, playtest_file: str, work_dir: str, extra_args: list[str],
+    timeout: float = _DEFAULT_PLAYER_TIMEOUT_S,
+) -> FileRunResult:
+    """Module-level (picklable) worker body — required for ProcessPoolExecutor.
+
+    A hung Player process must never block the fan-out forever: subprocess.run
+    always carries a timeout, and TimeoutExpired is caught and turned into a
+    crashed FileRunResult (exit_code=-1) rather than propagating out of the
+    worker (which would otherwise wedge run_all's future.result()).
+    """
     stem = _safe_stem(playtest_file)
     json_path = str(Path(work_dir) / f"{stem}.json")
     junit_path = str(Path(work_dir) / f"{stem}.xml")
     argv = build_player_args(player, playtest_file, json_path, junit_path, extra_args)
-    proc = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8")
+    try:
+        proc = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return FileRunResult(
+            file=playtest_file, exit_code=-1, json_path=json_path, junit_path=junit_path,
+            stderr_tail=f"TIMEOUT after {timeout}s: Player process did not exit",
+        )
     stderr_tail = (proc.stderr or "")[-_STDERR_TAIL_CHARS:]
     return FileRunResult(
         file=playtest_file, exit_code=proc.returncode,
@@ -96,12 +112,12 @@ def run_one_file(player: str, playtest_file: str, work_dir: str, extra_args: lis
 
 def run_all(
     files: list[str], player: str, jobs: int, extra_args: list[str], work_dir: str,
-    executor_cls=ProcessPoolExecutor,
+    executor_cls=ProcessPoolExecutor, timeout: float = _DEFAULT_PLAYER_TIMEOUT_S,
 ) -> list[FileRunResult]:
     """Prod uses ProcessPoolExecutor (real parallelism, bounded by `jobs`);
     tests inject ThreadPoolExecutor so monkeypatched subprocess.run applies."""
     with executor_cls(max_workers=jobs) as pool:
-        futures = [pool.submit(run_one_file, player, f, work_dir, extra_args) for f in files]
+        futures = [pool.submit(run_one_file, player, f, work_dir, extra_args, timeout) for f in files]
         return [future.result() for future in futures]
 
 
@@ -173,6 +189,10 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--extra-arg", action="append", default=[], dest="extra_args",
         help="extra Player CLI arg, repeatable (e.g. --extra-arg -force-glcore)",
     )
+    parser.add_argument(
+        "--timeout", type=float, default=_DEFAULT_PLAYER_TIMEOUT_S,
+        help=f"per-file subprocess timeout in seconds (default {_DEFAULT_PLAYER_TIMEOUT_S})",
+    )
     parser.add_argument("glob", help="glob pattern for .playtest files (recursive ** supported)")
     return parser.parse_args(argv)
 
@@ -188,7 +208,7 @@ def main(argv: list[str] | None = None) -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     work_dir = str(out_path.parent)
 
-    results = run_all(files, args.player, args.jobs, args.extra_args, work_dir)
+    results = run_all(files, args.player, args.jobs, args.extra_args, work_dir, timeout=args.timeout)
     reports = [collect_result(result) for result in results]
     suite = merge_reports(reports)
     ET.ElementTree(suite).write(out_path, encoding="utf-8", xml_declaration=True)

@@ -153,6 +153,28 @@ def test_run_all_passes_jobs_as_max_workers(tmp_path, monkeypatch):
     assert captured["max_workers"] == 7
 
 
+def test_subprocess_timeout_surfaces_as_failure(tmp_path, monkeypatch):
+    """Double-red target: a hung Player process must not block the fan-out
+    forever. subprocess.run must be called with a timeout=, and a
+    TimeoutExpired must be caught and turned into a crashed FileReport
+    (never raised out of run_all/collect_result)."""
+    def _fake_run(argv, **kwargs):
+        assert kwargs.get("timeout") == rpp._DEFAULT_PLAYER_TIMEOUT_S
+        raise rpp.subprocess.TimeoutExpired(cmd=argv, timeout=kwargs["timeout"])
+
+    monkeypatch.setattr(rpp.subprocess, "run", _fake_run)
+    files = [str(tmp_path / "hung.playtest")]
+
+    results = rpp.run_all(files, "/Player", 1, [], str(tmp_path), executor_cls=ThreadPoolExecutor)
+
+    assert len(results) == 1
+    assert results[0].exit_code == -1
+    assert "TIMEOUT" in results[0].stderr_tail
+
+    report = rpp.collect_result(results[0])
+    assert report.crashed is True
+
+
 # ===========================================================================
 # Group D: receipt validation reuses gauntlet.player_playtest_evidence
 # ===========================================================================
