@@ -533,6 +533,54 @@ LOG Combat finished
 
 ---
 
+### MCP
+
+Execute an MCP command through the CommandRouter, capturing output into an optional result variable for later assertions.
+
+```
+MCP create_object name=TestCube primitive=Cube
+MCP get_hierarchy depth=2 INTO $tree
+ASSERT $tree contains TestCube
+MCP set_property path=/TestCube component=Transform prop=position value=1,2,3
+ASSERT /TestCube|Transform|position.x == 1
+```
+
+**Syntax:** `MCP <cmd> param1=value1 [param2=value2 ...] [INTO $varname]`
+
+**Parameters:** MCP command parameters as `key=value` pairs (no spaces around `=`). See `tool_specs.py` for available commands and their parameter names.
+
+**INTO clause (optional):** Capture the raw response into a VAL for use in subsequent steps:
+```
+MCP get_component path=/TestCube component=Transform INTO $result
+ASSERT $result contains "position"
+```
+
+**System variable `$RUN_ID`:** Automatically injected parallel-safe unique ID per playtest run (hexadecimal, fixed length). Use in object names to avoid collisions:
+```
+MCP create_object name=obj_$RUN_ID primitive=Cube
+MCP delete_object path=/obj_$RUN_ID
+```
+
+**EXPECT_FAIL modifier (single step):** Expect a step to fail (error, missing path, type mismatch). Inverts pass/fail for that step only; console errors are still checked unless EXPECT_FAIL precedes:
+```
+EXPECT_FAIL
+MCP set_property path=/NonexistentObject component=Transform prop=position value=1,2,3
+```
+
+**MCP Command Restrictions (enforced at compile time):**
+- Play Mode gate: MCP steps require Play Mode unless the script has `# @needs editmode` header
+- EditMode execution policy: `# @needs editmode` scripts may call MCP commands only if the target tools support EditMode dispatch
+- Denied commands (9): `play`, `stop`, `pause`, `step`, `set_timescale`, `editor(action='play')`, `editor(action='stop')`, `editor(action='play_single')` (mode-transition and timing-control commands always require Play Mode state transition)
+- Runtime mutation guard: mutations (`set_property`, `set_active`, `create_object`, etc.) are rejected at dispatch time if called during Play Mode simulation
+
+**Format and receipts:**
+- Default format is text (human-readable report)
+- `run_playtest(format="json")` produces structured output with per-step receipt objects
+- Each MCP step receipt includes `command`, `status` (ok/error), `error_message` (if failed), and response data
+- Canonical receipt JSON persisted to `PlaytestReceiptStore.ReceiptPath(runId)` for archival
+
+---
+
 ### MACRO / CALL
 
 Define reusable command blocks with positional parameters. Macros are collected in phase 0 (before ALIAS), expanded in place. Nesting up to 10 levels. Cannot nest MACRO definitions.

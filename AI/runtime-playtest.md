@@ -142,7 +142,7 @@ CONSOLE: no errors
 
 **RW Annotation:** Mutating (movement + snapshots).
 
-## run_playtest(script=None, timeout=120.0, abort_on_fail=False, defs=None, path=None, snapshot_on_failure=False, fresh=False, before_hook=None, after_hook=None)
+## run_playtest(script=None, timeout=120.0, abort_on_fail=False, defs=None, path=None, snapshot_on_failure=False, fresh=False, before_hook=None, after_hook=None, format="text")
 
 **Purpose:** Execute a playtest DSL script and wait for its final report.
 
@@ -173,6 +173,10 @@ after hook is scheduled on `EditorApplication.delayCall` after the runner task
 finishes, so the returned report does not prove that asynchronous cleanup hook
 completed. Prefer DSL `SETUP`/`TEARDOWN` when its command set is sufficient and
 reserve hooks for code-only setup or cleanup.
+
+**format:** Output format for the playtest report. Allowed values:
+- `"text"` (default): Human-readable summary with compressed passing steps
+- `"json"`: Full step-ledger receipt JSON with structured per-step objects, no compression. Each step includes command, status, error (if failed), and response data. The canonical receipt is persisted to disk and suitable for archival/CI analysis.
 
 **Setup/Teardown Blocks:**
 - `SETUP` → steps → `SETUP_END`: Runs before main steps. Without global abort,
@@ -242,7 +246,7 @@ await run_playtest(
 - A compile or domain reload interrupts the in-memory runner. Complete
   `sync_unity`, then start the playtest again; there is no mid-script resume.
 
-## run_playtest_suite(pattern=None, suite_path=None, timeout_per_test=120.0, stop_on_fail=False, stop_after=True, auto_play=False, restart_between=False)
+## run_playtest_suite(pattern=None, suite_path=None, timeout_per_test=120.0, stop_on_fail=False, stop_after=True, auto_play=False, restart_between=False, suite_timeout=300.0, tag=None)
 
 **Purpose:** Run multiple `.playtest` files sequentially; return a compact pass/fail matrix.
 
@@ -266,6 +270,10 @@ that never reaches the requested value is reported as a suite failure rather
 than treated as a successful restart. With both `auto_play=True` and
 `restart_between=True`, an already-running Editor is also restarted before the
 first file.
+
+**suite_timeout:** Total wall-clock deadline for the entire suite in seconds (default 300s). Enforced at the suite level, not per-file.
+
+**tag:** Filter files by `# @tags` header value (space-separated tags). Only files whose header includes this exact tag are executed. Filters applied after pattern/suite_path resolution. If the filter matches zero files, the suite returns a fail-closed `SUITE: 0/0` report instead of silently running the unfiltered set.
 
 **Output format:**
 ```

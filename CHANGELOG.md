@@ -14,9 +14,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **MCP verb DSL steps:** `MCP <cmd> key=value [INTO $var]` executes MCP commands from playtest scripts; $RUN_ID injected as parallel-safe unique identifier per run; EXPECT_FAIL modifier inverts pass/fail for single step; format=json outputs structured per-step receipt objects with command, status, and response data persisted for archival
+- **EditMode DSL execution:** `# @needs editmode` header opt-out of Play Mode gate; `PlaytestRunner.Run(..., requiresPlayMode: false)` runs steps through `EditorApplication.update` ticks (not delayCall) via centralized `MainThreadDispatcher`; MCP mutations validated at dispatch time
+- **Playtest corpus carriers:** 9 Edit-capable MCPFeedbackFixture files run through `PlaytestCorpusEditModeTests` (B21); 3 Play-bound-only files (`C_shared_finish`, `DSL_types`, `I3_independent_pass`) run through `PlaytestCorpusPlayModeTests` (B22) for runtime coroutine validation; Python `.suite` lane stress-tests stateful A/B/C chain via `run_playtest_suite(tag="@suite-only")`
+- **Test taxonomy and lanes (data-driven):** `Tests/taxonomy-map.json` (C13) canonical cross-language taxonomy (pytest markers, C# TestCategories, DSL @needs values); `Tests/biome-test-lanes.json` (C15) 4 lanes (pr-python-core, pr-unity-core, master-conformance, nightly-full) with filter configs; `scripts/check_test_metadata.py` (C18) enforces unknown category/tag = CI failure
 - **Test selection flags in runner:** `run_unity_tests.py` now accepts `--category` and `--assembly` for targeted test runs; `--tests-file` allows filtering from a newline-delimited file with validation and deduplication by canonical form
 - **Test run retention and pruning:** `TestRunStore.PruneOldRuns` implements 50-run cap with 7-day staleness floor; runs older than 7 days are retained only if under 50 total
 - **Dispatch-failure visibility:** `TestRunReconciler` now surfaces the exact failure reason in `dispatch_issue` field instead of generic dispatch status
+- **Tag filtering for playtest suites:** `run_playtest_suite(tag=...)` filters files by `# @tags` header value; zero matches fail-closed
 - **Cassette recorder for protocol testing:** New `bridge_cassette.py` module records and replays TCP exchanges for deterministic wire protocol testing
 - **Full baseline migration:** `full-baseline.json` replaces hardcoded 6001 Unity version constant
 

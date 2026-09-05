@@ -69,11 +69,15 @@ Every Unity fixture inherits the narrowest supported base:
 | `SceneCleanTestBase` | Scene tests that also detect leaked root objects |
 | `MultiSceneTestBase` | Additive and multi-scene behavior |
 
-**MCPFeedbackFixture** (`unity-test-project/Assets/MCPFeedbackFixture/`): Conformance test
-fixture with 10 C# components (FixtureState, FixtureMover, FixtureReceiver, FixtureId, etc.),
-5 EditMode tests (Baseline_RunIdentityEmit_Succeeds, Baseline_IntentionalFail_ForVerdictValidation, LongPass, CompileGenerationVisible, ReferenceGraphRoundTrip),
-11 PlayTest DSL files, 4 suite definitions, and shared definitions. Use this fixture as the
-protocol compliance baseline.
+**MCPFeedbackFixture** (`unity-test-project/Assets/MCPFeedbackFixture/`): Real conformance test
+fixture with C# components (FixtureState, FixtureMover, FixtureReceiver, FixtureId, FixtureAsync),
+12 DSL playtest files (9 EditMode-capable, 3 Play-bound-only), shared definitions, and suite configurations. The fixture scene (`McpFeedbackFixture.unity`) loads into both EditMode and PlayMode test carriers to verify protocol contracts end-to-end:
+
+- **EditMode carrier** (`PlaytestCorpusEditModeTests.cs`): Runs 9 Edit-capable files (F, I1, I2, I3 independent pass tests; A/B/C shared-state chain; INVOKE args; L long pass; MOVEMENT profiles) via `PlaytestRunner.Run(..., requiresPlayMode: false)` — tests DSL execution, EditMode MCP dispatch, and shared state persistence within a session
+- **PlayMode carrier** (`PlaytestCorpusPlayModeTests.cs`): Runs 3 Play-bound-only files (C_shared_finish with coroutine callbacks, DSL_types, I3_independent_pass) via `PlaytestRunner.Run(..., requiresPlayMode: true)` — tests runtime coroutines, Play-only MonoBehaviour tick, and DSL type assertions
+- **Python .suite lane** (`tests/live/test_playtest_suite.py`): Stress-tests both carriers via `run_playtest_suite()` with `--tag @suite-only` filter on A/B/C (stateful chain), verifying restart semantics and cumulative state across suite runs
+
+Use this fixture as the MCP + DSL protocol compliance baseline.
 
 Use native NUnit/UTF attributes such as `[TestFixture]`, `[Test]`, `[SetUp]`,
 and `[TearDown]`. Do not introduce aliases for discovery or lifecycle.
@@ -224,6 +228,42 @@ error recovery. ~26 tests; run in `ci-python.yml` without editor dependency.
 
 See `.claude/skills/testing-tdd.md` section "Cross-Boundary Test Layers" for
 implementation patterns, fixture usage, and conformance gating details.
+
+## EditMode DSL Execution
+
+The playtest DSL now supports EditMode execution through the `# @needs editmode` header directive:
+
+- **Header parsing** (B05): `PlaytestHeaderScanner.Scan()` detects `# @needs editmode` at parse time. `AsyncRunPlaytest` uses this to opt out of the Play Mode gate
+- **ExecutionPolicy** (B06): `PlaytestRunner.Run(..., requiresPlayMode: false)` bypasses Play Mode checks. EditMode steps run through `EditorApplication.update` ticks (not `delayCall`) via a centralized `MainThreadDispatcher`
+- **Mutation guard** (B08): EditMode MCP steps are validated at dispatch time; mutations are rejected immediately if called from `execute_code` or other runtime paths
+- **Fixture scene** (B21): EditMode carrier opens the MCPFeedbackFixture via `EditorSceneManager.OpenScene(..., Additive)` to resolve loose ASSERT/INVOKE paths against real GameObjects
+- **No `fresh` in EditMode** (B05): `run_playtest(fresh=true, script="# @needs editmode")` errors before Run() — Play Mode restart cannot be used in EditMode scripts
+
+## Test Taxonomy and Lanes
+
+Test organization is data-driven via two canonical JSON files:
+
+**`Tests/taxonomy-map.json`** (C13): Single source of truth for cross-language test dimensions (pytest markers, C# TestCategories, DSL `@needs` header values). Each dimension maps to its representation in pytest, C#, and DSL. Example dimension entries:
+- `live`: pytest marker, Python-only
+- `slow`: pytest marker + C# `TestCategories.Slow` constant
+- `editmode`: DSL header value `@needs editmode` (PlayMode default, EditMode opt-in)
+- `playmode`: DSL header value `@needs playmode` (symmetric to editmode)
+
+**`Tests/biome-test-lanes.json`** (C15): 4 lanes matching real CI jobs (pr-python-core, pr-unity-core, master-conformance, nightly-full). Each lane specifies:
+- `filter`: layer/mode/environment/speed/include-tags/exclude-tags/exclude-capabilities selectors
+- `source`: exact CI job reference (file path and line number)
+- Cross-checked against taxonomy-map.json by `scripts/tests/test_lanes_config.py`
+
+**Enforcement** (C18): `scripts/check_test_metadata.py` is run in CI and locally to validate:
+1. Every `[Category(...)]` in C# resolves to a `TestCategories.*` const (or allow-listed wrapper)
+2. Every lane filter field references a known taxonomy dimension
+3. Every `.playtest` `@needs` value has a matching taxonomy-map dimension
+
+**Python test-lane directory convention:** ~446 root-level `server/tests/test_*.py` files are NOT migrated to per-lane subdirectories (unlike per-lane pytest markers). Each test file carries its own marker set. The lane filter configuration generates pytest `-m` expressions that CI lanes use to select tests at runtime.
+
+## Why No C# .suite Driver
+
+C# EditMode tests cannot enter Play Mode mid-test (would require domain reload), so a suite fixture in C# cannot coordinate stateful PlayMode runs (A→B→C without reset). The Python `.suite` lane (`tests/live/test_playtest_suite.py`) bridges this by calling `run_playtest_suite(pattern="Assets/MCPFeedbackFixture/PlayTests/*.playtest")` with `--tag @suite-only` to select A/B/C (marked `# @suite-only` in their headers). Python's async/await model lets it orchestrate multiple runs with shared state recovery between them.
 
 ## Source Patch (Mutation Mode) Qualification
 
