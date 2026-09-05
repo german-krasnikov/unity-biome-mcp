@@ -293,3 +293,49 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
     total = (scene_own + _own_count(console_mod) + _own_count(screenshot_mod)
              + _own_count(testing_mod) + _own_count(ec_mod))
     assert total == 27
+
+
+# ── PR-02 Track A: register_all() threads stdio_alive through to connection ────
+
+def test_register_all_forwards_stdio_alive_to_connection(monkeypatch):
+    """register_all(..., stdio_alive=X) must forward X to connection.register()
+    unchanged — this is the composition-root -> tools wiring for the callback
+    that replaced connection.py's reverse import into unity_mcp.server."""
+    import unity_mcp.tools as tools_pkg
+    import unity_mcp.tools.connection as connection
+
+    register_mock = MagicMock()
+    # register_all() binds module-global transports for every tool module in
+    # its list. Mock every OTHER registrar (same technique as
+    # test_register_all_wires_uitk_module_exactly_once) so this call doesn't
+    # leak a throwaway _send/_args into spatial/watch/uitk/etc. for the rest
+    # of the pytest session.
+    for candidate in vars(tools_pkg).values():
+        register = getattr(candidate, "register", None)
+        if candidate is tools_pkg.connection or not callable(register):
+            continue
+        monkeypatch.setattr(candidate, "register", MagicMock())
+    monkeypatch.setattr(connection, "register", register_mock)
+    monkeypatch.setattr(tools_pkg, "register_metrics", MagicMock())
+    sentinel = object()
+
+    tools_pkg.register_all(
+        _make_mcp(),
+        AsyncMock(),
+        MagicMock(),
+        get_slot=lambda: None,
+        stdio_alive=sentinel,
+    )
+
+    assert register_mock.call_args.kwargs["stdio_alive"] is sentinel
+
+
+def test_server_wires_real_stdio_alive_into_register_all():
+    """server.py (the composition root) must pass its own _stdio_alive function
+    into register_all() at the actual call site — not a stub, not omitted."""
+    import inspect
+
+    import unity_mcp.server as srv
+    src = inspect.getsource(srv)
+
+    assert "stdio_alive=_stdio_alive" in src

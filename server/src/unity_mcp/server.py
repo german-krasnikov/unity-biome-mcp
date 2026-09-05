@@ -657,6 +657,7 @@ mcp._mcp_server.version = __version__
 
 register_all(mcp, _send, _args, get_slot=lambda: slot,
              get_middleware=lambda: _middleware,
+             stdio_alive=_stdio_alive,
              refresh_tools_cache=_refresh_tools_cache,
              push_catalog=_push_catalog)
 load_plugins(mcp, _send, _args)
