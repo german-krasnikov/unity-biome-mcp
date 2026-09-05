@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.53.0] — 2026-09-05
+
 ### Added
 
 - **Async playtest dispatch (Wave E, E02–E04):** Non-blocking `start_playtest` + polling `get_playtest_run` for scripts with `timeout > 120s`; threshold `_RUN_PLAYTEST_SYNC_CEILING_S` (Python) and `RunPlaytestTimeoutSeconds` (C#) prevent single blocking TCP calls from timeout. Transparent routing in `run_playtest()` via `playtest_async.run_via_start_poll()` (R-04); run ID persisted in `PlaytestReceiptStore` across domain reloads
