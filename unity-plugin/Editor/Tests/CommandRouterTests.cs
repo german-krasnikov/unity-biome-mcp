@@ -978,6 +978,31 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("\"ok\":false", result);
         }
 
+        // PR-04R Step A2: the host's registration-readiness gate (CommandRegistry.Ready)
+        // and Reload's own domain-evidence gate (SyncHelper.GetSyncStatus()) are two
+        // independent facts — CheckGuards' !CommandRegistry.Ready branch fires first and
+        // unconditionally, even when SyncHelper independently reports state=ready.
+        [Test]
+        public void Process_RegistryNotReady_IndependentOfSyncHelperReadyState()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+
+            // Drive SyncHelper into a genuine domain-evidence "ready" fact.
+            SyncHelper.SimulateAfterAssemblyReload();
+            StringAssert.Contains("state=ready", SyncHelper.GetSyncStatus(),
+                "precondition: SyncHelper must independently report ready");
+
+            // Registry readiness is a separate host fact — force it false and confirm
+            // the guard still fires even though Reload's own evidence says ready.
+            CommandRegistry.Ready = false;
+            var result = CommandRouter.Process("{\"id\":\"pr04r1\",\"cmd\":\"sync_status\",\"args\":{}}");
+
+            StringAssert.Contains("Server initializing", result,
+                "registry-not-ready guard must fire even when SyncHelper independently reports ready");
+            StringAssert.Contains("\"ok\":false", result);
+        }
+
         [Test]
         public void Process_PythonOnlyCommand_ReturnsActionableError()
         {

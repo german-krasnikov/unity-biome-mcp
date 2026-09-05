@@ -142,6 +142,12 @@ type = "forbidden"
 source_modules = ["unity_mcp.plugin_api"]
 forbidden_modules = ["unity_mcp.server"]
 
+[[tool.importlinter.contracts]]
+name = "diagnose/reload_ladder stay algorithm+evidence only (no import of the sync facade)"
+type = "forbidden"
+source_modules = ["unity_mcp.tools.diagnose", "unity_mcp.tools.reload_ladder"]
+forbidden_modules = ["unity_mcp.tools.sync"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
