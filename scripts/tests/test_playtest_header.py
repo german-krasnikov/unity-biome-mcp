@@ -36,6 +36,16 @@ def test_scan_returns_needs_tags_expect_suite_only():
     assert header.suite_only is True
 
 
+def test_scan_returns_needs_player():
+    """`@needs player` (E05): a Python-only CI fan-out selection token — Unity's
+    own DSL execution has no such concept, so it is not mirrored to C#'s
+    PlaytestHeaderScanner (unlike editmode/playmode, which gate Editor execution)."""
+    header = ph.scan("# @needs player\nLOG hi\n")
+
+    assert header.needs_player is True
+    assert header.needs_editmode is False
+
+
 def test_scan_merges_multiple_directive_lines():
     text = (
         "# @needs editmode\n"

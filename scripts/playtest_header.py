@@ -1,8 +1,14 @@
 """The single Python `# @directive` header scanner for `.playtest` scripts.
 
-Mirrors `unity-plugin/Editor/PlaytestHeaderScanner.cs` (`@needs`, `@tags`, `@expect`,
-`@suite-only`). Pure text in, pure data out — no file I/O here; a caller reading a
-`.playtest` from disk must pass `encoding="utf-8"` explicitly at that one read site
+Mirrors `unity-plugin/Editor/PlaytestHeaderScanner.cs` (`@needs editmode|playmode`,
+`@tags`, `@expect`, `@suite-only`) with one deliberate, documented exception:
+`@needs player` (E05) is Python-only. It selects files for the Standalone-Player
+CI fan-out (`scripts/run_player_playtests.py`) — a concept Unity's own DSL
+execution has no notion of, unlike editmode/playmode which gate what runs inside
+the Editor. Not mirrored to C# on purpose.
+
+Pure text in, pure data out — no file I/O here; a caller reading a `.playtest`
+from disk must pass `encoding="utf-8"` explicitly at that one read site
 (`.claude/skills/encoding.md`, standards #17).
 
 This is the only Python header scanner in the repo (B18). B19, C08, C18 and E05
@@ -19,6 +25,7 @@ _EXPECT = "expect"
 _SUITE = "suite"
 _NEEDS_EDITMODE = "editmode"
 _NEEDS_PLAYMODE = "playmode"
+_NEEDS_PLAYER = "player"
 _EXPECT_STEPS = "steps"
 _EXPECT_FAILED = "failed"
 
@@ -27,6 +34,7 @@ _EXPECT_FAILED = "failed"
 class Header:
     needs_editmode: bool = False
     needs_playmode: bool = False
+    needs_player: bool = False
     tags: list[str] = field(default_factory=list)
     expect_steps: int | None = None
     expect_failed: int | None = None
@@ -62,6 +70,8 @@ def _apply_directive(header: Header, tags: set[str], key: str, rest: str) -> Non
                 header.needs_editmode = True
             elif lowered == _NEEDS_PLAYMODE:
                 header.needs_playmode = True
+            elif lowered == _NEEDS_PLAYER:
+                header.needs_player = True
     elif key == _TAGS:
         tags.update(rest.split())
     elif key == _EXPECT:
