@@ -172,19 +172,6 @@ namespace UnityMCP.Playtest
                 _consoleErrors.Add(condition);
         }
 
-        private static List<string> ParseSteps(string script)
-        {
-            var steps = new List<string>();
-            foreach (var rawLine in script.Split('\n'))
-            {
-                var line = rawLine.Trim();
-                if (line.Length == 0 || line.StartsWith("#"))
-                    continue;
-                steps.Add(line.TrimEnd('\r'));
-            }
-            return steps;
-        }
-
         private static string GetArg(string[] args, string name)
         {
             for (var i = 0; i < args.Length - 1; i++)
