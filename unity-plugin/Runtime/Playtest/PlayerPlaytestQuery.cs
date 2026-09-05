@@ -59,13 +59,16 @@ namespace UnityMCP.Playtest
 
         internal static StepResult ExecuteInvoke(PlaytestStep step)
         {
+            // C# reflection-call failures throw and are caught below; a component's own
+            // return value (even one that happens to read "error:...", e.g. GridPlayer.Move
+            // reporting a rejected boundary move) is just data — the Editor's own INVOKE
+            // handler (PlaytestRunner.Steps.cs) never inspects it either, and only a thrown
+            // exception marks the step failed. See player_ci_bounds.playtest.
             try
             {
                 var component = FindComponent(FindObject(step.Path), step.Component);
                 var argTokens = PlaytestParser.SplitTokens(step.Args ?? "");
                 var result = InvokeBestMatch(component, step.Method, argTokens, 0);
-                if (result is string message && message.StartsWith("error:", StringComparison.OrdinalIgnoreCase))
-                    return StepResult.Fail(step.RawLine, message);
                 return StepResult.Pass(step.RawLine, FormatValue(result));
             }
             catch (Exception e)

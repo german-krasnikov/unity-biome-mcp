@@ -161,6 +161,23 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void GetErrorsSince_ReturnsError_WhenTimestampExactlyEqualsSince()
+        {
+            // Windows CI regression (PlaytestRunnerEditModeTests.Run_McpStep_UnknownCommand_
+            // ReportsFailNotCrash / Run_ExpectFailStep_ConsoleErrorStillFails): CheckStepConsoleErrors
+            // captures stepStart via DateTime.Now, then a step that fails synchronously logs its
+            // error via DateTime.Now microseconds later. On Windows' coarser clock resolution
+            // those two DateTime.Now calls can return the IDENTICAL value — a strict `>` then
+            // silently drops the error instead of attributing it to the step that caused it.
+            var since = new DateTime(2026, 1, 1, 12, 0, 0);
+            ConsoleCapture.InjectForTestAt("tie-error", LogType.Error, since);
+
+            var result = ConsoleCapture.GetErrorsSince(since);
+
+            StringAssert.Contains("tie-error", result);
+        }
+
+        [Test]
         public void GetLogs_CountMinusOne_ReturnsAll()
         {
             ConsoleCapture.InjectForTest("error", LogType.Error);

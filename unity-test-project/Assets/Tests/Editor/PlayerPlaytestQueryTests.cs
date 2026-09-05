@@ -87,5 +87,32 @@ namespace UnityMCP.TestProject
             Assert.IsTrue(result.Passed, result.Message);
             Assert.AreEqual("[hello there]|world", result.Message);
         }
+
+        private class BoundsCheckedBehaviour : MonoBehaviour
+        {
+            // Mirrors GridPlayer.Move's own convention: a rejected-but-valid game outcome
+            // (e.g. hitting a grid boundary) is reported as a string, not an exception.
+            public string Move(string direction) => "error:out_of_bounds:(0,10)";
+        }
+
+        [Test]
+        public void ExecuteInvoke_MethodReturnsErrorPrefixedString_StillPasses()
+        {
+            // Player CI regression (player_ci_bounds.playtest): GridPlayer.Move legitimately
+            // returns "error:out_of_bounds:..." when a move is rejected at a grid edge — a
+            // normal game outcome, not a scripting failure. The Editor's own INVOKE handler
+            // (PlaytestRunner.Steps.cs) never inspects the return value and always passes
+            // unless the call throws; ExecuteInvoke must match that, or every Player-only
+            // boundary/rejection test is structurally unpassable.
+            var go = new GameObject("BoundsChecked");
+            TrackOwnedObject(go);
+            go.AddComponent<BoundsCheckedBehaviour>();
+
+            var parsed = PlaytestParser.Parse("INVOKE /BoundsChecked BoundsCheckedBehaviour Move north");
+            Assert.AreEqual(1, parsed.Count);
+
+            var result = PlayerPlaytestRunner.ExecuteInvoke(parsed[0]);
+            Assert.IsTrue(result.Passed, result.Message);
+        }
     }
 }

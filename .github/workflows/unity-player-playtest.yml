@@ -289,7 +289,12 @@ jobs:
           fi
           test -n "$PLAYER"
           chmod +x "$PLAYER" 2>/dev/null || true
-          FANOUT_ARGS=(--player "$PLAYER" --jobs 2 --out artifacts/player-playtest-fanout.xml --extra-arg=-nographics)
+          # --timeout keeps well under this step's own timeout-minutes: 10 — the script's
+          # default (600s) exactly equalled the step timeout, so a single slow/stuck Player
+          # process (observed hanging on macOS) let the GH Actions step kill everything
+          # before run_player_playtests.py's own per-file TimeoutExpired handling could
+          # report results. Worst case with --jobs 2 / 3 files is 2x this value.
+          FANOUT_ARGS=(--player "$PLAYER" --jobs 2 --timeout 240 --out artifacts/player-playtest-fanout.xml --extra-arg=-nographics)
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             FANOUT_ARGS+=(--extra-arg=-force-glcore)
             xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" \
