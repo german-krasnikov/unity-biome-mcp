@@ -1,32 +1,32 @@
 # Quality Report
 
-> Auto-generated on **2026-09-03** from commit `c18b692` (v1.52.0)
+> Auto-generated on **2026-09-05** from commit `0e06aa2` (v1.53.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.52.0 |
-| Commit | `c18b692` |
-| Date | 2026-09-03 |
+| Version | v1.53.0 |
+| Commit | `0e06aa2` |
+| Date | 2026-09-05 |
 | MCP Tools | 160 |
 
 ## Test Results
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.14) | 6348 | 0 | 3 | 6351 | ✅ |
+| Python Server (3.14) | 6401 | 0 | 3 | 6404 | ✅ |
 | Python Install | 90 | 0 | 0 | 90 | ✅ |
-| Python Scripts | 1181 | 0 | 0 | 1181 | ✅ |
-| C# EditMode (Linux) | 8939 | 0 | 186 | 9125 | ✅ |
-| C# EditMode (Windows) | 8825 | 0 | 300 | 9125 | ✅ |
-| C# EditMode (macOS) | 8939 | 0 | 186 | 9125 | ✅ |
+| Python Scripts | 1270 | 0 | 0 | 1270 | ✅ |
+| C# EditMode (Linux) | 9124 | 0 | 186 | 9310 | ✅ |
+| C# EditMode (Windows) | 9010 | 0 | 300 | 9310 | ✅ |
+| C# EditMode (macOS) | 9124 | 0 | 186 | 9310 | ✅ |
 
 ## Tool Quality
 
 | Linter | Errors | Warnings | Score |
 |--------|--------|----------|-------|
-| mcp-tool-card-linter | 1 | 418 | 83.51/100 |
+| mcp-tool-card-linter | 1 | 419 | 83.46/100 |
 
 ### Per-Tool Scores
 
@@ -38,10 +38,10 @@
 | `verify_after_change` | 57 | 0 | 6 | high |
 | `shader` | 59 | 0 | 4 | high |
 | `animator` | 60 | 0 | 4 | high |
+| `run_playtest_suite` | 61 | 0 | 6 | high |
 | `timeline` | 64 | 0 | 4 | medium |
 | `create_ui` | 65 | 0 | 5 | medium |
 | `screenshot` | 65 | 0 | 7 | medium |
-| `run_playtest_suite` | 67 | 0 | 5 | high |
 | `uitk_file` | 67 | 0 | 5 | high |
 | `get_test_run` | 68 | 1 | 3 | high |
 | `run_tests_wait` | 68 | 0 | 6 | high |
@@ -53,12 +53,12 @@
 | `animation` | 71 | 0 | 3 | medium |
 | `test_step` | 71 | 0 | 4 | medium |
 | `set_rect` | 72 | 0 | 4 | medium |
+| `run_playtest` | 73 | 0 | 5 | high |
 | `sync_unity` | 73 | 0 | 5 | medium |
 | `asset` | 74 | 0 | 3 | high |
 | `run_tests` | 74 | 0 | 5 | medium |
 | `set_sibling_index` | 74 | 0 | 5 | medium |
 | `vfx_intent` | 74 | 0 | 4 | medium |
-| `run_playtest` | 75 | 0 | 5 | high |
 | `screenshot_baseline` | 75 | 0 | 4 | medium |
 | `set_property_delta` | 75 | 0 | 4 | medium |
 | `attach_uitk` | 76 | 0 | 4 | high |

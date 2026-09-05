@@ -119,8 +119,8 @@ hide:
 | [`resolve_scene_refs`](#resolve_scene_refs) | 🟢 93/100 | 🟡 medium | Read-only scene reference resolver. |
 | [`resolve_test_request`](#resolve_test_request) | 🟢 93/100 | 🟢 low | Resolve a possibly lost start ACK without dispatching another test run. |
 | [`resolve_tool_schema`](#resolve_tool_schema) | 🟢 92/100 | 🟢 low | Return full parameter schemas for deferred tools. tools=comma-separated names. |
-| [`run_playtest`](#run_playtest) | 🟡 75/100 | 🔴 high | [Play Mode] Execute a playtest DSL script. Returns structured report (for NUn... |
-| [`run_playtest_suite`](#run_playtest_suite) | 🟡 67/100 | 🔴 high | Run multiple .playtest files sequentially and return a compact matrix. |
+| [`run_playtest`](#run_playtest) | 🟡 73/100 | 🔴 high | [Play Mode] Execute a playtest DSL script. Returns structured report (for NUn... |
+| [`run_playtest_suite`](#run_playtest_suite) | 🟡 61/100 | 🔴 high | Run multiple .playtest files sequentially and return a compact matrix. |
 | [`run_tests`](#run_tests) | 🟡 74/100 | 🟡 medium | Dispatch Unity tests and return their durable identity immediately. |
 | [`run_tests_wait`](#run_tests_wait) | 🟡 68/100 | 🔴 high | Dispatch tests and wait for the exact run to become terminal. Dispatches test... |
 | [`runtime_snapshot`](#runtime_snapshot) | 🟢 89/100 | 🟢 low | Snapshot all runtime objects of a given component type. Returns per-object fi... |
@@ -7311,9 +7311,9 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 
 ### `run_playtest`
 
-🟡 75/100 · Risk: 🔴 high
+🟡 73/100 · Risk: 🔴 high
 
-[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`). Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value | ASSERT_CONSOLE_CLEAN [IGNORE "pat"] | SNAPSHOT queries | INVOKE path comp method args | SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t | ASSERT_CTA VISIBLE|CLICKABLE | VAL name query | TELEPORT path x,y,z | ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | INVARIANT query op value | SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f | CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED. defs: inline VAL definitions prepended to script. abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown.
+[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`). Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value | ASSERT_CONSOLE_CLEAN [IGNORE "pat"] | SNAPSHOT queries | INVOKE path comp method args | SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t | ASSERT_CTA VISIBLE|CLICKABLE | VAL name query | TELEPORT path x,y,z | ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | INVARIANT query op value | SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f | CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED. defs: inline VAL definitions prepended to script. abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown. format="json": return the canonical step-ledger receipt instead of the legacy text report; skips compression/summarization.
 
 **Parameters:**
 
@@ -7323,6 +7323,7 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 | `after_hook` | any |  | DSL commands to run after Play Mode exits |
 | `before_hook` | any |  | DSL commands to run before entering Play Mode |
 | `defs` | any |  | Inline VAL definitions prepended to script (alias block) |
+| `format` | string |  |  (default: `text`) |
 | `fresh` | boolean |  | Stop and restart Play Mode before running the script (default: `False`) |
 | `path` | any |  | Path to .playtest DSL file on disk (mutually exclusive with script) |
 | `script` | any |  | Inline DSL script (mutually exclusive with path) |
@@ -7330,12 +7331,14 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 | `timeout` | number |  | Max seconds to wait for the playtest to finish (default 120) (default: `120.0`) |
 
 <details>
-<summary>5 quality issues</summary>
+<summary>7 quality issues</summary>
 
 - **warning**: Tool appears to have side effects but the description does not state them clearly.
 - **warning**: Risky tool lacks a clear usage boundary.
 - **warning**: Object schema has properties but no required list.
 - **warning**: Numeric parameter 'timeout' has no bounds.
+- **info**: Parameter 'format' has no description.
+- **info**: Free-form string parameter 'format' has no maxLength.
 - **warning**: outputSchema is missing.
 
 </details>
@@ -7434,6 +7437,11 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
       "default": null,
       "title": "After Hook",
       "description": "DSL commands to run after Play Mode exits"
+    },
+    "format": {
+      "default": "text",
+      "title": "Format",
+      "type": "string"
     }
   },
   "title": "run_playtestArguments",
@@ -7448,9 +7456,9 @@ Return full parameter schemas for deferred tools. tools=comma-separated names.
 
 ### `run_playtest_suite`
 
-🟡 67/100 · Risk: 🔴 high
+🟡 61/100 · Risk: 🔴 high
 
-Run multiple .playtest files sequentially and return a compact matrix. Side effects: auto_play/restart_between may enter or restart Play Mode; stop_after exits Play Mode. No confirmation is requested. pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,          or newline-separated list of project-relative paths. suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment). Exactly one of pattern or suite_path must be provided. stop_on_fail=True: abort suite after first failure. stop_after=True: exit Play Mode when suite completes. auto_play=True: enter Play Mode automatically if not already playing. restart_between=True: stop+play between each file to reset runtime state; with auto_play=True, also resets an already-running editor before file one. suite_timeout: total suite wall-clock deadline in seconds (default 300s). Lifecycle commands must return successfully and reach their observed state. A failed transition stops the suite and is reported as a failed row. Empty matches return a failing SUITE: 0/0 report. Output: SUITE: X/Y passed (Zs) terminal:true play_stopped:true/false + per-file lines.
+Run multiple .playtest files sequentially and return a compact matrix. Side effects: auto_play/restart_between may enter or restart Play Mode; stop_after exits Play Mode. No confirmation is requested. pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,          or newline-separated list of project-relative paths. suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment). Exactly one of pattern or suite_path must be provided. stop_on_fail=True: abort suite after first failure. stop_after=True: exit Play Mode when suite completes. auto_play=True: enter Play Mode automatically if not already playing. restart_between=True: stop+play between each file to reset runtime state; with auto_play=True, also resets an already-running editor before file one. suite_timeout: total suite wall-clock deadline in seconds (default 300s). tag: only run files whose `# @tags` header (space-separated) includes this tag; matches after pattern/suite_path resolution. A tag that matches zero files fails closed (same shape as an empty pattern/suite match), it never silently runs the unfiltered set. Lifecycle commands must return successfully and reach their observed state. A failed transition stops the suite and is reported as a failed row. Empty matches return a failing SUITE: 0/0 report. Output: SUITE: X/Y passed (Zs) terminal:true play_stopped:true/false + per-file lines.
 
 **Parameters:**
 
@@ -7463,11 +7471,13 @@ Run multiple .playtest files sequentially and return a compact matrix. Side effe
 | `stop_on_fail` | boolean |  |  (default: `False`) |
 | `suite_path` | any |  |  |
 | `suite_timeout` | number |  |  (default: `300.0`) |
+| `tag` | any |  |  |
 | `timeout_per_test` | number |  |  (default: `120.0`) |
 
 <details>
-<summary>13 quality issues</summary>
+<summary>15 quality issues</summary>
 
+- **warning**: Tool description is very long and may increase context cost or hide important constraints.
 - **warning**: Object schema has properties but no required list.
 - **info**: Parameter 'pattern' has no description.
 - **info**: Parameter 'suite_path' has no description.
@@ -7479,6 +7489,7 @@ Run multiple .playtest files sequentially and return a compact matrix. Side effe
 - **info**: Parameter 'restart_between' has no description.
 - **info**: Parameter 'suite_timeout' has no description.
 - **warning**: Numeric parameter 'suite_timeout' has no bounds.
+- **info**: Parameter 'tag' has no description.
 - **warning**: outputSchema is missing.
 - **warning**: Tool appears destructive but lacks destructiveHint=true.
 
@@ -7543,6 +7554,18 @@ Run multiple .playtest files sequentially and return a compact matrix. Side effe
       "default": 300.0,
       "title": "Suite Timeout",
       "type": "number"
+    },
+    "tag": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tag"
     }
   },
   "title": "run_playtest_suiteArguments",
