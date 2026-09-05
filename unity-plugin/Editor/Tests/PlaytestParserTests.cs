@@ -1,6 +1,7 @@
 // TDD: PlaytestParser pure-logic tests — no Unity API, EditMode safe.
 // Compare drives every ASSERT in playtests; a bug silently passes all assertions.
 using System;
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor;
@@ -1088,6 +1089,32 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("INCREASED_BY", s.Op);
             Assert.AreEqual(">=", s.Args);
             Assert.AreEqual("10", s.Value);
+        }
+
+        // ── D10: injectable IncludeResolver bypasses the hardcoded Assets/PlaytestDefs/
+        // path — the generic seam PlayerPlaytestRunner.ResolveInclude (D11) relies on ──
+
+        [Test]
+        public void Parse_WithHandWrittenIncludeResolver_NeverConsultsDefaultPlaytestDefsPath()
+        {
+            var resolvedFilenames = new List<string>();
+            IncludeResolver resolver = filename =>
+            {
+                resolvedFilenames.Add(filename);
+                return "LOG line one\nLOG line two";
+            };
+
+            // This filename does not exist under Assets/PlaytestDefs/ — if the default
+            // path were still consulted instead of the resolver, this would throw
+            // ArgumentException (wrapping FileNotFoundException), not return steps.
+            var r = PlaytestParser.Parse("INCLUDE player_defs_that_do_not_exist.defs", resolver);
+
+            Assert.AreEqual(new[] { "player_defs_that_do_not_exist.defs" }, resolvedFilenames.ToArray());
+            Assert.AreEqual(2, r.Count);
+            Assert.AreEqual(StepType.Log, r[0].Type);
+            Assert.AreEqual("line one", r[0].Message);
+            Assert.AreEqual(StepType.Log, r[1].Type);
+            Assert.AreEqual("line two", r[1].Message);
         }
     }
 }

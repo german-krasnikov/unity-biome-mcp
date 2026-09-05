@@ -219,5 +219,13 @@ namespace UnityMCP.Playtest
                     return true;
             return false;
         }
+
+        // D10: injectable IncludeResolver for the Player build — reads PlaytestDefs
+        // from Application.streamingAssetsPath instead of the Editor-only
+        // "Assets/PlaytestDefs/" path used by PlaytestParser's default resolver.
+        // Plain System.IO.File works on every CI Player target (Linux/macOS/Windows);
+        // Android/WebGL would need UnityWebRequest, but no CI target needs that yet.
+        private static string ResolveInclude(string filename) =>
+            File.ReadAllText(Path.Combine(Application.streamingAssetsPath, "PlaytestDefs", filename));
     }
 }
