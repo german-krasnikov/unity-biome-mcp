@@ -19,6 +19,17 @@ namespace UnityMCP.Playtest.Core.PureTests
         // Player Compare, is FALSE under Core).
         [TestCase("Hello World", "contains", "World", true)]
         [TestCase("Hello World", "contains", "world", false)]
+        // Blocker 3 (architecture review, 2026-09-05): D13's commit message claimed "none
+        // of the 6 shipped Player fixtures use `contains`" — false even at the time:
+        // player_ci_smoke.playtest already had 3 `ASSERT ... contains ...` lines. Verified
+        // by hand against GridPlayer.cs: StateText emits a literal lowercase "pos=x,z" and
+        // BoardText's player cell is a literal uppercase 'P' — every value that fixture
+        // asserts against already matches Core's case-sensitive `contains` exactly, so no
+        // case-insensitive escape hatch is needed. Pinned here as executable proof instead
+        // of an unverified claim.
+        [TestCase("pos=0,0;score=0;moves=0;moving=False;grid=10", "contains", "pos=0,0", true)]
+        [TestCase("pos=0,1;score=0;moves=1;moving=False;grid=10", "contains", "pos=0,1", true)]
+        [TestCase("........../P.........", "contains", "P", true)]
         // D13: numeric operands take the numeric branch (with epsilon tolerance)
         // before either implementation's string branch is reached — both agreed
         // here, but nothing previously pinned the branch-order itself.
