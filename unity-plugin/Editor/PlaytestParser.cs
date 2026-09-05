@@ -1342,7 +1342,7 @@ namespace UnityMCP.Editor
                 step.RawPosition = token;
             else
             {
-                var f = ValueParser.ParseFloats(token, 3);
+                var f = NumericParsing.ParseFloats(token, 3);
                 step.Position = new Float3(f[0], f[1], f[2]);
             }
         }

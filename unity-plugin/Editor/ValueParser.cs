@@ -8,17 +8,7 @@ namespace UnityMCP.Editor
 {
     internal static class ValueParser
     {
-        internal static float[] ParseFloats(string value, int expected)
-        {
-            var parts = value.Trim('(', ')').Split(',');
-            if (parts.Length != expected)
-                throw new ArgumentException($"Expected {expected} components but got {parts.Length}: {value}");
-            var result = new float[expected];
-            for (int i = 0; i < expected; i++)
-                if (!float.TryParse(parts[i].Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out result[i]))
-                    throw new ArgumentException($"Invalid float at index {i}: {value}");
-            return result;
-        }
+        internal static float[] ParseFloats(string value, int expected) => NumericParsing.ParseFloats(value, expected);
 
         internal static Vector2 ParseVector2(string v) { var f = ParseFloats(v, 2); return new Vector2(f[0], f[1]); }
         internal static Vector3 ParseVector3(string v) { var f = ParseFloats(v, 3); return new Vector3(f[0], f[1], f[2]); }
