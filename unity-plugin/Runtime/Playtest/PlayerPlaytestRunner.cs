@@ -4,11 +4,22 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using UnityEngine;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Playtest
 {
     public sealed partial class PlayerPlaytestRunner : MonoBehaviour
     {
+        // The exact 9 StepTypes the fixtures under Assets/StreamingAssets/Playtests/
+        // use (D11). Do NOT widen without a corresponding Execute() case — Move/
+        // Section/Setup/Monitor etc. are deliberately out of scope (no fixture needs
+        // them; unbounded scope creep).
+        private static readonly HashSet<StepType> SupportedStepTypes = new()
+        {
+            StepType.Assert, StepType.AssertConsoleClean, StepType.Invoke, StepType.Log,
+            StepType.Set, StepType.Snapshot, StepType.TimeScale, StepType.WaitUntil, StepType.Wait,
+        };
+
         private readonly List<StepResult> _results = new();
         private readonly List<string> _consoleErrors = new();
         private string _scriptPath;
@@ -47,27 +58,38 @@ namespace UnityMCP.Playtest
         private IEnumerator Run()
         {
             var started = DateTime.UtcNow;
-            var failed = 0;
             var script = File.ReadAllText(_scriptPath);
-            var steps = ParseSteps(script);
-            if (steps != null)
+            var parsed = PlaytestParser.Parse(script, ResolveInclude);
+            var steps = parsed.Steps;
+
+            // Pre-scan gate: never a partial run against a script containing a step
+            // type this Player runner cannot execute. Record every offender first,
+            // then stop before any step actually runs.
+            var hasUnsupported = false;
+            foreach (var step in steps)
+            {
+                if (SupportedStepTypes.Contains(step.Type))
+                    continue;
+                _results.Add(StepResult.Fail(step.RawLine, $"unsupported step type in Player: {step.Type}"));
+                hasUnsupported = true;
+            }
+
+            if (!hasUnsupported)
             {
                 for (var i = 0; i < steps.Count; i++)
                 {
-                    var rawStep = steps[i];
+                    var step = steps[i];
                     var before = _results.Count;
-                    yield return Execute(rawStep);
+                    yield return Execute(step);
                     if (_results.Count == before)
-                    {
-                        failed++;
-                        _results.Add(StepResult.Fail(rawStep, "step produced no result"));
-                    }
-                    else if (!_results[_results.Count - 1].Passed)
-                    {
-                        failed++;
-                    }
+                        _results.Add(StepResult.Fail(step.RawLine, "step produced no result"));
                 }
             }
+
+            var failed = 0;
+            for (var i = 0; i < _results.Count; i++)
+                if (!_results[i].Passed)
+                    failed++;
 
             Time.timeScale = 1f;
             Application.logMessageReceived -= OnLog;
@@ -77,112 +99,71 @@ namespace UnityMCP.Playtest
                 Application.Quit(failed == 0 ? 0 : 1);
         }
 
-        private IEnumerator Execute(string rawStep)
+        private IEnumerator Execute(PlaytestStep step)
         {
-            var step = rawStep.Trim();
-            if (step.StartsWith("LOG ", StringComparison.OrdinalIgnoreCase))
+            switch (step.Type)
             {
-                _results.Add(StepResult.Pass(step, step.Substring(4).Trim()));
-                yield break;
+                case StepType.Log:
+                    _results.Add(StepResult.Pass(step.RawLine, step.Message));
+                    yield break;
+                case StepType.Wait:
+                    yield return Wait(step);
+                    yield break;
+                case StepType.TimeScale:
+                    _results.Add(ExecuteTimescale(step));
+                    yield break;
+                case StepType.Invoke:
+                    _results.Add(ExecuteInvoke(step));
+                    yield break;
+                case StepType.Set:
+                    _results.Add(ExecuteSet(step));
+                    yield break;
+                case StepType.Snapshot:
+                    _results.Add(ExecuteSnapshot(step));
+                    yield break;
+                case StepType.AssertConsoleClean:
+                    _results.Add(_consoleErrors.Count == 0
+                        ? StepResult.Pass(step.RawLine, "console clean")
+                        : StepResult.Fail(step.RawLine, string.Join("\\n", _consoleErrors)));
+                    yield break;
+                case StepType.Assert:
+                    _results.Add(EvaluateAssert(step));
+                    yield break;
+                case StepType.WaitUntil:
+                    yield return WaitUntil(step);
+                    yield break;
             }
-            if (step.StartsWith("WAIT ", StringComparison.OrdinalIgnoreCase))
-            {
-                yield return Wait(step);
-                yield break;
-            }
-            if (step.StartsWith("TIMESCALE ", StringComparison.OrdinalIgnoreCase))
-            {
-                _results.Add(ExecuteTimescale(step));
-                yield break;
-            }
-            if (step.StartsWith("INVOKE ", StringComparison.OrdinalIgnoreCase))
-            {
-                _results.Add(ExecuteInvoke(step));
-                yield break;
-            }
-            if (step.StartsWith("SET ", StringComparison.OrdinalIgnoreCase))
-            {
-                _results.Add(ExecuteSet(step));
-                yield break;
-            }
-            if (step.StartsWith("SNAPSHOT ", StringComparison.OrdinalIgnoreCase))
-            {
-                _results.Add(ExecuteSnapshot(step));
-                yield break;
-            }
-            if (step.Equals("ASSERT_CONSOLE_CLEAN", StringComparison.OrdinalIgnoreCase))
-            {
-                _results.Add(_consoleErrors.Count == 0
-                    ? StepResult.Pass(step, "console clean")
-                    : StepResult.Fail(step, string.Join("\\n", _consoleErrors)));
-                yield break;
-            }
-            if (step.StartsWith("ASSERT ", StringComparison.OrdinalIgnoreCase))
-            {
-                _results.Add(EvaluateAssert(step));
-                yield break;
-            }
-            if (step.StartsWith("WAIT_UNTIL ", StringComparison.OrdinalIgnoreCase))
-            {
-                yield return WaitUntil(step);
-                yield break;
-            }
-            _results.Add(StepResult.Fail(step, "unsupported player PlayTest command"));
         }
 
-        private IEnumerator Wait(string step)
+        private IEnumerator Wait(PlaytestStep step)
         {
-            if (!float.TryParse(step.Substring(5).Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out var delay))
-            {
-                _results.Add(StepResult.Fail(step, "invalid WAIT delay"));
-                yield break;
-            }
-            var end = Time.realtimeSinceStartup + delay;
+            var end = Time.realtimeSinceStartup + step.Delay;
             while (Time.realtimeSinceStartup < end)
                 yield return null;
-            _results.Add(StepResult.Pass(step, "waited"));
+            _results.Add(StepResult.Pass(step.RawLine, "waited"));
         }
 
-        private static StepResult ExecuteTimescale(string step)
+        private static StepResult ExecuteTimescale(PlaytestStep step)
         {
-            if (!float.TryParse(
-                    step.Substring("TIMESCALE ".Length).Trim(),
-                    NumberStyles.Float,
-                    CultureInfo.InvariantCulture,
-                    out var scale))
-            {
-                return StepResult.Fail(step, "invalid TIMESCALE value");
-            }
-
-            Time.timeScale = scale;
-            return StepResult.Pass(step, $"timeScale={scale.ToString(CultureInfo.InvariantCulture)}");
+            Time.timeScale = step.Delay;
+            return StepResult.Pass(step.RawLine, $"timeScale={step.Delay.ToString(CultureInfo.InvariantCulture)}");
         }
 
-        private IEnumerator WaitUntil(string step)
+        private IEnumerator WaitUntil(PlaytestStep step)
         {
-            var timeout = 5f;
-            var expr = step.Substring("WAIT_UNTIL ".Length).Trim();
-            var timeoutIndex = expr.LastIndexOf(" TIMEOUT ", StringComparison.OrdinalIgnoreCase);
-            if (timeoutIndex >= 0)
-            {
-                var rawTimeout = expr.Substring(timeoutIndex + " TIMEOUT ".Length).Trim();
-                expr = expr.Substring(0, timeoutIndex).Trim();
-                float.TryParse(rawTimeout, NumberStyles.Float, CultureInfo.InvariantCulture, out timeout);
-            }
-
-            var end = Time.realtimeSinceStartup + timeout;
-            StepResult last = StepResult.Fail(step, "not evaluated");
+            var end = Time.realtimeSinceStartup + step.Timeout;
+            var last = StepResult.Fail(step.RawLine, "not evaluated");
             while (Time.realtimeSinceStartup < end)
             {
-                last = EvaluateAssert("ASSERT " + expr);
+                last = EvaluateAssert(step);
                 if (last.Passed)
                 {
-                    _results.Add(StepResult.Pass(step, "condition met"));
+                    _results.Add(StepResult.Pass(step.RawLine, "condition met"));
                     yield break;
                 }
                 yield return null;
             }
-            _results.Add(StepResult.Fail(step, "timeout: " + last.Message));
+            _results.Add(StepResult.Fail(step.RawLine, "timeout: " + last.Message));
         }
 
         private void OnLog(string condition, string stackTrace, LogType type)

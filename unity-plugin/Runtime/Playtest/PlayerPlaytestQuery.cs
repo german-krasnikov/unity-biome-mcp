@@ -2,39 +2,30 @@ using System;
 using System.Globalization;
 using System.Reflection;
 using UnityEngine;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Playtest
 {
     public sealed partial class PlayerPlaytestRunner
     {
-        private static StepResult EvaluateAssert(string step)
+        private static StepResult EvaluateAssert(PlaytestStep step)
         {
-            var expression = step.Substring("ASSERT ".Length).Trim();
-            foreach (var op in new[] { " contains ", " == ", " != ", " >= ", " <= ", " > ", " < " })
+            try
             {
-                var index = expression.IndexOf(op, StringComparison.OrdinalIgnoreCase);
-                if (index < 0)
-                    continue;
-                var query = expression.Substring(0, index).Trim();
-                var expected = expression.Substring(index + op.Length).Trim();
-                try
-                {
-                    var actual = ReadQuery(query);
-                    return Compare(actual, op.Trim(), expected)
-                        ? StepResult.Pass(step, $"{actual} {op.Trim()} {expected}")
-                        : StepResult.Fail(step, $"actual={actual}, expected {op.Trim()} {expected}");
-                }
-                catch (Exception e)
-                {
-                    return StepResult.Fail(step, e.Message);
-                }
+                var actual = ReadQuery(step.Query);
+                return Compare(actual, step.Op, step.Value)
+                    ? StepResult.Pass(step.RawLine, $"{actual} {step.Op} {step.Value}")
+                    : StepResult.Fail(step.RawLine, $"actual={actual}, expected {step.Op} {step.Value}");
             }
-            return StepResult.Fail(step, "missing comparison operator");
+            catch (Exception e)
+            {
+                return StepResult.Fail(step.RawLine, e.Message);
+            }
         }
 
-        private static StepResult ExecuteSnapshot(string step)
+        private static StepResult ExecuteSnapshot(PlaytestStep step)
         {
-            var queries = step.Substring("SNAPSHOT ".Length).Split(',');
+            var queries = step.Queries ?? Array.Empty<string>();
             var parts = new string[queries.Length];
             for (var i = 0; i < queries.Length; i++)
             {
@@ -45,48 +36,40 @@ namespace UnityMCP.Playtest
                 }
                 catch (Exception e)
                 {
-                    return StepResult.Fail(step, e.Message);
+                    return StepResult.Fail(step.RawLine, e.Message);
                 }
             }
-            return StepResult.Pass(step, string.Join(";", parts));
+            return StepResult.Pass(step.RawLine, string.Join(";", parts));
         }
 
-        private static StepResult ExecuteInvoke(string step)
+        private static StepResult ExecuteInvoke(PlaytestStep step)
         {
-            var tokens = SplitWords(step);
-            if (tokens.Length < 4)
-                return StepResult.Fail(step, "INVOKE syntax: INVOKE /path Component Method [args]");
-
             try
             {
-                var component = FindComponent(FindObject(tokens[1]), tokens[2]);
-                var result = InvokeBestMatch(component, tokens[3], tokens, 4);
+                var component = FindComponent(FindObject(step.Path), step.Component);
+                var argTokens = SplitWords(step.Args ?? "");
+                var result = InvokeBestMatch(component, step.Method, argTokens, 0);
                 if (result is string message && message.StartsWith("error:", StringComparison.OrdinalIgnoreCase))
-                    return StepResult.Fail(step, message);
-                return StepResult.Pass(step, FormatValue(result));
+                    return StepResult.Fail(step.RawLine, message);
+                return StepResult.Pass(step.RawLine, FormatValue(result));
             }
             catch (Exception e)
             {
-                return StepResult.Fail(step, e.Message);
+                return StepResult.Fail(step.RawLine, e.Message);
             }
         }
 
-        private static StepResult ExecuteSet(string step)
+        private static StepResult ExecuteSet(PlaytestStep step)
         {
-            var tokens = SplitWords(step);
-            if (tokens.Length < 5)
-                return StepResult.Fail(step, "SET syntax: SET /path Component field value");
-
             try
             {
-                var component = FindComponent(FindObject(tokens[1]), tokens[2]);
-                var value = string.Join(" ", tokens, 4, tokens.Length - 4);
-                SetMember(component, tokens[3], value);
-                return StepResult.Pass(step, $"{tokens[3]}={value}");
+                var component = FindComponent(FindObject(step.Path), step.Component);
+                SetMember(component, step.Method, step.Args);
+                return StepResult.Pass(step.RawLine, $"{step.Method}={step.Args}");
             }
             catch (Exception e)
             {
-                return StepResult.Fail(step, e.Message);
+                return StepResult.Fail(step.RawLine, e.Message);
             }
         }
 
