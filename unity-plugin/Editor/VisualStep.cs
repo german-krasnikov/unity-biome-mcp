@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {

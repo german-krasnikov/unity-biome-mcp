@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Playtest.Core
 {
     // D05a — lookahead-heavy per-command step builders (extracted from the switch inside
     // BuildSteps in PlaytestParser.Internals.cs, so that file stays under the 750-line split
@@ -17,7 +17,7 @@ namespace UnityMCP.Editor
     // the (uniform, one-line) switch-case wrapper in BuildSteps, since all 4 cases unconditionally
     // reset it at that exact point with no intervening read (proven by an identical full Playtest
     // filter test count before/after).
-    internal static partial class PlaytestParser
+    public static partial class PlaytestParser
     {
         // ── Lookahead step builders (moved out of BuildSteps's switch, D05a) ────────────
 
@@ -500,7 +500,7 @@ namespace UnityMCP.Editor
 
         // ── Tokenizer: bracket/quote-aware split ───────────────────────────────
 
-        internal static string[] SplitTokens(string line)
+        public static string[] SplitTokens(string line)
         {
             var tokens = new List<string>();
             var sb = new StringBuilder();
@@ -550,7 +550,7 @@ namespace UnityMCP.Editor
             return (string.Join(" ", tokens, start, tokens.Length - start), "", "", tokens.Length);
         }
 
-        internal static bool Compare(string actual, string op, string expected)
+        public static bool Compare(string actual, string op, string expected)
         {
             op = op.ToLowerInvariant();
             if (float.TryParse(actual, NumberStyles.Float, CultureInfo.InvariantCulture, out var aF) &&

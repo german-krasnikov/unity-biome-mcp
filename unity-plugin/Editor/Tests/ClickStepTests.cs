@@ -3,6 +3,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {

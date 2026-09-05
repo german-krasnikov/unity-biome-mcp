@@ -1,6 +1,7 @@
 // TDD: PlaytestLinter TIMESCALE_WARN rule — no Unity scene needed, EditMode safe.
 using NUnit.Framework;
 using UnityMCP.Editor;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {

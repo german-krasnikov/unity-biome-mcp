@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Playtest.Core
 {
     public static class StringDistance
     {

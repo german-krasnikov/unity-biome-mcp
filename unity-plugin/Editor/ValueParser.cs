@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {

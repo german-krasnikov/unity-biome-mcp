@@ -4,6 +4,7 @@
 // ValueParserTests.cs is left unchanged: it now covers the delegating wrapper,
 // still valid regression coverage.
 using NUnit.Framework;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {

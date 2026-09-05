@@ -1,7 +1,7 @@
 using System;
 using System.Globalization;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Playtest.Core
 {
     /// <summary>
     /// Engine-free numeric parsing for Core (no UnityEngine/UnityEditor dependency).

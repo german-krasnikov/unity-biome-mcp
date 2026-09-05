@@ -1,6 +1,7 @@
 // TDD: PlaytestHeaderScanner pure-logic tests — no Unity API, EditMode safe.
 // Scans `# @directive` header lines out of .playtest scripts, pre-INCLUDE (B03).
 using NUnit.Framework;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {

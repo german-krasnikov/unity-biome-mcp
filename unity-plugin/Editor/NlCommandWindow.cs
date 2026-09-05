@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {

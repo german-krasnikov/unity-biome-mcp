@@ -2,6 +2,7 @@
 // and validates them against the live scene via SceneRefResolver.
 using System.Collections.Generic;
 using System.Linq;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {

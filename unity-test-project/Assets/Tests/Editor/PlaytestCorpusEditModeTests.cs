@@ -21,6 +21,7 @@ using UnityEngine;
 using UnityMCP.Editor;
 using UnityMCP.Editor.Testing;
 using UnityMCP.Editor.Tests;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.TestProject
 {

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {

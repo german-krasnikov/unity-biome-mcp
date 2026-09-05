@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using System;
 using UnityMCP.Editor;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.TestProject.Runtime
 {

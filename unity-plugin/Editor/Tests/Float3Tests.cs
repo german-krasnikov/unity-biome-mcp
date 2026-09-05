@@ -5,6 +5,7 @@
 // PlaytestStep for the Composer UI. ToString() format is load-bearing too — D04's
 // TELEPORT result line interpolates {step.Position} directly.
 using NUnit.Framework;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {

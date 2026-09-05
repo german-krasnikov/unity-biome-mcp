@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Playtest.Core
 {
     /// <summary>Parsed `# @directive` header metadata from a .playtest script.
     /// Pure data — zero UnityEditor/UnityEngine dependency (Wave D Core extraction seam).</summary>
-    internal sealed class PlaytestHeader
+    public sealed class PlaytestHeader
     {
         public bool NeedsEditmode;
         public bool NeedsPlaymode;

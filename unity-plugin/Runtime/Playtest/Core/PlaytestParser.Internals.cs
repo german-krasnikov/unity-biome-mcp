@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Playtest.Core
 {
     // D05a — the per-line step-building loop, extracted out of PlaytestParser.cs's
     // Parse() method to keep both files under the csharp-unity.md <300-line business-logic
@@ -13,7 +13,7 @@ namespace UnityMCP.Editor
     // here for the actual per-line -> PlaytestStep construction, exactly as before (pure
     // extract-method relocation, zero logic change — proven by an identical full Playtest
     // filter test count before/after this split).
-    internal static partial class PlaytestParser
+    public static partial class PlaytestParser
     {
         internal static void BuildSteps(
             string[] lines, List<SourcedLine> expandedSourced,

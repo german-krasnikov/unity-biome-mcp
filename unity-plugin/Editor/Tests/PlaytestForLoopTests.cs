@@ -2,6 +2,7 @@
 using System;
 using NUnit.Framework;
 using UnityMCP.Editor;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor.Tests
 {

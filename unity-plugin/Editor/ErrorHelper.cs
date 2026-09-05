@@ -4,6 +4,7 @@ using System.Text;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {

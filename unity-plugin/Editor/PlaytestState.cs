@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using UnityEditor;
+using UnityMCP.Playtest.Core;
 
 namespace UnityMCP.Editor
 {

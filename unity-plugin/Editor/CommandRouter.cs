@@ -9,6 +9,7 @@ using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
 using UnityMCP.Editor.TestRuns;
+using UnityMCP.Playtest.Core;
 
 [assembly: InternalsVisibleTo("UnityMCP.TestProject")]
 

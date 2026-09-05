@@ -3,12 +3,12 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Playtest.Core
 {
     // C01 — `MCP <cmd> key=value... [INTO $result]` syntax + JSON assembler.
     // Pure BCL-only: no UnityEngine/UnityEditor/CommandRegistry/PlaytestMcpPolicy
     // (Editor-only C02 territory), so Wave D (D06) can relocate this unchanged.
-    internal static partial class PlaytestParser
+    public static partial class PlaytestParser
     {
         private const string IntoKeyword = "INTO";
 

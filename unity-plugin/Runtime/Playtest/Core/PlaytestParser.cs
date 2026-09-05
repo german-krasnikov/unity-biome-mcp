@@ -5,12 +5,12 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Playtest.Core
 {
-    internal enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured, AssertOneActive, AssertChanged, CaptureFrames, AssertFramesDiffer, AssertFramesStatic, SetActive, Setup, Teardown, WaitStable, CaptureMin, CaptureMax, AssertMin, AssertMax, Fill, Focus, Mcp }
+    public enum StepType { Move, Wait, WaitUntil, Assert, AssertConsoleClean, Snapshot, Invoke, Set, Log, TimeScale, Teleport, AssertBatch, AssertNear, Capture, AssertCaptured, Invariant, AssertConserved, Simulate, Monitor, TraceFlow, AssertCta, Click, Section, Desc, WaitCaptured, AssertOneActive, AssertChanged, CaptureFrames, AssertFramesDiffer, AssertFramesStatic, SetActive, Setup, Teardown, WaitStable, CaptureMin, CaptureMax, AssertMin, AssertMax, Fill, Focus, Mcp }
 
     /// <summary>A script line with origin metadata (file, line number, macro call chain).</summary>
-    internal struct SourcedLine
+    public struct SourcedLine
     {
         public string Text;
         public string File;        // null = main inline script
@@ -19,7 +19,7 @@ namespace UnityMCP.Editor
     }
 
     [Serializable]
-    internal class PlaytestStep
+    public class PlaytestStep
     {
         public StepType Type;
         public string Path;
@@ -85,7 +85,7 @@ namespace UnityMCP.Editor
     }
 
     // Carries both steps and var-bindings out of Parse() with zero breakage for existing callers.
-    internal class ParseResult : IEnumerable<PlaytestStep>
+    public class ParseResult : IEnumerable<PlaytestStep>
     {
         public List<PlaytestStep> Steps;
         /// <summary>Steps in the SETUP block. Null if no SETUP block was declared.</summary>
@@ -119,9 +119,9 @@ namespace UnityMCP.Editor
     }
 
     /// <summary>Resolves INCLUDE directives — returns full file content as a string.</summary>
-    internal delegate string IncludeResolver(string filename);
+    public delegate string IncludeResolver(string filename);
 
-    internal static partial class PlaytestParser
+    public static partial class PlaytestParser
     {
         // Matches $name sigils — ASCII-only names starting with letter or _
         internal static readonly Regex SigilRegex = new Regex(

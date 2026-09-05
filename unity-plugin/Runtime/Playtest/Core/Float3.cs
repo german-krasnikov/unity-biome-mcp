@@ -1,7 +1,7 @@
 using System;
 using System.Globalization;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Playtest.Core
 {
     /// <summary>
     /// Engine-free 3-component float value, replacing UnityEngine.Vector3 for

@@ -1,4 +1,4 @@
-namespace UnityMCP.Editor
+namespace UnityMCP.Playtest.Core
 {
     // D06 blocker fix (pulled forward from D09's design, ahead of its originally-scheduled
     // slot): ResolveQuery's `PlaytestConfig` parameter is an Editor-only ScriptableObject
