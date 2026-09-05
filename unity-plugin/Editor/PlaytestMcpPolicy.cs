@@ -59,7 +59,14 @@ namespace UnityMCP.Editor
             return errors;
         }
 
-        private static string CheckStep(PlaytestStep step, bool isEditModeRun)
+        /// <summary>
+        /// C04b — internal so the dispatch-time re-check (PlaytestRunner.Steps.cs) can reuse the
+        /// exact same policy that Validate() runs at parse time. A VAR sigil (e.g. `editor
+        /// action=$a`) resolves AFTER Validate() already ran, so checking only the hard denylist
+        /// at dispatch time (the old IsHardDenied-only re-check) let a VAR-resolved value bypass
+        /// the Play-Mode-transition and Edit-mode-runtime-command checks below.
+        /// </summary>
+        internal static string CheckStep(PlaytestStep step, bool isEditModeRun)
         {
             var cmd = step.Method;
             if (_hardDenylist.Contains(cmd))

@@ -12,7 +12,8 @@ namespace UnityMCP.Editor
     {
         internal static void ExecuteStep(PlaytestStep step, PlaytestConfig config, List<string> results,
             ref Phase phase, ref float phaseStart, ref int passed, ref int failed, int stepIdx, PlaytestState state,
-            bool snapshotOnFailure = false, string runId = null, PlaytestVarRegistry varRegistry = null)
+            bool snapshotOnFailure = false, string runId = null, PlaytestVarRegistry varRegistry = null,
+            bool isEditModeRun = false)
         {
             var label = $"[{stepIdx + 1}]";
             switch (step.Type)
@@ -740,11 +741,13 @@ namespace UnityMCP.Editor
                     // one step.
                     try
                     {
-                        // C04 — belt and suspenders: re-check the same hard denylist
+                        // C04/C04b — belt and suspenders: re-run the FULL policy check
                         // Validate() enforces at compile time (C02), in case this step was
-                        // constructed directly and never went through Validate/parsing.
-                        if (PlaytestMcpPolicy.IsHardDenied(step.Method))
-                            throw new InvalidOperationException(PlaytestMcpPolicy.HardDenialReason);
+                        // constructed directly and never went through Validate/parsing, OR its
+                        // Method/Args were resolved from a VAR sigil AFTER Validate() already ran.
+                        var denyReason = PlaytestMcpPolicy.CheckStep(step, isEditModeRun);
+                        if (denyReason != null)
+                            throw new InvalidOperationException(denyReason);
 
                         var envelope = BuildMcpEnvelope(runId, stepIdx, step.Method, step.Args);
                         _mcpTcs = new TaskCompletionSource<string>();

@@ -306,7 +306,7 @@ namespace UnityMCP.Editor
                         failedBeforeStep = failed; // capture before step so AdvanceStep can detect failures
                         passedBeforeStep = passed; // mirrors failedBeforeStep for EXPECT_FAIL's inversion
                         currentExpanded = varRegistry.HasAny ? varRegistry.ExpandStep(step) : step;
-                        ExecuteStep(currentExpanded, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state, snapOnFail, effectiveRunId, varRegistry);
+                        ExecuteStep(currentExpanded, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state, snapOnFail, effectiveRunId, varRegistry, isEditModeRun: !requiresPlayMode);
                         if (phase == Phase.Done) AdvanceStep();
                         break;
 
@@ -601,11 +601,11 @@ namespace UnityMCP.Editor
         /// <summary>Execute a single synchronous step. Returns true if step completed (phase=Done), false if async.</summary>
         internal static bool ExecuteSyncStep(PlaytestStep step, PlaytestConfig config, List<string> results,
             ref int passed, ref int failed, int stepIdx, PlaytestState state = null, bool snapshotOnFailure = false,
-            string runId = null, PlaytestVarRegistry varRegistry = null)
+            string runId = null, PlaytestVarRegistry varRegistry = null, bool isEditModeRun = false)
         {
             var phase = Phase.Done;
             float phaseStart = 0;
-            ExecuteStep(step, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state ?? new PlaytestState(), snapshotOnFailure, runId, varRegistry);
+            ExecuteStep(step, config, results, ref phase, ref phaseStart, ref passed, ref failed, stepIdx, state ?? new PlaytestState(), snapshotOnFailure, runId, varRegistry, isEditModeRun);
             return phase == Phase.Done;
         }
 

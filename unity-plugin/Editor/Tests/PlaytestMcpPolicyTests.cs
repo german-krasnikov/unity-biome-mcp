@@ -141,5 +141,29 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("execute_code", result);
             Assert.AreEqual(before, CommandRouter.LastCommandName, "the denied command must never reach CommandRouter dispatch");
         }
+
+        // ── Dispatch-time re-check must run the FULL policy, not just the hard denylist ──
+        // (a VAR sigil resolves after Validate() already ran at parse time, so a step built
+        // with an already-resolved "stop" action — exactly what VAR expansion produces at
+        // runtime — is the faithful reproduction: it never goes through Validate at all.)
+
+        [Test]
+        public void ExecuteStep_EditorStopStepConstructedDirectly_DeniedAtDispatchTime()
+        {
+            var before = CommandRouter.LastCommandName;
+            var step = new PlaytestStep { Type = StepType.Mcp, Method = "editor", Args = "{\"action\":\"stop\"}" };
+            var results = new List<string>();
+            int passed = 0, failed = 0;
+
+            bool done = PlaytestRunner.ExecuteSyncStep(step, null, results, ref passed, ref failed, 0);
+
+            Assert.IsTrue(done, "a denied MCP step must resolve synchronously — it must never reach the async CommandRouter dispatch");
+            Assert.AreEqual(1, failed, string.Join("\n", results));
+            Assert.IsTrue(results.Exists(r => r.Contains("Play Mode transitions")), string.Join("\n", results));
+            Assert.AreEqual(before, CommandRouter.LastCommandName,
+                "a step built directly with a resolved 'stop' action — as VAR expansion produces at runtime, " +
+                "after parse-time Validate already ran — must never dispatch: the dispatch-time re-check must " +
+                "run the full policy, not just the hard reload denylist");
+        }
     }
 }
