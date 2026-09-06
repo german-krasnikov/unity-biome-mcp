@@ -22,14 +22,15 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void AsyncAskUser_NoSubscriber_ReturnsImmediateError()
+        public async Task AsyncAskUser_NoSubscriber_ReturnsImmediateError()
         {
             var tcs = new TaskCompletionSource<string>();
             CommandRouter.ProcessAsync("{\"id\":\"au1\",\"cmd\":\"ask_user\",\"args\":{}}", tcs);
 
             Assert.IsTrue(tcs.Task.IsCompleted,
                 "no subscriber must resolve synchronously — never wait on PendingAskRegistry");
-            StringAssert.Contains("ask_user unavailable", tcs.Task.Result);
+            var result = await tcs.Task;
+            StringAssert.Contains("ask_user unavailable", result);
         }
 
         [Test]
