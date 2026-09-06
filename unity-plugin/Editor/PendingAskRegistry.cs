@@ -33,7 +33,7 @@ namespace UnityMCP.Editor
         /// <summary>Called from UI Submit callback (main thread) to complete the TCS.</summary>
         public static void Complete(string requestId, string answersJson)
         {
-            if (_pending.TryGetValue(requestId, out var tcs))
+            if (_pending.TryRemove(requestId, out var tcs))
                 tcs.TrySetResult(answersJson);
         }
 
@@ -67,8 +67,12 @@ namespace UnityMCP.Editor
         {
             var requestId = Guid.NewGuid().ToString("N");
             Register(requestId);
+            // Capture the TCS before invoking the caller — a synchronous Complete()
+            // inside onAskEvent now removes the entry (Complete uses TryRemove), so
+            // looking it up again afterward would return null.
+            var tcs = GetTcs(requestId);
             onAskEvent?.Invoke(requestId, questionsJson);
-            return GetTcs(requestId).Task.ContinueWith(t =>
+            return tcs.Task.ContinueWith(t =>
                 t.IsFaulted || t.IsCanceled ? "{\"cancelled\":true}" : t.Result,
                 TaskContinuationOptions.ExecuteSynchronously);
         }

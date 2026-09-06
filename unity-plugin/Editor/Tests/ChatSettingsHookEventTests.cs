@@ -86,5 +86,28 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(1, originalCalls);
             Assert.AreEqual(0, replacementCalls);
         }
+
+        [Test]
+        public void IsChatBinaryAvailable_ThrowingProvider_ReturnsFalse()
+        {
+            var previous = ChatSettingsHook.IsChatBinaryAvailableProvider;
+            RegisterCleanup(() => ChatSettingsHook.IsChatBinaryAvailableProvider = previous);
+            ChatSettingsHook.IsChatBinaryAvailableProvider =
+                () => throw new System.InvalidOperationException("boom");
+
+            Assert.IsFalse(ChatSettingsHook.IsChatBinaryAvailable(),
+                "throwing provider must fail soft and return false");
+        }
+
+        [Test]
+        public void InvokeConnection_ThrowingSubscriber_DoesNotThrow()
+        {
+            ChatSettingsHook.OnBuildConnection += _ =>
+                throw new System.InvalidOperationException("subscriber boom");
+
+            Assert.DoesNotThrow(
+                () => ChatSettingsHook.InvokeConnection(new VisualElement()),
+                "throwing subscriber must not propagate into settings UI render");
+        }
     }
 }

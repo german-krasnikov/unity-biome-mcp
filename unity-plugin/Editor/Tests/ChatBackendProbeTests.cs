@@ -34,5 +34,16 @@ namespace UnityMCP.Editor.Tests
 
             Assert.IsTrue(ChatBackendProbe.IsChatBackendRunning());
         }
+
+        [Test]
+        public void IsChatBackendRunning_ThrowingProvider_ReturnsFalse()
+        {
+            var previous = ChatBackendProbe.RunningProvider;
+            RegisterCleanup(() => ChatBackendProbe.RunningProvider = previous);
+            ChatBackendProbe.RunningProvider = () => throw new System.InvalidOperationException("boom");
+
+            Assert.IsFalse(ChatBackendProbe.IsChatBackendRunning(),
+                "throwing provider must fail soft and return false");
+        }
     }
 }
