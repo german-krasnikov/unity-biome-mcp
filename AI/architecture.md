@@ -322,21 +322,25 @@ depends on the main Editor assembly, never the reverse.
 
 ## Modular Command Registration (PR-04)
 
-Modules own their command metadata instead of centralizing it. Each module defines
-a `SPEC_KWARGS` dict merged into tool_specs at import time:
+One pilot module (watch.py) owns its command metadata via SPEC_KWARGS;
+remaining 168 tool specs are centralized in tool_specs.py. Migration deferred.
+The pilot module defines a plain-dict `SPEC_KWARGS`, merged into `_SPECS` at
+import time:
 
 ```python
-# watch.py
-SPEC_KWARGS = {
-    'watch': ToolSpec(category='DEBUG', mutating=True, timeout=60, ...),
+# Pilot (watch.py only, PR-04); other modules still use central tool_specs.py.
+SPEC_KWARGS: dict[str, dict] = {
+    'watch': {'category': 'RUNTIME', 'direct_only': True},
+    'get_watches': {'category': 'RUNTIME', 'mutability': 'read'},
 }
 ```
 
 Instance-scoped `_send` and `_args` injection prove modules don't cross-contaminate.
 C# `CommandRegistry.Entry` gains `MutatingArgsPolicy` delegate (for argument-aware
 read/write classification) and `NotBatchable` bool; hardcoded name-switches migrate
-to registration sites. Invariant: adding a command requires only the module's
-registration — no edits to central guard/batch/metadata lists. 36 policy-vector
+to registration sites. Target invariant (not yet enforced): adding a command should
+require only the module's registration. Currently, new commands also need a
+ToolSpec entry in tool_specs.py and may need gating entries. 36 policy-vector
 tests validate parity across 5 representative commands.
 
 ## Reload Module Isolation (PR-04R)
@@ -362,8 +366,8 @@ When Chat.CLI/Chat.View is absent or disabled:
 - `ask_user` returns immediately with no 300-second hang
 - `search_context` throws `ProviderUnavailableException` (classified UNAVAILABLE,
   logged as warning not error)
-- Nine Chat-dependent test files moved from base Editor.Tests to Chat.Tests.CLI/View;
-  base asmdef no longer references Chat
+- Chat-dependent test files separated into Chat.Tests.CLI (136 files) and
+  Chat.Tests.View (150 files) assemblies; base asmdef no longer references Chat
 
 Invariant: Chat Off/absent leaves MCP tools fully operational. No stale process,
 no pending-ask leak, no false-positive error log.
