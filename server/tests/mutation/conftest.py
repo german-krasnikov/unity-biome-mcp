@@ -11,8 +11,22 @@ import time
 from pathlib import Path
 
 import pytest
+import pytest_asyncio
 
-from unity_mcp.bridge import UnityBridge
+from tests.mutation._canary import (
+    CLEAR_SCENE_DIRTINESS_CODE,
+    build_mutation_sdk,
+    diff_snapshot,
+    install_canary,
+    make_bridge,
+    make_raw_send,
+    remove_canary,
+    sdk_args,
+    snapshot_project,
+)
+from unity_mcp import editor_log
+from unity_mcp.middleware import Middleware, wrap_send
+from unity_mcp.tools import codegen, diagnose, objects, runtime, sync
 
 REAL_PORTS_DIR = Path.home() / ".unity-biome-mcp" / "ports"  # at import, before conftest patches Path.home(); reserved for port-file discovery (A5+)
 MUTATION_HOST = os.environ.get("UNITY_MCP_HOST", "127.0.0.1")
@@ -55,13 +69,91 @@ def _require_mutation_worker():
 @pytest.fixture
 async def mutation_bridge():
     """Bare bridge factory for mutation regression tests -- no ownership wrapper."""
-    bridge = UnityBridge(
-        MUTATION_HOST,
-        port=MUTATION_PORT,
-        expected_project_path=MUTATION_PROJECT or None,
-    )
+    bridge = make_bridge(MUTATION_HOST, MUTATION_PORT, MUTATION_PROJECT or None)
     await bridge.connect()
     try:
         yield bridge
     finally:
         await bridge.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def project_baseline_guard(_require_mutation_worker):
+    """Independent cleanup oracle: byte-identical Assets/Packages/ProjectSettings
+    at session end. Mirrors the 516-file baseline check from the live qualification."""
+    if os.environ.get(MUTATION_LIVE_GATE) != "1":
+        yield
+        return
+    project = Path(MUTATION_PROJECT).resolve()
+    before = snapshot_project(project)
+    yield
+    after = snapshot_project(project)
+    drift = diff_snapshot(before, after)
+    if drift:
+        pytest.fail(f"mutation lane left project baseline drift ({len(before)} files before): {drift}")
+
+
+@pytest_asyncio.fixture
+async def mutation_sdk(monkeypatch):
+    """Production-style send (unwrap + ToolError on ok:false, fresh Middleware()) bound
+    to the public sync/diagnose/runtime/objects/codegen tool modules. Mirrors
+    server/tests/live/conftest.py::sdk_runtime -- no MCP memory-transport layer."""
+    # Middleware's periodic "AUTO STATE" hierarchy injection (every 10th write call,
+    # middleware_async.py:35) appends text after a format="json" run_playtest receipt,
+    # which _classify_outcome then fails to parse -- a real latent interaction bug,
+    # out of scope here (see final report). Use the existing documented opt-out
+    # (already covered by test_middleware_distill_integration.py) for deterministic JSON.
+    monkeypatch.setenv("UNITY_MCP_AUTO_STATE", "0")
+    project = Path(MUTATION_PROJECT).resolve() if MUTATION_PROJECT else None
+    bridge = make_bridge(MUTATION_HOST, MUTATION_PORT, project)
+    await bridge.connect()
+
+    editor_log.init_corroboration()  # parity with sync.register()
+    mw = Middleware()
+    wrapped_send = wrap_send(make_raw_send(bridge), mw)
+    for module in (sync, diagnose, runtime, objects, codegen):
+        monkeypatch.setattr(module, "_send", wrapped_send)
+        # sync.py/diagnose.py don't pre-declare a module-level _args (they never call it);
+        # bind() sets it anyway via globals(), so mirror that here with raising=False.
+        monkeypatch.setattr(module, "_args", sdk_args, raising=False)
+
+    try:
+        yield build_mutation_sdk(bridge, mw, sync=sync, diagnose=diagnose,
+                                  runtime=runtime, objects=objects, codegen=codegen)
+    finally:
+        await bridge.close()
+
+
+@pytest_asyncio.fixture
+async def owned_canary(mutation_sdk):
+    """Owned Target+Probe canary, installed/compiled/instantiated, cleaned up in finally.
+
+    No unity_state_owner here -- ownership is the exact 4 files + 1 scene object this
+    fixture creates, verified by project_baseline_guard at session end."""
+    # Everything from here on must clean up in finally -- an orphaned uid8 dir left behind
+    # by a mid-setup failure declares the same global-namespace type twice on the next run
+    # (CS0101), wedging the whole worker's compile for every later test.
+    project = Path(MUTATION_PROJECT).resolve()
+    info = install_canary(project)
+    object_created = False
+    try:
+        result = await mutation_sdk.sync_unity(timeout=120)
+        if result != "sync clean":
+            raise RuntimeError(f"owned_canary install did not compile clean: {result!r}")
+        await mutation_sdk.create_object(name=info["object_name"], components="BuildReadinessCanaryProbe")
+        object_created = True
+        # Edit-mode run_playtest refuses any dirty loaded scene; never save/discard the
+        # canary object away -- just clear the transient flag it set (see comment above).
+        await mutation_sdk.execute_code(code=CLEAR_SCENE_DIRTINESS_CODE)
+        yield {**info, "instance_id": None}
+    finally:
+        if object_created:
+            await mutation_sdk.delete_object(path=info["object_path"])
+            # delete_object dirties the scene again; never save/discard it away --
+            # clear the transient flag the same way setup did, so GridTest is not
+            # left dirty for other lanes' RefuseIfDirty/_ensure_gridtest_scene checks.
+            await mutation_sdk.execute_code(code=CLEAR_SCENE_DIRTINESS_CODE)
+        remove_canary(project, info)
+        teardown = await mutation_sdk.sync_unity(timeout=120)
+        if teardown not in ("sync clean", "sync clean (no compile needed)"):
+            raise RuntimeError(f"owned_canary teardown did not compile clean: {teardown!r}")
