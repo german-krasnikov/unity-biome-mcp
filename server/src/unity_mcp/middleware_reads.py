@@ -138,11 +138,14 @@ class MiddlewareReadsMixin:
             if action == "stop" and result == "ok":
                 self._play_state_known = True
                 self.is_playing = False
+                self._scenario_uncertain = False  # N0a: Edit Mode — no playtest can be running
                 return
             # Full-state response from editor(action="state")
             if _parse_editor_field(result, "playing") is not None:
                 self._play_state_known = True
                 self.is_playing = _is_play_mode(result) or _is_paused(result)
+                if not self.is_playing:
+                    self._scenario_uncertain = False  # N0a: Edit Mode — no playtest can be running
             return  # editor branch complete
         # Non-editor: update from any response containing `playing:` field, with TTL
         if _parse_editor_field(result, "playing") is not None:

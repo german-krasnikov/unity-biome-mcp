@@ -289,11 +289,19 @@ def _reset_write_caches(cmd: str, args: dict, result: str, mw: Any, flags: dict)
         mw._last_hierarchy_full = None
         if mw._negative_path_cache:
             mw._negative_path_cache.clear()
+    # N0a: a valid start_playtest ack means a playtest is now in flight and
+    # may mutate the scene at any point until terminal evidence arrives.
+    if cmd == "start_playtest" and result.strip().startswith("run_id="):
+        mw._scenario_uncertain = True
     # L02c: _force_scene_invalidate is now also handled unconditionally at the top
     # of wrapped() (before any early-exit can skip it) -- this check only fires on
     # the already-covered success path, so it's a harmless belt-and-suspenders
     # double-invalidate (invalidate_scene_caches() is idempotent).
     if flags.get("_force_scene_invalidate") or is_scenario_terminal(cmd, result):
+        # N0a-1: clears unconditionally here (both the proven-terminal case
+        # and the give-up/_force_scene_invalidate case). N0a-3 will split
+        # this so the give-up path clears caches but preserves the guard.
+        mw._scenario_uncertain = False
         mw.invalidate_scene_caches()
     if cmd == "manage_component" and not result.startswith("err"):
         mc_path = args.get("path", "")

@@ -91,6 +91,11 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self._MAX_DISTILL_CACHE = 64
         self._haiku_in_flight: set = set()
         self._bg_tasks: set = set()  # prevent GC of fire-and-forget tasks
+        # N0a: True while a dispatched playtest may still be mutating the
+        # scene (set on start_playtest ack, cleared on terminal scenario
+        # evidence or an edit-mode transition). Deliberately NOT cleared by
+        # reset_session — reconnect does not prove Unity stopped a playtest.
+        self._scenario_uncertain: bool = False
         # Disambiguator (Cycle 5d Item 1)
         self._disambig_enabled: bool = os.environ.get("UNITY_MCP_DISAMBIG", "1") != "0"
         self._disambig = None  # lazy
@@ -147,7 +152,11 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         return types
 
     def reset_session(self) -> None:
-        """Drop volatile in-flight state on reconnect."""
+        """Drop volatile in-flight state on reconnect.
+
+        N0a: _scenario_uncertain is deliberately preserved across reset —
+        reconnect does not prove Unity stopped a dispatched playtest.
+        """
         self._scene_generation += 1
         self._retry_cache.clear()
         self._error_dedup.clear()
