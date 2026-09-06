@@ -56,6 +56,13 @@ namespace UnityMCP.Editor
             _state = SourcePatchState.Unavailable;
         }
 
+        /// <summary>Test-only: forces the next <see cref="CurrentState"/> read to
+        /// re-run the real lazy reconciliation chain (<see cref="EnsureReconciled"/>
+        /// -&gt; <see cref="ComputeInitialState"/> -&gt; <see cref="ReconcileDomainStart"/>),
+        /// reproducing the one side effect a real Domain Reload has on this static
+        /// field that <see cref="ResetForTests"/> does not.</summary>
+        internal static void ForceUnreconciledForTests() => _reconciled = false;
+
         private static void EnsureReconciled()
         {
             if (_reconciled) return;
