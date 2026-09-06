@@ -63,15 +63,13 @@ class WatchModule:
 _default: WatchModule | None = None
 
 
-async def watch(action: str, watch_id: str = "", path: str = "", component: str = "",
-                 field: str = "", condition: str = "", trigger_action: str = "log",
-                 interval_ms: int = _DEFAULT_INTERVAL_MS) -> str:
-    """[Play Mode] Manage watches. Registers or removes watches. No confirmation required. action: add|remove|clear|reset.
-    add: needs path/component/field. condition: '< 10','> 0','== null'.
-    trigger_action: 'log' or 'pause'. remove/reset: needs watch_id."""
-    return await _default.watch(action, watch_id=watch_id, path=path, component=component,
-                                 field=field, condition=condition, trigger_action=trigger_action,
-                                 interval_ms=interval_ms)
+async def watch(action: str, watch_id: str = "", path: str = "",
+                component: str = "", field: str = "", condition: str = "",
+                trigger_action: str = "log",
+                interval_ms: int = _DEFAULT_INTERVAL_MS) -> str:
+    """Compat shim — delegates to _default WatchModule instance."""
+    return await _default.watch(action, watch_id, path, component, field,
+                                condition, trigger_action, interval_ms)
 
 
 async def get_watches() -> str:
