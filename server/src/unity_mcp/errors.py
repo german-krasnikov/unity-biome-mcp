@@ -55,6 +55,21 @@ class UncertainDeliveryError(ConnectionError):
         self.delivery = delivery
 
 
+def recovery_barrier(exc: BaseException) -> BaseException | None:
+    """Retain non-retryable delivery/session evidence through ToolError wrappers."""
+    seen: set[int] = set()
+    pending = [exc]
+    while pending:
+        current = pending.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        if isinstance(current, (UncertainDeliveryError, SessionIdentityMismatch)):
+            return current
+        pending.extend(e for e in (current.__cause__, current.__context__) if e is not None)
+    return None
+
+
 @dataclass
 class UnityError:
     message: str

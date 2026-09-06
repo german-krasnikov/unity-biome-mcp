@@ -16,7 +16,12 @@ namespace UnityMCP.Editor.Tests
         private sealed class RecordingReloadPort : ISourcePatchReloadPort
         {
             public int CallCount;
-            public void RequestReloadVerification() => CallCount++;
+            public System.Exception Failure;
+            public void RequestReloadVerification()
+            {
+                CallCount++;
+                if (Failure != null) throw Failure;
+            }
         }
 
         [SetUp]
@@ -58,6 +63,26 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("requested", result);
             Assert.AreEqual(1, fakePort.CallCount);
             Assert.AreEqual(epochBefore, SyncHelper.CurrentEpoch);
+        }
+
+        [Test]
+        public void RequestDisable_RejectedReloadEntersRecoveryAndRetainsReceipt()
+        {
+            SourcePatchHost.CurrentState = SourcePatchState.OnReady;
+            var fakePort = new RecordingReloadPort
+            {
+                Failure = new System.InvalidOperationException("wedged|epoch=20")
+            };
+            SourcePatchModePolicy.ReloadPort = fakePort;
+            var epochBefore = SyncHelper.CurrentEpoch;
+
+            Assert.Throws<System.InvalidOperationException>(() => SourcePatchModePolicy.SetMutationIntent(false));
+
+            Assert.That(fakePort.CallCount, Is.EqualTo(1));
+            Assert.That(SourcePatchHost.CurrentState, Is.EqualTo(SourcePatchState.Recovery));
+            Assert.That(SourcePatchReceiptStore.TryRead(out var receipt), Is.True);
+            Assert.That(receipt.ExpectedEpochAfter, Is.EqualTo(epochBefore + 1));
+            Assert.That(SyncHelper.CurrentEpoch, Is.EqualTo(epochBefore));
         }
     }
 }

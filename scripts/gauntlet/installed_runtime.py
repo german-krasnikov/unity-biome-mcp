@@ -6,6 +6,7 @@ import json
 import os
 import shutil
 import sys
+import sysconfig
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -44,7 +45,10 @@ def install_python_wheel_runtime(
     python_executable: str = sys.executable,
     uv_executable: str | None = None,
 ) -> InstalledRuntimeReceipt:
-    """Install one exact wheel into a fresh venv and return a verifiable receipt."""
+    """Qualify an installed wheel, reusing this caller's existing dependencies.
+
+    This is an artifact-origin check, not a clean dependency-install test.
+    """
     _validate_digest(expected_sha256)
     runtime_root = _prepare_runtime_root(runtime_root)
     snapshot = read_stable_artifact(wheel_path, _MAX_WHEEL_BYTES)
@@ -52,7 +56,7 @@ def install_python_wheel_runtime(
     if digest != expected_sha256:
         raise RuntimeInstallError("wheel digest does not match expected artifact")
     venv = runtime_root / "venv"
-    _run((python_executable, "-m", "venv", "--system-site-packages", str(venv)), runtime_root)
+    _run((python_executable, "-m", "venv", str(venv)), runtime_root)
     venv_python = _venv_python(venv)
     uv = uv_executable or shutil.which("uv")
     if uv:
@@ -74,6 +78,16 @@ def install_python_wheel_runtime(
             (str(venv_python), "-m", "pip", "install", "--force-reinstall", "--no-deps", str(wheel_path)),
             runtime_root,
         )
+    # Nested venvs do not inherit the caller venv's site-packages. A plain path
+    # entry in this owned runtime exposes dependencies without processing the
+    # caller's editable .pth files or giving them precedence over our wheel.
+    dependencies = str(Path(sysconfig.get_path("purelib")).resolve())
+    script = (
+        "import pathlib,sysconfig;"
+        "site=pathlib.Path(sysconfig.get_path('purelib'));"
+        f"(site/'qualification-dependencies.pth').write_text({dependencies!r}+'\\n',encoding='utf-8')"
+    )
+    _run((str(venv_python), "-I", "-c", script), runtime_root)
     return _probe_runtime(
         venv_python,
         runtime_root,

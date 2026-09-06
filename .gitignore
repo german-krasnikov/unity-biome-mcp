@@ -38,6 +38,10 @@ ENV/
 !unity-plugin/Tests~/**
 unity-plugin/Tests~/Pure/bin/
 unity-plugin/Tests~/Pure/obj/
+unity-plugin/Tests~/AssemblyFreshness/bin/
+unity-plugin/Tests~/AssemblyFreshness/obj/
+unity-plugin/Tests~/SourcePatchReadiness/bin/
+unity-plugin/Tests~/SourcePatchReadiness/obj/
 
 # macOS
 .DS_Store

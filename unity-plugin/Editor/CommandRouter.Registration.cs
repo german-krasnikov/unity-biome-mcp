@@ -55,6 +55,8 @@ namespace UnityMCP.Editor
             // whose static-ctor subscription re-arms on every domain reload.
             CommandRegistry.Register("force_play_stop", _ =>
             {
+                var blocked = SyncHelper.ReloadBlockReason(false);
+                if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
                 if (EditorApplication.isCompiling)
                 {
                     SessionState.SetBool(PlayModeEpochTracker.PendingPlayStartKey, true);
@@ -192,7 +194,13 @@ namespace UnityMCP.Editor
                 required: "", optional: "resolve");
             CommandRegistry.Register("sync_status", _ => SyncHelper.GetSyncStatus(),
                 required: "", optional: "", allowedDuringCompile: true);
-            CommandRegistry.Register("recompile", _ => { UnityEditor.AssetDatabase.Refresh(); return "ok"; },
+            CommandRegistry.Register("recompile", _ =>
+            {
+                var blocked = SyncHelper.ReloadBlockReason(false);
+                if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
+                UnityEditor.AssetDatabase.Refresh();
+                return "ok";
+            },
                 required: "", optional: "");
             CommandRegistry.Register("warm_type_cache", _ =>
             {
@@ -206,6 +214,8 @@ namespace UnityMCP.Editor
             // 4. StartTickPump: nudge backgrounded editor to start compiling.
             CommandRegistry.Register("force_refresh", _ =>
             {
+                var blocked = SyncHelper.ReloadBlockReason(false);
+                if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
                 if (SessionState.GetBool("MCP_ReloadGuardLocked", false))
                 {
                     SessionState.EraseBool("MCP_ReloadGuardLocked");
@@ -223,7 +233,7 @@ namespace UnityMCP.Editor
                 // from Drain's snapshot-count pass, not a self-unsubscribing one-shot.
                 MainThreadDispatcher.Enqueue(() =>
                 {
-                    if (!EditorApplication.isCompiling)
+                    if (!EditorApplication.isCompiling && string.IsNullOrEmpty(SyncHelper.ReloadBlockReason(false)))
                         EditorUtility.RequestScriptReload();
                 });
                 InternalEditorUtility.RepaintAllViews();

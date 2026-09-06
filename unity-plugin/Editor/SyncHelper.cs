@@ -1,6 +1,7 @@
 // SyncHelper — epoch, trigger, events, ISyncOps seam, IsCompileClean, domain stamp. (v0.23)
 // public everywhere: Tests.dll must access all of this (CS0122 trap).
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
@@ -107,9 +108,17 @@ namespace UnityMCP.Editor
             }
         }
 
+        // The mode owner controls its lifecycle; this callback admits normal reloads
+        // or its explicitly owned disable path before any sync effect occurs.
+        internal static Func<bool, string> ReloadBlockReason = _ => null;
+
         // --- Called from CommandRouter ---
-        public static string TriggerSync(bool resolve)
+        public static string TriggerSync(bool resolve) => TriggerSync(resolve, false);
+
+        internal static string TriggerSync(bool resolve, bool explicitOwnedDisable)
         {
+            var blocked = ReloadBlockReason(explicitOwnedDisable);
+            if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
             // C3: re-wedge guard — if already in compiling state with no new compile activity,
             // do NOT bump epoch (that would re-wedge the state machine).
             // Conditions: state==compiling AND compile actually started AND stamp frozen AND NOT IsCompiling
@@ -130,7 +139,13 @@ namespace UnityMCP.Editor
             SessionState.SetBool(CompileStartedKey, false);
 
             if (resolve) Ops.Resolve();
-            Ops.Refresh();
+            try { Ops.Refresh(); }
+            catch (Exception error)
+            {
+                SessionState.SetString(StateKey, "failed");
+                SessionState.SetString(ErrKey, "source import/refresh failed: " + error.Message);
+                throw; // No accepted/ready result and no compilation retry after failed import.
+            }
 
             // RC-6 fix: RequestScriptCompilation forces the compile even when Unity
             // is backgrounded (dur=0 bug on macOS).
@@ -559,7 +574,17 @@ namespace UnityMCP.Editor
             AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
         }
 
-        public void Refresh()                  => AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+        internal static Func<string[]> FindStaleSources = AssemblyFreshnessInventory.FindStaleSourceAssets;
+        internal static Action<string, ImportAssetOptions> ImportSourceAsset = AssetDatabase.ImportAsset;
+        internal static Action<ImportAssetOptions> RefreshAssets = AssetDatabase.Refresh;
+
+        public void Refresh()
+        {
+            var options = ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport;
+            foreach (var asset in FindStaleSources().Distinct(StringComparer.Ordinal))
+                ImportSourceAsset(asset, options);
+            RefreshAssets(options);
+        }
         public void Resolve()                  => UnityEditor.PackageManager.Client.Resolve();
         // None instead of CleanBuildCache: Unity 6.x regression — CleanBuildCache fires
         // assemblyCompilationNotRequired instead of recompiling. Per-file ForceUpdate

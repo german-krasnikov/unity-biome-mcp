@@ -3,8 +3,11 @@
 // Registered in IsAllowedDuringCompile + IsAlwaysAllowed (C4).
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Linq;
+using UnityMCP.Editor.TestRuns;
 using UnityEditor;
 using UnityEditor.Compilation;
 
@@ -12,6 +15,9 @@ namespace UnityMCP.Editor
 {
     internal static class DiagnoseCommand
     {
+        internal static Func<UnityEditor.Compilation.Assembly[]> CompilerAssemblies =
+            () => CompilationPipeline.GetAssemblies(AssembliesType.Editor);
+
         // G29: enumerate dlls dynamically via CompilationPipeline so newly-added
         // asmdefs (e.g. Chat.Tests) are always included without manual list updates.
         // Returns dll file names (e.g. "UnityMCP.Editor.dll") for freshness check.
@@ -19,7 +25,7 @@ namespace UnityMCP.Editor
         {
             try
             {
-                var assemblies = CompilationPipeline.GetAssemblies(AssembliesType.Editor);
+                var assemblies = CompilerAssemblies();
                 var result = new string[assemblies.Length];
                 for (int i = 0; i < assemblies.Length; i++)
                     result[i] = System.IO.Path.GetFileName(assemblies[i].outputPath);
@@ -129,126 +135,75 @@ namespace UnityMCP.Editor
         // muddying the measurement (PRE-C2 #6).
         internal static string BuildDllFreshness()
         {
-            var projectPath = UnityEngine.Application.dataPath;
-            var projectRoot = Path.GetDirectoryName(projectPath) ?? "";
-            var libPath     = Path.Combine(projectRoot, "Library", "ScriptAssemblies");
-
-            // Single scan for Assets/ and Packages/ — O(N+M) total, not O(N*M) (Issue #53 Fix C)
-            var assetsMap = ScanAssets(projectPath);
-            var pkgsMap   = ScanPackages();
-
-            var sbDlls = new StringBuilder();
-            foreach (var dllName in GetKnownDlls())
+            try
             {
-                var asmName = Path.GetFileNameWithoutExtension(dllName);
-                var dllPath = Path.Combine(libPath, dllName);
-
-                string srcDir;
-                if (!assetsMap.TryGetValue(asmName, out srcDir))
-                    pkgsMap.TryGetValue(asmName, out srcDir);
-
-                var token = GetDllFreshnessToken(dllPath, srcDir ?? "");
-                var mtime = File.Exists(dllPath)
-                    ? new FileInfo(dllPath).LastWriteTimeUtc.Ticks : 0L;
-
-                if (sbDlls.Length > 0) sbDlls.Append(',');
-                sbDlls.Append($"{asmName}:{mtime}:{token}");
+                var project = Path.GetDirectoryName(UnityEngine.Application.dataPath) ?? "";
+                var assemblies = CompilerAssemblies();
+                var inventory = new AssemblyFreshnessInventory(project, assemblies);
+                var loaded = AppDomain.CurrentDomain.GetAssemblies().Where(assembly => !assembly.IsDynamic)
+                    .GroupBy(assembly => assembly.GetName().Name).ToDictionary(group => group.Key, group => group.ToArray());
+                return BuildDllFreshness(assemblies, assembly =>
+                {
+                    var output = Path.GetFullPath(Path.IsPathRooted(assembly.outputPath) ? assembly.outputPath : Path.Combine(project, assembly.outputPath));
+                    var mtime = File.Exists(output) ? File.GetLastWriteTimeUtc(output).Ticks : 0;
+                    var token = "unknown(outside-source-scope)";
+                    var ownScope = assembly.name.StartsWith("UnityMCP.", StringComparison.Ordinal) ||
+                        (assembly.sourceFiles ?? Array.Empty<string>()).Any(path => path.Replace('\\', '/').StartsWith("Assets/", StringComparison.Ordinal));
+                    if (!File.Exists(output)) token = "unknown(missing)";
+                    else if (ownScope)
+                    {
+                        var evidence = AssemblySourceFreshness.Inspect(output, inventory.Sources(assembly),
+                            inventory.Resolve, inventory.MembershipLimitation(assembly));
+                        token = evidence.Token;
+                        token = ResolveLoadedFreshness(token, () =>
+                        {
+                            if (loaded.TryGetValue(assembly.name, out var candidates))
+                            {
+                                var match = candidates.FirstOrDefault(candidate =>
+                                {
+                                    try { return Path.GetFullPath(candidate.Location) == output; }
+                                    catch { return false; }
+                            });
+                            if (match == null || match.ManifestModule.ModuleVersionId != TestRunAssemblyFingerprint.ReadModuleVersionId(output))
+                                return "stale";
+                            return null;
+                        }
+                        return "unknown(not-loaded)";
+                        });
+                    }
+                    return $"{assembly.name}:{mtime}:{token}";
+                });
             }
-
-            return sbDlls.Length > 0 ? sbDlls.ToString() : "none";
+            catch { return "unknown(source-inventory)"; }
         }
 
-        // Exposed internal for NUnit testing with injected temp paths.
-        // Returns "fresh" | "stale" | "unknown(missing)" | "unknown(no-src)"
+        // One unavailable target must not erase a known mismatch from another target.
+        internal static string BuildDllFreshness(IEnumerable<UnityEditor.Compilation.Assembly> assemblies,
+            Func<UnityEditor.Compilation.Assembly, string> observe)
+        {
+            var result = new List<string>();
+            foreach (var assembly in assemblies)
+            {
+                try { result.Add(observe(assembly)); }
+                catch { result.Add($"{assembly?.name ?? "unknown"}:0:unknown(source-inventory)"); }
+            }
+            return result.Count > 0 ? string.Join(",", result) : "none";
+        }
+
+        internal static string ResolveLoadedFreshness(string sourceToken, Func<string> observeLoaded)
+        {
+            if (sourceToken == "stale") return sourceToken;
+            try { return observeLoaded() ?? sourceToken; }
+            catch { return "unknown(loaded-output)"; }
+        }
+
+        // Compatibility test seam; real routing uses exact compiler-owned sourceFiles.
         internal static string GetDllFreshnessToken(string dllPath, string srcDir)
         {
             if (!File.Exists(dllPath)) return "unknown(missing)";
             if (string.IsNullOrEmpty(srcDir) || !Directory.Exists(srcDir)) return "unknown(no-src)";
-
-            var dllMtime = new FileInfo(dllPath).LastWriteTimeUtc;
-            var maxCsMtime = DateTime.MinValue;
-            foreach (var cs in Directory.GetFiles(srcDir, "*.cs", SearchOption.AllDirectories))
-            {
-                // Unity ignores files/dirs with ~ prefix — exclude from freshness calculation (FIX-3)
-                if (Path.GetFileName(cs).StartsWith("~")) continue;
-                var t = new FileInfo(cs).LastWriteTimeUtc;
-                if (t > maxCsMtime) maxCsMtime = t;
-            }
-
-            if (maxCsMtime == DateTime.MinValue) return "fresh"; // no .cs files → dll is up-to-date by definition
-            if (dllMtime < maxCsMtime)
-            {
-                // Before declaring stale, check if Bee decided no recompile was needed.
-                // compile="idle|X" (successful compile, not idle-failed) means Bee cache-hit:
-                // content unchanged despite mtime bump. idle-never is NOT a cache-hit
-                // (compilation never ran this session — cannot trust Bee).
-                var status = CompileNotifier.GetStatus();
-                if (status.StartsWith("idle|"))
-                    return "fresh";
-                return "stale";
-            }
-            return "fresh";
-        }
-
-        // Seam: resolves an asmdef filename to its directory via AssetDatabase Packages/ scan.
-        // Returns null when not found. Injectable for NUnit — production impl calls AssetDatabase.
-        internal static Func<string, string> FindInPackages = (asmdefFile) =>
-        {
-            var guids = AssetDatabase.FindAssets("t:asmdef", new[] { "Packages" });
-            foreach (var guid in guids)
-            {
-                var virtualPath = AssetDatabase.GUIDToAssetPath(guid);
-                if (Path.GetFileName(virtualPath).Equals(asmdefFile, StringComparison.OrdinalIgnoreCase))
-                    return Path.GetDirectoryName(Path.GetFullPath(virtualPath));
-            }
-            return null;
-        };
-
-        // Seam: scan Assets/ for all .asmdef files → name→dir map. Injectable for NUnit.
-        // Production impl: one Directory.GetFiles call covering all of Assets/.
-        internal static Func<string, System.Collections.Generic.Dictionary<string, string>> ScanAssets =
-            (dataPath) =>
-            {
-                var map = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                try
-                {
-                    foreach (var f in Directory.GetFiles(dataPath, "*.asmdef", SearchOption.AllDirectories))
-                        map[Path.GetFileNameWithoutExtension(f)] = Path.GetDirectoryName(f) ?? "";
-                }
-                catch (Exception ex) { UnityEngine.Debug.LogWarning($"[UnityMCP] ScanAssets failed: {ex.Message}"); }
-                return map;
-            };
-
-        // Seam: scan Packages/ for all .asmdef assets → name→dir map. Injectable for NUnit.
-        // Production impl: one AssetDatabase.FindAssets call (in-memory index, fast).
-        internal static Func<System.Collections.Generic.Dictionary<string, string>> ScanPackages =
-            () =>
-            {
-                var map = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-                var guids = AssetDatabase.FindAssets("t:asmdef", new[] { "Packages" });
-                foreach (var guid in guids)
-                {
-                    var vp = AssetDatabase.GUIDToAssetPath(guid);
-                    map[Path.GetFileNameWithoutExtension(vp)] = Path.GetDirectoryName(Path.GetFullPath(vp)) ?? "";
-                }
-                return map;
-            };
-
-        // Find the directory containing <asmName>.asmdef by scanning under dataPath.
-        // Falls back to FindInPackages for file: UPM packages outside Assets/.
-        internal static string FindAsmdefDir(string dataPath, string asmName)
-        {
-            var asmdefName = asmName + ".asmdef";
-            try
-            {
-                foreach (var f in Directory.GetFiles(dataPath, "*.asmdef", SearchOption.AllDirectories))
-                {
-                    if (Path.GetFileName(f).Equals(asmdefName, StringComparison.OrdinalIgnoreCase))
-                        return Path.GetDirectoryName(f) ?? "";
-                }
-            }
-            catch (Exception) { /* permission or IO error — degrade gracefully */ }
-            return FindInPackages(asmdefName) ?? "";
+            return AssemblySourceFreshness.Inspect(dllPath, Directory.GetFiles(srcDir, "*.cs", SearchOption.AllDirectories),
+                path => Path.GetFullPath(Path.IsPathRooted(path) ? path : Path.Combine(srcDir, path))).Token;
         }
 
         // C10: Detect reload-failed markers in Editor.log.

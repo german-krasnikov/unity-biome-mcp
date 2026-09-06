@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+import sysconfig
 import time
 from collections.abc import AsyncIterator  # noqa: TC003
 from contextlib import asynccontextmanager
@@ -153,6 +154,38 @@ def test_runtime_install_receipt_proves_installed_origin(
     assert Path(receipt.distribution_path).is_relative_to(runtime_root)
     assert Path(receipt.entrypoint_path).is_relative_to(runtime_root)
     assert "server/src" not in receipt.module_path
+    dependency_origin = subprocess.check_output(
+        [receipt.python_executable, "-I", "-c", "import mcp; print(mcp.__file__)"],
+        text=True, encoding="utf-8", timeout=10,
+    ).strip()
+    assert Path(dependency_origin).is_relative_to(Path(sysconfig.get_path("purelib")))
+
+
+@pytest.mark.venv
+@pytest.mark.timeout(120)
+@REQUIRES_POSIX_SUPERVISOR
+def test_runtime_probe_rejects_dependency_path_shadowing_installed_module(
+    tmp_path: Path,
+    built_wheel: Path,
+) -> None:
+    expected = hashlib.sha256(built_wheel.read_bytes()).hexdigest()
+    receipt = install_python_wheel_runtime(
+        built_wheel, tmp_path / "runtime", expected_sha256=expected,
+        product_version=PRODUCT_VERSION,
+    )
+    installed_module = Path(receipt.module_path).parent
+    installed_module.rename(installed_module.with_name("unity_mcp_disabled"))
+    foreign_site = tmp_path / "foreign-site"
+    (foreign_site / "unity_mcp").mkdir(parents=True)
+    (foreign_site / "unity_mcp" / "__init__.py").write_text("", encoding="utf-8")
+    (installed_module.parent / "foreign-module.pth").write_text(str(foreign_site) + "\n", encoding="utf-8")
+
+    with pytest.raises(RuntimeInstallError, match="module_path is outside the installed runtime"):
+        installed_runtime._probe_runtime(
+            Path(receipt.python_executable), Path(receipt.runtime_root),
+            expected_sha256=expected, artifact_size=built_wheel.stat().st_size,
+            product_version=PRODUCT_VERSION,
+        )
 
 
 @pytest_asyncio.fixture

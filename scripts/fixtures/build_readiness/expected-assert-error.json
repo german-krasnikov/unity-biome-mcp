@@ -1,0 +1,13 @@
+{
+  "meta": null,
+  "content": [
+    {
+      "type": "text",
+      "text": "Error executing tool run_playtest: {\"schema_version\":1,\"run_id\":\"d17458c1\",\"passed\":1,\"failed\":1,\"duration_seconds\":0.292,\"steps\":[{\"index\":0,\"type\":\"Invoke\",\"ok\":true,\"ms\":190.010,\"source_file\":null,\"source_line\":9,\"raw_passed\":true,\"expected_fail\":false,\"console_errored\":false},{\"index\":1,\"type\":\"Assert\",\"ok\":false,\"ms\":102.124,\"source_file\":null,\"source_line\":10,\"raw_passed\":false,\"expected_fail\":false,\"console_errored\":false}],\"outer\":{\"teardown_ok\":true,\"scene_clean\":true},\"text_report\":\"PLAYTEST: 1/2 (0.3s)\\n[2] ASSERT #-132658|BuildReadinessCanaryProbe|Observed==202 \u2014 FAIL (101)\"}",
+      "annotations": null,
+      "meta": null
+    }
+  ],
+  "structuredContent": null,
+  "isError": true
+}

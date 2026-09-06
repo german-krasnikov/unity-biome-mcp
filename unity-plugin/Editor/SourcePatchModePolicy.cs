@@ -161,7 +161,14 @@ namespace UnityMCP.Editor
             SourcePatchReceiptStore.Write(BuildReceipt());
             SourcePatchHost.CurrentState = SourcePatchState.Disabling;
             SourcePatchHost.Coordinator = null;
-            ReloadPort.RequestReloadVerification();
+            try { ReloadPort.RequestReloadVerification(); }
+            catch
+            {
+                // No ACK cannot prove an accepted reload. Keep the receipt for explicit
+                // recovery; never silently retry or report requested forever.
+                SourcePatchHost.CurrentState = SourcePatchState.Recovery;
+                throw;
+            }
             return "requested";
         }
 

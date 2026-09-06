@@ -6,9 +6,9 @@ Mutation Mode enables faster iteration on method bodies by patching them in-memo
 
 When Mutation Mode is ON and the FSR adapter is installed, changes to a single method body are applied immediately:
 
-- **No compilation:** Your code change applies in ~0.5 s
+- **No full Unity assembly rebuild:** Eligible method changes use the patch provider
 - **No domain reload:** Game state is preserved  
-- **No file overhead:** Changes take effect in the running Editor
+- **Source and runtime change:** The write updates the source file, then the provider applies the method patch in the running Editor
 
 **Without the adapter:** Mutation Mode becomes equivalent to the standard compile path (8–90 s domain reload).
 
@@ -48,7 +48,9 @@ The checkbox reflects your preference and provider readiness. States:
 | **Disabled (gray)** | Provider not installed, or mode is Busy/Disabling/in Recovery, or Editor is in Play Mode |
 | **Disabled + warning** | Mode is in Recovery state; requires a domain reload before it can be re-enabled |
 
-Disabling always triggers exactly one script reload.
+Disabling an active or recovering mode requests one causal script reload. Repeating
+disable while that transition is pending does not request another reload; an
+already disabled mode remains disabled.
 
 ## Installing the provider
 
@@ -93,7 +95,10 @@ Look for these fields:
 - `source_patch_provider` — package installed/unavailable
 - `source_patch_state` — current state (Off, OnReady, Busy, Recovery)
 
-If `state` is not `OnReady`, mutations will fall back to the standard compile path.
+`Off` and `Unavailable` use the standard source-write path. `Busy`, `Disabling`,
+and `Recovery` block competing source writes; they do not silently fall back to a
+normal compile. An `OnReady` provider can still have active patches after its
+temporary AutoRefresh lease has been released.
 
 ## Example workflow
 
@@ -103,8 +108,10 @@ editor(action="mutation_mode", enable="true")
 
 # 2. Check readiness
 status = mcp_status()
-if status.source_patch_state != "OnReady":
+if status.source_patch_state in ("Off", "Unavailable"):
     print("Provider not installed or not ready; using standard compile")
+elif status.source_patch_state != "OnReady":
+    raise RuntimeError("Source patch operation is busy or requires recovery")
 
 # 3. Edit a method body (a plain utility class, not a MonoBehaviour)
 asset(action="write_text", 
@@ -124,7 +131,11 @@ editor(action="mutation_mode", enable="false")
 
 ## Recovery
 
-If a mutation fails, Mutation Mode transitions to a **Recovery** state. This is fail-closed: no partial or uncertain changes are applied.
+A clean provider rejection can restore the original source bytes. An uncertain
+provider outcome, an exception after a write attempt, or conflicting file changes
+can instead leave Mutation Mode in **Recovery** with its owned AutoRefresh lease
+held. The source or runtime may already have changed. Further writes are blocked;
+the operation is not blindly retried or rolled back over another writer's changes.
 
 To clear Recovery:
 
@@ -172,7 +183,9 @@ Checking `mcp_status()` costs ~30 tokens. Check once at the start of your sessio
 ## FAQ
 
 **Q: Does Mutation Mode change my saved files?**  
-A: No. Mutations exist only in the Editor's memory. When you stop the Editor or reload, your source files remain unchanged until you explicitly save them.
+A: Yes. A source-patch write updates the file before the provider applies the
+runtime patch. A clean rejection can restore the previous bytes; an uncertain
+outcome requires recovery. A later full compile uses the source files on disk.
 
 **Q: What if I edit the same method multiple times with Mutation ON?**  
 A: Each edit is patched immediately, one at a time. Sequential edits are safe.

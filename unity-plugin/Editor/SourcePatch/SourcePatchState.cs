@@ -59,6 +59,20 @@ namespace UnityMCP.Editor.SourcePatch
         public static bool IsLegalTransition(SourcePatchState from, SourcePatchState to) =>
             LegalTransitions.Contains((from, to));
 
+        // A released import/reload lease does not remove method detours. Only the
+        // explicit disable adapter may start their causal reload, using its receipt.
+        internal static string ReloadBlockReason(SourcePatchState state, bool patchesMayBeActive,
+            bool leaseHeld, bool explicitOwnedDisable, bool matchingDisableReceipt)
+        {
+            if (explicitOwnedDisable)
+                return state == SourcePatchState.Disabling && matchingDisableReceipt && !leaseHeld
+                    ? null : "source_patch_disable_not_owned";
+            if (patchesMayBeActive || leaseHeld ||
+                (state != SourcePatchState.Off && state != SourcePatchState.Unavailable))
+                return $"source_patch_{state}_explicit_disable_required";
+            return null;
+        }
+
         public bool TryTransition(SourcePatchState to)
         {
             if (!IsLegalTransition(Current, to)) return false;

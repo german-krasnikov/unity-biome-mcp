@@ -34,6 +34,7 @@ from .editor_log_wedge import (  # noqa: F401 — re-export
     crosscheck_error_on_disk,
     detect_wedge,
 )
+from .errors import recovery_barrier
 
 # Module-level cached state for centralized corroboration
 _cor_project_path = None
@@ -148,7 +149,9 @@ async def get_corroborated_errors(send, compile_status: str = "") -> str:
     """
     try:
         csharp = await send("get_compile_errors", {})
-    except (ConnectionError, OSError):
+    except (ConnectionError, OSError) as error:
+        if recovery_barrier(error) is not None:
+            raise
         return UNITY_UNREACHABLE
     out = corroborate(csharp, compile_status=compile_status)
     # Strip the clean sentinel — it's not an error payload.

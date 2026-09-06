@@ -12,7 +12,7 @@ Sends the diagnose TCP command, parses the text wire-format, applies the
   STALE-CACHE         — disk-fixed CS error not yet reimported
   TESTS-INVISIBLE     — Tests dll unknown(missing) → testables gap
   REBUILDING          — all dlls missing → mid-rebuild
-  NO-OP               — idle-never, idle-stale, or MVID frozen (no compile expected)
+  NO-OP               — completed idle state with matching MVID (no compile expected)
   UNKNOWN             — connection error or UNDETERMINED stamp
 
 Priority order: first match wins (see _verdict).
@@ -183,26 +183,10 @@ def _verdict(
     wedge: WedgeReport | None = None,
     expected_compile: bool = True,
 ) -> str:
-    """Apply §3 protocol priority order. Returns ONE verdict string.
+    """Classify errors and wedges before readiness; incomplete evidence stays unknown.
 
-    Priority (first match wins) — spec §2:
-      1.  errors= has CS codes                        → FAIL:<CS>           [ground truth, always wins]
-      2.  stamp UNDETERMINED                          → UNKNOWN
-      3.  build-failed-wedge log                      → BUILD-FAILED-WEDGE    [before WEDGE-ENGINE: different remedy]
-      4.  stale-cache log                             → STALE-CACHE
-      5.  Tests dll unknown(missing)                  → TESTS-INVISIBLE
-      6.  ALL dlls unknown(missing)                   → REBUILDING
-      7.  WEDGE-ENGINE fingerprint                    → WEDGE-ENGINE
-      8.  WEDGE-STATE fingerprint                     → WEDGE-STATE
-      9.  idle-failed                                 → FAIL:<CS|unknown>
-      9.5 iscompiling + idle-never + stale-dlls       → STALE-TRANSIENT       [package-resolve transient]
-      9.7 prod dll :stale                             → FAIL:stale-dll      [before idle-never to avoid masking]
-      10. idle-never / idle-stale                     → NO-OP
-      11. prev_mvid + frozen + expected               → STALE-DOMAIN          [gated on expected_compile, A5]
-      12. prev_mvid + frozen + !expected              → NO-OP                 [cache-hit is clean, A5]
-      13. log errors                                  → FAIL:<log>
-      14. stamp set                                   → CLEAN-LIVE
-      15. fallthrough                                 → UNKNOWN
+    This legacy diagnostic adapter does not certify inputs-to-output provenance.
+    Active/failed/never-completed compilation cannot become clean from a stamp.
     """
     # 1. Compile errors — in-memory C# capture, ground truth, always wins
     if "error CS" in fields.errors or fields.all_errors:
@@ -213,9 +197,7 @@ def _verdict(
     if fields.stamp == "UNDETERMINED":
         return "UNKNOWN"
 
-    # 3. Build-failed-wedge: log authority OR C10 in-process reload_failed signal.
-    #    reload_failed=true is authoritative even when wedge=None (log rolled/stale).
-    #    Must precede WEDGE-ENGINE: wrong remedy otherwise (restart vs reimport).
+    # Reload failure is authoritative even when the log has rotated.
     _build_failed_wedge = (
         (wedge is not None and wedge.kind == "build-failed-wedge"
          and (fields.iscompiling or fields.guard_rejected))
@@ -250,9 +232,7 @@ def _verdict(
         if tests_missing:       # slot 5: only Tests missing → testables gap
             return "TESTS-INVISIBLE"
 
-    # 7. Engine wedge: iscompiling=true + cn_active=false + stamp_frozen
-    # Also fires when is_really_compiling=false (MCPServer never saw compilationStarted)
-    # — catches stale isCompiling latch even when CompileNotifier.IsCompiling=true.
+    # Distinguish the engine flag from observed compilation activity.
     stale_latch = fields.iscompiling and not fields.is_really_compiling and fields.stamp_frozen
     if (fields.iscompiling and not fields.cn_active and fields.stamp_frozen) or stale_latch:
         return "WEDGE-ENGINE"
@@ -266,41 +246,33 @@ def _verdict(
         cs = _first_cs(fields.errors) or _first_cs_from_all(fields.all_errors)
         if cs:
             return f"FAIL:{cs}"
-        # No CS code found — idle-failed flag may be stale or from non-MCP assembly.
-        # Corroborate with dll freshness and log before declaring failure.
-        has_stale_dll = parsed_dlls and any(s == "stale" for _, s in parsed_dlls)
-        has_log_errors = fields.log not in ("clean", "absent", "")
-        if has_stale_dll or has_log_errors or fields.reload_failed:
-            return "FAIL:unknown"
-        # No corroborating evidence — fall through to remaining slots
+        return "FAIL:unknown"  # lost error capture does not turn a failed compile into success
 
     # 9.5. iscompiling + idle-never + stale-dlls = package-resolve transient state
     if fields.iscompiling and fields.compile == "idle-never" and \
             parsed_dlls and any(s == "stale" for _, s in parsed_dlls):
         return "STALE-TRANSIENT"
 
-    # 9.7. Prod dll stale — must precede idle-never so stale is never masked by NO-OP
-    # Gate on compile != "idle": stale DLL during idle means domain just reloaded clean;
-    # only warn when something is actively wrong (compiling/failed/etc).
-    if parsed_dlls and any(status == "stale" for _, status in parsed_dlls) \
-            and fields.compile != "idle":
+    # The C# stale token now denotes a known checksum/output mismatch, not mtime age.
+    if parsed_dlls and any(status == "stale" for _, status in parsed_dlls):
         return "FAIL:stale-dll"
 
-    # 10. Never compiled / self-cleared stale → NO-OP
+    # No observed completion cannot be promoted to NO-OP by a cached identity
     if fields.compile in ("idle-never", "idle-stale"):
-        return "NO-OP"
+        return "UNKNOWN: no completed compile evidence"
 
-    # 11/12. MVID check gated on expected_compile (A5)
+    if fields.log not in ("clean", "absent", ""):
+        return f"FAIL:{fields.log}"
+    if (fields.compile != "idle" or fields.sync_state not in ("", "ready", "idle")
+            or fields.iscompiling or fields.cn_active or fields.is_really_compiling):
+        return "UNKNOWN"
+
+    # An unchanged identity cannot overrule failed, busy or incomplete evidence.
     if prev_mvid and fields.mvid and fields.mvid == prev_mvid:
         if expected_compile:
             return "STALE-DOMAIN"   # slot 11: compile was expected, MVID froze → stale
         return "NO-OP"          # slot 12: cache-hit / no compile expected → clean
 
-    # 13. Log errors
-    if fields.log not in ("clean", "absent", ""):
-        return f"FAIL:{fields.log}"
-
-    # 15. All green
     if fields.stamp and fields.stamp != "UNDETERMINED":
         return "CLEAN-LIVE"
 

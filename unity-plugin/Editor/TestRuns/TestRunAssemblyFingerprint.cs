@@ -38,10 +38,6 @@ namespace UnityMCP.Editor.TestRuns
             "Unity.PerformanceTesting"
         };
 
-        // Injectable seam: unit tests override this to control the compile-status response.
-        // Production always delegates to CompileNotifier.GetStatus().
-        internal static Func<string> CompileStatusGetter = () => CompileNotifier.GetStatus();
-
         internal static TestRunAssemblyFingerprintResult Capture(string projectRoot)
         {
             var result = new TestRunAssemblyFingerprintResult();
@@ -99,6 +95,7 @@ namespace UnityMCP.Editor.TestRuns
                     throw new InvalidDataException(
                         "UnityMCP.Editor compiler output is absent");
                 var descriptors = new List<string>(compiled.Length);
+                var sourceInventory = new AssemblyFreshnessInventory(project, allCompiled);
 
                 foreach (var assembly in compiled)
                 {
@@ -122,10 +119,8 @@ namespace UnityMCP.Editor.TestRuns
                             $"{loaded.ManifestModule.ModuleVersionId:N} " +
                             $"does not match on-disk MVID {diskMvid:N}");
 
-                    var sources = (assembly.sourceFiles ?? Array.Empty<string>())
-                        .Select(path => ResolveSourcePath(project, path))
-                        .OrderBy(path => path, StringComparer.Ordinal)
-                        .ToArray();
+                    var sources = sourceInventory.Sources(assembly)
+                        .OrderBy(path => path, StringComparer.Ordinal).ToArray();
                     if (sources.Length == 0)
                         throw new InvalidDataException(
                             $"compiled assembly '{assembly.name}' has no source inventory");
@@ -148,8 +143,12 @@ namespace UnityMCP.Editor.TestRuns
                         sourceDescriptors.Append(NormalizePath(source)).Append('=')
                             .Append(HashFile(source)).Append('\n');
                     }
-                    ValidateMtimeCoherence(
-                        assembly.name, assemblyWrite, latestSourceWrite, latestSource);
+                    // A pre-run edit can preserve both size and mtime. Compare actual
+                    // bytes to the paired output's PDB even when timestamps look old.
+                    var freshness = AssemblySourceFreshness.Inspect(outputPath, sources,
+                        sourceInventory.Resolve, sourceInventory.MembershipLimitation(assembly));
+                    if (!string.IsNullOrEmpty(freshness.Mismatch))
+                        throw new InvalidDataException(assembly.name + ": " + freshness.Mismatch);
 
                     var sourceHash = HashText(sourceDescriptors.ToString());
                     descriptors.Add(
@@ -181,26 +180,6 @@ namespace UnityMCP.Editor.TestRuns
                 result.Error = "assembly fingerprint failed: " + error.Message;
             }
             return result;
-        }
-
-        // Throws when assemblyWrite < latestSourceWrite AND the compile status is not
-        // "idle|..." (Bee cache-hit) or "idle-never|..." (Bee decided nothing needed
-        // compiling — DLL is correct). Both mean the DLL is current despite an mtime
-        // discrepancy from git operations / overnight Unity open — mirrors
-        // DiagnoseCommand.GetDllFreshnessToken. "idle-stale|..." and "idle-failed|..."
-        // deliberately stay fail-closed: those indicate a wedged or failed compile.
-        internal static void ValidateMtimeCoherence(
-            string assemblyName,
-            DateTime assemblyWrite,
-            DateTime latestSourceWrite,
-            string latestSource)
-        {
-            if (assemblyWrite >= latestSourceWrite) return;
-            var status = CompileStatusGetter();
-            if (!status.StartsWith("idle|", StringComparison.Ordinal) &&
-                !status.StartsWith("idle-never|", StringComparison.Ordinal))
-                throw new InvalidDataException(
-                    $"compiled assembly '{assemblyName}' is older than source " + latestSource);
         }
 
         internal static Guid ReadModuleVersionId(string assemblyPath)
@@ -403,36 +382,9 @@ namespace UnityMCP.Editor.TestRuns
         private static string NormalizePath(string path) =>
             Path.GetFullPath(path).Replace('\\', '/');
 
-        // Injectable seam: unit tests wrap this to count real SHA-256 computations
-        // that HashFile's (path, mtime, size) cache falls through to. Production
-        // always computes the real hash.
+        // Test seam counts actual hashes. No metadata-keyed cache survives a capture.
         internal static Func<string, string> HashFileImpl = ComputeFileHash;
-
-        // Cache is static and cleared naturally by domain reload (mirrors
-        // CompileStatusGetter's own static-seam lifetime). Keyed by absolute path;
-        // an entry is only reused while both the file's mtime AND size are
-        // unchanged -- mtime alone is unsafe under clock skew / mtime granularity,
-        // and a same-mtime rewrite can still change length.
-        // Capture() (the only real caller chain: TestRunBuildFingerprint.Capture ->
-        // TestRunObserver/TestRunEnvironmentController/TestRunner) is always
-        // synchronous and main-thread-only -- none of those call sites are async or
-        // use ConfigureAwait(false)/Task.Run, and they call UnityEditor-only APIs
-        // that require the main thread anyway -- so no lock is needed here.
-        private static readonly Dictionary<string, (DateTime mtime, long size, string hash)>
-            HashCache = new Dictionary<string, (DateTime, long, string)>(StringComparer.Ordinal);
-
-        internal static string HashFile(string path)
-        {
-            var info = new FileInfo(path);
-            var mtime = info.LastWriteTimeUtc;
-            var size = info.Length;
-            if (HashCache.TryGetValue(path, out var cached) &&
-                cached.mtime == mtime && cached.size == size)
-                return cached.hash;
-            var hash = HashFileImpl(path);
-            HashCache[path] = (mtime, size, hash);
-            return hash;
-        }
+        internal static string HashFile(string path) => HashFileImpl(path);
 
         private static string ComputeFileHash(string path)
         {

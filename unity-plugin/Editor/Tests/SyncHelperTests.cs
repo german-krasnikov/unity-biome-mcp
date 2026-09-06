@@ -4,6 +4,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
+using UnityEditor;
 using NUnit.Framework;
 using UnityEditor.Compilation;
 using UnityMCP.Editor;
@@ -34,6 +36,131 @@ namespace UnityMCP.Editor.Tests
         public void Epoch_Survives_SessionState_Roundtrip()
         {
             Assert.AreEqual(0, SyncHelper.CurrentEpoch);
+        }
+
+        [Test]
+        public void TriggerSync_RejectedModeDoesNotPerformAnyEffect()
+        {
+            var original = SyncHelper.ReloadBlockReason;
+            try
+            {
+                SyncHelper.ReloadBlockReason = _ => "active-patches";
+                Assert.That(SyncHelper.TriggerSync(true), Is.EqualTo("blocked|reason=active-patches"));
+                Assert.That(SyncHelper.CurrentEpoch, Is.Zero);
+                Assert.That(_mock.ResolveCount + _mock.RefreshCount + _mock.RequestScriptCompilationCount +
+                    _mock.StartTickPumpCount, Is.Zero);
+            }
+            finally { SyncHelper.ReloadBlockReason = original; }
+        }
+
+        [Test]
+        public void TriggerSync_ExplicitDisableStillRequiresOwnersAdmission()
+        {
+            var original = SyncHelper.ReloadBlockReason;
+            try
+            {
+                bool observed = false;
+                SyncHelper.ReloadBlockReason = owned => { observed = owned; return "wrong-receipt"; };
+                Assert.That(SyncHelper.TriggerSync(false, true), Is.EqualTo("blocked|reason=wrong-receipt"));
+                Assert.That(observed, Is.True);
+                Assert.That(_mock.RefreshCount, Is.Zero);
+            }
+            finally { SyncHelper.ReloadBlockReason = original; }
+        }
+
+        [TestCase("recompile")]
+        [TestCase("force_refresh")]
+        [TestCase("force_play_stop")]
+        public void RawReloadCommand_UsesSamePreEffectModeAdmission(string command)
+        {
+            var original = SyncHelper.ReloadBlockReason;
+            try
+            {
+                SyncHelper.ReloadBlockReason = _ => "active-patches";
+                Assert.That(CommandRegistry.Execute(command, "{}"), Is.EqualTo("blocked|reason=active-patches"));
+                Assert.That(_mock.RefreshCount + _mock.ImportPackageSourcesCount + _mock.RequestScriptCompilationCount,
+                    Is.Zero);
+                Assert.That(SyncHelper.CurrentEpoch, Is.Zero);
+            }
+            finally { SyncHelper.ReloadBlockReason = original; }
+        }
+
+        [Test]
+        public void SourceImport_MultipleSelectedAssetsAreDeduplicatedBeforeRefresh()
+        {
+            WithSourceImportPorts(new[] { "Assets/A.cs", "Packages/com.test/B.cs", "Assets/A.cs" }, calls =>
+            {
+                SyncHelper.TriggerSync(false);
+                Assert.That(calls, Is.EqualTo(new[] { "observe", "Assets/A.cs", "Packages/com.test/B.cs", "refresh" }));
+                Assert.That(_mock.RequestScriptCompilationCount, Is.EqualTo(1));
+            });
+        }
+
+        [Test]
+        public void SourceImport_NoKnownMismatchKeepsOrdinaryRefreshWithoutImports()
+        {
+            WithSourceImportPorts(Array.Empty<string>(), calls =>
+            {
+                SyncHelper.TriggerSync(false);
+                Assert.That(calls, Is.EqualTo(new[] { "observe", "refresh" }));
+            });
+        }
+
+        [Test]
+        public void SourceImport_ActiveModeBlocksDiscoveryAndEveryEffectBeforeEpoch()
+        {
+            WithSourceImportPorts(new[] { "Assets/A.cs" }, calls =>
+            {
+                SyncHelper.ReloadBlockReason = _ => "active-patches";
+                Assert.That(SyncHelper.TriggerSync(true), Is.EqualTo("blocked|reason=active-patches"));
+                Assert.That(calls, Is.Empty);
+                Assert.That(SyncHelper.CurrentEpoch, Is.Zero);
+                Assert.That(_mock.ResolveCount + _mock.RefreshCount + _mock.RequestScriptCompilationCount + _mock.StartTickPumpCount, Is.Zero);
+            });
+        }
+
+        [Test]
+        public void SourceImport_ThrowStopsBeforeRefreshCompileAndReadyAck()
+        {
+            WithSourceImportPorts(new[] { "Assets/A.cs" }, calls =>
+            {
+                UnitySyncOps.ImportSourceAsset = (_, __) => throw new IOException("owned import rejected");
+                Assert.Throws<IOException>(() => SyncHelper.TriggerSync(false));
+                Assert.That(calls, Is.EqualTo(new[] { "observe" }));
+                Assert.That(_mock.RequestScriptCompilationCount + _mock.StartTickPumpCount, Is.Zero);
+                Assert.That(SyncHelper.GetSyncStatus(), Does.Contain("state=failed"));
+                Assert.That(SyncHelper.IsCompileClean, Is.False);
+            });
+        }
+
+        private void WithSourceImportPorts(string[] selected, Action<List<string>> test)
+        {
+            var find = UnitySyncOps.FindStaleSources;
+            var import = UnitySyncOps.ImportSourceAsset;
+            var refresh = UnitySyncOps.RefreshAssets;
+            var admission = SyncHelper.ReloadBlockReason;
+            var calls = new List<string>();
+            try
+            {
+                SyncHelper.ReloadBlockReason = _ => null;
+                UnitySyncOps.FindStaleSources = () => { calls.Add("observe"); return selected; };
+                UnitySyncOps.ImportSourceAsset = (path, flags) =>
+                {
+                    Assert.That(flags, Is.EqualTo(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport));
+                    calls.Add(path);
+                };
+                UnitySyncOps.RefreshAssets = _ => calls.Add("refresh");
+                _mock.RefreshEffect = () => new UnitySyncOps().Refresh();
+                test(calls);
+            }
+            finally
+            {
+                _mock.RefreshEffect = null;
+                UnitySyncOps.FindStaleSources = find;
+                UnitySyncOps.ImportSourceAsset = import;
+                UnitySyncOps.RefreshAssets = refresh;
+                SyncHelper.ReloadBlockReason = admission;
+            }
         }
 
         // #2: TriggerSync increments epoch
@@ -834,6 +961,7 @@ namespace UnityMCP.Editor.Tests
     public sealed class MockSyncOps : ISyncOps
     {
         public int  RefreshCount                      { get; private set; }
+        internal Action RefreshEffect;
         public int  ResolveCount                      { get; private set; }
         public int  ImportPackageSourcesCount         { get; private set; }
         public int  RequestScriptCompilationCount     { get; private set; }
@@ -866,6 +994,7 @@ namespace UnityMCP.Editor.Tests
             if (ResolveCount > 0 && RefreshCount == 0)
                 ResolveCalledBeforeRefresh = true;
             RefreshCount++;
+            RefreshEffect?.Invoke();
         }
 
         public void Resolve() => ResolveCount++;

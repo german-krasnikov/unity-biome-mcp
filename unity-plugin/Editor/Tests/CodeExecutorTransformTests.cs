@@ -1,5 +1,7 @@
 // TDD: CodeExecutor transform bugs C5 (return; in void local functions) and C6 (lowercase namespace using).
 using NUnit.Framework;
+using System;
+using UnityEditor;
 using UnityMCP.Editor;
 
 namespace UnityMCP.Editor.Tests
@@ -7,6 +9,47 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class CodeExecutorTransformTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        [Test]
+        public void Execute_HelperTypeBeforeEntryDoesNotHideRun()
+        {
+            Assert.That(CodeExecutor.Execute(
+                "public sealed class Helper {} public static class Entry { public static object Run() { return 202; } }",
+                "entry selection test"), Is.EqualTo("202"));
+        }
+
+        [Test]
+        public void Execute_WrapperPreferencePreservesNonPublicAndReturnType()
+        {
+            Assert.That(CodeExecutor.Execute(
+                "public static class Helper { public static object Run() { throw new System.Exception(\"wrong entry invoked\"); } } " +
+                "public static class __MCPScript { private static string Run() { return \"wrapper\"; } }",
+                "entry selection test"), Is.EqualTo("wrapper"));
+        }
+
+        [TestCase("public static class Missing { public static object Run(int value) { return value; } }",
+                  "No static parameterless Run() found.")]
+        [TestCase("public static class First { public static object Run() { throw new System.Exception(\"wrong entry invoked\"); } } " +
+                  "public static class Second { public static object Run() { throw new System.Exception(\"wrong entry invoked\"); } }",
+                  "Multiple static parameterless Run() methods found.")]
+        public void Execute_MissingOrAmbiguousEntryRejectsBeforeUndo(string source, string expectedReason)
+        {
+            var group = Undo.GetCurrentGroup();
+            var error = Assert.Throws<InvalidOperationException>(() => CodeExecutor.Execute(source, "must not change undo"));
+            Assert.That(error.Message, Does.StartWith(expectedReason));
+            Assert.That(Undo.GetCurrentGroup(), Is.EqualTo(group));
+        }
+
+        [Test]
+        public void Execute_OpenGenericEntryIsNotInvokable()
+        {
+            var group = Undo.GetCurrentGroup();
+            var error = Assert.Throws<InvalidOperationException>(() => CodeExecutor.Execute(
+                "public static class Generic { public static object Run<T>() { throw new System.Exception(\"wrong entry invoked\"); } }",
+                "must not change undo"));
+            Assert.That(error.Message, Does.StartWith("No static parameterless Run() found."));
+            Assert.That(Undo.GetCurrentGroup(), Is.EqualTo(group));
+        }
+
         // ── C5: return; in void local function must not become return null; ──────
 
         [Test]

@@ -72,6 +72,8 @@ async def test_attempt_recovery_heals_when_no_errors(monkeypatch):
     async def send(cmd, args=None, **kwargs):
         if cmd == "force_refresh":
             return "ok"
+        if cmd == "compile_status":
+            return "idle|1"
         if cmd == "sync_status":
             return f"epoch=1|state=ready|stamp={stamp}"
         return ""
@@ -85,14 +87,16 @@ async def test_attempt_recovery_heals_when_no_errors(monkeypatch):
     assert result is None, f"Expected None (healed), got: {result!r}"
 
 
-async def test_attempt_recovery_reports_reimport_when_errors(monkeypatch):
-    """MCP091-009: MVID stable + compile state=ready + actual errors → REIMPORT-NEEDED."""
+async def test_attempt_recovery_preserves_errors_without_escalation(monkeypatch):
+    """Matching ready cycle with real errors returns the original diagnostic."""
     mvid = "aaaa-bbbb-cccc"
     stamp = f"{mvid}:100"
 
     async def send(cmd, args=None, **kwargs):
         if cmd == "force_refresh":
             return "ok"
+        if cmd == "compile_status":
+            return "idle|1"
         if cmd == "sync_status":
             return f"epoch=1|state=ready|stamp={stamp}"
         return ""
@@ -104,7 +108,7 @@ async def test_attempt_recovery_reports_reimport_when_errors(monkeypatch):
         result = await _sync._attempt_recovery(send, mvid)
 
     assert result is not None
-    assert "REIMPORT-NEEDED" in result
+    assert result == "CS0246: type not found"
 
 
 async def test_attempt_recovery_reimport_when_compile_stuck(monkeypatch):
@@ -114,6 +118,8 @@ async def test_attempt_recovery_reimport_when_compile_stuck(monkeypatch):
     async def send(cmd, args=None, **kwargs):
         if cmd == "force_refresh":
             return "ok"
+        if cmd == "compile_status":
+            return "idle|1"
         if cmd == "sync_status":
             return "epoch=1|state=compiling|dur=0.0"  # stuck
         return ""

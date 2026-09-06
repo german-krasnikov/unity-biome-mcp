@@ -95,13 +95,30 @@ def test_forbidden_reference_detector_actually_detects():
     assert _references_contain_forbidden_fragment(["UnityEngine", "UnityMCP.Editor"]) is None
 
 
+def _package_forbidden_hits(data):
+    # Exact authorized PDB-reader dependency only; retain every provider guard.
+    data = json.loads(json.dumps(data))
+    dependencies = data.get("dependencies", {})
+    if dependencies.get("com.unity.nuget.mono-cecil") == "1.11.5":
+        del dependencies["com.unity.nuget.mono-cecil"]
+    blob = json.dumps(data).lower()
+    return [frag for frag in _FORBIDDEN_NAME_FRAGMENTS if frag in blob]
+
+
+def test_pdb_dependency_exception_does_not_relax_provider_bans():
+    assert not _package_forbidden_hits({"dependencies": {"com.unity.nuget.mono-cecil": "1.11.5"}})
+    assert "cecil" in _package_forbidden_hits({"dependencies": {"com.unity.nuget.mono-cecil": "1.11.6"}})
+    assert "sourcepatch" in _package_forbidden_hits({"dependencies": {
+        "com.unity.nuget.mono-cecil": "1.11.5", "com.vendor.sourcepatch": "1.0"}})
+    assert "cecil" in _package_forbidden_hits({"description": "Cecil provider"})
+
+
 def test_package_json_has_no_forbidden_dependency_or_keyword():
     """package.json (name/description/keywords/dependencies/...) never mentions
     a provider/engine name. Scans the whole document, not just known keys, so
     a future field addition can't silently bypass the guard."""
     data = json.loads((PLUGIN_ROOT / "package.json").read_text(encoding="utf-8"))
-    blob = json.dumps(data).lower()
-    hits = [frag for frag in _FORBIDDEN_NAME_FRAGMENTS if frag in blob]
+    hits = _package_forbidden_hits(data)
     assert not hits, f"package.json mentions forbidden fragment(s): {hits}"
 
 

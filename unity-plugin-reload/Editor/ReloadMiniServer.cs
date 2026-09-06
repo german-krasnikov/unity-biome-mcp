@@ -48,6 +48,17 @@ namespace UnityMCP.Reload
 
         internal bool HasStarted => Volatile.Read(ref _state) == Executing;
 
+        internal bool TryStart(Func<string> blockReason, out string rejection)
+        {
+            rejection = blockReason();
+            if (!string.IsNullOrEmpty(rejection))
+            {
+                TryAbandon();
+                return false;
+            }
+            return TryStart(); // timeout may have abandoned the request during observation
+        }
+
         internal void ExecuteStarted(Action accepted, Action dispatch)
         {
             if (accepted == null) throw new ArgumentNullException(nameof(accepted));
@@ -257,9 +268,12 @@ namespace UnityMCP.Reload
                 // between this decision and the accepted mutation.
                 lock (_lifecycleGate)
                 {
+                    string blocked = null;
                     if (_shuttingDown || !_generation.IsCurrent(generation) ||
-                        !dispatchGate.TryStart())
+                        !dispatchGate.TryStart(ReloadCommands.GetReloadBlockReason, out blocked))
                     {
+                        if (!string.IsNullOrEmpty(blocked) && Interlocked.Exchange(ref sent, 1) == 0)
+                            SendFrame(stream, OkResponse(id, "blocked|reason=" + blocked));
                         mre.Set();
                         return;
                     }

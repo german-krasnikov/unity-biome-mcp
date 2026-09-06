@@ -13,6 +13,8 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     internal sealed class SourcePatchReloadContractTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        private MockSyncOps _syncOps;
+
         private sealed class RecordingReloadPort : ISourcePatchReloadPort
         {
             public int CallCount;
@@ -32,7 +34,8 @@ namespace UnityMCP.Editor.Tests
             RegisterCleanup(() => SourcePatchModePolicy.ReloadPort = new SyncHelperReloadPort());
             RegisterCleanup(SourcePatchProviderSlot.ResetForTests);
             SourcePatchHost.ResetForTests();
-            SyncHelper.OverrideOpsForTest(new MockSyncOps());
+            _syncOps = new MockSyncOps();
+            SyncHelper.OverrideOpsForTest(_syncOps);
         }
 
         /// <summary>Shared arrangement for both tests below: real Off -> OnReady,
@@ -53,16 +56,49 @@ namespace UnityMCP.Editor.Tests
             return receipt;
         }
 
+        private void CompleteOwnedReload(SourcePatchDisableReceipt receipt)
+        {
+            var epochBefore = SyncHelper.CurrentEpoch;
+            Assert.AreEqual(epochBefore + 1, receipt.ExpectedEpochAfter);
+            Assert.AreEqual("blocked|reason=source_patch_Disabling_explicit_disable_required",
+                SyncHelper.TriggerSync(false));
+            Assert.AreEqual(epochBefore, SyncHelper.CurrentEpoch, "ordinary sync cannot advance disable's epoch");
+            Assert.AreEqual(0, _syncOps.RefreshCount);
+            Assert.AreEqual(0, _syncOps.RequestScriptCompilationCount);
+            Assert.AreEqual(0, _syncOps.StartTickPumpCount);
+
+            // Exactly one accepted, owned request; the real port checks the exact ACK.
+            // The fixture's mock performs no AssetDatabase or compilation effects.
+            new SyncHelperReloadPort().RequestReloadVerification();
+            Assert.AreEqual(receipt.ExpectedEpochAfter, SyncHelper.CurrentEpoch);
+            Assert.AreEqual(1, _syncOps.RefreshCount);
+            Assert.AreEqual(1, _syncOps.RequestScriptCompilationCount);
+            Assert.AreEqual(1, _syncOps.StartTickPumpCount);
+        }
+
+        private void SimulateOutOfBandEpochAdvance()
+        {
+            // Ordinary client sync is now blocked during Disabling. Inject one
+            // out-of-band epoch through the existing admission seam to retain the
+            // domain-start mismatch oracle, without claiming clients can bypass it.
+            Assert.AreSame(_syncOps, SyncHelper.Ops, "simulation must never use native sync operations");
+            var admission = SyncHelper.ReloadBlockReason;
+            var expectedEpoch = SyncHelper.CurrentEpoch + 1;
+            try
+            {
+                SyncHelper.ReloadBlockReason = _ => null;
+                Assert.AreEqual($"sync_ack|epoch={expectedEpoch}|will_compile=false", SyncHelper.TriggerSync(false));
+                Assert.AreEqual(expectedEpoch, SyncHelper.CurrentEpoch);
+            }
+            finally { SyncHelper.ReloadBlockReason = admission; }
+        }
+
         [Test]
         public void OnReadyToOff_ThroughRealReconciliation_ClearsReceiptAndNextWriteIsLegacy()
         {
             var receipt = ArmOnReadyThenRequestDisable(out _);
 
-            // Simulate the disable's OWN expected reload actually landing: bump the
-            // real epoch (via MockSyncOps, no real compile) to exactly what the
-            // receipt expects, then force the lazy path to re-run - this is the one
-            // thing a real Domain Reload does that ResetForTests() does not.
-            while (SyncHelper.CurrentEpoch < receipt.ExpectedEpochAfter) SyncHelper.TriggerSync(false);
+            CompleteOwnedReload(receipt);
             SourcePatchHost.ForceUnreconciledForTests();
 
             // Real reconciliation, not a forced setter.
@@ -71,15 +107,12 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void ClientSyncBetweenDisableAndOwnReload_EpochDriftResolvesRecoveryNeverFalseOff()
+        public void OutOfBandEpochDriftAfterOwnedDisable_ResolvesRecoveryNeverFalseOff()
         {
             var receipt = ArmOnReadyThenRequestDisable(out _);
 
-            // R04: an unrelated client-triggered sync_unity lands ONE EXTRA reload
-            // cycle before the disable's own expected epoch is reached - landing the
-            // real epoch one past what the receipt expects.
-            while (SyncHelper.CurrentEpoch < receipt.ExpectedEpochAfter) SyncHelper.TriggerSync(false);
-            SyncHelper.TriggerSync(false); // the extra, independently-triggered client sync
+            CompleteOwnedReload(receipt);
+            SimulateOutOfBandEpochAdvance();
             SourcePatchHost.ForceUnreconciledForTests();
 
             // Fail closed: Recovery, never an optimistic Off; receipt retained (no auto-repair).

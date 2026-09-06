@@ -1,0 +1,3 @@
+# @needs editmode
+INVOKE @OWNED_PATH@ BuildReadinessCanaryProbe Sample
+ASSERT @OWNED_PATH@|BuildReadinessCanaryProbe|Observed == @EXPECTED@

@@ -13,8 +13,20 @@ namespace UnityMCP.Editor
     /// <summary>Legacy adapter — identical effect to today's direct
     /// <c>SyncHelper.TriggerSync(resolve: false)</c> call. Swappable in tests
     /// without touching SyncHelper itself.</summary>
+    [UnityEditor.InitializeOnLoad]
     internal sealed class SyncHelperReloadPort : ISourcePatchReloadPort
     {
-        public void RequestReloadVerification() => SyncHelper.TriggerSync(resolve: false);
+        // Main-assembly composition; Reload core has no optional-provider dependency.
+        static SyncHelperReloadPort() => SyncHelper.ReloadBlockReason = SourcePatchHost.ReloadBlockReason;
+
+        public void RequestReloadVerification()
+        {
+            var expectedEpoch = SyncHelper.CurrentEpoch + 1;
+            var result = SyncHelper.TriggerSync(resolve: false, explicitOwnedDisable: true);
+            var prefix = $"sync_ack|epoch={expectedEpoch}|will_compile=";
+            if (result != prefix + "true" && result != prefix + "false")
+                throw new System.InvalidOperationException(
+                    "source patch disable reload was not acknowledged: " + result);
+        }
     }
 }

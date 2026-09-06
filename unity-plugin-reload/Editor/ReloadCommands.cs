@@ -3,6 +3,8 @@
 // force_refresh/recompile require Unity main thread — in increment 3 server will queue them.
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.Compilation;
 
@@ -10,6 +12,30 @@ namespace UnityMCP.Reload
 {
     public static class ReloadCommands
     {
+        internal static Func<Func<bool, string>> AdmissionResolver = ResolveMainAdmission;
+        internal static Action RefreshForReload = () => AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+        internal static Action CompileScripts = () => CompilationPipeline.RequestScriptCompilation(RequestScriptCompilationOptions.None);
+        internal static Action RefreshOnly = () => AssetDatabase.Refresh();
+
+        // The optional main assembly owns mode policy. Read its neutral delegate at
+        // dispatch; an unavailable owner cannot authorize a mutation via this port.
+        private static Func<bool, string> ResolveMainAdmission()
+        {
+            var main = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(assembly => assembly.GetName().Name == "UnityMCP.Editor");
+            return main?.GetType("UnityMCP.Editor.SyncHelper")?.GetField("ReloadBlockReason",
+                BindingFlags.Static | BindingFlags.NonPublic)?.GetValue(null) as Func<bool, string>;
+        }
+
+        internal static string GetReloadBlockReason()
+        {
+            try
+            {
+                var admission = AdmissionResolver();
+                return admission == null ? "reload_admission_unavailable" : admission(false);
+            }
+            catch { return "reload_admission_unavailable"; }
+        }
+
         // Lazy-init so tests can call individual methods without triggering full build
         static readonly Dictionary<string, Func<string, string>> _commands =
             new Dictionary<string, Func<string, string>>
@@ -43,15 +69,19 @@ namespace UnityMCP.Reload
         // Main-thread required. In increment 3 TCP server will queue this via EditorApplication.update.
         static string ForceRefresh()
         {
-            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
-            CompilationPipeline.RequestScriptCompilation(RequestScriptCompilationOptions.None);
+            var blocked = GetReloadBlockReason();
+            if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
+            RefreshForReload();
+            CompileScripts();
             return "force_refresh triggered";
         }
 
         // Main-thread required.
         static string Recompile()
         {
-            AssetDatabase.Refresh();
+            var blocked = GetReloadBlockReason();
+            if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
+            RefreshOnly();
             return "recompile triggered";
         }
     }
