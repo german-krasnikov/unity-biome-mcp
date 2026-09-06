@@ -211,6 +211,7 @@ async def run_playtest(script: str | None = None, timeout: float = _RUN_PLAYTEST
         raw = await _run_via_start_poll(_send, wire_args, timeout, _TCP_PLAYTEST_BUFFER)
     else:
         raw = await _send("run_playtest", wire_args, timeout=timeout + _TCP_PLAYTEST_BUFFER)
+    _outcome = _classify_outcome(raw, format)  # N0b: computed for future metrics/error handling; return behavior unchanged
     if format == "json":
         # Compression/summarization are text-report-oriented and would mangle or replace the
         # canonical JSON receipt — the caller explicitly asked for the raw structured shape.
@@ -464,7 +465,7 @@ async def _run_single_file(
     elapsed = _time.monotonic() - t0
     # This caller never requests format="json" (no `format` key in the _args above), so the
     # response is always the legacy text report — pass that explicitly (B17, R-07).
-    return filepath, raw, elapsed, _is_playtest_pass(raw, "text")
+    return filepath, raw, elapsed, _classify_outcome(raw, "text") == "pass"
 
 
 async def _suite_body(
