@@ -340,8 +340,9 @@ async def test_rg10_setup_teardown_end_markers_forwarded_to_cs_unchanged(monkeyp
 async def test_rg10_teardown_runs_after_setup_failure_surfaced_in_result(monkeypatch):
     """run_playtest must surface teardown evidence when C# reports it after setup failure.
 
-    Guards: Python returns the C# response verbatim — teardown_ran evidence from
-    C# reaches the caller and is not stripped.
+    Guards: Python surfaces the C# response verbatim — teardown_ran evidence from
+    C# reaches the caller and is not stripped. N0b: a failed run (0/1) is a
+    public failure, so the evidence now arrives via ToolError, not a return value.
     """
     import unity_mcp.tools.runtime as runtime_mod
     from unity_mcp.server import run_playtest
@@ -351,10 +352,12 @@ async def test_rg10_teardown_runs_after_setup_failure_surfaced_in_result(monkeyp
 
     monkeypatch.setattr(runtime_mod, "_send", mock_send)
 
-    result = await run_playtest(
-        script="SETUP\n  WAIT 0.01\nSETUP_END\nASSERT /X|activeSelf"
-    )
+    with pytest.raises(ToolError) as exc_info:
+        await run_playtest(
+            script="SETUP\n  WAIT 0.01\nSETUP_END\nASSERT /X|activeSelf"
+        )
 
+    result = str(exc_info.value)
     assert "teardown_ran" in result, f"teardown_ran evidence must reach caller; got: {result!r}"
     assert "FAIL" in result or "setup_failed" in result
 

@@ -113,9 +113,13 @@ async def test_run_playtest_format_default_omits(mock_bridge):
 
 
 async def test_run_playtest_format_json_passes_arg_and_skips_compression(mock_bridge, monkeypatch):
+    """N0b: the round-tripped receipt must be a genuine pass (outer.teardown_ok
+    + failed:0 + every step ok:true) — a non-pass outcome now raises ToolError
+    before the format="json" skip-compression branch is ever reached."""
     from unity_mcp.tools import runtime
 
-    long_json = '{"steps":[' + ",".join(f'{{"index":{i}}}' for i in range(60)) + "]}"
+    steps = ",".join(f'{{"index":{i},"ok":true}}' for i in range(60))
+    long_json = '{"outer":{"teardown_ok":true},"failed":0,"steps":[' + steps + "]}"
     assert len(long_json) > 300
     mock_bridge.send.return_value = {"ok": True, "data": long_json}
     monkeypatch.setenv("UNITY_MCP_VISUAL_VERIFY", "1")
@@ -219,8 +223,11 @@ async def test_move_path_sends_script(mock_bridge):
 # ── P1.3 snapshot_on_failure ──────────────────────────────────────────────────
 
 async def test_run_playtest_snapshot_on_failure_passes_true(mock_bridge):
+    """N0b: a failed run raises ToolError, but snapshot_on_failure must still
+    have reached the wire args before the failure was classified."""
     mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 0/1 (0.1s)\n[1] ASSERT $x == True — FAIL (False)\nsnapshot:\n  $x=False"}
-    await run_playtest("ASSERT_CONSOLE_CLEAN", snapshot_on_failure=True)
+    with pytest.raises(ToolError):
+        await run_playtest("ASSERT_CONSOLE_CLEAN", snapshot_on_failure=True)
     sent = mock_bridge.send.call_args[0][1]
     assert sent["snapshot_on_failure"] == "true"
 

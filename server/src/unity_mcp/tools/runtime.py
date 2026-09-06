@@ -3,6 +3,8 @@ import asyncio
 import json
 import re
 
+from mcp.server.fastmcp.exceptions import ToolError
+
 from ..sampling import sampling_service as _sampling
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
@@ -25,6 +27,10 @@ _PLAY_STATE_POLLS = 15
 _PLAY_STATE_POLL_INTERVAL = 1.0
 _FRESH_READINESS_TIMEOUT = 30.0
 _FRESH_POLL_INTERVAL = 0.2
+# N0b: one public success/error classification for run_playtest regardless of
+# sync/async route or format — a non-pass outcome always raises, never returns
+# as a plain string. Fallback text when the terminal receipt itself is empty.
+_NO_RECEIPT_MSG = "run_playtest produced no terminal receipt"
 
 
 async def invoke_method(path: str, component: str, method: str, args: str = "") -> str:
@@ -211,7 +217,12 @@ async def run_playtest(script: str | None = None, timeout: float = _RUN_PLAYTEST
         raw = await _run_via_start_poll(_send, wire_args, timeout, _TCP_PLAYTEST_BUFFER)
     else:
         raw = await _send("run_playtest", wire_args, timeout=timeout + _TCP_PLAYTEST_BUFFER)
-    _outcome = _classify_outcome(raw, format)  # N0b: computed for future metrics/error handling; return behavior unchanged
+    outcome = _classify_outcome(raw, format)
+    if outcome != "pass":
+        # N0b: a non-pass outcome is a public failure on every route (sync _send
+        # or the async start/poll pair) — a successful poll of a failed run must
+        # not read as public success just because the poll itself succeeded.
+        raise ToolError(raw or _NO_RECEIPT_MSG)
     if format == "json":
         # Compression/summarization are text-report-oriented and would mangle or replace the
         # canonical JSON receipt — the caller explicitly asked for the raw structured shape.
