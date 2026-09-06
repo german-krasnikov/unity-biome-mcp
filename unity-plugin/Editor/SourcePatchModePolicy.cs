@@ -14,6 +14,13 @@ namespace UnityMCP.Editor
     /// </summary>
     internal static class SourcePatchModePolicy
     {
+        /// <summary>PR-04R: narrow SourcePatch-owned port over Reload's control
+        /// surface. Default is the legacy adapter — identical effect to the
+        /// direct SyncHelper.TriggerSync call this replaced. Tests swap this
+        /// the same way SyncHelper.Ops is swapped elsewhere in this file's
+        /// fixtures.</summary>
+        internal static ISourcePatchReloadPort ReloadPort = new SyncHelperReloadPort();
+
         /// <summary>Intent is a pure derivation, never a second persisted field
         /// (Refactor requirement: no duplicate mode decision).</summary>
         internal static bool IsIntentOn =>
@@ -154,7 +161,7 @@ namespace UnityMCP.Editor
             SourcePatchReceiptStore.Write(BuildReceipt());
             SourcePatchHost.CurrentState = SourcePatchState.Disabling;
             SourcePatchHost.Coordinator = null;
-            SyncHelper.TriggerSync(false);
+            ReloadPort.RequestReloadVerification();
             return "requested";
         }
 

@@ -280,6 +280,89 @@ jobs:
           if suite.get("failures") == "0":
               raise SystemExit(ET.tostring(suite, encoding="unicode"))
 
+      # F1/A03 (PR-01C): player_ci_preflight_reject.playtest is deliberately unrunnable
+      # (a logically-unsatisfiable compound WAIT_UNTIL AND) — PlayerProfilePreflight must
+      # reject the whole script before the SET/WAIT_UNTIL body lines ever execute. No
+      # "@needs player" tag on the fixture: excluded from the fan-out job below (which
+      # requires 0 failures), validated by this dedicated step pair instead.
+      - name: Run Player PlayTest Preflight Reject Smoke
+        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          PLAYER="${{ matrix.build-output }}"
+          if [[ "$PLAYER" == *.app ]]; then
+            PLAYER=$(find "$PLAYER/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -1)
+          fi
+          test -n "$PLAYER"
+          chmod +x "$PLAYER" 2>/dev/null || true
+          PREFLIGHT_REJECT_ARGS=(
+            -batchmode
+            -unityMcpPlaytest "${{ github.workspace }}/unity-test-project/Assets/StreamingAssets/Playtests/player_ci_preflight_reject.playtest"
+            -unityMcpPlaytestJson "${{ github.workspace }}/artifacts/player-playtest-preflight-reject.json"
+            -unityMcpPlaytestJunit "${{ github.workspace }}/artifacts/player-playtest-preflight-reject.xml"
+            -unityMcpPlaytestExit
+          )
+          set +e
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            xvfb-run --auto-servernum --server-args="-screen 0 1024x768x24" "$PLAYER" -force-glcore "${PREFLIGHT_REJECT_ARGS[@]}"
+          else
+            "$PLAYER" -nographics "${PREFLIGHT_REJECT_ARGS[@]}"
+          fi
+          PREFLIGHT_REJECT_RC=$?
+          set -e
+          if [[ "$PREFLIGHT_REJECT_RC" -eq 0 ]]; then
+            echo "preflight-reject PlayTest unexpectedly passed"
+            exit 1
+          fi
+          if [[ "$PREFLIGHT_REJECT_RC" -ne 1 ]]; then
+            # xvfb-run 2:21.1.x on Ubuntu exits with 5 when its temp-dir cleanup
+            # races with Xvfb shutdown, overriding the player's Application.Quit(1).
+            # Treat exit 5 as equivalent to exit 1 when the receipt file exists,
+            # which proves the player ran and wrote its output before quitting.
+            if [[ "$PREFLIGHT_REJECT_RC" -eq 5 && "$RUNNER_OS" == "Linux" \
+                  && -f "artifacts/player-playtest-preflight-reject.json" ]]; then
+              echo "xvfb-run temp-dir cleanup failed (exit 5); receipt exists — treating as playtest failure"
+            else
+              echo "preflight-reject PlayTest returned unexpected exit code: $PREFLIGHT_REJECT_RC"
+              exit "$PREFLIGHT_REJECT_RC"
+            fi
+          fi
+
+      - name: Validate Player PlayTest Preflight Reject Receipts
+        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        shell: python
+        run: |
+          import json
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          json_path = Path("artifacts/player-playtest-preflight-reject.json")
+          junit_path = Path("artifacts/player-playtest-preflight-reject.xml")
+          payload = json.loads(json_path.read_text(encoding="utf-8"))
+          if payload.get("failed", 0) < 1:
+              raise SystemExit(f"preflight-reject PlayTest did not fail: {payload!r}")
+          # Every recorded entry must be a preflight violation, never a genuine step
+          # pass — that is the proof no body step (SET/WAIT_UNTIL) ever executed.
+          if payload.get("passed", -1) != 0:
+              raise SystemExit(f"preflight-reject PlayTest recorded a passed step (body executed): {payload!r}")
+          steps = payload.get("steps", [])
+          if not steps:
+              raise SystemExit("preflight-reject PlayTest emitted no step receipts")
+          rule_reasons = (
+              "SETUP block", "TEARDOWN block", "EXPECT_FAIL",
+              "compound AND/OR WAIT_UNTIL", "ASSERT ... TIMEOUT",
+              "@needs editmode", "parse error:", "empty main section",
+              "unsupported step type in Player",
+          )
+          if not any(any(r in str(step.get("message", "")) for r in rule_reasons) for step in steps):
+              raise SystemExit(f"preflight-reject PlayTest did not record a recognizable rule violation: {payload!r}")
+          suite = ET.parse(junit_path).getroot()
+          if suite.get("name") != "UnityMCP.PlayerPlaytest":
+              raise SystemExit(f"unexpected preflight-reject JUnit suite: {suite.get('name')!r}")
+          if suite.get("failures") == "0":
+              raise SystemExit(ET.tostring(suite, encoding="unicode"))
+
       # E05/E06: fan out every `# @needs player` .playtest file across this leg's
       # already-built Player, beyond the 3 individually-scripted scenarios above
       # (closes the CI gap for the 3 shipped fixtures no step here ever invoked).

@@ -6,7 +6,7 @@ using NUnit.Framework;
 using UnityMCP.Editor.Chat;
 using UnityMCP.Editor.Chat.CLI;
 
-namespace UnityMCP.Editor.Tests
+namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
     public class RelayChatProcessSessionTests : UnityMCP.Editor.Testing.UnityMcpTestBase

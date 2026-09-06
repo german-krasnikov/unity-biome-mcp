@@ -31,5 +31,9 @@ namespace UnityMCP.Editor
         public bool AllowedDuringCompile;
         public string Description;
         public int MaxResponseChars;
+        // PR-04: owner-declared mutation/batch policy. null/false = fall through to the
+        // legacy CommandRegistry cascades unchanged (see CommandRegistry.IsMutating/IsBatchable).
+        public Func<string, bool> MutatingArgsPolicy;
+        public bool NotBatchable;
     }
 }

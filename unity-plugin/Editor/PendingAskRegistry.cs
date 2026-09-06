@@ -11,6 +11,11 @@ namespace UnityMCP.Editor
         private static readonly ConcurrentDictionary<string, TaskCompletionSource<string>>
             _pending = new ConcurrentDictionary<string, TaskCompletionSource<string>>();
 
+#if UNITY_INCLUDE_TESTS
+        /// <summary>Test seam: asserts no ask_user request was left dangling (PR-05 05.2).</summary>
+        internal static int PendingCountForTests => _pending.Count;
+#endif
+
         [InitializeOnLoadMethod]
         private static void OnDomainReload()
         {

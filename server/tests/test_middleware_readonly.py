@@ -329,3 +329,81 @@ async def test_save_session_blocked_in_readonly(tmp_path, monkeypatch):
     from unity_mcp.tools.scene import save_session
     with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
         await save_session()
+
+
+# ── PR-01B / F8: single unified read-only predicate, no _INTERNAL blind spot ──
+
+
+def test_check_read_only_blocks_start_playtest():
+    mw = Middleware()
+    mw.is_read_only = True
+    result = mw.check_read_only("start_playtest", {"script": "LOG hi"})
+    assert result is not None
+    assert "READ_ONLY_BLOCKED" in result
+
+
+def test_check_read_only_blocks_source_patch_write():
+    mw = Middleware()
+    mw.is_read_only = True
+    result = mw.check_read_only("source_patch_write", {"path": "Assets/f.cs", "content": "x"})
+    assert result is not None
+    assert "READ_ONLY_BLOCKED" in result
+
+
+def test_check_read_only_allows_get_playtest_run():
+    """Regression pin: get_playtest_run was already correctly classified as a
+    read (explicit mutability='read') — must stay allowed."""
+    mw = Middleware()
+    mw.is_read_only = True
+    assert mw.check_read_only("get_playtest_run", {"run_id": "abc"}) is None
+
+
+def test_check_read_only_allows_get_status_and_sync_status():
+    """get_status/sync_status have no ToolSpec entry at all but are proven
+    pure-read/idempotent (tools/_annotations.py) — the _KNOWN_SAFE_READS
+    escape hatch must keep them callable in read-only mode."""
+    mw = Middleware()
+    mw.is_read_only = True
+    assert mw.check_read_only("get_status", {}) is None
+    assert mw.check_read_only("sync_status", {}) is None
+
+
+def test_check_read_only_blocks_unknown_cmd():
+    """Fail-closed: a wire command nobody has ever classified must be blocked
+    for read-only AUTHORIZATION purposes."""
+    mw = Middleware()
+    mw.is_read_only = True
+    result = mw.check_read_only("totally_unregistered_xyz", {})
+    assert result is not None
+    assert "READ_ONLY_BLOCKED" in result
+
+
+def test_is_write_default_unchanged_for_unknown_cmd_in_advisory_context():
+    """The unknown_is_write fallback is opt-in only — every existing advisory
+    caller (check_retry/check_verification_needed/transition/log_mutation)
+    must keep treating a genuinely-unknown cmd as a non-write."""
+    from unity_mcp.middleware_types import is_write
+    assert is_write("totally_unregistered_xyz", {}) is False
+
+
+# ── L01: compile_status is an internal pure read, must not fail-closed ──────
+
+
+def test_is_write_compile_status_is_read():
+    """L01: compile_status is a pure read (CommandRouter.Registration.cs:186-188)
+    -- await_compile's internal poll must never be classified as a mutation."""
+    from unity_mcp.middleware_types import is_write
+    assert is_write("compile_status", {}, unknown_is_write=True) is False
+
+
+def test_check_read_only_passes_compile_status():
+    mw = Middleware()
+    mw.is_read_only = True
+    assert mw.check_read_only("compile_status", {}) is None
+
+
+def test_send_raw_check_read_only_passes_compile_status(monkeypatch):
+    """server._check_read_only (middleware OFF path) must not block compile_status."""
+    from unity_mcp.server import _check_read_only
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    _check_read_only("compile_status", {})  # must not raise

@@ -242,7 +242,7 @@ namespace UnityMCP.Editor
             catch (Exception e)
             {
                 var cls = ErrorClassifier.Classify(e);
-                if (cls == "VALIDATION")
+                if (cls == "VALIDATION" || cls == "UNAVAILABLE")
                     Debug.LogWarning($"{BiomeLabel.Tag} {ErrorClassifier.FormatError(e)}");
                 else
                     Debug.LogError($"{BiomeLabel.Tag} Command failed: {ErrorClassifier.FormatError(e)}");
@@ -285,7 +285,7 @@ namespace UnityMCP.Editor
             catch (Exception e)
             {
                 var cls = ErrorClassifier.Classify(e);
-                if (cls == "VALIDATION")
+                if (cls == "VALIDATION" || cls == "UNAVAILABLE")
                     Debug.LogWarning($"{BiomeLabel.Tag} {ErrorClassifier.FormatError(e)}");
                 else
                     Debug.LogError($"{BiomeLabel.Tag} Command failed: {ErrorClassifier.FormatError(e)}");
@@ -642,15 +642,22 @@ namespace UnityMCP.Editor
         {
             var outer = JsonHelper.ExtractObject(report, "outer");
             if (JsonHelper.ExtractString(outer, "teardown_ok") != "true") return false;
+            // F7: aggregate cross-check — a receipt whose own `failed` count disagrees with
+            // its per-step ok:true entries is definitionally suspect. Missing key defaults to
+            // -1 (fail-closed): production always emits `failed` (BuildJsonReport), so this
+            // only rejects a malformed/hand-crafted receipt.
+            if (JsonHelper.ExtractInt(report, "failed", -1) != 0) return false;
 
             var stepsArray = JsonHelper.ExtractArray(report, "steps");
             var pos = 0;
             string stepJson;
+            var stepCount = 0;
             while ((stepJson = JsonHelper.ExtractNextArrayObject(stepsArray, ref pos)) != null)
             {
+                stepCount++;
                 if (JsonHelper.ExtractString(stepJson, "ok") != "true") return false;
             }
-            return true;
+            return stepCount > 0; // F7: an empty ledger is not a pass
         }
 
         // INV-005 / v1 §41: the legacy text scan. Untouched by B17 — deleting it is gated on
@@ -658,7 +665,10 @@ namespace UnityMCP.Editor
         private static bool IsPlaytestSuccessFromText(string report)
         {
             if (string.IsNullOrEmpty(report)) return false;
-            if (report.Contains(" OK")) return true;
+            // F7: fail-closed on an abort marker before either shortcut below — BuildReport
+            // never emits "ABORTED" in the same report as the " OK" one-liner, so this can only
+            // remove a false positive, never flip an already-correct pass to a false negative.
+            if (report.Contains("ABORTED")) return false;
             if (!report.StartsWith("PLAYTEST:", StringComparison.Ordinal)) return false;
 
             var firstLineEnd = report.IndexOf('\n');
@@ -679,9 +689,17 @@ namespace UnityMCP.Editor
 
         private static void AsyncAskUser(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var questionsJson = JsonHelper.ExtractString(argsJson, "questions") ?? "[]";
+            // Finding 2 (PR-05 05.2): fail fast, BEFORE creating a PendingAskRegistry entry —
+            // nobody can ever answer a question with no subscriber, so don't make the caller
+            // wait out the 300s client timeout to learn that.
             if (OnAskUser == null)
+            {
                 Debug.LogWarning($"{BiomeLabel.Tag} ask_user: no listener — is chat window open?");
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null,
+                    "ask_user unavailable: no interaction provider registered (Chat window not open)"));
+                return;
+            }
+            var questionsJson = JsonHelper.ExtractString(argsJson, "questions") ?? "[]";
             // PendingAskRegistry.Ask never returns "Error:"/"err:" strings (cancelled → {"cancelled":true}),
             // but the predicate is safe and consistent with test_step/move_to.
             CompleteFromInner(id, PendingAskRegistry.Ask(questionsJson, OnAskUser), tcs, "ask_user",

@@ -77,7 +77,10 @@ async def test_run_via_start_poll_bounded_by_default_interval(monkeypatch):
 
     expected_polls = int(5.0 / playtest_async._PLAYTEST_POLL_INTERVAL_S) + 1
     poll_calls = [c for c in send.calls if c[0] == "get_playtest_run"]
-    assert len(poll_calls) == expected_polls
+    # F2: the give-up path sends one extra best-effort forced-invalidate
+    # get_playtest_run call before raising (see test_playtest_async.py's
+    # give-up-forces-flag tests below) — +1 over the bounded poll count.
+    assert len(poll_calls) == expected_polls + 1
     sleep_mock.assert_awaited_with(playtest_async._PLAYTEST_POLL_INTERVAL_S)
 
 
@@ -92,8 +95,48 @@ async def test_run_via_start_poll_bound_scales_with_patched_interval(monkeypatch
         await playtest_async.run_via_start_poll(send, {}, 5.0, 20.0)
 
     poll_calls = [c for c in send.calls if c[0] == "get_playtest_run"]
-    assert len(poll_calls) == 3  # int(5.0 / 2.5) + 1
+    assert len(poll_calls) == 4  # int(5.0 / 2.5) + 1, +1 for F2's forced invalidate
     sleep_mock.assert_awaited_with(2.5)
+
+
+# ===========================================================================
+# Group B2: PR-01D F2 — give-up path forces scene-cache invalidation
+# ===========================================================================
+
+async def test_run_via_start_poll_timeout_sends_forced_invalidate_before_raising(monkeypatch):
+    """Finding #8: the client gave up polling while every observed response
+    was still 'phase=running' — Unity's own run may still be mutating the
+    scene. The give-up path must send one best-effort forced-invalidate poll
+    before raising TimeoutError."""
+    monkeypatch.setattr(playtest_async.asyncio, "sleep", AsyncMock())
+    responses = ["run_id=abc"] + ["phase=running|step=1/1|elapsed_ms=1"] * 1000
+    send = _RecordingSend(responses)
+
+    with pytest.raises(TimeoutError):
+        await playtest_async.run_via_start_poll(send, {}, 5.0, 20.0)
+
+    assert send.calls[-1] == (
+        "get_playtest_run",
+        {"run_id": "abc", "_force_scene_invalidate": "true"},
+        20.0,
+    )
+
+
+async def test_run_via_start_poll_happy_path_sends_no_forced_invalidate(monkeypatch):
+    """Regression guard: the forced-invalidate call is exclusive to the
+    give-up path — a normal terminal response must never trigger it."""
+    monkeypatch.setattr(playtest_async.asyncio, "sleep", AsyncMock())
+    send = _RecordingSend([
+        "run_id=abc123",
+        "phase=running|step=1/3|elapsed_ms=500",
+        "phase=running|step=2/3|elapsed_ms=1500",
+        "PLAYTEST: 3/3 (5.0s) OK",
+    ])
+
+    result = await playtest_async.run_via_start_poll(send, {"script": "WAIT 1"}, 300.0, 20.0)
+
+    assert result == "PLAYTEST: 3/3 (5.0s) OK"
+    assert not any("_force_scene_invalidate" in c[1] for c in send.calls)
 
 
 # ===========================================================================

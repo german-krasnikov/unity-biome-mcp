@@ -8,7 +8,7 @@ using UnityEditor;
 using UnityMCP.Editor;
 using UnityMCP.Editor.Chat;
 
-namespace UnityMCP.Editor.Tests
+namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
     [UnityMCP.Editor.Testing.SkipOnWindows("Relay process spawning relies on POSIX shell behavior — not portable to Windows")]

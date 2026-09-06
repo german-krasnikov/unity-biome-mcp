@@ -1,0 +1,6 @@
+# Hand-maintained seam map: ClassName.MethodName<TAB>scenario-id-or-test-path
+# Seeded per Plans/PR-08.md Component 2 / Plans/V2/BIOME-MODULAR-ARCHITECTURE-ROI-PLAN.md:834
+# (seam list A01/A04/A13/A14/R02-R06). Only rows verified against real source
+# are seeded here; append more as seams get concrete evidence. An unmapped
+# method resolves to "unknown" -- never a guessed match.
+UnityMCP.Editor.CommandRegistry.Register	A04

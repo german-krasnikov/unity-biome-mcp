@@ -889,8 +889,23 @@ namespace UnityMCP.Editor.Tests
             => Assert.IsFalse(InvokeIsPlaytestSuccess(null));
 
         [Test]
-        public void IsPlaytestSuccess_ContainsSpaceOKSubstring_ReturnsTrue()
-            => Assert.IsTrue(InvokeIsPlaytestSuccess("Test run OK"));
+        public void IsPlaytestSuccess_ArbitraryTextContainingSpaceOK_ReturnsFalse()
+        {
+            // INV-005 substring shortcut removed (L04): arbitrary text containing
+            // " OK" that isn't a well-formed PLAYTEST report must never pass.
+            Assert.IsFalse(InvokeIsPlaytestSuccess("Test run OK"));
+        }
+
+        [Test]
+        public void IsPlaytestSuccess_LogStepBodyContainsSpaceOK_FailingReportStillReturnsFalse()
+        {
+            // L04: a LOG step's own receipt text is "[1] LOG OK" -- this embeds " OK"
+            // inside a FAILING report body (1 passed / 2 total). Only the passed/total
+            // ratio may decide the verdict now; the removed substring shortcut used to
+            // match on this line and report false success.
+            var report = "PLAYTEST: 1/2 (0.1s)\n[1] LOG OK\n[2] ASSERT ... FAIL (True)";
+            Assert.IsFalse(InvokeIsPlaytestSuccess(report));
+        }
 
         [Test]
         public void IsPlaytestSuccess_PlaytestZeroOfZero_TotalZeroGuard_ReturnsFalse()
@@ -921,16 +936,56 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(InvokeIsPlaytestSuccess(json, "json"));
         }
 
-        [Test]
-        public void IsPlaytestSuccess_TextReportWithLeadingBrace_StillUsesRegex()
-        {
-            // Text report happens to start with '{'. Requesting format="text" explicitly must
-            // skip the JSON-detection sniff entirely and use the legacy text scan (which honors
-            // the " OK" substring shortcut, INV-005) — proving the sniff is a fallback for a
-            // missing/unknown format, never a rule that overrides an explicit caller.
-            var report = "{weird-prefix} Test run OK";
+        // ── F7: an abort marker must fail-closed even after a fully-passing ratio ────
 
-            Assert.IsTrue(InvokeIsPlaytestSuccess(report, "text"));
+        [Test]
+        public void IsPlaytestSuccess_TextAbortedAfterPassingStep_ReturnsFalse()
+            => Assert.IsFalse(InvokeIsPlaytestSuccess("PLAYTEST: 1/1 (1.0s)\n[2] ABORTED: global timeout 1s"));
+
+        // ── F7: json ledger must reject a self-contradictory or empty receipt ───────
+
+        [Test]
+        public void IsPlaytestSuccess_JsonContradictoryAggregate_ReturnsFalse()
+        {
+            // aggregate failed=1 but the (only) step's own ok is true — the receipt
+            // disagrees with itself and must be rejected even though every listed step
+            // looks fine in isolation.
+            var json = "{\"schema_version\":1,\"passed\":1,\"failed\":1," +
+                "\"outer\":{\"teardown_ok\":true,\"scene_clean\":true}," +
+                "\"steps\":[{\"index\":0,\"type\":\"Assert\",\"ok\":true,\"ms\":1.000," +
+                "\"source_file\":\"f.playtest\",\"source_line\":1," +
+                "\"raw_passed\":true,\"expected_fail\":false}]}";
+
+            Assert.IsFalse(InvokeIsPlaytestSuccess(json, "json"));
+        }
+
+        [Test]
+        public void IsPlaytestSuccess_JsonEmptySteps_ReturnsFalse()
+        {
+            var json = "{\"passed\":0,\"failed\":0,\"text_report\":\"\"," +
+                "\"outer\":{\"teardown_ok\":true},\"steps\":[]}";
+
+            Assert.IsFalse(InvokeIsPlaytestSuccess(json, "json"));
+        }
+
+        [Test]
+        public void IsPlaytestSuccess_JsonShapedBody_TextFormatUsesTextScanNotLedger()
+        {
+            // Body is a well-formed PASSING JSON ledger. If the leading '{' sniff
+            // routed this through IsPlaytestSuccessFromLedger, it would return true
+            // (see IsPlaytestSuccess_JsonReport_UsesLedgerNotRegex for the
+            // format="json" case). Requesting format="text" explicitly must skip
+            // that sniff and run the text scan instead, which requires a literal
+            // "PLAYTEST:" prefix and correctly rejects this JSON body -- proving
+            // explicit format wins over the sniff, not silently routed to ledger.
+            var json = "{\"schema_version\":1,\"passed\":1,\"failed\":0,\"duration_seconds\":\"0.100\"," +
+                "\"outer\":{\"teardown_ok\":true,\"scene_clean\":true}," +
+                "\"steps\":[{\"index\":0,\"type\":\"Assert\",\"ok\":true,\"ms\":1.000," +
+                "\"source_file\":\"f.playtest\",\"source_line\":1,\"raw_passed\":true,\"expected_fail\":false}]}";
+
+            Assert.IsTrue(InvokeIsPlaytestSuccess(json, "json"), "sanity: this ledger is a genuine pass");
+            Assert.IsFalse(InvokeIsPlaytestSuccess(json, "text"),
+                "explicit format=text must run the text scan, not the ledger, on JSON-shaped input");
         }
 
         // ── CheckGuards: server-not-ready and python-only (Task 5) ───────────
@@ -943,6 +998,31 @@ namespace UnityMCP.Editor.Tests
             CommandRegistry.Ready = false;
             var result = CommandRouter.Process("{\"id\":\"nr1\",\"cmd\":\"ping\",\"args\":{}}");
             StringAssert.Contains("Server initializing", result);
+            StringAssert.Contains("\"ok\":false", result);
+        }
+
+        // PR-04R Step A2: the host's registration-readiness gate (CommandRegistry.Ready)
+        // and Reload's own domain-evidence gate (SyncHelper.GetSyncStatus()) are two
+        // independent facts — CheckGuards' !CommandRegistry.Ready branch fires first and
+        // unconditionally, even when SyncHelper independently reports state=ready.
+        [Test]
+        public void Process_RegistryNotReady_IndependentOfSyncHelperReadyState()
+        {
+            var snapshot = CommandRegistry.CaptureForTest();
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+
+            // Drive SyncHelper into a genuine domain-evidence "ready" fact.
+            SyncHelper.SimulateAfterAssemblyReload();
+            StringAssert.Contains("state=ready", SyncHelper.GetSyncStatus(),
+                "precondition: SyncHelper must independently report ready");
+
+            // Registry readiness is a separate host fact — force it false and confirm
+            // the guard still fires even though Reload's own evidence says ready.
+            CommandRegistry.Ready = false;
+            var result = CommandRouter.Process("{\"id\":\"pr04r1\",\"cmd\":\"sync_status\",\"args\":{}}");
+
+            StringAssert.Contains("Server initializing", result,
+                "registry-not-ready guard must fire even when SyncHelper independently reports ready");
             StringAssert.Contains("\"ok\":false", result);
         }
 
@@ -1099,6 +1179,88 @@ namespace UnityMCP.Editor.Tests
                 alwaysAllowed: true, required: "", optional: "");
             Assert.IsTrue(CommandRegistry.IsBatchable("ib_always"),
                 "alwaysAllowed must not affect batchability");
+        }
+
+        // ── PR-04: owner-declared policy generic seam ─────────────────────────
+
+        [Test]
+        public void Register_OwnerDeclaredPolicy_HonoredByIsMutatingAndIsBatchable_WithoutRegistryEdit()
+        {
+            // Exit criterion: adding a 6th command's mutation/batch policy requires editing
+            // only its own registration call site — never CommandRegistry.cs's cascades.
+            // Proven with a throwaway command whose base `mutating` flag is false: the owner
+            // policy alone decides IsMutating, independent of that base flag.
+            var snapshot = CommandRegistry.CaptureForTest();
+            RegisterCleanup(() => CommandRegistry.RestoreForTest(snapshot));
+            CommandRegistry.Register("pr04_seam_cmd", _ => "ok", mutating: false,
+                required: "", optional: "",
+                mutatingArgsPolicy: json => JsonHelper.ExtractString(json, "action") == "mutate",
+                notBatchable: true);
+
+            Assert.IsTrue(CommandRegistry.IsMutating("pr04_seam_cmd", "{\"action\":\"mutate\"}"),
+                "owner policy must classify a matching action as mutating");
+            Assert.IsFalse(CommandRegistry.IsMutating("pr04_seam_cmd", "{\"action\":\"other\"}"),
+                "owner policy must classify a non-matching action as non-mutating");
+            Assert.IsFalse(CommandRegistry.IsBatchable("pr04_seam_cmd"),
+                "NotBatchable must be honored generically");
+        }
+
+        // ── PR-04: policy vectors for the 5 designated commands (inspect,
+        // set_property, editor, run_playtest, uitk_file). uitk_file's IsMutating
+        // action-dependence and IsBatchable=false are already covered by
+        // Registry_IsMutating_UitkFile_DependsOnAction / Registry_UitkFile_IsNotBatchable
+        // above (unchanged by the PR-04 refactor) — not duplicated here. Cross-referenced
+        // by comment with server/tests/test_pr04_policy_vectors.py (same 5 commands,
+        // Python-authoritative side).
+
+        [TestCase("inspect", ExpectedResult = true)]
+        [TestCase("set_property", ExpectedResult = true)]
+        [TestCase("editor", ExpectedResult = true)]
+        [TestCase("run_playtest", ExpectedResult = true)]
+        [TestCase("uitk_file", ExpectedResult = true)]
+        public bool Pr04_IsRegistered_FiveCommands(string cmd)
+            => CommandRegistry.IsRegistered(cmd);
+
+        // Base (no-args) mutating flag. run_playtest and editor are both registered
+        // non-mutating at the base level -- editor because play/stop/select don't
+        // corrupt scene data, run_playtest because Play-mode scenario execution is not
+        // itself an Edit-mode scene mutation (see SCENE_STATE_NEUTRAL_WRITES on the
+        // Python side). uitk_file's base flag is true but is superseded per-call by its
+        // MutatingArgsPolicy -- see Registry_IsMutating_UitkFile_DependsOnAction.
+        [TestCase("inspect", ExpectedResult = false)]
+        [TestCase("set_property", ExpectedResult = true)]
+        [TestCase("editor", ExpectedResult = false)]
+        [TestCase("run_playtest", ExpectedResult = false)]
+        public bool Pr04_IsMutating_BaseFlag_FourCommands(string cmd)
+            => CommandRegistry.IsMutating(cmd);
+
+        [TestCase("inspect", ExpectedResult = true)]
+        [TestCase("set_property", ExpectedResult = true)]
+        [TestCase("editor", ExpectedResult = true)]
+        [TestCase("run_playtest", ExpectedResult = false)]   // RegisterAsync -- direct-only
+        [TestCase("uitk_file", ExpectedResult = false)]      // NotBatchable (PR-04 owner policy)
+        public bool Pr04_IsBatchable_FiveCommands(string cmd)
+            => CommandRegistry.IsBatchable(cmd);
+
+        [TestCase("inspect", ExpectedResult = false)]
+        [TestCase("set_property", ExpectedResult = false)]
+        [TestCase("editor", ExpectedResult = false)]
+        [TestCase("run_playtest", ExpectedResult = false)]
+        [TestCase("uitk_file", ExpectedResult = false)]
+        public bool Pr04_IsRuntime_FiveCommands(string cmd)
+            => CommandRegistry.IsRuntime(cmd);
+
+        [Test]
+        public void Pr04_EditorPlayAction_IsMutating_False_AsymmetricWithPython()
+        {
+            // Discovered, characterized cross-route asymmetry (not fixed, not a bug per
+            // se): Python's is_write("editor", {"action":"play"}) returns True
+            // (middleware_types.py's _EDITOR_READ_ACTIONS only exempts state/
+            // project_path), but C# here returns False ("play/stop/select don't corrupt
+            // scene data"). See server/tests/test_pr04_policy_vectors.py::
+            // test_editor_play_action_write_classification_asymmetric_with_csharp for the
+            // pinned Python-side counterpart.
+            Assert.IsFalse(CommandRegistry.IsMutating("editor", "{\"action\":\"play\"}"));
         }
 
         // ── AlreadyRegistered: double registration guard ──────────────────────

@@ -63,6 +63,7 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/src/unity_mcp/middleware_types.py` | Source-derived read/write/runtime classification and conditional action rules. |
 | `server/src/unity_mcp/middleware_guards.py` | Read-only, Play Mode, batch, retry, and verification guards. |
 | `server/src/unity_mcp/plugins/` | Plugin discovery. |
+| `server/src/unity_mcp/plugins/_atomic.py` | Atomic plugin registration (PR-04): snapshots and restores all registries (tools, READ/WRITE_CMDS, dsl_tools, gating, budget) on failure to leave zero stale state. |
 | `server/src/unity_mcp/plugin_api.py` | Supported Python plugin facade. |
 | `server/src/unity_mcp/config/` | MCP client discovery, merge, backup, and validation. |
 | `server/src/unity_mcp/adapters/` | Chat backend protocol adapters. |
@@ -94,13 +95,14 @@ by runtime boundary:
 | `unity-plugin/Editor/SyncHelper.cs` | Epoch-based compile/reload state machine used by `sync_unity`. |
 | `unity-plugin/Editor/ObjectIdCompat.cs` | Platform compat bridge for Unity 6.0–6.3 (instance-ID) and 6.4+ (EntityId) object identity APIs. |
 | `unity-plugin/Editor/UIPanelHost.cs` | Compat layer for `UIDocument` (Unity 6.0) and `PanelRenderer` (Unity 6.4+); used by playtest UI commands and intent tools. |
-| `unity-plugin/Runtime/Playtest/Core/` | Engine-free playtest parser core (v1.53.0+): `PlaytestParser.cs` and split files (Directives, Internals, Mcp, Subroutines), `PlaytestHeaderScanner`, utility types (`Float3`, `NumericParsing`, `StringDistance`), and `IAliasSource` interface. Assembly definition includes `noEngineReferences: true` to prevent Editor imports. Consumed by both Editor runner and Player runtime. |
-| `unity-plugin/Editor/PlaytestRunner*.cs` | PlayMode and EditMode DSL execution with support for MCP step dispatch and stateful DSL playtest corpus. |
+| `unity-plugin/Runtime/Playtest/Core/` | Engine-free playtest parser core (v1.53.0+): `PlaytestParser.cs` and split files (Directives, Internals, Mcp, Subroutines), `PlaytestHeaderScanner`, utility types (`Float3`, `NumericParsing`, `StringDistance`), `IAliasSource` interface, and `PlayerProfilePreflight` (F1: pre-flight validation of Player script support). Assembly definition includes `noEngineReferences: true` to prevent Editor imports. Consumed by both Editor runner and Player runtime. |
+| `unity-plugin/Editor/PlaytestRunner*.cs` | PlayMode and EditMode DSL execution with support for MCP step dispatch and stateful DSL playtest corpus. Persists immutable `PreparedPlaytest` snapshot (PR-07) to prevent late mutations during execution. |
 | `unity-plugin/Editor/Tests/DelayCallSourceHygieneTests.cs` | Hygiene guard: prevents non-GUI modules from using `delayCall` (which silently fails when Editor loses focus). Allowlist: GUI-only contexts (Chat, Wizard, menus, status bar). |
 | `unity-plugin/Editor/Tests/DesyncWarnLimiterTests.cs` | Hygiene guard: HTTP/TLS probes on the TCP port classified as known foreign protocol and throttled to one warning per 30 seconds. |
 | `unity-plugin/Editor/Tests/HttpGarbageProbeTests.cs` | Protocol resilience: recognizes HTTP GET and TLS handshakes misrouted to TCP listener and classifies as recoverable desync, not fatal errors. |
 | `unity-plugin/Editor/SourcePatch/` (neutral asmdef) | Optional Source Patch provider contract: immutable DTOs, state machine (`Unavailable`/`Off`/`OnReady`/`Busy`/`Disabling`/`Recovery`), coordinator, and registration slot. Depends on no FSR/Harmony/provider types; main Editor depends on it. |
-| `unity-plugin/Editor/SourcePatchHost.cs` | Seam in `asset(write_text)` path; routes `.cs` writes to provider or legacy based on intent/capability. |
+| `unity-plugin/Editor/SourcePatchHost.cs` | Seam in `asset(write_text)` path; routes `.cs` writes to provider or legacy based on intent/capability. Implements `ISourcePatchReloadPort` for reload module isolation (PR-04R). |
+| `unity-plugin/Editor/SourcePatchReloadPort.cs` | Interface and registration for Reload module seam (PR-04R): lets `SourcePatchModePolicy.RequestDisable()` delegate without calling `SyncHelper.TriggerSync` directly. |
 | `unity-plugin/Editor/SourcePatchPathGuard.cs` | Pre-effect path boundary check (ROI #1): rejects empty/absolute/non-.cs paths, paths outside `Assets/`, and `..` traversal before any Read/Write/Lease effects. Pure string/Path logic, fully unit-testable without live Editor. |
 | `unity-plugin/Editor/SourcePatchUnityPorts.cs` (`UnityAutoRefreshLeasePort`, implementing `IAutoRefreshLeasePort` from `SourcePatch/SourcePatchCoordinator.cs`) | Auto-refresh disable/restore lease coordination for grouped provider writes. |
 | `unity-plugin/Editor/SourcePatchHost.cs` (`GuardLegacyCsWrite`) | Guard invoked from the legacy `.cs` write path when the provider is off/absent. |

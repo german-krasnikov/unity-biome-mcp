@@ -11,6 +11,9 @@ _SKIP = [p for p in os.environ.get("UNITY_MCP_SKIP_PLUGINS", "").split(",") if p
 
 def load_plugins(mcp, send_fn, args_fn):
     """Load plugins from 3 sources: built-in, entry_points, UNITY_MCP_PLUGIN_DIRS."""
+    from unity_mcp.plugins import _atomic
+    _atomic._failed.clear()
+
     # 1. Built-in plugins (this package)
     for _finder, name, _ispkg in pkgutil.iter_modules(__path__):
         if name.startswith("_"):
@@ -49,15 +52,13 @@ def _auto_gate_new_tools(mcp, before: set) -> None:
 
 
 def _load_module(fqn, name, mcp, send_fn, args_fn):
+    from unity_mcp.plugins import _atomic
     try:
         module = import_module(fqn)
-        if hasattr(module, 'register'):
-            before = set(mcp._tool_manager._tools.keys())
-            module.register(mcp, send_fn, args_fn)
-            _auto_gate_new_tools(mcp, before)
-            log.info(f"Plugin loaded: {name}")
     except Exception as e:
         log.warning(f"Plugin {name} skipped: {e}")
+        return
+    _atomic.register_plugin_module(module, name, mcp, send_fn, args_fn)
 
 
 def _check_api_version(module, name):
@@ -70,6 +71,7 @@ def _check_api_version(module, name):
 
 
 def _load_entry_points(mcp, send_fn, args_fn):
+    from unity_mcp.plugins import _atomic
     try:
         from importlib.metadata import entry_points
         eps = entry_points(group="unity_mcp.plugins")
@@ -80,11 +82,7 @@ def _load_entry_points(mcp, send_fn, args_fn):
                 plugin = ep.load()
                 if not _check_api_version(plugin, ep.name):
                     continue
-                if hasattr(plugin, 'register'):
-                    before = set(mcp._tool_manager._tools.keys())
-                    plugin.register(mcp, send_fn, args_fn)
-                    _auto_gate_new_tools(mcp, before)
-                    log.info(f"Plugin loaded (entry_point): {ep.name}")
+                _atomic.register_plugin_module(plugin, ep.name, mcp, send_fn, args_fn)
             except Exception as e:
                 log.warning(f"Plugin {ep.name} (entry_point) skipped: {e}")
     except Exception as e:
@@ -92,6 +90,7 @@ def _load_entry_points(mcp, send_fn, args_fn):
 
 
 def _load_plugin_dirs(mcp, send_fn, args_fn):
+    from unity_mcp.plugins import _atomic
     dirs = os.environ.get("UNITY_MCP_PLUGIN_DIRS", "")
     if not dirs:
         return
@@ -108,10 +107,6 @@ def _load_plugin_dirs(mcp, send_fn, args_fn):
                 module = import_module(name)
                 if not _check_api_version(module, name):
                     continue
-                if hasattr(module, 'register'):
-                    before = set(mcp._tool_manager._tools.keys())
-                    module.register(mcp, send_fn, args_fn)
-                    _auto_gate_new_tools(mcp, before)
-                    log.info(f"Plugin loaded (plugin_dirs): {name}")
+                _atomic.register_plugin_module(module, name, mcp, send_fn, args_fn)
             except Exception as e:
                 log.warning(f"Plugin {name} (plugin_dirs) skipped: {e}")

@@ -7,9 +7,12 @@ namespace UnityMCP.Editor
     {
         internal static void RegisterAll()
         {
-            // watch_add: runtime-only (polling only makes sense in Play Mode)
+            // watch_add: runtime-only (polling only makes sense in Play Mode).
+            // PR-04: notBatchable — batch runs are sequential/deterministic; a watch spans
+            // real wall-clock Play-Mode time, so "did it fire during the batch" is undefined.
             CommandRegistry.Register("watch_add", ExecWatchAdd, runtime: true,
-                required: "path,component,field", optional: "condition,action,interval_ms");
+                required: "path,component,field", optional: "condition,action,interval_ms",
+                notBatchable: true);
             // read/management: available outside Play Mode too
             CommandRegistry.Register("get_watches",  _ => ExecGetWatches(),
                 required: "", optional: "");

@@ -3,8 +3,9 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Tests;
 
-namespace UnityMCP.Editor.Tests
+namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
     public class ComponentSerializerBracketFinderTests : SceneCleanTestBase

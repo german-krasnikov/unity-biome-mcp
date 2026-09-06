@@ -27,6 +27,12 @@ run ID instead of blocking until completion.
 **Gate:** Accepts identical parse/validation as `run_playtest` via shared
 `CommandRouter.TryBuildPlaytestRunRequest`.
 
+**Read-only Policy (F8):** `start_playtest` is authorized under the same read-only
+rules as `run_playtest`. Removed `_INTERNAL` category filter that previously
+allowed bypass; `start_playtest` now mirrors `SCENE_STATE_NEUTRAL_WRITES` read-only
+classification. Invariant: read-only blocks playtest dispatch regardless of
+sync/async route or category.
+
 ### get_playtest_run (E03)
 
 **Wire command** (ToolSpec: `_INTERNAL` category, `direct_only=True`).
@@ -299,6 +305,19 @@ await run_playtest(
 - `wait_until`/`move_to`: `_TCP_POLL_BUFFER = 5.0` added to Unity timeout
 - `test_step`: `_TCP_STEP_BUFFER = 10.0` added
 - `run_playtest`: `_TCP_PLAYTEST_BUFFER = 20.0` added
+
+**Playtest Verdict Accuracy (F7):** `PlaytestStepReceipt.Ok` now accounts for
+console errors detected after the step passes. Both text and JSON verdict consumers
+reject ABORTED runs, receipts with contradictory aggregate/step ledgers, and
+empty/malformed required receipts. Invariant: abort, console-error-on-passing-step,
+cleanup failure, and empty receipt are non-PASS in all formats (text/JSON) and all
+paths (sync/async start-poll).
+
+**Scene Cache Invalidation (F2):** A public read immediately after a completed
+playtest scenario returns fresh scene state, not a stale cached snapshot.
+Middleware invalidates scene caches after playtest dispatch via a `_scene_generation`
+counter that fences late in-flight background prefetches from re-poisoning cleared
+caches. Covers sync, async start/poll, suite, wire-exception, and poll-give-up paths.
 
 **Notes:**
 - The call blocks until Unity returns the playtest report or the timeout expires.

@@ -1,0 +1,8 @@
+# Built-player PlayTest preflight-rejection smoke (F1/A03). Deliberately
+# unsupported — must be rejected before the SET line below ever executes.
+# No "@needs player" tag: excluded from the fan-out job (which requires 0
+# failures); validated by its own dedicated CI step instead.
+LOG this line must never produce a passed receipt entry
+SET /GridPlayer GridPlayer MoveSpeed 999
+WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False AND /GridPlayer|GridPlayer|IsMoving == True TIMEOUT 1
+ASSERT_CONSOLE_CLEAN

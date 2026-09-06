@@ -3,7 +3,7 @@
 using NUnit.Framework;
 using UnityMCP.Editor.Chat;
 
-namespace UnityMCP.Editor.Tests
+namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
     public class AgentEventParserTests : UnityMCP.Editor.Testing.UnityMcpTestBase

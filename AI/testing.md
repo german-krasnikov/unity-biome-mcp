@@ -249,6 +249,75 @@ The playtest DSL now supports EditMode execution through the `# @needs editmode`
 - **Fixture scene** (B21): EditMode carrier opens the MCPFeedbackFixture via `EditorSceneManager.OpenScene(..., Additive)` to resolve loose ASSERT/INVOKE paths against real GameObjects
 - **No `fresh` in EditMode** (B05): `run_playtest(fresh=true, script="# @needs editmode")` errors before Run() — Play Mode restart cannot be used in EditMode scripts
 
+## Policy Vector Tests (PR-04)
+
+36 C# policy-vector tests cover command read/write, batch eligibility, retry-safety,
+and metadata classification for 5 representative commands (e.g., `set_property`,
+`get_component`, `run_playtest`). Each command's registration site declares
+`MutatingArgsPolicy` delegate (for argument-aware classification) and `NotBatchable`
+bool. Vectors validate parity between:
+
+- Python `WRITE_CMDS` and C# mutating flag
+- Batch eligibility per command and argument combinations
+- Retry-safety guarantees (e.g., `move_to` is retriable even if mutating)
+- Metadata (timeout, category, required/optional params)
+
+These tests live in `unity-plugin/Editor/Tests/CommandRegistryPolicyTests.cs` and
+ensure that central lists are no longer needed for new commands; metadata is
+purely declarative at registration.
+
+## Plugin Registration Atomicity Tests (F3)
+
+Two suites verify that failed plugin registration leaves zero callable state:
+
+**Python tests** (`server/tests/test_atomic_plugin_registration.py`):
+- Snapshots all registries (tools, READ/WRITE_CMDS, dsl_tools, gating, budget)
+- Exercises `register()` that throws during command addition
+- Validates zero tools, zero gating entries, zero budget features remain
+
+**C# tests** (`unity-plugin/Editor/Tests/PluginRegistryTests.cs`):
+- `CaptureForTest()` and `RestoreForTest()` per-plugin
+- Duplicate command registration throws when `CallerIsPlugin=true`
+- Empty `CommandRegistry.Register` call before plugin cleanup
+
+Invariant: a plugin that crashes during `register()` cannot leave stale callable
+state that would execute in subsequent runs.
+
+## DSL Preflight Validation Tests (F1)
+
+Player and Editor tests validate that `PlayerProfilePreflight.Validate()` correctly
+rejects unsupported DSL constructs before execution:
+
+**Pure Dotnet tests** (runs in `Unity-MCP.Playtest.Core.Tests.csproj`):
+- Detects `# @needs editmode` header
+- Detects SETUP/TEARDOWN blocks
+- Detects EXPECT_FAIL modifier
+- Detects compound WAIT_UNTIL AND/OR
+- Detects ASSERT...TIMEOUT retry logic
+- Detects empty main section
+- Returns detailed error naming offending line
+
+**Player runtime tests** (E09 lane):
+- Pre-scan gate halts before Play Mode entry on violation
+- Error message is player-readable
+
+## SourcePatch Off/Absence Proof Tests (PR-06)
+
+Two C# contract tests prove SourcePatch module boundary isolation:
+
+**SourcePatchReloadContractTests.cs:**
+- Real lazy-reconciliation to Off confirmed via state machine walk
+- Concurrent-sync epoch drift resolves to Recovery (not false-Off)
+- `ForceUnreconciledForTests()` seam enables controlled test timing
+
+**Python boundary scan** (`scripts/tests/test_source_patch_reload_control_boundary.py`):
+- Locks `SyncHelper.TriggerSync` out of SourcePatch control files
+- Allows only sanctioned FSR adapter import
+- CI enforces: violation = build failure
+
+Invariant: SourcePatch Off leaves normal writes and domain reload unintercepted;
+algorithm swaps happen via composition, not core edits.
+
 ## Pure Dotnet Lane for Parser Core
 
 The engine-free `UnityMCP.Playtest.Core` assembly (v1.53.0+) can be tested outside Unity using dotnet:

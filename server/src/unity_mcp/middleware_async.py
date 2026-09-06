@@ -60,11 +60,15 @@ class MiddlewareAsyncMixin:
     # ── Item 1: PrefetchCache ──────────────────────────────────────────────────
 
     async def _background_prefetch(self, cmd: str, args: dict, send_fn) -> None:
-        """Fire a predicted read in background, populate cache on success."""
+        """Fire a predicted read in background, populate cache on success —
+        unless a scene-cache invalidation happened while this task was in
+        flight (F2: fences a late prefetch from re-poisoning the cache with
+        pre-invalidation data)."""
+        generation = self._scene_generation
         try:
             result = await send_fn(cmd, args)
             text = result.get("data", "") if isinstance(result, dict) else str(result)
-            if text and self._prefetch_cache is not None:
+            if text and self._prefetch_cache is not None and self._scene_generation == generation:
                 self._prefetch_cache.put(cmd, args, text)
         except Exception:
             from .metrics import METRICS

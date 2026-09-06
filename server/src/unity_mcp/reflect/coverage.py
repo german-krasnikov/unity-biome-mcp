@@ -9,11 +9,11 @@ _SILENT_CMDS: frozenset[str] = frozenset({
     "animator_intent", "ui_intent", "uitk_intent", "vfx_intent",
     "configure_objects", "setup_objects", "set_properties",
     # Runtime / playtest (unbounded output)
-    "run_playtest", "run_playtest_suite", "test_step", "move_to",
+    "run_playtest", "run_playtest_suite", "start_playtest", "test_step", "move_to",
     "wait_until", "invoke_method", "execute_code",
     "run_tests", "run_tests_wait", "cancel_test_run",
     # Async / external
-    "build", "package",
+    "build", "package", "export_package", "import_package",
     # File ops without response echo
     "save_session", "save_skill", "save_template",
     "screenshot_baseline", "screenshot_compare",

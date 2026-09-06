@@ -5,14 +5,9 @@ from ._annotations import RO as _RO
 from ._annotations import RW_IDEM as _RW_IDEM
 
 _get_slot = None
+_stdio_alive = None            # Callable[[], bool] | None — injected by register()
 _refresh_tools_cache = None
 _push_catalog = None
-
-
-def _stdio_alive() -> bool:
-    """Delegate to server._stdio_alive (lazy import avoids circular dep)."""
-    from unity_mcp.server import _stdio_alive as _probe
-    return _probe()
 
 
 async def list_connections() -> str:
@@ -22,7 +17,8 @@ async def list_connections() -> str:
         return "No slot initialized"
     bridge = s.bridge
     tcp = bridge.transport_status if bridge is not None else "tcp:none"
-    stdio = "stdio:alive" if _stdio_alive() else "stdio:dead"
+    alive = _stdio_alive() if _stdio_alive else True   # fail-open when not wired
+    stdio = "stdio:alive" if alive else "stdio:dead"
     return f"port {s.port} | {tcp} | {stdio}"
 
 
@@ -52,9 +48,11 @@ async def reconnect_unity(port: int = 0, ctx: Context = None) -> str:
     return result
 
 
-def register(mcp, send, args, *, get_slot, refresh_tools_cache=None, push_catalog=None, **_kw):
-    global _get_slot, _refresh_tools_cache, _push_catalog
+def register(mcp, send, args, *, get_slot, stdio_alive=None,
+             refresh_tools_cache=None, push_catalog=None, **_kw):
+    global _get_slot, _stdio_alive, _refresh_tools_cache, _push_catalog
     _get_slot = get_slot
+    _stdio_alive = stdio_alive
     _refresh_tools_cache = refresh_tools_cache
     _push_catalog = push_catalog
     mcp.tool(annotations=_RO)(list_connections)

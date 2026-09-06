@@ -39,7 +39,8 @@ def test_pytest_nightly_full_is_byte_identical_to_nightly_yml(capsys):
 
 def test_pytest_master_conformance_matches_ci_sonar_and_conformance_yml(capsys):
     # Serves as the regression oracle for C17's ci-sonar.yml site (byte-
-    # identical to both ci-sonar.yml and the deferred ci-conformance.yml).
+    # identical to both ci-sonar.yml and ci-conformance.yml's unit-gate job --
+    # PR-07 wired the latter through this same generator too).
     assert gen_lane_args.main(["pytest", "master-conformance"]) == 0
     assert capsys.readouterr().out == "not live and not monkey\n"
 

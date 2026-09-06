@@ -15,6 +15,10 @@ namespace UnityMCP.Editor.Tests
             public int OnDomainReloadCallCount;
             public bool OnDomainReloadThrows;
             public bool RegisterCommandsThrows;
+            // Task F3 (PR-03): lets a test make RegisterCommands() actually touch
+            // CommandRegistry (register a command) before optionally throwing, so
+            // rollback behavior can be exercised without a new fake type.
+            public Action RegisterCommandsBody;
 
             public FakePlugin(string name, string prefix = "fake")
             {
@@ -25,6 +29,7 @@ namespace UnityMCP.Editor.Tests
             public void RegisterCommands()
             {
                 RegisterCommandsCallCount++;
+                RegisterCommandsBody?.Invoke();
                 if (RegisterCommandsThrows) throw new InvalidOperationException("simulated");
             }
 
@@ -163,6 +168,104 @@ namespace UnityMCP.Editor.Tests
             var failed = PluginRegistry.GetFailedPlugins();
             Assert.AreEqual(1, failed.Count);
             Assert.AreEqual("BadPlugin", failed[0].Name);
+        }
+
+        // ── Task F3 (PR-03): atomic rollback on plugin registration failure ────
+
+        [Test]
+        public void RegisterAllPlugins_PluginThrowsAfterRegisteringCommand_RollsBackLeftoverCommand()
+        {
+            CommandRegistry.Clear();
+            var plugin = new FakePlugin("BadPlugin")
+            {
+                RegisterCommandsBody = () => CommandRegistry.Register("leftover_cmd", _ => "ok"),
+                RegisterCommandsThrows = true
+            };
+            PluginRegistry.Register(plugin);
+
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Error,
+                new System.Text.RegularExpressions.Regex("BadPlugin.*RegisterCommands failed"));
+            PluginRegistry.RegisterAllPlugins();
+
+            Assert.IsFalse(CommandRegistry.IsRegistered("leftover_cmd"),
+                "a command registered before the plugin threw must be rolled back");
+            Assert.AreEqual(1, PluginRegistry.GetFailedPlugins().Count);
+        }
+
+        [Test]
+        public void RegisterAllPlugins_FailingPluginDoesNotAffectHostOrSiblingPlugin()
+        {
+            CommandRegistry.Clear();
+            CommandRegistry.Register("host_cmd", _ => "ok");
+            var bad = new FakePlugin("BadPlugin")
+            {
+                RegisterCommandsBody = () => CommandRegistry.Register("leftover_cmd", _ => "ok"),
+                RegisterCommandsThrows = true
+            };
+            var good = new FakePlugin("GoodPlugin")
+            {
+                RegisterCommandsBody = () => CommandRegistry.Register("good_cmd", _ => "ok")
+            };
+            PluginRegistry.Register(bad);
+            PluginRegistry.Register(good);
+
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Error,
+                new System.Text.RegularExpressions.Regex("BadPlugin.*RegisterCommands failed"));
+            PluginRegistry.RegisterAllPlugins();
+
+            Assert.IsTrue(CommandRegistry.IsRegistered("host_cmd"), "host command must survive a sibling plugin's failure");
+            Assert.IsTrue(CommandRegistry.IsRegistered("good_cmd"), "an independent, successful plugin must keep its command");
+            Assert.IsFalse(CommandRegistry.IsRegistered("leftover_cmd"));
+        }
+
+        [Test]
+        public void RegisterAllPlugins_DuplicateCommandFromSecondPlugin_RejectedFirstOwnerSurvives()
+        {
+            CommandRegistry.Clear();
+            var pluginA = new FakePlugin("PluginA")
+            {
+                RegisterCommandsBody = () => CommandRegistry.Register("shared_cmd", _ => "A")
+            };
+            var pluginB = new FakePlugin("PluginB")
+            {
+                // Second registration of the same command name throws via
+                // CommandRegistry.AlreadyRegistered (CallerIsPlugin == true) — the plugin
+                // never sets RegisterCommandsThrows itself, the duplicate name IS the failure.
+                RegisterCommandsBody = () => CommandRegistry.Register("shared_cmd", _ => "B")
+            };
+            PluginRegistry.Register(pluginA);
+            PluginRegistry.Register(pluginB);
+
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Error,
+                new System.Text.RegularExpressions.Regex("PluginB.*RegisterCommands failed"));
+            PluginRegistry.RegisterAllPlugins();
+
+            var failed = PluginRegistry.GetFailedPlugins();
+            Assert.AreEqual(1, failed.Count);
+            Assert.AreEqual("PluginB", failed[0].Name);
+            Assert.AreEqual("A", CommandRegistry.Execute("shared_cmd", "{}"),
+                "first owner's handler must still be registered after the duplicate is rejected");
+        }
+
+        [Test]
+        public void RegisterAllPlugins_CalledTwiceAcrossReloadStyleClear_NoExceptionNoDuplication()
+        {
+            var plugin = new FakePlugin("StablePlugin")
+            {
+                RegisterCommandsBody = () => CommandRegistry.Register("stable_cmd", _ => "ok")
+            };
+            PluginRegistry.Register(plugin);
+
+            // Two full passes, each starting from a clean registry — mirrors
+            // CommandRouter.RegisterAll() calling CommandRegistry.Clear() before every pass.
+            CommandRegistry.Clear();
+            PluginRegistry.RegisterAllPlugins();
+            CommandRegistry.Clear();
+            PluginRegistry.RegisterAllPlugins();
+
+            Assert.IsTrue(CommandRegistry.IsRegistered("stable_cmd"));
+            Assert.AreEqual(0, PluginRegistry.GetFailedPlugins().Count,
+                "a legitimate re-registration after Clear() must not be recorded as a failure");
         }
 
         [Test]

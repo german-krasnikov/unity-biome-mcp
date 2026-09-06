@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CoverageSession xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Version="0.0.0.0">
+  <Summary numSequencePoints="8" visitedSequencePoints="4" numBranchPoints="0" visitedBranchPoints="0" sequenceCoverage="50.0" branchCoverage="0" maxCyclomaticComplexity="2" minCyclomaticComplexity="1" maxCrapScore="6" minCrapScore="1" visitedClasses="1" numClasses="2" visitedMethods="1" numMethods="3" />
+  <Modules>
+    <Module>
+      <Summary numSequencePoints="4692" visitedSequencePoints="4256" numBranchPoints="0" visitedBranchPoints="0" sequenceCoverage="90.71" branchCoverage="0.0" maxCyclomaticComplexity="57" minCyclomaticComplexity="1" maxCrapScore="509.35" minCrapScore="1" visitedClasses="172" numClasses="172" visitedMethods="798" numMethods="798" />
+      <ModuleTime>0001-01-01T00:00:00</ModuleTime>
+      <ModuleName>UnityMCP.Editor.Chat.CLI</ModuleName>
+      <Files>
+        <File uid="2" fullPath="/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/Chat/CLI/AgentEventParser.cs" />
+      </Files>
+      <Classes>
+        <Class>
+          <Summary numSequencePoints="33" visitedSequencePoints="33" numBranchPoints="0" visitedBranchPoints="0" sequenceCoverage="100.0" branchCoverage="0.0" maxCyclomaticComplexity="57" minCyclomaticComplexity="1" maxCrapScore="57" minCrapScore="1" visitedClasses="1" numClasses="1" visitedMethods="3" numMethods="3" />
+          <FullName>UnityMCP.Editor.Chat.AgentEventParser</FullName>
+          <Methods>
+            <Method visited="true" cyclomaticComplexity="1" nPathComplexity="0" sequenceCoverage="100.0" branchCoverage="0" crapScore="1" isConstructor="false" isStatic="false" isGetter="false" isSetter="false">
+              <Summary numSequencePoints="4" visitedSequencePoints="4" numBranchPoints="0" visitedBranchPoints="0" sequenceCoverage="100.0" branchCoverage="0" maxCyclomaticComplexity="1" minCyclomaticComplexity="1" maxCrapScore="1" minCrapScore="1" visitedClasses="0" numClasses="0" visitedMethods="1" numMethods="1" />
+              <MetadataToken>100663312</MetadataToken>
+              <Name>System.Void UnityMCP.Editor.Chat.AgentEventParser::Reset()</Name>
+              <FileRef uid="2" />
+              <SequencePoints>
+                <SequencePoint vc="736" uspid="55632" ordinal="0" offset="0" sl="16" sc="13" el="16" ec="13" bec="0" bev="0" fileid="2" />
+                <SequencePoint vc="736" uspid="55633" ordinal="0" offset="11" sl="17" sc="13" el="17" ec="13" bec="0" bev="0" fileid="2" />
+                <SequencePoint vc="736" uspid="55634" ordinal="0" offset="18" sl="18" sc="13" el="18" ec="13" bec="0" bev="0" fileid="2" />
+                <SequencePoint vc="736" uspid="55635" ordinal="0" offset="25" sl="19" sc="9" el="19" ec="9" bec="0" bev="0" fileid="2" />
+              </SequencePoints>
+              <BranchPoints />
+            </Method>
+          </Methods>
+        </Class>
+      </Classes>
+    </Module>
+    <Module>
+      <Summary numSequencePoints="22874" visitedSequencePoints="19212" numBranchPoints="0" visitedBranchPoints="0" sequenceCoverage="83.99" branchCoverage="0.0" maxCyclomaticComplexity="208" minCyclomaticComplexity="1" maxCrapScore="2717.88" minCrapScore="1" visitedClasses="446" numClasses="446" visitedMethods="2549" numMethods="2550" />
+      <ModuleTime>0001-01-01T00:00:00</ModuleTime>
+      <ModuleName>UnityMCP.Editor</ModuleName>
+      <Files>
+        <File uid="337" fullPath="/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/EnvironmentHelper.cs" />
+      </Files>
+      <Classes>
+        <Class>
+          <Summary numSequencePoints="84" visitedSequencePoints="46" numBranchPoints="0" visitedBranchPoints="0" sequenceCoverage="54.76" branchCoverage="0.0" maxCyclomaticComplexity="42" minCyclomaticComplexity="1" maxCrapScore="641.11" minCrapScore="1" visitedClasses="1" numClasses="1" visitedMethods="6" numMethods="7" />
+          <FullName>UnityMCP.Editor.EnvironmentHelper</FullName>
+          <Methods>
+            <Method visited="false" cyclomaticComplexity="2" nPathComplexity="0" sequenceCoverage="0.0" branchCoverage="0" crapScore="6" isConstructor="false" isStatic="true" isGetter="false" isSetter="false">
+              <Summary numSequencePoints="3" visitedSequencePoints="0" numBranchPoints="0" visitedBranchPoints="0" sequenceCoverage="0.0" branchCoverage="0" maxCyclomaticComplexity="2" minCyclomaticComplexity="2" maxCrapScore="6" minCrapScore="6" visitedClasses="0" numClasses="0" visitedMethods="0" numMethods="1" />
+              <MetadataToken>100663997</MetadataToken>
+              <Name>static T UnityMCP.Editor.EnvironmentHelper::ParseEnum[T](System.String)</Name>
+              <FileRef uid="337" />
+              <SequencePoints>
+                <SequencePoint vc="0" uspid="75222" ordinal="0" offset="0" sl="157" sc="0" el="157" ec="0" bec="0" bev="0" fileid="337" />
+                <SequencePoint vc="0" uspid="75223" ordinal="0" offset="11" sl="158" sc="0" el="158" ec="0" bec="0" bev="0" fileid="337" />
+                <SequencePoint vc="0" uspid="75224" ordinal="0" offset="13" sl="159" sc="0" el="159" ec="0" bec="0" bev="0" fileid="337" />
+              </SequencePoints>
+              <BranchPoints />
+            </Method>
+            <Method visited="false" cyclomaticComplexity="1" nPathComplexity="0" sequenceCoverage="0" branchCoverage="0" crapScore="6" isConstructor="false" isStatic="true" isGetter="false" isSetter="false">
+              <Summary numSequencePoints="0" visitedSequencePoints="0" numBranchPoints="0" visitedBranchPoints="0" sequenceCoverage="0.0" branchCoverage="0" maxCyclomaticComplexity="1" minCyclomaticComplexity="1" maxCrapScore="6" minCrapScore="6" visitedClasses="0" numClasses="0" visitedMethods="0" numMethods="1" />
+              <MetadataToken>100663997</MetadataToken>
+              <Name>System.Void UnityMCP.Editor.EnvironmentHelper::AbstractNoOp()</Name>
+              <FileRef uid="337" />
+              <SequencePoints>
+                </SequencePoints>
+              <BranchPoints />
+            </Method>
+          </Methods>
+        </Class>
+      </Classes>
+    </Module>
+  </Modules>
+</CoverageSession>

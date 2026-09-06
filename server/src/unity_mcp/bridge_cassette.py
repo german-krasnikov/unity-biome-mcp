@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 TRACE_FILE_ENV = "UNITY_MCP_TRACE_FILE"
 
-_warned = False
+_warned_paths: set[Path] = set()
 
 
 @lru_cache(maxsize=1)
@@ -30,12 +30,12 @@ def _trace_path() -> Path | None:
 
 
 def reset_for_tests() -> None:
-    """Test-only: clear the cached env resolution and the one-shot warning
-    flag so xdist workers and test order never leak one test's env var
-    into another's."""
-    global _warned
+    """Test-only: clear the cached env resolution and the per-path one-shot
+    warning latches so xdist workers and test order never leak one test's
+    env var into another's."""
+    global _warned_paths
     _trace_path.cache_clear()
-    _warned = False
+    _warned_paths = set()
 
 
 def _as_cassette_response(result: dict) -> dict:
@@ -53,7 +53,6 @@ def _as_cassette_response(result: dict) -> dict:
 def record(cmd: str, args: dict, result: dict) -> None:
     """Append one cassette-shaped JSONL line for a completed send(), if
     UNITY_MCP_TRACE_FILE is set. Never raises."""
-    global _warned
     path = _trace_path()
     if path is None:
         return
@@ -68,6 +67,9 @@ def record(cmd: str, args: dict, result: dict) -> None:
         # Expected: TypeError/ValueError (unserializable cmd/args/result) or
         # OSError (unwritable trace path, disk full, permission denied).
         # Caught broadly because this recorder must never break send().
-        if not _warned:
+        # Latch is keyed by path (not a single process-wide bool): a bare
+        # bool meant the first failing path's warning silenced every later
+        # failure to a *different* path in the same worker process.
+        if path not in _warned_paths:
             logger.warning("cassette recorder: could not write to %s: %s", path, exc)
-            _warned = True
+            _warned_paths.add(path)

@@ -4,8 +4,6 @@
     "references": [
         "UnityMCP.Editor",
         "UnityMCP.Editor.TestSupport",
-        "UnityMCP.Editor.Chat.CLI",
-        "UnityMCP.Editor.Chat.View",
         "UnityMCP.Editor.SourcePatch",
         "UnityMCP.Playtest.Core",
         "UnityMCP.Runtime.TestHelpers",

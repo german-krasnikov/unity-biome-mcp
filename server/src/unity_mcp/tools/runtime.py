@@ -330,7 +330,12 @@ def _is_playtest_pass_from_ledger(result: str) -> bool:
         return False
     if receipt.get("outer", {}).get("teardown_ok") is not True:
         return False
-    return all(step.get("ok") is True for step in receipt.get("steps", []))
+    if receipt.get("failed", 1) != 0:  # F7 — aggregate cross-check
+        return False
+    steps = receipt.get("steps", [])
+    if not steps:  # F7 — an empty (or missing) ledger is not a pass
+        return False
+    return all(step.get("ok") is True for step in steps)
 
 
 def _is_playtest_pass_from_text(result: str) -> bool:
@@ -342,7 +347,7 @@ def _is_playtest_pass_from_text(result: str) -> bool:
             passed, total = int(match.group(1)), int(match.group(2))
             if total <= 0 or passed != total:
                 return False
-            return not re.search(r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT)\b", result)
+            return not re.search(r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT|ABORTED)\b", result)
     return False
 
 

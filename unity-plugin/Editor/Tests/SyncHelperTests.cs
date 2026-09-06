@@ -747,6 +747,86 @@ namespace UnityMCP.Editor.Tests
                 : afterErr;
             Assert.IsNotEmpty(errValue, "err= field must contain a non-empty error description");
         }
+
+        // ── PR-04R Step A1: reentrant-event trace (characterization, no prod change) ──
+        // TriggerSync() writes StampAtTriggerKey unconditionally near its end (after
+        // Ops.Refresh()/RequestScriptCompilation()); OnCompileStarted() seeds the same
+        // key conditionally (only if empty) when a real compilationStarted event fires.
+        // If Ops.Refresh() itself triggers a reentrant SimulateCompilationStarted() before
+        // TriggerSync reaches its own write, two writers touch MCP_StampAtTrigger. This
+        // pins today's behavior: both writers read CurrentDomainStamp, which TriggerSync
+        // never mutates mid-call, so they always agree regardless of order. If this
+        // assertion ever fails, that is a genuine ordering defect — fix it separately,
+        // do not fold a fix into the PR-04R seam commit (plan §8.4 validation clause).
+        [Test]
+        public void Pr04R_TriggerSync_ReentrantCompilationStarted_StampAtTriggerConsistent()
+        {
+            SyncHelper.OverrideOpsForTest(new ReentrantRefreshSyncOps());
+            SyncHelper.OverrideDomainStampForTest("STAMP_AT_ENTRY");
+
+            SyncHelper.TriggerSync(resolve: false);
+            var status = SyncHelper.GetSyncStatus();
+
+            StringAssert.Contains("stamp_frozen=true", status,
+                "reentrant compilationStarted during Ops.Refresh() must not desync " +
+                "StampAtTrigger from the domain stamp captured at TriggerSync entry");
+        }
+
+        // Fake ISyncOps whose Refresh() reenters SyncHelper the same way a real
+        // synchronous compile trigger could — used only by the A1 fixture above.
+        private sealed class ReentrantRefreshSyncOps : ISyncOps
+        {
+            public void ImportPackageSources() { }
+            public void Refresh() => SyncHelper.SimulateCompilationStarted();
+            public void Resolve() { }
+            public void RequestScriptCompilation(RequestScriptCompilationOptions opts) { }
+            public void StartTickPump() { }
+            public bool IsCompiling => true;
+            public bool IsUpdating => false;
+            public bool ScriptCompilationFailed => false;
+        }
+
+        // ── PR-04R Step B2: predicate-injection proof (algorithm A→B swap via composition) ──
+        // Same shape as GetSyncStatus_SelfHeals_When_Compile_Never_Started (#11) but drives
+        // the grace-window self-heal branch through the new IsMainAssemblyCompiling seam
+        // instead of depending on the real (untestable in EditMode) MCPServer.IsReallyCompiling.
+
+        // Fake "still compiling" (algorithm B) blocks the heal even though the real host
+        // flag would allow it in this EditMode test context.
+        [Test]
+        public void Pr04R_GetSyncStatus_SelfHeal_RespectsInjectedPredicate_TrueBlocksHeal()
+        {
+            double fakeTime = 100.0;
+            SyncHelper.NowSeconds = () => fakeTime;
+            SyncHelper.IsMainAssemblyCompiling = () => true;
+
+            _mock.IsCompilingAfterRefresh = true; // will_compile=true at trigger time
+            SyncHelper.TriggerSync(resolve: false);
+            _mock.IsCompilingAfterRefresh = false; // ...but no compile ever starts
+            fakeTime += SyncHelper.SelfHealGraceSeconds + 1.0;
+
+            StringAssert.Contains("state=compiling", SyncHelper.GetSyncStatus(),
+                "an injected 'still compiling' predicate must block the grace-window self-heal");
+        }
+
+        // Fake "not compiling" reproduces the default lambda's outcome exactly — proves
+        // algorithm A→B replacement needs zero edits to GetSyncStatus()'s other branches.
+        [Test]
+        public void Pr04R_GetSyncStatus_SelfHeal_RespectsInjectedPredicate_FalseAllowsHeal()
+        {
+            double fakeTime = 100.0;
+            SyncHelper.NowSeconds = () => fakeTime;
+            SyncHelper.IsMainAssemblyCompiling = () => false;
+
+            _mock.IsCompilingAfterRefresh = true;
+            SyncHelper.TriggerSync(resolve: false);
+            _mock.IsCompilingAfterRefresh = false;
+            fakeTime += SyncHelper.SelfHealGraceSeconds + 1.0;
+
+            StringAssert.Contains("state=ready", SyncHelper.GetSyncStatus(),
+                "an injected 'not compiling' predicate must allow the grace-window self-heal, " +
+                "identical to the default MCPServer.IsReallyCompiling path");
+        }
     }
 
     // ── MockSyncOps ──────────────────────────────────────────────────────────

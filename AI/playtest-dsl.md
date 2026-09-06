@@ -1121,6 +1121,63 @@ Before any Player script runs, `PlayerPlaytestRunner.Parse()` performs a pre-sca
 Failed pre-scan halts execution without entering Play Mode simulation. This catch-all gate
 prevents script failures mid-run and ensures deterministic behavior across platform builds.
 
+### Player Profile Preflight (F1)
+
+Before a Player script runs, `PlayerProfilePreflight.Validate(ParseResult)` in the
+engine-free `Playtest.Core` assembly performs comprehensive pre-flight checks:
+
+- Detects fatal parse errors (malformed directives, syntax violations)
+- Rejects `# @needs editmode` header (EditMode-only)
+- Detects SETUP/TEARDOWN blocks (Player unsupported)
+- Detects EXPECT_FAIL modifier (Player unsupported)
+- Detects compound WAIT_UNTIL with AND/OR (Player unsupported)
+- Detects ASSERT...TIMEOUT retry semantics (Player-incompatible)
+- Detects empty main section (no body steps to run)
+
+`PlayerPlaytestRunner.Run()` wraps load+parse in try/catch and delegates the gate
+decision to the preflight. Invariant: unsupported Player scripts are rejected with
+a terminal receipt before any body action executes.
+
+---
+
+## Reserved DSL Header Fields (PR-07)
+
+The following header fields are parsed at load time but not enforced by the runtime
+(their semantics are deferred to a future release or specialized runner):
+
+- `NeedsPlaymode` — parsed from `# @needs editmode` directive
+- `ExpectSteps` — optional expected step count
+- `ExpectFailed` — expected failure count (for test tracking)
+- `SuiteOnly` — marks suite-only scripts (not for individual runs)
+
+Parsers must recognize and preserve these fields; runners that ignore them are
+conformant. Each field appears as a property on `PlaytestHeader` and
+`PreparedPlaytest` for future extensibility.
+
+---
+
+## Prepared Playtest Data (PR-07)
+
+The immutable `PreparedPlaytest` container proves data isolation across runs:
+
+```csharp
+public class PreparedPlaytest
+{
+    public PlaytestHeader Header { get; }
+    public List<PlaytestStep> Steps { get; }
+    public string RawScript { get; }
+    public string FilePath { get; }  // optional
+    
+    // Query consolidated reserved fields
+    public bool NeedsPlayMode => Header.NeedsPlaymode;
+}
+```
+
+This container is created once at parse time; step execution receives only this
+snapshot, preventing late mutations or side effects from corrupting the script
+state. JSON serialization includes `ConsoleErrored` field for receipt archival
+(additive, backward-compatible).
+
 ---
 
 ## Async Dispatch (Long-Running Playtests)

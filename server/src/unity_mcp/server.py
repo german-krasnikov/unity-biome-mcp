@@ -399,7 +399,7 @@ def _check_read_only(cmd: str, args: dict) -> None:
     if os.environ.get("UNITY_MCP_READ_ONLY", "0") != "1":
         return
     from .middleware_types import is_write
-    if is_write(cmd, args):
+    if is_write(cmd, args, unknown_is_write=True):
         raise ToolError(
             f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
         )
@@ -657,6 +657,7 @@ mcp._mcp_server.version = __version__
 
 register_all(mcp, _send, _args, get_slot=lambda: slot,
              get_middleware=lambda: _middleware,
+             stdio_alive=_stdio_alive,
              refresh_tools_cache=_refresh_tools_cache,
              push_catalog=_push_catalog)
 load_plugins(mcp, _send, _args)

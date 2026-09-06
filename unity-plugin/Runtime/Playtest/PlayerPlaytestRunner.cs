@@ -10,16 +10,6 @@ namespace UnityMCP.Playtest
 {
     public sealed partial class PlayerPlaytestRunner : MonoBehaviour
     {
-        // The exact 9 StepTypes the fixtures under Assets/StreamingAssets/Playtests/
-        // use (D11). Do NOT widen without a corresponding Execute() case — Move/
-        // Section/Setup/Monitor etc. are deliberately out of scope (no fixture needs
-        // them; unbounded scope creep).
-        private static readonly HashSet<StepType> SupportedStepTypes = new()
-        {
-            StepType.Assert, StepType.AssertConsoleClean, StepType.Invoke, StepType.Log,
-            StepType.Set, StepType.Snapshot, StepType.TimeScale, StepType.WaitUntil, StepType.Wait,
-        };
-
         private readonly List<StepResult> _results = new();
         private readonly List<string> _consoleErrors = new();
         private string _scriptPath;
@@ -62,24 +52,36 @@ namespace UnityMCP.Playtest
         private IEnumerator Run()
         {
             var started = DateTime.UtcNow;
-            var script = File.ReadAllText(_scriptPath);
-            var parsed = PlaytestParser.Parse(script, ResolveInclude);
-            var steps = parsed.Steps;
 
-            // Pre-scan gate: never a partial run against a script containing a step
-            // type this Player runner cannot execute. Record every offender first,
-            // then stop before any step actually runs.
-            var hasUnsupported = false;
-            foreach (var step in steps)
+            // F1 (PR-01C): a single pure preflight decides, before any step runs, whether
+            // this ParseResult may execute in Player at all — fatal parse errors, an
+            // EditMode-only header, SETUP/TEARDOWN, EXPECT_FAIL, compound WAIT_UNTIL
+            // AND/OR, ASSERT ... TIMEOUT, or an empty main section. Load/parse also runs
+            // inside this try so a bad script path or a parser exception produces a
+            // terminal receipt instead of aborting the coroutine before WriteReceipts().
+            ParseResult parsed = null;
+            List<PreflightViolation> violations;
+            try
             {
-                if (SupportedStepTypes.Contains(step.Type))
-                    continue;
-                _results.Add(StepResult.Fail(step.RawLine, $"unsupported step type in Player: {step.Type}"));
-                hasUnsupported = true;
+                var script = File.ReadAllText(_scriptPath);
+                parsed = PlaytestParser.Parse(script, ResolveInclude);
+                violations = PlayerProfilePreflight.Validate(parsed);
             }
+            catch (Exception e)
+            {
+                violations = new List<PreflightViolation>
+                {
+                    new(_scriptPath, "script load/parse failed: " + e.Message)
+                };
+            }
+
+            var hasUnsupported = violations.Count > 0;
+            foreach (var violation in violations)
+                _results.Add(StepResult.Fail(violation.RawLine ?? _scriptPath, violation.Reason));
 
             if (!hasUnsupported)
             {
+                var steps = parsed.Steps;
                 for (var i = 0; i < steps.Count; i++)
                 {
                     var step = steps[i];

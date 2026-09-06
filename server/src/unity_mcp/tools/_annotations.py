@@ -18,7 +18,12 @@ DEL = ToolAnnotations(readOnlyHint=False, destructiveHint=True)
 #                  resend re-reads/re-converges the same status, never
 #                  compounds. (The C# DedupRegistry op_id TTL cache also
 #                  suppresses actual re-execution on retry regardless.)
-_INTERNAL_RETRY_SAFE_CMDS = frozenset({"get_status", "sync_status"})
+#   compile_status -- CommandRouter.Registration.cs:186-188, pure read (compile
+#                  notifier state + reload state string), allowedDuringCompile:
+#                  true, zero mutation. await_compile (code_intel.py) polls it
+#                  directly; without this it fails closed under
+#                  UNITY_MCP_READ_ONLY=1 even though it is pure diagnostics.
+_INTERNAL_RETRY_SAFE_CMDS = frozenset({"get_status", "sync_status", "compile_status"})
 
 
 async def retry_safe_cmds(mcp) -> frozenset[str]:

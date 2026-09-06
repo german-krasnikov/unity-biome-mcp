@@ -8,29 +8,34 @@ from unity_mcp.middleware_pipeline import wrap_send, _strip_flags, _check_prefet
 # ── _strip_flags ──────────────────────────────────────────────────────────────
 
 def test_strip_flags_removes_all_internal_flags():
-    """_strip_flags must remove all 5 internal marker flags from args."""
+    """_strip_flags must remove all 6 internal marker flags from args."""
     args = {
         "_no_reflect": True,
         "_no_distill": False,
         "_explicit_path": True,
         "_no_validate": True,
         "_no_strip": False,
+        "_force_scene_invalidate": True,
         "path": "/Obj",
         "value": "42",
     }
     clean, flags = _strip_flags(args)
-    for key in ("_no_reflect", "_no_distill", "_explicit_path", "_no_validate", "_no_strip"):
+    for key in (
+        "_no_reflect", "_no_distill", "_explicit_path", "_no_validate",
+        "_no_strip", "_force_scene_invalidate",
+    ):
         assert key not in clean
     assert clean == {"path": "/Obj", "value": "42"}
 
 
 def test_strip_flags_populates_flags_dict():
-    """_strip_flags must return flags dict with all 5 keys as bools."""
+    """_strip_flags must return flags dict with all 6 keys as bools."""
     args = {"_no_reflect": True, "_no_distill": False}
     _, flags = _strip_flags(args)
     assert flags["_no_reflect"] is True
     assert flags["_no_distill"] is False
     assert flags["_no_strip"] is False  # default when absent
+    assert flags["_force_scene_invalidate"] is False  # default when absent
 
 
 def test_strip_flags_passes_through_non_internal_keys():

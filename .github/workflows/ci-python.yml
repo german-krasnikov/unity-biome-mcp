@@ -8,6 +8,9 @@ on:
       - "install/**"
       - "scripts/**"
       - "unity-plugin/ClientSkills/**"
+      - "unity-plugin/Editor/**"
+      - "unity-plugin-reload/Editor/**"
+      - ".jscpd.json"
       - ".github/workflows/ci-python.yml"
   pull_request:
     branches: [master]
@@ -16,6 +19,9 @@ on:
       - "install/**"
       - "scripts/**"
       - "unity-plugin/ClientSkills/**"
+      - "unity-plugin/Editor/**"
+      - "unity-plugin-reload/Editor/**"
+      - ".jscpd.json"
       - ".github/workflows/ci-python.yml"
   workflow_dispatch:
 
@@ -217,6 +223,46 @@ jobs:
           issue-number: ${{ github.event.pull_request.number }}
           body-path: reports/pr-comment.md
           comment-tag: tool-quality-report
+
+  jscpd:
+    name: jscpd (duplication)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [test]
+    env:
+      # Pinned commit, never a floating branch ref (plan: "Baseline не
+      # обновлять автоматически на каждом CI"). Bumping this is itself a
+      # reviewed PR that states which new duplication is being accepted.
+      JSCPD_BASELINE_REF: 0e06aa2e
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # --baseline-from-ref needs the pinned SHA's tree available locally.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: 'lts/*'
+
+      - name: Run jscpd (new-clones gate)
+        # --fail-on-new-clones takes an OPTIONAL inline value ([<N>]), so a
+        # bare trailing flag would swallow the next positional path arg as
+        # its value and error with "invalid digit found in string" --
+        # confirmed locally during PR-08 grounding. Always pass =0 explicitly.
+        run: >
+          npx --yes jscpd@5.1.2
+          --config .jscpd.json
+          --baseline-from-ref "$JSCPD_BASELINE_REF"
+          --fail-on-new-clones=0
+          server/src unity-plugin
+
+      - name: Upload jscpd report
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: jscpd-report
+          path: reports/jscpd/
+          if-no-files-found: ignore
 
   badge:
     name: Update badges

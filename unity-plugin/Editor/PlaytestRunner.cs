@@ -198,16 +198,18 @@ namespace UnityMCP.Editor
                 // logs a genuine Debug.LogError still reports that error as a real failure.
                 if (completedStep.ExpectFail)
                     (passed, failed) = ApplyExpectFail(passedBeforeStep, failedBeforeStep, passed, failed, true);
-                if (CheckStepConsoleErrors(completedStep, stepIdx, stepStartUtc, results))
-                    failed++;
+                bool consoleErrored = CheckStepConsoleErrors(completedStep, stepIdx, stepStartUtc, results);
+                if (consoleErrored) failed++;
                 // B16: one structured receipt per completed step, built at this single choke
                 // point (every step-completion call site funnels through AdvanceStep) so every
                 // step type gets a ledger entry without touching each phase's own results.Add
-                // site. C07: expected_fail now reflects the real EXPECT_FAIL modifier.
+                // site. C07: expected_fail now reflects the real EXPECT_FAIL modifier. F7:
+                // consoleErrored now feeds the receipt too, so PlaytestStepReceipt.Ok reflects
+                // the same console-error fact the aggregate `failed` counter already saw.
                 stepReceipts.Add(new PlaytestStepReceipt(
                     stepIdx, completedStep.Type.ToString(), (DateTime.Now - stepStartUtc).TotalMilliseconds,
                     completedStep.SourceFile, completedStep.SourceLine,
-                    rawPassed: rawPassed, expectedFail: completedStep.ExpectFail));
+                    rawPassed: rawPassed, expectedFail: completedStep.ExpectFail, consoleErrored: consoleErrored));
                 stepIdx++;
                 var decision = DetermineStepAdvance(
                     globalAbort, failedBeforeStep, failed, stepIdx, setupEndIdx, teardownStartIdx);

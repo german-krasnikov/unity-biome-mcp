@@ -17,9 +17,10 @@ namespace UnityMCP.Editor
         internal readonly int SourceLine;
         internal readonly bool RawPassed;
         internal readonly bool ExpectedFail;
+        internal readonly bool ConsoleErrored;
 
         internal PlaytestStepReceipt(int index, string type, double ms, string sourceFile, int sourceLine,
-            bool rawPassed, bool expectedFail)
+            bool rawPassed, bool expectedFail, bool consoleErrored = false)
         {
             Index = index;
             Type = type;
@@ -28,14 +29,15 @@ namespace UnityMCP.Editor
             SourceLine = sourceLine;
             RawPassed = rawPassed;
             ExpectedFail = expectedFail;
+            ConsoleErrored = consoleErrored;
         }
 
         /// <summary>
-        /// Effective pass/fail after expected-fail inversion. expected_fail has no producer yet
-        /// (no EXPECT_FAIL DSL keyword exists) — Ok reduces to RawPassed until a future wave wires
-        /// it, per the plan's documented "stays RED->GREEN across B16/C07" note.
+        /// Effective pass/fail after expected-fail inversion. F7: a genuine console error is a
+        /// structurally separate failure channel (C07) and must never be absorbed by EXPECT_FAIL
+        /// inverting the step's own raw outcome — ConsoleErrored always forces Ok false.
         /// </summary>
-        internal bool Ok => RawPassed != ExpectedFail;
+        internal bool Ok => RawPassed != ExpectedFail && !ConsoleErrored;
 
         internal string ToJson()
         {
@@ -48,7 +50,8 @@ namespace UnityMCP.Editor
               .Append(SourceFile == null ? "null" : "\"" + EscapeJsonString(SourceFile) + "\"").Append(',');
             sb.Append("\"source_line\":").Append(SourceLine).Append(',');
             sb.Append("\"raw_passed\":").Append(RawPassed ? "true" : "false").Append(',');
-            sb.Append("\"expected_fail\":").Append(ExpectedFail ? "true" : "false");
+            sb.Append("\"expected_fail\":").Append(ExpectedFail ? "true" : "false").Append(',');
+            sb.Append("\"console_errored\":").Append(ConsoleErrored ? "true" : "false");
             sb.Append('}');
             return sb.ToString();
         }

@@ -13,11 +13,13 @@ async def test_lint_playtest_valid_script(conformance_worker):
 
 
 async def test_lint_playtest_reports_bad_syntax(conformance_worker):
-    """lint_playtest returns warnings for invalid DSL."""
+    """lint_playtest classifies an unrecognized DSL verb as an ERROR before any
+    Play Mode side effect (PlaytestParser's `default: throw new ArgumentException`
+    is caught by PlaytestLinter's parse pass and surfaced as a parse-error ERROR)."""
     worker, bridge = conformance_worker
     resp = await bridge.send("lint_playtest", {"script": "INVALID_COMMAND_XYZ"})
-    # lint doesn't fail on unknown commands — just warns or returns data
-    assert "data" in resp or "err" in resp
+    assert resp["ok"] is False, f"expected lint_playtest to reject an unknown command: {resp}"
+    assert "Unknown command: INVALID_COMMAND_XYZ" in resp["err"], f"unexpected classification: {resp}"
 
 
 async def test_list_playtest_files(conformance_worker):

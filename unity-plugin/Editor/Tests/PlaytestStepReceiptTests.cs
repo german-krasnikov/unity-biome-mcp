@@ -23,6 +23,51 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("\"source_line\":7", json);
             StringAssert.Contains("\"raw_passed\":true", json);
             StringAssert.Contains("\"expected_fail\":false", json);
+            StringAssert.Contains("\"console_errored\":false", json);
+        }
+
+        [Test]
+        public void ToJson_ConsoleErroredTrue_SerializesField()
+        {
+            var receipt = new PlaytestStepReceipt(
+                index: 0, type: "Assert", ms: 1.0, sourceFile: "f.playtest",
+                sourceLine: 1, rawPassed: true, expectedFail: false, consoleErrored: true);
+
+            StringAssert.Contains("\"console_errored\":true", receipt.ToJson());
+        }
+
+        // ── F7: ConsoleErrored must override a raw-passing/EXPECT_FAIL-inverted step ──
+
+        [Test]
+        public void Ok_ConsoleErrored_OverridesPassingRawPassed_ReturnsFalse()
+        {
+            var receipt = new PlaytestStepReceipt(
+                index: 0, type: "Assert", ms: 1.0, sourceFile: "f.playtest",
+                sourceLine: 1, rawPassed: true, expectedFail: false, consoleErrored: true);
+
+            Assert.IsFalse(receipt.Ok);
+        }
+
+        [Test]
+        public void Ok_ConsoleErrored_ExpectFailStepStillFails_ReturnsFalse()
+        {
+            // today's formula (RawPassed != ExpectedFail) would say true here — the
+            // EXPECT_FAIL inversion must not absorb a genuine console error.
+            var receipt = new PlaytestStepReceipt(
+                index: 0, type: "MCP", ms: 1.0, sourceFile: "f.playtest",
+                sourceLine: 1, rawPassed: false, expectedFail: true, consoleErrored: true);
+
+            Assert.IsFalse(receipt.Ok);
+        }
+
+        [Test]
+        public void Ok_NoConsoleError_Unaffected()
+        {
+            var receipt = new PlaytestStepReceipt(
+                index: 0, type: "Assert", ms: 1.0, sourceFile: "f.playtest",
+                sourceLine: 1, rawPassed: true, expectedFail: false, consoleErrored: false);
+
+            Assert.IsTrue(receipt.Ok);
         }
 
         [Test]

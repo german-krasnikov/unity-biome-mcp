@@ -48,6 +48,11 @@ namespace UnityMCP.Editor
         // --- Injectable seam ---
         public static ISyncOps Ops { get; private set; } = new UnitySyncOps();
 
+        // PR-04R: replaceable verification-algorithm input — defaults to the real host
+        // flag. Test isolation swaps this the same way it swaps Ops/NowSeconds; production
+        // code (GetSyncStatus) never reads MCPServer directly from inside the algorithm.
+        public static Func<bool> IsMainAssemblyCompiling = () => MCPServer.IsReallyCompiling;
+
         private static TestIsolationScope _activeTestIsolation;
 
         // UnityMcpTestBase snapshots and restores this seam around every test, so fixtures
@@ -168,7 +173,7 @@ namespace UnityMCP.Editor
                 var elapsed = NowSeconds() - SessionState.GetFloat(TriggerTimeKey, 0f);
                 // RC-2 fix: self-heal only on genuine no-compile path (grace=3s).
                 // If compile started, we wait for reload/failed — never force-green.
-                if (!started && !MCPServer.IsReallyCompiling && !Ops.IsUpdating
+                if (!started && !IsMainAssemblyCompiling() && !Ops.IsUpdating
                     && elapsed > SelfHealGraceSeconds
                     && !Ops.ScriptCompilationFailed)
                 {
@@ -224,6 +229,7 @@ namespace UnityMCP.Editor
             // and breaks get_version until the next reload (HOLE-1b). Tests that need a
             // specific stamp value call SimulateAfterAssemblyReload() explicitly.
             NowSeconds = () => EditorApplication.timeSinceStartup;
+            IsMainAssemblyCompiling = () => MCPServer.IsReallyCompiling;
             OnSyncComplete = null;
             OnSyncFailed   = null;
         }
@@ -238,6 +244,7 @@ namespace UnityMCP.Editor
             private readonly TestIsolationScope _previous;
             private readonly ISyncOps _ops;
             private readonly Func<double> _clock;
+            private readonly Func<bool> _isMainAssemblyCompiling;
             private readonly Action _syncComplete;
             private readonly Action<string> _syncFailed;
             private readonly IntSessionValue _epoch;
@@ -256,6 +263,7 @@ namespace UnityMCP.Editor
                 _previous = previous;
                 _ops = Ops;
                 _clock = NowSeconds;
+                _isMainAssemblyCompiling = IsMainAssemblyCompiling;
                 _syncComplete = OnSyncComplete;
                 _syncFailed = OnSyncFailed;
                 _epoch = IntSessionValue.Capture(EpochKey);
@@ -289,6 +297,7 @@ namespace UnityMCP.Editor
                 Restore(() => OnSyncFailed = _syncFailed, errors);
                 Restore(() => OnSyncComplete = _syncComplete, errors);
                 Restore(() => NowSeconds = _clock, errors);
+                Restore(() => IsMainAssemblyCompiling = _isMainAssemblyCompiling, errors);
                 Restore(() => Ops = _ops, errors);
 
                 _activeTestIsolation = _previous;

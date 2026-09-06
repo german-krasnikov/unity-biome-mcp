@@ -5,7 +5,7 @@ using System.IO;
 using NUnit.Framework;
 using UnityMCP.Editor.Chat;
 
-namespace UnityMCP.Editor.Tests
+namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
     public class SessionContextTests : UnityMCP.Editor.Testing.UnityMcpTestBase

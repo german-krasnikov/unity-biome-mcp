@@ -29,6 +29,9 @@ namespace UnityMCP.Editor
             public string Description;
             // Per-command soft limit for response truncation (0 = no limit).
             public int MaxResponseChars;
+            // PR-04: owner-declared mutation/batch policy (see CommandOptions.cs).
+            public Func<string, bool> MutatingArgsPolicy;
+            public bool NotBatchable;
         }
 
         // All mutations happen on Unity main thread (dispatched by MCPServer).
@@ -72,10 +75,18 @@ namespace UnityMCP.Editor
         private static string[] Split(string csv) =>
             csv == null ? null : (csv.Length == 0 ? Array.Empty<string>() : csv.Split(','));
 
-        /// <summary>Guards against double-registration. Returns true (and logs) if `cmd` is already taken.</summary>
+        /// <summary>
+        /// Guards against double-registration. A built-in colliding with another built-in
+        /// warns and skips (unchanged legacy behavior). A plugin colliding with any existing
+        /// command (CallerIsPlugin == true) throws instead — partial/silent registration for
+        /// plugins is a diagnosable failure, not a warning (Task F3, PR-03).
+        /// </summary>
         private static bool AlreadyRegistered(string cmd)
         {
             if (!_commands.ContainsKey(cmd)) return false;
+            if (CallerIsPlugin)
+                throw new InvalidOperationException(
+                    $"{BiomeLabel.Tag} Command '{cmd}' already registered — plugin cannot override");
             UnityEngine.Debug.LogWarning($"{BiomeLabel.Tag} Command '{cmd}' already registered, skipping duplicate");
             return true;
         }
@@ -98,7 +109,9 @@ namespace UnityMCP.Editor
                 Required = Split(options.Required),
                 Optional = Split(options.Optional),
                 Description = options.Description,
-                MaxResponseChars = options.MaxResponseChars
+                MaxResponseChars = options.MaxResponseChars,
+                MutatingArgsPolicy = options.MutatingArgsPolicy,
+                NotBatchable = options.NotBatchable
             };
         }
 
@@ -106,7 +119,8 @@ namespace UnityMCP.Editor
             string required = null, string optional = null, bool specialDispatch = false,
             bool alwaysAllowed = false, bool allowedDuringCompile = false,
             Func<string, string, string> fileHandler = null, string description = null,
-            int maxResponseChars = 0) =>
+            int maxResponseChars = 0,
+            Func<string, bool> mutatingArgsPolicy = null, bool notBatchable = false) =>
             Register(cmd, handler, new CommandOptions
             {
                 Mutating = mutating,
@@ -118,7 +132,9 @@ namespace UnityMCP.Editor
                 AlwaysAllowed = alwaysAllowed,
                 AllowedDuringCompile = allowedDuringCompile,
                 Description = description,
-                MaxResponseChars = maxResponseChars
+                MaxResponseChars = maxResponseChars,
+                MutatingArgsPolicy = mutatingArgsPolicy,
+                NotBatchable = notBatchable
             });
 
         // action is always required (enforced by the wrapper below) — callers only
@@ -213,6 +229,12 @@ namespace UnityMCP.Editor
         /// </summary>
         internal static bool IsMutating(string cmd, string argsJson)
         {
+            // PR-04: owner-declared policy takes precedence over every cascade below —
+            // lets a command's own registration site classify itself without editing this
+            // method. See CommandRouter.MediaHandlers.cs's IsUitkFileMutating for the first
+            // real user (uitk_file, migrated off the hardcoded branch that used to live here).
+            if (_commands.TryGetValue(cmd, out var policyEntry) && policyEntry.MutatingArgsPolicy != null)
+                return policyEntry.MutatingArgsPolicy(argsJson);
             if (cmd == "editor")
             {
                 // "editor" is base-registered non-mutating (play/stop/select/state/
@@ -225,13 +247,6 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(argsJson, "enable") != null;
             }
             if (!IsMutating(cmd)) return false;
-            if (cmd == "uitk_file")
-            {
-                // ExecUitkFile defaults a missing action to read. Every other action writes,
-                // reverts, or is conservatively treated as a possible external file mutation.
-                var fileAction = JsonHelper.ExtractString(argsJson, "action") ?? "read";
-                return !fileAction.Equals("read", StringComparison.Ordinal);
-            }
             if (cmd == "navmesh")
             {
                 // Missing/unknown/case-mismatched actions stay conservatively mutating.
@@ -275,7 +290,7 @@ namespace UnityMCP.Editor
         // throwing stub), or owns external file effects that cannot join Unity Undo.
         internal static bool IsBatchable(string cmd) =>
             !_commands.TryGetValue(cmd, out var e) ||
-            (cmd != "uitk_file" && e.AsyncHandler == null && !e.SpecialDispatch && e.FileHandler == null);
+            (!e.NotBatchable && e.AsyncHandler == null && !e.SpecialDispatch && e.FileHandler == null);
 
         /// <summary>Read-only view of a command's contract for CommandValidator. Returns false if unregistered.</summary>
         internal static bool TryGetContract(string cmd, out string[] required, out string[] optional, out bool isFreeForm)
@@ -349,6 +364,9 @@ namespace UnityMCP.Editor
             }
         }
 
+        // Despite the "ForTest" name, also used in production by PluginRegistry.RegisterAllPlugins()
+        // (Task F3, PR-03) to snapshot/roll back one plugin's registrations on failure. Renaming is
+        // tracked as a separate, out-of-scope cleanup (12+ existing test call sites).
         internal static TestSnapshot CaptureForTest() => new TestSnapshot();
 
         internal static void RestoreForTest(TestSnapshot snapshot)

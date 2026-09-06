@@ -8,11 +8,20 @@ namespace UnityMCP.Playtest.Core
     /// Pure data — zero UnityEditor/UnityEngine dependency (Wave D Core extraction seam).</summary>
     public sealed class PlaytestHeader
     {
+        /// <summary>Consumed: rejects Play-bound verbs at parse time
+        /// (see PlaytestParser.Directives.cs's RejectPlayBoundVerbsUnderEditmode).</summary>
         public bool NeedsEditmode;
+        /// <summary>Parsed, reserved -- not yet enforced by any runner (no Play-Mode-required
+        /// gate exists today, unlike <see cref="NeedsEditmode"/>'s mirror check).</summary>
         public bool NeedsPlaymode;
+        /// <summary>Consumed: filters which scripts a suite run selects (PlaytestRunner tag filtering).</summary>
         public List<string> Tags = new List<string>();
+        /// <summary>Parsed, reserved -- not yet enforced by any runner as a post-run assertion.</summary>
         public int? ExpectSteps;
+        /// <summary>Parsed, reserved -- not yet enforced by any runner as a post-run assertion.</summary>
         public int? ExpectFailed;
+        /// <summary>Parsed, reserved -- not yet enforced by any runner (no rejection when a
+        /// suite-only script is invoked directly via run_playtest instead of run_playtest_suite).</summary>
         public bool SuiteOnly;
     }
 

@@ -7,7 +7,6 @@ no-op unless the env var is set, and the recorded shape must round-trip
 through load_cassette without hand-editing.
 """
 import json
-import logging
 
 import pytest
 
@@ -133,15 +132,21 @@ async def test_send_records_error_response_with_cassette_error_key(
     assert result["err"] == "boom"
 
 
-def test_record_swallows_unserializable_args(monkeypatch, tmp_path, caplog):
+def test_record_swallows_unserializable_args(monkeypatch, tmp_path):
     """json.dumps on an unserializable value (e.g. a bare object() slipped
     into args) must not escape record() — the docstring's 'Never raises'
-    promise has to cover serialization failures, not just OSError on write."""
+    promise has to cover serialization failures, not just OSError on write.
+
+    Direct logger.warning spy instead of caplog: caplog loses records under
+    pytest-xdist (-n auto --dist load), causing intermittent CI failures
+    that never reproduce in isolation."""
     trace_path = tmp_path / "trace.jsonl"
     monkeypatch.setenv(bridge_cassette.TRACE_FILE_ENV, str(trace_path))
 
-    with caplog.at_level(logging.WARNING, logger="unity_mcp.bridge_cassette"):
-        bridge_cassette.record("cmd", {"p": object()}, {"ok": True, "data": ""})
+    warned = []
+    monkeypatch.setattr(bridge_cassette.logger, "warning", lambda *a, **kw: warned.append(a))
+
+    bridge_cassette.record("cmd", {"p": object()}, {"ok": True, "data": ""})
 
     assert not trace_path.exists()
-    assert len(caplog.records) == 1
+    assert len(warned) == 1

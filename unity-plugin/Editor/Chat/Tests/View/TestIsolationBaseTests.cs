@@ -9,10 +9,11 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.TestTools;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Tests; // SceneTestBase, TestPaths (PR-05 05.5: moved out of UnityMCP.Editor.Tests)
 using UnityMCP.Editor.TestRuns;
 using UnityMCP.Editor.Testing;
 
-namespace UnityMCP.Editor.Tests
+namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
     internal sealed class TestIsolationBaseTests : SceneTestBase
