@@ -112,6 +112,8 @@ by runtime boundary:
 | `unity-plugin/Editor/Tests/` | EditMode and PlayMode implementation fixtures. |
 | `unity-plugin/Runtime/` | Runtime/player assemblies and test helpers. |
 | `unity-plugin/Tests~/Pure/` | Pure dotnet test lane for Core parser (v1.53.0+): `UnityMCP.Playtest.Core.Tests.csproj` runs NUnit tests with zero Unity install. The folder name ends in `~` intentionally — Unity's asset importer skips `~` paths, keeping `Microsoft.NET.Test.Sdk` references invisible to the Editor. Source files compiled from `Runtime/Playtest/Core/*.cs` in isolation. |
+| `unity-plugin/Tests~/AssemblyFreshness/` | Offline NUnit project (`UnityMCP.AssemblyFreshness.Tests.csproj`) validating DLL/PDB freshness detection and import logic without Unity Editor. Covers `AssemblySourceFreshness` bytecode comparison and readiness contract. |
+| `unity-plugin/Tests~/SourcePatchReadiness/` | Offline NUnit project (`UnityMCP.SourcePatchReadiness.Tests.csproj`) proving reload-readiness state transitions and ACK-based patch lease validity. Tests `SourcePatchReloadAckTests` and reload block reason propagation without Editor. |
 | `unity-plugin/ClientSkills/` | Canonical bundled skills, agents, and conversion support. |
 
 Unity `.meta` files are package assets. Preserve them when moving or adding Unity

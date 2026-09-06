@@ -176,7 +176,8 @@ async def run_playtest(script: str | None = None, timeout: float = _RUN_PLAYTEST
     CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED.
     defs: inline VAL definitions prepended to script.
     abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown.
-    format="json": return the canonical step-ledger receipt instead of the legacy text report; skips compression/summarization."""
+    format="json": return the canonical step-ledger receipt instead of the legacy text report; skips compression/summarization.
+    Non-pass outcomes (fail/aborted/malformed/empty) raise ToolError with the full report text (both sync and async routes)."""
     if script and path:
         raise ValueError("script and path are mutually exclusive")
     if not script and not path:

@@ -77,6 +77,9 @@ Add the Fast Script Reload (FSR) provider package to your project's `Packages/ma
 After adding the dependency, Unity resolves the package. The Mutation Mode checkbox becomes **enabled** (though unchecked, reflecting the Off state) and you can toggle it.
 
 > [!NOTE]
+> **UPM Dependencies:** The base Unity Biome MCP plugin declares `com.unity.nuget.mono-cecil 1.11.5` as a required UPM dependency. Ensure your project's Packages section includes a registry that resolves `com.unity.nuget.*` packages (most standard Unity project configurations include this automatically). This dependency is used internally for assembly analysis during reload and compile verification.
+
+> [!NOTE]
 > The FastScriptReload provider is licensed under MIT by Chris Handzlik. See [Third-Party Notices](../../THIRD-PARTY-NOTICES.md) for full copyright and license details.
 
 **To disable Mutation Mode permanently:**

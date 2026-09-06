@@ -335,6 +335,32 @@ Use this lane for:
 
 Tests here must not reference Unity or Editor types. Any new utility pulled from Core must have matching coverage in this lane before merging.
 
+## Offline Contract Validation: Freshness and Reload Readiness
+
+Two additional offline NUnit projects validate critical contracts without Editor:
+
+**`unity-plugin/Tests~/AssemblyFreshness/UnityMCP.AssemblyFreshness.Tests.csproj`**
+- Proves DLL/PDB bytecode comparison logic in `AssemblySourceFreshness`
+- Validates import-before-global-Refresh readiness contract
+- No Unity Editor required; pure C# reflection
+
+Run with:
+```bash
+dotnet test unity-plugin/Tests~/AssemblyFreshness/UnityMCP.AssemblyFreshness.Tests.csproj -c Release
+```
+
+**`unity-plugin/Tests~/SourcePatchReadiness/UnityMCP.SourcePatchReadiness.Tests.csproj`**
+- Proves state-machine transitions (Off → OnReady → Busy → Recovery)
+- Validates ACK-based patch lease lifecycle
+- Confirms reload-block-reason propagation across domain boundaries
+
+Run with:
+```bash
+dotnet test unity-plugin/Tests~/SourcePatchReadiness/UnityMCP.SourcePatchReadiness.Tests.csproj -c Release
+```
+
+Both projects use the same `~` folder convention to stay invisible to the Editor. They validate implementation-critical runtime invariants that cannot be observed through Editor UI alone.
+
 ## Test Taxonomy and Lanes
 
 Test organization is data-driven via two canonical JSON files:

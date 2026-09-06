@@ -1,3 +1,4 @@
+// Live-proof canary fixture for readiness/mutation qualification lanes (not the excluded production certificate framework).
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityMCP.ReadinessQualification;
