@@ -60,9 +60,10 @@ def _asmdef_denylist_violations(asmdef: dict, denylist: tuple[str, ...]) -> list
     case-insensitive denylist substring. Empty list = clean."""
     hits = []
     for field in ("references", "precompiledReferences"):
-        for entry in asmdef.get(field, []):
-            if any(term in entry.lower() for term in denylist):
-                hits.append(entry)
+        hits.extend(
+            entry for entry in asmdef.get(field, [])
+            if any(term in entry.lower() for term in denylist)
+        )
     return hits
 
 

@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v1.54.0] — 2026-09-06
+
 ### Added
 
 - **Modular Architecture Phase 2 — Plugin Registration Atomicity (F3):** Failed plugin registration no longer leaves stale callable commands, gating entries, or budget features. Python: `_atomic.py` snapshots and restores all registries on failure. C#: `PluginRegistry.CaptureForTest` / `RestoreForTest` per-plugin; `CommandRegistry.Register` throws on duplicate when `CallerIsPlugin`. Invariant: a plugin that throws during `register()` leaves zero observable side effects
@@ -3744,7 +3746,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.53.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.54.0...HEAD
+[v1.54.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.53.0...v1.54.0
 [v1.52.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.51.0...v1.52.0
 [v1.51.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.1...v1.51.0
 [v1.48.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.0...v1.48.1
