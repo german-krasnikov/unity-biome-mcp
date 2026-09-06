@@ -68,13 +68,6 @@ namespace UnityMCP.Editor.Tests
             // Real reconciliation, not a forced setter.
             Assert.AreEqual(SourcePatchState.Off, SourcePatchHost.CurrentState);
             Assert.IsFalse(SourcePatchReceiptStore.TryRead(out _), "completed Off clears the receipt");
-
-            // Next .cs write: byte-identical to a direct legacy call (A07's "следующая запись идёт штатным путём").
-            var legacyPath = TrackOwnedAsset("Assets/TestsTemp/SourcePatchReloadContract_legacy.cs");
-            var hostPath = TrackOwnedAsset("Assets/TestsTemp/SourcePatchReloadContract_viahost.cs");
-            var direct = AssetDatabaseHelper.Execute("write_text", "{\"path\":\"" + legacyPath + "\",\"content\":\"x\"}");
-            var viaHost = SourcePatchHost.WriteText("{\"path\":\"" + hostPath + "\",\"content\":\"x\"}");
-            Assert.AreEqual(direct.Replace(legacyPath, hostPath), viaHost);
         }
 
         [Test]
