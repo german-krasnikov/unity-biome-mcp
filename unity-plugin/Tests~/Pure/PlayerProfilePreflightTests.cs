@@ -197,6 +197,77 @@ namespace UnityMCP.Playtest.Core.PureTests
                 "compound AND/OR WAIT_UNTIL condition is not supported in Player"));
         }
 
+        // ── L03: 5 unsupported constructs that currently pass with violations=0 ──
+
+        [Test]
+        public void Validate_GlobalAbortOnFail_Rejected()
+        {
+            var parsed = PlaytestParser.Parse("ABORT_ON_FAIL\nLOG hi\n");
+            Assert.IsTrue(parsed.HasGlobalAbort, "sanity: parser must set HasGlobalAbort");
+
+            var violations = PlayerProfilePreflight.Validate(parsed);
+
+            Assert.IsTrue(violations.Any(v => v.Reason == "ABORT_ON_FAIL is not supported in Player"));
+        }
+
+        [Test]
+        public void Validate_SetDefaultTimeout_Rejected()
+        {
+            var parsed = PlaytestParser.Parse("SET_DEFAULT_TIMEOUT 0.01\nLOG hi\n");
+            Assert.Greater(parsed.DefaultTimeout, 0f, "sanity: parser must record DefaultTimeout");
+
+            var violations = PlayerProfilePreflight.Validate(parsed);
+
+            Assert.IsTrue(violations.Any(v => v.Reason == "SET_DEFAULT_TIMEOUT is not supported in Player"));
+        }
+
+        [Test]
+        public void Validate_VarRuntimeAlias_Rejected()
+        {
+            var parsed = PlaytestParser.Parse("VAR $hp @/Player|Health|currentHp\nLOG hi\n");
+            Assert.IsTrue(parsed.VarDefs is { Count: > 0 }, "sanity: parser must record VarDefs");
+
+            var violations = PlayerProfilePreflight.Validate(parsed);
+
+            Assert.IsTrue(violations.Any(v => v.Reason == "VAR runtime aliases are not supported in Player"));
+        }
+
+        [Test]
+        public void Validate_InlineWaitUntilAbort_Rejected()
+        {
+            var parsed = PlaytestParser.Parse("WAIT_UNTIL /A|Comp|flag == True TIMEOUT 0.01 ABORT\n");
+            Assert.IsTrue(parsed.Steps[0].AbortOnFail, "sanity: parser must set AbortOnFail");
+
+            var violations = PlayerProfilePreflight.Validate(parsed);
+
+            Assert.IsTrue(violations.Any(v => v.Reason == "inline WAIT_UNTIL ... ABORT is not supported in Player"));
+        }
+
+        [Test]
+        public void Validate_AssertConsoleCleanIgnore_Rejected()
+        {
+            var parsed = PlaytestParser.Parse("ASSERT_CONSOLE_CLEAN IGNORE \"benign warning\"\n");
+            Assert.IsTrue(parsed.Steps[0].Queries is { Length: > 0 }, "sanity: parser must record ignore patterns");
+
+            var violations = PlayerProfilePreflight.Validate(parsed);
+
+            Assert.IsTrue(violations.Any(v => v.Reason == "ASSERT_CONSOLE_CLEAN IGNORE is not supported in Player"));
+        }
+
+        [Test]
+        public void Validate_UnsupportedGlobalDirective_BlocksWholeScriptIncludingStepsAroundIt()
+        {
+            // PlayerPlaytestRunner.Run() gates ALL step execution on violations.Count == 0
+            // (PlayerPlaytestRunner.cs:78,82) -- a violation attached only to a global
+            // directive still prevents every step, before AND after it, from running.
+            var parsed = PlaytestParser.Parse(
+                "SET /A Comp before 1\nABORT_ON_FAIL\nSET /A Comp after 1\n");
+
+            var violations = PlayerProfilePreflight.Validate(parsed);
+
+            Assert.IsTrue(violations.Count > 0, "a global-directive violation must still be reported");
+        }
+
         private const string FixtureRelDir = "unity-test-project/Assets/StreamingAssets/Playtests";
         private static string _repoRoot;
 

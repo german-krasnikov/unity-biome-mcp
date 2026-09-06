@@ -384,3 +384,26 @@ def test_is_write_default_unchanged_for_unknown_cmd_in_advisory_context():
     must keep treating a genuinely-unknown cmd as a non-write."""
     from unity_mcp.middleware_types import is_write
     assert is_write("totally_unregistered_xyz", {}) is False
+
+
+# ── L01: compile_status is an internal pure read, must not fail-closed ──────
+
+
+def test_is_write_compile_status_is_read():
+    """L01: compile_status is a pure read (CommandRouter.Registration.cs:186-188)
+    -- await_compile's internal poll must never be classified as a mutation."""
+    from unity_mcp.middleware_types import is_write
+    assert is_write("compile_status", {}, unknown_is_write=True) is False
+
+
+def test_check_read_only_passes_compile_status():
+    mw = Middleware()
+    mw.is_read_only = True
+    assert mw.check_read_only("compile_status", {}) is None
+
+
+def test_send_raw_check_read_only_passes_compile_status(monkeypatch):
+    """server._check_read_only (middleware OFF path) must not block compile_status."""
+    from unity_mcp.server import _check_read_only
+    monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
+    _check_read_only("compile_status", {})  # must not raise

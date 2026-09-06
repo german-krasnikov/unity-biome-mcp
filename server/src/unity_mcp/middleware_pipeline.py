@@ -289,6 +289,10 @@ def _reset_write_caches(cmd: str, args: dict, result: str, mw: Any, flags: dict)
         mw._last_hierarchy_full = None
         if mw._negative_path_cache:
             mw._negative_path_cache.clear()
+    # L02c: _force_scene_invalidate is now also handled unconditionally at the top
+    # of wrapped() (before any early-exit can skip it) -- this check only fires on
+    # the already-covered success path, so it's a harmless belt-and-suspenders
+    # double-invalidate (invalidate_scene_caches() is idempotent).
     if flags.get("_force_scene_invalidate") or is_scenario_terminal(cmd, result):
         mw.invalidate_scene_caches()
     if cmd == "manage_component" and not result.startswith("err"):
@@ -437,6 +441,12 @@ def wrap_send(send_fn, mw: Any = None):
 
         args, flags = _strip_flags(args)
 
+        # L02c: the give-up path's forced invalidation must not be skippable by
+        # an early exit (prefetch-cache hit, circuit-open) that runs later in
+        # this function and never reaches _reset_write_caches.
+        if flags["_force_scene_invalidate"]:
+            mw.invalidate_scene_caches()
+
         # Alias resolution: $name → cached pipe value (Hook 1)
         if mw._alias_cache:
             from .middleware_alias import resolve_aliases_in_args
@@ -458,7 +468,10 @@ def wrap_send(send_fn, mw: Any = None):
             result, protocol_err = await _execute_cmd(
                 cmd, args, send_fn, mw, timeout, probe_active, no_strip=flags["_no_strip"]
             )
-        except Exception:
+        except (Exception, asyncio.CancelledError):
+            # L02b: asyncio.CancelledError is a BaseException (not Exception) since
+            # Python 3.8 -- a cancellation mid-playtest must still hit the same
+            # scenario cache fence before propagating, not skip it silently.
             if cmd in PLAYTEST_SCENARIO_CMDS:
                 mw.invalidate_scene_caches()
             raise

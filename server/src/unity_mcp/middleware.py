@@ -132,6 +132,8 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         if self._negative_path_cache:
             self._negative_path_cache.clear()
         self._component_cache.clear()
+        self.known_paths.clear()
+        self.path_to_scene.clear()
         if self._prefetch_cache is not None:
             self._prefetch_cache.clear()
 

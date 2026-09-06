@@ -669,7 +669,6 @@ namespace UnityMCP.Editor
             // never emits "ABORTED" in the same report as the " OK" one-liner, so this can only
             // remove a false positive, never flip an already-correct pass to a false negative.
             if (report.Contains("ABORTED")) return false;
-            if (report.Contains(" OK")) return true;
             if (!report.StartsWith("PLAYTEST:", StringComparison.Ordinal)) return false;
 
             var firstLineEnd = report.IndexOf('\n');

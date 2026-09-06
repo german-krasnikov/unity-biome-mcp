@@ -889,8 +889,23 @@ namespace UnityMCP.Editor.Tests
             => Assert.IsFalse(InvokeIsPlaytestSuccess(null));
 
         [Test]
-        public void IsPlaytestSuccess_ContainsSpaceOKSubstring_ReturnsTrue()
-            => Assert.IsTrue(InvokeIsPlaytestSuccess("Test run OK"));
+        public void IsPlaytestSuccess_ArbitraryTextContainingSpaceOK_ReturnsFalse()
+        {
+            // INV-005 substring shortcut removed (L04): arbitrary text containing
+            // " OK" that isn't a well-formed PLAYTEST report must never pass.
+            Assert.IsFalse(InvokeIsPlaytestSuccess("Test run OK"));
+        }
+
+        [Test]
+        public void IsPlaytestSuccess_LogStepBodyContainsSpaceOK_FailingReportStillReturnsFalse()
+        {
+            // L04: a LOG step's own receipt text is "[1] LOG OK" -- this embeds " OK"
+            // inside a FAILING report body (1 passed / 2 total). Only the passed/total
+            // ratio may decide the verdict now; the removed substring shortcut used to
+            // match on this line and report false success.
+            var report = "PLAYTEST: 1/2 (0.1s)\n[1] LOG OK\n[2] ASSERT ... FAIL (True)";
+            Assert.IsFalse(InvokeIsPlaytestSuccess(report));
+        }
 
         [Test]
         public void IsPlaytestSuccess_PlaytestZeroOfZero_TotalZeroGuard_ReturnsFalse()
@@ -954,15 +969,23 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void IsPlaytestSuccess_TextReportWithLeadingBrace_StillUsesRegex()
+        public void IsPlaytestSuccess_JsonShapedBody_TextFormatUsesTextScanNotLedger()
         {
-            // Text report happens to start with '{'. Requesting format="text" explicitly must
-            // skip the JSON-detection sniff entirely and use the legacy text scan (which honors
-            // the " OK" substring shortcut, INV-005) — proving the sniff is a fallback for a
-            // missing/unknown format, never a rule that overrides an explicit caller.
-            var report = "{weird-prefix} Test run OK";
+            // Body is a well-formed PASSING JSON ledger. If the leading '{' sniff
+            // routed this through IsPlaytestSuccessFromLedger, it would return true
+            // (see IsPlaytestSuccess_JsonReport_UsesLedgerNotRegex for the
+            // format="json" case). Requesting format="text" explicitly must skip
+            // that sniff and run the text scan instead, which requires a literal
+            // "PLAYTEST:" prefix and correctly rejects this JSON body -- proving
+            // explicit format wins over the sniff, not silently routed to ledger.
+            var json = "{\"schema_version\":1,\"passed\":1,\"failed\":0,\"duration_seconds\":\"0.100\"," +
+                "\"outer\":{\"teardown_ok\":true,\"scene_clean\":true}," +
+                "\"steps\":[{\"index\":0,\"type\":\"Assert\",\"ok\":true,\"ms\":1.000," +
+                "\"source_file\":\"f.playtest\",\"source_line\":1,\"raw_passed\":true,\"expected_fail\":false}]}";
 
-            Assert.IsTrue(InvokeIsPlaytestSuccess(report, "text"));
+            Assert.IsTrue(InvokeIsPlaytestSuccess(json, "json"), "sanity: this ledger is a genuine pass");
+            Assert.IsFalse(InvokeIsPlaytestSuccess(json, "text"),
+                "explicit format=text must run the text scan, not the ledger, on JSON-shaped input");
         }
 
         // ── CheckGuards: server-not-ready and python-only (Task 5) ───────────

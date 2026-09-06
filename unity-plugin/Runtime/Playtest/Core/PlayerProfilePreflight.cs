@@ -54,6 +54,15 @@ namespace UnityMCP.Playtest.Core
             if (parsed.TeardownSteps is { Count: > 0 })
                 violations.Add(new PreflightViolation(null, "TEARDOWN block is not supported in Player"));
 
+            if (parsed.HasGlobalAbort)
+                violations.Add(new PreflightViolation(null, "ABORT_ON_FAIL is not supported in Player"));
+
+            if (parsed.DefaultTimeout > 0f)
+                violations.Add(new PreflightViolation(null, "SET_DEFAULT_TIMEOUT is not supported in Player"));
+
+            if (parsed.VarDefs is { Count: > 0 })
+                violations.Add(new PreflightViolation(null, "VAR runtime aliases are not supported in Player"));
+
             if (parsed.Steps.Count == 0)
                 violations.Add(new PreflightViolation(null,
                     "script has no executable steps in Player (empty main section)"));
@@ -79,9 +88,17 @@ namespace UnityMCP.Playtest.Core
                 violations.Add(new PreflightViolation(step.RawLine,
                     "compound AND/OR WAIT_UNTIL condition is not supported in Player"));
 
+            if (step.Type == StepType.WaitUntil && step.AbortOnFail)
+                violations.Add(new PreflightViolation(step.RawLine,
+                    "inline WAIT_UNTIL ... ABORT is not supported in Player"));
+
             if (step.Type == StepType.Assert && step.HasExplicitTimeout)
                 violations.Add(new PreflightViolation(step.RawLine,
                     "ASSERT ... TIMEOUT retry semantics are not supported in Player"));
+
+            if (step.Type == StepType.AssertConsoleClean && step.Queries is { Length: > 0 })
+                violations.Add(new PreflightViolation(step.RawLine,
+                    "ASSERT_CONSOLE_CLEAN IGNORE is not supported in Player"));
         }
     }
 }

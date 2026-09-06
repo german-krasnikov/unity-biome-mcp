@@ -1157,6 +1157,7 @@ def _seed_scene_caches(mw) -> dict:
     mw._last_hierarchy_full = "Cube &1"
     mw._negative_path_cache = {"/Ghost": time_mod.monotonic() + 999}
     mw._component_cache["/Cube"] = {"Transform"}
+    mw.update_path_cache("get_hierarchy", "Ghost &1\n")  # L02a: known_paths/path_to_scene
     return component_args
 
 
@@ -1165,6 +1166,8 @@ def _assert_scene_caches_cleared(mw, component_args: dict) -> None:
     assert mw._last_hierarchy_full is None
     assert mw._negative_path_cache == {}
     assert "/Cube" not in mw._component_cache
+    assert mw.known_paths == set()
+    assert mw.path_to_scene == {}
 
 
 def _assert_scene_caches_preserved(mw, component_args: dict) -> None:
@@ -1172,6 +1175,7 @@ def _assert_scene_caches_preserved(mw, component_args: dict) -> None:
     assert mw._last_hierarchy_full == "Cube &1"
     assert "/Ghost" in mw._negative_path_cache
     assert "/Cube" in mw._component_cache
+    assert "/Ghost" in mw.known_paths
 
 
 async def test_run_playtest_terminal_response_invalidates_scene_caches():
@@ -1291,6 +1295,72 @@ async def test_force_scene_invalidate_flag_invalidates_without_terminal_text():
         "get_playtest_run", {"run_id": "x", "_force_scene_invalidate": "true"}
     )
 
+    _assert_scene_caches_cleared(mw, component_args)
+
+
+# ── L02: 3 stale-cache sub-bugs (known_paths, CancelledError, circuit-open) ──
+
+
+async def test_find_objects_stale_positive_path_cleared_after_playtest():
+    """L02a: known_paths must not let find_objects skip the wire for a path
+    that a terminal playtest may have just deleted."""
+    mw = Middleware()
+    mw.update_path_cache("get_hierarchy", "Ghost &1\n")
+
+    wire_calls = []
+
+    async def send_fn(cmd, args, timeout=30.0):
+        wire_calls.append(cmd)
+        if cmd == "run_playtest":
+            return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+        if cmd == "find_objects":
+            return {"ok": True, "data": "not found: Ghost"}
+        raise AssertionError(f"unexpected cmd: {cmd}")
+
+    wrapped = wrap_send(send_fn, mw)
+    await wrapped("run_playtest", {"script": "DELETE /Ghost"})
+    result = await wrapped("find_objects", {"name": "Ghost"})
+
+    assert "find_objects" in wire_calls, "must not be served from stale known_paths"
+    assert "not found" in result
+
+
+async def test_cancelled_error_during_playtest_invalidates_before_reraise():
+    """L02b: asyncio.CancelledError is a BaseException, not Exception -- it
+    must still trigger the playtest scenario cache fence before propagating."""
+    import asyncio
+
+    mw = Middleware()
+    component_args = _seed_scene_caches(mw)
+
+    async def send_fn(cmd, args, timeout=30.0):
+        raise asyncio.CancelledError()
+
+    wrapped = wrap_send(send_fn, mw)
+    with pytest.raises(asyncio.CancelledError):
+        await wrapped("run_playtest", {"script": "LOG hi"})
+
+    _assert_scene_caches_cleared(mw, component_args)
+
+
+async def test_force_scene_invalidate_invalidates_even_when_circuit_open():
+    """L02c: the give-up path's forced flag must not be skippable by the
+    circuit-open early return, which runs before _reset_write_caches."""
+    import time as time_mod
+
+    mw = Middleware()
+    component_args = _seed_scene_caches(mw)
+    mw.circuit.state = mw.circuit.OPEN
+    mw.circuit.opened_at = time_mod.monotonic()  # cooldown not elapsed
+
+    async def send_fn(cmd, args, timeout=30.0):
+        raise AssertionError("must not reach transport while circuit is open")
+
+    result = await wrap_send(send_fn, mw)(
+        "get_playtest_run", {"run_id": "x", "_force_scene_invalidate": "true"}
+    )
+
+    assert "Circuit OPEN" in result
     _assert_scene_caches_cleared(mw, component_args)
 
 
