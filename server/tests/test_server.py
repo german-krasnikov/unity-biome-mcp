@@ -1372,6 +1372,14 @@ async def test_on_port_change_acquire_failure_logs_warning(monkeypatch):
 
     monkeypatch.setattr("unity_mcp.server.acquire_lock", fake_acquire)
     monkeypatch.setattr("unity_mcp.server.release_lock", lambda fd: None)
+    # Pre-lock startup helpers must not touch real ports/filesystem: under
+    # xdist (-n auto) these raced with sibling workers, raising before
+    # _on_port_change was ever reached; swallowed by the bare `except
+    # Exception: pass` below, that produced a silent no-warning flake.
+    monkeypatch.setattr(srv, "_discover_port_with_retry", AsyncMock(return_value=9500))
+    monkeypatch.setattr(srv, "cleanup_stale_locks", lambda *a, **kw: 0)
+    monkeypatch.setattr("unity_mcp.server_control.evict_duplicate_servers", lambda *a, **kw: 0)
+    monkeypatch.setattr("unity_mcp.lockfile.cleanup_stale_port_files", lambda *a, **kw: 0)
     monkeypatch.setenv("UNITY_MCP_BUDGET", "0")
     monkeypatch.setenv("UNITY_MCP_HINTS", "0")
 
@@ -1404,16 +1412,20 @@ async def test_on_port_change_acquire_failure_logs_warning(monkeypatch):
 
     handler = CapHandler()
     log = logging.getLogger("unity_mcp.server")
+    prev_level, prev_disabled = log.level, log.disabled
     log.addHandler(handler)
     log.setLevel(logging.WARNING)
+    log.disabled = False
     try:
         class FakeApp: pass
         async with srv.lifespan(FakeApp()):
             captured_slot[0]._on_port_change(9500, 9501)
-    except Exception:
-        pass
+    except Exception as exc:
+        pytest.fail(f"lifespan raised unexpectedly: {exc}")
     finally:
         log.removeHandler(handler)
+        log.setLevel(prev_level)
+        log.disabled = prev_disabled
 
     assert warnings, "Expected a warning when acquire_lock fails on port change"
     assert any("9501" in w or "lock" in w.lower() or "port" in w.lower() for w in warnings)

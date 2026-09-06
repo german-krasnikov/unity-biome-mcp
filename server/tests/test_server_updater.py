@@ -235,18 +235,36 @@ async def test_maybe_update_reinstalls_when_cursor_config_not_pinned(tmp_path):
     assert r.triggered is True
 
 
-def test_default_is_pinned_logs_the_matching_config_path(tmp_path, caplog):
+def test_default_is_pinned_logs_the_matching_config_path(tmp_path):
     """A pin match should be debug-loggable for diagnosis -- silent True/False
-    gives no clue which of PROJECT_CONFIG_TARGETS actually matched."""
+    gives no clue which of PROJECT_CONFIG_TARGETS actually matched.
+
+    Direct handler spy instead of caplog: caplog loses records under
+    pytest-xdist (-n auto --dist load), causing intermittent CI failures
+    that never reproduce in isolation."""
     cfg = tmp_path / ".mcp.json"
     cfg.write_text(
         f'{{"mcpServers": {{"{SERVER_NAME}": {{"_pin": true, "command": "x"}}}}}}',
         encoding="utf-8",
     )
-    with caplog.at_level(logging.DEBUG, logger="unity_mcp"):
+    records: list[logging.LogRecord] = []
+    handler = logging.Handler()
+    handler.emit = records.append
+    handler.setLevel(logging.DEBUG)
+    log = logging.getLogger("unity_mcp")
+    prev_level, prev_disabled = log.level, log.disabled
+    log.setLevel(logging.DEBUG)
+    log.disabled = False
+    log.addHandler(handler)
+    try:
         assert _default_is_pinned(str(tmp_path)) is True
+    finally:
+        log.removeHandler(handler)
+        log.setLevel(prev_level)
+        log.disabled = prev_disabled
 
-    assert any("pin found" in r.message and str(cfg) in r.getMessage() for r in caplog.records)
+    assert any("pin found" in r.getMessage() and str(cfg) in r.getMessage() for r in records), \
+        f"Expected 'pin found' log, got {[r.getMessage() for r in records]}"
 
 
 def test_default_is_pinned_continues_past_oserror_from_one_candidate(tmp_path, monkeypatch):

@@ -43,13 +43,30 @@ def test_parse_old_version_format_no_stamp():
     assert info.plugin == ""
 
 
-def test_proto_mismatch_warning_python_ahead(caplog):
-    """Python proto > Unity proto → log warning (old plugin, still works)."""
+def test_proto_mismatch_warning_python_ahead():
+    """Python proto > Unity proto → log warning (old plugin, still works).
+
+    Direct handler spy instead of caplog: caplog loses records under
+    pytest-xdist (-n auto --dist load), causing intermittent CI failures
+    that never reproduce in isolation."""
     from unity_mcp.bridge import check_protocol_version
-    with caplog.at_level(logging.WARNING, logger="unity_mcp.bridge"):
+    records: list[logging.LogRecord] = []
+    handler = logging.Handler()
+    handler.emit = records.append
+    handler.setLevel(logging.DEBUG)
+    log = logging.getLogger("unity_mcp.bridge")
+    prev_level, prev_disabled = log.level, log.disabled
+    log.setLevel(logging.WARNING)
+    log.disabled = False
+    log.addHandler(handler)
+    try:
         check_protocol_version(python_proto=3, unity_proto=1)
-    assert any("upgrade" in r.message.lower() or "outdated" in r.message.lower()
-               for r in caplog.records)
+    finally:
+        log.removeHandler(handler)
+        log.setLevel(prev_level)
+        log.disabled = prev_disabled
+    assert any("upgrade" in r.getMessage().lower() or "outdated" in r.getMessage().lower()
+               for r in records), f"Expected warning, got {[r.getMessage() for r in records]}"
 
 
 def test_proto_mismatch_error_unity_ahead():
@@ -147,20 +164,37 @@ async def test_initial_connect_blocks_when_plugin_is_ahead():
                 await bridge.connect()
 
 
-async def test_initial_connect_warns_when_plugin_is_outdated(caplog):
-    """Python proto ahead of Unity proto → warning logged, connect() still succeeds."""
+async def test_initial_connect_warns_when_plugin_is_outdated():
+    """Python proto ahead of Unity proto → warning logged, connect() still succeeds.
+
+    Direct handler spy instead of caplog: caplog loses records under
+    pytest-xdist (-n auto --dist load), causing intermittent CI failures
+    that never reproduce in isolation."""
     reader = AsyncMock()
     writer = make_writer()
     reader.readexactly = AsyncMock(side_effect=[*reconnect_preamble(proto=1)])
 
-    with patch("asyncio.open_connection", return_value=(reader, writer)):
-        bridge = UnityBridge("127.0.0.1", 9999, expected_project_path="/some/project")
-        with patch.object(bridge, "_verify_candidate_project", new=AsyncMock()):
-            with caplog.at_level(logging.WARNING, logger="unity_mcp.bridge"):
+    records: list[logging.LogRecord] = []
+    handler = logging.Handler()
+    handler.emit = records.append
+    handler.setLevel(logging.DEBUG)
+    log = logging.getLogger("unity_mcp.bridge")
+    prev_level, prev_disabled = log.level, log.disabled
+    log.setLevel(logging.WARNING)
+    log.disabled = False
+    log.addHandler(handler)
+    try:
+        with patch("asyncio.open_connection", return_value=(reader, writer)):
+            bridge = UnityBridge("127.0.0.1", 9999, expected_project_path="/some/project")
+            with patch.object(bridge, "_verify_candidate_project", new=AsyncMock()):
                 await bridge.connect()
+    finally:
+        log.removeHandler(handler)
+        log.setLevel(prev_level)
+        log.disabled = prev_disabled
 
     assert bridge.connected
-    assert any("outdated" in r.message.lower() for r in caplog.records)
+    assert any("outdated" in r.getMessage().lower() for r in records), f"Expected warning, got {[r.getMessage() for r in records]}"
 
 
 async def test_initial_connect_succeeds_when_hello_unanswered():
