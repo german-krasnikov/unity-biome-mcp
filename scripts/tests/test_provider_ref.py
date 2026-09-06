@@ -155,3 +155,13 @@ def test_resolve_provider_ref_missing_pin_field_raises(tmp_path, missing):
 
     with pytest.raises(pr.ProviderRefError):
         pr.resolve_provider_ref(pin_path, tmp_path / "resolved.json")
+
+
+# ---------------------------------------------------------------------------
+# SHA_RE — public so create_unity_test_worker.py can reuse it (A3) rather
+# than duplicating the 40-hex regex.
+# ---------------------------------------------------------------------------
+
+def test_sha_re_is_exported_for_reuse_by_other_modules():
+    assert pr.SHA_RE.fullmatch(SHA)
+    assert not pr.SHA_RE.fullmatch("not-a-sha")

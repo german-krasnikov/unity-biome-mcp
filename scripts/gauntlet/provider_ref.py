@@ -19,7 +19,7 @@ from pathlib import Path
 
 GIT_LS_REMOTE_TIMEOUT_SECONDS = 30
 SHA_HEX_LENGTH = 40
-_SHA_RE = re.compile(rf"[0-9a-f]{{{SHA_HEX_LENGTH}}}")
+SHA_RE = re.compile(rf"[0-9a-f]{{{SHA_HEX_LENGTH}}}")
 REQUIRED_PIN_FIELDS = ("package_name", "git_url", "ref")
 
 
@@ -61,7 +61,7 @@ def _ls_remote_sha(git_url: str, ref: str) -> str:
             f"git ls-remote for {ref!r} at {url} returned {len(lines)} match(es), expected exactly 1: {lines}"
         )
     fields = lines[0].split()
-    if len(fields) < 2 or not _SHA_RE.fullmatch(fields[0]):
+    if len(fields) < 2 or not SHA_RE.fullmatch(fields[0]):
         raise ProviderRefError(f"git ls-remote for {ref!r} at {url} returned malformed output: {lines[0]!r}")
     return fields[0]
 
@@ -72,7 +72,7 @@ def resolve_provider_ref(pin_path: Path, out_path: Path) -> dict[str, object]:
     already a 40-hex SHA."""
     pin = _load_pin(pin_path)
     ref = str(pin["ref"])
-    if _SHA_RE.fullmatch(ref):
+    if SHA_RE.fullmatch(ref):
         resolved = {**pin, "requested_ref": ref, "resolved_by": "passthrough"}
     else:
         sha = _ls_remote_sha(str(pin["git_url"]), ref)
@@ -96,4 +96,4 @@ if __name__ == "__main__":
     main()
 
 
-__all__ = ["ProviderRefError", "resolve_provider_ref"]
+__all__ = ["SHA_RE", "ProviderRefError", "resolve_provider_ref"]

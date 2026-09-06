@@ -10,7 +10,9 @@ import subprocess
 from collections.abc import Mapping  # noqa: TC003
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import NamedTuple
 
+from gauntlet.provider_ref import SHA_RE
 from gauntlet.worker_artifacts import WorkerArtifactError, install_worker_artifacts
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -62,10 +64,66 @@ def _hash_tree(root: Path) -> str:
     return digest.hexdigest()
 
 
-def _load_source_patch_pin(pin_path: Path) -> dict[str, str]:
+def _resolve_pin_ref(
+    payload: dict[str, object], pin_path: Path, resolved_pin_path: Path | None
+) -> tuple[str, str]:
+    """Return (effective_ref, requested_ref) for a loaded pin payload.
+
+    `effective_ref` is always a 40-hex SHA. For an already-resolved SHA pin
+    (`ref_kind` absent/"sha" and `ref` already 40-hex), `requested_ref`
+    equals `effective_ref` (nothing to resolve). For a floating pin
+    (`ref_kind == "branch"`, or any non-SHA-shaped `ref`), a resolved pin
+    produced by `gauntlet.provider_ref.resolve_provider_ref` is required —
+    fail closed rather than install an unresolved branch name or a stale
+    resolution for a different ref. See Plans/MUTATION-REGRESSION-MODULE.md
+    §3/§6."""
+    ref = str(payload["ref"])
+    ref_kind = payload.get("ref_kind")
+    if ref_kind != "branch" and SHA_RE.fullmatch(ref):
+        return ref, ref
+    if resolved_pin_path is None:
+        raise WorkerCreationError(
+            f"Source Patch provider pin {pin_path} pins a floating ref {ref!r} "
+            f"(ref_kind={ref_kind!r}); pass a resolved pin (see "
+            "--source-patch-provider-resolved / "
+            "gauntlet.provider_ref.resolve_provider_ref)"
+        )
+    resolved = json.loads(resolved_pin_path.read_text(encoding="utf-8"))
+    if resolved.get("requested_ref") != ref:
+        raise WorkerCreationError(
+            f"Resolved pin {resolved_pin_path} was resolved for ref "
+            f"{resolved.get('requested_ref')!r}, expected {ref!r}"
+        )
+    resolved_ref = str(resolved.get("ref", ""))
+    if not SHA_RE.fullmatch(resolved_ref):
+        raise WorkerCreationError(
+            f"Resolved pin {resolved_pin_path} ref {resolved_ref!r} is not a 40-hex SHA"
+        )
+    return resolved_ref, ref
+
+
+class SourcePatchPin(NamedTuple):
+    """Result of loading + resolving a Source Patch provider pin in one
+    pass -- both the manifest dependency entry and the resolved/requested
+    ref a caller needs for the disposable-worker marker, so a caller never
+    has to re-read the pin file or call `_resolve_pin_ref` a second time."""
+
+    dependency: dict[str, str]
+    ref: str
+    requested_ref: str
+
+
+def _load_source_patch_pin(
+    pin_path: Path, resolved_pin_path: Path | None = None
+) -> SourcePatchPin:
     """Read a tracked Source Patch provider pin (e.g. scripts/
-    source_patch_provider_pin.json) and return the one manifest dependency
-    entry it describes: {package_name: "git_url#ref"}.
+    source_patch_provider_pin.json) and resolve it in one pass: the one
+    manifest dependency entry it describes ({package_name: "git_url#ref"})
+    plus the resolved/requested ref.
+
+    When the pin floats on a branch, `resolved_pin_path` (a resolved-pin.json
+    from `gauntlet.provider_ref.resolve_provider_ref`) is required; see
+    `_resolve_pin_ref`.
 
     Disposable-worker/matrix-lock input only (§6 P0-70) — never merged into
     the tracked unity-test-project/Packages/manifest.json by default; a
@@ -78,7 +136,9 @@ def _load_source_patch_pin(pin_path: Path) -> dict[str, str]:
         raise WorkerCreationError(
             f"Source Patch provider pin {pin_path} missing field(s): {', '.join(missing)}"
         )
-    return {payload["package_name"]: f"{payload['git_url']}#{payload['ref']}"}
+    effective_ref, requested_ref = _resolve_pin_ref(payload, pin_path, resolved_pin_path)
+    dependency = {payload["package_name"]: f"{payload['git_url']}#{effective_ref}"}
+    return SourcePatchPin(dependency=dependency, ref=effective_ref, requested_ref=requested_ref)
 
 
 def _validate_source(source: Path) -> None:
@@ -108,7 +168,7 @@ def rewrite_manifest_pin(destination: Path, pin: Path, *, install: bool) -> None
     create_worker(..., source_patch_provider_pin=...), which only pins at
     creation time. Never touches a non-disposable project; this function
     only ever writes destination/Packages/manifest.json."""
-    dependency = _load_source_patch_pin(pin)
+    dependency = _load_source_patch_pin(pin).dependency
     package_name = next(iter(dependency))
     manifest_path = destination / "Packages" / "manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -223,6 +283,7 @@ def create_worker(
     artifact_manifest: Path | None = None,
     artifact_root: Path | None = None,
     source_patch_provider_pin: Path | None = None,
+    source_patch_provider_resolved: Path | None = None,
     target_unity_version: str | None = None,
     target_unity_revision: str | None = None,
 ) -> dict[str, object]:
@@ -256,13 +317,15 @@ def create_worker(
             artifact_root,
         )
         if source_patch_provider_pin is not None:
-            pin_dependency = _load_source_patch_pin(source_patch_provider_pin)
-            package_dependencies = {**package_dependencies, **pin_dependency}
-            pin_payload = json.loads(source_patch_provider_pin.read_text(encoding="utf-8"))
+            pin_result = _load_source_patch_pin(
+                source_patch_provider_pin, source_patch_provider_resolved
+            )
+            package_dependencies = {**package_dependencies, **pin_result.dependency}
             package_marker = {
                 **package_marker,
-                "source_patch_provider_package": pin_payload["package_name"],
-                "source_patch_provider_ref": pin_payload["ref"],
+                "source_patch_provider_package": next(iter(pin_result.dependency)),
+                "source_patch_provider_ref": pin_result.ref,
+                "source_patch_provider_requested_ref": pin_result.requested_ref,
                 "source_patch_provider_pin_sha256": hashlib.sha256(
                     source_patch_provider_pin.read_bytes()
                 ).hexdigest(),
@@ -315,6 +378,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--artifact-manifest", type=Path)
     parser.add_argument("--artifact-root", type=Path)
     parser.add_argument("--source-patch-provider-pin", type=Path)
+    parser.add_argument("--source-patch-provider-resolved", type=Path)
     parser.add_argument("--target-unity-version", type=str)
     parser.add_argument("--target-unity-revision", type=str)
     parser.add_argument("--unity", type=Path, default=DEFAULT_UNITY)
@@ -331,6 +395,7 @@ def main() -> int:
             artifact_manifest=args.artifact_manifest,
             artifact_root=args.artifact_root,
             source_patch_provider_pin=args.source_patch_provider_pin,
+            source_patch_provider_resolved=args.source_patch_provider_resolved,
             target_unity_version=args.target_unity_version,
             target_unity_revision=args.target_unity_revision,
         )

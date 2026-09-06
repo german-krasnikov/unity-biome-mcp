@@ -33,8 +33,23 @@ sys.path.insert(0, str(TESTS))
 import create_unity_test_worker as worker
 from test_create_unity_test_worker import source_project
 
-PIN_PATH = SCRIPTS / "source_patch_provider_pin.json"
 EXPECTED_PACKAGE = "com.handzlikchris.fastscriptreload"
+
+
+def _sha_pin(tmp_path: Path) -> Path:
+    """A resolved (SHA-ref) pin for exercising rewrite_manifest_pin's own
+    mechanics -- install/remove/stale-lock -- independent of whether the
+    tracked pin floats on a branch (A3: source_patch_provider_pin.json now
+    pins `ref: "master"`, which requires a resolved pin to load)."""
+    payload = {
+        "schema_version": 1,
+        "package_name": EXPECTED_PACKAGE,
+        "git_url": "https://example.invalid/fork.git?path=/Assets",
+        "ref": "a" * 40,
+    }
+    path = tmp_path / "pin.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
 
 
 def _worker_dir(tmp_path: Path) -> Path:
@@ -56,8 +71,9 @@ def _worker_dir(tmp_path: Path) -> Path:
 
 def test_rewrite_manifest_pin_install_true_adds_pinned_dependency(tmp_path: Path):
     destination = _worker_dir(tmp_path)
+    pin = _sha_pin(tmp_path)
 
-    worker.rewrite_manifest_pin(destination, PIN_PATH, install=True)
+    worker.rewrite_manifest_pin(destination, pin, install=True)
 
     manifest = json.loads((destination / "Packages" / "manifest.json").read_text(encoding="utf-8"))
     assert EXPECTED_PACKAGE in manifest["dependencies"]
@@ -66,17 +82,19 @@ def test_rewrite_manifest_pin_install_true_adds_pinned_dependency(tmp_path: Path
 
 def test_rewrite_manifest_pin_install_true_drops_stale_lock(tmp_path: Path):
     destination = _worker_dir(tmp_path)
+    pin = _sha_pin(tmp_path)
 
-    worker.rewrite_manifest_pin(destination, PIN_PATH, install=True)
+    worker.rewrite_manifest_pin(destination, pin, install=True)
 
     assert not (destination / "Packages" / "packages-lock.json").exists()
 
 
 def test_rewrite_manifest_pin_install_false_removes_dependency(tmp_path: Path):
     destination = _worker_dir(tmp_path)
-    worker.rewrite_manifest_pin(destination, PIN_PATH, install=True)
+    pin = _sha_pin(tmp_path)
+    worker.rewrite_manifest_pin(destination, pin, install=True)
 
-    worker.rewrite_manifest_pin(destination, PIN_PATH, install=False)
+    worker.rewrite_manifest_pin(destination, pin, install=False)
 
     manifest = json.loads((destination / "Packages" / "manifest.json").read_text(encoding="utf-8"))
     assert EXPECTED_PACKAGE not in manifest["dependencies"]
@@ -85,8 +103,9 @@ def test_rewrite_manifest_pin_install_false_removes_dependency(tmp_path: Path):
 
 def test_rewrite_manifest_pin_install_false_is_idempotent_when_absent(tmp_path: Path):
     destination = _worker_dir(tmp_path)
+    pin = _sha_pin(tmp_path)
 
-    worker.rewrite_manifest_pin(destination, PIN_PATH, install=False)  # must not raise
+    worker.rewrite_manifest_pin(destination, pin, install=False)  # must not raise
 
     manifest = json.loads((destination / "Packages" / "manifest.json").read_text(encoding="utf-8"))
     assert EXPECTED_PACKAGE not in manifest["dependencies"]
