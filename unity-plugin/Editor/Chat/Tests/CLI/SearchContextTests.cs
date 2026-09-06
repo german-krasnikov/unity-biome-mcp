@@ -6,8 +6,9 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Tests; // SceneTestBase (PR-05 05.5: moved out of UnityMCP.Editor.Tests)
 
-namespace UnityMCP.Editor.Tests
+namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
     public class SearchContextTests : SceneTestBase

@@ -21,5 +21,18 @@ namespace UnityMCP.Editor.Tests
         {
             Assert.DoesNotThrow(() => ChatBackendProbe.IsChatBackendRunning());
         }
+
+        [Test]
+        public void IsChatBackendRunning_ProviderRegistered_ReturnsProviderValue()
+        {
+            // Discriminates "correctly false" from "permanently broken" (PR-05 Finding 1):
+            // this must go green only once ChatBackendProbe delegates to an owned provider
+            // instead of a dead Type.GetType("...UnityMCP.Editor.Chat") reflection lookup.
+            var previous = ChatBackendProbe.RunningProvider;
+            RegisterCleanup(() => ChatBackendProbe.RunningProvider = previous);
+            ChatBackendProbe.RunningProvider = () => true;
+
+            Assert.IsTrue(ChatBackendProbe.IsChatBackendRunning());
+        }
     }
 }

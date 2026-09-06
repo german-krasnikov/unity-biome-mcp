@@ -151,6 +151,11 @@ namespace UnityMCP.Editor.Chat
             // P0-A: persist transcript so window close/reopen restores history (not just domain reload)
             SessionState.SetString(PrefKeys.ChatTranscript, _transcript?.SerializeForReload() ?? "");
             CommandRouter.OnAskUser -= OnMcpAskUser;
+            // PR-05 05.2 (Finding 2, symmetric gap): cancel exactly the asks this window itself
+            // registered — otherwise the caller waits the full 300s timeout even though the
+            // only provider that could ever answer just went away.
+            foreach (var reqId in _pendingAskRequestIds) PendingAskRegistry.Cancel(reqId);
+            _pendingAskRequestIds.Clear();
             EditorApplication.hierarchyChanged -= RefreshResolver;
             AssemblyReloadEvents.beforeAssemblyReload -= SaveStateBeforeReload;
             RelaySpawner.OnAfterReloadResume -= TryResumePendingTurn;

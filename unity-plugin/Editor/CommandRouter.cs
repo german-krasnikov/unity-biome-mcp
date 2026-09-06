@@ -242,7 +242,7 @@ namespace UnityMCP.Editor
             catch (Exception e)
             {
                 var cls = ErrorClassifier.Classify(e);
-                if (cls == "VALIDATION")
+                if (cls == "VALIDATION" || cls == "UNAVAILABLE")
                     Debug.LogWarning($"{BiomeLabel.Tag} {ErrorClassifier.FormatError(e)}");
                 else
                     Debug.LogError($"{BiomeLabel.Tag} Command failed: {ErrorClassifier.FormatError(e)}");
@@ -285,7 +285,7 @@ namespace UnityMCP.Editor
             catch (Exception e)
             {
                 var cls = ErrorClassifier.Classify(e);
-                if (cls == "VALIDATION")
+                if (cls == "VALIDATION" || cls == "UNAVAILABLE")
                     Debug.LogWarning($"{BiomeLabel.Tag} {ErrorClassifier.FormatError(e)}");
                 else
                     Debug.LogError($"{BiomeLabel.Tag} Command failed: {ErrorClassifier.FormatError(e)}");
@@ -690,9 +690,17 @@ namespace UnityMCP.Editor
 
         private static void AsyncAskUser(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var questionsJson = JsonHelper.ExtractString(argsJson, "questions") ?? "[]";
+            // Finding 2 (PR-05 05.2): fail fast, BEFORE creating a PendingAskRegistry entry —
+            // nobody can ever answer a question with no subscriber, so don't make the caller
+            // wait out the 300s client timeout to learn that.
             if (OnAskUser == null)
+            {
                 Debug.LogWarning($"{BiomeLabel.Tag} ask_user: no listener — is chat window open?");
+                tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null,
+                    "ask_user unavailable: no interaction provider registered (Chat window not open)"));
+                return;
+            }
+            var questionsJson = JsonHelper.ExtractString(argsJson, "questions") ?? "[]";
             // PendingAskRegistry.Ask never returns "Error:"/"err:" strings (cancelled → {"cancelled":true}),
             // but the predicate is safe and consistent with test_step/move_to.
             CompleteFromInner(id, PendingAskRegistry.Ask(questionsJson, OnAskUser), tcs, "ask_user",

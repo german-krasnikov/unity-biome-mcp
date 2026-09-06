@@ -17,17 +17,18 @@ namespace UnityMCP.Editor
                 e = tie.InnerException;
             return e switch
             {
-                StaleCacheException       => "STALE_CACHE",  // must precede InvalidOperationException
-                ArgumentNullException     => "VALIDATION",
-                ArgumentException         => "VALIDATION",
-                KeyNotFoundException      => "NOT_FOUND",
-                FileNotFoundException     => "NOT_FOUND",
-                IOException               => "INTERNAL",
-                InvalidOperationException => "STATE",
-                TimeoutException          => "TIMEOUT",
-                MissingReferenceException => "NULL_REF",
-                NullReferenceException    => "NULL_REF",
-                _                         => "INTERNAL"
+                StaleCacheException          => "STALE_CACHE",  // must precede InvalidOperationException
+                ProviderUnavailableException => "UNAVAILABLE",  // must precede InvalidOperationException
+                ArgumentNullException        => "VALIDATION",
+                ArgumentException            => "VALIDATION",
+                KeyNotFoundException         => "NOT_FOUND",
+                FileNotFoundException        => "NOT_FOUND",
+                IOException                  => "INTERNAL",
+                InvalidOperationException    => "STATE",
+                TimeoutException             => "TIMEOUT",
+                MissingReferenceException    => "NULL_REF",
+                NullReferenceException       => "NULL_REF",
+                _                            => "INTERNAL"
             };
         }
 
@@ -46,5 +47,16 @@ namespace UnityMCP.Editor
     internal class StaleCacheException : InvalidOperationException
     {
         public StaleCacheException(string message) : base(message) { }
+    }
+
+    /// <summary>
+    /// Thrown when a capability's sole implementing provider (e.g. Chat.CLI's
+    /// SearchContextProvider) was never registered — an expected condition, not an internal
+    /// error, so it must log a warning (not an error) and never be conflated with a generic
+    /// InvalidOperationException (PR-05 05.3, Finding 3).
+    /// </summary>
+    internal sealed class ProviderUnavailableException : InvalidOperationException
+    {
+        public ProviderUnavailableException(string message) : base(message) { }
     }
 }

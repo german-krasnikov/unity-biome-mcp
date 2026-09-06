@@ -1,4 +1,5 @@
 // Event and tool-record handlers — partial of MCPChatWindow.
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine.UIElements;
 using UnityMCP.Editor;
@@ -8,6 +9,10 @@ namespace UnityMCP.Editor.Chat
     public partial class MCPChatWindow
     {
         private bool _askPending;
+        // PR-05 05.2 (Finding 2, symmetric gap): requestIds this window itself registered in
+        // PendingAskRegistry via OnMcpAskUser. OnDisable cancels exactly these — not the whole
+        // registry — so an ask owned by another provider is never touched.
+        private readonly HashSet<string> _pendingAskRequestIds = new HashSet<string>();
 
         private void HandleEvent(ChatEvent ev)
         {
@@ -169,11 +174,13 @@ namespace UnityMCP.Editor.Chat
 
         private void OnMcpAskUser(string requestId, string rawQuestionsJson)
         {
+            _pendingAskRequestIds.Add(requestId);
             _askPending = true;
             OnActivityChanged();
             var rawJson = "{\"questions\":" + rawQuestionsJson + "}";
             var card = new AskUserCard(requestId, rawJson,
                 responseJson => {
+                    _pendingAskRequestIds.Remove(requestId);
                     _askPending = false;
                     OnActivityChanged();
                     PendingAskRegistry.Complete(requestId, responseJson);

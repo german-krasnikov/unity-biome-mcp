@@ -46,6 +46,15 @@ def _make_reader(type_prefix: str, name: str) -> Callable:
 
 
 async def refresh_dynamic() -> None:
+    """Refresh dynamic biome:// resources from Unity's search_context command.
+
+    search_context is implemented entirely by Chat.CLI's SearchContextProvider
+    (mention indices built for the chat composer); Core has no fallback. When Chat.CLI is
+    not loaded, Unity's command layer returns an `err:...` string (not a raised exception),
+    which _parse_search_context finds no tab-separated triples in, so new_uris stays empty
+    and this function registers zero dynamic resources. That is the intended degraded
+    behavior for a Chat-absent install, not a bug — see PR-05 Finding 3.
+    """
     global _dynamic_uris, _cache_ts
     if _mcp is None or _send is None:
         return

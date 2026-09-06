@@ -56,19 +56,11 @@ namespace UnityMCP.Editor
             catch { }
         }
 
-        public static bool IsChatBinaryAvailable()
-        {
-            try
-            {
-                var t = System.Type.GetType("UnityMCP.Editor.Chat.ChatBinaryResolver, UnityMCP.Editor.Chat");
-                if (t == null) return false;
-                var method = t.GetMethod("Resolve",
-                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic,
-                    null, new[] { typeof(bool) }, null);
-                return method?.Invoke(null, new object[] { false }) as string != null;
-            }
-            catch { return false; }
-        }
+        // Owned status probe: Chat.CLI wires this via [InitializeOnLoad] (ChatBinaryResolver's
+        // static ctor) on every domain reload. Absent Chat.CLI => provider stays null => false,
+        // same fallback as the reflection lookup this replaces (PR-05 Finding 1).
+        internal static Func<bool> IsChatBinaryAvailableProvider { get; set; }
 
+        public static bool IsChatBinaryAvailable() => IsChatBinaryAvailableProvider?.Invoke() ?? false;
     }
 }

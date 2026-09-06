@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor;
-using UnityMCP.Editor.Chat;
 
 namespace UnityMCP.Editor.Tests
 {

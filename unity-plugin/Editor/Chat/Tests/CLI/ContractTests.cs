@@ -2,7 +2,7 @@
 // These tests are pure constant checks — no scene setup, no mocks needed.
 using NUnit.Framework;
 
-namespace UnityMCP.Editor.Tests
+namespace UnityMCP.Editor.Chat.Tests
 {
     [TestFixture]
     internal class ContractTests : UnityMCP.Editor.Testing.UnityMcpTestBase

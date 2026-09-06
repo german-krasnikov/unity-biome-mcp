@@ -206,6 +206,19 @@ async def test_refresh_skips_if_disconnected_response():
     assert r._dynamic_uris == prev
 
 
+async def test_refresh_dynamic_handles_missing_search_context_provider_gracefully():
+    """PR-05 05.3, Finding 3: Chat.CLI absent -> search_context returns an `err:` string
+    (not a transport exception), which carries no tab-separated triples. Locks in that
+    refresh_dynamic() must not raise and must simply register zero dynamic resources —
+    by design, not a bug — rather than crash or retain stale entries."""
+    r = _setup_dynamic(AsyncMock(
+        return_value="err:search_context unavailable: no interaction provider installed "
+                     "(Chat.CLI not loaded)"))
+    await r.refresh_dynamic()
+    assert r._dynamic_uris == set()
+    assert r._mcp._resource_manager._resources == {}
+
+
 async def test_refresh_skips_if_lock_held():
     r = _setup_dynamic(AsyncMock(return_value="go\t/Root/Player\tPlayer"))
     await r._refresh_lock.acquire()

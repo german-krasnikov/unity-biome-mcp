@@ -175,7 +175,8 @@ namespace UnityMCP.Editor
         public static string SearchContext(string query = "", int limit = 30, string types = null)
         {
             if (SearchContextProvider == null)
-                throw new InvalidOperationException("SearchContextProvider not initialized (Chat.CLI not loaded)");
+                throw new ProviderUnavailableException(
+                    "search_context unavailable: no interaction provider installed (Chat.CLI not loaded)");
             return SearchContextProvider(query, limit, types);
         }
 

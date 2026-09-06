@@ -56,6 +56,19 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void IsChatBinaryAvailable_ProviderRegistered_ReturnsProviderValue()
+        {
+            // Discriminates "correctly false" from "permanently broken" (PR-05 Finding 1):
+            // this must go green only once IsChatBinaryAvailable delegates to an owned
+            // provider instead of a dead Type.GetType("...UnityMCP.Editor.Chat") lookup.
+            var previous = ChatSettingsHook.IsChatBinaryAvailableProvider;
+            RegisterCleanup(() => ChatSettingsHook.IsChatBinaryAvailableProvider = previous);
+            ChatSettingsHook.IsChatBinaryAvailableProvider = () => true;
+
+            Assert.IsTrue(ChatSettingsHook.IsChatBinaryAvailable());
+        }
+
+        [Test]
         public void PreserveConnectionEventForTests_RestoresExactInvocationList()
         {
             var originalCalls = 0;
