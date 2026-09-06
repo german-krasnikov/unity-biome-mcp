@@ -1,0 +1,178 @@
+name: Mutation Regression
+
+# Ongoing regression lane for the Source Patch (FastScriptReload) provider
+# integration. Supersedes fsr-qualification.yml (see that workflow's header
+# and Plans/MUTATION-REGRESSION-MODULE.md "Legacy fsr-qualification.yml
+# Fate"): the provider pin now floats on `master` (scripts/source_patch_
+# provider_pin.json), so this lane resolves it to one exact SHA per run
+# (`resolve` job) and re-proves the whole scenario against current product
+# code on a weekly cadence, rather than gating on a frozen base_product_sha.
+#
+# Never runs on push -- workflow_dispatch for manual runs, weekly schedule
+# for drift detection against the floating provider pin.
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 4 * * 1'  # weekly Monday 4AM UTC
+
+concurrency:
+  group: mutation-regression-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Resolve provider pin
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Resolve the floating provider ref to an exact SHA
+        shell: bash
+        run: |
+          python3 scripts/gauntlet/provider_ref.py \
+            --pin scripts/source_patch_provider_pin.json \
+            --out resolved-pin.json
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: resolved-pin
+          path: resolved-pin.json
+          retention-days: 30
+
+  cell:
+    name: "${{ matrix.cell }}"
+    needs: [resolve]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - cell: min-macos-arm64
+            runner: macos-15
+            hub-version: ''
+          - cell: min-linux-x64
+            runner: ubuntu-24.04
+            # pin: 3.20.0 regresses /opt/unityhub/unityhub path on Linux
+            # (issue #57) -- same pin already proven by unity-tests.yml /
+            # unity-compat.yml / ci-conformance.yml / fsr-qualification.yml.
+            hub-version: '3.19.5'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.14'
+
+      - name: Resolve the frozen u_min Unity version from the FSR lock
+        id: cell-version
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          lock = json.load(open("scripts/fsr_qualification_lock.json"))
+          entry = lock["cells"]["u_min"]
+          print(f"unity_version={entry['unity_version']} ({entry['unity_revision']})")
+          PY
+
+      - name: Start owned Xvfb (Linux only -- direct GUI supervisor needs a display)
+        if: runner.os == 'Linux'
+        id: xvfb
+        shell: bash
+        run: |
+          Xvfb :99 -screen 0 1280x1024x24 &
+          echo "xvfb_pid=$!" >> "$GITHUB_OUTPUT"
+          echo "DISPLAY=:99" >> "$GITHUB_ENV"
+          sleep 2
+
+      - name: Install server with dev deps
+        shell: bash
+        run: pip install -e "server[dev]"
+
+      - name: Set UPM cache path
+        id: upm-path
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            echo "path=$HOME/Library/Caches/Unity/upm" >> "$GITHUB_OUTPUT"
+          else
+            echo "path=$HOME/.cache/Unity/upm" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cache UPM packages
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
+        with:
+          path: ${{ steps.upm-path.outputs.path }}
+          key: mutation-regression-upm-${{ matrix.cell }}-${{ hashFiles('scripts/fsr_qualification_lock.json') }}
+          restore-keys: |
+            mutation-regression-upm-${{ matrix.cell }}-
+
+      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
+        id: unity-setup
+        timeout-minutes: 40
+        with:
+          unity-version: ${{ steps.cell-version.outputs.unity_version }}
+          cache-installation: true
+          hub-version: ${{ matrix.hub-version }}
+
+      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
+        id: license
+        with:
+          license: 'Personal'
+          username: ${{ secrets.UNITY_EMAIL }}
+          password: ${{ secrets.UNITY_PASSWORD }}
+
+      - name: Download the resolved provider pin
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: resolved-pin
+
+      - name: Run mutation regression cell
+        shell: bash
+        run: |
+          python3 scripts/run_mutation_regression_cell.py \
+            --mode full \
+            --worker-dir "$RUNNER_TEMP/mutation-worker" \
+            --port 9610 \
+            --provider-resolved resolved-pin.json \
+            --receipt "$RUNNER_TEMP/receipt.json" \
+            --unity "${{ steps.unity-setup.outputs.unity-editor-path }}"
+
+      - name: Stop owned Xvfb
+        if: always() && runner.os == 'Linux' && steps.xvfb.outputs.xvfb_pid != ''
+        shell: bash
+        run: kill "${{ steps.xvfb.outputs.xvfb_pid }}" || true
+
+      - name: Upload cell receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: mutation-regression-${{ matrix.cell }}
+          path: ${{ runner.temp }}/receipt.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  aggregate:
+    name: Aggregate (2/2 required-pass)
+    needs: [cell]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          pattern: mutation-regression-*
+          path: receipts
+
+      - name: Validate mutation regression receipts
+        shell: bash
+        run: |
+          python3 scripts/validate_mutation_regression_receipts.py \
+            --receipts-root receipts \
+            --pin scripts/source_patch_provider_pin.json

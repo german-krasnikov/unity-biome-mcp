@@ -1,5 +1,13 @@
 name: FSR Qualification Matrix
 
+# SUPERSEDED by mutation-regression.yml (2026-09-07). The base_product_sha
+# lock (7875430f) no longer matches the tree after Reload commit 61b0fdea,
+# so the aggregate's assert_base_sha_untouched guard can never PASS again on
+# a post-Reload commit. mutation-regression.yml replaces this workflow with
+# an ongoing regression lane against a floating provider pin. This workflow
+# is retained for historical reference only -- do not re-lock or re-run.
+# See Plans/MUTATION-REGRESSION-MODULE.md "Legacy fsr-qualification.yml Fate".
+#
 # P1-20: frozen compatibility matrix, narrowed after run 5 (coordinator
 # decision, see scripts/fsr_qualification_lock.json "qualified_windows"):
 # u_min (6000.0.65f1) on macOS/Linux is the qualifying pair; u_max
@@ -8,9 +16,10 @@ name: FSR Qualification Matrix
 # Windows stays in the matrix as a documented, non-blocking
 # INFRASTRUCTURE_BLOCKED limitation (window-station-for-headed-GUI gap in
 # the GH-hosted runner service context) — required to produce an honest
-# receipt, never required to PASS. Advisory only — workflow_dispatch (plus
-# a temporary path-scoped push trigger, see below), never required until a
-# second unchanged aggregate PASS promotes it. See
+# receipt, never required to PASS. Advisory only — workflow_dispatch only
+# (the former temporary path-scoped push trigger is gone, see the
+# SUPERSEDED note above), never required until a second unchanged
+# aggregate PASS promotes it. See
 # Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md §7 P1-20.
 #
 # Existing unity-tests.yml/unity-compat.yml/ci-conformance.yml batchmode
@@ -20,18 +29,6 @@ name: FSR Qualification Matrix
 # requirement.
 on:
   workflow_dispatch: {}
-  # temporary trigger: workflow_dispatch requires the file on the default
-  # branch; remove the push trigger (or land on default) after the first
-  # recorded aggregate PASS.
-  push:
-    branches: [feature/mutation-fsr-mvp]
-    paths:
-      - '.github/workflows/fsr-qualification.yml'
-      - 'scripts/fsr_qualification_lock.json'
-      - 'scripts/run_fsr_qualification_cell.py'
-      - 'scripts/gauntlet/fsr_qualification.py'
-      - 'scripts/gauntlet/fsr_qualification_fixture.py'
-      - 'scripts/fixtures/fsr_qualification/**'
 
 concurrency:
   group: fsr-qualification-${{ github.ref }}
