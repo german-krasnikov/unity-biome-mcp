@@ -404,3 +404,83 @@ jobs:
           git commit -m "chore: update C# test results [skip ci]"
           git pull --rebase -X theirs origin master
           git push
+
+  coverage-hotspots:
+    name: Coverage Hotspots
+    # Report-only (plan :1169/:1178) -- never added to required checks.
+    if: always() && !cancelled()
+    needs: [test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # git_changed_lines needs the PR base ref's tree available locally.
+          fetch-depth: 0
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - name: Download coverage data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: coverage-data-Linux
+          path: coverage/
+        continue-on-error: true
+
+      - name: Resolve base ref
+        id: base-ref
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "ref=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=HEAD~1" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate coverage hotspots report
+        shell: bash
+        run: |
+          files=()
+          while IFS= read -r -d '' f; do files+=("$f"); done < <(find coverage -name '*.xml' -type f -print0 2>/dev/null)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::warning::no OpenCover XML found in coverage-data-Linux artifact -- skipping hotspot report"
+            exit 0
+          fi
+          mkdir -p reports
+          python scripts/coverage_hotspots.py \
+            --opencover "${files[@]}" \
+            --base-ref "${{ steps.base-ref.outputs.ref }}" \
+            --scenario-map scripts/fixtures/coverage_scenario_map.txt \
+            --source-sha "${{ github.sha }}" \
+            --lane Linux \
+            --unity-version 6000.0.65f1 \
+            --out-md reports/coverage-hotspots.md \
+            --out-json reports/coverage-hotspots.json
+        continue-on-error: true
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request' && hashFiles('reports/coverage-hotspots.md') != ''
+        uses: peter-evans/create-or-update-comment@e8674b075228eee787fea43ef493e45ece1004c9  # v5.0.0
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: reports/coverage-hotspots.md
+          comment-tag: coverage-hotspots-report
+
+      - name: Commit coverage hotspots (push to master)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && hashFiles('reports/coverage-hotspots.md') != ''
+        run: |
+          mkdir -p docs/quality/data
+          cp reports/coverage-hotspots.md docs/quality/COVERAGE_HOTSPOTS.md
+          cp reports/coverage-hotspots.json docs/quality/data/coverage-hotspots.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/quality/COVERAGE_HOTSPOTS.md docs/quality/data/coverage-hotspots.json
+          git diff --staged --quiet && echo "No changes" && exit 0
+          git commit -m "chore: update coverage hotspots report [skip ci]"
+          git pull --rebase -X theirs origin master
+          git push
