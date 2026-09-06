@@ -309,9 +309,89 @@ the gating API. An uncategorized plugin tool is auto-enrolled through the legacy
 `plugins` compatibility category, which shares SYSTEM visibility; visibility
 still is not authorization.
 
+**Plugin Registration Atomicity (F3):** A plugin that throws during `register()`
+leaves zero callable commands, gating entries, or budget features. Python:
+`_atomic.py` snapshots and restores all registries (tools, READ/WRITE_CMDS,
+dsl_tools, gating, budget) on failure. C#: `PluginRegistry.CaptureForTest` /
+`RestoreForTest` per-plugin; `CommandRegistry.Register` throws on duplicate when
+`CallerIsPlugin=true`. `plugin_api` rejects core-name hijacking.
+
 C# plugins implement `IMCPPlugin`, register with `PluginRegistry`, and add
 commands through the public `CommandRegistry` overloads. A plugin assembly
 depends on the main Editor assembly, never the reverse.
+
+## Modular Command Registration (PR-04)
+
+Modules own their command metadata instead of centralizing it. Each module defines
+a `SPEC_KWARGS` dict merged into tool_specs at import time:
+
+```python
+# watch.py
+SPEC_KWARGS = {
+    'watch': ToolSpec(category='DEBUG', mutating=True, timeout=60, ...),
+}
+```
+
+Instance-scoped `_send` and `_args` injection prove modules don't cross-contaminate.
+C# `CommandRegistry.Entry` gains `MutatingArgsPolicy` delegate (for argument-aware
+read/write classification) and `NotBatchable` bool; hardcoded name-switches migrate
+to registration sites. Invariant: adding a command requires only the module's
+registration — no edits to central guard/batch/metadata lists. 36 policy-vector
+tests validate parity across 5 representative commands.
+
+## Reload Module Isolation (PR-04R)
+
+The Reload module's algorithm is swappable via composition seams:
+
+- `SyncHelper.IsMainAssemblyCompiling` is an injectable predicate (the identified
+  architectural seam) instead of a direct MCPServer check
+- `ISourcePatchReloadPort` interface lets `SourcePatchModePolicy.RequestDisable()`
+  delegate instead of calling `SyncHelper.TriggerSync` directly
+- Import-linter forbids diagnose/reload_ladder from importing sync.py
+- Source-scan confirms Reload-owner files have no Chat/SourcePatch/Scenario refs
+
+Invariant: Reload algorithm can be swapped (e.g., for a custom reconciler)
+without edits to core, transport, Chat, or SourcePatch code.
+
+## Chat Module Off State (PR-05)
+
+When Chat.CLI/Chat.View is absent or disabled:
+
+- `ChatBackendProbe` and `ChatSettingsHook` use owned delegate providers wired
+  via `[InitializeOnLoad]` instead of stale reflection probes
+- `ask_user` returns immediately with no 300-second hang
+- `search_context` throws `ProviderUnavailableException` (classified UNAVAILABLE,
+  logged as warning not error)
+- Nine Chat-dependent test files moved from base Editor.Tests to Chat.Tests.CLI/View;
+  base asmdef no longer references Chat
+
+Invariant: Chat Off/absent leaves MCP tools fully operational. No stale process,
+no pending-ask leak, no false-positive error log.
+
+## SourcePatch Module Off State (PR-06)
+
+When SourcePatch package is absent or disabled:
+
+- `SourcePatchHost.ForceUnreconciledForTests()` seam enables contract testing
+- Real lazy-reconciliation to Off confirmed by C# tests
+- Concurrent-sync epoch drift resolves to Recovery (not false-Off)
+- Python boundary scan locks `SyncHelper.TriggerSync` out of SourcePatch control
+  files except the sanctioned FSR adapter
+
+Invariant: SourcePatch Off leaves normal writes and domain reload unintercepted.
+Provider and algorithm swaps happen via composition without core changes.
+
+## Architectural Isolation (PR-02)
+
+Dependency boundaries are enforced by Import Linter contracts:
+
+- **Forbidden:** tools→server, tools→middleware, bridge→session, plugin_api→server
+- **Static checks:** Playtest.Core (`noEngineReferences`), SourcePatch (no
+  provider refs)
+- **CI gate:** CI validates architectural integrity on every build; violations
+  are caught mechanically, not by review
+
+Invariant: core architectural boundaries cannot be violated without CI failure.
 
 ## Maintenance Rules
 
@@ -343,7 +423,7 @@ Neutral SourcePatch asmdef (state machine, coordinator, no provider dependency)
 Optional FSR adapter (Roslyn body classifier, Harmony detour, exact-target loader)
 ```
 
-**State machine:** `Unavailable` (package absent) → `Off` (default) → `OnReady/Busy` (intent ON, provider ready) ↔ `Recovery` (failed write). One causal domain reload on `Disabling → Off`.
+**State machine:** `Unavailable` (package absent) → `Off` (default) → `OnReady/Busy` (intent ON, provider ready) ↔ `Recovery` (failed write). One causal domain reload on `Disabling → Off`. Lazy-reconciliation and epoch-drift behavior are contract-tested (PR-06) to prevent false-Off transitions and ensure boundary isolation from Reload control.
 
 **Limitations (release-tier):**
 - Body-only mutations only (existing sync non-generic methods in `Assets/`)
