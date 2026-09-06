@@ -351,6 +351,32 @@ def _is_playtest_pass_from_text(result: str) -> bool:
     return False
 
 
+def _classify_outcome(result: str, format: str | None = None) -> str:
+    """Classify a playtest result into pass/fail/error.
+
+    pass:  playtest ran, all assertions passed, teardown ok
+    fail:  playtest ran, one or more assertions genuinely failed
+    error: playtest could not run, or the receipt is uninterpretable
+           (empty, 0/0, malformed JSON, or a receipt that disagrees with itself)
+    """
+    if _is_playtest_pass(result, format):
+        return "pass"
+    if not result or "0/0" in result:
+        return "error"
+    if format == "json":
+        try:
+            receipt = json.loads(result)
+        except ValueError:
+            return "error"
+        steps = receipt.get("steps")
+        if not steps:
+            return "error"
+        failed_steps = sum(1 for step in steps if not step.get("ok"))
+        if receipt.get("failed", failed_steps) != failed_steps:
+            return "error"
+    return "fail"
+
+
 async def _setup_auto_play(restart_between: bool) -> tuple[bool, list]:
     """Enter Play Mode for a suite run. Returns (success, error_rows)."""
     try:
