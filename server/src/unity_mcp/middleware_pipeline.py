@@ -83,11 +83,10 @@ def _check_prefetch_and_circuit(cmd: str, args: dict, mw: Any) -> str | None:
 
     Returns an early-exit string, or None to continue the pipeline.
     """
-    if mw._prefetch_cache is not None and cmd in _READ_CACHEABLE:
-        if not mw._scenario_uncertain:  # N0a-2: bypass cache while a playtest may be mutating
-            pre_cached = mw._prefetch_cache.get(cmd, args)
-            if pre_cached is not None:
-                return _serve_cached_prefetch(pre_cached, mw)
+    if mw._prefetch_cache is not None and cmd in _READ_CACHEABLE and not mw._scenario_uncertain:
+        pre_cached = mw._prefetch_cache.get(cmd, args)
+        if pre_cached is not None:
+            return _serve_cached_prefetch(pre_cached, mw)
 
     if not mw.circuit.allow_request():
         secs = int(mw.circuit.remaining()) + 1
@@ -191,11 +190,10 @@ async def _pre_tcp_guards(
     args, resolve_marker = resolved
 
     # PrefetchCache: serve cached reads before TCP round-trip
-    if mw._prefetch_cache is not None and cmd in _READ_CACHEABLE:
-        if not mw._scenario_uncertain:  # N0a-2: bypass cache while a playtest may be mutating
-            pre_cached = mw._prefetch_cache.get(cmd, args)
-            if pre_cached is not None:
-                return _serve_cached_prefetch(pre_cached, mw)
+    if mw._prefetch_cache is not None and cmd in _READ_CACHEABLE and not mw._scenario_uncertain:
+        pre_cached = mw._prefetch_cache.get(cmd, args)
+        if pre_cached is not None:
+            return _serve_cached_prefetch(pre_cached, mw)
 
     return cmd, args, resolve_marker, inferred_tags
 
