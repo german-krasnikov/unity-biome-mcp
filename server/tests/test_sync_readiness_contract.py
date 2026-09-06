@@ -263,3 +263,33 @@ async def test_matching_ready_epoch_does_not_require_plugin_mvid_change(monkeypa
     assert await sync.sync_unity(timeout=0.5) == expected
     assert "diagnose" in calls
     assert calls.count("sync") == 1
+
+
+async def test_lost_ack_raises_uncertain_delivery_without_resend(monkeypatch):
+    """S8: sync's reply is lost after the frame is accepted -- bridge.send() raises
+    UncertainDeliveryError (not a bare ConnectionError, see bridge.py's unsafe_sent
+    branch); sync_unity() must surface that typed uncertainty and must not resend
+    sync or fall back to force_refresh. See Plans/MUTATION-REGRESSION-MODULE.md S8
+    and .../LIVE-QUALIFICATION.md ("Lost ACK": epoch 30->31, UncertainDeliveryError
+    in 1.687s, no second effect)."""
+    calls = {'sync': 0, 'force_refresh': 0}
+
+    async def send(cmd, args):
+        if cmd == 'sync_status':
+            return 'epoch=30|state=ready|stamp=old:1'
+        if cmd == 'sync':
+            calls['sync'] += 1
+            raise UncertainDeliveryError(cmd='sync', op_id='lost-ack-op', delivery='ACCEPTED')
+        if cmd == 'force_refresh':
+            calls['force_refresh'] += 1
+            return 'force_refresh triggered'
+        raise AssertionError(f'unexpected cmd: {cmd}')
+
+    monkeypatch.setattr(sync, '_send', send)
+    with pytest.raises(ToolError) as error:
+        await sync.sync_unity(timeout=5)
+    barrier = recovery_barrier(error.value)
+    assert isinstance(barrier, UncertainDeliveryError)
+    assert barrier.cmd == 'sync'
+    assert calls['sync'] == 1
+    assert calls['force_refresh'] == 0
