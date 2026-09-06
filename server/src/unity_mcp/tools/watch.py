@@ -67,7 +67,7 @@ async def watch(action: str, watch_id: str = "", path: str = "",
                 component: str = "", field: str = "", condition: str = "",
                 trigger_action: str = "log",
                 interval_ms: int = _DEFAULT_INTERVAL_MS) -> str:
-    """Compat shim — delegates to _default WatchModule instance."""
+    """[Play Mode] Manage watches. action: add|remove|clear|reset."""
     return await _default.watch(action, watch_id, path, component, field,
                                 condition, trigger_action, interval_ms)
 
