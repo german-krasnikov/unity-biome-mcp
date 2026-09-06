@@ -62,6 +62,14 @@ def diff_snapshot(before: dict, after: dict) -> str:
     return f"added={added} missing={missing} changed={changed}"
 
 
+def broken_target_body() -> bytes:
+    """Target(101) with the trailing semicolon dropped: one deterministic CS1002 ('; expected')."""
+    body = target_body(101)
+    needle = b"return 101;"
+    assert needle in body, "target_body(101) shape changed; update broken_target_body"
+    return body.replace(needle, b"return 101")
+
+
 def install_canary(project: Path) -> dict:
     """Write Target(101)+Probe sources+fresh metas into an owned uid8 dir.
 

@@ -7,11 +7,14 @@ typed exact-source import gave Csc/DLL/PDB and DSL 202).
 """
 import json
 import os
+import re
 
 import pytest
 from gauntlet.readiness_canary import OwnedFileEdit, render_dsl, target_body
 from gauntlet.readiness_dsl_sdk import qualify_receipt
 from mcp.server.fastmcp.exceptions import ToolError
+
+from tests.mutation._canary import broken_target_body
 
 pytestmark = [pytest.mark.live, pytest.mark.mutation_live, pytest.mark.timeout(300)]
 
@@ -61,4 +64,52 @@ async def test_byte_stale_auto_repair(owned_canary, mutation_sdk, tmp_path):
     with pytest.raises(ToolError) as exc_info:
         await mutation_sdk.run_playtest(
             script=render_dsl(owned_canary["object_path"], 101), format="json", timeout=10)
+    qualify_receipt(json.loads(str(exc_info.value)), expect_failure=True)
+
+
+async def test_dsl_intentional_red_control(owned_canary, mutation_sdk):
+    """S2 negative control: fresh 101 canary, DSL expects 202 -> genuine assertion failure, no sync."""
+    with pytest.raises(ToolError) as exc_info:
+        await mutation_sdk.run_playtest(
+            script=render_dsl(owned_canary["object_path"], 202), format="json", timeout=10)
+    qualify_receipt(json.loads(str(exc_info.value)), expect_failure=True)
+
+
+async def test_compile_error_recovery(owned_canary, mutation_sdk, tmp_path):
+    """S5: intentional CS error -> sync FAIL -> exact restore -> sync clean -> DSL 101/202."""
+    before = await mutation_sdk.diagnose(expected_compile=False)
+    assert before == "CLEAN-LIVE", before
+
+    edit = OwnedFileEdit(owned_canary["target_path"], tmp_path)
+    try:
+        edit.replace(broken_target_body())
+
+        # sync_unity's own return is not guaranteed to carry the CS code -- it can
+        # fall back to a generic "compile failed: <status error>" when the
+        # corroborated-error read races the compiler's own report. diagnose()
+        # below is the exact-CS-code oracle; here only assert it is a failure.
+        broken_result = await mutation_sdk.sync_unity(timeout=120)
+        assert broken_result != "sync clean", broken_result
+        assert "compile failed" in broken_result or re.search(r"error CS\d+", broken_result), broken_result
+
+        failed_state = await mutation_sdk.diagnose(expected_compile=False)
+        assert re.fullmatch(r"FAIL:CS\d+", failed_state), failed_state
+    finally:
+        # Must land even if an assertion above raised -- a wedged compile
+        # would break every later test sharing this worker.
+        edit.restore()
+
+    recovered = await mutation_sdk.sync_unity(timeout=120)
+    assert recovered == "sync clean", recovered
+
+    after = await mutation_sdk.diagnose(expected_compile=False)
+    assert after == "CLEAN-LIVE", after
+
+    raw_101 = await mutation_sdk.run_playtest(
+        script=render_dsl(owned_canary["object_path"], 101), format="json", timeout=10)
+    qualify_receipt(json.loads(raw_101), expect_failure=False)
+
+    with pytest.raises(ToolError) as exc_info:
+        await mutation_sdk.run_playtest(
+            script=render_dsl(owned_canary["object_path"], 202), format="json", timeout=10)
     qualify_receipt(json.loads(str(exc_info.value)), expect_failure=True)
