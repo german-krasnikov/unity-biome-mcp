@@ -1368,3 +1368,22 @@ async def sdk_tools(wrapped_bridge, monkeypatch):
         bridge = wrapped_bridge
 
     return SDKTools()
+
+
+@pytest_asyncio.fixture
+async def sdk_runtime(wrapped_bridge, monkeypatch):
+    """Bind SDK runtime tool wrappers to the test's middleware-wrapped bridge."""
+    from unity_mcp.tools import runtime
+
+    def _args(**kwargs):
+        return {k: v for k, v in kwargs.items() if v is not None}
+
+    monkeypatch.setattr(runtime, "_send", wrapped_bridge.send)
+    monkeypatch.setattr(runtime, "_args", _args)
+
+    class SDKRuntime:
+        run_playtest = staticmethod(runtime.run_playtest)
+        _classify_outcome = staticmethod(runtime._classify_outcome)
+        bridge = wrapped_bridge
+
+    return SDKRuntime()
