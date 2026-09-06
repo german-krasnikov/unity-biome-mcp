@@ -205,6 +205,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unity.RenderPipelines.Unive
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unity.Collections.DocCodeSamples", "Unity.Collections.DocCodeSamples.csproj", "{5de9f047-f4c5-715c-2546-b3a55cd03f5b}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnityMCP.Editor.Tests.Mutation", "UnityMCP.Editor.Tests.Mutation.csproj", "{295b0114-de64-6ce4-b8f3-cb38459dfca8}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unity.Searcher.EditorTests", "Unity.Searcher.EditorTests.csproj", "{f0e80c97-8a78-7de2-c183-da5ec2ea576b}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Unity.Collections.PerformanceTests", "Unity.Collections.PerformanceTests.csproj", "{7bfaaec6-0b74-2935-aeb8-1183dcde40d2}"
@@ -450,6 +452,8 @@ Global
 		{6c323fdd-6e0c-ed07-5666-da41566b8a7b}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5de9f047-f4c5-715c-2546-b3a55cd03f5b}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{5de9f047-f4c5-715c-2546-b3a55cd03f5b}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{295b0114-de64-6ce4-b8f3-cb38459dfca8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{295b0114-de64-6ce4-b8f3-cb38459dfca8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{f0e80c97-8a78-7de2-c183-da5ec2ea576b}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{f0e80c97-8a78-7de2-c183-da5ec2ea576b}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7bfaaec6-0b74-2935-aeb8-1183dcde40d2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
