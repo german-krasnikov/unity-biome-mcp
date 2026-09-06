@@ -84,9 +84,10 @@ def _check_prefetch_and_circuit(cmd: str, args: dict, mw: Any) -> str | None:
     Returns an early-exit string, or None to continue the pipeline.
     """
     if mw._prefetch_cache is not None and cmd in _READ_CACHEABLE:
-        pre_cached = mw._prefetch_cache.get(cmd, args)
-        if pre_cached is not None:
-            return _serve_cached_prefetch(pre_cached, mw)
+        if not mw._scenario_uncertain:  # N0a-2: bypass cache while a playtest may be mutating
+            pre_cached = mw._prefetch_cache.get(cmd, args)
+            if pre_cached is not None:
+                return _serve_cached_prefetch(pre_cached, mw)
 
     if not mw.circuit.allow_request():
         secs = int(mw.circuit.remaining()) + 1
@@ -191,9 +192,10 @@ async def _pre_tcp_guards(
 
     # PrefetchCache: serve cached reads before TCP round-trip
     if mw._prefetch_cache is not None and cmd in _READ_CACHEABLE:
-        pre_cached = mw._prefetch_cache.get(cmd, args)
-        if pre_cached is not None:
-            return _serve_cached_prefetch(pre_cached, mw)
+        if not mw._scenario_uncertain:  # N0a-2: bypass cache while a playtest may be mutating
+            pre_cached = mw._prefetch_cache.get(cmd, args)
+            if pre_cached is not None:
+                return _serve_cached_prefetch(pre_cached, mw)
 
     return cmd, args, resolve_marker, inferred_tags
 
@@ -258,6 +260,8 @@ async def _execute_cmd(
 
 def _maybe_prefetch_background(cmd: str, args: dict, mw: Any, send_fn) -> None:
     """On write: invalidate prefetch path + fire background prefetch task."""
+    if mw._scenario_uncertain:  # N0a-2: suppress speculative prefetch while uncertain
+        return
     if cmd not in WRITE_CMDS or cmd in SCENE_STATE_NEUTRAL_WRITES:
         return
     if mw._prefetch_cache is None:
@@ -297,11 +301,12 @@ def _reset_write_caches(cmd: str, args: dict, result: str, mw: Any, flags: dict)
     # of wrapped() (before any early-exit can skip it) -- this check only fires on
     # the already-covered success path, so it's a harmless belt-and-suspenders
     # double-invalidate (invalidate_scene_caches() is idempotent).
-    if flags.get("_force_scene_invalidate") or is_scenario_terminal(cmd, result):
-        # N0a-1: clears unconditionally here (both the proven-terminal case
-        # and the give-up/_force_scene_invalidate case). N0a-3 will split
-        # this so the give-up path clears caches but preserves the guard.
+    if is_scenario_terminal(cmd, result):
         mw._scenario_uncertain = False
+        mw.invalidate_scene_caches()
+    elif flags.get("_force_scene_invalidate"):
+        # N0a-3: give-up path clears caches but cannot prove Unity actually
+        # stopped the playtest -- the guard must survive it.
         mw.invalidate_scene_caches()
     if cmd == "manage_component" and not result.startswith("err"):
         mc_path = args.get("path", "")

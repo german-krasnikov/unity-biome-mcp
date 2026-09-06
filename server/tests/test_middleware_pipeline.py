@@ -79,6 +79,7 @@ def test_check_prefetch_cache_hit_returns_cached():
     from unittest.mock import MagicMock
     from unity_mcp.middleware_types import _READ_CACHEABLE
     mw = MagicMock()
+    mw._scenario_uncertain = False
     mw.circuit.allow_request.return_value = True
     mw.circuit.state = object()
     mw.circuit.HALF_OPEN = object()

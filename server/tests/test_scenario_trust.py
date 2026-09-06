@@ -114,7 +114,6 @@ def test_reset_session_preserves_uncertain(mw):
 # ── N0a-2 (deferred): cache bypass + prefetch suppression ────────────────────
 
 
-@pytest.mark.xfail(reason="N0a-2: cache bypass not yet implemented", strict=False)
 async def test_cache_bypassed_while_uncertain(mw):
     from unity_mcp.prefetch_cache import PrefetchCache
 
@@ -141,7 +140,6 @@ async def test_cache_served_when_not_uncertain(mw):
     assert "[CACHED]" in result
 
 
-@pytest.mark.xfail(reason="N0a-2: prefetch suppression not yet implemented", strict=False)
 async def test_background_prefetch_suppressed_while_uncertain(monkeypatch):
     """set_property has a GATE_PRIORS entry (predicts get_component). While
     uncertain, _maybe_prefetch_background must not fire that background task."""
@@ -169,7 +167,6 @@ async def test_background_prefetch_suppressed_while_uncertain(monkeypatch):
 # ── N0a-3 (deferred): force-invalidate must not clear the guard ──────────────
 
 
-@pytest.mark.xfail(reason="N0a-3: force-invalidate/terminal split not yet implemented", strict=False)
 async def test_force_invalidate_preserves_uncertain(mw):
     """The give-up path (_force_scene_invalidate) clears caches but cannot
     prove Unity actually stopped the playtest — the guard must survive it."""
