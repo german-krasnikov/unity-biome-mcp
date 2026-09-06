@@ -14,6 +14,8 @@ license activation, and the actual test/conformance run.
 Runs in the standard scripts/tests lane: no Unity, no network, reads the
 tracked workflow files only.
 """
+import re
+import sys
 from pathlib import Path
 
 import yaml
@@ -21,6 +23,14 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[2]
 UNITY_TESTS_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "unity-tests.yml"
 CI_CONFORMANCE_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci-conformance.yml"
+
+SCRIPTS_DIR = REPO_ROOT / "scripts"
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
+import gen_lane_args  # noqa: E402
+
+_GENERATED_LANE_RE = re.compile(r"gen_lane_args\.py pytest ([\w-]+)")
+REQUIRED_CONFORMANCE_EXCLUDES = ("not live", "not monkey")
 
 PR_LINUX_ONLY_CLAUSE = "github.event_name != 'pull_request' || matrix.name == 'Linux'"
 
@@ -78,14 +88,26 @@ def test_ci_conformance_hosted_disposable_unity_gates_expensive_steps_off_non_li
     )
 
 
-def test_ci_conformance_unit_gate_step_untouched():
-    # A14 must not touch ci-conformance.yml's unit-gate pytest step (E07/E08 own it).
+def test_ci_conformance_unit_gate_step_uses_generated_lane():
+    # A14 (this file's own job-gating concern) must not touch ci-conformance.yml's
+    # unit-gate pytest step. PR-07 legitimately owns this step's `-m` value: it
+    # replaced the hand-typed literal "not live and not monkey" with a generated
+    # $(gen_lane_args.py pytest master-conformance) expression, matching
+    # ci-python.yml/ci-sonar.yml/nightly.yml's own generated pattern (C16/C17) --
+    # closing the drift test_gen_lane_args.py used to call "the deferred
+    # ci-conformance.yml".
     data = yaml.safe_load(CI_CONFORMANCE_WORKFLOW.read_text(encoding="utf-8"))
     steps = data["jobs"]["unit-gate"]["steps"]
     run_steps = [s["run"] for s in steps if "run" in s]
     assert any("pytest tests/" in run for run in run_steps)
-    assert all(
-        "not live and not monkey" in run
-        for run in run_steps
-        if "pytest tests/" in run
-    )
+    for run in run_steps:
+        if "pytest tests/" not in run:
+            continue
+        lane_match = _GENERATED_LANE_RE.search(run)
+        assert lane_match, f"expected a gen_lane_args.py pytest <lane> reference in: {run!r}"
+        assert lane_match.group(1) == "master-conformance"
+        generated = gen_lane_args.render_lane(
+            "pytest", "master-conformance", gen_lane_args.load_lanes(), gen_lane_args.load_dimensions()
+        )
+        for required in REQUIRED_CONFORMANCE_EXCLUDES:
+            assert required in generated, f"missing '{required}' in generated expression: {generated}"

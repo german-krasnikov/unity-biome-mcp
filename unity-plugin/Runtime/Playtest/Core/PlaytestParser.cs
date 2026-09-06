@@ -118,6 +118,36 @@ namespace UnityMCP.Playtest.Core
         public static implicit operator List<PlaytestStep>(ParseResult r) => r.Steps;
     }
 
+    /// <summary>Immutable, prepared view over one ParseResult's step containers (A15,
+    /// PR-07 Gap 7). Copies the container (List -> read-only) so a caller mutating the
+    /// original ParseResult after preparing a run — or a second run reusing the same
+    /// ParseResult — cannot corrupt this run's plan. Deliberately does NOT deep-copy each
+    /// PlaytestStep's own mutable fields or shared arrays (ShallowClone's documented
+    /// "shared by reference by design" scope stays a separate concern). Built fresh from
+    /// every Parse() result — no plan cache.</summary>
+    public sealed class PreparedPlaytest
+    {
+        public IReadOnlyList<PlaytestStep> Steps { get; }
+        public IReadOnlyList<PlaytestStep> SetupSteps { get; }
+        public IReadOnlyList<PlaytestStep> TeardownSteps { get; }
+        public PlaytestHeader Header { get; }
+
+        private PreparedPlaytest(IReadOnlyList<PlaytestStep> steps, IReadOnlyList<PlaytestStep> setupSteps,
+            IReadOnlyList<PlaytestStep> teardownSteps, PlaytestHeader header)
+        {
+            Steps = steps;
+            SetupSteps = setupSteps;
+            TeardownSteps = teardownSteps;
+            Header = header;
+        }
+
+        public static PreparedPlaytest From(ParseResult parsed) => new PreparedPlaytest(
+            new List<PlaytestStep>(parsed.Steps).AsReadOnly(),
+            parsed.SetupSteps == null ? null : new List<PlaytestStep>(parsed.SetupSteps).AsReadOnly(),
+            parsed.TeardownSteps == null ? null : new List<PlaytestStep>(parsed.TeardownSteps).AsReadOnly(),
+            parsed.Header);
+    }
+
     /// <summary>Resolves INCLUDE directives — returns full file content as a string.</summary>
     public delegate string IncludeResolver(string filename);
 

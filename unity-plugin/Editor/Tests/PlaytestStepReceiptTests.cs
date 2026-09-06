@@ -23,6 +23,17 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("\"source_line\":7", json);
             StringAssert.Contains("\"raw_passed\":true", json);
             StringAssert.Contains("\"expected_fail\":false", json);
+            StringAssert.Contains("\"console_errored\":false", json);
+        }
+
+        [Test]
+        public void ToJson_ConsoleErroredTrue_SerializesField()
+        {
+            var receipt = new PlaytestStepReceipt(
+                index: 0, type: "Assert", ms: 1.0, sourceFile: "f.playtest",
+                sourceLine: 1, rawPassed: true, expectedFail: false, consoleErrored: true);
+
+            StringAssert.Contains("\"console_errored\":true", receipt.ToJson());
         }
 
         // ── F7: ConsoleErrored must override a raw-passing/EXPECT_FAIL-inverted step ──

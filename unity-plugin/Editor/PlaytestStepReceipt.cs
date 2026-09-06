@@ -50,7 +50,8 @@ namespace UnityMCP.Editor
               .Append(SourceFile == null ? "null" : "\"" + EscapeJsonString(SourceFile) + "\"").Append(',');
             sb.Append("\"source_line\":").Append(SourceLine).Append(',');
             sb.Append("\"raw_passed\":").Append(RawPassed ? "true" : "false").Append(',');
-            sb.Append("\"expected_fail\":").Append(ExpectedFail ? "true" : "false");
+            sb.Append("\"expected_fail\":").Append(ExpectedFail ? "true" : "false").Append(',');
+            sb.Append("\"console_errored\":").Append(ConsoleErrored ? "true" : "false");
             sb.Append('}');
             return sb.ToString();
         }
