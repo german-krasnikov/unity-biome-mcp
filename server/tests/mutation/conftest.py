@@ -26,7 +26,8 @@ from tests.mutation._canary import (
 )
 from unity_mcp import editor_log
 from unity_mcp.middleware import Middleware, wrap_send
-from unity_mcp.tools import codegen, diagnose, objects, runtime, sync
+from unity_mcp.tools import asset as asset_tool
+from unity_mcp.tools import codegen, diagnose, editor_control, objects, runtime, sync
 
 REAL_PORTS_DIR = Path.home() / ".unity-biome-mcp" / "ports"  # at import, before conftest patches Path.home(); reserved for port-file discovery (A5+)
 MUTATION_HOST = os.environ.get("UNITY_MCP_HOST", "127.0.0.1")
@@ -111,7 +112,7 @@ async def mutation_sdk(monkeypatch):
     editor_log.init_corroboration()  # parity with sync.register()
     mw = Middleware()
     wrapped_send = wrap_send(make_raw_send(bridge), mw)
-    for module in (sync, diagnose, runtime, objects, codegen):
+    for module in (sync, diagnose, runtime, objects, codegen, editor_control, asset_tool):
         monkeypatch.setattr(module, "_send", wrapped_send)
         # sync.py/diagnose.py don't pre-declare a module-level _args (they never call it);
         # bind() sets it anyway via globals(), so mirror that here with raising=False.
@@ -119,7 +120,8 @@ async def mutation_sdk(monkeypatch):
 
     try:
         yield build_mutation_sdk(bridge, mw, sync=sync, diagnose=diagnose,
-                                  runtime=runtime, objects=objects, codegen=codegen)
+                                  runtime=runtime, objects=objects, codegen=codegen,
+                                  editor_control=editor_control, asset=asset_tool)
     finally:
         await bridge.close()
 

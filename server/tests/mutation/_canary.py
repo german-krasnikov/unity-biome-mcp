@@ -122,6 +122,18 @@ def remove_canary(project: Path, info: dict) -> None:
         if root_meta.exists():
             root_meta.unlink()
 
+    # Same for the shared grandparent Assets/TestsTemp: on a fresh worker where
+    # nothing under it existed yet, Unity generates its own .meta the moment
+    # install_canary's mkdir(parents=True) creates it, and the guard above
+    # never reaches it. rmdir only succeeds when truly empty, so a concurrent
+    # suite's own content under Assets/TestsTemp/ is never touched.
+    grandparent = root.parent
+    grandparent_meta = grandparent.parent / f"{grandparent.name}.meta"
+    with contextlib.suppress(OSError):
+        grandparent.rmdir()
+        if grandparent_meta.exists():
+            grandparent_meta.unlink()
+
 
 def make_bridge(host: str, port: int, project):
     """UnityBridge matching server.py:561's production retry-safety wiring: without
@@ -150,13 +162,23 @@ def sdk_args(**kwargs) -> dict:
     return {k: v for k, v in kwargs.items() if v is not None}
 
 
-def build_mutation_sdk(bridge, middleware, *, sync, diagnose, runtime, objects, codegen):
+def build_mutation_sdk(bridge, middleware, *, sync, diagnose, runtime, objects, codegen,
+                        editor_control=None, asset=None):
     """Bundle the bound tool functions behind one plain namespace (no class-body
-    self-name shadowing risk -- SimpleNamespace attributes aren't descriptor-bound)."""
+    self-name shadowing risk -- SimpleNamespace attributes aren't descriptor-bound).
+
+    editor_control/asset are optional (S8's proxied SDK has no use for
+    mutation_mode/asset writes) -- callers that need the S11-S13 mutation
+    lifecycle pass both."""
+    extra = {}
+    if editor_control is not None:
+        extra["editor"] = editor_control.editor
+    if asset is not None:
+        extra["asset"] = asset.asset
     return types.SimpleNamespace(
         sync_unity=sync.sync_unity, diagnose=diagnose.diagnose,
         run_playtest=runtime.run_playtest, create_object=objects.create_object,
         manage_component=objects.manage_component, set_property=objects.set_property,
         delete_object=objects.delete_object, execute_code=codegen.execute_code,
-        bridge=bridge, middleware=middleware,
+        bridge=bridge, middleware=middleware, **extra,
     )
