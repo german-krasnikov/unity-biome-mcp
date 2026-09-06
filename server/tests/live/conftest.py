@@ -1372,18 +1372,42 @@ async def sdk_tools(wrapped_bridge, monkeypatch):
 
 @pytest_asyncio.fixture
 async def sdk_runtime(wrapped_bridge, monkeypatch):
-    """Bind SDK runtime tool wrappers to the test's middleware-wrapped bridge."""
+    """Bind SDK runtime tool wrappers through a production-parity send.
+
+    Production's runtime._send is wrap_send(_send_raw, middleware) --
+    server.py builds the middleware pipeline ON TOP of _send_raw
+    (server.py ~L564-586), not on a text-only inner send. _send_raw unwraps
+    the wire result and raises ToolError(text) on ok:false (server.py
+    ~L468-470). `sdk_tools` (T1) intentionally keeps the non-raising
+    `wrapped_bridge.send` -- only this fixture needs the raising shim, built
+    from `wrapped_bridge._raw_send` (the same underlying bridge, no
+    middleware pre-applied) so wire-level failures surface the same way here
+    as they do live, exactly like `run_playtest`'s own non-pass gate (N0b).
+    """
+    from mcp.server.fastmcp.exceptions import ToolError
+
+    from unity_mcp.bridge_result import unwrap_bridge_result
+    from unity_mcp.middleware import Middleware, wrap_send
     from unity_mcp.tools import runtime
+
+    async def _send_raw_like(cmd, args, timeout=0):
+        result = await wrapped_bridge._raw_send(cmd, args, timeout=timeout)
+        text, ok = unwrap_bridge_result(result)
+        if not ok:
+            raise ToolError(text)
+        return text
 
     def _args(**kwargs):
         return {k: v for k, v in kwargs.items() if v is not None}
 
-    monkeypatch.setattr(runtime, "_send", wrapped_bridge.send)
+    mw = Middleware()
+    monkeypatch.setattr(runtime, "_send", wrap_send(_send_raw_like, mw))
     monkeypatch.setattr(runtime, "_args", _args)
 
     class SDKRuntime:
         run_playtest = staticmethod(runtime.run_playtest)
         _classify_outcome = staticmethod(runtime._classify_outcome)
         bridge = wrapped_bridge
+        middleware = mw
 
     return SDKRuntime()
