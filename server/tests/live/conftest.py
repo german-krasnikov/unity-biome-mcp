@@ -1344,3 +1344,27 @@ async def wrapped_bridge(bridge):
             self._raw_send = send_with_timeout  # timeout-aware shim for custom wrap_send
 
     return WrappedBridge()
+
+
+@pytest_asyncio.fixture
+async def sdk_tools(wrapped_bridge, monkeypatch):
+    """Bind SDK tool wrappers to the test's middleware-wrapped bridge."""
+    from unity_mcp.tools import objects, scene
+
+    def _args(**kwargs):
+        return {k: v for k, v in kwargs.items() if v is not None}
+
+    monkeypatch.setattr(objects, "_send", wrapped_bridge.send)
+    monkeypatch.setattr(objects, "_args", _args)
+    monkeypatch.setattr(scene, "_send", wrapped_bridge.send)
+    monkeypatch.setattr(scene, "_args", _args)
+
+    class SDKTools:
+        get_component = staticmethod(objects.get_component)
+        set_property = staticmethod(objects.set_property)
+        create_object = staticmethod(objects.create_object)
+        get_hierarchy = staticmethod(scene.get_hierarchy)
+        search_scene = staticmethod(scene.search_scene)
+        bridge = wrapped_bridge
+
+    return SDKTools()
