@@ -22,11 +22,16 @@ class MiddlewareAsyncMixin:
         args: dict | None = None,
     ) -> str:
         from .middleware_guards import _is_batch_readonly
-        from .middleware_types import is_write
+        from .middleware_types import PLAYTEST_SCENARIO_CMDS, is_write
         if os.environ.get("UNITY_MCP_AUTO_STATE", "1") == "0":
             return result
         # A capture writes a PNG but does not make the hierarchy stale.
         if cmd == "screenshot":
+            return result
+        # A playtest's canonical receipt (json or text) is parsed downstream
+        # (runtime._classify_outcome) -- appended AUTO STATE text corrupts a
+        # passing receipt into an unparseable/misclassified one (P1).
+        if cmd in PLAYTEST_SCENARIO_CMDS:
             return result
         if cmd and not is_write(cmd, args):
             return result

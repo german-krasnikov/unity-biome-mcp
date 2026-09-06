@@ -37,6 +37,36 @@ def _ledger_json(step_ok: bool) -> str:
     })
 
 
+async def test_run_playtest_json_receipt_survives_auto_state_boundary(monkeypatch):
+    """E2E pin for the P1 bug: at the middleware's 10th-write AUTO STATE
+    boundary, a passing run_playtest(format="json") receipt must come back
+    unmodified and must not raise ToolError. Wraps a real Middleware pipeline
+    (not just runtime._send mocked directly) so the actual injection point
+    (middleware_pipeline.py:418 -> maybe_inject_state) is exercised."""
+    from unity_mcp.middleware import Middleware, wrap_send
+
+    receipt = _ledger_json(step_ok=True)
+    mw = Middleware()
+    mw.call_count = 9  # next call through the pipeline becomes the 10th
+    dispatched_cmds = []
+
+    async def fake_send_raw(cmd, args, timeout=30.0):
+        dispatched_cmds.append(cmd)
+        if cmd == "get_hierarchy":
+            return {"ok": True, "data": "hierarchy-dump"}
+        return {"ok": True, "data": receipt}
+
+    monkeypatch.setattr(runtime, "_send", wrap_send(fake_send_raw, mw))
+
+    result = await runtime.run_playtest(script="ASSERT /P|H|hp == 100", format="json")
+
+    assert result == receipt
+    json.loads(result)  # must not raise
+    assert "get_hierarchy" not in dispatched_cmds, (
+        f"AUTO STATE fetch must not fire for run_playtest: {dispatched_cmds}"
+    )
+
+
 async def test_async_fail_raises_tool_error_with_receipt(monkeypatch):
     """Async route (timeout > 120): failed run polled with transport ok:true
     must surface as a public ToolError, not a normal string return."""

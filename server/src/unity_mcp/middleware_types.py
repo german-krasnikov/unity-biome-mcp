@@ -154,7 +154,7 @@ def is_write(cmd: str, args: dict | None = None, *, unknown_is_write: bool = Fal
 # blind write for the advisory guard" (transition()); this answers "can this
 # command's outcome make scene-derived caches stale."
 PLAYTEST_SCENARIO_CMDS: frozenset[str] = frozenset(
-    {"start_playtest", "run_playtest", "get_playtest_run"}
+    {"start_playtest", "run_playtest", "run_playtest_suite", "get_playtest_run"}
 )
 
 
