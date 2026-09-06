@@ -12,6 +12,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Offline Freshness and Reload Contract Validation (N0a/Reload):** Two new NUnit dotnet projects (`Tests~/AssemblyFreshness/` and `Tests~/SourcePatchReadiness/`) validate bytecode freshness detection and reload-readiness state transitions without Editor. Both use `~` folder convention to remain invisible to asset importer. Covers `AssemblySourceFreshness` byte comparison and `SourcePatchReloadAck` lease lifecycle.
+- **SDK Qualification Tests for Playtest Outcomes (SDK-E04):** New `server/tests/live/test_sdk_playtest_outcomes.py` and `test_sdk_scene_cache.py` with `sdk_tools` and `sdk_runtime` fixtures validate `run_playtest` verdict accuracy across sync/async routes and cache invalidation after scenario terminal events.
+
+### Fixed
+
+- **N0b — Playtest Outcome Raising Contract:** `run_playtest` now raises `ToolError` with the full report text for ANY non-pass outcome (fail/aborted/malformed/empty) on both sync and async routes. Pass outcome returns normally (text or JSON format). Eliminates silent failure absorption and provides consistent error signal across all dispatch paths.
+- **N0a — Cache Trust Guard During Async Playtest (Middleware._scenario_uncertain):** Set on `start_playtest` ack, cleared only by terminal evidence (`is_scenario_terminal`) or Edit Mode transition. While set, PrefetchCache lookups are bypassed and background prefetch is suppressed. Survives reconnect and `reset_session()` (reconnect does not prove playtest stopped). Fallback `_force_scene_invalidate` clears caches but not the guard.
+- **N4a — Chat Ask Atomicity:** `PendingAskRegistry.Complete` now performs atomic `TryRemove` with TCS captured before `onAskEvent`. Fail-soft try/catch added to `ChatBackendProbe.IsChatBackendRunning` and `ChatSettingsHook` methods to prevent stale probe exceptions from blocking ask dispatch.
+
+### Changed
+
+- **UPM Package Dependency:** `unity-plugin/package.json` now declares `com.unity.nuget.mono-cecil 1.11.5` as required dependency. Ensure project registry resolves `com.unity.nuget.*` packages (standard Unity configurations include this by default). Used internally for assembly analysis during reload and compile verification.
+
 ## [v1.54.0] — 2026-09-06
 
 ### Added
