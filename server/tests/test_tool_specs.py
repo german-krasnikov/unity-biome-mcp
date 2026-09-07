@@ -216,3 +216,26 @@ def test_internal_mutating_wrappers_are_explicit_writes():
     from unity_mcp.tools.tool_specs import _SPECS
     for name in ("start_playtest", "source_patch_write", "export_package", "import_package"):
         assert _SPECS[name].mutability == "write", name
+
+
+# ── N1b (P7): sync module wire-command scope boundary ───────────────────────
+
+def test_sync_wire_commands_not_public_toolspecs():
+    """The wire commands SyncModule's sync_unity calls into Unity through
+    ('sync', 'sync_status') plus the consumed 'force_refresh' recovery
+    command are internal wire protocol, never public MCP tools/ToolSpecs
+    (N1b P7; same scope limit as watch_add for WatchModule).
+    Characterization of the boundary, not a bug: a direct MCP client only
+    ever sees sync_unity."""
+    from unity_mcp.tools.tool_specs import _SPECS
+    for wire_cmd in ("sync", "sync_status", "force_refresh"):
+        assert wire_cmd not in _SPECS
+
+
+def test_negative_control_sync_wire_commands_scope_boundary(monkeypatch):
+    """Proves the assertion above is load-bearing: register 'sync' as a
+    public ToolSpec and confirm the boundary check now fails."""
+    from unity_mcp.tools.tool_specs import _SPECS, ToolSpec
+    monkeypatch.setitem(_SPECS, "sync", ToolSpec(category="SYSTEM"))
+    with pytest.raises(AssertionError):
+        assert "sync" not in _SPECS

@@ -6,10 +6,14 @@ behavior. Cross-referenced by comment with the C#-side vectors added to
 unity-plugin/Editor/Tests/CommandRouterTests.cs (Pr04_* tests) for the same 5
 commands, so a future drift between the two planes is easy to spot by eye.
 """
+from dataclasses import replace
+from unittest.mock import AsyncMock
+
 import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
 from unity_mcp.middleware import Middleware
+from unity_mcp.middleware_pipeline import wrap_send
 from unity_mcp.middleware_types import is_write
 from unity_mcp.tools.batch import _preprocess_continue_mode, _preprocess_stop_mode
 from unity_mcp.tools.tool_specs import _SPECS
@@ -144,3 +148,104 @@ def test_editor_play_action_write_classification_asymmetric_with_csharp():
     a bug, flagged for a future PR if the team wants the two routes unified.
     """
     assert is_write("editor", {"action": "play"}) is True
+
+
+# ── N1b (P4/P5/P7): sync_unity policy vectors, second self-owned module ────
+# Cross-referenced with C1-C9 in CommandRegistryGuardFlagsTests.cs and
+# tools/sync_spec.py's SPEC_KWARGS / OWNED_WIRE_COMMANDS.
+
+def test_sync_unity_batch_rejected_stop_mode():
+    """sync_unity is direct_only through the real _SPECS table (owned by
+    tools/sync_spec.py, not a hand-built dict here) — a batch DSL line
+    naming it must be rejected before any dispatch, same route Vector 3
+    proves for run_playtest/uitk_file above (N1b P4)."""
+    assert _SPECS["sync_unity"].direct_only is True
+    with pytest.raises(ToolError, match="direct-only"):
+        _preprocess_stop_mode("sync_unity resolve=true")
+
+
+def test_negative_control_sync_unity_batch_rejected(monkeypatch):
+    """Proves the assertion above is load-bearing: strip direct_only from
+    the live spec and confirm the batch line now passes through instead of
+    raising."""
+    monkeypatch.setitem(_SPECS, "sync_unity", replace(_SPECS["sync_unity"], direct_only=False))
+    assert _preprocess_stop_mode("sync_unity resolve=true") == "sync_unity resolve=true"
+
+
+async def test_sync_unity_read_only_blocked_before_dispatch():
+    """sync_unity is a write (SYSTEM, tier1, direct_only) — in read-only
+    mode wrap_send must raise READ_ONLY_BLOCKED before the injected send is
+    ever awaited (N1b P5). That send is what ultimately reaches C#
+    SyncHelper's AssetDatabase.Refresh + RequestScriptCompilation; a
+    zero-call spy proves the mutation effect never fires, not just that an
+    error string appears."""
+    send = AsyncMock(return_value="ok")
+    mw = Middleware()
+    mw.is_read_only = True
+    wrapped = wrap_send(send, mw)
+
+    with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):
+        await wrapped("sync_unity", {})
+
+    send.assert_not_awaited()
+
+
+async def test_negative_control_sync_unity_read_only_blocked():
+    """Proves the assertion above is load-bearing: reclassify sync_unity's
+    live spec as a read and confirm the read-only gate no longer blocks it
+    (the send IS awaited)."""
+    from unity_mcp import middleware_types
+    middleware_types.WRITE_CMDS.discard("sync_unity")
+    middleware_types.READ_CMDS.add("sync_unity")
+    try:
+        send = AsyncMock(return_value="ok")
+        mw = Middleware()
+        mw.is_read_only = True
+        wrapped = wrap_send(send, mw)
+        await wrapped("sync_unity", {})
+        send.assert_awaited_once()
+    finally:
+        middleware_types.WRITE_CMDS.add("sync_unity")
+        middleware_types.READ_CMDS.discard("sync_unity")
+
+
+def test_sync_wire_commands_read_only_gate_vectors():
+    """The wire-level mutating/read split the plan's audit found: 'sync' and
+    'force_refresh' (consumed for recovery) are mutating wire commands and
+    must be blocked in read-only mode; 'sync_status' is the pure-read
+    escape hatch (_KNOWN_SAFE_READS) and must stay callable."""
+    mw = Middleware()
+    mw.is_read_only = True
+    assert mw.check_read_only("sync_status", {}) is None
+    for mutating_wire_cmd in ("sync", "force_refresh"):
+        result = mw.check_read_only(mutating_wire_cmd, {})
+        assert result is not None
+        assert "READ_ONLY_BLOCKED" in result
+
+
+async def test_sync_wire_commands_retry_safety_vectors():
+    """sync_status is resend-safe after a SENT/uncertain delivery boundary
+    (idempotent status read); the mutating 'sync' and 'force_refresh' wire
+    commands must never be inferred retry-safe (N1b P5 companion) — each
+    resend would re-trigger a real Refresh/compile in Unity, so an unsafe
+    SENT operation must never be repeated automatically."""
+    from unity_mcp.server import mcp
+    from unity_mcp.tools._annotations import retry_safe_cmds
+    safe = await retry_safe_cmds(mcp)
+    assert "sync_status" in safe
+    assert "sync" not in safe
+    assert "force_refresh" not in safe
+
+
+async def test_negative_control_sync_retry_safety(monkeypatch):
+    """Proves the assertion above is load-bearing: add 'sync' to the
+    internal retry-safe allowlist and confirm retry_safe_cmds() now
+    (wrongly) treats it as resend-safe."""
+    from unity_mcp.tools import _annotations
+    monkeypatch.setattr(
+        _annotations, "_INTERNAL_RETRY_SAFE_CMDS",
+        _annotations._INTERNAL_RETRY_SAFE_CMDS | {"sync"},
+    )
+    from unity_mcp.server import mcp
+    safe = await _annotations.retry_safe_cmds(mcp)
+    assert "sync" in safe

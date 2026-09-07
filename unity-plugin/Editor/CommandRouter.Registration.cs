@@ -189,9 +189,13 @@ namespace UnityMCP.Editor
                 _ => $"{CompileNotifier.GetStatus()}|reload={SyncHelper.SyncState}",
                 required: "", optional: "", allowedDuringCompile: true);
             // sync/sync_status: unified reload API (v0.21)
+            // N1b: 'sync' triggers a real mutation (SyncHelper.Ops.Refresh +
+            // RequestScriptCompilation via TriggerSync) — mutating/notBatchable
+            // were missing their explicit flags (both defaulted false), so the
+            // read-only gate and IsBatchable never saw this command as unsafe.
             CommandRegistry.Register("sync",        args => SyncHelper.TriggerSync(
                 JsonHelper.ExtractString(args, "resolve") == "true"),
-                required: "", optional: "resolve");
+                mutating: true, notBatchable: true, required: "", optional: "resolve");
             CommandRegistry.Register("sync_status", _ => SyncHelper.GetSyncStatus(),
                 required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("recompile", _ =>
@@ -239,7 +243,14 @@ namespace UnityMCP.Editor
                 InternalEditorUtility.RepaintAllViews();
                 SyncHelper.Ops.StartTickPump();
                 return "force_refresh triggered";
-            }, required: "", optional: "", allowedDuringCompile: true);  // G11: must work when wedged
+            // N1b: same gap as 'sync' above (real mutation, flags defaulted
+            // false). allowedDuringCompile stays true (G11: must work when
+            // wedged) -- that axis is independent of read-only/batch safety.
+            // No alwaysAllowed: server/tests/test_reload_ladder.py's
+            // test_send_with_fallback_does_not_catch_plain_tool_error already
+            // pins READ_ONLY_BLOCKED on force_refresh as expected propagation,
+            // not a case the recovery ladder silently works around.
+            }, mutating: true, notBatchable: true, required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("search_scene", args => SearchHelper.Search(
                 JsonHelper.ExtractString(args, "query"),
                 JsonHelper.ExtractString(args, "root"),
