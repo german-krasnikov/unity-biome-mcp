@@ -4,36 +4,14 @@ A plugin's register() call must never leave a partial registration behind —
 neither its own tools nor a duplicate-name collision with another plugin.
 See Plans/PR-03.md for the full architecture.
 """
-import types
-
-import pytest
+from _plugin_fixtures import (  # noqa: F401 — autouse fixtures, re-exported for pytest
+    _mk_module,
+    _reset_atomic_scoped_state,
+    _restore_gating_state,
+)
 from test_plugins import _DictMcp
 
 from unity_mcp.plugins import _atomic
-
-
-@pytest.fixture(autouse=True)
-def _restore_gating_state():
-    """A successfully-registered plugin tool gets auto-gated into gating's shared
-    module state (_ALL_KNOWN / _THEMED_CATEGORIES / CATEGORIES) — restore it exactly,
-    the same wholesale snapshot/restore shape _atomic.py itself uses, so these tests
-    don't leak fake tool names into test_schema_parity.py or other test files."""
-    from unity_mcp.tools import gating
-    all_known = set(gating._ALL_KNOWN)
-    themed = {k: list(v) for k, v in gating._THEMED_CATEGORIES.items()}
-    categories = gating.CATEGORIES
-    yield
-    gating._ALL_KNOWN.clear()
-    gating._ALL_KNOWN.update(all_known)
-    gating._THEMED_CATEGORIES.clear()
-    gating._THEMED_CATEGORIES.update(themed)
-    gating.CATEGORIES = categories
-
-
-def _mk_module(register_fn):
-    mod = types.ModuleType("fake_plugin_module")
-    mod.register = register_fn
-    return mod
 
 
 def test_register_plugin_module_second_tool_raises_rolls_back_first(monkeypatch):
@@ -196,6 +174,7 @@ def test_api_v1_order_equivalence_register_tools_then_read_cmds(monkeypatch):
     from unity_mcp.tools import gating
 
     mcp = _DictMcp()
+    _atomic._command_owner["pre_existing_tool"] = "other_plugin"
 
     def register(m, send, args):
         @m.tool()
@@ -211,6 +190,8 @@ def test_api_v1_order_equivalence_register_tools_then_read_cmds(monkeypatch):
         assert "my_cmd" in gating._ALL_KNOWN
         assert "my_cmd" not in gating._BUILTIN_NAMES
         assert "get_hierarchy" in gating._BUILTIN_NAMES
+        assert _atomic._command_owner["my_cmd"] == "order_plugin_a"
+        assert _atomic._command_owner["pre_existing_tool"] == "other_plugin"
     finally:
         READ_CMDS.discard("my_cmd")
 
@@ -224,6 +205,7 @@ def test_api_v1_order_equivalence_read_cmds_then_register_tools(monkeypatch):
     from unity_mcp.tools import gating
 
     mcp = _DictMcp()
+    _atomic._command_owner["pre_existing_tool"] = "other_plugin"
 
     def register(m, send, args):
         @m.tool()
@@ -239,5 +221,12 @@ def test_api_v1_order_equivalence_read_cmds_then_register_tools(monkeypatch):
         assert "my_cmd" in gating._ALL_KNOWN
         assert "my_cmd" not in gating._BUILTIN_NAMES
         assert "get_hierarchy" in gating._BUILTIN_NAMES
+        assert _atomic._command_owner["my_cmd"] == "order_plugin_b"
+        assert _atomic._command_owner["pre_existing_tool"] == "other_plugin"
     finally:
         READ_CMDS.discard("my_cmd")
+
+
+# Commit-time ownership validation (cross-plugin metadata, typo rejection,
+# and parametrized coverage of all 5 API-v1 functions) lives in
+# test_plugin_ownership.py — kept separate to stay under the 300-line budget.

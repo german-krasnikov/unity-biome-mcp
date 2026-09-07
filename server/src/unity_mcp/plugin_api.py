@@ -14,9 +14,18 @@ __all__ = [
 ]
 
 
+def _record_v1_journal(names) -> None:
+    """Record names declared via an API-v1 call, for commit-time ownership
+    validation in _atomic.register_plugin_module(). No-op at host level
+    (register_all(), where no plugin is currently registering)."""
+    from unity_mcp.plugins import _owner
+    _owner.record(names)
+
+
 def register_dsl_tools(*names: str):
     from unity_mcp.tools.batch import _dsl_tools
     _dsl_tools.update(names)
+    _record_v1_journal(names)
 
 
 def _reject_builtin_names(names: tuple, register_msg: str) -> list:
@@ -39,12 +48,16 @@ def _reject_builtin_names(names: tuple, register_msg: str) -> list:
 
 def register_read_cmds(*names: str):
     from unity_mcp.middleware import READ_CMDS
-    READ_CMDS.update(_reject_builtin_names(names, "read"))
+    safe = _reject_builtin_names(names, "read")
+    READ_CMDS.update(safe)
+    _record_v1_journal(safe)
 
 
 def register_write_cmds(*names: str):
     from unity_mcp.middleware import WRITE_CMDS
-    WRITE_CMDS.update(_reject_builtin_names(names, "write"))
+    safe = _reject_builtin_names(names, "write")
+    WRITE_CMDS.update(safe)
+    _record_v1_journal(safe)
 
 
 def register_tools(category: str, tools: set):
@@ -52,6 +65,7 @@ def register_tools(category: str, tools: set):
     plugins cannot promote themselves into the always-on tool budget."""
     from unity_mcp.tools.gating import register_tools as _rt
     _rt(category, tools)
+    _record_v1_journal(tools)
 
 
 def register_features(features: dict):
@@ -60,3 +74,4 @@ def register_features(features: dict):
         if isinstance(meta, dict):
             meta = FeatureMeta(**meta)
         FEATURES[name] = meta
+    _record_v1_journal(features.keys())
