@@ -17,6 +17,7 @@ from unity_mcp.compile_state import CompileStateProbe
 pytestmark = pytest.mark.live
 
 
+@pytest.mark.real_clock
 async def test_crash_recovery_to_live_unity_no_drift(bridge):
     """Reconnect discovery reaches only the configured disposable worker."""
     target_response = await bridge.send("ping", {})

@@ -437,6 +437,37 @@ async def _execute_lease_checked(
     raise AssertionError(f"{operation} failed after reconnect retries: {last_error}")
 
 
+async def _send_checked_with_retry(
+    bridge: UnityBridge,
+    cmd: str,
+    args: dict,
+    operation: str,
+) -> dict:
+    """Bounded retry around a raw bridge.send — same shape as
+    _capture_unity_state, generalized to any command (not just execute_code).
+    A reload-related failure (e.g. a real Play-Mode domain reload landing
+    right before the send) waits out the reload in place — DomainReloadError
+    is a local 'reload in progress' flag that a bare reconnect cannot clear
+    while Unity is still mid-reload — instead of reconnect churn; any other
+    failure closes and reconnects."""
+    last_error = None
+    for attempt in range(3):
+        try:
+            return await bridge.send(cmd, args)
+        except Exception as exc:
+            last_error = exc
+            if attempt == 2:
+                break
+            if _is_reload_related(exc):
+                await _wait_compile_idle(bridge)
+                continue
+            try:
+                await bridge.close()
+            finally:
+                await _connect_with_retry(bridge, retries=10, delay=0.5)
+    raise AssertionError(f"{operation} failed after reconnect retries: {last_error}")
+
+
 async def _acquire_live_suite_lease(bridge: UnityBridge) -> str:
     return await _execute_lease_checked(
         bridge,

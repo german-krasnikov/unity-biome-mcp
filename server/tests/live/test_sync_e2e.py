@@ -59,6 +59,15 @@ async def test_sync_unity_noop_when_stamp_unchanged(bridge):
             return "sync_ack|epoch=1|will_compile=false"
         if cmd == "get_compile_errors":
             return "No compilation errors"
+        # _get_errors' single terminal gate (61b0fdea) reads compile_status first
+        # and, once idle, corroborates with diagnose — both are part of the fast
+        # path now, not just get_compile_errors.
+        if cmd == "compile_status":
+            return "idle|1"
+        if cmd == "diagnose":
+            return "main_mvid=absent"
+        if cmd == "warm_type_cache":
+            return "ok:types=0"
         raise ConnectionError(f"unexpected cmd: {cmd}")
 
     old_send = _sync_mod._send
@@ -79,14 +88,18 @@ async def test_sync_unity_noop_when_stamp_unchanged(bridge):
 async def test_sync_unity_noop_stamp_match():
     """E2E-2b: sync_unity handles will_compile=True but stamp_post == stamp_pre.
 
-    Same MVID after compile = recovery attempted (force_refresh), then healed.
-    Result: 'sync clean' (recovery succeeded).
+    Pre-61b0fdea, a frozen MVID on a 'ready' epoch triggered a force_refresh
+    recovery heuristic — a source of the stale-DLL/false-ready defects that
+    commit fixed. 61b0fdea replaced it with a single terminal gate: a matching
+    epoch + state=ready is trusted directly, and freshness is corroborated by
+    _get_errors (compile_status + diagnose's dlls= checksum, not MVID-diffing).
+    A frozen MVID with no compile errors and no stale-dll token is therefore
+    'sync clean' with NO recovery call — this pins that force_refresh is no
+    longer invoked on this path.
     """
-    stamp_pre  = "abc123:99999"
-    stamp_post = "def456:99999"  # force_refresh changes MVID → healed
+    stamp_pre = "abc123:99999"  # MVID frozen: pre and post share the same value
     call_log = []
     epoch_counter = {"n": 0}
-    force_refreshed = {"done": False}
 
     async def fake_send(cmd: str, args: dict) -> str:
         call_log.append(cmd)
@@ -94,18 +107,17 @@ async def test_sync_unity_noop_stamp_match():
             epoch_counter["n"] += 1
             if epoch_counter["n"] == 1:
                 return f"epoch=0|state=idle|stamp={stamp_pre}"  # pre-sync read
-            if not force_refreshed["done"]:
-                # post-sync poll: same stamp (MVID frozen, triggers recovery)
-                return f"epoch=5|state=ready|stamp={stamp_pre}"
-            # after force_refresh: new MVID → healed
-            return f"epoch=5|state=ready|stamp={stamp_post}"
+            return f"epoch=5|state=ready|stamp={stamp_pre}"  # MVID unchanged
         if cmd == "sync":
             return "sync_ack|epoch=5|will_compile=true"
-        if cmd == "force_refresh":
-            force_refreshed["done"] = True
-            return "ok"
         if cmd == "get_compile_errors":
             return "No compilation errors"
+        if cmd == "compile_status":
+            return "idle|1"
+        if cmd == "diagnose":
+            return "main_mvid=absent"
+        if cmd == "warm_type_cache":
+            return "ok:types=0"
         raise ConnectionError(f"unexpected: {cmd}")
 
     old_send = _sync_mod._send
@@ -115,8 +127,10 @@ async def test_sync_unity_noop_stamp_match():
     finally:
         _sync_mod._send = old_send
 
-    assert "sync clean" in result, f"Expected 'sync clean' after recovery: {result!r}"
-    assert "force_refresh" in call_log, "Recovery should have called force_refresh"
+    assert result == "sync clean", f"Expected 'sync clean' with frozen MVID: {result!r}"
+    assert "force_refresh" not in call_log, (
+        "matching epoch + state=ready is trusted directly — no MVID-diff recovery"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +170,16 @@ async def test_sync_unity_stop_on_timeout():
 
 @pytest.mark.asyncio
 async def test_sync_unity_stop_contains_diagnostic():
-    """E2E-3b: STOP verdict includes diagnostic text about get_compile_errors."""
+    """E2E-3b: STOP verdict reports the elapsed budget so the caller can act.
+
+    Pre-61b0fdea, the poll loop's own deadline check returned a compile-specific
+    hint ("...or compile is wedged; check get_compile_errors"). 61b0fdea moved
+    timeout handling to one asyncio.timeout_at wrapping the whole _sync_unity
+    call (single shared deadline, ref commit body) — a timeout can now fire at
+    any awaited step, not just the compile-wait poll, so _run_with_context's
+    handler reports a deliberately generic 'operation may still be running'
+    instead of guessing the cause. This pins that current, honest contract.
+    """
     async def fake_send(cmd: str, args: dict) -> str:
         if cmd == "sync_status":
             return "epoch=7|state=compiling|dur=5.0"
@@ -172,8 +195,8 @@ async def test_sync_unity_stop_contains_diagnostic():
         _sync_mod._send = old_send
 
     assert result.startswith("STOP"), f"Expected STOP: {result!r}"
-    assert "get_compile_errors" in result.lower() or "compile" in result.lower(), (
-        f"STOP should mention compile: {result!r}"
+    assert "0.05" in result and "may still be running" in result, (
+        f"STOP should report the exceeded budget: {result!r}"
     )
 
 
@@ -205,6 +228,12 @@ async def test_sync_unity_stamp_changes_new_domain():
             return "sync_ack|epoch=3|will_compile=true"
         if cmd == "get_compile_errors":
             return "No compilation errors"
+        # _get_errors' single terminal gate (61b0fdea) needs a real idle
+        # compile_status and a clean diagnose to reach 'sync clean'.
+        if cmd == "compile_status":
+            return "idle|1"
+        if cmd == "diagnose":
+            return "main_mvid=absent"
         return ""
 
     old_send = _sync_mod._send
