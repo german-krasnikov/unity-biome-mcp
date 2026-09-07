@@ -121,6 +121,15 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(0, _mock.RequestScriptCompilationCount);
         }
 
+        // ── Compile guard: 'sync' is not allowlisted during compile. The C#
+        // guard rejection ("Unity is compiling. Retry in 5s.") is expected to
+        // trip here; sync_unity absorbs that text at the Python layer (PD-1,
+        // SYNC_COMPILE_GUARD_TEXT), it is not suppressed in C# ──────────────
+
+        [Test]
+        public void Sync_NotAllowedDuringCompile() =>
+            Assert.IsFalse(CommandRouter.IsAllowedDuringCompile("sync"));
+
         // ── Owner: host-registered (null), plugin collision refused ─────────
 
         [Test]

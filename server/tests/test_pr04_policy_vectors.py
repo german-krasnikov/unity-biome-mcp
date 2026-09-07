@@ -190,23 +190,20 @@ async def test_sync_unity_read_only_blocked_before_dispatch():
     send.assert_not_awaited()
 
 
-async def test_negative_control_sync_unity_read_only_blocked():
+async def test_negative_control_sync_unity_read_only_blocked(monkeypatch):
     """Proves the assertion above is load-bearing: reclassify sync_unity's
     live spec as a read and confirm the read-only gate no longer blocks it
     (the send IS awaited)."""
     from unity_mcp import middleware_types
-    middleware_types.WRITE_CMDS.discard("sync_unity")
-    middleware_types.READ_CMDS.add("sync_unity")
-    try:
-        send = AsyncMock(return_value="ok")
-        mw = Middleware()
-        mw.is_read_only = True
-        wrapped = wrap_send(send, mw)
-        await wrapped("sync_unity", {})
-        send.assert_awaited_once()
-    finally:
-        middleware_types.WRITE_CMDS.add("sync_unity")
-        middleware_types.READ_CMDS.discard("sync_unity")
+    monkeypatch.setattr(middleware_types, "WRITE_CMDS", middleware_types.WRITE_CMDS - {"sync_unity"})
+    monkeypatch.setattr(middleware_types, "READ_CMDS", middleware_types.READ_CMDS | {"sync_unity"})
+
+    send = AsyncMock(return_value="ok")
+    mw = Middleware()
+    mw.is_read_only = True
+    wrapped = wrap_send(send, mw)
+    await wrapped("sync_unity", {})
+    send.assert_awaited_once()
 
 
 def test_sync_wire_commands_read_only_gate_vectors():
