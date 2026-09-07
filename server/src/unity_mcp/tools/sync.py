@@ -3,7 +3,6 @@ import asyncio
 import math
 import time
 from collections.abc import Awaitable, Callable  # noqa: TC003
-from pathlib import Path
 
 from mcp.server.fastmcp.exceptions import ToolError
 
@@ -15,6 +14,16 @@ from unity_mcp.lockfile import read_reload_port
 from unity_mcp.tools.diagnose import _parse_diagnose, _parse_dlls, _verdict
 from unity_mcp.tools.reload_ladder import _send_with_fallback, make_reload_send, reject_blocked
 from unity_mcp.tools.reload_ladder import run_ladder as _run_ladder
+from unity_mcp.tools.sync_algorithm import (  # noqa: F401 -- re-exported for existing importers
+    BumpFlag,
+    SyncContext,
+    _package_json_path,
+    _parse_ack,
+    _parse_stamp,
+    _parse_status,
+    _status_issue,
+    _timed_send,
+)
 from unity_mcp.utils import parse_pipe_fields
 
 _send = None
@@ -28,45 +37,6 @@ _bump_used = False
 def _reset_bump_used() -> None:
     global _bump_used
     _bump_used = False
-
-
-async def _timed_send(send, cmd: str, args: dict, deadline: float) -> str:
-    remaining = deadline - time.monotonic()
-    if remaining <= 0:
-        raise TimeoutError(f"deadline passed before {cmd}")
-    return await asyncio.wait_for(send(cmd, args), timeout=remaining)
-
-
-def _parse_ack(ack: str) -> tuple[int, bool]:
-    if ack.partition('|')[0] != 'sync_ack':
-        raise ValueError(f"unexpected sync ack: {ack!r}")
-    fields = parse_pipe_fields(ack)
-    if fields.get('will_compile') not in ('true', 'false'):
-        raise ValueError('missing or invalid will_compile')
-    return int(fields['epoch']), fields['will_compile'] == 'true'
-
-
-def _parse_status(status: str) -> tuple[int, str, str]:
-    fields = parse_pipe_fields(status)
-    return int(fields.get('epoch', '0')), fields.get('state', ''), fields.get('err', '')
-
-
-def _parse_stamp(status: str) -> str:
-    return parse_pipe_fields(status).get('stamp', '')
-
-
-def _status_issue(status: str, expected_epoch: int | None) -> str:
-    try:
-        epoch, state, error = _parse_status(status)
-    except (ValueError, TypeError):
-        return 'UNKNOWN: malformed sync status'
-    if expected_epoch is not None and epoch != expected_epoch:
-        return 'UNKNOWN: sync epoch changed during recovery'
-    if state == 'failed' or error:
-        return f"compile failed: {error or 'details unavailable'}"
-    if state not in ('ready', 'idle', 'compiling', 'reloading'):
-        return 'UNKNOWN: missing or unknown sync state'
-    return ''
 
 
 async def _get_errors(send=None) -> str:
@@ -106,7 +76,12 @@ async def _get_errors(send=None) -> str:
 
 async def _attempt_recovery(send, mvid_pre: str, send_reload=None, deadline: float = 0,
                             expected_epoch: int | None = None) -> str | None:
-    """One force-refresh attempt within the caller budget; no status alone proves source freshness."""
+    """One force-refresh attempt within the caller budget; no status alone proves source freshness.
+
+    Takes send explicitly rather than a SyncContext: it never touches bump
+    state, and every caller (the algorithm below via ctx.send, or a direct
+    test call) already holds the right binding.
+    """
     deadline = deadline or time.monotonic() + _RECOVERY_TIMEOUT + 5
     if time.monotonic() >= deadline:
         return 'STOP: reload deadline exceeded before recovery'
@@ -151,34 +126,50 @@ async def _attempt_recovery(send, mvid_pre: str, send_reload=None, deadline: flo
         return f'REIMPORT-NEEDED: focus Unity (stale MVID {mvid_pre})'
 
 
-def _package_json_path() -> Path | None:
-    pkg = Path(__file__).resolve().parents[4] / 'unity-plugin' / 'package.json'
-    return pkg if pkg.exists() else None
+async def _run_with_context(ctx: SyncContext, resolve: bool, bump: bool, timeout: float) -> str:
+    """Timeout-bounded entry point shared by the legacy module-level facade
+    (sync_unity below) and SyncModule.sync_unity (sync_module.py). The two
+    callers differ only in how ctx is built and, for the legacy facade, in
+    writing the bump flag back to a module global afterward -- the algorithm
+    itself never reads tools.sync module state once ctx exists.
+    """
+    if not math.isfinite(timeout) or timeout <= 0:
+        return 'STOP: timeout must be a finite positive number'
+    if ctx.send is None:
+        raise ToolError('sync_unity requires a Unity connection (no bridge)')
+    deadline = time.monotonic() + timeout
+    try:
+        async with asyncio.timeout_at(deadline):
+            return await _sync_unity(ctx, resolve, bump, deadline)
+    except TimeoutError:
+        return f'STOP: reload observation exceeded {timeout:g}s; Unity operation may still be running'
 
 
 async def sync_unity(resolve: bool = False, bump: bool = False, timeout: float = _DEFAULT_TIMEOUT) -> str:
     """Refresh Unity and await its matching compile cycle within one timeout.
+
+    Legacy adapter: builds a SyncContext from this module's own _send/
+    _bump_used globals and writes the (possibly updated) bump flag back to
+    _bump_used after the call -- kept for callers/tests that still bind
+    Unity via unity_mcp.tools.sync._send directly. The production route is
+    SyncModule (tools/sync_module.py), which builds its own SyncContext from
+    per-instance state and never touches these globals.
 
     resolve=True resolves packages first; bump=True increments the plugin patch
     version once per connection and implies resolve. 'sync clean' means the
     observed cycle completed without captured errors; it is not a hash proof
     that every source file was compiled. Timeout does not cancel Unity effects.
     """
-    if not math.isfinite(timeout) or timeout <= 0:
-        return 'STOP: timeout must be a finite positive number'
-    deadline = time.monotonic() + timeout
-    try:
-        async with asyncio.timeout_at(deadline):
-            return await _sync_unity(resolve, bump, deadline)
-    except TimeoutError:
-        return f'STOP: reload observation exceeded {timeout:g}s; Unity operation may still be running'
-
-
-async def _sync_unity(resolve: bool, bump: bool, deadline: float) -> str:
     global _bump_used
-    if _send is None:
-        raise ToolError('sync_unity requires a Unity connection (no bridge)')
-    if bump and _bump_used:
+    ctx = SyncContext(send=_send, bump=BumpFlag(_bump_used))
+    try:
+        return await _run_with_context(ctx, resolve, bump, timeout)
+    finally:
+        _bump_used = ctx.bump.used
+
+
+async def _sync_unity(ctx: SyncContext, resolve: bool, bump: bool, deadline: float) -> str:
+    if bump and ctx.bump.used:
         return 'STOP: bump already used this session; investigate compile errors instead of re-bumping'
     if bump:
         pkg = _package_json_path()
@@ -187,17 +178,17 @@ async def _sync_unity(resolve: bool, bump: bool, deadline: float) -> str:
         from unity_mcp.scripts.bump_version import bump_patch
         bump_patch(pkg)
         resolve = True
-        _bump_used = True
+        ctx.bump.used = True
     port = read_reload_port()
     send_reload = make_reload_send(port) if port else None
     try:
-        stamp_pre = _parse_stamp(await _send('sync_status', {}))
+        stamp_pre = _parse_stamp(await ctx.send('sync_status', {}))
     except (ConnectionError, OSError) as exc:
         if recovery_barrier(exc) is not None:
             raise
         stamp_pre = ''
     try:
-        ack = await _send('sync', {'resolve': 'true'} if resolve else {})
+        ack = await ctx.send('sync', {'resolve': 'true'} if resolve else {})
     except ConnectionError as exc:
         raise ToolError(f'Unity unreachable: {exc}') from exc
     except ToolError as exc:
@@ -208,7 +199,7 @@ async def _sync_unity(resolve: bool, bump: bool, deadline: float) -> str:
         # it -- just observe the already-running cycle through the same wait+verdict
         # path a normal will_compile=true ack takes. epoch=None: we have no ack, so
         # adopt whatever epoch sync_status first reports as ours.
-        return await _await_sync_completion(None, deadline, stamp_pre, send_reload)
+        return await _await_sync_completion(ctx, None, deadline, stamp_pre, send_reload)
     if ack.startswith('blocked|'):
         return 'BLOCKED: ' + parse_pipe_fields(ack).get('reason', 'Unity rejected sync before dispatch')
     if ack == 'wedged' or ack.startswith('wedged|'):
@@ -218,15 +209,15 @@ async def _sync_unity(resolve: bool, bump: bool, deadline: float) -> str:
     except (ValueError, KeyError, IndexError):
         return f'STOP: unrecognized sync ack {ack!r} — Unity plugin/server protocol mismatch'
     if not will_compile:
-        errors = await _get_errors()
+        errors = await _get_errors(ctx.send)
         if errors:
             return errors
-        await _warm_type_cache()
+        await _warm_type_cache(ctx.send)
         return 'sync clean (no compile needed)'
-    return await _await_sync_completion(epoch, deadline, stamp_pre, send_reload)
+    return await _await_sync_completion(ctx, epoch, deadline, stamp_pre, send_reload)
 
 
-async def _await_sync_completion(epoch: int | None, deadline: float, stamp_pre: str,
+async def _await_sync_completion(ctx: SyncContext, epoch: int | None, deadline: float, stamp_pre: str,
                                   send_reload: Callable[..., Awaitable[str]] | None) -> str:
     """Poll sync_status to a terminal state, then run the shared errors+freshness verdict.
 
@@ -240,7 +231,7 @@ async def _await_sync_completion(epoch: int | None, deadline: float, stamp_pre: 
     started = time.monotonic()
     while True:
         try:
-            status = await _timed_send(_send, 'sync_status', {}, deadline)
+            status = await _timed_send(ctx.send, 'sync_status', {}, deadline)
         except (ConnectionError, OSError) as exc:
             if recovery_barrier(exc) is not None:
                 raise
@@ -256,33 +247,33 @@ async def _await_sync_completion(epoch: int | None, deadline: float, stamp_pre: 
             await asyncio.sleep(_POLL_INTERVAL)
             continue
         if state == 'failed' or error:
-            return await _get_errors() or f'compile failed: {error or "details unavailable"}'
+            return await _get_errors(ctx.send) or f'compile failed: {error or "details unavailable"}'
         if state not in ('compiling', 'reloading', 'idle', 'ready'):
             return 'UNKNOWN: missing or unknown sync state'
         if state == 'ready':
             # The aggregate stamp covers plugin assemblies, not user assemblies.
             # A matching ready cycle uses current diagnostics even when IL is unchanged.
-            errors = await _get_errors()
+            errors = await _get_errors(ctx.send)
             if errors:
                 return errors
-            await _warm_type_cache()
+            await _warm_type_cache(ctx.send)
             return 'sync clean'
         stalled = state == 'compiling' and 'dur=0.0' in status and time.monotonic() - started > _FOCUS_HINT_AFTER
         if stalled:
-            outcome = await _attempt_recovery(_send, stamp_pre.partition(':')[0] or 'unknown', send_reload,
+            outcome = await _attempt_recovery(ctx.send, stamp_pre.partition(':')[0] or 'unknown', send_reload,
                                                deadline=deadline, expected_epoch=epoch)
             if outcome:
                 if outcome.startswith('REIMPORT-NEEDED'):
-                    return await _run_ladder(_send, send_reload=send_reload, start_tier=2, deadline=deadline)
+                    return await _run_ladder(ctx.send, send_reload=send_reload, start_tier=2, deadline=deadline)
                 return outcome
-            await _warm_type_cache()
+            await _warm_type_cache(ctx.send)
             return 'sync clean'
         await asyncio.sleep(_POLL_INTERVAL)
 
 
-async def _warm_type_cache() -> None:
+async def _warm_type_cache(send: Callable[..., Awaitable[str]]) -> None:
     try:
-        await _send('warm_type_cache', {})
+        await send('warm_type_cache', {})
     except (ConnectionError, OSError) as exc:
         if recovery_barrier(exc) is not None:
             raise

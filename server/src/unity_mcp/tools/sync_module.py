@@ -1,8 +1,9 @@
 """N1b: second self-owned Python tool module (mirrors tools/watch.py's
 WatchModule pilot). SyncModule owns the public `sync_unity` ToolSpec kwargs,
-the explicit public->wire mapping, and instance-bound send/args state so two
-independently-configured SDK hosts never cross-contaminate each other's
-_send/_args. See Plans/N1b-second-module-sync.md section 2.
+the explicit public->wire mapping, and instance-bound send state so two
+independently-configured SDK hosts (or interleaved async calls sharing one
+event loop) never cross-contaminate each other's Unity connection. See
+Plans/N1b-second-module-sync.md section 2.
 
 Owned (public -> wire mapping):
     sync_unity (public MCP tool) -> C# wire 'sync' / 'sync_status'
@@ -17,13 +18,13 @@ editor_log.get_corroborated_errors, lockfile.read_reload_port, reload_ladder.*.
 
 The poll/recovery/error algorithm (_sync_unity, _await_sync_completion,
 _get_errors, _attempt_recovery, _warm_type_cache) is NOT duplicated here --
-it stays the single tested implementation in tools/sync.py. SyncModule.
-sync_unity rebinds that module's _send/_args/_bump_used to this instance's
-own state immediately before delegating, so a call is dispatched with
-exactly this instance's binding every time (verified in
-tests/test_sync_module.py). This is a deliberate, scope-limited slice: a full
-stateless refactor of the tools.sync algorithm functions is out of scope
-(Plans/N1b-second-module-sync.md section 5, "module refactor" risk row).
+it stays the single tested implementation in tools/sync.py, which each
+SyncModule instance drives through an explicit tools.sync.SyncContext
+(send + its own BumpFlag) built from this instance's own state. Unlike the
+pre-refactor version, sync_unity() below never writes to tools.sync module
+globals (_send/_bump_used) -- those stay reserved for sync.py's own legacy
+module-level sync_unity() adapter (verified in tests/test_sync_module.py,
+including an interleaved-instances regression).
 """
 from unity_mcp import editor_log
 from unity_mcp.constants import SESSION_TIMEOUT as _DEFAULT_TIMEOUT
@@ -40,14 +41,17 @@ from .sync_spec import CONSUMED_DEPENDENCIES, OWNED_WIRE_COMMANDS, SPEC_KWARGS  
 
 class SyncModule:
     """Owns the public sync_unity MCP tool. Instance-scoped (not a
-    module-global singleton) so two independently-configured hosts never
-    cross-contaminate each other's _send/_args -- same contract as
-    WatchModule (tools/watch.py)."""
+    module-global singleton) so two independently-configured hosts -- or two
+    interleaved async calls sharing one event loop -- never cross-contaminate
+    each other's Unity connection. `args` is accepted only for signature
+    symmetry with every other tools/*.py module's register(mcp, send, args)
+    call in tools/__init__.py:register_all()'s uniform loop; the sync
+    algorithm never builds wire args through a factory (only inline dict
+    literals), so it is not stored."""
 
     def __init__(self, send, args):
         self._send = send
-        self._args = args
-        self._bump_used = False
+        self._bump = sync.BumpFlag()
 
     async def sync_unity(self, resolve: bool = False, bump: bool = False,
                           timeout: float = _DEFAULT_TIMEOUT) -> str:
@@ -58,13 +62,8 @@ class SyncModule:
         observed cycle completed without captured errors; it is not a hash proof
         that every source file was compiled. Timeout does not cancel Unity effects.
         """
-        sync._send = self._send
-        sync._args = self._args
-        sync._bump_used = self._bump_used
-        try:
-            return await sync.sync_unity(resolve, bump, timeout)
-        finally:
-            self._bump_used = sync._bump_used
+        ctx = sync.SyncContext(send=self._send, bump=self._bump)
+        return await sync._run_with_context(ctx, resolve, bump, timeout)
 
     def register(self, mcp) -> None:
         mcp.tool(annotations=_RW)(self.sync_unity)
@@ -93,7 +92,7 @@ def _reset_bump_used() -> None:
     bump flag, plus the tools.sync module-global fallback used by direct
     (non-instance) callers/tests."""
     if _default is not None:
-        _default._bump_used = False
+        _default._bump.used = False
     sync._reset_bump_used()
 
 

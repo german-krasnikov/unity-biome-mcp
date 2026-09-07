@@ -9,6 +9,7 @@ _args, _bump_used) after each test -- these are process-wide singletons
 (same shape as every other tools/*.py module), so leaking a fake send into
 them would pollute later tests/production state.
 """
+import asyncio
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -169,6 +170,70 @@ def test_register_called_twice_returns_independently_bound_modules():
     assert mod_a is not mod_b
     assert mod_a._send is send_a
     assert mod_b._send is send_b
+
+
+def _interleaving_send(tag: str):
+    """Same will_compile=false fast path as _clean_send, but the 'sync' and
+    'sync_status' branches each yield via `await asyncio.sleep(0)` -- so two
+    concurrent sync_unity() calls under asyncio.gather actually interleave
+    at the bytecode level (A dispatches sync_status, suspends; B dispatches
+    sync_status, suspends; A resumes and dispatches 'sync'; ...) instead of
+    running sequentially to completion before the other ever starts."""
+    async def _send(cmd: str, args: dict | None = None, **kwargs):
+        if cmd == "sync_status":
+            await asyncio.sleep(0)
+            return "epoch=0|state=idle"
+        if cmd == "sync":
+            await asyncio.sleep(0)
+            return "sync_ack|epoch=1|will_compile=false"
+        if cmd == "compile_status":
+            return "idle|1"
+        if cmd == "get_compile_errors":
+            return "No compilation errors"
+        if cmd == "warm_type_cache":
+            return "ok"
+        if cmd == "diagnose":
+            return "main_mvid=absent"
+        raise AssertionError(f"[{tag}] unexpected cmd {cmd!r}")
+
+    return AsyncMock(side_effect=_send)
+
+
+async def test_interleaved_instances_keep_their_own_send():
+    """Real interleaving (asyncio.gather; sync/sync_status each yield via
+    asyncio.sleep(0)) must not let two SyncModule instances' wire calls cross
+    over.
+
+    RED on the pre-refactor rebind design: SyncModule.sync_unity used to do
+    `sync._send = self._send` (a shared tools.sync module global) immediately
+    before delegating to sync.sync_unity(). Under sequential (non-interleaved)
+    calls that race never showed up -- but under real interleaving, instance
+    B's synchronous rebind of the shared global runs while instance A is
+    suspended inside its own 'sync_status' send, so when A resumes and reads
+    the *same* global again for its 'sync' call, it silently gets send_b
+    instead of send_a. This test's expected-command-sequence assertion below
+    is what catches that: with the bug, send_a.await_args_list is missing
+    'sync' (stolen by send_b) while send_b.await_args_list gains an
+    unexpected extra 'sync' entry.
+    """
+    send_a = _interleaving_send("a")
+    send_b = _interleaving_send("b")
+    mod_a = SyncModule(send_a, _plain_args)
+    mod_b = SyncModule(send_b, _plain_args)
+
+    result_a, result_b = await asyncio.gather(mod_a.sync_unity(), mod_b.sync_unity())
+
+    assert "sync clean" in result_a
+    assert "sync clean" in result_b
+
+    expected_cmds = ["sync_status", "sync", "compile_status", "get_compile_errors",
+                      "diagnose", "warm_type_cache"]
+    assert [c.args[0] for c in send_a.await_args_list] == expected_cmds, (
+        f"instance A's calls leaked to/from another instance: {send_a.await_args_list}"
+    )
+    assert [c.args[0] for c in send_b.await_args_list] == expected_cmds, (
+        f"instance B's calls leaked to/from another instance: {send_b.await_args_list}"
+    )
 
 
 # ── Owned vs consumed inventory (checkbox 2) ─────────────────────────────
