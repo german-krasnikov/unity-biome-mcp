@@ -94,6 +94,29 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void RequestDisable_RejectedOutcome_EntersRecoveryAndThrows()
+        {
+            // Distinct from the exception-throwing fake below: this port returns
+            // a structured ReloadPortOutcome.Rejected value (no exception of its
+            // own). RequestDisable must still fail closed — it throws (per the
+            // catch block's re-throw semantics) and lands the same place a throwing
+            // port would: Recovery, with the receipt retained.
+            SourcePatchHost.CurrentState = SourcePatchState.OnReady;
+            var fakePort = new RecordingReloadPort { Outcome = ReloadPortOutcome.Rejected };
+            SourcePatchModePolicy.ReloadPort = fakePort;
+            var epochBefore = SyncHelper.CurrentEpoch;
+
+            Assert.Throws<System.InvalidOperationException>(() => SourcePatchModePolicy.SetMutationIntent(false));
+
+            Assert.That(fakePort.CallCount, Is.EqualTo(1));
+            Assert.That(SourcePatchHost.CurrentState, Is.EqualTo(SourcePatchState.Recovery));
+            Assert.That(SourcePatchReceiptStore.TryRead(out var receipt), Is.True,
+                "receipt must be retained after a Rejected outcome, same as after a thrown exception");
+            Assert.That(receipt.ExpectedEpochAfter, Is.EqualTo(epochBefore + 1));
+            Assert.That(SyncHelper.CurrentEpoch, Is.EqualTo(epochBefore));
+        }
+
+        [Test]
         public void RequestDisable_RejectedReloadEntersRecoveryAndRetainsReceipt()
         {
             SourcePatchHost.CurrentState = SourcePatchState.OnReady;

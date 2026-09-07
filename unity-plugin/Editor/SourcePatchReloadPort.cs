@@ -1,15 +1,15 @@
 namespace UnityMCP.Editor
 {
-    /// <summary>PR-04R: narrow SourcePatch-owned port over Reload's control surface.
-    /// Exactly one method — any additional need routes through a new named port,
-    /// never by widening this one (mirrors the discipline already applied to
-    /// <see cref="UnityMCP.Editor.SourcePatch.ICompileEvidencePort"/>, a separate,
-    /// unrelated responsibility this port does not replace).</summary>
     /// <summary>Outcome of a reload verification request. The port never
     /// leaves an ambiguous "did it work?" result: the caller (SourcePatchModePolicy)
     /// switches on this instead of inferring success from "no exception".</summary>
     internal enum ReloadPortOutcome { Accepted, AcceptedNoOp, Rejected }
 
+    /// <summary>PR-04R: narrow SourcePatch-owned port over Reload's control surface.
+    /// Exactly one method — any additional need routes through a new named port,
+    /// never by widening this one (mirrors the discipline already applied to
+    /// <see cref="UnityMCP.Editor.SourcePatch.ICompileEvidencePort"/>, a separate,
+    /// unrelated responsibility this port does not replace).</summary>
     internal interface ISourcePatchReloadPort
     {
         /// <param name="expectedEpochAfter">The one Reload-owned epoch value

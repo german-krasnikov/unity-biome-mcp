@@ -21,6 +21,11 @@ namespace UnityMCP.Editor.Tests
             public ReloadPortOutcome RequestReloadVerification(int expectedEpochAfter)
             {
                 CallCount++;
+                // Persist-before-trigger is an observed order, not an assumed one:
+                // by the time the port is called, RequestDisable must already have
+                // written the receipt (N2a.2).
+                Assert.IsTrue(SourcePatchReceiptStore.TryRead(out _),
+                    "receipt must be persisted before port is triggered");
                 return ReloadPortOutcome.Accepted;
             }
         }

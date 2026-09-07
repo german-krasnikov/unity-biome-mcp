@@ -54,6 +54,39 @@ namespace UnityMCP.Editor
         // code (GetSyncStatus) never reads MCPServer directly from inside the algorithm.
         public static Func<bool> IsMainAssemblyCompiling = () => MCPServer.IsReallyCompiling;
 
+        // N2 Task 2: the one substitution point beneath TriggerSync/GetSyncStatus.
+        // Begin/Observe mirror TriggerSync(bool,bool)/GetSyncStatus()'s own shape —
+        // an algorithm B changes what both report without any consumer call-site
+        // change (CommandRouter, SourcePatchReloadPort, DiagnoseCommand, MCPChatWindow
+        // all keep calling the public statics below).
+        internal interface IReloadAlgorithm
+        {
+            string Begin(bool resolve, bool explicitOwnedDisable);
+            string Observe();
+        }
+
+        // Algorithm A: wraps today's Core implementation verbatim — zero behavior
+        // change on the default path.
+        private sealed class DefaultAlgorithm : IReloadAlgorithm
+        {
+            public string Begin(bool resolve, bool explicitOwnedDisable) =>
+                TriggerSyncCore(resolve, explicitOwnedDisable);
+            public string Observe() => GetSyncStatusCore();
+        }
+
+        // Bind-once in production: the private setter means only this file's own
+        // TestIsolationScope (below) can restore a prior value, and only
+        // OverrideAlgorithmForTest (test-only entry point, mirrors OverrideOpsForTest)
+        // can install a replacement. No production call site ever assigns this.
+        internal static IReloadAlgorithm Algorithm { get; private set; } = new DefaultAlgorithm();
+
+        internal static void OverrideAlgorithmForTest(IReloadAlgorithm replacement)
+        {
+            if (replacement == null)
+                throw new ArgumentNullException(nameof(replacement));
+            Algorithm = replacement;
+        }
+
         private static TestIsolationScope _activeTestIsolation;
 
         // UnityMcpTestBase snapshots and restores this seam around every test, so fixtures
@@ -115,7 +148,16 @@ namespace UnityMCP.Editor
         // --- Called from CommandRouter ---
         public static string TriggerSync(bool resolve) => TriggerSync(resolve, false);
 
-        internal static string TriggerSync(bool resolve, bool explicitOwnedDisable)
+        // Facade entry point: dispatches to the bound Algorithm (DefaultAlgorithm
+        // by default), never to TriggerSyncCore directly. This is the ONE place
+        // an algorithm B changes what every consumer observes.
+        internal static string TriggerSync(bool resolve, bool explicitOwnedDisable) =>
+            Algorithm.Begin(resolve, explicitOwnedDisable);
+
+        // Algorithm A's Begin implementation. Internal (not private): DefaultAlgorithm
+        // wraps it, and tests may call it directly to prove the facade is bypassable
+        // only here — never through the public TriggerSync entry points.
+        internal static string TriggerSyncCore(bool resolve, bool explicitOwnedDisable)
         {
             var blocked = ReloadBlockReason(explicitOwnedDisable);
             if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
@@ -172,7 +214,11 @@ namespace UnityMCP.Editor
             return $"sync_ack|epoch={epoch}|will_compile={willCompile.ToString().ToLower()}";
         }
 
-        public static string GetSyncStatus()
+        // Facade entry point: dispatches to the bound Algorithm, mirroring TriggerSync.
+        public static string GetSyncStatus() => Algorithm.Observe();
+
+        // Algorithm A's Observe implementation.
+        internal static string GetSyncStatusCore()
         {
             var epoch = CurrentEpoch;
             var state = SessionState.GetString(StateKey, "idle");
@@ -247,6 +293,7 @@ namespace UnityMCP.Editor
             IsMainAssemblyCompiling = () => MCPServer.IsReallyCompiling;
             OnSyncComplete = null;
             OnSyncFailed   = null;
+            Algorithm = new DefaultAlgorithm();
         }
 
 #if UNITY_INCLUDE_TESTS
@@ -258,6 +305,7 @@ namespace UnityMCP.Editor
         {
             private readonly TestIsolationScope _previous;
             private readonly ISyncOps _ops;
+            private readonly IReloadAlgorithm _algorithm;
             private readonly Func<double> _clock;
             private readonly Func<bool> _isMainAssemblyCompiling;
             private readonly Action _syncComplete;
@@ -277,6 +325,7 @@ namespace UnityMCP.Editor
             {
                 _previous = previous;
                 _ops = Ops;
+                _algorithm = Algorithm;
                 _clock = NowSeconds;
                 _isMainAssemblyCompiling = IsMainAssemblyCompiling;
                 _syncComplete = OnSyncComplete;
@@ -314,6 +363,7 @@ namespace UnityMCP.Editor
                 Restore(() => NowSeconds = _clock, errors);
                 Restore(() => IsMainAssemblyCompiling = _isMainAssemblyCompiling, errors);
                 Restore(() => Ops = _ops, errors);
+                Restore(() => Algorithm = _algorithm, errors);
 
                 _activeTestIsolation = _previous;
                 _disposed = true;
