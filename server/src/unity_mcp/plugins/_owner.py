@@ -11,10 +11,7 @@ import the other, so no import cycle is introduced.
 Registration is serialized and startup-only (no threading), so a single pair
 of module-level globals is sufficient.
 """
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
+from collections.abc import Iterable  # noqa: TC003
 
 # Identity of the plugin currently inside its module.register() call.
 # None outside of that call (including during host register_all()).
