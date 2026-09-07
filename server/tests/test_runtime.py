@@ -343,6 +343,8 @@ async def test_restart_stop_exception_fails_and_does_not_run_next_file(monkeypat
         if cmd == "run_playtest":
             run_paths.append(args["path"])
             return "PLAYTEST: 1/1 (0.1s) OK"
+        if cmd == "compile_status":
+            return "idle|0.0"
         if cmd == "editor" and args.get("action") == "stop":
             raise ConnectionError("stop transport failed")
         raise AssertionError(f"unexpected command: {cmd} {args}")
@@ -385,6 +387,8 @@ async def test_restart_play_exception_fails_and_does_not_run_next_file(monkeypat
                 return f"playing:{playing}\npaused:False\ncompiling:False"
             if action == "play":
                 raise ConnectionError("play transport failed")
+        if cmd == "compile_status":
+            return "idle|0.0"
         raise AssertionError(f"unexpected command: {cmd} {args}")
 
     monkeypatch.setattr(runtime, "_send", fake_send)
@@ -418,6 +422,8 @@ async def test_restart_stuck_in_play_mode_fails_without_next_file(monkeypatch):
             return "ok"
         if cmd == "editor" and args.get("action") == "state":
             return "playing:True\npaused:False\ncompiling:False"
+        if cmd == "compile_status":
+            return "idle|0.0"
         raise AssertionError(f"unexpected command: {cmd} {args}")
 
     monkeypatch.setattr(runtime, "_send", fake_send)
@@ -448,6 +454,8 @@ async def test_initial_auto_play_exception_fails_without_running_file(monkeypatc
             raise ConnectionError("play failed")
         if cmd == "run_playtest":
             run_paths.append(args["path"])
+        if cmd == "compile_status":
+            return "idle|0.0"
         raise AssertionError(f"unexpected command: {cmd} {args}")
 
     monkeypatch.setattr(runtime, "_send", fake_send)
@@ -475,6 +483,8 @@ async def test_initial_auto_play_stuck_state_fails_without_running_file(monkeypa
             return "entered"
         if cmd == "run_playtest":
             run_paths.append(args["path"])
+        if cmd == "compile_status":
+            return "idle|0.0"
         raise AssertionError(f"unexpected command: {cmd} {args}")
 
     monkeypatch.setattr(runtime, "_send", fake_send)
@@ -511,6 +521,8 @@ async def test_restart_between_auto_play_resets_before_first_file(monkeypatch):
                 return "entered"
         if cmd == "run_playtest":
             return "PLAYTEST: 1/1 (0.1s) OK"
+        if cmd == "compile_status":
+            return "idle|0.0"
         raise AssertionError(f"unexpected command: {cmd} {args}")
 
     monkeypatch.setattr(runtime, "_send", fake_send)
@@ -908,6 +920,8 @@ async def test_run_playtest_suite_cancel_during_run_stops_play_mode(monkeypatch)
         if cmd == "run_playtest":
             await _asyncio.sleep(10)
             return "PLAYTEST: 1/1 (0.1s) OK"
+        if cmd == "compile_status":
+            return "idle|0.0"
         raise AssertionError(f"unexpected command: {cmd} {args}")
 
     monkeypatch.setattr(runtime, "_send", fake_send)

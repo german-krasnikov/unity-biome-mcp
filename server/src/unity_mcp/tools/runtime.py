@@ -5,6 +5,8 @@ import re
 
 from mcp.server.fastmcp.exceptions import ToolError
 
+from ..bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S
+from ..errors import recovery_barrier
 from ..sampling import sampling_service as _sampling
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
@@ -27,6 +29,12 @@ _PLAY_STATE_POLLS = 15
 _PLAY_STATE_POLL_INTERVAL = 1.0
 _FRESH_READINESS_TIMEOUT = 30.0
 _FRESH_POLL_INTERVAL = 0.2
+# N0b/S8 row 4: never auto-resend the unsafe 'editor' write into an active
+# domain reload — wait (bounded) until compile_status proves idle, then send
+# exactly once. Poll cadence matches _PLAY_STATE_POLL_INTERVAL; the bound
+# reuses the bridge's own reload-expiry budget rather than a new number.
+_RELOAD_WAIT_POLL_S = 1.0
+_RELOAD_WAIT_TIMEOUT_S = DOMAIN_RELOAD_EXPIRY_S
 # N0b: one public success/error classification for run_playtest regardless of
 # sync/async route or format — a non-pass outcome always raises, never returns
 # as a plain string. Fallback text when the terminal receipt itself is empty.
@@ -130,6 +138,7 @@ async def _enter_fresh_play() -> None:
     state_str = await _send("editor", _args(action="state"), timeout=5.0)
     playing = _editor_field(state_str, "playing")
     if playing and playing.lower() == "true":
+        await _await_reload_idle()
         response = await _send("editor", _args(action="stop"), timeout=10.0)
         error = _editor_command_error("stop", response)
         if error:
@@ -138,6 +147,7 @@ async def _enter_fresh_play() -> None:
     # No stop-completion wait here: PlayReadinessTracker's timeout absorbs any
     # remaining teardown time so entering play immediately is safe.
     # Enter Play Mode
+    await _await_reload_idle()
     response = await _send("editor", _args(action="play"), timeout=5.0)
     error = _editor_command_error("play", response)
     if error:
@@ -300,10 +310,35 @@ async def _wait_for_play_state(expected: bool, action: str) -> None:
     )
 
 
+async def _await_reload_idle(timeout: float = _RELOAD_WAIT_TIMEOUT_S) -> None:
+    """Block until compile_status proves Unity is not mid-reload/mid-compile.
+
+    A read-only, retry-safe probe — never the unsafe 'editor' write. Raising
+    TimeoutError on a bounded overrun lets the existing timeout-verdict paths
+    (run_playtest_suite's suite_timeout, sync_unity's STOP) handle it the same
+    way they already handle any other stalled wait; it never hangs forever.
+    """
+    async def _poll() -> None:
+        while True:
+            try:
+                status = await _send("compile_status", {})
+                state = status.partition("|")[0].strip()
+            except (ConnectionError, OSError) as exc:
+                if recovery_barrier(exc) is not None:
+                    raise
+                state = "compiling"
+            if state not in ("compiling", "reloading"):
+                return
+            await asyncio.sleep(_RELOAD_WAIT_POLL_S)
+
+    await asyncio.wait_for(_poll(), timeout=timeout)
+
+
 async def _transition_play_state(expected: bool) -> None:
     """Request and then prove a Play/Edit Mode transition."""
     action = "play" if expected else "stop"
     timeout = 5.0 if expected else 10.0
+    await _await_reload_idle()
     response = await _send("editor", _args(action=action), timeout=timeout)
     error = _editor_command_error(action, response)
     if error:

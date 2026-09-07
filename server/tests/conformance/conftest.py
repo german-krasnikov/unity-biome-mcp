@@ -1,4 +1,3 @@
-import asyncio
 import os
 
 import pytest
@@ -70,17 +69,59 @@ async def conformance_worker():
         await bridge.close()
 
 
-def pytest_runtest_teardown(item, nextitem):  # noqa: ARG001
+async def _teardown_live_conformance_item(item) -> None:
+    """Per-test cleanup for one live+conformance item.
+
+    Split out from the fixture below so tests/conformance/test_conftest_bridge_reuse.py
+    can drive this exact dispatch logic (marker gate + bridge-reuse cleanup)
+    against a faked connect_bridge/ConformanceWorker without a real event loop.
+    """
     if "live" not in item.keywords or "conformance" not in item.keywords:
         return
     if not CONF_PROJECT:
         return
-    asyncio.run(_cleanup_live_worker())
+    await _cleanup_live_worker()
 
 
-def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
+@pytest_asyncio.fixture(autouse=True, loop_scope="session")
+async def _live_conformance_teardown(request):
+    """Per-test cleanup for live+conformance tests, run on the session's own
+    event loop rather than a fresh asyncio.run() loop per test.
+
+    _session_bridge caches one UnityBridge for the whole session (see
+    _SessionBridgeHolder above) — its internal asyncio primitives (locks,
+    events, the StreamReader/Writer) are bound to whichever loop first
+    touched them. The former pytest_runtest_teardown sync hook called
+    asyncio.run(_cleanup_live_worker()) directly: asyncio.run() opens a new
+    loop and closes it on return, so every test after the first reused the
+    cached bridge from a loop different than (and, by the next test, already
+    closed relative to) the one its primitives were created on — "Future
+    attached to a different loop", then "Event loop is closed" under
+    pytest-asyncio's session loop (Python 3.14). loop_scope="session" binds
+    this fixture to the same persistent loop conformance_worker runs on, so
+    the bridge is always touched from the loop it was created on. Same
+    cleanup semantics and fail-closed behavior as before: skipped for tests
+    without both the live and conformance markers, or with no project pinned.
+    """
+    yield
+    await _teardown_live_conformance_item(request.node)
+
+
+@pytest_asyncio.fixture(scope="session", loop_scope="session", autouse=True)
+async def _session_bridge_final_close():
+    """Closes _session_bridge while the session loop is still alive.
+
+    A former pytest_sessionfinish hook did this via asyncio.run() after all
+    tests ran — but pytest-asyncio's session loop is already closed by the
+    time pytest_sessionfinish fires (session-scoped fixtures finalize first),
+    so closing _bridge's loop-bound transport there raised 'Event loop is
+    closed' and crashed the whole run. A session-scoped, loop_scope="session"
+    fixture finalizes as part of that same loop-scope group's teardown,
+    before the loop itself is torn down.
+    """
+    yield
     if _session_bridge.is_usable():
-        asyncio.run(_session_bridge.close())
+        await _session_bridge.close()
 
 
 async def _cleanup_live_worker():

@@ -131,6 +131,10 @@ async def test_sync_unity_noop_stamp_match():
     assert "force_refresh" not in call_log, (
         "matching epoch + state=ready is trusted directly — no MVID-diff recovery"
     )
+    assert "compile_status" in call_log, (
+        "freshness on a frozen MVID is corroborated via _get_errors' compile_status "
+        "read, not skipped just because the epoch/state gate already passed"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -187,15 +191,18 @@ async def test_sync_unity_stop_contains_diagnostic():
             return "sync_ack|epoch=7|will_compile=true"
         return ""
 
+    budget_s = 0.05
     old_send = _sync_mod._send
     _sync_mod._send = fake_send
     try:
-        result = await _sync_mod.sync_unity(timeout=0.05)
+        result = await _sync_mod.sync_unity(timeout=budget_s)
     finally:
         _sync_mod._send = old_send
 
     assert result.startswith("STOP"), f"Expected STOP: {result!r}"
-    assert "0.05" in result and "may still be running" in result, (
+    # Format-stable: derive the expected token the same way sync.py formats it
+    # ({timeout:g}) rather than hardcoding a coincidentally-matching "0.05".
+    assert f"{budget_s:g}" in result and "may still be running" in result, (
         f"STOP should report the exceeded budget: {result!r}"
     )
 
