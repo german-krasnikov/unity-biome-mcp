@@ -8,6 +8,7 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 from unity_mcp import editor_log
 from unity_mcp.constants import SESSION_TIMEOUT as _DEFAULT_TIMEOUT
+from unity_mcp.constants import SYNC_COMPILE_GUARD_TEXT
 from unity_mcp.errors import recovery_barrier
 from unity_mcp.lockfile import read_reload_port
 from unity_mcp.tools.diagnose import _parse_diagnose, _parse_dlls, _verdict
@@ -200,6 +201,15 @@ async def _sync_unity(resolve: bool, bump: bool, deadline: float) -> str:
         ack = await _send('sync', {'resolve': 'true'} if resolve else {})
     except ConnectionError as exc:
         raise ToolError(f'Unity unreachable: {exc}') from exc
+    except ToolError as exc:
+        if str(exc) != SYNC_COMPILE_GUARD_TEXT:
+            raise
+        # Unity was already compiling when 'sync' arrived (headed auto-refresh or a
+        # package resolve raced us). 'sync' is RW, not retry-safe, so do not retry
+        # it -- just observe the already-running cycle through the same wait+verdict
+        # path a normal will_compile=true ack takes. epoch=None: we have no ack, so
+        # adopt whatever epoch sync_status first reports as ours.
+        return await _await_sync_completion(None, deadline, stamp_pre, send_reload)
     if ack.startswith('blocked|'):
         return 'BLOCKED: ' + parse_pipe_fields(ack).get('reason', 'Unity rejected sync before dispatch')
     if ack == 'wedged' or ack.startswith('wedged|'):
@@ -214,6 +224,19 @@ async def _sync_unity(resolve: bool, bump: bool, deadline: float) -> str:
             return errors
         await _warm_type_cache()
         return 'sync clean (no compile needed)'
+    return await _await_sync_completion(epoch, deadline, stamp_pre, send_reload)
+
+
+async def _await_sync_completion(epoch: int | None, deadline: float, stamp_pre: str, send_reload) -> str:
+    """Poll sync_status to a terminal state, then run the shared errors+freshness verdict.
+
+    Shared tail for both a normal 'sync_ack|...|will_compile=true' response and a
+    compile-guard hit on the 'sync' send itself (see _sync_unity). epoch=None means
+    no ack was received (guard hit): the first sync_status read's epoch is adopted
+    as ours, so a cycle already in flight -- even one that finishes as 'ready'
+    before our first poll -- is still run through the verdict path below rather
+    than being treated as a foreign/mismatched epoch.
+    """
     started = time.monotonic()
     while True:
         try:
@@ -227,7 +250,9 @@ async def _sync_unity(resolve: bool, bump: bool, deadline: float) -> str:
             current_epoch, state, error = _parse_status(status)
         except (ValueError, KeyError):
             return 'UNKNOWN: malformed sync status'
-        if current_epoch != epoch:
+        if epoch is None:
+            epoch = current_epoch
+        elif current_epoch != epoch:
             await asyncio.sleep(_POLL_INTERVAL)
             continue
         if state == 'failed' or error:
