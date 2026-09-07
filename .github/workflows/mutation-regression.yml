@@ -113,7 +113,9 @@ jobs:
 
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
-        timeout-minutes: 40
+        # 75 min: launch ~7 min + Python lane ~25 min (measured 1485s live, see
+        # PYTHON_LANE_TIMEOUT_SECONDS) + C# EditMode lanes + margin.
+        timeout-minutes: 75
         with:
           unity-version: ${{ steps.cell-version.outputs.unity_version }}
           cache-installation: true

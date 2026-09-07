@@ -23,7 +23,8 @@ if str(SCRIPTS) not in sys.path:
 from gauntlet import provider_ref  # noqa: E402
 
 CSHARP_ASSEMBLY = "UnityMCP.Editor.Tests.Mutation"
-PYTHON_LANE_TIMEOUT_SECONDS = 300.0
+# Measured 1485s live for the full lane (15 tests); 1800s keeps ~20% margin.
+PYTHON_LANE_TIMEOUT_SECONDS = 1800.0
 CSHARP_LANE_TIMEOUT_SECONDS = 1800.0
 LOCK_PATH = SCRIPTS / "fsr_qualification_lock.json"
 

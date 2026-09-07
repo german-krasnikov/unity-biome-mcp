@@ -96,6 +96,8 @@ def validate_receipt_set(
                 f"Cell {cell!r} csharp_lane.failed != 0: {csharp_lane.get('failed')!r}"
             )
         expected_count = csharp_lane.get("expected_count")
+        # expected_count < 1 also catches a provider-absent worker whose Mutation C#
+        # assembly was excluded by its defineConstraints (0 tests discovered).
         if not isinstance(expected_count, int) or isinstance(expected_count, bool) or expected_count < 1:
             raise MutationRegressionReceiptError(
                 f"Cell {cell!r} csharp_lane.expected_count must be an int >= 1, got {expected_count!r}"
