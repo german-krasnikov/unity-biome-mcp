@@ -73,6 +73,7 @@ markers = [
     "wire: wire-protocol contract tests — no Unity, no live marker, runs in ci-python.yml",
     "real_clock: opts out of tests/_fast_clock.py's autouse fixture — use for a test that legitimately asserts a real backoff/timer constant value",
     "mutation_live: Source-Patch mutation regression; opt-in with UNITY_MCP_RUN_MUTATION_LIVE=1",
+    "csharp_parity: cross-runtime parity test — scans/asserts against C# source; run after any C# edit",
 ]
 
 [tool.ruff]

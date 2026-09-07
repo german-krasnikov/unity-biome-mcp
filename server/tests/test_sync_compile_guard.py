@@ -180,6 +180,7 @@ _CS_COMPILE_GUARD_RE = re.compile(
 )
 
 
+@pytest.mark.csharp_parity
 def test_sync_compile_guard_text_matches_csharp_compile_branch():
     """SYNC_COMPILE_GUARD_TEXT (constants.py) must be byte-identical to the
     literal CommandRouter.CheckGuards emits from its IsCompiling() branch --

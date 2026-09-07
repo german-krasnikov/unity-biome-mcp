@@ -142,6 +142,7 @@ def test_conditional_and_file_side_effect_tools_fail_closed_as_write():
         assert _SPECS[name].mutability == "write", name
 
 
+@pytest.mark.csharp_parity
 def test_runtime_only_single_source():
     """R-05: run_playtest's Play-mode gate has exactly one authority — C#'s
     CommandRouter.Registration.cs registration (runtime: false since B05 moved the gate

@@ -183,7 +183,7 @@ def run_python_lane(*, host: str, port: int, project: Path) -> dict[str, object]
         "UNITY_MCP_PROJECT_PATH": str(project),
     }
     command = [
-        str(server_dir / ".venv" / "bin" / "python"), "-m", "pytest", "tests/mutation",
+        sys.executable, "-m", "pytest", "tests/mutation",
         "-m", "live and mutation_live", f"--timeout={int(PYTHON_LANE_TIMEOUT_SECONDS)}", "-q",
         f"--junit-xml={junit_path}",
     ]

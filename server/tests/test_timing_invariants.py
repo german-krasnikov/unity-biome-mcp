@@ -22,6 +22,8 @@ from unity_mcp.tools.batch import _TIMEOUT_MS_CEILING, _UNITY_BATCH_DEFAULT_MS
 from unity_mcp.tools.tool_specs import DEFAULT_TIMEOUT
 from helpers import CSHARP_TIMEOUT_OVERRIDES as _CSHARP_OVERRIDES
 
+pytestmark = pytest.mark.csharp_parity
+
 _PROJECT = Path(__file__).parents[2]
 _MCP_SERVER_CS_PATH = _PROJECT / "unity-plugin/Editor/MCPServer.cs"
 assert _MCP_SERVER_CS_PATH.exists(), f"C# source not found: {_MCP_SERVER_CS_PATH}"

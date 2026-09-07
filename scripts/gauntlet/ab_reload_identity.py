@@ -8,7 +8,6 @@ TCP connection per invocation, no cache, no persistent bridge. Every read in
 this module goes through that seam, so a B sentinel read is guaranteed to hit
 the actual wire each time it is called.
 """
-from __future__ import annotations
 
 import contextlib
 from collections.abc import Awaitable, Callable

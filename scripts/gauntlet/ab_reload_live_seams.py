@@ -3,7 +3,6 @@ in scripts/run_ab_reload_identity.py. None of this is exercised by the
 offline tests -- every offline test injects a fake in its place. See
 Plans/N3-T3-T4-live-reload-identity.md.
 """
-from __future__ import annotations
 
 import contextlib
 

@@ -89,6 +89,13 @@ def validate_receipt_set(
             raise MutationRegressionReceiptError(
                 f"Cell {cell!r} python_lane.failed != 0: {python_lane.get('failed')!r}"
             )
+        python_passed = python_lane.get("passed")
+        # passed < 1 also catches an all-skipped lane (0 failed, 0 passed) --
+        # pytest exits 0 in that case, which is not a clean PASS.
+        if not isinstance(python_passed, int) or isinstance(python_passed, bool) or python_passed < 1:
+            raise MutationRegressionReceiptError(
+                f"Cell {cell!r} python_lane.passed must be an int >= 1, got {python_passed!r}"
+            )
 
         csharp_lane = receipt.get("csharp_lane") or {}
         if csharp_lane.get("failed") != 0:

@@ -4,7 +4,6 @@ TCP proxy lifecycle (that lives in scripts/run_ab_reload_identity.py and
 gauntlet.ab_reload_proxy.CounterProxy). See
 Plans/N3-T3-T4-live-reload-identity.md Part 1.
 """
-from __future__ import annotations
 
 from collections.abc import Awaitable, Callable  # noqa: TC003
 from dataclasses import dataclass

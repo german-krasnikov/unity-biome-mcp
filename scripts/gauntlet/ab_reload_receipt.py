@@ -3,7 +3,6 @@ identity harness. Required fields, per-slice content requirements, and the
 build/validate/write helpers scripts/run_ab_reload_identity.py wires to live
 phase results. See Plans/N3-T3-T4-live-reload-identity.md.
 """
-from __future__ import annotations
 
 import json
 import os

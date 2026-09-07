@@ -166,10 +166,12 @@ def _parse_run_playtest_timeout_seconds() -> int:
     return int(match.group(1))
 
 
+@pytest.mark.csharp_parity
 def test_sync_ceiling_stays_below_csharp_hard_dispatch_timeout():
     assert playtest_async._RUN_PLAYTEST_SYNC_CEILING_S < _parse_run_playtest_timeout_seconds()
 
 
+@pytest.mark.csharp_parity
 def test_csharp_run_playtest_timeout_constant_is_130():
     """Pins the exact value — a change to either side must be a deliberate, reviewed edit."""
     assert _parse_run_playtest_timeout_seconds() == 130

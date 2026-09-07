@@ -27,6 +27,16 @@ def register(mcp, send_fn, args_fn):
 The server calls `register` once while loading the plugin process. An exception
 is logged and skips that plugin without stopping the server.
 
+Additionally, a plugin that declares a name it does not own — a reserved
+builtin name, a name that collides with an existing host tool, or a name
+passed to `register_read_cmds`/`register_write_cmds` that was never registered
+as a tool — is rejected entirely at commit time, even when `register()`
+completes without raising. Rejection is all-or-nothing: none of that plugin's
+commands, gating entries, or budget features survive, and host tools are left
+untouched. Check `get_failed_plugins()` (mirrored on the C# side by
+`PluginRegistry.GetFailedPlugins()`) or the server log to see which plugins
+were rejected and why.
+
 ### Tool Annotations
 
 ```python
@@ -253,7 +263,17 @@ for them from plugin registration are stripped and logged. Do not use
 `specialDispatch` for an external handler: special dispatch requires core
 router integration.
 
-A duplicate command keeps the first registration and logs a warning. Use
+A duplicate command from a plugin (`CallerIsPlugin == true`) throws instead of
+registering: the entire plugin's registration is rolled back by
+`PluginRegistry.RegisterAllPlugins`, so a colliding command loses every other
+command that plugin declared, not just the collision. A duplicate between two
+built-in (core) registrations still keeps the first registration and logs a
+warning — that legacy behavior only applies to core code, never to a plugin.
+Separately, `PluginRegistry.Register` refuses a second plugin instance under
+an already-registered plugin name (module ID), logging an error and leaving
+the first instance in place; re-registering the *same* instance is a no-op.
+Query `PluginRegistry.GetFailedPlugins()` (mirrored in Python as
+`get_failed_plugins()`) to see which plugins were rejected and why. Use
 `CommandRegistry.IsRegistered`, `GetDescription`, and `BuildHelp` for public
 read-only inspection.
 

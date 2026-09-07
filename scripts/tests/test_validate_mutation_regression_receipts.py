@@ -94,6 +94,7 @@ def test_main_returns_nonzero_on_missing_required_cell(tmp_path: Path) -> None:
     [
         _receipt(outcome="FAIL"),
         _receipt(python_lane={"passed": 5, "failed": 1, "skipped": 0, "exit_code": 1}),
+        _receipt(python_lane={"passed": 0, "failed": 0, "skipped": 0, "exit_code": 0}),
         _receipt(csharp_lane={"passed": 0, "failed": 1, "expected_count": 3, "run_id": "r", "exit_code": 1}),
         _receipt(csharp_lane={"passed": 3, "failed": 0, "expected_count": 0, "run_id": "r", "exit_code": 0}),
         _receipt(provider_overrides={"requested_ref": "some-other-branch"}),
@@ -102,6 +103,7 @@ def test_main_returns_nonzero_on_missing_required_cell(tmp_path: Path) -> None:
     ids=[
         "fail-outcome",
         "python-lane-failed",
+        "python-lane-passed-zero",
         "csharp-lane-failed",
         "csharp-expected-count-zero",
         "requested-ref-mismatch",

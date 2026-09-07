@@ -13,7 +13,6 @@ old_code_not_new: an oracle-level control, no I/O -- feed check_new_code_execute
 the live OLD nonce of A (already superseded by T3's positive recompile) as
 the observed value and confirm it raises 'old code presented as new'.
 """
-from __future__ import annotations
 
 from collections.abc import Awaitable, Callable  # noqa: TC003
 from dataclasses import dataclass

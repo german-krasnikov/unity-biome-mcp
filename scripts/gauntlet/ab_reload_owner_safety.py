@@ -4,7 +4,6 @@ the harness's own error type -- no Unity lifecycle, no process management
 (that lives in scripts/run_ab_reload_identity.py). See
 Plans/N3-T3-T4-live-reload-identity.md.
 """
-from __future__ import annotations
 
 import json
 import os

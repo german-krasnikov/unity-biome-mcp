@@ -250,6 +250,7 @@ _SOURCE_PATCH_MODE_POLICY_CS_PATH = (
 _CS_NOOP_RECOVERY_RE = re.compile(r'const string NoOpRecoveryResult = "([^"]+)"')
 
 
+@pytest.mark.csharp_parity
 def test_noop_recovery_result_matches_csharp_constant():
     """NOOP_RECOVERY_RESULT (constants.py) must be byte-identical to
     SourcePatchModePolicy.NoOpRecoveryResult (C#) -- the two are independent

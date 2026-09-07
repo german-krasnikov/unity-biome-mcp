@@ -425,6 +425,48 @@ binary or dependency change reopens the full matrix. See the CI qualification ma
 in `.github/workflows/fsr-qualification.yml` and `scripts/fsr_qualification_lock.json`
 for the locked Unity window, platform attestation, and evidence structure.
 
+## Cross-Runtime Parity Gate (`csharp_parity` marker)
+
+Several Python tests read C# source text directly (regex/substring scan) to
+pin a wire-format literal, constant, or timeout value to its C# emitter —
+e.g. `test_sync_compile_guard.py::test_sync_compile_guard_text_matches_csharp_compile_branch`,
+`test_editor_control_tools.py::test_noop_recovery_result_matches_csharp_constant`,
+`test_reload_module_boundary.py`, `test_source_patch_reload_control_boundary.py`,
+the C#-parity test in `test_tool_specs.py`, `test_timing_invariants.py`,
+the C#-source-scan tests in `test_mvid_tracking.py`, and the C#-scanning tests
+in `test_playtest_async.py`. These run in CI, but a developer working only the
+C# side and running `run_unity_tests.py EditMode` would not naturally trigger
+them, so drift can land unnoticed until the next full Python CI pass. After
+any C# edit that changes a wire-format string, guard literal, timeout
+constant, or boundary-scanned file, run `uv run pytest -m csharp_parity -q`
+plus the scripts C#-scanning tests (`scripts/tests/test_pure_core_asmdef_boundaries.py`,
+`scripts/tests/test_unity_test_source_hygiene.py`, `scripts/tests/test_taxonomy_map.py`)
+before reporting the C# task green.
+
+## N3 A/B Reload Identity Harness (Local-Only, Deferred CI)
+
+`scripts/run_ab_reload_identity.py` proves cross-worker reload identity
+(nonce/MVID/counter, cross-identity rejection, lost-ACK, compile-error
+recovery) between two simultaneously running headed Unity instances (Worker
+A and Worker B). This lane is local-only for v2.0.0 — deferred from CI per
+the ROI panel decision, not an oversight — because it needs a memory-safe
+runner: the owning Unity plus two headed disposable workers hit `warn`
+memory pressure on a 32 GB machine (measured ~31 GB used during a live run).
+GH-hosted runners do not have this headroom alongside the other lanes.
+
+Invocation (both workers already launched and disposable-marked):
+```bash
+python scripts/run_ab_reload_identity.py \
+  --worker-a-dir /private/tmp/biome-ab-a --port-a 9620 \
+  --worker-b-dir /private/tmp/biome-ab-b --port-b 9630 \
+  --unity /path/to/Unity --mode both \
+  --receipt /tmp/ab-reload-receipt.json --confirm-disposable-worker
+```
+`--port-a`/`--port-b` default to 9620/9630. Run twice in a row for evidence
+parity with the other durable lanes. Receipts from the qualifying run live in
+`Plans/Reviews/n3-ab-reload-2026-09-08/run{1,2}-receipt.json`, validated by
+`scripts/gauntlet/ab_reload_receipt.py::validate_receipt`.
+
 ## Documentation and Skill Checks
 
 Run `python scripts/check_skills_freshness.py --strict` after changing bundled

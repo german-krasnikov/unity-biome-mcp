@@ -5,7 +5,6 @@ upstream, drop the matching reply, close both sides) -- here targeting the
 `execute_code` counter-increment command instead of `sync`. See
 Plans/N3-T3-T4-live-reload-identity.md Part 1.
 """
-from __future__ import annotations
 
 import asyncio
 import contextlib

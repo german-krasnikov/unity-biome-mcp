@@ -576,10 +576,16 @@ def test_run_python_lane_builds_expected_command_and_env(tmp_path: Path, monkeyp
         return _Result()
 
     monkeypatch.setattr(regression.subprocess, "run", _fake_run)
+    fake_interpreter = "/fake/interpreter/python-does-not-exist"
+    monkeypatch.setattr(regression.sys, "executable", fake_interpreter)
 
     project = tmp_path / "work" / "worker"
     result = regression.run_python_lane(host="127.0.0.1", port=9610, project=project)
 
+    # argv[0] must track sys.executable dynamically (matches run_csharp_lane's
+    # pattern), not a hardcoded server/.venv/bin/python path that does not
+    # exist in CI (pip install -e installs into the runner's system Python).
+    assert captured["cmd"][0] == fake_interpreter
     assert "tests/mutation" in captured["cmd"]
     assert "live and mutation_live" in captured["cmd"]
     assert captured["kwargs"]["env"]["UNITY_MCP_RUN_MUTATION_LIVE"] == "1"

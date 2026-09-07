@@ -3,7 +3,6 @@ call/sync/break/repair seams -- no Unity lifecycle, no filesystem (that
 lives in scripts/run_ab_reload_identity.py). See
 Plans/N3-T3-T4-live-reload-identity.md Part 2.
 """
-from __future__ import annotations
 
 from collections.abc import Awaitable, Callable  # noqa: TC003
 from dataclasses import dataclass

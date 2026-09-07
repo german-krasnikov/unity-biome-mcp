@@ -30,9 +30,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **N0a — Cache Trust Guard During Async Playtest (Middleware._scenario_uncertain):** Set on `start_playtest` ack, cleared only by terminal evidence (`is_scenario_terminal`) or Edit Mode transition. While set, PrefetchCache lookups are bypassed and background prefetch is suppressed. Survives reconnect and `reset_session()` (reconnect does not prove playtest stopped). Fallback `_force_scene_invalidate` clears caches but not the guard.
 - **N4a — Chat Ask Atomicity:** `PendingAskRegistry.Complete` now performs atomic `TryRemove` with TCS captured before `onAskEvent`. Fail-soft try/catch added to `ChatBackendProbe.IsChatBackendRunning` and `ChatSettingsHook` methods to prevent stale probe exceptions from blocking ask dispatch.
 
+### Breaking
+
+- **N1a — Plugin Registration Guards:** A Python plugin declaring a reserved builtin name, a name colliding with a host tool, or a name it does not own (declared via `register_read_cmds`/`register_write_cmds` but never registered as a tool) is now rejected ENTIRELY — zero commands, gating entries, or budget features survive. Previously such a duplicate/foreign name was silently skipped, letting the rest of the plugin load. On the C# side, `CommandRegistry.Register` refuses a duplicate command from a different plugin instance and `PluginRegistry.RegisterAllPlugins` rolls back that plugin's entire registration; a plugin ID conflict (`PluginRegistry.Register`) refuses a different instance under an existing ID while re-registering the same instance stays idempotent. Failures are queryable via `get_failed_plugins()` (Python and C#, mirrored) and logged at registration time. Plugin command inventory is now attributed by the registering plugin's identity instead of name prefix, so `AdditionalCommands` and prefix-free commands are correctly grouped under their owning plugin in `discover_tools`/`build_help` output. Plugins that previously loaded with a silently-skipped duplicate must be fixed to use non-colliding, owned names.
+
 ### Changed
 
 - **UPM Package Dependency:** `unity-plugin/package.json` now declares `com.unity.nuget.mono-cecil 1.11.5` as required dependency. Ensure project registry resolves `com.unity.nuget.*` packages (standard Unity configurations include this by default). Used internally for assembly analysis during reload and compile verification.
+
+### Known Issues
+
+- **FSR Fork Adapter Object Leak:** The FastScriptReload fork adapter (`BiomeSourcePatchDispatcher`) leaks one `HideAndDontSave` GameObject per enable→patch→disable cycle in mutation-mode sessions. No functional impact; the leak is confined to disposable mutation workers. Fix pending upstream in the provider fork (tracked as an imperative `xfail`, S16).
+- **`sync_unity` Post-Resolve Settle Time:** After a Package Manager resolve, `sync_unity` may take up to ~80 s to settle while Unity finishes asset-importing before the compile/reload verdict is available. Latency only, not a correctness issue.
+- **`AssetDatabaseHelper.WriteText` UTF-8 BOM:** Text written via the `write_text` MCP tool (`.cs`/`.shader`/`.txt` files) is encoded with a UTF-8 BOM instead of `JsonHelper.Utf8NoBom`. Unity and most tooling handle a BOM-prefixed file correctly; no functional impact observed.
 
 ## [v1.54.0] — 2026-09-06
 
