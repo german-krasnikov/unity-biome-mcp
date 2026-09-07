@@ -69,7 +69,13 @@ namespace UnityMCP.Editor
         // Entry.Owner by every Register/RegisterAction/RegisterAsync overload below.
         internal static string CallerPluginName;
 
-        /// <summary>Registration-time owner of a command: null = host/built-in, else the plugin's Name.</summary>
+        /// <summary>
+        /// Registration-time owner of a command, else the plugin's Name. Null is ambiguous:
+        /// it means host/built-in OR the command is not registered at all — callers that need
+        /// to distinguish those two cases must check <see cref="IsRegistered"/> first. N1a T9's
+        /// GetOwnedCommands avoids the ambiguity entirely by scanning GetAllCommands() (registered
+        /// commands only) rather than probing GetOwner() for a caller-supplied name.
+        /// </summary>
         internal static string GetOwner(string cmd) =>
             _commands.TryGetValue(cmd, out var e) ? e.Owner : null;
 
@@ -368,6 +374,7 @@ namespace UnityMCP.Editor
                 new Dictionary<string, Entry>(_commands);
             private readonly bool _ready = Ready;
             private readonly bool _callerIsPlugin = CallerIsPlugin;
+            private readonly string _callerPluginName = CallerPluginName;
 
             internal void Restore()
             {
@@ -376,6 +383,7 @@ namespace UnityMCP.Editor
                     _commands.Add(pair.Key, pair.Value);
                 Ready = _ready;
                 CallerIsPlugin = _callerIsPlugin;
+                CallerPluginName = _callerPluginName;
             }
         }
 

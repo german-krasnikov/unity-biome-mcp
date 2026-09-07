@@ -78,6 +78,8 @@ namespace UnityMCP.Editor.Tests
 
             Assert.IsNull(CommandRegistry.CallerPluginName,
                 "the scoped owner must be cleared via finally even when the plugin throws");
+            Assert.IsFalse(CommandRegistry.CallerIsPlugin,
+                "the scoped plugin-context flag must also be cleared via finally when the plugin throws");
         }
 
         // ── Checklist (4): failed plugin never owns a sibling's commands ──────
@@ -103,8 +105,7 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(CommandRegistry.IsRegistered("b_leftover_cmd"),
                 "the failed plugin's own command must be rolled back");
             Assert.IsTrue(CommandRegistry.IsRegistered("a_cmd"));
-            Assert.AreEqual("PluginA", CommandRegistry.GetOwner("a_cmd"));
-            Assert.AreNotEqual("PluginB", CommandRegistry.GetOwner("a_cmd"),
+            Assert.AreEqual("PluginA", CommandRegistry.GetOwner("a_cmd"),
                 "a failed sibling must never appear as the owner of another plugin's command");
             Assert.IsNull(CommandRegistry.GetOwner("b_leftover_cmd"),
                 "a rolled-back command carries no ownership record at all");
@@ -139,6 +140,49 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(1, PluginRegistry.GetAll().Count);
             Assert.AreSame(first, PluginRegistry.GetAll()[0],
                 "the first-registered instance must be retained; the conflicting instance is refused");
+        }
+
+        // ── T9: GetOwnedCommands — registration data, not the prefix guess ────
+
+        [Test]
+        public void GetOwnedCommands_ReturnsOnlyOwnedByOwnerField()
+        {
+            var alpha = new FakePlugin("Alpha", prefix: "alpha")
+            {
+                RegisterCommandsBody = () =>
+                {
+                    CommandRegistry.Register("alpha_x", _ => "ok");
+                    // Owned by Alpha but does NOT match its own prefix — the prefix
+                    // heuristic would miss this; Owner-based lookup must not.
+                    CommandRegistry.Register("zeta_cmd", _ => "ok");
+                }
+            };
+            var beta = new FakePlugin("Beta", prefix: "beta")
+            {
+                // Name collides with Alpha's prefix but is actually owned by Beta —
+                // the prefix heuristic would misattribute this to Alpha.
+                RegisterCommandsBody = () => CommandRegistry.Register("alpha_lookalike", _ => "ok")
+            };
+            PluginRegistry.Register(alpha);
+            PluginRegistry.Register(beta);
+            PluginRegistry.RegisterAllPlugins();
+            // Host command that also happens to match the "alpha" prefix.
+            CommandRegistry.Register("alpha_host", _ => "ok");
+
+            CollectionAssert.AreEquivalent(new[] { "alpha_x", "zeta_cmd" },
+                PluginRegistry.GetOwnedCommands("Alpha"),
+                "GetOwnedCommands must use Entry.Owner, not the prefix heuristic");
+            CollectionAssert.AreEquivalent(new[] { "alpha_lookalike" },
+                PluginRegistry.GetOwnedCommands("Beta"));
+            CollectionAssert.IsEmpty(PluginRegistry.GetOwnedCommands("Nobody"));
+
+            // Negative control: the prefix-based API is UNCHANGED and answers
+            // differently by design — it sweeps in Beta's "alpha_lookalike" and the
+            // host's "alpha_host" (both merely name-match the prefix) while missing
+            // Alpha's own "zeta_cmd" (no prefix match). The two APIs are not
+            // interchangeable; this is intentional per the N1a spec.
+            CollectionAssert.AreEquivalent(new[] { "alpha_x", "alpha_lookalike", "alpha_host" },
+                PluginRegistry.GetCommandsForPlugin(alpha));
         }
     }
 }

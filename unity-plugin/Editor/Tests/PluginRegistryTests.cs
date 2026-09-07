@@ -70,6 +70,8 @@ namespace UnityMCP.Editor.Tests
             var p1 = new FakePlugin("MyPlugin");
             var p2 = new FakePlugin("MyPlugin");
 
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Log,
+                new System.Text.RegularExpressions.Regex("Plugin registered: MyPlugin"));
             PluginRegistry.Register(p1);
             UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Error,
                 new System.Text.RegularExpressions.Regex("conflict"));
