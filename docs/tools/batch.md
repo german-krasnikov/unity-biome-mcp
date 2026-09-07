@@ -126,7 +126,7 @@ Mode, while ordinary Editor mutations are generally blocked there.
 Results preserve the zero-based command index and end with a summary such as:
 
 ```text
-[0] Created /Enemy
+[0] ok: Created /Enemy
 [1] err: Component type 'MissingComponent' not found
 [2] skip
 ok:1 err:1

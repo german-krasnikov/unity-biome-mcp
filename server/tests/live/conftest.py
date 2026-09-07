@@ -89,15 +89,9 @@ def current_worker_port() -> int:
 
 def make_live_bridge() -> UnityBridge:
     project = _required_live_project()
-    # Without is_retry_safe, UnityBridge defaults every command (including
-    # the read-only get_status/sync_status/compile_status probes) to
-    # non-retry-safe, so a probe sent right as Unity starts a domain reload
-    # gets the same "unsafe_sent" (no auto-resend) treatment as a mutating
-    # write and the caller must wait out the full reload-expiry clock even
-    # though the probe itself is idempotent. Wire the same internal
-    # retry-safe set production's ConnectionSlot uses (server.py) so a live
-    # test's bridge can actually observe reload-end the way runtime.py's
-    # _await_reload_idle / _observe_play_state expect.
+    # Wire the internal retry-safe set that reload-probe paths require
+    # (get_status, compile_status, sync_status); MCP RO tool annotations
+    # are not needed in test bridges.
     return UnityBridge(
         LIVE_HOST,
         port=current_worker_port(),

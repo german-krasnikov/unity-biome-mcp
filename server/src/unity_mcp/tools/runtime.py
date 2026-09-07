@@ -394,8 +394,9 @@ async def _observe_play_state(expected: bool, timeout: float) -> bool:
     the first probe response after reconnect can legitimately still show
     the pre-transition value for a brief window — settling for "any parsed
     value" would misreport that transient reading as a mismatch. Returns
-    False (never raises for a plain connection hiccup) if the expected
-    value was not observed before timeout expires.
+    False for transient ConnectionError/OSError with no delivery or session
+    evidence in the chain; re-raises if recovery_barrier finds
+    UncertainDeliveryError or SessionIdentityMismatch.
     """
     async def _poll() -> None:
         while True:
