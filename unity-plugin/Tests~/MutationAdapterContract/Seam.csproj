@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>UnityMCP.Editor.SourcePatch.Seam</AssemblyName>
+    <!-- This project's own directory also holds adapter-cache/ (fetched
+         adapter sources) and AdapterContract.Tests.csproj's stub files,
+         so SDK-style default globbing would pull all of that into THIS
+         project too. Explicit-only include list, seam files exclusively. -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../Editor/SourcePatch/ISourcePatchProvider.cs" />
+    <Compile Include="../../Editor/SourcePatch/SourcePatchRequest.cs" />
+    <Compile Include="../../Editor/SourcePatch/SourcePatchProviderSlot.cs" />
+    <Compile Include="SeamAssemblyInfo.cs" />
+  </ItemGroup>
+</Project>

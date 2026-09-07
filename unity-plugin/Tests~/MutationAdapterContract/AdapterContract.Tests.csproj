@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>AdapterContract.Tests</AssemblyName>
+    <!-- This directory also holds Seam.csproj's own files and adapter-cache/
+         (fetched adapter sources), so explicit-only include list, see
+         Seam.csproj's matching comment (Phase C1 review, BLOCKING #1). -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Pinned adapter sources fetched by
+         scripts/gauntlet/fetch_adapter_sources.py: gitignored, must exist
+         before `dotnet build`/`dotnet test` here. -->
+    <Compile Include="adapter-cache/BiomeAutomaticModeGuardLogic.cs" />
+    <Compile Include="adapter-cache/BiomeBodyOnlyMethodClassifier.cs" />
+    <Compile Include="adapter-cache/BiomeFsrAutomaticModesGuard.cs" />
+    <Compile Include="adapter-cache/BiomeFsrSourcePatchProvider.cs" />
+    <Compile Include="adapter-cache/BiomeSingleFlightGate.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Stub surfaces the adapter sources above bind against. -->
+    <Compile Include="UnityStubs.cs" />
+    <Compile Include="FsrStubs.cs" />
+    <Compile Include="ImmersiveStubs.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="AdapterApplyOutcomeTests.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="Seam.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <!-- Required by adapter-cache/BiomeBodyOnlyMethodClassifier.cs (Roslyn
+         syntax analysis of the body-only patch scope). -->
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.6.0" />
+  </ItemGroup>
+</Project>
