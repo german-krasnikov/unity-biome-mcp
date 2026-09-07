@@ -5,12 +5,15 @@ Two harness-owned disposable Unity workers (A, B) prove reload identity,
 new-code execution, lost-ACK safety, and compile-error recovery across
 independent projects. The owner's Unity (port 9600) is never touched.
 
-This module is the Task 1 scaffold: CLI parsing, the nonce fixture
-installer/mutator, the evidence receipt builder, and the owner-safety
-guards (canonical project path, port ports must differ, foreign PID on a
-port file). T3/T4 phase execution (read_nonce/read_mvid/trigger_recompile/
-wait_for_reload/CounterProxy/UnityBridge identity rejection) lands in later
-tasks — see Plans/N3-T3-T4-live-reload-identity.md.
+This module holds: CLI parsing, the nonce fixture installer/mutator, and the
+live orchestration that wires everything to real workers. Owner-safety
+guards (canonical project path, ports must differ, foreign PID on a port
+file) live in gauntlet.ab_reload_owner_safety; the evidence receipt schema
+(required fields, build/validate/write) lives in gauntlet.ab_reload_receipt.
+Phase logic is pure and lives in gauntlet.ab_reload_identity.run_t3 (T3
+slices 1+2), gauntlet.ab_reload_lost_ack.run_lost_ack (T3 slice 3), and
+gauntlet.ab_reload_compile_recovery.run_t4 (T4). See
+Plans/N3-T3-T4-live-reload-identity.md.
 
     python3 scripts/run_ab_reload_identity.py \\
         --worker-a-dir /tmp/unity-ab-reload-A --worker-b-dir /tmp/unity-ab-reload-B \\
@@ -19,144 +22,54 @@ tasks — see Plans/N3-T3-T4-live-reload-identity.md.
 """
 
 import argparse
-import json
+import asyncio
 import os
 import re
 import shutil
+import sys
 import uuid
-from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+SCRIPTS = REPO_ROOT / "scripts"
+sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(SCRIPTS))
 
-UNITY_VERSION = "6000.0.65f1"
-UNITY_REVISION = "a18e2220bd50"
-UTF_VERSION = "1.6.0"
+import gauntlet.ab_reload_identity as t3  # noqa: E402
+from gauntlet.ab_reload_compile_recovery import T4Config, T4Seams, run_t4  # noqa: E402
+from gauntlet.ab_reload_live_seams import (  # noqa: E402
+    live_bridge_factory,
+    live_send_increment_via_proxy,
+    live_sync_unity,
+)
+from gauntlet.ab_reload_lost_ack import LostAckConfig, LostAckSeams, run_lost_ack  # noqa: E402
+from gauntlet.ab_reload_negative_controls import (  # noqa: E402
+    NegativeControlsConfig,
+    NegativeControlsSeams,
+    run_negative_controls,
+)
+from gauntlet.ab_reload_owner_safety import (  # noqa: E402
+    DEFAULT_PORT_A,
+    DEFAULT_PORT_B,
+    UNITY_VERSION,
+    UTF_VERSION,
+    ABReloadIdentityError,
+    validate_ports,
+    validate_worker_project,
+)
+from gauntlet.ab_reload_proxy import CounterProxy  # noqa: E402
+from gauntlet.ab_reload_receipt import build_receipt, validate_receipt, write_receipt  # noqa: E402
+from gauntlet.fsr_qualification import wait_for_port_diagnosed  # noqa: E402
+from gauntlet.hosted_conformance import terminate_workers  # noqa: E402
+from run_fsr_qualification_cell import _launch  # noqa: E402
+
+import run_unity_tests as durable  # noqa: E402
 
 FIXTURE_SOURCE = Path(__file__).resolve().parent / "fixtures" / "ab_reload_harness"
 FIXTURE_RELATIVE = Path("Assets/UnityMCPABReloadHarness")
 FIXTURE_FILES = ("AbReloadNonce.cs", "UnityMCP.Worker.ABReloadHarness.asmdef")
 NONCE_FILE_NAME = "AbReloadNonce.cs"
 NONCE_PATTERN = re.compile(r"^[A-Za-z0-9_-]+$")
-
-OWNER_PORT = 9600
-
-REQUIRED_RECEIPT_FIELDS = (
-    "source_sha",
-    "unity_version",
-    "utf_version",
-    "worker_a",
-    "worker_b",
-    "t3_identity_reload",
-    "t3_cross_identity",
-    "t3_lost_ack",
-    "t3_negative_controls",
-    "t4_compile_error",
-    "t4_sentinel",
-    "cleanup",
-)
-_MISSING = object()
-
-
-class ABReloadIdentityError(RuntimeError):
-    pass
-
-
-def _read_json(path: Path) -> dict[str, object]:
-    try:
-        value = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise ABReloadIdentityError(f"Cannot read JSON evidence {path}: {error}") from error
-    if not isinstance(value, dict):
-        raise ABReloadIdentityError(f"Expected a JSON object in {path}")
-    return value
-
-
-def _atomic_write_json(path: Path, value: dict[str, object]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_name(path.name + ".tmp-" + uuid.uuid4().hex)
-    temporary.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    os.replace(temporary, path)
-
-
-def _project_version_text(project: Path) -> str:
-    path = project / "ProjectSettings/ProjectVersion.txt"
-    try:
-        return path.read_text(encoding="utf-8")
-    except OSError as error:
-        raise ABReloadIdentityError(f"Cannot read {path}: {error}") from error
-
-
-def validate_worker_project(project: Path) -> None:
-    """Reject the owner's canonical worker, anything inside the source
-    checkout, and any directory that is not a disposable worker pinned to
-    the same Unity/UTF versions as the rest of the release lane."""
-    project = project.resolve()
-    canonical = (REPO_ROOT / "unity-test-project").resolve()
-    if project == canonical:
-        raise ABReloadIdentityError(
-            "Refusing to touch the canonical unity-test-project worker"
-        )
-    if project == REPO_ROOT or REPO_ROOT in project.parents:
-        raise ABReloadIdentityError(
-            "AB reload identity harness is forbidden inside the source checkout"
-        )
-    if not all((project / name).is_dir() for name in ("Assets", "Packages", "ProjectSettings")):
-        raise ABReloadIdentityError(f"Not a Unity project: {project}")
-
-    marker = _read_json(project / "Library/UnityMCP/disposable-worker.json")
-    required = {
-        "schema_version": 1,
-        "disposable": True,
-        "unity_version": UNITY_VERSION,
-        "unity_revision": UNITY_REVISION,
-        "utf_version": UTF_VERSION,
-    }
-    mismatches = [
-        f"{name}={marker.get(name)!r}" for name, expected in required.items() if marker.get(name) != expected
-    ]
-    if mismatches:
-        raise ABReloadIdentityError("Disposable worker marker mismatch: " + ", ".join(mismatches))
-
-    version_text = _project_version_text(project)
-    if f"m_EditorVersion: {UNITY_VERSION}" not in version_text or UNITY_REVISION not in version_text:
-        raise ABReloadIdentityError(f"Worker must use Unity {UNITY_VERSION} revision {UNITY_REVISION}")
-
-    manifest = _read_json(project / "Packages/manifest.json")
-    dependencies = manifest.get("dependencies")
-    if not isinstance(dependencies, dict) or dependencies.get("com.unity.test-framework") != UTF_VERSION:
-        raise ABReloadIdentityError(f"Worker manifest must pin built-in UTF {UTF_VERSION}")
-
-
-def validate_ports(port_a: int, port_b: int) -> None:
-    if port_a == OWNER_PORT or port_b == OWNER_PORT:
-        raise ABReloadIdentityError(f"Refusing to allocate the owner's port {OWNER_PORT}")
-    if port_a == port_b:
-        raise ABReloadIdentityError(f"Worker A and Worker B ports must differ (got {port_a})")
-
-
-def validate_port_owned_by(port: int, launched_pids: set[int], ports_dir: Path) -> None:
-    """Refuse to touch a port whose port-file PID this harness did not
-    launch itself. Mitigates 'owner's Unity affected' / foreign-worker
-    cross-talk without ever looking a process up by port number."""
-    owner_pids: list[int] = []
-    for port_file in ports_dir.glob("*.port"):
-        if not port_file.stem.isdigit():
-            continue
-        try:
-            advertised_port = int(port_file.read_text(encoding="utf-8").splitlines()[0])
-        except (OSError, ValueError, IndexError):
-            continue
-        if advertised_port == port:
-            owner_pids.append(int(port_file.stem))
-    if not owner_pids:
-        raise ABReloadIdentityError(f"No port file advertises port {port}; refusing to touch an unknown worker")
-    foreign = [pid for pid in owner_pids if pid not in launched_pids]
-    if foreign:
-        raise ABReloadIdentityError(
-            f"Port {port} is advertised by PID(s) {foreign} this harness did not launch; "
-            "refusing to touch a foreign worker"
-        )
 
 
 def _validate_nonce(nonce: str) -> None:
@@ -169,7 +82,12 @@ def _validate_nonce(nonce: str) -> None:
 def _render_nonce_source(nonce: str) -> str:
     _validate_nonce(nonce)
     template = (FIXTURE_SOURCE / NONCE_FILE_NAME).read_text(encoding="utf-8")
-    return template.replace("NONCE_PLACEHOLDER", nonce)
+    occurrences = template.count("NONCE_PLACEHOLDER")
+    if occurrences != 1:
+        raise ABReloadIdentityError(
+            f"Expected exactly one NONCE_PLACEHOLDER in the nonce template, found {occurrences}"
+        )
+    return template.replace("NONCE_PLACEHOLDER", nonce, 1)
 
 
 def install_nonce_fixture(project: Path, nonce: str) -> Path:
@@ -211,34 +129,185 @@ def repair_compile_error(project: Path, new_nonce: str) -> Path:
     return modify_nonce(project, new_nonce)
 
 
-def build_receipt(**fields: object) -> dict[str, object]:
-    missing = [name for name in REQUIRED_RECEIPT_FIELDS if fields.get(name, _MISSING) is _MISSING]
-    if missing:
-        raise ABReloadIdentityError(f"Receipt missing required field(s): {', '.join(missing)}")
-    receipt: dict[str, object] = {"schema_version": 1}
-    receipt.update({name: fields[name] for name in REQUIRED_RECEIPT_FIELDS})
-    receipt["timestamp"] = datetime.now(UTC).isoformat()
-    return receipt
-
-
-def write_receipt(path: Path, receipt: dict[str, object]) -> None:
-    _atomic_write_json(path, receipt)
-
-
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="A/B live dual-worker reload identity + compile-error recovery harness"
     )
     parser.add_argument("--worker-a-dir", type=Path, required=True)
     parser.add_argument("--worker-b-dir", type=Path, required=True)
-    parser.add_argument("--port-a", type=int, default=9620)
-    parser.add_argument("--port-b", type=int, default=9630)
+    parser.add_argument("--port-a", type=int, default=DEFAULT_PORT_A)
+    parser.add_argument("--port-b", type=int, default=DEFAULT_PORT_B)
     parser.add_argument("--unity", type=Path, required=True)
     parser.add_argument("--receipt", type=Path, required=True)
     parser.add_argument("--mode", choices=("t3", "t4", "both"), default="both")
+    parser.add_argument(
+        "--negative-controls", action=argparse.BooleanOptionalAction, default=None,
+        help="Run Task 5's live negative controls after a T3 pass. Defaults to on for --mode both, "
+             "off otherwise; only takes effect when T3 actually runs (--mode t3 or both).",
+    )
     parser.add_argument("--timeout-seconds", type=float, default=900.0)
+    parser.add_argument("--startup-timeout-seconds", type=float, default=300.0)
+    parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--confirm-disposable-worker", action="store_true")
     return parser
+
+
+async def _run_lost_ack_live(host: str, project_a: str, port_a: int) -> dict[str, object]:
+    """T3 slice 3 (wiring only, not exercised by offline tests): a
+    CounterProxy in front of A's real port, one execute_code increment sent
+    through it via a UnityBridge, its ACK dropped."""
+    proxy = CounterProxy(host, port_a)
+    listener = await asyncio.start_server(proxy.handle_client, host, 0)
+    proxy_port = listener.sockets[0].getsockname()[1]
+    try:
+        seams = LostAckSeams(
+            call=durable.call,
+            send_increment_via_proxy=live_send_increment_via_proxy(host, proxy_port, project_a),
+            proxy=proxy,
+        )
+        return await run_lost_ack(LostAckConfig(port_a=port_a), seams)
+    finally:
+        listener.close()
+        await listener.wait_closed()
+
+
+async def _run_negative_controls_live(
+    args: argparse.Namespace, project_b: Path, port_b: int, old_nonce_a: str, new_nonce_a: str,
+) -> tuple[dict[str, object], str]:
+    """Task 5 (wiring only, not exercised by offline tests): on the SAME
+    still-running B, really mutate + recompile its nonce so
+    check_sentinel_unchanged has a genuine live change to catch, then
+    restore B to a fresh third nonce. Returns the phase result and that
+    restored nonce -- T4's B sentinel must stay pinned to whatever B
+    actually holds afterward, not the pre-negative-controls value."""
+    mutated_nonce_b = f"B2-mutated-{uuid.uuid4().hex[:8]}"
+    restored_nonce_b = f"B3-restored-{uuid.uuid4().hex[:8]}"
+
+    async def mutate_nonce_b() -> None:
+        modify_nonce(project_b, mutated_nonce_b)
+
+    async def restore_nonce_b() -> None:
+        modify_nonce(project_b, restored_nonce_b)
+
+    config = NegativeControlsConfig(
+        port_b=port_b, project_b=str(project_b), old_nonce_a=old_nonce_a, new_nonce_a=new_nonce_a,
+    )
+    seams = NegativeControlsSeams(
+        call=durable.call, sync_unity=live_sync_unity(args.host),
+        mutate_nonce_b=mutate_nonce_b, restore_nonce_b=restore_nonce_b,
+    )
+    result = await run_negative_controls(config, seams)
+    return result, restored_nonce_b
+
+
+async def _run_t4_phase_live(
+    args: argparse.Namespace, project_a: Path, port_a: int, port_b: int, nonce_b: str,
+) -> dict[str, object]:
+    """T4 (wiring only, not exercised by offline tests): reuses whichever
+    A+B are already running -- inject a compile error into A's fixture,
+    confirm the failure verdict, confirm the old nonce still executes and
+    B never moves, then repair and confirm the new nonce + a fresh MVID."""
+    injected_nonce_a = f"A3-broken-{uuid.uuid4().hex[:8]}"
+    repaired_nonce_a = f"A4-repaired-{uuid.uuid4().hex[:8]}"
+
+    async def break_compile() -> None:
+        modify_nonce(project_a, injected_nonce_a)
+        inject_compile_error(project_a)
+
+    async def repair_compile() -> None:
+        repair_compile_error(project_a, repaired_nonce_a)
+
+    config = T4Config(
+        port_a=port_a, port_b=port_b, project_a=str(project_a),
+        injected_nonce_a=injected_nonce_a, repaired_nonce_a=repaired_nonce_a, nonce_b=nonce_b,
+    )
+    seams = T4Seams(
+        call=durable.call, sync_unity=live_sync_unity(args.host),
+        break_compile=break_compile, repair_compile=repair_compile,
+    )
+    return await run_t4(config, seams)
+
+
+async def _run_ab_live(args: argparse.Namespace) -> dict[str, object]:
+    """Launch A+B headed once, install nonce fixtures, run the phases
+    args.mode selects (t3: slices 1-3; t4: compile-error recovery; both:
+    T3 then T4 on the same still-running A+B), terminate by PID once.
+    Reuses launch/wait/terminate exactly as an agent would -- wiring only,
+    not exercised by this task's offline tests."""
+    project_a = args.worker_a_dir.resolve()
+    project_b = args.worker_b_dir.resolve()
+    new_nonce_a = f"A2-{uuid.uuid4().hex[:8]}"
+    nonce_b = f"B-{uuid.uuid4().hex[:8]}"
+    install_nonce_fixture(project_a, f"A1-{uuid.uuid4().hex[:8]}")
+    install_nonce_fixture(project_b, nonce_b)
+
+    log_dir = args.receipt.resolve().parent
+    log_dir.mkdir(parents=True, exist_ok=True)
+    log_a, log_b = log_dir / "worker-a.log", log_dir / "worker-b.log"
+    # Both launches happen inside the try so a failed second launch can
+    # never leak the first: terminate_workers() only ever sees processes
+    # that actually started.
+    launched = []
+    result: dict[str, object] = {}
+    try:
+        proc_a = _launch(unity=args.unity, project=project_a, port=args.port_a, log=log_a)
+        launched.append(proc_a)
+        proc_b = _launch(unity=args.unity, project=project_b, port=args.port_b, log=log_b)
+        launched.append(proc_b)
+
+        wait_for_port_diagnosed(
+            host=args.host, port=args.port_a, process=proc_a, log=log_a,
+            timeout=args.startup_timeout_seconds, evidence_out=log_dir, os_name=os.name,
+        )
+        wait_for_port_diagnosed(
+            host=args.host, port=args.port_b, process=proc_b, log=log_b,
+            timeout=args.startup_timeout_seconds, evidence_out=log_dir, os_name=os.name,
+        )
+
+        if args.mode in ("t3", "both"):
+            # The changed C# method the recompile must present as new (slice 1's action).
+            modify_nonce(project_a, new_nonce_a)
+            config = t3.T3Config(
+                port_a=args.port_a, port_b=args.port_b,
+                project_a=str(project_a), project_b=str(project_b),
+                new_nonce_a=new_nonce_a, nonce_b=nonce_b,
+            )
+            seams = t3.T3Seams(
+                call=durable.call,
+                sync_unity=live_sync_unity(args.host),
+                bridge_factory=live_bridge_factory(args.host),
+            )
+            result.update(await t3.run_t3(config, seams))
+            # gauntlet.ab_reload_identity.read_port() already proves A's advertised
+            # port never changed; the wire has no pid= field (read_identity's own
+            # docstring), so the harness's own launched-process liveness is the
+            # PID half of "a reload must never become a restart".
+            if proc_a.poll() is not None:
+                raise ABReloadIdentityError(
+                    f"Worker A process (pid={proc_a.pid}) exited during T3 -- a reload became a restart"
+                )
+            result["t3_lost_ack"] = await _run_lost_ack_live(args.host, str(project_a), args.port_a)
+
+            negative_controls_enabled = (
+                args.negative_controls if args.negative_controls is not None else args.mode == "both"
+            )
+            if negative_controls_enabled:
+                identity_reload = result["t3_identity_reload"]
+                nc_result, nonce_b = await _run_negative_controls_live(
+                    args, project_b, args.port_b,
+                    identity_reload["old_nonce"], identity_reload["new_nonce"],
+                )
+                result.update(nc_result)
+
+        if args.mode in ("t4", "both"):
+            result.update(
+                await _run_t4_phase_live(args, project_a, args.port_a, args.port_b, nonce_b)
+            )
+    finally:
+        terminate_workers(launched)
+    result["worker_a"] = {"pid": proc_a.pid, "port": args.port_a, "project_path": str(project_a)}
+    result["worker_b"] = {"pid": proc_b.pid, "port": args.port_b, "project_path": str(project_b)}
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -248,10 +317,28 @@ def main(argv: list[str] | None = None) -> int:
     validate_ports(args.port_a, args.port_b)
     validate_worker_project(args.worker_a_dir)
     validate_worker_project(args.worker_b_dir)
-    raise NotImplementedError(
-        "T3/T4 phase execution lands in a later task; this is the Task 1 scaffold "
-        "(scripts/run_ab_reload_identity.py: fixture + receipt + owner-safety guards only)"
+    result = asyncio.run(_run_ab_live(args))
+    receipt = build_receipt(
+        source_sha=os.environ.get("GIT_SHA", ""),
+        unity_version=UNITY_VERSION,
+        utf_version=UTF_VERSION,
+        worker_a=result["worker_a"],
+        worker_b=result["worker_b"],
+        t3_identity_reload=result.get("t3_identity_reload", {}),
+        t3_cross_identity=result.get("t3_cross_identity", {}),
+        t3_lost_ack=result.get("t3_lost_ack", {}),
+        t3_negative_controls=result.get("t3_negative_controls", {}),
+        t4_compile_error=result.get("t4_compile_error", {}),
+        t4_sentinel=result.get("t4_sentinel", {}),
+        cleanup={"a_terminated": True, "b_terminated": True},
     )
+    if args.mode == "both":
+        # Only the full mode runs every slice (T3 + negative controls + T4),
+        # so only it can satisfy validate_receipt()'s non-empty-evidence
+        # check on every field.
+        validate_receipt(receipt)
+    write_receipt(args.receipt, receipt)
+    return 0
 
 
 if __name__ == "__main__":
