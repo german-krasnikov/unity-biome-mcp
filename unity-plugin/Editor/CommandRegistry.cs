@@ -32,6 +32,9 @@ namespace UnityMCP.Editor
             // PR-04: owner-declared mutation/batch policy (see CommandOptions.cs).
             public Func<string, bool> MutatingArgsPolicy;
             public bool NotBatchable;
+            // N1a T7: registration data, not a prefix guess. null = host/built-in;
+            // non-null = the registering plugin's IMCPPlugin.Name.
+            public string Owner;
         }
 
         // All mutations happen on Unity main thread (dispatched by MCPServer).
@@ -60,6 +63,15 @@ namespace UnityMCP.Editor
         // plugin claiming them could run mutating code during Unity's compile window, while
         // the C# domain is in flux (stale-assembly read/write risk).
         internal static bool CallerIsPlugin;
+
+        // N1a T7: scoped owner identity — set/cleared via try/finally by
+        // PluginRegistry.RegisterAllPlugins() around each plugin's pass, copied into
+        // Entry.Owner by every Register/RegisterAction/RegisterAsync overload below.
+        internal static string CallerPluginName;
+
+        /// <summary>Registration-time owner of a command: null = host/built-in, else the plugin's Name.</summary>
+        internal static string GetOwner(string cmd) =>
+            _commands.TryGetValue(cmd, out var e) ? e.Owner : null;
 
         /// <summary>Strips core-only trust flags from a plugin's registration, logging a warning.</summary>
         private static void DenyPluginCoreFlags(string cmd, ref CommandOptions options)
@@ -111,7 +123,8 @@ namespace UnityMCP.Editor
                 Description = options.Description,
                 MaxResponseChars = options.MaxResponseChars,
                 MutatingArgsPolicy = options.MutatingArgsPolicy,
-                NotBatchable = options.NotBatchable
+                NotBatchable = options.NotBatchable,
+                Owner = CallerPluginName
             };
         }
 
@@ -163,7 +176,8 @@ namespace UnityMCP.Editor
                 Required = req.ToArray(),
                 Optional = Split(options.Optional),
                 Description = options.Description,
-                MaxResponseChars = options.MaxResponseChars
+                MaxResponseChars = options.MaxResponseChars,
+                Owner = CallerPluginName
             };
         }
 
@@ -199,7 +213,8 @@ namespace UnityMCP.Editor
                 Required = Split(options.Required),
                 Optional = Split(options.Optional),
                 Description = options.Description,
-                MaxResponseChars = options.MaxResponseChars
+                MaxResponseChars = options.MaxResponseChars,
+                Owner = CallerPluginName
             };
         }
 

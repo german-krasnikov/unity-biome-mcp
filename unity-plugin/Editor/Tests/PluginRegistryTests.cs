@@ -64,10 +64,15 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Register_DuplicateName_OnlyOneRegistered()
         {
+            // N1a T8: two DIFFERENT instances sharing a Name is a diagnosable module ID
+            // conflict — the second Register() now logs an explicit error instead of
+            // silently deduping. The count-stays-1 outcome is unchanged.
             var p1 = new FakePlugin("MyPlugin");
             var p2 = new FakePlugin("MyPlugin");
 
             PluginRegistry.Register(p1);
+            UnityEngine.TestTools.LogAssert.Expect(UnityEngine.LogType.Error,
+                new System.Text.RegularExpressions.Regex("conflict"));
             PluginRegistry.Register(p2);
 
             Assert.AreEqual(1, PluginRegistry.GetAll().Count);

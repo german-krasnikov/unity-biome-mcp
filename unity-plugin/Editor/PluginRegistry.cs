@@ -18,7 +18,15 @@ namespace UnityMCP.Editor
 
         public static void Register(IMCPPlugin plugin)
         {
-            if (_plugins.Any(p => p.Name == plugin.Name)) return;
+            var existing = _plugins.FirstOrDefault(p => p.Name == plugin.Name);
+            if (existing != null)
+            {
+                if (ReferenceEquals(existing, plugin)) return;  // same instance — idempotent
+                UnityEngine.Debug.LogError(
+                    $"{BiomeLabel.Tag} Plugin ID conflict: '{plugin.Name}' already registered " +
+                    "by a different instance — second registration refused.");
+                return;
+            }
             _plugins.Add(plugin);
             UnityEngine.Debug.Log($"{BiomeLabel.Tag} Plugin registered: {plugin.Name}");
         }
@@ -35,6 +43,7 @@ namespace UnityMCP.Editor
                 // leave a partial registration live.
                 var snapshot = CommandRegistry.CaptureForTest();
                 CommandRegistry.CallerIsPlugin = true;
+                CommandRegistry.CallerPluginName = plugin.Name;
                 try { plugin.RegisterCommands(); }
                 catch (System.Exception e)
                 {
@@ -42,7 +51,11 @@ namespace UnityMCP.Editor
                     _failedPlugins.Add((plugin.Name, e.Message));
                     UnityEngine.Debug.LogError($"{BiomeLabel.Tag} Plugin '{plugin.Name}' RegisterCommands failed: {e.Message}");
                 }
-                finally { CommandRegistry.CallerIsPlugin = false; }
+                finally
+                {
+                    CommandRegistry.CallerIsPlugin = false;
+                    CommandRegistry.CallerPluginName = null;
+                }
             }
         }
 

@@ -122,9 +122,9 @@ async def test_external_fixture_module_read_write_no_core_edits(tmp_path, monkey
         assert _atomic._command_owner["ext_fixture_read_tool"] == "fixture_ext_rw_ok"
         assert _atomic._command_owner["ext_fixture_write_tool"] == "fixture_ext_rw_ok"
 
-        # 4. gating._BUILTIN_NAMES unchanged (identity + contents) — never mutated.
+        # 4. gating._BUILTIN_NAMES unchanged (identity — a frozenset, so `is` already
+        # implies content equality) — never mutated.
         assert gating._BUILTIN_NAMES is builtin_names_before
-        assert set(gating._BUILTIN_NAMES) == builtin_names_before
 
         # 5. _ALL_KNOWN grew only by the two fixture names (auto-gated into "plugins").
         assert gating._ALL_KNOWN - all_known_before == {
@@ -154,26 +154,30 @@ async def test_external_fixture_module_foreign_name_rejects_whole_fixture(tmp_pa
     read_before, write_before = set(READ_CMDS), set(WRITE_CMDS)
     owner_before = dict(_atomic._command_owner)
 
-    _load_external_dir_plugin(
-        tmp_path, monkeypatch, "fixture_ext_rw_rejected", _REJECTED_SOURCE, mcp
-    )
+    try:
+        _load_external_dir_plugin(
+            tmp_path, monkeypatch, "fixture_ext_rw_rejected", _REJECTED_SOURCE, mcp
+        )
 
-    # Both of the fixture's own tools absent — not a partial, filtered load.
-    assert "ext_fixture_bad_read_tool" not in mcp._tool_manager._tools
-    assert "ext_fixture_bad_write_tool" not in mcp._tool_manager._tools
+        # Both of the fixture's own tools absent — not a partial, filtered load.
+        assert "ext_fixture_bad_read_tool" not in mcp._tool_manager._tools
+        assert "ext_fixture_bad_write_tool" not in mcp._tool_manager._tools
 
-    tools = await mcp.list_tools()
-    names = {t.name for t in tools}
-    assert "ext_fixture_bad_read_tool" not in names
-    assert "ext_fixture_bad_write_tool" not in names
+        tools = await mcp.list_tools()
+        names = {t.name for t in tools}
+        assert "ext_fixture_bad_read_tool" not in names
+        assert "ext_fixture_bad_write_tool" not in names
 
-    # Tables restored to their exact pre-load state — no leaked entries.
-    assert read_before == READ_CMDS
-    assert write_before == WRITE_CMDS
-    assert all_known_before == gating._ALL_KNOWN
-    assert owner_before == _atomic._command_owner
+        # Tables restored to their exact pre-load state — no leaked entries.
+        assert read_before == READ_CMDS
+        assert write_before == WRITE_CMDS
+        assert all_known_before == gating._ALL_KNOWN
+        assert owner_before == _atomic._command_owner
 
-    failed = _atomic.get_failed_plugins()
-    assert len(failed) == 1
-    assert failed[0][0] == "fixture_ext_rw_rejected"
-    assert "get_hierarchy" in failed[0][1]
+        failed = _atomic.get_failed_plugins()
+        assert len(failed) == 1
+        assert failed[0][0] == "fixture_ext_rw_rejected"
+        assert "get_hierarchy" in failed[0][1]
+    finally:
+        READ_CMDS.discard("ext_fixture_bad_read_tool")
+        WRITE_CMDS.discard("ext_fixture_bad_write_tool")
