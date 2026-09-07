@@ -1,12 +1,13 @@
 """Runtime Play Mode tools — blocked outside Play Mode by Unity guard."""
 import asyncio
+import contextlib
 import json
 import re
 
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ..bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S
-from ..errors import recovery_barrier
+from ..errors import SessionIdentityMismatch, UncertainDeliveryError, recovery_barrier
 from ..sampling import sampling_service as _sampling
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
@@ -291,7 +292,34 @@ async def _wait_for_play_state(expected: bool, action: str) -> None:
     """
     last_state = None
     for attempt in range(_PLAY_STATE_POLLS):
-        state = await _send("editor", _args(action="state"), timeout=5.0)
+        try:
+            state = await _send("editor", _args(action="state"), timeout=5.0)
+        except ConnectionError as exc:
+            # The write (editor play/stop) already succeeded; a domain
+            # reload can still start a moment later and catch THIS
+            # confirmation read mid-flight -- as UncertainDeliveryError (the
+            # read's own delivery went unsafe-sent) or DomainReloadError
+            # (the bridge's pre-queue guard blocks 'editor', which is never
+            # retry-safe, while the reload tracker is still marked active).
+            # It's a poll inside an already-bounded wait loop, not a write
+            # to resend -- absorb either and retry next iteration. Only a
+            # genuine session mismatch (wrong Unity instance entirely) is a
+            # hard stop worth surfacing immediately.
+            if isinstance(recovery_barrier(exc), SessionIdentityMismatch):
+                raise
+            # 'editor' is never retry-safe, so once the bridge's reload
+            # tracker is marked active it blocks every subsequent 'editor'
+            # send with DomainReloadError until the tracker clears -- which
+            # only happens via a successful reconnect, itself only reached
+            # through a retry-safe send. A bare sleep-and-retry would keep
+            # hitting the same guard for the whole outer budget (confirmed
+            # live). Spend this attempt's slot on the retry-safe
+            # compile_status probe instead: it passes the guard, drives the
+            # reconnect, and clears the tracker once idle is proven.
+            if attempt + 1 < _PLAY_STATE_POLLS:
+                with contextlib.suppress(TimeoutError):
+                    await _await_reload_idle(timeout=_PLAY_STATE_POLL_INTERVAL)
+            continue
         last_state = state
         playing = _editor_field(state, "playing")
         if playing is None or playing.lower() not in ("true", "false"):
@@ -339,6 +367,56 @@ async def _await_reload_idle(timeout: float = _RELOAD_WAIT_TIMEOUT_S) -> None:
     await asyncio.wait_for(_poll(), timeout=timeout)
 
 
+def _status_field(status: str | None, field: str) -> str | None:
+    """Extract a 'key=value' field from get_status's response text.
+
+    Distinct from editor_state.parse_editor_field: 'editor state' uses
+    'key:value' lines, get_status uses 'key=value' lines.
+    """
+    for line in (status or "").splitlines():
+        k, sep, v = line.partition("=")
+        if sep and k.strip() == field:
+            return v.strip()
+    return None
+
+
+async def _observe_play_state(expected: bool, timeout: float) -> bool:
+    """Poll the retry-safe 'get_status' probe until it reports the expected
+    playing= value, or the bound expires.
+
+    get_status is in _INTERNAL_RETRY_SAFE_CMDS — it passes the bridge's
+    reload guard and the bridge reconnects/retries it internally, so it is
+    safe to poll while a domain reload is still in flight. This never
+    resends the unsafe 'editor play'/'stop' command (N3).
+
+    Polls for the EXPECTED value specifically, not just any parseable
+    'playing=' line: EditorApplication.isPlaying flips asynchronously, so
+    the first probe response after reconnect can legitimately still show
+    the pre-transition value for a brief window — settling for "any parsed
+    value" would misreport that transient reading as a mismatch. Returns
+    False (never raises for a plain connection hiccup) if the expected
+    value was not observed before timeout expires.
+    """
+    async def _poll() -> None:
+        while True:
+            try:
+                status = await _send("get_status", {})
+                playing = _status_field(status, "playing")
+            except (ConnectionError, OSError) as exc:
+                if recovery_barrier(exc) is not None:
+                    raise
+                playing = None
+            if playing is not None and playing.lower() == ("true" if expected else "false"):
+                return
+            await asyncio.sleep(_RELOAD_WAIT_POLL_S)
+
+    try:
+        await asyncio.wait_for(_poll(), timeout=timeout)
+        return True
+    except TimeoutError:
+        return False
+
+
 async def _transition_play_state(
     expected: bool, reload_wait_timeout: float = _RELOAD_WAIT_TIMEOUT_S
 ) -> None:
@@ -346,7 +424,20 @@ async def _transition_play_state(
     action = "play" if expected else "stop"
     timeout = 5.0 if expected else 10.0
     await _await_reload_idle(timeout=reload_wait_timeout)
-    response = await _send("editor", _args(action=action), timeout=timeout)
+    try:
+        response = await _send("editor", _args(action=action), timeout=timeout)
+    except ConnectionError as exc:
+        # N3: a lost ACK after a sent write is reconciled by observing
+        # state, never by resending the unsafe 'editor' command. Poll the
+        # retry-safe get_status probe (bounded like _await_reload_idle)
+        # rather than a single 'editor state' read, which shares 'editor's
+        # non-retry-safe classification and can itself go uncertain during
+        # the same reload window that caused the original lost ACK.
+        if not isinstance(recovery_barrier(exc), UncertainDeliveryError):
+            raise
+        if await _observe_play_state(expected, reload_wait_timeout):
+            return
+        raise
     error = _editor_command_error(action, response)
     if error:
         raise RuntimeError(error)

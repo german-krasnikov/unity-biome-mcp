@@ -56,12 +56,18 @@ async def test_get_console_returns_data(conformance_worker):
 
 @pytest.mark.requires_graphics
 async def test_screenshot_succeeds(conformance_worker):
-    """screenshot returns a non-empty response."""
+    """screenshot captures to disk, not inline bytes: the tool's own
+    docstring says 'Capture screenshot (file path)' and the wire response
+    carries the saved path in 'file', leaving 'data' empty by design (see
+    test_screenshot_highlight.py's mocks, which assert on 'file' the same
+    way). Verified live 2026-09-07: 'data' empty, 'file' a real path to a
+    freshly-written non-empty PNG — checking 'data' was the wrong field,
+    not a capture failure."""
     worker, bridge = conformance_worker
     resp = await bridge.send("screenshot", {})
     assert resp["ok"], f"screenshot failed: {resp}"
-    data = resp.get("data", {})
-    assert data, "screenshot returned empty data"
+    file_path = resp.get("file", "")
+    assert file_path, f"screenshot returned no file path: {resp}"
 
 
 async def test_search_scene_basic(conformance_worker):

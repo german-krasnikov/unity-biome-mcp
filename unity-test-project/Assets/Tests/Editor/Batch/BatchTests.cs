@@ -56,7 +56,7 @@ namespace UnityMCP.TestProject.Batch
             var result = ProcessOwned(json);
 
             StringAssert.Contains("\"ok\":true", result);
-            StringAssert.Contains("[0] Created /BatchTestObj", result);
+            StringAssert.Contains("[0] ok: Created /BatchTestObj", result);
             StringAssert.Contains("ok:1", result);
 
             // Verify object was created
@@ -73,8 +73,8 @@ namespace UnityMCP.TestProject.Batch
             var result = ProcessOwned(json);
 
             StringAssert.Contains("\"ok\":true", result);
-            StringAssert.Contains("[0] Created /Multi1", result);
-            StringAssert.Contains("[1] Created /Multi2", result);
+            StringAssert.Contains("[0] ok: Created /Multi1", result);
+            StringAssert.Contains("[1] ok: Created /Multi2", result);
             StringAssert.Contains("ok:2", result);
 
             // Verify both objects created
@@ -91,8 +91,8 @@ namespace UnityMCP.TestProject.Batch
             var result = ProcessOwned(json);
 
             StringAssert.Contains("\"ok\":true", result);
-            StringAssert.Contains("[0] Created /Empty1", result);
-            StringAssert.Contains("[1] Created /Empty2", result);
+            StringAssert.Contains("[0] ok: Created /Empty1", result);
+            StringAssert.Contains("[1] ok: Created /Empty2", result);
             StringAssert.Contains("ok:2", result);
 
             Assert.IsNotNull(GameObject.Find("Empty1"));
@@ -108,8 +108,8 @@ namespace UnityMCP.TestProject.Batch
             var result = ProcessOwned(json);
 
             StringAssert.Contains("\"ok\":true", result);
-            StringAssert.Contains("[0] Created /Comment1", result);
-            StringAssert.Contains("[1] Created /Comment2", result);
+            StringAssert.Contains("[0] ok: Created /Comment1", result);
+            StringAssert.Contains("[1] ok: Created /Comment2", result);
             StringAssert.Contains("ok:2", result);
 
             Assert.IsNotNull(GameObject.Find("Comment1"));
@@ -125,7 +125,7 @@ namespace UnityMCP.TestProject.Batch
             var result = ProcessOwned(json);
 
             StringAssert.Contains("\"ok\":true", result);
-            StringAssert.Contains("[0] Created /My Object", result);
+            StringAssert.Contains("[0] ok: Created /My Object", result);
             StringAssert.Contains("ok:1", result);
 
             var obj = GameObject.Find("My Object");
@@ -141,7 +141,7 @@ namespace UnityMCP.TestProject.Batch
             var result = ProcessOwned(json);
 
             StringAssert.Contains("\"ok\":true", result);
-            StringAssert.Contains("[0] Created /SpecialTest", result);
+            StringAssert.Contains("[0] ok: Created /SpecialTest", result);
             StringAssert.Contains("ok:3", result);
 
             var obj = GameObject.Find("SpecialTest");
@@ -182,7 +182,7 @@ namespace UnityMCP.TestProject.Batch
             var result = ProcessOwned(json);
 
             StringAssert.Contains("\"ok\":false", result);
-            StringAssert.Contains("[0] Created /Stop1", result);
+            StringAssert.Contains("[0] ok: Created /Stop1", result);
             StringAssert.Contains("[1] err:", result);
             StringAssert.Contains("[2] skip", result);
             StringAssert.Contains("ok:1 err:1", result);
@@ -201,9 +201,9 @@ namespace UnityMCP.TestProject.Batch
             var result = ProcessOwned(json);
 
             StringAssert.Contains("\"ok\":false", result);
-            StringAssert.Contains("[0] Created /Valid1", result);
+            StringAssert.Contains("[0] ok: Created /Valid1", result);
             StringAssert.Contains("[1] err:", result);
-            StringAssert.Contains("[2] Created /Valid2", result);
+            StringAssert.Contains("[2] ok: Created /Valid2", result);
             StringAssert.Contains("ok:2 err:1", result);
 
             // Verify valid commands executed

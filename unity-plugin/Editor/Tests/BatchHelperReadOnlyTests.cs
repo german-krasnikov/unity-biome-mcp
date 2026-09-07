@@ -57,8 +57,9 @@ namespace UnityMCP.Editor.Tests
             CommandRouter.IsReadOnly = () => true;
             var result = BatchHelper.Execute("test_ro_read\ntest_ro_mutating", "continue");
             StringAssert.Contains("READ_ONLY_BLOCKED", result);
-            // Read command at [0] returned "ok" — no line output for it
-            StringAssert.DoesNotContain("[0]", result);
+            // D7 Defect 2: every successful command now gets a normalized
+            // "[N] ok:" body line, including a bare "ok" result.
+            StringAssert.Contains("[0] ok:", result);
         }
 
         [Test]

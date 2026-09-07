@@ -130,18 +130,39 @@ async def test_tool_reachable_via_batch(seam_bridge, seam_worker, cmd, args_str)
     resp = await seam_bridge.send("batch", {"commands": line})
     text = resp.get("data", "") or resp.get("err", "")
 
-    # Some tools may produce an ok:1 summary before the [0] line;
-    # others may return ok=False with err message at the response level.
-    # We check both the data body and err field.
-    assert "Unknown command" not in text, (
-        f"D7: '{cmd}' claims batch-capable (not direct_only) but C# CommandRouter "
-        f"returned 'Unknown command': {text[:300]}"
-    )
+    # Scope the routing-failure check to the [0] body line's own status and
+    # detail rather than a blind substring search across the whole
+    # response: a payload-returning tool like get_console can legitimately
+    # embed the literal text "Unknown command" inside its OWN console-log
+    # data (e.g. another probe's deliberate invalid-command test still in
+    # the rolling console buffer), which a whole-text search misreports as
+    # THIS tool's routing having failed. "Unknown command" is only real D7
+    # evidence when it IS the [0] result itself.
+    result = None
+    if "ok:" in text or "err:" in text:
+        try:
+            result = parse_batch_result(text)
+        except AssertionError:
+            result = None
+
+    if result is not None and result.items:
+        _, status, detail = result.items[0]
+        assert not (status == "err" and "Unknown command" in detail), (
+            f"D7: '{cmd}' claims batch-capable (not direct_only) but C# CommandRouter "
+            f"returned 'Unknown command': {detail[:300]}"
+        )
+    else:
+        # No parseable [0] body line (e.g. a connection-level error, not a
+        # batch response) — fall back to the whole-text check so a genuine
+        # routing failure is never silently missed.
+        assert "Unknown command" not in text, (
+            f"D7: '{cmd}' claims batch-capable (not direct_only) but C# CommandRouter "
+            f"returned 'Unknown command': {text[:300]}"
+        )
 
     # Best-effort: verify summary exists so we know the response is valid batch format
     # (not a connection-level error). OK to skip if response is non-batch error.
-    if "ok:" in text:
-        result = parse_batch_result(text)
+    if result is not None:
         assert result.is_coherent(), (
             f"D7: '{cmd}' batch response summary/body mismatch: "
             f"summary ok:{result.ok_count} err:{result.err_count} "
