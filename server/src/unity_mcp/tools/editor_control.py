@@ -1,5 +1,7 @@
 """Editor chrome: play/pause/stop, selection, ping, undo, checkpoints, capabilities.
 (B2: split from scene.py)"""
+from unity_mcp.constants import NOOP_RECOVERY_RESULT as _NOOP_RECOVERY_RESULT
+
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._common import bind
@@ -18,7 +20,11 @@ async def editor(action: str = "state", path: str | None = None,
     result = await _send("editor", _args(
         action=action, path=path, paths=paths,
         enable=None if enable is None else ("true" if enable else "false")), timeout=t)
-    if action == "mutation_mode" and enable is not None and not result.startswith("err:"):
+    if (action == "mutation_mode" and enable is not None and not result.startswith("err:")
+            and result != _NOOP_RECOVERY_RESULT):
+        # noop_recovery: the reload port ACKed a no-op it can't verify and
+        # Unity moved to Recovery, not Off -- caching enable=False here would
+        # misrepresent Unity's real state to asset.py's .cs write router.
         _set_cached_intent(enable)
     return result
 

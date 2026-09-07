@@ -57,8 +57,8 @@ namespace UnityMCP.Editor
         // N2 Task 2: the one substitution point beneath TriggerSync/GetSyncStatus.
         // Begin/Observe mirror TriggerSync(bool,bool)/GetSyncStatus()'s own shape —
         // an algorithm B changes what both report without any consumer call-site
-        // change (CommandRouter, SourcePatchReloadPort, DiagnoseCommand, MCPChatWindow
-        // all keep calling the public statics below).
+        // change (CommandRouter, DiagnoseCommand, and every other reload-port
+        // consumer all keep calling the public statics below).
         internal interface IReloadAlgorithm
         {
             string Begin(bool resolve, bool explicitOwnedDisable);

@@ -1,7 +1,10 @@
 """Unit tests for editor_control.py tool functions (B2 split from scene.py):
 editor, ping_object, get_selection, checkpoint, undo_last, get_capabilities."""
-import pytest
+import pathlib
+import re
 from unittest.mock import AsyncMock
+
+import pytest
 
 
 @pytest.fixture(autouse=True)
@@ -189,3 +192,77 @@ async def test_non_mutation_mode_action_does_not_touch_cache(ec_mod, _patch_send
     await ec_mod.editor(action="play")
 
     assert get_cached_intent() is False
+
+
+# ── mutation_mode noop_recovery (N2 T5) ──────────────────────────────────────
+# SourcePatchModePolicy.RequestDisable (C#) returns NoOpRecoveryResult when the
+# reload port ACKs a no-op it cannot verify and the policy moves to Recovery
+# instead of a confirmed disable. Caching enable=False on that result would
+# tell asset.py's .cs write router mutation mode is off while Unity is really
+# in Recovery -- the next explicit disable retry is the bounded recovery
+# intent, not a fact already on record.
+
+async def test_mutation_mode_noop_recovery_does_not_update_cache(ec_mod, _patch_send):
+    """Double-red partner #1: if the noop_recovery gate is removed, this
+    result (which does not start with "err:") falls through to the old
+    unconditional cache-write and get_cached_intent() becomes False here --
+    this assertion goes red exactly when the gate is missing."""
+    from unity_mcp.constants import NOOP_RECOVERY_RESULT
+    from unity_mcp.tools._source_patch_intent import get_cached_intent, set_cached_intent
+    set_cached_intent(True)
+    _patch_send.return_value = NOOP_RECOVERY_RESULT
+
+    await ec_mod.editor(action="mutation_mode", enable=False)
+
+    assert get_cached_intent() is True  # unchanged -- Unity is in Recovery, not Off
+
+
+async def test_mutation_mode_requested_result_still_updates_cache(ec_mod, _patch_send):
+    """Double-red partner #2: if intent caching were disabled outright (not
+    just gated), the cache set below in setup would never flip and this
+    assertion goes red too -- together with the test above, this pins the
+    gate to the exact NOOP_RECOVERY_RESULT literal, not every non-error
+    result."""
+    from unity_mcp.tools._source_patch_intent import get_cached_intent, set_cached_intent
+    set_cached_intent(True)
+    _patch_send.return_value = "requested"
+
+    await ec_mod.editor(action="mutation_mode", enable=False)
+
+    assert get_cached_intent() is False
+
+
+async def test_mutation_mode_false_literal_result_still_updates_cache(ec_mod, _patch_send):
+    from unity_mcp.tools._source_patch_intent import get_cached_intent, set_cached_intent
+    set_cached_intent(True)
+    _patch_send.return_value = "mutation_mode:false"
+
+    await ec_mod.editor(action="mutation_mode", enable=False)
+
+    assert get_cached_intent() is False
+
+
+# ── Parity: Python NOOP_RECOVERY_RESULT pinned to the C# constant ───────────
+
+_SOURCE_PATCH_MODE_POLICY_CS_PATH = (
+    pathlib.Path(__file__).parents[2] / "unity-plugin/Editor/SourcePatchModePolicy.cs"
+)
+_CS_NOOP_RECOVERY_RE = re.compile(r'const string NoOpRecoveryResult = "([^"]+)"')
+
+
+def test_noop_recovery_result_matches_csharp_constant():
+    """NOOP_RECOVERY_RESULT (constants.py) must be byte-identical to
+    SourcePatchModePolicy.NoOpRecoveryResult (C#) -- the two are independent
+    literals by necessity (different runtimes/files); tools/editor_control.py
+    matches this string by exact equality, so any drift here silently
+    reopens the noop_recovery cache-poisoning bug this module's tests above
+    guard against."""
+    assert _SOURCE_PATCH_MODE_POLICY_CS_PATH.exists(), \
+        f"C# source not found: {_SOURCE_PATCH_MODE_POLICY_CS_PATH}"
+    cs_text = _SOURCE_PATCH_MODE_POLICY_CS_PATH.read_text(encoding="utf-8")
+
+    m = _CS_NOOP_RECOVERY_RE.search(cs_text)
+    assert m, "NoOpRecoveryResult literal not found in SourcePatchModePolicy.cs"
+
+    from unity_mcp.constants import NOOP_RECOVERY_RESULT
+    assert m.group(1) == NOOP_RECOVERY_RESULT
