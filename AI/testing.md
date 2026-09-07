@@ -335,9 +335,9 @@ Use this lane for:
 
 Tests here must not reference Unity or Editor types. Any new utility pulled from Core must have matching coverage in this lane before merging.
 
-## Offline Contract Validation: Freshness and Reload Readiness
+## Offline Contract Validation: Freshness, Reload Readiness, and Adapter
 
-Two additional offline NUnit projects validate critical contracts without Editor:
+Three additional offline NUnit projects validate critical contracts without Editor:
 
 **`unity-plugin/Tests~/AssemblyFreshness/UnityMCP.AssemblyFreshness.Tests.csproj`**
 - Proves DLL/PDB bytecode comparison logic in `AssemblySourceFreshness`
@@ -359,7 +359,18 @@ Run with:
 dotnet test unity-plugin/Tests~/SourcePatchReadiness/UnityMCP.SourcePatchReadiness.Tests.csproj -c Release
 ```
 
-Both projects use the same `~` folder convention to stay invisible to the Editor. They validate implementation-critical runtime invariants that cannot be observed through Editor UI alone.
+**`unity-plugin/Tests~/MutationAdapterContract/AdapterContract.Tests.csproj`**
+- Validates SourcePatch seam contract and adapter Apply outcomes
+- `AdapterApplyOutcomeTests` exercises all Apply result types (Pass, NoChange, Fail, Obsolete)
+- `Seam.csproj` compiles the public seam types; seam-drift negative control ensures renamed members break the build
+- Adapter sources fetched and pinned by `scripts/gauntlet/fetch_adapter_sources.py` (SHA256 atomic lock)
+
+Run with:
+```bash
+dotnet test unity-plugin/Tests~/MutationAdapterContract/AdapterContract.Tests.csproj -c Release
+```
+
+All three projects use the `~` folder convention to stay invisible to the Editor. They validate implementation-critical runtime invariants that cannot be observed through Editor UI alone. CI gates all three before running live mutation tests.
 
 ## Test Taxonomy and Lanes
 
@@ -424,11 +435,18 @@ Review the affected instructions against the live tool and product contracts.
 
 ## CI Lanes and Acceptance Order
 
-**Four CI lanes** (data-driven by `Tests/biome-test-lanes.json`):
+**Core CI lanes** (data-driven by `Tests/biome-test-lanes.json`):
 - `pr-python-core`: Python quick-check (35s via focused markers)
 - `pr-unity-core`: C# EditMode + PlayMode corpus on PR branches (pr-gating)
 - `master-conformance`: Seams/conformance live suite on master branch
 - `nightly-full`: Complete Python live suite + Player fan-out (requires graphics)
+
+**Mutation Regression Lane** (`.github/workflows/mutation-regression.yml`):
+- Opt-in, enabled by `UNITY_MCP_RUN_MUTATION_LIVE=1` environment variable
+- Python suite (`server/tests/mutation`) with pytest marker `mutation_live`; run via `scripts/run_mutation_regression_cell.py --mode full` (driver, 1800 s budget per job)
+- Requires a disposable provider worker: `BIOME_FINAL_PORT_A`, `BIOME_WORKER_A` with FastScriptReload package installed and marked disposable
+- Stories S11–S16c: explicit disable (S14), source restore (S15), provider absence (S16), isolation (S16), remove (S16b), re-add (S16c)
+- Supersedes legacy `fsr-qualification.yml`; CI-gated by pure dotnet projects (`AssemblyFreshness`, `SourcePatchReadiness`, `MutationAdapterContract`) in `ci-pure-dotnet.yml`
 
 **Player fan-out runner** (v0.81.4+):
 ```bash
@@ -454,12 +472,13 @@ sequentially, with no edits or parallel test process:
 1. `server/.venv/bin/python -m pytest scripts/tests -q`
 2. `server/.venv/bin/python -m pytest install/tests -q`
 3. From `server`: `uv run pytest tests -m 'not live' -q`
-4. Complete C# EditMode suite twice against one disposable worker, followed by
+4. Complete C# EditMode suite twice against one disposable worker (Worker A), followed by
    cleanup fault injection and the domain-reload scenarios.
 5. Python `.suite` lane: `uv run pytest tests/live/test_playtest_suite_corpus.py -m "live" --tag @suite-only -q`
 6. Player fan-out: `python scripts/run_player_playtests.py --jobs 2 --project ... --timeout 1800`
-7. Rediscover and verify the final worker port.
-8. From `server`, run project-pinned deterministic `tests/live` with the final
+7. **Mutation regression lane** (separate disposable provider worker): Set `BIOME_FINAL_PORT_A`, `BIOME_WORKER_A` to Worker A's final port and path, then run mutation suite (never concurrent with other Unity lanes; separate provider-equipped worker preferred): `uv run pytest server/tests/mutation -m mutation_live -q` or `python scripts/run_mutation_regression_cell.py --mode full`
+8. Rediscover and verify the final worker port (Worker A).
+9. From `server`, run project-pinned deterministic `tests/live` with the final
    host, port, and `UNITY_MCP_PROJECT_PATH`.
 
 Retain commands, counts, durations, run identities, port transitions, and paid

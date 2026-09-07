@@ -71,7 +71,13 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/tests/` | Python unit, integration, conformance, and live tests. |
 | `server/tests/seams/` | Live conformance seam tests (round-trip, batch, surface, differential). |
 | `server/tests/wire/` | Protocol-level wire tests (no Unity, FakeServer, MITM, cassettes). |
+| `server/tests/mutation/` | Mutation regression suite (stories S11–S16c): explicit disable, source restore, provider absence, re-add/remove workflows. Uses shared helpers in `_canary.py` and `_provider_lifecycle.py`. Marker: `mutation_live`. Requires disposable provider worker; run via `pytest tests/mutation -m mutation_live` or `scripts/run_mutation_regression_cell.py --mode full`. |
+| `server/tests/test_sync_compile_guard.py` | Offline tests for compile-guard absorption in `sync_unity` (ade3bde7): guard→ready, guard→errors, foreign error text, guard→timeout. Validates constant `SYNC_COMPILE_GUARD_TEXT` parity with C# CommandRouter. |
 | `server/tests/test_docstring_hygiene.py` | Hygiene guard: prevents production module docstrings from containing ticket codes (which would leak internal identifiers into public tools and errors). Repository and production modules scanned. |
+| `scripts/gauntlet/mutation_regression.py` | Mutation regression lane orchestrator: dispatches Python mutation suite (`pytest tests/mutation`) and receives receipt validation from `validate_mutation_regression_receipts.py`. CI job budget tracked via constant. |
+| `scripts/gauntlet/fetch_adapter_sources.py` | Fetch pinned provider adapter sources with SHA256 atomic lock (fail-closed, malformed-input guards). Adapter used by `MutationAdapterContract` offline tests. |
+| `scripts/run_mutation_regression_cell.py` | Mutation regression cell driver: Python-side orchestration; reads `BIOME_FINAL_PORT_A`, `BIOME_WORKER_A` and runs mutation suite with 1800 s budget. Supersedes legacy FSR-qualification driver. |
+| `scripts/validate_mutation_regression_receipts.py` | Receipt validator for mutation regression lane: parses story outputs, enforces pass verdicts, cross-checks with test run state. Fails CI on contradictory results. |
 | `scripts/tests/test_unity_test_source_hygiene.py` | Hygiene guard: validates Unity C# test structure (fixture bases, ownership registration, async patterns, disposable-worker marking) to prevent false-green tests and coverage gaps. |
 
 Do not maintain a tool roster in this file. Derive it from `tool_specs.py` and
@@ -114,6 +120,7 @@ by runtime boundary:
 | `unity-plugin/Tests~/Pure/` | Pure dotnet test lane for Core parser (v1.53.0+): `UnityMCP.Playtest.Core.Tests.csproj` runs NUnit tests with zero Unity install. The folder name ends in `~` intentionally — Unity's asset importer skips `~` paths, keeping `Microsoft.NET.Test.Sdk` references invisible to the Editor. Source files compiled from `Runtime/Playtest/Core/*.cs` in isolation. |
 | `unity-plugin/Tests~/AssemblyFreshness/` | Offline NUnit project (`UnityMCP.AssemblyFreshness.Tests.csproj`) validating DLL/PDB freshness detection and import logic without Unity Editor. Covers `AssemblySourceFreshness` bytecode comparison and readiness contract. |
 | `unity-plugin/Tests~/SourcePatchReadiness/` | Offline NUnit project (`UnityMCP.SourcePatchReadiness.Tests.csproj`) proving reload-readiness state transitions and ACK-based patch lease validity. Tests `SourcePatchReloadAckTests` and reload block reason propagation without Editor. |
+| `unity-plugin/Tests~/MutationAdapterContract/` | Offline NUnit project (`AdapterContract.Tests.csproj`) validating SourcePatch seam contract and adapter Apply outcomes via `AdapterApplyOutcomeTests` and stubs. Seam-drift negative control (`Seam.csproj`) proves renamed seam members break the build. Adapter sources fetched and pinned by `scripts/gauntlet/fetch_adapter_sources.py`. Runs before mutation regression lane in CI. |
 | `unity-plugin/ClientSkills/` | Canonical bundled skills, agents, and conversion support. |
 
 Unity `.meta` files are package assets. Preserve them when moving or adding Unity
