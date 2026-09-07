@@ -87,6 +87,22 @@ namespace UnityMCP.Editor
             Algorithm = replacement;
         }
 
+        // Production bind path (N2 Part A review): the ONE place a real algorithm B
+        // installs itself. Guarded against double-bind — a second real algorithm
+        // silently replacing the first would be a silent behavior change with no
+        // caller aware of it. OverrideAlgorithmForTest above stays the unbounded
+        // test-only override (tests bind/restore many times per run via
+        // TestIsolationScope, so it must never carry this guard).
+        internal static void Bind(IReloadAlgorithm algorithm)
+        {
+            if (algorithm == null)
+                throw new ArgumentNullException(nameof(algorithm));
+            if (!(Algorithm is DefaultAlgorithm))
+                throw new InvalidOperationException(
+                    "SyncHelper.Algorithm is already bound; Bind may only run once.");
+            Algorithm = algorithm;
+        }
+
         private static TestIsolationScope _activeTestIsolation;
 
         // UnityMcpTestBase snapshots and restores this seam around every test, so fixtures

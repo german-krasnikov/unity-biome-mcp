@@ -135,5 +135,50 @@ namespace UnityMCP.Editor.Tests
             Assert.That(receipt.ExpectedEpochAfter, Is.EqualTo(epochBefore + 1));
             Assert.That(SyncHelper.CurrentEpoch, Is.EqualTo(epochBefore));
         }
+
+        // V5 (Plans/N2-reload-sourcepatch-contract.md): a fake port that re-enters
+        // the disable route (e.g. some other editor callback firing while the
+        // reload port call is in flight) while CurrentState is already Disabling.
+        // RequestDisable's own Disabling short-circuit (L144-145 above) must
+        // absorb the reentry idempotently, WITHOUT redispatching to the port and
+        // WITHOUT touching the receipt written before the port was first called.
+        private sealed class ReentrantDuringPortPort : ISourcePatchReloadPort
+        {
+            public int CallCount;
+            public string ReentrantResult;
+            public SourcePatchDisableReceipt ReceiptSeenDuringCall;
+
+            public ReloadPortOutcome RequestReloadVerification(int expectedEpochAfter)
+            {
+                CallCount++;
+                SourcePatchReceiptStore.TryRead(out var receipt);
+                ReceiptSeenDuringCall = receipt;
+                // Simulated reentrant event, firing on the same call stack.
+                ReentrantResult = SourcePatchModePolicy.SetMutationIntent(false);
+                return ReloadPortOutcome.Accepted;
+            }
+        }
+
+        [Test]
+        public void ReentrantDisable_DuringPort_DoesNotOverwriteReceipt()
+        {
+            SourcePatchHost.CurrentState = SourcePatchState.OnReady;
+            var fakePort = new ReentrantDuringPortPort();
+            SourcePatchModePolicy.ReloadPort = fakePort;
+
+            var result = SourcePatchModePolicy.SetMutationIntent(false);
+
+            Assert.AreEqual("requested", result);
+            Assert.AreEqual(1, fakePort.CallCount,
+                "the port is invoked exactly once — a reentrant disable must short-circuit on Disabling, never redispatch");
+            Assert.AreEqual("requested", fakePort.ReentrantResult,
+                "the reentrant disable observes the same idempotent Disabling short-circuit as any other caller");
+            Assert.AreEqual(SourcePatchState.Disabling, SourcePatchHost.CurrentState);
+            Assert.IsTrue(SourcePatchReceiptStore.TryRead(out var receiptAfter));
+            Assert.AreEqual(fakePort.ReceiptSeenDuringCall.OpId, receiptAfter.OpId,
+                "reentry must never overwrite the original receipt's correlation id (OpId)");
+            Assert.AreEqual(fakePort.ReceiptSeenDuringCall.ExpectedEpochAfter, receiptAfter.ExpectedEpochAfter,
+                "reentry must never recompute/overwrite the original receipt's expected epoch");
+        }
     }
 }

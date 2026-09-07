@@ -4,6 +4,7 @@
 // live on CommandRegistry.Entry, set at the registration call site.
 using System.Collections.Generic;
 using NUnit.Framework;
+using UnityMCP.Editor.SourcePatch;
 
 namespace UnityMCP.Editor.Tests
 {
@@ -11,6 +12,16 @@ namespace UnityMCP.Editor.Tests
     public class CommandRegistryGuardFlagsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         private const string FakeCmd = "test_guard_flag_fake_cmd";
+
+        [SetUp]
+        public void SetUp()
+        {
+            // V6 (RegistryReadiness_IndependentOfReloadVerdict) touches SourcePatchHost's
+            // static state; every other test in this file leaves it alone, so resetting
+            // is a no-op for them but a required isolation boundary for V6.
+            RegisterCleanup(SourcePatchHost.ResetForTests);
+            SourcePatchHost.ResetForTests();
+        }
 
         [TearDown]
         public void TearDown()
@@ -85,6 +96,39 @@ namespace UnityMCP.Editor.Tests
             foreach (var cmd in ExpectedAllowedDuringCompile)
                 if (!CommandRegistry.IsAllowedDuringCompile(cmd)) failures.Add(cmd);
             Assert.IsEmpty(failures, "Regression: dropped allowedDuringCompile flag for: " + string.Join(", ", failures));
+        }
+
+        // V6 (N2b.7, Plans/N2-reload-sourcepatch-contract.md): CommandRegistry.Ready
+        // (registration readiness) and SourcePatchHost.CurrentState (the Reload
+        // verdict) are two independent axes. Neither guard reads the other's state —
+        // proven through the real dispatch path (CommandRouter.Process -> CheckGuards),
+        // not by re-implementing the guard order in the test.
+        [Test]
+        public void RegistryReadiness_IndependentOfReloadVerdict()
+        {
+            // (a) registry NOT ready + Reload verified (Off): the registry gate
+            // refuses first, and the Reload verdict is untouched by that refusal.
+            // Command choice mirrors RegistrationGateTests.Process_WhenNotReady_ReturnsRetry2000.
+            SourcePatchHost.CurrentState = SourcePatchState.Off;
+            CommandRegistry.Clear(); // Ready = false
+            var notReadyResult = CommandRouter.Process("{\"id\":\"t1\",\"cmd\":\"get_hierarchy\",\"args\":{}}");
+            StringAssert.Contains("\"retry\":2000", notReadyResult);
+            StringAssert.Contains("initializing", notReadyResult);
+            Assert.AreEqual(SourcePatchState.Off, SourcePatchHost.CurrentState,
+                "the registry-not-ready guard must not observe or mutate the independently-tracked Reload verdict");
+
+            // (b) registry ready + Reload unverified (Disabling): a distinct
+            // outcome — dispatch proceeds past the registry gate regardless of
+            // where the Reload verdict currently sits. Command choice mirrors
+            // RegistrationGateTests.Process_WhenReady_DoesNotReturnInitializingError
+            // (scene-independent, so this assertion isolates the registry gate only).
+            CommandRegistry.InitDefaults(); // Ready = true
+            SourcePatchHost.CurrentState = SourcePatchState.Disabling;
+            var readyResult = CommandRouter.Process("{\"id\":\"t1\",\"cmd\":\"get_disabled_tools\",\"args\":{}}");
+            StringAssert.DoesNotContain("initializing", readyResult,
+                "registry-ready dispatch must not be blocked by an unrelated, unverified Reload state");
+            Assert.AreEqual(SourcePatchState.Disabling, SourcePatchHost.CurrentState,
+                "dispatching past the registry gate must not itself resolve the Reload verdict");
         }
     }
 }

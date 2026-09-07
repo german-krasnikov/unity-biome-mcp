@@ -54,7 +54,7 @@ namespace UnityMCP.Editor.Tests
             // on the default path (algorithm A untouched).
             var begin = SyncHelper.TriggerSync(false);
             StringAssert.StartsWith("sync_ack|epoch=", begin);
-            StringAssert.Contains("state=", SyncHelper.GetSyncStatus());
+            StringAssert.StartsWith("epoch=", SyncHelper.GetSyncStatus());
         }
 
         // Parametrised over kinds of Observe() evidence a real algorithm B could
@@ -116,6 +116,35 @@ namespace UnityMCP.Editor.Tests
         public void OverrideAlgorithmForTest_RejectsNull()
         {
             Assert.Throws<System.ArgumentNullException>(() => SyncHelper.OverrideAlgorithmForTest(null));
+        }
+
+        // Part A review: Bind is the production one-shot binding path (distinct from
+        // the unbounded OverrideAlgorithmForTest above). UnityMcpTestBase's
+        // TestIsolationScope restores Algorithm to whatever it was before this test
+        // regardless of which path set it, so no explicit teardown is needed here.
+        [Test]
+        public void Bind_FirstTime_Succeeds()
+        {
+            var fake = new FakeAlgorithm();
+
+            SyncHelper.Bind(fake);
+
+            Assert.AreEqual("algo-b-begin", SyncHelper.TriggerSync(false));
+        }
+
+        [Test]
+        public void Bind_Twice_Throws()
+        {
+            SyncHelper.Bind(new FakeAlgorithm());
+
+            Assert.Throws<System.InvalidOperationException>(
+                () => SyncHelper.Bind(new FakeAlgorithm()));
+        }
+
+        [Test]
+        public void Bind_Null_Throws()
+        {
+            Assert.Throws<System.ArgumentNullException>(() => SyncHelper.Bind(null));
         }
     }
 }

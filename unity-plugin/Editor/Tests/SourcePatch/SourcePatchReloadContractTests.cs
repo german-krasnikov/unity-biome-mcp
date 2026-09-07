@@ -5,6 +5,7 @@
 // RequestDisable() - exactly what a real Domain Reload does in production.
 // ForceUnreconciledForTests() reproduces the one side effect of a real Domain
 // Reload (_reconciled reset to false) without requiring one.
+using System.IO;
 using NUnit.Framework;
 using UnityMCP.Editor.SourcePatch;
 
@@ -33,8 +34,18 @@ namespace UnityMCP.Editor.Tests
         private sealed class FakeProvider : ISourcePatchProvider
         {
             public SourcePatchApplyOutcome Outcome;
-            public SourcePatchApplyOutcome Apply(SourcePatchRequest request) => Outcome;
+            public int ApplyCalls;
+            public SourcePatchApplyOutcome Apply(SourcePatchRequest request)
+            {
+                ApplyCalls++;
+                return Outcome;
+            }
         }
+
+        // Set by ArmOnReadyThenRequestDisable so V3 can assert the legacy WriteText
+        // route never touches the provider/dispatcher, without widening the shared
+        // helper's signature (both existing call sites pass `out _` for the port).
+        private FakeProvider _fakeProvider;
 
         [SetUp]
         public void SetUp()
@@ -52,7 +63,8 @@ namespace UnityMCP.Editor.Tests
         /// called exactly once - no live SyncHelper trigger from this step).</summary>
         private SourcePatchDisableReceipt ArmOnReadyThenRequestDisable(out RecordingReloadPort fakePort)
         {
-            SourcePatchProviderSlot.Register("fake", new FakeProvider { Outcome = SourcePatchApplyOutcome.Applied });
+            _fakeProvider = new FakeProvider { Outcome = SourcePatchApplyOutcome.Applied };
+            SourcePatchProviderSlot.Register("fake", _fakeProvider);
             SourcePatchHost.CurrentState = SourcePatchState.Off; // legitimate rest-state seam, same as every existing fixture
             Assert.AreEqual("mutation_mode:true", SourcePatchModePolicy.SetMutationIntent(true));
 
@@ -127,6 +139,43 @@ namespace UnityMCP.Editor.Tests
             // Fail closed: Recovery, never an optimistic Off; receipt retained (no auto-repair).
             Assert.AreEqual(SourcePatchState.Recovery, SourcePatchHost.CurrentState);
             Assert.IsTrue(SourcePatchReceiptStore.TryRead(out _), "a mismatched receipt is never silently cleared");
+        }
+
+        // V3 (Plans/N2-reload-sourcepatch-contract.md): the full disable ->
+        // owned-reload -> real-reconciliation -> Off chain, then ONE ordinary
+        // write in the very next call. Oracle: the write reaches the legacy
+        // writer exactly once (byte-identical output to calling it directly)
+        // and never touches the provider/dispatcher — Off must not leave any
+        // stale coordinator/provider wiring reachable from WriteText.
+        [Test]
+        public void AfterOff_WriteText_DelegatesToLegacyExactlyOnce()
+        {
+            const string tempFolder = "Assets/TestsTemp/SourcePatchReloadContract";
+            var receipt = ArmOnReadyThenRequestDisable(out _);
+
+            CompleteOwnedReload(receipt);
+            SourcePatchHost.ForceUnreconciledForTests();
+            Assert.AreEqual(SourcePatchState.Off, SourcePatchHost.CurrentState,
+                "the chain must land on real Off before the write is attempted");
+
+            TrackOwnedAsset(tempFolder);
+            AssetHelper.EnsureDirectory(tempFolder + "/legacy.txt");
+            AssetHelper.EnsureDirectory(tempFolder + "/viahost.txt");
+
+            var legacyResult = AssetDatabaseHelper.Execute("write_text",
+                $"{{\"path\":\"{tempFolder}/legacy.txt\",\"content\":\"n2-v3\"}}");
+            var hostResult = SourcePatchHost.WriteText(
+                $"{{\"path\":\"{tempFolder}/viahost.txt\",\"content\":\"n2-v3\"}}");
+
+            var legacyBytes = File.ReadAllBytes(Path.GetFullPath(tempFolder + "/legacy.txt"));
+            var hostBytes = File.ReadAllBytes(Path.GetFullPath(tempFolder + "/viahost.txt"));
+            CollectionAssert.AreEqual(legacyBytes, hostBytes);
+            Assert.AreEqual(
+                legacyResult.Replace("legacy.txt", "viahost.txt"),
+                hostResult,
+                "post-reconciliation Off must delegate to the legacy writer in exactly one chain");
+            Assert.AreEqual(0, _fakeProvider.ApplyCalls,
+                "the legacy route must never dispatch through the provider");
         }
     }
 }
