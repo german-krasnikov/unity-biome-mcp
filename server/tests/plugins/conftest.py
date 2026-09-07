@@ -1,8 +1,14 @@
-"""Shared fixtures/helpers for test_plugin_atomicity.py (kept separate so that
-file stays under the 300-line budget). Fixtures defined here are picked up by
-pytest via a plain `from _plugin_fixtures import ...` re-export in the test
-module — pytest collects autouse fixtures from any name visible in the test
-module's namespace, imported or not.
+"""Shared fixtures/helpers for the plugin registration test package
+(test_plugin_atomicity.py, test_plugin_ownership.py, test_plugin_guards.py).
+
+Fixtures declared here (autouse) apply automatically to every test collected
+under server/tests/plugins/ — pytest does not require them to be imported.
+Plain helper functions (_mk_module, the _declare_*_typo family) are NOT
+fixtures and must be imported explicitly, e.g.
+`from tests.plugins.conftest import _mk_module` — mirrors
+tests/conformance/test_conftest_bridge_reuse.py's
+`from tests.conformance import conftest as conf_conftest` and
+tests/seams/test_round_trips.py's `from tests.seams.invariants import ...`.
 """
 import types
 

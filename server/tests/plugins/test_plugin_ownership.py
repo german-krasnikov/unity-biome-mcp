@@ -1,7 +1,7 @@
 """N1a T3: commit-time ownership validation for API-v1 metadata calls.
 
 Split out of test_plugin_atomicity.py to keep both files under the 300-line
-budget. Shares fixtures/helpers with it via _plugin_fixtures.py. See
+budget. Shares fixtures/helpers with it via tests/plugins/conftest.py. See
 Plans/N1a-plugin-registration-owner.md section 2.3 for the design: every name
 a plugin declares via register_read_cmds/write_cmds/tools/dsl_tools/features
 during its register() call must be a tool it registered through
@@ -11,18 +11,19 @@ back (_atomic._restore).
 import importlib
 
 import pytest
-from _plugin_fixtures import (  # noqa: F401 — autouse fixtures, re-exported for pytest
+from test_plugins import _DictMcp
+
+from tests.plugins.conftest import (
     _declare_dsl_tools_typo,
     _declare_features_typo,
     _declare_register_tools_typo,
     _declare_write_cmds_typo,
     _mk_module,
-    _reset_atomic_scoped_state,
-    _restore_gating_state,
 )
-from test_plugins import _DictMcp
-
 from unity_mcp.plugins import _atomic
+
+# _reset_atomic_scoped_state / _restore_gating_state autouse fixtures live in
+# tests/plugins/conftest.py — applied automatically, no import needed.
 
 
 def test_plugin_declaring_foreign_metadata_rejected_entirely(monkeypatch):

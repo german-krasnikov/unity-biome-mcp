@@ -50,14 +50,22 @@ def register_read_cmds(*names: str):
     from unity_mcp.middleware import READ_CMDS
     safe = _reject_builtin_names(names, "read")
     READ_CMDS.update(safe)
-    _record_v1_journal(safe)
+    # Journal the FULL names tuple (not just `safe`) so a builtin declared in
+    # PLUGIN context still lands in the commit-time journal: it can never be
+    # in that plugin's _command_owner (guarded.tool() already blocks a plugin
+    # from claiming a builtin/host name), so it is "foreign" at commit and
+    # rejects the whole plugin — same outcome as register_tools/dsl_tools/
+    # features below, which journal their raw input. In HOST context
+    # (_owner.current is None) this is a no-op either way, so register_all()
+    # keeps today's filter-and-warn-only behavior unchanged.
+    _record_v1_journal(names)
 
 
 def register_write_cmds(*names: str):
     from unity_mcp.middleware import WRITE_CMDS
     safe = _reject_builtin_names(names, "write")
     WRITE_CMDS.update(safe)
-    _record_v1_journal(safe)
+    _record_v1_journal(names)  # see register_read_cmds — journal is pre-filter
 
 
 def register_tools(category: str, tools: set):

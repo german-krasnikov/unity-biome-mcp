@@ -4,14 +4,13 @@ A plugin's register() call must never leave a partial registration behind —
 neither its own tools nor a duplicate-name collision with another plugin.
 See Plans/PR-03.md for the full architecture.
 """
-from _plugin_fixtures import (  # noqa: F401 — autouse fixtures, re-exported for pytest
-    _mk_module,
-    _reset_atomic_scoped_state,
-    _restore_gating_state,
-)
 from test_plugins import _DictMcp
 
+from tests.plugins.conftest import _mk_module
 from unity_mcp.plugins import _atomic
+
+# _reset_atomic_scoped_state / _restore_gating_state autouse fixtures live in
+# tests/plugins/conftest.py — applied automatically, no import needed.
 
 
 def test_register_plugin_module_second_tool_raises_rolls_back_first(monkeypatch):

@@ -11,6 +11,10 @@ import the other, so no import cycle is introduced.
 Registration is serialized and startup-only (no threading), so a single pair
 of module-level globals is sufficient.
 """
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 # Identity of the plugin currently inside its module.register() call.
 # None outside of that call (including during host register_all()).
@@ -37,7 +41,7 @@ def end() -> None:
     current = None
 
 
-def record(names) -> None:
+def record(names: Iterable[str]) -> None:
     """Record names touched by an API-v1 call. No-op for host-level calls
     (register_all(), where no plugin is currently registering)."""
     if current is not None:
