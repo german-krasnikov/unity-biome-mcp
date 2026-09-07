@@ -17,8 +17,6 @@ from unity_mcp.tools.reload_ladder import _send_with_fallback, make_reload_send,
 from unity_mcp.tools.reload_ladder import run_ladder as _run_ladder
 from unity_mcp.utils import parse_pipe_fields
 
-from ._common import bind
-
 _send = None
 _POLL_INTERVAL = 1.0
 _FOCUS_HINT_AFTER = 15.0
@@ -288,10 +286,3 @@ async def _warm_type_cache() -> None:
     except (ConnectionError, OSError) as exc:
         if recovery_barrier(exc) is not None:
             raise
-
-
-def register(mcp, send, args):
-    bind(globals(), send, args)
-    editor_log.init_corroboration()
-    from ._annotations import RW as _RW
-    mcp.tool(annotations=_RW)(sync_unity)

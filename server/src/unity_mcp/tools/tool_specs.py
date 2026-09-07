@@ -218,7 +218,6 @@ _SPECS: dict[str, ToolSpec] = {
     # until E04. Same shape as source_patch_write above.
     'start_playtest': ToolSpec(category='_INTERNAL', direct_only=True, unity_transport=True),
     'sync_playtest_aliases_from_defs': ToolSpec(category='TESTS'),
-    'sync_unity': ToolSpec(category='SYSTEM', tier1=True, direct_only=True),
     'test_step': ToolSpec(category='TESTS', runtime_only=True, mutability='write', direct_only=True, unity_transport=True),
     'timeline': ToolSpec(category='MEDIA'),
     'transfer_object': ToolSpec(category='SCENE'),
@@ -254,3 +253,15 @@ _SPEC_OWNERS: dict[str, str] = {}
 for _name, _kwargs in _WATCH_SPEC_KWARGS.items():
     _SPECS[_name] = ToolSpec(**_kwargs)
     _SPEC_OWNERS[_name] = "watch"
+
+# N1b pilot #2: sync_unity ToolSpec kwargs are owned by the sync module
+# (tools/sync_module.py: SyncModule + this same SPEC_KWARGS re-exported), but
+# imported here from tools/sync_spec.py specifically -- tool_specs.py must
+# not transitively import tools/sync.py (reload_ladder.py imports tool_specs
+# for _SPECS, and reload_ladder -> sync is a forbidden import-linter
+# contract; see sync_spec.py's docstring).
+from .sync_spec import SPEC_KWARGS as _SYNC_SPEC_KWARGS  # noqa: E402
+
+for _name, _kwargs in _SYNC_SPEC_KWARGS.items():
+    _SPECS[_name] = ToolSpec(**_kwargs)
+    _SPEC_OWNERS[_name] = "sync"
