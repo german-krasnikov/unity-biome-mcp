@@ -18,7 +18,11 @@ namespace UnityMCP.Editor.Tests
         private sealed class RecordingReloadPort : ISourcePatchReloadPort
         {
             public int CallCount;
-            public void RequestReloadVerification() => CallCount++;
+            public ReloadPortOutcome RequestReloadVerification(int expectedEpochAfter)
+            {
+                CallCount++;
+                return ReloadPortOutcome.Accepted;
+            }
         }
 
         private sealed class FakeProvider : ISourcePatchProvider
@@ -69,7 +73,7 @@ namespace UnityMCP.Editor.Tests
 
             // Exactly one accepted, owned request; the real port checks the exact ACK.
             // The fixture's mock performs no AssetDatabase or compilation effects.
-            new SyncHelperReloadPort().RequestReloadVerification();
+            new SyncHelperReloadPort().RequestReloadVerification(receipt.ExpectedEpochAfter);
             Assert.AreEqual(receipt.ExpectedEpochAfter, SyncHelper.CurrentEpoch);
             Assert.AreEqual(1, _syncOps.RefreshCount);
             Assert.AreEqual(1, _syncOps.RequestScriptCompilationCount);

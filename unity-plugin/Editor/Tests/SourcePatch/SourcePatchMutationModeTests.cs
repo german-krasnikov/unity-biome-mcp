@@ -32,7 +32,11 @@ namespace UnityMCP.Editor.Tests
             RegisterCleanup(SourcePatchProviderSlot.ResetForTests);
             SourcePatchHost.ResetForTests();
             SourcePatchProviderSlot.ResetForTests();
-            SyncHelper.OverrideOpsForTest(new MockSyncOps());
+            // IsCompilingAfterRefresh=true: these fixtures exercise the real
+            // disable-triggers-reload (Accepted) path. The no-op ACK path
+            // (AcceptedNoOp -> Recovery, N2a.3) has its own dedicated fake-port
+            // coverage in SourcePatchModePolicyReloadPortTests.
+            SyncHelper.OverrideOpsForTest(new MockSyncOps { IsCompilingAfterRefresh = true });
         }
 
         private static FakeProvider RegisterFakeProvider()

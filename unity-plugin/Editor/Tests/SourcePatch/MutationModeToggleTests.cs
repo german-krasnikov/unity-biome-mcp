@@ -24,7 +24,10 @@ namespace UnityMCP.Editor.Tests
             RegisterCleanup(SourcePatchProviderSlot.ResetForTests);
             SourcePatchHost.ResetForTests();
             SourcePatchProviderSlot.ResetForTests();
-            SyncHelper.OverrideOpsForTest(new MockSyncOps());
+            // IsCompilingAfterRefresh=true: ApplyIntent(false) below exercises the
+            // real disable-triggers-reload (Accepted) path, not the no-op ACK path
+            // (AcceptedNoOp -> Recovery, N2a.3) covered elsewhere.
+            SyncHelper.OverrideOpsForTest(new MockSyncOps { IsCompilingAfterRefresh = true });
         }
 
         private static void RegisterFakeProvider() =>

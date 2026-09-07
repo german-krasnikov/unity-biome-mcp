@@ -16,11 +16,15 @@ namespace UnityMCP.Editor.Tests
         private sealed class RecordingReloadPort : ISourcePatchReloadPort
         {
             public int CallCount;
+            public int? ReceivedEpoch;
             public System.Exception Failure;
-            public void RequestReloadVerification()
+            public ReloadPortOutcome Outcome = ReloadPortOutcome.Accepted;
+            public ReloadPortOutcome RequestReloadVerification(int expectedEpochAfter)
             {
                 CallCount++;
+                ReceivedEpoch = expectedEpochAfter;
                 if (Failure != null) throw Failure;
+                return Outcome;
             }
         }
 
@@ -63,6 +67,30 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("requested", result);
             Assert.AreEqual(1, fakePort.CallCount);
             Assert.AreEqual(epochBefore, SyncHelper.CurrentEpoch);
+        }
+
+        [Test]
+        public void RequestDisable_NoOpPort_EntersRecoveryNotDisabling()
+        {
+            // N2a.3 GAP: a no-op ACK (will_compile=false — no domain reload
+            // will happen) must not leave the policy silently stuck reporting
+            // "requested" forever in Disabling, and must not claim Off. It
+            // must land on the one state that means "bounded, explicit,
+            // retryable" — Recovery — with the receipt retained.
+            SourcePatchHost.CurrentState = SourcePatchState.OnReady;
+            var fakePort = new RecordingReloadPort { Outcome = ReloadPortOutcome.AcceptedNoOp };
+            SourcePatchModePolicy.ReloadPort = fakePort;
+
+            var result = SourcePatchModePolicy.SetMutationIntent(false);
+
+            Assert.AreEqual(SourcePatchModePolicy.NoOpRecoveryResult, result);
+            Assert.AreEqual(1, fakePort.CallCount);
+            Assert.AreEqual(SourcePatchState.Recovery, SourcePatchHost.CurrentState,
+                "a no-op reload must not stay in Disabling and must not become Off");
+            Assert.That(SourcePatchReceiptStore.TryRead(out var receipt), Is.True,
+                "receipt must be retained for explicit recovery after a no-op outcome");
+            Assert.AreEqual(receipt.ExpectedEpochAfter, fakePort.ReceivedEpoch,
+                "the port must receive the receipt's Reload-owned epoch, not a locally recomputed value");
         }
 
         [Test]
