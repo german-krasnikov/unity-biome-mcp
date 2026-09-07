@@ -104,6 +104,16 @@ class _GuardedMcp:
             owner = self._owners.get(name)
             if owner is not None and owner != self._identity:
                 raise PluginLoadError(f"duplicate command '{name}': owned by '{owner}'")
+            # Host collision: name already registered in the FastMCP host tool
+            # manager (register_all(), before any plugin loaded) and not owned
+            # by any plugin. The FastMCP SDK's add_tool() silently no-ops on a
+            # duplicate name (warns, returns the existing Tool, never raises),
+            # so this must be caught here, before that call.
+            if owner is None and name in self._mcp._tool_manager._tools:
+                raise PluginLoadError(
+                    f"collision with host tool '{name}': "
+                    f"plugin '{self._identity}' cannot override a built-in"
+                )
             result = self._mcp.tool(**kwargs)(fn)
             if name not in self._mcp._tool_manager._tools:
                 return result

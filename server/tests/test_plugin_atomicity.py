@@ -148,3 +148,96 @@ def test_register_write_cmds_rejects_core_command_name():
         assert "my_new_plugin_tool" in WRITE_CMDS
     finally:
         WRITE_CMDS.discard("my_new_plugin_tool")
+
+
+def test_host_tool_collision_rejects_plugin_and_rolls_back_staged_tools(monkeypatch):
+    """A plugin tool name colliding with a pre-existing HOST tool must be caught
+    BEFORE the FastMCP SDK's silent add_tool() no-op (SDK: warn + return the
+    existing Tool, never raise). Uses a REAL FastMCP instance (_UnstructuredMCP)
+    because that no-op behavior is a property of the SDK's ToolManager, not of
+    the _DictMcp fake used elsewhere in this file."""
+    monkeypatch.setattr(_atomic, "_command_owner", {})
+    from unity_mcp.server import _UnstructuredMCP
+
+    mcp = _UnstructuredMCP("test_host_collision")
+
+    def host_fn():
+        return "host"
+    mcp.tool()(host_fn)
+    original_host_tool = mcp._tool_manager._tools["host_fn"]
+
+    def register(m, send, args):
+        @m.tool()
+        def plugin_ok_tool():
+            pass
+
+        @m.tool()
+        def host_fn():
+            return "plugin"
+
+    ok = _atomic.register_plugin_module(_mk_module(register), "bad_plugin", mcp, None, None)
+
+    assert ok is False
+    assert mcp._tool_manager._tools["host_fn"] is original_host_tool
+    assert "plugin_ok_tool" not in mcp._tool_manager._tools
+    assert "host_fn" not in _atomic._command_owner
+    failed = _atomic.get_failed_plugins()
+    assert any(identity == "bad_plugin" for identity, _ in failed)
+
+
+def test_api_v1_order_equivalence_register_tools_then_read_cmds(monkeypatch):
+    """A plugin's own tool, added to _ALL_KNOWN by its own register_tools() call,
+    must not then be rejected as 'core' by register_read_cmds() — order must not
+    matter. This order (register_tools BEFORE register_read_cmds) is the one that
+    fails against the old mutable _ALL_KNOWN guard."""
+    monkeypatch.setattr(_atomic, "_command_owner", {})
+    from unity_mcp.middleware import READ_CMDS
+    from unity_mcp.plugin_api import register_read_cmds, register_tools
+    from unity_mcp.tools import gating
+
+    mcp = _DictMcp()
+
+    def register(m, send, args):
+        @m.tool()
+        def my_cmd():
+            pass
+        register_tools("SYSTEM", {"my_cmd"})
+        register_read_cmds("my_cmd")
+
+    try:
+        ok = _atomic.register_plugin_module(_mk_module(register), "order_plugin_a", mcp, None, None)
+        assert ok is True
+        assert "my_cmd" in READ_CMDS
+        assert "my_cmd" in gating._ALL_KNOWN
+        assert "my_cmd" not in gating._BUILTIN_NAMES
+        assert "get_hierarchy" in gating._BUILTIN_NAMES
+    finally:
+        READ_CMDS.discard("my_cmd")
+
+
+def test_api_v1_order_equivalence_read_cmds_then_register_tools(monkeypatch):
+    """Same as above with the call order reversed (register_read_cmds BEFORE
+    register_tools) — must produce an identical result."""
+    monkeypatch.setattr(_atomic, "_command_owner", {})
+    from unity_mcp.middleware import READ_CMDS
+    from unity_mcp.plugin_api import register_read_cmds, register_tools
+    from unity_mcp.tools import gating
+
+    mcp = _DictMcp()
+
+    def register(m, send, args):
+        @m.tool()
+        def my_cmd():
+            pass
+        register_read_cmds("my_cmd")
+        register_tools("SYSTEM", {"my_cmd"})
+
+    try:
+        ok = _atomic.register_plugin_module(_mk_module(register), "order_plugin_b", mcp, None, None)
+        assert ok is True
+        assert "my_cmd" in READ_CMDS
+        assert "my_cmd" in gating._ALL_KNOWN
+        assert "my_cmd" not in gating._BUILTIN_NAMES
+        assert "get_hierarchy" in gating._BUILTIN_NAMES
+    finally:
+        READ_CMDS.discard("my_cmd")
