@@ -164,6 +164,38 @@ def test_render_markdown_marks_stale_report():
 
 
 # ---------------------------------------------------------------------------
+# absolute-path join (OpenCover fullPath is absolute; git diff paths are
+# repo-relative -- the join must map one onto the other, see coverage_hotspots.py::_is_changed)
+# ---------------------------------------------------------------------------
+
+_OPENCOVER_FIXTURE = pathlib.Path(__file__).parent / "fixtures" / "opencover_sample.xml"
+_REPO_ROOT = "/home/runner/work/unity-biome-mcp/unity-biome-mcp"
+
+
+def test_rank_methods_maps_absolute_opencover_path_to_repo_relative_for_join():
+    methods = ch.parse_opencover(_OPENCOVER_FIXTURE)
+    # ParseEnum spans lines 157-159 in unity-plugin/Editor/EnvironmentHelper.cs
+    # (real fixture). OpenCover's fullPath is absolute; git diff keys are repo-relative.
+    changed_lines = {"unity-plugin/Editor/EnvironmentHelper.cs": {158}}
+
+    rows = ch.rank_methods(methods, changed_lines, {}, repo_root=_REPO_ROOT)
+
+    parse_enum_row = next(r for r in rows if r.method.method_name == "ParseEnum[T]")
+    assert parse_enum_row.changed is True
+
+
+def test_rank_methods_reports_unmapped_for_path_outside_repo_root(capsys):
+    methods = ch.parse_opencover(_OPENCOVER_FIXTURE)  # fullPath is not under this root
+
+    rows = ch.rank_methods(methods, {}, {}, repo_root="/some/other/checkout")
+
+    assert all(row.changed is False for row in rows)
+    warning = capsys.readouterr().err
+    assert "unmapped" in warning.lower()
+    assert "EnvironmentHelper.cs" in warning
+
+
+# ---------------------------------------------------------------------------
 # scenario map
 # ---------------------------------------------------------------------------
 
