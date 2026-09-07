@@ -35,6 +35,11 @@ _FRESH_POLL_INTERVAL = 0.2
 # reuses the bridge's own reload-expiry budget rather than a new number.
 _RELOAD_WAIT_POLL_S = 1.0
 _RELOAD_WAIT_TIMEOUT_S = DOMAIN_RELOAD_EXPIRY_S
+# run_playtest_suite's finally-block stop_after cleanup must not block the
+# caller for up to the full 90s reload-expiry budget: 15s is ~7x a typical
+# reload (a few seconds) and is only reached if Unity is still genuinely mid
+# reload, in which case the cleanup error is reported rather than hanging.
+_CLEANUP_RELOAD_WAIT_S = 15.0
 # N0b: one public success/error classification for run_playtest regardless of
 # sync/async route or format — a non-pass outcome always raises, never returns
 # as a plain string. Fallback text when the terminal receipt itself is empty.
@@ -334,11 +339,13 @@ async def _await_reload_idle(timeout: float = _RELOAD_WAIT_TIMEOUT_S) -> None:
     await asyncio.wait_for(_poll(), timeout=timeout)
 
 
-async def _transition_play_state(expected: bool) -> None:
+async def _transition_play_state(
+    expected: bool, reload_wait_timeout: float = _RELOAD_WAIT_TIMEOUT_S
+) -> None:
     """Request and then prove a Play/Edit Mode transition."""
     action = "play" if expected else "stop"
     timeout = 5.0 if expected else 10.0
-    await _await_reload_idle()
+    await _await_reload_idle(timeout=reload_wait_timeout)
     response = await _send("editor", _args(action=action), timeout=timeout)
     error = _editor_command_error(action, response)
     if error:
@@ -616,7 +623,7 @@ async def run_playtest_suite(
     finally:
         if stop_after:
             try:
-                await _transition_play_state(False)
+                await _transition_play_state(False, reload_wait_timeout=_CLEANUP_RELOAD_WAIT_S)
                 play_stopped = True
             except Exception as exc:
                 cleanup_error = exc

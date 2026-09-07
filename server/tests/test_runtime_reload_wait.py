@@ -2,8 +2,11 @@
 in-progress domain reload to clear before sending — never auto-resend the
 unsafe write. Covers runtime._transition_play_state / _await_reload_idle.
 """
+from unittest.mock import AsyncMock
+
 from unity_mcp.bridge import DomainReloadError
 from unity_mcp.errors import UncertainDeliveryError
+from unity_mcp.server import run_playtest_suite
 from unity_mcp.tools import runtime
 
 
@@ -104,3 +107,27 @@ async def test_transition_play_state_uncertain_delivery_not_retried(monkeypatch)
     assert raised
     stop_calls = [c for c in call_log if c == ("editor", "stop")]
     assert len(stop_calls) == 1
+
+
+async def test_run_playtest_suite_cleanup_uses_bounded_reload_wait(mock_bridge, monkeypatch):
+    """run_playtest_suite's finally-block stop_after cleanup must wait for
+    reload idle with the smaller _CLEANUP_RELOAD_WAIT_S bound, not the full
+    _RELOAD_WAIT_TIMEOUT_S (90s) used before Play Mode entry -- a stuck
+    cleanup must not block a caller for up to 90s."""
+    async def dispatch(cmd, args=None, timeout=30.0):
+        args = args or {}
+        if cmd == "list_playtest_files":
+            return {"ok": True, "data": "a.playtest"}
+        if cmd == "run_playtest":
+            return {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
+        return {"ok": True, "data": "ok"}
+
+    mock_bridge.send.side_effect = dispatch
+    wait_mock = AsyncMock()
+    monkeypatch.setattr(runtime, "_await_reload_idle", wait_mock)
+
+    await run_playtest_suite("*.playtest", auto_play=False, stop_after=True)
+
+    assert wait_mock.await_args_list == [
+        ((), {"timeout": runtime._CLEANUP_RELOAD_WAIT_S}),
+    ]
