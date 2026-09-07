@@ -10,6 +10,8 @@ through to the same _await_sync_completion tail a normal
 'sync_ack|...|will_compile=true' response uses -- no synthesized ack, no
 retry of 'sync' itself (RW, not retry-safe).
 """
+import pathlib
+import re
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -18,7 +20,6 @@ from mcp.server.fastmcp.exceptions import ToolError
 import unity_mcp.tools.sync as _sync
 from unity_mcp import editor_log
 from unity_mcp.constants import SYNC_COMPILE_GUARD_TEXT
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -114,7 +115,9 @@ async def test_sync_unity_guard_hit_then_errors_returns_same_error_text(monkeypa
 
 async def test_sync_unity_other_toolerror_propagates_unchanged():
     """The text mentions 'compiling' but is not the exact guard string -- proves
-    the match is exact equality, not a loose substring check."""
+    a non-identical ToolError is not absorbed by the guard and propagates
+    unchanged (the complement of the exact-match check, not a positive proof
+    that some other text would be absorbed)."""
     other_text = "Unity is compiling something unrelated to the sync guard"
 
     async def _send(cmd, args=None, **kwargs):
@@ -139,11 +142,13 @@ async def test_sync_unity_other_toolerror_propagates_unchanged():
 
 async def test_sync_unity_guard_hit_stays_compiling_past_deadline_times_out(monkeypatch):
     """Same 'STOP: reload observation exceeded' verdict the normal
-    will_compile=true path produces on timeout. Uses the real (default)
-    _POLL_INTERVAL so the outer asyncio.timeout_at genuinely cancels the
-    in-flight real asyncio.sleep -- a mocked/instant sleep would never give
-    the deadline a chance to fire."""
-    monkeypatch.setattr(_sync, "_POLL_INTERVAL", 1.0)
+    will_compile=true path produces on timeout. _POLL_INTERVAL is set far
+    longer (100s) than the 0.05s deadline -- unambiguous proof that the outer
+    asyncio.timeout_at cancels a genuinely in-flight real asyncio.sleep,
+    not that the poll interval merely happened to be short enough to elapse
+    on its own (the previous 1.0 value equaled the untouched default, so it
+    tested nothing about the timeout path itself)."""
+    monkeypatch.setattr(_sync, "_POLL_INTERVAL", 100.0)
 
     async def _send(cmd, args=None, **kwargs):
         if cmd == "sync":
@@ -154,8 +159,37 @@ async def test_sync_unity_guard_hit_stays_compiling_past_deadline_times_out(monk
 
     _sync._send = _send
     try:
-        result = await _sync.sync_unity(timeout=0.15)
+        result = await _sync.sync_unity(timeout=0.05)
     finally:
         _sync._send = None
 
-    assert result == "STOP: reload observation exceeded 0.15s; Unity operation may still be running"
+    assert result == "STOP: reload observation exceeded 0.05s; Unity operation may still be running"
+
+
+# ── Parity: Python constant pinned to the C# compile-guard literal ─────────
+
+_COMMAND_ROUTER_CS_PATH = (
+    pathlib.Path(__file__).parents[2] / "unity-plugin/Editor/CommandRouter.cs"
+)
+# Anchored to CheckGuards' IsCompiling() branch specifically -- not the
+# "Server initializing. Retry in 2s." CommandRegistry.Ready branch a few
+# lines above it, which also calls FormatBusyResponse but is a different
+# guard with a different retry contract.
+_CS_COMPILE_GUARD_RE = re.compile(
+    r'IsCompiling\(\)[^;]*?FormatBusyResponse\([^,]+,\s*"([^"]+)"', re.DOTALL
+)
+
+
+def test_sync_compile_guard_text_matches_csharp_compile_branch():
+    """SYNC_COMPILE_GUARD_TEXT (constants.py) must be byte-identical to the
+    literal CommandRouter.CheckGuards emits from its IsCompiling() branch --
+    the two are independent by necessity (different runtimes/files), and
+    tools/sync.py matches this string by exact equality (not substring), so
+    any drift here silently breaks the PD-1 guard-catch path this module
+    tests above."""
+    assert _COMMAND_ROUTER_CS_PATH.exists(), f"C# source not found: {_COMMAND_ROUTER_CS_PATH}"
+    cs_text = _COMMAND_ROUTER_CS_PATH.read_text(encoding="utf-8")
+
+    m = _CS_COMPILE_GUARD_RE.search(cs_text)
+    assert m, "compile-guard FormatBusyResponse literal not found in CommandRouter.cs"
+    assert m.group(1) == SYNC_COMPILE_GUARD_TEXT

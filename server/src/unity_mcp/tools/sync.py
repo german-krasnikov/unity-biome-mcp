@@ -2,6 +2,7 @@
 import asyncio
 import math
 import time
+from collections.abc import Awaitable, Callable  # noqa: TC003
 from pathlib import Path
 
 from mcp.server.fastmcp.exceptions import ToolError
@@ -227,7 +228,8 @@ async def _sync_unity(resolve: bool, bump: bool, deadline: float) -> str:
     return await _await_sync_completion(epoch, deadline, stamp_pre, send_reload)
 
 
-async def _await_sync_completion(epoch: int | None, deadline: float, stamp_pre: str, send_reload) -> str:
+async def _await_sync_completion(epoch: int | None, deadline: float, stamp_pre: str,
+                                  send_reload: Callable[..., Awaitable[str]] | None) -> str:
     """Poll sync_status to a terminal state, then run the shared errors+freshness verdict.
 
     Shared tail for both a normal 'sync_ack|...|will_compile=true' response and a

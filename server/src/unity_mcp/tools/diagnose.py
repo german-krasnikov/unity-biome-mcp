@@ -54,7 +54,11 @@ _KNOWN_KEYS = frozenset(
      "substate=", "port=", "port_fallback="]
 )
 
-# Guard-reject signal substrings (Unity is compiling, guard blocked the command)
+# Guard-reject signal substrings (Unity is compiling, guard blocked the command).
+# "Unity is compiling" is a loose superset match here; the exact literal this
+# covers is SYNC_COMPILE_GUARD_TEXT (constants.py), sourced from CommandRouter.cs
+# CheckGuards' IsCompiling() branch -- see test_sync_compile_guard.py for the
+# parity pin between the two.
 _GUARD_PHRASES = ("Unity is compiling", "Retry in")
 
 

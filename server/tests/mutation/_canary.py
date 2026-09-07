@@ -4,9 +4,16 @@ Split out of conftest.py to keep fixture wiring short. See
 Plans/MUTATION-REGRESSION-MODULE.md section 9 for the harness contract.
 Reuses gauntlet.readiness_canary (target_body/FIXTURES) and
 gauntlet.fsr_qualification_fixture (mono_meta) verbatim -- no duplication.
+
+Also holds the story helpers shared by test_mutation_regression.py (S11-S13)
+and test_mutation_regression_restore.py (S14-S16): status parsing, the
+mutation-mode enable/disable flow, and the compile-guard/source-patch settle
+polls it depends on (A7-b).
 """
+import asyncio
 import contextlib
 import hashlib
+import time
 import types
 import uuid
 from pathlib import Path  # noqa: TC003 -- used in runtime-evaluated annotations, not type-checking only
@@ -17,6 +24,10 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 from unity_mcp.bridge_result import unwrap_bridge_result
 from unity_mcp.timeout_categories import get_timeout
+from unity_mcp.tools.sync import _parse_status
+
+_SETTLE_TIMEOUT_S = 90.0
+_SETTLE_POLL_S = 1.0
 
 MUTATION_ROOT = "Assets/TestsTemp/MutationLive"
 _BASELINE_DIRS = ("Assets", "Packages", "ProjectSettings")
@@ -182,3 +193,85 @@ def build_mutation_sdk(bridge, middleware, *, sync, diagnose, runtime, objects, 
         delete_object=objects.delete_object, execute_code=codegen.execute_code,
         bridge=bridge, middleware=middleware, **extra,
     )
+
+
+def _status_field(status_text: str, key: str, *, sep: str = "=") -> str:
+    prefix = f"{key}{sep}"
+    for line in status_text.splitlines():
+        if line.startswith(prefix):
+            return line[len(prefix):].strip()
+    raise AssertionError(f"{key}{sep} missing from status:\n{status_text}")
+
+
+async def _quiet(mutation_sdk) -> None:
+    """Reset the middleware's consecutive-write advisory counter (any read
+    call clears it -- MCP-GUARD-007 in middleware_guards.py). owned_canary's
+    own setup (sync/create_object/execute_code) already leaves it primed, and
+    the advisory only ever prefixes a WRITE command's own result text -- it
+    would break this test's exact-string assertions on a write's result (e.g.
+    'mutation_mode:true', 'ok:write'). Call this right before any such write."""
+    await mutation_sdk.diagnose(expected_compile=False)
+
+
+async def _wait_source_patch_off(raw_send) -> None:
+    """Poll the public get_status route until source_patch_state settles to Off
+    (explicit disable's own causal reload has finished and reconciled).
+    The disable's reload drops the TCP connection mid-poll; a connection
+    error here just means "not observed yet", matching the reconnect-and-
+    retry pattern in test_lost_ack_regression.py::_wait_stable."""
+    deadline = time.monotonic() + _SETTLE_TIMEOUT_S
+    status = ""
+    while time.monotonic() < deadline:
+        try:
+            status = await raw_send("get_status", {})
+        except (ConnectionError, OSError):
+            await asyncio.sleep(_SETTLE_POLL_S)
+            continue
+        if _status_field(status, "source_patch_state") == "Off":
+            return
+        await asyncio.sleep(_SETTLE_POLL_S)
+    raise AssertionError(f"source_patch_state never reached Off within {_SETTLE_TIMEOUT_S}s; last={status!r}")
+
+
+async def _wait_compile_idle(raw_send) -> None:
+    """Poll sync_status until Unity reaches ready/idle, not just not-compiling (A7-b harness fix).
+
+    A disk write (e.g. remove_canary's file deletions, or a prior test's
+    patch) can start a headed-worker auto-refresh compile right before the
+    next test's cleanup calls 'editor' in _disable_mutation_mode. Checking only
+    state != "compiling" also returns during "reloading" (a valid sync_status
+    state written by MCPServer.cs and enumerated in sync.py::_status_issue),
+    after which 'editor' can hit the TCP drop mid domain reload. Unlike
+    sync_unity (PD-1: tolerates CommandRouter's exact compile-guard ToolError
+    itself), 'editor' has no such tolerance -- so wait for the same ready/idle
+    whitelist sync.py's own polling loop uses (_attempt_recovery, ~line 146)
+    before hitting it uncaught. Same reconnect-and-retry shape as
+    _wait_source_patch_off: a connection error just means "not observed yet".
+    """
+    deadline = time.monotonic() + _SETTLE_TIMEOUT_S
+    state = ""
+    while time.monotonic() < deadline:
+        try:
+            status = await raw_send("sync_status", {})
+        except (ConnectionError, OSError):
+            await asyncio.sleep(_SETTLE_POLL_S)
+            continue
+        _, state, _ = _parse_status(status)
+        if state in ("ready", "idle"):
+            return
+        await asyncio.sleep(_SETTLE_POLL_S)
+    raise AssertionError(f"Unity still not ready/idle after {_SETTLE_TIMEOUT_S}s; last state={state!r}")
+
+
+async def _disable_mutation_mode(mutation_sdk, raw_send) -> None:
+    """Cleanup: explicit disable, wait for Off, then a clean settle sync.
+    Callers wrap this in `finally` so a mid-test assertion failure still
+    leaves the shared worker mutation_mode:false and sync-able for the next
+    test/fixture teardown that shares this worker."""
+    await _wait_compile_idle(raw_send)  # A7-b: 'editor' below has no compile-guard tolerance
+    intent = await mutation_sdk.editor(action="mutation_mode")  # read; always hint-free
+    if intent.strip() == "mutation_mode:true":
+        await mutation_sdk.editor(action="mutation_mode", enable=False)
+        await _wait_source_patch_off(raw_send)
+    settle = await mutation_sdk.sync_unity(timeout=120)
+    assert settle in ("sync clean", "sync clean (no compile needed)"), settle

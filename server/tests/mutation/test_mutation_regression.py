@@ -8,8 +8,11 @@ Plans/Reviews/build-readiness-implementation-2026-09-06/LIVE-QUALIFICATION.md
 epoch/MVID after a 101->202 patch, BLOCKED in 0.305s while OnReady;
 "Explicit disable completed and compiled behavior verified" -- epoch+1, Off,
 new game-assembly MVID, DSL 202 recompiled).
+
+S14-S16 (domain-reload restore/patch-persistence stories) live in
+test_mutation_regression_restore.py -- split for file-size, not by behavior.
+Shared enable/disable/patch flow helpers live in _canary.py.
 """
-import asyncio
 import json
 import time
 
@@ -18,66 +21,13 @@ from gauntlet.readiness_canary import render_dsl, target_body
 from gauntlet.readiness_dsl_sdk import qualify_receipt
 from mcp.server.fastmcp.exceptions import ToolError
 
-from tests.mutation._canary import make_raw_send
+from tests.mutation._canary import _disable_mutation_mode, _quiet, _status_field, make_raw_send
 from unity_mcp.tools.diagnose import _parse_diagnose
 from unity_mcp.tools.sync import _parse_stamp, _parse_status
 
 pytestmark = [pytest.mark.live, pytest.mark.mutation_live, pytest.mark.timeout(300)]
 
-_SETTLE_TIMEOUT_S = 90.0
-_SETTLE_POLL_S = 1.0
 _BLOCKED_REASON = "BLOCKED: source_patch_OnReady_explicit_disable_required"
-
-
-def _status_field(status_text: str, key: str) -> str:
-    prefix = f"{key}="
-    for line in status_text.splitlines():
-        if line.startswith(prefix):
-            return line[len(prefix):].strip()
-    raise AssertionError(f"{key}= missing from status:\n{status_text}")
-
-
-async def _quiet(mutation_sdk) -> None:
-    """Reset the middleware's consecutive-write advisory counter (any read
-    call clears it -- MCP-GUARD-007 in middleware_guards.py). owned_canary's
-    own setup (sync/create_object/execute_code) already leaves it primed, and
-    the advisory only ever prefixes a WRITE command's own result text -- it
-    would break this test's exact-string assertions on a write's result (e.g.
-    'mutation_mode:true', 'ok:write'). Call this right before any such write."""
-    await mutation_sdk.diagnose(expected_compile=False)
-
-
-async def _wait_source_patch_off(raw_send) -> None:
-    """Poll the public get_status route until source_patch_state settles to Off
-    (explicit disable's own causal reload has finished and reconciled).
-    The disable's reload drops the TCP connection mid-poll; a connection
-    error here just means "not observed yet", matching the reconnect-and-
-    retry pattern in test_lost_ack_regression.py::_wait_stable."""
-    deadline = time.monotonic() + _SETTLE_TIMEOUT_S
-    status = ""
-    while time.monotonic() < deadline:
-        try:
-            status = await raw_send("get_status", {})
-        except (ConnectionError, OSError):
-            await asyncio.sleep(_SETTLE_POLL_S)
-            continue
-        if _status_field(status, "source_patch_state") == "Off":
-            return
-        await asyncio.sleep(_SETTLE_POLL_S)
-    raise AssertionError(f"source_patch_state never reached Off within {_SETTLE_TIMEOUT_S}s; last={status!r}")
-
-
-async def _disable_mutation_mode(mutation_sdk, raw_send) -> None:
-    """Cleanup: explicit disable, wait for Off, then a clean settle sync.
-    Callers wrap this in `finally` so a mid-test assertion failure still
-    leaves the shared worker mutation_mode:false and sync-able for the next
-    test/fixture teardown that shares this worker."""
-    intent = await mutation_sdk.editor(action="mutation_mode")  # read; always hint-free
-    if intent.strip() == "mutation_mode:true":
-        await mutation_sdk.editor(action="mutation_mode", enable=False)
-        await _wait_source_patch_off(raw_send)
-    settle = await mutation_sdk.sync_unity(timeout=120)
-    assert settle in ("sync clean", "sync clean (no compile needed)"), settle
 
 
 async def test_mutation_mode_enable_reports_onready(mutation_sdk):
