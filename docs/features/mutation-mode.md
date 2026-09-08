@@ -80,7 +80,7 @@ After adding the dependency, Unity resolves the package. The Mutation Mode check
 > **UPM Dependencies:** The base Unity Biome MCP plugin declares `com.unity.nuget.mono-cecil 1.11.5` as a required UPM dependency. Ensure your project's Packages section includes a registry that resolves `com.unity.nuget.*` packages (most standard Unity project configurations include this automatically). This dependency is used internally for assembly analysis during reload and compile verification.
 
 > [!NOTE]
-> The FastScriptReload provider is licensed under MIT by Chris Handzlik. See [Third-Party Notices](../../THIRD-PARTY-NOTICES.md) for full copyright and license details.
+> The FastScriptReload provider is licensed under MIT by Chris Handzlik. See [Third-Party Notices](https://github.com/german-krasnikov/unity-biome-mcp/blob/master/THIRD-PARTY-NOTICES.md) for full copyright and license details.
 
 **To disable Mutation Mode permanently:**
 

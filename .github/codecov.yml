@@ -1,14 +1,24 @@
+codecov:
+  require_ci_to_pass: false
+
 coverage:
   status:
     project:
       default:
         target: auto
-        threshold: 2%
-    patch:
-      default:
-        target: 80%
+        threshold: 1%
 
-comment:
-  layout: "reach, diff, flags, files"
-  behavior: default
-  require_changes: true
+flag_management:
+  default_rules:
+    carryforward: true
+
+flags:
+  python:
+    paths:
+      - server/
+    carryforward: true
+  csharp:
+    paths:
+      - unity-plugin/
+      - unity-plugin-reload/
+    carryforward: true

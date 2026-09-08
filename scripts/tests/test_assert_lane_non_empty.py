@@ -4,7 +4,7 @@ ZERO_TEST_MATCH handling stays lenient for ad hoc developer filters (must not
 change), this is the one-level-up, named-lane guard the plan calls for.
 
 Runs in the standard scripts/tests lane: no Unity, no network, reads the
-tracked Tests/biome-test-lanes.json only.
+tracked ci/biome-test-lanes.json only.
 """
 import sys
 from pathlib import Path
@@ -58,7 +58,7 @@ def test_main_wrong_arg_count_exits_two(capsys):
 
 
 def test_real_lanes_all_fail_closed_on_zero_selection():
-    # Every real lane today declares allow_empty=false (Tests/biome-test-lanes.json) --
+    # Every real lane today declares allow_empty=false (ci/biome-test-lanes.json) --
     # a zero-selection must fail closed for each one, proven against the real file
     # rather than a synthetic dict.
     lanes = alne.load_lanes()

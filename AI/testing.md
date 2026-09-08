@@ -376,13 +376,13 @@ All three projects use the `~` folder convention to stay invisible to the Editor
 
 Test organization is data-driven via two canonical JSON files:
 
-**`Tests/taxonomy-map.json`** (C13): Single source of truth for cross-language test dimensions (pytest markers, C# TestCategories, DSL `@needs` header values). Each dimension maps to its representation in pytest, C#, and DSL. Example dimension entries:
+**`ci/taxonomy-map.json`** (C13): Single source of truth for cross-language test dimensions (pytest markers, C# TestCategories, DSL `@needs` header values). Each dimension maps to its representation in pytest, C#, and DSL. Example dimension entries:
 - `live`: pytest marker, Python-only
 - `slow`: pytest marker + C# `TestCategories.Slow` constant
 - `editmode`: DSL header value `@needs editmode` (PlayMode default, EditMode opt-in)
 - `playmode`: DSL header value `@needs playmode` (symmetric to editmode)
 
-**`Tests/biome-test-lanes.json`** (C15): 4 lanes matching real CI jobs (pr-python-core, pr-unity-core, master-conformance, nightly-full). Each lane specifies:
+**`ci/biome-test-lanes.json`** (C15): 4 lanes matching real CI jobs (pr-python-core, pr-unity-core, master-conformance, nightly-full). Each lane specifies:
 - `filter`: layer/mode/environment/speed/include-tags/exclude-tags/exclude-capabilities selectors
 - `source`: exact CI job reference (file path and line number)
 - Cross-checked against taxonomy-map.json by `scripts/tests/test_lanes_config.py`
@@ -478,7 +478,7 @@ Review the affected instructions against the live tool and product contracts.
 
 ## CI Lanes and Acceptance Order
 
-**Core CI lanes** (data-driven by `Tests/biome-test-lanes.json`):
+**Core CI lanes** (data-driven by `ci/biome-test-lanes.json`):
 - `pr-python-core`: Python quick-check (35s via focused markers)
 - `pr-unity-core`: C# EditMode + PlayMode corpus on PR branches (pr-gating)
 - `master-conformance`: Seams/conformance live suite on master branch
