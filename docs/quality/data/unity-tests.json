@@ -7,7 +7,7 @@
       "failed": 0,
       "skipped": 188,
       "total": 9667,
-      "duration": 146.909389
+      "duration": 146.628152
     },
     {
       "name": "C# EditMode (Windows)",
@@ -16,7 +16,7 @@
       "failed": 0,
       "skipped": 303,
       "total": 9667,
-      "duration": 190.790238
+      "duration": 186.333373
     },
     {
       "name": "C# EditMode (macOS)",
@@ -25,7 +25,7 @@
       "failed": 0,
       "skipped": 188,
       "total": 9667,
-      "duration": 177.767151
+      "duration": 200.104313
     }
   ]
 }
