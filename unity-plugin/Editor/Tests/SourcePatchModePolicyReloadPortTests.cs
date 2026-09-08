@@ -93,6 +93,21 @@ namespace UnityMCP.Editor.Tests
                 "the port must receive the receipt's Reload-owned epoch, not a locally recomputed value");
         }
 
+        // Shared by both Rejected-outcome tests below: RequestDisable must fail
+        // closed the same way whether the port returns a structured Rejected
+        // outcome or throws — Recovery, receipt retained, epoch untouched.
+        private static void AssertRejectedDisableEntersRecoveryWithReceipt(RecordingReloadPort fakePort, int epochBefore)
+        {
+            Assert.Throws<System.InvalidOperationException>(() => SourcePatchModePolicy.SetMutationIntent(false));
+
+            Assert.That(fakePort.CallCount, Is.EqualTo(1));
+            Assert.That(SourcePatchHost.CurrentState, Is.EqualTo(SourcePatchState.Recovery));
+            Assert.That(SourcePatchReceiptStore.TryRead(out var receipt), Is.True,
+                "receipt must be retained after a Rejected outcome, same as after a thrown exception");
+            Assert.That(receipt.ExpectedEpochAfter, Is.EqualTo(epochBefore + 1));
+            Assert.That(SyncHelper.CurrentEpoch, Is.EqualTo(epochBefore));
+        }
+
         [Test]
         public void RequestDisable_RejectedOutcome_EntersRecoveryAndThrows()
         {
@@ -106,14 +121,7 @@ namespace UnityMCP.Editor.Tests
             SourcePatchModePolicy.ReloadPort = fakePort;
             var epochBefore = SyncHelper.CurrentEpoch;
 
-            Assert.Throws<System.InvalidOperationException>(() => SourcePatchModePolicy.SetMutationIntent(false));
-
-            Assert.That(fakePort.CallCount, Is.EqualTo(1));
-            Assert.That(SourcePatchHost.CurrentState, Is.EqualTo(SourcePatchState.Recovery));
-            Assert.That(SourcePatchReceiptStore.TryRead(out var receipt), Is.True,
-                "receipt must be retained after a Rejected outcome, same as after a thrown exception");
-            Assert.That(receipt.ExpectedEpochAfter, Is.EqualTo(epochBefore + 1));
-            Assert.That(SyncHelper.CurrentEpoch, Is.EqualTo(epochBefore));
+            AssertRejectedDisableEntersRecoveryWithReceipt(fakePort, epochBefore);
         }
 
         [Test]
@@ -127,13 +135,7 @@ namespace UnityMCP.Editor.Tests
             SourcePatchModePolicy.ReloadPort = fakePort;
             var epochBefore = SyncHelper.CurrentEpoch;
 
-            Assert.Throws<System.InvalidOperationException>(() => SourcePatchModePolicy.SetMutationIntent(false));
-
-            Assert.That(fakePort.CallCount, Is.EqualTo(1));
-            Assert.That(SourcePatchHost.CurrentState, Is.EqualTo(SourcePatchState.Recovery));
-            Assert.That(SourcePatchReceiptStore.TryRead(out var receipt), Is.True);
-            Assert.That(receipt.ExpectedEpochAfter, Is.EqualTo(epochBefore + 1));
-            Assert.That(SyncHelper.CurrentEpoch, Is.EqualTo(epochBefore));
+            AssertRejectedDisableEntersRecoveryWithReceipt(fakePort, epochBefore);
         }
 
         // V5 (Plans/N2-reload-sourcepatch-contract.md): a fake port that re-enters
