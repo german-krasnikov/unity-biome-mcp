@@ -1,0 +1,14 @@
+{
+    "name": "UnityMCP.Worker.ABReloadHarness",
+    "rootNamespace": "UnityMCP.Worker.ABReloadHarness",
+    "references": [],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

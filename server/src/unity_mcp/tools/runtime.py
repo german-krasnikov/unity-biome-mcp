@@ -1,8 +1,13 @@
 """Runtime Play Mode tools — blocked outside Play Mode by Unity guard."""
 import asyncio
+import contextlib
 import json
 import re
 
+from mcp.server.fastmcp.exceptions import ToolError
+
+from ..bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S
+from ..errors import SessionIdentityMismatch, UncertainDeliveryError, recovery_barrier
 from ..sampling import sampling_service as _sampling
 from ._annotations import RO as _RO
 from ._annotations import RW as _RW
@@ -25,6 +30,21 @@ _PLAY_STATE_POLLS = 15
 _PLAY_STATE_POLL_INTERVAL = 1.0
 _FRESH_READINESS_TIMEOUT = 30.0
 _FRESH_POLL_INTERVAL = 0.2
+# N0b/S8 row 4: never auto-resend the unsafe 'editor' write into an active
+# domain reload — wait (bounded) until compile_status proves idle, then send
+# exactly once. Poll cadence matches _PLAY_STATE_POLL_INTERVAL; the bound
+# reuses the bridge's own reload-expiry budget rather than a new number.
+_RELOAD_WAIT_POLL_S = 1.0
+_RELOAD_WAIT_TIMEOUT_S = DOMAIN_RELOAD_EXPIRY_S
+# run_playtest_suite's finally-block stop_after cleanup must not block the
+# caller for up to the full 90s reload-expiry budget: 15s is ~7x a typical
+# reload (a few seconds) and is only reached if Unity is still genuinely mid
+# reload, in which case the cleanup error is reported rather than hanging.
+_CLEANUP_RELOAD_WAIT_S = 15.0
+# N0b: one public success/error classification for run_playtest regardless of
+# sync/async route or format — a non-pass outcome always raises, never returns
+# as a plain string. Fallback text when the terminal receipt itself is empty.
+_NO_RECEIPT_MSG = "run_playtest produced no terminal receipt"
 
 
 async def invoke_method(path: str, component: str, method: str, args: str = "") -> str:
@@ -124,6 +144,7 @@ async def _enter_fresh_play() -> None:
     state_str = await _send("editor", _args(action="state"), timeout=5.0)
     playing = _editor_field(state_str, "playing")
     if playing and playing.lower() == "true":
+        await _await_reload_idle()
         response = await _send("editor", _args(action="stop"), timeout=10.0)
         error = _editor_command_error("stop", response)
         if error:
@@ -132,6 +153,7 @@ async def _enter_fresh_play() -> None:
     # No stop-completion wait here: PlayReadinessTracker's timeout absorbs any
     # remaining teardown time so entering play immediately is safe.
     # Enter Play Mode
+    await _await_reload_idle()
     response = await _send("editor", _args(action="play"), timeout=5.0)
     error = _editor_command_error("play", response)
     if error:
@@ -170,7 +192,8 @@ async def run_playtest(script: str | None = None, timeout: float = _RUN_PLAYTEST
     CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED.
     defs: inline VAL definitions prepended to script.
     abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown.
-    format="json": return the canonical step-ledger receipt instead of the legacy text report; skips compression/summarization."""
+    format="json": return the canonical step-ledger receipt instead of the legacy text report; skips compression/summarization.
+    Non-pass outcomes (fail/aborted/malformed/empty) raise ToolError with the full report text (both sync and async routes)."""
     if script and path:
         raise ValueError("script and path are mutually exclusive")
     if not script and not path:
@@ -211,6 +234,12 @@ async def run_playtest(script: str | None = None, timeout: float = _RUN_PLAYTEST
         raw = await _run_via_start_poll(_send, wire_args, timeout, _TCP_PLAYTEST_BUFFER)
     else:
         raw = await _send("run_playtest", wire_args, timeout=timeout + _TCP_PLAYTEST_BUFFER)
+    outcome = _classify_outcome(raw, format)
+    if outcome != "pass":
+        # N0b: a non-pass outcome is a public failure on every route (sync _send
+        # or the async start/poll pair) — a successful poll of a failed run must
+        # not read as public success just because the poll itself succeeded.
+        raise ToolError(raw or _NO_RECEIPT_MSG)
     if format == "json":
         # Compression/summarization are text-report-oriented and would mangle or replace the
         # canonical JSON receipt — the caller explicitly asked for the raw structured shape.
@@ -263,7 +292,34 @@ async def _wait_for_play_state(expected: bool, action: str) -> None:
     """
     last_state = None
     for attempt in range(_PLAY_STATE_POLLS):
-        state = await _send("editor", _args(action="state"), timeout=5.0)
+        try:
+            state = await _send("editor", _args(action="state"), timeout=5.0)
+        except ConnectionError as exc:
+            # The write (editor play/stop) already succeeded; a domain
+            # reload can still start a moment later and catch THIS
+            # confirmation read mid-flight -- as UncertainDeliveryError (the
+            # read's own delivery went unsafe-sent) or DomainReloadError
+            # (the bridge's pre-queue guard blocks 'editor', which is never
+            # retry-safe, while the reload tracker is still marked active).
+            # It's a poll inside an already-bounded wait loop, not a write
+            # to resend -- absorb either and retry next iteration. Only a
+            # genuine session mismatch (wrong Unity instance entirely) is a
+            # hard stop worth surfacing immediately.
+            if isinstance(recovery_barrier(exc), SessionIdentityMismatch):
+                raise
+            # 'editor' is never retry-safe, so once the bridge's reload
+            # tracker is marked active it blocks every subsequent 'editor'
+            # send with DomainReloadError until the tracker clears -- which
+            # only happens via a successful reconnect, itself only reached
+            # through a retry-safe send. A bare sleep-and-retry would keep
+            # hitting the same guard for the whole outer budget (confirmed
+            # live). Spend this attempt's slot on the retry-safe
+            # compile_status probe instead: it passes the guard, drives the
+            # reconnect, and clears the tracker once idle is proven.
+            if attempt + 1 < _PLAY_STATE_POLLS:
+                with contextlib.suppress(TimeoutError):
+                    await _await_reload_idle(timeout=_PLAY_STATE_POLL_INTERVAL)
+            continue
         last_state = state
         playing = _editor_field(state, "playing")
         if playing is None or playing.lower() not in ("true", "false"):
@@ -287,11 +343,102 @@ async def _wait_for_play_state(expected: bool, action: str) -> None:
     )
 
 
-async def _transition_play_state(expected: bool) -> None:
+async def _await_reload_idle(timeout: float = _RELOAD_WAIT_TIMEOUT_S) -> None:
+    """Block until compile_status proves Unity is not mid-reload/mid-compile.
+
+    A read-only, retry-safe probe — never the unsafe 'editor' write. Raising
+    TimeoutError on a bounded overrun lets the existing timeout-verdict paths
+    (run_playtest_suite's suite_timeout, sync_unity's STOP) handle it the same
+    way they already handle any other stalled wait; it never hangs forever.
+    """
+    async def _poll() -> None:
+        while True:
+            try:
+                status = await _send("compile_status", {})
+                state = status.partition("|")[0].strip()
+            except (ConnectionError, OSError) as exc:
+                if recovery_barrier(exc) is not None:
+                    raise
+                state = "compiling"
+            if state not in ("compiling", "reloading"):
+                return
+            await asyncio.sleep(_RELOAD_WAIT_POLL_S)
+
+    await asyncio.wait_for(_poll(), timeout=timeout)
+
+
+def _status_field(status: str | None, field: str) -> str | None:
+    """Extract a 'key=value' field from get_status's response text.
+
+    Distinct from editor_state.parse_editor_field: 'editor state' uses
+    'key:value' lines, get_status uses 'key=value' lines.
+    """
+    for line in (status or "").splitlines():
+        k, sep, v = line.partition("=")
+        if sep and k.strip() == field:
+            return v.strip()
+    return None
+
+
+async def _observe_play_state(expected: bool, timeout: float) -> bool:
+    """Poll the retry-safe 'get_status' probe until it reports the expected
+    playing= value, or the bound expires.
+
+    get_status is in _INTERNAL_RETRY_SAFE_CMDS — it passes the bridge's
+    reload guard and the bridge reconnects/retries it internally, so it is
+    safe to poll while a domain reload is still in flight. This never
+    resends the unsafe 'editor play'/'stop' command (N3).
+
+    Polls for the EXPECTED value specifically, not just any parseable
+    'playing=' line: EditorApplication.isPlaying flips asynchronously, so
+    the first probe response after reconnect can legitimately still show
+    the pre-transition value for a brief window — settling for "any parsed
+    value" would misreport that transient reading as a mismatch. Returns
+    False for transient ConnectionError/OSError with no delivery or session
+    evidence in the chain; re-raises if recovery_barrier finds
+    UncertainDeliveryError or SessionIdentityMismatch.
+    """
+    async def _poll() -> None:
+        while True:
+            try:
+                status = await _send("get_status", {})
+                playing = _status_field(status, "playing")
+            except (ConnectionError, OSError) as exc:
+                if recovery_barrier(exc) is not None:
+                    raise
+                playing = None
+            if playing is not None and playing.lower() == ("true" if expected else "false"):
+                return
+            await asyncio.sleep(_RELOAD_WAIT_POLL_S)
+
+    try:
+        await asyncio.wait_for(_poll(), timeout=timeout)
+        return True
+    except TimeoutError:
+        return False
+
+
+async def _transition_play_state(
+    expected: bool, reload_wait_timeout: float = _RELOAD_WAIT_TIMEOUT_S
+) -> None:
     """Request and then prove a Play/Edit Mode transition."""
     action = "play" if expected else "stop"
     timeout = 5.0 if expected else 10.0
-    response = await _send("editor", _args(action=action), timeout=timeout)
+    await _await_reload_idle(timeout=reload_wait_timeout)
+    try:
+        response = await _send("editor", _args(action=action), timeout=timeout)
+    except ConnectionError as exc:
+        # N3: a lost ACK after a sent write is reconciled by observing
+        # state, never by resending the unsafe 'editor' command. Poll the
+        # retry-safe get_status probe (bounded like _await_reload_idle)
+        # rather than a single 'editor state' read, which shares 'editor's
+        # non-retry-safe classification and can itself go uncertain during
+        # the same reload window that caused the original lost ACK.
+        if not isinstance(recovery_barrier(exc), UncertainDeliveryError):
+            raise
+        if await _observe_play_state(expected, reload_wait_timeout):
+            return
+        raise
     error = _editor_command_error(action, response)
     if error:
         raise RuntimeError(error)
@@ -349,6 +496,32 @@ def _is_playtest_pass_from_text(result: str) -> bool:
                 return False
             return not re.search(r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT|ABORTED)\b", result)
     return False
+
+
+def _classify_outcome(result: str, format: str | None = None) -> str:
+    """Classify a playtest result into pass/fail/error.
+
+    pass:  playtest ran, all assertions passed, teardown ok
+    fail:  playtest ran, one or more assertions genuinely failed
+    error: playtest could not run, or the receipt is uninterpretable
+           (empty, 0/0, malformed JSON, or a receipt that disagrees with itself)
+    """
+    if _is_playtest_pass(result, format):
+        return "pass"
+    if not result or "0/0" in result:
+        return "error"
+    if format == "json":
+        try:
+            receipt = json.loads(result)
+        except ValueError:
+            return "error"
+        steps = receipt.get("steps")
+        if not steps:
+            return "error"
+        failed_steps = sum(1 for step in steps if not step.get("ok"))
+        if receipt.get("failed", failed_steps) != failed_steps:
+            return "error"
+    return "fail"
 
 
 async def _setup_auto_play(restart_between: bool) -> tuple[bool, list]:
@@ -438,7 +611,7 @@ async def _run_single_file(
     elapsed = _time.monotonic() - t0
     # This caller never requests format="json" (no `format` key in the _args above), so the
     # response is always the legacy text report — pass that explicitly (B17, R-07).
-    return filepath, raw, elapsed, _is_playtest_pass(raw, "text")
+    return filepath, raw, elapsed, _classify_outcome(raw, "text") == "pass"
 
 
 async def _suite_body(
@@ -542,7 +715,7 @@ async def run_playtest_suite(
     finally:
         if stop_after:
             try:
-                await _transition_play_state(False)
+                await _transition_play_state(False, reload_wait_timeout=_CLEANUP_RELOAD_WAIT_S)
                 play_stopped = True
             except Exception as exc:
                 cleanup_error = exc

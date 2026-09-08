@@ -140,15 +140,16 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void DescribeCompletionMismatch_AssemblyTimestampChanged_ReturnsTimestampMessage()
+        public void DescribeCompletionMismatch_MetadataOnlyTouchWithSameHashes_IsAccepted()
         {
             var completion = BaseCompletion();
             completion.AssemblyWriteUtc = "2099-01-01T00:00:00Z";
+            completion.SourceWriteUtc = "2099-01-01T00:00:00Z";
+            completion.SourcePath = "/different/latest-touched-source.cs";
 
             var result = TestRunBuildFingerprint.DescribeCompletionMismatch(BaseRecord(), completion);
 
-            StringAssert.Contains("timestamp", result,
-                "Changed assembly timestamp must mention 'timestamp'");
+            Assert.That(result, Is.Empty, "identical content must survive a timestamp-only touch");
         }
     }
 }

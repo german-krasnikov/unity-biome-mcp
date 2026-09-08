@@ -2,6 +2,17 @@
 
 Run Play Mode scenarios with deterministic step-by-step assertions. Parser processes directives in phases: INCLUDE expansion → MACRO collection → CALL expansion → VAL substitution → VAR binding → step execution.
 
+## Public Contract: One Verdict (N0b)
+
+`run_playtest` and `run_playtest_suite` enforce a single, symmetric verdict across all routes:
+
+- **Pass outcome:** Returns the structured report (text or JSON per `format` parameter) via normal completion. Only a fully passed playtest (all assertions true, teardown succeeded) returns normally.
+- **Non-pass outcomes (fail/error/aborted/malformed/empty):** Raise `ToolError` carrying the full report text or JSON receipt. This applies to both:
+  - Synchronous blocking calls (`run_playtest` with timeout ≤ 120s)
+  - Asynchronous start/poll routes (`run_playtest` with timeout > 120s)
+
+Error messages include the complete diagnostic output so agents can troubleshoot failures without a secondary query.
+
 ## Path Syntax
 
 Paths identify GameObjects in the hierarchy. Standard form: `/RootName/ChildName/GrandchildName` or `SceneName:/RootName/Child`. Paths support special characters in GameObject names through escaping.

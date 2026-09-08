@@ -4,7 +4,7 @@ This document is the canonical test-authoring policy for Unity Biome MCP.
 It applies to this repository and its disposable workers. It is not installed
 into consumer projects with `ClientSkills`.
 
-The canonical Unity test project uses Unity `6000.0.65f1` and the Editor's
+The canonical Unity test project uses Unity `6000.0.83f1` and the Editor's
 built-in Unity Test Framework `1.6.0`. Product code, fixtures, and runners target
 the Unity `6000.0` contract; do not add newer-Unity compatibility branches.
 
@@ -335,6 +335,43 @@ Use this lane for:
 
 Tests here must not reference Unity or Editor types. Any new utility pulled from Core must have matching coverage in this lane before merging.
 
+## Offline Contract Validation: Freshness, Reload Readiness, and Adapter
+
+Three additional offline NUnit projects validate critical contracts without Editor:
+
+**`unity-plugin/Tests~/AssemblyFreshness/UnityMCP.AssemblyFreshness.Tests.csproj`**
+- Proves DLL/PDB bytecode comparison logic in `AssemblySourceFreshness`
+- Validates import-before-global-Refresh readiness contract
+- No Unity Editor required; pure C# reflection
+
+Run with:
+```bash
+dotnet test unity-plugin/Tests~/AssemblyFreshness/UnityMCP.AssemblyFreshness.Tests.csproj -c Release
+```
+
+**`unity-plugin/Tests~/SourcePatchReadiness/UnityMCP.SourcePatchReadiness.Tests.csproj`**
+- Proves state-machine transitions (Off → OnReady → Busy → Recovery)
+- Validates ACK-based patch lease lifecycle
+- Confirms reload-block-reason propagation across domain boundaries
+
+Run with:
+```bash
+dotnet test unity-plugin/Tests~/SourcePatchReadiness/UnityMCP.SourcePatchReadiness.Tests.csproj -c Release
+```
+
+**`unity-plugin/Tests~/MutationAdapterContract/AdapterContract.Tests.csproj`**
+- Validates SourcePatch seam contract and adapter Apply outcomes
+- `AdapterApplyOutcomeTests` exercises all Apply result types (Pass, NoChange, Fail, Obsolete)
+- `Seam.csproj` compiles the public seam types; seam-drift negative control ensures renamed members break the build
+- Adapter sources fetched and pinned by `scripts/gauntlet/fetch_adapter_sources.py` (SHA256 atomic lock)
+
+Run with:
+```bash
+dotnet test unity-plugin/Tests~/MutationAdapterContract/AdapterContract.Tests.csproj -c Release
+```
+
+All three projects use the `~` folder convention to stay invisible to the Editor. They validate implementation-critical runtime invariants that cannot be observed through Editor UI alone. CI gates all three before running live mutation tests.
+
 ## Test Taxonomy and Lanes
 
 Test organization is data-driven via two canonical JSON files:
@@ -367,8 +404,9 @@ Optional FSR-based body-only source patching uses a dedicated CI qualification m
 in `.github/workflows/fsr-qualification.yml`. Qualification requires two pass cells
 (Unity 6000.0.65f1 on macOS ARM64 and Linux x64); Windows x64 is documented as
 INFRASTRUCTURE_BLOCKED (headed-GUI unavailable on GH-hosted runners) and engineering-supported
-with CI qualification pending. U_MAX (6000.5.10f1) is shelved in P2-07 for a reviewed
-compatibility change with new matrix evidence.
+with CI qualification pending. **The 6000.0.65f1 qualification lock is frozen for v2.0.0;
+re-qualification on the current product baseline (6000.0.83f1) is a post-release follow-up.**
+U_MAX (6000.5.10f1) is shelved in P2-07 for a reviewed compatibility change with new matrix evidence.
 
 **Test fixtures:** New C# tests use existing `UnityMcpTestBase`, `SceneTestBase`, and
 `BiomeWorkerOnly` patterns. Source Patch mutations are forbidden in standard T5
@@ -388,6 +426,48 @@ binary or dependency change reopens the full matrix. See the CI qualification ma
 in `.github/workflows/fsr-qualification.yml` and `scripts/fsr_qualification_lock.json`
 for the locked Unity window, platform attestation, and evidence structure.
 
+## Cross-Runtime Parity Gate (`csharp_parity` marker)
+
+Several Python tests read C# source text directly (regex/substring scan) to
+pin a wire-format literal, constant, or timeout value to its C# emitter —
+e.g. `test_sync_compile_guard.py::test_sync_compile_guard_text_matches_csharp_compile_branch`,
+`test_editor_control_tools.py::test_noop_recovery_result_matches_csharp_constant`,
+`test_reload_module_boundary.py`, `test_source_patch_reload_control_boundary.py`,
+the C#-parity test in `test_tool_specs.py`, `test_timing_invariants.py`,
+the C#-source-scan tests in `test_mvid_tracking.py`, and the C#-scanning tests
+in `test_playtest_async.py`. These run in CI, but a developer working only the
+C# side and running `run_unity_tests.py EditMode` would not naturally trigger
+them, so drift can land unnoticed until the next full Python CI pass. After
+any C# edit that changes a wire-format string, guard literal, timeout
+constant, or boundary-scanned file, run `uv run pytest -m csharp_parity -q`
+plus the scripts C#-scanning tests (`scripts/tests/test_pure_core_asmdef_boundaries.py`,
+`scripts/tests/test_unity_test_source_hygiene.py`, `scripts/tests/test_taxonomy_map.py`)
+before reporting the C# task green.
+
+## N3 A/B Reload Identity Harness (Local-Only, Deferred CI)
+
+`scripts/run_ab_reload_identity.py` proves cross-worker reload identity
+(nonce/MVID/counter, cross-identity rejection, lost-ACK, compile-error
+recovery) between two simultaneously running headed Unity instances (Worker
+A and Worker B). This lane is local-only for v2.0.0 — deferred from CI per
+the ROI panel decision, not an oversight — because it needs a memory-safe
+runner: the owning Unity plus two headed disposable workers hit `warn`
+memory pressure on a 32 GB machine (measured ~31 GB used during a live run).
+GH-hosted runners do not have this headroom alongside the other lanes.
+
+Invocation (both workers already launched and disposable-marked):
+```bash
+python scripts/run_ab_reload_identity.py \
+  --worker-a-dir /private/tmp/biome-ab-a --port-a 9620 \
+  --worker-b-dir /private/tmp/biome-ab-b --port-b 9630 \
+  --unity /path/to/Unity --mode both \
+  --receipt /tmp/ab-reload-receipt.json --confirm-disposable-worker
+```
+`--port-a`/`--port-b` default to 9620/9630. Run twice in a row for evidence
+parity with the other durable lanes. Receipts from the qualifying run live in
+`Plans/Reviews/n3-ab-reload-2026-09-08/run{1,2}-receipt.json`, validated by
+`scripts/gauntlet/ab_reload_receipt.py::validate_receipt`.
+
 ## Documentation and Skill Checks
 
 Run `python scripts/check_skills_freshness.py --strict` after changing bundled
@@ -398,11 +478,18 @@ Review the affected instructions against the live tool and product contracts.
 
 ## CI Lanes and Acceptance Order
 
-**Four CI lanes** (data-driven by `Tests/biome-test-lanes.json`):
+**Core CI lanes** (data-driven by `Tests/biome-test-lanes.json`):
 - `pr-python-core`: Python quick-check (35s via focused markers)
 - `pr-unity-core`: C# EditMode + PlayMode corpus on PR branches (pr-gating)
 - `master-conformance`: Seams/conformance live suite on master branch
 - `nightly-full`: Complete Python live suite + Player fan-out (requires graphics)
+
+**Mutation Regression Lane** (`.github/workflows/mutation-regression.yml`):
+- Opt-in, enabled by `UNITY_MCP_RUN_MUTATION_LIVE=1` environment variable
+- Python suite (`server/tests/mutation`) with pytest marker `mutation_live`; run via `scripts/run_mutation_regression_cell.py --mode full` (driver, 1800 s budget per job)
+- Requires a disposable provider worker: `BIOME_FINAL_PORT_A`, `BIOME_WORKER_A` with FastScriptReload package installed and marked disposable
+- Stories S11–S16c: explicit disable (S14), source restore (S15), provider absence (S16), isolation (S16), remove (S16b), re-add (S16c)
+- Supersedes legacy `fsr-qualification.yml`; CI-gated by pure dotnet projects (`AssemblyFreshness`, `SourcePatchReadiness`, `MutationAdapterContract`) in `ci-pure-dotnet.yml`
 
 **Player fan-out runner** (v0.81.4+):
 ```bash
@@ -428,12 +515,13 @@ sequentially, with no edits or parallel test process:
 1. `server/.venv/bin/python -m pytest scripts/tests -q`
 2. `server/.venv/bin/python -m pytest install/tests -q`
 3. From `server`: `uv run pytest tests -m 'not live' -q`
-4. Complete C# EditMode suite twice against one disposable worker, followed by
+4. Complete C# EditMode suite twice against one disposable worker (Worker A), followed by
    cleanup fault injection and the domain-reload scenarios.
 5. Python `.suite` lane: `uv run pytest tests/live/test_playtest_suite_corpus.py -m "live" --tag @suite-only -q`
 6. Player fan-out: `python scripts/run_player_playtests.py --jobs 2 --project ... --timeout 1800`
-7. Rediscover and verify the final worker port.
-8. From `server`, run project-pinned deterministic `tests/live` with the final
+7. **Mutation regression lane** (separate disposable provider worker): Set `BIOME_FINAL_PORT_A`, `BIOME_WORKER_A` to Worker A's final port and path, then run mutation suite (never concurrent with other Unity lanes; separate provider-equipped worker preferred): `uv run pytest server/tests/mutation -m mutation_live -q` or `python scripts/run_mutation_regression_cell.py --mode full`
+8. Rediscover and verify the final worker port (Worker A).
+9. From `server`, run project-pinned deterministic `tests/live` with the final
    host, port, and `UNITY_MCP_PROJECT_PATH`.
 
 Retain commands, counts, durations, run identities, port transitions, and paid

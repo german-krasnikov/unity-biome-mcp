@@ -38,6 +38,14 @@ ENV/
 !unity-plugin/Tests~/**
 unity-plugin/Tests~/Pure/bin/
 unity-plugin/Tests~/Pure/obj/
+unity-plugin/Tests~/AssemblyFreshness/bin/
+unity-plugin/Tests~/AssemblyFreshness/obj/
+unity-plugin/Tests~/SourcePatchReadiness/bin/
+unity-plugin/Tests~/SourcePatchReadiness/obj/
+unity-plugin/Tests~/MutationAdapterContract/adapter-cache/
+unity-plugin/Tests~/MutationAdapterContract/bin/
+unity-plugin/Tests~/MutationAdapterContract/obj/
+unity-plugin/Tests~/MutationAdapterContract/resolved-adapter-pin.json
 
 # macOS
 .DS_Store

@@ -1,6 +1,7 @@
 // SyncHelper — epoch, trigger, events, ISyncOps seam, IsCompileClean, domain stamp. (v0.23)
 // public everywhere: Tests.dll must access all of this (CS0122 trap).
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
@@ -52,6 +53,55 @@ namespace UnityMCP.Editor
         // flag. Test isolation swaps this the same way it swaps Ops/NowSeconds; production
         // code (GetSyncStatus) never reads MCPServer directly from inside the algorithm.
         public static Func<bool> IsMainAssemblyCompiling = () => MCPServer.IsReallyCompiling;
+
+        // N2 Task 2: the one substitution point beneath TriggerSync/GetSyncStatus.
+        // Begin/Observe mirror TriggerSync(bool,bool)/GetSyncStatus()'s own shape —
+        // an algorithm B changes what both report without any consumer call-site
+        // change (CommandRouter, DiagnoseCommand, and every other reload-port
+        // consumer all keep calling the public statics below).
+        internal interface IReloadAlgorithm
+        {
+            string Begin(bool resolve, bool explicitOwnedDisable);
+            string Observe();
+        }
+
+        // Algorithm A: wraps today's Core implementation verbatim — zero behavior
+        // change on the default path.
+        private sealed class DefaultAlgorithm : IReloadAlgorithm
+        {
+            public string Begin(bool resolve, bool explicitOwnedDisable) =>
+                TriggerSyncCore(resolve, explicitOwnedDisable);
+            public string Observe() => GetSyncStatusCore();
+        }
+
+        // Bind-once in production: the private setter means only this file's own
+        // TestIsolationScope (below) can restore a prior value, and only
+        // OverrideAlgorithmForTest (test-only entry point, mirrors OverrideOpsForTest)
+        // can install a replacement. No production call site ever assigns this.
+        internal static IReloadAlgorithm Algorithm { get; private set; } = new DefaultAlgorithm();
+
+        internal static void OverrideAlgorithmForTest(IReloadAlgorithm replacement)
+        {
+            if (replacement == null)
+                throw new ArgumentNullException(nameof(replacement));
+            Algorithm = replacement;
+        }
+
+        // Production bind path (N2 Part A review): the ONE place a real algorithm B
+        // installs itself. Guarded against double-bind — a second real algorithm
+        // silently replacing the first would be a silent behavior change with no
+        // caller aware of it. OverrideAlgorithmForTest above stays the unbounded
+        // test-only override (tests bind/restore many times per run via
+        // TestIsolationScope, so it must never carry this guard).
+        internal static void Bind(IReloadAlgorithm algorithm)
+        {
+            if (algorithm == null)
+                throw new ArgumentNullException(nameof(algorithm));
+            if (!(Algorithm is DefaultAlgorithm))
+                throw new InvalidOperationException(
+                    "SyncHelper.Algorithm is already bound; Bind may only run once.");
+            Algorithm = algorithm;
+        }
 
         private static TestIsolationScope _activeTestIsolation;
 
@@ -107,9 +157,26 @@ namespace UnityMCP.Editor
             }
         }
 
+        // The mode owner controls its lifecycle; this callback admits normal reloads
+        // or its explicitly owned disable path before any sync effect occurs.
+        internal static Func<bool, string> ReloadBlockReason = _ => null;
+
         // --- Called from CommandRouter ---
-        public static string TriggerSync(bool resolve)
+        public static string TriggerSync(bool resolve) => TriggerSync(resolve, false);
+
+        // Facade entry point: dispatches to the bound Algorithm (DefaultAlgorithm
+        // by default), never to TriggerSyncCore directly. This is the ONE place
+        // an algorithm B changes what every consumer observes.
+        internal static string TriggerSync(bool resolve, bool explicitOwnedDisable) =>
+            Algorithm.Begin(resolve, explicitOwnedDisable);
+
+        // Algorithm A's Begin implementation. Internal (not private): DefaultAlgorithm
+        // wraps it, and tests may call it directly to prove the facade is bypassable
+        // only here — never through the public TriggerSync entry points.
+        internal static string TriggerSyncCore(bool resolve, bool explicitOwnedDisable)
         {
+            var blocked = ReloadBlockReason(explicitOwnedDisable);
+            if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
             // C3: re-wedge guard — if already in compiling state with no new compile activity,
             // do NOT bump epoch (that would re-wedge the state machine).
             // Conditions: state==compiling AND compile actually started AND stamp frozen AND NOT IsCompiling
@@ -130,7 +197,13 @@ namespace UnityMCP.Editor
             SessionState.SetBool(CompileStartedKey, false);
 
             if (resolve) Ops.Resolve();
-            Ops.Refresh();
+            try { Ops.Refresh(); }
+            catch (Exception error)
+            {
+                SessionState.SetString(StateKey, "failed");
+                SessionState.SetString(ErrKey, "source import/refresh failed: " + error.Message);
+                throw; // No accepted/ready result and no compilation retry after failed import.
+            }
 
             // RC-6 fix: RequestScriptCompilation forces the compile even when Unity
             // is backgrounded (dur=0 bug on macOS).
@@ -157,7 +230,11 @@ namespace UnityMCP.Editor
             return $"sync_ack|epoch={epoch}|will_compile={willCompile.ToString().ToLower()}";
         }
 
-        public static string GetSyncStatus()
+        // Facade entry point: dispatches to the bound Algorithm, mirroring TriggerSync.
+        public static string GetSyncStatus() => Algorithm.Observe();
+
+        // Algorithm A's Observe implementation.
+        internal static string GetSyncStatusCore()
         {
             var epoch = CurrentEpoch;
             var state = SessionState.GetString(StateKey, "idle");
@@ -232,6 +309,7 @@ namespace UnityMCP.Editor
             IsMainAssemblyCompiling = () => MCPServer.IsReallyCompiling;
             OnSyncComplete = null;
             OnSyncFailed   = null;
+            Algorithm = new DefaultAlgorithm();
         }
 
 #if UNITY_INCLUDE_TESTS
@@ -243,6 +321,7 @@ namespace UnityMCP.Editor
         {
             private readonly TestIsolationScope _previous;
             private readonly ISyncOps _ops;
+            private readonly IReloadAlgorithm _algorithm;
             private readonly Func<double> _clock;
             private readonly Func<bool> _isMainAssemblyCompiling;
             private readonly Action _syncComplete;
@@ -262,6 +341,7 @@ namespace UnityMCP.Editor
             {
                 _previous = previous;
                 _ops = Ops;
+                _algorithm = Algorithm;
                 _clock = NowSeconds;
                 _isMainAssemblyCompiling = IsMainAssemblyCompiling;
                 _syncComplete = OnSyncComplete;
@@ -299,6 +379,7 @@ namespace UnityMCP.Editor
                 Restore(() => NowSeconds = _clock, errors);
                 Restore(() => IsMainAssemblyCompiling = _isMainAssemblyCompiling, errors);
                 Restore(() => Ops = _ops, errors);
+                Restore(() => Algorithm = _algorithm, errors);
 
                 _activeTestIsolation = _previous;
                 _disposed = true;
@@ -559,7 +640,17 @@ namespace UnityMCP.Editor
             AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
         }
 
-        public void Refresh()                  => AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
+        internal static Func<string[]> FindStaleSources = AssemblyFreshnessInventory.FindStaleSourceAssets;
+        internal static Action<string, ImportAssetOptions> ImportSourceAsset = AssetDatabase.ImportAsset;
+        internal static Action<ImportAssetOptions> RefreshAssets = AssetDatabase.Refresh;
+
+        public void Refresh()
+        {
+            var options = ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport;
+            foreach (var asset in FindStaleSources().Distinct(StringComparer.Ordinal))
+                ImportSourceAsset(asset, options);
+            RefreshAssets(options);
+        }
         public void Resolve()                  => UnityEditor.PackageManager.Client.Resolve();
         // None instead of CleanBuildCache: Unity 6.x regression — CleanBuildCache fires
         // assemblyCompilationNotRequired instead of recompiling. Per-file ForceUpdate

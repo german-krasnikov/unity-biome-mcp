@@ -5,6 +5,7 @@
 // RequestDisable() - exactly what a real Domain Reload does in production.
 // ForceUnreconciledForTests() reproduces the one side effect of a real Domain
 // Reload (_reconciled reset to false) without requiring one.
+using System.IO;
 using NUnit.Framework;
 using UnityMCP.Editor.SourcePatch;
 
@@ -13,17 +14,38 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     internal sealed class SourcePatchReloadContractTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        private MockSyncOps _syncOps;
+
         private sealed class RecordingReloadPort : ISourcePatchReloadPort
         {
             public int CallCount;
-            public void RequestReloadVerification() => CallCount++;
+            public ReloadPortOutcome RequestReloadVerification(int expectedEpochAfter)
+            {
+                CallCount++;
+                // Persist-before-trigger is an observed order, not an assumed one:
+                // by the time the port is called, RequestDisable must already have
+                // written the receipt (N2a.2).
+                Assert.IsTrue(SourcePatchReceiptStore.TryRead(out _),
+                    "receipt must be persisted before port is triggered");
+                return ReloadPortOutcome.Accepted;
+            }
         }
 
         private sealed class FakeProvider : ISourcePatchProvider
         {
             public SourcePatchApplyOutcome Outcome;
-            public SourcePatchApplyOutcome Apply(SourcePatchRequest request) => Outcome;
+            public int ApplyCalls;
+            public SourcePatchApplyOutcome Apply(SourcePatchRequest request)
+            {
+                ApplyCalls++;
+                return Outcome;
+            }
         }
+
+        // Set by ArmOnReadyThenRequestDisable so V3 can assert the legacy WriteText
+        // route never touches the provider/dispatcher, without widening the shared
+        // helper's signature (both existing call sites pass `out _` for the port).
+        private FakeProvider _fakeProvider;
 
         [SetUp]
         public void SetUp()
@@ -32,7 +54,8 @@ namespace UnityMCP.Editor.Tests
             RegisterCleanup(() => SourcePatchModePolicy.ReloadPort = new SyncHelperReloadPort());
             RegisterCleanup(SourcePatchProviderSlot.ResetForTests);
             SourcePatchHost.ResetForTests();
-            SyncHelper.OverrideOpsForTest(new MockSyncOps());
+            _syncOps = new MockSyncOps();
+            SyncHelper.OverrideOpsForTest(_syncOps);
         }
 
         /// <summary>Shared arrangement for both tests below: real Off -> OnReady,
@@ -40,7 +63,8 @@ namespace UnityMCP.Editor.Tests
         /// called exactly once - no live SyncHelper trigger from this step).</summary>
         private SourcePatchDisableReceipt ArmOnReadyThenRequestDisable(out RecordingReloadPort fakePort)
         {
-            SourcePatchProviderSlot.Register("fake", new FakeProvider { Outcome = SourcePatchApplyOutcome.Applied });
+            _fakeProvider = new FakeProvider { Outcome = SourcePatchApplyOutcome.Applied };
+            SourcePatchProviderSlot.Register("fake", _fakeProvider);
             SourcePatchHost.CurrentState = SourcePatchState.Off; // legitimate rest-state seam, same as every existing fixture
             Assert.AreEqual("mutation_mode:true", SourcePatchModePolicy.SetMutationIntent(true));
 
@@ -53,16 +77,49 @@ namespace UnityMCP.Editor.Tests
             return receipt;
         }
 
+        private void CompleteOwnedReload(SourcePatchDisableReceipt receipt)
+        {
+            var epochBefore = SyncHelper.CurrentEpoch;
+            Assert.AreEqual(epochBefore + 1, receipt.ExpectedEpochAfter);
+            Assert.AreEqual("blocked|reason=source_patch_Disabling_explicit_disable_required",
+                SyncHelper.TriggerSync(false));
+            Assert.AreEqual(epochBefore, SyncHelper.CurrentEpoch, "ordinary sync cannot advance disable's epoch");
+            Assert.AreEqual(0, _syncOps.RefreshCount);
+            Assert.AreEqual(0, _syncOps.RequestScriptCompilationCount);
+            Assert.AreEqual(0, _syncOps.StartTickPumpCount);
+
+            // Exactly one accepted, owned request; the real port checks the exact ACK.
+            // The fixture's mock performs no AssetDatabase or compilation effects.
+            new SyncHelperReloadPort().RequestReloadVerification(receipt.ExpectedEpochAfter);
+            Assert.AreEqual(receipt.ExpectedEpochAfter, SyncHelper.CurrentEpoch);
+            Assert.AreEqual(1, _syncOps.RefreshCount);
+            Assert.AreEqual(1, _syncOps.RequestScriptCompilationCount);
+            Assert.AreEqual(1, _syncOps.StartTickPumpCount);
+        }
+
+        private void SimulateOutOfBandEpochAdvance()
+        {
+            // Ordinary client sync is now blocked during Disabling. Inject one
+            // out-of-band epoch through the existing admission seam to retain the
+            // domain-start mismatch oracle, without claiming clients can bypass it.
+            Assert.AreSame(_syncOps, SyncHelper.Ops, "simulation must never use native sync operations");
+            var admission = SyncHelper.ReloadBlockReason;
+            var expectedEpoch = SyncHelper.CurrentEpoch + 1;
+            try
+            {
+                SyncHelper.ReloadBlockReason = _ => null;
+                Assert.AreEqual($"sync_ack|epoch={expectedEpoch}|will_compile=false", SyncHelper.TriggerSync(false));
+                Assert.AreEqual(expectedEpoch, SyncHelper.CurrentEpoch);
+            }
+            finally { SyncHelper.ReloadBlockReason = admission; }
+        }
+
         [Test]
         public void OnReadyToOff_ThroughRealReconciliation_ClearsReceiptAndNextWriteIsLegacy()
         {
             var receipt = ArmOnReadyThenRequestDisable(out _);
 
-            // Simulate the disable's OWN expected reload actually landing: bump the
-            // real epoch (via MockSyncOps, no real compile) to exactly what the
-            // receipt expects, then force the lazy path to re-run - this is the one
-            // thing a real Domain Reload does that ResetForTests() does not.
-            while (SyncHelper.CurrentEpoch < receipt.ExpectedEpochAfter) SyncHelper.TriggerSync(false);
+            CompleteOwnedReload(receipt);
             SourcePatchHost.ForceUnreconciledForTests();
 
             // Real reconciliation, not a forced setter.
@@ -71,20 +128,54 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void ClientSyncBetweenDisableAndOwnReload_EpochDriftResolvesRecoveryNeverFalseOff()
+        public void OutOfBandEpochDriftAfterOwnedDisable_ResolvesRecoveryNeverFalseOff()
         {
             var receipt = ArmOnReadyThenRequestDisable(out _);
 
-            // R04: an unrelated client-triggered sync_unity lands ONE EXTRA reload
-            // cycle before the disable's own expected epoch is reached - landing the
-            // real epoch one past what the receipt expects.
-            while (SyncHelper.CurrentEpoch < receipt.ExpectedEpochAfter) SyncHelper.TriggerSync(false);
-            SyncHelper.TriggerSync(false); // the extra, independently-triggered client sync
+            CompleteOwnedReload(receipt);
+            SimulateOutOfBandEpochAdvance();
             SourcePatchHost.ForceUnreconciledForTests();
 
             // Fail closed: Recovery, never an optimistic Off; receipt retained (no auto-repair).
             Assert.AreEqual(SourcePatchState.Recovery, SourcePatchHost.CurrentState);
             Assert.IsTrue(SourcePatchReceiptStore.TryRead(out _), "a mismatched receipt is never silently cleared");
+        }
+
+        // V3 (Plans/N2-reload-sourcepatch-contract.md): the full disable ->
+        // owned-reload -> real-reconciliation -> Off chain, then ONE ordinary
+        // write in the very next call. Oracle: the write reaches the legacy
+        // writer exactly once (byte-identical output to calling it directly)
+        // and never touches the provider/dispatcher — Off must not leave any
+        // stale coordinator/provider wiring reachable from WriteText.
+        [Test]
+        public void AfterOff_WriteText_DelegatesToLegacyExactlyOnce()
+        {
+            const string tempFolder = "Assets/TestsTemp/SourcePatchReloadContract";
+            var receipt = ArmOnReadyThenRequestDisable(out _);
+
+            CompleteOwnedReload(receipt);
+            SourcePatchHost.ForceUnreconciledForTests();
+            Assert.AreEqual(SourcePatchState.Off, SourcePatchHost.CurrentState,
+                "the chain must land on real Off before the write is attempted");
+
+            TrackOwnedAsset(tempFolder);
+            AssetHelper.EnsureDirectory(tempFolder + "/legacy.txt");
+            AssetHelper.EnsureDirectory(tempFolder + "/viahost.txt");
+
+            var legacyResult = AssetDatabaseHelper.Execute("write_text",
+                $"{{\"path\":\"{tempFolder}/legacy.txt\",\"content\":\"n2-v3\"}}");
+            var hostResult = SourcePatchHost.WriteText(
+                $"{{\"path\":\"{tempFolder}/viahost.txt\",\"content\":\"n2-v3\"}}");
+
+            var legacyBytes = File.ReadAllBytes(Path.GetFullPath(tempFolder + "/legacy.txt"));
+            var hostBytes = File.ReadAllBytes(Path.GetFullPath(tempFolder + "/viahost.txt"));
+            CollectionAssert.AreEqual(legacyBytes, hostBytes);
+            Assert.AreEqual(
+                legacyResult.Replace("legacy.txt", "viahost.txt"),
+                hostResult,
+                "post-reconciliation Off must delegate to the legacy writer in exactly one chain");
+            Assert.AreEqual(0, _fakeProvider.ApplyCalls,
+                "the legacy route must never dispatch through the provider");
         }
     }
 }

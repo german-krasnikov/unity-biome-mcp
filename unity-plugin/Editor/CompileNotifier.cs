@@ -11,6 +11,7 @@ namespace UnityMCP.Editor
         private const string StartKey    = "MCP_CompileStart";
         private const string DurationKey = "MCP_LastDuration";
         private const string FailedKey   = "MCP_CompileFailed";
+        private const string CompletedKey = "MCP_CompileCompletedSinceReload";
 
         // G14: staleness ceiling — if IsCompiling stays latched past this threshold with
         // no compilationFinished event, GetStatus() emits "idle-stale" to surface the wedge.
@@ -24,22 +25,39 @@ namespace UnityMCP.Editor
 
         static CompileNotifier()
         {
-            CompilationPipeline.compilationStarted += _ =>
-            {
-                SessionState.SetFloat(StartKey, NowSecondsFloat());
-                SessionState.SetBool(FailedKey, false);
-            };
+            CompilationPipeline.compilationStarted += _ => RecordStarted();
+            CompilationPipeline.compilationFinished += _ => RecordFinished(EditorUtility.scriptCompilationFailed);
+            AssemblyReloadEvents.afterAssemblyReload += () =>
+                ReconcileAfterReload(EditorUtility.scriptCompilationFailed, CompileErrorCapture.HasErrors());
+        }
 
-            CompilationPipeline.compilationFinished += _ =>
+        internal static void RecordStarted()
+        {
+            SessionState.SetFloat(StartKey, NowSecondsFloat());
+            SessionState.SetBool(FailedKey, false);
+            SessionState.SetBool(CompletedKey, false);
+        }
+
+        internal static void RecordFinished(bool nativeFailure)
+        {
+            var start = SessionState.GetFloat(StartKey, 0f);
+            if (start > 0f)
             {
-                var start = SessionState.GetFloat(StartKey, 0f);
-                if (start > 0f)
-                    SessionState.SetFloat(DurationKey, NowSecondsFloat() - start);
-                SessionState.SetFloat(StartKey, 0f);
-                // Discriminate failed vs success (ref §9: compilationFinished fires on FAIL too)
-                if (EditorUtility.scriptCompilationFailed)
-                    SessionState.SetBool(FailedKey, true);
-            };
+                SessionState.SetFloat(DurationKey, NowSecondsFloat() - start);
+                SessionState.SetBool(CompletedKey, true);
+            }
+            SessionState.SetFloat(StartKey, 0f);
+            if (nativeFailure) SessionState.SetBool(FailedKey, true);
+        }
+
+        internal static void ReconcileAfterReload(bool nativeFailure, bool capturedErrors)
+        {
+            // The native failure flag can still describe the previous failed build
+            // during compilationFinished. Reconcile only its completed cycle after
+            // an actual reload, never by reading idle status or by elapsed time.
+            if (IsCompiling || !SessionState.GetBool(CompletedKey, false)) return;
+            SessionState.SetBool(CompletedKey, false);
+            SessionState.SetBool(FailedKey, nativeFailure || capturedErrors);
         }
 
         public static bool IsCompiling => SessionState.GetFloat(StartKey, 0f) > 0f;
@@ -95,6 +113,7 @@ namespace UnityMCP.Editor
             private readonly FloatSessionValue _start;
             private readonly FloatSessionValue _duration;
             private readonly BoolSessionValue _failed;
+            private readonly BoolSessionValue _completed;
             private bool _disposed;
 
             internal TestIsolationScope(TestIsolationScope previous)
@@ -104,6 +123,7 @@ namespace UnityMCP.Editor
                 _start = FloatSessionValue.Capture(StartKey);
                 _duration = FloatSessionValue.Capture(DurationKey);
                 _failed = BoolSessionValue.Capture(FailedKey);
+                _completed = BoolSessionValue.Capture(CompletedKey);
             }
 
             public void Dispose()
@@ -114,6 +134,7 @@ namespace UnityMCP.Editor
                         "CompileNotifier test-isolation scopes must be disposed in LIFO order.");
 
                 var errors = new System.Collections.Generic.List<Exception>();
+                Restore(_completed.Restore, errors);
                 Restore(_failed.Restore, errors);
                 Restore(_duration.Restore, errors);
                 Restore(_start.Restore, errors);

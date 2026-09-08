@@ -37,7 +37,7 @@ def _diag_clean(mvid: str) -> str:
     return (
         f"mvid={mvid}\n"
         f"main_mvid={mvid}\n"
-        f"iscompiling=false  cn_active=true  started=false  stamp_frozen=false\n"
+        f"iscompiling=false  cn_active=false  started=false  stamp_frozen=false\n"
         f"compile=idle\n"
         f"stamp={mvid}:200\n"
         "errors=\nlog=clean\n"
@@ -653,7 +653,7 @@ async def test_f3f5_absent_main_mvid_is_not_clean():
         return (
             f"mvid={MVID_A}\n"
             "main_mvid=absent\n"
-            "iscompiling=false  cn_active=true  started=false  stamp_frozen=false\n"
+            "iscompiling=false  cn_active=false  started=false  stamp_frozen=false\n"
             "compile=idle\n"
             "stamp=abc:123\n"
             "errors=\nlog=clean\n"
@@ -673,7 +673,7 @@ async def test_f3f5_empty_main_mvid_is_not_clean():
         return (
             f"mvid={MVID_A}\n"
             "main_mvid=\n"
-            "iscompiling=false  cn_active=true  started=false  stamp_frozen=false\n"
+            "iscompiling=false  cn_active=false  started=false  stamp_frozen=false\n"
             "compile=idle\n"
             f"stamp={MVID_A}:999\n"
             "errors=\nlog=clean\n"
@@ -694,7 +694,7 @@ async def test_f3f5_heal_compares_main_mvid_not_reload_mvid():
             f"mvid={MVID_A}\n"   # reload mvid (never changes)
             f"main_mvid={main_mvid}\n"
             "iscompiling=false  cn_active=false  started=false  stamp_frozen=true\n"
-            "compile=idle-stale\n"
+            "compile=idle\n"
             "stamp=abc:123\n"
             "errors=\nlog=clean\n"
         )
@@ -846,10 +846,10 @@ async def test_stress_f1_scenario_2_run_ladder_detects_cs_error_returns_reimport
 
     result = await _ladder.run_ladder(send, play_stop_consent=True)
 
-    # After all tiers exhaust, result must be a failure sentinel (not a false heal).
+    assert send.calls == [("diagnose", {})], "known compiler failure must not trigger recovery effects"
     assert "HEALED" not in result, f"F1: CS error must never heal, got: {result!r}"
     # The result should be some form of failure/manual sentinel.
-    assert any(k in result for k in ("MANUAL-REQUIRED", "REIMPORT-NEEDED", "FAILED")), (
+    assert any(k in result for k in ("MANUAL-REQUIRED", "REIMPORT-NEEDED", "FAILED", "FAIL:")), (
         f"F1: expected failure sentinel, got: {result!r}"
     )
 

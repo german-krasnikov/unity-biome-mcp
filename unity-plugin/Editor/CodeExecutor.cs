@@ -393,19 +393,30 @@ namespace UnityMCP.Editor
             throw new InvalidOperationException("Compile error:\n" + errorMessage);
         }
 
+        private static MethodInfo SelectRunMethod(Assembly assembly)
+        {
+            // Compilers may emit helper attributes before the user's class.
+            // Metadata type order is not an entrypoint contract.
+            var methods = assembly.GetTypes().SelectMany(type => type.GetMethods(
+                    BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.DeclaredOnly))
+                .Where(method => method.Name == "Run" && method.GetParameters().Length == 0 && !method.ContainsGenericParameters)
+                .ToArray();
+            var wrapped = methods.Where(method => method.DeclaringType.Name == "__MCPScript").ToArray();
+            if (wrapped.Length > 0) methods = wrapped;
+            if (methods.Length != 1)
+                throw new InvalidOperationException(methods.Length == 0
+                    ? "No static parameterless Run() found. Add: public static object Run() { ... return result; }"
+                    : "Multiple static parameterless Run() methods found. Provide one entrypoint or use __MCPScript.");
+            return methods[0];
+        }
+
         private static string RunWithUndo(Assembly assembly, string undoLabel)
         {
-            var type = assembly.GetTypes().FirstOrDefault(t => t.Name == "__MCPScript")
-                       ?? assembly.GetTypes().First();
-            var method = type.GetMethod("Run",
-                BindingFlags.Public | BindingFlags.Static | BindingFlags.NonPublic);
+            var method = SelectRunMethod(assembly);
 
             Undo.IncrementCurrentGroup();
             Undo.SetCurrentGroupName(undoLabel);
             var groupId = Undo.GetCurrentGroup();
-            if (method == null)
-                throw new InvalidOperationException(
-                    $"No static Run() in {type.FullName}. Add: public static object Run() {{ ... return result; }}");
             try
             {
                 var result = method.Invoke(null, null);

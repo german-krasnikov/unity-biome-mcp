@@ -12,7 +12,14 @@ namespace UnityMCP.Editor
     {
         public static event Action<VisualElement> OnBuildConnection;
 
-        internal static void InvokeConnection(VisualElement root) => OnBuildConnection?.Invoke(root);
+        internal static void InvokeConnection(VisualElement root)
+        {
+            try { OnBuildConnection?.Invoke(root); }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogWarning($"[Biome] ChatSettingsHook.Connection: {ex.GetType().Name}");
+            }
+        }
         internal static bool HasConnectionSubscribers => OnBuildConnection != null;
         internal static void ResetConnectionEvent() => OnBuildConnection = null;
 
@@ -61,6 +68,14 @@ namespace UnityMCP.Editor
         // same fallback as the reflection lookup this replaces (PR-05 Finding 1).
         internal static Func<bool> IsChatBinaryAvailableProvider { get; set; }
 
-        public static bool IsChatBinaryAvailable() => IsChatBinaryAvailableProvider?.Invoke() ?? false;
+        public static bool IsChatBinaryAvailable()
+        {
+            try { return IsChatBinaryAvailableProvider?.Invoke() ?? false; }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogWarning($"[Biome] ChatSettingsHook.BinaryAvailable: {ex.GetType().Name}");
+                return false;
+            }
+        }
     }
 }

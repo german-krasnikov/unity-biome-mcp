@@ -76,6 +76,35 @@ _PLAYTEST_POLL_INTERVAL_S = 1.0  # seconds
 
 **Agent use:** Transparent — `run_playtest()` auto-selects sync or async based on timeout. Agents never call `start_playtest` or `get_playtest_run` directly.
 
+### Outcome Classification (N0b)
+
+`run_playtest` classifies every result into one of three outcomes:
+
+- **pass:** Playtest ran to completion, all assertions passed, teardown succeeded.
+- **fail:** Playtest ran but one or more assertions failed.
+- **error:** Playtest could not run, or the receipt is uninterpretable (empty, malformed JSON, contradictory ledger, or `0/0`).
+
+On both sync (direct `_send`) and async (start/poll) routes:
+- **Pass outcome:** Returns the structured report (text or JSON format).
+- **Non-pass outcomes (fail/error):** Raises `ToolError` with the full text report. The error message preserves diagnostic information for troubleshooting.
+
+The classification is performed by `_classify_outcome(result, format)` and is symmetric across both routes.
+
+## Cache Trust Guard During Playtest Scenarios (N0a)
+
+When an async playtest is dispatched (`start_playtest` ack received), `Middleware._scenario_uncertain` is set to `True`. This guard bypasses both PrefetchCache lookup sites and suppresses background prefetch speculation while the playtest is in flight.
+
+The guard survives:
+- Client reconnect (reconnect doesn't prove the playtest stopped)
+- `reset_session()` (volatile state is dropped, but the playtest guard persists)
+- Cancel/timeout events
+
+The guard is cleared only by:
+- Terminal evidence (pass/fail/error receipt from `get_playtest_run`)
+- Edit Mode transition (entering Edit Mode proves no playtest can be running)
+
+Fallback `_force_scene_invalidate` clears scene caches but does not clear the guard; the guard is defensive and survives cache-only failures.
+
 ## Play Mode Readiness (MCP-LIFE-004)
 
 **PlayReadinessTracker:** Waits for actual world readiness, not just `playing=True`.

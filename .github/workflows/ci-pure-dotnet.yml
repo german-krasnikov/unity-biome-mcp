@@ -5,12 +5,32 @@ on:
     branches: [master, "feat/**", "feature/**", "fix/**"]
     paths:
       - "unity-plugin/Runtime/Playtest/Core/**"
+      - "unity-plugin/Editor/AssemblySourceFreshness.cs"
+      - "unity-plugin/Editor/CompileNotifier.cs"
+      - "unity-plugin/Editor/CompileErrorCapture.cs"
+      - "unity-plugin/Editor/Tests/CompileStateLifecycleTests.cs"
+      - "unity-plugin/Editor/Tests/AssemblySourceFreshnessTests.cs"
+      - "unity-plugin/Editor/SourcePatch/**"
+      - "unity-plugin-reload/Editor/**"
+      - "scripts/gauntlet/fetch_adapter_sources.py"
+      - "scripts/gauntlet/provider_ref.py"
+      - "scripts/source_patch_provider_pin.json"
       - "unity-plugin/Tests~/**"
       - ".github/workflows/ci-pure-dotnet.yml"
   pull_request:
     branches: [master]
     paths:
       - "unity-plugin/Runtime/Playtest/Core/**"
+      - "unity-plugin/Editor/AssemblySourceFreshness.cs"
+      - "unity-plugin/Editor/CompileNotifier.cs"
+      - "unity-plugin/Editor/CompileErrorCapture.cs"
+      - "unity-plugin/Editor/Tests/CompileStateLifecycleTests.cs"
+      - "unity-plugin/Editor/Tests/AssemblySourceFreshnessTests.cs"
+      - "unity-plugin/Editor/SourcePatch/**"
+      - "unity-plugin-reload/Editor/**"
+      - "scripts/gauntlet/fetch_adapter_sources.py"
+      - "scripts/gauntlet/provider_ref.py"
+      - "scripts/source_patch_provider_pin.json"
       - "unity-plugin/Tests~/**"
       - ".github/workflows/ci-pure-dotnet.yml"
   workflow_dispatch:
@@ -37,3 +57,65 @@ jobs:
       - name: dotnet test
         working-directory: unity-plugin/Tests~/Pure
         run: dotnet test UnityMCP.Playtest.Core.Tests.csproj -c Release
+
+  assembly-freshness:
+    name: Pure dotnet test (AssemblyFreshness)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
+        with:
+          dotnet-version: "6.0.x"
+
+      - name: dotnet test
+        working-directory: unity-plugin/Tests~/AssemblyFreshness
+        run: dotnet test UnityMCP.AssemblyFreshness.Tests.csproj -c Release
+
+  source-patch-readiness:
+    name: Pure dotnet test (SourcePatchReadiness)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
+        with:
+          dotnet-version: "6.0.x"
+
+      - name: dotnet test
+        working-directory: unity-plugin/Tests~/SourcePatchReadiness
+        run: dotnet test UnityMCP.SourcePatchReadiness.Tests.csproj -c Release
+
+  mutation-adapter-contract:
+    name: Pure dotnet test (MutationAdapterContract)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: "3.14"
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
+        with:
+          dotnet-version: "6.0.x"
+
+      - name: Fetch pinned adapter sources
+        run: |
+          python scripts/gauntlet/fetch_adapter_sources.py \
+            --pin scripts/source_patch_provider_pin.json \
+            --out unity-plugin/Tests~/MutationAdapterContract/adapter-cache \
+            --lock unity-plugin/Tests~/MutationAdapterContract/adapter-sources.lock.json
+
+      - name: dotnet test
+        working-directory: unity-plugin/Tests~/MutationAdapterContract
+        run: dotnet test AdapterContract.Tests.csproj -c Release
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Seam-drift negative control
+        run: python -m pytest scripts/tests/test_adapter_contract_seam_drift.py -v

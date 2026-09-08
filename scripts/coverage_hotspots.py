@@ -65,7 +65,7 @@ class HotspotRow:
 class ReportMeta:
     source_sha: str
     lane: str            # "Linux" -- matches unity-tests.yml matrix.name
-    unity_version: str   # "6000.0.65f1" -- matches unity-tests.yml
+    unity_version: str   # "6000.0.83f1" -- matches unity-tests.yml
     generated_for_sha: str  # current HEAD at report-render time
     stale: bool           # generated_for_sha != source_sha
 
@@ -83,8 +83,30 @@ def load_scenario_map(path: pathlib.Path) -> dict[str, str]:
     return mapping
 
 
-def _is_changed(method: MethodRecord, changed_lines: dict[str, set[int]]) -> bool:
-    lines_in_file = changed_lines.get(method.file)
+_DRIVE_RE = re.compile(r"^[A-Za-z]:[\\/]")
+
+
+def _to_repo_relative(full_path: str, repo_root: str) -> str | None:
+    """Maps an OpenCover absolute `fullPath` to the repo-relative path git
+    diff uses, so the changed-lines join actually matches (was: absolute
+    OpenCover paths vs. repo-relative diff paths -> join always empty).
+    Already-relative input passes through unchanged. Returns None -- outside
+    repo_root -- for an absolute path that is not under it; caller must
+    report this as unmapped, never silently treat it as "unchanged"."""
+    normalized = full_path.replace("\\", "/")
+    if not (normalized.startswith("/") or _DRIVE_RE.match(full_path)):
+        return normalized
+    root = repo_root.replace("\\", "/").rstrip("/") + "/"
+    if normalized.lower().startswith(root.lower()):
+        return normalized[len(root):]
+    return None
+
+
+def _is_changed(method: MethodRecord, changed_lines: dict[str, set[int]], repo_root: str) -> bool:
+    rel_path = _to_repo_relative(method.file, repo_root)
+    if rel_path is None:
+        return False
+    lines_in_file = changed_lines.get(rel_path)
     if not lines_in_file:
         return False
     return any(method.line_start <= ln <= method.line_end for ln in lines_in_file)
@@ -95,7 +117,15 @@ def rank_methods(
     changed_lines: dict[str, set[int]],
     scenario_map: dict[str, str],
     limit: int = 20,
+    repo_root: str = "",
 ) -> list[HotspotRow]:
+    unmapped = {m.file for m in methods if _to_repo_relative(m.file, repo_root) is None}
+    if unmapped:
+        print(
+            f"WARNING: {len(unmapped)} OpenCover file path(s) outside repo root "
+            f"{repo_root!r}, unmapped (not counted as changed): {sorted(unmapped)}",
+            file=sys.stderr,
+        )
     rows = []
     for method in methods:
         coverage_fraction = None if method.seq_total == 0 else method.seq_covered / method.seq_total
@@ -104,7 +134,7 @@ def rank_methods(
         scenario_key = f"{method.class_name}.{method.method_name}"
         rows.append(HotspotRow(
             method=method,
-            changed=_is_changed(method, changed_lines),
+            changed=_is_changed(method, changed_lines, repo_root),
             coverage_fraction=coverage_fraction,
             score=score,
             scenario_ref=scenario_map.get(scenario_key, "unknown"),
@@ -177,6 +207,7 @@ def main() -> None:
     parser.add_argument("--unity-version", required=True)
     parser.add_argument("--out-md", type=pathlib.Path, required=True)
     parser.add_argument("--out-json", type=pathlib.Path, required=True)
+    parser.add_argument("--repo-root", default=str(pathlib.Path(__file__).resolve().parent.parent))
     args = parser.parse_args()
 
     methods: list[MethodRecord] = []
@@ -185,7 +216,7 @@ def main() -> None:
 
     changed_lines = git_changed_lines(args.base_ref)
     scenario_map = load_scenario_map(args.scenario_map)
-    rows = rank_methods(methods, changed_lines, scenario_map)
+    rows = rank_methods(methods, changed_lines, scenario_map, repo_root=args.repo_root)
 
     generated_for_sha = _current_head_sha()
     meta = ReportMeta(

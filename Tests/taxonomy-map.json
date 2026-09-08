@@ -102,6 +102,12 @@
       "csharp_category": null,
       "dsl_header_value": "playmode",
       "applies_to_sources": ["dsl_playtest", "csharp_playmode"]
+    },
+    "mutation_live": {
+      "pytest_marker": "mutation_live",
+      "csharp_category": "MutationLive",
+      "dsl_header_value": null,
+      "applies_to_sources": ["python_server", "csharp_editmode"]
     }
   },
   "_excluded_pytest_markers": {

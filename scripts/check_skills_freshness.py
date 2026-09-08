@@ -43,15 +43,26 @@ class Finding:
 # ---------------------------------------------------------------------------
 
 _SPEC_ENTRY_RE = re.compile(r"^\s+'([a-z][a-z_0-9]+)':\s+ToolSpec", re.MULTILINE)
+# Module-owned pilots (watch.py, sync_module.py, ...) inject their ToolSpec
+# kwargs into tool_specs._SPECS dynamically via a SPEC_KWARGS dict rather than
+# a literal 'name': ToolSpec(...) entry -- _SPEC_ENTRY_RE alone can't see
+# those. This matches a dict-of-dicts key, e.g. 'sync_unity': {'category': ...
+_SPEC_KWARGS_KEY_RE = re.compile(r"^\s+'([a-z][a-z_0-9]+)':\s+\{", re.MULTILINE)
 
 
 def load_tool_specs_from_text(text: str) -> frozenset[str]:
-    return frozenset(_SPEC_ENTRY_RE.findall(text))
+    names = set(_SPEC_ENTRY_RE.findall(text))
+    if "SPEC_KWARGS" in text:
+        names.update(_SPEC_KWARGS_KEY_RE.findall(text))
+    return frozenset(names)
 
 
 def load_tool_specs(repo_root: Path) -> frozenset[str]:
-    text = (repo_root / "server/src/unity_mcp/tools/tool_specs.py").read_text(encoding="utf-8")
-    return load_tool_specs_from_text(text)
+    tools_dir = repo_root / "server/src/unity_mcp/tools"
+    names = set(load_tool_specs_from_text((tools_dir / "tool_specs.py").read_text(encoding="utf-8")))
+    for path in sorted(tools_dir.glob("*.py")):
+        names.update(load_tool_specs_from_text(path.read_text(encoding="utf-8")))
+    return frozenset(names)
 
 
 # ---------------------------------------------------------------------------

@@ -161,8 +161,17 @@ namespace UnityMCP.Editor
                 try
                 {
                     var result = CommandRouter.ExecuteCommand(cmd, argsJson);
-                    if (result != "ok")
+                    // D7 Defect 2: every body line must carry the "ok:"/"err:"
+                    // prefix the Python-side contract (_BODY_LINE_RE) requires,
+                    // even for a bare "ok" or raw handler data with no prefix
+                    // at all — only an already-prefixed or failure result is
+                    // passed through unchanged.
+                    if (result == "ok")
+                        sb.AppendLine($"[{i}] ok:");
+                    else if (result.StartsWith("ok:", StringComparison.Ordinal) || IsFailureResult(result))
                         sb.AppendLine($"[{i}] {result}");
+                    else
+                        sb.AppendLine($"[{i}] ok: {result}");
 
                     // Handlers report expected failures as text rather than exceptions.
                     // Inspect every returned line so a leading warning cannot hide a later

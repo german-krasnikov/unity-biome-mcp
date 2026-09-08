@@ -43,12 +43,20 @@ class RetryPolicy:
         for commands not proven retry-safe.
         """
         from .bridge_socket import DomainReloadError  # local import avoids cycle
-        from .errors import CapacityBusyError  # local import avoids cycle
+        from .errors import CapacityBusyError, SessionIdentityMismatch  # local import avoids cycle
 
         if attempt >= self.max_retries:
             return False, 0.0, "max_retries"
         if time.monotonic() >= session_deadline:
             return False, 0.0, "deadline"
+
+        # Non-retryable by nature (MCP-SESS-024): the project identity changed
+        # underneath the session, so a second connect attempt fails the same
+        # way. Checked before the generic ConnectionError paths below so it
+        # never falls through to the attempt<1 "transient" fallback and wastes
+        # a reconnect attempt.
+        if isinstance(error, SessionIdentityMismatch):
+            return False, 0.0, "identity_mismatch"
 
         if isinstance(error, CapacityBusyError):
             return True, error.retry_after_seconds, "capacity_busy"

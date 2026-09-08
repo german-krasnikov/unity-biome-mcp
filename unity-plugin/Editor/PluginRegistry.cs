@@ -18,7 +18,15 @@ namespace UnityMCP.Editor
 
         public static void Register(IMCPPlugin plugin)
         {
-            if (_plugins.Any(p => p.Name == plugin.Name)) return;
+            var existing = _plugins.FirstOrDefault(p => p.Name == plugin.Name);
+            if (existing != null)
+            {
+                if (ReferenceEquals(existing, plugin)) return;  // same instance — idempotent
+                UnityEngine.Debug.LogError(
+                    $"{BiomeLabel.Tag} Plugin ID conflict: '{plugin.Name}' already registered " +
+                    "by a different instance — second registration refused.");
+                return;
+            }
             _plugins.Add(plugin);
             UnityEngine.Debug.Log($"{BiomeLabel.Tag} Plugin registered: {plugin.Name}");
         }
@@ -35,6 +43,7 @@ namespace UnityMCP.Editor
                 // leave a partial registration live.
                 var snapshot = CommandRegistry.CaptureForTest();
                 CommandRegistry.CallerIsPlugin = true;
+                CommandRegistry.CallerPluginName = plugin.Name;
                 try { plugin.RegisterCommands(); }
                 catch (System.Exception e)
                 {
@@ -42,7 +51,11 @@ namespace UnityMCP.Editor
                     _failedPlugins.Add((plugin.Name, e.Message));
                     UnityEngine.Debug.LogError($"{BiomeLabel.Tag} Plugin '{plugin.Name}' RegisterCommands failed: {e.Message}");
                 }
-                finally { CommandRegistry.CallerIsPlugin = false; }
+                finally
+                {
+                    CommandRegistry.CallerIsPlugin = false;
+                    CommandRegistry.CallerPluginName = null;
+                }
             }
         }
 
@@ -61,12 +74,30 @@ namespace UnityMCP.Editor
         public static bool IsPluginCommand(string cmd) =>
             _plugins.Any(p => BelongsToPlugin(p, cmd));
 
-        /// <summary>Returns all registered commands that belong to this plugin.</summary>
+        /// <summary>
+        /// Returns commands matching this plugin's name/prefix heuristic. Presentation/compat
+        /// only (e.g. the Settings UI's per-plugin drilldown) — a command whose name happens to
+        /// match another plugin's prefix is swept in here regardless of who actually registered
+        /// it. Callers that need the true registrant use GetOwnedCommands instead (N1a T9).
+        /// </summary>
         public static string[] GetCommandsForPlugin(IMCPPlugin plugin) =>
             CommandRegistry.GetAllCommands().Where(c => BelongsToPlugin(plugin, c)).ToArray();
 
+        /// <summary>
+        /// Returns commands whose Entry.Owner (registration data) equals this plugin's Name —
+        /// exact attribution, not a prefix guess. N1a T9: used by inventory/report call sites
+        /// (permission catalog, enabled-tools list reported to Python) where a misattributed
+        /// command is a correctness/security concern, not just a display detail.
+        /// </summary>
+        public static string[] GetOwnedCommands(string pluginName) =>
+            CommandRegistry.GetAllCommands().Where(c => CommandRegistry.GetOwner(c) == pluginName).ToArray();
+
+        // N1a T9: inventory reported to Python (permission catalog, enabled/disabled tool
+        // list) — uses Owner-based attribution so a prefix collision can never mis-report a
+        // host or sibling-plugin command as belonging to this plugin. GetCommandsForPlugin
+        // (prefix-based) stays for the Settings UI's per-plugin display grouping.
         public static string[] GetAllPluginToolNames() =>
-            _plugins.SelectMany(p => GetCommandsForPlugin(p)).ToArray();
+            _plugins.SelectMany(p => GetOwnedCommands(p.Name)).ToArray();
 
         private static bool BelongsToPlugin(IMCPPlugin plugin, string cmd)
         {

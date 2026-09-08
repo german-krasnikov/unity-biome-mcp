@@ -54,6 +54,8 @@ namespace UnityMCP.Editor.SourcePatch
         // Recovery branch via ReleaseHeldLease(), before the causal Domain
         // Reload it triggers.
         private IDisposable _heldLease;
+        private bool _leaseHeld;
+        private bool _patchesMayBeActive;
 
         public SourcePatchCoordinator(
             ISourcePatchBytesPort bytes,
@@ -70,6 +72,10 @@ namespace UnityMCP.Editor.SourcePatch
         }
 
         public SourcePatchState CurrentState => _state.Current;
+        // A successful detour outlives its short import/reload lease. Uncertain
+        // provider completion is also conservatively active until domain reload.
+        internal bool PatchesMayBeActive => _patchesMayBeActive;
+        internal bool HasHeldLease => _leaseHeld;
 
         public SourcePatchOperationResult TryApply(SourcePatchRequest request)
         {
@@ -99,15 +105,18 @@ namespace UnityMCP.Editor.SourcePatch
                 }
 
                 lease = _lease.AcquireLease();
+                _leaseHeld = true;
                 writeAttempted = true;
                 _bytes.Write(request.AssetPath, newContent);
 
+                var patchesBefore = _patchesMayBeActive;
+                _patchesMayBeActive = true; // provider may throw after applying an effect
                 switch (_provider.Apply(request))
                 {
                     case SourcePatchApplyOutcome.Applied:
                         if (_evidence.ConfirmApplied(request))
                         {
-                            lease.Dispose();
+                            DisposeLease(lease);
                             _state.TryTransition(SourcePatchState.OnReady);
                             return SourcePatchOperationResult.Applied;
                         }
@@ -119,6 +128,7 @@ namespace UnityMCP.Editor.SourcePatch
                         return SourcePatchOperationResult.Uncertain;
 
                     case SourcePatchApplyOutcome.Rejected:
+                        _patchesMayBeActive = patchesBefore;
                         var afterWrite = _bytes.Read(request.AssetPath);
                         if (!BytesEqual(afterWrite, newContent))
                         {
@@ -130,7 +140,7 @@ namespace UnityMCP.Editor.SourcePatch
                             return SourcePatchOperationResult.Drift;
                         }
                         _bytes.Write(request.AssetPath, expectedBefore);
-                        lease.Dispose();
+                        DisposeLease(lease);
                         _state.TryTransition(SourcePatchState.OnReady);
                         return SourcePatchOperationResult.RolledBack;
 
@@ -154,7 +164,7 @@ namespace UnityMCP.Editor.SourcePatch
                 // bookkeeping runs.
                 if (lease != null && !writeAttempted)
                 {
-                    lease.Dispose();
+                    DisposeLease(lease);
                 }
                 else if (lease != null)
                 {
@@ -175,8 +185,15 @@ namespace UnityMCP.Editor.SourcePatch
         public void ReleaseHeldLease()
         {
             var lease = _heldLease;
+            if (lease == null) return;
+            DisposeLease(lease);
             _heldLease = null;
-            lease?.Dispose();
+        }
+
+        private void DisposeLease(IDisposable lease)
+        {
+            lease.Dispose();
+            _leaseHeld = false; // retain ownership evidence if release throws
         }
 
         private static bool BytesEqual(byte[] a, byte[] b)

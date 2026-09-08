@@ -41,12 +41,11 @@ namespace UnityMCP.Editor
             foreach (var msg in messages)
             {
                 if (msg.type != CompilerMessageType.Error) continue;
-                if (_errors.Count < MaxErrors)
-                {
-                    var line = $"{msg.file}:{msg.line}:{msg.column}: {msg.message}";
-                    _errors.Add(line);
-                    asmList.Add(line);
-                }
+                var line = $"{msg.file}:{msg.line}:{msg.column}: {msg.message}";
+                if (_errors.Count < MaxErrors) _errors.Add(line);
+                // A global display cap cannot turn a later target's failure into
+                // a successful callback. Keep its own bounded diagnostic result.
+                if (asmList.Count < MaxErrors) asmList.Add(line);
             }
 
             if (asmList.Count > 0)
@@ -57,6 +56,13 @@ namespace UnityMCP.Editor
             SessionState.SetString(SessionKey, BuildErrorText(_errors));
             if (asmList.Count > 0)
                 SessionState.SetString(AsmKeyPrefix + asmName, BuildErrorText(asmList));
+            else
+            {
+                // A real successful callback replaces this target's historical
+                // error result; other targets retain their own evidence.
+                _asmErrors.Remove(asmName);
+                SessionState.EraseString(AsmKeyPrefix + asmName);
+            }
         }
 
         public static bool HasErrors() => _errors.Count > 0

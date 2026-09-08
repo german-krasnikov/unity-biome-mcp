@@ -1,0 +1,25 @@
+{
+  "name": "UnityMCP.Editor.Tests.Mutation",
+  "rootNamespace": "UnityMCP.Editor.Tests.Mutation",
+  "references": [
+    "UnityMCP.Editor",
+    "UnityMCP.Editor.TestSupport",
+    "UnityMCP.Editor.SourcePatch",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": ["Editor"],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS", "UNITYMCP_HAS_FSR_PROVIDER"],
+  "versionDefines": [
+    {
+      "name": "com.handzlikchris.fastscriptreload",
+      "expression": "",
+      "define": "UNITYMCP_HAS_FSR_PROVIDER"
+    }
+  ],
+  "noEngineReferences": false
+}

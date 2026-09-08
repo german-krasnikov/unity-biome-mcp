@@ -51,6 +51,14 @@ TIER1: set[str] = {name for name, spec in _SPECS.items() if spec.core or spec.ti
 _ALL_KNOWN: set[str] = {name for name, spec in _SPECS.items()
                         if spec.category != "_INTERNAL"}
 
+# Immutable snapshot of _ALL_KNOWN at import time. _ALL_KNOWN grows as plugins
+# register their own tools (register_tools() below); _BUILTIN_NAMES never does.
+# This is the set the plugin-registration guard rejects against — so a plugin's
+# own name (added to _ALL_KNOWN by its own register_tools() call) is never
+# mistaken for a builtin/core command by a later register_read_cmds()/
+# register_write_cmds() call in the same registration pass.
+_BUILTIN_NAMES: frozenset[str] = frozenset(_ALL_KNOWN)
+
 # Direct-call tools: exposed through typed MCP wrappers but rejected inside batch.
 _DIRECT_ONLY: frozenset[str] = frozenset(
     name for name, spec in _SPECS.items() if spec.direct_only

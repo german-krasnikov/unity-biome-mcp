@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from unity_mcp.bridge_retry import RetryPolicy
+from unity_mcp.errors import SessionIdentityMismatch
 
 # A03: this whole module asserts the real backoff formula's numeric values
 # (2.0/4.0/8.0) — opt out of tests/_fast_clock.py's autouse fixture, which
@@ -87,3 +88,19 @@ def test_other_error_unaffected():
     should, delay, reason = p.decide(OSError("other"), attempt=0, session_deadline=_FAR_FUTURE)
     assert should is True
     assert reason == "transient"
+
+
+def test_session_identity_mismatch_never_retries():
+    """Arch 03 M2: identity errors are non-retryable by nature -- the project
+    changed underneath the session, so a second connect attempt fails the
+    same way. Without this early return, SessionIdentityMismatch (a
+    ConnectionError subclass) falls through to the attempt<1 'transient'
+    branch and wastes one reconnect attempt before the caller ultimately
+    raises."""
+    p = _policy()
+    should, delay, reason = p.decide(
+        SessionIdentityMismatch("expected proj-a, got proj-b"), attempt=0, session_deadline=_FAR_FUTURE
+    )
+    assert should is False
+    assert delay == 0.0
+    assert reason == "identity_mismatch"

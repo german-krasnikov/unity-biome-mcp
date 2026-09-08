@@ -1,7 +1,7 @@
-// TDD -- A24: TestRunAssemblyFingerprint.HashFile caches by (path, mtime, size) so an
-// unchanged compiled tree performs 0 SHA-256 computations on a repeat Capture().
+// Actual-content fingerprint regression checks, including metadata-preserving edits.
 using System;
 using System.IO;
+using System.Collections.Generic;
 using NUnit.Framework;
 using UnityMCP.Editor.TestRuns;
 
@@ -13,7 +13,7 @@ namespace UnityMCP.Editor.Tests
         private static readonly TimeSpan MtimeShift = TimeSpan.FromMinutes(5);
 
         [Test]
-        public void HashFile_UnchangedMtimeAndSize_ReturnsCachedValueWithoutRehashing()
+        public void HashFile_UnchangedBytes_HasStableDigestAfterRehash()
         {
             using var scope = new TempDirScope("mcp_fingerprint_cache");
             var path = Path.Combine(scope.Path, "unchanged.bin");
@@ -27,8 +27,8 @@ namespace UnityMCP.Editor.Tests
                 var first = TestRunAssemblyFingerprint.HashFile(path);
                 var second = TestRunAssemblyFingerprint.HashFile(path);
 
-                Assert.AreEqual(1, calls,
-                    "unchanged (path,mtime,size) must reuse the cached hash, not rehash");
+                Assert.AreEqual(2, calls,
+                    "file metadata is not a content certificate");
                 Assert.AreEqual(first, second);
             }
             finally { TestRunAssemblyFingerprint.HashFileImpl = original; }
@@ -92,11 +92,23 @@ namespace UnityMCP.Editor.Tests
             finally { TestRunAssemblyFingerprint.HashFileImpl = original; }
         }
 
-        // Acceptance (A24): a second Capture() over the real, unchanged compiled tree
-        // performs 0 new hash computations -- proven via the seam counter, not by
-        // inspecting HashFile results alone.
         [Test]
-        public void Capture_CalledTwiceOnUnchangedTree_PerformsZeroAdditionalHashComputations()
+        public void HashFile_SameSizeSameMtimeRewrite_ChangesDigest()
+        {
+            using var scope = new TempDirScope("mcp_fingerprint_same_metadata");
+            var path = Path.Combine(scope.Path, "source.cs");
+            var fixedTime = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            File.WriteAllText(path, "return 101;");
+            File.SetLastWriteTimeUtc(path, fixedTime);
+            var before = TestRunAssemblyFingerprint.HashFile(path);
+            File.WriteAllText(path, "return 202;");
+            File.SetLastWriteTimeUtc(path, fixedTime);
+            Assert.AreNotEqual(before, TestRunAssemblyFingerprint.HashFile(path));
+        }
+
+        // Stable results still require re-reading current file content.
+        [Test]
+        public void Capture_CalledTwiceOnUnchangedTree_RevalidatesBytesWithStableFingerprint()
         {
             var original = TestRunAssemblyFingerprint.HashFileImpl;
             var calls = 0;
@@ -111,10 +123,33 @@ namespace UnityMCP.Editor.Tests
                 var second = TestRunBuildFingerprintProbe.Capture();
 
                 Assert.IsTrue(second.IsCoherent, second.Error);
-                Assert.AreEqual(callsAfterFirst, calls,
-                    "a second Capture() over an unchanged tree must perform 0 new hash computations");
+                Assert.Greater(calls, callsAfterFirst, "each capture must inspect current bytes");
+                Assert.AreEqual(first.Fingerprint, second.Fingerprint);
             }
             finally { TestRunAssemblyFingerprint.HashFileImpl = original; }
+        }
+        [TestCase("Added.cs", "undiscovered-source")]
+        [TestCase("Added.asmdef", "undiscovered-asmdef")]
+        [TestCase("Added.asmref", "asmref-coverage")]
+        public void RawMembershipOutsideCompilerInventory_IsExplicitlyUnknown(string file, string reason)
+        {
+            using var scope = new TempDirScope("mcp_freshness_membership");
+            File.WriteAllText(Path.Combine(scope.Path, file), "{}");
+            Assert.That(AssemblyFreshnessInventory.FindUndiscovered(scope.Path,
+                new HashSet<string>(), new HashSet<string>()), Is.EqualTo(reason));
+        }
+
+        [Test]
+        public void KnownNestedAssemblySourcesDoNotUseFilenameAsAssemblyName()
+        {
+            using var scope = new TempDirScope("mcp_freshness_nested");
+            var nested = Directory.CreateDirectory(Path.Combine(scope.Path, "Chat", "Tests")).FullName;
+            var definition = Path.Combine(nested, "FilenameDiffers.asmdef");
+            var source = Path.Combine(nested, "Test.cs");
+            File.WriteAllText(definition, "{\"name\":\"UnityMCP.Chat.Tests\"}");
+            File.WriteAllText(source, "// compiler-reported source");
+            Assert.That(AssemblyFreshnessInventory.FindUndiscovered(scope.Path,
+                new HashSet<string> { source }, new HashSet<string> { definition }), Is.Empty);
         }
     }
 }

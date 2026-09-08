@@ -5,13 +5,13 @@ from unity_mcp.server import run_playtest
 
 
 async def test_run_playtest_path_forwards_to_bridge(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "PASS: 5 steps"}
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 5/5 (0.1s) OK"}
     result = await run_playtest(path="Assets/Playtests/farm.playtest")
     call = mock_bridge.send.call_args
     assert call[0][0] == "run_playtest"
     assert call[0][1]["path"] == "Assets/Playtests/farm.playtest"
     assert "script" not in call[0][1]
-    assert result == "PASS: 5 steps"
+    assert result == "PLAYTEST: 5/5 (0.1s) OK"
 
 
 async def test_run_playtest_both_args_raises(mock_bridge):
@@ -25,7 +25,7 @@ async def test_run_playtest_no_args_raises(mock_bridge):
 
 
 async def test_run_playtest_path_with_timeout(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "PASS"}
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
     await run_playtest(path="Assets/test.playtest", timeout=60.0)
     call = mock_bridge.send.call_args
     assert call[0][1]["timeout"] == "60.0"
@@ -33,7 +33,7 @@ async def test_run_playtest_path_with_timeout(mock_bridge):
 
 
 async def test_run_playtest_path_with_defs(mock_bridge):
-    mock_bridge.send.return_value = {"ok": True, "data": "PASS"}
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
     await run_playtest(path="Assets/test.playtest", defs="VAL $hp /Player|HP|health")
     call = mock_bridge.send.call_args
     assert call[0][1]["defs"] == "VAL $hp /Player|HP|health"
@@ -45,7 +45,7 @@ async def test_run_playtest_path_has_explicit_path_flag():
     Middleware strips it before reaching bridge — patch at runtime module level."""
     from unittest.mock import patch, AsyncMock
     import unity_mcp.tools.runtime as rt
-    mock_send = AsyncMock(return_value="PASS")
+    mock_send = AsyncMock(return_value="PLAYTEST: 1/1 (0.1s) OK")
     with patch.object(rt, "_send", mock_send):
         await rt.run_playtest(path="Assets/Playtests/farm.playtest")
     call = mock_send.call_args
@@ -54,7 +54,7 @@ async def test_run_playtest_path_has_explicit_path_flag():
 
 async def test_run_playtest_non_assets_path_forwards(mock_bridge):
     """Path outside Assets/ (e.g. Playtests/) must be forwarded as-is, no Assets/ prefix required."""
-    mock_bridge.send.return_value = {"ok": True, "data": "PASS"}
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
     await run_playtest(path="Playtests/farm.playtest")
     call = mock_bridge.send.call_args
     assert call[0][1]["path"] == "Playtests/farm.playtest"
@@ -71,19 +71,19 @@ async def test_normalize_defs_cases():
 
 async def test_run_playtest_script_mode_unchanged(mock_bridge):
     """Existing script= flow must not be affected."""
-    mock_bridge.send.return_value = {"ok": True, "data": "PASS: 3 steps"}
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 3/3 (0.1s) OK"}
     script = "WAIT 1\nASSERT_CONSOLE_CLEAN"
     result = await run_playtest(script=script)
     call = mock_bridge.send.call_args
     assert call[0][0] == "run_playtest"
     assert call[0][1]["script"] == script
     assert "path" not in call[0][1]
-    assert result == "PASS: 3 steps"
+    assert result == "PLAYTEST: 3/3 (0.1s) OK"
 
 
 async def test_run_playtest_script_with_comment_only_defs(mock_bridge):
     """defs with only comments should not crash."""
-    mock_bridge.send.return_value = {"ok": True, "data": "PASS"}
+    mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 1/1 (0.1s) OK"}
     await run_playtest(script="WAIT 1", defs="# just a comment")
     call = mock_bridge.send.call_args
     assert call[0][1]["script"] == "WAIT 1"

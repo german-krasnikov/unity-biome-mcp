@@ -53,6 +53,8 @@ def _make_send(ack_response: str, status_seq, errors_response: str = "",
             if isinstance(val, Exception):
                 raise val
             return val
+        if cmd == "compile_status":
+            return "idle|1"
         if cmd == "get_compile_errors":
             return errors_response
         if cmd == "diagnose":
@@ -92,7 +94,7 @@ def _patch_corroborate():
 
     P3: _get_errors now calls editor_log.get_corroborated_errors(send) — must be async mock.
     """
-    async def _default_get_corroborated(send):
+    async def _default_get_corroborated(send, *, compile_status=""):
         try:
             csharp = await send("get_compile_errors", {})
         except Exception:
@@ -130,7 +132,7 @@ async def test_both_signals_required_for_clean(_patch_corroborate):
     """state=ready+epoch match, but get_corroborated_errors adds stale warning → not clean."""
     stale_warning = "[warn: UnityMCP.Editor.dll may be stale - consider recompiling]"
 
-    async def _stale_get_corroborated(send):
+    async def _stale_get_corroborated(send, *, compile_status=""):
         # C# is empty but dll-stale → corroborator appends warning
         return stale_warning
 
@@ -204,7 +206,7 @@ async def test_stale_dll_blocks_false_clean(_patch_corroborate):
     """get_corroborated_errors() returns stale-dll message — must surface in sync_unity result."""
     stale_msg = "[editor.log - dll stale]\nAssets/Foo.cs(1,1): error CS0001: stale"
 
-    async def _stale(send):
+    async def _stale(send, *, compile_status=""):
         return stale_msg
 
     _patch_corroborate.get_corroborated_errors = _stale
@@ -327,6 +329,8 @@ def _make_send_with_stamp(pre_status: str, ack: str, status_seq, errors_response
         if cmd == "force_refresh":
             refreshed = True
             return "force_refresh triggered"
+        if cmd == "compile_status":
+            return "idle|1"
         if cmd == "get_compile_errors":
             return errors_response
         if cmd == "diagnose":
@@ -475,6 +479,8 @@ async def test_stamp_pre_connection_error_treated_as_changed():
             if call_count[0] == 1:
                 raise ConnectionError("gone")  # pre-read fails → stamp_pre=''
             return "epoch=1|state=ready|stamp=xyz"  # post-poll succeeds
+        if cmd == "compile_status":
+            return "idle|1"
         if cmd == "sync":
             return "sync_ack|epoch=1|will_compile=true"
         return ""
@@ -530,6 +536,7 @@ async def test_get_errors_connectionerror_returns_sentinel_not_empty(_patch_corr
     Red-precondition: before the fix, _get_errors' own except clause returned "" —
     indistinguishable from a genuinely clean compile.
     """
+    _sync._send = AsyncMock(return_value="idle|1")
     _patch_corroborate.get_corroborated_errors = AsyncMock(side_effect=ConnectionError("gone"))
     result = await _sync._get_errors()
     assert result == editor_log.UNITY_UNREACHABLE
@@ -538,6 +545,7 @@ async def test_get_errors_connectionerror_returns_sentinel_not_empty(_patch_corr
 # T2.2: same, OSError (bridge_socket.py's raise surface includes bare OSError/TimeoutError)
 @pytest.mark.asyncio
 async def test_get_errors_oserror_returns_sentinel_not_empty(_patch_corroborate):
+    _sync._send = AsyncMock(return_value="idle|1")
     _patch_corroborate.get_corroborated_errors = AsyncMock(side_effect=OSError("disk full"))
     result = await _sync._get_errors()
     assert result == editor_log.UNITY_UNREACHABLE
@@ -556,6 +564,8 @@ async def test_sync_unity_ready_state_surfaces_unreachable_not_clean(_patch_corr
             return "sync_ack|epoch=1|will_compile=true"
         if cmd == "sync_status":
             return "epoch=1|state=ready"
+        if cmd == "compile_status":
+            return "idle|1"
         if cmd == "get_compile_errors":
             raise ConnectionError("Unity closed")
         return ""
@@ -644,6 +654,12 @@ async def test_recovery_heals_when_mvid_changes(monkeypatch):
             return "force_refresh triggered"
         if cmd == "sync_status":
             return f"epoch=0|state=ready|stamp={mvid_post}:12345"
+        if cmd == "compile_status":
+            return "idle|1"
+        if cmd == "get_compile_errors":
+            return ""
+        if cmd == "diagnose":
+            return "dlls=UnityMCP.Editor:1:fresh"
         raise AssertionError(f"Unexpected: {cmd}")
 
     result = await _sync._attempt_recovery(_send, mvid_pre)
@@ -660,7 +676,15 @@ async def test_recovery_returns_reimport_when_mvid_frozen(monkeypatch):
     async def _send(cmd, args=None, **kwargs):
         if cmd == "force_refresh":
             return "force_refresh triggered"
-        raise AssertionError(f"Unexpected: {cmd}")  # no sync_status with timeout=0
+        if cmd == "sync_status":
+            return "epoch=0|state=compiling"
+        if cmd == "compile_status":
+            return "idle|1"
+        if cmd == "get_compile_errors":
+            return ""
+        if cmd == "diagnose":
+            return "dlls=UnityMCP.Editor:1:fresh"
+        raise AssertionError(f"Unexpected: {cmd}")
 
     result = await _sync._attempt_recovery(_send, mvid)
     assert result is not None
@@ -671,8 +695,9 @@ async def test_recovery_returns_reimport_when_mvid_frozen(monkeypatch):
 # P3: recovery called exactly once, no recursion from sync_unity
 @pytest.mark.asyncio
 async def test_recovery_called_exactly_once(monkeypatch):
-    """sync_unity calls _attempt_recovery exactly once (no self-recursion). (P3)"""
+    """An actually stalled compile calls recovery once, without self-recursion."""
     monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 0.0)
+    monkeypatch.setattr(_sync, "_FOCUS_HINT_AFTER", -1)
     recovery_calls = []
 
     real_attempt_recovery = _sync._attempt_recovery
@@ -687,7 +712,7 @@ async def test_recovery_called_exactly_once(monkeypatch):
     _sync._send = _make_send_with_stamp(
         pre_status=f"epoch=0|state=ready|stamp={mvid}:100",
         ack="sync_ack|epoch=1|will_compile=true",
-        status_seq=[f"epoch=1|state=ready|stamp={mvid}:200"],
+        status_seq=[f"epoch=1|state=compiling|dur=0.0|stamp={mvid}:200"],
     )
     await _sync.sync_unity(timeout=60.0)
     assert len(recovery_calls) == 1, f"Expected 1 recovery call, got {len(recovery_calls)}"
@@ -705,6 +730,8 @@ async def test_recovery_sends_force_refresh_with_correct_args(monkeypatch):
             captured["cmd"] = cmd
             captured["args"] = args
             return "force_refresh triggered"
+        if cmd == "sync_status":
+            return "epoch=0|state=compiling"
         raise AssertionError(f"Unexpected: {cmd}")
 
     await _sync._attempt_recovery(_send, "some-mvid")
@@ -727,6 +754,12 @@ async def test_recovery_polls_sync_status(monkeypatch):
         if cmd == "sync_status":
             status_calls.append(1)
             return f"epoch=0|state=ready|stamp={mvid_post}:99"
+        if cmd == "compile_status":
+            return "idle|1"
+        if cmd == "get_compile_errors":
+            return ""
+        if cmd == "diagnose":
+            return "dlls=UnityMCP.Editor:1:fresh"
         raise AssertionError(f"Unexpected: {cmd}")
 
     result = await _sync._attempt_recovery(_send, mvid_pre)
@@ -795,7 +828,7 @@ async def test_sync_unity_escalates_to_run_ladder_on_reimport(monkeypatch):
 
     async def _mock_run_ladder(send, *, send_reload=None, bump_file=None,
                                osascript_runner=None, play_stop_consent=False,
-                               start_tier=1):
+                               start_tier=1, deadline=None):
         ladder_called.append(start_tier)
         return "HEALED: T2 mvid aaa->bbb"
 
@@ -834,7 +867,7 @@ async def test_sync_unity_run_ladder_starts_at_t2_with_valid_mvid(monkeypatch):
 
     async def _mock_run_ladder(send, *, send_reload=None, bump_file=None,
                                osascript_runner=None, play_stop_consent=False,
-                               start_tier=1):
+                               start_tier=1, deadline=None):
         ladder_calls.append(start_tier)
         return f"HEALED: T2 mvid {MAIN_MVID}->bbbbbbbb"
 
@@ -1068,6 +1101,8 @@ async def test_sync_warms_type_cache_after_ready():
             return "epoch=1|state=ready|stamp=mvid1:tick1"
         if cmd == "sync":
             return "sync_ack|epoch=1|will_compile=true"
+        if cmd == "compile_status":
+            return "idle|1"
         if cmd == "get_compile_errors":
             return ""
         if cmd == "warm_type_cache":
@@ -1091,6 +1126,8 @@ async def test_sync_survives_warm_cache_connection_error():
             return "epoch=1|state=ready|stamp=mvid1:tick1"
         if cmd == "sync":
             return "sync_ack|epoch=1|will_compile=true"
+        if cmd == "compile_status":
+            return "idle|1"
         if cmd == "get_compile_errors":
             return ""
         if cmd == "warm_type_cache":
@@ -1173,8 +1210,12 @@ async def test_sync_unity_survives_unity_unavailable_midpoll():
                 if self._status_polls <= 2:
                     raise ConnectionError("tcp gone")
                 return {"ok": True, "data": "epoch=1|state=ready"}
+            if cmd == "compile_status":
+                return {"ok": True, "data": "idle|1"}
             if cmd == "get_compile_errors":
                 return {"ok": True, "data": "No compilation errors"}
+            if cmd == "diagnose":
+                return {"ok": True, "data": "dlls=UnityMCP.Editor:1:fresh"}
             if cmd == "warm_type_cache":
                 return {"ok": True, "data": "ok:types=42"}
             raise AssertionError(f"Unexpected cmd: {cmd}")

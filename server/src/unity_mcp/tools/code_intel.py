@@ -138,6 +138,7 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
     # G13: only active compile states are "still compiling"; terminal states (idle-failed,
     # idle-never, idle-stale) fall through to _get_errors() which returns the real verdict.
     if timeout == 0:
+        state = ""
         try:
             status = await _send("compile_status", {})
             state, _ = _parse_status(status)
@@ -145,7 +146,12 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
                 return "still compiling"
         except ConnectionError:
             pass
-        return await _get_errors()
+        errors = await _get_errors(compile_status=state)
+        if state == "idle-failed":
+            return errors if errors else "compile failed (details unavailable)"
+        if state not in ("idle", "idle-failed") and not errors:
+            return "UNKNOWN: compiler state is unavailable"
+        return errors
 
     # Epoch-aware path: try sync_status first; fall back to compile_status if unavailable.
     epoch = None

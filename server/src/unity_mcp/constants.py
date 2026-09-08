@@ -10,3 +10,17 @@ DEFAULT_PORT: int = 9500
 # tools/sync._DEFAULT_TIMEOUT) now imports this instead — one env var controls
 # all of them together.
 SESSION_TIMEOUT: float = float(os.environ.get("UNITY_MCP_SESSION_TIMEOUT", "120.0"))
+
+# Exact text CommandRouter.CheckGuards emits (CommandRouter.cs FormatBusyResponse
+# call site) when a command is rejected because Unity is mid-compile. Matched
+# literally (not a loose substring) so tools/sync.py can tell "our command hit
+# the compile guard" apart from any other free-text mention of "compiling".
+SYNC_COMPILE_GUARD_TEXT: str = "Unity is compiling. Retry in 5s."
+
+# Exact text SourcePatchModePolicy.RequestDisable returns (C#:
+# SourcePatchModePolicy.NoOpRecoveryResult, SourcePatchModePolicy.cs) when a
+# mutation_mode enable=false reload ACK cannot prove the disable took effect
+# and the policy moves to SourcePatchState.Recovery instead. tools/
+# editor_control.py must not cache the requested disabled intent on this
+# result -- Unity is in Recovery, not actually disabled.
+NOOP_RECOVERY_RESULT: str = "noop_recovery"

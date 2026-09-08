@@ -133,6 +133,7 @@ async def test_guard_rejected_response_yields_unknown():
 # Group B: C# source-scan tests (no mock, no Unity)
 # ===========================================================================
 
+@pytest.mark.csharp_parity
 def test_compute_stamp_uses_module_version_id():
     """ComputeStamp() uses ModuleVersionId for per-assembly IL hash.
 
@@ -143,6 +144,7 @@ def test_compute_stamp_uses_module_version_id():
     assert "ModuleVersionId" in src, "SyncHelper.cs must reference ModuleVersionId"
 
 
+@pytest.mark.csharp_parity
 def test_compute_stamp_filters_unity_mcp_prefix():
     """ComputeStamp() must only hash UnityMCP.* assemblies.
 
@@ -155,6 +157,7 @@ def test_compute_stamp_filters_unity_mcp_prefix():
     )
 
 
+@pytest.mark.csharp_parity
 def test_diagnose_command_mvid_is_first_stamp_segment():
     """mvid= field is stamp.Split(':')[0] — Python parser relies on this extraction.
 
@@ -167,6 +170,7 @@ def test_diagnose_command_mvid_is_first_stamp_segment():
     )
 
 
+@pytest.mark.csharp_parity
 def test_build_version_string_includes_stamp_field():
     """BuildVersionString() appends |stamp:{stamp} so get_version carries the domain stamp.
 

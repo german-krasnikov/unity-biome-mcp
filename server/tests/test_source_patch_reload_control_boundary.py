@@ -9,6 +9,10 @@ file reads only.
 """
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.csharp_parity
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # SourcePatch's own control-plane files - everything that touches

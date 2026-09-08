@@ -10,6 +10,14 @@ namespace UnityMCP.Editor
     {
         internal static Func<bool> RunningProvider { get; set; }
 
-        internal static bool IsChatBackendRunning() => RunningProvider?.Invoke() ?? false;
+        internal static bool IsChatBackendRunning()
+        {
+            try { return RunningProvider?.Invoke() ?? false; }
+            catch (System.Exception ex)
+            {
+                UnityEngine.Debug.LogWarning($"[Biome] ChatBackendProbe: {ex.GetType().Name}");
+                return false;
+            }
+        }
     }
 }

@@ -60,15 +60,10 @@ namespace UnityMCP.Editor.TestRuns
                     StringComparison.Ordinal))
                 return "Unity Test Framework version changed during the test run";
             if (!string.Equals(started.assembly_path ?? "", completed.AssemblyPath ?? "",
-                    StringComparison.Ordinal) ||
-                !string.Equals(started.source_path ?? "", completed.SourcePath ?? "",
                     StringComparison.Ordinal))
-                return "loaded assembly or source path changed during the test run";
-            if (!string.Equals(started.assembly_write_utc ?? "",
-                    completed.AssemblyWriteUtc ?? "", StringComparison.Ordinal) ||
-                !string.Equals(started.source_write_utc ?? "",
-                    completed.SourceWriteUtc ?? "", StringComparison.Ordinal))
-                return "loaded assembly or source timestamp changed during the test run";
+                return "loaded assembly path changed during the test run";
+            // Timestamps are retained as diagnostics. Actual output/source digests
+            // above decide identity, so a metadata-only touch is not a build change.
             return "";
         }
     }

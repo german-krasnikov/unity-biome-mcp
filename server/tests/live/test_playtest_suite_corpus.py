@@ -27,10 +27,14 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from tests.live.conftest import OWNED_LIVE_SCENE, _required_live_project
+from tests.live.conftest import OWNED_LIVE_SCENE, _required_live_project, _send_checked_with_retry
 from unity_mcp.server import run_playtest_suite
 
-pytestmark = pytest.mark.live
+# DOMAIN_RELOAD_EXPIRY_S (bridge_reload_state.py) documents a real reload can
+# take up to 90s; the default --timeout=30 (pyproject.toml) is too tight for
+# a fixture-scene Play-Mode round trip that may absorb one. Same override as
+# test_sync_live.py's precedent for a live test that spans a reload.
+pytestmark = [pytest.mark.live, pytest.mark.timeout(120)]
 
 FIXTURE_SCENE = "Assets/MCPFeedbackFixture/McpFeedbackFixture.unity"
 ABC_SUITE = "Assets/MCPFeedbackFixture/PlayTests/ABC_shared.suite"
@@ -41,7 +45,9 @@ async def _run_suite_in_fixture_scene(bridge, suite_rel_path: str, restart_betwe
     """Open the fixture scene, run the shipped .suite through the real
     run_playtest_suite tool, then restore OWNED_LIVE_SCENE even on failure."""
     project = _required_live_project()
-    await bridge.send("scene", {"action": "open", "path": FIXTURE_SCENE})
+    await _send_checked_with_retry(
+        bridge, "scene", {"action": "open", "path": FIXTURE_SCENE}, "open fixture scene"
+    )
     try:
         live_slot = Mock()
         live_slot.bridge = bridge
@@ -53,7 +59,9 @@ async def _run_suite_in_fixture_scene(bridge, suite_rel_path: str, restart_betwe
                 stop_after=True,
             )
     finally:
-        await bridge.send("scene", {"action": "open", "path": OWNED_LIVE_SCENE})
+        await _send_checked_with_retry(
+            bridge, "scene", {"action": "open", "path": OWNED_LIVE_SCENE}, "restore owned scene"
+        )
 
 
 async def test_abc_suite_runs_without_restart_accumulates_state(bridge):

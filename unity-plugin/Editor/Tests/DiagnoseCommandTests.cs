@@ -39,6 +39,31 @@ namespace UnityMCP.Editor.Tests
             CompileNotifier.NowSecondsFloat = () => (float)UnityEditor.EditorApplication.timeSinceStartup;
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public void KnownSourceMismatch_SurvivesMissingOrUnreadableLoadedAssembly(bool throws)
+        {
+            var token = DiagnoseCommand.ResolveLoadedFreshness("stale", () =>
+                throws ? throw new IOException("unreadable") : "unknown(not-loaded)");
+            Assert.That(token, Is.EqualTo("stale"));
+        }
+
+        [Test]
+        public void LoadedAssemblyMismatch_OverridesFreshSource()
+            => Assert.That(DiagnoseCommand.ResolveLoadedFreshness("fresh", () => "stale"), Is.EqualTo("stale"));
+
+        [Test]
+        public void KnownMismatch_SurvivesLaterTargetObservationFailure()
+        {
+            int call = 0;
+            var entries = new UnityEditor.Compilation.Assembly[] { null, null };
+            var result = DiagnoseCommand.BuildDllFreshness(entries, _ =>
+                ++call == 1 ? "Known:1:stale" : throw new IOException("unavailable next output"));
+            StringAssert.Contains("Known:1:stale", result);
+            StringAssert.Contains("unknown(source-inventory)", result);
+            Assert.That(call, Is.EqualTo(2));
+        }
+
         // C8 #1: Execute returns all required wire-format field prefixes
         [Test]
         public void DiagnoseCommand_Execute_ReturnsAllFields()
@@ -108,7 +133,7 @@ namespace UnityMCP.Editor.Tests
 
         // C8 #F3a: GetDllFreshnessToken — stale when .cs newer than dll
         [Test]
-        public void GetDllFreshnessToken_Stale_WhenCsNewerThanDll()
+        public void GetDllFreshnessToken_NewerSourceWithoutPdb_IsUnknown()
         {
             using var scope = new TempDirScope("McpF3Test");
             var tmp = scope.Path;
@@ -122,12 +147,12 @@ namespace UnityMCP.Editor.Tests
             File.SetLastWriteTimeUtc(csPath, DateTime.UtcNow);
 
             var token = DiagnoseCommand.GetDllFreshnessToken(dllPath, tmp);
-            Assert.AreEqual("stale", token, "stale when .cs is newer than dll");
+            Assert.AreEqual("unknown(missing-pdb)", token);
         }
 
         // C8 #F3b: GetDllFreshnessToken — fresh when dll newer than all .cs
         [Test]
-        public void GetDllFreshnessToken_Fresh_WhenDllNewerThanCs()
+        public void GetDllFreshnessToken_OlderSourceWithoutPdb_IsUnknown()
         {
             using var scope = new TempDirScope("McpF3Test");
             var tmp = scope.Path;
@@ -140,7 +165,7 @@ namespace UnityMCP.Editor.Tests
             File.SetLastWriteTimeUtc(dllPath, DateTime.UtcNow);
 
             var token = DiagnoseCommand.GetDllFreshnessToken(dllPath, tmp);
-            Assert.AreEqual("fresh", token, "fresh when dll is newer than all .cs");
+            Assert.AreEqual("unknown(missing-pdb)", token);
         }
 
         // C8 #F3c: GetDllFreshnessToken — unknown(missing) when dll doesn't exist
@@ -294,7 +319,7 @@ namespace UnityMCP.Editor.Tests
 
         // Bee cache-hit: mtime stale + compile=idle → "fresh" (not "stale")
         [Test]
-        public void GetDllFreshnessToken_StaleButIdleCompile_ReturnsFresh()
+        public void GetDllFreshnessToken_IdleCannotCertifySourceWithoutPdb()
         {
             using var scope = new TempDirScope("McpBeeHit");
             var tmp = scope.Path;
@@ -317,8 +342,8 @@ namespace UnityMCP.Editor.Tests
                 SessionState.EraseBool("MCP_CompileFailed");
 
                 var token = DiagnoseCommand.GetDllFreshnessToken(dllPath, tmp);
-                Assert.AreEqual("fresh", token,
-                    "Bee cache-hit (idle compile, no failure) must override mtime-stale to fresh");
+                Assert.AreEqual("unknown(missing-pdb)", token,
+                    "an idle status is not source-to-output proof");
             }
             finally
             {
@@ -339,68 +364,6 @@ namespace UnityMCP.Editor.Tests
                 "stamp_frozen must be true when domain stamp equals StampAtTrigger");
         }
 
-        // Fix C #1: FindAsmdefDir — Assets/ scan still works (regression guard)
-        [Test]
-        public void FindAsmdefDir_AssetsPath_StillWorks()
-        {
-            using var scope = new TempDirScope("McpFixC");
-            var tmp = scope.Path;
-            File.WriteAllText(Path.Combine(tmp, "MyLib.asmdef"), "{}");
-            var result = DiagnoseCommand.FindAsmdefDir(tmp, "MyLib");
-            Assert.AreEqual(tmp, result, "Must find asmdef via Directory.GetFiles scan");
-        }
-
-        // Fix C #2: FindAsmdefDir falls back to FindInPackages when Assets/ empty
-        [Test]
-        public void FindAsmdefDir_FallsBackToPackages_WhenAssetsEmpty()
-        {
-            using var dataScope = new TempDirScope("McpFixCEmpty");
-            using var pkgScope  = new TempDirScope("McpFixCPkg");
-            var tmpDataPath = dataScope.Path;
-            var tmpPkgDir   = pkgScope.Path;
-            var originalSeam = DiagnoseCommand.FindInPackages;
-            try
-            {
-                DiagnoseCommand.FindInPackages = (f) =>
-                    f == "UnityMCP.Editor.asmdef" ? tmpPkgDir : null;
-                var result = DiagnoseCommand.FindAsmdefDir(tmpDataPath, "UnityMCP.Editor");
-                Assert.AreEqual(tmpPkgDir, result, "Must fall back to Packages/ via injected seam");
-            }
-            finally
-            {
-                DiagnoseCommand.FindInPackages = originalSeam;
-            }
-        }
-
-        // Fix C #3: GetDllFreshnessToken detects stale dll with seam-injected UPM src dir
-        [Test]
-        public void BuildDllFreshness_ReturnsStale_ForUPMPackage_ViaSeam()
-        {
-            using var scope = new TempDirScope("McpFixCStale");
-            var tmp = scope.Path;
-            var originalSeam = DiagnoseCommand.FindInPackages;
-            try
-            {
-                var dllPath = Path.Combine(tmp, "Fake.dll");
-                var csPath  = Path.Combine(tmp, "Code.cs");
-                File.WriteAllText(dllPath, "dll");
-                File.SetLastWriteTimeUtc(dllPath, DateTime.UtcNow.AddSeconds(-5));
-                File.WriteAllText(csPath, "// code");
-                File.SetLastWriteTimeUtc(csPath, DateTime.UtcNow);
-
-                // Seam returns tmp as the package source dir
-                DiagnoseCommand.FindInPackages = (_) => tmp;
-                // GetDllFreshnessToken directly — dll is older than .cs
-                var token = DiagnoseCommand.GetDllFreshnessToken(dllPath, tmp);
-                Assert.AreEqual("stale", token,
-                    "Must detect stale dll when .cs is newer than dll");
-            }
-            finally
-            {
-                DiagnoseCommand.FindInPackages = originalSeam;
-            }
-        }
-
         // T1: empty or non-existent srcDir → unknown(no-src) (file: package outside Assets/).
         [Test]
         public void GetDllFreshnessToken_Returns_UnknownNoSrc_WhenSrcDirEmpty()
@@ -416,41 +379,6 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("unknown(no-src)",
                 DiagnoseCommand.GetDllFreshnessToken(dllPath, "/nonexistent/path/xyz"),
                 "missing srcDir → unknown(no-src)");
-        }
-
-        // T2: FindAsmdefDir returns "" when both Assets/ scan and FindInPackages return null.
-        [Test]
-        public void FindAsmdefDir_Returns_Empty_WhenFindInPackages_ReturnsNull()
-        {
-            var originalSeam = DiagnoseCommand.FindInPackages;
-            try
-            {
-                DiagnoseCommand.FindInPackages = (_) => null; // simulate unregistered package
-                using var tmp = new TempDirScope("McpEmpty");
-                // dataPath has NO .asmdef files
-                var result = DiagnoseCommand.FindAsmdefDir(tmp.Path, "UnityMCP.Missing");
-                Assert.AreEqual("", result,
-                    "When Assets/ scan misses and FindInPackages returns null, must return empty string");
-            }
-            finally { DiagnoseCommand.FindInPackages = originalSeam; }
-        }
-
-        // T8: end-to-end BuildDllFreshness shows unknown(no-src) when package is unreachable.
-        [Test]
-        public void BuildDllFreshness_Returns_UnknownNoSrc_WhenFindInPackagesReturnsNull()
-        {
-            var originalSeam = DiagnoseCommand.FindInPackages;
-            try
-            {
-                DiagnoseCommand.FindInPackages = (_) => null; // package not found
-                var output = DiagnoseCommand.Execute("{}");
-                var dllsLine = System.Linq.Enumerable.FirstOrDefault(
-                    output.Split('\n'), l => l.StartsWith("dlls=")) ?? "";
-                Assert.IsTrue(
-                    dllsLine.Contains("unknown(no-src)") || dllsLine.Contains("unknown(missing)"),
-                    $"When FindInPackages returns null, dll freshness must degrade to unknown token: {dllsLine}");
-            }
-            finally { DiagnoseCommand.FindInPackages = originalSeam; }
         }
 
         // Issue #53 Fix B: all_errors= must be emitted AFTER substate=/port=/port_fallback=
@@ -474,69 +402,34 @@ namespace UnityMCP.Editor.Tests
                 "all_errors= must come AFTER port= (protocol contract)");
         }
 
-        // Issue #53 Fix C: BuildDllFreshness must scan Assets/ exactly once (not N times)
         [Test]
-        public void BuildDllFreshness_ScanOnce()
+        public void BuildDllFreshness_ReadsCompilerInventoryOnce()
         {
-            int callCount = 0;
-            var originalScan = DiagnoseCommand.ScanAssets;
-            var originalPkgs = DiagnoseCommand.ScanPackages;
+            var original = DiagnoseCommand.CompilerAssemblies;
+            var count = 0;
             try
             {
-                DiagnoseCommand.ScanAssets  = (_) => { callCount++; return new System.Collections.Generic.Dictionary<string, string>(); };
-                DiagnoseCommand.ScanPackages = ()  => new System.Collections.Generic.Dictionary<string, string>();
-
-                DiagnoseCommand.Execute("{}");
-
-                Assert.AreEqual(1, callCount,
-                    "ScanAssets must be called exactly once regardless of assembly count");
+                DiagnoseCommand.CompilerAssemblies = () =>
+                {
+                    count++;
+                    return Array.Empty<UnityEditor.Compilation.Assembly>();
+                };
+                Assert.That(DiagnoseCommand.BuildDllFreshness(), Is.EqualTo("none"));
+                Assert.That(count, Is.EqualTo(1));
             }
-            finally
-            {
-                DiagnoseCommand.ScanAssets  = originalScan;
-                DiagnoseCommand.ScanPackages = originalPkgs;
-            }
+            finally { DiagnoseCommand.CompilerAssemblies = original; }
         }
 
-        // PRE-C2 #6: 500ms generous bound for the scan-once path itself, matching the
-        // original Issue #53 Fix C budget for real DLL mtime checks on slow CI disk I/O
-        // (fast dev machines see well under 100ms). Timing DiagnoseCommand.Execute("{}")
-        // instead of this scan directly used to fold in a full ParseEditorLog +
-        // DetectReloadFailed read of the real ~/Library/Logs/Unity/Editor.log (which can be
-        // tens of MB) on top of the scan, so the same 500ms budget could fail on an
-        // unrelated slow log read rather than a regression in the scan being measured.
-        const int BuildDllFreshnessBudgetMs = 500;
-
-        // Issue #53 Fix C: BuildDllFreshness must complete within budget (scan-once path)
         [Test]
-        public void BuildDllFreshness_Performance()
+        public void BuildDllFreshness_UnavailableCompilerInventory_IsUnknown()
         {
-            // Build a 150-entry fake map — simulates large project
-            var fakeMap = new System.Collections.Generic.Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            using var scope = new TempDirScope("McpPerfTest");
-            for (int i = 0; i < 150; i++)
-                fakeMap[$"FakeAsm{i}"] = scope.Path;
-
-            var originalScan = DiagnoseCommand.ScanAssets;
-            var originalPkgs = DiagnoseCommand.ScanPackages;
+            var original = DiagnoseCommand.CompilerAssemblies;
             try
             {
-                DiagnoseCommand.ScanAssets  = (_) => fakeMap;
-                DiagnoseCommand.ScanPackages = ()  => new System.Collections.Generic.Dictionary<string, string>();
-
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                DiagnoseCommand.BuildDllFreshness();
-                sw.Stop();
-
-                Assert.Less(sw.ElapsedMilliseconds, BuildDllFreshnessBudgetMs,
-                    $"BuildDllFreshness must complete in <{BuildDllFreshnessBudgetMs}ms with scan-once seam, " +
-                    $"took {sw.ElapsedMilliseconds}ms");
+                DiagnoseCommand.CompilerAssemblies = () => throw new IOException("unavailable");
+                Assert.That(DiagnoseCommand.BuildDllFreshness(), Is.EqualTo("unknown(source-inventory)"));
             }
-            finally
-            {
-                DiagnoseCommand.ScanAssets  = originalScan;
-                DiagnoseCommand.ScanPackages = originalPkgs;
-            }
+            finally { DiagnoseCommand.CompilerAssemblies = original; }
         }
     }
 }

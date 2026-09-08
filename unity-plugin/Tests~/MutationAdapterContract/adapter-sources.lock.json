@@ -1,0 +1,13 @@
+{
+  "files": {
+    "BiomeAutomaticModeGuardLogic.cs": "25014610e74b7705ef2073c1bdf9ffe2028c70910970fa2e166e6865e49bbf28",
+    "BiomeBodyOnlyMethodClassifier.cs": "e7ff3817ea3569e8ee9c1a226b1387a3e9739d2453134e8aa4f6be873d822fb4",
+    "BiomeFsrAutomaticModesGuard.cs": "9533ff57d460bf4fccb829e8674b38af99a307c3ad2bcf4fe9537e088c31644d",
+    "BiomeFsrSourcePatchProvider.cs": "b36a545eb9a164ddea5b21f0e1febf2d7cafec2283549fb680c81f94f3a40d4a",
+    "BiomeSingleFlightGate.cs": "69abf96549af15d91e618fd79d739e80db4a3673f9e3f35aab695247d60f173c"
+  },
+  "schema_version": 1,
+  "source_dir": "Assets/BiomeSourcePatchAdapter/Editor",
+  "source_repo": "german-krasnikov/FastScriptReload",
+  "source_sha": "b90a5c3fd7cfa452f23e8a807cc7bd61dc934bbf"
+}

@@ -104,6 +104,16 @@ class _GuardedMcp:
             owner = self._owners.get(name)
             if owner is not None and owner != self._identity:
                 raise PluginLoadError(f"duplicate command '{name}': owned by '{owner}'")
+            # Host collision: name already registered in the FastMCP host tool
+            # manager (register_all(), before any plugin loaded) and not owned
+            # by any plugin. The FastMCP SDK's add_tool() silently no-ops on a
+            # duplicate name (warns, returns the existing Tool, never raises),
+            # so this must be caught here, before that call.
+            if owner is None and name in self._mcp._tool_manager._tools:
+                raise PluginLoadError(
+                    f"collision with host tool '{name}': "
+                    f"plugin '{self._identity}' cannot override a built-in"
+                )
             result = self._mcp.tool(**kwargs)(fn)
             if name not in self._mcp._tool_manager._tools:
                 return result
@@ -120,19 +130,39 @@ def register_plugin_module(module, identity: str, mcp, send, args) -> bool:
     loader-assigned name (built-in module name / entry_point.name / plugin_dir
     module name) — used as the ownership key and as the failed-plugin label.
     Returns True on success, False on failure (already logged + recorded)."""
-    from unity_mcp.plugins import _auto_gate_new_tools
+    from unity_mcp.plugins import _auto_gate_new_tools, _owner
 
     if not hasattr(module, "register"):
         return False
     snap = _capture(mcp)
     guarded = _GuardedMcp(mcp, identity, _command_owner)
+    _owner.begin(identity)
     try:
         module.register(guarded, send, args)
     except Exception as e:
         _restore(mcp, snap)
         _failed.append((identity, str(e)))
         log.warning(f"Plugin {identity} skipped: {e}")
+        _owner.end()
         return False
+
+    # Commit-time ownership validation: every name declared via an API-v1
+    # call (register_read_cmds/write_cmds/tools/dsl_tools/features) during
+    # this register() must be a tool THIS plugin registered through
+    # guarded.tool() in the same call. Builtins, another plugin's tools, and
+    # typos (never registered by anyone) are all "foreign" by this
+    # definition — the whole plugin is rejected, not just the foreign names.
+    plugin_tools = {n for n, o in _command_owner.items() if o == identity}
+    foreign = _owner.journal - plugin_tools
+    _owner.end()
+    if foreign:
+        _restore(mcp, snap)
+        msg = (f"plugin '{identity}' declared API-v1 metadata for names it "
+               f"does not own: {sorted(foreign)}")
+        _failed.append((identity, msg))
+        log.warning(f"Plugin {identity} rejected: {msg}")
+        return False
+
     _auto_gate_new_tools(mcp, snap.tools.keys())
     log.info(f"Plugin loaded: {identity}")
     return True

@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from mcp.server.fastmcp.exceptions import ToolError
 
 from unity_mcp.tools import reload_ladder as _ladder
 from unity_mcp.lockfile import read_reload_port
@@ -47,22 +48,19 @@ async def test_make_reload_send_raises_connection_error_not_hang():
         await asyncio.wait_for(send_fn("ping", {}), timeout=1.0)
 
 
-# B4: make_reload_send returns err field when ok=false
-async def test_make_reload_send_returns_err_field_on_ok_false():
+# B4: a delivered rejection is terminal, never a successful effect response.
+async def test_make_reload_send_rejects_ok_false_without_retry():
     response_data = json.dumps({"id": "r", "ok": False, "err": "bad request"}).encode()
-
+    mock_reader = AsyncMock()
+    mock_reader.readexactly = AsyncMock(side_effect=[struct.pack("!I", len(response_data)), response_data])
     mock_writer = MagicMock()
     mock_writer.drain = AsyncMock()
-
-    with patch("unity_mcp.tools.reload_ladder.frame_read",
-               AsyncMock(return_value=response_data)), \
-         patch("unity_mcp.tools.reload_ladder.frame_write"), \
-         patch("asyncio.open_connection",
-               new=AsyncMock(return_value=(AsyncMock(), mock_writer))):
+    with patch("asyncio.open_connection", new=AsyncMock(return_value=(mock_reader, mock_writer))):
         send_fn = _ladder.make_reload_send(port=9600)
-        result = await send_fn("bad_cmd", {})
-
-    assert result == "bad request"
+        with pytest.raises(ToolError, match="bad request") as error:
+            await send_fn("bad_cmd", {})
+    assert not isinstance(error.value, ConnectionError), "a command refusal must not permit fallback"
+    mock_writer.write.assert_called_once()
     mock_writer.close.assert_called_once()
 
 

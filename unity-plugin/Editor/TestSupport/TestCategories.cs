@@ -12,5 +12,6 @@ namespace UnityMCP.Editor.Testing
         public const string Perf = "Perf";
         public const string WorkerOnly = "WorkerOnly";
         public const string Slow = "Slow";
+        public const string MutationLive = "MutationLive";
     }
 }

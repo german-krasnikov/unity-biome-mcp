@@ -309,7 +309,7 @@ namespace UnityMCP.Worker.DomainReloadAcceptance
             var marker = JsonUtility.FromJson<WorkerMarker>(File.ReadAllText(markerPath));
             Assert.That(marker, Is.Not.Null);
             Assert.That(marker.disposable, Is.True);
-            Assert.That(marker.unity_version, Is.EqualTo("6000.0.65f1"));
+            Assert.That(marker.unity_version, Is.EqualTo("6000.0.83f1"));
             Assert.That(marker.utf_version, Is.EqualTo("1.6.0"));
 
             Assert.That(File.Exists(ControlPath), Is.True,

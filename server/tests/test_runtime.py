@@ -113,9 +113,13 @@ async def test_run_playtest_format_default_omits(mock_bridge):
 
 
 async def test_run_playtest_format_json_passes_arg_and_skips_compression(mock_bridge, monkeypatch):
+    """N0b: the round-tripped receipt must be a genuine pass (outer.teardown_ok
+    + failed:0 + every step ok:true) — a non-pass outcome now raises ToolError
+    before the format="json" skip-compression branch is ever reached."""
     from unity_mcp.tools import runtime
 
-    long_json = '{"steps":[' + ",".join(f'{{"index":{i}}}' for i in range(60)) + "]}"
+    steps = ",".join(f'{{"index":{i},"ok":true}}' for i in range(60))
+    long_json = '{"outer":{"teardown_ok":true},"failed":0,"steps":[' + steps + "]}"
     assert len(long_json) > 300
     mock_bridge.send.return_value = {"ok": True, "data": long_json}
     monkeypatch.setenv("UNITY_MCP_VISUAL_VERIFY", "1")
@@ -219,8 +223,11 @@ async def test_move_path_sends_script(mock_bridge):
 # ── P1.3 snapshot_on_failure ──────────────────────────────────────────────────
 
 async def test_run_playtest_snapshot_on_failure_passes_true(mock_bridge):
+    """N0b: a failed run raises ToolError, but snapshot_on_failure must still
+    have reached the wire args before the failure was classified."""
     mock_bridge.send.return_value = {"ok": True, "data": "PLAYTEST: 0/1 (0.1s)\n[1] ASSERT $x == True — FAIL (False)\nsnapshot:\n  $x=False"}
-    await run_playtest("ASSERT_CONSOLE_CLEAN", snapshot_on_failure=True)
+    with pytest.raises(ToolError):
+        await run_playtest("ASSERT_CONSOLE_CLEAN", snapshot_on_failure=True)
     sent = mock_bridge.send.call_args[0][1]
     assert sent["snapshot_on_failure"] == "true"
 
@@ -336,6 +343,8 @@ async def test_restart_stop_exception_fails_and_does_not_run_next_file(monkeypat
         if cmd == "run_playtest":
             run_paths.append(args["path"])
             return "PLAYTEST: 1/1 (0.1s) OK"
+        if cmd == "compile_status":
+            return "idle|0.0"
         if cmd == "editor" and args.get("action") == "stop":
             raise ConnectionError("stop transport failed")
         raise AssertionError(f"unexpected command: {cmd} {args}")
@@ -378,6 +387,8 @@ async def test_restart_play_exception_fails_and_does_not_run_next_file(monkeypat
                 return f"playing:{playing}\npaused:False\ncompiling:False"
             if action == "play":
                 raise ConnectionError("play transport failed")
+        if cmd == "compile_status":
+            return "idle|0.0"
         raise AssertionError(f"unexpected command: {cmd} {args}")
 
     monkeypatch.setattr(runtime, "_send", fake_send)
@@ -411,6 +422,8 @@ async def test_restart_stuck_in_play_mode_fails_without_next_file(monkeypatch):
             return "ok"
         if cmd == "editor" and args.get("action") == "state":
             return "playing:True\npaused:False\ncompiling:False"
+        if cmd == "compile_status":
+            return "idle|0.0"
         raise AssertionError(f"unexpected command: {cmd} {args}")
 
     monkeypatch.setattr(runtime, "_send", fake_send)
@@ -441,6 +454,8 @@ async def test_initial_auto_play_exception_fails_without_running_file(monkeypatc
             raise ConnectionError("play failed")
         if cmd == "run_playtest":
             run_paths.append(args["path"])
+        if cmd == "compile_status":
+            return "idle|0.0"
         raise AssertionError(f"unexpected command: {cmd} {args}")
 
     monkeypatch.setattr(runtime, "_send", fake_send)
@@ -468,6 +483,8 @@ async def test_initial_auto_play_stuck_state_fails_without_running_file(monkeypa
             return "entered"
         if cmd == "run_playtest":
             run_paths.append(args["path"])
+        if cmd == "compile_status":
+            return "idle|0.0"
         raise AssertionError(f"unexpected command: {cmd} {args}")
 
     monkeypatch.setattr(runtime, "_send", fake_send)
@@ -504,6 +521,8 @@ async def test_restart_between_auto_play_resets_before_first_file(monkeypatch):
                 return "entered"
         if cmd == "run_playtest":
             return "PLAYTEST: 1/1 (0.1s) OK"
+        if cmd == "compile_status":
+            return "idle|0.0"
         raise AssertionError(f"unexpected command: {cmd} {args}")
 
     monkeypatch.setattr(runtime, "_send", fake_send)
@@ -901,6 +920,8 @@ async def test_run_playtest_suite_cancel_during_run_stops_play_mode(monkeypatch)
         if cmd == "run_playtest":
             await _asyncio.sleep(10)
             return "PLAYTEST: 1/1 (0.1s) OK"
+        if cmd == "compile_status":
+            return "idle|0.0"
         raise AssertionError(f"unexpected command: {cmd} {args}")
 
     monkeypatch.setattr(runtime, "_send", fake_send)

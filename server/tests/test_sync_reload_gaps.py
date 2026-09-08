@@ -30,6 +30,8 @@ def _make_send(ack_response: str, status_seq, errors_response: str = ""):
             if isinstance(val, Exception):
                 raise val
             return val
+        if cmd == "compile_status":
+            return "idle|1"
         if cmd == "get_compile_errors":
             return errors_response
         if cmd == "diagnose":
@@ -61,7 +63,7 @@ def _zero_recovery_timeout(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _patch_corroborate():
-    async def _default_get_corroborated(send):
+    async def _default_get_corroborated(send, *, compile_status=""):
         try:
             csharp = await send("get_compile_errors", {})
         except Exception:

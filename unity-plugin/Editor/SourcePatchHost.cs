@@ -70,7 +70,23 @@ namespace UnityMCP.Editor
             _state = ComputeInitialState();
         }
 
-        private static SourcePatchState ComputeInitialState()
+        // Reload admission observation cannot clear a receipt or change the host.
+        internal static SourcePatchState ObserveState() =>
+            _reconciled ? (Coordinator?.CurrentState ?? _state) : ComputeInitialState(false);
+
+        internal static string ReloadBlockReason(bool explicitOwnedDisable)
+        {
+            var state = ObserveState();
+            var matches = explicitOwnedDisable && SourcePatchReceiptStore.TryRead(out var receipt)
+                && receipt.Pid == System.Diagnostics.Process.GetCurrentProcess().Id
+                && receipt.ProjectPath == SourcePatchModePolicy.CurrentProjectPath()
+                && receipt.ExpectedEpochAfter == SyncHelper.CurrentEpoch + 1;
+            return SourcePatchStateMachine.ReloadBlockReason(state,
+                Coordinator?.PatchesMayBeActive ?? false,
+                Coordinator?.HasHeldLease ?? false, explicitOwnedDisable, matches);
+        }
+
+        private static SourcePatchState ComputeInitialState(bool clearResolvedReceipt = true)
         {
             if (!SourcePatchProviderSlot.TryGet(out _)) return SourcePatchState.Unavailable;
 
@@ -82,7 +98,7 @@ namespace UnityMCP.Editor
                 SourcePatchModePolicy.CurrentProjectPath(),
                 SyncHelper.CurrentEpoch);
 
-            if (resolved == SourcePatchState.Off) SourcePatchReceiptStore.Clear();
+            if (clearResolvedReceipt && resolved == SourcePatchState.Off) SourcePatchReceiptStore.Clear();
             return resolved; // Recovery: receipt intentionally left in place — no auto-repair.
         }
 

@@ -1,14 +1,21 @@
-"""reload_ladder — T0-T5 reload-recovery ladder. MVID-delta = only heal proof (A1)."""
+"""Bounded legacy recovery; diagnostic completion is not source provenance."""
 import asyncio  # noqa: E401
 import contextlib
 import json
 import logging
 import time
+import uuid
 from collections.abc import Awaitable, Callable  # noqa: TC003
 from pathlib import Path  # noqa: TC003
 
+from mcp.server.fastmcp.exceptions import ToolError
+
 from unity_mcp.bridge_socket import frame_read, frame_write
+from unity_mcp.constants import SESSION_TIMEOUT
+from unity_mcp.errors import UncertainDeliveryError, recovery_barrier
+from unity_mcp.tools._annotations import _INTERNAL_RETRY_SAFE_CMDS
 from unity_mcp.tools.diagnose import _DiagnoseFields, _parse_diagnose, _verdict
+from unity_mcp.tools.tool_specs import _SPECS
 
 log = logging.getLogger("unity_mcp.reload_ladder")
 
@@ -22,9 +29,8 @@ _BROKEN_DOMAIN = "_BROKEN_DOMAIN_"  # M2: delta but new domain is broken
 _DEAD_MSG   = "MANUAL-REQUIRED: both ports dead — Unity unreachable, Reimport All manually"
 _BROKEN_MSG = "REIMPORT-NEEDED: new domain loaded but compile failed — reimport package"
 
-
 def _is_clean(f: _DiagnoseFields) -> bool:
-    return not f.stamp_frozen and not f.iscompiling and f.cn_active
+    return not f.stamp_frozen and _verdict(f) == "CLEAN-LIVE"
 
 def _extract_main_mvid(f: _DiagnoseFields) -> str:
     return f.main_mvid or ""  # F3/F5: heal proof compares main_mvid, not reload mvid
@@ -145,19 +151,32 @@ async def _t5(send, baseline: str) -> str | None:
     return await _poll_mvid_delta(send, baseline, _T4_POLL_S, max_polls=None)
 
 
+def reject_blocked(result: str) -> str:
+    """A denied effect is terminal, not a transient transport failure."""
+    if isinstance(result, str) and result.startswith("blocked|"):
+        raise ToolError("BLOCKED: " + result.partition("reason=")[2])
+    return result
+
+
 def make_reload_send(port: int, host: str = "127.0.0.1"):
     """One-shot async send for reload mini-server. New TCP conn per call."""
     async def _send(cmd: str, args: dict) -> str:
         reader, writer = await asyncio.open_connection(host, port)
+        op_id = uuid.uuid4().hex
         try:
-            msg = json.dumps({"cmd": cmd, "args": args, "id": "r"}).encode()
+            msg = json.dumps({"cmd": cmd, "args": args, "id": op_id}).encode()
             frame_write(writer, msg)
             await writer.drain()
-            try:
-                resp = json.loads(await frame_read(reader))
-                return resp.get("data", "") or resp.get("err", "")
-            except (asyncio.IncompleteReadError, json.JSONDecodeError, OSError) as e:
-                raise ConnectionError(f"reload transport error: {e}") from e
+            resp = json.loads(await frame_read(reader))
+            if resp.get("ok") is False:
+                raise ToolError(resp.get("err") or "reload command rejected")
+            return resp.get("data", "") or resp.get("err", "")
+        except (asyncio.IncompleteReadError, json.JSONDecodeError, OSError) as error:
+            spec = _SPECS.get(cmd)
+            read_only = cmd in _INTERNAL_RETRY_SAFE_CMDS or (spec is not None and spec.mutability == "read")
+            if not read_only:
+                raise UncertainDeliveryError(cmd=cmd, op_id=op_id, delivery="SENT") from error
+            raise ConnectionError(f"reload transport error: {error}") from error
         finally:
             writer.close()
     return _send
@@ -168,6 +187,8 @@ async def _send_with_fallback(send_main, send_reload, cmd: str, args: dict) -> s
     try:
         return await send_main(cmd, args)
     except (ConnectionError, OSError) as exc:
+        if recovery_barrier(exc) is not None:
+            raise
         if send_reload is None:
             raise
         log.debug("main failed (%s), using reload channel", exc)
@@ -175,10 +196,7 @@ async def _send_with_fallback(send_main, send_reload, cmd: str, args: dict) -> s
 
 
 async def _probe_diagnose(send, send_reload) -> tuple[str, bool] | str:
-    """T0 probe — try main then reload channel.
-
-    Returns (raw, main_dead) on success, or _DEAD_MSG string when both ports fail.
-    """
+    """Read diagnosis via main, then reload channel when main is unavailable."""
     try:
         return await send("diagnose", {}), False
     except (ConnectionError, OSError):
@@ -191,10 +209,7 @@ async def _probe_diagnose(send, send_reload) -> tuple[str, bool] | str:
 
 
 async def _handle_guard_wedge(eff, baseline: str, play_stop_consent: bool) -> str | None:
-    """T2.5 guard check — if wedged, escalate to T5, skipping T3/T4.
-
-    Returns a result string if the guard path handles escalation, None to continue.
-    """
+    """A known guard wedge skips T3/T4; play/stop still needs consent."""
     guard_wedged = await _t2_5_guard_check(eff)
     if not guard_wedged:  # False or None → continue to T3/T4
         return None
@@ -211,7 +226,6 @@ async def _handle_guard_wedge(eff, baseline: str, play_stop_consent: bool) -> st
 
 
 async def _run_tiers_t1_t2(eff, baseline: str, start_tier: int) -> str | None:
-    """Run T1 (if start_tier ≤ 1) then T2. Return result string or None to continue."""
     if start_tier <= 1:
         v = _tier_result("T1", baseline, await _t1(eff, baseline))
         if v: return v
@@ -225,7 +239,6 @@ async def _run_tiers_t3_t4_t5(
     osascript_runner: Callable[[str], Awaitable[int]] | None,
     play_stop_consent: bool, main_dead: bool,
 ) -> str:
-    """Run T3→T5 escalation. Returns a terminal result string."""
     if not main_dead:
         v = _tier_result("T3", baseline, await _t3(eff, baseline, bump_file))
         if v: return v
@@ -243,14 +256,47 @@ async def _run_tiers_t3_t4_t5(
 
 async def run_ladder(send, *, send_reload=None, bump_file: Path | None = None,
                      osascript_runner: Callable[[str], Awaitable[int]] | None = None,
-                     play_stop_consent: bool = False, start_tier: int = 1) -> str:
-    """Escalation ladder T0→T5. start_tier=2 skips T1 (caller did force_refresh)."""
+                     play_stop_consent: bool = False, start_tier: int = 1,
+                     deadline: float | None = None) -> str:
+    """All recovery tiers share the caller's budget and non-retryable evidence."""
+    deadline = deadline if deadline is not None else time.monotonic() + SESSION_TIMEOUT
+    if time.monotonic() >= deadline:
+        return "STOP: recovery deadline exceeded before dispatch"
+
+    def bounded(channel):
+        async def call(cmd, args):
+            if time.monotonic() >= deadline:
+                raise TimeoutError("recovery deadline expired before dispatch")
+            try:
+                async with asyncio.timeout_at(deadline):
+                    return reject_blocked(await channel(cmd, args))
+            except (ConnectionError, OSError) as exc:
+                barrier = recovery_barrier(exc)
+                if barrier is not None:
+                    raise ToolError(f"RECOVERY-BLOCKED: {barrier}") from exc
+                raise
+        return call
+
+    try:
+        async with asyncio.timeout_at(deadline):
+            return await _run_ladder(
+                bounded(send), send_reload=bounded(send_reload) if send_reload else None,
+                bump_file=bump_file, osascript_runner=osascript_runner,
+                play_stop_consent=play_stop_consent, start_tier=start_tier)
+    except TimeoutError:
+        return "STOP: recovery deadline exceeded; Unity operation may still be running"
+
+async def _run_ladder(send, *, send_reload, bump_file, osascript_runner,
+                      play_stop_consent, start_tier) -> str:
     probe = await _probe_diagnose(send, send_reload)
     if isinstance(probe, str):
         return probe
     raw, main_dead = probe
 
     fields = _parse_diagnose(raw)
+    verdict = _verdict(fields)
+    if verdict.startswith(("FAIL:", "BUILD-FAILED-WEDGE")):
+        return verdict
     baseline = _extract_main_mvid(fields)
     if baseline in ("absent", ""):
         return "REIMPORT-NEEDED: main_mvid absent — main asmdef not loaded"

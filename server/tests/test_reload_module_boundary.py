@@ -11,6 +11,10 @@ file reads only.
 """
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.csharp_parity
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # Reload's algorithm/evidence owner files (see Plans/PR-04R.md inventory table).

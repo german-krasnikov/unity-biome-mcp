@@ -22,30 +22,22 @@ def _parsed() -> dict:
     return yaml.safe_load(_text())
 
 
-def test_workflow_triggers_on_workflow_dispatch_and_scoped_push():
-    """Advisory (§7 P1-20 DoD): workflow_dispatch is the intended trigger.
-    A temporary push trigger exists only because GitHub refuses to
-    register workflow_dispatch for a workflow that is absent from the
-    default branch, and this repo's mandate keeps master untouched — the
-    push trigger is scoped to this exact branch and to only the
-    workflow/lock files themselves, so an ordinary product commit on this
-    branch never fires the matrix (dispatch stays de-facto manual)."""
+def test_workflow_triggers_only_on_workflow_dispatch():
+    """Superseded by mutation-regression.yml (2026-09-07): the temporary
+    push trigger existed only so GitHub would register workflow_dispatch
+    before this workflow first landed on the default branch. It is gone
+    now that the ongoing regression lane lives in mutation-regression.yml
+    -- this workflow keeps workflow_dispatch only, for historical/manual
+    re-runs, and never fires on push."""
     data = _parsed()
     triggers = data[True] if True in data else data["on"]
-    assert set(triggers.keys()) == {"workflow_dispatch", "push"}
-    assert triggers["push"]["branches"] == ["feature/mutation-fsr-mvp"]
-    # Exact paths-list coverage is
-    # test_workflow_push_trigger_paths_cover_the_full_cell_mechanization's
-    # job — this test only pins the trigger shape (branch-scoped, path
-    # filter present) so the two tests fail for one reason each.
-    assert ".github/workflows/fsr-qualification.yml" in triggers["push"]["paths"]
+    assert set(triggers.keys()) == {"workflow_dispatch"}
 
 
-def test_workflow_push_trigger_is_documented_as_temporary():
+def test_workflow_is_documented_as_superseded_by_mutation_regression():
     text = _text()
-    assert "temporary trigger" in text
-    assert "requires the file on the default" in text
-    assert "after the first" in text
+    assert "SUPERSEDED" in text
+    assert "mutation-regression.yml" in text
 
 
 def test_workflow_defines_exactly_the_three_narrowed_cells():
@@ -162,23 +154,6 @@ def test_workflow_pins_linux_hub_version_matching_working_ci_lanes():
         step for step in data["jobs"]["cell"]["steps"] if step.get("id") == "unity-setup"
     )
     assert unity_setup["with"]["hub-version"] == "${{ matrix.hub-version }}"
-
-
-def test_workflow_push_trigger_paths_cover_the_full_cell_mechanization():
-    """Fix-only pushes (the cell driver, the fixture generator, the fixture
-    source itself) must self-trigger a rerun — not just edits to the
-    workflow/lock files."""
-    data = _parsed()
-    triggers = data[True] if True in data else data["on"]
-    paths = set(triggers["push"]["paths"])
-    assert paths == {
-        ".github/workflows/fsr-qualification.yml",
-        "scripts/fsr_qualification_lock.json",
-        "scripts/run_fsr_qualification_cell.py",
-        "scripts/gauntlet/fsr_qualification.py",
-        "scripts/gauntlet/fsr_qualification_fixture.py",
-        "scripts/fixtures/fsr_qualification/**",
-    }
 
 
 def test_workflow_checkout_steps_fetch_full_history():

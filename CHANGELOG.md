@@ -12,6 +12,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.0.0] — 2026-09-08
+
+### Added
+
+- **Offline Freshness and Reload Contract Validation (N0a/Reload):** Two new NUnit dotnet projects (`Tests~/AssemblyFreshness/` and `Tests~/SourcePatchReadiness/`) validate bytecode freshness detection and reload-readiness state transitions without Editor. Both use `~` folder convention to remain invisible to asset importer. Covers `AssemblySourceFreshness` byte comparison and `SourcePatchReloadAck` lease lifecycle.
+- **Offline Adapter Compile-Contract (C1):** Pure dotnet test project `Tests~/MutationAdapterContract/` validates the SourcePatch seam contract and adapter Apply outcomes without Unity Editor. Executes on every build via `ci-pure-dotnet.yml`. Script-fetched adapter sources verified by SHA256 atomic lock in `scripts/gauntlet/fetch_adapter_sources.py`; seam-drift negative control confirms renamed seam members break the build.
+- **Mutation Regression Test Lane (A5–A8):** Comprehensive off-live Python test suite (`server/tests/mutation/`) covering FSR provider lifecycle, source-patch adapter, and reload recovery in isolation. Stories S11–S16c validate explicit disable, source restore, provider absence, re-add, and removal workflows; harness awaits Editor ready state before guard-vulnerable calls. Run via `pytest tests/mutation -m mutation_live` or `scripts/run_mutation_regression_cell.py --mode full` (driver 1800 s budget). CI lane `.github/workflows/mutation-regression.yml` supersedes legacy `fsr-qualification.yml`.
+- **Provider Lifecycle Regression Tests (S16b–S16c):** Remove/re-add FastScriptReload provider package in a live session; verify compile clean, provider state transitions, no orphan port/state files, epoch monotonicity, and port persistence after reload.
+- **SDK Qualification Tests for Playtest Outcomes (SDK-E04):** New `server/tests/live/test_sdk_playtest_outcomes.py` and `test_sdk_scene_cache.py` with `sdk_tools` and `sdk_runtime` fixtures validate `run_playtest` verdict accuracy across sync/async routes and cache invalidation after scenario terminal events.
+
+### Fixed
+
+- **Batch Body-Line Normalization:** Every successful `batch` command now emits `[N] ok: <data>` instead of a bare `[N] ok` when there was no data to report — Python consumers that already parse the `ok:` prefix now see a consistent format on every body line. Error lines (`[N] err: ...`) are unchanged.
+- **Playtest Play/Stop Reconciliation After a Lost Acknowledgement:** If the acknowledgement for an `editor play`/`stop` request is lost (connection drops right as the write lands), the outcome is now reconciled by polling the retry-safe `get_status` read until the expected `playing=` state is observed, instead of surfacing the connection error to the caller — the play/stop command itself is never resent. This relies on the bridge's reload guard already letting read-only status probes (`get_status`, `compile_status`, `sync_status`) through during a domain reload, so reconciliation can complete without waiting out the full reload-expiry window.
+- **N1b — sync/force_refresh Registered as Mutating, Non-Batchable:** The `sync` and `force_refresh` wire commands defaulted `mutating`/`notBatchable` to false at registration, so the read-only gate, Play Mode mutation gate, and batch safety check never saw them as unsafe — they executed and triggered `Refresh`/`RequestScriptCompilation` from live Play Mode or read-only state instead of being refused pre-dispatch. Both are now registered `mutating: true, notBatchable: true`; a batch line naming either is refused instead of executed, and in `ask` chat mode they are blocked by `SessionAuthorization` as a secondary defence (the Python `sync_unity` broker already blocks direct calls as a write). `sync_status` is unaffected and stays a read allowed during compile.
+- **A8 — sync_unity Compile-Guard Absorption:** When Editor auto-refresh starts compiling before `sync` command arrives, the C# guard rejection "Unity is compiling. Retry in 5s." is now absorbed by `sync_unity`. Instead of surfacing as an unhandled error, `_sync_unity` recognizes the guard text (constant `SYNC_COMPILE_GUARD_TEXT`), adopts the sync epoch, and runs the same wait/verdict path as a normal acknowledged sync. Any other error text propagates unchanged. Affects agent visibility: no more unhandled "Unity is compiling" when auto-refresh started compiling first.
+- **N0b — Playtest Outcome Raising Contract:** `run_playtest` now raises `ToolError` with the full report text for ANY non-pass outcome (fail/aborted/malformed/empty) on both sync and async routes. Pass outcome returns normally (text or JSON format). Eliminates silent failure absorption and provides consistent error signal across all dispatch paths.
+- **N0a — Cache Trust Guard During Async Playtest (Middleware._scenario_uncertain):** Set on `start_playtest` ack, cleared only by terminal evidence (`is_scenario_terminal`) or Edit Mode transition. While set, PrefetchCache lookups are bypassed and background prefetch is suppressed. Survives reconnect and `reset_session()` (reconnect does not prove playtest stopped). Fallback `_force_scene_invalidate` clears caches but not the guard.
+- **N4a — Chat Ask Atomicity:** `PendingAskRegistry.Complete` now performs atomic `TryRemove` with TCS captured before `onAskEvent`. Fail-soft try/catch added to `ChatBackendProbe.IsChatBackendRunning` and `ChatSettingsHook` methods to prevent stale probe exceptions from blocking ask dispatch.
+
+### Breaking
+
+- **N1a — Plugin Registration Guards:** A Python plugin declaring a reserved builtin name, a name colliding with a host tool, or a name it does not own (declared via `register_read_cmds`/`register_write_cmds` but never registered as a tool) is now rejected ENTIRELY — zero commands, gating entries, or budget features survive. Previously such a duplicate/foreign name was silently skipped, letting the rest of the plugin load. On the C# side, `CommandRegistry.Register` refuses a duplicate command from a different plugin instance and `PluginRegistry.RegisterAllPlugins` rolls back that plugin's entire registration; a plugin ID conflict (`PluginRegistry.Register`) refuses a different instance under an existing ID while re-registering the same instance stays idempotent. Failures are queryable via `get_failed_plugins()` (Python and C#, mirrored) and logged at registration time. Plugin command inventory is now attributed by the registering plugin's identity instead of name prefix, so `AdditionalCommands` and prefix-free commands are correctly grouped under their owning plugin in `discover_tools`/`build_help` output. Plugins that previously loaded with a silently-skipped duplicate must be fixed to use non-colliding, owned names.
+
+### Changed
+
+- **CI Unity Version Matrix Refresh:** Canonical worker baseline bumped 6000.0.65f1 → 6000.0.83f1 (LTS latest patch). Compat matrix (`unity-compat.yml`) gains a 6000.6 compile-check cell (previously missing) and its 6.7 alpha pin moves 6000.7.0a4 → 6000.7.0a6. FSR/mutation qualification lock (`scripts/fsr_qualification_lock.json` `u_min`) stays frozen at 6000.0.65f1 for this release's already-qualified mutation evidence; re-qualification on the new baseline is tracked as follow-up.
+- **UPM Package Dependency:** `unity-plugin/package.json` now declares `com.unity.nuget.mono-cecil 1.11.5` as required dependency. Ensure project registry resolves `com.unity.nuget.*` packages (standard Unity configurations include this by default). Used internally for assembly analysis during reload and compile verification.
+
+### Known Issues
+
+- **FSR Fork Adapter Object Leak:** The FastScriptReload fork adapter (`BiomeSourcePatchDispatcher`) leaks one `HideAndDontSave` GameObject per enable→patch→disable cycle in mutation-mode sessions. No functional impact; the leak is confined to disposable mutation workers. Fix pending upstream in the provider fork (tracked as an imperative `xfail`, S16).
+- **`sync_unity` Post-Resolve Settle Time:** After a Package Manager resolve, `sync_unity` may take up to ~80 s to settle while Unity finishes asset-importing before the compile/reload verdict is available. Latency only, not a correctness issue.
+- **`AssetDatabaseHelper.WriteText` UTF-8 BOM:** Text written via the `write_text` MCP tool (`.cs`/`.shader`/`.txt` files) is encoded with a UTF-8 BOM instead of `JsonHelper.Utf8NoBom`. Unity and most tooling handle a BOM-prefixed file correctly; no functional impact observed.
+
 ## [v1.54.0] — 2026-09-06
 
 ### Added
@@ -3746,7 +3781,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.54.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.0.0...HEAD
+[v2.0.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.54.0...v2.0.0
 [v1.54.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.53.0...v1.54.0
 [v1.52.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.51.0...v1.52.0
 [v1.51.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.1...v1.51.0

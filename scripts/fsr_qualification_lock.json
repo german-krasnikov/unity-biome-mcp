@@ -3,9 +3,10 @@
   "note": "P1-20 frozen compatibility matrix lock. Read by scripts/run_fsr_qualification_cell.py and .github/workflows/fsr-qualification.yml. See Plans/HotReload/V2/FSR-MVP-CLEAN/04-PARETO-COMPLETION-HANDOFF.md §1.1/§7 P1-20. Immutable per matrix run: the aggregate job asserts every required-pass cell receipt is bound to this exact base_product_sha/final_fsr_adapter_sha pair, and that base_product_sha..checkout does not touch unity-plugin/** or server/src/**. Narrowed after run 5 (coordinator decision): u_max is shelved to P2-07, not part of the qualifying window; qualified_windows names the sole actively-tested window.",
   "base_product_sha": "7875430f73d28a043806742164ab478145dedafe",
   "final_fsr_adapter_sha": "b90a5c3fd7cfa452f23e8a807cc7bd61dc934bbf",
+  "final_fsr_adapter_ref": "master",
   "fsr_upstream_sha": "51140b71d9e5df1de231b33ec20ee089b18bebec",
   "provider_pin_path": "scripts/source_patch_provider_pin.json",
-  "provider_pin_sha256": "97a354ba6ae96178e4f3073b6248c18d122c47e4937933fd57009af0d47de8c3",
+  "provider_pin_sha256": "6adc8db532407c6805d737eb14f4641774ffc57d2ff281b7e95000d1d4eac75f",
   "qualified_windows": ["u_min"],
   "cells": {
     "u_min": {

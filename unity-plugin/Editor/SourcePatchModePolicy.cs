@@ -21,6 +21,12 @@ namespace UnityMCP.Editor
         /// fixtures.</summary>
         internal static ISourcePatchReloadPort ReloadPort = new SyncHelperReloadPort();
 
+        /// <summary>Distinct from "requested" (success) and an exception
+        /// (failure): a no-op reload could not be verified, so the policy
+        /// entered Recovery instead of silently reporting requested forever
+        /// (N2a.3). One named constant — Python can pin this literal later.</summary>
+        internal const string NoOpRecoveryResult = "noop_recovery";
+
         /// <summary>Intent is a pure derivation, never a second persisted field
         /// (Refactor requirement: no duplicate mode decision).</summary>
         internal static bool IsIntentOn =>
@@ -158,10 +164,32 @@ namespace UnityMCP.Editor
             // Reload triggered below; in-process detour undo is an explicit
             // non-goal (§1.2). ISourcePatchProvider is immutable for
             // FINAL_FSR_ADAPTER_SHA — this policy never calls into it here.
-            SourcePatchReceiptStore.Write(BuildReceipt());
+            var receipt = BuildReceipt();
+            SourcePatchReceiptStore.Write(receipt);
             SourcePatchHost.CurrentState = SourcePatchState.Disabling;
             SourcePatchHost.Coordinator = null;
-            ReloadPort.RequestReloadVerification();
+            try
+            {
+                var outcome = ReloadPort.RequestReloadVerification(receipt.ExpectedEpochAfter);
+                if (outcome == ReloadPortOutcome.AcceptedNoOp)
+                {
+                    // No domain reload will happen: this ACK cannot prove the
+                    // disable took effect. Keep the receipt for explicit
+                    // recovery; never silently retry or report requested forever.
+                    SourcePatchHost.CurrentState = SourcePatchState.Recovery;
+                    return NoOpRecoveryResult;
+                }
+                if (outcome == ReloadPortOutcome.Rejected)
+                    throw new InvalidOperationException("source patch disable reload port rejected the request");
+            }
+            catch
+            {
+                // No ACK (or an explicit Rejected outcome) cannot prove an accepted
+                // reload. Keep the receipt for explicit recovery; never silently
+                // retry or report requested forever.
+                SourcePatchHost.CurrentState = SourcePatchState.Recovery;
+                throw;
+            }
             return "requested";
         }
 

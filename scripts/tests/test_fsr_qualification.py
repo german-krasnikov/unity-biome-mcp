@@ -15,6 +15,7 @@ tmp_path/JSON only.
 """
 import hashlib
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -41,10 +42,21 @@ def test_tracked_lock_pin_sha256_matches_real_pin_file_bytes():
     assert payload["provider_pin_sha256"] == real_sha256
 
 
-def test_tracked_lock_final_adapter_sha_matches_pin_ref():
+def test_tracked_lock_final_adapter_ref_matches_pin_ref():
+    """The pin now floats on a branch (`ref_kind: "branch"`); the lock
+    records that same floating ref name, not a frozen SHA, in
+    `final_fsr_adapter_ref`. See Plans/MUTATION-REGRESSION-MODULE.md §3/§6."""
     lock = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
     pin = json.loads(PIN_PATH.read_text(encoding="utf-8"))
-    assert lock["final_fsr_adapter_sha"] == pin["ref"]
+    assert lock["final_fsr_adapter_ref"] == pin["ref"]
+
+
+def test_tracked_lock_final_adapter_sha_is_40_hex():
+    """`final_fsr_adapter_sha` stays the frozen resolution of the floating
+    ref at the time the qualification tree was last proven -- always a
+    concrete 40-hex commit, never the branch name itself."""
+    lock = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
+    assert re.fullmatch(r"[0-9a-f]{40}", lock["final_fsr_adapter_sha"])
 
 
 def test_tracked_lock_loads_and_resolves_both_frozen_cells():

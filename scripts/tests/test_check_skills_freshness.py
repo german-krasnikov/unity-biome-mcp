@@ -92,6 +92,36 @@ _SPECS = {
     assert "commented_tool" not in result
 
 
+def test_load_tool_specs_discovers_spec_kwargs_keys():
+    """Module-owned pilots (watch.py, sync_module.py's sync_spec.py, ...)
+    inject ToolSpec kwargs into tool_specs._SPECS via a SPEC_KWARGS dict
+    rather than a literal 'name': ToolSpec(...) entry -- discovery must find
+    those tool names too, gated on the literal SPEC_KWARGS marker being
+    present in the text (see load_tool_specs' own file-level gate)."""
+    text = """\
+SPEC_KWARGS = {
+    'my_tool': {'category': 'sync'},
+}
+"""
+    result = load_tool_specs_from_text(text)
+    assert "my_tool" in result
+
+
+def test_load_tool_specs_spec_kwargs_negative_gate_without_marker():
+    """Same dict shape, but with the literal string 'SPEC_KWARGS' removed --
+    must NOT discover the key. Proves the marker check is load-bearing, not
+    just a redundant guard: an arbitrary dict-of-dicts elsewhere in a file
+    (unrelated to the SPEC_KWARGS pilot pattern) must not be misread as tool
+    names."""
+    text = """\
+OTHER_DICT = {
+    'my_tool': {'category': 'sync'},
+}
+"""
+    result = load_tool_specs_from_text(text)
+    assert "my_tool" not in result
+
+
 # ---------------------------------------------------------------------------
 # 2. parse_frontmatter
 # ---------------------------------------------------------------------------

@@ -13,6 +13,7 @@ import pytest
 import pytest_asyncio
 
 from unity_mcp.bridge import UnityBridge
+from unity_mcp.tools._annotations import _INTERNAL_RETRY_SAFE_CMDS
 from tests.live.unity_state_owner import (
     ObjectState,
     OwnershipPolicy,
@@ -88,11 +89,15 @@ def current_worker_port() -> int:
 
 def make_live_bridge() -> UnityBridge:
     project = _required_live_project()
+    # Wire the internal retry-safe set that reload-probe paths require
+    # (get_status, compile_status, sync_status); MCP RO tool annotations
+    # are not needed in test bridges.
     return UnityBridge(
         LIVE_HOST,
         port=current_worker_port(),
         port_discoverer=current_worker_port,
         expected_project_path=project,
+        is_retry_safe=lambda cmd: cmd in _INTERNAL_RETRY_SAFE_CMDS,
     )
 
 
@@ -430,6 +435,37 @@ async def _execute_lease_checked(
             last_error = exc
             if attempt == 2:
                 break
+            try:
+                await bridge.close()
+            finally:
+                await _connect_with_retry(bridge, retries=10, delay=0.5)
+    raise AssertionError(f"{operation} failed after reconnect retries: {last_error}")
+
+
+async def _send_checked_with_retry(
+    bridge: UnityBridge,
+    cmd: str,
+    args: dict,
+    operation: str,
+) -> dict:
+    """Bounded retry around a raw bridge.send — same shape as
+    _capture_unity_state, generalized to any command (not just execute_code).
+    A reload-related failure (e.g. a real Play-Mode domain reload landing
+    right before the send) waits out the reload in place — DomainReloadError
+    is a local 'reload in progress' flag that a bare reconnect cannot clear
+    while Unity is still mid-reload — instead of reconnect churn; any other
+    failure closes and reconnects."""
+    last_error = None
+    for attempt in range(3):
+        try:
+            return await bridge.send(cmd, args)
+        except Exception as exc:
+            last_error = exc
+            if attempt == 2:
+                break
+            if _is_reload_related(exc):
+                await _wait_compile_idle(bridge)
+                continue
             try:
                 await bridge.close()
             finally:
@@ -1344,3 +1380,70 @@ async def wrapped_bridge(bridge):
             self._raw_send = send_with_timeout  # timeout-aware shim for custom wrap_send
 
     return WrappedBridge()
+
+
+@pytest_asyncio.fixture
+async def sdk_tools(wrapped_bridge, monkeypatch):
+    """Bind SDK tool wrappers to the test's middleware-wrapped bridge."""
+    from unity_mcp.tools import objects, scene
+
+    def _args(**kwargs):
+        return {k: v for k, v in kwargs.items() if v is not None}
+
+    monkeypatch.setattr(objects, "_send", wrapped_bridge.send)
+    monkeypatch.setattr(objects, "_args", _args)
+    monkeypatch.setattr(scene, "_send", wrapped_bridge.send)
+    monkeypatch.setattr(scene, "_args", _args)
+
+    class SDKTools:
+        get_component = staticmethod(objects.get_component)
+        set_property = staticmethod(objects.set_property)
+        create_object = staticmethod(objects.create_object)
+        get_hierarchy = staticmethod(scene.get_hierarchy)
+        search_scene = staticmethod(scene.search_scene)
+        bridge = wrapped_bridge
+
+    return SDKTools()
+
+
+@pytest_asyncio.fixture
+async def sdk_runtime(wrapped_bridge, monkeypatch):
+    """Bind SDK runtime tool wrappers through a production-parity send.
+
+    Production's runtime._send is wrap_send(_send_raw, middleware) --
+    server.py builds the middleware pipeline ON TOP of _send_raw
+    (server.py ~L564-586), not on a text-only inner send. _send_raw unwraps
+    the wire result and raises ToolError(text) on ok:false (server.py
+    ~L468-470). `sdk_tools` (T1) intentionally keeps the non-raising
+    `wrapped_bridge.send` -- only this fixture needs the raising shim, built
+    from `wrapped_bridge._raw_send` (the same underlying bridge, no
+    middleware pre-applied) so wire-level failures surface the same way here
+    as they do live, exactly like `run_playtest`'s own non-pass gate (N0b).
+    """
+    from mcp.server.fastmcp.exceptions import ToolError
+
+    from unity_mcp.bridge_result import unwrap_bridge_result
+    from unity_mcp.middleware import Middleware, wrap_send
+    from unity_mcp.tools import runtime
+
+    async def _send_raw_like(cmd, args, timeout=0):
+        result = await wrapped_bridge._raw_send(cmd, args, timeout=timeout)
+        text, ok = unwrap_bridge_result(result)
+        if not ok:
+            raise ToolError(text)
+        return text
+
+    def _args(**kwargs):
+        return {k: v for k, v in kwargs.items() if v is not None}
+
+    mw = Middleware()
+    monkeypatch.setattr(runtime, "_send", wrap_send(_send_raw_like, mw))
+    monkeypatch.setattr(runtime, "_args", _args)
+
+    class SDKRuntime:
+        run_playtest = staticmethod(runtime.run_playtest)
+        _classify_outcome = staticmethod(runtime._classify_outcome)
+        bridge = wrapped_bridge
+        middleware = mw
+
+    return SDKRuntime()

@@ -26,7 +26,7 @@ jobs:
       matrix:
         include:
           # ── Phase 1: boundary versions ──────────────────────────
-          - unity-version: '6000.0.65f1'
+          - unity-version: '6000.0.83f1'
             label: 'Unity 6.0 — baseline (#else branches)'
             test-mode: full
             phase: 1
@@ -57,7 +57,12 @@ jobs:
             test-mode: full
             phase: 1
 
-          - unity-version: '6000.7.0a4'
+          - unity-version: '6000.6.0f1'
+            label: 'Unity 6.6 — compile check'
+            test-mode: compile
+            phase: 1
+
+          - unity-version: '6000.7.0a6'
             label: 'Unity 6.7 Alpha — forward compat'
             test-mode: compile
             phase: 1

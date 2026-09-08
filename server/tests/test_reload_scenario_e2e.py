@@ -64,6 +64,7 @@ async def test_happy_path_sync_compile_test_results():
         "sync_ack|epoch=1|will_compile=true",          # sync trigger
         "epoch=1|state=compiling|dur=1.2",             # poll 1
         f"epoch=1|state=ready|stamp={STAMP2}",         # poll 2 — MVID changed
+        "idle|1", "dlls=UnityMCP.Editor:1:fresh",
     ])
 
     with patch("unity_mcp.tools.sync.read_reload_port", return_value=None), \
@@ -86,6 +87,7 @@ async def test_reload_during_sync_bridge_reconnects():
         ConnectionError("Connection refused"),          # mid-reload
         ConnectionError("Connection refused"),          # still reloading
         f"epoch=1|state=ready|stamp={STAMP2}",         # recovered
+        "idle|1", "dlls=UnityMCP.Editor:1:fresh",
     ])
 
     with patch("unity_mcp.tools.sync.read_reload_port", return_value=None), \
@@ -181,6 +183,7 @@ async def test_double_reload_stale_epoch_skipped():
         "epoch=1|state=ready|stamp=mid1:ts2",           # stale: s_epoch=1 ≠ 2
         "epoch=1|state=ready|stamp=mid1:ts3",           # still stale
         "epoch=2|state=ready|stamp=bbbb2222:ts4",       # correct epoch
+        "idle|1", "dlls=UnityMCP.Editor:1:fresh",
     ])
 
     with patch("unity_mcp.tools.sync.read_reload_port", return_value=None), \
@@ -195,35 +198,22 @@ async def test_double_reload_stale_epoch_skipped():
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_wedge_recovery_force_refresh_heals():
-    # Sync _send: pre-status, sync ack, compiling/dur=0.0, then recovery polls sync_status
-    sync_responses = [
-        f"epoch=0|state=idle|stamp={STAMP1}",
-        "sync_ack|epoch=1|will_compile=true",
-        "epoch=1|state=compiling|dur=0.0",             # wedge detected
-        f"epoch=1|state=ready|stamp={STAMP2}",         # MVID changed — healed
-    ]
-    _sync._send = _send_with(sync_responses)
-
-    # time.monotonic call order in sync + _attempt_recovery (with timed_send):
-    # 1: deadline=0+300, 2: timed_send pre-stamp remaining, 3: started=0.0,
-    # 4: loop deadline check=1.0, 5: timed_send poll remaining, 6: focus-hint=20.0,
-    # 7: recovery_deadline min(300,20+30)=50, 8: recovery while check=21.0,
-    # 9: timed_send recovery remaining
-    # time.monotonic call order (with _timed_send in polling + recovery):
-    # 1: deadline=0+300, 2: started=0.0,
-    # 3: loop check=1.0, 4: _timed_send remaining=1.0, 5: focus-hint=20.0 (20-0>15→fires),
-    # 6: recovery_deadline min(300,20+30)=50, 7: recovery while=21.0 (21<50→yes),
-    # 8: _timed_send remaining=21.0 (50-21=29>0)
-    monotonic_values = [0.0, 0.0, 1.0, 1.0, 20.0, 20.0, 21.0, 21.0]
-
-    with patch("unity_mcp.tools.sync.time") as mock_time, \
-         patch("unity_mcp.tools.sync._send_with_fallback", new=AsyncMock(return_value=None)), \
-         patch("unity_mcp.tools.sync.read_reload_port", return_value=None):
-        mock_time.monotonic.side_effect = monotonic_values
-        result = await _sync.sync_unity()
-
+async def test_wedge_recovery_force_refresh_heals(monkeypatch):
+    # Use real monotonic time: call-count clock mocks hide whole-operation deadlines.
+    responses = [f"epoch=0|state=idle|stamp={STAMP1}",
+        "sync_ack|epoch=1|will_compile=true", "epoch=1|state=compiling|dur=0.0",
+        "force_refresh triggered", f"epoch=1|state=ready|stamp={STAMP2}",
+        "idle|1", "No compilation errors", "dlls=UnityMCP.Editor:1:fresh"]
+    send = AsyncMock(side_effect=_send_with(responses))
+    monkeypatch.setattr(_sync, "_send", send)
+    monkeypatch.setattr(_sync, "_FOCUS_HINT_AFTER", 0)
+    monkeypatch.setattr(_sync, "_RECOVERY_POLL", 0)
+    monkeypatch.setattr(_sync, "read_reload_port", lambda: None)
+    result = await _sync.sync_unity()
     assert result == "sync clean"
+    assert [call.args[0] for call in send.await_args_list] == [
+        "sync_status", "sync", "sync_status", "force_refresh", "sync_status",
+        "compile_status", "get_compile_errors", "diagnose", "warm_type_cache"]
 
 
 # ---------------------------------------------------------------------------

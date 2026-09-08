@@ -170,11 +170,11 @@ async def test_diagnose_wedge_state_verdict():
 
 
 @pytest.mark.asyncio
-async def test_diagnose_noop_verdict_idle_never():
-    """compile=idle-never|0.0 → NO-OP (never compiled this session)."""
+async def test_diagnose_unknown_verdict_idle_never():
+    """compile=idle-never|0.0 cannot certify completion."""
     _d._send = _make_send(NOOP_PAYLOAD)
     result = await _d.diagnose()
-    assert result == "NO-OP", f"Expected NO-OP for idle-never, got: {result!r}"
+    assert result.startswith("UNKNOWN"), f"Never compiled is unknown, got: {result!r}"
 
 
 @pytest.mark.asyncio
@@ -334,15 +334,10 @@ errors=
 log=clean
 """
 
-def test_stale_prod_dll_with_idle_compile_is_clean():
-    """compile=idle + stale DLL → CLEAN-LIVE (domain reloaded clean; stale flag is transient).
-
-    Wave 2 gate: stale-dll only fires when compile != "idle" to eliminate false positives
-    after a successful domain reload (Unity writes DLL after compile=idle is set).
-    """
+def test_known_stale_prod_dll_with_idle_compile_stays_failed():
+    """Known checksum/output mismatch cannot be demoted by idle."""
     f = _d._parse_diagnose(STALE_DLL_WIRE)
-    v = _d._verdict(f)
-    assert v == "CLEAN-LIVE", f"idle+stale dll → CLEAN-LIVE (false-positive gate), got {v!r}"
+    assert _d._verdict(f) == "FAIL:stale-dll"
 
 
 # Bug 2: idle-never + stale-dll must NOT be masked by NO-OP (priority inversion fix)
@@ -532,7 +527,7 @@ mvid=60d2de34-f1b2-4c3d-a5e6-789012345678
 stamp=60d2de34-f1b2-4c3d-a5e6-789012345678:639169455305003280
 compile=idle|8.2
 sync=ready  epoch=3
-iscompiling=false  cn_active=true  started=true  stamp_frozen=false
+iscompiling=false  cn_active=false  started=true  stamp_frozen=false
 dlls=UnityMCP.Editor:639169455305003280:fresh
 reload_failed=false
 log=clean
@@ -665,15 +660,10 @@ all_errors=SomeAsm:CS0117:Foo.cs:1: error CS0117: blah
 """
 
 
-def test_slot9_no_evidence_falls_through():
-    """idle-failed + empty errors + fresh dlls + clean log → NOT FAIL:unknown.
-
-    Corroboration: no stale dlls, no log errors, no reload_failed → stale flag,
-    fall through to remaining slots (CLEAN-LIVE in this wire).
-    """
+def test_slot9_failed_with_lost_errors_stays_failed():
+    """Fresh DLL metadata and empty error capture cannot overrule idle-failed."""
     f = _d._parse_diagnose(IDLE_FAILED_NO_EVIDENCE_WIRE)
-    v = _d._verdict(f)
-    assert v != "FAIL:unknown", f"No corroborating evidence → must not be FAIL:unknown, got {v!r}"
+    assert _d._verdict(f) == "FAIL:unknown"
 
 
 def test_slot9_stale_dll_yields_failed_unknown():
@@ -829,28 +819,22 @@ log=clean
 
 
 @pytest.mark.asyncio
-async def test_diagnose_idle_stale_returns_noop():
-    """idle-stale (StaleCeilingSeconds expired) → NO-OP at slot 10."""
+async def test_diagnose_idle_stale_returns_unknown():
+    """Expiry of a stale state does not establish completion."""
     _d._send = _make_send(IDLE_STALE_PAYLOAD)
     result = await _d.diagnose()
-    assert result == "NO-OP", f"idle-stale must → NO-OP, got: {result!r}"
+    assert result.startswith("UNKNOWN"), f"idle-stale is unknown, got: {result!r}"
 
 
 @pytest.mark.asyncio
-async def test_diagnose_idle_never_with_expected_compile_is_still_noop():
-    """Slot 10 (idle-never→NO-OP) fires BEFORE slot 11 (STALE-DOMAIN check).
-
-    Even with prev_mvid + expected_compile=True, idle-never returns NO-OP.
-    This documents the current slot-ordering behavior; slot 10 pre-empts slot 11.
-    """
-    _d._send = _make_send(NOOP_PAYLOAD)  # compile=idle-never, mvid=60d2de34...
+async def test_diagnose_idle_never_with_expected_compile_stays_unknown():
+    """A cached matching MVID does not certify a never-observed compile."""
+    _d._send = _make_send(NOOP_PAYLOAD)
     result = await _d.diagnose(
         prev_mvid="60d2de34-f1b2-4c3d-a5e6-789012345678",
         expected_compile=True,
     )
-    assert result == "NO-OP", (
-        f"idle-never fires at slot 10 before STALE-DOMAIN at slot 11 — got: {result!r}"
-    )
+    assert result.startswith("UNKNOWN")
 
 
 @pytest.mark.asyncio

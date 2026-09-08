@@ -239,6 +239,54 @@ async def test_auto_state_skips_readonly_batch(mw):
     fake_send.assert_not_called()
 
 
+async def test_auto_state_not_injected_into_run_playtest_json_receipt(mw):
+    """AUTO STATE text appended to a run_playtest JSON receipt breaks
+    runtime._classify_outcome's json.loads(), turning a passed playtest into
+    a raised ToolError (see middleware_pipeline.py:418)."""
+    import json
+    receipt = json.dumps({
+        "schema_version": 1, "run_id": "r1", "passed": 1, "failed": 0,
+        "duration_seconds": 0.1,
+        "steps": [{
+            "index": 0, "type": "Assert", "ok": True, "ms": 1.0,
+            "source_file": "f.playtest", "source_line": 1,
+            "raw_passed": True, "expected_fail": False,
+        }],
+        "outer": {"teardown_ok": True, "scene_clean": True},
+        "text_report": "PLAYTEST: 1/1 (0.1s) OK",
+    })
+    fake_send = AsyncMock(return_value="HierarchyData")
+    mw.call_count = 10
+    mw._last_hierarchy_call = 0
+    result = await mw.maybe_inject_state(fake_send, receipt, "run_playtest", {"format": "json"})
+    assert result == receipt
+    json.loads(result)  # must not raise
+    fake_send.assert_not_called()
+
+
+async def test_auto_state_not_injected_into_run_playtest_text_report(mw):
+    """Same bug, text format: AUTO STATE pollutes the PLAYTEST report,
+    breaking _is_playtest_pass_from_text's line-scan edge cases."""
+    report = "PLAYTEST: 1/1 (0.1s) OK"
+    fake_send = AsyncMock(return_value="HierarchyData")
+    mw.call_count = 10
+    mw._last_hierarchy_call = 0
+    result = await mw.maybe_inject_state(fake_send, report, "run_playtest", {"format": "text"})
+    assert result == report
+    fake_send.assert_not_called()
+
+
+async def test_auto_state_still_injected_for_other_writes(mw):
+    """Regression guard: the playtest-scoped skip must not swallow the
+    feature for ordinary write commands."""
+    fake_send = AsyncMock(return_value="HierarchyData")
+    mw.call_count = 10
+    mw._last_hierarchy_call = 0
+    result = await mw.maybe_inject_state(fake_send, "original", "set_property", {})
+    assert "AUTO STATE" in result
+    fake_send.assert_called_once()
+
+
 async def test_state_injection_increments_counter(mw):
     """call_count is incremented by the pipeline (wrap_send), not maybe_inject_state."""
     fake_send = AsyncMock(return_value="HierarchyData")

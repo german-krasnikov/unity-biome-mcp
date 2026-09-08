@@ -431,7 +431,12 @@ class UnityBridge(HeartbeatMixin):
         return self._retry_policy.probe_busy()
 
     async def send(self, cmd: str, args: dict, timeout: float = 30.0) -> dict:
-        if self._reload.is_active():
+        # A retry-safe probe (compile_status/sync_status/get_status) is the
+        # only way callers like runtime._await_reload_idle can detect that a
+        # reload has ended -- blocking it here too would deadlock until the
+        # tracker's own 90s expiry. Mutating commands stay blocked (S8: no
+        # unsafe send while a reload is active).
+        if self._reload.is_active() and not self._is_retry_safe(cmd):
             raise DomainReloadError("Domain reload in progress — retry after recompile")
         if self._state == BridgeState.FAILED:
             if not self._reconnect_cooldown_ok():

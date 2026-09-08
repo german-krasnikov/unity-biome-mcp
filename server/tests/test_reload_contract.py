@@ -55,5 +55,5 @@ def test_state_file_names():
     errors_src = _src("errors.py")
     assert "reloading" in errors_src
 
-    sync_src = _src("tools/sync.py")
-    assert '"ready"' in sync_src
+    from unity_mcp.tools.sync import _parse_status
+    assert _parse_status("epoch=1|state=ready") == (1, "ready", "")

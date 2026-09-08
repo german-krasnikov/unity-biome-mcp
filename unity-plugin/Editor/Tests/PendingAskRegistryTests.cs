@@ -61,6 +61,25 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Complete_RemovesEntry_PendingCountDrops()
+        {
+            PendingAskRegistry.Register("drop-test");
+            Assert.AreEqual(1, PendingAskRegistry.PendingCountForTests);
+            PendingAskRegistry.Complete("drop-test", "{}");
+            Assert.AreEqual(0, PendingAskRegistry.PendingCountForTests,
+                "Complete must atomically remove the entry from _pending");
+        }
+
+        [Test]
+        public void Cancel_AfterComplete_IsNoop_NoException()
+        {
+            PendingAskRegistry.Register("race-test");
+            PendingAskRegistry.Complete("race-test", "{}");
+            Assert.DoesNotThrow(() => PendingAskRegistry.Cancel("race-test"),
+                "Cancel after Complete must be a no-op (TryRemove returns false)");
+        }
+
+        [Test]
         public void GetTcs_UnknownId_ReturnsNull()
         {
             var tcs = PendingAskRegistry.GetTcs("nonexistent-id");

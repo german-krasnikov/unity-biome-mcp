@@ -71,8 +71,8 @@ def make_worker(project: Path, *, lock_source: str = "builtin") -> None:
         "internal class Reload {}\n", encoding="utf-8"
     )
     (project / "ProjectSettings/ProjectVersion.txt").write_text(
-        "m_EditorVersion: 6000.0.65f1\n"
-        "m_EditorVersionWithRevision: 6000.0.65f1 (a18e2220bd50)\n",
+        "m_EditorVersion: 6000.0.83f1\n"
+        "m_EditorVersionWithRevision: 6000.0.83f1 (dacc44548933)\n",
         encoding="utf-8",
     )
     (project / "Packages/manifest.json").write_text(

@@ -32,8 +32,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 import run_unity_tests as durable  # noqa: E402
 
-UNITY_VERSION = "6000.0.65f1"
-UNITY_REVISION = "a18e2220bd50"
+UNITY_VERSION = "6000.0.83f1"
+UNITY_REVISION = "dacc44548933"
 UTF_VERSION = "1.6.0"
 FIXTURE_SOURCE = Path(__file__).resolve().parent / "fixtures" / (
     "unity_domain_reload_acceptance"
@@ -871,7 +871,7 @@ async def run(args: argparse.Namespace) -> None:
     if args.prepare_only:
         installed = install_worker_fixture(project)
         print(f"Prepared worker-only reload harness: {installed}")
-        print("Launch this disposable worker with Unity 6000.0.65f1, then run again.")
+        print("Launch this disposable worker with Unity 6000.0.83f1, then run again.")
         return
 
     validate_worker_project(project, require_lock=True)
