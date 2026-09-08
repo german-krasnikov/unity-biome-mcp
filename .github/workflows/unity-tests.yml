@@ -402,8 +402,7 @@ jobs:
           git add docs/quality/data/unity-tests.json
           git diff --staged --quiet && echo "No changes" && exit 0
           git commit -m "chore: update C# test results [skip ci]"
-          git pull --rebase -X theirs origin master
-          git push
+          bash scripts/git_push_rebase_retry.sh master origin
 
   coverage-hotspots:
     name: Coverage Hotspots
@@ -482,5 +481,4 @@ jobs:
           git add docs/quality/COVERAGE_HOTSPOTS.md docs/quality/data/coverage-hotspots.json
           git diff --staged --quiet && echo "No changes" && exit 0
           git commit -m "chore: update coverage hotspots report [skip ci]"
-          git pull --rebase -X theirs origin master
-          git push
+          bash scripts/git_push_rebase_retry.sh master origin

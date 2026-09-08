@@ -335,5 +335,4 @@ jobs:
           git add .github/badges/*.json docs/quality/data/*.json docs/quality/REPORT.md docs/tools-schema/index.md
           git diff --staged --quiet && echo "No badge changes" && exit 0
           git commit -m "chore: update badges + quality data [skip ci]"
-          git pull --rebase -X theirs origin master
-          git push
+          bash scripts/git_push_rebase_retry.sh master origin

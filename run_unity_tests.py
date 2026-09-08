@@ -57,7 +57,7 @@ TERMINAL_OUTCOMES = {
 MAX_FILE_RESPONSE_BYTES = 64 * 1024 * 1024
 # Unfiltered EditMode's minimum-test floor is measured, not guessed: recorded
 # by A01's real full-suite run and promoted verbatim into this tracked file.
-FULL_BASELINE_PATH = Path(__file__).resolve().parent / "full-baseline.json"
+FULL_BASELINE_PATH = Path(__file__).resolve().parent / "ci" / "full-baseline.json"
 DEFAULT_POLL_INTERVAL_S = 1.0
 
 
