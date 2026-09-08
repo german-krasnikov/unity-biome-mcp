@@ -6,8 +6,9 @@ Plans/N3-T3-T4-live-reload-identity.md.
 """
 
 import json
-import os
 from pathlib import Path
+
+from unity_mcp import lockfile
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -91,16 +92,13 @@ def validate_ports(port_a: int, port_b: int) -> None:
 
 
 def _pid_alive(pid: int) -> bool:
-    """os.kill(pid, 0) liveness probe -- same idiom as
-    gauntlet.process_posix.group_exists (ProcessLookupError=dead,
-    PermissionError=alive-but-different-user)."""
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
+    """Delegate to unity_mcp.lockfile.is_pid_alive rather than calling
+    os.kill(pid, 0) directly: on Windows, signal.CTRL_C_EVENT == 0, so
+    os.kill(pid, 0) invokes GenerateConsoleCtrlEvent(CTRL_C_EVENT, pid) --
+    it sends a real Ctrl+C to the process's console group instead of probing
+    liveness. lockfile.is_pid_alive already branches on win32 (OpenProcess)
+    vs POSIX (os.kill with PermissionError=alive-but-different-user)."""
+    return lockfile.is_pid_alive(pid)
 
 
 def validate_port_owned_by(port: int, launched_pids: set[int], ports_dir: Path) -> None:

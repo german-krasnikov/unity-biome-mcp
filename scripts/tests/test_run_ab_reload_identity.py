@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pytest
 
+import unity_mcp.lockfile as lockfile
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import gauntlet.ab_reload_identity as t3
 import gauntlet.ab_reload_owner_safety as owner_safety
@@ -321,6 +323,26 @@ def test_validate_port_owned_by_treats_only_dead_pid_file_as_no_owner(tmp_path: 
     (ports_dir / f"{dead_pid}.port").write_text("9620\n/tmp/dead\n", encoding="utf-8")
     with pytest.raises(owner_safety.ABReloadIdentityError, match="No port file"):
         owner_safety.validate_port_owned_by(9620, {4242}, ports_dir)
+
+
+def test_pid_alive_delegates_to_lockfile_is_pid_alive(monkeypatch: pytest.MonkeyPatch) -> None:
+    """On Windows, signal.CTRL_C_EVENT == 0, so os.kill(pid, 0) calls
+    GenerateConsoleCtrlEvent(CTRL_C_EVENT, pid) -- it sends a real Ctrl+C to
+    the process's console group instead of probing liveness (this is what
+    interrupted the Windows CI job at cb050d35: the test process signaled
+    itself). lockfile.is_pid_alive already carries the Windows-safe
+    OpenProcess probe, so _pid_alive must delegate to it rather than calling
+    os.kill directly."""
+    recorded_pids: list[int] = []
+
+    def fake_is_pid_alive(pid: int) -> bool:
+        recorded_pids.append(pid)
+        return True
+
+    monkeypatch.setattr(lockfile, "is_pid_alive", fake_is_pid_alive)
+
+    assert owner_safety._pid_alive(4242) is True
+    assert recorded_pids == [4242]
 
 
 # --- CLI safety gate ---
