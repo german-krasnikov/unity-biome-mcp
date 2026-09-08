@@ -1,210 +1,210 @@
 {
   "meta": {
-    "source_sha": "661c6715e93b7952a747d764cb7aeb884da8d2b6",
+    "source_sha": "c4eae33f9941a13c2ce72997c74b37389b18fbab",
     "lane": "Linux",
     "unity_version": "6000.0.83f1",
-    "generated_for_sha": "661c6715e93b7952a747d764cb7aeb884da8d2b6",
+    "generated_for_sha": "c4eae33f9941a13c2ce72997c74b37389b18fbab",
     "stale": false
   },
   "rows": [
     {
+      "class_name": "UnityMCP.Playtest.Core.PlaytestParser",
+      "method_name": "BuildSteps",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Runtime/Playtest/Core/PlaytestParser.Internals.cs",
+      "changed": false,
+      "cyclomatic_complexity": 306,
+      "coverage_fraction": 0.0,
+      "score": 306.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.TestRuns.TestRunReconciler",
+      "method_name": "Reconcile",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/TestRuns/TestRunReconciler.cs",
+      "changed": false,
+      "cyclomatic_complexity": 208,
+      "coverage_fraction": 0.0,
+      "score": 208.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.PlaytestRunner",
+      "method_name": "ExecuteStep",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/PlaytestRunner.Steps.cs",
+      "changed": false,
+      "cyclomatic_complexity": 171,
+      "coverage_fraction": 0.0,
+      "score": 171.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.TimelineHelper",
+      "method_name": "Edit",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/TimelineHelper.cs",
+      "changed": false,
+      "cyclomatic_complexity": 74,
+      "coverage_fraction": 0.0,
+      "score": 74.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.PlaytestRunner/<>c__DisplayClass15_0",
+      "method_name": "<Run>g__Tick|3",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/PlaytestRunner.cs",
+      "changed": false,
+      "cyclomatic_complexity": 70,
+      "coverage_fraction": 0.0,
+      "score": 70.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.ClientConnectionHandler/<HandleClientAsync>d__16",
+      "method_name": "MoveNext",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/ClientConnectionHandler.cs",
+      "changed": false,
+      "cyclomatic_complexity": 69,
+      "coverage_fraction": 0.0,
+      "score": 69.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.CommandRouter",
+      "method_name": "ExecTimelineConsolidated",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/CommandRouter.MediaHandlers.cs",
+      "changed": false,
+      "cyclomatic_complexity": 60,
+      "coverage_fraction": 0.0,
+      "score": 60.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.TimelineHelper",
+      "method_name": "Edit",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/TimelineHelper.cs",
+      "changed": false,
+      "cyclomatic_complexity": 74,
+      "coverage_fraction": 0.21551724137931033,
+      "score": 58.05172413793104,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.Chat.AgentEventParser",
+      "method_name": "MapKind",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/Chat/CLI/AgentEventParser.cs",
+      "changed": false,
+      "cyclomatic_complexity": 57,
+      "coverage_fraction": 0.0,
+      "score": 57.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.CommandRouter",
+      "method_name": "ExecAnimatorConsolidated",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/CommandRouter.MediaHandlers.cs",
+      "changed": false,
+      "cyclomatic_complexity": 57,
+      "coverage_fraction": 0.0,
+      "score": 57.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.PlaytestStepValidator",
+      "method_name": "GetValidationError",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/PlaytestStepValidator.cs",
+      "changed": false,
+      "cyclomatic_complexity": 56,
+      "coverage_fraction": 0.0,
+      "score": 56.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.ValueParser",
+      "method_name": "SetObjectReference",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/ValueParser.cs",
+      "changed": false,
+      "cyclomatic_complexity": 55,
+      "coverage_fraction": 0.0,
+      "score": 55.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.Chat.SearchContextPlugin",
+      "method_name": "ExtToCode",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/Chat/CLI/SearchContextPlugin.cs",
+      "changed": false,
+      "cyclomatic_complexity": 54,
+      "coverage_fraction": 0.0,
+      "score": 54.0,
+      "scenario_ref": "unknown"
+    },
+    {
       "class_name": "UnityMCP.Editor.CommandRouter",
       "method_name": "RegisterReadCommands",
       "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/CommandRouter.Registration.cs",
-      "changed": true,
+      "changed": false,
       "cyclomatic_complexity": 53,
       "coverage_fraction": 0.0,
       "score": 53.0,
       "scenario_ref": "unknown"
     },
     {
+      "class_name": "UnityMCP.Editor.TestRuns.TestRunReconciler",
+      "method_name": "Reconcile",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/TestRuns/TestRunReconciler.cs",
+      "changed": false,
+      "cyclomatic_complexity": 208,
+      "coverage_fraction": 0.7524752475247525,
+      "score": 51.48514851485149,
+      "scenario_ref": "unknown"
+    },
+    {
       "class_name": "UnityMCP.Editor.BatchHelper",
       "method_name": "Execute",
       "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/BatchHelper.cs",
-      "changed": true,
+      "changed": false,
       "cyclomatic_complexity": 50,
       "coverage_fraction": 0.0,
       "score": 50.0,
       "scenario_ref": "unknown"
     },
     {
-      "class_name": "UnityMCP.Editor.TestRuns.TestRunAssemblyFingerprint",
-      "method_name": "Capture",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/TestRuns/TestRunAssemblyFingerprint.cs",
-      "changed": true,
-      "cyclomatic_complexity": 32,
+      "class_name": "UnityMCP.Editor.TestRuns.TestRunService",
+      "method_name": "StartCore",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/TestRuns/TestRunService.cs",
+      "changed": false,
+      "cyclomatic_complexity": 49,
       "coverage_fraction": 0.0,
-      "score": 32.0,
+      "score": 49.0,
       "scenario_ref": "unknown"
     },
     {
-      "class_name": "UnityMCP.Editor.AssemblySourceFreshness",
-      "method_name": "Inspect",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/AssemblySourceFreshness.cs",
-      "changed": true,
-      "cyclomatic_complexity": 27,
+      "class_name": "UnityMCP.Editor.Chat.MCPChatWindow",
+      "method_name": "HandleEvent",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/Chat/View/MCPChatWindow.EventHandlers.cs",
+      "changed": false,
+      "cyclomatic_complexity": 48,
       "coverage_fraction": 0.0,
-      "score": 27.0,
+      "score": 48.0,
       "scenario_ref": "unknown"
     },
     {
-      "class_name": "UnityMCP.Editor.TestRuns.TestRunBuildFingerprint",
-      "method_name": "DescribeCompletionMismatch",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/TestRuns/TestRunBuildFingerprint.cs",
-      "changed": true,
-      "cyclomatic_complexity": 18,
+      "class_name": "UnityMCP.Editor.Wizard.SkillsInstaller",
+      "method_name": "InstallCore",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/Wizard/SkillsInstaller.cs",
+      "changed": false,
+      "cyclomatic_complexity": 48,
       "coverage_fraction": 0.0,
-      "score": 18.0,
+      "score": 48.0,
       "scenario_ref": "unknown"
     },
     {
-      "class_name": "UnityMCP.Editor.AssemblyFreshnessInventory",
-      "method_name": "FindUndiscovered",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/AssemblyFreshnessInventory.cs",
-      "changed": true,
-      "cyclomatic_complexity": 13,
+      "class_name": "UnityMCP.Editor.ComponentSerializer",
+      "method_name": "AppendUnityEvent",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/ComponentSerializer.cs",
+      "changed": false,
+      "cyclomatic_complexity": 46,
       "coverage_fraction": 0.0,
-      "score": 13.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.CommandRouter",
-      "method_name": "RegisterMetaCommands",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/CommandRouter.Registration.cs",
-      "changed": true,
-      "cyclomatic_complexity": 11,
-      "coverage_fraction": 0.0,
-      "score": 11.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.SourcePatch.SourcePatchCoordinator",
-      "method_name": "TryApply",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/SourcePatch/SourcePatchCoordinator.cs",
-      "changed": true,
-      "cyclomatic_complexity": 11,
-      "coverage_fraction": 0.0,
-      "score": 11.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.SourcePatchModePolicy",
-      "method_name": "RequestDisable",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/SourcePatchModePolicy.cs",
-      "changed": true,
-      "cyclomatic_complexity": 10,
-      "coverage_fraction": 0.0,
-      "score": 10.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.SyncHelper",
-      "method_name": "TriggerSyncCore",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/SyncHelper.cs",
-      "changed": true,
-      "cyclomatic_complexity": 10,
-      "coverage_fraction": 0.0,
-      "score": 10.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.SourcePatchHost",
-      "method_name": "ReloadBlockReason",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/SourcePatchHost.cs",
-      "changed": true,
-      "cyclomatic_complexity": 9,
-      "coverage_fraction": 0.0,
-      "score": 9.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Reload.ReloadMiniServer/<>c__DisplayClass19_0",
-      "method_name": "<EnqueueMainThread>b__0",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin-reload/Editor/ReloadMiniServer.cs",
-      "changed": true,
-      "cyclomatic_complexity": 9,
-      "coverage_fraction": 0.0,
-      "score": 9.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.AssemblyFreshnessInventory",
-      "method_name": "FindStaleSourceAssets",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/AssemblyFreshnessInventory.cs",
-      "changed": true,
-      "cyclomatic_complexity": 8,
-      "coverage_fraction": 0.0,
-      "score": 8.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.AssemblyFreshnessInventory",
-      "method_name": "AssemblyFreshnessInventory",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/AssemblyFreshnessInventory.cs",
-      "changed": true,
-      "cyclomatic_complexity": 8,
-      "coverage_fraction": 0.0,
-      "score": 8.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.CodeExecutor",
-      "method_name": "SelectRunMethod",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/CodeExecutor.cs",
-      "changed": true,
-      "cyclomatic_complexity": 8,
-      "coverage_fraction": 0.0,
-      "score": 8.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.DiagnoseCommand/<>c__DisplayClass4_0",
-      "method_name": "<BuildDllFreshness>b__4",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/DiagnoseCommand.cs",
-      "changed": true,
-      "cyclomatic_complexity": 8,
-      "coverage_fraction": 0.0,
-      "score": 8.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Reload.ReloadCommands",
-      "method_name": "ResolveMainAdmission",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin-reload/Editor/ReloadCommands.cs",
-      "changed": true,
-      "cyclomatic_complexity": 8,
-      "coverage_fraction": 0.0,
-      "score": 8.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.AssemblySourceFreshness",
-      "method_name": "SourceAssetPath",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/AssemblySourceFreshness.cs",
-      "changed": true,
-      "cyclomatic_complexity": 7,
-      "coverage_fraction": 0.0,
-      "score": 7.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.CompileErrorCapture",
-      "method_name": "OnCompilationFinished",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/CompileErrorCapture.cs",
-      "changed": true,
-      "cyclomatic_complexity": 7,
-      "coverage_fraction": 0.0,
-      "score": 7.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.DiagnoseCommand",
-      "method_name": "BuildDllFreshness",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/DiagnoseCommand.cs",
-      "changed": true,
-      "cyclomatic_complexity": 7,
-      "coverage_fraction": 0.0,
-      "score": 7.0,
+      "score": 46.0,
       "scenario_ref": "unknown"
     }
   ]
