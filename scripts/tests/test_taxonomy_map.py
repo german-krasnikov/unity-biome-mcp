@@ -1,6 +1,6 @@
 """C13: single cross-language taxonomy source of truth.
 
-`Tests/taxonomy-map.json` maps each test-taxonomy dimension (a capability,
+`ci/taxonomy-map.json` maps each test-taxonomy dimension (a capability,
 speed class, or DSL mode) onto its representation in each language:
 - `pytest_marker`   -> a marker name registered in `server/pyproject.toml`'s
   `[tool.pytest.ini_options].markers` list.
@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TAXONOMY_MAP_PATH = REPO_ROOT / "Tests" / "taxonomy-map.json"
+TAXONOMY_MAP_PATH = REPO_ROOT / "ci" / "taxonomy-map.json"
 PYPROJECT_PATH = REPO_ROOT / "server" / "pyproject.toml"
 TEST_CATEGORIES_PATH = REPO_ROOT / "unity-plugin" / "Editor" / "TestSupport" / "TestCategories.cs"
 

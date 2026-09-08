@@ -2,7 +2,7 @@
 tests. TestRunReconciler's ZERO_TEST_MATCH handling is deliberately lenient
 for ad hoc developer filters (must not change) -- this script is the
 named-lane-level guard one layer up: `allow_empty` in
-Tests/biome-test-lanes.json is enforced here, not decorative.
+ci/biome-test-lanes.json is enforced here, not decorative.
 
 Usage: assert_lane_non_empty.py <lane-name> <collected-count>
 """
@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-LANES_PATH = REPO_ROOT / "Tests" / "biome-test-lanes.json"
+LANES_PATH = REPO_ROOT / "ci" / "biome-test-lanes.json"
 
 
 def load_lanes(path: Path = LANES_PATH) -> dict:

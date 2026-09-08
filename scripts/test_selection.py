@@ -8,7 +8,7 @@ extension"), landing together with the parity test per
 
 All 8 fields are free-form `list[str]`/`bool` leaves -- no enum types for
 risks/surfaces (that would be a 9th place needing updates). Values are
-validated against `Tests/taxonomy-map.json`'s dimension vocabulary later,
+validated against `ci/taxonomy-map.json`'s dimension vocabulary later,
 by C18's static lint -- not by this dataclass.
 """
 from dataclasses import dataclass, field

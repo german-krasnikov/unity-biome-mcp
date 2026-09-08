@@ -1,6 +1,6 @@
 """C16: single source for lane -> test-runner filter expression.
 
-Reads Tests/biome-test-lanes.json (C15) + Tests/taxonomy-map.json (C13) and
+Reads ci/biome-test-lanes.json (C15) + ci/taxonomy-map.json (C13) and
 renders one lane's `filter` as either a pytest `-m` expression or NUnit
 `--category`/`--assembly` flags for A22/A23's run_unity_tests.py. C17 wires
 this into CI so the marker expression is generated once, not hand-typed in
@@ -15,8 +15,8 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-LANES_PATH = REPO_ROOT / "Tests" / "biome-test-lanes.json"
-TAXONOMY_PATH = REPO_ROOT / "Tests" / "taxonomy-map.json"
+LANES_PATH = REPO_ROOT / "ci" / "biome-test-lanes.json"
+TAXONOMY_PATH = REPO_ROOT / "ci" / "taxonomy-map.json"
 
 
 def load_lanes(path: Path = LANES_PATH) -> dict:

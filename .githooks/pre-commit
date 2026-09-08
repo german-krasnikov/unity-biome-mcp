@@ -1,7 +1,9 @@
-#!/usr/bin/env bash
-# Auto-sync root CHANGELOG.md into the UPM package so it ships to consumers.
+#!/bin/sh
+# Pre-commit guards: CHANGELOG mirror sync + NDA terms + gitignored file protection.
+# Activate: git config core.hooksPath .githooks
+
+# 0. Auto-sync root CHANGELOG.md into the UPM package so it ships to consumers.
 # Root is the source of truth; unity-plugin/CHANGELOG.md is a generated mirror.
-set -e
 root="$(git rev-parse --show-toplevel)"
 src="$root/CHANGELOG.md"
 dst="$root/unity-plugin/CHANGELOG.md"
@@ -10,4 +12,23 @@ if [ -f "$src" ]; then
     cp "$src" "$dst"
     git add "$dst"
   fi
+fi
+
+# 1. NDA guard — terms loaded from local (gitignored) file
+NDA_FILE="$(git rev-parse --show-toplevel)/.githooks/.nda-terms"
+if [ -f "$NDA_FILE" ]; then
+  T=$(cat "$NDA_FILE" | tr '\n' '|' | sed 's/|$//')
+  if [ -n "$T" ] && git diff --cached | grep -iaE "$T" | grep -viE 'corner|redundant|recommendation' >/dev/null; then
+    echo "BLOCKED: NDA term in staged content. Inspect: git diff --cached | grep -iniE \"$T\""
+    exit 1
+  fi
+fi
+
+# 2. Block any gitignored files from being committed (catches git add -f bypass)
+IGNORED=$(git diff --cached --name-only --diff-filter=ACMR |
+  git check-ignore --no-index --stdin 2>/dev/null)
+if [ -n "$IGNORED" ]; then
+  echo "BLOCKED: gitignored files staged for commit. Remove with: git rm --cached <file>"
+  echo "$IGNORED"
+  exit 1
 fi

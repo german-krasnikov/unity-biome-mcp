@@ -11,8 +11,8 @@ fails collection today). This lint's actual jobs:
    wrapped constant") -- catches a bare string literal that bypasses the
    registry entirely.
 2. Lanes/map cross-validation: every taxonomy-shaped value in
-   Tests/biome-test-lanes.json's lane filters must be a dimension declared in
-   Tests/taxonomy-map.json.
+   ci/biome-test-lanes.json's lane filters must be a dimension declared in
+   ci/taxonomy-map.json.
 3. `.playtest` `@needs` values against the map: every `@needs` value actually
    observed in the real `.playtest` corpus (via B18's
    scripts/playtest_header.py `scan()` -- never a second ad-hoc `@`-line
@@ -25,7 +25,7 @@ Every `.cs`/`.playtest`/`.json` read passes `encoding="utf-8"` explicitly
 walked here, so a single mis-decoded file would be a false lint failure.
 
 `TestCategories.Perf` (0 usages, verified 2026-09-05, see
-Tests/taxonomy-map.json's `_audit_notes`) is intentionally left declared but
+ci/taxonomy-map.json's `_audit_notes`) is intentionally left declared but
 unused: this lint only flags a `[Category(...)]` *usage site* that bypasses
 the registry, never an unused-but-declared const, so a reserved category
 needs no allow-list entry of its own. Deleting the const would be a C#
@@ -43,8 +43,8 @@ if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 import playtest_header  # noqa: E402
 
-LANES_PATH = REPO_ROOT / "Tests" / "biome-test-lanes.json"
-TAXONOMY_PATH = REPO_ROOT / "Tests" / "taxonomy-map.json"
+LANES_PATH = REPO_ROOT / "ci" / "biome-test-lanes.json"
+TAXONOMY_PATH = REPO_ROOT / "ci" / "taxonomy-map.json"
 TEST_CATEGORIES_PATH = REPO_ROOT / "unity-plugin" / "Editor" / "TestSupport" / "TestCategories.cs"
 # unity-test-project/Assets only, never the project root: Library/PackageCache
 # under it holds vendored third-party Unity/UGUI/render-pipelines source with

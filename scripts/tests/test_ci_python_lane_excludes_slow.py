@@ -8,7 +8,7 @@ what it actually produces, so the guard still proves the real runtime `-m`
 value survives, not just scans dead YAML surface text.
 
 Runs in the standard scripts/tests lane: no Unity, no network, reads the
-tracked workflow file + Tests/biome-test-lanes.json + Tests/taxonomy-map.json.
+tracked workflow file + ci/biome-test-lanes.json + ci/taxonomy-map.json.
 """
 import re
 import sys

@@ -1,4 +1,4 @@
-"""C15: Tests/biome-test-lanes.json — 4 lanes matching today's real CI.
+"""C15: ci/biome-test-lanes.json — 4 lanes matching today's real CI.
 
 Reuses C13's `known_dimension_names()` (scripts/tests/test_taxonomy_map.py)
 so a lane can never reference a taxonomy dimension the map doesn't know
@@ -19,7 +19,7 @@ sys.path.insert(0, str(TESTS))
 from test_taxonomy_map import known_dimension_names  # noqa: E402
 
 REPO_ROOT = TESTS.parent.parent
-LANES_PATH = REPO_ROOT / "Tests" / "biome-test-lanes.json"
+LANES_PATH = REPO_ROOT / "ci" / "biome-test-lanes.json"
 
 # The 4 lane names C17 (not yet implemented) will wire into ci-python.yml /
 # ci-sonar.yml / nightly.yml -- see plan item C15.
@@ -31,7 +31,7 @@ EXPECTED_LANE_NAMES = frozenset({
 })
 
 # `layers`/`environments` are source-bucket labels, not taxonomy dimensions
-# (see Tests/taxonomy-map.json's $note) -- deliberately excluded from the
+# (see ci/taxonomy-map.json's $note) -- deliberately excluded from the
 # taxonomy cross-check below.
 _TAXONOMY_VALIDATED_FIELDS = (
     "modes",

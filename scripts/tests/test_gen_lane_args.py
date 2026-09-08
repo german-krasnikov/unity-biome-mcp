@@ -7,7 +7,7 @@ An unknown lane exits non-zero with a message on stderr and prints nothing
 to stdout -- never a silent empty expression fed into a shell command.
 
 Runs in the standard scripts/tests lane: no Unity, no network, reads two
-tracked JSON files only (Tests/biome-test-lanes.json, Tests/taxonomy-map.json).
+tracked JSON files only (ci/biome-test-lanes.json, ci/taxonomy-map.json).
 """
 import sys
 from pathlib import Path
@@ -32,7 +32,7 @@ def test_pytest_pr_python_core_is_byte_identical_to_ci_python_yml(capsys):
 
 def test_pytest_nightly_full_is_byte_identical_to_nightly_yml(capsys):
     # Real nightly.yml:34 literal today -- deliberately does NOT exclude
-    # monkey/slow (see Tests/biome-test-lanes.json's own note on this lane).
+    # monkey/slow (see ci/biome-test-lanes.json's own note on this lane).
     assert gen_lane_args.main(["pytest", "nightly-full"]) == 0
     assert capsys.readouterr().out == "not live\n"
 
