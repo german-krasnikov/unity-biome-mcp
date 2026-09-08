@@ -1,23 +1,23 @@
 # Quality Report
 
-> Auto-generated on **2026-09-06** from commit `d006b9a` (v1.54.0)
+> Auto-generated on **2026-09-08** from commit `661c671` (v2.0.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v1.54.0 |
-| Commit | `d006b9a` |
-| Date | 2026-09-06 |
+| Version | v2.0.0 |
+| Commit | `661c671` |
+| Date | 2026-09-08 |
 | MCP Tools | 160 |
 
 ## Test Results
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.14) | 6497 | 0 | 3 | 6500 | ✅ |
+| Python Server (3.14) | 6643 | 0 | 3 | 6646 | ✅ |
 | Python Install | 90 | 0 | 0 | 90 | ✅ |
-| Python Scripts | 1295 | 0 | 0 | 1295 | ✅ |
+| Python Scripts | 1511 | 0 | 1 | 1512 | ✅ |
 | C# EditMode (Linux) | 9389 | 0 | 188 | 9577 | ✅ |
 | C# EditMode (Windows) | 9274 | 0 | 303 | 9577 | ✅ |
 | C# EditMode (macOS) | 9389 | 0 | 188 | 9577 | ✅ |
@@ -26,7 +26,7 @@
 
 | Linter | Errors | Warnings | Score |
 |--------|--------|----------|-------|
-| mcp-tool-card-linter | 1 | 419 | 83.46/100 |
+| mcp-tool-card-linter | 1 | 417 | 83.51/100 |
 
 ### Per-Tool Scores
 
@@ -54,7 +54,6 @@
 | `test_step` | 71 | 0 | 4 | medium |
 | `set_rect` | 72 | 0 | 4 | medium |
 | `run_playtest` | 73 | 0 | 5 | high |
-| `sync_unity` | 73 | 0 | 5 | medium |
 | `asset` | 74 | 0 | 3 | high |
 | `run_tests` | 74 | 0 | 5 | medium |
 | `set_sibling_index` | 74 | 0 | 5 | medium |
@@ -91,6 +90,7 @@
 | `brief_build` | 82 | 0 | 3 | high |
 | `get_metrics` | 82 | 0 | 3 | high |
 | `region_clear` | 82 | 0 | 3 | high |
+| `sync_unity` | 82 | 0 | 3 | medium |
 | `ui_intent` | 82 | 0 | 3 | medium |
 | `validate_references` | 82 | 0 | 3 | medium |
 | `batch` | 83 | 0 | 3 | high |
