@@ -191,7 +191,13 @@ boundary, not a general transaction manager.
 filters direct-only lines according to `on_error`; Unity validates and dispatches
 the remaining lines. `atomic=true` reverts prior Undo-recorded Unity changes on
 the first failure. File, asset-import, package, process, and other external side
-effects may remain. See [`batch.md`](batch.md).
+effects may remain.
+
+**Batch body-line contract:** Every successful `batch` command returns `[N] ok: <data>`
+where `N` is the zero-based command index and `<data>` is the response payload (even when
+empty). This normalizes the format for parsers: both "operation succeeded and returned data"
+and "operation succeeded with no data" now carry the `ok:` prefix. Error lines return `[N] err: ...`
+unchanged. See [`batch.md`](batch.md).
 
 Higher-level scene transactions must use their explicit allowlist and
 verification contract; they do not make arbitrary commands transactional.
@@ -320,42 +326,74 @@ C# plugins implement `IMCPPlugin`, register with `PluginRegistry`, and add
 commands through the public `CommandRegistry` overloads. A plugin assembly
 depends on the main Editor assembly, never the reverse.
 
-## Modular Command Registration (PR-04)
+## Modular Command Registration (PR-04 & N1a–N1b)
 
-One pilot module (watch.py) owns its command metadata via SPEC_KWARGS;
-remaining 168 tool specs are centralized in tool_specs.py. Migration deferred.
-The pilot module defines a plain-dict `SPEC_KWARGS`, merged into `_SPECS` at
-import time:
+Two pilot modules own their command metadata and wire-mapping:
+
+1. **watch.py** (WatchModule): owns `watch` and `get_watches` tool specs via `SPEC_KWARGS`.
+2. **sync_module.py** (SyncModule): owns `sync_unity` tool spec via `sync_spec.py`, delegating
+   the poll/recovery algorithm to `sync.py`. Instance-scoped `_send` state prevents
+   cross-contamination when two independently-configured SDK hosts or interleaved async
+   calls share one event loop.
+
+Both define a plain-dict `SPEC_KWARGS`, merged into `_SPECS` at import time:
 
 ```python
-# Pilot (watch.py only, PR-04); other modules still use central tool_specs.py.
+# Pilot modules (watch.py and sync_module.py via sync_spec.py)
 SPEC_KWARGS: dict[str, dict] = {
     'watch': {'category': 'RUNTIME', 'direct_only': True},
     'get_watches': {'category': 'RUNTIME', 'mutability': 'read'},
+    'sync_unity': {'category': 'EDITOR', 'mutability': 'write', 'runtime': False},
 }
 ```
+
+Remaining 166+ tool specs are centralized in tool_specs.py. Migration deferred.
+
+**Plugin Registration Owner (N1a):** A plugin declaring a reserved builtin name, a name
+colliding with a host tool, or a name it does not own (declared via `register_read_cmds`/
+`register_write_cmds` but never registered as a tool) is rejected entirely at commit time
+— zero commands, gating entries, or budget features survive. The `_owner.py` module
+tracks which names are currently being registered via an API-v1 call; `_atomic.py` reads
+this journal after a plugin's `register()` completes and validates against reserved names,
+existing tools, and the plugin's own declared ownership. On the C# side, `CommandRegistry.Register`
+throws on a duplicate from a different plugin instance, rolling back the entire plugin's
+registration via `PluginRegistry.RegisterAllPlugins`. Plugin command inventory is now
+attributed by the registering plugin's identity (module ID) instead of name prefix, so
+`AdditionalCommands` and prefix-free commands are correctly grouped under their owning plugin.
+Failures are queryable via `get_failed_plugins()` (Python and C#, mirrored).
 
 Instance-scoped `_send` and `_args` injection prove modules don't cross-contaminate.
 C# `CommandRegistry.Entry` gains `MutatingArgsPolicy` delegate (for argument-aware
 read/write classification) and `NotBatchable` bool; hardcoded name-switches migrate
 to registration sites. Target invariant (not yet enforced): adding a command should
 require only the module's registration. Currently, new commands also need a
-ToolSpec entry in tool_specs.py and may need gating entries. 36 policy-vector
-tests validate parity across 5 representative commands.
+ToolSpec entry in tool_specs.py (or a pilot module's sync_spec.py) and may need gating entries.
+36 policy-vector tests validate parity across 5 representative commands.
 
-## Reload Module Isolation (PR-04R)
+## Reload Module Isolation (PR-04R & N2)
 
-The Reload module's algorithm is swappable via composition seams:
+The Reload module's algorithm is swappable via composition seams and a narrow facade:
 
+- `IReloadAlgorithm` interface (N2) provides the narrow facade with structured outcomes.
+  `Bind` injects the algorithm via composition instead of direct calls.
+- Reload-port outcome (N2): C# `SourcePatchReloadPort.ReloadPortOutcome` enum (`Accepted`,
+  `AcceptedNoOp`, `Rejected`) distinguishes when a compile/reload is needed vs. when the
+  port acknowledges no-op (nothing to compile); Python returns literal string `"noop_recovery"`
+  (constant `NOOP_RECOVERY_RESULT`) when `editor(action="mutation_mode", enable=false)`
+  receives `AcceptedNoOp` — the mutation mode policy moves to Recovery state rather than Off.
 - `SyncHelper.IsMainAssemblyCompiling` is an injectable predicate (the identified
   architectural seam) instead of a direct MCPServer check
 - `ISourcePatchReloadPort` interface lets `SourcePatchModePolicy.RequestDisable()`
   delegate instead of calling `SyncHelper.TriggerSync` directly
+- `SyncModule` (N1b) instance-owns `sync_unity` MCP tool and delegates the poll/recovery
+  algorithm to `sync.py`, which consumes the facade via an explicit `SyncContext` built
+  from the module instance's own send state. Python-only module globals (`_send`, `_bump_used`)
+  stay reserved for sync.py's legacy module-level adapter.
 - Import-linter forbids diagnose/reload_ladder from importing sync.py
 - Source-scan confirms Reload-owner files have no Chat/SourcePatch/Scenario refs
 
-Invariant: Reload algorithm can be swapped (e.g., for a custom reconciler)
-without edits to core, transport, Chat, or SourcePatch code.
+Invariant: Reload algorithm can be swapped (e.g., for a custom reconciler) via composition
+seams without edits to core, transport, Chat, or SourcePatch code.
 
 ## Chat Module Off State (PR-05)
 

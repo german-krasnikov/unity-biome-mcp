@@ -49,6 +49,13 @@ required refresh, waits for a coherent domain, and reports compile failures:
 result = await sync_unity()
 ```
 
+`sync_unity` is a mutating tool and is refused in the following conditions:
+
+- **Play Mode:** Cannot refresh or reload while Play Mode is active.
+- **Read-only sessions:** Protected configuration mode blocks script recompilation.
+- **Chat ask mode:** Ask mode automatically blocks this write to prevent
+  unattended bulk changes.
+
 Do not replace that check with a fixed sleep. `recompile` requests compilation
 but does not by itself prove that the new assembly loaded. For diagnosis and
 the post-change verification ladder, see [Diagnostics](diagnostics.md).

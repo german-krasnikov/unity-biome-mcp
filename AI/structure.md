@@ -51,6 +51,9 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/src/unity_mcp/tools/` | Typed MCP wrappers and Python-side orchestration. |
 | `server/src/unity_mcp/tools/__init__.py` | Built-in tool-module registration. |
 | `server/src/unity_mcp/tools/tool_specs.py` | Tool metadata source for category, mutability, timeout, visibility, runtime, and direct-only behavior. |
+| `server/src/unity_mcp/tools/sync_spec.py` | SyncModule ToolSpec metadata and owned wire-command mapping (N1b): decouples `tool_specs.py` from importing `sync.py` to prevent circular dependencies. |
+| `server/src/unity_mcp/tools/sync_algorithm.py` | Reload algorithm facade with replaceable swappable interface (N2): narrow `IReloadAlgorithm` abstraction and `Bind` composition seam beneath the public sync surface. |
+| `server/src/unity_mcp/tools/sync_module.py` | Second self-owned Python module pilot (N1b): owns public `sync_unity` MCP tool with instance-scoped send/state, delegating the poll/recovery algorithm to `sync.py`'s legacy implementations. |
 | `server/src/unity_mcp/tools/gating.py` | Session visibility categories and plugin category registration. |
 | `server/src/unity_mcp/tools/schema_registry.py` | Deferred public schema lookup. |
 | `server/src/unity_mcp/tools/run_handle.py` | Durable test run metadata (TestRunHandle, TestRunRegistry); persists across transport disconnect. |
@@ -64,6 +67,7 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/src/unity_mcp/middleware_guards.py` | Read-only, Play Mode, batch, retry, and verification guards. |
 | `server/src/unity_mcp/plugins/` | Plugin discovery. |
 | `server/src/unity_mcp/plugins/_atomic.py` | Atomic plugin registration (PR-04): snapshots and restores all registries (tools, READ/WRITE_CMDS, dsl_tools, gating, budget) on failure to leave zero stale state. |
+| `server/src/unity_mcp/plugins/_owner.py` | Scoped plugin identity and API-v1 metadata journal (N1a): tracks which names were declared by the currently-registering plugin for commit-time validation of reserved names, collisions, and owned-name checks. |
 | `server/src/unity_mcp/plugin_api.py` | Supported Python plugin facade. |
 | `server/src/unity_mcp/config/` | MCP client discovery, merge, backup, and validation. |
 | `server/src/unity_mcp/adapters/` | Chat backend protocol adapters. |
@@ -78,6 +82,13 @@ The installable package lives under `server/src/unity_mcp/`.
 | `scripts/gauntlet/fetch_adapter_sources.py` | Fetch pinned provider adapter sources with SHA256 atomic lock (fail-closed, malformed-input guards). Adapter used by `MutationAdapterContract` offline tests. |
 | `scripts/run_mutation_regression_cell.py` | Mutation regression cell driver: Python-side orchestration; reads `BIOME_FINAL_PORT_A`, `BIOME_WORKER_A` and runs mutation suite with 1800 s budget. Supersedes legacy FSR-qualification driver. |
 | `scripts/validate_mutation_regression_receipts.py` | Receipt validator for mutation regression lane: parses story outputs, enforces pass verdicts, cross-checks with test run state. Fails CI on contradictory results. |
+| `scripts/run_ab_reload_identity.py` | A/B reload identity harness (N3): proves cross-worker reload identity and loss-of-ACK recovery by orchestrating synchronous reload cycles, port persistence, and epoch monotonicity checks via two workers with independent ports. Integrates reload-port outcome and noop_recovery contract verification. |
+| `scripts/gauntlet/ab_reload_*.py` | A/B reload test slices (compile recovery, identity, live seams, lost-ACK, negative controls, owner safety, proxy, receipt). Each slice covers one narrow failure mode. Run via `run_ab_reload_identity.py`. |
+| `scripts/fixtures/ab_reload_harness/` | C# fixtures for A/B harness: `AbReloadNonce.cs` and `UnityMCP.Worker.ABReloadHarness.asmdef` for reload identity verification across workers. |
+| `scripts/tests/test_ab_reload_*.py` | Python unit tests for A/B harness phases, lost-ACK, and negative controls without live workers. |
+| `scripts/tests/test_run_ab_reload_identity.py` | Integration tests for A/B harness orchestration: port discovery, worker staging, sync/poll, receipt validation. |
+| `scripts/check_skills_freshness.py` | Static validation: skills refs, agent versions, tool parity (includes `csharp_parity` marker detection). |
+| `scripts/coverage_hotspots.py` | Coverage hotspot detection: parses OpenCover XML, computes top-20 changed methods by coverage/complexity/churn, outputs to `docs/quality/` on CI (includes `--repo-root` flag for relative path mapping). |
 | `scripts/tests/test_unity_test_source_hygiene.py` | Hygiene guard: validates Unity C# test structure (fixture bases, ownership registration, async patterns, disposable-worker marking) to prevent false-green tests and coverage gaps. |
 
 Do not maintain a tool roster in this file. Derive it from `tool_specs.py` and
