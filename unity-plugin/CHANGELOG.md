@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.0.0] — 2026-09-08
+
 ### Added
 
 - **Offline Freshness and Reload Contract Validation (N0a/Reload):** Two new NUnit dotnet projects (`Tests~/AssemblyFreshness/` and `Tests~/SourcePatchReadiness/`) validate bytecode freshness detection and reload-readiness state transitions without Editor. Both use `~` folder convention to remain invisible to asset importer. Covers `AssemblySourceFreshness` byte comparison and `SourcePatchReloadAck` lease lifecycle.
@@ -3778,7 +3780,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.54.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.0.0...HEAD
+[v2.0.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.54.0...v2.0.0
 [v1.54.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.53.0...v1.54.0
 [v1.52.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.51.0...v1.52.0
 [v1.51.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.48.1...v1.51.0
