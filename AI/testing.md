@@ -4,7 +4,7 @@ This document is the canonical test-authoring policy for Unity Biome MCP.
 It applies to this repository and its disposable workers. It is not installed
 into consumer projects with `ClientSkills`.
 
-The canonical Unity test project uses Unity `6000.0.65f1` and the Editor's
+The canonical Unity test project uses Unity `6000.0.83f1` and the Editor's
 built-in Unity Test Framework `1.6.0`. Product code, fixtures, and runners target
 the Unity `6000.0` contract; do not add newer-Unity compatibility branches.
 
@@ -404,8 +404,9 @@ Optional FSR-based body-only source patching uses a dedicated CI qualification m
 in `.github/workflows/fsr-qualification.yml`. Qualification requires two pass cells
 (Unity 6000.0.65f1 on macOS ARM64 and Linux x64); Windows x64 is documented as
 INFRASTRUCTURE_BLOCKED (headed-GUI unavailable on GH-hosted runners) and engineering-supported
-with CI qualification pending. U_MAX (6000.5.10f1) is shelved in P2-07 for a reviewed
-compatibility change with new matrix evidence.
+with CI qualification pending. **The 6000.0.65f1 qualification lock is frozen for v2.0.0;
+re-qualification on the current product baseline (6000.0.83f1) is a post-release follow-up.**
+U_MAX (6000.5.10f1) is shelved in P2-07 for a reviewed compatibility change with new matrix evidence.
 
 **Test fixtures:** New C# tests use existing `UnityMcpTestBase`, `SceneTestBase`, and
 `BiomeWorkerOnly` patterns. Source Patch mutations are forbidden in standard T5

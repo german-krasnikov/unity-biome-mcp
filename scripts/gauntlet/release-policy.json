@@ -45,7 +45,7 @@
       "driver": "unity_editor",
       "os": "macos",
       "python": "3.14",
-      "unity": "6000.0.65f1",
+      "unity": "6000.0.83f1",
       "plugin_scope": "exact",
       "required_workers": 1,
       "worker_roles": [

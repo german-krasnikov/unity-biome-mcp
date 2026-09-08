@@ -12,8 +12,8 @@ from unity_mcp import lockfile
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-UNITY_VERSION = "6000.0.65f1"
-UNITY_REVISION = "a18e2220bd50"
+UNITY_VERSION = "6000.0.83f1"
+UNITY_REVISION = "dacc44548933"
 UTF_VERSION = "1.6.0"
 
 OWNER_PORT = 9600

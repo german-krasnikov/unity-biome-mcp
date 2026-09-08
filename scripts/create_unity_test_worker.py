@@ -18,10 +18,10 @@ from gauntlet.worker_artifacts import WorkerArtifactError, install_worker_artifa
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE_PROJECT = REPO_ROOT / "unity-test-project"
 DEFAULT_UNITY = Path(
-    "/Applications/Unity/Hub/Editor/6000.0.65f1-arm64/Unity.app/Contents/MacOS/Unity"
+    "/Applications/Unity/Hub/Editor/6000.0.83f1-arm64/Unity.app/Contents/MacOS/Unity"
 )
-UNITY_VERSION = "6000.0.65f1"
-UNITY_REVISION = "a18e2220bd50"
+UNITY_VERSION = "6000.0.83f1"
+UNITY_REVISION = "dacc44548933"
 UTF_VERSION = "1.6.0"
 BOOTSTRAP_SCENE = "Assets/Scenes/GridTest.unity"
 

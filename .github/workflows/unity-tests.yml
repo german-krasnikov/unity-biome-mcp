@@ -117,7 +117,7 @@ jobs:
         if: github.event_name != 'pull_request' || matrix.name == 'Linux'
         timeout-minutes: 60
         with:
-          unity-version: 6000.0.65f1
+          unity-version: 6000.0.83f1
           build-targets: ${{ matrix.build-target }}
           cache-installation: ${{ runner.os != 'Windows' }}
           hub-version: ${{ matrix.hub-version }}
@@ -251,7 +251,7 @@ jobs:
         id: unity-setup
         timeout-minutes: 30
         with:
-          unity-version: 6000.0.65f1
+          unity-version: 6000.0.83f1
           build-targets: StandaloneLinux64
           cache-installation: true
           hub-version: '3.19.5'
@@ -458,7 +458,7 @@ jobs:
             --scenario-map scripts/fixtures/coverage_scenario_map.txt \
             --source-sha "${{ github.sha }}" \
             --lane Linux \
-            --unity-version 6000.0.65f1 \
+            --unity-version 6000.0.83f1 \
             --out-md reports/coverage-hotspots.md \
             --out-json reports/coverage-hotspots.json
         continue-on-error: true

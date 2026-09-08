@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **CI Unity Version Matrix Refresh:** Canonical worker baseline bumped 6000.0.65f1 → 6000.0.83f1 (LTS latest patch). Compat matrix (`unity-compat.yml`) gains a 6000.6 compile-check cell (previously missing) and its 6.7 alpha pin moves 6000.7.0a4 → 6000.7.0a6. FSR/mutation qualification lock (`scripts/fsr_qualification_lock.json` `u_min`) stays frozen at 6000.0.65f1 for this release's already-qualified mutation evidence; re-qualification on the new baseline is tracked as follow-up.
 - **UPM Package Dependency:** `unity-plugin/package.json` now declares `com.unity.nuget.mono-cecil 1.11.5` as required dependency. Ensure project registry resolves `com.unity.nuget.*` packages (standard Unity configurations include this by default). Used internally for assembly analysis during reload and compile verification.
 
 ### Known Issues

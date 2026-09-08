@@ -172,7 +172,7 @@ Mutations are only admitted if they meet all these constraints:
 ## Supported Platforms and Unity Versions
 
 Qualified for:
-- **Unity 6000.0.65f1 (Mono backend)**
+- **Unity 6000.0.65f1 (Mono backend)** — *Qualification locked for v2.0.0; testing on newer Unity versions is a post-release follow-up.*
 - **macOS ARM64:** CI-qualified
 - **Linux x64:** CI-qualified
 

@@ -65,7 +65,7 @@ class HotspotRow:
 class ReportMeta:
     source_sha: str
     lane: str            # "Linux" -- matches unity-tests.yml matrix.name
-    unity_version: str   # "6000.0.65f1" -- matches unity-tests.yml
+    unity_version: str   # "6000.0.83f1" -- matches unity-tests.yml
     generated_for_sha: str  # current HEAD at report-render time
     stale: bool           # generated_for_sha != source_sha
 

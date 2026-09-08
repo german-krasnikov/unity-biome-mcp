@@ -73,7 +73,7 @@ jobs:
         id: unity-setup
         timeout-minutes: 30
         with:
-          unity-version: 6000.0.65f1
+          unity-version: 6000.0.83f1
           build-targets: StandaloneLinux64
           hub-version: '3.19.5'
 

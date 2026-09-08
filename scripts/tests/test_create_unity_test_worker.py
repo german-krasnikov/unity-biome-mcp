@@ -161,7 +161,7 @@ def test_worker_creation_refuses_existing_destination(
 def test_source_version_must_match_canonical_toolchain(tmp_path: Path) -> None:
     source = source_project(tmp_path)
     (source / "ProjectSettings" / "ProjectVersion.txt").write_text(
-        "m_EditorVersion: 6000.0.65f1\n", encoding="utf-8"
+        "m_EditorVersion: 6000.0.83f1\n", encoding="utf-8"
     )
 
     with pytest.raises(worker.WorkerCreationError, match="Unity revision"):

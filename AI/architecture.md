@@ -474,7 +474,7 @@ Optional FSR adapter (Roslyn body classifier, Harmony detour, exact-target loade
 - Single file at a time; no multi-file transactions
 - No Play Mode mutations; auto-OFF on domain reload
 - Mono backend only; deterministic one-at-a-time operations
-- Qualified window: `6000.0.65f1` (Mono). Extension beyond this window is P2-07 (reviewed compatibility change).
+- Qualified window: `6000.0.65f1` (Mono, locked for v2.0.0 — re-qualification on the current baseline is a post-release follow-up). Extension beyond this window is P2-07 (reviewed compatibility change).
 
 **CI qualification:** Two required-pass cells (Unity 6000.0.65f1 × macOS ARM64, Linux x64) per `.github/workflows/fsr-qualification.yml`. Windows x64 documented as INFRASTRUCTURE_BLOCKED (headed-GUI unavailable on GH-hosted runners); engineering-supported with CI qualification pending. Adapter SHA pinned via `scripts/source_patch_provider_pin.json`.
 
