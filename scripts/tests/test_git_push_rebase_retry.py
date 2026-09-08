@@ -11,8 +11,16 @@ import os
 import subprocess
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = REPO_ROOT / "scripts" / "git_push_rebase_retry.sh"
+
+pytestmark = pytest.mark.skipif(
+    os.name != "posix",
+    reason="git_push_rebase_retry.sh is a POSIX shell script run by ubuntu CI jobs; "
+    "Windows `bash` is the WSL launcher",
+)
 
 # Shared pre-receive hook: rejects a push while a marker file exists. By
 # default it deletes the marker after one rejection (simulates exactly one
