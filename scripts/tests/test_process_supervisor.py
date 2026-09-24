@@ -3,6 +3,7 @@
 
 import hashlib
 import os
+import signal
 import sys
 import threading
 import time
@@ -114,13 +115,18 @@ def test_output_flood_is_bounded_and_stops_the_process(tmp_path: Path) -> None:
 
 @POSIX_ONLY
 def test_sigterm_ignored_requires_forced_cleanup(tmp_path: Path) -> None:
-    result = ProcessSupervisor().run(
-        _spec(
-            tmp_path,
-            "import signal,time; signal.signal(signal.SIGTERM, signal.SIG_IGN); time.sleep(60)",
-            timeout=0.1,
+    # Popen's default restore_signals only resets SIGPIPE/SIGXFZ/SIGXFSZ in the
+    # child, so an ignored SIGTERM disposition set here survives fork+exec and
+    # is already SIG_IGN before the child's CPython bootstrap even starts.
+    # That removes the race where a first SIGTERM could kill the child before
+    # it installs its own handler.
+    previous_handler = signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    try:
+        result = ProcessSupervisor().run(
+            _spec(tmp_path, "import time; time.sleep(60)", timeout=0.1)
         )
-    )
+    finally:
+        signal.signal(signal.SIGTERM, previous_handler)
 
     assert result.completed_within_scope is False
     assert result.timed_out is True
