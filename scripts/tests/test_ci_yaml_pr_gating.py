@@ -249,3 +249,38 @@ def test_required_check_workflows_have_no_pull_request_paths_filter():
         f"found {sorted(matched_contexts)}"
     )
     assert not offenders, f"required-check workflows must gate on every PR: {offenders}"
+
+
+# pip install ".[dev]" (the Lint/Test steps below) resolves straight from
+# server/pyproject.toml and never touches server/uv.lock, so a Dependabot bump
+# of a pyproject.toml specifier (PR #92, grimp<3.16 -> <3.17) can land without
+# the lock file being regenerated -- nothing in CI previously ran `uv lock
+# --check` to catch that drift. The Lint job has no `pull_request.paths`
+# filter (see REQUIRED_CHECK_CONTEXTS above), so it always runs on every PR.
+def test_ci_python_lint_job_checks_uv_lock_is_in_sync():
+    steps = _job_steps(WORKFLOWS_DIR / "ci-python.yml", "lint")
+    matches = [s for s in steps if "uv lock --check" in s.get("run", "")]
+    assert matches, (
+        "ci-python.yml jobs.lint: expected a step running `uv lock --check` "
+        "so a pyproject.toml/uv.lock drift fails the PR-required Lint check"
+    )
+    for step in matches:
+        target = step.get("working-directory", "") + step["run"]
+        assert "server" in target, (
+            f"uv lock --check step must target the server/ project, got: {step!r}"
+        )
+
+
+# Dependabot's `pip` ecosystem only reads server/pyproject.toml and bumps
+# specifiers there -- it has no notion of server/uv.lock, which is why PR #92
+# could bump a specifier without regenerating the lock. The `uv` ecosystem
+# understands uv.lock and updates both files together in the same PR.
+def test_dependabot_server_python_ecosystem_is_uv():
+    data = yaml.safe_load((REPO_ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8"))
+    server_updates = [u for u in data["updates"] if u.get("directory") == "/server"]
+    assert server_updates, "expected a dependabot.yml update entry for directory '/server'"
+    for update in server_updates:
+        assert update.get("package-ecosystem") == "uv", (
+            "server/ Python deps must use the 'uv' ecosystem so Dependabot keeps "
+            f"pyproject.toml and uv.lock in sync together, got: {update.get('package-ecosystem')!r}"
+        )

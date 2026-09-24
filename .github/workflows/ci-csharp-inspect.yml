@@ -91,7 +91,7 @@ jobs:
           fi
           echo "sln=$SLN" >> "$GITHUB_OUTPUT"
           echo "Found: $SLN"
-          ls unity-test-project/*.csproj 2>/dev/null | wc -l | xargs -I{} echo "Generated {} .csproj files"
+          find unity-test-project -maxdepth 1 -name "*.csproj" | wc -l | xargs -I{} echo "Generated {} .csproj files"
         id: sln
 
       - name: Setup .NET SDK
