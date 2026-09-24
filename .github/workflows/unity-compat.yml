@@ -21,6 +21,12 @@ jobs:
     name: "${{ matrix.label }}"
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # Dependabot PRs never receive Actions secrets (empty secrets store by
+      # GitHub design), so unguarded license activation goes red instead of
+      # skipping. jobs.<id>.if can't see secrets/env -- the guard has to live
+      # on each step's own if: below instead.
+      HAS_UNITY_SECRETS: ${{ secrets.UNITY_EMAIL != '' && secrets.UNITY_PASSWORD != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -77,6 +83,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
+      - name: Notice - Unity secrets unavailable
+        if: env.HAS_UNITY_SECRETS != 'true'
+        shell: bash
+        run: echo "::notice title=Unity secrets unavailable::UNITY_EMAIL/UNITY_PASSWORD repository secrets are not available on this run (e.g. Dependabot PRs receive no Actions secrets) -- Unity license activation and the compat test run are skipped."
+
       - name: Create artifacts directory
         run: mkdir -p artifacts
 
@@ -94,6 +105,7 @@ jobs:
 
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
+        if: env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 30
         continue-on-error: true
         with:
@@ -109,7 +121,7 @@ jobs:
           exit 0
 
       - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
-        if: steps.unity-setup.outcome != 'failure'
+        if: steps.unity-setup.outcome != 'failure' && env.HAS_UNITY_SECRETS == 'true'
         with:
           license: 'Personal'
           username: ${{ secrets.UNITY_EMAIL }}
@@ -117,7 +129,7 @@ jobs:
 
       # ── Compile-only: open project, exit if no errors ──────────
       - name: Compile check
-        if: matrix.test-mode == 'compile' && steps.unity-setup.outcome != 'failure'
+        if: matrix.test-mode == 'compile' && steps.unity-setup.outcome != 'failure' && env.HAS_UNITY_SECRETS == 'true'
         uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         with:
           build-target: StandaloneLinux64
@@ -131,7 +143,7 @@ jobs:
 
       # ── Targeted: run only compat-specific tests ───────────────
       - name: Targeted compat tests
-        if: matrix.test-mode == 'targeted' && steps.unity-setup.outcome != 'failure'
+        if: matrix.test-mode == 'targeted' && steps.unity-setup.outcome != 'failure' && env.HAS_UNITY_SECRETS == 'true'
         uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         with:
           build-target: StandaloneLinux64
@@ -148,7 +160,7 @@ jobs:
 
       # ── Full: run entire EditMode suite ────────────────────────
       - name: Full EditMode tests
-        if: matrix.test-mode == 'full' && steps.unity-setup.outcome != 'failure'
+        if: matrix.test-mode == 'full' && steps.unity-setup.outcome != 'failure' && env.HAS_UNITY_SECRETS == 'true'
         uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         with:
           build-target: StandaloneLinux64
