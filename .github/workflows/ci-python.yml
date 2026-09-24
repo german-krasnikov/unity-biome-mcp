@@ -13,16 +13,10 @@ on:
       - ".jscpd.json"
       - ".github/workflows/ci-python.yml"
   pull_request:
+    # No paths filter here: this workflow carries required status checks,
+    # and a required check must report on every PR or GitHub blocks the
+    # merge forever whenever a PR happens not to touch a filtered path.
     branches: [master]
-    paths:
-      - "server/**"
-      - "install/**"
-      - "scripts/**"
-      - "unity-plugin/ClientSkills/**"
-      - "unity-plugin/Editor/**"
-      - "unity-plugin-reload/Editor/**"
-      - ".jscpd.json"
-      - ".github/workflows/ci-python.yml"
   workflow_dispatch:
 
 concurrency:

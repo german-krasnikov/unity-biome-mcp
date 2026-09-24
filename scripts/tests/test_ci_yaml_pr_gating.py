@@ -28,6 +28,7 @@ specific to the Unity-secrets guard:
 Runs in the standard scripts/tests lane: no Unity, no network, reads the
 tracked workflow files only.
 """
+import itertools
 import re
 import sys
 from pathlib import Path
@@ -184,3 +185,67 @@ def test_unity_license_workflow_permissions_not_widened(filename):
             f"{filename}: permissions.{scope}={level!r} grants more than read and is not "
             "a pre-existing allowlisted exception"
         )
+
+
+# A GitHub required status check only ever reports on a PR if the
+# workflow that defines it actually runs for that PR. A `pull_request.paths`
+# (or `paths-ignore`) filter makes the whole workflow -- and every required
+# check job inside it -- skip entirely for PRs that never touch a listed
+# path, which leaves the check permanently "pending" and blocks merge
+# forever once a ruleset requires it. Single source of truth for the check
+# names a future ruleset will require: keep this in sync with any rename of
+# the `name:` (or matrix-templated `name:`) fields below.
+REQUIRED_CHECK_CONTEXTS = (
+    "Lint",
+    "Test (py3.14, ubuntu-latest)",
+    "README check",
+)
+
+
+def _rendered_job_names(job: dict) -> set[str]:
+    """A job's actual GitHub check-run name(s): the literal `name:` string,
+    or -- for a matrix job whose `name:` template references `matrix.*` --
+    one rendered name per matrix leg actually scheduled."""
+    name_template = job.get("name")
+    if not name_template:
+        return set()
+    matrix = ((job.get("strategy") or {}).get("matrix")) or {}
+    list_dims = {k: v for k, v in matrix.items() if isinstance(v, list)}
+    if not list_dims or "${{ matrix." not in name_template:
+        return {name_template}
+    keys = list(list_dims.keys())
+    rendered = set()
+    for combo in itertools.product(*(list_dims[k] for k in keys)):
+        text = name_template
+        for key, value in zip(keys, combo, strict=True):
+            text = text.replace(f"${{{{ matrix.{key} }}}}", str(value))
+        rendered.add(text)
+    return rendered
+
+
+def test_required_check_workflows_have_no_pull_request_paths_filter():
+    matched_contexts = set()
+    offenders = []
+    for path in sorted(WORKFLOWS_DIR.glob("*.yml")):
+        data = _load_workflow(path)
+        job_names = set()
+        for job in (data.get("jobs") or {}).values():
+            job_names |= _rendered_job_names(job)
+        hits = job_names & set(REQUIRED_CHECK_CONTEXTS)
+        if not hits:
+            continue
+        matched_contexts |= hits
+        triggers = _workflow_triggers(data) or {}
+        pr_trigger = triggers.get("pull_request") if isinstance(triggers, dict) else None
+        if pr_trigger is None:
+            offenders.append((path.name, "no pull_request trigger at all", hits))
+            continue
+        if isinstance(pr_trigger, dict) and ("paths" in pr_trigger or "paths-ignore" in pr_trigger):
+            offenders.append((path.name, "pull_request has a paths filter", hits))
+
+    assert matched_contexts == set(REQUIRED_CHECK_CONTEXTS), (
+        "expected to find every required-check job name in some "
+        f".github/workflows/*.yml: expected {sorted(REQUIRED_CHECK_CONTEXTS)}, "
+        f"found {sorted(matched_contexts)}"
+    )
+    assert not offenders, f"required-check workflows must gate on every PR: {offenders}"
