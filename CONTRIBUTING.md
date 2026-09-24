@@ -108,6 +108,21 @@ CLI/provider authentication and should be run separately.
 Stop after a failing prerequisite and fix it before interpreting downstream
 results.
 
+## Python dependencies
+
+This project pins dependencies via `server/uv.lock` (managed by uv). After
+editing `server/pyproject.toml`, regenerate the lock file:
+
+```bash
+cd server
+uv lock
+```
+
+Commit both `pyproject.toml` and `uv.lock` in the same commit. CI enforces
+`uv lock --check` to prevent lock-file drift. Dependabot automatically updates
+dependencies via the `uv` ecosystem (not `pip`), which keeps both files in
+sync on a weekly schedule.
+
 ## Code changes
 
 Prefer the smallest change that makes the behavior explicit and testable.
