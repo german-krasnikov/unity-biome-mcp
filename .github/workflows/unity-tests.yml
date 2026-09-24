@@ -40,6 +40,12 @@ jobs:
     if: github.event_name != 'workflow_dispatch' || inputs.run_player_playtest != 'true'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 60
+    env:
+      # Dependabot PRs never receive Actions secrets (empty secrets store by
+      # GitHub design), so unguarded license activation goes red instead of
+      # skipping. jobs.<id>.if can't see secrets/env -- the guard has to live
+      # on each step's own if: below instead.
+      HAS_UNITY_SECRETS: ${{ secrets.UNITY_EMAIL != '' && secrets.UNITY_PASSWORD != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -66,6 +72,11 @@ jobs:
             coverage-args: ''
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Notice - Unity secrets unavailable
+        if: env.HAS_UNITY_SECRETS != 'true'
+        shell: bash
+        run: echo "::notice title=Unity secrets unavailable::UNITY_EMAIL/UNITY_PASSWORD repository secrets are not available on this run (e.g. Dependabot PRs receive no Actions secrets) -- Unity license activation and the Unity test run are skipped."
 
       - name: Install VC++ 2010 runtime (Unity 6 dependency)
         if: |
@@ -114,7 +125,7 @@ jobs:
 
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 60
         with:
           unity-version: 6000.0.83f1
@@ -123,7 +134,7 @@ jobs:
           hub-version: ${{ matrix.hub-version }}
 
       - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         with:
           license: 'Personal'
           username: ${{ secrets.UNITY_EMAIL }}
@@ -131,7 +142,7 @@ jobs:
 
       - uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         name: Run EditMode Tests
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         with:
           build-target: ${{ matrix.build-target }}
           editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
@@ -210,8 +221,19 @@ jobs:
     if: github.event_name != 'workflow_dispatch' || inputs.run_player_playtest != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      # Dependabot PRs never receive Actions secrets (empty secrets store by
+      # GitHub design), so unguarded license activation goes red instead of
+      # skipping. jobs.<id>.if can't see secrets/env -- the guard has to live
+      # on each step's own if: below instead.
+      HAS_UNITY_SECRETS: ${{ secrets.UNITY_EMAIL != '' && secrets.UNITY_PASSWORD != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Notice - Unity secrets unavailable
+        if: env.HAS_UNITY_SECRETS != 'true'
+        shell: bash
+        run: echo "::notice title=Unity secrets unavailable::UNITY_EMAIL/UNITY_PASSWORD repository secrets are not available on this run (e.g. Dependabot PRs receive no Actions secrets) -- Unity license activation and the Unity test run are skipped."
 
       - name: Create artifacts directory
         shell: bash
@@ -249,6 +271,7 @@ jobs:
 
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
+        if: env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 30
         with:
           unity-version: 6000.0.83f1
@@ -257,6 +280,7 @@ jobs:
           hub-version: '3.19.5'
 
       - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
+        if: env.HAS_UNITY_SECRETS == 'true'
         with:
           license: 'Personal'
           username: ${{ secrets.UNITY_EMAIL }}
@@ -264,6 +288,7 @@ jobs:
 
       - uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         name: Run PlayMode Tests
+        if: env.HAS_UNITY_SECRETS == 'true'
         with:
           build-target: StandaloneLinux64
           editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
