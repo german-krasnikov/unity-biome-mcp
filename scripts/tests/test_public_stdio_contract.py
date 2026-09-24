@@ -79,15 +79,14 @@ async def _public_session(
     )
     try:
         with stderr_path.open("w+", encoding="utf-8") as error_stream:
-            async with stdio_client(parameters, errlog=error_stream) as (read, write):
-                async with ClientSession(
-                    read,
-                    write,
-                    read_timeout_seconds=timedelta(seconds=10),
-                    client_info=types.Implementation(name="contract-gauntlet", version="1"),
-                ) as session:
-                    initialized = await session.initialize()
-                    yield session, initialized
+            async with stdio_client(parameters, errlog=error_stream) as (read, write), ClientSession(
+                read,
+                write,
+                read_timeout_seconds=timedelta(seconds=10),
+                client_info=types.Implementation(name="contract-gauntlet", version="1"),
+            ) as session:
+                initialized = await session.initialize()
+                yield session, initialized
     finally:
         await _wait_for_peer_disconnect(peer)
         locks = list((isolated_home / ".unity-biome-mcp").glob("server-*.lock"))

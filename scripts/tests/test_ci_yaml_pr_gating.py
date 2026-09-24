@@ -284,3 +284,29 @@ def test_dependabot_server_python_ecosystem_is_uv():
             "server/ Python deps must use the 'uv' ecosystem so Dependabot keeps "
             f"pyproject.toml and uv.lock in sync together, got: {update.get('package-ecosystem')!r}"
         )
+
+
+# A hardcoded `pip install ruff==X` step in the Lint job (ci-python.yml) is a
+# second source of truth for the ruff version, alongside server/pyproject.toml's
+# dev extra pin -- Dependabot (uv ecosystem, /server) only ever bumps the
+# pyproject.toml + uv.lock pair, never this workflow file, so the two drift on
+# every such bot PR. Guard against the hardcode coming back, and require that
+# ruff instead gets installed straight from server/uv.lock (via `uv export
+# --locked`), which is the single source of truth a Dependabot bump keeps
+# current automatically.
+def test_ci_python_lint_job_installs_ruff_from_lock_not_hardcoded():
+    steps = _job_steps(WORKFLOWS_DIR / "ci-python.yml", "lint")
+    runs = [s.get("run", "") for s in steps]
+
+    hardcoded = [r for r in runs if re.search(r"pip install ruff==\d", r)]
+    assert not hardcoded, (
+        "ci-python.yml jobs.lint: found a hardcoded 'pip install ruff==<version>' "
+        f"step -- install ruff from server/uv.lock instead: {hardcoded}"
+    )
+
+    ruff_installs = [r for r in runs if "pip install" in r and "ruff" in r]
+    assert ruff_installs, "ci-python.yml jobs.lint: expected a step installing ruff"
+    assert any("uv export" in r and "--locked" in r and "ruff" in r for r in ruff_installs), (
+        "ci-python.yml jobs.lint: expected ruff to be installed from server/uv.lock "
+        f"via `uv export --locked ...`, got: {ruff_installs}"
+    )

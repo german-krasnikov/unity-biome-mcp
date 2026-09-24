@@ -38,17 +38,30 @@ jobs:
         with:
           python-version: "3.14"
 
-      - run: pip install ruff
-
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
         with:
           version: "0.12.1"
 
-      - run: ruff check --config server/pyproject.toml server/src/ install/ scripts/ --output-format=github
-
       - name: Check server/uv.lock is in sync with pyproject.toml
         working-directory: server
         run: uv lock --check
+
+      # No second hardcoded `ruff==X` here: server/pyproject.toml's dev extra
+      # (locked into server/uv.lock, checked above) is the single source of
+      # truth for the ruff version. A Dependabot bump of that pin (uv
+      # ecosystem -- always updates pyproject.toml + uv.lock together) then
+      # keeps this step current automatically, with no separate drift test.
+      - name: Install ruff (pinned in server/uv.lock)
+        working-directory: server
+        run: |
+          RUFF_PIN="$(uv export --locked --extra dev --no-hashes --no-header --no-emit-project | grep -E '^ruff==')" || true
+          if [ -z "$RUFF_PIN" ]; then
+            echo "::error::no ruff==<version> pin found in server/uv.lock's dev extra" >&2
+            exit 1
+          fi
+          pip install "$RUFF_PIN"
+
+      - run: ruff check --config server/pyproject.toml server/src/ install/ scripts/ --output-format=github
 
   test:
     name: Test (py${{ matrix.python-version }}, ${{ matrix.os }})

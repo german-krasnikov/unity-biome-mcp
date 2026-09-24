@@ -236,14 +236,13 @@ async def _installed_session(
     )
     try:
         with stderr_path.open("w+", encoding="utf-8") as error_stream:
-            async with stdio_client(parameters, errlog=error_stream) as (read, write):
-                async with ClientSession(
-                    read,
-                    write,
-                    read_timeout_seconds=timedelta(seconds=10),
-                    client_info=types.Implementation(name="installed-runtime", version="1"),
-                ) as session:
-                    yield session, await session.initialize()
+            async with stdio_client(parameters, errlog=error_stream) as (read, write), ClientSession(
+                read,
+                write,
+                read_timeout_seconds=timedelta(seconds=10),
+                client_info=types.Implementation(name="installed-runtime", version="1"),
+            ) as session:
+                yield session, await session.initialize()
     finally:
         for _ in range(100):
             if peer.active_connections == 0:

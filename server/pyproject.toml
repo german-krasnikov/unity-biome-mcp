@@ -43,6 +43,12 @@ dev = [
     "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.6",
     "pyyaml>=6.0",
+    # Exact pin (not a floor): single source of truth for the ruff version --
+    # ci-python.yml's lint job installs ruff straight from server/uv.lock
+    # (`uv export --locked --extra dev | grep ^ruff==`), so this pin (and a
+    # Dependabot bump of it) is what CI actually installs, with no separate
+    # hardcoded version string to keep in sync.
+    "ruff==0.16.8",
 ]
 
 [project.scripts]
