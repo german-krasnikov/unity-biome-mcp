@@ -6,8 +6,7 @@ by default; CI's `pip install ".[dev]"` (Test/README/tool-quality/badge/docs.yml
 jobs) and `uv export --locked --extra dev` (Lint's ruff pin) install/read
 `[project.optional-dependencies].dev`. If these two lists diverge, a clean
 `uv run pytest ...` (the command this project's own CLAUDE.md documents)
-silently drops packages -- see
-Plans/Reviews/ci-hygiene-r1/04-uv-dependabot.md, Finding #1.
+silently drops packages from the group while installing the extra.
 """
 
 import tomllib
