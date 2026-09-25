@@ -1,12 +1,32 @@
 {
   "meta": {
-    "source_sha": "40d38d930e626268d5e343768b55616465204d78",
+    "source_sha": "c96b187fd6b638a15991b59617c00656f8e4e840",
     "lane": "Linux",
     "unity_version": "6000.0.83f1",
-    "generated_for_sha": "40d38d930e626268d5e343768b55616465204d78",
+    "generated_for_sha": "c96b187fd6b638a15991b59617c00656f8e4e840",
     "stale": false
   },
   "rows": [
+    {
+      "class_name": "UnityMCP.Editor.MCPServer",
+      "method_name": "get_PluginVersion",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/MCPServer.cs",
+      "changed": true,
+      "cyclomatic_complexity": 1,
+      "coverage_fraction": 0.0,
+      "score": 1.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.MCPServer",
+      "method_name": "get_PluginVersion",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/MCPServer.cs",
+      "changed": true,
+      "cyclomatic_complexity": 1,
+      "coverage_fraction": 1.0,
+      "score": 0.0,
+      "scenario_ref": "unknown"
+    },
     {
       "class_name": "UnityMCP.Playtest.Core.PlaytestParser",
       "method_name": "BuildSteps",
@@ -185,26 +205,6 @@
       "cyclomatic_complexity": 48,
       "coverage_fraction": 0.0,
       "score": 48.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.Wizard.SkillsInstaller",
-      "method_name": "InstallCore",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/Wizard/SkillsInstaller.cs",
-      "changed": false,
-      "cyclomatic_complexity": 48,
-      "coverage_fraction": 0.0,
-      "score": 48.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.ComponentSerializer",
-      "method_name": "AppendUnityEvent",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/ComponentSerializer.cs",
-      "changed": false,
-      "cyclomatic_complexity": 46,
-      "coverage_fraction": 0.0,
-      "score": 46.0,
       "scenario_ref": "unknown"
     }
   ]
