@@ -1,4 +1,4 @@
-"""A14: PR runs must gate the Unity macOS/Windows matrix legs' expensive
+"""PR runs must gate the Unity macOS/Windows matrix legs' expensive
 steps off, leaving only Linux to do real work on `pull_request` events
 (macOS/Windows still run in full on push/workflow_dispatch/schedule, where
 the gating `if:` evaluates true).
@@ -106,13 +106,12 @@ def test_ci_conformance_hosted_disposable_unity_gates_expensive_steps_off_non_li
 
 
 def test_ci_conformance_unit_gate_step_uses_generated_lane():
-    # A14 (this file's own job-gating concern) must not touch ci-conformance.yml's
-    # unit-gate pytest step. PR-07 legitimately owns this step's `-m` value: it
-    # replaced the hand-typed literal "not live and not monkey" with a generated
-    # $(gen_lane_args.py pytest master-conformance) expression, matching
-    # ci-python.yml/ci-sonar.yml/nightly.yml's own generated pattern (C16/C17) --
-    # closing the drift test_gen_lane_args.py used to call "the deferred
-    # ci-conformance.yml".
+    # This file's own job-gating concern must not touch ci-conformance.yml's
+    # unit-gate pytest step's `-m` value: it uses a generated
+    # $(gen_lane_args.py pytest master-conformance) expression instead of a
+    # hand-typed literal, matching ci-python.yml/ci-sonar.yml/nightly.yml's
+    # own generated pattern -- closing the drift test_gen_lane_args.py used
+    # to call "the deferred ci-conformance.yml".
     data = yaml.safe_load(CI_CONFORMANCE_WORKFLOW.read_text(encoding="utf-8"))
     steps = data["jobs"]["unit-gate"]["steps"]
     run_steps = [s["run"] for s in steps if "run" in s]
@@ -161,14 +160,17 @@ def test_no_workflow_uses_pull_request_target():
 # a check run) in unity-compat.yml and unity-player-playtest.yml -- this is a
 # snapshot of that fact, not a rule that write scopes are always fine.
 UNITY_LICENSE_GUARD_WORKFLOWS = (
+    "ci-conformance.yml",
     "ci-csharp-inspect.yml",
     "ci-sonar.yml",
     "unity-compat.yml",
     "unity-player-playtest.yml",
+    "unity-tests.yml",
 )
 PRE_EXISTING_WRITE_SCOPES = {
     ("unity-compat.yml", "checks"): "write",
     ("unity-player-playtest.yml", "checks"): "write",
+    ("unity-tests.yml", "checks"): "write",
 }
 
 
@@ -223,6 +225,31 @@ def _rendered_job_names(job: dict) -> set[str]:
     return rendered
 
 
+def _pull_request_paths_filter_offense(triggers) -> str | None:
+    """None if `pull_request` is a present, unfiltered trigger; a reason
+    string if the trigger is entirely absent or carries a paths/paths-ignore
+    filter. A bare `pull_request:` key (YAML value `None`) is present and
+    unfiltered -- it fires on every PR -- so it must not be confused with
+    the trigger being missing."""
+    if not isinstance(triggers, dict) or "pull_request" not in triggers:
+        return "no pull_request trigger at all"
+    pr_trigger = triggers["pull_request"]
+    if isinstance(pr_trigger, dict) and ("paths" in pr_trigger or "paths-ignore" in pr_trigger):
+        return "pull_request has a paths filter"
+    return None
+
+
+def test_pull_request_paths_filter_offense_treats_bare_pull_request_as_present():
+    assert _pull_request_paths_filter_offense({"pull_request": None}) is None
+    assert _pull_request_paths_filter_offense({"pull_request": {"branches": ["master"]}}) is None
+    assert _pull_request_paths_filter_offense({"push": {}}) == "no pull_request trigger at all"
+    assert _pull_request_paths_filter_offense({}) == "no pull_request trigger at all"
+    assert (
+        _pull_request_paths_filter_offense({"pull_request": {"paths": ["server/**"]}})
+        == "pull_request has a paths filter"
+    )
+
+
 def test_required_check_workflows_have_no_pull_request_paths_filter():
     matched_contexts = set()
     offenders = []
@@ -236,12 +263,9 @@ def test_required_check_workflows_have_no_pull_request_paths_filter():
             continue
         matched_contexts |= hits
         triggers = _workflow_triggers(data) or {}
-        pr_trigger = triggers.get("pull_request") if isinstance(triggers, dict) else None
-        if pr_trigger is None:
-            offenders.append((path.name, "no pull_request trigger at all", hits))
-            continue
-        if isinstance(pr_trigger, dict) and ("paths" in pr_trigger or "paths-ignore" in pr_trigger):
-            offenders.append((path.name, "pull_request has a paths filter", hits))
+        offense = _pull_request_paths_filter_offense(triggers)
+        if offense:
+            offenders.append((path.name, offense, hits))
 
     assert matched_contexts == set(REQUIRED_CHECK_CONTEXTS), (
         "expected to find every required-check job name in some "
@@ -309,4 +333,28 @@ def test_ci_python_lint_job_installs_ruff_from_lock_not_hardcoded():
     assert any("uv export" in r and "--locked" in r and "ruff" in r for r in ruff_installs), (
         "ci-python.yml jobs.lint: expected ruff to be installed from server/uv.lock "
         f"via `uv export --locked ...`, got: {ruff_installs}"
+    )
+
+
+# `grep -E '^ruff=='` against `uv export`'s output is expected to find exactly
+# one line today, but a future marker-conditioned split (e.g. a ruff version
+# that differs per Python-version marker) could make it match more than one --
+# and an empty/multi-line $RUFF_LINES fed straight into `pip install` would
+# fail with a confusing multi-requirement error instead of a clear one. The
+# install step must count matches itself and fail closed with ::error + exit 1
+# when the count isn't exactly 1.
+def test_ci_python_lint_job_ruff_pin_fails_closed_on_not_exactly_one_match():
+    steps = _job_steps(WORKFLOWS_DIR / "ci-python.yml", "lint")
+    install_step = next(
+        (s for s in steps if "pip install" in s.get("run", "") and "ruff" in s.get("run", "")), None
+    )
+    assert install_step, "ci-python.yml jobs.lint: expected a step installing ruff"
+    run = install_step["run"]
+    assert "-ne 1" in run, (
+        "ci-python.yml jobs.lint ruff-install step: expected an exact-one-match guard "
+        f"(`-ne 1`) around the `^ruff==` grep, got: {run!r}"
+    )
+    assert "::error" in run and "exit 1" in run, (
+        "ci-python.yml jobs.lint ruff-install step: expected the exact-one-match guard "
+        f"to fail closed with ::error + exit 1, got: {run!r}"
     )

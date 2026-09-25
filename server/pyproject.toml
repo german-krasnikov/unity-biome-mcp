@@ -132,8 +132,8 @@ forbidden_modules = [
     "unity_mcp.middleware_reads",
     "unity_mcp.middleware_types",
 ]
-# Reviewed point exception (PR-02, found by this contract, not introduced by
-# it): tools/permission_prompt_tool.py::_get_broker() lazily imports
+# Reviewed point exception (found by this contract, not introduced by it):
+# tools/permission_prompt_tool.py::_get_broker() lazily imports
 # unity_mcp.permission_broker, which imports unity_mcp.middleware_types --
 # the same reverse-import shape as the tools/connection.py bug this PR fixes,
 # one hop further removed. permission_prompt_tool.py's own comment already

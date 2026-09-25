@@ -1,4 +1,4 @@
-"""PR-02 Track B: Import Linter contracts (server/pyproject.toml [tool.importlinter]).
+"""Import Linter contracts (server/pyproject.toml [tool.importlinter]).
 
 These tests are the mechanized, whole-codebase version of
 test_connection_module_source_has_no_server_import (test_bridge_transport.py) —

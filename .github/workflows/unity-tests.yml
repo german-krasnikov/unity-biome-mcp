@@ -221,9 +221,10 @@ jobs:
 
   playmode-test:
     name: PlayMode Tests (Play-bound corpus)
-    # Mirrors the `test` job's own gate (not A14's matrix clause — this job has
-    # no strategy.matrix, so `matrix.name` would be undefined here; actionlint
-    # rejects the matrix context on a job without one).
+    # Mirrors the `test` job's own gate (not the PR/Linux-only matrix clause
+    # used elsewhere — this job has no strategy.matrix, so `matrix.name` would
+    # be undefined here; actionlint rejects the matrix context on a job
+    # without one).
     if: github.event_name != 'workflow_dispatch' || inputs.run_player_playtest != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -264,10 +265,10 @@ jobs:
           restore-keys: |
             upm-${{ runner.os }}-
 
-      # Same 5-path cache as the `test` job's Linux leg (A16) — same key
-      # expression too, so this job can share that leg's incremental-compile
-      # cache. Deliberately excludes Library/UnityMCP/** (runtime test-run
-      # state, not compiled artifacts — never part of this list to begin with).
+      # Same 5-path cache as the `test` job's Linux leg — same key expression
+      # too, so this job can share that leg's incremental-compile cache.
+      # Deliberately excludes Library/UnityMCP/** (runtime test-run state,
+      # not compiled artifacts — never part of this list to begin with).
       - name: Cache Unity Library
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9  # v6.1.0
         with:

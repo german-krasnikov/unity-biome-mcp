@@ -25,7 +25,7 @@ step(s) (EditMode/PlayMode/hosted-conformance run, `.sln` generation,
 InspectCode, compat-matrix test steps, the player build/run chain) don't
 reference `secrets.UNITY_*` directly -- they only need an activated license
 transitively -- so Tier A's generic scan can't see them. Each job may also
-carry a pre-existing `if:` clause (A14's PR/Linux-only gate, a cache-hit
+carry a pre-existing `if:` clause (the PR/Linux-only matrix gate, a cache-hit
 short-circuit, an `unity-setup.outcome` check) that the secrets gate must be
 appended to, not replace; LICENSE_GATED_RUN_STEPS records, per step, the
 exact clause (if any) that must still be present verbatim.
@@ -113,7 +113,7 @@ def _discover_license_jobs() -> list[tuple[str, str, dict]]:
     scoped to workflows that actually run on `pull_request` -- schedule/
     workflow_dispatch/workflow_call-only workflows (nightly.yml,
     mutation-regression.yml, fsr-qualification.yml [explicitly frozen/legacy])
-    never see a Dependabot PR event, so P2 (this guard) doesn't apply to them.
+    never see a Dependabot PR event, so this guard doesn't apply to them.
     unity-player-playtest.yml DOES trigger directly on `pull_request` (in
     addition to being called via `workflow_call` from unity-tests.yml), which
     is exactly why its `player-playtest` job needed the same guard as the

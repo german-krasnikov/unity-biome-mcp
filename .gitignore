@@ -132,6 +132,7 @@ secrets*
 .pytest_cache/
 .coverage
 htmlcov/
+.import_linter_cache/
 
 # Temp
 AI/temp/*.md
