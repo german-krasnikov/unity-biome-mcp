@@ -230,7 +230,11 @@ def _pull_request_paths_filter_offense(triggers) -> str | None:
     string if the trigger is entirely absent or carries a paths/paths-ignore
     filter. A bare `pull_request:` key (YAML value `None`) is present and
     unfiltered -- it fires on every PR -- so it must not be confused with
-    the trigger being missing."""
+    the trigger being missing. The list form of `on:` (e.g. `on: [push,
+    pull_request]`) carries no per-trigger config at all, so a listed
+    `pull_request` is present and unfiltered too."""
+    if isinstance(triggers, list):
+        return None if "pull_request" in triggers else "no pull_request trigger at all"
     if not isinstance(triggers, dict) or "pull_request" not in triggers:
         return "no pull_request trigger at all"
     pr_trigger = triggers["pull_request"]
@@ -248,6 +252,10 @@ def test_pull_request_paths_filter_offense_treats_bare_pull_request_as_present()
         _pull_request_paths_filter_offense({"pull_request": {"paths": ["server/**"]}})
         == "pull_request has a paths filter"
     )
+    # List-form `on: [push, pull_request]` carries no per-trigger config at
+    # all, so a listed `pull_request` is present and unfiltered too.
+    assert _pull_request_paths_filter_offense(["push", "pull_request"]) is None
+    assert _pull_request_paths_filter_offense(["push"]) == "no pull_request trigger at all"
 
 
 def test_required_check_workflows_have_no_pull_request_paths_filter():
