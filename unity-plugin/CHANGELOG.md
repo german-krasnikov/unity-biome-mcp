@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.1.0] — 2026-09-25
+
 ### Changed
 
 - **CI secret gating:** Unity and Sonar steps skip with notice on fork/Dependabot PRs (no secrets); on push/schedule/dispatch, missing secrets cause exit 1 error — distinguishes "unavailable by design" from "secrets lost" per event type and job.
@@ -3796,7 +3798,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.1.0...HEAD
+[v2.1.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.0.0...v2.1.0
 [v2.0.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.54.0...v2.0.0
 [v1.54.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.53.0...v1.54.0
 [v1.52.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.51.0...v1.52.0
