@@ -64,6 +64,38 @@ def _load_workflow(path: Path) -> dict:
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
+def _normalize_ws(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _strip_wrapping_parens(clause: str) -> str:
+    """Strip one layer of `(...)` if it wraps the whole clause (balanced)."""
+    clause = clause.strip()
+    if not (clause.startswith("(") and clause.endswith(")")):
+        return clause
+    depth = 0
+    for i, ch in enumerate(clause):
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0 and i != len(clause) - 1:
+                return clause  # closes before the end -- not a single wrapping pair
+    return clause[1:-1].strip()
+
+
+def _and_clauses(condition: str) -> list[str]:
+    """Split a GHA `if:` expression on its top-level `&&` connectives.
+
+    Each returned clause has whitespace normalized and one layer of wrapping
+    parens stripped, so `(A || B) && C` yields `["A || B", "C"]` regardless
+    of formatting. A mutation that turns the connective joining two clauses
+    into `||` merges them into a single clause here instead of splitting
+    them, which callers assert against directly.
+    """
+    return [_strip_wrapping_parens(_normalize_ws(part)) for part in condition.split("&&")]
+
+
 def _triggers_on_pull_request(data: dict) -> bool:
     # PyYAML's YAML-1.1 boolean resolver parses the bare `on:` key as `True`,
     # not the string "on" -- fall back to the string key in case it is ever
@@ -137,9 +169,14 @@ def test_discovered_license_jobs_matches_known_set():
 @pytest.mark.parametrize("filename,job_name,job", _LICENSE_JOB_PARAMS)
 def test_job_declares_has_unity_secrets_env(filename, job_name, job):
     env = job.get("env") or {}
-    expr = str(env.get("HAS_UNITY_SECRETS", ""))
-    assert "secrets.UNITY_EMAIL != ''" in expr, f"{filename}::{job_name}: env expr {expr!r}"
-    assert "secrets.UNITY_PASSWORD != ''" in expr, f"{filename}::{job_name}: env expr {expr!r}"
+    expr = _normalize_ws(str(env.get("HAS_UNITY_SECRETS", "")))
+    # Asserted as one joined substring, not two independent membership checks:
+    # a `&&` -> `||` mutation here would make HAS_UNITY_SECRETS true when only
+    # one of the two secrets is set, and two separate substring checks can't
+    # tell the difference since both secret references stay present either way.
+    assert "secrets.UNITY_EMAIL != '' && secrets.UNITY_PASSWORD != ''" in expr, (
+        f"{filename}::{job_name}: env expr not joined by &&: {expr!r}"
+    )
 
 
 @pytest.mark.parametrize("filename,job_name,job", _LICENSE_JOB_PARAMS)
@@ -153,15 +190,60 @@ def test_secret_dependent_steps_are_gated(filename, job_name, job):
     assert not offenders, f"{filename}::{job_name}: ungated secret-dependent steps: {offenders}"
 
 
-@pytest.mark.parametrize("filename,job_name,job", _LICENSE_JOB_PARAMS)
-def test_job_has_secrets_unavailable_notice_step(filename, job_name, job):
-    steps = job.get("steps") or []
-    notices = [
+def _notice_steps(steps: list[dict]) -> list[dict]:
+    return [
         step
         for step in steps
         if UNGATE_CLAUSE in str(step.get("if", "")) and "::notice" in str(step.get("run", ""))
     ]
+
+
+@pytest.mark.parametrize("filename,job_name,job", _LICENSE_JOB_PARAMS)
+def test_job_has_secrets_unavailable_notice_step(filename, job_name, job):
+    steps = job.get("steps") or []
+    notices = _notice_steps(steps)
     assert notices, f"{filename}::{job_name}: no step gated on {UNGATE_CLAUSE!r} emits ::notice"
+
+
+@pytest.mark.parametrize("filename,job_name,job", _LICENSE_JOB_PARAMS)
+def test_notice_step_declares_shell_bash(filename, job_name, job):
+    # None of these workflows sets defaults.run.shell, so a run: step on a
+    # windows-2022 leg without an explicit shell: silently gets pwsh instead
+    # of bash. Regression coverage for that -- dropping shell: bash here would
+    # only surface on a Windows Dependabot PR, the one scenario this step
+    # exists for.
+    steps = job.get("steps") or []
+    for step in _notice_steps(steps):
+        assert step.get("shell") == "bash", (
+            f"{filename}::{job_name}: notice step {step.get('name')!r} missing shell: bash"
+        )
+
+
+@pytest.mark.parametrize("filename,job_name,job", _LICENSE_JOB_PARAMS)
+def test_notice_step_errors_on_non_pull_request_event(filename, job_name, job):
+    # A PR from a fork/Dependabot legitimately has no secrets -- that stays a
+    # soft ::notice. Any other event (push/schedule/workflow_dispatch) is
+    # same-repo and is expected to have secrets, so missing ones there mean a
+    # lost/misconfigured repository secret; that must fail the run (::error +
+    # exit 1) instead of silently skipping to a green job.
+    steps = job.get("steps") or []
+    notices = _notice_steps(steps)
+    assert notices, f"{filename}::{job_name}: no notice step found"
+    run = str(notices[0].get("run", ""))
+    assert 'if [ "$GITHUB_EVENT_NAME" = "pull_request" ]' in run, (
+        f"{filename}::{job_name}: notice step does not branch on $GITHUB_EVENT_NAME: {run!r}"
+    )
+    pr_branch, _, other_branch = run.partition("else")
+    assert other_branch, f"{filename}::{job_name}: notice step has no else branch: {run!r}"
+    assert "::notice" in pr_branch and "::error" not in pr_branch, (
+        f"{filename}::{job_name}: pull_request branch must emit ::notice only: {pr_branch!r}"
+    )
+    assert "::error" in other_branch and "exit 1" in other_branch, (
+        f"{filename}::{job_name}: non-pull_request branch must emit ::error and exit 1: {other_branch!r}"
+    )
+    assert "::notice" not in other_branch, (
+        f"{filename}::{job_name}: non-pull_request branch must not also emit ::notice: {other_branch!r}"
+    )
 
 
 # Tier B: (filename, job_name) -> {step identifier: pre-existing clause that
@@ -235,6 +317,24 @@ def _find_step(steps: list[dict], identifier: str) -> dict | None:
     return None
 
 
+def test_compat_job_summary_compile_line_gated_on_has_unity_secrets():
+    """unity-compat.yml's 'Write job summary' step runs unconditionally
+    (if: always()), so its compile-mode branch must not print "Compile check
+    passed" when the actual Compile check step was skipped for missing
+    secrets -- otherwise a Dependabot-triggered run's summary claims success
+    for Unity work that never ran.
+    """
+    steps = _load_workflow(WORKFLOWS_DIR / "unity-compat.yml")["jobs"]["compat"]["steps"]
+    step = _find_step(steps, "Write job summary")
+    assert step is not None, "unity-compat.yml::compat: 'Write job summary' step not found"
+    run = _normalize_ws(str(step.get("run", "")))
+    assert (
+        'if [ "$MODE" = "compile" ]; then if [ "$HAS_UNITY_SECRETS" = "true" ]; then '
+        'echo "✅ Compile check passed" >> "$GITHUB_STEP_SUMMARY" else '
+        'echo "⏭️ Compile check skipped (no Unity secrets)" >> "$GITHUB_STEP_SUMMARY" fi else'
+    ) in run, f"unity-compat.yml::compat: summary compile branch not gated on HAS_UNITY_SECRETS: {run!r}"
+
+
 @pytest.mark.parametrize("filename,job_name", sorted(LICENSE_GATED_RUN_STEPS))
 def test_unity_run_steps_gated_by_has_unity_secrets(filename, job_name):
     step_clauses = LICENSE_GATED_RUN_STEPS[(filename, job_name)]
@@ -243,11 +343,21 @@ def test_unity_run_steps_gated_by_has_unity_secrets(filename, job_name):
         step = _find_step(steps, identifier)
         assert step is not None, f"{filename}::{job_name}: step {identifier!r} not found"
         condition = str(step.get("if", ""))
-        assert GATE_CLAUSE in condition, (
-            f"{filename}::{job_name}: {identifier!r} if: {condition!r} missing {GATE_CLAUSE!r}"
+        # Split into top-level `&&` clauses rather than doing two independent
+        # substring checks: a `&&` -> `||` mutation joining preserve_clause and
+        # GATE_CLAUSE merges them into one clause here instead of two, so
+        # neither exact-match assertion below can pass.
+        clauses = _and_clauses(condition)
+        assert GATE_CLAUSE in clauses, (
+            f"{filename}::{job_name}: {identifier!r} if: {condition!r} not &&-joined with {GATE_CLAUSE!r}"
         )
         if preserve_clause is not None:
-            assert preserve_clause in condition, (
+            assert preserve_clause in clauses, (
                 f"{filename}::{job_name}: {identifier!r} lost pre-existing clause "
-                f"{preserve_clause!r}: {condition!r}"
+                f"{preserve_clause!r}, or it is no longer &&-joined: {condition!r}"
+            )
+        else:
+            assert clauses == [GATE_CLAUSE], (
+                f"{filename}::{job_name}: {identifier!r} expected if: to be exactly "
+                f"{GATE_CLAUSE!r}, got {condition!r}"
             )

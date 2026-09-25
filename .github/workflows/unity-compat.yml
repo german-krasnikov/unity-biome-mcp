@@ -86,7 +86,13 @@ jobs:
       - name: Notice - Unity secrets unavailable
         if: env.HAS_UNITY_SECRETS != 'true'
         shell: bash
-        run: echo "::notice title=Unity secrets unavailable::UNITY_EMAIL/UNITY_PASSWORD repository secrets are not available on this run (e.g. Dependabot PRs receive no Actions secrets) -- Unity license activation and the compat test run are skipped."
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            echo "::notice title=Unity secrets unavailable::UNITY_EMAIL/UNITY_PASSWORD repository secrets are not available on this run (e.g. Dependabot PRs receive no Actions secrets) -- Unity license activation and the compat test run are skipped."
+          else
+            echo "::error title=Unity secrets missing on $GITHUB_EVENT_NAME::UNITY_EMAIL/UNITY_PASSWORD repository secrets are unavailable on this $GITHUB_EVENT_NAME run -- only pull_request runs (forks/Dependabot) are expected to have no Actions secrets; this event should have them, so treat this as a lost or misconfigured repository secret."
+            exit 1
+          fi
 
       - name: Create artifacts directory
         run: mkdir -p artifacts
@@ -201,7 +207,11 @@ jobs:
           echo "## $LABEL" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ "$MODE" = "compile" ]; then
-            echo "✅ Compile check passed" >> "$GITHUB_STEP_SUMMARY"
+            if [ "$HAS_UNITY_SECRETS" = "true" ]; then
+              echo "✅ Compile check passed" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "⏭️ Compile check skipped (no Unity secrets)" >> "$GITHUB_STEP_SUMMARY"
+            fi
           else
             xml=$(find artifacts -name '*-results.xml' -type f | head -1)
             if [ -f "$xml" ]; then

@@ -120,7 +120,13 @@ jobs:
       - name: Notice - Unity secrets unavailable
         if: env.HAS_UNITY_SECRETS != 'true'
         shell: bash
-        run: echo "::notice title=Unity secrets unavailable::UNITY_EMAIL/UNITY_PASSWORD repository secrets are not available on this run (e.g. Dependabot PRs receive no Actions secrets) -- Unity license activation and the Unity test run are skipped."
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            echo "::notice title=Unity secrets unavailable::UNITY_EMAIL/UNITY_PASSWORD repository secrets are not available on this run (e.g. Dependabot PRs receive no Actions secrets) -- Unity license activation and the Unity test run are skipped."
+          else
+            echo "::error title=Unity secrets missing on $GITHUB_EVENT_NAME::UNITY_EMAIL/UNITY_PASSWORD repository secrets are unavailable on this $GITHUB_EVENT_NAME run -- only pull_request runs (forks/Dependabot) are expected to have no Actions secrets; this event should have them, so treat this as a lost or misconfigured repository secret."
+            exit 1
+          fi
 
       - name: Install VC++ 2010 runtime (Unity 6 dependency)
         if: |

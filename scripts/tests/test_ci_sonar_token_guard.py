@@ -111,12 +111,55 @@ def test_sonar_token_steps_are_gated(filename, job_name, job):
     assert not offenders, f"{filename}::{job_name}: ungated SONAR_TOKEN steps: {offenders}"
 
 
-@pytest.mark.parametrize("filename,job_name,job", _SONAR_TOKEN_JOB_PARAMS)
-def test_job_has_sonar_token_unavailable_notice_step(filename, job_name, job):
-    steps = job.get("steps") or []
-    notices = [
+def _notice_steps(steps: list[dict]) -> list[dict]:
+    return [
         step
         for step in steps
         if UNGATE_CLAUSE in str(step.get("if", "")) and "::notice" in str(step.get("run", ""))
     ]
+
+
+@pytest.mark.parametrize("filename,job_name,job", _SONAR_TOKEN_JOB_PARAMS)
+def test_job_has_sonar_token_unavailable_notice_step(filename, job_name, job):
+    steps = job.get("steps") or []
+    notices = _notice_steps(steps)
     assert notices, f"{filename}::{job_name}: no step gated on {UNGATE_CLAUSE!r} emits ::notice"
+
+
+@pytest.mark.parametrize("filename,job_name,job", _SONAR_TOKEN_JOB_PARAMS)
+def test_notice_step_declares_shell_bash(filename, job_name, job):
+    # None of these workflows sets defaults.run.shell, so a run: step on a
+    # windows-2022 leg without an explicit shell: silently gets pwsh instead
+    # of bash.
+    steps = job.get("steps") or []
+    for step in _notice_steps(steps):
+        assert step.get("shell") == "bash", (
+            f"{filename}::{job_name}: notice step {step.get('name')!r} missing shell: bash"
+        )
+
+
+@pytest.mark.parametrize("filename,job_name,job", _SONAR_TOKEN_JOB_PARAMS)
+def test_notice_step_errors_on_non_pull_request_event(filename, job_name, job):
+    # A PR from a fork/Dependabot legitimately has no SONAR_TOKEN -- that
+    # stays a soft ::notice. Any other event (push/schedule/workflow_dispatch)
+    # is same-repo and is expected to have the token, so a missing one there
+    # means a lost/misconfigured repository secret and must fail the run
+    # (::error + exit 1) instead of silently skipping to a green job.
+    steps = job.get("steps") or []
+    notices = _notice_steps(steps)
+    assert notices, f"{filename}::{job_name}: no notice step found"
+    run = str(notices[0].get("run", ""))
+    assert 'if [ "$GITHUB_EVENT_NAME" = "pull_request" ]' in run, (
+        f"{filename}::{job_name}: notice step does not branch on $GITHUB_EVENT_NAME: {run!r}"
+    )
+    pr_branch, _, other_branch = run.partition("else")
+    assert other_branch, f"{filename}::{job_name}: notice step has no else branch: {run!r}"
+    assert "::notice" in pr_branch and "::error" not in pr_branch, (
+        f"{filename}::{job_name}: pull_request branch must emit ::notice only: {pr_branch!r}"
+    )
+    assert "::error" in other_branch and "exit 1" in other_branch, (
+        f"{filename}::{job_name}: non-pull_request branch must emit ::error and exit 1: {other_branch!r}"
+    )
+    assert "::notice" not in other_branch, (
+        f"{filename}::{job_name}: non-pull_request branch must not also emit ::notice: {other_branch!r}"
+    )
