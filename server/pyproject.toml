@@ -1,6 +1,6 @@
 [project]
 name = "unity-biome-mcp"
-version = "2.0.0"
+version = "2.1.0"
 description = "MCP server for Unity Editor control"
 license = {text = "MIT"}
 authors = [{name = "German Krasnikov", email = "german.krasnikov@gmail.com"}]
@@ -43,6 +43,12 @@ dev = [
     "pytest-timeout>=2.4.0",
     "pytest-xdist>=3.6",
     "pyyaml>=6.0",
+    # Exact pin (not a floor): single source of truth for the ruff version --
+    # ci-python.yml's lint job installs ruff straight from server/uv.lock
+    # (`uv export --locked --extra dev | grep ^ruff==`), so this pin (and a
+    # Dependabot bump of it) is what CI actually installs, with no separate
+    # hardcoded version string to keep in sync.
+    "ruff==0.16.8",
 ]
 
 [project.scripts]
@@ -126,8 +132,8 @@ forbidden_modules = [
     "unity_mcp.middleware_reads",
     "unity_mcp.middleware_types",
 ]
-# Reviewed point exception (PR-02, found by this contract, not introduced by
-# it): tools/permission_prompt_tool.py::_get_broker() lazily imports
+# Reviewed point exception (found by this contract, not introduced by it):
+# tools/permission_prompt_tool.py::_get_broker() lazily imports
 # unity_mcp.permission_broker, which imports unity_mcp.middleware_types --
 # the same reverse-import shape as the tools/connection.py bug this PR fixes,
 # one hop further removed. permission_prompt_tool.py's own comment already
@@ -155,14 +161,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
-dev = [
-    "import-linter>=2.14,<2.15",  # see [project.optional-dependencies].dev comment
-    "grimp<3.17",
-    "pytest>=9.0.3",
-    "pytest-asyncio>=1.3.0",
-    "pytest-timeout>=2.4.0",
-    "pytest-xdist>=3.6",
-]
+# Self-reference onto [project.optional-dependencies].dev, not an independent
+# package list: plain `uv sync`/`uv run` (no --extra flag) installs this
+# default group, and without this self-reference it would drift from `pip
+# install ".[dev]"` (what CI actually uses) the same way it already did once
+# before (see CHANGELOG "Duplicate [dependency-groups] removed"). Keeping one
+# real list here means `uv run pytest ...` and `uv run ruff ...` always match CI.
+dev = ["unity-biome-mcp[dev]"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/unity_mcp"]

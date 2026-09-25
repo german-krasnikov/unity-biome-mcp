@@ -12,6 +12,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v2.1.0] — 2026-09-25
+
+### Changed
+
+- **CI secret gating:** Unity and Sonar steps skip with notice on fork/Dependabot PRs (no secrets); on push/schedule/dispatch, missing secrets cause exit 1 error — distinguishes "unavailable by design" from "secrets lost" per event type and job.
+- **Python CI on every PR:** Lint/Test/README check now run on every pull request — the path filter on `pull_request` was removed, so docs-only PRs also report these checks (prerequisite for required status checks).
+- **Server dependencies via uv and Dependabot:** Switched from pip to `uv` ecosystem. `server/uv.lock` is enforced source of truth — Lint job installs `ruff` directly from lock (via `uv export --locked --extra dev`), Test/README/badge jobs install from `pyproject.toml` ranges. Dependabot keeps both files in sync weekly. Lock validated via `uv lock --check` in Lint.
+- **Dev dependency group unified:** `[dependency-groups].dev` now self-references `[project.optional-dependencies].dev` (single list) — `uv sync`/`uv run` no longer silently drop hypothesis/pytest-cov/pyyaml/ruff.
+- **SonarCloud action pinned by SHA:** SonarSource/sonarcloud-github-action pinned to v5.0.0 (ffc3010...) instead of floating tag.
+- **Unity-compat summary accuracy:** No longer reports "Compile check passed" when compile was skipped due to missing secrets.
+
+### Fixed
+
+- **SIGTERM supervisor test race:** Child Python process now inherits SIG_IGN from parent (set before fork/exec) instead of racing to set it within 0.1s timeout.
+- **Import-linter synthetic fixtures:** Grimp cache now isolated via `--no-cache` flag (was caching by package name + mtime in shared CWD, polluting parallel test runs on Windows).
+- **Ruff version pinned and SIM117 fixed:** CI was installing uncontrolled `ruff`; pinned to 0.16.8 in `server/uv.lock` and installed from lock in Lint job. Ruff 0.16.8 found two real SIM117 violations (nested `async with`) in the codebase — fixed.
+
 ## [v2.0.0] — 2026-09-08
 
 ### Added
@@ -3781,7 +3798,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.1.0...HEAD
+[v2.1.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.0.0...v2.1.0
 [v2.0.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.54.0...v2.0.0
 [v1.54.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.53.0...v1.54.0
 [v1.52.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.51.0...v1.52.0

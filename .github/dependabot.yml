@@ -1,8 +1,11 @@
 version: 2
 
 updates:
-  # Python dependencies
-  - package-ecosystem: "pip"
+  # Python dependencies (uv, not pip: this project pins deps via
+  # server/uv.lock, and only the uv ecosystem updates pyproject.toml and
+  # uv.lock together in the same PR -- pip-ecosystem bumps left uv.lock
+  # stale, see PR #92)
+  - package-ecosystem: "uv"
     directory: "/server"
     schedule:
       interval: "weekly"

@@ -8,7 +8,7 @@ protect each part of the project, and the documentation contract.
 Requirements:
 
 - Git 2.14 or newer on `PATH`
-- Python 3.10 or newer (CI also exercises 3.11 and 3.12)
+- Python 3.14 or newer
 - Unity 6000.0 or newer for Unity and live tests
 - macOS, Linux, or Windows
 
@@ -107,6 +107,38 @@ CLI/provider authentication and should be run separately.
 
 Stop after a failing prerequisite and fix it before interpreting downstream
 results.
+
+## Python dependencies
+
+This project pins dependencies via `server/uv.lock` (managed by uv). After
+editing `server/pyproject.toml`, regenerate the lock file:
+
+```bash
+cd server
+uv lock
+```
+
+Commit both `pyproject.toml` and `uv.lock` in the same commit.
+
+CI uses two strategies:
+
+- **Lint job:** Installs `ruff` (the linter) directly from the lock file via
+  `uv export --locked --extra dev`. This ensures the version checked by CI
+  matches the pinned version in the repository. The lock consistency is
+  enforced via `uv lock --check` to prevent drift.
+- **Test, README, badge, and documentation jobs:** Install dependencies via
+  `pip install ".[dev]"` using version ranges from `pyproject.toml`. These
+  jobs resolve against live PyPI, not the lock file; some ranges are
+  open-ended (`pydantic>=2.0`, `hypothesis>=6.1`, etc.), so they can pick
+  newer versions than what the lock file pins.
+
+For local work, use `uv sync` to install from the lock file (dev group
+matching the dev extra) and `cd server && uv run ruff check ...` to run the
+pinned linter version locally.
+
+Dependabot automatically updates dependencies via the `uv` ecosystem (not
+`pip`), which keeps both `pyproject.toml` and `uv.lock` in sync on a weekly
+schedule.
 
 ## Code changes
 

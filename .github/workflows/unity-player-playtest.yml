@@ -58,6 +58,14 @@ jobs:
     # reliable verification; macOS is best-effort until a self-hosted runner
     # or a macOS-specific Player build fix is available.
     continue-on-error: ${{ matrix.name == 'macOS' }}
+    env:
+      # Dependabot PRs never receive Actions secrets (empty secrets store by
+      # GitHub design), so unguarded license activation goes red instead of
+      # skipping. jobs.<id>.if can't see secrets/env -- the guard has to live
+      # on each step's own if: below instead. This job also runs via
+      # workflow_call with secrets: inherit (see unity-tests.yml's
+      # player-playtest job) -- secrets.UNITY_* resolves the same way there.
+      HAS_UNITY_SECRETS: ${{ secrets.UNITY_EMAIL != '' && secrets.UNITY_PASSWORD != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -80,6 +88,17 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Notice - Unity secrets unavailable
+        if: env.HAS_UNITY_SECRETS != 'true'
+        shell: bash
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            echo "::notice title=Unity secrets unavailable::UNITY_EMAIL/UNITY_PASSWORD repository secrets are not available on this run (e.g. Dependabot PRs receive no Actions secrets) -- Unity license activation and the Player PlayTest run are skipped."
+          else
+            echo "::error title=Unity secrets missing on $GITHUB_EVENT_NAME::UNITY_EMAIL/UNITY_PASSWORD repository secrets are unavailable on this $GITHUB_EVENT_NAME run -- only pull_request runs (forks/Dependabot) are expected to have no Actions secrets; this event should have them, so treat this as a lost or misconfigured repository secret."
+            exit 1
+          fi
 
       - name: Install VC++ 2010 runtime (Unity 6 dependency)
         if: runner.os == 'Windows' && (github.event_name != 'pull_request' || matrix.name == 'Linux')
@@ -112,7 +131,7 @@ jobs:
 
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 30
         with:
           unity-version: 6000.0.83f1
@@ -121,7 +140,7 @@ jobs:
           hub-version: ${{ matrix.hub-version }}
 
       - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         with:
           license: "Personal"
           username: ${{ secrets.UNITY_EMAIL }}
@@ -138,7 +157,7 @@ jobs:
 
       - uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         name: Build Standalone Player Smoke
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 35
         with:
           build-target: ${{ matrix.build-target }}
@@ -154,7 +173,7 @@ jobs:
             -logFile ${{ github.workspace }}/artifacts/player-build.log
 
       - name: Run Player PlayTest Smoke
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 5
         shell: bash
         run: |
@@ -178,7 +197,7 @@ jobs:
           fi
 
       - name: Validate Player PlayTest Receipts
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         shell: python
         run: |
           import json
@@ -213,7 +232,7 @@ jobs:
               raise SystemExit(ET.tostring(suite, encoding="unicode"))
 
       - name: Run Player PlayTest Expected Failure Smoke
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 5
         shell: bash
         run: |
@@ -257,7 +276,7 @@ jobs:
           fi
 
       - name: Validate Player PlayTest Expected Failure Receipts
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         shell: python
         run: |
           import json
@@ -286,7 +305,7 @@ jobs:
       # "@needs player" tag on the fixture: excluded from the fan-out job below (which
       # requires 0 failures), validated by this dedicated step pair instead.
       - name: Run Player PlayTest Preflight Reject Smoke
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 5
         shell: bash
         run: |
@@ -330,7 +349,7 @@ jobs:
           fi
 
       - name: Validate Player PlayTest Preflight Reject Receipts
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         shell: python
         run: |
           import json
@@ -367,7 +386,7 @@ jobs:
       # already-built Player, beyond the 3 individually-scripted scenarios above
       # (closes the CI gap for the 3 shipped fixtures no step here ever invoked).
       - name: Run Player Fan-Out (.playtest @needs player)
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 10
         shell: bash
         run: |
@@ -454,7 +473,7 @@ jobs:
               raise SystemExit(ET.tostring(suite, encoding="unicode"))
 
       - name: Write Player PlayTest Evidence
-        if: github.event_name != 'pull_request' || matrix.name == 'Linux'
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         shell: bash
         run: |
           python scripts/write_player_playtest_evidence.py \

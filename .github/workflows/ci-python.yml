@@ -13,16 +13,10 @@ on:
       - ".jscpd.json"
       - ".github/workflows/ci-python.yml"
   pull_request:
+    # No paths filter here: this workflow carries required status checks,
+    # and a required check must report on every PR or GitHub blocks the
+    # merge forever whenever a PR happens not to touch a filtered path.
     branches: [master]
-    paths:
-      - "server/**"
-      - "install/**"
-      - "scripts/**"
-      - "unity-plugin/ClientSkills/**"
-      - "unity-plugin/Editor/**"
-      - "unity-plugin-reload/Editor/**"
-      - ".jscpd.json"
-      - ".github/workflows/ci-python.yml"
   workflow_dispatch:
 
 concurrency:
@@ -44,7 +38,33 @@ jobs:
         with:
           python-version: "3.14"
 
-      - run: pip install ruff
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+        with:
+          version: "0.12.1"
+
+      - name: Check server/uv.lock is in sync with pyproject.toml
+        working-directory: server
+        run: uv lock --check
+
+      # No second hardcoded `ruff==X` here: server/pyproject.toml's dev extra
+      # (locked into server/uv.lock, checked above) is the single source of
+      # truth for the ruff version. A Dependabot bump of that pin (uv
+      # ecosystem -- always updates pyproject.toml + uv.lock together) then
+      # keeps this step current automatically, with no separate drift test.
+      - name: Install ruff (pinned in server/uv.lock)
+        working-directory: server
+        run: |
+          RUFF_LINES="$(uv export --locked --extra dev --no-hashes --no-header --no-emit-project | grep -E '^ruff==')" || true
+          RUFF_COUNT=0
+          if [ -n "$RUFF_LINES" ]; then
+            RUFF_COUNT="$(printf '%s\n' "$RUFF_LINES" | wc -l | tr -d ' ')"
+          fi
+          if [ "$RUFF_COUNT" -ne 1 ]; then
+            echo "::error::expected exactly one ruff==<version> pin in server/uv.lock's dev extra, found $RUFF_COUNT" >&2
+            exit 1
+          fi
+          pip install "$RUFF_LINES"
+
       - run: ruff check --config server/pyproject.toml server/src/ install/ scripts/ --output-format=github
 
   test:
@@ -248,7 +268,7 @@ jobs:
         # --fail-on-new-clones takes an OPTIONAL inline value ([<N>]), so a
         # bare trailing flag would swallow the next positional path arg as
         # its value and error with "invalid digit found in string" --
-        # confirmed locally during PR-08 grounding. Always pass =0 explicitly.
+        # confirmed locally by testing jscpd's CLI flag parsing directly. Always pass =0 explicitly.
         run: >
           npx --yes jscpd@5.1.2
           --config .jscpd.json
