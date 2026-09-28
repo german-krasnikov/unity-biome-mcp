@@ -35,7 +35,7 @@ dev = [
     # unrelated `graph` subcommand lazy-import-arrow changed) and only
     # requires grimp>=3.14, so pin <2.15 + cap grimp<3.17 to stay wheel-only.
     "import-linter>=2.14,<2.15",
-    "grimp<3.17",
+    "grimp<3.18",
     "packaging>=24.0",
     "pytest>=9.0.3",
     "pytest-asyncio>=1.3.0",
