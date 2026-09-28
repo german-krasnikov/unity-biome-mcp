@@ -48,7 +48,7 @@ dev = [
     # (`uv export --locked --extra dev | grep ^ruff==`), so this pin (and a
     # Dependabot bump of it) is what CI actually installs, with no separate
     # hardcoded version string to keep in sync.
-    "ruff==0.16.8",
+    "ruff==0.16.9",
 ]
 
 [project.scripts]
