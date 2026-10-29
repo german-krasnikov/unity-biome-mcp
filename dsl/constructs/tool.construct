@@ -1,14 +1,16 @@
-# The tool catalog as a project construct (Plans/STEP_7_1_TOOL_CONSTRUCT_DESIGN.md of biome-dsl). A TOOL is a tool that Unity handles, a
-# PYTOOL one that only the Python server implements (always direct_only). dsl/tools.biome states each fact of a tool once; `scripts/dsl.sh
-# generate` prints it: pyspec = ToolSpec kwargs (tool_specs.py merges them), pyparams = the schema descriptions (_param_descriptions.py).
-# The templates indent their entries by 4 more columns than their EACH/END lines, which lets the dedent of a template leave 4 for them.
+# The tool catalog as a project construct (Plans/STEP_7_1_TOOL_CONSTRUCT_DESIGN.md of biome-dsl): TOOL = a tool that Unity handles,
+# PYTOOL = one that only the Python server implements (direct_only). pyspec = ToolSpec kwargs, pyparams = schema descriptions,
+# pytools = what the catalog expects of the Python side and, for a FORWARD tool, the MCP wrapper itself (runtime: tools/_catalog_runtime.py).
+# A template indents its entries 4 columns deeper than its EACH/END lines, so that the dedent of the template leaves 4 for them.
 SURFACE tools CODES TOOLS CONSTRUCTS TOOL, PYTOOL
 
 CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
-  HEAD TOOL <name:match([a-z][a-z0-9_]*) UNIQUE> <category:enum(CORE|SCENE|COMPONENTS|ASSETS|UGUI|UITOOLKIT|MEDIA|VERIFY|RUNTIME|TESTS|SYSTEM)> <effect:enum(RO|RW|RW_IDEM|DEL)>
+  HEAD TOOL <name:match([a-z][a-z0-9_]*) UNIQUE> <category:enum(CORE|SCENE|COMPONENTS|ASSETS|UGUI|UITOOLKIT|MEDIA|VERIFY|RUNTIME|TESTS|SYSTEM)> <effect:enum(RO|RW|RW_IDEM|DEL)> <summary:string>
+  ITEM FORWARD
   ITEM FLAG <flag:enum(core|tier1|direct_only|unity_transport)>
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
-  ITEM ARG <aname:match([a-z][a-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)>] [<adesc:string>]
+  ITEM DOC <line:string>
+  ITEM ARG <aname:match([a-z][a-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [<adesc:string>]
   EXAMPLES tool.examples
   DECLARE
   TEMPLATE pyspec HEADER "SPEC_KWARGS: dict[str, dict] = {" FOOTER "}" ESCAPE data
@@ -30,10 +32,39 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
     END
         },
   END
+  TEMPLATE pytools HEADER "from .. import _catalog_runtime as rt\nfrom .._common import bind\n\nostr = str | None\noint = int | None\nofloat = float | None\nobool = bool | None\n\n_send = None\n_args = None\ntools = rt.ToolSet()\n\n\ndef register(mcp, send, args):\n    bind(globals(), send, args)\n    tools.install(mcp)\n\n" ESCAPE data
+    tools.expect('{name}', '{effect}', "{summary}", (
+    EACH ARG
+        ('{aname}', {atype}{?default:, {default}}),
+    END
+    ))
+    IF ANY FORWARD
+
+
+    @tools.provide
+    async def {name}(
+    EACH ARG
+        {aname}: {atype}{?default:  = {default}},
+    END
+    ) -> str:
+        ("{summary}"
+    EACH DOC
+         "\n    {line}"
+    END
+        )
+        return await _send('{name}', _args(
+    EACH ARG
+            {aname}=rt.w_{atype}({aname}{?omit:, {default}}),
+    END
+        ))
+
+
+    END
+  END
 END
 
 CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
-  HEAD PYTOOL <name:match([a-z][a-z0-9_]*) UNIQUE> <category:enum(CORE|SCENE|COMPONENTS|ASSETS|UGUI|UITOOLKIT|MEDIA|VERIFY|RUNTIME|TESTS|SYSTEM)> <effect:enum(RO|RW|RW_IDEM|DEL)>
+  HEAD PYTOOL <name:match([a-z][a-z0-9_]*) UNIQUE> <category:enum(CORE|SCENE|COMPONENTS|ASSETS|UGUI|UITOOLKIT|MEDIA|VERIFY|RUNTIME|TESTS|SYSTEM)> <effect:enum(RO|RW|RW_IDEM|DEL)> <summary:string>
   ITEM FLAG <flag:enum(core|tier1)>
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
   ITEM ARG <aname:match([a-z][a-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)>] [<adesc:string>]
@@ -58,5 +89,12 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
             {?adesc:'{aname}': "{adesc}",}
     END
         },
+  END
+  TEMPLATE pytools ESCAPE data
+    tools.expect('{name}', '{effect}', "{summary}", (
+    EACH ARG
+        ('{aname}', {atype}{?default:, {default}}),
+    END
+    ))
   END
 END

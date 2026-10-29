@@ -1,5 +1,5 @@
 EXAMPLE a TOOL prints the fields of its ToolSpec and the descriptions of its arguments
-  SOURCE TOOL search_scene SCENE RO
+  SOURCE TOOL search_scene SCENE RO "Search."
   SOURCE   FLAG tier1
   SOURCE   TIMEOUT 15.0
   SOURCE   ARG query str "Syntax"
@@ -14,41 +14,75 @@ EXAMPLE a TOOL prints the fields of its ToolSpec and the descriptions of its arg
   EXPECT rendered.pyparams 'query': "Syntax",
   EXPECT unrendered.pyparams limit
 
-EXAMPLE a PYTOOL is direct_only and has no flag unless it names one
-  SOURCE PYTOOL use_skill SYSTEM RW
+EXAMPLE a FORWARD tool prints its expectation and its wrapper, which leaves out an OMIT argument that equals its default
+  SOURCE TOOL search_scene SCENE RO "Search."
+  SOURCE   FORWARD
+  SOURCE   DOC "root: scope \"here\"."
+  SOURCE   DOC "limit: max."
+  SOURCE   ARG query str
+  SOURCE   ARG root ostr DEFAULT None
+  SOURCE   ARG limit int DEFAULT 50 OMIT
+  SOURCE   ARG count int DEFAULT 5
+  SOURCE END
+  EXPECT rendered.pytools tools.expect('search_scene', 'RO', "Search.", (
+  EXPECT rendered.pytools ('root', ostr, None),
+  EXPECT rendered.pytools ('limit', int, 50),
+  EXPECT rendered.pytools @tools.provide
+  EXPECT rendered.pytools async def search_scene(
+  EXPECT rendered.pytools root: ostr = None,
+  EXPECT rendered.pytools ("Search."
+  EXPECT rendered.pytools "\n    root: scope \"here\"."
+  EXPECT rendered.pytools "\n    limit: max."
+  EXPECT rendered.pytools query=rt.w_str(query),
+  EXPECT rendered.pytools root=rt.w_ostr(root),
+  EXPECT rendered.pytools limit=rt.w_int(limit, 50),
+  EXPECT rendered.pytools count=rt.w_int(count),
+
+EXAMPLE a PYTOOL is direct_only, escapes its descriptions, and prints only an expectation like a TOOL that is not FORWARD
+  SOURCE PYTOOL use_skill SYSTEM RW "Use."
   SOURCE   ARG name str "say \"hi\" \\ bye"
   SOURCE END
+  SOURCE TOOL x SCENE RW "X."
+  SOURCE   ARG a str
+  SOURCE END
   EXPECT rendered.pyspec 'use_skill': {
-  EXPECT rendered.pyspec 'effect': 'RW',
   EXPECT rendered.pyspec 'direct_only': True,
   EXPECT unrendered.pyspec tier1
   EXPECT unrendered.pyspec timeout_s
   EXPECT rendered.pyparams 'name': "say \"hi\" \\ bye",
+  EXPECT rendered.pytools tools.expect('use_skill', 'RW', "Use.", (
+  EXPECT rendered.pytools tools.expect('x', 'RW', "X.", (
+  EXPECT unrendered.pytools async def
 
 EXAMPLE a name or an argument twice
-  SOURCE TOOL x SCENE RO
+  SOURCE TOOL x SCENE RO "X."
   SOURCE   ARG a str
   SOURCE   ARG a int
   SOURCE END
-  SOURCE TOOL x SCENE RW
+  SOURCE TOOL x SCENE RW "X."
   SOURCE END
   EXPECT diagnostic DECLARE_DUPLICATE at 3:7
   EXPECT diagnostic DECLARE_DUPLICATE at 5:6
 
-EXAMPLE an effect, a category or a type outside the lists
-  SOURCE TOOL x SCENE WRITE
+EXAMPLE an effect, a category or a type outside the lists, no summary, OMIT without a default
+  SOURCE TOOL x SCENE WRITE "X."
   SOURCE END
-  SOURCE TOOL y SCENES RO
+  SOURCE TOOL y SCENES RO "Y."
   SOURCE END
-  SOURCE TOOL z SCENE RO
+  SOURCE TOOL z SCENE RO "Z."
   SOURCE   ARG a integer
+  SOURCE   ARG b int OMIT
+  SOURCE END
+  SOURCE TOOL w SCENE RO
   SOURCE END
   EXPECT diagnostic DECLARE_SYNTAX at 1:14
   EXPECT diagnostic DECLARE_SYNTAX at 3:8
   EXPECT diagnostic DECLARE_SYNTAX at 6:9
+  EXPECT diagnostic DECLARE_SYNTAX at 7:13
+  EXPECT diagnostic DECLARE_SYNTAX at 9:14
 
 EXAMPLE a PYTOOL is direct_only already and never unity_transport
-  SOURCE PYTOOL x SYSTEM RO
+  SOURCE PYTOOL x SYSTEM RO "X."
   SOURCE   FLAG unity_transport
   SOURCE   FLAG direct_only
   SOURCE END

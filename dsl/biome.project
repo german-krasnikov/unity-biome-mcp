@@ -4,3 +4,4 @@ CONSTRUCTS constructs
 
 GENERATE py-specs  render {dir}/tools.biome pyspec   {dir}/../server/src/unity_mcp/tools/generated/catalog_specs.py
 GENERATE py-params render {dir}/tools.biome pyparams {dir}/../server/src/unity_mcp/tools/generated/catalog_params.py
+GENERATE py-tools  render {dir}/tools.biome pytools  {dir}/../server/src/unity_mcp/tools/generated/catalog_tools.py
