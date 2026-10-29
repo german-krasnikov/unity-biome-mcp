@@ -24,6 +24,7 @@ rg --files unity-plugin/ClientSkills
 | `unity-plugin-reload/` | Independent Unity reload-recovery package. |
 | `unity-test-project/` | Writable Unity integration-test project and fixtures. |
 | `unity-test-project-ro/` | Read-only worker test project. |
+| `dsl/` | Tool catalog: `tools.biome` states the facts of the catalog's tools once, a biome-dsl construct prints them (see `dsl/README.md`). |
 | `install/` | Installer/configuration implementation and tests. |
 | `scripts/` | Repository validation, release, evidence, and generation tools. |
 | `protocol/` | Versioned cross-process protocol schemas. |
@@ -51,6 +52,8 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/src/unity_mcp/tools/` | Typed MCP wrappers and Python-side orchestration. |
 | `server/src/unity_mcp/tools/__init__.py` | Built-in tool-module registration. |
 | `server/src/unity_mcp/tools/tool_specs.py` | Tool metadata source for category, mutability, timeout, visibility, runtime, and direct-only behavior. |
+| `server/src/unity_mcp/tools/generated/` | Generated from `dsl/tools.biome`, never edited by hand: ToolSpec kwargs, schema descriptions and the MCP wrappers of the catalog's tools. |
+| `server/src/unity_mcp/tools/_catalog_runtime.py` | Mechanical runtime of the generated wrappers: wire encoders and the `ToolSet` that checks a function against the catalog and registers it. |
 | `server/src/unity_mcp/tools/sync_spec.py` | SyncModule ToolSpec metadata and owned wire-command mapping (N1b): decouples `tool_specs.py` from importing `sync.py` to prevent circular dependencies. |
 | `server/src/unity_mcp/tools/sync_algorithm.py` | Reload algorithm facade with replaceable swappable interface (N2): narrow `IReloadAlgorithm` abstraction and `Bind` composition seam beneath the public sync surface. |
 | `server/src/unity_mcp/tools/sync_module.py` | Second self-owned Python module pilot (N1b): owns public `sync_unity` MCP tool with instance-scoped send/state, delegating the poll/recovery algorithm to `sync.py`'s legacy implementations. |
