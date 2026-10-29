@@ -233,8 +233,8 @@ def test_editor_control_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # editor, ping_object, get_selection, checkpoint, undo_last, get_capabilities = 6 tools
-    assert mcp.tool.call_count >= 6
+    # editor, ping_object = 2 tools (get_selection, checkpoint, undo_last and get_capabilities are the catalog's)
+    assert mcp.tool.call_count >= 2
 
 
 def test_b2_split_modules_wired_into_register_all():
@@ -292,7 +292,7 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
     scene_own = scene_total - 4
     total = (scene_own + _own_count(console_mod) + _own_count(screenshot_mod)
              + _own_count(testing_mod) + _own_count(ec_mod))
-    assert total == 23  # 27 before the tool catalog took search_scene, fingerprint, scene_diff, scene_environment and get_changes from scene.py
+    assert total == 17  # 27 before the tool catalog took 5 tools from scene.py, 2 from testing.py and 4 from editor_control.py
 
 
 # ── PR-02 Track A: register_all() threads stdio_alive through to connection ────

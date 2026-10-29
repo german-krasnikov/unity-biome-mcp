@@ -13,7 +13,16 @@ from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 from .editor_state import parse_editor_field as _editor_field
 from .editor_state import parse_world_ready as _parse_world_ready
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import (  # noqa: F401
+    export_playtest_aliases_to_defs,
+    invoke_method,
+    runtime_snapshot,
+    sync_playtest_aliases_from_defs,
+    tools,
+    validate_playtest_aliases,
+)
 from .playtest_async import _RUN_PLAYTEST_SYNC_CEILING_S
 from .playtest_async import run_via_start_poll as _run_via_start_poll
 
@@ -44,14 +53,6 @@ _CLEANUP_RELOAD_WAIT_S = 15.0
 # sync/async route or format — a non-pass outcome always raises, never returns
 # as a plain string. Fallback text when the terminal receipt itself is empty.
 _NO_RECEIPT_MSG = "run_playtest produced no terminal receipt"
-
-
-async def invoke_method(path: str, component: str, method: str, args: str = "") -> str:
-    """[Play Mode] Call public method on a component via reflection.
-    args: comma-separated values matching method parameters.
-    Example: invoke_method('/Player', 'PlayerController', 'MoveTo', '10,0,5')"""
-    return await _send("invoke_method", _args(
-        path=path, component=component, method=method, args=args or None))
 
 
 async def wait_until(path: str, component: str, field: str, value: str,
@@ -814,38 +815,6 @@ async def lint_playtest(
     return await _send("lint_playtest", _args(path=path, script=script), timeout=60.0)
 
 
-async def validate_playtest_aliases(
-    defs: str = "Assets/PlaytestDefs/farm_core.defs",
-    asset: str = "Assets/Configs/PlaytestConfig.asset",
-) -> str:
-    """Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed.
-    defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs).
-    asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).
-    Returns 'ok: N aliases in sync' when identical, or a diff report."""
-    return await _send("validate_playtest_aliases", _args(defs=defs, asset=asset))
-
-
-async def sync_playtest_aliases_from_defs(
-    defs: str = "Assets/PlaytestDefs/farm_core.defs",
-    asset: str = "Assets/Configs/PlaytestConfig.asset",
-) -> str:
-    """Overwrite PlaytestConfig.asset aliases from a .defs text file.
-    defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs).
-    asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).
-    Invalidates AliasExpander cache after sync. Not allowed in Play Mode."""
-    return await _send("sync_playtest_aliases_from_defs", _args(defs=defs, asset=asset))
-
-
-async def export_playtest_aliases_to_defs(
-    asset: str = "Assets/Configs/PlaytestConfig.asset",
-    defs: str = "Assets/PlaytestDefs/farm_core.defs",
-) -> str:
-    """Export PlaytestConfig.asset aliases to a readable .defs text file.
-    asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).
-    defs: project-relative output path (default: Assets/PlaytestDefs/farm_core.defs)."""
-    return await _send("export_playtest_aliases_to_defs", _args(asset=asset, defs=defs))
-
-
 async def lint_playtest_suite(pattern: str | None = None,
                               suite_path: str | None = None) -> str:
     """Read-only preflight check across multiple .playtest files.
@@ -900,23 +869,10 @@ async def lint_scene_refs(path: str | None = None, snippet: str | None = None) -
     return await _send("lint_scene_refs", _args(path=path, snippet=snippet), timeout=30.0)
 
 
-async def runtime_snapshot(type: str, name: str | None = None,
-                           component: str | None = None, compress: bool = False) -> str:
-    """Snapshot all runtime objects of a given component type. Returns per-object field dump.
-    type: component type name (e.g. 'Rigidbody', 'EnemyController').
-    name: optional name substring filter.
-    component: component type to serialize (defaults to type).
-    compress: strip default-value fields to reduce response size."""
-    return await _send("runtime_snapshot", _args(
-        type=type, name=name, component=component,
-        compress="true" if compress else None))
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
     tools.register(mcp, resolve_scene_refs)
     tools.register(mcp, lint_scene_refs)
-    tools.register(mcp, invoke_method)
     tools.register(mcp, wait_until)
     tools.register(mcp, move_to)
     tools.register(mcp, query_state)
@@ -925,7 +881,3 @@ def register(mcp, send, args):
     tools.register(mcp, run_playtest_suite)
     mcp.tool(annotations=_RW_IDEM)(lint_playtest)
     tools.register(mcp, lint_playtest_suite)
-    tools.register(mcp, validate_playtest_aliases)
-    tools.register(mcp, sync_playtest_aliases_from_defs)
-    tools.register(mcp, export_playtest_aliases_to_defs)
-    tools.register(mcp, runtime_snapshot)

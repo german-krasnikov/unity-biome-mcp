@@ -208,6 +208,7 @@ TOOL build SYSTEM RW "Build player. action: build."
 END
 
 TOOL cancel_test_run TESTS RW_IDEM "Request cancellation of one exact test run; cancellation is asynchronous."
+  FORWARD
   TIMEOUT 10.0
   ARG run_id str
 END
@@ -218,6 +219,7 @@ TOOL check_colliders SCENE RO "Check collider issues: triggers without Rigidbody
 END
 
 TOOL checkpoint SYSTEM RW "Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity."
+  FORWARD
   ARG label str DEFAULT_TEXT "checkpoint"
 END
 
@@ -285,14 +287,19 @@ PYTOOL debug RUNTIME RO "AI-assisted scene debug: gather diagnostic context base
 END
 
 TOOL debug_animator RUNTIME RO "[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile)."
+  FORWARD
   RUNTIME
+  DOC "path: scene path to GameObject with Animator component."
   ARG path str
 END
 
 TOOL debug_physics RUNTIME RO "[Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (use `debug` for scene; `diagnose` for compile)."
+  FORWARD
   RUNTIME
+  DOC "path: scene path to GameObject."
+  DOC "radius: overlap sphere radius for nearby detection (default 5m)."
   ARG path str
-  ARG radius float DEFAULT 5.0
+  ARG radius float DEFAULT 5.0 RAW
 END
 
 TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."
@@ -329,8 +336,12 @@ TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|
 END
 
 TOOL execute_code SYSTEM RW "Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile."
+  FORWARD
   FLAG core
   TIMEOUT 60.0
+  DOC "Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed."
+  DOC "Bare statements are auto-wrapped in a static class — no boilerplate needed."
+  DOC "Example: \"var go = new GameObject(\\\"Test\\\"); return go.name;\""
   ARG code str "C# code to execute in the Unity Editor context"
   ARG undo_label str DEFAULT_TEXT "execute_code" "Label for the Undo group entry (default 'execute_code')"
 END
@@ -340,6 +351,9 @@ INTERNAL export_package RW "Protocol name of the asset action export_package; on
 END
 
 TOOL export_playtest_aliases_to_defs TESTS RW "Export PlaytestConfig.asset aliases to a readable .defs text file."
+  FORWARD
+  DOC "asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset)."
+  DOC "defs: project-relative output path (default: Assets/PlaytestDefs/farm_core.defs)."
   ARG asset str DEFAULT_TEXT "Assets/Configs/PlaytestConfig.asset"
   ARG defs str DEFAULT_TEXT "Assets/PlaytestDefs/farm_core.defs"
 END
@@ -363,6 +377,7 @@ INTERNAL get_aliases RO "The alias table as name=value lines; the server reads i
 END
 
 TOOL get_capabilities SYSTEM RO "Unity version, platform, render pipeline, scripting backend, and optional packages available."
+  FORWARD
 END
 
 TOOL get_changes SYSTEM RW "Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,"
@@ -421,8 +436,10 @@ TOOL get_enabled_tools SYSTEM RO "List enabled tool names, comma-separated."
 END
 
 TOOL get_frame_stats RUNTIME RO "Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed."
+  FORWARD
   RUNTIME
-  ARG include str DEFAULT_TEXT ""
+  DOC "include: narrow output — e.g. 'gc' for GC stats only."
+  ARG include str DEFAULT_TEXT "" OMIT
 END
 
 TOOL get_hierarchy CORE RO "Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only)."
@@ -441,7 +458,9 @@ TOOL get_hierarchy CORE RO "Scene hierarchy as text tree. For finding specific o
 END
 
 TOOL get_memory RUNTIME RO "Memory snapshot."
-  ARG include str DEFAULT_TEXT "all"
+  FORWARD
+  DOC "include: all|textures|meshes|audio|gc — narrow the asset-type breakdown."
+  ARG include str DEFAULT_TEXT "all" OMIT
 END
 
 PYTOOL get_metrics RUNTIME RW "Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json."
@@ -463,10 +482,12 @@ INTERNAL get_playtest_run RO "Polls the asynchronous playtest run that start_pla
 END
 
 TOOL get_schema SYSTEM RO "Get all serialized fields of a component type with types. Use before set_property to know exact field names."
+  FORWARD
   ARG type str
 END
 
 TOOL get_selection SCENE RO "Currently selected GameObject: path and component list."
+  FORWARD
 END
 
 TOOL get_spatial_context SCENE RO "Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only."
@@ -476,6 +497,7 @@ TOOL get_spatial_context SCENE RO "Collider info + approach vectors + nearby obj
 END
 
 TOOL get_test_count TESTS RO "Number of edit-mode and play-mode tests in the project."
+  FORWARD
   TIMEOUT 10.0
 END
 
@@ -527,11 +549,14 @@ TOOL inspect_uitk UITOOLKIT RO "Inspect the VisualElement tree of a UIDocument o
 END
 
 TOOL invoke_method RUNTIME RW "[Play Mode] Call public method on a component via reflection."
+  FORWARD
   RUNTIME
+  DOC "args: comma-separated values matching method parameters."
+  DOC "Example: invoke_method('/Player', 'PlayerController', 'MoveTo', '10,0,5')"
   ARG path str
   ARG component str
   ARG method str
-  ARG args str DEFAULT_TEXT ""
+  ARG args str DEFAULT_TEXT "" OMIT
 END
 
 PYTOOL lint_playtest_suite TESTS RO "Read-only preflight check across multiple .playtest files."
@@ -752,10 +777,11 @@ TOOL recompile SYSTEM RW "Trigger Unity to reimport C# scripts. Returns immediat
 END
 
 TOOL references COMPONENTS RW "References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs."
+  FORWARD
   ARG action str
   ARG path str
-  ARG children bool DEFAULT False
-  ARG depth int DEFAULT 1
+  ARG children bool DEFAULT False OMIT
+  ARG depth int DEFAULT 1 OMIT RAW
   ARG source ostr DEFAULT None
   ARG target ostr DEFAULT None
   ARG mappings ostr DEFAULT None
@@ -867,11 +893,16 @@ PYTOOL run_tests_wait TESTS RW "Dispatch tests and wait for the exact run to bec
 END
 
 TOOL runtime_snapshot RUNTIME RO "Snapshot all runtime objects of a given component type. Returns per-object field dump."
+  FORWARD
   MAXCHARS 50000
+  DOC "type: component type name (e.g. 'Rigidbody', 'EnemyController')."
+  DOC "name: optional name substring filter."
+  DOC "component: component type to serialize (defaults to type)."
+  DOC "compress: strip default-value fields to reduce response size."
   ARG type str
   ARG name ostr DEFAULT None
   ARG component ostr DEFAULT None
-  ARG compress bool DEFAULT False
+  ARG compress bool DEFAULT False OMIT
 END
 
 PYTOOL save_session SYSTEM RW "Save current scene state to .claude/session-context.json for cold-start recovery."
@@ -993,10 +1024,16 @@ TOOL search_scene SCENE RO "Search scene objects. Syntax: name text, t:Component
 END
 
 TOOL serialized_field_rename_audit VERIFY RO "Audit [SerializeField] rename safety."
+  FORWARD
+  DOC "type: fully-qualified or simple component type name (e.g. 'MyNamespace.PlayerStats')."
+  DOC "old_field: field name as it exists in serialized assets."
+  DOC "new_field: renamed field name in current C# source."
+  DOC "include: comma-separated scan targets (prefabs,scenes,scriptable_objects)."
+  DOC "Returns: has_formerly_serialized_as, stale_assets, safe_to_remove_attribute, recommended_actions."
   ARG type str
   ARG old_field str
   ARG new_field str
-  ARG include str DEFAULT_TEXT "prefabs,scenes,scriptable_objects"
+  ARG include str DEFAULT_TEXT "prefabs,scenes,scriptable_objects" OMIT
 END
 
 TOOL set_active SCENE RW_IDEM "Set GameObject active/inactive."
@@ -1141,6 +1178,10 @@ INTERNAL start_playtest RW "Starts a playtest without blocking; get_playtest_run
 END
 
 TOOL sync_playtest_aliases_from_defs TESTS RW "Overwrite PlaytestConfig.asset aliases from a .defs text file."
+  FORWARD
+  DOC "defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs)."
+  DOC "asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset)."
+  DOC "Invalidates AliasExpander cache after sync. Not allowed in Play Mode."
   ARG defs str DEFAULT_TEXT "Assets/PlaytestDefs/farm_core.defs"
   ARG asset str DEFAULT_TEXT "Assets/Configs/PlaytestConfig.asset"
 END
@@ -1242,7 +1283,10 @@ PYTOOL uitk_intent UITOOLKIT RW "Generate a UXML + USS file pair from a natural-
 END
 
 TOOL undo_last SYSTEM RW "Undo the last N AI turns in the Unity Undo stack. Default: 1."
-  ARG turns int DEFAULT 1
+  FORWARD
+  DOC "warn: file-system operations (asset creation/deletion via asset tool) are"
+  DOC "not reversed by undo. Only scene-object and component mutations are undoable."
+  ARG turns int DEFAULT 1 RAW
 END
 
 TOOL unwire_event COMPONENTS DEL "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required."
@@ -1260,16 +1304,25 @@ PYTOOL use_skill SYSTEM RW "Execute a previously saved skill. params: comma-sepa
 END
 
 TOOL validate_playtest_aliases TESTS RO "Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed."
+  FORWARD
+  DOC "defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs)."
+  DOC "asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset)."
+  DOC "Returns 'ok: N aliases in sync' when identical, or a diff report."
   ARG defs str DEFAULT_TEXT "Assets/PlaytestDefs/farm_core.defs"
   ARG asset str DEFAULT_TEXT "Assets/Configs/PlaytestConfig.asset"
 END
 
 TOOL validate_references VERIFY RO "Validate all ObjectReference fields under path recursively."
+  FORWARD
   FLAG tier1
+  DOC "Returns [ERROR]/[MISSING] for broken refs. Summary: \"N ERROR, M OK\"."
+  DOC "Use depth=1 for quick top-level scan, depth=3-5 for full subtree."
+  DOC "verbose=True also shows [OK] lines (off by default to save tokens)."
+  DOC "ignore_optional=True skips fields marked [Optional] (reduces noise)."
   ARG path str
-  ARG depth int DEFAULT 3
-  ARG verbose bool DEFAULT False
-  ARG ignore_optional bool DEFAULT False
+  ARG depth int DEFAULT 3 RAW
+  ARG verbose bool DEFAULT False OMIT
+  ARG ignore_optional bool DEFAULT False OMIT
 END
 
 TOOL validate_triggers SCENE RO "Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters."

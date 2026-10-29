@@ -1,16 +1,11 @@
 """AI profiling tools: get_frame_stats, profile sessions, get_memory (with include filter)."""
 from ._common import bind
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import get_frame_stats, get_memory, tools  # noqa: F401
 
 _send = None
 _args = None
-
-
-async def get_frame_stats(include: str = "") -> str:
-    """Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed.
-    include: narrow output — e.g. 'gc' for GC stats only."""
-    extra = {"include": include} if include else {}
-    return await _send("get_frame_stats", extra)
 
 
 async def profile(
@@ -37,16 +32,6 @@ async def profile(
     ))
 
 
-async def get_memory(include: str = "all") -> str:
-    """Memory snapshot.
-    include: all|textures|meshes|audio|gc — narrow the asset-type breakdown."""
-    return await _send("get_memory", _args(
-        include=include if include != "all" else None,
-    ))
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, get_frame_stats)
     tools.register(mcp, profile)
-    tools.register(mcp, get_memory)

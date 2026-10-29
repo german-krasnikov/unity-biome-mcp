@@ -4,23 +4,12 @@ import re
 from ..console_levels import PROBLEM_LEVELS
 from ..metrics import METRICS
 from ._common import bind
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import execute_code, get_schema, tools  # noqa: F401
 
 _send = None
 _args = None
-
-
-async def execute_code(code: str, undo_label: str = "execute_code") -> str:
-    """Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.
-    Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed.
-    Bare statements are auto-wrapped in a static class — no boilerplate needed.
-    Example: \"var go = new GameObject(\\\"Test\\\"); return go.name;\""""
-    return await _send("execute_code", _args(code=code, undo_label=undo_label))
-
-
-async def get_schema(type: str) -> str:
-    """Get all serialized fields of a component type with types. Use before set_property to know exact field names."""
-    return await _send("get_schema", {"type": type})
 
 
 try:
@@ -86,7 +75,5 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
-    tools.register(mcp, execute_code)
-    tools.register(mcp, get_schema)
     tools.register(mcp, auto_fix)
     tools.register(mcp, smart_build)

@@ -14,7 +14,9 @@ from mcp.server.fastmcp.exceptions import ToolError
 from ..compile_state import CompileStateProbe
 from . import run_disk_fallback
 from ._common import bind
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import cancel_test_run, get_test_count, tools  # noqa: F401
 from .run_handle import TestRunRegistry
 
 _send = None
@@ -714,11 +716,6 @@ async def get_test_run(run_id: str) -> str:
     )
 
 
-async def cancel_test_run(run_id: str) -> str:
-    """Request cancellation of one exact test run; cancellation is asynchronous."""
-    return await _send("cancel_test_run", {"run_id": run_id})
-
-
 async def list_test_runs(limit: int = 20) -> str:
     """List recent durable test runs as JSON, newest first."""
     return await _send("list_test_runs", {"limit": max(1, min(int(limit), 100))})
@@ -740,11 +737,6 @@ async def get_test_progress(run_id: str | None = None) -> str:
         return await _send("get_test_progress", args)
     except Exception:
         return "pending"
-
-
-async def get_test_count() -> str:
-    """Number of edit-mode and play-mode tests in the project."""
-    return await _send("get_test_count", {})
 
 
 def _resolve_project_path() -> Path | None:
@@ -805,8 +797,6 @@ def register(mcp, send, args, *, get_slot=None):
     tools.register(mcp, run_tests_wait)
     tools.register(mcp, resolve_test_request)
     tools.register(mcp, get_test_run)
-    tools.register(mcp, cancel_test_run)
     tools.register(mcp, list_test_runs)
     tools.register(mcp, get_test_results)
     tools.register(mcp, get_test_progress)
-    tools.register(mcp, get_test_count)

@@ -4,7 +4,9 @@ import re
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ._common import bind
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import references, tools, validate_references  # noqa: F401
 from .tool_specs import _SPECS
 
 _send = None
@@ -193,32 +195,6 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
     return result
 
 
-async def references(action: str, path: str, children: bool = False, depth: int = 1,
-                     source: str | None = None, target: str | None = None,
-                     mappings: str | None = None) -> str:
-    """References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs."""
-    return await _send("references", _args(
-        action=action, path=path,
-        children="true" if children else None,
-        depth=depth if depth != 1 else None,
-        source=source, target=target, mappings=mappings,
-    ))
-
-
-async def validate_references(path: str, depth: int = 3, verbose: bool = False, ignore_optional: bool = False) -> str:
-    """Validate all ObjectReference fields under path recursively.
-    Returns [ERROR]/[MISSING] for broken refs. Summary: "N ERROR, M OK".
-    Use depth=1 for quick top-level scan, depth=3-5 for full subtree.
-    verbose=True also shows [OK] lines (off by default to save tokens).
-    ignore_optional=True skips fields marked [Optional] (reduces noise)."""
-    return await _send("validate_references", _args(
-        path=path, depth=depth,
-        verbose="true" if verbose else None,
-        ignore_optional="true" if ignore_optional else None))
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
     tools.register(mcp, batch)
-    tools.register(mcp, references)
-    tools.register(mcp, validate_references)

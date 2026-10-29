@@ -17,6 +17,9 @@ from unity_mcp.utils import parse_pipe_fields
 
 from ._common import bind
 
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import serialized_field_rename_audit  # noqa: F401
+
 _send = None
 
 _STILL_BUSY_STATES = frozenset({"compiling", "reloading"})
@@ -251,24 +254,6 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
         await asyncio.sleep(1)
 
 
-async def serialized_field_rename_audit(
-    type: str,
-    old_field: str,
-    new_field: str,
-    include: str = "prefabs,scenes,scriptable_objects",
-) -> str:
-    """Audit [SerializeField] rename safety.
-    type: fully-qualified or simple component type name (e.g. 'MyNamespace.PlayerStats').
-    old_field: field name as it exists in serialized assets.
-    new_field: renamed field name in current C# source.
-    include: comma-separated scan targets (prefabs,scenes,scriptable_objects).
-    Returns: has_formerly_serialized_as, stale_assets, safe_to_remove_attribute, recommended_actions."""
-    args: dict[str, Any] = {"type": type, "old_field": old_field, "new_field": new_field}
-    if include != "prefabs,scenes,scriptable_objects":
-        args["include"] = include
-    return await _send("serialized_field_rename_audit", args)
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
@@ -276,4 +261,3 @@ def register(mcp, send, args):
     from .generated.catalog_tools import tools
     tools.register(mcp, compile_preflight)
     tools.register(mcp, await_compile)
-    tools.register(mcp, serialized_field_rename_audit)

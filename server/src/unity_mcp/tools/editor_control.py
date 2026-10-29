@@ -5,7 +5,9 @@ from unity_mcp.constants import NOOP_RECOVERY_RESULT as _NOOP_RECOVERY_RESULT
 from ._annotations import RW as _RW
 from ._common import bind
 from ._source_patch_intent import set_cached_intent as _set_cached_intent
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import checkpoint, get_capabilities, get_selection, tools, undo_last  # noqa: F401
 
 _send = None
 _args = None
@@ -34,33 +36,7 @@ async def ping_object(path: str) -> str:
     return await _send("ping_object", _args(path=path))
 
 
-async def get_selection() -> str:
-    """Currently selected GameObject: path and component list."""
-    return await _send("get_selection", {})
-
-
-async def checkpoint(label: str = "checkpoint") -> str:
-    """Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity."""
-    return await _send("checkpoint", _args(label=label))
-
-
-async def undo_last(turns: int = 1) -> str:
-    """Undo the last N AI turns in the Unity Undo stack. Default: 1.
-    warn: file-system operations (asset creation/deletion via asset tool) are
-    not reversed by undo. Only scene-object and component mutations are undoable."""
-    return await _send("undo_last", _args(turns=turns))
-
-
-async def get_capabilities() -> str:
-    """Unity version, platform, render pipeline, scripting backend, and optional packages available."""
-    return await _send("get_capabilities", {})
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
     tools.register(mcp, editor)
     mcp.tool(annotations=_RW)(ping_object)
-    tools.register(mcp, get_selection)
-    tools.register(mcp, checkpoint)
-    tools.register(mcp, undo_last)
-    tools.register(mcp, get_capabilities)

@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=2dd445585c6b2295b569f2d9a331a54dc171355e6dfcc8b7c0c1b8aaf24038cd
+# source-sha256=651201e784144372792873459f22dff06e4a66eaac23e1145bf10fd93893162b
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -326,6 +326,19 @@ async def build(
 tools.expect('cancel_test_run', 'RW_IDEM', "Request cancellation of one exact test run; cancellation is asynchronous.", (
     ('run_id', str),
 ))
+
+
+@tools.provide
+async def cancel_test_run(
+    run_id: str,
+) -> str:
+    ("Request cancellation of one exact test run; cancellation is asynchronous."
+    )
+    return await _send('cancel_test_run', _args(
+        run_id=rt.w_str(run_id),
+    ))
+
+
 tools.expect('check_colliders', 'RO', "Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given.", (
     ('path', ostr, None),
 ))
@@ -345,6 +358,19 @@ async def check_colliders(
 tools.expect('checkpoint', 'RW', "Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity.", (
     ('label', str, "checkpoint"),
 ))
+
+
+@tools.provide
+async def checkpoint(
+    label: str = "checkpoint",
+) -> str:
+    ("Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity."
+    )
+    return await _send('checkpoint', _args(
+        label=rt.w_str(label),
+    ))
+
+
 tools.expect('checkpoint_create', 'RW', "Create a durable checkpoint before an agent turn.", (
     ('paths', str, ""),
 ))
@@ -453,10 +479,41 @@ tools.expect('debug', 'RO', "AI-assisted scene debug: gather diagnostic context 
 tools.expect('debug_animator', 'RO', "[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile).", (
     ('path', str),
 ))
+
+
+@tools.provide
+async def debug_animator(
+    path: str,
+) -> str:
+    ("[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile)."
+     "\n    path: scene path to GameObject with Animator component."
+    )
+    return await _send('debug_animator', _args(
+        path=rt.w_str(path),
+    ))
+
+
 tools.expect('debug_physics', 'RO', "[Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (use `debug` for scene; `diagnose` for compile).", (
     ('path', str),
     ('radius', float, 5.0),
 ))
+
+
+@tools.provide
+async def debug_physics(
+    path: str,
+    radius: float = 5.0,
+) -> str:
+    ("[Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (use `debug` for scene; `diagnose` for compile)."
+     "\n    path: scene path to GameObject."
+     "\n    radius: overlap sphere radius for nearby detection (default 5m)."
+    )
+    return await _send('debug_physics', _args(
+        path=rt.w_str(path),
+        radius=rt.w_float(radius, raw=True),
+    ))
+
+
 tools.expect('delete_object', 'DEL', "Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers.", (
     ('id', oint, None),
     ('path', ostr, None),
@@ -483,10 +540,45 @@ tools.expect('execute_code', 'RW', "Execute C# code in Unity Editor via Roslyn. 
     ('code', str),
     ('undo_label', str, "execute_code"),
 ))
+
+
+@tools.provide
+async def execute_code(
+    code: str,
+    undo_label: str = "execute_code",
+) -> str:
+    ("Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile."
+     "\n    Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed."
+     "\n    Bare statements are auto-wrapped in a static class — no boilerplate needed."
+     "\n    Example: \"var go = new GameObject(\\\"Test\\\"); return go.name;\""
+    )
+    return await _send('execute_code', _args(
+        code=rt.w_str(code),
+        undo_label=rt.w_str(undo_label),
+    ))
+
+
 tools.expect('export_playtest_aliases_to_defs', 'RW', "Export PlaytestConfig.asset aliases to a readable .defs text file.", (
     ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
     ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
 ))
+
+
+@tools.provide
+async def export_playtest_aliases_to_defs(
+    asset: str = "Assets/Configs/PlaytestConfig.asset",
+    defs: str = "Assets/PlaytestDefs/farm_core.defs",
+) -> str:
+    ("Export PlaytestConfig.asset aliases to a readable .defs text file."
+     "\n    asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset)."
+     "\n    defs: project-relative output path (default: Assets/PlaytestDefs/farm_core.defs)."
+    )
+    return await _send('export_playtest_aliases_to_defs', _args(
+        asset=rt.w_str(asset),
+        defs=rt.w_str(defs),
+    ))
+
+
 tools.expect('find_objects', 'RO', "Find objects by criteria. Use search_scene for complex queries. Does NOT support: parent, path, active/inactive filtering, regex. Only: name (substring), tag, layer, component (full namespace).", (
     ('name', ostr, None),
     ('tag', ostr, None),
@@ -533,6 +625,17 @@ async def fingerprint(
 
 tools.expect('get_capabilities', 'RO', "Unity version, platform, render pipeline, scripting backend, and optional packages available.", (
 ))
+
+
+@tools.provide
+async def get_capabilities(
+) -> str:
+    ("Unity version, platform, render pipeline, scripting backend, and optional packages available."
+    )
+    return await _send('get_capabilities', _args(
+    ))
+
+
 tools.expect('get_changes', 'RW', "Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,", (
     ('clear', bool, True),
 ))
@@ -609,6 +712,20 @@ async def get_enabled_tools(
 tools.expect('get_frame_stats', 'RO', "Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed.", (
     ('include', str, ""),
 ))
+
+
+@tools.provide
+async def get_frame_stats(
+    include: str = "",
+) -> str:
+    ("Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed."
+     "\n    include: narrow output — e.g. 'gc' for GC stats only."
+    )
+    return await _send('get_frame_stats', _args(
+        include=rt.w_str(include, ""),
+    ))
+
+
 tools.expect('get_hierarchy', 'RO', "Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only).", (
     ('depth', int, 2),
     ('root', ostr, None),
@@ -623,6 +740,20 @@ tools.expect('get_hierarchy', 'RO', "Scene hierarchy as text tree. For finding s
 tools.expect('get_memory', 'RO', "Memory snapshot.", (
     ('include', str, "all"),
 ))
+
+
+@tools.provide
+async def get_memory(
+    include: str = "all",
+) -> str:
+    ("Memory snapshot."
+     "\n    include: all|textures|meshes|audio|gc — narrow the asset-type breakdown."
+    )
+    return await _send('get_memory', _args(
+        include=rt.w_str(include, "all"),
+    ))
+
+
 tools.expect('get_metrics', 'RW', "Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json.", (
     ('format', str, "text"),
     ('reset', bool, False),
@@ -634,8 +765,32 @@ tools.expect('get_object_detail', 'RO', "Get ALL components with ALL values. Hea
 tools.expect('get_schema', 'RO', "Get all serialized fields of a component type with types. Use before set_property to know exact field names.", (
     ('type', str),
 ))
+
+
+@tools.provide
+async def get_schema(
+    type: str,
+) -> str:
+    ("Get all serialized fields of a component type with types. Use before set_property to know exact field names."
+    )
+    return await _send('get_schema', _args(
+        type=rt.w_str(type),
+    ))
+
+
 tools.expect('get_selection', 'RO', "Currently selected GameObject: path and component list.", (
 ))
+
+
+@tools.provide
+async def get_selection(
+) -> str:
+    ("Currently selected GameObject: path and component list."
+    )
+    return await _send('get_selection', _args(
+    ))
+
+
 tools.expect('get_spatial_context', 'RO', "Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only.", (
     ('path', str),
     ('radius', float, 5.0),
@@ -657,6 +812,17 @@ async def get_spatial_context(
 
 tools.expect('get_test_count', 'RO', "Number of edit-mode and play-mode tests in the project.", (
 ))
+
+
+@tools.provide
+async def get_test_count(
+) -> str:
+    ("Number of edit-mode and play-mode tests in the project."
+    )
+    return await _send('get_test_count', _args(
+    ))
+
+
 tools.expect('get_test_progress', 'RO', "Legacy progress facade. Pass run_id to correlate the response.", (
     ('run_id', ostr, None),
 ))
@@ -705,6 +871,27 @@ tools.expect('invoke_method', 'RW', "[Play Mode] Call public method on a compone
     ('method', str),
     ('args', str, ""),
 ))
+
+
+@tools.provide
+async def invoke_method(
+    path: str,
+    component: str,
+    method: str,
+    args: str = "",
+) -> str:
+    ("[Play Mode] Call public method on a component via reflection."
+     "\n    args: comma-separated values matching method parameters."
+     "\n    Example: invoke_method('/Player', 'PlayerController', 'MoveTo', '10,0,5')"
+    )
+    return await _send('invoke_method', _args(
+        path=rt.w_str(path),
+        component=rt.w_str(component),
+        method=rt.w_str(method),
+        args=rt.w_str(args, ""),
+    ))
+
+
 tools.expect('lint_playtest_suite', 'RO', "Read-only preflight check across multiple .playtest files.", (
     ('pattern', ostr, None),
     ('suite_path', ostr, None),
@@ -1081,6 +1268,31 @@ tools.expect('references', 'RW', "References. action: get|find_to|remap. get: ou
     ('target', ostr, None),
     ('mappings', ostr, None),
 ))
+
+
+@tools.provide
+async def references(
+    action: str,
+    path: str,
+    children: bool = False,
+    depth: int = 1,
+    source: ostr = None,
+    target: ostr = None,
+    mappings: ostr = None,
+) -> str:
+    ("References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs."
+    )
+    return await _send('references', _args(
+        action=rt.w_str(action),
+        path=rt.w_str(path),
+        children=rt.w_bool(children, False),
+        depth=rt.w_int(depth, 1, raw=True),
+        source=rt.w_ostr(source),
+        target=rt.w_ostr(target),
+        mappings=rt.w_ostr(mappings),
+    ))
+
+
 tools.expect('region_clear', 'RW', "Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required.", (
     ('vertices', str),
     ('dry_run', bool, True),
@@ -1194,6 +1406,29 @@ tools.expect('runtime_snapshot', 'RO', "Snapshot all runtime objects of a given 
     ('component', ostr, None),
     ('compress', bool, False),
 ))
+
+
+@tools.provide
+async def runtime_snapshot(
+    type: str,
+    name: ostr = None,
+    component: ostr = None,
+    compress: bool = False,
+) -> str:
+    ("Snapshot all runtime objects of a given component type. Returns per-object field dump."
+     "\n    type: component type name (e.g. 'Rigidbody', 'EnemyController')."
+     "\n    name: optional name substring filter."
+     "\n    component: component type to serialize (defaults to type)."
+     "\n    compress: strip default-value fields to reduce response size."
+    )
+    return await _send('runtime_snapshot', _args(
+        type=rt.w_str(type),
+        name=rt.w_ostr(name),
+        component=rt.w_ostr(component),
+        compress=rt.w_bool(compress, False),
+    ))
+
+
 tools.expect('save_session', 'RW', "Save current scene state to .claude/session-context.json for cold-start recovery.", (
 ))
 tools.expect('save_skill', 'RW', "Save a learned skill (C# code or batch commands) for reuse across sessions.", (
@@ -1386,6 +1621,30 @@ tools.expect('serialized_field_rename_audit', 'RO', "Audit [SerializeField] rena
     ('new_field', str),
     ('include', str, "prefabs,scenes,scriptable_objects"),
 ))
+
+
+@tools.provide
+async def serialized_field_rename_audit(
+    type: str,
+    old_field: str,
+    new_field: str,
+    include: str = "prefabs,scenes,scriptable_objects",
+) -> str:
+    ("Audit [SerializeField] rename safety."
+     "\n    type: fully-qualified or simple component type name (e.g. 'MyNamespace.PlayerStats')."
+     "\n    old_field: field name as it exists in serialized assets."
+     "\n    new_field: renamed field name in current C# source."
+     "\n    include: comma-separated scan targets (prefabs,scenes,scriptable_objects)."
+     "\n    Returns: has_formerly_serialized_as, stale_assets, safe_to_remove_attribute, recommended_actions."
+    )
+    return await _send('serialized_field_rename_audit', _args(
+        type=rt.w_str(type),
+        old_field=rt.w_str(old_field),
+        new_field=rt.w_str(new_field),
+        include=rt.w_str(include, "prefabs,scenes,scriptable_objects"),
+    ))
+
+
 tools.expect('set_active', 'RW_IDEM', "Set GameObject active/inactive.", (
     ('path', str),
     ('active', bool),
@@ -1666,6 +1925,24 @@ tools.expect('sync_playtest_aliases_from_defs', 'RW', "Overwrite PlaytestConfig.
     ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
     ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
 ))
+
+
+@tools.provide
+async def sync_playtest_aliases_from_defs(
+    defs: str = "Assets/PlaytestDefs/farm_core.defs",
+    asset: str = "Assets/Configs/PlaytestConfig.asset",
+) -> str:
+    ("Overwrite PlaytestConfig.asset aliases from a .defs text file."
+     "\n    defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs)."
+     "\n    asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset)."
+     "\n    Invalidates AliasExpander cache after sync. Not allowed in Play Mode."
+    )
+    return await _send('sync_playtest_aliases_from_defs', _args(
+        defs=rt.w_str(defs),
+        asset=rt.w_str(asset),
+    ))
+
+
 tools.expect('test_step', 'RW', "[Play Mode] Move character, snapshot state before/after, check console.", (
     ('path', str),
     ('position', str),
@@ -1817,6 +2094,21 @@ tools.expect('uitk_intent', 'RW', "Generate a UXML + USS file pair from a natura
 tools.expect('undo_last', 'RW', "Undo the last N AI turns in the Unity Undo stack. Default: 1.", (
     ('turns', int, 1),
 ))
+
+
+@tools.provide
+async def undo_last(
+    turns: int = 1,
+) -> str:
+    ("Undo the last N AI turns in the Unity Undo stack. Default: 1."
+     "\n    warn: file-system operations (asset creation/deletion via asset tool) are"
+     "\n    not reversed by undo. Only scene-object and component mutations are undoable."
+    )
+    return await _send('undo_last', _args(
+        turns=rt.w_int(turns, raw=True),
+    ))
+
+
 tools.expect('unwire_event', 'DEL', "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required.", (
     ('path', str),
     ('component', str),
@@ -1851,12 +2143,53 @@ tools.expect('validate_playtest_aliases', 'RO', "Compare alias .defs text file v
     ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
     ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
 ))
+
+
+@tools.provide
+async def validate_playtest_aliases(
+    defs: str = "Assets/PlaytestDefs/farm_core.defs",
+    asset: str = "Assets/Configs/PlaytestConfig.asset",
+) -> str:
+    ("Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed."
+     "\n    defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs)."
+     "\n    asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset)."
+     "\n    Returns 'ok: N aliases in sync' when identical, or a diff report."
+    )
+    return await _send('validate_playtest_aliases', _args(
+        defs=rt.w_str(defs),
+        asset=rt.w_str(asset),
+    ))
+
+
 tools.expect('validate_references', 'RO', "Validate all ObjectReference fields under path recursively.", (
     ('path', str),
     ('depth', int, 3),
     ('verbose', bool, False),
     ('ignore_optional', bool, False),
 ))
+
+
+@tools.provide
+async def validate_references(
+    path: str,
+    depth: int = 3,
+    verbose: bool = False,
+    ignore_optional: bool = False,
+) -> str:
+    ("Validate all ObjectReference fields under path recursively."
+     "\n    Returns [ERROR]/[MISSING] for broken refs. Summary: \"N ERROR, M OK\"."
+     "\n    Use depth=1 for quick top-level scan, depth=3-5 for full subtree."
+     "\n    verbose=True also shows [OK] lines (off by default to save tokens)."
+     "\n    ignore_optional=True skips fields marked [Optional] (reduces noise)."
+    )
+    return await _send('validate_references', _args(
+        path=rt.w_str(path),
+        depth=rt.w_int(depth, raw=True),
+        verbose=rt.w_bool(verbose, False),
+        ignore_optional=rt.w_bool(ignore_optional, False),
+    ))
+
+
 tools.expect('validate_triggers', 'RO', "Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters.", (
     ('root', str, "/"),
     ('min_distance', float, 3.0),

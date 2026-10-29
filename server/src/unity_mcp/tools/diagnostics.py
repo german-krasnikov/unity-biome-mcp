@@ -1,24 +1,11 @@
 """Performance and diagnostics tools — Play Mode and editor. get_memory lives in profiling.py."""
 from ._common import bind
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import debug_animator, debug_physics  # noqa: F401
 
 _send = None
 
 
-async def debug_animator(path: str) -> str:
-    """[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile).
-    path: scene path to GameObject with Animator component."""
-    return await _send("debug_animator", {"path": path})
-
-
-async def debug_physics(path: str, radius: float = 5.0) -> str:
-    """[Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (use `debug` for scene; `diagnose` for compile).
-    path: scene path to GameObject.
-    radius: overlap sphere radius for nearby detection (default 5m)."""
-    return await _send("debug_physics", {"path": path, "radius": radius})
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, debug_animator)
-    tools.register(mcp, debug_physics)
