@@ -7,3 +7,8 @@
 # checkout (and normalize back to LF on commit) regardless of platform
 # autocrlf settings so the bytes are identical everywhere.
 scripts/source_patch_provider_pin.json text eol=lf
+
+# The tool catalog (dsl/) and what biome generates from it: LF on every platform, so `scripts/dsl.sh check` compares the same bytes
+# everywhere; review tools fold the generated files (docs/product/layout.md of biome-dsl, "Markers").
+dsl/** text eol=lf
+server/src/unity_mcp/tools/generated/** text eol=lf linguist-generated=true gitlab-generated

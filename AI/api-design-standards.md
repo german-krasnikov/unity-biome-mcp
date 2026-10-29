@@ -12,7 +12,7 @@ link developer documentation to an installed `.claude/` copy.
 | Concern | Canonical source |
 |---|---|
 | Public Python signature and description | `server/src/unity_mcp/tools/*.py` |
-| Category, visibility, timeout, mutability, runtime and batch surface | `server/src/unity_mcp/tools/tool_specs.py` |
+| Category, visibility, timeout, mutability, runtime and batch surface | `server/src/unity_mcp/tools/tool_specs.py`; for a tool in the catalog, `dsl/tools.biome` (see `dsl/README.md`) |
 | Canonical category membership | derived by `tools/gating.py` from `ToolSpec` |
 | Deferred schema registry | `tools/schema_registry.py` and `server_filtering.py` |
 | Unity command and argument behavior | `unity-plugin/Editor/CommandRouter*.cs` and helpers |
