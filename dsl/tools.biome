@@ -1,0 +1,35 @@
+SURFACE tools
+# One block per tool, by name (dsl/README.md). TOOL: Unity handles it; PYTOOL: only the Python server implements it (direct_only).
+# TOOL <name> <CATEGORY> <effect>: RO read-only | RW writes | RW_IDEM writes, safe to repeat | DEL destructive (ToolSpec.mutability, MCP annotation).
+# FLAG (core tier1 direct_only unity_transport), TIMEOUT <s>: the other ToolSpec fields. ARG <name> <type> [DEFAULT <v>] ["<schema description>"]:
+# in the order of the Python signature, required without DEFAULT; the type is str int float bool, o-prefixed when None is allowed.
+
+TOOL rename_object SCENE RW_IDEM
+  ARG path str
+  ARG name str
+END
+
+TOOL search_scene SCENE RO
+  FLAG tier1
+  TIMEOUT 15.0
+  ARG query str "Syntax: 'name text', 't:Component', 'tag=Tag', 'layer=N', 'active=bool' — combine with spaces"
+  ARG root ostr DEFAULT None "Scene path to scope the search (omit = whole scene)"
+  ARG limit int DEFAULT 50 "Max results (default 50; 0 = unlimited)"
+  ARG scene ostr DEFAULT None "Filter to a single scene by name (multi-scene only)"
+END
+
+TOOL set_active SCENE RW_IDEM
+  FLAG tier1
+  ARG path str "Scene path to the GameObject"
+  ARG active bool "True to activate, False to deactivate"
+END
+
+TOOL set_sibling_index SCENE RW
+  ARG path str
+  ARG index int
+END
+
+PYTOOL use_skill SYSTEM RW
+  ARG name str "Saved learned-skill identifier from list_skills"
+  ARG params ostr DEFAULT None
+END

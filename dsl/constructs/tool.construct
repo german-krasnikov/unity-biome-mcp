@@ -1,0 +1,62 @@
+# The tool catalog as a project construct (Plans/STEP_7_1_TOOL_CONSTRUCT_DESIGN.md of biome-dsl). A TOOL is a tool that Unity handles, a
+# PYTOOL one that only the Python server implements (always direct_only). dsl/tools.biome states each fact of a tool once; `scripts/dsl.sh
+# generate` prints it: pyspec = ToolSpec kwargs (tool_specs.py merges them), pyparams = the schema descriptions (_param_descriptions.py).
+# The templates indent their entries by 4 more columns than their EACH/END lines, which lets the dedent of a template leave 4 for them.
+SURFACE tools CODES TOOLS CONSTRUCTS TOOL, PYTOOL
+
+CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
+  HEAD TOOL <name:match([a-z][a-z0-9_]*) UNIQUE> <category:enum(CORE|SCENE|COMPONENTS|ASSETS|UGUI|UITOOLKIT|MEDIA|VERIFY|RUNTIME|TESTS|SYSTEM)> <effect:enum(RO|RW|RW_IDEM|DEL)>
+  ITEM FLAG <flag:enum(core|tier1|direct_only|unity_transport)>
+  ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
+  ITEM ARG <aname:match([a-z][a-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)>] [<adesc:string>]
+  EXAMPLES tool.examples
+  DECLARE
+  TEMPLATE pyspec HEADER "SPEC_KWARGS: dict[str, dict] = {" FOOTER "}" ESCAPE data
+        '{name}': {
+            'category': '{category}',
+            'effect': '{effect}',
+    EACH FLAG
+            '{flag}': True,
+    END
+    EACH TIMEOUT
+            'timeout_s': {seconds},
+    END
+        },
+  END
+  TEMPLATE pyparams HEADER "PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {" FOOTER "}" ESCAPE data
+        '{name}': {
+    EACH ARG
+            {?adesc:'{aname}': "{adesc}",}
+    END
+        },
+  END
+END
+
+CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
+  HEAD PYTOOL <name:match([a-z][a-z0-9_]*) UNIQUE> <category:enum(CORE|SCENE|COMPONENTS|ASSETS|UGUI|UITOOLKIT|MEDIA|VERIFY|RUNTIME|TESTS|SYSTEM)> <effect:enum(RO|RW|RW_IDEM|DEL)>
+  ITEM FLAG <flag:enum(core|tier1)>
+  ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
+  ITEM ARG <aname:match([a-z][a-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)>] [<adesc:string>]
+  EXAMPLES tool.examples
+  DECLARE
+  TEMPLATE pyspec ESCAPE data
+        '{name}': {
+            'category': '{category}',
+            'effect': '{effect}',
+            'direct_only': True,
+    EACH FLAG
+            '{flag}': True,
+    END
+    EACH TIMEOUT
+            'timeout_s': {seconds},
+    END
+        },
+  END
+  TEMPLATE pyparams ESCAPE data
+        '{name}': {
+    EACH ARG
+            {?adesc:'{aname}': "{adesc}",}
+    END
+        },
+  END
+END

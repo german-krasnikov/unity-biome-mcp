@@ -1,0 +1,56 @@
+EXAMPLE a TOOL prints the fields of its ToolSpec and the descriptions of its arguments
+  SOURCE TOOL search_scene SCENE RO
+  SOURCE   FLAG tier1
+  SOURCE   TIMEOUT 15.0
+  SOURCE   ARG query str "Syntax"
+  SOURCE   ARG limit int DEFAULT 50
+  SOURCE END
+  EXPECT rendered.pyspec 'search_scene': {
+  EXPECT rendered.pyspec 'category': 'SCENE',
+  EXPECT rendered.pyspec 'effect': 'RO',
+  EXPECT rendered.pyspec 'tier1': True,
+  EXPECT rendered.pyspec 'timeout_s': 15.0,
+  EXPECT unrendered.pyspec direct_only
+  EXPECT rendered.pyparams 'query': "Syntax",
+  EXPECT unrendered.pyparams limit
+
+EXAMPLE a PYTOOL is direct_only and has no flag unless it names one
+  SOURCE PYTOOL use_skill SYSTEM RW
+  SOURCE   ARG name str "say \"hi\" \\ bye"
+  SOURCE END
+  EXPECT rendered.pyspec 'use_skill': {
+  EXPECT rendered.pyspec 'effect': 'RW',
+  EXPECT rendered.pyspec 'direct_only': True,
+  EXPECT unrendered.pyspec tier1
+  EXPECT unrendered.pyspec timeout_s
+  EXPECT rendered.pyparams 'name': "say \"hi\" \\ bye",
+
+EXAMPLE a name or an argument twice
+  SOURCE TOOL x SCENE RO
+  SOURCE   ARG a str
+  SOURCE   ARG a int
+  SOURCE END
+  SOURCE TOOL x SCENE RW
+  SOURCE END
+  EXPECT diagnostic DECLARE_DUPLICATE at 3:7
+  EXPECT diagnostic DECLARE_DUPLICATE at 5:6
+
+EXAMPLE an effect, a category or a type outside the lists
+  SOURCE TOOL x SCENE WRITE
+  SOURCE END
+  SOURCE TOOL y SCENES RO
+  SOURCE END
+  SOURCE TOOL z SCENE RO
+  SOURCE   ARG a integer
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 1:14
+  EXPECT diagnostic DECLARE_SYNTAX at 3:8
+  EXPECT diagnostic DECLARE_SYNTAX at 6:9
+
+EXAMPLE a PYTOOL is direct_only already and never unity_transport
+  SOURCE PYTOOL x SYSTEM RO
+  SOURCE   FLAG unity_transport
+  SOURCE   FLAG direct_only
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:8
+  EXPECT diagnostic DECLARE_SYNTAX at 3:8
