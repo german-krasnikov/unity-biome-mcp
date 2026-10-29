@@ -11,8 +11,8 @@
   first line of the description) and registers it with the annotation of its effect. The runtime is `tools/_catalog_runtime.py`.
 - the `catalog` region of `docs/tools/index.md`: a row per tool with its plane, category and effect.
 
-This is the pilot of step 7.1 of the biome-dsl repository (`Plans/STEP_7_1_TOOL_CONSTRUCT_DESIGN.md`): five tools are in the
-catalog, every other tool is still declared by hand. A tool lives in one place: a name that is in the catalog and also in the
+This is the pilot of step 7.1 of the biome-dsl repository (`Plans/STEP_7_1_TOOL_CONSTRUCT_DESIGN.md`): the tools in
+`tools.biome` are the catalog, every other tool is still declared by hand. A tool lives in one place: a name that is in the catalog and also in the
 hand-written `_SPECS`, `PARAM_DESCRIPTIONS` or `mcp.tool` registrations fails at import or in `test_single_owner.py`.
 
 | File | Role |

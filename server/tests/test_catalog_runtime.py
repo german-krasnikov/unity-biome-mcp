@@ -3,7 +3,7 @@ import pytest
 from mcp.types import ToolAnnotations
 
 from unity_mcp.tools import _catalog_runtime as rt
-from unity_mcp.tools.generated import catalog_tools
+from unity_mcp.tools.generated import catalog_specs, catalog_tools
 
 ostr = str | None
 
@@ -108,8 +108,7 @@ def test_the_hand_written_use_skill_is_checked_against_the_catalog_when_everythi
 
     mcp = _Mcp()
     catalog_tools.tools.install(mcp)
-    assert sorted(name for name, _ in mcp.registered) == [
-        "rename_object", "search_scene", "set_active", "set_sibling_index", "use_skill"]
+    assert sorted(name for name, _ in mcp.registered) == sorted(catalog_specs.SPEC_KWARGS)
     summary = "Execute a previously saved skill. params: comma-separated key=value for substitution."
     for signature, doc, message in [
         ("name: str, args: ostr = None", summary, "args"),   # a parameter renamed
