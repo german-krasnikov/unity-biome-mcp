@@ -1,6 +1,7 @@
 # The MCP surface and the ToolSpec of every tool, taken at 86eca971 before any generator existed (the oracle of dsl/tools.biome).
 # tool <name> <first 16 hex digits of the sha256 of the canonical JSON of each field: title, description, inputSchema, annotations>
 # spec <name> <the fields of ToolSpec>
+# wire <name> calls=<number of calls> digest=<first 16 hex digits of the sha256 of what the wrapper sent and returned for them>
 # Do not regenerate this file to remove a difference: an intended change is an INTENDED entry of test_tool_surface_golden.py.
 # env python 3.14.6 mcp 1.30.0 pydantic 2.13.5
 tool alias_status title=b5576febc31500cf description=61a32cb36878c057 schema=a0472e7829ae9404 annotations=8803fb4b4971327e
@@ -332,3 +333,90 @@ spec vfx_intent category=MEDIA core=False tier1=True timeout_s=30.0 mutability=w
 spec wait_until category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=True direct_only=True unity_transport=True
 spec watch category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
 spec wire_event category=COMPONENTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
+wire alias_status calls=1 digest=add92d114cc736fe
+wire analyze_lod_culling calls=3 digest=5c1b24b9797a97ee
+wire animation calls=67 digest=73a8e5005249c239
+wire ask_user calls=2 digest=4b3739294d367709
+wire attach_uitk calls=31 digest=79b16327791e3e0c
+wire auto_wire calls=4 digest=1b68a50d9c442c1f
+wire autofit_collider calls=6 digest=b9c7ef67ae7e5237
+wire bake calls=6 digest=ab49baddc711b577
+wire build calls=42 digest=f1836367b32c6208
+wire cancel_test_run calls=2 digest=2e02b36ca8e520ba
+wire check_colliders calls=3 digest=6245f544018e57f4
+wire checkpoint calls=3 digest=85420b6a95d4e6a4
+wire create_object calls=52 digest=1e6a7f6312d6d15f
+wire create_ui calls=66 digest=314d597bb9629e6d
+wire debug_animator calls=2 digest=e3640c3499629267
+wire debug_physics calls=6 digest=3a05c1f31aba1973
+wire execute_code calls=6 digest=cca508b0f3127bf9
+wire export_playtest_aliases_to_defs calls=9 digest=17e61b72b451c402
+wire find_objects calls=37 digest=9a566f729ea6b457
+wire fingerprint calls=12 digest=80c43d14a1b144a4
+wire get_capabilities calls=1 digest=f4265c426ea0a587
+wire get_changes calls=2 digest=833c165f15243ccb
+wire get_components_list calls=3 digest=592d3433681ed18d
+wire get_console calls=50 digest=7047393faee7bca6
+wire get_enabled_tools calls=1 digest=2b94a056458a223e
+wire get_frame_stats calls=2 digest=d1bd76ee36c7cf8d
+wire get_memory calls=3 digest=b33ec5d91be7fa20
+wire get_object_detail calls=6 digest=1b06b20ce5133a6e
+wire get_schema calls=2 digest=1466d5b0be8dd402
+wire get_selection calls=1 digest=66e28edf5676325d
+wire get_spatial_context calls=6 digest=a1b98c5b41739068
+wire get_test_count calls=1 digest=af38607c979dc836
+wire get_unity_events calls=3 digest=b2a99cf7746603ee
+wire inspect_uitk calls=52 digest=1d188768c4fefaf8
+wire invoke_method calls=14 digest=06c6249cd6b262b0
+wire lint_ugui calls=3 digest=0ab04ee8587008ca
+wire list_events calls=8 digest=5b35849cee364af2
+wire list_test_runs calls=4 digest=7d7654ed934d4f14
+wire manage_component calls=8 digest=8fc441af791b0611
+wire material calls=62 digest=d743caae779d3870
+wire material_audit calls=9 digest=46609aebf90f0bf7
+wire menu calls=6 digest=8d595b0697bbf1d4
+wire move_to calls=12 digest=812e32d9b0186827
+wire navmesh_query calls=60 digest=acc7240505c3c9ba
+wire object_diff calls=4 digest=038ed076c197fcdb
+wire package calls=33 digest=df36cefa33b4dbe0
+wire particle calls=51 digest=b16762246e11e36e
+wire ping_object calls=2 digest=57d1027a2c9c544d
+wire prefab calls=67 digest=58d480edabe492de
+wire profile calls=47 digest=7dd9bfe6b5ccfbd9
+wire project_settings calls=50 digest=1dbfae82da617289
+wire query_state calls=2 digest=95908fa96c720ad3
+wire recompile calls=1 digest=40a7602b57226526
+wire references calls=52 digest=788d384473a0e825
+wire rename_object calls=4 digest=1c04484384f0db93
+wire render_analyze calls=44 digest=f95ea4f8a2ddf8b7
+wire resolve_scene_refs calls=6 digest=3ba87f53813fc9e5
+wire resolve_test_request calls=2 digest=721b7ef8fa0ca21b
+wire runtime_snapshot calls=26 digest=cfcf7d3434358678
+wire scan_scene calls=1 digest=a737fa6df4491083
+wire scene calls=28 digest=ec914024817cf3f9
+wire scene_diff calls=1 digest=d1930ff6f4b94759
+wire scene_environment calls=23 digest=982e1d5a6feacc89
+wire scene_health calls=3 digest=7547d7d318d6d9e4
+wire scriptable_object calls=52 digest=319902c063c05581
+wire search_scene calls=38 digest=686bdd754b3ed19e
+wire serialized_field_rename_audit calls=19 digest=bc181afc3ed207bf
+wire set_active calls=4 digest=7e4a0d0404aa58f6
+wire set_material calls=12 digest=d32ee9e3bb6dbf2f
+wire set_parent calls=12 digest=d4621c2fa9316f2a
+wire set_property_delta calls=15 digest=fcdeecf7273bcfc6
+wire set_rect calls=56 digest=00522add390f7228
+wire set_sibling_index calls=6 digest=7c33ab85f1f8a8a9
+wire shader calls=91 digest=df70a9abc8fe4774
+wire sync_playtest_aliases_from_defs calls=9 digest=da85aa84e209ce06
+wire test_step calls=42 digest=39820a72107f12f7
+wire timeline calls=77 digest=2e1fd2f72a132e53
+wire transfer_object calls=37 digest=4c1925d2ed5253aa
+wire uitk_element calls=62 digest=019f4620d4cfc208
+wire uitk_file calls=71 digest=f20f06a46f95e62b
+wire undo_last calls=4 digest=b60c83e0b5bec8e4
+wire unwire_event calls=22 digest=32c4599693ed463c
+wire validate_playtest_aliases calls=9 digest=d0b1c91e9f5c2439
+wire validate_references calls=27 digest=e210e6f415719f18
+wire validate_triggers calls=9 digest=78431ae8c8eb98c9
+wire wait_until calls=45 digest=03533906f080d463
+wire wire_event calls=53 digest=f982fba268404fc1

@@ -1,11 +1,14 @@
-"""The oracle of the tool catalog (P15): the live MCP surface and ToolSpec of every tool equal golden/tool_surface.txt.
+"""The oracle of the tool catalog (P15): the live MCP surface, ToolSpec and wire of every tool equal golden/tool_surface.txt.
 
 The golden was taken at 86eca971, before any generator existed, so a tool the catalog generates is compared with what its
-hand-written version was, not with the generator's own output. Lines come from scripts/dsl_golden.py.
+hand-written version was, not with the generator's own output. Lines come from scripts/dsl_golden.py; a `wire` line is the digest
+of everything a forwarding wrapper sends for a fixed set of calls.
 """
 from pathlib import Path
 
-from dsl_golden import env, surface_lines
+from dsl_golden import env, only_forwards, sample_calls, surface_lines, wire_digest
+
+from unity_mcp.server import _args as _args_of_server
 
 GOLDEN = Path(__file__).parent / "golden" / "tool_surface.txt"
 
@@ -65,3 +68,50 @@ def test_an_intended_field_is_allowed_and_nothing_else():
         "spec a: tier1 is True, the golden has False",
         "INTENDED a.category does not differ any more: remove it",
     ]
+
+
+_send = _args = _helper = None  # the globals of a tool module; the oracle swaps them while it runs a wrapper
+
+
+async def _plain(a: str, n: int = 5):
+    return await _send("f", _args(a=a, n=str(n)))
+
+
+async def _raw(a: str, n: int = 5):
+    return await _send("f", _args(a=a, n=n))
+
+
+async def _omit(a: str, n: int = 5):
+    return await _send("f", _args(a=a, n=str(n) if n != 5 else None))
+
+
+async def _other_call(a: str, n: int = 5):
+    return await _send("f", {"a": _helper(a)})
+
+
+async def _awaits_other(a: str, n: int = 5):
+    return await _send("f", {"a": await _helper(a)})
+
+
+async def _no_samples(a: dict):
+    return await _send("f", {"a": a})
+
+
+def test_only_a_wrapper_that_calls_nothing_but_send_and_args_is_run():
+    assert only_forwards(_plain) and only_forwards(_omit)
+    assert not only_forwards(_other_call) and not only_forwards(_awaits_other)
+
+
+def test_the_sample_calls_vary_one_parameter_at_a_time_and_are_the_same_each_time():
+    calls = sample_calls(_plain, "f")
+    assert {"a": "a", "n": 5} in calls and {"a": "", "n": 5} in calls and {"a": "a", "n": -1} in calls
+    assert len(calls) == len({tuple(call.items()) for call in calls}) and calls == sample_calls(_plain, "f")
+    assert sample_calls(_no_samples, "f") is None
+
+
+def test_the_digest_follows_what_a_wrapper_sends():
+    digest = wire_digest(_plain, _args_of_server, "f")
+    assert digest and wire_digest(_plain, _args_of_server, "f") == digest      # the same wrapper, the same digest
+    assert wire_digest(_raw, _args_of_server, "f") != digest                    # a number kept a number
+    assert wire_digest(_omit, _args_of_server, "f") != digest                   # the default left out
+    assert wire_digest(_other_call, _args_of_server, "f") is None               # not run at all
