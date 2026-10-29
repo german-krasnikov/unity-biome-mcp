@@ -11,6 +11,7 @@ SURFACE tools
 # Context, Literal, ...); OMIT: a value equal to the default is not sent, Unity applies it; RAW: a FORWARD wrapper sends the value as it is.
 
 TOOL alias_status SYSTEM RO "Check alias table health: loaded/empty/stale, sources, and total alias count."
+  FORWARD
 END
 
 TOOL analyze_lod_culling MEDIA RO "LOD group coverage + occlusion culling analysis."
@@ -20,19 +21,26 @@ TOOL analyze_lod_culling MEDIA RO "LOD group coverage + occlusion culling analys
 END
 
 TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this)."
+  FORWARD
+  DOC "action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path)."
+  DOC "clip=clip name, keys='t:0 v:(0,0,0); t:1 v:(0,2,0)', property=e.g. localPosition.x."
+  DOC "component_type: Unity component to animate (default: Transform). Examples: Light, Camera, Rigidbody."
+  DOC "binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root."
+  DOC "tangent: tangent mode for keyframes: auto (default) | smooth | linear | constant."
+  DOC "function_name: method name for add_event. int_param/float_param/string_param: event parameters."
   ARG action str
   ARG path str
   ARG clip ostr DEFAULT None
   ARG clip_name ostr DEFAULT None
   ARG property ostr DEFAULT None
   ARG keys ostr DEFAULT None
-  ARG time ofloat DEFAULT None
+  ARG time ofloat DEFAULT None RAW
   ARG component_type ostr DEFAULT None
   ARG binding_path ostr DEFAULT None
   ARG tangent ostr DEFAULT None
   ARG function_name ostr DEFAULT None
-  ARG int_param oint DEFAULT None
-  ARG float_param ofloat DEFAULT None
+  ARG int_param oint DEFAULT None RAW
+  ARG float_param ofloat DEFAULT None RAW
   ARG string_param ostr DEFAULT None
 END
 
@@ -113,10 +121,19 @@ TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No conf
 END
 
 TOOL attach_uitk UITOOLKIT RW "Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for UI Toolkit runtime panels)."
+  FORWARD
+  DOC "Side effect: mutates the scene by adding one Undo-recorded UIDocument after validating"
+  DOC "every supplied asset; it does not create UXML or PanelSettings assets."
+  DOC "path: scene path to the target GameObject."
+  DOC "uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted)."
+  DOC "panel_settings: optional Assets/ path to a PanelSettings asset; omitted leaves the field unset."
+  DOC "sort_order: UIDocument.sortingOrder (default 0; ignored on Unity 6.4+ PanelRenderer)."
+  DOC "err: if UIDocument or PanelRenderer already present — remove it first or use inspect_uitk/uitk_element."
+  DOC ""
   ARG path str
   ARG uxml ostr DEFAULT None
   ARG panel_settings ostr DEFAULT None
-  ARG sort_order oint DEFAULT None
+  ARG sort_order oint DEFAULT None RAW
 END
 
 PYTOOL auto_fix SYSTEM RO "Analyze recent Unity errors and ask MCP client sampling for a fix suggestion."
@@ -124,8 +141,10 @@ PYTOOL auto_fix SYSTEM RO "Analyze recent Unity errors and ask MCP client sampli
 END
 
 TOOL auto_wire COMPONENTS RW "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required."
+  FORWARD
+  DOC "dry_run=true previews without applying. Returns wired/ambiguous/no-match summary."
   ARG path str
-  ARG dry_run bool DEFAULT False
+  ARG dry_run bool DEFAULT False OMIT
 END
 
 TOOL autofit_collider SCENE RW "Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule."
@@ -141,6 +160,11 @@ PYTOOL await_compile VERIFY RO "Block until Unity finishes compiling + reloading
 END
 
 TOOL bake ASSETS RW "Bake operations."
+  FORWARD
+  DOC "target: lighting|occlusion."
+  DOC "action (lighting): start(default)|status|cancel|clear|settings."
+  DOC "action (occlusion): start(default)|status|clear."
+  DOC "Poll status after start — lighting bake is async."
   ARG target str
   ARG action ostr DEFAULT None
 END
@@ -168,14 +192,19 @@ PYTOOL budget_status SYSTEM RO "Returns Haiku cost: session/cap/day/skipped feat
 END
 
 TOOL build SYSTEM RW "Build player. action: build."
+  FORWARD
   FLAG direct_only
   FLAG unity_transport
   TIMEOUT 300.0
+  DOC "target: StandaloneWindows64|StandaloneOSX|Android|iOS|WebGL (default: active)."
+  DOC "scenes: comma-sep asset paths (default: Build Settings list)."
+  DOC "path: output path (default: Builds/<target>)."
+  DOC "dev: development build flag."
   ARG action str
   ARG target ostr DEFAULT None
   ARG scenes ostr DEFAULT None
   ARG path ostr DEFAULT None "Player build output file or directory (default Builds/<target>)"
-  ARG dev bool DEFAULT False
+  ARG dev bool DEFAULT False OMIT
 END
 
 TOOL cancel_test_run TESTS RW_IDEM "Request cancellation of one exact test run; cancellation is asynchronous."
@@ -233,6 +262,7 @@ TOOL create_object CORE RW "Create new GameObject. components: comma-separated t
 END
 
 TOOL create_ui UGUI RW "Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace. font_min/font_max: enable TMP autoSizing for Text type."
+  FORWARD
   ARG type str "uGUI element type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView"
   ARG name ostr DEFAULT None
   ARG parent ostr DEFAULT None
@@ -387,6 +417,7 @@ PYTOOL get_console_since RUNTIME RO "Console entries after the watermark created
 END
 
 TOOL get_enabled_tools SYSTEM RO "List enabled tool names, comma-separated."
+  FORWARD
 END
 
 TOOL get_frame_stats RUNTIME RO "Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed."
@@ -516,7 +547,11 @@ TOOL lint_scene_refs VERIFY RO "Read-only linter for scene references in DSL scr
 END
 
 TOOL lint_ugui UGUI RO "Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Use when clicks miss or UI appears broken."
+  FORWARD
   TIMEOUT 15.0
+  DOC "Returns compact text: 'ok: 0 issues' or newline-separated warnings."
+  DOC "root: scene path to root GameObject to scan (default: scan all loaded scenes)."
+  DOC ""
   ARG root ostr DEFAULT None
 END
 
@@ -565,6 +600,7 @@ TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No conf
 END
 
 TOOL material ASSETS RW "Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared)."
+  FORWARD
   ARG action str
   ARG path ostr DEFAULT None
   ARG object_path ostr DEFAULT None
@@ -573,12 +609,15 @@ TOOL material ASSETS RW "Material asset management (for quick color change use `
   ARG value ostr DEFAULT None
   ARG source ostr DEFAULT None
   ARG targets ostr DEFAULT None
-  ARG slot oint DEFAULT None
+  ARG slot oint DEFAULT None RAW
   ARG filter ostr DEFAULT None
   ARG target ostr DEFAULT None
 END
 
 TOOL material_audit ASSETS RO "Material/texture scene-wide audit."
+  FORWARD
+  DOC "action: summary|materials|textures|duplicates|compression|recommendations."
+  DOC "platform: Android|iOS|Standalone|Default (for compression check)."
   ARG action str DEFAULT_TEXT "summary"
   ARG platform ostr DEFAULT None
 END
@@ -588,6 +627,7 @@ PYTOOL mcp_status SYSTEM RO "Compact MCP status: scene, dirty, play/compile stat
 END
 
 TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API."
+  FORWARD
   ARG action str
   ARG path ostr DEFAULT None "Unity Editor menu-item path to execute, or submenu prefix to list"
 END
@@ -631,6 +671,7 @@ TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmati
 END
 
 TOOL particle MEDIA RW "Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
+  FORWARD
   ARG action str
   ARG path str
   ARG name ostr DEFAULT None
@@ -652,6 +693,14 @@ INTERNAL ping RO "Liveness probe: Unity answers pong."
 END
 
 TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate."
+  FORWARD
+  DOC "edit: asset_path + component + prop + value (set property on prefab asset)."
+  DOC "edit: asset_path + add_component or remove_component (manage components)."
+  DOC "save: path (scene) + asset_path [+ mode: new|overwrite (default)]."
+  DOC "revert: scope: object (default)|children."
+  DOC "get_overrides: format: text (default)|structured."
+  DOC "create_variant: base_path + variant_path."
+  DOC "instantiate: asset_path (instantiate prefab into active scene)."
   ARG action str
   ARG path ostr DEFAULT None
   ARG asset_path ostr DEFAULT None
@@ -662,7 +711,7 @@ TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmatio
   ARG value ostr DEFAULT None
   ARG add_component ostr DEFAULT None
   ARG remove_component ostr DEFAULT None
-  ARG recursive bool DEFAULT False
+  ARG recursive bool DEFAULT False OMIT
   ARG mode ostr DEFAULT None
   ARG scope ostr DEFAULT None
   ARG format ostr DEFAULT None
@@ -680,11 +729,15 @@ TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
 END
 
 TOOL project_settings ASSETS RW_IDEM "Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input."
+  FORWARD
+  DOC "tags set: prop=remove value=<tag> to remove; else adds."
+  DOC "quality set prop=currentLevel: calls SetQualityLevel()."
+  DOC "player set prop=ScriptingBackend: needs build_target (Standalone|iOS|Android|etc) + value (Mono2x|IL2CPP)."
   ARG action str
   ARG target str
   ARG prop ostr DEFAULT None
   ARG value ostr DEFAULT None
-  ARG index oint DEFAULT None
+  ARG index oint DEFAULT None RAW
   ARG build_target ostr DEFAULT None
 END
 
@@ -727,11 +780,20 @@ TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path af
 END
 
 TOOL render_analyze MEDIA RO "Rendering analysis."
+  FORWARD
+  DOC "action: stats|materials|shaders|lights|batching|overdraw|audit|compare"
+  DOC "        |frame_debug|shadow_audit|probe_audit|light_optimize"
+  DOC "stats: draw calls, batches, tris, verts, set-pass from UnityStats."
+  DOC "batching: SRP Batcher / static / dynamic / GPU instancing analysis."
+  DOC "audit: full rendering health check (all sections, brief)."
+  DOC "compare: diff against last baseline snapshot."
+  DOC "frame_debug: per-draw-call data via FrameDebugger reflection (pauses rendering briefly)."
+  DOC "detail: brief (default) | full.  path: optional subtree root."
   ARG action str
   ARG path ostr DEFAULT None
   ARG detail str DEFAULT_TEXT "brief"
   ARG baseline_id ostr DEFAULT None
-  ARG max_events oint DEFAULT None
+  ARG max_events oint DEFAULT None RAW
 END
 
 TOOL resolve_scene_refs VERIFY RO "Read-only scene reference resolver."
@@ -906,6 +968,7 @@ PYTOOL screenshot_compare MEDIA RW "Compare current screenshot with saved baseli
 END
 
 TOOL scriptable_object ASSETS RW "ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter."
+  FORWARD
   ARG action str
   ARG path ostr DEFAULT None "Project asset path to the ScriptableObject .asset file"
   ARG type ostr DEFAULT None
@@ -983,6 +1046,7 @@ TOOL set_property_delta SCENE RW "Apply delta to numeric property. delta: +5, -0
 END
 
 TOOL set_rect UGUI RW_IDEM "Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y). pos3: (x,y,z) sets anchoredPosition3D — use for WorldSpace canvases (wins over pos if both given)."
+  FORWARD
   ARG path str
   ARG anchor ostr DEFAULT None
   ARG pos ostr DEFAULT None
@@ -1004,6 +1068,9 @@ PYTOOL setup_objects SCENE RW "Create+configure multiple objects in one call."
 END
 
 TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network."
+  FORWARD
+  DOC "action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional)."
+  DOC "For material shader assignment use `material` tool instead."
   ARG action str
   ARG path str "Project asset path to a .shader or .shadergraph file"
   ARG target ostr DEFAULT None
@@ -1018,9 +1085,9 @@ TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Cre
   ARG node_id ostr DEFAULT None
   ARG node_action ostr DEFAULT None
   ARG output_node ostr DEFAULT None
-  ARG output_slot oint DEFAULT None
+  ARG output_slot oint DEFAULT None RAW
   ARG input_node ostr DEFAULT None
-  ARG input_slot oint DEFAULT None
+  ARG input_slot oint DEFAULT None RAW
   ARG edge_action ostr DEFAULT None
   ARG name ostr DEFAULT None "Action-specific Shader Graph property/node name (not a GameObject name)"
   ARG type ostr DEFAULT None "Action-specific Shader Graph property value type (not a component type)"
@@ -1028,8 +1095,8 @@ TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Cre
   ARG reference_name ostr DEFAULT None
   ARG new_name ostr DEFAULT None
   ARG layout ostr DEFAULT None
-  ARG h_gap ofloat DEFAULT None
-  ARG v_gap ofloat DEFAULT None
+  ARG h_gap ofloat DEFAULT None RAW
+  ARG v_gap ofloat DEFAULT None RAW
 END
 
 PYTOOL smart_build SYSTEM RW "Build scene objects from natural language description using MCP sampling + execute_code."
@@ -1091,24 +1158,27 @@ TOOL test_step TESTS RW "[Play Mode] Move character, snapshot state before/after
 END
 
 TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that)."
+  FORWARD
+  DOC "action: get | create | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview."
+  DOC "track=track name. index=target position for reorder_track. offset=time shift for duplicate_clip. value=offset mode (auto|transform|scene) for set_track_offset."
   ARG path str
   ARG action str
   ARG track ostr DEFAULT None
   ARG track_type ostr DEFAULT None
   ARG clip ostr DEFAULT None
   ARG binding ostr DEFAULT None
-  ARG start ofloat DEFAULT None
-  ARG duration ofloat DEFAULT None
-  ARG blend_in ofloat DEFAULT None
-  ARG blend_out ofloat DEFAULT None
+  ARG start ofloat DEFAULT None RAW
+  ARG duration ofloat DEFAULT None RAW
+  ARG blend_in ofloat DEFAULT None RAW
+  ARG blend_out ofloat DEFAULT None RAW
   ARG asset_path ostr DEFAULT None
   ARG director_path ostr DEFAULT None
   ARG tracks ostr DEFAULT None
-  ARG time ofloat DEFAULT None
+  ARG time ofloat DEFAULT None RAW
   ARG name ostr DEFAULT None "Action-specific Timeline track, clip, or marker name"
-  ARG clip_in ofloat DEFAULT None
-  ARG index oint DEFAULT None
-  ARG offset ofloat DEFAULT None
+  ARG clip_in ofloat DEFAULT None RAW
+  ARG index oint DEFAULT None RAW
+  ARG offset ofloat DEFAULT None RAW
   ARG value ostr DEFAULT None "Action-specific Timeline value; set_track_offset accepts auto|transform|scene"
 END
 

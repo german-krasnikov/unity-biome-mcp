@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=ab967df1b1c2b477a8271a468db62ef84fe31eef13143f2afdf67831f4e7a848
+# source-sha256=2dd445585c6b2295b569f2d9a331a54dc171355e6dfcc8b7c0c1b8aaf24038cd
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -23,6 +23,17 @@ def register(mcp, send, args):
 
 tools.expect('alias_status', 'RO', "Check alias table health: loaded/empty/stale, sources, and total alias count.", (
 ))
+
+
+@tools.provide
+async def alias_status(
+) -> str:
+    ("Check alias table health: loaded/empty/stale, sources, and total alias count."
+    )
+    return await _send('alias_status', _args(
+    ))
+
+
 tools.expect('analyze_lod_culling', 'RO', "LOD group coverage + occlusion culling analysis.", (
     ('focus', ostr, None),
 ))
@@ -56,6 +67,51 @@ tools.expect('animation', 'RW', "Animate GameObject properties via AnimationClip
     ('float_param', ofloat, None),
     ('string_param', ostr, None),
 ))
+
+
+@tools.provide
+async def animation(
+    action: str,
+    path: str,
+    clip: ostr = None,
+    clip_name: ostr = None,
+    property: ostr = None,
+    keys: ostr = None,
+    time: ofloat = None,
+    component_type: ostr = None,
+    binding_path: ostr = None,
+    tangent: ostr = None,
+    function_name: ostr = None,
+    int_param: oint = None,
+    float_param: ofloat = None,
+    string_param: ostr = None,
+) -> str:
+    ("Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this)."
+     "\n    action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path)."
+     "\n    clip=clip name, keys='t:0 v:(0,0,0); t:1 v:(0,2,0)', property=e.g. localPosition.x."
+     "\n    component_type: Unity component to animate (default: Transform). Examples: Light, Camera, Rigidbody."
+     "\n    binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root."
+     "\n    tangent: tangent mode for keyframes: auto (default) | smooth | linear | constant."
+     "\n    function_name: method name for add_event. int_param/float_param/string_param: event parameters."
+    )
+    return await _send('animation', _args(
+        action=rt.w_str(action),
+        path=rt.w_str(path),
+        clip=rt.w_ostr(clip),
+        clip_name=rt.w_ostr(clip_name),
+        property=rt.w_ostr(property),
+        keys=rt.w_ostr(keys),
+        time=rt.w_ofloat(time, raw=True),
+        component_type=rt.w_ostr(component_type),
+        binding_path=rt.w_ostr(binding_path),
+        tangent=rt.w_ostr(tangent),
+        function_name=rt.w_ostr(function_name),
+        int_param=rt.w_oint(int_param, raw=True),
+        float_param=rt.w_ofloat(float_param, raw=True),
+        string_param=rt.w_ostr(string_param),
+    ))
+
+
 tools.expect('animator', 'RW', "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param.", (
     ('action', str),
     ('path', str),
@@ -126,6 +182,33 @@ tools.expect('attach_uitk', 'RW', "Attach UIDocument (or PanelRenderer on Unity 
     ('panel_settings', ostr, None),
     ('sort_order', oint, None),
 ))
+
+
+@tools.provide
+async def attach_uitk(
+    path: str,
+    uxml: ostr = None,
+    panel_settings: ostr = None,
+    sort_order: oint = None,
+) -> str:
+    ("Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for UI Toolkit runtime panels)."
+     "\n    Side effect: mutates the scene by adding one Undo-recorded UIDocument after validating"
+     "\n    every supplied asset; it does not create UXML or PanelSettings assets."
+     "\n    path: scene path to the target GameObject."
+     "\n    uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted)."
+     "\n    panel_settings: optional Assets/ path to a PanelSettings asset; omitted leaves the field unset."
+     "\n    sort_order: UIDocument.sortingOrder (default 0; ignored on Unity 6.4+ PanelRenderer)."
+     "\n    err: if UIDocument or PanelRenderer already present — remove it first or use inspect_uitk/uitk_element."
+     "\n    "
+    )
+    return await _send('attach_uitk', _args(
+        path=rt.w_str(path),
+        uxml=rt.w_ostr(uxml),
+        panel_settings=rt.w_ostr(panel_settings),
+        sort_order=rt.w_oint(sort_order, raw=True),
+    ))
+
+
 tools.expect('auto_fix', 'RO', "Analyze recent Unity errors and ask MCP client sampling for a fix suggestion.", (
     ('ctx', Any),
 ))
@@ -133,6 +216,22 @@ tools.expect('auto_wire', 'RW', "Fill null ObjectReference fields on a GameObjec
     ('path', str),
     ('dry_run', bool, False),
 ))
+
+
+@tools.provide
+async def auto_wire(
+    path: str,
+    dry_run: bool = False,
+) -> str:
+    ("Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required."
+     "\n    dry_run=true previews without applying. Returns wired/ambiguous/no-match summary."
+    )
+    return await _send('auto_wire', _args(
+        path=rt.w_str(path),
+        dry_run=rt.w_bool(dry_run, False),
+    ))
+
+
 tools.expect('autofit_collider', 'RW', "Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule.", (
     ('path', str),
     ('type', str, "box"),
@@ -160,6 +259,25 @@ tools.expect('bake', 'RW', "Bake operations.", (
     ('target', str),
     ('action', ostr, None),
 ))
+
+
+@tools.provide
+async def bake(
+    target: str,
+    action: ostr = None,
+) -> str:
+    ("Bake operations."
+     "\n    target: lighting|occlusion."
+     "\n    action (lighting): start(default)|status|cancel|clear|settings."
+     "\n    action (occlusion): start(default)|status|clear."
+     "\n    Poll status after start — lighting bake is async."
+    )
+    return await _send('bake', _args(
+        target=rt.w_str(target),
+        action=rt.w_ostr(action),
+    ))
+
+
 tools.expect('batch', 'RW', "Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls.", (
     ('commands', str),
     ('on_error', str, "continue"),
@@ -180,6 +298,31 @@ tools.expect('build', 'RW', "Build player. action: build.", (
     ('path', ostr, None),
     ('dev', bool, False),
 ))
+
+
+@tools.provide
+async def build(
+    action: str,
+    target: ostr = None,
+    scenes: ostr = None,
+    path: ostr = None,
+    dev: bool = False,
+) -> str:
+    ("Build player. action: build."
+     "\n    target: StandaloneWindows64|StandaloneOSX|Android|iOS|WebGL (default: active)."
+     "\n    scenes: comma-sep asset paths (default: Build Settings list)."
+     "\n    path: output path (default: Builds/<target>)."
+     "\n    dev: development build flag."
+    )
+    return await _send('build', _args(
+        action=rt.w_str(action),
+        target=rt.w_ostr(target),
+        scenes=rt.w_ostr(scenes),
+        path=rt.w_ostr(path),
+        dev=rt.w_bool(dev, False),
+    ))
+
+
 tools.expect('cancel_test_run', 'RW_IDEM', "Request cancellation of one exact test run; cancellation is asynchronous.", (
     ('run_id', str),
 ))
@@ -265,6 +408,43 @@ tools.expect('create_ui', 'RW', "Create UI element with smart defaults. type: Ca
     ('font_min', ostr, None),
     ('font_max', ostr, None),
 ))
+
+
+@tools.provide
+async def create_ui(
+    type: str,
+    name: ostr = None,
+    parent: ostr = None,
+    anchor: ostr = None,
+    pos: ostr = None,
+    size: ostr = None,
+    pivot: ostr = None,
+    color: ostr = None,
+    text: ostr = None,
+    font_size: ostr = None,
+    render_mode: ostr = None,
+    font_min: ostr = None,
+    font_max: ostr = None,
+) -> str:
+    ("Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace. font_min/font_max: enable TMP autoSizing for Text type."
+    )
+    return await _send('create_ui', _args(
+        type=rt.w_str(type),
+        name=rt.w_ostr(name),
+        parent=rt.w_ostr(parent),
+        anchor=rt.w_ostr(anchor),
+        pos=rt.w_ostr(pos),
+        size=rt.w_ostr(size),
+        pivot=rt.w_ostr(pivot),
+        color=rt.w_ostr(color),
+        text=rt.w_ostr(text),
+        font_size=rt.w_ostr(font_size),
+        render_mode=rt.w_ostr(render_mode),
+        font_min=rt.w_ostr(font_min),
+        font_max=rt.w_ostr(font_max),
+    ))
+
+
 tools.expect('debug', 'RO', "AI-assisted scene debug: gather diagnostic context based on symptom (not compile/reload — use `diagnose` for that; not runtime state — use `debug_animator` or `debug_physics`).", (
     ('symptom', str, ""),
     ('path', str, ""),
@@ -415,6 +595,17 @@ tools.expect('get_console_since', 'RO', "Console entries after the watermark cre
 ))
 tools.expect('get_enabled_tools', 'RO', "List enabled tool names, comma-separated.", (
 ))
+
+
+@tools.provide
+async def get_enabled_tools(
+) -> str:
+    ("List enabled tool names, comma-separated."
+    )
+    return await _send('get_enabled_tools', _args(
+    ))
+
+
 tools.expect('get_frame_stats', 'RO', "Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed.", (
     ('include', str, ""),
 ))
@@ -525,6 +716,22 @@ tools.expect('lint_scene_refs', 'RO', "Read-only linter for scene references in 
 tools.expect('lint_ugui', 'RO', "Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Use when clicks miss or UI appears broken.", (
     ('root', ostr, None),
 ))
+
+
+@tools.provide
+async def lint_ugui(
+    root: ostr = None,
+) -> str:
+    ("Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Use when clicks miss or UI appears broken."
+     "\n    Returns compact text: 'ok: 0 issues' or newline-separated warnings."
+     "\n    root: scene path to root GameObject to scan (default: scan all loaded scenes)."
+     "\n    "
+    )
+    return await _send('lint_ugui', _args(
+        root=rt.w_ostr(root),
+    ))
+
+
 tools.expect('lint_uitk', 'RO', "Validate a UXML or USS file for structural errors and broken references", (
     ('path', ostr, None),
     ('fix', obool, None),
@@ -599,16 +806,81 @@ tools.expect('material', 'RW', "Material asset management (for quick color chang
     ('filter', ostr, None),
     ('target', ostr, None),
 ))
+
+
+@tools.provide
+async def material(
+    action: str,
+    path: ostr = None,
+    object_path: ostr = None,
+    shader: ostr = None,
+    prop: ostr = None,
+    value: ostr = None,
+    source: ostr = None,
+    targets: ostr = None,
+    slot: oint = None,
+    filter: ostr = None,
+    target: ostr = None,
+) -> str:
+    ("Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared)."
+    )
+    return await _send('material', _args(
+        action=rt.w_str(action),
+        path=rt.w_ostr(path),
+        object_path=rt.w_ostr(object_path),
+        shader=rt.w_ostr(shader),
+        prop=rt.w_ostr(prop),
+        value=rt.w_ostr(value),
+        source=rt.w_ostr(source),
+        targets=rt.w_ostr(targets),
+        slot=rt.w_oint(slot, raw=True),
+        filter=rt.w_ostr(filter),
+        target=rt.w_ostr(target),
+    ))
+
+
 tools.expect('material_audit', 'RO', "Material/texture scene-wide audit.", (
     ('action', str, "summary"),
     ('platform', ostr, None),
 ))
+
+
+@tools.provide
+async def material_audit(
+    action: str = "summary",
+    platform: ostr = None,
+) -> str:
+    ("Material/texture scene-wide audit."
+     "\n    action: summary|materials|textures|duplicates|compression|recommendations."
+     "\n    platform: Android|iOS|Standalone|Default (for compression check)."
+    )
+    return await _send('material_audit', _args(
+        action=rt.w_str(action),
+        platform=rt.w_ostr(platform),
+    ))
+
+
 tools.expect('mcp_status', 'RO', "Compact MCP status: scene, dirty, play/compile state, port, alias count,", (
 ))
 tools.expect('menu', 'RW', "Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API.", (
     ('action', str),
     ('path', ostr, None),
 ))
+
+
+@tools.provide
+async def menu(
+    action: str,
+    path: ostr = None,
+) -> str:
+    ("Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API."
+    )
+    return await _send('menu', _args(
+        action=rt.w_str(action),
+        path=rt.w_ostr(path),
+    ))
+
+
 tools.expect('move_to', 'RW', "[Play Mode] Move character to position and wait for arrival.", (
     ('path', str),
     ('position', str),
@@ -660,6 +932,31 @@ tools.expect('particle', 'RW', "Particle System. action: get|create|set|apply|pl
     ('value', ostr, None),
     ('preset', ostr, None),
 ))
+
+
+@tools.provide
+async def particle(
+    action: str,
+    path: str,
+    name: ostr = None,
+    module: ostr = None,
+    prop: ostr = None,
+    value: ostr = None,
+    preset: ostr = None,
+) -> str:
+    ("Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
+    )
+    return await _send('particle', _args(
+        action=rt.w_str(action),
+        path=rt.w_str(path),
+        name=rt.w_ostr(name),
+        module=rt.w_ostr(module),
+        prop=rt.w_ostr(prop),
+        value=rt.w_ostr(value),
+        preset=rt.w_ostr(preset),
+    ))
+
+
 tools.expect('permission_prompt', 'RO', "Handle Claude permission prompts via MCP.", (
     ('tool_name', str),
     ('input', Any),
@@ -681,6 +978,52 @@ tools.expect('prefab', 'RW', "Prefab. Creates or modifies prefab assets. No conf
     ('scope', ostr, None),
     ('format', ostr, None),
 ))
+
+
+@tools.provide
+async def prefab(
+    action: str,
+    path: ostr = None,
+    asset_path: ostr = None,
+    base_path: ostr = None,
+    variant_path: ostr = None,
+    component: ostr = None,
+    prop: ostr = None,
+    value: ostr = None,
+    add_component: ostr = None,
+    remove_component: ostr = None,
+    recursive: bool = False,
+    mode: ostr = None,
+    scope: ostr = None,
+    format: ostr = None,
+) -> str:
+    ("Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate."
+     "\n    edit: asset_path + component + prop + value (set property on prefab asset)."
+     "\n    edit: asset_path + add_component or remove_component (manage components)."
+     "\n    save: path (scene) + asset_path [+ mode: new|overwrite (default)]."
+     "\n    revert: scope: object (default)|children."
+     "\n    get_overrides: format: text (default)|structured."
+     "\n    create_variant: base_path + variant_path."
+     "\n    instantiate: asset_path (instantiate prefab into active scene)."
+    )
+    return await _send('prefab', _args(
+        action=rt.w_str(action),
+        path=rt.w_ostr(path),
+        asset_path=rt.w_ostr(asset_path),
+        base_path=rt.w_ostr(base_path),
+        variant_path=rt.w_ostr(variant_path),
+        component=rt.w_ostr(component),
+        prop=rt.w_ostr(prop),
+        value=rt.w_ostr(value),
+        add_component=rt.w_ostr(add_component),
+        remove_component=rt.w_ostr(remove_component),
+        recursive=rt.w_bool(recursive, False),
+        mode=rt.w_ostr(mode),
+        scope=rt.w_ostr(scope),
+        format=rt.w_ostr(format),
+    ))
+
+
 tools.expect('profile', 'RW', "Profile CPU/GPU/memory over time.", (
     ('action', str),
     ('duration', float, 5.0),
@@ -698,6 +1041,32 @@ tools.expect('project_settings', 'RW_IDEM', "Project settings. Modifies project 
     ('index', oint, None),
     ('build_target', ostr, None),
 ))
+
+
+@tools.provide
+async def project_settings(
+    action: str,
+    target: str,
+    prop: ostr = None,
+    value: ostr = None,
+    index: oint = None,
+    build_target: ostr = None,
+) -> str:
+    ("Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input."
+     "\n    tags set: prop=remove value=<tag> to remove; else adds."
+     "\n    quality set prop=currentLevel: calls SetQualityLevel()."
+     "\n    player set prop=ScriptingBackend: needs build_target (Standalone|iOS|Android|etc) + value (Mono2x|IL2CPP)."
+    )
+    return await _send('project_settings', _args(
+        action=rt.w_str(action),
+        target=rt.w_str(target),
+        prop=rt.w_ostr(prop),
+        value=rt.w_ostr(value),
+        index=rt.w_oint(index, raw=True),
+        build_target=rt.w_ostr(build_target),
+    ))
+
+
 tools.expect('query_state', 'RO', "[Play Mode] Snapshot multiple game values in one call.", (
     ('queries', str),
 ))
@@ -748,6 +1117,35 @@ tools.expect('render_analyze', 'RO', "Rendering analysis.", (
     ('baseline_id', ostr, None),
     ('max_events', oint, None),
 ))
+
+
+@tools.provide
+async def render_analyze(
+    action: str,
+    path: ostr = None,
+    detail: str = "brief",
+    baseline_id: ostr = None,
+    max_events: oint = None,
+) -> str:
+    ("Rendering analysis."
+     "\n    action: stats|materials|shaders|lights|batching|overdraw|audit|compare"
+     "\n            |frame_debug|shadow_audit|probe_audit|light_optimize"
+     "\n    stats: draw calls, batches, tris, verts, set-pass from UnityStats."
+     "\n    batching: SRP Batcher / static / dynamic / GPU instancing analysis."
+     "\n    audit: full rendering health check (all sections, brief)."
+     "\n    compare: diff against last baseline snapshot."
+     "\n    frame_debug: per-draw-call data via FrameDebugger reflection (pauses rendering briefly)."
+     "\n    detail: brief (default) | full.  path: optional subtree root."
+    )
+    return await _send('render_analyze', _args(
+        action=rt.w_str(action),
+        path=rt.w_ostr(path),
+        detail=rt.w_str(detail),
+        baseline_id=rt.w_ostr(baseline_id),
+        max_events=rt.w_oint(max_events, raw=True),
+    ))
+
+
 tools.expect('resolve_scene_refs', 'RO', "Read-only scene reference resolver.", (
     ('refs', str),
     ('fields', ostr, None),
@@ -929,6 +1327,31 @@ tools.expect('scriptable_object', 'RW', "ScriptableObject. action: create|get|se
     ('fields', ostr, None),
     ('filter', ostr, None),
 ))
+
+
+@tools.provide
+async def scriptable_object(
+    action: str,
+    path: ostr = None,
+    type: ostr = None,
+    prop: ostr = None,
+    value: ostr = None,
+    fields: ostr = None,
+    filter: ostr = None,
+) -> str:
+    ("ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter."
+    )
+    return await _send('scriptable_object', _args(
+        action=rt.w_str(action),
+        path=rt.w_ostr(path),
+        type=rt.w_ostr(type),
+        prop=rt.w_ostr(prop),
+        value=rt.w_ostr(value),
+        fields=rt.w_ostr(fields),
+        filter=rt.w_ostr(filter),
+    ))
+
+
 tools.expect('search_scene', 'RO', "Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces.", (
     ('query', str),
     ('root', ostr, None),
@@ -1074,6 +1497,33 @@ tools.expect('set_rect', 'RW_IDEM', "Set RectTransform. anchor: stretch|center|t
     ('offset_max', ostr, None),
     ('pos3', ostr, None),
 ))
+
+
+@tools.provide
+async def set_rect(
+    path: str,
+    anchor: ostr = None,
+    pos: ostr = None,
+    size: ostr = None,
+    pivot: ostr = None,
+    offset_min: ostr = None,
+    offset_max: ostr = None,
+    pos3: ostr = None,
+) -> str:
+    ("Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y). pos3: (x,y,z) sets anchoredPosition3D — use for WorldSpace canvases (wins over pos if both given)."
+    )
+    return await _send('set_rect', _args(
+        path=rt.w_str(path),
+        anchor=rt.w_ostr(anchor),
+        pos=rt.w_ostr(pos),
+        size=rt.w_ostr(size),
+        pivot=rt.w_ostr(pivot),
+        offset_min=rt.w_ostr(offset_min),
+        offset_max=rt.w_ostr(offset_max),
+        pos3=rt.w_ostr(pos3),
+    ))
+
+
 tools.expect('set_sibling_index', 'RW', "Set sibling index of a GameObject within its parent. index=0 moves to first child.", (
     ('path', str),
     ('index', int),
@@ -1124,6 +1574,71 @@ tools.expect('shader', 'RW', "Read or write shader assets (.shader / .shadergrap
     ('h_gap', ofloat, None),
     ('v_gap', ofloat, None),
 ))
+
+
+@tools.provide
+async def shader(
+    action: str,
+    path: str,
+    target: ostr = None,
+    preset: ostr = None,
+    code: ostr = None,
+    shader_name: ostr = None,
+    prop: ostr = None,
+    value: ostr = None,
+    keyword: ostr = None,
+    enabled: ostr = None,
+    node_type: ostr = None,
+    node_id: ostr = None,
+    node_action: ostr = None,
+    output_node: ostr = None,
+    output_slot: oint = None,
+    input_node: ostr = None,
+    input_slot: oint = None,
+    edge_action: ostr = None,
+    name: ostr = None,
+    type: ostr = None,
+    default_value: ostr = None,
+    reference_name: ostr = None,
+    new_name: ostr = None,
+    layout: ostr = None,
+    h_gap: ofloat = None,
+    v_gap: ofloat = None,
+) -> str:
+    ("Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network."
+     "\n    action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional)."
+     "\n    For material shader assignment use `material` tool instead."
+    )
+    return await _send('shader', _args(
+        action=rt.w_str(action),
+        path=rt.w_str(path),
+        target=rt.w_ostr(target),
+        preset=rt.w_ostr(preset),
+        code=rt.w_ostr(code),
+        shader_name=rt.w_ostr(shader_name),
+        prop=rt.w_ostr(prop),
+        value=rt.w_ostr(value),
+        keyword=rt.w_ostr(keyword),
+        enabled=rt.w_ostr(enabled),
+        node_type=rt.w_ostr(node_type),
+        node_id=rt.w_ostr(node_id),
+        node_action=rt.w_ostr(node_action),
+        output_node=rt.w_ostr(output_node),
+        output_slot=rt.w_oint(output_slot, raw=True),
+        input_node=rt.w_ostr(input_node),
+        input_slot=rt.w_oint(input_slot, raw=True),
+        edge_action=rt.w_ostr(edge_action),
+        name=rt.w_ostr(name),
+        type=rt.w_ostr(type),
+        default_value=rt.w_ostr(default_value),
+        reference_name=rt.w_ostr(reference_name),
+        new_name=rt.w_ostr(new_name),
+        layout=rt.w_ostr(layout),
+        h_gap=rt.w_ofloat(h_gap, raw=True),
+        v_gap=rt.w_ofloat(v_gap, raw=True),
+    ))
+
+
 tools.expect('smart_build', 'RW', "Build scene objects from natural language description using MCP sampling + execute_code.", (
     ('description', str),
     ('ctx', Any),
@@ -1180,6 +1695,57 @@ tools.expect('timeline', 'RW', "Unity Timeline (PlayableDirector / TimelineAsset
     ('offset', ofloat, None),
     ('value', ostr, None),
 ))
+
+
+@tools.provide
+async def timeline(
+    path: str,
+    action: str,
+    track: ostr = None,
+    track_type: ostr = None,
+    clip: ostr = None,
+    binding: ostr = None,
+    start: ofloat = None,
+    duration: ofloat = None,
+    blend_in: ofloat = None,
+    blend_out: ofloat = None,
+    asset_path: ostr = None,
+    director_path: ostr = None,
+    tracks: ostr = None,
+    time: ofloat = None,
+    name: ostr = None,
+    clip_in: ofloat = None,
+    index: oint = None,
+    offset: ofloat = None,
+    value: ostr = None,
+) -> str:
+    ("Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that)."
+     "\n    action: get | create | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview."
+     "\n    track=track name. index=target position for reorder_track. offset=time shift for duplicate_clip. value=offset mode (auto|transform|scene) for set_track_offset."
+    )
+    return await _send('timeline', _args(
+        path=rt.w_str(path),
+        action=rt.w_str(action),
+        track=rt.w_ostr(track),
+        track_type=rt.w_ostr(track_type),
+        clip=rt.w_ostr(clip),
+        binding=rt.w_ostr(binding),
+        start=rt.w_ofloat(start, raw=True),
+        duration=rt.w_ofloat(duration, raw=True),
+        blend_in=rt.w_ofloat(blend_in, raw=True),
+        blend_out=rt.w_ofloat(blend_out, raw=True),
+        asset_path=rt.w_ostr(asset_path),
+        director_path=rt.w_ostr(director_path),
+        tracks=rt.w_ostr(tracks),
+        time=rt.w_ofloat(time, raw=True),
+        name=rt.w_ostr(name),
+        clip_in=rt.w_ofloat(clip_in, raw=True),
+        index=rt.w_oint(index, raw=True),
+        offset=rt.w_ofloat(offset, raw=True),
+        value=rt.w_ostr(value),
+    ))
+
+
 tools.expect('transfer_object', 'RW', "Move or copy a GameObject to another loaded scene. action: move|copy.", (
     ('path', str),
     ('action', str),

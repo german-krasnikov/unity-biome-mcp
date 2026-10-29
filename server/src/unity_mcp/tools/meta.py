@@ -12,7 +12,9 @@ from ..llm_config import apply_config, parse_tcp_config
 from . import code_intel as _ci
 from ._common import _guard_read_only, bind
 from .gating import discover_tools as _discover_tools_impl
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import alias_status, tools  # noqa: F401
 from .schema_registry import _registry as _schema_registry
 
 _send = None
@@ -76,11 +78,6 @@ async def set_llm_config(config: str) -> str:
         return "err: no valid entries parsed"
     apply_config(parsed)
     return f"ok: updated {', '.join(parsed)}"
-
-
-async def alias_status() -> str:
-    """Check alias table health: loaded/empty/stale, sources, and total alias count."""
-    return await _send("alias_status", {})
 
 
 def _fmt_num(val) -> str:
@@ -172,6 +169,5 @@ def register(mcp, send, args, *, get_slot=None):
     tools.register(mcp, doctor)
     mcp.tool()(resolve_tool_schema)
     mcp.tool()(set_llm_config)
-    tools.register(mcp, alias_status)
     tools.register(mcp, mcp_status)
     tools.register(mcp, release_smoke)

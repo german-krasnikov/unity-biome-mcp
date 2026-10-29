@@ -4,7 +4,9 @@ from typing import Literal
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ._common import bind
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import attach_uitk, tools  # noqa: F401
 
 _send = None
 _args = None
@@ -84,26 +86,6 @@ async def uitk_element(
     ))
 
 
-async def attach_uitk(
-    path: str,
-    uxml: str | None = None,
-    panel_settings: str | None = None,
-    sort_order: int | None = None,
-) -> str:
-    """Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for UI Toolkit runtime panels).
-    Side effect: mutates the scene by adding one Undo-recorded UIDocument after validating
-    every supplied asset; it does not create UXML or PanelSettings assets.
-    path: scene path to the target GameObject.
-    uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted).
-    panel_settings: optional Assets/ path to a PanelSettings asset; omitted leaves the field unset.
-    sort_order: UIDocument.sortingOrder (default 0; ignored on Unity 6.4+ PanelRenderer).
-    err: if UIDocument or PanelRenderer already present — remove it first or use inspect_uitk/uitk_element.
-    """
-    return await _send("attach_uitk", _args(
-        path=path, uxml=uxml, panel_settings=panel_settings, sort_order=sort_order,
-    ))
-
-
 async def uitk_file(
     path: str,
     action: Literal[
@@ -155,5 +137,4 @@ def register(mcp, send, args):
     tools.register(mcp, inspect_uitk)
     tools.register(mcp, lint_uitk)
     tools.register(mcp, uitk_element)
-    tools.register(mcp, attach_uitk)
     tools.register(mcp, uitk_file)

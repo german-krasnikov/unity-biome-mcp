@@ -1,55 +1,10 @@
 from ._common import bind
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import animation, particle, timeline, tools  # noqa: F401
 
 _send = None
 _args = None
-
-
-async def animation(action: str, path: str, clip: str | None = None, clip_name: str | None = None,
-                    property: str | None = None, keys: str | None = None,
-                    time: float | None = None,
-                    component_type: str | None = None,
-                    binding_path: str | None = None,
-                    tangent: str | None = None,
-                    function_name: str | None = None,
-                    int_param: int | None = None,
-                    float_param: float | None = None,
-                    string_param: str | None = None) -> str:
-    """Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this).
-    action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path).
-    clip=clip name, keys='t:0 v:(0,0,0); t:1 v:(0,2,0)', property=e.g. localPosition.x.
-    component_type: Unity component to animate (default: Transform). Examples: Light, Camera, Rigidbody.
-    binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root.
-    tangent: tangent mode for keyframes: auto (default) | smooth | linear | constant.
-    function_name: method name for add_event. int_param/float_param/string_param: event parameters."""
-    return await _send("animation", _args(action=action, path=path, clip=clip, clip_name=clip_name,
-                                          property=property, keys=keys, time=time,
-                                          component_type=component_type,
-                                          binding_path=binding_path, tangent=tangent,
-                                          function_name=function_name, int_param=int_param,
-                                          float_param=float_param, string_param=string_param))
-
-
-async def timeline(path: str, action: str, track: str | None = None, track_type: str | None = None,
-                   clip: str | None = None, binding: str | None = None,
-                   start: float | None = None, duration: float | None = None,
-                   blend_in: float | None = None, blend_out: float | None = None,
-                   asset_path: str | None = None, director_path: str | None = None,
-                   tracks: str | None = None, time: float | None = None,
-                   name: str | None = None,
-                   clip_in: float | None = None,
-                   index: int | None = None,
-                   offset: float | None = None,
-                   value: str | None = None) -> str:
-    """Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that).
-    action: get | create | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview.
-    track=track name. index=target position for reorder_track. offset=time shift for duplicate_clip. value=offset mode (auto|transform|scene) for set_track_offset."""
-    return await _send("timeline", _args(path=path, action=action, track=track, track_type=track_type,
-                                         clip=clip, binding=binding, start=start, duration=duration,
-                                         blend_in=blend_in, blend_out=blend_out, asset_path=asset_path,
-                                         director_path=director_path, tracks=tracks, time=time,
-                                         name=name, clip_in=clip_in,
-                                         index=index, offset=offset, value=value))
 
 
 async def animator(action: str, path: str,
@@ -93,21 +48,6 @@ async def animator(action: str, path: str,
         value=value, avatar_path=avatar_path))
 
 
-async def particle(action: str, path: str,
-                   name: str | None = None,
-                   module: str | None = None,
-                   prop: str | None = None,
-                   value: str | None = None,
-                   preset: str | None = None) -> str:
-    """Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."""
-    return await _send("particle", _args(
-        action=action, path=path, name=name, module=module,
-        prop=prop, value=value, preset=preset))
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, animation)
-    tools.register(mcp, timeline)
     tools.register(mcp, animator)
-    tools.register(mcp, particle)
