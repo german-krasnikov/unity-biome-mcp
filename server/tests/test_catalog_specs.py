@@ -34,11 +34,13 @@ def test_each_effect_gives_its_mutability(monkeypatch):
 
 
 def test_a_tool_in_the_catalog_and_in_the_tool_specs_literal_is_refused(monkeypatch):
-    catalog = {"ping": {"category": "SCENE", "effect": "RO"}}
-    with pytest.raises(ValueError, match="ping"):
+    by_hand = sorted(set(tool_specs._SPECS) - set(tool_specs._SPEC_OWNERS))[0]  # a ToolSpec still written in tool_specs.py
+    catalog = {by_hand: {"category": "SCENE", "effect": "RO"}}
+    with pytest.raises(ValueError, match=by_hand):
         _run_source(tool_specs, monkeypatch, catalog_specs, "SPEC_KWARGS", catalog)
 
 
 def test_a_tool_described_in_the_catalog_and_by_hand_is_refused(monkeypatch):
-    with pytest.raises(ValueError, match="get_component"):
-        _run_source(_param_descriptions, monkeypatch, catalog_params, "PARAM_DESCRIPTIONS", {"get_component": {}})
+    by_hand = sorted(_param_descriptions.PARAM_DESCRIPTIONS.keys() - catalog_params.PARAM_DESCRIPTIONS.keys())[0]
+    with pytest.raises(ValueError, match=by_hand):
+        _run_source(_param_descriptions, monkeypatch, catalog_params, "PARAM_DESCRIPTIONS", {by_hand: {}})

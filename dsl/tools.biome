@@ -10,6 +10,37 @@ SURFACE tools
 # required without a default; the type is str int float bool, o-prefixed when None is allowed, or Any (checked by name and default only:
 # Context, Literal, ...); OMIT: a value equal to the default is not sent, Unity applies it; RAW: a FORWARD wrapper sends the value as it is.
 
+INTERNAL export_package RW "Protocol name of the asset action export_package; only its timeout is used, Unity registers no command of this name."
+  TIMEOUT 120.0
+END
+
+INTERNAL get_aliases RO "The alias table as name=value lines; the server reads it when it connects."
+END
+
+# E03: Wave E async playtest poll — internal wire command, not @mcp.tool() until E04
+# wires run_playtest(timeout>120) through the async start/poll pair. Same shape as
+# source_patch_write below (RegisterAsync in C#, no Python-typed wrapper yet).
+INTERNAL get_playtest_run RO "Polls the asynchronous playtest run that start_playtest began."
+  FLAG direct_only
+  FLAG unity_transport
+END
+
+INTERNAL get_version RO "Version and protocol handshake; the Unity server answers it before the command router."
+  TIMEOUT 5.0
+END
+
+INTERNAL import_package RW "Protocol name of the asset action import_package; only its timeout is used, Unity registers no command of this name."
+  TIMEOUT 120.0
+END
+
+INTERNAL list_playtest_files RO "Lists the files that match a glob pattern (default Playtests/*.playtest), one project-relative path per line."
+  TIMEOUT 10.0
+END
+
+INTERNAL ping RO "Liveness probe: Unity answers pong."
+  TIMEOUT 5.0
+END
+
 TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path after rename."
   FORWARD
   DOC "path: current scene path, &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy). name: new name (non-empty)."
@@ -43,6 +74,21 @@ TOOL set_sibling_index SCENE RW "Set sibling index of a GameObject within its pa
   FORWARD
   ARG path str
   ARG index int
+END
+
+# P0-50: internal, direct-only, unity_transport — routed only by asset.py's
+# own internal sender when Source Patch mutation is armed; never a public
+# MCP tool, never batchable (see server/tests/test_source_patch_boundary.py).
+INTERNAL source_patch_write RW "Writes a source patch; the internal sender of asset.py routes it when Source Patch mutation is armed."
+  FLAG direct_only
+  FLAG unity_transport
+END
+
+# E02: Wave E non-blocking playtest dispatch — internal wire command, no @mcp.tool()
+# until E04. Same shape as source_patch_write above.
+INTERNAL start_playtest RW "Starts a playtest without blocking; get_playtest_run polls it."
+  FLAG direct_only
+  FLAG unity_transport
 END
 
 PYTOOL use_skill SYSTEM RW "Execute a previously saved skill. params: comma-separated key=value for substitution."

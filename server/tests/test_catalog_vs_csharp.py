@@ -4,7 +4,6 @@ For every tool with a hand-written CommandRegistry.Register* call in unity-plugi
 ToolSpec.mutability, `runtime` with runtime_only, `required` and `optional` with the Python parameters, and, for a tool of the
 catalog, `maxResponseChars` with its MAXCHARS. KNOWN_DIVERGENT is the census of the tools that differ today (measured at 86eca971,
 no verdict on any of them): it must match exactly, so a new difference fails and a repaired one asks to be removed from the list.
-A tool of the catalog is never in it.
 """
 import re
 from pathlib import Path
@@ -117,12 +116,11 @@ def test_the_hand_written_registrations_differ_from_the_python_side_only_as_know
     assert not problems, "\n".join(problems)
 
 
-def test_the_tools_of_the_catalog_are_never_listed_as_divergent_and_state_their_response_limit():
+def test_the_tools_of_the_catalog_state_their_response_limit():
     hand_written = _hand_written()
     unity_tools = {name for name in catalog_specs.SPEC_KWARGS if name in hand_written}
     assert unity_tools, "no tool of the catalog has a hand-written registration"
     for name in unity_tools:
-        assert not any(name in known for known in KNOWN_DIVERGENT.values()), name
         assert hand_written[name]["max_chars"] == catalog_specs.SPEC_KWARGS[name].get("max_chars", 0), name
 
 

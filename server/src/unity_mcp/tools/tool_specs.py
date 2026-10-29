@@ -98,11 +98,9 @@ _SPECS: dict[str, ToolSpec] = {
     'doctor': ToolSpec(category='SYSTEM', direct_only=True),
     'editor': ToolSpec(category='CORE', core=True),
     'execute_code': ToolSpec(category='SYSTEM', core=True, timeout_s=60.0),
-    'export_package': ToolSpec(category='_INTERNAL', timeout_s=120.0),
     'export_playtest_aliases_to_defs': ToolSpec(category='TESTS'),
     'find_objects': ToolSpec(category='SCENE', mutability='read'),
     'fingerprint': ToolSpec(category='SYSTEM', timeout_s=10.0, mutability='read'),
-    'get_aliases': ToolSpec(category='_INTERNAL', mutability='read'),
     'get_capabilities': ToolSpec(category='SYSTEM', mutability='read'),
     'get_changeset': ToolSpec(category='VERIFY', tier1=True, timeout_s=5.0, mutability='read', direct_only=True),
     'get_changes': ToolSpec(category='SYSTEM'),
@@ -117,10 +115,6 @@ _SPECS: dict[str, ToolSpec] = {
     'get_memory': ToolSpec(category='RUNTIME', mutability='read'),
     'get_metrics': ToolSpec(category='RUNTIME', direct_only=True),
     'get_object_detail': ToolSpec(category='SCENE', mutability='read'),
-    # E03: Wave E async playtest poll — internal wire command, not @mcp.tool() until E04
-    # wires run_playtest(timeout>120) through the async start/poll pair. Same shape as
-    # source_patch_write below (RegisterAsync in C#, no Python-typed wrapper yet).
-    'get_playtest_run': ToolSpec(category='_INTERNAL', mutability='read', direct_only=True, unity_transport=True),
     'get_schema': ToolSpec(category='SYSTEM', mutability='read'),
     'get_selection': ToolSpec(category='SCENE', mutability='read'),
     'get_spatial_context': ToolSpec(category='SCENE', mutability='read'),
@@ -130,8 +124,6 @@ _SPECS: dict[str, ToolSpec] = {
     'get_test_run': ToolSpec(category='TESTS', timeout_s=10.0, mutability='read'),
     'get_unity_events': ToolSpec(category='SCENE', mutability='read'),
     'list_events': ToolSpec(category='COMPONENTS', mutability='read'),
-    'get_version': ToolSpec(category='_INTERNAL', timeout_s=5.0, mutability='read'),
-    'import_package': ToolSpec(category='_INTERNAL', timeout_s=120.0),
     'inspect': ToolSpec(category='CORE', core=True, mutability='read'),
     'invoke_method': ToolSpec(category='RUNTIME', runtime_only=True),
     'lint_playtest': ToolSpec(category='TESTS', timeout_s=60.0, mutability='read'),
@@ -139,7 +131,6 @@ _SPECS: dict[str, ToolSpec] = {
     'lint_scene_refs': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
     'list_connections': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'list_test_runs': ToolSpec(category='TESTS', timeout_s=10.0, mutability='read'),
-    'list_playtest_files': ToolSpec(category='_INTERNAL', timeout_s=10.0, mutability='read'),
     'list_skills': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'list_templates': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'load_session': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
@@ -153,7 +144,6 @@ _SPECS: dict[str, ToolSpec] = {
     'object_diff': ToolSpec(category='SCENE', mutability='read'),
     'particle': ToolSpec(category='MEDIA'),
     'permission_prompt': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
-    'ping': ToolSpec(category='_INTERNAL', timeout_s=5.0, mutability='read'),
     'ping_object': ToolSpec(category='SCENE', mutability='read'),
     'prefab': ToolSpec(category='ASSETS'),
     'profile': ToolSpec(category='RUNTIME', runtime_only=True),
@@ -205,14 +195,7 @@ _SPECS: dict[str, ToolSpec] = {
     'shader': ToolSpec(category='ASSETS'),
     'smart_build': ToolSpec(category='SYSTEM', direct_only=True),
     'snapshot': ToolSpec(category='RUNTIME', mutability='read', direct_only=True),
-    # P0-50: internal, direct-only, unity_transport — routed only by asset.py's
-    # own internal sender when Source Patch mutation is armed; never a public
-    # MCP tool, never batchable (see server/tests/test_source_patch_boundary.py).
-    'source_patch_write': ToolSpec(category='_INTERNAL', direct_only=True, unity_transport=True),
     'spatial_query': ToolSpec(category='SCENE', mutability='read'),
-    # E02: Wave E non-blocking playtest dispatch — internal wire command, no @mcp.tool()
-    # until E04. Same shape as source_patch_write above.
-    'start_playtest': ToolSpec(category='_INTERNAL', direct_only=True, unity_transport=True),
     'sync_playtest_aliases_from_defs': ToolSpec(category='TESTS'),
     'test_step': ToolSpec(category='TESTS', runtime_only=True, mutability='write', direct_only=True, unity_transport=True),
     'timeline': ToolSpec(category='MEDIA'),

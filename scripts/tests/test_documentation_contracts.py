@@ -151,11 +151,11 @@ def _resolve_target(source: Path, destination: str, docs_root: Path) -> tuple[Pa
 
 
 def _catalog_tool_names(repo_root: Path) -> set[str]:
-    """The tools of dsl/tools.biome: the keys of the generated SPEC_KWARGS literal (tool_specs.py merges them into _SPECS)."""
+    """The tools of dsl/tools.biome: the keys of the generated SPEC_KWARGS literal, without its _INTERNAL wire commands (tool_specs.py merges them into _SPECS)."""
     source = repo_root / "server" / "src" / "unity_mcp" / "tools" / "generated" / "catalog_specs.py"
     for node in ast.parse(source.read_text(encoding="utf-8")).body:
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == "SPEC_KWARGS":
-            return {key.value for key in node.value.keys}
+            return {name for name, kwargs in ast.literal_eval(node.value).items() if kwargs["category"] != "_INTERNAL"}
     raise AssertionError("SPEC_KWARGS dictionary not found")
 
 
