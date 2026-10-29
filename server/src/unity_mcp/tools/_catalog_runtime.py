@@ -53,10 +53,11 @@ class ToolSet:
         return fn
 
     def install(self, mcp):
-        """Check every function against the catalog and register it, with the MCP annotation of its effect."""
+        """Check every function against the catalog, then register them with the MCP annotation of their effect: a refusal registers none."""
         missing, unknown = self._expected.keys() - self._provided.keys(), self._provided.keys() - self._expected.keys()
         if missing or unknown:
             raise LookupError(f"catalog tools without a function: {sorted(missing)}; functions without a catalog tool: {sorted(unknown)}")
-        for name, (effect, summary, params) in self._expected.items():
+        for name, (_, summary, params) in self._expected.items():
             _conform(name, self._provided[name], summary, params)
+        for name, (effect, _, _) in self._expected.items():
             mcp.tool(annotations=_ANNOTATION[effect])(self._provided[name])

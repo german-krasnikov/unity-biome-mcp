@@ -30,10 +30,10 @@ class _Mcp:
         return lambda fn: self.registered.append((fn.__name__, annotations)) or fn
 
 
-def _function(signature="path: str, name: str", doc="Rename a thing. More."):
+def _function(signature="path: str, name: str", doc="Rename a thing. More.", name="rename"):
     namespace = {"ostr": ostr}
-    exec(f'async def rename({signature}) -> str:\n    """{doc}"""', namespace)
-    return namespace["rename"]
+    exec(f'async def {name}({signature}) -> str:\n    """{doc}"""', namespace)
+    return namespace[name]
 
 
 def _install(fn, effect="RW", summary="Rename a thing.", params=(("path", str), ("name", str))):
@@ -64,6 +64,17 @@ def test_install_registers_the_function_with_the_annotation_of_its_effect(effect
 def test_a_function_that_differs_from_the_catalog_is_refused(function, catalog, message):
     with pytest.raises(TypeError, match=message):
         _install(_function(**function), **catalog)
+
+
+def test_a_refused_catalog_registers_nothing():
+    tools, mcp = rt.ToolSet(), _Mcp()
+    tools.expect("rename", "RW", "Rename a thing.", (("path", str), ("name", str)))
+    tools.expect("other", "RO", "Other.", (("x", int),))
+    tools.provide(_function())
+    tools.provide(_function("y: int", "Other.", name="other"))  # `other` states x, not y
+    with pytest.raises(TypeError, match="other"):
+        tools.install(mcp)
+    assert mcp.registered == []
 
 
 def test_a_function_that_states_what_the_catalog_states_is_registered():
