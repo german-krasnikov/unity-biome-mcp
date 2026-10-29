@@ -3,6 +3,7 @@ import pytest
 from mcp.types import ToolAnnotations
 
 from unity_mcp.tools import _catalog_runtime as rt
+from unity_mcp.tools.generated import catalog_tools
 
 ostr = str | None
 
@@ -88,3 +89,24 @@ def test_two_owners_of_a_name_are_refused():
         tools.expect("rename", "RO", "Again.", ())
     with pytest.raises(ValueError, match="rename"):
         tools.provide(_function())
+
+
+def test_the_hand_written_use_skill_is_checked_against_the_catalog_when_everything_is_installed(monkeypatch):
+    """catalog_tools.register() installs the generated wrappers and the hand-written use_skill; a drift of the latter stops it."""
+    import unity_mcp.server  # noqa: F401  (register_all lets skills.register provide use_skill)
+
+    mcp = _Mcp()
+    catalog_tools.tools.install(mcp)
+    assert sorted(name for name, _ in mcp.registered) == [
+        "rename_object", "search_scene", "set_active", "set_sibling_index", "use_skill"]
+    summary = "Execute a previously saved skill. params: comma-separated key=value for substitution."
+    for signature, doc, message in [
+        ("name: str, args: ostr = None", summary, "args"),   # a parameter renamed
+        ("name: str, params: ostr = ''", summary, "''"),     # a default changed
+        ("name: str, params: ostr = None", "Run it.", "description of use_skill"),   # the description changed
+    ]:
+        namespace = {"ostr": ostr}
+        exec(f'async def use_skill({signature}) -> str:\n    """{doc}"""', namespace)
+        with monkeypatch.context() as patch, pytest.raises(TypeError, match=message):
+            patch.setitem(catalog_tools.tools._provided, "use_skill", namespace["use_skill"])
+            catalog_tools.tools.install(_Mcp())

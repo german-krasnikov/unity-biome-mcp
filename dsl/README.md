@@ -1,14 +1,23 @@
 # Tool catalog
 
-`tools.biome` states what a tool is once: its name, category, effect, flags and arguments. `scripts/dsl.sh generate` prints it as
-Python data in `server/src/unity_mcp/tools/generated/`, which `tool_specs.py` and `_param_descriptions.py` merge. This is the pilot of
-step 7.1 of the biome-dsl repository (`Plans/STEP_7_1_TOOL_CONSTRUCT_DESIGN.md`): five tools are in the catalog, every other tool is
-still declared by hand. A tool lives in one place: a name that is in the catalog and in the hand-written `_SPECS` fails at import.
+`tools.biome` states what a tool is once: its name, category, effect, flags, arguments and, for a forwarder, its description.
+`scripts/dsl.sh generate` prints it as Python in `server/src/unity_mcp/tools/generated/`:
+
+- `catalog_specs.py` and `catalog_params.py`: the ToolSpec and the schema descriptions, which `tool_specs.py` and
+  `_param_descriptions.py` merge;
+- `catalog_tools.py`: what the catalog expects of the Python side and, for a `FORWARD` tool, the MCP wrapper itself. A hand-written
+  tool (a `PYTOOL`, or a `TOOL` without `FORWARD`) states only its expectation and `provide`s its function in its module's
+  `register()`; `catalog_tools.register()` runs last, checks every function against the catalog (parameters, types, defaults, the
+  first line of the description) and registers it with the annotation of its effect. The runtime is `tools/_catalog_runtime.py`.
+
+This is the pilot of step 7.1 of the biome-dsl repository (`Plans/STEP_7_1_TOOL_CONSTRUCT_DESIGN.md`): five tools are in the
+catalog, every other tool is still declared by hand. A tool lives in one place: a name that is in the catalog and also in the
+hand-written `_SPECS`, `PARAM_DESCRIPTIONS` or `mcp.tool` registrations fails at import or in `test_single_owner.py`.
 
 | File | Role |
 |---|---|
 | `tools.biome` | the catalog, one block per tool, by name |
-| `constructs/tool.construct` | the words of a block (`TOOL`, `PYTOOL`, `FLAG`, `TIMEOUT`, `ARG`) and what is printed from them |
+| `constructs/tool.construct` | the words of a block (`TOOL`, `PYTOOL`, `FORWARD`, `FLAG`, `TIMEOUT`, `DOC`, `ARG`) and what is printed from them |
 | `constructs/tool.examples` | examples of the construct: the lines it prints and the mistakes it refuses |
 | `biome.project` | the compiler it needs (`TOOLCHAIN`) and the generate steps |
 
@@ -27,3 +36,4 @@ still declared by hand. A tool lives in one place: a name that is in the catalog
 - `server/tests/test_tool_surface_golden.py`: the MCP surface and the ToolSpec of every tool equal `golden/tool_surface.txt`, taken
   before the generator existed. A change of a tool on purpose is an `INTENDED` entry in that test, with its reason.
 - `server/tests/test_single_owner.py`: no tool and no Unity command is registered twice.
+- `server/tests/test_catalog_wire.py`: the command and arguments that each generated wrapper sends to Unity.

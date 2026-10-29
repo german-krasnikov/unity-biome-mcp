@@ -35,7 +35,10 @@ def _get_annotation(module, fn_name: str) -> ToolAnnotations | None:
                     if kw.arg == "annotations" and isinstance(kw.value, ast.Name):
                         const_name = kw.value.id
                         return getattr(module, const_name)
-    return None
+    # No mcp.tool(...) line in the module: a tool of the tool catalog (dsl/tools.biome) is registered by catalog_tools.
+    from unity_mcp.server import mcp
+    tool = mcp._tool_manager._tools.get(fn_name)
+    return tool.annotations if tool else None
 
 
 IDEM_TOOLS = [

@@ -102,10 +102,10 @@ def test_scene_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # get_hierarchy, scene, search_scene, fingerprint, scene_diff, scene_environment (6)
-    # + scene.py delegation: save_session, load_session, screenshot_baseline,
-    # screenshot_compare, get_changes (5) = 11
-    assert mcp.tool.call_count >= 11
+    # get_hierarchy, scene, fingerprint, scene_diff, scene_environment (5; search_scene is
+    # registered by the tool catalog) + scene.py delegation: save_session, load_session,
+    # screenshot_baseline, screenshot_compare, get_changes (5) = 10
+    assert mcp.tool.call_count >= 10
 
 
 # ── Part 3: runtime.py ────────────────────────────────────────────────────────
@@ -292,7 +292,7 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
     scene_own = scene_total - 5
     total = (scene_own + _own_count(console_mod) + _own_count(screenshot_mod)
              + _own_count(testing_mod) + _own_count(ec_mod))
-    assert total == 27
+    assert total == 26  # 27 before the tool catalog took search_scene from scene.py
 
 
 # ── PR-02 Track A: register_all() threads stdio_alive through to connection ────

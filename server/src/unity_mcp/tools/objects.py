@@ -8,6 +8,9 @@ from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 
+# The tool catalog (dsl/tools.biome) owns them; server.py and the tests import them from here.
+from .generated.catalog_tools import rename_object, set_active, set_sibling_index  # noqa: F401
+
 _send = None
 _args = None
 
@@ -113,11 +116,6 @@ async def transfer_object(
         parent=parent, world_position_stays=wps))
 
 
-async def set_active(path: str, active: bool) -> str:
-    """Set GameObject active/inactive."""
-    return await _send("set_active", {"path": path, "active": "true" if active else "false"})
-
-
 async def wire_event(path: str, component: str, event: str, target: str, method: str,
                      arg_type: str = "void", arg_value: str | None = None,
                      target_component_type: str | None = None,
@@ -195,18 +193,6 @@ async def set_parent(path: str, parent: str | None = None, world_position_stays:
     return await _send("set_parent", args)
 
 
-async def rename_object(path: str, name: str) -> str:
-    """Rename a GameObject. Returns new scene path after rename.
-    path: current scene path, &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy). name: new name (non-empty).
-    Note: all subsequent MCP calls must use the new path."""
-    return await _send("rename_object", {"path": path, "name": name})
-
-
-async def set_sibling_index(path: str, index: int) -> str:
-    """Set sibling index of a GameObject within its parent. index=0 moves to first child."""
-    return await _send("set_sibling_index", {"path": path, "index": str(index)})
-
-
 async def object_diff(path_a: str, path_b: str) -> str:
     """Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."""
     return await _send("object_diff", {"path_a": path_a, "path_b": path_b})
@@ -227,7 +213,6 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RW_IDEM)(set_property)
     mcp.tool(annotations=_RW)(create_object)
     mcp.tool(annotations=_RW)(transfer_object)
-    mcp.tool(annotations=_RW_IDEM)(set_active)
     mcp.tool(annotations=_RW)(wire_event)
     mcp.tool(annotations=_DEL)(unwire_event)
     mcp.tool(annotations=_DEL)(delete_object)
@@ -236,8 +221,6 @@ def register(mcp, send, args):
     mcp.tool(annotations=_RW_IDEM)(set_material)
     mcp.tool(annotations=_RW)(set_property_delta)
     mcp.tool(annotations=_RW_IDEM)(set_parent)
-    mcp.tool(annotations=_RW_IDEM)(rename_object)
-    mcp.tool(annotations=_RW)(set_sibling_index)
     mcp.tool(annotations=_RO)(object_diff)
     mcp.tool(annotations=_RO)(get_unity_events)
     mcp.tool(annotations=_RO)(list_events)

@@ -37,7 +37,7 @@ BOOL_TRUE_EXCEPTIONS = {
 
 # bool params with no default — allowed ONLY when the bool IS the payload.
 BOOL_NO_DEFAULT_ALLOWED = {
-    ("objects", "set_active", "active"),  # sole purpose: set active state
+    ("catalog_tools", "set_active", "active"),  # sole purpose: set active state
 }
 
 # Modules to enforce (short names match module_path.split(".")[-1]).
@@ -59,6 +59,7 @@ TOOL_MODULES = [
     "unity_mcp.tools.debug_tool",
     "unity_mcp.tools.diagnose",
     "unity_mcp.tools.diagnostics",
+    "unity_mcp.tools.generated.catalog_tools",
     "unity_mcp.tools.do_tool",
     "unity_mcp.tools.editor_control",
     "unity_mcp.tools.gating",

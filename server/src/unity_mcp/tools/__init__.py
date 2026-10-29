@@ -45,6 +45,7 @@ from . import (
     vfx_intent_tool,
     watch,
 )
+from .generated import catalog_tools
 from .metrics_tool import register as register_metrics
 
 
@@ -74,3 +75,4 @@ def register_all(mcp, send, args, *, get_slot, get_middleware=None,
     changeset_tool.register(mcp, send, args)
     checkpoint_tool.register(mcp, send, args)
     brief_tool.register(mcp, send, args)
+    catalog_tools.register(mcp, send, args)  # last: it checks the functions that the modules above provided

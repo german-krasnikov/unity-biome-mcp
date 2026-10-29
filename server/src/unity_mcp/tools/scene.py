@@ -12,6 +12,9 @@ from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._common import _guard_read_only, bind
 
+# The tool catalog (dsl/tools.biome) owns them; server.py and the tests import them from here.
+from .generated.catalog_tools import search_scene  # noqa: F401
+
 _OBJECT_REF = r'(?:&[0-9A-Za-z]+|#[^\s]+|\$[0-9A-Fa-f]+)'
 _RE_SLOT = re.compile(rf'slot_\d+\s+\[\]\s+{_OBJECT_REF}')
 _RE_POINT = re.compile(rf'point_\d+\s+\[\]\s+{_OBJECT_REF}')
@@ -157,18 +160,6 @@ async def scene(action: str, path: str | None = None, scene: str | None = None,
     return await _send("scene", _args(action=action, path=path, scene=scene))
 
 
-async def search_scene(query: str, root: str | None = None, limit: int = 50,
-                       scene: str | None = None) -> str:
-    """Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces.
-    root: scope search to subtree (path or None for whole scene).
-    limit: max results (default 50; 0=unlimited).
-    scene: filter to a single scene by name (multi-scene only)."""
-    return await _send("search_scene", _args(
-        query=query, root=root,
-        limit=str(limit) if limit != 50 else None,
-        scene=scene))
-
-
 async def fingerprint(path: str | None = None, depth: int = 3) -> str:
     """Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens."""
     return await _send("fingerprint", _args(path=path, depth=depth))
@@ -277,7 +268,6 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool(annotations=_RO)(get_hierarchy)
     mcp.tool(annotations=_DEL)(scene)
-    mcp.tool(annotations=_RO)(search_scene)
     mcp.tool(annotations=_RO)(fingerprint)
     mcp.tool(annotations=_RO)(scene_diff)
     mcp.tool(annotations=_RW)(scene_environment)

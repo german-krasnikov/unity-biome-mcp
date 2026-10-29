@@ -1,5 +1,4 @@
 """TDD tests for rename_object tool."""
-from pathlib import Path
 import pytest
 from mcp.server.fastmcp.exceptions import ToolError
 
@@ -41,6 +40,8 @@ async def test_bridge_error_raises_tool_error(mock_bridge):
 
 
 def test_registered_as_rw_idem():
-    """rename_object is registered with _RW_IDEM annotation (idempotent write)."""
-    src = (Path(__file__).parent.parent / "src/unity_mcp/tools/objects.py").read_text(encoding="utf-8")
-    assert "_RW_IDEM)(rename_object)" in src
+    """rename_object is registered with the idempotent-write annotation (the tool catalog states it as RW_IDEM)."""
+    from unity_mcp.server import mcp
+    annotations = mcp._tool_manager._tools["rename_object"].annotations
+    assert annotations.idempotentHint is True
+    assert annotations.readOnlyHint is False
