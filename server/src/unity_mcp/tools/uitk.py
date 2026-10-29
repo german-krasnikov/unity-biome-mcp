@@ -3,9 +3,8 @@ from typing import Literal
 
 from mcp.server.fastmcp.exceptions import ToolError
 
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -153,8 +152,8 @@ async def uitk_file(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(inspect_uitk)
-    mcp.tool(annotations=_RO)(lint_uitk)
-    mcp.tool(annotations=_RW)(uitk_element)
-    mcp.tool(annotations=_RW)(attach_uitk)
-    mcp.tool(annotations=_RW)(uitk_file)
+    tools.register(mcp, inspect_uitk)
+    tools.register(mcp, lint_uitk)
+    tools.register(mcp, uitk_element)
+    tools.register(mcp, attach_uitk)
+    tools.register(mcp, uitk_file)

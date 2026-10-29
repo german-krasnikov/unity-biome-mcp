@@ -1,11 +1,19 @@
 # Generated from dsl/tools.biome
-# source-sha256=09792bd514604115b328cdcefd5679dcc575340549f0847b997e65895a264476
+# source-sha256=1d58281efb1c11a76fa3bb1f62adb92ad48c2523bd2eee27e9dbdcf8ad1eb5d6
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
     'analyze_lod_culling': {
         'category': 'MEDIA',
         'effect': 'RO',
+    },
+    'animation': {
+        'category': 'MEDIA',
+        'effect': 'RW',
+    },
+    'animator': {
+        'category': 'MEDIA',
+        'effect': 'RW',
     },
     'ask': {
         'category': 'SYSTEM',
@@ -14,6 +22,10 @@ SPEC_KWARGS: dict[str, dict] = {
     },
     'asset': {
         'category': 'ASSETS',
+        'effect': 'RW',
+    },
+    'attach_uitk': {
+        'category': 'UITOOLKIT',
         'effect': 'RW',
     },
     'auto_wire': {
@@ -159,6 +171,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RO',
         'core': True,
     },
+    'inspect_uitk': {
+        'category': 'UITOOLKIT',
+        'effect': 'RO',
+        'timeout_s': 15.0,
+    },
     'invoke_method': {
         'category': 'RUNTIME',
         'effect': 'RW',
@@ -174,6 +191,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'VERIFY',
         'effect': 'RO',
         'tier1': True,
+    },
+    'lint_uitk': {
+        'category': 'UITOOLKIT',
+        'effect': 'RO',
+        'timeout_s': 15.0,
     },
     'list_connections': {
         'category': 'SYSTEM',
@@ -229,6 +251,10 @@ SPEC_KWARGS: dict[str, dict] = {
         'direct_only': True,
         'unity_transport': True,
         'timeout_s': 60.0,
+    },
+    'particle': {
+        'category': 'MEDIA',
+        'effect': 'RW',
     },
     'ping': {
         'category': '_INTERNAL',
@@ -402,9 +428,31 @@ SPEC_KWARGS: dict[str, dict] = {
         'unity_transport': True,
         'runtime_only': True,
     },
+    'timeline': {
+        'category': 'MEDIA',
+        'effect': 'RW',
+    },
     'transfer_object': {
         'category': 'SCENE',
         'effect': 'RW',
+    },
+    'uitk_element': {
+        'category': 'UITOOLKIT',
+        'effect': 'RW',
+        'timeout_s': 15.0,
+    },
+    'uitk_file': {
+        'category': 'UITOOLKIT',
+        'effect': 'RW',
+        'direct_only': True,
+        'unity_transport': True,
+    },
+    'uitk_intent': {
+        'category': 'UITOOLKIT',
+        'effect': 'RW',
+        'direct_only': True,
+        'tier1': True,
+        'timeout_s': 60.0,
     },
     'unwire_event': {
         'category': 'COMPONENTS',

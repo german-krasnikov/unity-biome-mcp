@@ -1,9 +1,13 @@
 # Generated from dsl/tools.biome
-# source-sha256=09792bd514604115b328cdcefd5679dcc575340549f0847b997e65895a264476
+# source-sha256=1d58281efb1c11a76fa3bb1f62adb92ad48c2523bd2eee27e9dbdcf8ad1eb5d6
 # Edit the source, then run biome generate.
 
 PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'analyze_lod_culling': {
+    },
+    'animation': {
+    },
+    'animator': {
     },
     'ask': {
     },
@@ -12,6 +16,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'type': "Unity asset type filter or create kind (for example Material or ScriptableObject)",
         'name': "Asset-name search filter used by find (not a GameObject name)",
         'value': "Import-setting/property value for the selected asset action",
+    },
+    'attach_uitk': {
     },
     'auto_wire': {
     },
@@ -94,12 +100,17 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'compress': "Strip fields at their default value before TCP transfer — reduces response size",
         'find_type': "Component type — auto-populates paths from all scene objects with this component",
     },
+    'inspect_uitk': {
+    },
     'invoke_method': {
     },
     'lint_playtest_suite': {
     },
     'lint_scene_refs': {
         'path': "Project-relative path to a .playtest DSL file",
+    },
+    'lint_uitk': {
+        'path': "Assets/ path to the UXML or USS file to validate",
     },
     'list_connections': {
     },
@@ -124,6 +135,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'package': {
         'name': "Unity Package Manager package identifier for add/remove (for example com.unity.inputsystem)",
+    },
+    'particle': {
     },
     'prefab': {
     },
@@ -235,7 +248,21 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'test_step': {
     },
+    'timeline': {
+        'name': "Action-specific Timeline track, clip, or marker name",
+        'value': "Action-specific Timeline value; set_track_offset accepts auto|transform|scene",
+    },
     'transfer_object': {
+    },
+    'uitk_element': {
+        'name': "VisualElement name used after ref and before selector in addressing priority",
+    },
+    'uitk_file': {
+        'path': "Assets/ path to a .uxml or .uss project file; Library/ and Packages/ are rejected",
+    },
+    'uitk_intent': {
+        'name': "Base asset filename without extension (for <name>.uxml and <name>.uss)",
+        'path': "Project asset output folder for the generated UXML/USS pair (default Assets/UI)",
     },
     'unwire_event': {
     },

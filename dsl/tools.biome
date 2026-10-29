@@ -14,6 +14,49 @@ TOOL analyze_lod_culling MEDIA RO "LOD group coverage + occlusion culling analys
   ARG focus ostr DEFAULT None
 END
 
+TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this)."
+  ARG action str
+  ARG path str
+  ARG clip ostr DEFAULT None
+  ARG clip_name ostr DEFAULT None
+  ARG property ostr DEFAULT None
+  ARG keys ostr DEFAULT None
+  ARG time ofloat DEFAULT None
+  ARG component_type ostr DEFAULT None
+  ARG binding_path ostr DEFAULT None
+  ARG tangent ostr DEFAULT None
+  ARG function_name ostr DEFAULT None
+  ARG int_param oint DEFAULT None
+  ARG float_param ofloat DEFAULT None
+  ARG string_param ostr DEFAULT None
+END
+
+TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param."
+  ARG action str
+  ARG path str
+  ARG state ostr DEFAULT None
+  ARG states ostr DEFAULT None
+  ARG params ostr DEFAULT None
+  ARG source ostr DEFAULT None
+  ARG target ostr DEFAULT None
+  ARG conditions ostr DEFAULT None
+  ARG duration ofloat DEFAULT None
+  ARG exit_time ofloat DEFAULT None
+  ARG has_exit_time obool DEFAULT None
+  ARG type ostr DEFAULT None
+  ARG name ostr DEFAULT None
+  ARG blend_type ostr DEFAULT None
+  ARG param ostr DEFAULT None
+  ARG param_y ostr DEFAULT None
+  ARG children ostr DEFAULT None
+  ARG edit_action ostr DEFAULT None
+  ARG layer Any DEFAULT None
+  ARG weight ofloat DEFAULT None
+  ARG blending ostr DEFAULT None
+  ARG value ostr DEFAULT None
+  ARG avatar_path ostr DEFAULT None
+END
+
 PYTOOL ask SYSTEM RO "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input)."
   ARG question str
 END
@@ -35,6 +78,13 @@ TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No conf
   ARG content ostr DEFAULT None
   ARG class_name ostr DEFAULT None
   ARG path_only bool DEFAULT False
+END
+
+TOOL attach_uitk UITOOLKIT RW "Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for UI Toolkit runtime panels)."
+  ARG path str
+  ARG uxml ostr DEFAULT None
+  ARG panel_settings ostr DEFAULT None
+  ARG sort_order oint DEFAULT None
 END
 
 TOOL auto_wire COMPONENTS RW "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required."
@@ -221,6 +271,16 @@ TOOL inspect CORE RO "Get components for multiple objects at once. paths: comma-
   ARG find_type ostr DEFAULT None "Component type — auto-populates paths from all scene objects with this component"
 END
 
+TOOL inspect_uitk UITOOLKIT RO "Inspect the VisualElement tree of a UIDocument or PanelRenderer panel"
+  TIMEOUT 15.0
+  ARG path ostr DEFAULT None
+  ARG depth oint DEFAULT None
+  ARG selector ostr DEFAULT None
+  ARG filter ostr DEFAULT None
+  ARG show_unity_private obool DEFAULT None
+  ARG show_style obool DEFAULT None
+END
+
 TOOL invoke_method RUNTIME RW "[Play Mode] Call public method on a component via reflection."
   RUNTIME
   ARG path str
@@ -239,6 +299,12 @@ TOOL lint_scene_refs VERIFY RO "Read-only linter for scene references in DSL scr
   FLAG tier1
   ARG path ostr DEFAULT None "Project-relative path to a .playtest DSL file"
   ARG snippet ostr DEFAULT None
+END
+
+TOOL lint_uitk UITOOLKIT RO "Validate a UXML or USS file for structural errors and broken references"
+  TIMEOUT 15.0
+  ARG path ostr DEFAULT None "Assets/ path to the UXML or USS file to validate"
+  ARG fix obool DEFAULT None
 END
 
 PYTOOL list_connections SYSTEM RO "List Unity connection status."
@@ -318,6 +384,16 @@ TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmati
   ARG name ostr DEFAULT None "Unity Package Manager package identifier for add/remove (for example com.unity.inputsystem)"
   ARG version ostr DEFAULT None
   ARG query ostr DEFAULT None
+END
+
+TOOL particle MEDIA RW "Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
+  ARG action str
+  ARG path str
+  ARG name ostr DEFAULT None
+  ARG module ostr DEFAULT None
+  ARG prop ostr DEFAULT None
+  ARG value ostr DEFAULT None
+  ARG preset ostr DEFAULT None
 END
 
 INTERNAL ping RO "Liveness probe: Unity answers pong."
@@ -623,12 +699,73 @@ TOOL test_step TESTS RW "[Play Mode] Move character, snapshot state before/after
   ARG timeout float DEFAULT 15.0
 END
 
+TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that)."
+  ARG path str
+  ARG action str
+  ARG track ostr DEFAULT None
+  ARG track_type ostr DEFAULT None
+  ARG clip ostr DEFAULT None
+  ARG binding ostr DEFAULT None
+  ARG start ofloat DEFAULT None
+  ARG duration ofloat DEFAULT None
+  ARG blend_in ofloat DEFAULT None
+  ARG blend_out ofloat DEFAULT None
+  ARG asset_path ostr DEFAULT None
+  ARG director_path ostr DEFAULT None
+  ARG tracks ostr DEFAULT None
+  ARG time ofloat DEFAULT None
+  ARG name ostr DEFAULT None "Action-specific Timeline track, clip, or marker name"
+  ARG clip_in ofloat DEFAULT None
+  ARG index oint DEFAULT None
+  ARG offset ofloat DEFAULT None
+  ARG value ostr DEFAULT None "Action-specific Timeline value; set_track_offset accepts auto|transform|scene"
+END
+
 TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene. action: move|copy."
   ARG path str
   ARG action str
   ARG target_scene ostr DEFAULT None
   ARG parent ostr DEFAULT None
   ARG world_position_stays bool DEFAULT True
+END
+
+TOOL uitk_element UITOOLKIT RW "Mutate or query a VisualElement in a UIDocument or PanelRenderer host"
+  TIMEOUT 15.0
+  ARG action Any
+  ARG path ostr DEFAULT None
+  ARG ref ostr DEFAULT None
+  ARG selector ostr DEFAULT None
+  ARG name ostr DEFAULT None "VisualElement name used after ref and before selector in addressing priority"
+  ARG value ostr DEFAULT None
+  ARG property ostr DEFAULT None
+  ARG class_name ostr DEFAULT None
+END
+
+TOOL uitk_file UITOOLKIT RW "Read or edit a UXML or USS asset file."
+  FLAG direct_only
+  FLAG unity_transport
+  ARG path str "Assets/ path to a .uxml or .uss project file; Library/ and Packages/ are rejected"
+  ARG action Any DEFAULT_TEXT "read"
+  ARG content ostr DEFAULT None
+  ARG selector ostr DEFAULT None
+  ARG attr ostr DEFAULT None
+  ARG value ostr DEFAULT None
+  ARG cls ostr DEFAULT None
+  ARG parent ostr DEFAULT None
+  ARG tag ostr DEFAULT None
+  ARG attrs ostr DEFAULT None
+  ARG prop ostr DEFAULT None
+END
+
+PYTOOL uitk_intent UITOOLKIT RW "Generate a UXML + USS file pair from a natural-language UI description."
+  FLAG tier1
+  TIMEOUT 60.0
+  ARG intent str
+  ARG name str "Base asset filename without extension (for <name>.uxml and <name>.uss)"
+  ARG path str DEFAULT_TEXT "Assets/UI" "Project asset output folder for the generated UXML/USS pair (default Assets/UI)"
+  ARG attach_to ostr DEFAULT None
+  ARG template ostr DEFAULT None
+  ARG dry_run bool DEFAULT False
 END
 
 TOOL unwire_event COMPONENTS DEL "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required."

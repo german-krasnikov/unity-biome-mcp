@@ -61,10 +61,6 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "shader_name": "Shader declaration name used when creating shader source",
     },
 
-    "uitk_file": {
-        "path": "Assets/ path to a .uxml or .uss project file; Library/ and Packages/ are rejected",
-    },
-
     "scene_change_plan": {
         "dry_run": "False (default) = create plan_id. True = probe pre-flights only, no plan created.",
     },
@@ -77,21 +73,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "type": "uGUI element type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView",
     },
 
-    "lint_uitk": {
-        "path": "Assets/ path to the UXML or USS file to validate",
-    },
-
     "menu": {
         "path": "Unity Editor menu-item path to execute, or submenu prefix to list",
-    },
-
-    "uitk_element": {
-        "name": "VisualElement name used after ref and before selector in addressing priority",
-    },
-
-    "timeline": {
-        "name": "Action-specific Timeline track, clip, or marker name",
-        "value": "Action-specific Timeline value; set_track_offset accepts auto|transform|scene",
     },
 
     # ── TIER1 TOOLS ─────────────────────────────────────────────────────────
@@ -114,11 +97,6 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "timeout":       "Max seconds to wait for completion (default 900)",
         "poll_interval": "Seconds between status polls (default 5)",
         "request_id":    "Caller-supplied idempotency ID",
-    },
-
-    "uitk_intent": {
-        "name": "Base asset filename without extension (for <name>.uxml and <name>.uss)",
-        "path": "Project asset output folder for the generated UXML/USS pair (default Assets/UI)",
     },
 
     "save_skill": {

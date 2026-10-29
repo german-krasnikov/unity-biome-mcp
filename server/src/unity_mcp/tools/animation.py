@@ -1,5 +1,5 @@
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -107,7 +107,7 @@ async def particle(action: str, path: str,
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(animation)
-    mcp.tool(annotations=_RW)(timeline)
-    mcp.tool(annotations=_RW)(animator)
-    mcp.tool(annotations=_RW)(particle)
+    tools.register(mcp, animation)
+    tools.register(mcp, timeline)
+    tools.register(mcp, animator)
+    tools.register(mcp, particle)

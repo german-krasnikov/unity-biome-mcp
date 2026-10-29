@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=09792bd514604115b328cdcefd5679dcc575340549f0847b997e65895a264476
+# source-sha256=1d58281efb1c11a76fa3bb1f62adb92ad48c2523bd2eee27e9dbdcf8ad1eb5d6
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -24,6 +24,47 @@ def register(mcp, send, args):
 tools.expect('analyze_lod_culling', 'RO', "LOD group coverage + occlusion culling analysis.", (
     ('focus', ostr, None),
 ))
+tools.expect('animation', 'RW', "Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this).", (
+    ('action', str),
+    ('path', str),
+    ('clip', ostr, None),
+    ('clip_name', ostr, None),
+    ('property', ostr, None),
+    ('keys', ostr, None),
+    ('time', ofloat, None),
+    ('component_type', ostr, None),
+    ('binding_path', ostr, None),
+    ('tangent', ostr, None),
+    ('function_name', ostr, None),
+    ('int_param', oint, None),
+    ('float_param', ofloat, None),
+    ('string_param', ostr, None),
+))
+tools.expect('animator', 'RW', "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param.", (
+    ('action', str),
+    ('path', str),
+    ('state', ostr, None),
+    ('states', ostr, None),
+    ('params', ostr, None),
+    ('source', ostr, None),
+    ('target', ostr, None),
+    ('conditions', ostr, None),
+    ('duration', ofloat, None),
+    ('exit_time', ofloat, None),
+    ('has_exit_time', obool, None),
+    ('type', ostr, None),
+    ('name', ostr, None),
+    ('blend_type', ostr, None),
+    ('param', ostr, None),
+    ('param_y', ostr, None),
+    ('children', ostr, None),
+    ('edit_action', ostr, None),
+    ('layer', Any, None),
+    ('weight', ofloat, None),
+    ('blending', ostr, None),
+    ('value', ostr, None),
+    ('avatar_path', ostr, None),
+))
 tools.expect('ask', 'RO', "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).", (
     ('question', str),
 ))
@@ -44,6 +85,12 @@ tools.expect('asset', 'RW', "Asset database. Creates, moves, or deletes assets. 
     ('content', ostr, None),
     ('class_name', ostr, None),
     ('path_only', bool, False),
+))
+tools.expect('attach_uitk', 'RW', "Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for UI Toolkit runtime panels).", (
+    ('path', str),
+    ('uxml', ostr, None),
+    ('panel_settings', ostr, None),
+    ('sort_order', oint, None),
 ))
 tools.expect('auto_wire', 'RW', "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required.", (
     ('path', str),
@@ -163,6 +210,14 @@ tools.expect('inspect', 'RO', "Get components for multiple objects at once. path
     ('compress', bool, False),
     ('find_type', ostr, None),
 ))
+tools.expect('inspect_uitk', 'RO', "Inspect the VisualElement tree of a UIDocument or PanelRenderer panel", (
+    ('path', ostr, None),
+    ('depth', oint, None),
+    ('selector', ostr, None),
+    ('filter', ostr, None),
+    ('show_unity_private', obool, None),
+    ('show_style', obool, None),
+))
 tools.expect('invoke_method', 'RW', "[Play Mode] Call public method on a component via reflection.", (
     ('path', str),
     ('component', str),
@@ -176,6 +231,10 @@ tools.expect('lint_playtest_suite', 'RO', "Read-only preflight check across mult
 tools.expect('lint_scene_refs', 'RO', "Read-only linter for scene references in DSL scripts or batch commands.", (
     ('path', ostr, None),
     ('snippet', ostr, None),
+))
+tools.expect('lint_uitk', 'RO', "Validate a UXML or USS file for structural errors and broken references", (
+    ('path', ostr, None),
+    ('fix', obool, None),
 ))
 tools.expect('list_connections', 'RO', "List Unity connection status.", (
 ))
@@ -234,6 +293,15 @@ tools.expect('package', 'RW', "Package manager. Adds or removes packages. No con
     ('name', ostr, None),
     ('version', ostr, None),
     ('query', ostr, None),
+))
+tools.expect('particle', 'RW', "Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail.", (
+    ('action', str),
+    ('path', str),
+    ('name', ostr, None),
+    ('module', ostr, None),
+    ('prop', ostr, None),
+    ('value', ostr, None),
+    ('preset', ostr, None),
 ))
 tools.expect('prefab', 'RW', "Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate.", (
     ('action', str),
@@ -518,12 +586,64 @@ tools.expect('test_step', 'RW', "[Play Mode] Move character, snapshot state befo
     ('wait_after', float, 0.5),
     ('timeout', float, 15.0),
 ))
+tools.expect('timeline', 'RW', "Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that).", (
+    ('path', str),
+    ('action', str),
+    ('track', ostr, None),
+    ('track_type', ostr, None),
+    ('clip', ostr, None),
+    ('binding', ostr, None),
+    ('start', ofloat, None),
+    ('duration', ofloat, None),
+    ('blend_in', ofloat, None),
+    ('blend_out', ofloat, None),
+    ('asset_path', ostr, None),
+    ('director_path', ostr, None),
+    ('tracks', ostr, None),
+    ('time', ofloat, None),
+    ('name', ostr, None),
+    ('clip_in', ofloat, None),
+    ('index', oint, None),
+    ('offset', ofloat, None),
+    ('value', ostr, None),
+))
 tools.expect('transfer_object', 'RW', "Move or copy a GameObject to another loaded scene. action: move|copy.", (
     ('path', str),
     ('action', str),
     ('target_scene', ostr, None),
     ('parent', ostr, None),
     ('world_position_stays', bool, True),
+))
+tools.expect('uitk_element', 'RW', "Mutate or query a VisualElement in a UIDocument or PanelRenderer host", (
+    ('action', Any),
+    ('path', ostr, None),
+    ('ref', ostr, None),
+    ('selector', ostr, None),
+    ('name', ostr, None),
+    ('value', ostr, None),
+    ('property', ostr, None),
+    ('class_name', ostr, None),
+))
+tools.expect('uitk_file', 'RW', "Read or edit a UXML or USS asset file.", (
+    ('path', str),
+    ('action', Any, "read"),
+    ('content', ostr, None),
+    ('selector', ostr, None),
+    ('attr', ostr, None),
+    ('value', ostr, None),
+    ('cls', ostr, None),
+    ('parent', ostr, None),
+    ('tag', ostr, None),
+    ('attrs', ostr, None),
+    ('prop', ostr, None),
+))
+tools.expect('uitk_intent', 'RW', "Generate a UXML + USS file pair from a natural-language UI description.", (
+    ('intent', str),
+    ('name', str),
+    ('path', str, "Assets/UI"),
+    ('attach_to', ostr, None),
+    ('template', ostr, None),
+    ('dry_run', bool, False),
 ))
 tools.expect('unwire_event', 'DEL', "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required.", (
     ('path', str),

@@ -3,8 +3,8 @@
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ..sampling import sampling_service as _sampling
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 from .intent_common import parse_indent_tree, parse_kv, sanitize_intent, strip_fences
 
 _send = None
@@ -498,4 +498,4 @@ async def uitk_intent(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(uitk_intent)
+    tools.register(mcp, uitk_intent)

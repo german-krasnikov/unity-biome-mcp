@@ -51,8 +51,6 @@ DEFAULT_TIMEOUT: float = 30.0
 
 _SPECS: dict[str, ToolSpec] = {
     'alias_status': ToolSpec(category='SYSTEM', mutability='read'),
-    'animation': ToolSpec(category='MEDIA'),
-    'animator': ToolSpec(category='MEDIA'),
     'animator_intent': ToolSpec(category='SYSTEM', direct_only=True),
     'apply_scene_change': ToolSpec(category='SCENE', tier1=True, timeout_s=120.0, direct_only=True),
     'apply_template': ToolSpec(category='SYSTEM', direct_only=True),
@@ -99,7 +97,6 @@ _SPECS: dict[str, ToolSpec] = {
     'list_templates': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'mcp_status': ToolSpec(category='SYSTEM', core=True, mutability='read', direct_only=True),
     'menu': ToolSpec(category='SYSTEM'),
-    'particle': ToolSpec(category='MEDIA'),
     'permission_prompt': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     'ping_object': ToolSpec(category='SCENE', mutability='read'),
     'profile': ToolSpec(category='RUNTIME', runtime_only=True),
@@ -120,17 +117,10 @@ _SPECS: dict[str, ToolSpec] = {
     'setup_objects': ToolSpec(category='SCENE', direct_only=True),
     'shader': ToolSpec(category='ASSETS'),
     'smart_build': ToolSpec(category='SYSTEM', direct_only=True),
-    'timeline': ToolSpec(category='MEDIA'),
     'ui_intent': ToolSpec(category='UGUI', tier1=True, direct_only=True),
     'undo_last': ToolSpec(category='SYSTEM'),
     'validate_references': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
     'vfx_intent': ToolSpec(category='MEDIA', tier1=True, direct_only=True),
-    'inspect_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='read', timeout_s=15.0),
-    'lint_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='read', timeout_s=15.0),
-    'uitk_element': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=15.0),
-    'attach_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=30.0),
-    'uitk_file': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=30.0, direct_only=True, unity_transport=True),
-    'uitk_intent': ToolSpec(category='UITOOLKIT', tier1=True, direct_only=True, timeout_s=60.0),
     'lint_ugui': ToolSpec(category='UGUI', tier1=False, mutability='read', timeout_s=15.0),
 }
 

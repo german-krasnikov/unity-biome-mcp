@@ -103,8 +103,11 @@ reference for every tool.
 | Tool | Plane | Category | Effect |
 |---|---|---|---|
 | `analyze_lod_culling` | unity | MEDIA | RO |
+| `animation` | unity | MEDIA | RW |
+| `animator` | unity | MEDIA | RW |
 | `ask` | python | SYSTEM | RO |
 | `asset` | unity | ASSETS | RW |
+| `attach_uitk` | unity | UITOOLKIT | RW |
 | `auto_wire` | unity | COMPONENTS | RW |
 | `autofit_collider` | unity | SCENE | RW |
 | `await_compile` | python | VERIFY | RO |
@@ -130,9 +133,11 @@ reference for every tool.
 | `get_spatial_context` | unity | SCENE | RO |
 | `get_unity_events` | unity | SCENE | RO |
 | `inspect` | unity | CORE | RO |
+| `inspect_uitk` | unity | UITOOLKIT | RO |
 | `invoke_method` | unity | RUNTIME | RW |
 | `lint_playtest_suite` | python | TESTS | RO |
 | `lint_scene_refs` | unity | VERIFY | RO |
+| `lint_uitk` | unity | UITOOLKIT | RO |
 | `list_connections` | python | SYSTEM | RO |
 | `list_events` | unity | COMPONENTS | RO |
 | `load_session` | python | SYSTEM | RO |
@@ -143,6 +148,7 @@ reference for every tool.
 | `navmesh_query` | python | SCENE | RW |
 | `object_diff` | unity | SCENE | RO |
 | `package` | unity | ASSETS | RW |
+| `particle` | unity | MEDIA | RW |
 | `prefab` | unity | ASSETS | RW |
 | `project_settings` | unity | ASSETS | RW_IDEM |
 | `query_state` | unity | RUNTIME | RO |
@@ -175,7 +181,11 @@ reference for every tool.
 | `spatial_query` | unity | SCENE | RO |
 | `sync_playtest_aliases_from_defs` | unity | TESTS | RW |
 | `test_step` | unity | TESTS | RW |
+| `timeline` | unity | MEDIA | RW |
 | `transfer_object` | unity | SCENE | RW |
+| `uitk_element` | unity | UITOOLKIT | RW |
+| `uitk_file` | unity | UITOOLKIT | RW |
+| `uitk_intent` | python | UITOOLKIT | RW |
 | `unwire_event` | unity | COMPONENTS | DEL |
 | `use_skill` | python | SYSTEM | RW |
 | `validate_playtest_aliases` | unity | TESTS | RO |
