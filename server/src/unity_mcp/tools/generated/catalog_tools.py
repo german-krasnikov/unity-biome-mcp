@@ -1,10 +1,11 @@
 # Generated from dsl/tools.biome
-# source-sha256=656282e8dd231f9a6dcec3d3df084647c65a101ac4035b113dc85e22d74f4e9a
+# source-sha256=67237de7e69770f0d609124c47a552bf0c2865bf154aedf8a7ab7de4060cfadf
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
 from .._common import bind
 
+Any = rt.ANY
 ostr = str | None
 oint = int | None
 ofloat = float | None

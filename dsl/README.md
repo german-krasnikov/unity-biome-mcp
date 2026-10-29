@@ -19,7 +19,7 @@ hand-written `_SPECS`, `PARAM_DESCRIPTIONS` or `mcp.tool` registrations fails at
 | File | Role |
 |---|---|
 | `tools.biome` | the catalog, one block per tool, by name |
-| `constructs/tool.construct` | the words of a block (`TOOL`, `PYTOOL`, `FORWARD`, `FLAG`, `TIMEOUT`, `MAXCHARS`, `DOC`, `ARG`) and what is printed from them |
+| `constructs/tool.construct` | the words of a block (`TOOL`, `PYTOOL`, `INTERNAL`, `FORWARD`, `FLAG`, `RUNTIME`, `TIMEOUT`, `MAXCHARS`, `DOC`, `ARG` with `DEFAULT`, `DEFAULT_TEXT`, `OMIT`, `RAW`) and what is printed from them |
 | `constructs/tool.examples` | examples of the construct: the lines it prints and the mistakes it refuses |
 | `biome.project` | the compiler it needs (`TOOLCHAIN`) and the generate steps |
 

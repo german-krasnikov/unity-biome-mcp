@@ -101,3 +101,91 @@ EXAMPLE a PYTOOL is direct_only already and has no Unity-side words: unity_trans
   EXPECT diagnostic DECLARE_SYNTAX at 2:8
   EXPECT diagnostic DECLARE_SYNTAX at 3:8
   EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 4:3
+
+EXAMPLE an argument has a text default, is sent raw, is left out when it equals its default, and may be written in camelCase
+  SOURCE TOOL show SCENE RO "Show."
+  SOURCE   FORWARD
+  SOURCE   ARG mode str DEFAULT_TEXT "all" OMIT
+  SOURCE   ARG label str DEFAULT_TEXT "say \"hi\"" "A label"
+  SOURCE   ARG depth int DEFAULT 2 RAW
+  SOURCE   ARG both int DEFAULT 5 OMIT RAW
+  SOURCE   ARG index int RAW
+  SOURCE   ARG agentRadius float DEFAULT 0.5
+  SOURCE END
+  EXPECT rendered.pytools ('mode', str, "all"),
+  EXPECT rendered.pytools ('label', str, "say \"hi\""),
+  EXPECT rendered.pytools ('agentRadius', float, 0.5),
+  EXPECT rendered.pytools mode: str = "all",
+  EXPECT rendered.pytools depth: int = 2,
+  EXPECT rendered.pytools mode=rt.w_str(mode, "all"),
+  EXPECT rendered.pytools label=rt.w_str(label),
+  EXPECT rendered.pytools depth=rt.w_int(depth, raw=True),
+  EXPECT rendered.pytools both=rt.w_int(both, 5, raw=True),
+  EXPECT rendered.pytools index=rt.w_int(index, raw=True),
+  EXPECT rendered.pytools agentRadius=rt.w_float(agentRadius),
+  EXPECT rendered.pyparams 'label': "A label",
+
+EXAMPLE a parameter typed Any and a text default are only expected, for a TOOL and for a PYTOOL
+  SOURCE TOOL run_it TESTS RW "Run."
+  SOURCE   ARG ctx Any DEFAULT None
+  SOURCE   ARG mode str DEFAULT_TEXT "x y" "A mode"
+  SOURCE END
+  SOURCE PYTOOL py_one SYSTEM RO "Py."
+  SOURCE   ARG value Any
+  SOURCE   ARG note str DEFAULT_TEXT ""
+  SOURCE END
+  EXPECT rendered.pytools ('ctx', Any, None),
+  EXPECT rendered.pytools ('mode', str, "x y"),
+  EXPECT rendered.pytools ('value', Any),
+  EXPECT rendered.pytools ('note', str, ""),
+  EXPECT rendered.pyparams 'mode': "A mode",
+  EXPECT unrendered.pytools async def
+
+EXAMPLE RUNTIME gives runtime_only to a TOOL
+  SOURCE TOOL run_it TESTS RW "Run."
+  SOURCE   RUNTIME
+  SOURCE END
+  EXPECT rendered.pyspec 'runtime_only': True,
+
+EXAMPLE RUNTIME gives runtime_only to a PYTOOL
+  SOURCE PYTOOL py_one SYSTEM RO "Py."
+  SOURCE   RUNTIME
+  SOURCE END
+  EXPECT rendered.pyspec 'runtime_only': True,
+
+EXAMPLE a block without RUNTIME is not runtime_only
+  SOURCE TOOL calm SCENE RO "Calm."
+  SOURCE END
+  SOURCE PYTOOL py_one SYSTEM RO "Py."
+  SOURCE END
+  EXPECT unrendered.pyspec runtime_only
+
+EXAMPLE INTERNAL is a wire command that has a ToolSpec and nothing else
+  SOURCE INTERNAL ping RO "Liveness probe."
+  SOURCE   TIMEOUT 5.0
+  SOURCE END
+  SOURCE INTERNAL put_it RW "Import."
+  SOURCE   FLAG direct_only
+  SOURCE   FLAG unity_transport
+  SOURCE END
+  EXPECT rendered.pyspec 'ping': {
+  EXPECT rendered.pyspec 'category': '_INTERNAL',
+  EXPECT rendered.pyspec 'effect': 'RW',
+  EXPECT rendered.pyspec 'timeout_s': 5.0,
+  EXPECT rendered.pyspec 'unity_transport': True,
+  EXPECT unrendered.pytools ping
+  EXPECT unrendered.pyparams put_it
+  EXPECT unrendered.mdtools ping
+
+EXAMPLE INTERNAL has no effect other than RO and RW, no flag but direct_only and unity_transport, and no argument
+  SOURCE INTERNAL x WRITE "X."
+  SOURCE END
+  SOURCE INTERNAL y RO "Y."
+  SOURCE   FLAG core
+  SOURCE END
+  SOURCE INTERNAL z RO "Z."
+  SOURCE   ARG a str
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 1:12
+  EXPECT diagnostic DECLARE_SYNTAX at 4:8
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 7:3

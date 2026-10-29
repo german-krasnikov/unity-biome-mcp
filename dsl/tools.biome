@@ -1,11 +1,14 @@
 SURFACE tools
 # One block per tool, by name (dsl/README.md). TOOL: Unity handles it; PYTOOL: only the Python server implements it (direct_only).
+# INTERNAL <name> <RO|RW> "<what it is>": a wire command that is no MCP tool; it has a ToolSpec (timeout, flags) and nothing else.
 # TOOL <name> <CATEGORY> <effect> "<summary>": RO read-only | RW writes | RW_IDEM writes, safe to repeat | DEL destructive
 # (ToolSpec.mutability, MCP annotation); the summary is the first line of the description. FORWARD: the MCP wrapper is generated, its
-# description is the summary and the DOC lines, one per line. FLAG (core tier1 direct_only unity_transport), TIMEOUT <s>: ToolSpec fields.
+# description is the summary and the DOC lines, one per line. FLAG (core tier1 direct_only unity_transport), RUNTIME (runtime_only),
+# TIMEOUT <s>: ToolSpec fields.
 # MAXCHARS <n>: the response limit of the Unity registration (maxResponseChars), checked against it by test_catalog_vs_csharp.py.
-# ARG <name> <type> [DEFAULT <v> [OMIT]] ["<schema description>"]: in the order of the Python signature, required without DEFAULT;
-# the type is str int float bool, o-prefixed when None is allowed; OMIT: a value equal to the default is not sent, Unity applies it.
+# ARG <name> <type> [DEFAULT <v> [OMIT]] [DEFAULT_TEXT "<s>" [OMIT]] [RAW] ["<schema description>"]: in the order of the Python signature,
+# required without a default; the type is str int float bool, o-prefixed when None is allowed, or Any (checked by name and default only:
+# Context, Literal, ...); OMIT: a value equal to the default is not sent, Unity applies it; RAW: a FORWARD wrapper sends the value as it is.
 
 TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path after rename."
   FORWARD
