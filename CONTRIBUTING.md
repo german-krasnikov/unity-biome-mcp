@@ -152,10 +152,12 @@ Prefer the smallest change that makes the behavior explicit and testable.
 - Treat file size as a review signal, not an absolute pass/fail rule; split a
   file when doing so makes ownership or testing clearer.
 
-The public tool catalog is defined in
-`server/src/unity_mcp/tools/tool_specs.py`. Unity command registration and the
-Python wrapper must agree on command name, arguments, mutability, mode guards,
-timeout, and response semantics.
+The public tool catalog is `dsl/tools.biome` (see `dsl/README.md`): a tool's
+category, effect, flags, timeout, arguments and schema descriptions are stated
+there once, and `scripts/dsl.sh generate` prints the ToolSpec, the schema
+descriptions, the wrapper of a `FORWARD` tool and the docs table from it. Unity
+command registration and the Python wrapper must agree on command name,
+arguments, mutability, mode guards, timeout, and response semantics.
 
 ## Documentation changes
 

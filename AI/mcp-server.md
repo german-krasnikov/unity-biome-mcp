@@ -28,7 +28,7 @@ server/src/unity_mcp/
 │   ├── __init__.py     # Tool module registry
 │   ├── _annotations.py # MCP ToolAnnotations constants (RO, RW, RW_IDEM, DEL)
 │   ├── _common.py      # bind() helper — uniform binding across register() functions
-│   ├── tool_specs.py   # single source of truth for categories, tiers, timeouts, mutability and surfaces
+│   ├── tool_specs.py   # merges the ToolSpec metadata (categories, tiers, timeouts, mutability, surfaces) that dsl/tools.biome generates
 │   ├── gating.py       # Capability gating: CORE, TIER1, category-based filtering, catalog
 │   ├── schema_registry.py  # Tool schema lazy-loading
 │   ├── objects.py      # get_component/inspect/find/set_property/create/delete/manage_component/set_active/rename_object/wire_event/unwire_event/set_material/set_parent/set_property_delta/transfer_object/object_diff
@@ -78,7 +78,7 @@ server/src/unity_mcp/
 
 ### Tool surface
 
-The complete roster is derived from `tool_specs.py` and the registration tests;
+The complete roster is derived from `dsl/tools.biome` and the registration tests;
 it is not maintained in this architecture document. `AI/tools-reference.md`
 owns visibility and schema-loading behavior, while generated
 `docs/tools-schema/index.md` owns exhaustive public parameters.

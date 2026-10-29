@@ -82,7 +82,7 @@ No single handwritten roster is authoritative. Keep these sources aligned:
 | Contract | Source |
 |---|---|
 | Public Python signature and docstring | Owning module under `server/src/unity_mcp/tools/` |
-| Category, visibility tier, timeout, mutability, runtime and direct-only metadata | `server/src/unity_mcp/tools/tool_specs.py` |
+| Category, visibility tier, timeout, mutability, runtime and direct-only metadata | `dsl/tools.biome`, generated into `server/src/unity_mcp/tools/generated/` and merged by `tools/tool_specs.py` |
 | Session category visibility | `server/src/unity_mcp/tools/gating.py` |
 | Deferred schema behavior | `server/src/unity_mcp/tools/schema_registry.py` and `server_filtering.py` |
 | Unity handler and validation metadata | `unity-plugin/Editor/CommandRegistry.cs` registration sites |
@@ -347,7 +347,8 @@ SPEC_KWARGS: dict[str, dict] = {
 }
 ```
 
-Remaining 166+ tool specs are centralized in tool_specs.py. Migration deferred.
+Every other tool spec is generated from the tool catalog (`dsl/tools.biome`, see `dsl/README.md`) and merged by `tool_specs.py`; six
+tools whose MCP annotation and ToolSpec disagree are still written in its `_SPECS` literal until the owner decides.
 
 **Plugin Registration Owner (N1a):** A plugin declaring a reserved builtin name, a name
 colliding with a host tool, or a name it does not own (declared via `register_read_cmds`/
@@ -367,7 +368,7 @@ C# `CommandRegistry.Entry` gains `MutatingArgsPolicy` delegate (for argument-awa
 read/write classification) and `NotBatchable` bool; hardcoded name-switches migrate
 to registration sites. Target invariant (not yet enforced): adding a command should
 require only the module's registration. Currently, new commands also need a
-ToolSpec entry in tool_specs.py (or a pilot module's sync_spec.py) and may need gating entries.
+block in `dsl/tools.biome` (or a pilot module's `SPEC_KWARGS`) and may need gating entries.
 36 policy-vector tests validate parity across 5 representative commands.
 
 ## Reload Module Isolation (PR-04R & N2)

@@ -51,7 +51,7 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/src/unity_mcp/server.py` | FastMCP composition root, lifespan, built-in registration, resources, and plugin loading. |
 | `server/src/unity_mcp/tools/` | Typed MCP wrappers and Python-side orchestration. |
 | `server/src/unity_mcp/tools/__init__.py` | Built-in tool-module registration. |
-| `server/src/unity_mcp/tools/tool_specs.py` | Tool metadata source for category, mutability, timeout, visibility, runtime, and direct-only behavior. |
+| `server/src/unity_mcp/tools/tool_specs.py` | `ToolSpec` and the merge of the tool metadata (category, mutability, timeout, visibility, runtime, direct-only): generated from `dsl/tools.biome`, provided by the watch and sync modules, written by hand for six tools whose annotation and ToolSpec disagree. |
 | `server/src/unity_mcp/tools/generated/` | Generated from `dsl/tools.biome`, never edited by hand: ToolSpec kwargs, schema descriptions and the MCP wrappers of the catalog's tools. |
 | `server/src/unity_mcp/tools/_catalog_runtime.py` | Mechanical runtime of the generated wrappers: wire encoders and the `ToolSet` that checks a function against the catalog and registers it. |
 | `server/src/unity_mcp/tools/sync_spec.py` | SyncModule ToolSpec metadata and owned wire-command mapping (N1b): decouples `tool_specs.py` from importing `sync.py` to prevent circular dependencies. |
@@ -94,7 +94,7 @@ The installable package lives under `server/src/unity_mcp/`.
 | `scripts/coverage_hotspots.py` | Coverage hotspot detection: parses OpenCover XML, computes top-20 changed methods by coverage/complexity/churn, outputs to `docs/quality/` on CI (includes `--repo-root` flag for relative path mapping). |
 | `scripts/tests/test_unity_test_source_hygiene.py` | Hygiene guard: validates Unity C# test structure (fixture bases, ownership registration, async patterns, disposable-worker marking) to prevent false-green tests and coverage gaps. |
 
-Do not maintain a tool roster in this file. Derive it from `tool_specs.py` and
+Do not maintain a tool roster in this file. Derive it from `dsl/tools.biome` and
 the registration/parity tests. Public parameter documentation is generated into
 `docs/tools-schema/`.
 
@@ -167,7 +167,7 @@ See [`reload-reference.md`](reload-reference.md).
 
 | Change | Update or verify |
 |---|---|
-| Public MCP signature or metadata | Python wrapper, `tool_specs.py`, schema/parity tests, then generated schema through its generator. |
+| Public MCP signature or metadata | `dsl/tools.biome` and `scripts/dsl.sh generate`, the hand-written wrapper if the tool is not `FORWARD`, schema/parity tests, then generated schema through its generator. |
 | Unity command contract | `CommandRegistry` registration, handler, validation and guard tests, then the owning `AI/` domain reference. |
 | Read/write or runtime classification | `ToolSpec`, conditional rules in `middleware_types.py`, C# registry metadata, and cross-language parity tests. |
 | TCP lifecycle | Bridge/server code, Unity listener code, and [`tcp-bridge.md`](tcp-bridge.md). |
