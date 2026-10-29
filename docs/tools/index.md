@@ -102,6 +102,7 @@ reference for every tool.
 <!-- biome:begin catalog -->
 | Tool | Plane | Category | Effect |
 |---|---|---|---|
+| `ask` | python | SYSTEM | RO |
 | `auto_wire` | unity | COMPONENTS | RW |
 | `await_compile` | python | VERIFY | RO |
 | `compile_preflight` | unity | VERIFY | RO |
@@ -109,6 +110,7 @@ reference for every tool.
 | `debug_animator` | unity | RUNTIME | RO |
 | `debug_physics` | unity | RUNTIME | RO |
 | `delete_object` | unity | SCENE | DEL |
+| `export_playtest_aliases_to_defs` | unity | TESTS | RW |
 | `find_objects` | unity | SCENE | RO |
 | `get_component` | unity | CORE | RO |
 | `get_components_list` | unity | SCENE | RO |
@@ -116,11 +118,20 @@ reference for every tool.
 | `get_object_detail` | unity | SCENE | RO |
 | `get_unity_events` | unity | SCENE | RO |
 | `inspect` | unity | CORE | RO |
+| `invoke_method` | unity | RUNTIME | RW |
+| `lint_playtest_suite` | python | TESTS | RO |
+| `lint_scene_refs` | unity | VERIFY | RO |
 | `list_connections` | python | SYSTEM | RO |
 | `list_events` | unity | COMPONENTS | RO |
 | `manage_component` | unity | CORE | RW |
+| `move_to` | unity | RUNTIME | RW |
 | `object_diff` | unity | SCENE | RO |
+| `query_state` | unity | RUNTIME | RO |
 | `rename_object` | unity | SCENE | RW_IDEM |
+| `resolve_scene_refs` | unity | VERIFY | RO |
+| `run_playtest` | unity | TESTS | RW |
+| `run_playtest_suite` | python | TESTS | RW |
+| `runtime_snapshot` | unity | RUNTIME | RO |
 | `search_scene` | unity | SCENE | RO |
 | `serialized_field_rename_audit` | unity | VERIFY | RO |
 | `set_active` | unity | SCENE | RW_IDEM |
@@ -130,9 +141,14 @@ reference for every tool.
 | `set_property_delta` | unity | SCENE | RW |
 | `set_sibling_index` | unity | SCENE | RW |
 | `snapshot` | python | RUNTIME | RO |
+| `sync_playtest_aliases_from_defs` | unity | TESTS | RW |
+| `test_step` | unity | TESTS | RW |
 | `transfer_object` | unity | SCENE | RW |
 | `unwire_event` | unity | COMPONENTS | DEL |
 | `use_skill` | python | SYSTEM | RW |
+| `validate_playtest_aliases` | unity | TESTS | RO |
+| `verify_after_change` | python | VERIFY | RW |
+| `wait_until` | unity | RUNTIME | RW_IDEM |
 | `wire_event` | unity | COMPONENTS | RW |
 <!-- biome:end catalog -->
 

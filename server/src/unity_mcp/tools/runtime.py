@@ -9,12 +9,11 @@ from mcp.server.fastmcp.exceptions import ToolError
 from ..bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S
 from ..errors import SessionIdentityMismatch, UncertainDeliveryError, recovery_barrier
 from ..sampling import sampling_service as _sampling
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 from .editor_state import parse_editor_field as _editor_field
 from .editor_state import parse_world_ready as _parse_world_ready
+from .generated.catalog_tools import tools
 from .playtest_async import _RUN_PLAYTEST_SYNC_CEILING_S
 from .playtest_async import run_via_start_poll as _run_via_start_poll
 
@@ -915,18 +914,18 @@ async def runtime_snapshot(type: str, name: str | None = None,
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(resolve_scene_refs)
-    mcp.tool(annotations=_RO)(lint_scene_refs)
-    mcp.tool(annotations=_RW)(invoke_method)
-    mcp.tool(annotations=_RW_IDEM)(wait_until)
-    mcp.tool(annotations=_RW)(move_to)
-    mcp.tool(annotations=_RO)(query_state)
-    mcp.tool(annotations=_RW)(test_step)
-    mcp.tool(annotations=_RW)(run_playtest)
-    mcp.tool(annotations=_RW)(run_playtest_suite)
+    tools.register(mcp, resolve_scene_refs)
+    tools.register(mcp, lint_scene_refs)
+    tools.register(mcp, invoke_method)
+    tools.register(mcp, wait_until)
+    tools.register(mcp, move_to)
+    tools.register(mcp, query_state)
+    tools.register(mcp, test_step)
+    tools.register(mcp, run_playtest)
+    tools.register(mcp, run_playtest_suite)
     mcp.tool(annotations=_RW_IDEM)(lint_playtest)
-    mcp.tool(annotations=_RO)(lint_playtest_suite)
-    mcp.tool(annotations=_RO)(validate_playtest_aliases)
-    mcp.tool(annotations=_RW)(sync_playtest_aliases_from_defs)
-    mcp.tool(annotations=_RW)(export_playtest_aliases_to_defs)
-    mcp.tool(annotations=_RO)(runtime_snapshot)
+    tools.register(mcp, lint_playtest_suite)
+    tools.register(mcp, validate_playtest_aliases)
+    tools.register(mcp, sync_playtest_aliases_from_defs)
+    tools.register(mcp, export_playtest_aliases_to_defs)
+    tools.register(mcp, runtime_snapshot)

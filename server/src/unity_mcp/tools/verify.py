@@ -320,5 +320,5 @@ async def verify_after_change(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    from ._annotations import RW as _RW
-    mcp.tool(annotations=_RW)(verify_after_change)
+    from .generated.catalog_tools import tools
+    tools.register(mcp, verify_after_change)

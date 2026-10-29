@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=8605691b5a77c2ae753306620d1421adfe84064108a19b336760e682d35d2f23
+# source-sha256=94c53ee5aaf60c0e89a3cf4c31ebe44e12b3d3642435af09b41677a3a6314e01
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -21,6 +21,9 @@ def register(mcp, send, args):
     tools.install(mcp)
 
 
+tools.expect('ask', 'RO', "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).", (
+    ('question', str),
+))
 tools.expect('auto_wire', 'RW', "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required.", (
     ('path', str),
     ('dry_run', bool, False),
@@ -52,6 +55,10 @@ tools.expect('delete_object', 'DEL', "Delete GameObject by instance ID or scene 
     ('id', oint, None),
     ('path', ostr, None),
     ('force', bool, False),
+))
+tools.expect('export_playtest_aliases_to_defs', 'RW', "Export PlaytestConfig.asset aliases to a readable .defs text file.", (
+    ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
+    ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
 ))
 tools.expect('find_objects', 'RO', "Find objects by criteria. Use search_scene for complex queries. Does NOT support: parent, path, active/inactive filtering, regex. Only: name (substring), tag, layer, component (full namespace).", (
     ('name', ostr, None),
@@ -89,6 +96,20 @@ tools.expect('inspect', 'RO', "Get components for multiple objects at once. path
     ('compress', bool, False),
     ('find_type', ostr, None),
 ))
+tools.expect('invoke_method', 'RW', "[Play Mode] Call public method on a component via reflection.", (
+    ('path', str),
+    ('component', str),
+    ('method', str),
+    ('args', str, ""),
+))
+tools.expect('lint_playtest_suite', 'RO', "Read-only preflight check across multiple .playtest files.", (
+    ('pattern', ostr, None),
+    ('suite_path', ostr, None),
+))
+tools.expect('lint_scene_refs', 'RO', "Read-only linter for scene references in DSL scripts or batch commands.", (
+    ('path', ostr, None),
+    ('snippet', ostr, None),
+))
 tools.expect('list_connections', 'RO', "List Unity connection status.", (
 ))
 tools.expect('list_events', 'RO', "Read persistent listeners on a UnityEvent field. Use after wire_event to verify.", (
@@ -101,9 +122,17 @@ tools.expect('manage_component', 'RW', "Add or remove a component. Mutates scene
     ('type', str),
     ('action', str),
 ))
+tools.expect('move_to', 'RW', "[Play Mode] Move character to position and wait for arrival.", (
+    ('path', str),
+    ('position', str),
+    ('timeout', float, 15.0),
+))
 tools.expect('object_diff', 'RO', "Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'.", (
     ('path_a', str),
     ('path_b', str),
+))
+tools.expect('query_state', 'RO', "[Play Mode] Snapshot multiple game values in one call.", (
+    ('queries', str),
 ))
 tools.expect('rename_object', 'RW_IDEM', "Rename a GameObject. Returns new scene path after rename.", (
     ('path', str),
@@ -126,6 +155,39 @@ async def rename_object(
     ))
 
 
+tools.expect('resolve_scene_refs', 'RO', "Read-only scene reference resolver.", (
+    ('refs', str),
+    ('fields', ostr, None),
+))
+tools.expect('run_playtest', 'RW', "[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`).", (
+    ('script', ostr, None),
+    ('timeout', float, 120.0),
+    ('abort_on_fail', bool, False),
+    ('defs', ostr, None),
+    ('path', ostr, None),
+    ('snapshot_on_failure', bool, False),
+    ('fresh', bool, False),
+    ('before_hook', ostr, None),
+    ('after_hook', ostr, None),
+    ('format', str, "text"),
+))
+tools.expect('run_playtest_suite', 'RW', "Run multiple .playtest files sequentially and return a compact matrix.", (
+    ('pattern', ostr, None),
+    ('suite_path', ostr, None),
+    ('timeout_per_test', float, 120.0),
+    ('stop_on_fail', bool, False),
+    ('stop_after', bool, True),
+    ('auto_play', bool, False),
+    ('restart_between', bool, False),
+    ('suite_timeout', float, 300.0),
+    ('tag', ostr, None),
+))
+tools.expect('runtime_snapshot', 'RO', "Snapshot all runtime objects of a given component type. Returns per-object field dump.", (
+    ('type', str),
+    ('name', ostr, None),
+    ('component', ostr, None),
+    ('compress', bool, False),
+))
 tools.expect('search_scene', 'RO', "Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces.", (
     ('query', str),
     ('root', ostr, None),
@@ -228,6 +290,18 @@ tools.expect('snapshot', 'RO', "Capture or compare object state.", (
     ('label', str, "default"),
     ('compare', str, ""),
 ))
+tools.expect('sync_playtest_aliases_from_defs', 'RW', "Overwrite PlaytestConfig.asset aliases from a .defs text file.", (
+    ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
+    ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
+))
+tools.expect('test_step', 'RW', "[Play Mode] Move character, snapshot state before/after, check console.", (
+    ('path', str),
+    ('position', str),
+    ('checks_before', str, ""),
+    ('checks_after', str, ""),
+    ('wait_after', float, 0.5),
+    ('timeout', float, 15.0),
+))
 tools.expect('transfer_object', 'RW', "Move or copy a GameObject to another loaded scene. action: move|copy.", (
     ('path', str),
     ('action', str),
@@ -244,6 +318,30 @@ tools.expect('unwire_event', 'DEL', "Remove persistent listener(s) from UnityEve
 tools.expect('use_skill', 'RW', "Execute a previously saved skill. params: comma-separated key=value for substitution.", (
     ('name', str),
     ('params', ostr, None),
+))
+tools.expect('validate_playtest_aliases', 'RO', "Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed.", (
+    ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
+    ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
+))
+tools.expect('verify_after_change', 'RW', "Single verification gate after code/scene changes.", (
+    ('changed_files', str, ""),
+    ('test_filter', str, ""),
+    ('run_tests_mode', str, ""),
+    ('playtests', str, ""),
+    ('mark_id', str, ""),
+    ('timeout', float, 300.0),
+    ('auto_play', bool, False),
+    ('restart_between', bool, False),
+    ('suite_timeout', float, 300.0),
+))
+tools.expect('wait_until', 'RW_IDEM', "[Play Mode] Poll field until it matches value (or timeout).", (
+    ('path', str),
+    ('component', str),
+    ('field', str),
+    ('value', str),
+    ('timeout', float, 5.0),
+    ('negate', bool, False),
+    ('abort_on_fail', bool, False),
 ))
 tools.expect('wire_event', 'RW', "Wire UnityEvent persistent listener. Mutates scene. No confirmation required.", (
     ('path', str),

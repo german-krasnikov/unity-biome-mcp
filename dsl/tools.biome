@@ -10,6 +10,10 @@ SURFACE tools
 # required without a default; the type is str int float bool, o-prefixed when None is allowed, or Any (checked by name and default only:
 # Context, Literal, ...); OMIT: a value equal to the default is not sent, Unity applies it; RAW: a FORWARD wrapper sends the value as it is.
 
+PYTOOL ask SYSTEM RO "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input)."
+  ARG question str
+END
+
 TOOL auto_wire COMPONENTS RW "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required."
   ARG path str
   ARG dry_run bool DEFAULT False
@@ -60,6 +64,11 @@ END
 
 INTERNAL export_package RW "Protocol name of the asset action export_package; only its timeout is used, Unity registers no command of this name."
   TIMEOUT 120.0
+END
+
+TOOL export_playtest_aliases_to_defs TESTS RW "Export PlaytestConfig.asset aliases to a readable .defs text file."
+  ARG asset str DEFAULT_TEXT "Assets/Configs/PlaytestConfig.asset"
+  ARG defs str DEFAULT_TEXT "Assets/PlaytestDefs/farm_core.defs"
 END
 
 TOOL find_objects SCENE RO "Find objects by criteria. Use search_scene for complex queries. Does NOT support: parent, path, active/inactive filtering, regex. Only: name (substring), tag, layer, component (full namespace)."
@@ -126,6 +135,26 @@ TOOL inspect CORE RO "Get components for multiple objects at once. paths: comma-
   ARG find_type ostr DEFAULT None "Component type — auto-populates paths from all scene objects with this component"
 END
 
+TOOL invoke_method RUNTIME RW "[Play Mode] Call public method on a component via reflection."
+  RUNTIME
+  ARG path str
+  ARG component str
+  ARG method str
+  ARG args str DEFAULT_TEXT ""
+END
+
+PYTOOL lint_playtest_suite TESTS RO "Read-only preflight check across multiple .playtest files."
+  TIMEOUT 120.0
+  ARG pattern ostr DEFAULT None
+  ARG suite_path ostr DEFAULT None
+END
+
+TOOL lint_scene_refs VERIFY RO "Read-only linter for scene references in DSL scripts or batch commands."
+  FLAG tier1
+  ARG path ostr DEFAULT None "Project-relative path to a .playtest DSL file"
+  ARG snippet ostr DEFAULT None
+END
+
 PYTOOL list_connections SYSTEM RO "List Unity connection status."
 END
 
@@ -146,6 +175,15 @@ TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No conf
   ARG action str "'add' or 'remove' — not 'enable'/'disable' (use set_property m_Enabled for that)"
 END
 
+TOOL move_to RUNTIME RW "[Play Mode] Move character to position and wait for arrival."
+  FLAG direct_only
+  FLAG unity_transport
+  RUNTIME
+  ARG path str
+  ARG position str
+  ARG timeout float DEFAULT 15.0
+END
+
 TOOL object_diff SCENE RO "Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."
   ARG path_a str
   ARG path_b str
@@ -155,12 +193,69 @@ INTERNAL ping RO "Liveness probe: Unity answers pong."
   TIMEOUT 5.0
 END
 
+TOOL query_state RUNTIME RO "[Play Mode] Snapshot multiple game values in one call."
+  RUNTIME
+  ARG queries str
+END
+
 TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path after rename."
   FORWARD
   DOC "path: current scene path, &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy). name: new name (non-empty)."
   DOC "Note: all subsequent MCP calls must use the new path."
   ARG path str
   ARG name str
+END
+
+TOOL resolve_scene_refs VERIFY RO "Read-only scene reference resolver."
+  TIMEOUT 15.0
+  ARG refs str
+  ARG fields ostr DEFAULT None
+END
+
+# timeout_s is a fallback ceiling only -- tools/runtime.py always passes
+# timeout+20.0 explicitly.
+# B05/R-05: runtime_only intentionally NOT set here — C#'s CommandRouter.Registration.cs
+# registration (runtime: false) is the sole authority now that the Play-mode gate moved
+# past parsing into AsyncRunPlaytest's own `# @needs editmode` header check. A static
+# True here would reintroduce a second, stale Python-only authority (see
+# test_runtime_only_single_source).
+TOOL run_playtest TESTS RW "[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`)."
+  FLAG tier1
+  FLAG direct_only
+  FLAG unity_transport
+  TIMEOUT 300.0
+  ARG script ostr DEFAULT None "Inline DSL script (mutually exclusive with path)"
+  ARG timeout float DEFAULT 120.0 "Max seconds to wait for the playtest to finish (default 120)"
+  ARG abort_on_fail bool DEFAULT False "Stop after the first failed step or automatic console failure; remaining steps, including teardown, are skipped"
+  ARG defs ostr DEFAULT None "Inline VAL definitions prepended to script (alias block)"
+  ARG path ostr DEFAULT None "Path to .playtest DSL file on disk (mutually exclusive with script)"
+  ARG snapshot_on_failure bool DEFAULT False "Auto-capture screenshot on first ASSERT failure"
+  ARG fresh bool DEFAULT False "Stop and restart Play Mode before running the script"
+  ARG before_hook ostr DEFAULT None "DSL commands to run before entering Play Mode"
+  ARG after_hook ostr DEFAULT None "DSL commands to run after Play Mode exits"
+  ARG format str DEFAULT_TEXT "text"
+END
+
+PYTOOL run_playtest_suite TESTS RW "Run multiple .playtest files sequentially and return a compact matrix."
+  FLAG tier1
+  TIMEOUT 3600.0
+  ARG pattern ostr DEFAULT None
+  ARG suite_path ostr DEFAULT None
+  ARG timeout_per_test float DEFAULT 120.0
+  ARG stop_on_fail bool DEFAULT False
+  ARG stop_after bool DEFAULT True
+  ARG auto_play bool DEFAULT False
+  ARG restart_between bool DEFAULT False
+  ARG suite_timeout float DEFAULT 300.0
+  ARG tag ostr DEFAULT None
+END
+
+TOOL runtime_snapshot RUNTIME RO "Snapshot all runtime objects of a given component type. Returns per-object field dump."
+  MAXCHARS 50000
+  ARG type str
+  ARG name ostr DEFAULT None
+  ARG component ostr DEFAULT None
+  ARG compress bool DEFAULT False
 END
 
 TOOL search_scene SCENE RO "Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces."
@@ -249,6 +344,23 @@ INTERNAL start_playtest RW "Starts a playtest without blocking; get_playtest_run
   FLAG unity_transport
 END
 
+TOOL sync_playtest_aliases_from_defs TESTS RW "Overwrite PlaytestConfig.asset aliases from a .defs text file."
+  ARG defs str DEFAULT_TEXT "Assets/PlaytestDefs/farm_core.defs"
+  ARG asset str DEFAULT_TEXT "Assets/Configs/PlaytestConfig.asset"
+END
+
+TOOL test_step TESTS RW "[Play Mode] Move character, snapshot state before/after, check console."
+  FLAG direct_only
+  FLAG unity_transport
+  RUNTIME
+  ARG path str
+  ARG position str
+  ARG checks_before str DEFAULT_TEXT ""
+  ARG checks_after str DEFAULT_TEXT ""
+  ARG wait_after float DEFAULT 0.5
+  ARG timeout float DEFAULT 15.0
+END
+
 TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene. action: move|copy."
   ARG path str
   ARG action str
@@ -267,6 +379,39 @@ END
 PYTOOL use_skill SYSTEM RW "Execute a previously saved skill. params: comma-separated key=value for substitution."
   ARG name str "Saved learned-skill identifier from list_skills"
   ARG params ostr DEFAULT None
+END
+
+TOOL validate_playtest_aliases TESTS RO "Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed."
+  ARG defs str DEFAULT_TEXT "Assets/PlaytestDefs/farm_core.defs"
+  ARG asset str DEFAULT_TEXT "Assets/Configs/PlaytestConfig.asset"
+END
+
+# May run Unity tests/playtests and stop or restart Play Mode.
+PYTOOL verify_after_change VERIFY RW "Single verification gate after code/scene changes."
+  FLAG tier1
+  TIMEOUT 600.0
+  ARG changed_files str DEFAULT_TEXT ""
+  ARG test_filter str DEFAULT_TEXT ""
+  ARG run_tests_mode str DEFAULT_TEXT ""
+  ARG playtests str DEFAULT_TEXT ""
+  ARG mark_id str DEFAULT_TEXT ""
+  ARG timeout float DEFAULT 300.0
+  ARG auto_play bool DEFAULT False
+  ARG restart_between bool DEFAULT False
+  ARG suite_timeout float DEFAULT 300.0
+END
+
+TOOL wait_until RUNTIME RW_IDEM "[Play Mode] Poll field until it matches value (or timeout)."
+  FLAG direct_only
+  FLAG unity_transport
+  RUNTIME
+  ARG path str
+  ARG component str
+  ARG field str
+  ARG value str "Expected field value to compare against (this tool does not set the field)"
+  ARG timeout float DEFAULT 5.0
+  ARG negate bool DEFAULT False
+  ARG abort_on_fail bool DEFAULT False "Stop Play Mode if the comparison times out (default False)"
 END
 
 TOOL wire_event COMPONENTS RW "Wire UnityEvent persistent listener. Mutates scene. No confirmation required."

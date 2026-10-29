@@ -57,7 +57,6 @@ _SPECS: dict[str, ToolSpec] = {
     'animator_intent': ToolSpec(category='SYSTEM', direct_only=True),
     'apply_scene_change': ToolSpec(category='SCENE', tier1=True, timeout_s=120.0, direct_only=True),
     'apply_template': ToolSpec(category='SYSTEM', direct_only=True),
-    'ask': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'ask_user': ToolSpec(category='SYSTEM', timeout_s=300.0, mutability='read', direct_only=True, unity_transport=True),
     'asset': ToolSpec(category='ASSETS'),
     'auto_fix': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
@@ -89,7 +88,6 @@ _SPECS: dict[str, ToolSpec] = {
     'doctor': ToolSpec(category='SYSTEM', direct_only=True),
     'editor': ToolSpec(category='CORE', core=True),
     'execute_code': ToolSpec(category='SYSTEM', core=True, timeout_s=60.0),
-    'export_playtest_aliases_to_defs': ToolSpec(category='TESTS'),
     'fingerprint': ToolSpec(category='SYSTEM', timeout_s=10.0, mutability='read'),
     'get_capabilities': ToolSpec(category='SYSTEM', mutability='read'),
     'get_changeset': ToolSpec(category='VERIFY', tier1=True, timeout_s=5.0, mutability='read', direct_only=True),
@@ -108,10 +106,7 @@ _SPECS: dict[str, ToolSpec] = {
     'get_test_progress': ToolSpec(category='TESTS', mutability='read'),
     'get_test_results': ToolSpec(category='TESTS', mutability='read'),
     'get_test_run': ToolSpec(category='TESTS', timeout_s=10.0, mutability='read'),
-    'invoke_method': ToolSpec(category='RUNTIME', runtime_only=True),
     'lint_playtest': ToolSpec(category='TESTS', timeout_s=60.0, mutability='read'),
-    'lint_playtest_suite': ToolSpec(category='TESTS', timeout_s=120.0, mutability='read', direct_only=True),
-    'lint_scene_refs': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
     'list_test_runs': ToolSpec(category='TESTS', timeout_s=10.0, mutability='read'),
     'list_skills': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'list_templates': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
@@ -120,7 +115,6 @@ _SPECS: dict[str, ToolSpec] = {
     'material_audit': ToolSpec(category='ASSETS', mutability='read'),
     'mcp_status': ToolSpec(category='SYSTEM', core=True, mutability='read', direct_only=True),
     'menu': ToolSpec(category='SYSTEM'),
-    'move_to': ToolSpec(category='RUNTIME', runtime_only=True, direct_only=True, unity_transport=True),
     'navmesh_query': ToolSpec(category='SCENE', mutability='write', direct_only=True),
     'particle': ToolSpec(category='MEDIA'),
     'permission_prompt': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
@@ -128,26 +122,14 @@ _SPECS: dict[str, ToolSpec] = {
     'prefab': ToolSpec(category='ASSETS'),
     'profile': ToolSpec(category='RUNTIME', runtime_only=True),
     'project_settings': ToolSpec(category='ASSETS'),
-    'query_state': ToolSpec(category='RUNTIME', mutability='read', runtime_only=True),
     'recompile': ToolSpec(category='SYSTEM'),
     'reconnect_unity': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     'references': ToolSpec(category='COMPONENTS'),
     'region_clear': ToolSpec(category='SCENE'),
     'release_smoke': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'render_analyze': ToolSpec(category='MEDIA', mutability='read'),
-    'resolve_scene_refs': ToolSpec(category='VERIFY', timeout_s=15.0, mutability='read'),
     'resolve_test_request': ToolSpec(category='TESTS', timeout_s=10.0, mutability='read'),
     'resolve_tool_schema': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
-    # timeout_s is a fallback ceiling only -- tools/runtime.py always passes
-    # timeout+20.0 explicitly.
-    # B05/R-05: runtime_only intentionally NOT set here — C#'s CommandRouter.Registration.cs
-    # registration (runtime: false) is the sole authority now that the Play-mode gate moved
-    # past parsing into AsyncRunPlaytest's own `# @needs editmode` header check. A static
-    # True here would reintroduce a second, stale Python-only authority (see
-    # test_runtime_only_single_source).
-    'run_playtest': ToolSpec(category='TESTS', tier1=True, timeout_s=300.0, mutability='write', direct_only=True, unity_transport=True),
-    'run_playtest_suite': ToolSpec(category='TESTS', tier1=True, timeout_s=3600.0, mutability='write', direct_only=True),
-    'runtime_snapshot': ToolSpec(category='RUNTIME', mutability='read'),
     'run_tests': ToolSpec(category='TESTS', tier1=True, timeout_s=30.0, direct_only=True, unity_transport=True),
     'run_tests_wait': ToolSpec(category='TESTS', tier1=True, timeout_s=1200.0, direct_only=True),
     'save_session': ToolSpec(category='SYSTEM', direct_only=True),
@@ -170,16 +152,11 @@ _SPECS: dict[str, ToolSpec] = {
     'shader': ToolSpec(category='ASSETS'),
     'smart_build': ToolSpec(category='SYSTEM', direct_only=True),
     'spatial_query': ToolSpec(category='SCENE', mutability='read'),
-    'sync_playtest_aliases_from_defs': ToolSpec(category='TESTS'),
-    'test_step': ToolSpec(category='TESTS', runtime_only=True, mutability='write', direct_only=True, unity_transport=True),
     'timeline': ToolSpec(category='MEDIA'),
     'ui_intent': ToolSpec(category='UGUI', tier1=True, direct_only=True),
     'undo_last': ToolSpec(category='SYSTEM'),
     'validate_triggers': ToolSpec(category='SCENE', mutability='read'),
-    'validate_playtest_aliases': ToolSpec(category='TESTS', mutability='read'),
     'validate_references': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
-    # May run Unity tests/playtests and stop or restart Play Mode.
-    'verify_after_change': ToolSpec(category='VERIFY', tier1=True, timeout_s=600.0, direct_only=True),
     'vfx_intent': ToolSpec(category='MEDIA', tier1=True, direct_only=True),
     'inspect_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='read', timeout_s=15.0),
     'lint_uitk': ToolSpec(category='UITOOLKIT', tier1=False, mutability='read', timeout_s=15.0),
@@ -188,7 +165,6 @@ _SPECS: dict[str, ToolSpec] = {
     'uitk_file': ToolSpec(category='UITOOLKIT', tier1=False, mutability='write', timeout_s=30.0, direct_only=True, unity_transport=True),
     'uitk_intent': ToolSpec(category='UITOOLKIT', tier1=True, direct_only=True, timeout_s=60.0),
     'lint_ugui': ToolSpec(category='UGUI', tier1=False, mutability='read', timeout_s=15.0),
-    'wait_until': ToolSpec(category='RUNTIME', runtime_only=True, direct_only=True, unity_transport=True),
 }
 
 # PR-04 pilot: watch/get_watches ToolSpec entries are owned by tools/watch.py

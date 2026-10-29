@@ -112,10 +112,6 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "type": "uGUI element type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView",
     },
 
-    "lint_scene_refs": {
-        "path": "Project-relative path to a .playtest DSL file",
-    },
-
     "lint_uitk": {
         "path": "Assets/ path to the UXML or USS file to validate",
     },
@@ -182,26 +178,9 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "name": "File-safe saved-baseline identifier (not a GameObject name; no '/', '\\', or '..')",
     },
 
-    "wait_until": {
-        "value": "Expected field value to compare against (this tool does not set the field)",
-        "abort_on_fail": "Stop Play Mode if the comparison times out (default False)",
-    },
-
     "uitk_intent": {
         "name": "Base asset filename without extension (for <name>.uxml and <name>.uss)",
         "path": "Project asset output folder for the generated UXML/USS pair (default Assets/UI)",
-    },
-
-    "run_playtest": {
-        "script":              "Inline DSL script (mutually exclusive with path)",
-        "timeout":             "Max seconds to wait for the playtest to finish (default 120)",
-        "abort_on_fail":       "Stop after the first failed step or automatic console failure; remaining steps, including teardown, are skipped",
-        "defs":                "Inline VAL definitions prepended to script (alias block)",
-        "path":                "Path to .playtest DSL file on disk (mutually exclusive with script)",
-        "snapshot_on_failure": "Auto-capture screenshot on first ASSERT failure",
-        "fresh":               "Stop and restart Play Mode before running the script",
-        "before_hook":         "DSL commands to run before entering Play Mode",
-        "after_hook":          "DSL commands to run after Play Mode exits",
     },
 
     "scene": {

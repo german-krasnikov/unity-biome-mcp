@@ -3,8 +3,8 @@ from ..ask.executor import AskExecutor
 from ..ask.router import is_mutating, route
 from ..ask.summarizer import Summarizer
 from ..sampling import sampling_service as _sampling
-from ._annotations import RO as _RO
 from ._common import bind
+from .generated.catalog_tools import tools
 
 # Module-level references — patched in tests
 _send = None
@@ -33,4 +33,4 @@ async def ask(question: str) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(ask)
+    tools.register(mcp, ask)
