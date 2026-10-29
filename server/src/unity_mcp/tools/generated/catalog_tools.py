@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=2cce46a2d1353c7b9d1b2645b1279f7bd2d7c18213d779a9a1aa5b6a66a2c4b9
+# source-sha256=ab967df1b1c2b477a8271a468db62ef84fe31eef13143f2afdf67831f4e7a848
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -26,6 +26,20 @@ tools.expect('alias_status', 'RO', "Check alias table health: loaded/empty/stale
 tools.expect('analyze_lod_culling', 'RO', "LOD group coverage + occlusion culling analysis.", (
     ('focus', ostr, None),
 ))
+
+
+@tools.provide
+async def analyze_lod_culling(
+    focus: ostr = None,
+) -> str:
+    ("LOD group coverage + occlusion culling analysis."
+     "\n    focus: lod|culling|occlusion|null=all."
+    )
+    return await _send('analyze_lod_culling', _args(
+        focus=rt.w_ostr(focus),
+    ))
+
+
 tools.expect('animation', 'RW', "Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this).", (
     ('action', str),
     ('path', str),
@@ -123,6 +137,21 @@ tools.expect('autofit_collider', 'RW', "Auto-fit collider to mesh/renderer bound
     ('path', str),
     ('type', str, "box"),
 ))
+
+
+@tools.provide
+async def autofit_collider(
+    path: str,
+    type: str = "box",
+) -> str:
+    ("Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule."
+    )
+    return await _send('autofit_collider', _args(
+        path=rt.w_str(path),
+        type=rt.w_str(type),
+    ))
+
+
 tools.expect('await_compile', 'RO', "Block until Unity finishes compiling + reloading, then return compile errors.", (
     ('timeout', float, 60.0),
     ('expected_generation', oint, None),
@@ -157,6 +186,19 @@ tools.expect('cancel_test_run', 'RW_IDEM', "Request cancellation of one exact te
 tools.expect('check_colliders', 'RO', "Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given.", (
     ('path', ostr, None),
 ))
+
+
+@tools.provide
+async def check_colliders(
+    path: ostr = None,
+) -> str:
+    ("Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given."
+    )
+    return await _send('check_colliders', _args(
+        path=rt.w_ostr(path),
+    ))
+
+
 tools.expect('checkpoint', 'RW', "Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity.", (
     ('label', str, "checkpoint"),
 ))
@@ -185,6 +227,29 @@ tools.expect('create_object', 'RW', "Create new GameObject. components: comma-se
     ('prefab_path', ostr, None),
     ('scene', ostr, None),
 ))
+
+
+@tools.provide
+async def create_object(
+    name: str,
+    parent: ostr = None,
+    components: ostr = None,
+    primitive: ostr = None,
+    prefab_path: ostr = None,
+    scene: ostr = None,
+) -> str:
+    ("Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene)."
+    )
+    return await _send('create_object', _args(
+        name=rt.w_str(name),
+        parent=rt.w_ostr(parent),
+        components=rt.w_ostr(components),
+        primitive=rt.w_ostr(primitive),
+        prefab_path=rt.w_ostr(prefab_path),
+        scene=rt.w_ostr(scene),
+    ))
+
+
 tools.expect('create_ui', 'RW', "Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace. font_min/font_max: enable TMP autoSizing for Text type.", (
     ('type', str),
     ('name', ostr, None),
@@ -248,15 +313,63 @@ tools.expect('find_objects', 'RO', "Find objects by criteria. Use search_scene f
     ('layer', ostr, None),
     ('component', ostr, None),
 ))
+
+
+@tools.provide
+async def find_objects(
+    name: ostr = None,
+    tag: ostr = None,
+    layer: ostr = None,
+    component: ostr = None,
+) -> str:
+    ("Find objects by criteria. Use search_scene for complex queries. Does NOT support: parent, path, active/inactive filtering, regex. Only: name (substring), tag, layer, component (full namespace)."
+    )
+    return await _send('find_objects', _args(
+        name=rt.w_ostr(name),
+        tag=rt.w_ostr(tag),
+        layer=rt.w_ostr(layer),
+        component=rt.w_ostr(component),
+    ))
+
+
 tools.expect('fingerprint', 'RO', "Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens.", (
     ('path', ostr, None),
     ('depth', int, 3),
 ))
+
+
+@tools.provide
+async def fingerprint(
+    path: ostr = None,
+    depth: int = 3,
+) -> str:
+    ("Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens."
+    )
+    return await _send('fingerprint', _args(
+        path=rt.w_ostr(path),
+        depth=rt.w_int(depth, raw=True),
+    ))
+
+
 tools.expect('get_capabilities', 'RO', "Unity version, platform, render pipeline, scripting backend, and optional packages available.", (
 ))
 tools.expect('get_changes', 'RW', "Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,", (
     ('clear', bool, True),
 ))
+
+
+@tools.provide
+async def get_changes(
+    clear: bool = True,
+) -> str:
+    ("Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,"
+     "\n    play mode, scene open/save, selection. Returns chronological event list or NO_CHANGES."
+    )
+    return await _send('get_changes', _args(
+        clear=rt.w_bool(clear),
+    ))
+
+
 tools.expect('get_changeset', 'RO', "Return the current ChangeSet: accumulated mutations this session.", (
 ))
 tools.expect('get_compile_errors', 'RO', "Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed.", (
@@ -272,6 +385,19 @@ tools.expect('get_component', 'RO', "Component properties as key-value. For MULT
 tools.expect('get_components_list', 'RO', "List all components on object by instance ID.", (
     ('id', int),
 ))
+
+
+@tools.provide
+async def get_components_list(
+    id: int,
+) -> str:
+    ("List all components on object by instance ID."
+    )
+    return await _send('get_components_list', _args(
+        id=rt.w_int(id, raw=True),
+    ))
+
+
 tools.expect('get_console', 'RO', "Recent console logs. For C# compile errors use get_compile_errors instead. keyword: case-insensitive substring filter. count_only: return N matches as string. since: only logs from last N seconds.", (
     ('count', int, 10),
     ('level', ostr, None),
@@ -323,6 +449,21 @@ tools.expect('get_spatial_context', 'RO', "Collider info + approach vectors + ne
     ('path', str),
     ('radius', float, 5.0),
 ))
+
+
+@tools.provide
+async def get_spatial_context(
+    path: str,
+    radius: float = 5.0,
+) -> str:
+    ("Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only."
+    )
+    return await _send('get_spatial_context', _args(
+        path=rt.w_str(path),
+        radius=rt.w_float(radius),
+    ))
+
+
 tools.expect('get_test_count', 'RO', "Number of edit-mode and play-mode tests in the project.", (
 ))
 tools.expect('get_test_progress', 'RO', "Legacy progress facade. Pass run_id to correlate the response.", (
@@ -337,6 +478,20 @@ tools.expect('get_test_run', 'RO', "Return the durable JSON snapshot for one exa
 tools.expect('get_unity_events', 'RO', "List all UnityEvent persistent listeners in the active scene.", (
     ('path', ostr, None),
 ))
+
+
+@tools.provide
+async def get_unity_events(
+    path: ostr = None,
+) -> str:
+    ("List all UnityEvent persistent listeners in the active scene."
+     "\n    path: optional scene-path prefix filter (e.g. '/UI' to scan only the UI subtree)."
+    )
+    return await _send('get_unity_events', _args(
+        path=rt.w_ostr(path),
+    ))
+
+
 tools.expect('inspect', 'RO', "Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all).", (
     ('paths', ostr, None),
     ('components', ostr, None),
@@ -381,6 +536,25 @@ tools.expect('list_events', 'RO', "Read persistent listeners on a UnityEvent fie
     ('component', str),
     ('event', str),
 ))
+
+
+@tools.provide
+async def list_events(
+    path: str,
+    component: str,
+    event: str,
+) -> str:
+    ("Read persistent listeners on a UnityEvent field. Use after wire_event to verify."
+     "\n    Returns listener details: target path, method name, call state, arg type/value."
+     "\n    event: serialized field name — same as wire_event 'event' param (e.g. 'onClick')."
+    )
+    return await _send('list_events', _args(
+        path=rt.w_str(path),
+        component=rt.w_str(component),
+        event=rt.w_str(event),
+    ))
+
+
 tools.expect('list_skills', 'RO', "List all saved skills with descriptions and usage counts.", (
 ))
 tools.expect('list_templates', 'RO', "List available scene templates in .claude/templates/.", (
@@ -395,6 +569,23 @@ tools.expect('manage_component', 'RW', "Add or remove a component. Mutates scene
     ('type', str),
     ('action', str),
 ))
+
+
+@tools.provide
+async def manage_component(
+    path: str,
+    type: str,
+    action: str,
+) -> str:
+    ("Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
+    )
+    return await _send('manage_component', _args(
+        path=rt.w_str(path),
+        type=rt.w_str(type),
+        action=rt.w_str(action),
+    ))
+
+
 tools.expect('material', 'RW', "Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared).", (
     ('action', str),
     ('path', ostr, None),
@@ -439,6 +630,21 @@ tools.expect('object_diff', 'RO', "Diff two GameObjects (components, properties,
     ('path_a', str),
     ('path_b', str),
 ))
+
+
+@tools.provide
+async def object_diff(
+    path_a: str,
+    path_b: str,
+) -> str:
+    ("Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."
+    )
+    return await _send('object_diff', _args(
+        path_a=rt.w_str(path_a),
+        path_b=rt.w_str(path_b),
+    ))
+
+
 tools.expect('package', 'RW', "Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove.", (
     ('action', str),
     ('name', ostr, None),
@@ -603,6 +809,17 @@ tools.expect('save_template', 'RW_IDEM', "Save C# code as a reusable scene templ
 ))
 tools.expect('scan_scene', 'RO', "Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats.", (
 ))
+
+
+@tools.provide
+async def scan_scene(
+) -> str:
+    ("Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats."
+    )
+    return await _send('scan_scene', _args(
+    ))
+
+
 tools.expect('scene', 'DEL', "Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy.", (
     ('action', str),
     ('path', ostr, None),
@@ -616,14 +833,61 @@ tools.expect('scene_change_plan', 'RW', "Pre-flight + plan for safe scene edit."
 ))
 tools.expect('scene_diff', 'RO', "Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines.", (
 ))
+
+
+@tools.provide
+async def scene_diff(
+) -> str:
+    ("Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines."
+    )
+    return await _send('scene_diff', _args(
+    ))
+
+
 tools.expect('scene_environment', 'RW', "Read/write scene environment: ambient light, fog, skybox, reflections.", (
     ('action', str, "get"),
     ('prop', ostr, None),
     ('value', ostr, None),
 ))
+
+
+@tools.provide
+async def scene_environment(
+    action: str = "get",
+    prop: ostr = None,
+    value: ostr = None,
+) -> str:
+    ("Read/write scene environment: ambient light, fog, skybox, reflections."
+     "\n    action: get|set. set requires prop and value."
+     "\n    Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,"
+     "\n    ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance,"
+     "\n    reflectionIntensity, reflectionBounces, subtractiveShadowColor, defaultReflectionResolution."
+    )
+    return await _send('scene_environment', _args(
+        action=rt.w_str(action),
+        prop=rt.w_ostr(prop),
+        value=rt.w_ostr(value),
+    ))
+
+
 tools.expect('scene_health', 'RO', "Scene hierarchy/health audit.", (
     ('focus', str, "all"),
 ))
+
+
+@tools.provide
+async def scene_health(
+    focus: str = "all",
+) -> str:
+    ("Scene hierarchy/health audit."
+     "\n    focus: all | hierarchy | naming | duplicates | origins | missing | empty | disabled"
+     "\n    Returns severity-tagged findings: CRITICAL/WARNING/INFO/OK per check."
+    )
+    return await _send('scene_health', _args(
+        focus=rt.w_str(focus),
+    ))
+
+
 tools.expect('screenshot', 'RW', "Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), raw=True forces path.", (
     ('width', int, 640),
     ('height', int, 480),
@@ -723,11 +987,45 @@ tools.expect('set_material', 'RW_IDEM', "Set scene object material color (for fu
     ('color', str),
     ('shader', ostr, None),
 ))
+
+
+@tools.provide
+async def set_material(
+    path: str,
+    color: str,
+    shader: ostr = None,
+) -> str:
+    ("Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto."
+    )
+    return await _send('set_material', _args(
+        path=rt.w_str(path),
+        color=rt.w_str(color),
+        shader=rt.w_ostr(shader),
+    ))
+
+
 tools.expect('set_parent', 'RW_IDEM', "Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent.", (
     ('path', str),
     ('parent', ostr, None),
     ('world_position_stays', bool, True),
 ))
+
+
+@tools.provide
+async def set_parent(
+    path: str,
+    parent: ostr = None,
+    world_position_stays: bool = True,
+) -> str:
+    ("Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent."
+    )
+    return await _send('set_parent', _args(
+        path=rt.w_str(path),
+        parent=rt.w_ostr(parent),
+        world_position_stays=rt.w_bool(world_position_stays, True),
+    ))
+
+
 tools.expect('set_properties', 'RW', "Set multiple properties on ONE object. For multiple objects, use configure_objects instead.", (
     ('path', str),
     ('props', str),
@@ -747,6 +1045,25 @@ tools.expect('set_property_delta', 'RW', "Apply delta to numeric property. delta
     ('prop', str),
     ('delta', str),
 ))
+
+
+@tools.provide
+async def set_property_delta(
+    path: str,
+    component: str,
+    prop: str,
+    delta: str,
+) -> str:
+    ("Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new."
+    )
+    return await _send('set_property_delta', _args(
+        path=rt.w_str(path),
+        component=rt.w_str(component),
+        prop=rt.w_str(prop),
+        delta=rt.w_str(delta),
+    ))
+
+
 tools.expect('set_rect', 'RW_IDEM', "Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y). pos3: (x,y,z) sets anchoredPosition3D — use for WorldSpace canvases (wins over pos if both given).", (
     ('path', str),
     ('anchor', ostr, None),
@@ -870,6 +1187,30 @@ tools.expect('transfer_object', 'RW', "Move or copy a GameObject to another load
     ('parent', ostr, None),
     ('world_position_stays', bool, True),
 ))
+
+
+@tools.provide
+async def transfer_object(
+    path: str,
+    action: str,
+    target_scene: ostr = None,
+    parent: ostr = None,
+    world_position_stays: bool = True,
+) -> str:
+    ("Move or copy a GameObject to another loaded scene. action: move|copy."
+     "\n    target_scene: destination scene name. Omit = same scene (copy = duplicate)."
+     "\n    parent: target parent path in destination scene."
+     "\n    world_position_stays: preserve world transform (default True)."
+    )
+    return await _send('transfer_object', _args(
+        path=rt.w_str(path),
+        action=rt.w_str(action),
+        target_scene=rt.w_ostr(target_scene),
+        parent=rt.w_ostr(parent),
+        world_position_stays=rt.w_bool(world_position_stays, True),
+    ))
+
+
 tools.expect('ui_intent', 'RW', "Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.", (
     ('intent', str),
     ('parent', ostr, None),
@@ -916,6 +1257,26 @@ tools.expect('unwire_event', 'DEL', "Remove persistent listener(s) from UnityEve
     ('event', str),
     ('index', oint, None),
 ))
+
+
+@tools.provide
+async def unwire_event(
+    path: str,
+    component: str,
+    event: str,
+    index: oint = None,
+) -> str:
+    ("Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required."
+     "\n    index: remove specific entry (0-based). Omit to clear all."
+    )
+    return await _send('unwire_event', _args(
+        path=rt.w_str(path),
+        component=rt.w_str(component),
+        event=rt.w_str(event),
+        index=rt.w_oint(index, raw=True),
+    ))
+
+
 tools.expect('use_skill', 'RW', "Execute a previously saved skill. params: comma-separated key=value for substitution.", (
     ('name', str),
     ('params', ostr, None),
@@ -934,6 +1295,21 @@ tools.expect('validate_triggers', 'RO', "Check 3D trigger/collider overlaps. War
     ('root', str, "/"),
     ('min_distance', float, 3.0),
 ))
+
+
+@tools.provide
+async def validate_triggers(
+    root: str = "/",
+    min_distance: float = 3.0,
+) -> str:
+    ("Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters."
+    )
+    return await _send('validate_triggers', _args(
+        root=rt.w_str(root),
+        min_distance=rt.w_float(min_distance),
+    ))
+
+
 tools.expect('verify_after_change', 'RW', "Single verification gate after code/scene changes.", (
     ('changed_files', str, ""),
     ('test_filter', str, ""),
@@ -971,3 +1347,40 @@ tools.expect('wire_event', 'RW', "Wire UnityEvent persistent listener. Mutates s
     ('target_component_type', ostr, None),
     ('parameter_types', ostr, None),
 ))
+
+
+@tools.provide
+async def wire_event(
+    path: str,
+    component: str,
+    event: str,
+    target: str,
+    method: str,
+    arg_type: str = "void",
+    arg_value: ostr = None,
+    target_component_type: ostr = None,
+    parameter_types: ostr = None,
+) -> str:
+    ("Wire UnityEvent persistent listener. Mutates scene. No confirmation required."
+     "\n    path: object with the event. component: type owning the event field."
+     "\n    event: serialized field name (e.g. 'onClick', '_onComplete')."
+     "\n    target: scene path or asset path. Auto-resolves component owning the method."
+     "\n    method: method name (e.g. 'SetActive', 'Play')."
+     "\n    arg_type: void|bool|int|float|string|object."
+     "\n    arg_value: required when arg_type != void. For object: scene path or asset path."
+     "\n    target_component_type: narrow component search to this type (e.g. 'Animator')."
+     "\n    parameter_types: comma-separated param types to resolve overloads (e.g. 'string')."
+    )
+    return await _send('wire_event', _args(
+        path=rt.w_str(path),
+        component=rt.w_str(component),
+        event=rt.w_str(event),
+        target=rt.w_str(target),
+        method=rt.w_str(method),
+        arg_type=rt.w_str(arg_type),
+        arg_value=rt.w_ostr(arg_value),
+        target_component_type=rt.w_ostr(target_component_type),
+        parameter_types=rt.w_ostr(parameter_types),
+    ))
+
+

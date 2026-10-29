@@ -9,10 +9,14 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 from ._common import _guard_read_only, bind
 
-# The tool catalog (dsl/tools.biome) owns search_scene (server.py and the tests import it from here) and registers the other tools
-# of this module (tools.register).
-from .generated.catalog_tools import (
-    search_scene,  # noqa: F401
+# The tool catalog (dsl/tools.biome) generates the wrappers named here (server.py and the tests import them from this module);
+# `tools` registers the others.
+from .generated.catalog_tools import (  # noqa: F401
+    fingerprint,
+    get_changes,
+    scene_diff,
+    scene_environment,
+    search_scene,
     tools,
 )
 
@@ -161,26 +165,6 @@ async def scene(action: str, path: str | None = None, scene: str | None = None,
     return await _send("scene", _args(action=action, path=path, scene=scene))
 
 
-async def fingerprint(path: str | None = None, depth: int = 3) -> str:
-    """Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens."""
-    return await _send("fingerprint", _args(path=path, depth=depth))
-
-
-async def scene_environment(action: str = "get", prop: str | None = None,
-                            value: str | None = None) -> str:
-    """Read/write scene environment: ambient light, fog, skybox, reflections.
-    action: get|set. set requires prop and value.
-    Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,
-    ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance,
-    reflectionIntensity, reflectionBounces, subtractiveShadowColor, defaultReflectionResolution."""
-    return await _send("scene_environment", _args(action=action, prop=prop, value=value))
-
-
-async def scene_diff() -> str:
-    """Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines."""
-    return await _send("scene_diff", {})
-
-
 def _extract_saved_path(result: str) -> str:
     return result.split("Data saved to: ")[-1].strip()
 
@@ -240,12 +224,6 @@ async def screenshot_baseline(name: str = "default", width: int = 640, height: i
     return f"Baseline saved: {baseline_path}"
 
 
-async def get_changes(clear: bool = True) -> str:
-    """Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,
-    play mode, scene open/save, selection. Returns chronological event list or NO_CHANGES."""
-    return await _send("get_changes", _args(clear="true" if clear else "false"))
-
-
 async def screenshot_compare(name: str = "default", width: int = 640, height: int = 480,
                               camera: str | None = None, mode: str = "auto",
                               question: str | None = None) -> str:
@@ -269,11 +247,7 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     tools.register(mcp, get_hierarchy)
     tools.register(mcp, scene)
-    tools.register(mcp, fingerprint)
-    tools.register(mcp, scene_diff)
-    tools.register(mcp, scene_environment)
     tools.register(mcp, save_session)
     tools.register(mcp, load_session)
     tools.register(mcp, screenshot_baseline)
     tools.register(mcp, screenshot_compare)
-    tools.register(mcp, get_changes)

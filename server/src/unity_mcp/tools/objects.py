@@ -4,9 +4,27 @@ from unity_mcp.input_normalizer import normalize_value as _normalize_value
 
 from ._common import bind
 
-# The tool catalog (dsl/tools.biome) owns rename_object, set_active and set_sibling_index (server.py and the tests import them from here)
-# and registers the other tools of this module (tools.register).
-from .generated.catalog_tools import rename_object, set_active, set_sibling_index, tools  # noqa: F401
+# The tool catalog (dsl/tools.biome) generates the wrappers named here (server.py and the tests import them from this module);
+# `tools` registers the others.
+from .generated.catalog_tools import (  # noqa: F401
+    create_object,
+    find_objects,
+    get_components_list,
+    get_unity_events,
+    list_events,
+    manage_component,
+    object_diff,
+    rename_object,
+    set_active,
+    set_material,
+    set_parent,
+    set_property_delta,
+    set_sibling_index,
+    tools,
+    transfer_object,
+    unwire_event,
+    wire_event,
+)
 
 _send = None
 _args = None
@@ -52,21 +70,6 @@ async def inspect(paths: str | None = None, components: str | None = None, field
     return await _send("inspect", _args(paths=paths, find_type=find_type, components=components, **extra))
 
 
-async def get_components_list(id: int) -> str:
-    """List all components on object by instance ID."""
-    return await _send("get_components_list", {"id": id})
-
-
-async def find_objects(
-    name: str | None = None,
-    tag: str | None = None,
-    layer: str | None = None,
-    component: str | None = None,
-) -> str:
-    """Find objects by criteria. Use search_scene for complex queries. Does NOT support: parent, path, active/inactive filtering, regex. Only: name (substring), tag, layer, component (full namespace)."""
-    return await _send("find_objects", _args(name=name, tag=tag, layer=layer, component=component))
-
-
 async def set_property(path: str | None = None, component: str = "", prop: str = "", value=None,
                        dry_run: bool = False, find_type: str | None = None,
                        ref_component_type: str | None = None) -> str:
@@ -86,66 +89,6 @@ async def set_property(path: str | None = None, component: str = "", prop: str =
     return await _send("set_property", args)
 
 
-async def create_object(
-    name: str, parent: str | None = None, components: str | None = None,
-    primitive: str | None = None, prefab_path: str | None = None,
-    scene: str | None = None,
-) -> str:
-    """Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene)."""
-    return await _send("create_object", _args(name=name, parent=parent, components=components,
-                                              primitive=primitive, prefab_path=prefab_path,
-                                              scene=scene))
-
-
-async def transfer_object(
-    path: str, action: str,
-    target_scene: str | None = None,
-    parent: str | None = None,
-    world_position_stays: bool = True,
-) -> str:
-    """Move or copy a GameObject to another loaded scene. action: move|copy.
-    target_scene: destination scene name. Omit = same scene (copy = duplicate).
-    parent: target parent path in destination scene.
-    world_position_stays: preserve world transform (default True)."""
-    wps = None if world_position_stays else "false"
-    return await _send("transfer_object", _args(
-        path=path, action=action, target_scene=target_scene,
-        parent=parent, world_position_stays=wps))
-
-
-async def wire_event(path: str, component: str, event: str, target: str, method: str,
-                     arg_type: str = "void", arg_value: str | None = None,
-                     target_component_type: str | None = None,
-                     parameter_types: str | None = None) -> str:
-    """Wire UnityEvent persistent listener. Mutates scene. No confirmation required.
-    path: object with the event. component: type owning the event field.
-    event: serialized field name (e.g. 'onClick', '_onComplete').
-    target: scene path or asset path. Auto-resolves component owning the method.
-    method: method name (e.g. 'SetActive', 'Play').
-    arg_type: void|bool|int|float|string|object.
-    arg_value: required when arg_type != void. For object: scene path or asset path.
-    target_component_type: narrow component search to this type (e.g. 'Animator').
-    parameter_types: comma-separated param types to resolve overloads (e.g. 'string')."""
-    return await _send("wire_event", _args(
-        path=path, component=component, event=event,
-        target=target, method=method, arg_type=arg_type, arg_value=arg_value,
-        target_component_type=target_component_type, parameter_types=parameter_types))
-
-
-async def unwire_event(path: str, component: str, event: str, index: int | None = None) -> str:
-    """Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required.
-    index: remove specific entry (0-based). Omit to clear all."""
-    return await _send("unwire_event", _args(
-        path=path, component=component, event=event, index=index))
-
-
-async def list_events(path: str, component: str, event: str) -> str:
-    """Read persistent listeners on a UnityEvent field. Use after wire_event to verify.
-    Returns listener details: target path, method name, call state, arg type/value.
-    event: serialized field name — same as wire_event 'event' param (e.g. 'onClick')."""
-    return await _send("list_events", _args(path=path, component=component, event=event))
-
-
 async def delete_object(id: int | None = None, path: str | None = None, force: bool = False) -> str:
     """Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."""
     if id is None and not path:
@@ -157,11 +100,6 @@ async def delete_object(id: int | None = None, path: str | None = None, force: b
     return await _send("delete_object", args)
 
 
-async def manage_component(path: str, type: str, action: str) -> str:
-    """Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."""
-    return await _send("manage_component", {"path": path, "type": type, "action": action})
-
-
 async def get_object_detail(id: int, full: bool = False) -> str:
     """Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation."""
     args: dict = {"id": id}
@@ -170,54 +108,10 @@ async def get_object_detail(id: int, full: bool = False) -> str:
     return await _send("get_object_detail", args)
 
 
-async def set_material(path: str, color: str, shader: str | None = None) -> str:
-    """Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto."""
-    return await _send("set_material", _args(path=path, color=color, shader=shader))
-
-
-async def set_property_delta(path: str, component: str, prop: str, delta: str) -> str:
-    """Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new."""
-    return await _send("set_property_delta", _args(path=path, component=component, prop=prop, delta=delta))
-
-
-async def set_parent(path: str, parent: str | None = None, world_position_stays: bool = True) -> str:
-    """Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent."""
-    args: dict = {"path": path}
-    if not world_position_stays:
-        args["world_position_stays"] = "false"
-    if parent is not None:
-        args["parent"] = parent
-    return await _send("set_parent", args)
-
-
-async def object_diff(path_a: str, path_b: str) -> str:
-    """Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."""
-    return await _send("object_diff", {"path_a": path_a, "path_b": path_b})
-
-
-async def get_unity_events(path: str | None = None) -> str:
-    """List all UnityEvent persistent listeners in the active scene.
-    path: optional scene-path prefix filter (e.g. '/UI' to scan only the UI subtree)."""
-    return await _send("get_unity_events", _args(path=path))
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
     tools.register(mcp, get_component)
     tools.register(mcp, inspect)
-    tools.register(mcp, get_components_list)
-    tools.register(mcp, find_objects)
     tools.register(mcp, set_property)
-    tools.register(mcp, create_object)
-    tools.register(mcp, transfer_object)
-    tools.register(mcp, wire_event)
-    tools.register(mcp, unwire_event)
     tools.register(mcp, delete_object)
-    tools.register(mcp, manage_component)
     tools.register(mcp, get_object_detail)
-    tools.register(mcp, set_material)
-    tools.register(mcp, set_property_delta)
-    tools.register(mcp, set_parent)
-    tools.register(mcp, object_diff)
-    tools.register(mcp, get_unity_events)
-    tools.register(mcp, list_events)

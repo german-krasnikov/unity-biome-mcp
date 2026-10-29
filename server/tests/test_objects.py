@@ -8,9 +8,11 @@ def _make_args(**kwargs):
 
 def _setup(monkeypatch):
     from unity_mcp.tools import objects
+    from unity_mcp.tools.generated import catalog_tools
     mock = AsyncMock(return_value="mass: 1.0")
-    monkeypatch.setattr(objects, "_send", mock)
-    monkeypatch.setattr(objects, "_args", _make_args)
+    for module in (objects, catalog_tools):  # the wrappers the tool catalog generates live in catalog_tools
+        monkeypatch.setattr(module, "_send", mock)
+        monkeypatch.setattr(module, "_args", _make_args)
     monkeypatch.setattr(objects, "_project_fields", lambda r, f: r)
     return mock
 

@@ -75,8 +75,8 @@ def test_objects_register_wires_tools():
 
     mod.register(mcp, send, MagicMock())
 
-    # At least get_component and set_property must be registered
-    assert mcp.tool.call_count >= 8
+    # get_component, inspect, set_property, delete_object and get_object_detail (the other 13 tools of the module are the catalog's)
+    assert mcp.tool.call_count >= 5
 
 
 # ── Part 2: scene.py (B2: slimmed — get_hierarchy/scene/search_scene/fingerprint/
@@ -102,10 +102,10 @@ def test_scene_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # get_hierarchy, scene, fingerprint, scene_diff, scene_environment (5; search_scene is
+    # get_hierarchy, scene (2; fingerprint, scene_diff, scene_environment, get_changes and search_scene are
     # registered by the tool catalog) + scene.py delegation: save_session, load_session,
-    # screenshot_baseline, screenshot_compare, get_changes (5) = 10
-    assert mcp.tool.call_count >= 10
+    # screenshot_baseline, screenshot_compare (4) = 6
+    assert mcp.tool.call_count >= 6
 
 
 # ── Part 3: runtime.py ────────────────────────────────────────────────────────
@@ -288,11 +288,11 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
         mod.register(mcp, AsyncMock(), MagicMock())
         return mcp.tool.call_count
 
-    scene_total = _own_count(scene_mod)  # includes scene.py's 5 delegated tools
-    scene_own = scene_total - 5
+    scene_total = _own_count(scene_mod)  # includes scene.py's 4 delegated tools
+    scene_own = scene_total - 4
     total = (scene_own + _own_count(console_mod) + _own_count(screenshot_mod)
              + _own_count(testing_mod) + _own_count(ec_mod))
-    assert total == 26  # 27 before the tool catalog took search_scene from scene.py
+    assert total == 23  # 27 before the tool catalog took search_scene, fingerprint, scene_diff, scene_environment and get_changes from scene.py
 
 
 # ── PR-02 Track A: register_all() threads stdio_alive through to connection ────

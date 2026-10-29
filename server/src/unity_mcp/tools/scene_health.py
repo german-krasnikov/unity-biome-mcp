@@ -1,18 +1,12 @@
 """Scene hierarchy/health audit — F4."""
 from ._common import bind
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import scene_health  # noqa: F401
 
 _send = None
 _args = None
 
 
-async def scene_health(focus: str = "all") -> str:
-    """Scene hierarchy/health audit.
-    focus: all | hierarchy | naming | duplicates | origins | missing | empty | disabled
-    Returns severity-tagged findings: CRITICAL/WARNING/INFO/OK per check."""
-    return await _send("scene_health", _args(focus=focus))
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, scene_health)

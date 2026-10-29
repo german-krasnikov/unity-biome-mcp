@@ -20,12 +20,12 @@ import pytest
 # bool = True params that are semantically correct (not Pattern A violations).
 # Tuple: (module_short_name, function_name, param_name)
 BOOL_TRUE_EXCEPTIONS = {
-    ("objects", "transfer_object", "world_position_stays"),   # semantic: False=snap
-    ("objects", "set_parent", "world_position_stays"),        # semantic: False=snap
+    ("catalog_tools", "transfer_object", "world_position_stays"),   # semantic: False=snap
+    ("catalog_tools", "set_parent", "world_position_stays"),        # semantic: False=snap
     ("diagnose", "diagnose", "expected_compile"),             # semantic: True=normal state
     ("gating", "discover_tools", "enable"),                   # semantic: True=enable on discover
     ("meta", "discover_tools", "enable"),                     # semantic: True=enable on discover
-    ("scene", "get_changes", "clear"),                        # semantic: True=consume-on-read
+    ("catalog_tools", "get_changes", "clear"),                # semantic: True=consume-on-read
     ("spatial", "region_clear", "dry_run"),                   # safety guard: preview before delete
     ("asset", "asset", "include_deps"),                       # semantic: True=include deps by default
     ("runtime", "run_playtest_suite", "stop_after"),          # semantic: True=stop suite on failure

@@ -1,34 +1,19 @@
 """Spatial / scene-analysis queries: layout, context, scan, raycast, colliders."""
 from ._common import bind
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import (  # noqa: F401
+    analyze_lod_culling,
+    autofit_collider,
+    check_colliders,
+    get_spatial_context,
+    scan_scene,
+    tools,
+    validate_triggers,
+)
 
 _send = None
 _args = None
-
-
-async def validate_triggers(root: str = "/", min_distance: float = 3.0) -> str:
-    """Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters."""
-    return await _send("validate_triggers", _args(root=root, min_distance=str(min_distance)))
-
-
-async def get_spatial_context(path: str, radius: float = 5.0) -> str:
-    """Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only."""
-    return await _send("get_spatial_context", _args(path=path, radius=str(radius)))
-
-
-async def scan_scene() -> str:
-    """Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats."""
-    return await _send("scan_scene", {})
-
-
-async def check_colliders(path: str | None = None) -> str:
-    """Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given."""
-    return await _send("check_colliders", _args(path=path))
-
-
-async def autofit_collider(path: str, type: str = "box") -> str:
-    """Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule."""
-    return await _send("autofit_collider", _args(path=path, type=type))
 
 
 def _validate_polygon(vertices: str | None) -> None:
@@ -138,20 +123,8 @@ async def navmesh_query(action: str, center: str | None = None,
     return result
 
 
-async def analyze_lod_culling(focus: str | None = None) -> str:
-    """LOD group coverage + occlusion culling analysis.
-    focus: lod|culling|occlusion|null=all."""
-    return await _send("analyze_lod_culling", _args(focus=focus))
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, validate_triggers)
-    tools.register(mcp, get_spatial_context)
-    tools.register(mcp, scan_scene)
-    tools.register(mcp, check_colliders)
-    tools.register(mcp, autofit_collider)
     tools.register(mcp, spatial_query)
     tools.register(mcp, region_clear)
     tools.register(mcp, navmesh_query)
-    tools.register(mcp, analyze_lod_culling)

@@ -14,6 +14,8 @@ TOOL alias_status SYSTEM RO "Check alias table health: loaded/empty/stale, sourc
 END
 
 TOOL analyze_lod_culling MEDIA RO "LOD group coverage + occlusion culling analysis."
+  FORWARD
+  DOC "focus: lod|culling|occlusion|null=all."
   ARG focus ostr DEFAULT None
 END
 
@@ -127,6 +129,7 @@ TOOL auto_wire COMPONENTS RW "Fill null ObjectReference fields on a GameObject b
 END
 
 TOOL autofit_collider SCENE RW "Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule."
+  FORWARD
   ARG path str
   ARG type str DEFAULT_TEXT "box" "Collider shape to fit: box|sphere|capsule"
 END
@@ -181,6 +184,7 @@ TOOL cancel_test_run TESTS RW_IDEM "Request cancellation of one exact test run; 
 END
 
 TOOL check_colliders SCENE RO "Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given."
+  FORWARD
   ARG path ostr DEFAULT None
 END
 
@@ -218,6 +222,7 @@ PYTOOL console_mark RUNTIME RO "Create a console watermark. Returns mark_id enco
 END
 
 TOOL create_object CORE RW "Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene)."
+  FORWARD
   FLAG core
   ARG name str "Name for the new GameObject"
   ARG parent ostr DEFAULT None "Scene path of the parent (omit = scene root)"
@@ -310,6 +315,7 @@ TOOL export_playtest_aliases_to_defs TESTS RW "Export PlaytestConfig.asset alias
 END
 
 TOOL find_objects SCENE RO "Find objects by criteria. Use search_scene for complex queries. Does NOT support: parent, path, active/inactive filtering, regex. Only: name (substring), tag, layer, component (full namespace)."
+  FORWARD
   ARG name ostr DEFAULT None
   ARG tag ostr DEFAULT None
   ARG layer ostr DEFAULT None
@@ -317,9 +323,10 @@ TOOL find_objects SCENE RO "Find objects by criteria. Use search_scene for compl
 END
 
 TOOL fingerprint SYSTEM RO "Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens."
+  FORWARD
   TIMEOUT 10.0
   ARG path ostr DEFAULT None
-  ARG depth int DEFAULT 3
+  ARG depth int DEFAULT 3 RAW
 END
 
 INTERNAL get_aliases RO "The alias table as name=value lines; the server reads it when it connects."
@@ -329,6 +336,8 @@ TOOL get_capabilities SYSTEM RO "Unity version, platform, render pipeline, scrip
 END
 
 TOOL get_changes SYSTEM RW "Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,"
+  FORWARD
+  DOC "play mode, scene open/save, selection. Returns chronological event list or NO_CHANGES."
   ARG clear bool DEFAULT True
 END
 
@@ -352,7 +361,8 @@ TOOL get_component CORE RO "Component properties as key-value. For MULTIPLE obje
 END
 
 TOOL get_components_list SCENE RO "List all components on object by instance ID."
-  ARG id int
+  FORWARD
+  ARG id int RAW
 END
 
 TOOL get_console CORE RO "Recent console logs. For C# compile errors use get_compile_errors instead. keyword: case-insensitive substring filter. count_only: return N matches as string. since: only logs from last N seconds."
@@ -429,6 +439,7 @@ TOOL get_selection SCENE RO "Currently selected GameObject: path and component l
 END
 
 TOOL get_spatial_context SCENE RO "Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only."
+  FORWARD
   ARG path str
   ARG radius float DEFAULT 5.0
 END
@@ -451,6 +462,8 @@ TOOL get_test_run TESTS RO "Return the durable JSON snapshot for one exact test 
 END
 
 TOOL get_unity_events SCENE RO "List all UnityEvent persistent listeners in the active scene."
+  FORWARD
+  DOC "path: optional scene-path prefix filter (e.g. '/UI' to scan only the UI subtree)."
   ARG path ostr DEFAULT None
 END
 
@@ -517,6 +530,9 @@ PYTOOL list_connections SYSTEM RO "List Unity connection status."
 END
 
 TOOL list_events COMPONENTS RO "Read persistent listeners on a UnityEvent field. Use after wire_event to verify."
+  FORWARD
+  DOC "Returns listener details: target path, method name, call state, arg type/value."
+  DOC "event: serialized field name — same as wire_event 'event' param (e.g. 'onClick')."
   ARG path str
   ARG component str
   ARG event str
@@ -541,6 +557,7 @@ PYTOOL load_session SYSTEM RO "Load previous session context beside the current 
 END
 
 TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
+  FORWARD
   FLAG core
   ARG path str "Scene path to the GameObject"
   ARG type str "Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button')"
@@ -598,6 +615,7 @@ PYTOOL navmesh_query SCENE RW "NavMesh queries and management. Bakes or clears N
 END
 
 TOOL object_diff SCENE RO "Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."
+  FORWARD
   ARG path_a str
   ARG path_b str
 END
@@ -809,6 +827,7 @@ PYTOOL save_template SYSTEM RW_IDEM "Save C# code as a reusable scene template i
 END
 
 TOOL scan_scene VERIFY RO "Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats."
+  FORWARD
 END
 
 TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy."
@@ -827,15 +846,24 @@ PYTOOL scene_change_plan SCENE RW "Pre-flight + plan for safe scene edit."
 END
 
 TOOL scene_diff SCENE RO "Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines."
+  FORWARD
 END
 
 TOOL scene_environment SCENE RW "Read/write scene environment: ambient light, fog, skybox, reflections."
+  FORWARD
+  DOC "action: get|set. set requires prop and value."
+  DOC "Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,"
+  DOC "ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance,"
+  DOC "reflectionIntensity, reflectionBounces, subtractiveShadowColor, defaultReflectionResolution."
   ARG action str DEFAULT_TEXT "get"
   ARG prop ostr DEFAULT None
   ARG value ostr DEFAULT None
 END
 
 TOOL scene_health VERIFY RO "Scene hierarchy/health audit."
+  FORWARD
+  DOC "focus: all | hierarchy | naming | duplicates | origins | missing | empty | disabled"
+  DOC "Returns severity-tagged findings: CRITICAL/WARNING/INFO/OK per check."
   ARG focus str DEFAULT_TEXT "all"
 END
 
@@ -916,16 +944,18 @@ TOOL set_active SCENE RW_IDEM "Set GameObject active/inactive."
 END
 
 TOOL set_material SCENE RW_IDEM "Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto."
+  FORWARD
   ARG path str
   ARG color str
   ARG shader ostr DEFAULT None
 END
 
 TOOL set_parent SCENE RW_IDEM "Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent."
+  FORWARD
   FLAG tier1
   ARG path str "Scene path of the GameObject to reparent"
   ARG parent ostr DEFAULT None "New parent scene path (omit or null = move to scene root)"
-  ARG world_position_stays bool DEFAULT True "True (default) = preserve world transform; False = keep local transform relative to new parent"
+  ARG world_position_stays bool DEFAULT True OMIT "True (default) = preserve world transform; False = keep local transform relative to new parent"
 END
 
 PYTOOL set_properties SCENE RW "Set multiple properties on ONE object. For multiple objects, use configure_objects instead."
@@ -945,6 +975,7 @@ TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObj
 END
 
 TOOL set_property_delta SCENE RW "Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new."
+  FORWARD
   ARG path str
   ARG component str
   ARG prop str
@@ -1082,11 +1113,15 @@ TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use f
 END
 
 TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene. action: move|copy."
+  FORWARD
+  DOC "target_scene: destination scene name. Omit = same scene (copy = duplicate)."
+  DOC "parent: target parent path in destination scene."
+  DOC "world_position_stays: preserve world transform (default True)."
   ARG path str
   ARG action str
   ARG target_scene ostr DEFAULT None
   ARG parent ostr DEFAULT None
-  ARG world_position_stays bool DEFAULT True
+  ARG world_position_stays bool DEFAULT True OMIT
 END
 
 PYTOOL ui_intent UGUI RW "Convert NL intent to Unity UI hierarchy. Templates bypass Haiku."
@@ -1141,10 +1176,12 @@ TOOL undo_last SYSTEM RW "Undo the last N AI turns in the Unity Undo stack. Defa
 END
 
 TOOL unwire_event COMPONENTS DEL "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required."
+  FORWARD
+  DOC "index: remove specific entry (0-based). Omit to clear all."
   ARG path str
   ARG component str
   ARG event str
-  ARG index oint DEFAULT None
+  ARG index oint DEFAULT None RAW
 END
 
 PYTOOL use_skill SYSTEM RW "Execute a previously saved skill. params: comma-separated key=value for substitution."
@@ -1166,6 +1203,7 @@ TOOL validate_references VERIFY RO "Validate all ObjectReference fields under pa
 END
 
 TOOL validate_triggers SCENE RO "Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters."
+  FORWARD
   ARG root str DEFAULT_TEXT "/"
   ARG min_distance float DEFAULT 3.0
 END
@@ -1207,6 +1245,15 @@ TOOL wait_until RUNTIME RW_IDEM "[Play Mode] Poll field until it matches value (
 END
 
 TOOL wire_event COMPONENTS RW "Wire UnityEvent persistent listener. Mutates scene. No confirmation required."
+  FORWARD
+  DOC "path: object with the event. component: type owning the event field."
+  DOC "event: serialized field name (e.g. 'onClick', '_onComplete')."
+  DOC "target: scene path or asset path. Auto-resolves component owning the method."
+  DOC "method: method name (e.g. 'SetActive', 'Play')."
+  DOC "arg_type: void|bool|int|float|string|object."
+  DOC "arg_value: required when arg_type != void. For object: scene path or asset path."
+  DOC "target_component_type: narrow component search to this type (e.g. 'Animator')."
+  DOC "parameter_types: comma-separated param types to resolve overloads (e.g. 'string')."
   ARG path str
   ARG component str
   ARG event str
