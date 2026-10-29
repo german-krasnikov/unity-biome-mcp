@@ -7,13 +7,14 @@ import time
 
 from mcp.server.fastmcp.exceptions import ToolError
 
-from ._annotations import DEL as _DEL
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._common import _guard_read_only, bind
 
-# The tool catalog (dsl/tools.biome) owns them; server.py and the tests import them from here.
-from .generated.catalog_tools import search_scene  # noqa: F401
+# The tool catalog (dsl/tools.biome) owns search_scene (server.py and the tests import it from here) and registers the other tools
+# of this module (tools.register).
+from .generated.catalog_tools import (
+    search_scene,  # noqa: F401
+    tools,
+)
 
 _OBJECT_REF = r'(?:&[0-9A-Za-z]+|#[^\s]+|\$[0-9A-Fa-f]+)'
 _RE_SLOT = re.compile(rf'slot_\d+\s+\[\]\s+{_OBJECT_REF}')
@@ -266,13 +267,13 @@ async def screenshot_compare(name: str = "default", width: int = 640, height: in
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(get_hierarchy)
-    mcp.tool(annotations=_DEL)(scene)
-    mcp.tool(annotations=_RO)(fingerprint)
-    mcp.tool(annotations=_RO)(scene_diff)
-    mcp.tool(annotations=_RW)(scene_environment)
-    mcp.tool(annotations=_RW)(save_session)
-    mcp.tool(annotations=_RO)(load_session)
-    mcp.tool(annotations=_RW)(screenshot_baseline)
-    mcp.tool(annotations=_RW)(screenshot_compare)
-    mcp.tool(annotations=_RW)(get_changes)
+    tools.register(mcp, get_hierarchy)
+    tools.register(mcp, scene)
+    tools.register(mcp, fingerprint)
+    tools.register(mcp, scene_diff)
+    tools.register(mcp, scene_environment)
+    tools.register(mcp, save_session)
+    tools.register(mcp, load_session)
+    tools.register(mcp, screenshot_baseline)
+    tools.register(mcp, screenshot_compare)
+    tools.register(mcp, get_changes)

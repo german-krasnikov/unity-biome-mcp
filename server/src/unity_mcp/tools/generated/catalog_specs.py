@@ -1,8 +1,12 @@
 # Generated from dsl/tools.biome
-# source-sha256=94c53ee5aaf60c0e89a3cf4c31ebe44e12b3d3642435af09b41677a3a6314e01
+# source-sha256=207a669d433be545d0be1bd0a3b4c45784666a03e6f4afb56e25fc9efd00e745
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
+    'analyze_lod_culling': {
+        'category': 'MEDIA',
+        'effect': 'RO',
+    },
     'ask': {
         'category': 'SYSTEM',
         'effect': 'RO',
@@ -12,11 +16,19 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'COMPONENTS',
         'effect': 'RW',
     },
+    'autofit_collider': {
+        'category': 'SCENE',
+        'effect': 'RW',
+    },
     'await_compile': {
         'category': 'VERIFY',
         'effect': 'RO',
         'direct_only': True,
         'tier1': True,
+    },
+    'check_colliders': {
+        'category': 'SCENE',
+        'effect': 'RO',
     },
     'compile_preflight': {
         'category': 'VERIFY',
@@ -44,6 +56,10 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'DEL',
         'tier1': True,
     },
+    'diagnose': {
+        'category': 'VERIFY',
+        'effect': 'RO',
+    },
     'export_package': {
         'category': '_INTERNAL',
         'effect': 'RW',
@@ -57,9 +73,18 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'SCENE',
         'effect': 'RO',
     },
+    'fingerprint': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'timeout_s': 10.0,
+    },
     'get_aliases': {
         'category': '_INTERNAL',
         'effect': 'RO',
+    },
+    'get_changes': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
     },
     'get_component': {
         'category': 'CORE',
@@ -69,6 +94,13 @@ SPEC_KWARGS: dict[str, dict] = {
     'get_components_list': {
         'category': 'SCENE',
         'effect': 'RO',
+    },
+    'get_hierarchy': {
+        'category': 'CORE',
+        'effect': 'RO',
+        'core': True,
+        'timeout_s': 15.0,
+        'max_chars': 50000,
     },
     'get_metrics': {
         'category': 'RUNTIME',
@@ -84,6 +116,10 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RO',
         'direct_only': True,
         'unity_transport': True,
+    },
+    'get_spatial_context': {
+        'category': 'SCENE',
+        'effect': 'RO',
     },
     'get_unity_events': {
         'category': 'SCENE',
@@ -134,6 +170,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RO',
         'timeout_s': 10.0,
     },
+    'load_session': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
+    },
     'manage_component': {
         'category': 'CORE',
         'effect': 'RW',
@@ -145,6 +186,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'direct_only': True,
         'unity_transport': True,
         'runtime_only': True,
+    },
+    'navmesh_query': {
+        'category': 'SCENE',
+        'effect': 'RW',
+        'direct_only': True,
     },
     'object_diff': {
         'category': 'SCENE',
@@ -159,6 +205,10 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'RUNTIME',
         'effect': 'RO',
         'runtime_only': True,
+    },
+    'region_clear': {
+        'category': 'SCENE',
+        'effect': 'RW',
     },
     'rename_object': {
         'category': 'SCENE',
@@ -188,6 +238,42 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'RUNTIME',
         'effect': 'RO',
         'max_chars': 50000,
+    },
+    'save_session': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+        'direct_only': True,
+    },
+    'scan_scene': {
+        'category': 'VERIFY',
+        'effect': 'RO',
+    },
+    'scene': {
+        'category': 'SCENE',
+        'effect': 'DEL',
+        'tier1': True,
+    },
+    'scene_diff': {
+        'category': 'SCENE',
+        'effect': 'RO',
+    },
+    'scene_environment': {
+        'category': 'SCENE',
+        'effect': 'RW',
+    },
+    'scene_health': {
+        'category': 'VERIFY',
+        'effect': 'RO',
+    },
+    'screenshot_baseline': {
+        'category': 'MEDIA',
+        'effect': 'RW',
+        'direct_only': True,
+    },
+    'screenshot_compare': {
+        'category': 'MEDIA',
+        'effect': 'RW',
+        'direct_only': True,
     },
     'search_scene': {
         'category': 'SCENE',
@@ -238,6 +324,10 @@ SPEC_KWARGS: dict[str, dict] = {
         'direct_only': True,
         'unity_transport': True,
     },
+    'spatial_query': {
+        'category': 'SCENE',
+        'effect': 'RO',
+    },
     'start_playtest': {
         'category': '_INTERNAL',
         'effect': 'RW',
@@ -270,6 +360,10 @@ SPEC_KWARGS: dict[str, dict] = {
     },
     'validate_playtest_aliases': {
         'category': 'TESTS',
+        'effect': 'RO',
+    },
+    'validate_triggers': {
+        'category': 'SCENE',
         'effect': 'RO',
     },
     'verify_after_change': {

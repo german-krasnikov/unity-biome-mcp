@@ -1,13 +1,20 @@
 # Generated from dsl/tools.biome
-# source-sha256=94c53ee5aaf60c0e89a3cf4c31ebe44e12b3d3642435af09b41677a3a6314e01
+# source-sha256=207a669d433be545d0be1bd0a3b4c45784666a03e6f4afb56e25fc9efd00e745
 # Edit the source, then run biome generate.
 
 PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
+    'analyze_lod_culling': {
+    },
     'ask': {
     },
     'auto_wire': {
     },
+    'autofit_collider': {
+        'type': "Collider shape to fit: box|sphere|capsule",
+    },
     'await_compile': {
+    },
+    'check_colliders': {
     },
     'compile_preflight': {
     },
@@ -28,9 +35,15 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'path': "Scene path of the GameObject to delete",
         'force': "True to delete non-empty container objects without error",
     },
+    'diagnose': {
+    },
     'export_playtest_aliases_to_defs': {
     },
     'find_objects': {
+    },
+    'fingerprint': {
+    },
+    'get_changes': {
     },
     'get_component': {
         'path': "Scene path to the GameObject (e.g. /Player or /World/Enemy)",
@@ -41,9 +54,22 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'get_components_list': {
     },
+    'get_hierarchy': {
+        'depth': "Traversal depth (default 2; increase for deeper trees)",
+        'root': "Scene path to scope the hierarchy (omit = whole scene)",
+        'filter': "Substring filter on GameObject name",
+        'components': "Show component types next to each object (increases token cost)",
+        'compress': "Group repeated slot/point/mesh siblings to save tokens on dense scenes",
+        'summary': "Return compact root-only counts (~60-100 tokens) instead of the full tree",
+        'incremental': "Return NO_CHANGE if scene is unchanged since last call (saves tokens)",
+        'full': "Bypass distillation — return raw response",
+        'scene': "Filter to a single scene by name (multi-scene only)",
+    },
     'get_metrics': {
     },
     'get_object_detail': {
+    },
+    'get_spatial_context': {
     },
     'get_unity_events': {
     },
@@ -66,6 +92,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'list_events': {
     },
+    'load_session': {
+    },
     'manage_component': {
         'path': "Scene path to the GameObject",
         'type': "Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button')",
@@ -73,9 +101,13 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'move_to': {
     },
+    'navmesh_query': {
+    },
     'object_diff': {
     },
     'query_state': {
+    },
+    'region_clear': {
     },
     'rename_object': {
     },
@@ -95,6 +127,27 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'run_playtest_suite': {
     },
     'runtime_snapshot': {
+    },
+    'save_session': {
+    },
+    'scan_scene': {
+    },
+    'scene': {
+        'action': "Operation: new|open|save|discard|open_additive|close|set_active|list",
+        'path': "Asset path — required for open/save/open_additive/close/set_active",
+        'scene': "Scene name for save/discard when multiple scenes are loaded",
+    },
+    'scene_diff': {
+    },
+    'scene_environment': {
+    },
+    'scene_health': {
+    },
+    'screenshot_baseline': {
+        'name': "File-safe baseline identifier (not a GameObject name; no '/', '\\', or '..')",
+    },
+    'screenshot_compare': {
+        'name': "File-safe saved-baseline identifier (not a GameObject name; no '/', '\\', or '..')",
     },
     'search_scene': {
         'query': "Syntax: 'name text', 't:Component', 'tag=Tag', 'layer=N', 'active=bool' — combine with spaces",
@@ -129,6 +182,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'snapshot': {
     },
+    'spatial_query': {
+    },
     'sync_playtest_aliases_from_defs': {
     },
     'test_step': {
@@ -141,6 +196,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'name': "Saved learned-skill identifier from list_skills",
     },
     'validate_playtest_aliases': {
+    },
+    'validate_triggers': {
     },
     'verify_after_change': {
     },

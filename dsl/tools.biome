@@ -10,6 +10,10 @@ SURFACE tools
 # required without a default; the type is str int float bool, o-prefixed when None is allowed, or Any (checked by name and default only:
 # Context, Literal, ...); OMIT: a value equal to the default is not sent, Unity applies it; RAW: a FORWARD wrapper sends the value as it is.
 
+TOOL analyze_lod_culling MEDIA RO "LOD group coverage + occlusion culling analysis."
+  ARG focus ostr DEFAULT None
+END
+
 PYTOOL ask SYSTEM RO "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input)."
   ARG question str
 END
@@ -19,10 +23,19 @@ TOOL auto_wire COMPONENTS RW "Fill null ObjectReference fields on a GameObject b
   ARG dry_run bool DEFAULT False
 END
 
+TOOL autofit_collider SCENE RW "Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule."
+  ARG path str
+  ARG type str DEFAULT_TEXT "box" "Collider shape to fit: box|sphere|capsule"
+END
+
 PYTOOL await_compile VERIFY RO "Block until Unity finishes compiling + reloading, then return compile errors."
   FLAG tier1
   ARG timeout float DEFAULT 60.0
   ARG expected_generation oint DEFAULT None
+END
+
+TOOL check_colliders SCENE RO "Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given."
+  ARG path ostr DEFAULT None
 END
 
 # timeout_s is a fallback ceiling only -- code_intel.py:25 always passes
@@ -62,6 +75,11 @@ TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. De
   ARG force bool DEFAULT False "True to delete non-empty container objects without error"
 END
 
+TOOL diagnose VERIFY RO "Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`."
+  ARG prev_mvid str DEFAULT_TEXT ""
+  ARG expected_compile bool DEFAULT True
+END
+
 INTERNAL export_package RW "Protocol name of the asset action export_package; only its timeout is used, Unity registers no command of this name."
   TIMEOUT 120.0
 END
@@ -78,7 +96,17 @@ TOOL find_objects SCENE RO "Find objects by criteria. Use search_scene for compl
   ARG component ostr DEFAULT None
 END
 
+TOOL fingerprint SYSTEM RO "Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens."
+  TIMEOUT 10.0
+  ARG path ostr DEFAULT None
+  ARG depth int DEFAULT 3
+END
+
 INTERNAL get_aliases RO "The alias table as name=value lines; the server reads it when it connects."
+END
+
+TOOL get_changes SYSTEM RW "Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,"
+  ARG clear bool DEFAULT True
 END
 
 TOOL get_component CORE RO "Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N."
@@ -93,6 +121,21 @@ END
 
 TOOL get_components_list SCENE RO "List all components on object by instance ID."
   ARG id int
+END
+
+TOOL get_hierarchy CORE RO "Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only)."
+  FLAG core
+  TIMEOUT 15.0
+  MAXCHARS 50000
+  ARG depth int DEFAULT 2 "Traversal depth (default 2; increase for deeper trees)"
+  ARG root ostr DEFAULT None "Scene path to scope the hierarchy (omit = whole scene)"
+  ARG filter ostr DEFAULT None "Substring filter on GameObject name"
+  ARG components bool DEFAULT False "Show component types next to each object (increases token cost)"
+  ARG compress bool DEFAULT False "Group repeated slot/point/mesh siblings to save tokens on dense scenes"
+  ARG summary bool DEFAULT False "Return compact root-only counts (~60-100 tokens) instead of the full tree"
+  ARG incremental bool DEFAULT False "Return NO_CHANGE if scene is unchanged since last call (saves tokens)"
+  ARG full bool DEFAULT False "Bypass distillation — return raw response"
+  ARG scene ostr DEFAULT None "Filter to a single scene by name (multi-scene only)"
 END
 
 PYTOOL get_metrics RUNTIME RW "Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json."
@@ -111,6 +154,11 @@ END
 INTERNAL get_playtest_run RO "Polls the asynchronous playtest run that start_playtest began."
   FLAG direct_only
   FLAG unity_transport
+END
+
+TOOL get_spatial_context SCENE RO "Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only."
+  ARG path str
+  ARG radius float DEFAULT 5.0
 END
 
 TOOL get_unity_events SCENE RO "List all UnityEvent persistent listeners in the active scene."
@@ -168,6 +216,9 @@ INTERNAL list_playtest_files RO "Lists the files that match a glob pattern (defa
   TIMEOUT 10.0
 END
 
+PYTOOL load_session SYSTEM RO "Load previous session context beside the current hierarchy."
+END
+
 TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
   FLAG core
   ARG path str "Scene path to the GameObject"
@@ -184,6 +235,19 @@ TOOL move_to RUNTIME RW "[Play Mode] Move character to position and wait for arr
   ARG timeout float DEFAULT 15.0
 END
 
+PYTOOL navmesh_query SCENE RW "NavMesh queries and management. Bakes or clears NavMesh data for bake/clear actions. No confirmation required. action: sample|path|raycast|bake|status|clear|get_settings|set_settings."
+  ARG action str
+  ARG center ostr DEFAULT None
+  ARG from_pos ostr DEFAULT None
+  ARG to ostr DEFAULT None
+  ARG max_distance float DEFAULT 5.0
+  ARG area_mask int DEFAULT -1
+  ARG agentRadius ofloat DEFAULT None
+  ARG agentHeight ofloat DEFAULT None
+  ARG agentClimb ofloat DEFAULT None
+  ARG agentSlope ofloat DEFAULT None
+END
+
 TOOL object_diff SCENE RO "Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."
   ARG path_a str
   ARG path_b str
@@ -196,6 +260,13 @@ END
 TOOL query_state RUNTIME RO "[Play Mode] Snapshot multiple game values in one call."
   RUNTIME
   ARG queries str
+END
+
+TOOL region_clear SCENE RW "Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required."
+  ARG vertices str
+  ARG dry_run bool DEFAULT True
+  ARG filter ostr DEFAULT None
+  ARG cap int DEFAULT 50
 END
 
 TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path after rename."
@@ -256,6 +327,49 @@ TOOL runtime_snapshot RUNTIME RO "Snapshot all runtime objects of a given compon
   ARG name ostr DEFAULT None
   ARG component ostr DEFAULT None
   ARG compress bool DEFAULT False
+END
+
+PYTOOL save_session SYSTEM RW "Save current scene state to .claude/session-context.json for cold-start recovery."
+END
+
+TOOL scan_scene VERIFY RO "Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats."
+END
+
+TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy."
+  FLAG tier1
+  ARG action str "Operation: new|open|save|discard|open_additive|close|set_active|list"
+  ARG path ostr DEFAULT None "Asset path — required for open/save/open_additive/close/set_active"
+  ARG scene ostr DEFAULT None "Scene name for save/discard when multiple scenes are loaded"
+  ARG include_unsaved bool DEFAULT True
+END
+
+TOOL scene_diff SCENE RO "Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines."
+END
+
+TOOL scene_environment SCENE RW "Read/write scene environment: ambient light, fog, skybox, reflections."
+  ARG action str DEFAULT_TEXT "get"
+  ARG prop ostr DEFAULT None
+  ARG value ostr DEFAULT None
+END
+
+TOOL scene_health VERIFY RO "Scene hierarchy/health audit."
+  ARG focus str DEFAULT_TEXT "all"
+END
+
+PYTOOL screenshot_baseline MEDIA RW "Save screenshot as baseline for visual regression. name: file-safe identifier."
+  ARG name str DEFAULT_TEXT "default" "File-safe baseline identifier (not a GameObject name; no '/', '\\', or '..')"
+  ARG width int DEFAULT 640
+  ARG height int DEFAULT 480
+  ARG camera ostr DEFAULT None
+END
+
+PYTOOL screenshot_compare MEDIA RW "Compare current screenshot with saved baseline."
+  ARG name str DEFAULT_TEXT "default" "File-safe saved-baseline identifier (not a GameObject name; no '/', '\\', or '..')"
+  ARG width int DEFAULT 640
+  ARG height int DEFAULT 480
+  ARG camera ostr DEFAULT None
+  ARG mode str DEFAULT_TEXT "auto"
+  ARG question ostr DEFAULT None
 END
 
 TOOL search_scene SCENE RO "Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces."
@@ -337,6 +451,21 @@ INTERNAL source_patch_write RW "Writes a source patch; the internal sender of as
   FLAG unity_transport
 END
 
+TOOL spatial_query SCENE RO "Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon."
+  ARG action str
+  ARG path ostr DEFAULT None
+  ARG target ostr DEFAULT None
+  ARG distance ofloat DEFAULT None
+  ARG radius ofloat DEFAULT None
+  ARG component ostr DEFAULT None
+  ARG cell_size ofloat DEFAULT None
+  ARG layer_mask ostr DEFAULT None
+  ARG center ostr DEFAULT None
+  ARG vertices ostr DEFAULT None
+  ARG region_id ostr DEFAULT None
+  ARG cap oint DEFAULT None
+END
+
 # E02: Wave E non-blocking playtest dispatch — internal wire command, no @mcp.tool()
 # until E04. Same shape as source_patch_write above.
 INTERNAL start_playtest RW "Starts a playtest without blocking; get_playtest_run polls it."
@@ -384,6 +513,11 @@ END
 TOOL validate_playtest_aliases TESTS RO "Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed."
   ARG defs str DEFAULT_TEXT "Assets/PlaytestDefs/farm_core.defs"
   ARG asset str DEFAULT_TEXT "Assets/Configs/PlaytestConfig.asset"
+END
+
+TOOL validate_triggers SCENE RO "Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters."
+  ARG root str DEFAULT_TEXT "/"
+  ARG min_distance float DEFAULT 3.0
 END
 
 # May run Unity tests/playtests and stop or restart Play Mode.

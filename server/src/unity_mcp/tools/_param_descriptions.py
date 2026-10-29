@@ -37,18 +37,6 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
 
     # ── CORE TOOLS ─────────────────────────────────────────────────────────
 
-    "get_hierarchy": {
-        "depth":       "Traversal depth (default 2; increase for deeper trees)",
-        "root":        "Scene path to scope the hierarchy (omit = whole scene)",
-        "filter":      "Substring filter on GameObject name",
-        "components":  "Show component types next to each object (increases token cost)",
-        "compress":    "Group repeated slot/point/mesh siblings to save tokens on dense scenes",
-        "summary":     "Return compact root-only counts (~60-100 tokens) instead of the full tree",
-        "incremental": "Return NO_CHANGE if scene is unchanged since last call (saves tokens)",
-        "full":        "Bypass distillation — return raw response",
-        "scene":       "Filter to a single scene by name (multi-scene only)",
-    },
-
     "batch": {
         "commands":         "One command per line (e.g. 'get_component path=/Player type=Transform')",
         "on_error":         "Error behavior: continue (default) | stop — stop aborts remaining commands",
@@ -102,10 +90,6 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
 
     "apply_template": {
         "name": "Saved scene-template identifier from .claude/templates (without .cs)",
-    },
-
-    "autofit_collider": {
-        "type": "Collider shape to fit: box|sphere|capsule",
     },
 
     "create_ui": {
@@ -170,23 +154,9 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "annotation_id":  "Frame + highlight annotation by ID (auto-sets camera=annotation_frame)",
     },
 
-    "screenshot_baseline": {
-        "name": "File-safe baseline identifier (not a GameObject name; no '/', '\\', or '..')",
-    },
-
-    "screenshot_compare": {
-        "name": "File-safe saved-baseline identifier (not a GameObject name; no '/', '\\', or '..')",
-    },
-
     "uitk_intent": {
         "name": "Base asset filename without extension (for <name>.uxml and <name>.uss)",
         "path": "Project asset output folder for the generated UXML/USS pair (default Assets/UI)",
-    },
-
-    "scene": {
-        "action": "Operation: new|open|save|discard|open_additive|close|set_active|list",
-        "path":   "Asset path — required for open/save/open_additive/close/set_active",
-        "scene":  "Scene name for save/discard when multiple scenes are loaded",
     },
 
     "save_skill": {

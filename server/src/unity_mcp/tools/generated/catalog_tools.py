@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=94c53ee5aaf60c0e89a3cf4c31ebe44e12b3d3642435af09b41677a3a6314e01
+# source-sha256=207a669d433be545d0be1bd0a3b4c45784666a03e6f4afb56e25fc9efd00e745
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -21,6 +21,9 @@ def register(mcp, send, args):
     tools.install(mcp)
 
 
+tools.expect('analyze_lod_culling', 'RO', "LOD group coverage + occlusion culling analysis.", (
+    ('focus', ostr, None),
+))
 tools.expect('ask', 'RO', "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).", (
     ('question', str),
 ))
@@ -28,9 +31,16 @@ tools.expect('auto_wire', 'RW', "Fill null ObjectReference fields on a GameObjec
     ('path', str),
     ('dry_run', bool, False),
 ))
+tools.expect('autofit_collider', 'RW', "Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule.", (
+    ('path', str),
+    ('type', str, "box"),
+))
 tools.expect('await_compile', 'RO', "Block until Unity finishes compiling + reloading, then return compile errors.", (
     ('timeout', float, 60.0),
     ('expected_generation', oint, None),
+))
+tools.expect('check_colliders', 'RO', "Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given.", (
+    ('path', ostr, None),
 ))
 tools.expect('compile_preflight', 'RO', "Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile.", (
     ('file_path', str),
@@ -56,6 +66,10 @@ tools.expect('delete_object', 'DEL', "Delete GameObject by instance ID or scene 
     ('path', ostr, None),
     ('force', bool, False),
 ))
+tools.expect('diagnose', 'RO', "Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`.", (
+    ('prev_mvid', str, ""),
+    ('expected_compile', bool, True),
+))
 tools.expect('export_playtest_aliases_to_defs', 'RW', "Export PlaytestConfig.asset aliases to a readable .defs text file.", (
     ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
     ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
@@ -65,6 +79,13 @@ tools.expect('find_objects', 'RO', "Find objects by criteria. Use search_scene f
     ('tag', ostr, None),
     ('layer', ostr, None),
     ('component', ostr, None),
+))
+tools.expect('fingerprint', 'RO', "Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens.", (
+    ('path', ostr, None),
+    ('depth', int, 3),
+))
+tools.expect('get_changes', 'RW', "Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,", (
+    ('clear', bool, True),
 ))
 tools.expect('get_component', 'RO', "Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N.", (
     ('path', str),
@@ -77,6 +98,17 @@ tools.expect('get_component', 'RO', "Component properties as key-value. For MULT
 tools.expect('get_components_list', 'RO', "List all components on object by instance ID.", (
     ('id', int),
 ))
+tools.expect('get_hierarchy', 'RO', "Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only).", (
+    ('depth', int, 2),
+    ('root', ostr, None),
+    ('filter', ostr, None),
+    ('components', bool, False),
+    ('compress', bool, False),
+    ('summary', bool, False),
+    ('incremental', bool, False),
+    ('full', bool, False),
+    ('scene', ostr, None),
+))
 tools.expect('get_metrics', 'RW', "Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json.", (
     ('format', str, "text"),
     ('reset', bool, False),
@@ -84,6 +116,10 @@ tools.expect('get_metrics', 'RW', "Returns telemetry snapshot. Clears counters w
 tools.expect('get_object_detail', 'RO', "Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation.", (
     ('id', int),
     ('full', bool, False),
+))
+tools.expect('get_spatial_context', 'RO', "Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only.", (
+    ('path', str),
+    ('radius', float, 5.0),
 ))
 tools.expect('get_unity_events', 'RO', "List all UnityEvent persistent listeners in the active scene.", (
     ('path', ostr, None),
@@ -117,6 +153,8 @@ tools.expect('list_events', 'RO', "Read persistent listeners on a UnityEvent fie
     ('component', str),
     ('event', str),
 ))
+tools.expect('load_session', 'RO', "Load previous session context beside the current hierarchy.", (
+))
 tools.expect('manage_component', 'RW', "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button').", (
     ('path', str),
     ('type', str),
@@ -127,12 +165,30 @@ tools.expect('move_to', 'RW', "[Play Mode] Move character to position and wait f
     ('position', str),
     ('timeout', float, 15.0),
 ))
+tools.expect('navmesh_query', 'RW', "NavMesh queries and management. Bakes or clears NavMesh data for bake/clear actions. No confirmation required. action: sample|path|raycast|bake|status|clear|get_settings|set_settings.", (
+    ('action', str),
+    ('center', ostr, None),
+    ('from_pos', ostr, None),
+    ('to', ostr, None),
+    ('max_distance', float, 5.0),
+    ('area_mask', int, -1),
+    ('agentRadius', ofloat, None),
+    ('agentHeight', ofloat, None),
+    ('agentClimb', ofloat, None),
+    ('agentSlope', ofloat, None),
+))
 tools.expect('object_diff', 'RO', "Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'.", (
     ('path_a', str),
     ('path_b', str),
 ))
 tools.expect('query_state', 'RO', "[Play Mode] Snapshot multiple game values in one call.", (
     ('queries', str),
+))
+tools.expect('region_clear', 'RW', "Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required.", (
+    ('vertices', str),
+    ('dry_run', bool, True),
+    ('filter', ostr, None),
+    ('cap', int, 50),
 ))
 tools.expect('rename_object', 'RW_IDEM', "Rename a GameObject. Returns new scene path after rename.", (
     ('path', str),
@@ -187,6 +243,40 @@ tools.expect('runtime_snapshot', 'RO', "Snapshot all runtime objects of a given 
     ('name', ostr, None),
     ('component', ostr, None),
     ('compress', bool, False),
+))
+tools.expect('save_session', 'RW', "Save current scene state to .claude/session-context.json for cold-start recovery.", (
+))
+tools.expect('scan_scene', 'RO', "Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats.", (
+))
+tools.expect('scene', 'DEL', "Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy.", (
+    ('action', str),
+    ('path', ostr, None),
+    ('scene', ostr, None),
+    ('include_unsaved', bool, True),
+))
+tools.expect('scene_diff', 'RO', "Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines.", (
+))
+tools.expect('scene_environment', 'RW', "Read/write scene environment: ambient light, fog, skybox, reflections.", (
+    ('action', str, "get"),
+    ('prop', ostr, None),
+    ('value', ostr, None),
+))
+tools.expect('scene_health', 'RO', "Scene hierarchy/health audit.", (
+    ('focus', str, "all"),
+))
+tools.expect('screenshot_baseline', 'RW', "Save screenshot as baseline for visual regression. name: file-safe identifier.", (
+    ('name', str, "default"),
+    ('width', int, 640),
+    ('height', int, 480),
+    ('camera', ostr, None),
+))
+tools.expect('screenshot_compare', 'RW', "Compare current screenshot with saved baseline.", (
+    ('name', str, "default"),
+    ('width', int, 640),
+    ('height', int, 480),
+    ('camera', ostr, None),
+    ('mode', str, "auto"),
+    ('question', ostr, None),
 ))
 tools.expect('search_scene', 'RO', "Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces.", (
     ('query', str),
@@ -290,6 +380,20 @@ tools.expect('snapshot', 'RO', "Capture or compare object state.", (
     ('label', str, "default"),
     ('compare', str, ""),
 ))
+tools.expect('spatial_query', 'RO', "Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon.", (
+    ('action', str),
+    ('path', ostr, None),
+    ('target', ostr, None),
+    ('distance', ofloat, None),
+    ('radius', ofloat, None),
+    ('component', ostr, None),
+    ('cell_size', ofloat, None),
+    ('layer_mask', ostr, None),
+    ('center', ostr, None),
+    ('vertices', ostr, None),
+    ('region_id', ostr, None),
+    ('cap', oint, None),
+))
 tools.expect('sync_playtest_aliases_from_defs', 'RW', "Overwrite PlaytestConfig.asset aliases from a .defs text file.", (
     ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
     ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
@@ -322,6 +426,10 @@ tools.expect('use_skill', 'RW', "Execute a previously saved skill. params: comma
 tools.expect('validate_playtest_aliases', 'RO', "Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed.", (
     ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
     ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
+))
+tools.expect('validate_triggers', 'RO', "Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters.", (
+    ('root', str, "/"),
+    ('min_distance', float, 3.0),
 ))
 tools.expect('verify_after_change', 'RW', "Single verification gate after code/scene changes.", (
     ('changed_files', str, ""),

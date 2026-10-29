@@ -1,7 +1,6 @@
 """Spatial / scene-analysis queries: layout, context, scan, raycast, colliders."""
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -147,12 +146,12 @@ async def analyze_lod_culling(focus: str | None = None) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(validate_triggers)
-    mcp.tool(annotations=_RO)(get_spatial_context)
-    mcp.tool(annotations=_RO)(scan_scene)
-    mcp.tool(annotations=_RO)(check_colliders)
-    mcp.tool(annotations=_RW)(autofit_collider)
-    mcp.tool(annotations=_RO)(spatial_query)
-    mcp.tool(annotations=_RW)(region_clear)
-    mcp.tool(annotations=_RW)(navmesh_query)
-    mcp.tool(annotations=_RO)(analyze_lod_culling)
+    tools.register(mcp, validate_triggers)
+    tools.register(mcp, get_spatial_context)
+    tools.register(mcp, scan_scene)
+    tools.register(mcp, check_colliders)
+    tools.register(mcp, autofit_collider)
+    tools.register(mcp, spatial_query)
+    tools.register(mcp, region_clear)
+    tools.register(mcp, navmesh_query)
+    tools.register(mcp, analyze_lod_culling)

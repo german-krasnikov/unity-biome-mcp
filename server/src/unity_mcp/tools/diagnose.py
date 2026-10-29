@@ -318,5 +318,5 @@ async def diagnose(prev_mvid: str = "", expected_compile: bool = True) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    from ._annotations import RO as _RO
-    mcp.tool(annotations=_RO)(diagnose)
+    from .generated.catalog_tools import tools
+    tools.register(mcp, diagnose)
