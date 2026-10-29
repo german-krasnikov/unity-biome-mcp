@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=207a669d433be545d0be1bd0a3b4c45784666a03e6f4afb56e25fc9efd00e745
+# source-sha256=09792bd514604115b328cdcefd5679dcc575340549f0847b997e65895a264476
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
@@ -11,6 +11,10 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'SYSTEM',
         'effect': 'RO',
         'direct_only': True,
+    },
+    'asset': {
+        'category': 'ASSETS',
+        'effect': 'RW',
     },
     'auto_wire': {
         'category': 'COMPONENTS',
@@ -25,6 +29,17 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RO',
         'direct_only': True,
         'tier1': True,
+    },
+    'bake': {
+        'category': 'ASSETS',
+        'effect': 'RW',
+    },
+    'build': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+        'direct_only': True,
+        'unity_transport': True,
+        'timeout_s': 300.0,
     },
     'check_colliders': {
         'category': 'SCENE',
@@ -93,6 +108,10 @@ SPEC_KWARGS: dict[str, dict] = {
     },
     'get_components_list': {
         'category': 'SCENE',
+        'effect': 'RO',
+    },
+    'get_enabled_tools': {
+        'category': 'SYSTEM',
         'effect': 'RO',
     },
     'get_hierarchy': {
@@ -180,6 +199,14 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RW',
         'core': True,
     },
+    'material': {
+        'category': 'ASSETS',
+        'effect': 'RW',
+    },
+    'material_audit': {
+        'category': 'ASSETS',
+        'effect': 'RO',
+    },
     'move_to': {
         'category': 'RUNTIME',
         'effect': 'RW',
@@ -196,10 +223,25 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'SCENE',
         'effect': 'RO',
     },
+    'package': {
+        'category': 'ASSETS',
+        'effect': 'RW',
+        'direct_only': True,
+        'unity_transport': True,
+        'timeout_s': 60.0,
+    },
     'ping': {
         'category': '_INTERNAL',
         'effect': 'RO',
         'timeout_s': 5.0,
+    },
+    'prefab': {
+        'category': 'ASSETS',
+        'effect': 'RW',
+    },
+    'project_settings': {
+        'category': 'ASSETS',
+        'effect': 'RW_IDEM',
     },
     'query_state': {
         'category': 'RUNTIME',
@@ -213,6 +255,10 @@ SPEC_KWARGS: dict[str, dict] = {
     'rename_object': {
         'category': 'SCENE',
         'effect': 'RW_IDEM',
+    },
+    'render_analyze': {
+        'category': 'MEDIA',
+        'effect': 'RO',
     },
     'resolve_scene_refs': {
         'category': 'VERIFY',
@@ -265,6 +311,13 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'VERIFY',
         'effect': 'RO',
     },
+    'screenshot': {
+        'category': 'MEDIA',
+        'effect': 'RW',
+        'tier1': True,
+        'direct_only': True,
+        'unity_transport': True,
+    },
     'screenshot_baseline': {
         'category': 'MEDIA',
         'effect': 'RW',
@@ -274,6 +327,10 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'MEDIA',
         'effect': 'RW',
         'direct_only': True,
+    },
+    'scriptable_object': {
+        'category': 'ASSETS',
+        'effect': 'RW',
     },
     'search_scene': {
         'category': 'SCENE',

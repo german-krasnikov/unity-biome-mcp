@@ -1,6 +1,6 @@
 """Package Manager MCP tool."""
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -27,4 +27,4 @@ async def package(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(package)
+    tools.register(mcp, package)

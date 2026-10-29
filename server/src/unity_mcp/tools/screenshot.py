@@ -1,6 +1,6 @@
 """Screenshot capture + optional Haiku description (B2: split from scene.py)."""
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -65,4 +65,4 @@ async def screenshot(width: int = 640, height: int = 480, camera: str | None = N
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(screenshot)
+    tools.register(mcp, screenshot)

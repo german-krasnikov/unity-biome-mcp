@@ -1,6 +1,6 @@
 """Build pipeline MCP tool."""
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -29,4 +29,4 @@ async def build(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(build)
+    tools.register(mcp, build)

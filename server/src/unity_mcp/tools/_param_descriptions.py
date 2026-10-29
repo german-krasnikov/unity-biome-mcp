@@ -50,27 +50,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "undo_label": "Label for the Undo group entry (default 'execute_code')",
     },
 
-    "asset": {
-        "path": "Action-specific project asset/package path (usually Assets/...; import_package accepts a package file path)",
-        "name": "Asset-name search filter used by find (not a GameObject name)",
-        "type": "Unity asset type filter or create kind (for example Material or ScriptableObject)",
-        "value": "Import-setting/property value for the selected asset action",
-    },
-
-    "build": {
-        "path": "Player build output file or directory (default Builds/<target>)",
-    },
-
     "lint_playtest": {
         "path": "Project-relative path to a .playtest DSL file (mutually exclusive with script)",
-    },
-
-    "package": {
-        "name": "Unity Package Manager package identifier for add/remove (for example com.unity.inputsystem)",
-    },
-
-    "scriptable_object": {
-        "path": "Project asset path to the ScriptableObject .asset file",
     },
 
     "shader": {
@@ -133,25 +114,6 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "timeout":       "Max seconds to wait for completion (default 900)",
         "poll_interval": "Seconds between status polls (default 5)",
         "request_id":    "Caller-supplied idempotency ID",
-    },
-
-    "screenshot": {
-        "width":          "Image width in pixels (default 640)",
-        "height":         "Image height in pixels (default 480)",
-        "camera":         "View type: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game",
-        "path":           "For single_view/multi_view: target GameObject scene path; for standard captures: legacy project-contained .png destination (prefer output_path)",
-        "output_path":    "Unambiguous project-contained .png destination for every capture mode",
-        "describe":       "Haiku prompt for AI text description instead of returning file path (15-100x fewer tokens)",
-        "raw":            "Force returning file path even when describe= is set",
-        "zoom":           "Zoom factor — higher = closer",
-        "angle":          "Euler angle for single_view: front|left|top|iso|ex,ey,ez",
-        "angles":         "Per-view Euler angles: 'ex,ey,ez|...' (underscore = skip this view)",
-        "supersample":    "Anti-alias quality 1-4 (higher = sharper, slower)",
-        "offset":         "Framing offset vector",
-        "fixed_size":     "Fixed framing size override",
-        "highlight":      "Comma-separated paths to highlight with bounding box (e.g. /Player:#FF0000)",
-        "show_colliders": "Overlay collider wireframes on the screenshot",
-        "annotation_id":  "Frame + highlight annotation by ID (auto-sets camera=annotation_frame)",
     },
 
     "uitk_intent": {

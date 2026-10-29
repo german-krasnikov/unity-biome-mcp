@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=207a669d433be545d0be1bd0a3b4c45784666a03e6f4afb56e25fc9efd00e745
+# source-sha256=09792bd514604115b328cdcefd5679dcc575340549f0847b997e65895a264476
 # Edit the source, then run biome generate.
 
 PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
@@ -7,12 +7,23 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'ask': {
     },
+    'asset': {
+        'path': "Action-specific project asset/package path (usually Assets/...; import_package accepts a package file path)",
+        'type': "Unity asset type filter or create kind (for example Material or ScriptableObject)",
+        'name': "Asset-name search filter used by find (not a GameObject name)",
+        'value': "Import-setting/property value for the selected asset action",
+    },
     'auto_wire': {
     },
     'autofit_collider': {
         'type': "Collider shape to fit: box|sphere|capsule",
     },
     'await_compile': {
+    },
+    'bake': {
+    },
+    'build': {
+        'path': "Player build output file or directory (default Builds/<target>)",
     },
     'check_colliders': {
     },
@@ -53,6 +64,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'compress': "Strip fields at their default value before TCP transfer — reduces response size",
     },
     'get_components_list': {
+    },
+    'get_enabled_tools': {
     },
     'get_hierarchy': {
         'depth': "Traversal depth (default 2; increase for deeper trees)",
@@ -99,17 +112,30 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'type': "Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button')",
         'action': "'add' or 'remove' — not 'enable'/'disable' (use set_property m_Enabled for that)",
     },
+    'material': {
+    },
+    'material_audit': {
+    },
     'move_to': {
     },
     'navmesh_query': {
     },
     'object_diff': {
     },
+    'package': {
+        'name': "Unity Package Manager package identifier for add/remove (for example com.unity.inputsystem)",
+    },
+    'prefab': {
+    },
+    'project_settings': {
+    },
     'query_state': {
     },
     'region_clear': {
     },
     'rename_object': {
+    },
+    'render_analyze': {
     },
     'resolve_scene_refs': {
     },
@@ -143,11 +169,32 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'scene_health': {
     },
+    'screenshot': {
+        'width': "Image width in pixels (default 640)",
+        'height': "Image height in pixels (default 480)",
+        'camera': "View type: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game",
+        'path': "For single_view/multi_view: target GameObject scene path; for standard captures: legacy project-contained .png destination (prefer output_path)",
+        'output_path': "Unambiguous project-contained .png destination for every capture mode",
+        'describe': "Haiku prompt for AI text description instead of returning file path (15-100x fewer tokens)",
+        'raw': "Force returning file path even when describe= is set",
+        'zoom': "Zoom factor — higher = closer",
+        'angles': "Per-view Euler angles: 'ex,ey,ez|...' (underscore = skip this view)",
+        'supersample': "Anti-alias quality 1-4 (higher = sharper, slower)",
+        'offset': "Framing offset vector",
+        'fixed_size': "Fixed framing size override",
+        'highlight': "Comma-separated paths to highlight with bounding box (e.g. /Player:#FF0000)",
+        'show_colliders': "Overlay collider wireframes on the screenshot",
+        'angle': "Euler angle for single_view: front|left|top|iso|ex,ey,ez",
+        'annotation_id': "Frame + highlight annotation by ID (auto-sets camera=annotation_frame)",
+    },
     'screenshot_baseline': {
         'name': "File-safe baseline identifier (not a GameObject name; no '/', '\\', or '..')",
     },
     'screenshot_compare': {
         'name': "File-safe saved-baseline identifier (not a GameObject name; no '/', '\\', or '..')",
+    },
+    'scriptable_object': {
+        'path': "Project asset path to the ScriptableObject .asset file",
     },
     'search_scene': {
         'query': "Syntax: 'name text', 't:Component', 'tag=Tag', 'layer=N', 'active=bool' — combine with spaces",

@@ -1,8 +1,6 @@
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
-from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 from ._source_patch_intent import get_cached_intent as _get_cached_intent
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -138,10 +136,10 @@ async def material_audit(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(asset)
-    mcp.tool(annotations=_RW_IDEM)(project_settings)
-    mcp.tool(annotations=_RW)(material)
-    mcp.tool(annotations=_RW)(prefab)
-    mcp.tool(annotations=_RW)(scriptable_object)
-    mcp.tool(annotations=_RO)(get_enabled_tools)
-    mcp.tool(annotations=_RO)(material_audit)
+    tools.register(mcp, asset)
+    tools.register(mcp, project_settings)
+    tools.register(mcp, material)
+    tools.register(mcp, prefab)
+    tools.register(mcp, scriptable_object)
+    tools.register(mcp, get_enabled_tools)
+    tools.register(mcp, material_audit)

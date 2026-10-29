@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=207a669d433be545d0be1bd0a3b4c45784666a03e6f4afb56e25fc9efd00e745
+# source-sha256=09792bd514604115b328cdcefd5679dcc575340549f0847b997e65895a264476
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -27,6 +27,24 @@ tools.expect('analyze_lod_culling', 'RO', "LOD group coverage + occlusion cullin
 tools.expect('ask', 'RO', "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).", (
     ('question', str),
 ))
+tools.expect('asset', 'RW', "Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path.", (
+    ('action', str),
+    ('path', ostr, None),
+    ('type', ostr, None),
+    ('name', ostr, None),
+    ('folder', ostr, None),
+    ('source', ostr, None),
+    ('dest', ostr, None),
+    ('prop', ostr, None),
+    ('value', ostr, None),
+    ('recursive', bool, False),
+    ('labels', ostr, None),
+    ('output', ostr, None),
+    ('include_deps', bool, True),
+    ('content', ostr, None),
+    ('class_name', ostr, None),
+    ('path_only', bool, False),
+))
 tools.expect('auto_wire', 'RW', "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required.", (
     ('path', str),
     ('dry_run', bool, False),
@@ -38,6 +56,17 @@ tools.expect('autofit_collider', 'RW', "Auto-fit collider to mesh/renderer bound
 tools.expect('await_compile', 'RO', "Block until Unity finishes compiling + reloading, then return compile errors.", (
     ('timeout', float, 60.0),
     ('expected_generation', oint, None),
+))
+tools.expect('bake', 'RW', "Bake operations.", (
+    ('target', str),
+    ('action', ostr, None),
+))
+tools.expect('build', 'RW', "Build player. action: build.", (
+    ('action', str),
+    ('target', ostr, None),
+    ('scenes', ostr, None),
+    ('path', ostr, None),
+    ('dev', bool, False),
 ))
 tools.expect('check_colliders', 'RO', "Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given.", (
     ('path', ostr, None),
@@ -97,6 +126,8 @@ tools.expect('get_component', 'RO', "Component properties as key-value. For MULT
 ))
 tools.expect('get_components_list', 'RO', "List all components on object by instance ID.", (
     ('id', int),
+))
+tools.expect('get_enabled_tools', 'RO', "List enabled tool names, comma-separated.", (
 ))
 tools.expect('get_hierarchy', 'RO', "Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only).", (
     ('depth', int, 2),
@@ -160,6 +191,23 @@ tools.expect('manage_component', 'RW', "Add or remove a component. Mutates scene
     ('type', str),
     ('action', str),
 ))
+tools.expect('material', 'RW', "Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared).", (
+    ('action', str),
+    ('path', ostr, None),
+    ('object_path', ostr, None),
+    ('shader', ostr, None),
+    ('prop', ostr, None),
+    ('value', ostr, None),
+    ('source', ostr, None),
+    ('targets', ostr, None),
+    ('slot', oint, None),
+    ('filter', ostr, None),
+    ('target', ostr, None),
+))
+tools.expect('material_audit', 'RO', "Material/texture scene-wide audit.", (
+    ('action', str, "summary"),
+    ('platform', ostr, None),
+))
 tools.expect('move_to', 'RW', "[Play Mode] Move character to position and wait for arrival.", (
     ('path', str),
     ('position', str),
@@ -180,6 +228,36 @@ tools.expect('navmesh_query', 'RW', "NavMesh queries and management. Bakes or cl
 tools.expect('object_diff', 'RO', "Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'.", (
     ('path_a', str),
     ('path_b', str),
+))
+tools.expect('package', 'RW', "Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove.", (
+    ('action', str),
+    ('name', ostr, None),
+    ('version', ostr, None),
+    ('query', ostr, None),
+))
+tools.expect('prefab', 'RW', "Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate.", (
+    ('action', str),
+    ('path', ostr, None),
+    ('asset_path', ostr, None),
+    ('base_path', ostr, None),
+    ('variant_path', ostr, None),
+    ('component', ostr, None),
+    ('prop', ostr, None),
+    ('value', ostr, None),
+    ('add_component', ostr, None),
+    ('remove_component', ostr, None),
+    ('recursive', bool, False),
+    ('mode', ostr, None),
+    ('scope', ostr, None),
+    ('format', ostr, None),
+))
+tools.expect('project_settings', 'RW_IDEM', "Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input.", (
+    ('action', str),
+    ('target', str),
+    ('prop', ostr, None),
+    ('value', ostr, None),
+    ('index', oint, None),
+    ('build_target', ostr, None),
 ))
 tools.expect('query_state', 'RO', "[Play Mode] Snapshot multiple game values in one call.", (
     ('queries', str),
@@ -211,6 +289,13 @@ async def rename_object(
     ))
 
 
+tools.expect('render_analyze', 'RO', "Rendering analysis.", (
+    ('action', str),
+    ('path', ostr, None),
+    ('detail', str, "brief"),
+    ('baseline_id', ostr, None),
+    ('max_events', oint, None),
+))
 tools.expect('resolve_scene_refs', 'RO', "Read-only scene reference resolver.", (
     ('refs', str),
     ('fields', ostr, None),
@@ -264,6 +349,24 @@ tools.expect('scene_environment', 'RW', "Read/write scene environment: ambient l
 tools.expect('scene_health', 'RO', "Scene hierarchy/health audit.", (
     ('focus', str, "all"),
 ))
+tools.expect('screenshot', 'RW', "Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), raw=True forces path.", (
+    ('width', int, 640),
+    ('height', int, 480),
+    ('camera', ostr, None),
+    ('path', ostr, None),
+    ('output_path', ostr, None),
+    ('describe', ostr, None),
+    ('raw', bool, False),
+    ('zoom', ofloat, None),
+    ('angles', ostr, None),
+    ('supersample', oint, None),
+    ('offset', ostr, None),
+    ('fixed_size', ofloat, None),
+    ('highlight', ostr, None),
+    ('show_colliders', obool, None),
+    ('angle', ostr, None),
+    ('annotation_id', ostr, None),
+))
 tools.expect('screenshot_baseline', 'RW', "Save screenshot as baseline for visual regression. name: file-safe identifier.", (
     ('name', str, "default"),
     ('width', int, 640),
@@ -277,6 +380,15 @@ tools.expect('screenshot_compare', 'RW', "Compare current screenshot with saved 
     ('camera', ostr, None),
     ('mode', str, "auto"),
     ('question', ostr, None),
+))
+tools.expect('scriptable_object', 'RW', "ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter.", (
+    ('action', str),
+    ('path', ostr, None),
+    ('type', ostr, None),
+    ('prop', ostr, None),
+    ('value', ostr, None),
+    ('fields', ostr, None),
+    ('filter', ostr, None),
 ))
 tools.expect('search_scene', 'RO', "Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces.", (
     ('query', str),

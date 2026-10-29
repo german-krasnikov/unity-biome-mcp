@@ -104,9 +104,12 @@ reference for every tool.
 |---|---|---|---|
 | `analyze_lod_culling` | unity | MEDIA | RO |
 | `ask` | python | SYSTEM | RO |
+| `asset` | unity | ASSETS | RW |
 | `auto_wire` | unity | COMPONENTS | RW |
 | `autofit_collider` | unity | SCENE | RW |
 | `await_compile` | python | VERIFY | RO |
+| `bake` | unity | ASSETS | RW |
+| `build` | unity | SYSTEM | RW |
 | `check_colliders` | unity | SCENE | RO |
 | `compile_preflight` | unity | VERIFY | RO |
 | `create_object` | unity | CORE | RW |
@@ -120,6 +123,7 @@ reference for every tool.
 | `get_changes` | unity | SYSTEM | RW |
 | `get_component` | unity | CORE | RO |
 | `get_components_list` | unity | SCENE | RO |
+| `get_enabled_tools` | unity | SYSTEM | RO |
 | `get_hierarchy` | unity | CORE | RO |
 | `get_metrics` | python | RUNTIME | RW |
 | `get_object_detail` | unity | SCENE | RO |
@@ -133,12 +137,18 @@ reference for every tool.
 | `list_events` | unity | COMPONENTS | RO |
 | `load_session` | python | SYSTEM | RO |
 | `manage_component` | unity | CORE | RW |
+| `material` | unity | ASSETS | RW |
+| `material_audit` | unity | ASSETS | RO |
 | `move_to` | unity | RUNTIME | RW |
 | `navmesh_query` | python | SCENE | RW |
 | `object_diff` | unity | SCENE | RO |
+| `package` | unity | ASSETS | RW |
+| `prefab` | unity | ASSETS | RW |
+| `project_settings` | unity | ASSETS | RW_IDEM |
 | `query_state` | unity | RUNTIME | RO |
 | `region_clear` | unity | SCENE | RW |
 | `rename_object` | unity | SCENE | RW_IDEM |
+| `render_analyze` | unity | MEDIA | RO |
 | `resolve_scene_refs` | unity | VERIFY | RO |
 | `run_playtest` | unity | TESTS | RW |
 | `run_playtest_suite` | python | TESTS | RW |
@@ -149,8 +159,10 @@ reference for every tool.
 | `scene_diff` | unity | SCENE | RO |
 | `scene_environment` | unity | SCENE | RW |
 | `scene_health` | unity | VERIFY | RO |
+| `screenshot` | unity | MEDIA | RW |
 | `screenshot_baseline` | python | MEDIA | RW |
 | `screenshot_compare` | python | MEDIA | RW |
+| `scriptable_object` | unity | ASSETS | RW |
 | `search_scene` | unity | SCENE | RO |
 | `serialized_field_rename_audit` | unity | VERIFY | RO |
 | `set_active` | unity | SCENE | RW_IDEM |
