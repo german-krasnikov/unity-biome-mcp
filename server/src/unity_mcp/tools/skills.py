@@ -6,9 +6,6 @@ import re
 import time
 from pathlib import Path
 
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
-from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import _guard_read_only, bind
 from .generated.catalog_tools import tools
 
@@ -160,9 +157,9 @@ async def list_templates() -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(save_skill)
+    tools.register(mcp, save_skill)
     tools.register(mcp, use_skill)
-    mcp.tool(annotations=_RO)(list_skills)
-    mcp.tool(annotations=_RW)(apply_template)
-    mcp.tool(annotations=_RW_IDEM)(save_template)
-    mcp.tool(annotations=_RO)(list_templates)
+    tools.register(mcp, list_skills)
+    tools.register(mcp, apply_template)
+    tools.register(mcp, save_template)
+    tools.register(mcp, list_templates)

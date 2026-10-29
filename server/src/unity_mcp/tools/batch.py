@@ -3,9 +3,8 @@ import re
 
 from mcp.server.fastmcp.exceptions import ToolError
 
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 from .tool_specs import _SPECS
 
 _send = None
@@ -220,6 +219,6 @@ async def validate_references(path: str, depth: int = 3, verbose: bool = False, 
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(batch)
-    mcp.tool(annotations=_RW)(references)
-    mcp.tool(annotations=_RO)(validate_references)
+    tools.register(mcp, batch)
+    tools.register(mcp, references)
+    tools.register(mcp, validate_references)

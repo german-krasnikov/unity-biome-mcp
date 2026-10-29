@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=f0e939b917d926f150ed0a371bfdea71c18222e5c5e59078b31493359c2850f3
+# source-sha256=2cce46a2d1353c7b9d1b2645b1279f7bd2d7c18213d779a9a1aa5b6a66a2c4b9
 # Edit the source, then run biome generate.
 
 PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
@@ -13,6 +13,11 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'animator_intent': {
     },
+    'apply_scene_change': {
+    },
+    'apply_template': {
+        'name': "Saved scene-template identifier from .claude/templates (without .cs)",
+    },
     'ask': {
     },
     'ask_user': {
@@ -25,6 +30,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'attach_uitk': {
     },
+    'auto_fix': {
+    },
     'auto_wire': {
     },
     'autofit_collider': {
@@ -33,6 +40,13 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'await_compile': {
     },
     'bake': {
+    },
+    'batch': {
+        'commands': "One command per line (e.g. 'get_component path=/Player type=Transform')",
+        'on_error': "Error behavior: continue (default) | stop — stop aborts remaining commands",
+        'timeout': "Total timeout in seconds (default 75)",
+        'atomic': "On failure, revert prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain",
+        'validate_aliases': "Dry-run alias validation before executing any mutations",
     },
     'brief_build': {
     },
@@ -52,6 +66,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'checkpoint_restore': {
     },
     'compile_preflight': {
+    },
+    'configure_objects': {
     },
     'console_mark': {
     },
@@ -85,6 +101,10 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'editor': {
     },
+    'execute_code': {
+        'code': "C# code to execute in the Unity Editor context",
+        'undo_label': "Label for the Undo group entry (default 'execute_code')",
+    },
     'export_playtest_aliases_to_defs': {
     },
     'find_objects': {
@@ -117,6 +137,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'get_enabled_tools': {
     },
+    'get_frame_stats': {
+    },
     'get_hierarchy': {
         'depth': "Traversal depth (default 2; increase for deeper trees)",
         'root': "Scene path to scope the hierarchy (omit = whole scene)",
@@ -128,9 +150,13 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'full': "Bypass distillation — return raw response",
         'scene': "Filter to a single scene by name (multi-scene only)",
     },
+    'get_memory': {
+    },
     'get_metrics': {
     },
     'get_object_detail': {
+    },
+    'get_schema': {
     },
     'get_selection': {
     },
@@ -172,6 +198,10 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'list_events': {
     },
+    'list_skills': {
+    },
+    'list_templates': {
+    },
     'list_test_runs': {
     },
     'load_session': {
@@ -205,11 +235,15 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'prefab': {
     },
+    'profile': {
+    },
     'project_settings': {
     },
     'query_state': {
     },
     'recompile': {
+    },
+    'references': {
     },
     'region_clear': {
     },
@@ -252,12 +286,23 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'save_session': {
     },
+    'save_skill': {
+        'name': "File-safe identifier for the learned skill",
+        'code': "C# code or batch commands to save as a reusable skill",
+    },
+    'save_template': {
+        'name': "File-safe identifier for the reusable scene template",
+        'code': "C# code or batch commands to save as a scene template",
+    },
     'scan_scene': {
     },
     'scene': {
         'action': "Operation: new|open|save|discard|open_additive|close|set_active|list",
         'path': "Asset path — required for open/save/open_additive/close/set_active",
         'scene': "Scene name for save/discard when multiple scenes are loaded",
+    },
+    'scene_change_plan': {
+        'dry_run': "False (default) = create plan_id. True = probe pre-flights only, no plan created.",
     },
     'scene_diff': {
     },
@@ -311,6 +356,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'parent': "New parent scene path (omit or null = move to scene root)",
         'world_position_stays': "True (default) = preserve world transform; False = keep local transform relative to new parent",
     },
+    'set_properties': {
+    },
     'set_property': {
         'path': "Scene path to the GameObject (e.g. /Player/Body)",
         'component': "Component type (empty string = Transform)",
@@ -325,11 +372,15 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'set_sibling_index': {
     },
+    'setup_objects': {
+    },
     'shader': {
         'path': "Project asset path to a .shader or .shadergraph file",
         'shader_name': "Shader declaration name used when creating shader source",
         'name': "Action-specific Shader Graph property/node name (not a GameObject name)",
         'type': "Action-specific Shader Graph property value type (not a component type)",
+    },
+    'smart_build': {
     },
     'snapshot': {
     },
@@ -365,6 +416,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'name': "Saved learned-skill identifier from list_skills",
     },
     'validate_playtest_aliases': {
+    },
+    'validate_references': {
     },
     'validate_triggers': {
     },

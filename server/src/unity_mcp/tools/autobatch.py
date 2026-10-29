@@ -3,8 +3,8 @@
 Reduces multi-step setup to a single tool call.
 """
 from ..utils import _KV_RE, parse_kv
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 
@@ -136,6 +136,6 @@ async def configure_objects(config: str) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(setup_objects)
-    mcp.tool(annotations=_RW)(set_properties)
-    mcp.tool(annotations=_RW)(configure_objects)
+    tools.register(mcp, setup_objects)
+    tools.register(mcp, set_properties)
+    tools.register(mcp, configure_objects)

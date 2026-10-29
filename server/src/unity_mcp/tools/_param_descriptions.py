@@ -34,44 +34,10 @@ _COMMON: dict[str, str] = {
 # Per-tool descriptions — key must match fn.__name__ exactly.
 # Values override _COMMON for that param on that tool.
 PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
-
-    # ── CORE TOOLS ─────────────────────────────────────────────────────────
-
-    "batch": {
-        "commands":         "One command per line (e.g. 'get_component path=/Player type=Transform')",
-        "on_error":         "Error behavior: continue (default) | stop — stop aborts remaining commands",
-        "timeout":          "Total timeout in seconds (default 75)",
-        "atomic":           "On failure, revert prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain",
-        "validate_aliases": "Dry-run alias validation before executing any mutations",
-    },
-
-    "execute_code": {
-        "code":       "C# code to execute in the Unity Editor context",
-        "undo_label": "Label for the Undo group entry (default 'execute_code')",
-    },
-
+    # The other tools are described in the tool catalog (dsl/tools.biome), merged at the end of this module; lint_playtest is one of
+    # the six whose ToolSpec the catalog does not own yet (see tool_specs.py).
     "lint_playtest": {
         "path": "Project-relative path to a .playtest DSL file (mutually exclusive with script)",
-    },
-
-    "scene_change_plan": {
-        "dry_run": "False (default) = create plan_id. True = probe pre-flights only, no plan created.",
-    },
-
-    "apply_template": {
-        "name": "Saved scene-template identifier from .claude/templates (without .cs)",
-    },
-
-    # ── TIER1 TOOLS ─────────────────────────────────────────────────────────
-
-    "save_skill": {
-        "name": "File-safe identifier for the learned skill",
-        "code": "C# code or batch commands to save as a reusable skill",
-    },
-
-    "save_template": {
-        "name": "File-safe identifier for the reusable scene template",
-        "code": "C# code or batch commands to save as a scene template",
     },
 }
 

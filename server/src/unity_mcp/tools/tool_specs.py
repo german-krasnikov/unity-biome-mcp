@@ -2,9 +2,15 @@
 
 Every MCP tool + a handful of protocol-level commands (category='_INTERNAL':
 ping/get_version/export_package/import_package — NOT MCP tools, contribute a
-timeout only) get exactly one ToolSpec entry here. gating.py derives its
+timeout only) get exactly one ToolSpec entry in _SPECS. gating.py derives its
 _CORE_TOOLS/_THEMED_CATEGORIES/TIER1/_ALL_KNOWN collections from this dict at
 import time instead of hand-typing 4 separately-drifting literals.
+
+Where an entry comes from: the tool catalog (dsl/tools.biome, dsl/README.md) generates
+tools/generated/catalog_specs.py, merged at the end of this module; watch, get_watches and
+sync_unity are owned by their modules (watch.py, sync_spec.py); six tools are still written in the
+literal below, because their MCP annotation and their ToolSpec disagree and one catalog effect
+cannot say both (step 7.1, a decision for the owner).
 """
 from dataclasses import dataclass
 from typing import Literal
@@ -49,37 +55,15 @@ class ToolSpec:
 
 DEFAULT_TIMEOUT: float = 30.0
 
+# Written by hand until the owner decides: discover_tools, resolve_tool_schema and set_llm_config register without an MCP annotation;
+# ping_object, lint_playtest and reconnect_unity register as writes (RW, RW_IDEM, RW_IDEM) although their ToolSpec says read.
 _SPECS: dict[str, ToolSpec] = {
-    'apply_scene_change': ToolSpec(category='SCENE', tier1=True, timeout_s=120.0, direct_only=True),
-    'apply_template': ToolSpec(category='SYSTEM', direct_only=True),
-    'auto_fix': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
-    # timeout_s live for 9 internal _send("batch",...) callers w/o explicit timeout
-    # (animator_intent_tool.py:119, skills.py:61, autobatch.py:69/98/136,
-    # ui_intent_tool.py:152, debug_tool.py:78, do_intent/executor.py:38/67).
-    # Public batch() tool always overrides -- see tools/batch.py timeout param.
-    'batch': ToolSpec(category='CORE', core=True, timeout_s=120.0),
-    'configure_objects': ToolSpec(category='SCENE', direct_only=True),
     'discover_tools': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
-    'execute_code': ToolSpec(category='SYSTEM', core=True, timeout_s=60.0),
-    'get_frame_stats': ToolSpec(category='RUNTIME', mutability='read', runtime_only=True),
-    'get_memory': ToolSpec(category='RUNTIME', mutability='read'),
-    'get_schema': ToolSpec(category='SYSTEM', mutability='read'),
     'lint_playtest': ToolSpec(category='TESTS', timeout_s=60.0, mutability='read'),
-    'list_skills': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
-    'list_templates': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'ping_object': ToolSpec(category='SCENE', mutability='read'),
-    'profile': ToolSpec(category='RUNTIME', runtime_only=True),
     'reconnect_unity': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
-    'references': ToolSpec(category='COMPONENTS'),
     'resolve_tool_schema': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
-    'save_skill': ToolSpec(category='SYSTEM', direct_only=True),
-    'save_template': ToolSpec(category='SYSTEM', direct_only=True),
-    'scene_change_plan': ToolSpec(category='SCENE', tier1=True, timeout_s=30.0, direct_only=True),
     'set_llm_config': ToolSpec(category='SYSTEM', direct_only=True),
-    'set_properties': ToolSpec(category='SCENE', direct_only=True),
-    'setup_objects': ToolSpec(category='SCENE', direct_only=True),
-    'smart_build': ToolSpec(category='SYSTEM', direct_only=True),
-    'validate_references': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
 }
 
 # PR-04 pilot: watch/get_watches ToolSpec entries are owned by tools/watch.py

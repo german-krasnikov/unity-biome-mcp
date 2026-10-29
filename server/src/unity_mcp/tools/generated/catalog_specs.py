@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=f0e939b917d926f150ed0a371bfdea71c18222e5c5e59078b31493359c2850f3
+# source-sha256=2cce46a2d1353c7b9d1b2645b1279f7bd2d7c18213d779a9a1aa5b6a66a2c4b9
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
@@ -24,6 +24,18 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RW',
         'direct_only': True,
     },
+    'apply_scene_change': {
+        'category': 'SCENE',
+        'effect': 'RW',
+        'direct_only': True,
+        'tier1': True,
+        'timeout_s': 120.0,
+    },
+    'apply_template': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+        'direct_only': True,
+    },
     'ask': {
         'category': 'SYSTEM',
         'effect': 'RO',
@@ -44,6 +56,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'UITOOLKIT',
         'effect': 'RW',
     },
+    'auto_fix': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
+    },
     'auto_wire': {
         'category': 'COMPONENTS',
         'effect': 'RW',
@@ -61,6 +78,12 @@ SPEC_KWARGS: dict[str, dict] = {
     'bake': {
         'category': 'ASSETS',
         'effect': 'RW',
+    },
+    'batch': {
+        'category': 'CORE',
+        'effect': 'RW',
+        'core': True,
+        'timeout_s': 120.0,
     },
     'brief_build': {
         'category': 'SYSTEM',
@@ -107,6 +130,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RO',
         'core': True,
         'timeout_s': 60.0,
+    },
+    'configure_objects': {
+        'category': 'SCENE',
+        'effect': 'RW',
+        'direct_only': True,
     },
     'console_mark': {
         'category': 'RUNTIME',
@@ -161,6 +189,12 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'CORE',
         'effect': 'RW',
         'core': True,
+    },
+    'execute_code': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+        'core': True,
+        'timeout_s': 60.0,
     },
     'export_package': {
         'category': '_INTERNAL',
@@ -230,12 +264,21 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'SYSTEM',
         'effect': 'RO',
     },
+    'get_frame_stats': {
+        'category': 'RUNTIME',
+        'effect': 'RO',
+        'runtime_only': True,
+    },
     'get_hierarchy': {
         'category': 'CORE',
         'effect': 'RO',
         'core': True,
         'timeout_s': 15.0,
         'max_chars': 50000,
+    },
+    'get_memory': {
+        'category': 'RUNTIME',
+        'effect': 'RO',
     },
     'get_metrics': {
         'category': 'RUNTIME',
@@ -251,6 +294,10 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RO',
         'direct_only': True,
         'unity_transport': True,
+    },
+    'get_schema': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
     },
     'get_selection': {
         'category': 'SCENE',
@@ -342,6 +389,16 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RO',
         'timeout_s': 10.0,
     },
+    'list_skills': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
+    },
+    'list_templates': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
+    },
     'list_test_runs': {
         'category': 'TESTS',
         'effect': 'RO',
@@ -417,6 +474,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'ASSETS',
         'effect': 'RW',
     },
+    'profile': {
+        'category': 'RUNTIME',
+        'effect': 'RW',
+        'runtime_only': True,
+    },
     'project_settings': {
         'category': 'ASSETS',
         'effect': 'RW_IDEM',
@@ -428,6 +490,10 @@ SPEC_KWARGS: dict[str, dict] = {
     },
     'recompile': {
         'category': 'SYSTEM',
+        'effect': 'RW',
+    },
+    'references': {
+        'category': 'COMPONENTS',
         'effect': 'RW',
     },
     'region_clear': {
@@ -496,6 +562,16 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RW',
         'direct_only': True,
     },
+    'save_skill': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+        'direct_only': True,
+    },
+    'save_template': {
+        'category': 'SYSTEM',
+        'effect': 'RW_IDEM',
+        'direct_only': True,
+    },
     'scan_scene': {
         'category': 'VERIFY',
         'effect': 'RO',
@@ -503,6 +579,12 @@ SPEC_KWARGS: dict[str, dict] = {
     'scene': {
         'category': 'SCENE',
         'effect': 'DEL',
+        'tier1': True,
+    },
+    'scene_change_plan': {
+        'category': 'SCENE',
+        'effect': 'RW',
+        'direct_only': True,
         'tier1': True,
     },
     'scene_diff': {
@@ -563,6 +645,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RW_IDEM',
         'tier1': True,
     },
+    'set_properties': {
+        'category': 'SCENE',
+        'effect': 'RW',
+        'direct_only': True,
+    },
     'set_property': {
         'category': 'CORE',
         'effect': 'RW_IDEM',
@@ -580,9 +667,19 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'SCENE',
         'effect': 'RW',
     },
+    'setup_objects': {
+        'category': 'SCENE',
+        'effect': 'RW',
+        'direct_only': True,
+    },
     'shader': {
         'category': 'ASSETS',
         'effect': 'RW',
+    },
+    'smart_build': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+        'direct_only': True,
     },
     'snapshot': {
         'category': 'RUNTIME',
@@ -664,6 +761,11 @@ SPEC_KWARGS: dict[str, dict] = {
     'validate_playtest_aliases': {
         'category': 'TESTS',
         'effect': 'RO',
+    },
+    'validate_references': {
+        'category': 'VERIFY',
+        'effect': 'RO',
+        'tier1': True,
     },
     'validate_triggers': {
         'category': 'SCENE',

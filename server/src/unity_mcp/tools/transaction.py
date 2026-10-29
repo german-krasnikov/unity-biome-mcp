@@ -8,10 +8,10 @@ import hashlib
 import re
 import time as _time
 
-from ._annotations import RW as _RW
 from ._common import bind
 from .editor_state import is_play_mode as _is_play_mode
 from .editor_state import parse_editor_field as _parse_editor_field
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -378,5 +378,5 @@ async def apply_scene_change(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(scene_change_plan)
-    mcp.tool(annotations=_RW)(apply_scene_change)
+    tools.register(mcp, scene_change_plan)
+    tools.register(mcp, apply_scene_change)

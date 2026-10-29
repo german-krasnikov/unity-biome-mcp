@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=f0e939b917d926f150ed0a371bfdea71c18222e5c5e59078b31493359c2850f3
+# source-sha256=2cce46a2d1353c7b9d1b2645b1279f7bd2d7c18213d779a9a1aa5b6a66a2c4b9
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -72,6 +72,16 @@ tools.expect('animator_intent', 'RW', "Convert NL intent to Unity Animator Contr
     ('intent', str),
     ('dry_run', bool, False),
 ))
+tools.expect('apply_scene_change', 'RW', "Execute scene mutations with atomic apply, post-verify, and optional save.", (
+    ('plan_id', str),
+    ('commands', str),
+    ('verify', bool, True),
+    ('save', bool, True),
+))
+tools.expect('apply_template', 'RW', "Apply a scene template (.cs file from .claude/templates/).", (
+    ('name', str),
+    ('params', ostr, None),
+))
 tools.expect('ask', 'RO', "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).", (
     ('question', str),
 ))
@@ -102,6 +112,9 @@ tools.expect('attach_uitk', 'RW', "Attach UIDocument (or PanelRenderer on Unity 
     ('panel_settings', ostr, None),
     ('sort_order', oint, None),
 ))
+tools.expect('auto_fix', 'RO', "Analyze recent Unity errors and ask MCP client sampling for a fix suggestion.", (
+    ('ctx', Any),
+))
 tools.expect('auto_wire', 'RW', "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required.", (
     ('path', str),
     ('dry_run', bool, False),
@@ -117,6 +130,13 @@ tools.expect('await_compile', 'RO', "Block until Unity finishes compiling + relo
 tools.expect('bake', 'RW', "Bake operations.", (
     ('target', str),
     ('action', ostr, None),
+))
+tools.expect('batch', 'RW', "Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls.", (
+    ('commands', str),
+    ('on_error', str, "continue"),
+    ('timeout', float, 75.0),
+    ('atomic', bool, False),
+    ('validate_aliases', bool, False),
 ))
 tools.expect('brief_build', 'RO', "Use to get a snapshot of project state before starting work.", (
     ('kinds', str, "console,compile_errors,hierarchy"),
@@ -150,6 +170,9 @@ tools.expect('checkpoint_restore', 'DEL', "Restore files to their pre-turn state
 tools.expect('compile_preflight', 'RO', "Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile.", (
     ('file_path', str),
     ('new_content', str),
+))
+tools.expect('configure_objects', 'RW', "Configure multiple objects at once.", (
+    ('config', str),
 ))
 tools.expect('console_mark', 'RO', "Create a console watermark. Returns mark_id encoding current timestamp.", (
     ('label', str, ""),
@@ -211,6 +234,10 @@ tools.expect('editor', 'RW', "Editor state/control. action: state|play|pause|sto
     ('paths', ostr, None),
     ('enable', obool, None),
 ))
+tools.expect('execute_code', 'RW', "Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.", (
+    ('code', str),
+    ('undo_label', str, "execute_code"),
+))
 tools.expect('export_playtest_aliases_to_defs', 'RW', "Export PlaytestConfig.asset aliases to a readable .defs text file.", (
     ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
     ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
@@ -262,6 +289,9 @@ tools.expect('get_console_since', 'RO', "Console entries after the watermark cre
 ))
 tools.expect('get_enabled_tools', 'RO', "List enabled tool names, comma-separated.", (
 ))
+tools.expect('get_frame_stats', 'RO', "Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed.", (
+    ('include', str, ""),
+))
 tools.expect('get_hierarchy', 'RO', "Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only).", (
     ('depth', int, 2),
     ('root', ostr, None),
@@ -273,6 +303,9 @@ tools.expect('get_hierarchy', 'RO', "Scene hierarchy as text tree. For finding s
     ('full', bool, False),
     ('scene', ostr, None),
 ))
+tools.expect('get_memory', 'RO', "Memory snapshot.", (
+    ('include', str, "all"),
+))
 tools.expect('get_metrics', 'RW', "Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json.", (
     ('format', str, "text"),
     ('reset', bool, False),
@@ -280,6 +313,9 @@ tools.expect('get_metrics', 'RW', "Returns telemetry snapshot. Clears counters w
 tools.expect('get_object_detail', 'RO', "Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation.", (
     ('id', int),
     ('full', bool, False),
+))
+tools.expect('get_schema', 'RO', "Get all serialized fields of a component type with types. Use before set_property to know exact field names.", (
+    ('type', str),
 ))
 tools.expect('get_selection', 'RO', "Currently selected GameObject: path and component list.", (
 ))
@@ -344,6 +380,10 @@ tools.expect('list_events', 'RO', "Read persistent listeners on a UnityEvent fie
     ('path', str),
     ('component', str),
     ('event', str),
+))
+tools.expect('list_skills', 'RO', "List all saved skills with descriptions and usage counts.", (
+))
+tools.expect('list_templates', 'RO', "List available scene templates in .claude/templates/.", (
 ))
 tools.expect('list_test_runs', 'RO', "List recent durable test runs as JSON, newest first.", (
     ('limit', int, 20),
@@ -435,6 +475,15 @@ tools.expect('prefab', 'RW', "Prefab. Creates or modifies prefab assets. No conf
     ('scope', ostr, None),
     ('format', ostr, None),
 ))
+tools.expect('profile', 'RW', "Profile CPU/GPU/memory over time.", (
+    ('action', str),
+    ('duration', float, 5.0),
+    ('session', str, ""),
+    ('compare_with', str, ""),
+    ('focus', str, ""),
+    ('mode', str, "burst"),
+    ('threshold_ms', float, 33.3),
+))
 tools.expect('project_settings', 'RW_IDEM', "Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input.", (
     ('action', str),
     ('target', str),
@@ -447,6 +496,15 @@ tools.expect('query_state', 'RO', "[Play Mode] Snapshot multiple game values in 
     ('queries', str),
 ))
 tools.expect('recompile', 'RW', "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done.", (
+))
+tools.expect('references', 'RW', "References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs.", (
+    ('action', str),
+    ('path', str),
+    ('children', bool, False),
+    ('depth', int, 1),
+    ('source', ostr, None),
+    ('target', ostr, None),
+    ('mappings', ostr, None),
 ))
 tools.expect('region_clear', 'RW', "Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required.", (
     ('vertices', str),
@@ -534,6 +592,15 @@ tools.expect('runtime_snapshot', 'RO', "Snapshot all runtime objects of a given 
 ))
 tools.expect('save_session', 'RW', "Save current scene state to .claude/session-context.json for cold-start recovery.", (
 ))
+tools.expect('save_skill', 'RW', "Save a learned skill (C# code or batch commands) for reuse across sessions.", (
+    ('name', str),
+    ('description', str),
+    ('code', str),
+))
+tools.expect('save_template', 'RW_IDEM', "Save C# code as a reusable scene template in .claude/templates/.", (
+    ('name', str),
+    ('code', str),
+))
 tools.expect('scan_scene', 'RO', "Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats.", (
 ))
 tools.expect('scene', 'DEL', "Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy.", (
@@ -541,6 +608,11 @@ tools.expect('scene', 'DEL', "Scene management. action: new|open|save|discard|op
     ('path', ostr, None),
     ('scene', ostr, None),
     ('include_unsaved', bool, True),
+))
+tools.expect('scene_change_plan', 'RW', "Pre-flight + plan for safe scene edit.", (
+    ('goal', str),
+    ('targets', str, ""),
+    ('dry_run', bool, False),
 ))
 tools.expect('scene_diff', 'RO', "Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines.", (
 ))
@@ -656,6 +728,10 @@ tools.expect('set_parent', 'RW_IDEM', "Reparent existing GameObject. parent=null
     ('parent', ostr, None),
     ('world_position_stays', bool, True),
 ))
+tools.expect('set_properties', 'RW', "Set multiple properties on ONE object. For multiple objects, use configure_objects instead.", (
+    ('path', str),
+    ('props', str),
+))
 tools.expect('set_property', 'RW_IDEM', "Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`).", (
     ('path', ostr, None),
     ('component', str, ""),
@@ -700,6 +776,9 @@ async def set_sibling_index(
     ))
 
 
+tools.expect('setup_objects', 'RW', "Create+configure multiple objects in one call.", (
+    ('specs', str),
+))
 tools.expect('shader', 'RW', "Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network.", (
     ('action', str),
     ('path', str),
@@ -727,6 +806,10 @@ tools.expect('shader', 'RW', "Read or write shader assets (.shader / .shadergrap
     ('layout', ostr, None),
     ('h_gap', ofloat, None),
     ('v_gap', ofloat, None),
+))
+tools.expect('smart_build', 'RW', "Build scene objects from natural language description using MCP sampling + execute_code.", (
+    ('description', str),
+    ('ctx', Any),
 ))
 tools.expect('snapshot', 'RO', "Capture or compare object state.", (
     ('path', str),
@@ -840,6 +923,12 @@ tools.expect('use_skill', 'RW', "Execute a previously saved skill. params: comma
 tools.expect('validate_playtest_aliases', 'RO', "Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed.", (
     ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
     ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
+))
+tools.expect('validate_references', 'RO', "Validate all ObjectReference fields under path recursively.", (
+    ('path', str),
+    ('depth', int, 3),
+    ('verbose', bool, False),
+    ('ignore_optional', bool, False),
 ))
 tools.expect('validate_triggers', 'RO', "Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters.", (
     ('root', str, "/"),

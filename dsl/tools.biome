@@ -66,6 +66,20 @@ PYTOOL animator_intent SYSTEM RW "Convert NL intent to Unity Animator Controller
   ARG dry_run bool DEFAULT False
 END
 
+PYTOOL apply_scene_change SCENE RW "Execute scene mutations with atomic apply, post-verify, and optional save."
+  FLAG tier1
+  TIMEOUT 120.0
+  ARG plan_id str
+  ARG commands str
+  ARG verify bool DEFAULT True
+  ARG save bool DEFAULT True
+END
+
+PYTOOL apply_template SYSTEM RW "Apply a scene template (.cs file from .claude/templates/)."
+  ARG name str "Saved scene-template identifier from .claude/templates (without .cs)"
+  ARG params ostr DEFAULT None
+END
+
 PYTOOL ask SYSTEM RO "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input)."
   ARG question str
 END
@@ -103,6 +117,10 @@ TOOL attach_uitk UITOOLKIT RW "Attach UIDocument (or PanelRenderer on Unity 6.4+
   ARG sort_order oint DEFAULT None
 END
 
+PYTOOL auto_fix SYSTEM RO "Analyze recent Unity errors and ask MCP client sampling for a fix suggestion."
+  ARG ctx Any
+END
+
 TOOL auto_wire COMPONENTS RW "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required."
   ARG path str
   ARG dry_run bool DEFAULT False
@@ -122,6 +140,20 @@ END
 TOOL bake ASSETS RW "Bake operations."
   ARG target str
   ARG action ostr DEFAULT None
+END
+
+# timeout_s live for 9 internal _send("batch",...) callers w/o explicit timeout
+# (animator_intent_tool.py:119, skills.py:61, autobatch.py:69/98/136,
+# ui_intent_tool.py:152, debug_tool.py:78, do_intent/executor.py:38/67).
+# Public batch() tool always overrides -- see tools/batch.py timeout param.
+TOOL batch CORE RW "Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls."
+  FLAG core
+  TIMEOUT 120.0
+  ARG commands str "One command per line (e.g. 'get_component path=/Player type=Transform')"
+  ARG on_error str DEFAULT_TEXT "continue" "Error behavior: continue (default) | stop — stop aborts remaining commands"
+  ARG timeout float DEFAULT 75.0 "Total timeout in seconds (default 75)"
+  ARG atomic bool DEFAULT False "On failure, revert prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain"
+  ARG validate_aliases bool DEFAULT False "Dry-run alias validation before executing any mutations"
 END
 
 PYTOOL brief_build SYSTEM RO "Use to get a snapshot of project state before starting work."
@@ -174,6 +206,10 @@ TOOL compile_preflight VERIFY RO "Validate C# WITHOUT writing/recompiling (Rosly
   TIMEOUT 60.0
   ARG file_path str
   ARG new_content str
+END
+
+PYTOOL configure_objects SCENE RW "Configure multiple objects at once."
+  ARG config str
 END
 
 PYTOOL console_mark RUNTIME RO "Create a console watermark. Returns mark_id encoding current timestamp."
@@ -257,6 +293,13 @@ TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|
   ARG enable obool DEFAULT None
 END
 
+TOOL execute_code SYSTEM RW "Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile."
+  FLAG core
+  TIMEOUT 60.0
+  ARG code str "C# code to execute in the Unity Editor context"
+  ARG undo_label str DEFAULT_TEXT "execute_code" "Label for the Undo group entry (default 'execute_code')"
+END
+
 INTERNAL export_package RW "Protocol name of the asset action export_package; only its timeout is used, Unity registers no command of this name."
   TIMEOUT 120.0
 END
@@ -336,6 +379,11 @@ END
 TOOL get_enabled_tools SYSTEM RO "List enabled tool names, comma-separated."
 END
 
+TOOL get_frame_stats RUNTIME RO "Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed."
+  RUNTIME
+  ARG include str DEFAULT_TEXT ""
+END
+
 TOOL get_hierarchy CORE RO "Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only)."
   FLAG core
   TIMEOUT 15.0
@@ -349,6 +397,10 @@ TOOL get_hierarchy CORE RO "Scene hierarchy as text tree. For finding specific o
   ARG incremental bool DEFAULT False "Return NO_CHANGE if scene is unchanged since last call (saves tokens)"
   ARG full bool DEFAULT False "Bypass distillation — return raw response"
   ARG scene ostr DEFAULT None "Filter to a single scene by name (multi-scene only)"
+END
+
+TOOL get_memory RUNTIME RO "Memory snapshot."
+  ARG include str DEFAULT_TEXT "all"
 END
 
 PYTOOL get_metrics RUNTIME RW "Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json."
@@ -367,6 +419,10 @@ END
 INTERNAL get_playtest_run RO "Polls the asynchronous playtest run that start_playtest began."
   FLAG direct_only
   FLAG unity_transport
+END
+
+TOOL get_schema SYSTEM RO "Get all serialized fields of a component type with types. Use before set_property to know exact field names."
+  ARG type str
 END
 
 TOOL get_selection SCENE RO "Currently selected GameObject: path and component list."
@@ -468,6 +524,12 @@ END
 
 INTERNAL list_playtest_files RO "Lists the files that match a glob pattern (default Playtests/*.playtest), one project-relative path per line."
   TIMEOUT 10.0
+END
+
+PYTOOL list_skills SYSTEM RO "List all saved skills with descriptions and usage counts."
+END
+
+PYTOOL list_templates SYSTEM RO "List available scene templates in .claude/templates/."
 END
 
 TOOL list_test_runs TESTS RO "List recent durable test runs as JSON, newest first."
@@ -588,6 +650,17 @@ TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmatio
   ARG format ostr DEFAULT None
 END
 
+TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
+  RUNTIME
+  ARG action str
+  ARG duration float DEFAULT 5.0
+  ARG session str DEFAULT_TEXT ""
+  ARG compare_with str DEFAULT_TEXT ""
+  ARG focus str DEFAULT_TEXT ""
+  ARG mode str DEFAULT_TEXT "burst"
+  ARG threshold_ms float DEFAULT 33.3
+END
+
 TOOL project_settings ASSETS RW_IDEM "Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input."
   ARG action str
   ARG target str
@@ -605,6 +678,16 @@ END
 # Every dispatch intentionally starts a fresh AssetDatabase.Refresh. The receiver-side dedup registry is lost
 # across Domain Reload, so resending a lost ACK can start a second compile/reload cycle: RW, not RW_IDEM.
 TOOL recompile SYSTEM RW "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done."
+END
+
+TOOL references COMPONENTS RW "References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs."
+  ARG action str
+  ARG path str
+  ARG children bool DEFAULT False
+  ARG depth int DEFAULT 1
+  ARG source ostr DEFAULT None
+  ARG target ostr DEFAULT None
+  ARG mappings ostr DEFAULT None
 END
 
 TOOL region_clear SCENE RW "Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required."
@@ -714,6 +797,17 @@ END
 PYTOOL save_session SYSTEM RW "Save current scene state to .claude/session-context.json for cold-start recovery."
 END
 
+PYTOOL save_skill SYSTEM RW "Save a learned skill (C# code or batch commands) for reuse across sessions."
+  ARG name str "File-safe identifier for the learned skill"
+  ARG description str
+  ARG code str "C# code or batch commands to save as a reusable skill"
+END
+
+PYTOOL save_template SYSTEM RW_IDEM "Save C# code as a reusable scene template in .claude/templates/."
+  ARG name str "File-safe identifier for the reusable scene template"
+  ARG code str "C# code or batch commands to save as a scene template"
+END
+
 TOOL scan_scene VERIFY RO "Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats."
 END
 
@@ -723,6 +817,13 @@ TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_addit
   ARG path ostr DEFAULT None "Asset path — required for open/save/open_additive/close/set_active"
   ARG scene ostr DEFAULT None "Scene name for save/discard when multiple scenes are loaded"
   ARG include_unsaved bool DEFAULT True
+END
+
+PYTOOL scene_change_plan SCENE RW "Pre-flight + plan for safe scene edit."
+  FLAG tier1
+  ARG goal str
+  ARG targets str DEFAULT_TEXT ""
+  ARG dry_run bool DEFAULT False "False (default) = create plan_id. True = probe pre-flights only, no plan created."
 END
 
 TOOL scene_diff SCENE RO "Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines."
@@ -827,6 +928,11 @@ TOOL set_parent SCENE RW_IDEM "Reparent existing GameObject. parent=null → mov
   ARG world_position_stays bool DEFAULT True "True (default) = preserve world transform; False = keep local transform relative to new parent"
 END
 
+PYTOOL set_properties SCENE RW "Set multiple properties on ONE object. For multiple objects, use configure_objects instead."
+  ARG path str
+  ARG props str
+END
+
 TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`)."
   FLAG core
   ARG path ostr DEFAULT None "Scene path to the GameObject (e.g. /Player/Body)"
@@ -862,6 +968,10 @@ TOOL set_sibling_index SCENE RW "Set sibling index of a GameObject within its pa
   ARG index int
 END
 
+PYTOOL setup_objects SCENE RW "Create+configure multiple objects in one call."
+  ARG specs str
+END
+
 TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network."
   ARG action str
   ARG path str "Project asset path to a .shader or .shadergraph file"
@@ -889,6 +999,11 @@ TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Cre
   ARG layout ostr DEFAULT None
   ARG h_gap ofloat DEFAULT None
   ARG v_gap ofloat DEFAULT None
+END
+
+PYTOOL smart_build SYSTEM RW "Build scene objects from natural language description using MCP sampling + execute_code."
+  ARG description str
+  ARG ctx Any
 END
 
 PYTOOL snapshot RUNTIME RO "Capture or compare object state."
@@ -1040,6 +1155,14 @@ END
 TOOL validate_playtest_aliases TESTS RO "Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed."
   ARG defs str DEFAULT_TEXT "Assets/PlaytestDefs/farm_core.defs"
   ARG asset str DEFAULT_TEXT "Assets/Configs/PlaytestConfig.asset"
+END
+
+TOOL validate_references VERIFY RO "Validate all ObjectReference fields under path recursively."
+  FLAG tier1
+  ARG path str
+  ARG depth int DEFAULT 3
+  ARG verbose bool DEFAULT False
+  ARG ignore_optional bool DEFAULT False
 END
 
 TOOL validate_triggers SCENE RO "Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters."

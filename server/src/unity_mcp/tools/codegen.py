@@ -3,9 +3,8 @@ import re
 
 from ..console_levels import PROBLEM_LEVELS
 from ..metrics import METRICS
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -87,7 +86,7 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
-    mcp.tool(annotations=_RW)(execute_code)
-    mcp.tool(annotations=_RO)(get_schema)
-    mcp.tool(annotations=_RO)(auto_fix)
-    mcp.tool(annotations=_RW)(smart_build)
+    tools.register(mcp, execute_code)
+    tools.register(mcp, get_schema)
+    tools.register(mcp, auto_fix)
+    tools.register(mcp, smart_build)
