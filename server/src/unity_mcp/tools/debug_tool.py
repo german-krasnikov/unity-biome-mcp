@@ -1,8 +1,8 @@
 """AI-assisted debugging: gather diagnostic context based on symptom."""
 from mcp.server.fastmcp.exceptions import ToolError
 
-from ._annotations import RO as _RO
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 
@@ -88,4 +88,4 @@ async def debug(symptom: str = "", path: str = "", gather: str = "") -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(debug)
+    tools.register(mcp, debug)

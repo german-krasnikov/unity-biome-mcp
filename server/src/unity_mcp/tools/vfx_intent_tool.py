@@ -4,8 +4,8 @@ import re
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ..sampling import sampling_service as _sampling
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 from .intent_common import build_batch_line, run_intent_pipeline
 
 _send = None
@@ -131,4 +131,4 @@ async def vfx_intent(target: str, intent: str, kind: str = "auto", dry_run: bool
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(vfx_intent)
+    tools.register(mcp, vfx_intent)

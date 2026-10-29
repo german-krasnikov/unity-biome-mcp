@@ -2,8 +2,8 @@
 import re
 
 from ..sampling import sampling_service as _sampling
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 from .intent_common import build_batch_line, run_intent_pipeline
 
 _send = None
@@ -111,4 +111,4 @@ async def animator_intent(target: str, intent: str, dry_run: bool = False) -> st
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(animator_intent)
+    tools.register(mcp, animator_intent)

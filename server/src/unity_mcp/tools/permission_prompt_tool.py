@@ -2,8 +2,8 @@
 import json
 import sys
 
-from ._annotations import RO as _RO
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 # Lazily initialized on first call to break circular import
@@ -51,4 +51,4 @@ async def permission_prompt(tool_name: str, input: dict, tool_use_id: str):
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(permission_prompt)
+    tools.register(mcp, permission_prompt)

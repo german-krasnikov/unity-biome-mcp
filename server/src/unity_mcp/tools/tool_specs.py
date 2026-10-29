@@ -51,35 +51,27 @@ DEFAULT_TIMEOUT: float = 30.0
 
 _SPECS: dict[str, ToolSpec] = {
     'alias_status': ToolSpec(category='SYSTEM', mutability='read'),
-    'animator_intent': ToolSpec(category='SYSTEM', direct_only=True),
     'apply_scene_change': ToolSpec(category='SCENE', tier1=True, timeout_s=120.0, direct_only=True),
     'apply_template': ToolSpec(category='SYSTEM', direct_only=True),
-    'ask_user': ToolSpec(category='SYSTEM', timeout_s=300.0, mutability='read', direct_only=True, unity_transport=True),
     'auto_fix': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     # timeout_s live for 9 internal _send("batch",...) callers w/o explicit timeout
     # (animator_intent_tool.py:119, skills.py:61, autobatch.py:69/98/136,
     # ui_intent_tool.py:152, debug_tool.py:78, do_intent/executor.py:38/67).
     # Public batch() tool always overrides -- see tools/batch.py timeout param.
     'batch': ToolSpec(category='CORE', core=True, timeout_s=120.0),
-    'budget_status': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'cancel_test_run': ToolSpec(category='TESTS', timeout_s=10.0),
     'checkpoint': ToolSpec(category='SYSTEM'),
     'checkpoint_create': ToolSpec(category='SYSTEM', direct_only=True),   # T19: Python orchestrator, no C# handler
     'checkpoint_restore': ToolSpec(category='SYSTEM', direct_only=True),  # T19: Python orchestrator, no C# handler
-    'brief_build': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'configure_objects': ToolSpec(category='SCENE', direct_only=True),
     'console_mark': ToolSpec(category='RUNTIME', tier1=True, mutability='read', direct_only=True),
-    'create_ui': ToolSpec(category='UGUI'),
-    'debug': ToolSpec(category='RUNTIME', mutability='read', direct_only=True),
     'discover_tools': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
-    'do': ToolSpec(category='SYSTEM', direct_only=True),
     # Conditional: default is observational; fix=True removes stale local files.
     # middleware_types.is_write() handles the argument-aware classification.
     'doctor': ToolSpec(category='SYSTEM', direct_only=True),
     'editor': ToolSpec(category='CORE', core=True),
     'execute_code': ToolSpec(category='SYSTEM', core=True, timeout_s=60.0),
     'get_capabilities': ToolSpec(category='SYSTEM', mutability='read'),
-    'get_changeset': ToolSpec(category='VERIFY', tier1=True, timeout_s=5.0, mutability='read', direct_only=True),
     'get_compile_errors': ToolSpec(category='CORE', core=True, mutability='read'),
     'get_console': ToolSpec(category='CORE', core=True, timeout_s=10.0, mutability='read'),
     'get_console_since': ToolSpec(category='RUNTIME', tier1=True, mutability='read', direct_only=True),
@@ -96,8 +88,6 @@ _SPECS: dict[str, ToolSpec] = {
     'list_skills': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'list_templates': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'mcp_status': ToolSpec(category='SYSTEM', core=True, mutability='read', direct_only=True),
-    'menu': ToolSpec(category='SYSTEM'),
-    'permission_prompt': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     'ping_object': ToolSpec(category='SCENE', mutability='read'),
     'profile': ToolSpec(category='RUNTIME', runtime_only=True),
     'recompile': ToolSpec(category='SYSTEM'),
@@ -113,15 +103,10 @@ _SPECS: dict[str, ToolSpec] = {
     'scene_change_plan': ToolSpec(category='SCENE', tier1=True, timeout_s=30.0, direct_only=True),
     'set_llm_config': ToolSpec(category='SYSTEM', direct_only=True),
     'set_properties': ToolSpec(category='SCENE', direct_only=True),
-    'set_rect': ToolSpec(category='UGUI'),
     'setup_objects': ToolSpec(category='SCENE', direct_only=True),
-    'shader': ToolSpec(category='ASSETS'),
     'smart_build': ToolSpec(category='SYSTEM', direct_only=True),
-    'ui_intent': ToolSpec(category='UGUI', tier1=True, direct_only=True),
     'undo_last': ToolSpec(category='SYSTEM'),
     'validate_references': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
-    'vfx_intent': ToolSpec(category='MEDIA', tier1=True, direct_only=True),
-    'lint_ugui': ToolSpec(category='UGUI', tier1=False, mutability='read', timeout_s=15.0),
 }
 
 # PR-04 pilot: watch/get_watches ToolSpec entries are owned by tools/watch.py

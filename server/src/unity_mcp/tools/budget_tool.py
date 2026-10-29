@@ -1,6 +1,6 @@
 """budget_status MCP tool — read-only cost snapshot."""
-from ._annotations import RO as _RO
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _tracker = None
 
@@ -14,4 +14,4 @@ async def budget_status() -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(budget_status)
+    tools.register(mcp, budget_status)

@@ -54,27 +54,12 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "path": "Project-relative path to a .playtest DSL file (mutually exclusive with script)",
     },
 
-    "shader": {
-        "path": "Project asset path to a .shader or .shadergraph file",
-        "name": "Action-specific Shader Graph property/node name (not a GameObject name)",
-        "type": "Action-specific Shader Graph property value type (not a component type)",
-        "shader_name": "Shader declaration name used when creating shader source",
-    },
-
     "scene_change_plan": {
         "dry_run": "False (default) = create plan_id. True = probe pre-flights only, no plan created.",
     },
 
     "apply_template": {
         "name": "Saved scene-template identifier from .claude/templates (without .cs)",
-    },
-
-    "create_ui": {
-        "type": "uGUI element type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView",
-    },
-
-    "menu": {
-        "path": "Unity Editor menu-item path to execute, or submenu prefix to list",
     },
 
     # ── TIER1 TOOLS ─────────────────────────────────────────────────────────

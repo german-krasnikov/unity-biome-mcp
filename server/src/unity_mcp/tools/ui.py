@@ -1,8 +1,6 @@
 """UI authoring + visual asset tools: create_ui, set_rect, menu, shader, lint_ugui."""
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
-from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -104,8 +102,8 @@ async def lint_ugui(root: str | None = None) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(create_ui)
-    mcp.tool(annotations=_RW_IDEM)(set_rect)
-    mcp.tool(annotations=_RW)(menu)
-    mcp.tool(annotations=_RW)(shader)
-    mcp.tool(annotations=_RO)(lint_ugui)
+    tools.register(mcp, create_ui)
+    tools.register(mcp, set_rect)
+    tools.register(mcp, menu)
+    tools.register(mcp, shader)
+    tools.register(mcp, lint_ugui)

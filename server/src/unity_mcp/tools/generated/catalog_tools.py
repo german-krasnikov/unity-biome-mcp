@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=1d58281efb1c11a76fa3bb1f62adb92ad48c2523bd2eee27e9dbdcf8ad1eb5d6
+# source-sha256=c708da88fd9bc9c1ae9eaa6f10411ee31a1b5710c6ab12af7a900ff3c814ac03
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -65,8 +65,16 @@ tools.expect('animator', 'RW', "Animator Controller — state machine. Modifies 
     ('value', ostr, None),
     ('avatar_path', ostr, None),
 ))
+tools.expect('animator_intent', 'RW', "Convert NL intent to Unity Animator Controller setup via DSL.", (
+    ('target', str),
+    ('intent', str),
+    ('dry_run', bool, False),
+))
 tools.expect('ask', 'RO', "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).", (
     ('question', str),
+))
+tools.expect('ask_user', 'RO', "Show a question card in Unity chat; wait for user answer (interactive UI — use `ask` for read-only AI scene questions instead).", (
+    ('questions', str),
 ))
 tools.expect('asset', 'RW', "Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path.", (
     ('action', str),
@@ -108,6 +116,12 @@ tools.expect('bake', 'RW', "Bake operations.", (
     ('target', str),
     ('action', ostr, None),
 ))
+tools.expect('brief_build', 'RO', "Use to get a snapshot of project state before starting work.", (
+    ('kinds', str, "console,compile_errors,hierarchy"),
+    ('budget', int, 2000),
+))
+tools.expect('budget_status', 'RO', "Returns Haiku cost: session/cap/day/skipped features. Text format.", (
+))
 tools.expect('build', 'RW', "Build player. action: build.", (
     ('action', str),
     ('target', ostr, None),
@@ -130,6 +144,26 @@ tools.expect('create_object', 'RW', "Create new GameObject. components: comma-se
     ('prefab_path', ostr, None),
     ('scene', ostr, None),
 ))
+tools.expect('create_ui', 'RW', "Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace. font_min/font_max: enable TMP autoSizing for Text type.", (
+    ('type', str),
+    ('name', ostr, None),
+    ('parent', ostr, None),
+    ('anchor', ostr, None),
+    ('pos', ostr, None),
+    ('size', ostr, None),
+    ('pivot', ostr, None),
+    ('color', ostr, None),
+    ('text', ostr, None),
+    ('font_size', ostr, None),
+    ('render_mode', ostr, None),
+    ('font_min', ostr, None),
+    ('font_max', ostr, None),
+))
+tools.expect('debug', 'RO', "AI-assisted scene debug: gather diagnostic context based on symptom (not compile/reload — use `diagnose` for that; not runtime state — use `debug_animator` or `debug_physics`).", (
+    ('symptom', str, ""),
+    ('path', str, ""),
+    ('gather', str, ""),
+))
 tools.expect('debug_animator', 'RO', "[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile).", (
     ('path', str),
 ))
@@ -145,6 +179,10 @@ tools.expect('delete_object', 'DEL', "Delete GameObject by instance ID or scene 
 tools.expect('diagnose', 'RO', "Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`.", (
     ('prev_mvid', str, ""),
     ('expected_compile', bool, True),
+))
+tools.expect('do', 'RW', "Convert natural language intent into Unity scene operations. Use when scene structure unknown or task is ambiguous. NOT for targeted mutations on known objects — use batch directly.", (
+    ('intent', str),
+    ('dry_run', bool, False),
 ))
 tools.expect('export_playtest_aliases_to_defs', 'RW', "Export PlaytestConfig.asset aliases to a readable .defs text file.", (
     ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
@@ -162,6 +200,8 @@ tools.expect('fingerprint', 'RO', "Scene state hash. Returns fp:XXXXXXXX. If unc
 ))
 tools.expect('get_changes', 'RW', "Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,", (
     ('clear', bool, True),
+))
+tools.expect('get_changeset', 'RO', "Return the current ChangeSet: accumulated mutations this session.", (
 ))
 tools.expect('get_component', 'RO', "Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N.", (
     ('path', str),
@@ -232,6 +272,9 @@ tools.expect('lint_scene_refs', 'RO', "Read-only linter for scene references in 
     ('path', ostr, None),
     ('snippet', ostr, None),
 ))
+tools.expect('lint_ugui', 'RO', "Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Use when clicks miss or UI appears broken.", (
+    ('root', ostr, None),
+))
 tools.expect('lint_uitk', 'RO', "Validate a UXML or USS file for structural errors and broken references", (
     ('path', ostr, None),
     ('fix', obool, None),
@@ -266,6 +309,10 @@ tools.expect('material', 'RW', "Material asset management (for quick color chang
 tools.expect('material_audit', 'RO', "Material/texture scene-wide audit.", (
     ('action', str, "summary"),
     ('platform', ostr, None),
+))
+tools.expect('menu', 'RW', "Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API.", (
+    ('action', str),
+    ('path', ostr, None),
 ))
 tools.expect('move_to', 'RW', "[Play Mode] Move character to position and wait for arrival.", (
     ('path', str),
@@ -302,6 +349,11 @@ tools.expect('particle', 'RW', "Particle System. action: get|create|set|apply|pl
     ('prop', ostr, None),
     ('value', ostr, None),
     ('preset', ostr, None),
+))
+tools.expect('permission_prompt', 'RO', "Handle Claude permission prompts via MCP.", (
+    ('tool_name', str),
+    ('input', Any),
+    ('tool_use_id', str),
 ))
 tools.expect('prefab', 'RW', "Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate.", (
     ('action', str),
@@ -536,6 +588,16 @@ tools.expect('set_property_delta', 'RW', "Apply delta to numeric property. delta
     ('prop', str),
     ('delta', str),
 ))
+tools.expect('set_rect', 'RW_IDEM', "Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y). pos3: (x,y,z) sets anchoredPosition3D — use for WorldSpace canvases (wins over pos if both given).", (
+    ('path', str),
+    ('anchor', ostr, None),
+    ('pos', ostr, None),
+    ('size', ostr, None),
+    ('pivot', ostr, None),
+    ('offset_min', ostr, None),
+    ('offset_max', ostr, None),
+    ('pos3', ostr, None),
+))
 tools.expect('set_sibling_index', 'RW', "Set sibling index of a GameObject within its parent. index=0 moves to first child.", (
     ('path', str),
     ('index', int),
@@ -555,6 +617,34 @@ async def set_sibling_index(
     ))
 
 
+tools.expect('shader', 'RW', "Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network.", (
+    ('action', str),
+    ('path', str),
+    ('target', ostr, None),
+    ('preset', ostr, None),
+    ('code', ostr, None),
+    ('shader_name', ostr, None),
+    ('prop', ostr, None),
+    ('value', ostr, None),
+    ('keyword', ostr, None),
+    ('enabled', ostr, None),
+    ('node_type', ostr, None),
+    ('node_id', ostr, None),
+    ('node_action', ostr, None),
+    ('output_node', ostr, None),
+    ('output_slot', oint, None),
+    ('input_node', ostr, None),
+    ('input_slot', oint, None),
+    ('edge_action', ostr, None),
+    ('name', ostr, None),
+    ('type', ostr, None),
+    ('default_value', ostr, None),
+    ('reference_name', ostr, None),
+    ('new_name', ostr, None),
+    ('layout', ostr, None),
+    ('h_gap', ofloat, None),
+    ('v_gap', ofloat, None),
+))
 tools.expect('snapshot', 'RO', "Capture or compare object state.", (
     ('path', str),
     ('label', str, "default"),
@@ -613,6 +703,12 @@ tools.expect('transfer_object', 'RW', "Move or copy a GameObject to another load
     ('target_scene', ostr, None),
     ('parent', ostr, None),
     ('world_position_stays', bool, True),
+))
+tools.expect('ui_intent', 'RW', "Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.", (
+    ('intent', str),
+    ('parent', ostr, None),
+    ('template', ostr, None),
+    ('dry_run', bool, False),
 ))
 tools.expect('uitk_element', 'RW', "Mutate or query a VisualElement in a UIDocument or PanelRenderer host", (
     ('action', Any),
@@ -673,6 +769,12 @@ tools.expect('verify_after_change', 'RW', "Single verification gate after code/s
     ('auto_play', bool, False),
     ('restart_between', bool, False),
     ('suite_timeout', float, 300.0),
+))
+tools.expect('vfx_intent', 'RW', "Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.", (
+    ('target', str),
+    ('intent', str),
+    ('kind', str, "auto"),
+    ('dry_run', bool, False),
 ))
 tools.expect('wait_until', 'RW_IDEM', "[Play Mode] Poll field until it matches value (or timeout).", (
     ('path', str),

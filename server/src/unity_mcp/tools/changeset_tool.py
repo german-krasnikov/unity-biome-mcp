@@ -33,5 +33,5 @@ async def get_changeset() -> str:
 
 
 def register(mcp, send, args):
-    from ._annotations import RO as _RO
-    mcp.tool(annotations=_RO)(get_changeset)
+    from .generated.catalog_tools import tools
+    tools.register(mcp, get_changeset)

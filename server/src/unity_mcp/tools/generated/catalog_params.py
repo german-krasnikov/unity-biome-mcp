@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=1d58281efb1c11a76fa3bb1f62adb92ad48c2523bd2eee27e9dbdcf8ad1eb5d6
+# source-sha256=c708da88fd9bc9c1ae9eaa6f10411ee31a1b5710c6ab12af7a900ff3c814ac03
 # Edit the source, then run biome generate.
 
 PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
@@ -9,7 +9,11 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'animator': {
     },
+    'animator_intent': {
+    },
     'ask': {
+    },
+    'ask_user': {
     },
     'asset': {
         'path': "Action-specific project asset/package path (usually Assets/...; import_package accepts a package file path)",
@@ -28,6 +32,10 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'bake': {
     },
+    'brief_build': {
+    },
+    'budget_status': {
+    },
     'build': {
         'path': "Player build output file or directory (default Builds/<target>)",
     },
@@ -43,6 +51,11 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'prefab_path': "Asset path to instantiate from prefab (e.g. Assets/Prefabs/Enemy.prefab)",
         'scene': "Target scene name when multiple scenes are loaded (omit = active scene)",
     },
+    'create_ui': {
+        'type': "uGUI element type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView",
+    },
+    'debug': {
+    },
     'debug_animator': {
     },
     'debug_physics': {
@@ -54,6 +67,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'diagnose': {
     },
+    'do': {
+    },
     'export_playtest_aliases_to_defs': {
     },
     'find_objects': {
@@ -61,6 +76,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'fingerprint': {
     },
     'get_changes': {
+    },
+    'get_changeset': {
     },
     'get_component': {
         'path': "Scene path to the GameObject (e.g. /Player or /World/Enemy)",
@@ -109,6 +126,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'lint_scene_refs': {
         'path': "Project-relative path to a .playtest DSL file",
     },
+    'lint_ugui': {
+    },
     'lint_uitk': {
         'path': "Assets/ path to the UXML or USS file to validate",
     },
@@ -127,6 +146,9 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'material_audit': {
     },
+    'menu': {
+        'path': "Unity Editor menu-item path to execute, or submenu prefix to list",
+    },
     'move_to': {
     },
     'navmesh_query': {
@@ -137,6 +159,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'name': "Unity Package Manager package identifier for add/remove (for example com.unity.inputsystem)",
     },
     'particle': {
+    },
+    'permission_prompt': {
     },
     'prefab': {
     },
@@ -238,7 +262,15 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'set_property_delta': {
     },
+    'set_rect': {
+    },
     'set_sibling_index': {
+    },
+    'shader': {
+        'path': "Project asset path to a .shader or .shadergraph file",
+        'shader_name': "Shader declaration name used when creating shader source",
+        'name': "Action-specific Shader Graph property/node name (not a GameObject name)",
+        'type': "Action-specific Shader Graph property value type (not a component type)",
     },
     'snapshot': {
     },
@@ -253,6 +285,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'value': "Action-specific Timeline value; set_track_offset accepts auto|transform|scene",
     },
     'transfer_object': {
+    },
+    'ui_intent': {
     },
     'uitk_element': {
         'name': "VisualElement name used after ref and before selector in addressing priority",
@@ -274,6 +308,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'validate_triggers': {
     },
     'verify_after_change': {
+    },
+    'vfx_intent': {
     },
     'wait_until': {
         'value': "Expected field value to compare against (this tool does not set the field)",

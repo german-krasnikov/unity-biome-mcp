@@ -3,8 +3,8 @@
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ..sampling import sampling_service as _sampling
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 from .intent_common import build_batch_line, parse_indent_tree, parse_kv, run_intent_pipeline
 
 _send = None
@@ -244,4 +244,4 @@ async def ui_intent(intent: str, parent: str | None = None, template: str | None
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(ui_intent)
+    tools.register(mcp, ui_intent)

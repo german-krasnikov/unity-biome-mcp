@@ -5,8 +5,8 @@ from ..do_intent.executor import Executor
 from ..do_intent.planner import Planner
 from ..do_intent.validator import validate_plan
 from ..sampling import sampling_service as _sampling
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 from .intent_common import sanitize_intent
 
 # Module-level references — patched in tests
@@ -67,4 +67,4 @@ def _extract_paths(hierarchy: str) -> set[str]:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(do)
+    tools.register(mcp, do)

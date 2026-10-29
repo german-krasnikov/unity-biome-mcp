@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=1d58281efb1c11a76fa3bb1f62adb92ad48c2523bd2eee27e9dbdcf8ad1eb5d6
+# source-sha256=c708da88fd9bc9c1ae9eaa6f10411ee31a1b5710c6ab12af7a900ff3c814ac03
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
@@ -15,10 +15,22 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'MEDIA',
         'effect': 'RW',
     },
+    'animator_intent': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+        'direct_only': True,
+    },
     'ask': {
         'category': 'SYSTEM',
         'effect': 'RO',
         'direct_only': True,
+    },
+    'ask_user': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
+        'unity_transport': True,
+        'timeout_s': 300.0,
     },
     'asset': {
         'category': 'ASSETS',
@@ -46,6 +58,16 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'ASSETS',
         'effect': 'RW',
     },
+    'brief_build': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
+    },
+    'budget_status': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
+    },
     'build': {
         'category': 'SYSTEM',
         'effect': 'RW',
@@ -68,6 +90,15 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RW',
         'core': True,
     },
+    'create_ui': {
+        'category': 'UGUI',
+        'effect': 'RW',
+    },
+    'debug': {
+        'category': 'RUNTIME',
+        'effect': 'RO',
+        'direct_only': True,
+    },
     'debug_animator': {
         'category': 'RUNTIME',
         'effect': 'RO',
@@ -86,6 +117,11 @@ SPEC_KWARGS: dict[str, dict] = {
     'diagnose': {
         'category': 'VERIFY',
         'effect': 'RO',
+    },
+    'do': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+        'direct_only': True,
     },
     'export_package': {
         'category': '_INTERNAL',
@@ -112,6 +148,13 @@ SPEC_KWARGS: dict[str, dict] = {
     'get_changes': {
         'category': 'SYSTEM',
         'effect': 'RW',
+    },
+    'get_changeset': {
+        'category': 'VERIFY',
+        'effect': 'RO',
+        'direct_only': True,
+        'tier1': True,
+        'timeout_s': 5.0,
     },
     'get_component': {
         'category': 'CORE',
@@ -192,6 +235,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RO',
         'tier1': True,
     },
+    'lint_ugui': {
+        'category': 'UGUI',
+        'effect': 'RO',
+        'timeout_s': 15.0,
+    },
     'lint_uitk': {
         'category': 'UITOOLKIT',
         'effect': 'RO',
@@ -229,6 +277,10 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'ASSETS',
         'effect': 'RO',
     },
+    'menu': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+    },
     'move_to': {
         'category': 'RUNTIME',
         'effect': 'RW',
@@ -255,6 +307,12 @@ SPEC_KWARGS: dict[str, dict] = {
     'particle': {
         'category': 'MEDIA',
         'effect': 'RW',
+    },
+    'permission_prompt': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
+        'tier1': True,
     },
     'ping': {
         'category': '_INTERNAL',
@@ -392,8 +450,16 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'SCENE',
         'effect': 'RW',
     },
+    'set_rect': {
+        'category': 'UGUI',
+        'effect': 'RW_IDEM',
+    },
     'set_sibling_index': {
         'category': 'SCENE',
+        'effect': 'RW',
+    },
+    'shader': {
+        'category': 'ASSETS',
         'effect': 'RW',
     },
     'snapshot': {
@@ -436,6 +502,12 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'SCENE',
         'effect': 'RW',
     },
+    'ui_intent': {
+        'category': 'UGUI',
+        'effect': 'RW',
+        'direct_only': True,
+        'tier1': True,
+    },
     'uitk_element': {
         'category': 'UITOOLKIT',
         'effect': 'RW',
@@ -477,6 +549,12 @@ SPEC_KWARGS: dict[str, dict] = {
         'direct_only': True,
         'tier1': True,
         'timeout_s': 600.0,
+    },
+    'vfx_intent': {
+        'category': 'MEDIA',
+        'effect': 'RW',
+        'direct_only': True,
+        'tier1': True,
     },
     'wait_until': {
         'category': 'RUNTIME',
