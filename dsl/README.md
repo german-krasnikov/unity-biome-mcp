@@ -1,14 +1,15 @@
 # Tool catalog
 
 `tools.biome` states what a tool is once: its name, category, effect, flags, arguments and, for a forwarder, its description.
-`scripts/dsl.sh generate` prints it as Python in `server/src/unity_mcp/tools/generated/`:
+`scripts/dsl.sh generate` prints it:
 
-- `catalog_specs.py` and `catalog_params.py`: the ToolSpec and the schema descriptions, which `tool_specs.py` and
+- in `server/src/unity_mcp/tools/generated/`, `catalog_specs.py` and `catalog_params.py`: the ToolSpec and the schema descriptions, which `tool_specs.py` and
   `_param_descriptions.py` merge;
-- `catalog_tools.py`: what the catalog expects of the Python side and, for a `FORWARD` tool, the MCP wrapper itself. A hand-written
+- there too, `catalog_tools.py`: what the catalog expects of the Python side and, for a `FORWARD` tool, the MCP wrapper itself. A hand-written
   tool (a `PYTOOL`, or a `TOOL` without `FORWARD`) states only its expectation and `provide`s its function in its module's
   `register()`; `catalog_tools.register()` runs last, checks every function against the catalog (parameters, types, defaults, the
   first line of the description) and registers it with the annotation of its effect. The runtime is `tools/_catalog_runtime.py`.
+- the `catalog` region of `docs/tools/index.md`: a row per tool with its plane, category and effect.
 
 This is the pilot of step 7.1 of the biome-dsl repository (`Plans/STEP_7_1_TOOL_CONSTRUCT_DESIGN.md`): five tools are in the
 catalog, every other tool is still declared by hand. A tool lives in one place: a name that is in the catalog and also in the
@@ -32,7 +33,8 @@ hand-written `_SPECS`, `PARAM_DESCRIPTIONS` or `mcp.tool` registrations fails at
 ## Checks
 
 - `scripts/dsl.sh check`: `generate --check` (a stale or hand-edited generated file) and the examples of the construct. Needs Node.
-- `server/tests/test_dsl_fresh.py`: without Node, each generated file states the sha256 of the current `tools.biome`.
+- `server/tests/test_dsl_fresh.py`: without Node, each generated file states the sha256 of the current `tools.biome`. The docs region has
+  no banner: only `scripts/dsl.sh check` finds it stale; `server/tests/test_catalog_docs.py` checks its rows against the ToolSpecs.
 - `server/tests/test_tool_surface_golden.py`: the MCP surface and the ToolSpec of every tool equal `golden/tool_surface.txt`, taken
   before the generator existed. A change of a tool on purpose is an `INTENDED` entry in that test, with its reason.
 - `server/tests/test_single_owner.py`: no tool and no Unity command is registered twice.

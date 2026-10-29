@@ -92,6 +92,23 @@ registration does not receive isolated category gating.
 
 **Other TIER1 tools:** Run `discover_tools(enable=False, structured=True)` and look for entries tagged `tier1`. This keeps the reference aligned with the installed version.
 
+## Cataloged Tools
+
+These tools are declared once in the repository's tool catalog (`dsl/tools.biome`), and this table is printed from it. **Plane** is
+where the tool runs: `unity` (the Editor handles the command) or `python` (the MCP server alone). **Effect**: `RO` read-only, `RW`
+writes, `RW_IDEM` writes and is safe to repeat, `DEL` destructive. `discover_tools(enable=False, structured=True)` stays the live
+reference for every tool.
+
+<!-- biome:begin catalog -->
+| Tool | Plane | Category | Effect |
+|---|---|---|---|
+| `rename_object` | unity | SCENE | RW_IDEM |
+| `search_scene` | unity | SCENE | RO |
+| `set_active` | unity | SCENE | RW_IDEM |
+| `set_sibling_index` | unity | SCENE | RW |
+| `use_skill` | python | SYSTEM | RW |
+<!-- biome:end catalog -->
+
 ## Enabling Tools by Category
 
 To unlock advanced tools, enable the category:

@@ -57,6 +57,14 @@ EXAMPLE a PYTOOL is direct_only, escapes its descriptions, and prints only an ex
   EXPECT rendered.pytools tools.expect('x', 'RW', "X.", (
   EXPECT unrendered.pytools async def
 
+EXAMPLE the table of the docs has a row per tool: its plane, category and effect
+  SOURCE TOOL x SCENE RW_IDEM "X."
+  SOURCE END
+  SOURCE PYTOOL y SYSTEM RO "Y."
+  SOURCE END
+  EXPECT rendered.mdtools | `x` | unity | SCENE | RW_IDEM |
+  EXPECT rendered.mdtools | `y` | python | SYSTEM | RO |
+
 EXAMPLE a name or an argument twice
   SOURCE TOOL x SCENE RO "X."
   SOURCE   ARG a str
