@@ -161,7 +161,7 @@ async def list_templates() -> str:
 def register(mcp, send, args):
     bind(globals(), send, args)
     mcp.tool(annotations=_RW)(save_skill)
-    tools.provide(use_skill)
+    tools.register(mcp, use_skill)
     mcp.tool(annotations=_RO)(list_skills)
     mcp.tool(annotations=_RW)(apply_template)
     mcp.tool(annotations=_RW_IDEM)(save_template)

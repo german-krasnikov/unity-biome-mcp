@@ -6,9 +6,10 @@
 - in `server/src/unity_mcp/tools/generated/`, `catalog_specs.py` and `catalog_params.py`: the ToolSpec and the schema descriptions, which `tool_specs.py` and
   `_param_descriptions.py` merge;
 - there too, `catalog_tools.py`: what the catalog expects of the Python side and, for a `FORWARD` tool, the MCP wrapper itself. A hand-written
-  tool (a `PYTOOL`, or a `TOOL` without `FORWARD`) states only its expectation and `provide`s its function in its module's
-  `register()`; `catalog_tools.register()` runs last, checks every function against the catalog (parameters, types, defaults, the
-  first line of the description) and registers it with the annotation of its effect. The runtime is `tools/_catalog_runtime.py`.
+  tool (a `PYTOOL`, or a `TOOL` without `FORWARD`) states only its expectation; its module's `register()` registers the function with
+  `tools.register(mcp, fn)`, which checks it against the catalog (parameters, types, defaults, the first line of the description) and
+  registers it with the annotation of its effect, where `mcp.tool(annotations=...)(fn)` stood. `catalog_tools.register()` runs last: it
+  checks that every tool of the catalog has a function and registers the generated wrappers. The runtime is `tools/_catalog_runtime.py`.
 - the `catalog` region of `docs/tools/index.md`: a row per tool with its plane, category and effect.
 
 This is the pilot of step 7.1 of the biome-dsl repository (`Plans/STEP_7_1_TOOL_CONSTRUCT_DESIGN.md`): the tools in
