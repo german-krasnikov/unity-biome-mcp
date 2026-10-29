@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=896692d2e17494813cb32187d5a874fe55d1875072e069d26b91037ba888c7b9
+# source-sha256=8605691b5a77c2ae753306620d1421adfe84064108a19b336760e682d35d2f23
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
@@ -19,6 +19,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'core': True,
         'timeout_s': 60.0,
     },
+    'create_object': {
+        'category': 'CORE',
+        'effect': 'RW',
+        'core': True,
+    },
     'debug_animator': {
         'category': 'RUNTIME',
         'effect': 'RO',
@@ -29,13 +34,31 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RO',
         'runtime_only': True,
     },
+    'delete_object': {
+        'category': 'SCENE',
+        'effect': 'DEL',
+        'tier1': True,
+    },
     'export_package': {
         'category': '_INTERNAL',
         'effect': 'RW',
         'timeout_s': 120.0,
     },
+    'find_objects': {
+        'category': 'SCENE',
+        'effect': 'RO',
+    },
     'get_aliases': {
         'category': '_INTERNAL',
+        'effect': 'RO',
+    },
+    'get_component': {
+        'category': 'CORE',
+        'effect': 'RO',
+        'core': True,
+    },
+    'get_components_list': {
+        'category': 'SCENE',
         'effect': 'RO',
     },
     'get_metrics': {
@@ -43,11 +66,19 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RW',
         'direct_only': True,
     },
+    'get_object_detail': {
+        'category': 'SCENE',
+        'effect': 'RO',
+    },
     'get_playtest_run': {
         'category': '_INTERNAL',
         'effect': 'RO',
         'direct_only': True,
         'unity_transport': True,
+    },
+    'get_unity_events': {
+        'category': 'SCENE',
+        'effect': 'RO',
     },
     'get_version': {
         'category': '_INTERNAL',
@@ -59,15 +90,33 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RW',
         'timeout_s': 120.0,
     },
+    'inspect': {
+        'category': 'CORE',
+        'effect': 'RO',
+        'core': True,
+    },
     'list_connections': {
         'category': 'SYSTEM',
         'effect': 'RO',
         'direct_only': True,
     },
+    'list_events': {
+        'category': 'COMPONENTS',
+        'effect': 'RO',
+    },
     'list_playtest_files': {
         'category': '_INTERNAL',
         'effect': 'RO',
         'timeout_s': 10.0,
+    },
+    'manage_component': {
+        'category': 'CORE',
+        'effect': 'RW',
+        'core': True,
+    },
+    'object_diff': {
+        'category': 'SCENE',
+        'effect': 'RO',
     },
     'ping': {
         'category': '_INTERNAL',
@@ -94,6 +143,24 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RW_IDEM',
         'tier1': True,
     },
+    'set_material': {
+        'category': 'SCENE',
+        'effect': 'RW_IDEM',
+    },
+    'set_parent': {
+        'category': 'SCENE',
+        'effect': 'RW_IDEM',
+        'tier1': True,
+    },
+    'set_property': {
+        'category': 'CORE',
+        'effect': 'RW_IDEM',
+        'core': True,
+    },
+    'set_property_delta': {
+        'category': 'SCENE',
+        'effect': 'RW',
+    },
     'set_sibling_index': {
         'category': 'SCENE',
         'effect': 'RW',
@@ -115,9 +182,21 @@ SPEC_KWARGS: dict[str, dict] = {
         'direct_only': True,
         'unity_transport': True,
     },
+    'transfer_object': {
+        'category': 'SCENE',
+        'effect': 'RW',
+    },
+    'unwire_event': {
+        'category': 'COMPONENTS',
+        'effect': 'DEL',
+    },
     'use_skill': {
         'category': 'SYSTEM',
         'effect': 'RW',
         'direct_only': True,
+    },
+    'wire_event': {
+        'category': 'COMPONENTS',
+        'effect': 'RW',
     },
 }

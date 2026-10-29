@@ -68,27 +68,8 @@ async def test_delete_object_error_raises_tool_error(mock_bridge):
 
 
 def test_set_parent_registered_as_rw_idem_tool():
-    """set_parent is registered with _RW_IDEM annotation (idempotent write)."""
-    import ast, inspect, textwrap
-    src = inspect.getsource(objects)
-    tree = ast.parse(textwrap.dedent(src))
-    found = None
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name == "register":
-            for stmt in node.body:
-                if not isinstance(stmt, ast.Expr):
-                    continue
-                call = stmt.value
-                if not isinstance(call, ast.Call):
-                    continue
-                if not isinstance(call.func, ast.Call):
-                    continue
-                inner = call.func
-                if not call.args or not isinstance(call.args[0], ast.Name):
-                    continue
-                if call.args[0].id != "set_parent":
-                    continue
-                for kw in inner.keywords:
-                    if kw.arg == "annotations" and isinstance(kw.value, ast.Name):
-                        found = kw.value.id
-    assert found == "_RW_IDEM", f"Expected _RW_IDEM annotation, got {found}"
+    """set_parent is registered with the idempotent-write annotation (the tool catalog states it as RW_IDEM)."""
+    from unity_mcp.server import mcp
+    annotations = mcp._tool_manager._tools["set_parent"].annotations
+    assert annotations.idempotentHint is True
+    assert annotations.readOnlyHint is False

@@ -2,14 +2,11 @@ from unity_mcp.compressor import collapse_empty_sections as _collapse_empty_sect
 from unity_mcp.compressor import project_fields as _project_fields
 from unity_mcp.input_normalizer import normalize_value as _normalize_value
 
-from ._annotations import DEL as _DEL
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
-from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 
-# The tool catalog (dsl/tools.biome) owns them; server.py and the tests import them from here.
-from .generated.catalog_tools import rename_object, set_active, set_sibling_index  # noqa: F401
+# The tool catalog (dsl/tools.biome) owns rename_object, set_active and set_sibling_index (server.py and the tests import them from here)
+# and registers the other tools of this module (tools.register).
+from .generated.catalog_tools import rename_object, set_active, set_sibling_index, tools  # noqa: F401
 
 _send = None
 _args = None
@@ -206,21 +203,21 @@ async def get_unity_events(path: str | None = None) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(get_component)
-    mcp.tool(annotations=_RO)(inspect)
-    mcp.tool(annotations=_RO)(get_components_list)
-    mcp.tool(annotations=_RO)(find_objects)
-    mcp.tool(annotations=_RW_IDEM)(set_property)
-    mcp.tool(annotations=_RW)(create_object)
-    mcp.tool(annotations=_RW)(transfer_object)
-    mcp.tool(annotations=_RW)(wire_event)
-    mcp.tool(annotations=_DEL)(unwire_event)
-    mcp.tool(annotations=_DEL)(delete_object)
-    mcp.tool(annotations=_RW)(manage_component)
-    mcp.tool(annotations=_RO)(get_object_detail)
-    mcp.tool(annotations=_RW_IDEM)(set_material)
-    mcp.tool(annotations=_RW)(set_property_delta)
-    mcp.tool(annotations=_RW_IDEM)(set_parent)
-    mcp.tool(annotations=_RO)(object_diff)
-    mcp.tool(annotations=_RO)(get_unity_events)
-    mcp.tool(annotations=_RO)(list_events)
+    tools.register(mcp, get_component)
+    tools.register(mcp, inspect)
+    tools.register(mcp, get_components_list)
+    tools.register(mcp, find_objects)
+    tools.register(mcp, set_property)
+    tools.register(mcp, create_object)
+    tools.register(mcp, transfer_object)
+    tools.register(mcp, wire_event)
+    tools.register(mcp, unwire_event)
+    tools.register(mcp, delete_object)
+    tools.register(mcp, manage_component)
+    tools.register(mcp, get_object_detail)
+    tools.register(mcp, set_material)
+    tools.register(mcp, set_property_delta)
+    tools.register(mcp, set_parent)
+    tools.register(mcp, object_diff)
+    tools.register(mcp, get_unity_events)
+    tools.register(mcp, list_events)

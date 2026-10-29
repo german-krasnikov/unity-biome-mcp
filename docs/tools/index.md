@@ -105,17 +105,35 @@ reference for every tool.
 | `auto_wire` | unity | COMPONENTS | RW |
 | `await_compile` | python | VERIFY | RO |
 | `compile_preflight` | unity | VERIFY | RO |
+| `create_object` | unity | CORE | RW |
 | `debug_animator` | unity | RUNTIME | RO |
 | `debug_physics` | unity | RUNTIME | RO |
+| `delete_object` | unity | SCENE | DEL |
+| `find_objects` | unity | SCENE | RO |
+| `get_component` | unity | CORE | RO |
+| `get_components_list` | unity | SCENE | RO |
 | `get_metrics` | python | RUNTIME | RW |
+| `get_object_detail` | unity | SCENE | RO |
+| `get_unity_events` | unity | SCENE | RO |
+| `inspect` | unity | CORE | RO |
 | `list_connections` | python | SYSTEM | RO |
+| `list_events` | unity | COMPONENTS | RO |
+| `manage_component` | unity | CORE | RW |
+| `object_diff` | unity | SCENE | RO |
 | `rename_object` | unity | SCENE | RW_IDEM |
 | `search_scene` | unity | SCENE | RO |
 | `serialized_field_rename_audit` | unity | VERIFY | RO |
 | `set_active` | unity | SCENE | RW_IDEM |
+| `set_material` | unity | SCENE | RW_IDEM |
+| `set_parent` | unity | SCENE | RW_IDEM |
+| `set_property` | unity | CORE | RW_IDEM |
+| `set_property_delta` | unity | SCENE | RW |
 | `set_sibling_index` | unity | SCENE | RW |
 | `snapshot` | python | RUNTIME | RO |
+| `transfer_object` | unity | SCENE | RW |
+| `unwire_event` | unity | COMPONENTS | DEL |
 | `use_skill` | python | SYSTEM | RW |
+| `wire_event` | unity | COMPONENTS | RW |
 <!-- biome:end catalog -->
 
 ## Enabling Tools by Category

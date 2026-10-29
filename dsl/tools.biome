@@ -30,6 +30,16 @@ TOOL compile_preflight VERIFY RO "Validate C# WITHOUT writing/recompiling (Rosly
   ARG new_content str
 END
 
+TOOL create_object CORE RW "Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene)."
+  FLAG core
+  ARG name str "Name for the new GameObject"
+  ARG parent ostr DEFAULT None "Scene path of the parent (omit = scene root)"
+  ARG components ostr DEFAULT None "Comma-separated component types to add on creation (e.g. 'Rigidbody,BoxCollider')"
+  ARG primitive ostr DEFAULT None "Primitive mesh type: Cube|Sphere|Cylinder|Capsule|Plane|Quad"
+  ARG prefab_path ostr DEFAULT None "Asset path to instantiate from prefab (e.g. Assets/Prefabs/Enemy.prefab)"
+  ARG scene ostr DEFAULT None "Target scene name when multiple scenes are loaded (omit = active scene)"
+END
+
 TOOL debug_animator RUNTIME RO "[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile)."
   RUNTIME
   ARG path str
@@ -41,16 +51,49 @@ TOOL debug_physics RUNTIME RO "[Play Mode] Read Rigidbody state, colliders, cont
   ARG radius float DEFAULT 5.0
 END
 
+TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."
+  FLAG tier1
+  ARG id oint DEFAULT None "Instance ID of the GameObject to delete (from get_hierarchy)"
+  ARG path ostr DEFAULT None "Scene path of the GameObject to delete"
+  ARG force bool DEFAULT False "True to delete non-empty container objects without error"
+END
+
 INTERNAL export_package RW "Protocol name of the asset action export_package; only its timeout is used, Unity registers no command of this name."
   TIMEOUT 120.0
+END
+
+TOOL find_objects SCENE RO "Find objects by criteria. Use search_scene for complex queries. Does NOT support: parent, path, active/inactive filtering, regex. Only: name (substring), tag, layer, component (full namespace)."
+  ARG name ostr DEFAULT None
+  ARG tag ostr DEFAULT None
+  ARG layer ostr DEFAULT None
+  ARG component ostr DEFAULT None
 END
 
 INTERNAL get_aliases RO "The alias table as name=value lines; the server reads it when it connects."
 END
 
+TOOL get_component CORE RO "Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N."
+  FLAG core
+  ARG path str "Scene path to the GameObject (e.g. /Player or /World/Enemy)"
+  ARG type str DEFAULT_TEXT "" "Component type name (e.g. 'Transform', 'Rigidbody', 'MeshRenderer')"
+  ARG fields ostr DEFAULT None "Comma-separated fields to return (e.g. 'mass,localPosition') — skips all others, saves tokens"
+  ARG full bool DEFAULT False "Return raw uncompressed response (bypass distillation)"
+  ARG compress bool DEFAULT False "Strip fields at their default value before TCP transfer — reduces response size"
+  ARG component ostr DEFAULT None
+END
+
+TOOL get_components_list SCENE RO "List all components on object by instance ID."
+  ARG id int
+END
+
 PYTOOL get_metrics RUNTIME RW "Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json."
   ARG format str DEFAULT_TEXT "text"
   ARG reset bool DEFAULT False
+END
+
+TOOL get_object_detail SCENE RO "Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation."
+  ARG id int
+  ARG full bool DEFAULT False
 END
 
 # E03: Wave E async playtest poll — internal wire command, not @mcp.tool() until E04
@@ -61,6 +104,10 @@ INTERNAL get_playtest_run RO "Polls the asynchronous playtest run that start_pla
   FLAG unity_transport
 END
 
+TOOL get_unity_events SCENE RO "List all UnityEvent persistent listeners in the active scene."
+  ARG path ostr DEFAULT None
+END
+
 INTERNAL get_version RO "Version and protocol handshake; the Unity server answers it before the command router."
   TIMEOUT 5.0
 END
@@ -69,11 +116,39 @@ INTERNAL import_package RW "Protocol name of the asset action import_package; on
   TIMEOUT 120.0
 END
 
+TOOL inspect CORE RO "Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all)."
+  FLAG core
+  ARG paths ostr DEFAULT None "Comma-separated scene paths (e.g. '/Player,/Enemy,/Camera')"
+  ARG components ostr DEFAULT None "Comma-separated component types to read (omit = all)"
+  ARG fields ostr DEFAULT None "Comma-separated field names to project across all objects — reduces tokens"
+  ARG full bool DEFAULT False "Return raw uncompressed response (bypass distillation)"
+  ARG compress bool DEFAULT False "Strip fields at their default value before TCP transfer — reduces response size"
+  ARG find_type ostr DEFAULT None "Component type — auto-populates paths from all scene objects with this component"
+END
+
 PYTOOL list_connections SYSTEM RO "List Unity connection status."
+END
+
+TOOL list_events COMPONENTS RO "Read persistent listeners on a UnityEvent field. Use after wire_event to verify."
+  ARG path str
+  ARG component str
+  ARG event str
 END
 
 INTERNAL list_playtest_files RO "Lists the files that match a glob pattern (default Playtests/*.playtest), one project-relative path per line."
   TIMEOUT 10.0
+END
+
+TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
+  FLAG core
+  ARG path str "Scene path to the GameObject"
+  ARG type str "Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button')"
+  ARG action str "'add' or 'remove' — not 'enable'/'disable' (use set_property m_Enabled for that)"
+END
+
+TOOL object_diff SCENE RO "Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."
+  ARG path_a str
+  ARG path_b str
 END
 
 INTERNAL ping RO "Liveness probe: Unity answers pong."
@@ -116,6 +191,37 @@ TOOL set_active SCENE RW_IDEM "Set GameObject active/inactive."
   ARG active bool "True to activate, False to deactivate"
 END
 
+TOOL set_material SCENE RW_IDEM "Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto."
+  ARG path str
+  ARG color str
+  ARG shader ostr DEFAULT None
+END
+
+TOOL set_parent SCENE RW_IDEM "Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent."
+  FLAG tier1
+  ARG path str "Scene path of the GameObject to reparent"
+  ARG parent ostr DEFAULT None "New parent scene path (omit or null = move to scene root)"
+  ARG world_position_stays bool DEFAULT True "True (default) = preserve world transform; False = keep local transform relative to new parent"
+END
+
+TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`)."
+  FLAG core
+  ARG path ostr DEFAULT None "Scene path to the GameObject (e.g. /Player/Body)"
+  ARG component str DEFAULT_TEXT "" "Component type (empty string = Transform)"
+  ARG prop str DEFAULT_TEXT "" "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
+  ARG value Any DEFAULT None "New value. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'"
+  ARG dry_run bool DEFAULT False "Show what would change without applying (safe preview)"
+  ARG find_type ostr DEFAULT None "Component type — bulk-sets prop on ALL scene objects with this component (no path needed)"
+  ARG ref_component_type ostr DEFAULT None
+END
+
+TOOL set_property_delta SCENE RW "Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new."
+  ARG path str
+  ARG component str
+  ARG prop str
+  ARG delta str
+END
+
 TOOL set_sibling_index SCENE RW "Set sibling index of a GameObject within its parent. index=0 moves to first child."
   FORWARD
   ARG path str
@@ -143,7 +249,34 @@ INTERNAL start_playtest RW "Starts a playtest without blocking; get_playtest_run
   FLAG unity_transport
 END
 
+TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene. action: move|copy."
+  ARG path str
+  ARG action str
+  ARG target_scene ostr DEFAULT None
+  ARG parent ostr DEFAULT None
+  ARG world_position_stays bool DEFAULT True
+END
+
+TOOL unwire_event COMPONENTS DEL "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required."
+  ARG path str
+  ARG component str
+  ARG event str
+  ARG index oint DEFAULT None
+END
+
 PYTOOL use_skill SYSTEM RW "Execute a previously saved skill. params: comma-separated key=value for substitution."
   ARG name str "Saved learned-skill identifier from list_skills"
   ARG params ostr DEFAULT None
+END
+
+TOOL wire_event COMPONENTS RW "Wire UnityEvent persistent listener. Mutates scene. No confirmation required."
+  ARG path str
+  ARG component str
+  ARG event str
+  ARG target str
+  ARG method str
+  ARG arg_type str DEFAULT_TEXT "void"
+  ARG arg_value ostr DEFAULT None
+  ARG target_component_type ostr DEFAULT None
+  ARG parameter_types ostr DEFAULT None
 END
