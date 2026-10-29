@@ -1,8 +1,10 @@
 # Generated from dsl/tools.biome
-# source-sha256=c708da88fd9bc9c1ae9eaa6f10411ee31a1b5710c6ab12af7a900ff3c814ac03
+# source-sha256=f0e939b917d926f150ed0a371bfdea71c18222e5c5e59078b31493359c2850f3
 # Edit the source, then run biome generate.
 
 PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
+    'alias_status': {
+    },
     'analyze_lod_culling': {
     },
     'animation': {
@@ -39,9 +41,19 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'build': {
         'path': "Player build output file or directory (default Builds/<target>)",
     },
+    'cancel_test_run': {
+    },
     'check_colliders': {
     },
+    'checkpoint': {
+    },
+    'checkpoint_create': {
+    },
+    'checkpoint_restore': {
+    },
     'compile_preflight': {
+    },
+    'console_mark': {
     },
     'create_object': {
         'name': "Name for the new GameObject",
@@ -69,15 +81,23 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'do': {
     },
+    'doctor': {
+    },
+    'editor': {
+    },
     'export_playtest_aliases_to_defs': {
     },
     'find_objects': {
     },
     'fingerprint': {
     },
+    'get_capabilities': {
+    },
     'get_changes': {
     },
     'get_changeset': {
+    },
+    'get_compile_errors': {
     },
     'get_component': {
         'path': "Scene path to the GameObject (e.g. /Player or /World/Enemy)",
@@ -87,6 +107,13 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'compress': "Strip fields at their default value before TCP transfer — reduces response size",
     },
     'get_components_list': {
+    },
+    'get_console': {
+        'count': "Max log entries to return (default 10)",
+        'level': "Filter by level: log|warning|error|exception|assert (omit = all)",
+        'first': "Skip the first N entries (pagination offset)",
+    },
+    'get_console_since': {
     },
     'get_enabled_tools': {
     },
@@ -105,7 +132,17 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'get_object_detail': {
     },
+    'get_selection': {
+    },
     'get_spatial_context': {
+    },
+    'get_test_count': {
+    },
+    'get_test_progress': {
+    },
+    'get_test_results': {
+    },
+    'get_test_run': {
     },
     'get_unity_events': {
     },
@@ -135,6 +172,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'list_events': {
     },
+    'list_test_runs': {
+    },
     'load_session': {
     },
     'manage_component': {
@@ -145,6 +184,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'material': {
     },
     'material_audit': {
+    },
+    'mcp_status': {
     },
     'menu': {
         'path': "Unity Editor menu-item path to execute, or submenu prefix to list",
@@ -168,13 +209,19 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     },
     'query_state': {
     },
+    'recompile': {
+    },
     'region_clear': {
+    },
+    'release_smoke': {
     },
     'rename_object': {
     },
     'render_analyze': {
     },
     'resolve_scene_refs': {
+    },
+    'resolve_test_request': {
     },
     'run_playtest': {
         'script': "Inline DSL script (mutually exclusive with path)",
@@ -188,6 +235,18 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'after_hook': "DSL commands to run after Play Mode exits",
     },
     'run_playtest_suite': {
+    },
+    'run_tests': {
+        'mode': "Test runner mode: EditMode or PlayMode",
+        'filter': "NUnit filter expression (e.g. 'MyNamespace.MyTest')",
+        'request_id': "Caller-supplied idempotency ID — reuse to retry a failed dispatch without double-running",
+    },
+    'run_tests_wait': {
+        'mode': "Test runner mode: EditMode or PlayMode",
+        'filter': "NUnit filter expression (e.g. 'MyNamespace.MyTest')",
+        'timeout': "Max seconds to wait for completion (default 900)",
+        'poll_interval': "Seconds between status polls (default 5)",
+        'request_id': "Caller-supplied idempotency ID",
     },
     'runtime_snapshot': {
     },
@@ -297,6 +356,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'uitk_intent': {
         'name': "Base asset filename without extension (for <name>.uxml and <name>.uss)",
         'path': "Project asset output folder for the generated UXML/USS pair (default Assets/UI)",
+    },
+    'undo_last': {
     },
     'unwire_event': {
     },

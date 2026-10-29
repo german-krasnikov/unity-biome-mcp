@@ -4,9 +4,8 @@ import contextlib
 import uuid
 from datetime import UTC, datetime
 
-from ._annotations import DEL as _DEL
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -138,5 +137,5 @@ async def checkpoint_restore(checkpoint_id: str, force: bool = False) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(checkpoint_create)
-    mcp.tool(annotations=_DEL)(checkpoint_restore)
+    tools.register(mcp, checkpoint_create)
+    tools.register(mcp, checkpoint_restore)

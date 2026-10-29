@@ -64,26 +64,6 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
 
     # ── TIER1 TOOLS ─────────────────────────────────────────────────────────
 
-    "get_console": {
-        "count": "Max log entries to return (default 10)",
-        "level": "Filter by level: log|warning|error|exception|assert (omit = all)",
-        "first": "Skip the first N entries (pagination offset)",
-    },
-
-    "run_tests": {
-        "mode":       "Test runner mode: EditMode or PlayMode",
-        "filter":     "NUnit filter expression (e.g. 'MyNamespace.MyTest')",
-        "request_id": "Caller-supplied idempotency ID — reuse to retry a failed dispatch without double-running",
-    },
-
-    "run_tests_wait": {
-        "mode":          "Test runner mode: EditMode or PlayMode",
-        "filter":        "NUnit filter expression (e.g. 'MyNamespace.MyTest')",
-        "timeout":       "Max seconds to wait for completion (default 900)",
-        "poll_interval": "Seconds between status polls (default 5)",
-        "request_id":    "Caller-supplied idempotency ID",
-    },
-
     "save_skill": {
         "name": "File-safe identifier for the learned skill",
         "code": "C# code or batch commands to save as a reusable skill",

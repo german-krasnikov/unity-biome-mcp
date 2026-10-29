@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=c708da88fd9bc9c1ae9eaa6f10411ee31a1b5710c6ab12af7a900ff3c814ac03
+# source-sha256=f0e939b917d926f150ed0a371bfdea71c18222e5c5e59078b31493359c2850f3
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -21,6 +21,8 @@ def register(mcp, send, args):
     tools.install(mcp)
 
 
+tools.expect('alias_status', 'RO', "Check alias table health: loaded/empty/stale, sources, and total alias count.", (
+))
 tools.expect('analyze_lod_culling', 'RO', "LOD group coverage + occlusion culling analysis.", (
     ('focus', ostr, None),
 ))
@@ -129,12 +131,28 @@ tools.expect('build', 'RW', "Build player. action: build.", (
     ('path', ostr, None),
     ('dev', bool, False),
 ))
+tools.expect('cancel_test_run', 'RW_IDEM', "Request cancellation of one exact test run; cancellation is asynchronous.", (
+    ('run_id', str),
+))
 tools.expect('check_colliders', 'RO', "Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given.", (
     ('path', ostr, None),
+))
+tools.expect('checkpoint', 'RW', "Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity.", (
+    ('label', str, "checkpoint"),
+))
+tools.expect('checkpoint_create', 'RW', "Create a durable checkpoint before an agent turn.", (
+    ('paths', str, ""),
+))
+tools.expect('checkpoint_restore', 'DEL', "Restore files to their pre-turn state.", (
+    ('checkpoint_id', str),
+    ('force', bool, False),
 ))
 tools.expect('compile_preflight', 'RO', "Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile.", (
     ('file_path', str),
     ('new_content', str),
+))
+tools.expect('console_mark', 'RO', "Create a console watermark. Returns mark_id encoding current timestamp.", (
+    ('label', str, ""),
 ))
 tools.expect('create_object', 'RW', "Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene).", (
     ('name', str),
@@ -184,6 +202,15 @@ tools.expect('do', 'RW', "Convert natural language intent into Unity scene opera
     ('intent', str),
     ('dry_run', bool, False),
 ))
+tools.expect('doctor', 'RW', "Run health diagnostics. fix=True removes safe stale port/lock files.", (
+    ('fix', bool, False),
+))
+tools.expect('editor', 'RW', "Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode.", (
+    ('action', str, "state"),
+    ('path', ostr, None),
+    ('paths', ostr, None),
+    ('enable', obool, None),
+))
 tools.expect('export_playtest_aliases_to_defs', 'RW', "Export PlaytestConfig.asset aliases to a readable .defs text file.", (
     ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
     ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
@@ -198,10 +225,14 @@ tools.expect('fingerprint', 'RO', "Scene state hash. Returns fp:XXXXXXXX. If unc
     ('path', ostr, None),
     ('depth', int, 3),
 ))
+tools.expect('get_capabilities', 'RO', "Unity version, platform, render pipeline, scripting backend, and optional packages available.", (
+))
 tools.expect('get_changes', 'RW', "Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,", (
     ('clear', bool, True),
 ))
 tools.expect('get_changeset', 'RO', "Return the current ChangeSet: accumulated mutations this session.", (
+))
+tools.expect('get_compile_errors', 'RO', "Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed.", (
 ))
 tools.expect('get_component', 'RO', "Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N.", (
     ('path', str),
@@ -213,6 +244,21 @@ tools.expect('get_component', 'RO', "Component properties as key-value. For MULT
 ))
 tools.expect('get_components_list', 'RO', "List all components on object by instance ID.", (
     ('id', int),
+))
+tools.expect('get_console', 'RO', "Recent console logs. For C# compile errors use get_compile_errors instead. keyword: case-insensitive substring filter. count_only: return N matches as string. since: only logs from last N seconds.", (
+    ('count', int, 10),
+    ('level', ostr, None),
+    ('first', int, 0),
+    ('keyword', ostr, None),
+    ('count_only', bool, False),
+    ('since', ofloat, None),
+))
+tools.expect('get_console_since', 'RO', "Console entries after the watermark created by console_mark().", (
+    ('mark_id', str),
+    ('level', ostr, None),
+    ('count', int, 500),
+    ('keyword', ostr, None),
+    ('count_only', bool, False),
 ))
 tools.expect('get_enabled_tools', 'RO', "List enabled tool names, comma-separated.", (
 ))
@@ -235,9 +281,22 @@ tools.expect('get_object_detail', 'RO', "Get ALL components with ALL values. Hea
     ('id', int),
     ('full', bool, False),
 ))
+tools.expect('get_selection', 'RO', "Currently selected GameObject: path and component list.", (
+))
 tools.expect('get_spatial_context', 'RO', "Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only.", (
     ('path', str),
     ('radius', float, 5.0),
+))
+tools.expect('get_test_count', 'RO', "Number of edit-mode and play-mode tests in the project.", (
+))
+tools.expect('get_test_progress', 'RO', "Legacy progress facade. Pass run_id to correlate the response.", (
+    ('run_id', ostr, None),
+))
+tools.expect('get_test_results', 'RO', "Legacy result facade. Pass run_id to prevent reading a stale latest run.", (
+    ('run_id', ostr, None),
+))
+tools.expect('get_test_run', 'RO', "Return the durable JSON snapshot for one exact test run.", (
+    ('run_id', str),
 ))
 tools.expect('get_unity_events', 'RO', "List all UnityEvent persistent listeners in the active scene.", (
     ('path', ostr, None),
@@ -286,6 +345,9 @@ tools.expect('list_events', 'RO', "Read persistent listeners on a UnityEvent fie
     ('component', str),
     ('event', str),
 ))
+tools.expect('list_test_runs', 'RO', "List recent durable test runs as JSON, newest first.", (
+    ('limit', int, 20),
+))
 tools.expect('load_session', 'RO', "Load previous session context beside the current hierarchy.", (
 ))
 tools.expect('manage_component', 'RW', "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button').", (
@@ -309,6 +371,8 @@ tools.expect('material', 'RW', "Material asset management (for quick color chang
 tools.expect('material_audit', 'RO', "Material/texture scene-wide audit.", (
     ('action', str, "summary"),
     ('platform', ostr, None),
+))
+tools.expect('mcp_status', 'RO', "Compact MCP status: scene, dirty, play/compile state, port, alias count,", (
 ))
 tools.expect('menu', 'RW', "Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API.", (
     ('action', str),
@@ -382,11 +446,15 @@ tools.expect('project_settings', 'RW_IDEM', "Project settings. Modifies project 
 tools.expect('query_state', 'RO', "[Play Mode] Snapshot multiple game values in one call.", (
     ('queries', str),
 ))
+tools.expect('recompile', 'RW', "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done.", (
+))
 tools.expect('region_clear', 'RW', "Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required.", (
     ('vertices', str),
     ('dry_run', bool, True),
     ('filter', ostr, None),
     ('cap', int, 50),
+))
+tools.expect('release_smoke', 'RO', "Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summary.", (
 ))
 tools.expect('rename_object', 'RW_IDEM', "Rename a GameObject. Returns new scene path after rename.", (
     ('path', str),
@@ -420,6 +488,9 @@ tools.expect('resolve_scene_refs', 'RO', "Read-only scene reference resolver.", 
     ('refs', str),
     ('fields', ostr, None),
 ))
+tools.expect('resolve_test_request', 'RO', "Resolve a possibly lost start ACK without dispatching another test run.", (
+    ('request_id', str),
+))
 tools.expect('run_playtest', 'RW', "[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`).", (
     ('script', ostr, None),
     ('timeout', float, 120.0),
@@ -442,6 +513,18 @@ tools.expect('run_playtest_suite', 'RW', "Run multiple .playtest files sequentia
     ('restart_between', bool, False),
     ('suite_timeout', float, 300.0),
     ('tag', ostr, None),
+))
+tools.expect('run_tests', 'RW_IDEM', "Dispatch Unity tests and return their durable identity immediately.", (
+    ('mode', str, "EditMode"),
+    ('filter', ostr, None),
+    ('request_id', ostr, None),
+))
+tools.expect('run_tests_wait', 'RW', "Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required.", (
+    ('mode', str, "EditMode"),
+    ('filter', str, ""),
+    ('timeout', float, 900.0),
+    ('poll_interval', float, 5.0),
+    ('request_id', ostr, None),
 ))
 tools.expect('runtime_snapshot', 'RO', "Snapshot all runtime objects of a given component type. Returns per-object field dump.", (
     ('type', str),
@@ -740,6 +823,9 @@ tools.expect('uitk_intent', 'RW', "Generate a UXML + USS file pair from a natura
     ('attach_to', ostr, None),
     ('template', ostr, None),
     ('dry_run', bool, False),
+))
+tools.expect('undo_last', 'RW', "Undo the last N AI turns in the Unity Undo stack. Default: 1.", (
+    ('turns', int, 1),
 ))
 tools.expect('unwire_event', 'DEL', "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required.", (
     ('path', str),

@@ -10,10 +10,9 @@ from mcp.server.fastmcp.exceptions import ToolError
 from ..doctor import format_report, run_doctor
 from ..llm_config import apply_config, parse_tcp_config
 from . import code_intel as _ci
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._common import _guard_read_only, bind
 from .gating import discover_tools as _discover_tools_impl
+from .generated.catalog_tools import tools
 from .schema_registry import _registry as _schema_registry
 
 _send = None
@@ -170,11 +169,9 @@ def register(mcp, send, args, *, get_slot=None):
     bind(globals(), send, args)
     _get_slot = get_slot
     mcp.tool()(discover_tools)
-    # Conservative annotation: fix=True may remove stale local files. Runtime
-    # read-only enforcement remains argument-aware in doctor() itself.
-    mcp.tool(annotations=_RW)(doctor)
+    tools.register(mcp, doctor)
     mcp.tool()(resolve_tool_schema)
     mcp.tool()(set_llm_config)
-    mcp.tool(annotations=_RO)(alias_status)
-    mcp.tool(annotations=_RO)(mcp_status)
-    mcp.tool(annotations=_RO)(release_smoke)
+    tools.register(mcp, alias_status)
+    tools.register(mcp, mcp_status)
+    tools.register(mcp, release_smoke)

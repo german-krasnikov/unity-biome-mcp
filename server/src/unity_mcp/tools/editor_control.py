@@ -2,10 +2,10 @@
 (B2: split from scene.py)"""
 from unity_mcp.constants import NOOP_RECOVERY_RESULT as _NOOP_RECOVERY_RESULT
 
-from ._annotations import RO as _RO
 from ._annotations import RW as _RW
 from ._common import bind
 from ._source_patch_intent import set_cached_intent as _set_cached_intent
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -58,9 +58,9 @@ async def get_capabilities() -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(editor)
+    tools.register(mcp, editor)
     mcp.tool(annotations=_RW)(ping_object)
-    mcp.tool(annotations=_RO)(get_selection)
-    mcp.tool(annotations=_RW)(checkpoint)
-    mcp.tool(annotations=_RW)(undo_last)
-    mcp.tool(annotations=_RO)(get_capabilities)
+    tools.register(mcp, get_selection)
+    tools.register(mcp, checkpoint)
+    tools.register(mcp, undo_last)
+    tools.register(mcp, get_capabilities)

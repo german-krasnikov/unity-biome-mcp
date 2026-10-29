@@ -2,9 +2,8 @@
 import contextlib
 import time as _time
 
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -91,11 +90,8 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
-    mcp.tool(annotations=_RO)(get_console)
-    mcp.tool(annotations=_RO)(get_compile_errors)
-    # Every dispatch intentionally starts a fresh AssetDatabase.Refresh. The
-    # receiver-side dedup registry is lost across Domain Reload, so resending a
-    # lost ACK can start a second compile/reload cycle.
-    mcp.tool(annotations=_RW)(recompile)
-    mcp.tool(annotations=_RO)(console_mark)
-    mcp.tool(annotations=_RO)(get_console_since)
+    tools.register(mcp, get_console)
+    tools.register(mcp, get_compile_errors)
+    tools.register(mcp, recompile)
+    tools.register(mcp, console_mark)
+    tools.register(mcp, get_console_since)

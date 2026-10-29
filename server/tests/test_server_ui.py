@@ -117,14 +117,8 @@ async def test_set_material_error_raises_tool_error(mock_bridge):
 # ── Fix 23: editor_control.py editor annotation (B2: moved out of scene.py) ──
 
 def test_editor_tool_annotation_is_rw():
-    """Fix 23: editor() must use _RW annotation, not _RW_IDEM (it mutates editor state)."""
-    import inspect
-    import unity_mcp.tools.editor_control as ec_mod
-    register_src = inspect.getsource(ec_mod.register)
-    found = False
-    for line in register_src.splitlines():
-        if "editor" in line and "mcp.tool" in line:
-            found = True
-            assert "_RW_IDEM" not in line, "editor must use _RW not _RW_IDEM"
-            break
-    assert found, "Could not find editor tool registration in editor_control.register()"
+    """Fix 23: editor() must be a plain write (the tool catalog states it as RW), not an idempotent one (it mutates editor state)."""
+    from unity_mcp.server import mcp
+    annotations = mcp._tool_manager._tools["editor"].annotations
+    assert annotations.readOnlyHint is False
+    assert not annotations.idempotentHint, "editor must use RW not RW_IDEM"

@@ -1,8 +1,12 @@
 # Generated from dsl/tools.biome
-# source-sha256=c708da88fd9bc9c1ae9eaa6f10411ee31a1b5710c6ab12af7a900ff3c814ac03
+# source-sha256=f0e939b917d926f150ed0a371bfdea71c18222e5c5e59078b31493359c2850f3
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
+    'alias_status': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+    },
     'analyze_lod_culling': {
         'category': 'MEDIA',
         'effect': 'RO',
@@ -75,15 +79,40 @@ SPEC_KWARGS: dict[str, dict] = {
         'unity_transport': True,
         'timeout_s': 300.0,
     },
+    'cancel_test_run': {
+        'category': 'TESTS',
+        'effect': 'RW_IDEM',
+        'timeout_s': 10.0,
+    },
     'check_colliders': {
         'category': 'SCENE',
         'effect': 'RO',
+    },
+    'checkpoint': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+    },
+    'checkpoint_create': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+        'direct_only': True,
+    },
+    'checkpoint_restore': {
+        'category': 'SYSTEM',
+        'effect': 'DEL',
+        'direct_only': True,
     },
     'compile_preflight': {
         'category': 'VERIFY',
         'effect': 'RO',
         'core': True,
         'timeout_s': 60.0,
+    },
+    'console_mark': {
+        'category': 'RUNTIME',
+        'effect': 'RO',
+        'direct_only': True,
+        'tier1': True,
     },
     'create_object': {
         'category': 'CORE',
@@ -123,6 +152,16 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RW',
         'direct_only': True,
     },
+    'doctor': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+        'direct_only': True,
+    },
+    'editor': {
+        'category': 'CORE',
+        'effect': 'RW',
+        'core': True,
+    },
     'export_package': {
         'category': '_INTERNAL',
         'effect': 'RW',
@@ -145,6 +184,10 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': '_INTERNAL',
         'effect': 'RO',
     },
+    'get_capabilities': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+    },
     'get_changes': {
         'category': 'SYSTEM',
         'effect': 'RW',
@@ -156,6 +199,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'tier1': True,
         'timeout_s': 5.0,
     },
+    'get_compile_errors': {
+        'category': 'CORE',
+        'effect': 'RO',
+        'core': True,
+    },
     'get_component': {
         'category': 'CORE',
         'effect': 'RO',
@@ -164,6 +212,19 @@ SPEC_KWARGS: dict[str, dict] = {
     'get_components_list': {
         'category': 'SCENE',
         'effect': 'RO',
+    },
+    'get_console': {
+        'category': 'CORE',
+        'effect': 'RO',
+        'core': True,
+        'timeout_s': 10.0,
+        'max_chars': 20000,
+    },
+    'get_console_since': {
+        'category': 'RUNTIME',
+        'effect': 'RO',
+        'direct_only': True,
+        'tier1': True,
     },
     'get_enabled_tools': {
         'category': 'SYSTEM',
@@ -191,9 +252,31 @@ SPEC_KWARGS: dict[str, dict] = {
         'direct_only': True,
         'unity_transport': True,
     },
+    'get_selection': {
+        'category': 'SCENE',
+        'effect': 'RO',
+    },
     'get_spatial_context': {
         'category': 'SCENE',
         'effect': 'RO',
+    },
+    'get_test_count': {
+        'category': 'TESTS',
+        'effect': 'RO',
+        'timeout_s': 10.0,
+    },
+    'get_test_progress': {
+        'category': 'TESTS',
+        'effect': 'RO',
+    },
+    'get_test_results': {
+        'category': 'TESTS',
+        'effect': 'RO',
+    },
+    'get_test_run': {
+        'category': 'TESTS',
+        'effect': 'RO',
+        'timeout_s': 10.0,
     },
     'get_unity_events': {
         'category': 'SCENE',
@@ -259,6 +342,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RO',
         'timeout_s': 10.0,
     },
+    'list_test_runs': {
+        'category': 'TESTS',
+        'effect': 'RO',
+        'timeout_s': 10.0,
+    },
     'load_session': {
         'category': 'SYSTEM',
         'effect': 'RO',
@@ -276,6 +364,12 @@ SPEC_KWARGS: dict[str, dict] = {
     'material_audit': {
         'category': 'ASSETS',
         'effect': 'RO',
+    },
+    'mcp_status': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
+        'core': True,
     },
     'menu': {
         'category': 'SYSTEM',
@@ -332,9 +426,18 @@ SPEC_KWARGS: dict[str, dict] = {
         'effect': 'RO',
         'runtime_only': True,
     },
+    'recompile': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+    },
     'region_clear': {
         'category': 'SCENE',
         'effect': 'RW',
+    },
+    'release_smoke': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
     },
     'rename_object': {
         'category': 'SCENE',
@@ -348,6 +451,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'VERIFY',
         'effect': 'RO',
         'timeout_s': 15.0,
+    },
+    'resolve_test_request': {
+        'category': 'TESTS',
+        'effect': 'RO',
+        'timeout_s': 10.0,
     },
     'run_playtest': {
         'category': 'TESTS',
@@ -363,6 +471,20 @@ SPEC_KWARGS: dict[str, dict] = {
         'direct_only': True,
         'tier1': True,
         'timeout_s': 3600.0,
+    },
+    'run_tests': {
+        'category': 'TESTS',
+        'effect': 'RW_IDEM',
+        'tier1': True,
+        'direct_only': True,
+        'unity_transport': True,
+    },
+    'run_tests_wait': {
+        'category': 'TESTS',
+        'effect': 'RW',
+        'direct_only': True,
+        'tier1': True,
+        'timeout_s': 1200.0,
     },
     'runtime_snapshot': {
         'category': 'RUNTIME',
@@ -525,6 +647,10 @@ SPEC_KWARGS: dict[str, dict] = {
         'direct_only': True,
         'tier1': True,
         'timeout_s': 60.0,
+    },
+    'undo_last': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
     },
     'unwire_event': {
         'category': 'COMPONENTS',

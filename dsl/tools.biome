@@ -10,6 +10,9 @@ SURFACE tools
 # required without a default; the type is str int float bool, o-prefixed when None is allowed, or Any (checked by name and default only:
 # Context, Literal, ...); OMIT: a value equal to the default is not sent, Unity applies it; RAW: a FORWARD wrapper sends the value as it is.
 
+TOOL alias_status SYSTEM RO "Check alias table health: loaded/empty/stale, sources, and total alias count."
+END
+
 TOOL analyze_lod_culling MEDIA RO "LOD group coverage + occlusion culling analysis."
   ARG focus ostr DEFAULT None
 END
@@ -140,8 +143,28 @@ TOOL build SYSTEM RW "Build player. action: build."
   ARG dev bool DEFAULT False
 END
 
+TOOL cancel_test_run TESTS RW_IDEM "Request cancellation of one exact test run; cancellation is asynchronous."
+  TIMEOUT 10.0
+  ARG run_id str
+END
+
 TOOL check_colliders SCENE RO "Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given."
   ARG path ostr DEFAULT None
+END
+
+TOOL checkpoint SYSTEM RW "Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity."
+  ARG label str DEFAULT_TEXT "checkpoint"
+END
+
+# T19: Python orchestrator, no C# handler
+PYTOOL checkpoint_create SYSTEM RW "Create a durable checkpoint before an agent turn."
+  ARG paths str DEFAULT_TEXT ""
+END
+
+# T19: Python orchestrator, no C# handler
+PYTOOL checkpoint_restore SYSTEM DEL "Restore files to their pre-turn state."
+  ARG checkpoint_id str
+  ARG force bool DEFAULT False
 END
 
 # timeout_s is a fallback ceiling only -- code_intel.py:25 always passes
@@ -151,6 +174,11 @@ TOOL compile_preflight VERIFY RO "Validate C# WITHOUT writing/recompiling (Rosly
   TIMEOUT 60.0
   ARG file_path str
   ARG new_content str
+END
+
+PYTOOL console_mark RUNTIME RO "Create a console watermark. Returns mark_id encoding current timestamp."
+  FLAG tier1
+  ARG label str DEFAULT_TEXT ""
 END
 
 TOOL create_object CORE RW "Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene)."
@@ -213,6 +241,22 @@ PYTOOL do SYSTEM RW "Convert natural language intent into Unity scene operations
   ARG dry_run bool DEFAULT False
 END
 
+# Conditional: default is observational; fix=True removes stale local files.
+# middleware_types.is_write() handles the argument-aware classification.
+# Conservative effect: fix=True may remove stale local files. Runtime read-only enforcement remains
+# argument-aware in doctor() itself.
+PYTOOL doctor SYSTEM RW "Run health diagnostics. fix=True removes safe stale port/lock files."
+  ARG fix bool DEFAULT False
+END
+
+TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode."
+  FLAG core
+  ARG action str DEFAULT_TEXT "state"
+  ARG path ostr DEFAULT None
+  ARG paths ostr DEFAULT None
+  ARG enable obool DEFAULT None
+END
+
 INTERNAL export_package RW "Protocol name of the asset action export_package; only its timeout is used, Unity registers no command of this name."
   TIMEOUT 120.0
 END
@@ -238,6 +282,9 @@ END
 INTERNAL get_aliases RO "The alias table as name=value lines; the server reads it when it connects."
 END
 
+TOOL get_capabilities SYSTEM RO "Unity version, platform, render pipeline, scripting backend, and optional packages available."
+END
+
 TOOL get_changes SYSTEM RW "Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,"
   ARG clear bool DEFAULT True
 END
@@ -245,6 +292,10 @@ END
 PYTOOL get_changeset VERIFY RO "Return the current ChangeSet: accumulated mutations this session."
   FLAG tier1
   TIMEOUT 5.0
+END
+
+TOOL get_compile_errors CORE RO "Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed."
+  FLAG core
 END
 
 TOOL get_component CORE RO "Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N."
@@ -259,6 +310,27 @@ END
 
 TOOL get_components_list SCENE RO "List all components on object by instance ID."
   ARG id int
+END
+
+TOOL get_console CORE RO "Recent console logs. For C# compile errors use get_compile_errors instead. keyword: case-insensitive substring filter. count_only: return N matches as string. since: only logs from last N seconds."
+  FLAG core
+  TIMEOUT 10.0
+  MAXCHARS 20000
+  ARG count int DEFAULT 10 "Max log entries to return (default 10)"
+  ARG level ostr DEFAULT None "Filter by level: log|warning|error|exception|assert (omit = all)"
+  ARG first int DEFAULT 0 "Skip the first N entries (pagination offset)"
+  ARG keyword ostr DEFAULT None
+  ARG count_only bool DEFAULT False
+  ARG since ofloat DEFAULT None
+END
+
+PYTOOL get_console_since RUNTIME RO "Console entries after the watermark created by console_mark()."
+  FLAG tier1
+  ARG mark_id str
+  ARG level ostr DEFAULT None
+  ARG count int DEFAULT 500
+  ARG keyword ostr DEFAULT None
+  ARG count_only bool DEFAULT False
 END
 
 TOOL get_enabled_tools SYSTEM RO "List enabled tool names, comma-separated."
@@ -297,9 +369,29 @@ INTERNAL get_playtest_run RO "Polls the asynchronous playtest run that start_pla
   FLAG unity_transport
 END
 
+TOOL get_selection SCENE RO "Currently selected GameObject: path and component list."
+END
+
 TOOL get_spatial_context SCENE RO "Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only."
   ARG path str
   ARG radius float DEFAULT 5.0
+END
+
+TOOL get_test_count TESTS RO "Number of edit-mode and play-mode tests in the project."
+  TIMEOUT 10.0
+END
+
+TOOL get_test_progress TESTS RO "Legacy progress facade. Pass run_id to correlate the response."
+  ARG run_id ostr DEFAULT None
+END
+
+TOOL get_test_results TESTS RO "Legacy result facade. Pass run_id to prevent reading a stale latest run."
+  ARG run_id ostr DEFAULT None
+END
+
+TOOL get_test_run TESTS RO "Return the durable JSON snapshot for one exact test run."
+  TIMEOUT 10.0
+  ARG run_id str
 END
 
 TOOL get_unity_events SCENE RO "List all UnityEvent persistent listeners in the active scene."
@@ -378,6 +470,11 @@ INTERNAL list_playtest_files RO "Lists the files that match a glob pattern (defa
   TIMEOUT 10.0
 END
 
+TOOL list_test_runs TESTS RO "List recent durable test runs as JSON, newest first."
+  TIMEOUT 10.0
+  ARG limit int DEFAULT 20
+END
+
 PYTOOL load_session SYSTEM RO "Load previous session context beside the current hierarchy."
 END
 
@@ -405,6 +502,10 @@ END
 TOOL material_audit ASSETS RO "Material/texture scene-wide audit."
   ARG action str DEFAULT_TEXT "summary"
   ARG platform ostr DEFAULT None
+END
+
+PYTOOL mcp_status SYSTEM RO "Compact MCP status: scene, dirty, play/compile state, port, alias count,"
+  FLAG core
 END
 
 TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API."
@@ -501,11 +602,19 @@ TOOL query_state RUNTIME RO "[Play Mode] Snapshot multiple game values in one ca
   ARG queries str
 END
 
+# Every dispatch intentionally starts a fresh AssetDatabase.Refresh. The receiver-side dedup registry is lost
+# across Domain Reload, so resending a lost ACK can start a second compile/reload cycle: RW, not RW_IDEM.
+TOOL recompile SYSTEM RW "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done."
+END
+
 TOOL region_clear SCENE RW "Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required."
   ARG vertices str
   ARG dry_run bool DEFAULT True
   ARG filter ostr DEFAULT None
   ARG cap int DEFAULT 50
+END
+
+PYTOOL release_smoke SYSTEM RO "Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summary."
 END
 
 TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path after rename."
@@ -528,6 +637,11 @@ TOOL resolve_scene_refs VERIFY RO "Read-only scene reference resolver."
   TIMEOUT 15.0
   ARG refs str
   ARG fields ostr DEFAULT None
+END
+
+TOOL resolve_test_request TESTS RO "Resolve a possibly lost start ACK without dispatching another test run."
+  TIMEOUT 10.0
+  ARG request_id str
 END
 
 # timeout_s is a fallback ceiling only -- tools/runtime.py always passes
@@ -566,6 +680,27 @@ PYTOOL run_playtest_suite TESTS RW "Run multiple .playtest files sequentially an
   ARG restart_between bool DEFAULT False
   ARG suite_timeout float DEFAULT 300.0
   ARG tag ostr DEFAULT None
+END
+
+# The bridge may retry run_tests only because every retry carries the same durable request_id (RW_IDEM);
+# run_tests_wait is a composite operation, not idempotent (RW).
+TOOL run_tests TESTS RW_IDEM "Dispatch Unity tests and return their durable identity immediately."
+  FLAG tier1
+  FLAG direct_only
+  FLAG unity_transport
+  ARG mode str DEFAULT_TEXT "EditMode" "Test runner mode: EditMode or PlayMode"
+  ARG filter ostr DEFAULT None "NUnit filter expression (e.g. 'MyNamespace.MyTest')"
+  ARG request_id ostr DEFAULT None "Caller-supplied idempotency ID — reuse to retry a failed dispatch without double-running"
+END
+
+PYTOOL run_tests_wait TESTS RW "Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required."
+  FLAG tier1
+  TIMEOUT 1200.0
+  ARG mode str DEFAULT_TEXT "EditMode" "Test runner mode: EditMode or PlayMode"
+  ARG filter str DEFAULT_TEXT "" "NUnit filter expression (e.g. 'MyNamespace.MyTest')"
+  ARG timeout float DEFAULT 900.0 "Max seconds to wait for completion (default 900)"
+  ARG poll_interval float DEFAULT 5.0 "Seconds between status polls (default 5)"
+  ARG request_id ostr DEFAULT None "Caller-supplied idempotency ID"
 END
 
 TOOL runtime_snapshot RUNTIME RO "Snapshot all runtime objects of a given component type. Returns per-object field dump."
@@ -884,6 +1019,10 @@ PYTOOL uitk_intent UITOOLKIT RW "Generate a UXML + USS file pair from a natural-
   ARG attach_to ostr DEFAULT None
   ARG template ostr DEFAULT None
   ARG dry_run bool DEFAULT False
+END
+
+TOOL undo_last SYSTEM RW "Undo the last N AI turns in the Unity Undo stack. Default: 1."
+  ARG turns int DEFAULT 1
 END
 
 TOOL unwire_event COMPONENTS DEL "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required."

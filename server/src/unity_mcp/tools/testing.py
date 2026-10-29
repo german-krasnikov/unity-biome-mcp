@@ -13,10 +13,8 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 from ..compile_state import CompileStateProbe
 from . import run_disk_fallback
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
-from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
+from .generated.catalog_tools import tools
 from .run_handle import TestRunRegistry
 
 _send = None
@@ -803,14 +801,12 @@ def register(mcp, send, args, *, get_slot=None):
     bind(globals(), send, args)
     global _get_slot
     _get_slot = get_slot
-    # The bridge may retry run_tests only because every retry carries the same
-    # durable request_id. run_tests_wait is a composite operation, not idempotent.
-    mcp.tool(annotations=_RW_IDEM)(run_tests)
-    mcp.tool(annotations=_RW)(run_tests_wait)
-    mcp.tool(annotations=_RO)(resolve_test_request)
-    mcp.tool(annotations=_RO)(get_test_run)
-    mcp.tool(annotations=_RW_IDEM)(cancel_test_run)
-    mcp.tool(annotations=_RO)(list_test_runs)
-    mcp.tool(annotations=_RO)(get_test_results)
-    mcp.tool(annotations=_RO)(get_test_progress)
-    mcp.tool(annotations=_RO)(get_test_count)
+    tools.register(mcp, run_tests)
+    tools.register(mcp, run_tests_wait)
+    tools.register(mcp, resolve_test_request)
+    tools.register(mcp, get_test_run)
+    tools.register(mcp, cancel_test_run)
+    tools.register(mcp, list_test_runs)
+    tools.register(mcp, get_test_results)
+    tools.register(mcp, get_test_progress)
+    tools.register(mcp, get_test_count)
