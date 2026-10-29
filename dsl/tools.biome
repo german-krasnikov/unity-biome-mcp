@@ -3,6 +3,7 @@ SURFACE tools
 # TOOL <name> <CATEGORY> <effect> "<summary>": RO read-only | RW writes | RW_IDEM writes, safe to repeat | DEL destructive
 # (ToolSpec.mutability, MCP annotation); the summary is the first line of the description. FORWARD: the MCP wrapper is generated, its
 # description is the summary and the DOC lines, one per line. FLAG (core tier1 direct_only unity_transport), TIMEOUT <s>: ToolSpec fields.
+# MAXCHARS <n>: the response limit of the Unity registration (maxResponseChars), checked against it by test_catalog_vs_csharp.py.
 # ARG <name> <type> [DEFAULT <v> [OMIT]] ["<schema description>"]: in the order of the Python signature, required without DEFAULT;
 # the type is str int float bool, o-prefixed when None is allowed; OMIT: a value equal to the default is not sent, Unity applies it.
 
@@ -18,6 +19,7 @@ TOOL search_scene SCENE RO "Search scene objects. Syntax: name text, t:Component
   FORWARD
   FLAG tier1
   TIMEOUT 15.0
+  MAXCHARS 30000
   DOC "root: scope search to subtree (path or None for whole scene)."
   DOC "limit: max results (default 50; 0=unlimited)."
   DOC "scene: filter to a single scene by name (multi-scene only)."

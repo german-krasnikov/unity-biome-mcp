@@ -2,6 +2,7 @@ EXAMPLE a TOOL prints the fields of its ToolSpec and the descriptions of its arg
   SOURCE TOOL search_scene SCENE RO "Search."
   SOURCE   FLAG tier1
   SOURCE   TIMEOUT 15.0
+  SOURCE   MAXCHARS 30000
   SOURCE   ARG query str "Syntax"
   SOURCE   ARG limit int DEFAULT 50
   SOURCE END
@@ -10,6 +11,7 @@ EXAMPLE a TOOL prints the fields of its ToolSpec and the descriptions of its arg
   EXPECT rendered.pyspec 'effect': 'RO',
   EXPECT rendered.pyspec 'tier1': True,
   EXPECT rendered.pyspec 'timeout_s': 15.0,
+  EXPECT rendered.pyspec 'max_chars': 30000,
   EXPECT unrendered.pyspec direct_only
   EXPECT rendered.pyparams 'query': "Syntax",
   EXPECT unrendered.pyparams limit
@@ -49,6 +51,7 @@ EXAMPLE a PYTOOL is direct_only, escapes its descriptions, and prints only an ex
   EXPECT rendered.pyspec 'direct_only': True,
   EXPECT unrendered.pyspec tier1
   EXPECT unrendered.pyspec timeout_s
+  EXPECT unrendered.pyspec max_chars
   EXPECT rendered.pyparams 'name': "say \"hi\" \\ bye",
   EXPECT rendered.pytools tools.expect('use_skill', 'RW', "Use.", (
   EXPECT rendered.pytools tools.expect('x', 'RW', "X.", (
@@ -81,10 +84,12 @@ EXAMPLE an effect, a category or a type outside the lists, no summary, OMIT with
   EXPECT diagnostic DECLARE_SYNTAX at 7:13
   EXPECT diagnostic DECLARE_SYNTAX at 9:14
 
-EXAMPLE a PYTOOL is direct_only already and never unity_transport
+EXAMPLE a PYTOOL is direct_only already and has no Unity-side words: unity_transport, MAXCHARS
   SOURCE PYTOOL x SYSTEM RO "X."
   SOURCE   FLAG unity_transport
   SOURCE   FLAG direct_only
+  SOURCE   MAXCHARS 5
   SOURCE END
   EXPECT diagnostic DECLARE_SYNTAX at 2:8
   EXPECT diagnostic DECLARE_SYNTAX at 3:8
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 4:3

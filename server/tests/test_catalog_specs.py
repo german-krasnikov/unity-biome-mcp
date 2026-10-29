@@ -27,7 +27,7 @@ def test_the_catalog_tools_are_merged_and_owned_by_the_catalog():
 
 
 def test_each_effect_gives_its_mutability(monkeypatch):
-    catalog = {name: {"category": "SCENE", "effect": effect} for name, effect in
+    catalog = {name: {"category": "SCENE", "effect": effect, "max_chars": 5} for name, effect in
                [("a", "RO"), ("b", "RW"), ("c", "RW_IDEM"), ("d", "DEL")]}
     specs = _run_source(tool_specs, monkeypatch, catalog_specs, "SPEC_KWARGS", catalog)["_SPECS"]
     assert [specs[name].mutability for name in "abcd"] == ["read", "write", "write", "write"]

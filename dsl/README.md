@@ -17,7 +17,7 @@ hand-written `_SPECS`, `PARAM_DESCRIPTIONS` or `mcp.tool` registrations fails at
 | File | Role |
 |---|---|
 | `tools.biome` | the catalog, one block per tool, by name |
-| `constructs/tool.construct` | the words of a block (`TOOL`, `PYTOOL`, `FORWARD`, `FLAG`, `TIMEOUT`, `DOC`, `ARG`) and what is printed from them |
+| `constructs/tool.construct` | the words of a block (`TOOL`, `PYTOOL`, `FORWARD`, `FLAG`, `TIMEOUT`, `MAXCHARS`, `DOC`, `ARG`) and what is printed from them |
 | `constructs/tool.examples` | examples of the construct: the lines it prints and the mistakes it refuses |
 | `biome.project` | the compiler it needs (`TOOLCHAIN`) and the generate steps |
 
@@ -37,3 +37,6 @@ hand-written `_SPECS`, `PARAM_DESCRIPTIONS` or `mcp.tool` registrations fails at
   before the generator existed. A change of a tool on purpose is an `INTENDED` entry in that test, with its reason.
 - `server/tests/test_single_owner.py`: no tool and no Unity command is registered twice.
 - `server/tests/test_catalog_wire.py`: the command and arguments that each generated wrapper sends to Unity.
+- `server/tests/test_catalog_vs_csharp.py`: while a Unity registration is hand-written, its `mutating`, `runtime`, `required`, `optional`
+  (and `maxResponseChars` against `MAXCHARS`) say what the Python side says. `KNOWN_DIVERGENT` is the measured census of the tools
+  that differ today; it must match exactly, so it only shrinks, and a tool of the catalog is never in it.

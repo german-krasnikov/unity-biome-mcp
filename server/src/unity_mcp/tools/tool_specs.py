@@ -263,11 +263,12 @@ for _name, _kwargs in _SYNC_SPEC_KWARGS.items():
 
 # Tool catalog (dsl/tools.biome): the ToolSpec kwargs of its tools are generated, imported one way like the owners above. 'effect' is
 # the catalog's RO|RW|RW_IDEM|DEL; ToolSpec keeps only whether the tool writes (the MCP annotation follows from effect elsewhere).
+# 'max_chars' is the response limit of the Unity registration, checked by test_catalog_vs_csharp.py; ToolSpec has no such field.
 from .generated.catalog_specs import SPEC_KWARGS as _CATALOG_SPEC_KWARGS  # noqa: E402
 
 for _name, _kwargs in _CATALOG_SPEC_KWARGS.items():
     if _name in _SPECS:
         raise ValueError(f"{_name} is declared in the catalog (dsl/tools.biome) and in tool_specs.py")
-    _fields = {key: value for key, value in _kwargs.items() if key != "effect"}
+    _fields = {key: value for key, value in _kwargs.items() if key not in ("effect", "max_chars")}
     _SPECS[_name] = ToolSpec(**_fields, mutability="read" if _kwargs["effect"] == "RO" else "write")
     _SPEC_OWNERS[_name] = "catalog"

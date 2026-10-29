@@ -9,6 +9,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM FORWARD
   ITEM FLAG <flag:enum(core|tier1|direct_only|unity_transport)>
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
+  ITEM MAXCHARS <maxchars:match([0-9]+)>
   ITEM DOC <line:string>
   ITEM ARG <aname:match([a-z][a-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [<adesc:string>]
   EXAMPLES tool.examples
@@ -22,6 +23,9 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
     END
     EACH TIMEOUT
             'timeout_s': {seconds},
+    END
+    EACH MAXCHARS
+            'max_chars': {maxchars},
     END
         },
   END
