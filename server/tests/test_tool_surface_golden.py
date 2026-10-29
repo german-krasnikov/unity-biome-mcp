@@ -115,3 +115,10 @@ def test_the_digest_follows_what_a_wrapper_sends():
     assert wire_digest(_raw, _args_of_server, "f") != digest                    # a number kept a number
     assert wire_digest(_omit, _args_of_server, "f") != digest                   # the default left out
     assert wire_digest(_other_call, _args_of_server, "f") is None               # not run at all
+
+
+def test_every_wrapper_the_catalog_generates_is_covered_by_the_wire_oracle():
+    """A generated wrapper the oracle cannot run (a type or a call it does not know) would send anything and pass."""
+    from unity_mcp.tools.generated import catalog_tools
+    uncovered = [name for name, fn in catalog_tools.tools._provided.items() if not wire_digest(fn, _args_of_server)]
+    assert not uncovered, f"the wire oracle does not run {uncovered}"
