@@ -2,8 +2,8 @@
 import json as _json
 
 from ..metrics import METRICS
-from ._annotations import RW as _RW
 from ._common import _guard_read_only, bind
+from .generated.catalog_tools import tools
 
 
 async def get_metrics(format: str = "text", reset: bool = False) -> str:
@@ -33,4 +33,4 @@ def _format_snapshot(snap: dict) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(get_metrics)
+    tools.register(mcp, get_metrics)

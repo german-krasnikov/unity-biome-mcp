@@ -1,6 +1,6 @@
 """Performance and diagnostics tools — Play Mode and editor. get_memory lives in profiling.py."""
-from ._annotations import RO as _RO
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 
@@ -20,5 +20,5 @@ async def debug_physics(path: str, radius: float = 5.0) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(debug_animator)
-    mcp.tool(annotations=_RO)(debug_physics)
+    tools.register(mcp, debug_animator)
+    tools.register(mcp, debug_physics)

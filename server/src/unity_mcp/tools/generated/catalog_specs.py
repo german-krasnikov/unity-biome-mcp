@@ -1,8 +1,34 @@
 # Generated from dsl/tools.biome
-# source-sha256=6a2dab2cbf6fdd17da6f1e423c9b365486638d3b7cf59738474a9a17c71396d4
+# source-sha256=896692d2e17494813cb32187d5a874fe55d1875072e069d26b91037ba888c7b9
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
+    'auto_wire': {
+        'category': 'COMPONENTS',
+        'effect': 'RW',
+    },
+    'await_compile': {
+        'category': 'VERIFY',
+        'effect': 'RO',
+        'direct_only': True,
+        'tier1': True,
+    },
+    'compile_preflight': {
+        'category': 'VERIFY',
+        'effect': 'RO',
+        'core': True,
+        'timeout_s': 60.0,
+    },
+    'debug_animator': {
+        'category': 'RUNTIME',
+        'effect': 'RO',
+        'runtime_only': True,
+    },
+    'debug_physics': {
+        'category': 'RUNTIME',
+        'effect': 'RO',
+        'runtime_only': True,
+    },
     'export_package': {
         'category': '_INTERNAL',
         'effect': 'RW',
@@ -11,6 +37,11 @@ SPEC_KWARGS: dict[str, dict] = {
     'get_aliases': {
         'category': '_INTERNAL',
         'effect': 'RO',
+    },
+    'get_metrics': {
+        'category': 'RUNTIME',
+        'effect': 'RW',
+        'direct_only': True,
     },
     'get_playtest_run': {
         'category': '_INTERNAL',
@@ -27,6 +58,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': '_INTERNAL',
         'effect': 'RW',
         'timeout_s': 120.0,
+    },
+    'list_connections': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
     },
     'list_playtest_files': {
         'category': '_INTERNAL',
@@ -49,6 +85,10 @@ SPEC_KWARGS: dict[str, dict] = {
         'timeout_s': 15.0,
         'max_chars': 30000,
     },
+    'serialized_field_rename_audit': {
+        'category': 'VERIFY',
+        'effect': 'RO',
+    },
     'set_active': {
         'category': 'SCENE',
         'effect': 'RW_IDEM',
@@ -57,6 +97,11 @@ SPEC_KWARGS: dict[str, dict] = {
     'set_sibling_index': {
         'category': 'SCENE',
         'effect': 'RW',
+    },
+    'snapshot': {
+        'category': 'RUNTIME',
+        'effect': 'RO',
+        'direct_only': True,
     },
     'source_patch_write': {
         'category': '_INTERNAL',

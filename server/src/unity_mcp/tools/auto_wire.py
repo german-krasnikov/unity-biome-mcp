@@ -1,6 +1,6 @@
 """auto_wire — fill null ObjectReference fields by name/type matching."""
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools
 
 _send = None
 _args = None
@@ -14,4 +14,4 @@ async def auto_wire(path: str, dry_run: bool = False) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(auto_wire)
+    tools.register(mcp, auto_wire)

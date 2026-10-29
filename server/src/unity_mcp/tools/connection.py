@@ -1,8 +1,8 @@
 from mcp.server.fastmcp import Context  # noqa: TC002 — fastmcp eval_str=True requires runtime
 from mcp.server.fastmcp.exceptions import ToolError
 
-from ._annotations import RO as _RO
 from ._annotations import RW_IDEM as _RW_IDEM
+from .generated.catalog_tools import tools
 
 _get_slot = None
 _stdio_alive = None            # Callable[[], bool] | None — injected by register()
@@ -55,5 +55,5 @@ def register(mcp, send, args, *, get_slot, stdio_alive=None,
     _stdio_alive = stdio_alive
     _refresh_tools_cache = refresh_tools_cache
     _push_catalog = push_catalog
-    mcp.tool(annotations=_RO)(list_connections)
+    tools.register(mcp, list_connections)
     mcp.tool(annotations=_RW_IDEM)(reconnect_unity)

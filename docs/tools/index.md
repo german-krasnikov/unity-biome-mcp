@@ -102,10 +102,19 @@ reference for every tool.
 <!-- biome:begin catalog -->
 | Tool | Plane | Category | Effect |
 |---|---|---|---|
+| `auto_wire` | unity | COMPONENTS | RW |
+| `await_compile` | python | VERIFY | RO |
+| `compile_preflight` | unity | VERIFY | RO |
+| `debug_animator` | unity | RUNTIME | RO |
+| `debug_physics` | unity | RUNTIME | RO |
+| `get_metrics` | python | RUNTIME | RW |
+| `list_connections` | python | SYSTEM | RO |
 | `rename_object` | unity | SCENE | RW_IDEM |
 | `search_scene` | unity | SCENE | RO |
+| `serialized_field_rename_audit` | unity | VERIFY | RO |
 | `set_active` | unity | SCENE | RW_IDEM |
 | `set_sibling_index` | unity | SCENE | RW |
+| `snapshot` | python | RUNTIME | RO |
 | `use_skill` | python | SYSTEM | RW |
 <!-- biome:end catalog -->
 

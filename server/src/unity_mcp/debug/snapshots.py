@@ -81,5 +81,5 @@ async def snapshot(path: str, label: str = "default", compare: str = "") -> str:
 def register(mcp, send, args):
     global _send
     _send = send
-    from unity_mcp.tools._annotations import RO as _RO
-    mcp.tool(annotations=_RO)(snapshot)
+    from unity_mcp.tools.generated.catalog_tools import tools
+    tools.register(mcp, snapshot)

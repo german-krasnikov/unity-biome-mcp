@@ -61,10 +61,8 @@ _SPECS: dict[str, ToolSpec] = {
     'ask_user': ToolSpec(category='SYSTEM', timeout_s=300.0, mutability='read', direct_only=True, unity_transport=True),
     'asset': ToolSpec(category='ASSETS'),
     'auto_fix': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
-    'auto_wire': ToolSpec(category='COMPONENTS'),
     'autofit_collider': ToolSpec(category='SCENE'),
     'bake': ToolSpec(category='ASSETS'),
-    'await_compile': ToolSpec(category='VERIFY', tier1=True, mutability='read', direct_only=True),
     # timeout_s live for 9 internal _send("batch",...) callers w/o explicit timeout
     # (animator_intent_tool.py:119, skills.py:61, autobatch.py:69/98/136,
     # ui_intent_tool.py:152, debug_tool.py:78, do_intent/executor.py:38/67).
@@ -79,16 +77,11 @@ _SPECS: dict[str, ToolSpec] = {
     'checkpoint_create': ToolSpec(category='SYSTEM', direct_only=True),   # T19: Python orchestrator, no C# handler
     'checkpoint_restore': ToolSpec(category='SYSTEM', direct_only=True),  # T19: Python orchestrator, no C# handler
     'brief_build': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
-    # timeout_s is a fallback ceiling only -- code_intel.py:25 always passes
-    # timeout=15.0 (fast-fail by design).
-    'compile_preflight': ToolSpec(category='VERIFY', core=True, timeout_s=60.0, mutability='read'),
     'configure_objects': ToolSpec(category='SCENE', direct_only=True),
     'console_mark': ToolSpec(category='RUNTIME', tier1=True, mutability='read', direct_only=True),
     'create_object': ToolSpec(category='CORE', core=True),
     'create_ui': ToolSpec(category='UGUI'),
     'debug': ToolSpec(category='RUNTIME', mutability='read', direct_only=True),
-    'debug_animator': ToolSpec(category='RUNTIME', mutability='read', runtime_only=True),
-    'debug_physics': ToolSpec(category='RUNTIME', mutability='read', runtime_only=True),
     'delete_object': ToolSpec(category='SCENE', tier1=True),
     'diagnose': ToolSpec(category='VERIFY', mutability='read'),
     'discover_tools': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
@@ -113,7 +106,6 @@ _SPECS: dict[str, ToolSpec] = {
     'get_frame_stats': ToolSpec(category='RUNTIME', mutability='read', runtime_only=True),
     'get_hierarchy': ToolSpec(category='CORE', core=True, timeout_s=15.0, mutability='read'),
     'get_memory': ToolSpec(category='RUNTIME', mutability='read'),
-    'get_metrics': ToolSpec(category='RUNTIME', direct_only=True),
     'get_object_detail': ToolSpec(category='SCENE', mutability='read'),
     'get_schema': ToolSpec(category='SYSTEM', mutability='read'),
     'get_selection': ToolSpec(category='SCENE', mutability='read'),
@@ -129,7 +121,6 @@ _SPECS: dict[str, ToolSpec] = {
     'lint_playtest': ToolSpec(category='TESTS', timeout_s=60.0, mutability='read'),
     'lint_playtest_suite': ToolSpec(category='TESTS', timeout_s=120.0, mutability='read', direct_only=True),
     'lint_scene_refs': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
-    'list_connections': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'list_test_runs': ToolSpec(category='TESTS', timeout_s=10.0, mutability='read'),
     'list_skills': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
     'list_templates': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
@@ -183,7 +174,6 @@ _SPECS: dict[str, ToolSpec] = {
     'screenshot_baseline': ToolSpec(category='MEDIA', mutability='write', direct_only=True),
     'screenshot_compare': ToolSpec(category='MEDIA', direct_only=True),
     'scriptable_object': ToolSpec(category='ASSETS'),
-    'serialized_field_rename_audit': ToolSpec(category='VERIFY', mutability='read'),
     'set_llm_config': ToolSpec(category='SYSTEM', direct_only=True),
     'set_material': ToolSpec(category='SCENE'),
     'set_parent': ToolSpec(category='SCENE', tier1=True),
@@ -194,7 +184,6 @@ _SPECS: dict[str, ToolSpec] = {
     'setup_objects': ToolSpec(category='SCENE', direct_only=True),
     'shader': ToolSpec(category='ASSETS'),
     'smart_build': ToolSpec(category='SYSTEM', direct_only=True),
-    'snapshot': ToolSpec(category='RUNTIME', mutability='read', direct_only=True),
     'spatial_query': ToolSpec(category='SCENE', mutability='read'),
     'sync_playtest_aliases_from_defs': ToolSpec(category='TESTS'),
     'test_step': ToolSpec(category='TESTS', runtime_only=True, mutability='write', direct_only=True, unity_transport=True),

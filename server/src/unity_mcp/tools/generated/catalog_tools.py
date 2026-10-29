@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=6a2dab2cbf6fdd17da6f1e423c9b365486638d3b7cf59738474a9a17c71396d4
+# source-sha256=896692d2e17494813cb32187d5a874fe55d1875072e069d26b91037ba888c7b9
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -21,6 +21,31 @@ def register(mcp, send, args):
     tools.install(mcp)
 
 
+tools.expect('auto_wire', 'RW', "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required.", (
+    ('path', str),
+    ('dry_run', bool, False),
+))
+tools.expect('await_compile', 'RO', "Block until Unity finishes compiling + reloading, then return compile errors.", (
+    ('timeout', float, 60.0),
+    ('expected_generation', oint, None),
+))
+tools.expect('compile_preflight', 'RO', "Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile.", (
+    ('file_path', str),
+    ('new_content', str),
+))
+tools.expect('debug_animator', 'RO', "[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile).", (
+    ('path', str),
+))
+tools.expect('debug_physics', 'RO', "[Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (use `debug` for scene; `diagnose` for compile).", (
+    ('path', str),
+    ('radius', float, 5.0),
+))
+tools.expect('get_metrics', 'RW', "Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json.", (
+    ('format', str, "text"),
+    ('reset', bool, False),
+))
+tools.expect('list_connections', 'RO', "List Unity connection status.", (
+))
 tools.expect('rename_object', 'RW_IDEM', "Rename a GameObject. Returns new scene path after rename.", (
     ('path', str),
     ('name', str),
@@ -70,6 +95,12 @@ async def search_scene(
     ))
 
 
+tools.expect('serialized_field_rename_audit', 'RO', "Audit [SerializeField] rename safety.", (
+    ('type', str),
+    ('old_field', str),
+    ('new_field', str),
+    ('include', str, "prefabs,scenes,scriptable_objects"),
+))
 tools.expect('set_active', 'RW_IDEM', "Set GameObject active/inactive.", (
     ('path', str),
     ('active', bool),
@@ -108,6 +139,11 @@ async def set_sibling_index(
     ))
 
 
+tools.expect('snapshot', 'RO', "Capture or compare object state.", (
+    ('path', str),
+    ('label', str, "default"),
+    ('compare', str, ""),
+))
 tools.expect('use_skill', 'RW', "Execute a previously saved skill. params: comma-separated key=value for substitution.", (
     ('name', str),
     ('params', ostr, None),

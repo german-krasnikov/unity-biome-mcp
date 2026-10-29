@@ -273,7 +273,7 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
-    from ._annotations import RO as _RO
-    mcp.tool(annotations=_RO)(compile_preflight)
-    mcp.tool(annotations=_RO)(await_compile)
-    mcp.tool(annotations=_RO)(serialized_field_rename_audit)
+    from .generated.catalog_tools import tools
+    tools.register(mcp, compile_preflight)
+    tools.register(mcp, await_compile)
+    tools.register(mcp, serialized_field_rename_audit)

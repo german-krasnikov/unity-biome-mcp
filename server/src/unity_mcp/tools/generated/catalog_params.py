@@ -1,8 +1,22 @@
 # Generated from dsl/tools.biome
-# source-sha256=6a2dab2cbf6fdd17da6f1e423c9b365486638d3b7cf59738474a9a17c71396d4
+# source-sha256=896692d2e17494813cb32187d5a874fe55d1875072e069d26b91037ba888c7b9
 # Edit the source, then run biome generate.
 
 PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
+    'auto_wire': {
+    },
+    'await_compile': {
+    },
+    'compile_preflight': {
+    },
+    'debug_animator': {
+    },
+    'debug_physics': {
+    },
+    'get_metrics': {
+    },
+    'list_connections': {
+    },
     'rename_object': {
     },
     'search_scene': {
@@ -11,11 +25,15 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         'limit': "Max results (default 50; 0 = unlimited)",
         'scene': "Filter to a single scene by name (multi-scene only)",
     },
+    'serialized_field_rename_audit': {
+    },
     'set_active': {
         'path': "Scene path to the GameObject",
         'active': "True to activate, False to deactivate",
     },
     'set_sibling_index': {
+    },
+    'snapshot': {
     },
     'use_skill': {
         'name': "Saved learned-skill identifier from list_skills",
