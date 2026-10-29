@@ -74,7 +74,7 @@ def _count_owner_module_contribution(tools_dir: pathlib.Path, module_name: str) 
     """Count non-_INTERNAL entries in <module_name>.py's own SPEC_KWARGS dict
     literal (PR-04 physical registration pilot: tool_specs.py merges these into
     _SPECS at import time via a for-loop the static scan below can't see)."""
-    mod_file = tools_dir / f"{module_name}.py"
+    mod_file = tools_dir.joinpath(*module_name.split(".")).with_suffix(".py")  # "generated.catalog_specs" is tools/generated/catalog_specs.py
     tree = ast.parse(mod_file.read_text(encoding="utf-8"), filename=str(mod_file))
     spec_kwargs = _find_dict_literal(tree, "SPEC_KWARGS")
     if spec_kwargs is None:

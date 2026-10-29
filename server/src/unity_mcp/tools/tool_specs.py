@@ -164,8 +164,6 @@ _SPECS: dict[str, ToolSpec] = {
     'references': ToolSpec(category='COMPONENTS'),
     'region_clear': ToolSpec(category='SCENE'),
     'release_smoke': ToolSpec(category='SYSTEM', mutability='read', direct_only=True),
-    'rename_object': ToolSpec(category='SCENE'),
-    'set_sibling_index': ToolSpec(category='SCENE'),
     'render_analyze': ToolSpec(category='MEDIA', mutability='read'),
     'resolve_scene_refs': ToolSpec(category='VERIFY', timeout_s=15.0, mutability='read'),
     'resolve_test_request': ToolSpec(category='TESTS', timeout_s=10.0, mutability='read'),
@@ -195,9 +193,7 @@ _SPECS: dict[str, ToolSpec] = {
     'screenshot_baseline': ToolSpec(category='MEDIA', mutability='write', direct_only=True),
     'screenshot_compare': ToolSpec(category='MEDIA', direct_only=True),
     'scriptable_object': ToolSpec(category='ASSETS'),
-    'search_scene': ToolSpec(category='SCENE', tier1=True, timeout_s=15.0, mutability='read'),
     'serialized_field_rename_audit': ToolSpec(category='VERIFY', mutability='read'),
-    'set_active': ToolSpec(category='SCENE', tier1=True),
     'set_llm_config': ToolSpec(category='SYSTEM', direct_only=True),
     'set_material': ToolSpec(category='SCENE'),
     'set_parent': ToolSpec(category='SCENE', tier1=True),
@@ -224,7 +220,6 @@ _SPECS: dict[str, ToolSpec] = {
     'ui_intent': ToolSpec(category='UGUI', tier1=True, direct_only=True),
     'undo_last': ToolSpec(category='SYSTEM'),
     'unwire_event': ToolSpec(category='COMPONENTS'),
-    'use_skill': ToolSpec(category='SYSTEM', direct_only=True),
     'validate_triggers': ToolSpec(category='SCENE', mutability='read'),
     'validate_playtest_aliases': ToolSpec(category='TESTS', mutability='read'),
     'validate_references': ToolSpec(category='VERIFY', tier1=True, mutability='read'),
@@ -265,3 +260,14 @@ from .sync_spec import SPEC_KWARGS as _SYNC_SPEC_KWARGS  # noqa: E402
 for _name, _kwargs in _SYNC_SPEC_KWARGS.items():
     _SPECS[_name] = ToolSpec(**_kwargs)
     _SPEC_OWNERS[_name] = "sync"
+
+# Tool catalog (dsl/tools.biome): the ToolSpec kwargs of its tools are generated, imported one way like the owners above. 'effect' is
+# the catalog's RO|RW|RW_IDEM|DEL; ToolSpec keeps only whether the tool writes (the MCP annotation follows from effect elsewhere).
+from .generated.catalog_specs import SPEC_KWARGS as _CATALOG_SPEC_KWARGS  # noqa: E402
+
+for _name, _kwargs in _CATALOG_SPEC_KWARGS.items():
+    if _name in _SPECS:
+        raise ValueError(f"{_name} is declared in the catalog (dsl/tools.biome) and in tool_specs.py")
+    _fields = {key: value for key, value in _kwargs.items() if key != "effect"}
+    _SPECS[_name] = ToolSpec(**_fields, mutability="read" if _kwargs["effect"] == "RO" else "write")
+    _SPEC_OWNERS[_name] = "catalog"

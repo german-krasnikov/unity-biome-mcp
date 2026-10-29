@@ -60,7 +60,7 @@ def load_tool_specs_from_text(text: str) -> frozenset[str]:
 def load_tool_specs(repo_root: Path) -> frozenset[str]:
     tools_dir = repo_root / "server/src/unity_mcp/tools"
     names = set(load_tool_specs_from_text((tools_dir / "tool_specs.py").read_text(encoding="utf-8")))
-    for path in sorted(tools_dir.glob("*.py")):
+    for path in sorted([*tools_dir.glob("*.py"), *tools_dir.glob("generated/*.py")]):  # generated/: the tool catalog (dsl/tools.biome)
         names.update(load_tool_specs_from_text(path.read_text(encoding="utf-8")))
     return frozenset(names)
 

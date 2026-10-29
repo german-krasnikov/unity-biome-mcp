@@ -145,10 +145,6 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "name": "Saved scene-template identifier from .claude/templates (without .cs)",
     },
 
-    "use_skill": {
-        "name": "Saved learned-skill identifier from list_skills",
-    },
-
     "autofit_collider": {
         "type": "Collider shape to fit: box|sphere|capsule",
     },
@@ -255,18 +251,6 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
         "scene":  "Scene name for save/discard when multiple scenes are loaded",
     },
 
-    "search_scene": {
-        "query": "Syntax: 'name text', 't:Component', 'tag=Tag', 'layer=N', 'active=bool' — combine with spaces",
-        "root":  "Scene path to scope the search (omit = whole scene)",
-        "limit": "Max results (default 50; 0 = unlimited)",
-        "scene": "Filter to a single scene by name (multi-scene only)",
-    },
-
-    "set_active": {
-        "path":   "Scene path to the GameObject",
-        "active": "True to activate, False to deactivate",
-    },
-
     "set_parent": {
         "path":                 "Scene path of the GameObject to reparent",
         "parent":               "New parent scene path (omit or null = move to scene root)",
@@ -303,3 +287,11 @@ PARAM_SCHEMA_EXTRAS: dict[str, dict[str, dict]] = {
     "save_skill":    {"code": {"pattern": _RE_ANY}},
     "save_template": {"code": {"pattern": _RE_ANY}},
 }
+
+# Schema descriptions of the catalog's tools (dsl/tools.biome) are generated; a tool is described there or above, never in both.
+from .generated.catalog_params import PARAM_DESCRIPTIONS as _CATALOG_PARAM_DESCRIPTIONS  # noqa: E402
+
+for _tool, _descriptions in _CATALOG_PARAM_DESCRIPTIONS.items():
+    if _tool in PARAM_DESCRIPTIONS:
+        raise ValueError(f"{_tool} is described in the catalog (dsl/tools.biome) and in _param_descriptions.py")
+    PARAM_DESCRIPTIONS[_tool] = _descriptions
