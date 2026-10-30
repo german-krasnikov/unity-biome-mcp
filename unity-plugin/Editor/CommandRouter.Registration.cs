@@ -660,6 +660,7 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAsync("wait_until", AsyncWaitUntil, mutating: true, runtime: true,
                 required: "path,component,field,value", optional: "timeout,negate,abort_on_fail");
             CommandRegistry.RegisterAsync("move_to", AsyncMoveTo, runtime: true,
+                mutating: true, playOk: true,
                 required: "path,position", optional: "timeout");
             CommandRegistry.RegisterAsync("test_step", AsyncTestStep, runtime: true,
                 required: "path,position", optional: "checks_before,checks_after,wait_after,timeout");

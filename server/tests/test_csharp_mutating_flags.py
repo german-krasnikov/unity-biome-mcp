@@ -15,6 +15,7 @@ from unity_mcp.middleware_types import WRITE_CMDS
 FLIPPED: dict[str, tuple[bool, bool]] = {
     "editor": (True, True),  # stop, pause and step must work in Play Mode; play/stop/select change no Undo-recorded scene data
     "build": (True, False),  # async: no Undo group of its own; the build runs from the Editor whatever the mode
+    "move_to": (True, False),  # async, runtime: it acts on the live Play Mode context, so the Play Mode block must not meet it
 }
 
 
