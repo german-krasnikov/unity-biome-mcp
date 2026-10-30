@@ -1,12 +1,11 @@
 """Runtime Play Mode tools — blocked outside Play Mode by Unity guard."""
 import asyncio
 import contextlib
-import json
-import re
 
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ..bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S
+from ..decisions import verdict_facts
 from ..errors import SessionIdentityMismatch, UncertainDeliveryError, recovery_barrier
 from ..sampling import sampling_service as _sampling
 from ._annotations import RW_IDEM as _RW_IDEM
@@ -448,80 +447,25 @@ async def _transition_play_state(
 def _is_playtest_pass(result: str, format: str | None = None) -> bool:
     """Require a non-empty, complete PLAYTEST ratio and no failure signals.
 
-    B17: format is passed explicitly by the one production caller (R-07,
-    explicit over implicit) — mirrors CommandRouter.IsPlaytestSuccess. The
-    ``{``-sniff below is only a fallback for a missing/unknown format
-    (legacy callers, including this module's own pre-B17 test suite).
+    B17: format is passed explicitly by the one production caller (R-07, explicit over implicit) -- mirrors
+    CommandRouter.IsPlaytestSuccess. A missing/unknown format is sniffed (``{`` opens a ledger): legacy callers, including this
+    module's own pre-B17 test suite. The rule is the DECISION passes of dsl/decisions/verdict.logic (a text report is read on
+    every line, so prepended middleware warnings do not mask a genuine PLAYTEST: X/Y line, MCP-GUARD-007; a JSON ledger by
+    outer.teardown_ok, the aggregate `failed` and one {"ok": ...} per step, never by scanning the report text, the B17 bug);
+    decisions/verdict_facts.py reads the report into its facts.
     """
-    if not result:
-        return False
-    if format == "json":
-        return _is_playtest_pass_from_ledger(result)
-    if format == "text":
-        return _is_playtest_pass_from_text(result)
-    return (
-        _is_playtest_pass_from_ledger(result)
-        if result.lstrip().startswith("{")
-        else _is_playtest_pass_from_text(result)
-    )
-
-
-def _is_playtest_pass_from_ledger(result: str) -> bool:
-    """B16's canonical JSON receipt: outer.teardown_ok plus one {"ok": ...} entry
-    per step. A step's `ok` is the ledger fact — never re-derived from scanning
-    report text (the B17 bug: a step's source_file containing " OK" made the
-    legacy substring check say "pass")."""
-    try:
-        receipt = json.loads(result)
-    except ValueError:
-        return False
-    if receipt.get("outer", {}).get("teardown_ok") is not True:
-        return False
-    if receipt.get("failed", 1) != 0:  # F7 — aggregate cross-check
-        return False
-    steps = receipt.get("steps", [])
-    if not steps:  # F7 — an empty (or missing) ledger is not a pass
-        return False
-    return all(step.get("ok") is True for step in steps)
-
-
-def _is_playtest_pass_from_text(result: str) -> bool:
-    """Scans all lines so that prepended middleware warnings (e.g. ⚡ consecutive
-    write guard) do not mask a genuine PLAYTEST: X/Y line (MCP-GUARD-007)."""
-    for line in (result.splitlines() if result else []):
-        match = re.match(r"PLAYTEST:\s*(\d+)\s*/\s*(\d+)\b", line)
-        if match:
-            passed, total = int(match.group(1)), int(match.group(2))
-            if total <= 0 or passed != total:
-                return False
-            return not re.search(r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT|ABORTED)\b", result)
-    return False
+    return verdict_facts.is_pass(result, format)
 
 
 def _classify_outcome(result: str, format: str | None = None) -> str:
-    """Classify a playtest result into pass/fail/error.
+    """Classify a playtest result into pass/fail/error (the DECISION outcome of dsl/decisions/verdict.logic).
 
     pass:  playtest ran, all assertions passed, teardown ok
     fail:  playtest ran, one or more assertions genuinely failed
     error: playtest could not run, or the receipt is uninterpretable
            (empty, 0/0, malformed JSON, or a receipt that disagrees with itself)
     """
-    if _is_playtest_pass(result, format):
-        return "pass"
-    if not result or "0/0" in result:
-        return "error"
-    if format == "json":
-        try:
-            receipt = json.loads(result)
-        except ValueError:
-            return "error"
-        steps = receipt.get("steps")
-        if not steps:
-            return "error"
-        failed_steps = sum(1 for step in steps if not step.get("ok"))
-        if receipt.get("failed", failed_steps) != failed_steps:
-            return "error"
-    return "fail"
+    return verdict_facts.classify(result, format)
 
 
 async def _setup_auto_play(restart_between: bool) -> tuple[bool, list]:

@@ -4,9 +4,12 @@ golden/decisions/verdict.txt was taken before the rules of _is_playtest_pass, _c
 format_layered_verdict moved into dsl/decisions/verdict.logic, from those functions themselves, so the generated decisions that now
 stand behind them are compared with what they replaced and not with their own output. dsl/decisions/verdict.examples holds the
 expectations that come from the tests of the project; the golden says that nothing else changed. Lines come from
-scripts/decisions_golden.py. A difference the owner approved is an INTENDED entry with its reason, never a new golden.
+scripts/decisions_golden.py. A difference is allowed only by an Intended rule below, with its reason and the exact answer it
+gives; the golden is never regenerated to make a difference disappear.
 """
 import ast
+from collections.abc import Callable  # noqa: TC003  (read by dataclass)
+from dataclasses import dataclass
 from pathlib import Path
 
 from decisions_golden import answer
@@ -17,9 +20,33 @@ from unity_mcp.tools.runtime import _classify_outcome, _is_playtest_pass
 GOLDEN = Path(__file__).parent / "golden" / "decisions" / "verdict.txt"
 COLUMNS = ("passes", "outcome", "counts", "state")
 
-# (raw, format, column) of a report row -> (the answer it has now, the reason): a difference the owner approved.
-# Any other difference fails, and an entry whose row no longer differs is stale.
-INTENDED: dict[tuple[str | None, str | None, str], tuple[object, str]] = {}
+
+@dataclass(frozen=True)
+class Intended:
+    """A difference the owner's design approved: the cells it applies to (raw, format, column, golden answer) and the answer they have now."""
+    reason: str
+    applies: Callable[[str | None, str | None, str, object], bool]
+    now: Callable[[str | None, str | None, str], object]
+
+
+def _looks_like_json(raw: str | None) -> bool:
+    return (raw or "").lstrip().startswith("{")
+
+
+INTENDED = [
+    Intended(
+        "A receipt that is no ledger (a list, null, an outer that is a number, steps that are a string, a number or hold a number) made the "
+        "hand-written function raise AttributeError or TypeError. The extractor reads it as unreadable (ledger.readable is false): not a pass, "
+        "outcome error (Plans/STEP_7_2_LOGIC_DECISIONS_DESIGN.md of biome-dsl, section 5; EVAL2 E2.2).",
+        lambda raw, fmt, column, was: column in ("passes", "outcome") and isinstance(was, str) and was.startswith("raises "),
+        lambda raw, fmt, column: False if column == "passes" else "error"),
+    Intended(
+        "No format given and a report that looks like JSON: the hand-written code sniffed the format for passes but made the receipt checks of "
+        "outcome (unreadable, no steps, a failed that disagrees with the steps) only for an explicit json. Both now follow the sniffed format, "
+        "so outcome is what the caller gets by saying json. No caller passes no format (runtime.py passes text or json, always).",
+        lambda raw, fmt, column, was: column == "outcome" and fmt is None and _looks_like_json(raw),
+        lambda raw, fmt, column: answer(_classify_outcome, raw, "json")),
+]
 
 
 def golden_rows() -> list[tuple]:
@@ -39,9 +66,9 @@ def live_suite(rows: list[tuple[str, str, bool]]) -> str:
     return format_layered_verdict(compute_suite_verdict([(path, raw, 0.0, ok) for path, raw, ok in rows]))
 
 
-def differences(rows: list[tuple], intended: dict[tuple[str | None, str | None, str], tuple[object, str]]) -> list[str]:
-    """What differs between the golden rows and the live functions, minus what `intended` allows."""
-    problems, used = [], set()
+def differences(rows: list[tuple], intended: list[Intended]) -> list[str]:
+    """What differs between the golden rows and the live functions, minus what an `intended` rule gives; a rule that changes nothing is stale."""
+    problems, changed = [], set()
     for row in rows:
         if row[0] == "suite":
             _, suite, was = row
@@ -50,16 +77,13 @@ def differences(rows: list[tuple], intended: dict[tuple[str | None, str | None, 
             continue
         _, raw, fmt, *golden = row
         for column, was, now in zip(COLUMNS, golden, live_report(raw, fmt), strict=True):
-            key = (raw, fmt, column)
-            want = intended[key][0] if key in intended else was
-            if key in intended:
-                used.add(key)
-                if was == want:
-                    problems.append(f"INTENDED {key} says the golden answer: remove it")
+            rule = next((rule for rule in intended if rule.applies(raw, fmt, column, was)), None)
+            want = rule.now(raw, fmt, column) if rule else was
+            if rule and want != was:
+                changed.add(rule.reason)
             if now != want:
                 problems.append(f"{column} of {raw!r} (format {fmt!r}) is {now!r}, expected {want!r} (golden {was!r})")
-    problems += [f"INTENDED {key} is not a row of the golden: remove it" for key in sorted(intended.keys() - used, key=repr)]
-    return problems
+    return problems + [f"INTENDED rule changes no answer: remove it ({rule.reason[:60]}...)" for rule in intended if rule.reason not in changed]
 
 
 def test_the_verdict_answers_as_the_hand_written_functions_did():
@@ -82,13 +106,13 @@ def test_the_golden_holds_every_kind_of_answer():
 
 def test_a_changed_answer_is_found_and_only_an_intended_one_is_let_through():
     row = ("report", "PLAYTEST: 1/1", "text", True, "pass", (1, 1), "pass")
-    live = live_report("PLAYTEST: 1/1", "text")
-    assert live == (True, "pass", (1, 1), "pass")
-    assert differences([row], {}) == []
+    assert live_report("PLAYTEST: 1/1", "text") == (True, "pass", (1, 1), "pass")
+    assert differences([row], []) == []
     wrong = ("report", "PLAYTEST: 1/1", "text", False, "pass", (1, 1), "pass")
-    assert differences([wrong], {}) == ["passes of 'PLAYTEST: 1/1' (format 'text') is True, expected False (golden False)"]
-    assert differences([wrong], {("PLAYTEST: 1/1", "text", "passes"): (True, "owner 2026-10-29")}) == []
-    assert differences([row], {("PLAYTEST: 1/1", "text", "passes"): (True, "no change")}) == [
-        "INTENDED ('PLAYTEST: 1/1', 'text', 'passes') says the golden answer: remove it"]
-    assert differences([row], {("not a row", "text", "passes"): (True, "x")}) == [
-        "INTENDED ('not a row', 'text', 'passes') is not a row of the golden: remove it"]
+    assert differences([wrong], []) == ["passes of 'PLAYTEST: 1/1' (format 'text') is True, expected False (golden False)"]
+    allows = Intended("the owner said so", lambda raw, fmt, column, was: column == "passes", lambda raw, fmt, column: True)
+    assert differences([wrong], [allows]) == []
+    assert differences([row], [allows]) == ["INTENDED rule changes no answer: remove it (the owner said so...)"]
+    names_other_answer = Intended("wrong answer", lambda raw, fmt, column, was: column == "passes", lambda raw, fmt, column: False)
+    assert differences([row], [names_other_answer]) == [
+        "passes of 'PLAYTEST: 1/1' (format 'text') is True, expected False (golden True)"]

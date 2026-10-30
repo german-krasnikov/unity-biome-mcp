@@ -15,7 +15,7 @@ namespace UnityMCP.Decisions.Tests
     public sealed class RowsTests
     {
         // The modules that are printed into C#; retry is Python only (step 7.2) and has rows but no policy here.
-        private static readonly string[] Modules = { "mutability" };
+        private static readonly string[] Modules = { "mutability", "verdict" };
 
         public static IEnumerable<TestCaseData> Rows()
         {
