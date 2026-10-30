@@ -654,6 +654,7 @@ namespace UnityMCP.Editor
         internal static void RegisterAsyncCommands()
         {
             CommandRegistry.RegisterAsync("run_tests", AsyncRunTests,
+                mutating: true, playOk: true,
                 required: "request_id", optional: "mode,filter,group,categories,assemblies,tests");
             CommandRegistry.RegisterAsync("ask_user", AsyncAskUser, required: "", optional: "questions",
                 alwaysAllowed: true, allowedDuringCompile: true);  // UI-only card, no assembly access

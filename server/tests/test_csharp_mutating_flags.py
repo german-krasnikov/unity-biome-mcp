@@ -18,6 +18,7 @@ FLIPPED: dict[str, tuple[bool, bool]] = {
     "move_to": (True, False),  # async, runtime: it acts on the live Play Mode context, so the Play Mode block must not meet it
     "package": (True, False),  # async; list and search are reads (READ lines), the rest write; Play Mode is not a concern of the package manager
     "run_playtest": (True, False),  # async; the playtest gates Play Mode itself (B05), so the Play Mode block of a mutating command must not meet it
+    "run_tests": (True, False),  # async; the test runner drives Play Mode itself
 }
 
 
