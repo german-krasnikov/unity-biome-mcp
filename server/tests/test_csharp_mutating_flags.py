@@ -24,6 +24,7 @@ FLIPPED: dict[str, tuple[bool, bool]] = {
     "cancel_test_run": (True, True),  # sync; it cancels a run and changes no scene; always allowed and allowed while compiling stay
     "checkpoint": (True, True),  # sync; it opens its own Undo group inside the handler, so the router must not open another
     "export_playtest_aliases_to_defs": (True, True),  # sync; writes a .defs file from the PlaytestConfig asset: a file effect, no Undo-recorded scene change
+    "sync_playtest_aliases_from_defs": (True, True),  # sync; loads a .defs file into the PlaytestConfig asset: an asset write, no Undo-recorded scene change
 }
 
 

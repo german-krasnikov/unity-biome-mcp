@@ -22,7 +22,7 @@ _CALL = re.compile(r'CommandRegistry\.(Register|RegisterAsync|RegisterAction)\(\
 
 KNOWN_DIVERGENT = {
     "mutating": {"batch", "invoke_method",
-                 "recompile", "scene", "sync_playtest_aliases_from_defs", "timeline"},
+                 "recompile", "scene", "timeline"},
     "runtime": set(),
     "required": {"ask_user", "get_component", "get_schema", "references", "render_analyze", "run_tests", "scene_environment",
                  "set_material", "timeline", "validate_playtest_aliases"},
