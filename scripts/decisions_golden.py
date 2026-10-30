@@ -11,6 +11,7 @@ Usage (from the repository root; <commit> is the commit the file is taken at, wr
   python scripts/decisions_golden.py verdict <commit>
   python scripts/decisions_golden.py guards <commit>
   python scripts/decisions_golden.py retry <commit>
+  python scripts/decisions_golden.py action_reads <commit>
 """
 import asyncio
 import contextlib
@@ -68,6 +69,12 @@ RETRY_HEADER = """\
 # IncompleteReadError, RuntimeError, UnicodeDecodeError); the attempts 0..4 of 3 retries, and 0 of 0.
 # The delays are those of production (2 / 4 / 8 s backoff, 1 s for the first grace retry): the golden is taken outside tests/_fast_clock.py.
 # Do not regenerate this file to remove a difference: an intended change is an INTENDED entry of test_retry_golden.py.
+"""
+
+ACTION_READS_HEADER = """\
+# The read actions of the action-parameterised commands as middleware_types.ACTION_READS stated them at {commit}, when the dictionary was a
+# literal of the module, before the tool catalog (dsl/tools.biome, READ lines) became its source. One line per pair: (command, action).
+# Do not regenerate this file to remove a difference: an intended change is an INTENDED entry of test_action_reads_golden.py.
 """
 
 _CS_CALL = re.compile(r'CommandRegistry\.(?:Register|RegisterAsync|RegisterAction)\(\s*"([^"]+)"')
@@ -348,8 +355,15 @@ def retry_lines() -> list[str]:
     return [repr((*key, *retry_answer(key))) for key in retry_keys()]
 
 
+def action_reads_lines() -> list[str]:
+    """One literal line per (command, read action) of the live middleware_types.ACTION_READS, sorted."""
+    from unity_mcp.middleware_types import ACTION_READS
+
+    return [repr((cmd, action)) for cmd in sorted(ACTION_READS) for action in sorted(ACTION_READS[cmd])]
+
+
 _FAMILIES = {"is_write": (IS_WRITE_HEADER, is_write_lines), "verdict": (VERDICT_HEADER, verdict_lines), "guards": (GUARDS_HEADER, guards_lines),
-             "retry": (RETRY_HEADER, retry_lines)}
+             "retry": (RETRY_HEADER, retry_lines), "action_reads": (ACTION_READS_HEADER, action_reads_lines)}
 
 
 def main(argv: list[str]) -> None:
