@@ -367,6 +367,7 @@ namespace UnityMCP.Editor
                 required: "", optional: "limit", allowedDuringCompile: true);
             CommandRegistry.Register("cancel_test_run", args => TestRunner.CancelRun(
                     JsonHelper.ExtractString(args, "run_id")),
+                mutating: true, playOk: true, noUndo: true,
                 required: "run_id", optional: "", alwaysAllowed: true,
                 allowedDuringCompile: true);
             CommandRegistry.Register("get_test_results", args => TestRunner.GetResults(

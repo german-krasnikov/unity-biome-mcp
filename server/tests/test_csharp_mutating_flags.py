@@ -21,6 +21,7 @@ FLIPPED: dict[str, tuple[bool, bool]] = {
     "run_tests": (True, False),  # async; the test runner drives Play Mode itself
     "start_playtest": (True, False),  # async; the same gates as run_playtest (E02)
     "test_step": (True, False),  # async, runtime: it steps the running game
+    "cancel_test_run": (True, True),  # sync; it cancels a run and changes no scene; always allowed and allowed while compiling stay
 }
 
 
