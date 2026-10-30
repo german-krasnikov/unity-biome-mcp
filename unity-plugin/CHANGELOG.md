@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`start_playtest` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it, as they refuse `run_playtest`. Play Mode is unchanged (`playOk`).
 - **`test_step` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. It still runs in Play Mode (`playOk`).
 - **`cancel_test_run` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. Play Mode, the compile guard and the Undo history are unchanged.
+- **`checkpoint` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. It still makes its own Undo group and no second one (`noUndo`), and still runs in Play Mode (`playOk`).
 
 ## [v2.1.0] — 2026-09-25
 

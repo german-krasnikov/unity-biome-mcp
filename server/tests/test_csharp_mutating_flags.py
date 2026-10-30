@@ -22,6 +22,7 @@ FLIPPED: dict[str, tuple[bool, bool]] = {
     "start_playtest": (True, False),  # async; the same gates as run_playtest (E02)
     "test_step": (True, False),  # async, runtime: it steps the running game
     "cancel_test_run": (True, True),  # sync; it cancels a run and changes no scene; always allowed and allowed while compiling stay
+    "checkpoint": (True, True),  # sync; it opens its own Undo group inside the handler, so the router must not open another
 }
 
 

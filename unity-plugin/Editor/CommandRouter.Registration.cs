@@ -300,7 +300,8 @@ namespace UnityMCP.Editor
                 var groupId = UndoGroupHelper.CurrentGroupId;
                 var domainStamp = SyncHelper.CurrentDomainStamp;
                 return $"Checkpoint: {label}\ngroup_id={groupId}\ndomain_stamp={domainStamp}";
-            }, required: "", optional: "label");
+            }, mutating: true, playOk: true, noUndo: true,
+                required: "", optional: "label");
             CommandRegistry.Register("checkpoint_undo_restore", args =>
             {
                 var groupIdStr = JsonHelper.ExtractString(args, "group_id");
