@@ -86,7 +86,8 @@ No single handwritten roster is authoritative. Keep these sources aligned:
 | Session category visibility | `server/src/unity_mcp/tools/gating.py` |
 | Deferred schema behavior | `server/src/unity_mcp/tools/schema_registry.py` and `server_filtering.py` |
 | Unity handler and validation metadata | `unity-plugin/Editor/CommandRegistry.cs` registration sites |
-| Argument-dependent read/write behavior | `middleware_types.py` and `CommandRegistry.IsMutating(cmd, argsJson)` |
+| Argument-dependent read/write behavior | The decision `isMutating` (`dsl/decisions/mutability.logic`), read by `middleware_types.is_write` and `CommandRegistry.IsMutating(cmd, argsJson)`; the read actions of a tool are the `READ` lines of `dsl/tools.biome`. Python is the authority |
+| Which guard stops a call, and in which order | The decision `guardVerdict` (`dsl/decisions/guards.logic`), read by `CommandRouter.CheckGuards`, the per-line guards of `BatchHelper` and the Python read-only, Play Mode and direct-only gates |
 | Exhaustive generated public parameters | `docs/tools-schema/` |
 
 Tool visibility is a discoverability control, not an authorization boundary.
@@ -110,6 +111,8 @@ public static void Register(
     bool specialDispatch = false,
     bool alwaysAllowed = false,
     bool allowedDuringCompile = false,
+    bool playOk = false,
+    bool noUndo = false,
     Func<string, string, string> fileHandler = null,
     string description = null,
     int maxResponseChars = 0);
@@ -123,6 +126,8 @@ public static void RegisterAction(
     string optional = null,
     bool alwaysAllowed = false,
     bool allowedDuringCompile = false,
+    bool playOk = false,
+    bool noUndo = false,
     string description = null,
     int maxResponseChars = 0);
 
@@ -135,6 +140,8 @@ public static void RegisterAsync(
     string optional = null,
     bool alwaysAllowed = false,
     bool allowedDuringCompile = false,
+    bool playOk = false,
+    bool noUndo = false,
     string description = null,
     int maxResponseChars = 0);
 ```
@@ -145,8 +152,16 @@ Registration rules:
 - `required` and `optional` are comma-separated parameter names. `null` for both
   marks a free-form contract; an empty string represents no parameters.
 - `RegisterAction` adds `action` to the required contract automatically.
-- `mutating` and `runtime` feed routing guards. Mixed read/write commands must
-  also implement conservative argument-aware classification on both sides.
+- `mutating` is the registered base of the write classification and `runtime`
+  feeds the Play Mode guard. Whether a given call is a write is the decision
+  `isMutating`, which starts from `mutating` and then reads the `action` and the
+  switch arguments of the call, as Python's `is_write` does: a command whose
+  actions differ needs its read actions in the catalog (`READ` lines), not a
+  second table in C#.
+- `playOk` lets a mutating command run in Play Mode (it stays a write for
+  read-only workers); `noUndo` opens no Undo group for a mutating command whose
+  effect is no Undo-recorded scene change. Neither is a trust flag: they are
+  kept when a third-party plugin registers a command.
 - `specialDispatch`, asynchronous handlers, file handlers, and externally owned
   file effects are not ordinary batch operations.
 - `alwaysAllowed` and `allowedDuringCompile` are core trust flags. They are
@@ -166,7 +181,10 @@ The layers are complementary:
   mutating commands. Configure both boundaries when both must be read-only.
 - Unity checks registry readiness, Python-only misuse, chat session mode,
   compilation state, Play Mode rules, runtime requirements, read-only state, and
-  per-tool settings before execution.
+  per-tool settings before execution. Which of them stops a call, and the order
+  (the top-level guards and the per-line guards of `batch` differ), is the
+  decision `guardVerdict`; the code states the facts and says what each verdict
+  tells the caller.
 - Conditional commands fail closed when an action or flag is absent, malformed,
   or not in a known read subset, except where the command contract explicitly
   defines a read default.
@@ -184,8 +202,8 @@ record Undo state; it cannot reverse arbitrary external effects.
 ## Mutation, Undo, and Batch
 
 For normal mutating C# commands, `CommandRouter` opens and closes a named Unity
-Undo group and records mutation evidence. This is a best-effort Unity-state
-boundary, not a general transaction manager.
+Undo group and records mutation evidence, unless the registration says `noUndo`.
+This is a best-effort Unity-state boundary, not a general transaction manager.
 
 `batch` executes compatible command lines sequentially. Python rejects or
 filters direct-only lines according to `on_error`; Unity validates and dispatches

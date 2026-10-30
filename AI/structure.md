@@ -24,7 +24,7 @@ rg --files unity-plugin/ClientSkills
 | `unity-plugin-reload/` | Independent Unity reload-recovery package. |
 | `unity-test-project/` | Writable Unity integration-test project and fixtures. |
 | `unity-test-project-ro/` | Read-only worker test project. |
-| `dsl/` | Tool catalog: `tools.biome` states the facts of the catalog's tools once, a biome-dsl construct prints them (see `dsl/README.md`). |
+| `dsl/` | Tool catalog (`tools.biome` states the facts of the catalog's tools once, a biome-dsl construct prints them) and `decisions/` (the rules the Python server and the Unity plugin share, as Logic DECISIONs that print Python, C# and example rows). See `dsl/README.md`. |
 | `install/` | Installer/configuration implementation and tests. |
 | `scripts/` | Repository validation, release, evidence, and generation tools. |
 | `protocol/` | Versioned cross-process protocol schemas. |
@@ -53,6 +53,7 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/src/unity_mcp/tools/__init__.py` | Built-in tool-module registration. |
 | `server/src/unity_mcp/tools/tool_specs.py` | `ToolSpec` and the merge of the tool metadata (category, mutability, timeout, visibility, runtime, direct-only): generated from `dsl/tools.biome`, provided by the watch and sync modules, written by hand for six tools whose annotation and ToolSpec disagree. |
 | `server/src/unity_mcp/tools/generated/` | Generated from `dsl/tools.biome`, never edited by hand: ToolSpec kwargs, schema descriptions and the MCP wrappers of the catalog's tools. |
+| `server/src/unity_mcp/decisions/` | The decisions printed from `dsl/decisions` (`generated/`, never edited by hand) and the native readers of their facts (`verdict_facts.py`, `guard_facts.py`). A leaf: it imports nothing else of `unity_mcp` (import-linter). |
 | `server/src/unity_mcp/tools/_catalog_runtime.py` | Mechanical runtime of the generated wrappers: wire encoders and the `ToolSet` that checks a function against the catalog and registers it. |
 | `server/src/unity_mcp/tools/sync_spec.py` | SyncModule ToolSpec metadata and owned wire-command mapping (N1b): decouples `tool_specs.py` from importing `sync.py` to prevent circular dependencies. |
 | `server/src/unity_mcp/tools/sync_algorithm.py` | Reload algorithm facade with replaceable swappable interface (N2): narrow `IReloadAlgorithm` abstraction and `Bind` composition seam beneath the public sync surface. |
@@ -111,6 +112,8 @@ by runtime boundary:
 | `unity-plugin/Editor/CommandRouter.cs` and `CommandRouter.*.cs` | Guarded command dispatch and domain registrations. |
 | `unity-plugin/Editor/CommandRegistry.cs` | Command handlers and their mutability, runtime, validation, dispatch, and trust metadata. |
 | `unity-plugin/Editor/CommandOptions.cs` | Internal structured registration options behind the public bool overloads. |
+| `unity-plugin/Editor/Generated/` | Printed from `dsl/`, never edited by hand: the decisions (`Mutability.g.cs`, `Verdict.g.cs`, `Guards.g.cs`, C# 9, depend on nothing but the BCL) and `ActionReads.g.cs` (the read actions of the catalog's tools). |
+| `unity-plugin/Editor/Decisions/` | The native readers of the facts of those decisions (`MutabilityFacts.cs`, `PlaytestFacts.cs`, `GuardFacts.cs`); they decide nothing. `CommandRegistry`, `CommandRouter` and `BatchHelper` call the decisions through them. |
 | `unity-plugin/Editor/PluginRegistry.cs` and `IMCPPlugin.cs` | C# plugin discovery and registration contract. |
 | `unity-plugin/Editor/SyncHelper.cs` | Epoch-based compile/reload state machine used by `sync_unity`. |
 | `unity-plugin/Editor/ObjectIdCompat.cs` | Platform compat bridge for Unity 6.0–6.3 (instance-ID) and 6.4+ (EntityId) object identity APIs. |

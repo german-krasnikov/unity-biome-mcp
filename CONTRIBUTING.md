@@ -102,6 +102,7 @@ CLI/provider authentication and should be run separately.
 | Installer or converter | `install/tests/` and affected ClientSkills tests |
 | Repository scripts or generators | `scripts/tests/` and the relevant check mode |
 | Unity C# | Focused EditMode/PlayMode tests, then the applicable full mode |
+| A rule of `dsl/decisions/` | `scripts/dsl.sh check`, `test_decisions_examples.py` and the golden of the family, and `dotnet test unity-plugin/Tests~/Decisions/UnityMCP.Decisions.Tests.csproj -c Release` when C# is involved |
 | TCP or cross-language contract | Python tests, Unity tests, and relevant live tests |
 | Documentation | Documentation tests, generator checks, and strict MkDocs build |
 
@@ -158,6 +159,10 @@ there once, and `scripts/dsl.sh generate` prints the ToolSpec, the schema
 descriptions, the wrapper of a `FORWARD` tool and the docs table from it. Unity
 command registration and the Python wrapper must agree on command name,
 arguments, mutability, mode guards, timeout, and response semantics.
+
+A rule that the Python server and the Unity plugin both apply (is this call a write, did the playtest pass, which guard stops a call, why a failed
+send is retried) is a decision in `dsl/decisions/`: change its `.logic` and its `.examples`, regenerate, and do not copy the rule into either plane (see
+`dsl/README.md`, Decisions). A change of what the rule answers is a change of the requirement: its own commit, with the reason.
 
 ## Documentation changes
 
