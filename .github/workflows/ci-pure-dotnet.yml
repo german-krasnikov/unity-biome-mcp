@@ -24,6 +24,7 @@ on:
       - "dsl/decisions/**"
       - "dsl/chat/**"
       - "unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/**"
+      - "unity-plugin/Editor/Chat/CLI/ChatTurnDriver.cs"
       - "server/tests/golden/decisions/**"
       - ".github/workflows/ci-pure-dotnet.yml"
   pull_request:
@@ -49,6 +50,7 @@ on:
       - "dsl/decisions/**"
       - "dsl/chat/**"
       - "unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/**"
+      - "unity-plugin/Editor/Chat/CLI/ChatTurnDriver.cs"
       - "server/tests/golden/decisions/**"
       - ".github/workflows/ci-pure-dotnet.yml"
   workflow_dispatch:

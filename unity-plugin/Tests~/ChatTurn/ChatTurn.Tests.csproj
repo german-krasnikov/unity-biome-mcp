@@ -1,9 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Pure dotnet-test lane for the exit protocol of a chat turn (step 7.3), next to Tests~/Decisions. No Unity install: the reducer biome-dsl prints from
-    dsl/chat/chatturn.feature is compiled straight from the plugin tree at LangVersion 9 (the C# of Unity 6) with warnings as errors, so a use of
-    UnityEngine in it fails this build. Generated/ChatTurn.Examples.cs is printed from dsl/chat/chatturn.examples (the requirements, never edited).
+    Pure dotnet-test lane for the exit protocol of a chat turn (step 7.3), next to Tests~/Decisions. No Unity install: the reducer that biome-dsl
+    prints from dsl/chat/chatturn.feature and the driver around it (Editor/Chat/CLI/ChatTurnDriver.cs) are compiled straight from the plugin tree
+    at LangVersion 9 (the C# of Unity 6) with warnings as errors, so a use of UnityEngine in either fails this build.
+    Generated/ChatTurn.Examples.cs is printed from dsl/chat/chatturn.examples (the requirements, never edited).
     The `Tests~` folder name is load-bearing: Unity's importer skips a path that ends in `~`.
   -->
 
@@ -21,7 +22,9 @@
   <ItemGroup>
     <!-- Relative to this file's own directory (unity-plugin/Tests~/ChatTurn/). -->
     <Compile Include="../../Editor/Chat/CLI/Generated/ChatTurn/*.cs" />
+    <Compile Include="../../Editor/Chat/CLI/ChatTurnDriver.cs" />
     <Compile Include="Generated/*.cs" />
+    <Compile Include="ChatTurnDriverTests.cs" />
   </ItemGroup>
 
   <ItemGroup>

@@ -39,3 +39,11 @@ def test_no_guid_of_the_generated_files_is_used_twice_in_the_plugin():
     guids = [_guid(meta) for meta in ours]
     assert len(set(guids)) == len(guids), "two generated files share a guid"
     assert not set(guids) & theirs
+
+
+def test_every_file_and_folder_of_the_editor_has_a_meta():
+    """`biome generate` never writes a .meta, and the files around it (the driver and the ports of the chat turn, step 7.3) need one like the rest."""
+    editor = _PLUGIN / "Editor"
+    missing = [p.relative_to(_PLUGIN).as_posix() for p in sorted(editor.rglob("*"))
+               if not p.name.endswith(".meta") and not p.name.startswith(".") and not p.with_name(p.name + ".meta").is_file()]
+    assert missing == [], f"no .meta for: {missing}"
