@@ -10,6 +10,7 @@ Usage (from the repository root; <commit> is the commit the file is taken at, wr
   python scripts/decisions_golden.py is_write <commit>
   python scripts/decisions_golden.py verdict <commit>
   python scripts/decisions_golden.py guards <commit>
+  python scripts/decisions_golden.py retry <commit>
 """
 import asyncio
 import contextlib
@@ -55,6 +56,18 @@ GUARDS_HEADER = """\
 # tools/_common._guard_read_only (the file-writing tools), tools/batch._preprocess_stop_mode and _preprocess_continue_mode (a direct-only
 # line in a batch).
 # Do not regenerate this file to remove a difference: an intended change is an INTENDED entry of test_guards_golden.py.
+"""
+
+RETRY_HEADER = """\
+# What RetryPolicy.decide(error, attempt, session_deadline, cmd) answered at {commit}, before its order of rules moved into the generated
+# decisions retryGate and retryReason (dsl/decisions/retry.logic). One line per call: (error, attempt, max_retries, deadline passed,
+# reload window active, the probe says busy, the process is dead, then the answer (should_retry, delay in seconds, reason) and how
+# many times the probe was asked (has_strong_busy_signal, is_process_dead)).
+# The errors: one of each class the policy tells apart (SessionIdentityMismatch, CapacityBusyError with the default wait and with 7.5 s,
+# DomainReloadError, ConnectionRefusedError) and seven that it does not (OSError, TimeoutError, ConnectionResetError, BrokenPipeError,
+# IncompleteReadError, RuntimeError, UnicodeDecodeError); the attempts 0..4 of 3 retries, and 0 of 0.
+# The delays are those of production (2 / 4 / 8 s backoff, 1 s for the first grace retry): the golden is taken outside tests/_fast_clock.py.
+# Do not regenerate this file to remove a difference: an intended change is an INTENDED entry of test_retry_golden.py.
 """
 
 _CS_CALL = re.compile(r'CommandRegistry\.(?:Register|RegisterAsync|RegisterAction)\(\s*"([^"]+)"')
@@ -276,7 +289,63 @@ def guards_lines() -> list[str]:
     return [repr((*key, guard_answer(key))) for key in guard_keys()]
 
 
-_FAMILIES = {"is_write": (IS_WRITE_HEADER, is_write_lines), "verdict": (VERDICT_HEADER, verdict_lines), "guards": (GUARDS_HEADER, guards_lines)}
+_ATTEMPTS = [(0, 3), (1, 3), (2, 3), (3, 3), (4, 3), (0, 0)]  # (attempt, max_retries)
+_ERRORS = ["identity", "capacity", "capacity-7.5", "reload", "refused", "OSError", "TimeoutError", "ConnectionResetError", "BrokenPipeError",
+           "IncompleteReadError", "RuntimeError", "UnicodeDecodeError"]
+
+
+def _error(label: str) -> Exception:
+    from unity_mcp.bridge_socket import DomainReloadError
+    from unity_mcp.errors import CapacityBusyError, SessionIdentityMismatch
+
+    return {"identity": lambda: SessionIdentityMismatch("x"), "capacity": lambda: CapacityBusyError("x"),
+            "capacity-7.5": lambda: CapacityBusyError("x", retry_after_seconds=7.5), "reload": lambda: DomainReloadError("x"),
+            "refused": lambda: ConnectionRefusedError("x"), "OSError": lambda: OSError("x"), "TimeoutError": lambda: TimeoutError(),
+            "ConnectionResetError": lambda: ConnectionResetError("x"), "BrokenPipeError": lambda: BrokenPipeError("x"),
+            "IncompleteReadError": lambda: asyncio.IncompleteReadError(b"", 4), "RuntimeError": lambda: RuntimeError("x"),
+            "UnicodeDecodeError": lambda: UnicodeDecodeError("utf-8", b"\xff", 0, 1, "bad")}[label]()
+
+
+def retry_keys() -> list[tuple]:
+    """(error label, attempt, max_retries, deadline passed, reload active, probe busy, process dead), in a fixed order."""
+    return [(label, attempt, maximum, *flags) for label in _ERRORS for attempt, maximum in _ATTEMPTS for flags in itertools.product((False, True), repeat=4)]
+
+
+def retry_answer(key: tuple) -> tuple:
+    """(should_retry, delay, reason, busy reads, dead reads) of a RetryPolicy built for `key`, with a probe that counts its reads."""
+    import time
+    from types import SimpleNamespace
+
+    from unity_mcp.bridge_reload_state import DomainReloadTracker
+    from unity_mcp.bridge_retry import RetryPolicy
+
+    label, attempt, maximum, deadline_passed, reload_active, busy, dead = key
+    reads = SimpleNamespace(busy=0, dead=0)
+
+    def has_strong_busy_signal() -> bool:
+        reads.busy += 1
+        return busy
+
+    def is_process_dead() -> bool:
+        reads.dead += 1
+        return dead
+
+    reload = DomainReloadTracker()
+    if reload_active:
+        reload.mark()
+    policy = RetryPolicy(probe=SimpleNamespace(has_strong_busy_signal=has_strong_busy_signal, is_process_dead=is_process_dead), reload=reload,
+                         is_retry_safe=lambda cmd: True, max_retries=maximum)
+    deadline = time.monotonic() - 1 if deadline_passed else time.monotonic() + 1000
+    return (*policy.decide(_error(label), attempt, deadline, cmd="x"), reads.busy, reads.dead)
+
+
+def retry_lines() -> list[str]:
+    """One literal line per call of the live RetryPolicy.decide: the key, then the answer."""
+    return [repr((*key, *retry_answer(key))) for key in retry_keys()]
+
+
+_FAMILIES = {"is_write": (IS_WRITE_HEADER, is_write_lines), "verdict": (VERDICT_HEADER, verdict_lines), "guards": (GUARDS_HEADER, guards_lines),
+             "retry": (RETRY_HEADER, retry_lines)}
 
 
 def main(argv: list[str]) -> None:
