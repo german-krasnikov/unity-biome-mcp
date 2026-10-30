@@ -35,6 +35,7 @@ other tools stay in their modules.
 | `constructs/tool.construct` | the words of a block (`TOOL`, `PYTOOL`, `INTERNAL`, `FORWARD`, `FLAG`, `RUNTIME`, `TIMEOUT`, `MAXCHARS`, `DOC`, `READ`, `ARG` with `DEFAULT`, `DEFAULT_TEXT`, `OMIT`, `RAW`) and what is printed from them |
 | `constructs/tool.examples` | examples of the construct: the lines it prints and the mistakes it refuses |
 | `decisions/` | the rules both planes share: per module `<m>.logic`, `<m>.contract`, `<m>.examples` and the printed `<m>.json` rows (see Decisions) |
+| `chat/` | how a turn of the chat window ends: `chatturn.feature` (the ordered list of what each of the eight exits does), `chatturn.logic` and `.contract` (its two guards), `chatturn.examples` (what must hold; see Chat turn) |
 | `biome.project` | the compiler it needs (`TOOLCHAIN`) and the generate steps |
 
 ## Change a tool
@@ -94,6 +95,41 @@ What checks what:
   `CommandRouter` and `BatchHelper` themselves need Unity: only the EditMode tests run them.
 - `test_dsl_fresh.py` (no Node) and `dsl.sh check` (Node) find a stale generated file; `test_decisions_boundary.py` and import-linter keep
   `unity_mcp.decisions` a leaf; `test_csharp_mutating_flags.py` and `test_catalog_vs_csharp.py` read the Register calls of the plugin.
+
+## Chat turn
+
+`dsl/chat/` states how a turn of the Unity chat window ends (step 7.3 of the biome-dsl migration; the design is `Plans/STEP_7_3_CHAT_EXIT_DESIGN.md` of that
+repository). A turn ends in eight ways (an answer, an error event, a dead process, the inactivity timeout, Stop, a switch of backend or model, New Session, the
+window closing). Before, each way cleaned up by hand in one of five partials of `MCPChatWindow`, in different orders; now the cleanup is **one ordered list**:
+
+- `chatturn.feature` is a FEATURE (`USES elm`): `STATE phase` (idle, sending, receiving), `exit` (none and the eight reasons) and `asks` (0..8); 16 `PORT`s, which are the
+  effects; one `ACTION` per intent (`send`, `firstToken`, `askRaised`, `askAnswered`, and one per exit); and 15 `ON phase|exit BECOMES ... -> CALL port` lines. **The order
+  of those lines is the order of the effects**, the same for every exit: the resources (unlock the reload, cancel the asks of the turn, close the undo group), the transcript
+  (sync, resolver, notes, finalize, error chip, usage, Restore, Approve), the backend, and the per-turn scratch last. An exit is a rising edge of `phase`, so a repeated or
+  late one finds no turn open and does nothing. The comments of the file say why each line stands where it stands.
+- `chatturn.logic` and `chatturn.contract` are the two guards of the FEATURE as DECISIONs (`canSend`: idle; `active`: not idle). A `WHEN` names a decision, so "is a turn open" is
+  one.
+- `chatturn.examples` is what must hold, 19 examples written from the hand-written exits before the generator ran: the calls of each exit in order, the inert repeat, the
+  asks that no exit may leave, the renders. It is the file to read first, and the one whose change is a change of the requirement.
+
+`scripts/dsl.sh generate` prints the reducer into `unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/` (C# 9, flat, with the `.biome-files` manifest that owns the files, and a hand-written
+`.meta` beside each) and the NUnit tests of the examples into `unity-plugin/Tests~/ChatTurn/Generated/`. The native side stays native: `Chat/CLI/ChatTurnDriver.cs` is the one
+door (a queue, so an effect that dispatches waits for the exit that is running, and a redraw that throws skips no effect), `Chat/View/MCPChatWindow.TurnPorts.cs` holds the bodies of
+the 16 ports, and the window only detects an exit (an event, the dead-process and inactivity checks, a click, a switch, `OnDisable`) and dispatches the intent.
+
+### Change an exit
+
+1. State the change in `chatturn.examples` (a change of what an exit does is a change of the requirement: its own commit, with the reason, and the rows that said the
+   opposite are replaced, never fitted to the output), then in `chatturn.feature`: a new effect is a `PORT`, an `ON` line at the place it must run and a body in `TurnPorts.cs`;
+   a new way out is an `ACTION` that ends in `phase = idle` with its `exit`, an example, and a `Dispatch` where the window detects it.
+2. `scripts/dsl.sh generate`. Commit the sources, the generated files and the `.meta` of a new file together; never edit `Generated/ChatTurn/`.
+3. `scripts/dsl.sh check`, `pytest server/tests/test_dsl_fresh.py test_generated_cs_meta.py` and `dotnet test unity-plugin/Tests~/ChatTurn/ChatTurn.Tests.csproj -c Release`.
+   The bodies of the ports and the wiring of the window need Unity: the EditMode tests `ChatTurnPortsTests` and `ChatTurnWiringTests`.
+
+What checks what: the examples run as `ChatTurn.Examples.cs` (19 tests) beside `ChatTurnDriverTests` (7) in `Tests~/ChatTurn`, a pure dotnet project that compiles the
+reducer and the driver at LangVersion 9 with warnings as errors, so a use of `UnityEngine` in either fails the build; the banner of every printed file states the digest of its source
+(the `.feature`, or the `.logic` for `ChatTurn.Policy.cs`), which `test_dsl_fresh.py` (no Node) compares; a change of the examples only is found by `scripts/dsl.sh check`. Mutants of `chatturn.feature` (drop or move an `ON` line, drop a guard,
+forget `exit = none`) were generated and run to show that the examples can fail: 16 of 17 are killed, the survivor is equivalent (`askAnswered` without its guard: the range saturates at 0).
 
 ## Checks
 

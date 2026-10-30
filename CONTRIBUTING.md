@@ -103,6 +103,7 @@ CLI/provider authentication and should be run separately.
 | Repository scripts or generators | `scripts/tests/` and the relevant check mode |
 | Unity C# | Focused EditMode/PlayMode tests, then the applicable full mode |
 | A rule of `dsl/decisions/` | `scripts/dsl.sh check`, `test_decisions_examples.py` and the golden of the family, and `dotnet test unity-plugin/Tests~/Decisions/UnityMCP.Decisions.Tests.csproj -c Release` when C# is involved |
+| How a chat turn ends (`dsl/chat/`, `Chat/CLI/ChatTurnDriver.cs`, `MCPChatWindow.TurnPorts.cs`) | `scripts/dsl.sh check`, `test_dsl_fresh.py` and `test_generated_cs_meta.py`, `dotnet test unity-plugin/Tests~/ChatTurn/ChatTurn.Tests.csproj -c Release`; the ports and the window wiring (`ChatTurnPortsTests`, `ChatTurnWiringTests`) need Unity EditMode |
 | TCP or cross-language contract | Python tests, Unity tests, and relevant live tests |
 | Documentation | Documentation tests, generator checks, and strict MkDocs build |
 
@@ -163,6 +164,10 @@ arguments, mutability, mode guards, timeout, and response semantics.
 A rule that the Python server and the Unity plugin both apply (is this call a write, did the playtest pass, which guard stops a call, why a failed
 send is retried) is a decision in `dsl/decisions/`: change its `.logic` and its `.examples`, regenerate, and do not copy the rule into either plane (see
 `dsl/README.md`, Decisions). A change of what the rule answers is a change of the requirement: its own commit, with the reason.
+
+What happens when a chat turn ends (which effects, in which order, once) is one list, `dsl/chat/chatturn.feature`, not a cleanup written in each place that
+detects an exit: a new way out or a new effect is a line there and an example in `chatturn.examples`; the window only detects the exit and dispatches it, and
+the bodies of the effects are the ports in `MCPChatWindow.TurnPorts.cs` (see `dsl/README.md`, Chat turn).
 
 ## Documentation changes
 

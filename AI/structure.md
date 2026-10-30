@@ -24,7 +24,7 @@ rg --files unity-plugin/ClientSkills
 | `unity-plugin-reload/` | Independent Unity reload-recovery package. |
 | `unity-test-project/` | Writable Unity integration-test project and fixtures. |
 | `unity-test-project-ro/` | Read-only worker test project. |
-| `dsl/` | Tool catalog (`tools.biome` states the facts of the catalog's tools once, a biome-dsl construct prints them) and `decisions/` (the rules the Python server and the Unity plugin share, as Logic DECISIONs that print Python, C# and example rows). See `dsl/README.md`. |
+| `dsl/` | Tool catalog (`tools.biome` states the facts of the catalog's tools once, a biome-dsl construct prints them), `decisions/` (the rules the Python server and the Unity plugin share, as Logic DECISIONs that print Python, C# and example rows) and `chat/` (how a turn of the chat window ends: a FEATURE that prints the C# reducer and its example tests). See `dsl/README.md`. |
 | `install/` | Installer/configuration implementation and tests. |
 | `scripts/` | Repository validation, release, evidence, and generation tools. |
 | `protocol/` | Versioned cross-process protocol schemas. |
@@ -113,6 +113,7 @@ by runtime boundary:
 | `unity-plugin/Editor/CommandRegistry.cs` | Command handlers and their mutability, runtime, validation, dispatch, and trust metadata. |
 | `unity-plugin/Editor/CommandOptions.cs` | Internal structured registration options behind the public bool overloads. |
 | `unity-plugin/Editor/Generated/` | Printed from `dsl/`, never edited by hand: the decisions (`Mutability.g.cs`, `Verdict.g.cs`, `Guards.g.cs`, C# 9, depend on nothing but the BCL) and `ActionReads.g.cs` (the read actions of the catalog's tools). |
+| `unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/` | Printed from `dsl/chat/chatturn.feature`, never edited by hand: the reducer of the exits of a chat turn (C# 9, the BCL only) with its `.biome-files` manifest. `Chat/CLI/ChatTurnDriver.cs` is its door and `Chat/View/MCPChatWindow.TurnPorts.cs` holds the bodies of its 16 effects. |
 | `unity-plugin/Editor/Decisions/` | The native readers of the facts of those decisions (`MutabilityFacts.cs`, `PlaytestFacts.cs`, `GuardFacts.cs`); they decide nothing. `CommandRegistry`, `CommandRouter` and `BatchHelper` call the decisions through them. |
 | `unity-plugin/Editor/PluginRegistry.cs` and `IMCPPlugin.cs` | C# plugin discovery and registration contract. |
 | `unity-plugin/Editor/SyncHelper.cs` | Epoch-based compile/reload state machine used by `sync_unity`. |
