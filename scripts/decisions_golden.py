@@ -9,9 +9,13 @@ header of the golden, to check the golden) and nothing else.
 Usage (from the repository root; <commit> is the commit the file is taken at, written into its header):
   python scripts/decisions_golden.py is_write <commit>
   python scripts/decisions_golden.py verdict <commit>
+  python scripts/decisions_golden.py guards <commit>
 """
+import asyncio
+import contextlib
 import itertools
 import json
+import os
 import pathlib
 import random
 import re
@@ -40,6 +44,17 @@ VERDICT_HEADER = """\
 # ("suite", [(path, raw, ok), ...], format_layered_verdict(compute_suite_verdict(...))): one to three files and the suite rows
 #   (<suite startup>, <suite cleanup>) that mark the outer verdict.
 # Do not regenerate this file to remove a difference: an intended change is an INTENDED entry of test_verdict_golden.py.
+"""
+
+GUARDS_HEADER = """\
+# What the guards of the Python side answered at {commit}, before their rules moved into the generated decision guardVerdict (site py,
+# dsl/decisions/guards.logic). One line per call: (site of the guard, the facts it was given, the answer: the text it returned or "raises
+# <Name>: <text>"). The sites: Middleware.check_read_only and server._check_read_only (an endpoint in read-only mode, a call that is
+# or is not a write), Middleware.check_play_mode_required (the play state known or not, playing or not, a runtime-only command or not),
+# server._send_raw (the direct_only gate: every ToolSpec, reaching "No Unity connection" when the gate lets it through),
+# tools/_common._guard_read_only (the file-writing tools), tools/batch._preprocess_stop_mode and _preprocess_continue_mode (a direct-only
+# line in a batch).
+# Do not regenerate this file to remove a difference: an intended change is an INTENDED entry of test_guards_golden.py.
 """
 
 _CS_CALL = re.compile(r'CommandRegistry\.(?:Register|RegisterAsync|RegisterAction)\(\s*"([^"]+)"')
@@ -177,7 +192,91 @@ def verdict_lines() -> list[str]:
     return lines
 
 
-_FAMILIES = {"is_write": (IS_WRITE_HEADER, is_write_lines), "verdict": (VERDICT_HEADER, verdict_lines)}
+# the calls that tell a write from a read to the read-only guards: reads, writes, a command nobody knows, the switches, an action either way
+_GUARDED_CALLS = [("get_hierarchy", {}), ("inspect", {"paths": "/a"}), ("get_status", {}), ("set_property", {"path": "/a", "value": "1"}), ("delete_object", {"path": "/a"}),
+                  ("create_object", {}), ("batch", {"commands": "get_hierarchy"}), ("execute_code", {"code": "1"}), ("run_playtest", {"script": "LOG x"}),
+                  ("editor", {"action": "state"}), ("editor", {"action": "play"}), ("editor", {"action": "mutation_mode"}),
+                  ("editor", {"action": "mutation_mode", "enable": "true"}), ("scene", {"action": "list"}), ("scene", {"action": "open", "path": "a.unity"}),
+                  ("navmesh", {"action": "status"}), ("navmesh", {"action": "bake"}), ("wait_until", {}), ("wait_until", {"abort_on_fail": "true"}),
+                  ("get_changes", {}), ("get_changes", {"clear": "false"}), ("doctor", {}), ("doctor", {"fix": True}), ("get_metrics", {}),
+                  ("get_metrics", {"reset": "true"}), ("totally_unregistered_xyz", {}), ("source_patch_write", {}), ("screenshot", {})]
+_BATCHES = ["", "get_hierarchy\nset_property path=/a value=1", "discover_tools", "console_mark text=x", "watch name=a", "run_tests mode=edit",
+            "# a comment\n\nget_hierarchy\nconsole_mark text=x\nget_hierarchy", "screenshot\nbuild", "get_hierarchy depth=1\nset_active path=/a active=false"]
+
+
+@contextlib.contextmanager
+def _env(name: str, value: str | None):
+    """The environment variable `name` set to `value` (unset when None) for the block."""
+    before = os.environ.get(name)
+    if value is None:
+        os.environ.pop(name, None)
+    else:
+        os.environ[name] = value
+    try:
+        yield
+    finally:
+        if before is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = before
+
+
+def detailed(function, *args):
+    """answer(), with the text of the exception: "raises ToolError: <text>"."""
+    try:
+        return function(*args)
+    except Exception as error:
+        return f"raises {type(error).__name__}: {error}"
+
+
+def guard_keys() -> list[tuple]:
+    """The calls of the guards golden, in a fixed order: (site, the facts it is given...); the answer comes from guard_answer."""
+    from unity_mcp.middleware_types import _RUNTIME_ONLY_CMDS
+    from unity_mcp.tools.tool_specs import _SPECS
+
+    keys: list[tuple] = [("Middleware.check_read_only", read_only, cmd, args) for read_only in (False, True) for cmd, args in _GUARDED_CALLS]
+    runtime = [*sorted(_RUNTIME_ONLY_CMDS), "get_component", "run_playtest", "watch_remove", "totally_unregistered_xyz"]
+    keys += [("Middleware.check_play_mode_required", known, playing, cmd) for known, playing in itertools.product((False, True), repeat=2) for cmd in runtime]
+    for value in (None, "0", "1", "true"):
+        keys += [("server._check_read_only", value, cmd, args) for cmd, args in _GUARDED_CALLS]
+        keys += [("tools._common._guard_read_only", value, tool) for tool in ("save_skill", "save_template", "save_session", "get_metrics", "doctor")]
+    keys += [("server._send_raw", cmd) for cmd in sorted(_SPECS)]
+    return keys + [(site, commands) for commands in _BATCHES for site in ("batch._preprocess_stop_mode", "batch._preprocess_continue_mode")]
+
+
+def guard_answer(key: tuple):
+    """What the live Python guard of `key` answers: the text it returns, or "raises <Name>: <text>"."""
+    from unittest.mock import Mock, patch
+
+    from unity_mcp import server
+    from unity_mcp.middleware import Middleware
+    from unity_mcp.tools import batch
+    from unity_mcp.tools._common import _guard_read_only
+
+    site, *facts = key
+    if site == "Middleware.check_read_only":
+        middleware = Middleware()
+        middleware.is_read_only = facts[0]
+        return detailed(middleware.check_read_only, *facts[1:])
+    if site == "Middleware.check_play_mode_required":
+        middleware = Middleware()
+        middleware._play_state_known, middleware.is_playing = facts[0], facts[1]
+        return detailed(middleware.check_play_mode_required, facts[2])
+    if site == "server._check_read_only" or site == "tools._common._guard_read_only":
+        with _env("UNITY_MCP_READ_ONLY", facts[0]):
+            return detailed(server._check_read_only if site == "server._check_read_only" else _guard_read_only, *facts[1:])
+    if site == "server._send_raw":
+        with patch("unity_mcp.server.slot", Mock(bridge=None)), _env("UNITY_MCP_READ_ONLY", None):
+            return detailed(lambda: asyncio.run(server._send_raw(facts[0], {})))
+    return detailed(getattr(batch, "_preprocess_" + site.rsplit("_preprocess_", 1)[1]), facts[0])
+
+
+def guards_lines() -> list[str]:
+    """One literal line per call of the Python guards: the key, then the answer of the live guard."""
+    return [repr((*key, guard_answer(key))) for key in guard_keys()]
+
+
+_FAMILIES = {"is_write": (IS_WRITE_HEADER, is_write_lines), "verdict": (VERDICT_HEADER, verdict_lines), "guards": (GUARDS_HEADER, guards_lines)}
 
 
 def main(argv: list[str]) -> None:
