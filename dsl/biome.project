@@ -1,4 +1,4 @@
-# What unity-biome-mcp generates: the tool catalog (dsl/tools.biome printed through constructs/tool.construct) and the decisions (dsl/decisions).
+# What unity-biome-mcp generates: the tool catalog (dsl/tools.biome printed through constructs/tool.construct), the decisions (dsl/decisions) and the chat turn (dsl/chat).
 TOOLCHAIN 224bf1022bc70fa3f1cb42775b358d1837c86c3b
 CONSTRUCTS constructs
 
@@ -19,3 +19,9 @@ GENERATE retry logic generate --source {dir}/decisions/retry.logic --contract {d
 GENERATE retry-rows logic examples --source {dir}/decisions/retry.examples --logic {dir}/decisions/retry.logic --contract {dir}/decisions/retry.contract --out {dir}/decisions/retry.json
 GENERATE py-reads  render {dir}/tools.biome pyreads  {dir}/../server/src/unity_mcp/tools/generated/catalog_reads.py
 GENERATE cs-reads  render {dir}/tools.biome csreads  {dir}/../unity-plugin/Editor/Generated/ActionReads.g.cs
+
+# The chat turn (dsl/chat, step 7.3): the one ordered list of what ends a turn of the chat window, whichever way it ends. chat-policy prints the two guards
+# (the decisions of the FEATURE), chat-turn the reducer into the CLI assembly of the chat (UnityMCP.Editor.Chat.CLI, namespace UnityMCP.Editor.Chat.Turn, C# 9)
+# and the NUnit examples into the pure dotnet lane (unity-plugin/Tests~/ChatTurn/Generated, hidden from Unity by the `~`).
+GENERATE chat-policy logic generate --source {dir}/chat/chatturn.logic --contract {dir}/chat/chatturn.contract --target "cs {dir}/../unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/ChatTurn.Policy.cs AS UnityMCP.Editor.Chat.Turn LANG 9"
+GENERATE chat-turn feature generate --feature {dir}/chat/chatturn.feature --uses elm --lang cs --flat --out {dir}/../unity-plugin/Editor/Chat/CLI/Generated/ChatTurn --tests-out {dir}/../unity-plugin/Tests~/ChatTurn/Generated --cs-namespace UnityMCP.Editor.Chat.Turn --cs-policy UnityMCP.Editor.Chat.Turn.Policy

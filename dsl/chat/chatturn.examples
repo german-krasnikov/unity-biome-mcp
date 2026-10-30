@@ -1,0 +1,83 @@
+# Independent requirements of the chat-turn exit protocol (step 7.3), written from the hand-written exits at 86eca971 and the rules below, never from generated output.
+# PINNED by hand tests (kept verbatim): finalize BEFORE the error chip (TranscriptReloadEdgeCaseTests 16b); the dead/timeout note BEFORE finalize (it extends the open bubble);
+# every exit releases the lock and closes the undo group (CancelTurnCleanupTests, BackendSwitchMidTurnTests, ReloadGuardTests); OnDisable cancels the asks of its window (MCPChatWindowAskUserLifecycleTests); the resolver refreshes BEFORE finalize (F20).
+# ORDER DECISION (requirement change vs 86eca971, owner confirms, P15): one order for all eight exits: resources (unlock, asks, undo), then the transcript (notes, finalize, error chip, tail,
+# restore, approve), then the backend, the per-turn scratch LAST. done, error, dead and timeout already release first; cancel and abort used to finalize first (invisible). Also new: asks=0 and
+# cancelAsks on every exit (hand code: 2 of 8 and 1 of 8), undoClose on reset (hand code forgets the group with Invalidate), a second exit is inert (TurnDone and Error had no guard).
+# `resetTurn` is last on purpose: the timeout note reads the last tool name, which Drain.cs:253 resets BEFORE Drain.cs:255 reads it (the "(last tool: X)" hint is never printed today).
+EXAMPLE mounts_idle
+  EXPECT view phase=idle asks=0; calls none; renders 1
+
+EXAMPLE send_takes_the_lock_and_the_undo_group_once
+  DO send; send
+  EXPECT view phase=sending; calls lockReload, undoStart
+
+EXAMPLE done_leaves_in_order
+  DO send; firstToken; askRaised; turnDone
+  EXPECT view phase=idle asks=0; calls lockReload, undoStart, unlockReload, cancelAsks, undoClose, syncAssets, refreshResolver, finalizeAssistant, afterAnswer, restoreButton, offerApprove, resetTurn
+
+EXAMPLE error_finalizes_before_the_error_chip
+  DO send; askRaised; fail
+  EXPECT view phase=idle asks=0; calls lockReload, undoStart, unlockReload, cancelAsks, undoClose, finalizeAssistant, errorChip, restoreButton, resetTurn
+
+EXAMPLE dead_process_notes_before_finalize
+  DO send; askRaised; deadProcess
+  EXPECT view phase=idle asks=0; calls lockReload, undoStart, unlockReload, cancelAsks, undoClose, noteProcessExited, finalizeAssistant, resetTurn
+
+EXAMPLE timeout_notes_before_the_scratch_is_reset
+  DO send; askRaised; timeout
+  EXPECT view phase=idle asks=0; calls lockReload, undoStart, unlockReload, cancelAsks, undoClose, noteTimedOut, finalizeAssistant, resetTurn
+
+EXAMPLE cancel_leaves_and_restarts_the_backend
+  DO send; askRaised; cancel
+  EXPECT view phase=idle asks=0; calls lockReload, undoStart, unlockReload, cancelAsks, undoClose, finalizeAssistant, restartBackend, resetTurn
+
+EXAMPLE abort_leaves_the_backend_to_the_caller
+  DO send; askRaised; abort
+  EXPECT view phase=idle asks=0; calls lockReload, undoStart, unlockReload, cancelAsks, undoClose, finalizeAssistant, resetTurn
+
+EXAMPLE reset_mid_turn_closes_what_it_then_forgets
+  DO send; askRaised; resetSession
+  EXPECT view phase=idle asks=0; calls lockReload, undoStart, unlockReload, cancelAsks, undoClose, finalizeAssistant, resetTurn
+
+EXAMPLE disable_mid_turn_releases_everything
+  DO send; askRaised; disable
+  EXPECT view phase=idle asks=0; calls lockReload, undoStart, unlockReload, cancelAsks, undoClose, finalizeAssistant, resetTurn
+
+EXAMPLE every_intent_at_idle_is_inert
+  DO firstToken; askRaised; askAnswered; turnDone; fail; deadProcess; timeout; cancel; abort; resetSession; disable
+  EXPECT view phase=idle asks=0; calls none; renders 1
+
+EXAMPLE a_second_exit_is_inert
+  DO send; cancel; cancel; turnDone; fail; timeout
+  EXPECT view phase=idle; calls lockReload, undoStart, unlockReload, cancelAsks, undoClose, finalizeAssistant, restartBackend, resetTurn
+
+EXAMPLE a_stale_token_after_an_exit_is_inert
+  DO send; cancel; firstToken
+  EXPECT view phase=idle
+
+EXAMPLE a_stale_answer_after_an_exit_is_inert
+  DO send; askRaised; cancel; askAnswered
+  EXPECT view phase=idle asks=0
+
+EXAMPLE overlapping_asks_keep_the_turn_asking
+  DO send; askRaised; askRaised; askAnswered
+  EXPECT view phase=sending asks=1
+
+EXAMPLE the_next_turn_starts_clean_after_an_exit_with_an_ask
+  DO send; askRaised; cancel; send
+  EXPECT view phase=sending asks=0
+
+EXAMPLE the_next_turn_leaves_in_order_again
+  DO send; turnDone; send; turnDone
+  EXPECT calls lockReload, undoStart, unlockReload, cancelAsks, undoClose, syncAssets, refreshResolver, finalizeAssistant, afterAnswer, restoreButton, offerApprove, resetTurn, lockReload, undoStart, unlockReload, cancelAsks, undoClose, syncAssets, refreshResolver, finalizeAssistant, afterAnswer, restoreButton, offerApprove, resetTurn
+
+EXAMPLE the_window_redraws_only_when_phase_or_asks_change
+  DO send; firstToken; askRaised; askAnswered; turnDone
+  EXPECT renders 6
+
+EXAMPLE intents_after_dispose_are_inert
+  DO send
+  DISPOSE
+  STALE turnDone
+  EXPECT subscriptions 0; renders 2; calls lockReload, undoStart

@@ -1,6 +1,6 @@
 """Tier 0 of the freshness of what dsl/ generates, without Node: every generated file carries the sha256 of the source it was printed from.
 
-It catches "the catalog (or a decision) was edited and scripts/dsl.sh generate was not run". A hand edit of a generated file, a change
+It catches "the catalog (or a decision, or the chat turn) was edited and scripts/dsl.sh generate was not run". A hand edit of a generated file, a change
 of the construct or a contract, and the machine rows of the examples (dsl/decisions/*.json, which have no banner) are what tier 1
 finds: scripts/dsl.sh check (generate --check, needs Node and the biome-dsl checkout of the TOOLCHAIN line).
 """
@@ -15,6 +15,9 @@ _RENDER = re.compile(r"^GENERATE\s+\S+\s+render\s+\{dir\}/(\S+)\s+\S+\s+\{dir\}/
 _LOGIC = re.compile(r"^GENERATE\s+\S+\s+logic generate\s+--source\s+\{dir\}/(\S+)\s+--contract\s+\S+((?:\s+--target\s+\"[^\"]*\")+)\s*$",
                     re.MULTILINE)
 _TARGET = re.compile(r'--target\s+"\w+\s+\{dir\}/([^\s"]+)')
+# GENERATE <name> feature generate --feature {dir}/<f>.feature ... --out {dir}/<dir> [--tests-out {dir}/<dir>] ...: the files of both directories carry the digest of the feature
+_FEATURE = re.compile(r"^GENERATE\s+\S+\s+feature generate\s+--feature\s+\{dir\}/(\S+)(.*)$", re.MULTILINE)
+_FEATURE_DIR = re.compile(r"--(?:out|tests-out)\s+\{dir\}/(\S+)")
 
 
 def source_sha256(source: Path) -> str:
@@ -43,6 +46,17 @@ def logic_steps(project: str) -> list[tuple[Path, Path]]:
     return [(DSL / source, (DSL / out).resolve()) for source, targets in _LOGIC.findall(project) for out in _TARGET.findall(targets)]
 
 
+def feature_steps(project: str, dsl: Path = DSL) -> list[tuple[Path, Path]]:
+    """(.feature source, generated file) of every file that the .biome-files manifest of the --out and --tests-out directory of a `feature generate` step owns."""
+    steps = []
+    for source, flags in _FEATURE.findall(project):
+        for directory in _FEATURE_DIR.findall(flags):
+            manifest = (dsl / directory / ".biome-files").resolve()
+            names = [line.split(" ", 1)[1] for line in manifest.read_text(encoding="utf-8").splitlines()] if manifest.is_file() else [manifest.name]
+            steps += [(dsl / source, manifest.with_name(name)) for name in names]
+    return steps
+
+
 def test_every_generated_file_was_printed_from_the_current_catalog():
     steps = render_steps((DSL / "biome.project").read_text(encoding="utf-8"))
     assert steps, "dsl/biome.project has no whole-file render step"
@@ -53,6 +67,24 @@ def test_every_generated_decision_was_printed_from_its_current_logic():
     steps = logic_steps((DSL / "biome.project").read_text(encoding="utf-8"))
     assert steps, "dsl/biome.project has no logic generate step"
     assert stale_outputs(steps) == [], "run scripts/dsl.sh generate"
+
+
+def test_every_generated_chat_turn_file_was_printed_from_its_current_feature():
+    steps = feature_steps((DSL / "biome.project").read_text(encoding="utf-8"))
+    assert steps, "dsl/biome.project has no feature generate step"
+    assert stale_outputs(steps) == [], "run scripts/dsl.sh generate"
+
+
+def test_a_feature_step_owns_the_files_of_its_manifest_and_a_missing_one_is_stale(tmp_path):
+    (tmp_path / "out").mkdir()
+    feature = tmp_path / "a.feature"
+    feature.write_text("FEATURE a\nEND\n", encoding="utf-8")
+    (tmp_path / "out" / ".biome-files").write_text("0 A.cs\n0 B.cs\n", encoding="utf-8")
+    (tmp_path / "out" / "A.cs").write_text(f"// Generated\n// source-sha256={source_sha256(feature)}\n", encoding="utf-8")
+    project = "GENERATE a feature generate --feature {dir}/a.feature --uses elm --lang cs --flat --out {dir}/out\n"
+    steps = feature_steps(project, tmp_path)
+    assert [out.name for _, out in steps] == ["A.cs", "B.cs"]
+    assert stale_outputs(steps) == ["B.cs"]
 
 
 def test_the_logic_steps_of_a_project_name_their_sources_and_every_target():

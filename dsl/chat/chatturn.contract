@@ -1,0 +1,7 @@
+# The guards of the chat-turn FEATURE: a WHEN names a decision, so "is a turn open" is one (Logic returns the verdict, the model changes the phase).
+CONTRACT chatturn.feature
+COVERAGE declared-scope
+MODULE chat_facts
+FACT chatTurn.phase enum=idle,sending,receiving closed
+INPUT canSend chatTurn.phase
+INPUT active chatTurn.phase

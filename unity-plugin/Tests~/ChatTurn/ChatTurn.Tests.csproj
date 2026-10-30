@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Pure dotnet-test lane for the exit protocol of a chat turn (step 7.3), next to Tests~/Decisions. No Unity install: the reducer biome-dsl prints from
+    dsl/chat/chatturn.feature is compiled straight from the plugin tree at LangVersion 9 (the C# of Unity 6) with warnings as errors, so a use of
+    UnityEngine in it fails this build. Generated/ChatTurn.Examples.cs is printed from dsl/chat/chatturn.examples (the requirements, never edited).
+    The `Tests~` folder name is load-bearing: Unity's importer skips a path that ends in `~`.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>9</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <RootNamespace>UnityMCP.Editor.Chat.Turn.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Relative to this file's own directory (unity-plugin/Tests~/ChatTurn/). -->
+    <Compile Include="../../Editor/Chat/CLI/Generated/ChatTurn/*.cs" />
+    <Compile Include="Generated/*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+
+</Project>

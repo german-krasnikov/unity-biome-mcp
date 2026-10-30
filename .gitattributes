@@ -16,5 +16,10 @@ server/src/unity_mcp/tools/generated/** text eol=lf linguist-generated=true gitl
 server/src/unity_mcp/decisions/generated/*_logic.py text eol=lf linguist-generated=true gitlab-generated
 unity-plugin/Editor/Generated/*.g.cs text eol=lf linguist-generated=true gitlab-generated
 dsl/decisions/*.json text eol=lf linguist-generated=true gitlab-generated
+# The chat turn (dsl/chat, step 7.3): the C# reducer, the manifest that owns its files and the NUnit examples, LF as well.
+unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/*.cs text eol=lf linguist-generated=true gitlab-generated
+unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/.biome-files text eol=lf
+unity-plugin/Tests~/ChatTurn/Generated/*.cs text eol=lf linguist-generated=true gitlab-generated
+unity-plugin/Tests~/ChatTurn/Generated/.biome-files text eol=lf
 # The Tools Reference holds a generated region: LF as well, or `scripts/dsl.sh check` would compare other bytes on Windows.
 docs/tools/index.md text eol=lf

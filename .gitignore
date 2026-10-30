@@ -48,6 +48,8 @@ unity-plugin/Tests~/MutationAdapterContract/obj/
 unity-plugin/Tests~/MutationAdapterContract/resolved-adapter-pin.json
 unity-plugin/Tests~/Decisions/bin/
 unity-plugin/Tests~/Decisions/obj/
+unity-plugin/Tests~/ChatTurn/bin/
+unity-plugin/Tests~/ChatTurn/obj/
 
 # macOS
 .DS_Store
