@@ -3,6 +3,7 @@ import re
 
 from mcp.server.fastmcp.exceptions import ToolError
 
+from ..decisions.guard_facts import Verdict, guard_verdict
 from ._common import bind
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
@@ -94,6 +95,12 @@ def _check_completeness(commands: str, result: str) -> str:
     return result
 
 
+def _not_batchable(cmd: str) -> bool:
+    """A direct_only tool must be called as its typed wrapper: not a line of a batch (the DECISION guardVerdict, site batch)."""
+    spec = _SPECS.get(cmd)
+    return guard_verdict("batch", batchable=not (spec and spec.direct_only)) == Verdict.ASYNC_ONLY
+
+
 def _preprocess_continue_mode(commands: str) -> tuple[str, list[str], list[int]]:
     """Filter/validate commands for on_error=continue. Returns (commands, pre_errors, orig_indices)."""
     pre_errors: list[str] = []
@@ -111,8 +118,7 @@ def _preprocess_continue_mode(commands: str) -> tuple[str, list[str], list[int]]
         if cmd in _dsl_tools:
             pre_errors.append(f"[{i}] err: '{cmd}' requires typed MCP tool, not batch")
             continue
-        spec = _SPECS.get(cmd)
-        if spec and spec.direct_only:
+        if _not_batchable(cmd):
             pre_errors.append(f"[{i}] err: '{cmd}' is direct-only; call it as a typed MCP tool, not in batch")
             continue
         clean.append(_strip_python_params(line))
@@ -129,8 +135,7 @@ def _preprocess_stop_mode(commands: str) -> str:
         cmd = line.strip().split()[0] if line.strip() else ""
         if cmd in _dsl_tools:
             raise ToolError(f"{cmd} requires typed MCP tool (Python DSL expansion), not batch")
-        spec = _SPECS.get(cmd)
-        if spec and spec.direct_only:
+        if _not_batchable(cmd):
             raise ToolError(f"'{cmd}' is direct-only; call it as a typed MCP tool, not in batch")
         stripped_lines.append(_strip_python_params(line))
     return "\n".join(stripped_lines)
