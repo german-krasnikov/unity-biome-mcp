@@ -8,9 +8,12 @@ header of the golden, to check the golden) and nothing else.
 
 Usage (from the repository root; <commit> is the commit the file is taken at, written into its header):
   python scripts/decisions_golden.py is_write <commit>
+  python scripts/decisions_golden.py verdict <commit>
 """
 import itertools
+import json
 import pathlib
+import random
 import re
 import sys
 
@@ -25,6 +28,18 @@ IS_WRITE_HEADER = """\
 # action, a write action, a read action in capitals and no action; the four switches (doctor fix, get_metrics reset, wait_until
 # abort_on_fail, get_changes clear) with every kind of value; editor mutation_mode with and without enable; a few ordinary calls.
 # Do not regenerate this file to remove a difference: an intended change is an INTENDED entry of test_is_write_golden.py.
+"""
+
+VERDICT_HEADER = """\
+# What the hand-written verdict of the playtest answered at {commit}, before its rules moved into the generated decisions passes, outcome,
+# fileState, suiteInner and suiteOuter (dsl/decisions/verdict.logic). A cell that says "raises X" is a call that raised X.
+# ("report", raw, format, _is_playtest_pass(raw, format), _classify_outcome(raw, format), _parse_counts(raw), _classify_state(*counts, raw)):
+#   the reports of the tests of the project (test_runtime, test_outcome_adapter, test_consecutive_write_guard), the headers
+#   "PLAYTEST: p/t" in six spellings against thirteen neighbours and five counts, the JSON ledgers of every failed/steps/teardown
+#   combination, receipts that are no ledger, counts beyond a million.
+# ("suite", [(path, raw, ok), ...], format_layered_verdict(compute_suite_verdict(...))): one to three files and the suite rows
+#   (<suite startup>, <suite cleanup>) that mark the outer verdict.
+# Do not regenerate this file to remove a difference: an intended change is an INTENDED entry of test_verdict_golden.py.
 """
 
 _CS_CALL = re.compile(r'CommandRegistry\.(?:Register|RegisterAsync|RegisterAction)\(\s*"([^"]+)"')
@@ -69,10 +84,107 @@ def is_write_lines() -> list[str]:
             for (cmd, args), unknown in itertools.product(is_write_calls(), (False, True))]
 
 
+def _ledger(step_ok: bool, teardown_ok: bool = True, name: str = "Foo OK.playtest") -> str:
+    """The canonical JSON receipt of one step, as the tests of the project write it."""
+    return json.dumps({"schema_version": 1, "run_id": "r1", "passed": 1 if step_ok else 0, "failed": 0 if step_ok else 1, "duration_seconds": 0.1,
+                       "steps": [{"index": 0, "type": "Assert", "ok": step_ok, "ms": 1.0, "source_file": name, "source_line": 1,
+                                  "raw_passed": step_ok, "expected_fail": False}],
+                       "outer": {"teardown_ok": teardown_ok, "scene_clean": True}, "text_report": "whatever"})
+
+
+_STEP = {"index": 0, "type": "Assert", "ok": True, "ms": 1.0, "source_file": "f.playtest", "source_line": 1, "raw_passed": True, "expected_fail": False}
+_HEADS = ["PLAYTEST: {p}/{t} (1.0s)", "PLAYTEST:{p}/{t}", "PLAYTEST: {p}/{t}", "PLAYTEST: {p} / {t} (1.0s)", "PLAYTEST:  {p}/{t} OK", "playtest: {p}/{t} (1.0s)"]
+_AROUND = [("", ""), ("", "\n[1] LOG smoke"), ("", "\n[2] FAIL x"), ("", "\n[2] ERROR x"), ("", "\n[2] CONSOLE_ERR x"), ("", "\n[2] BLOCKED x"),
+           ("", "\n[2] TIMEOUT x"), ("", "\n[2] ABORTED x"), ("", "\nNOT_ABORTED"), ("\u26a1 2 consecutive writes\n", ""), ('{"a": 1}\n', ""), ("\n", ""), (" ", "")]
+# (raw, format) of the tests of the project that state a verdict: test_runtime.py, test_outcome_adapter.py, test_consecutive_write_guard.py
+_TESTED = [
+    ("", None), ("PLAYTEST: 3/3 (1.0s) OK", None), ("PLAYTEST: 1/3 (1.0s)\n[2] FAIL", None), ("PLAYTEST: 2/2 (1.0s)\n[1] CONSOLE_ERR msg", None),
+    ("PLAYTEST: 0/0 (0.0s) OK", None), (_ledger(True), "json"), (_ledger(False), "json"), (_ledger(True, False), "json"),
+    (json.dumps({"schema_version": 1, "passed": 1, "failed": 1, "outer": {"teardown_ok": True, "scene_clean": True}, "steps": [_STEP]}), "json"),
+    (json.dumps({"passed": 0, "failed": 0, "text_report": "", "outer": {"teardown_ok": True}, "steps": []}), "json"),
+    (json.dumps({"passed": 0, "failed": 0, "outer": {"teardown_ok": True}}), "json"),
+    ("PLAYTEST: 1/1 (1.0s)\n[2] ABORTED: global timeout 1s", "text"), ('{"source_file": "weird.playtest"}\nPLAYTEST: 2/2 (1.0s) OK', "text"),
+    ("\u26a1 3 consecutive writes without reading. Consider verifying state.\nPLAYTEST: 3/3 passed", None), ("PLAYTEST: 2/2 passed", None),
+    ("\u26a1 warning\nPLAYTEST: 2/2\nFAIL: assertion failed", None), ("some other output", None), ("\u26a1 warning\nPLAYTEST: 2/3 failed", None),
+    ("PLAYTEST: 3/3 (1.0s) OK", "text"), ("PLAYTEST: 1/3 (1.0s)\n[2] FAIL: HP", "text"), ("PLAYTEST: 0/0 ERROR: timeout", "text"), ("", "text"),
+    ("PLAYTEST: 2/2 (1.0s)\n[1] CONSOLE_ERR msg", "text"), (_ledger(True, name="f.playtest"), "json"), ("not json at all", "json"),
+    ("PLAYTEST: 1/2 (1.0s) OK\n[2] FAIL", "text"),
+]
+# receipts that are no ledger, and counts beyond the million of the fact domain
+_ODD = [("not json", "json"), ("[]", "json"), ("{}", "json"), ('{"outer": 1}', "json"), ("null", "json"), ("PLAYTEST: 1/1", "json"), (_ledger(True), "text"),
+        (_ledger(True), None), ("PLAYTEST: 1/1 (1s)", None), (None, "text"), (None, None), ("   ", "text"), ("{", None), ('{"a": 1}', None), ("{}", None),
+        ('{"outer": {"teardown_ok": true}, "failed": 0, "steps": [1]}', "json"), ('{"outer": {"teardown_ok": true}, "failed": 0, "steps": "abc"}', "json"),
+        ('{"outer": {"teardown_ok": true}, "failed": 0, "steps": 5}', "json"), ('{"outer": {"teardown_ok": true}, "failed": 0.5, "steps": [{"ok": true}]}', "json"),
+        ('{"outer": {"teardown_ok": true}, "failed": false, "steps": [{"ok": true}]}', "json"), ('{"outer": {"teardown_ok": true}, "failed": "0", "steps": [{"ok": true}]}', "json"),
+        ('{"outer": {"teardown_ok": true}, "failed": 12345678901234567890, "steps": [{"ok": true}]}', "json"),
+        ('{"outer": {"teardown_ok": true}, "failed": 0, "steps": [{"ok": 1}]}', "json"), ('{"outer": {"teardown_ok": true}, "failed": 1, "steps": [{"ok": 0}]}', "json"),
+        ('{"outer": {"teardown_ok": true}, "failed": 0, "steps": [{"ok": true}, {}]}', "json"),
+        ("PLAYTEST: 1000000/1000000 (1s)", "text"), ("PLAYTEST: 1000001/1000001 (1s)", "text"), ("PLAYTEST: 5/1000001 (1s)", "text"),
+        ("PLAYTEST: 99999999999/99999999999 (1s)\n[1] ERROR x", "text"), ("PLAYTEST: 1000001/5 (1s)", "text")]
+
+
+def verdict_reports() -> list[tuple[str | None, str | None]]:
+    """The (raw, format) reports of the verdict golden, in a fixed order, without repeats."""
+    reports = [*_TESTED, *_ODD]
+    for head, (passed, total), (before, after) in itertools.product(_HEADS, [(0, 0), (1, 1), (3, 3), (1, 3), (4, 3)], _AROUND):
+        reports.append((before + head.format(p=passed, t=total) + after, "text"))
+        if (before, after) == ("", ""):
+            reports.append((head.format(p=passed, t=total), None))
+    for failed, steps, teardown, extra in itertools.product([None, 0, 1, -1], [None, [], [True], [True, False], [False]], [True, False, None], [{}, {"text_report": "ABORTED"}]):
+        receipt = {"schema_version": 1, **({} if failed is None else {"failed": failed}), **({} if steps is None else {"steps": [{**_STEP, "ok": ok} for ok in steps]}),
+                   **({} if teardown is None else {"outer": {"teardown_ok": teardown}}), **extra}
+        reports.append((json.dumps(receipt), "json"))
+        if not extra and teardown:
+            reports.append((json.dumps(receipt), None))
+    return list(dict.fromkeys(reports))
+
+
+def suite_scenarios() -> list[list[tuple[str, str, bool]]]:
+    """The (path, raw, ok) rows of the suites of the verdict golden: every one and two files, 60 seeded triples, each with no suite row,
+    a startup row that passed and one that failed."""
+    files = ["PLAYTEST: 2/2 (1.0s)", "PLAYTEST: 1/2 (1.0s)\n[2] FAIL x", "PLAYTEST: 1/1 (1.0s)\n[2] ABORTED x", "PLAYTEST: 0/0 ERROR: boom", "",
+             "PLAYTEST: 0/1 ERROR: startup failed", "PLAYTEST: 0/0 TIMED_OUT", "garbage"]
+    sets = [[raw] for raw in files] + [list(pair) for pair in itertools.product(files, repeat=2)]
+    rng = random.Random("suite")
+    sets += [[rng.choice(files) for _ in range(3)] for _ in range(60)]
+    scenarios = []
+    for raws in sets:
+        rows = [(f"Assets/T/{index}.playtest", raw, raw == "PLAYTEST: 2/2 (1.0s)") for index, raw in enumerate(raws)]
+        scenarios += [rows, [("<suite startup>", "", True), *rows], [("<suite cleanup>", "err", False), *rows]]
+    return scenarios
+
+
+def answer(function, *args):
+    """The answer of a hand-written function, or "raises <name>": a crash is part of what it did."""
+    try:
+        return function(*args)
+    except Exception as error:
+        return f"raises {type(error).__name__}"
+
+
+def verdict_lines() -> list[str]:
+    """The literal lines of the live verdict functions: one per report and one per suite."""
+    from unity_mcp.suite_verdict import _classify_state, _parse_counts, compute_suite_verdict, format_layered_verdict
+    from unity_mcp.tools.runtime import _classify_outcome, _is_playtest_pass
+
+    lines = []
+    for raw, fmt in verdict_reports():
+        counts = answer(_parse_counts, raw)
+        state = answer(_classify_state, *counts, raw) if isinstance(counts, tuple) else counts
+        lines.append(repr(("report", raw, fmt, answer(_is_playtest_pass, raw, fmt), answer(_classify_outcome, raw, fmt), counts, state)))
+    lines += [repr(("suite", rows, format_layered_verdict(compute_suite_verdict([(path, raw, 0.0, ok) for path, raw, ok in rows]))))
+              for rows in suite_scenarios()]
+    return lines
+
+
+_FAMILIES = {"is_write": (IS_WRITE_HEADER, is_write_lines), "verdict": (VERDICT_HEADER, verdict_lines)}
+
+
 def main(argv: list[str]) -> None:
-    if len(argv) != 2 or argv[0] != "is_write":
+    if len(argv) != 2 or argv[0] not in _FAMILIES:
         sys.exit(__doc__)
-    print(IS_WRITE_HEADER.format(commit=argv[1]) + "\n".join(is_write_lines()))
+    header, lines = _FAMILIES[argv[0]]
+    print(header.format(commit=argv[1]) + "\n".join(lines()))
 
 
 if __name__ == "__main__":
