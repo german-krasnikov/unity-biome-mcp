@@ -27,6 +27,7 @@ FLIPPED: dict[str, tuple[bool, bool]] = {
     "sync_playtest_aliases_from_defs": (True, True),  # sync; loads a .defs file into the PlaytestConfig asset: an asset write, no Undo-recorded scene change
     "invoke_method": (True, True),  # sync, runtime: calls a method of the running game; its changes are no Undo-recorded scene change
     "set_runtime_property": (True, True),  # sync, runtime: sets a property of the running game; Python adds it to WRITE_CMDS by hand (no ToolSpec)
+    "recompile": (True, True),  # sync; refreshes the AssetDatabase: no Undo-recorded scene change
 }
 
 

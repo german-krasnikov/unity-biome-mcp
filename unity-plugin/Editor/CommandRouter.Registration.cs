@@ -207,6 +207,7 @@ namespace UnityMCP.Editor
                 UnityEditor.AssetDatabase.Refresh();
                 return "ok";
             },
+                mutating: true, playOk: true, noUndo: true,
                 required: "", optional: "");
             CommandRegistry.Register("warm_type_cache", _ =>
             {
