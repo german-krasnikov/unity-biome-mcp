@@ -160,6 +160,7 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("sync_playtest_aliases_from_defs", ExecSyncFromDefs,
                 required: "", optional: "defs,asset");
             CommandRegistry.Register("export_playtest_aliases_to_defs", ExecExportToDefs,
+                mutating: true, playOk: true, noUndo: true,
                 required: "", optional: "asset,defs");
             CommandRegistry.Register("get_component", ExecGetComponent,
                 required: "path,type", optional: "fields,compress");
