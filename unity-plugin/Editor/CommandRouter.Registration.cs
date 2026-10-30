@@ -473,14 +473,15 @@ namespace UnityMCP.Editor
                 return UndoGroupStack.RevertLast(turns);
             }, mutating: true, required: "", optional: "turns");
 
-            // Runtime (Play Mode only) — mutate runtime GameObject/component state directly
-            // (not flagged mutating: true — runtime: true already routes them through the
-            // Play-Mode-only guard; preserved as-is from the pre-split registration).
+            // Runtime (Play Mode only) — mutate runtime GameObject/component state directly. runtime: true routes them through the
+            // Play-Mode-only guard. invoke_method is mutating as in Python (step 7.2; playOk: it must run in Play Mode, noUndo: runtime
+            // changes are no Undo-recorded scene change); set_runtime_property follows in its own change.
             CommandRegistry.Register("invoke_method", args => RuntimeHelper.InvokeMethod(
                 JsonHelper.ExtractString(args, "path"),
                 JsonHelper.ExtractString(args, "component"),
                 JsonHelper.ExtractString(args, "method"),
                 JsonHelper.ExtractString(args, "args")), runtime: true,
+                mutating: true, playOk: true, noUndo: true,
                 required: "path,component,method", optional: "args");
             CommandRegistry.Register("set_runtime_property", args => RuntimeHelper.SetRuntimeProperty(
                 JsonHelper.ExtractString(args, "path"),
