@@ -29,6 +29,7 @@ FLIPPED: dict[str, tuple[bool, bool]] = {
     "set_runtime_property": (True, True),  # sync, runtime: sets a property of the running game; Python adds it to WRITE_CMDS by hand (no ToolSpec)
     "recompile": (True, True),  # sync; refreshes the AssetDatabase: no Undo-recorded scene change
     "scene": (True, True),  # sync; P-414: scene save must not create an Undo group; list is a read, the rest write
+    "timeline": (False, False),  # sync; no flags: its write actions are Undo-recorded and may not run in Play Mode; get and get_bindings are reads (READ lines)
 }
 
 

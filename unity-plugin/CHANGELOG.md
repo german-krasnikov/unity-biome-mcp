@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`set_runtime_property` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. It still runs only in Play Mode, outside the Undo history (`playOk`, `noUndo`).
 - **`recompile` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. Play Mode and the Undo history are unchanged.
 - **`scene` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse its write actions; `list` stays a read. Play Mode and the Undo history (`scene save` makes no Undo group, P-414) are unchanged.
+- **`timeline` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse its write actions (`get` and `get_bindings` stay reads). In Play Mode its write actions are now refused ("changes will be lost") instead of run and lost, and they make an Undo group like any scene mutation.
 
 ## [v2.1.0] — 2026-09-25
 
