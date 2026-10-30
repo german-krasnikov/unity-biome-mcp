@@ -311,8 +311,11 @@ def retry_keys() -> list[tuple]:
     return [(label, attempt, maximum, *flags) for label in _ERRORS for attempt, maximum in _ATTEMPTS for flags in itertools.product((False, True), repeat=4)]
 
 
-def retry_answer(key: tuple) -> tuple:
-    """(should_retry, delay, reason, busy reads, dead reads) of a RetryPolicy built for `key`, with a probe that counts its reads."""
+def retry_answer(key: tuple, *, delivery_sent: bool = False, retry_safe: bool = True) -> tuple:
+    """(should_retry, delay, reason, busy reads, dead reads) of a RetryPolicy built for `key`, with a probe that counts its reads.
+
+    delivery_sent / retry_safe: the SENT boundary (decide's delivery_sent, and what is_retry_safe says of the command); the golden is
+    taken without it, as decide had no such argument."""
     import time
     from types import SimpleNamespace
 
@@ -334,9 +337,10 @@ def retry_answer(key: tuple) -> tuple:
     if reload_active:
         reload.mark()
     policy = RetryPolicy(probe=SimpleNamespace(has_strong_busy_signal=has_strong_busy_signal, is_process_dead=is_process_dead), reload=reload,
-                         is_retry_safe=lambda cmd: True, max_retries=maximum)
+                         is_retry_safe=lambda cmd: retry_safe, max_retries=maximum)
     deadline = time.monotonic() - 1 if deadline_passed else time.monotonic() + 1000
-    return (*policy.decide(_error(label), attempt, deadline, cmd="x"), reads.busy, reads.dead)
+    sent = {"delivery_sent": True} if delivery_sent else {}
+    return (*policy.decide(_error(label), attempt, deadline, cmd="x", **sent), reads.busy, reads.dead)
 
 
 def retry_lines() -> list[str]:

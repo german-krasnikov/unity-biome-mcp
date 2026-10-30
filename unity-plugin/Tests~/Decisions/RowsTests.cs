@@ -47,7 +47,7 @@ namespace UnityMCP.Decisions.Tests
 
             var got = policy.GetMethod(Pascal(decision), new[] { inputType }).Invoke(null, new[] { constructor.Invoke(arguments) });
 
-            Assert.That(got, Is.EqualTo(Convert(row.GetProperty("expected"), got.GetType())), row.GetProperty("provenance").GetString());
+            Assert.That(got, Is.EqualTo(Convert(row.GetProperty("expected"), got.GetType())), row.TryGetProperty("provenance", out var provenance) ? provenance.GetString() : "no provenance");
         }
 
         [Test]

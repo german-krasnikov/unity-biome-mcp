@@ -408,7 +408,7 @@ class UnityBridge(HeartbeatMixin):
             await self._fetch_and_check_version(reader, writer)
 
     def should_retry(self, error: Exception, attempt: int, session_deadline: float,
-                      cmd: str = "") -> tuple[bool, float, str]:
+                      cmd: str = "", *, delivery_sent: bool = False) -> tuple[bool, float, str]:
         """Decide if send() should retry after error.
 
         Returns: (should_retry, delay_s, reason)
@@ -416,14 +416,15 @@ class UnityBridge(HeartbeatMixin):
         C8: thin backward-compat wrapper — the actual decision now lives in
         RetryPolicy.decide() (bridge_retry.py). BridgeState is a connection
         state-machine concern, not a retry-policy concern (SRP), so it's set
-        here rather than inside the policy object.
+        here rather than inside the policy object. ``delivery_sent``: the frame
+        was accepted by the writer (see decide()).
         """
         if isinstance(error, DomainReloadError):
             self._state = BridgeState.DOMAIN_RELOADING
             self._reconnect_backoff = RELOAD_BACKOFF_S  # fast reconnect for expected reloads
             self._reload.mark()
             self._probe.mark_recompile_issued()
-        return self._retry_policy.decide(error, attempt, session_deadline, cmd=cmd)
+        return self._retry_policy.decide(error, attempt, session_deadline, cmd=cmd, delivery_sent=delivery_sent)
 
     def _probe_busy(self) -> bool:
         """Compat shim: bridge_heartbeat.py (HeartbeatMixin) calls self._probe_busy()
@@ -569,14 +570,17 @@ class UnityBridge(HeartbeatMixin):
                 # Preserve transport/reload observation side effects even when
                 # resend is forbidden; DomainReloadError still transitions the
                 # bridge and marks the compile probe.
-                do_retry, delay, reason = self.should_retry(
-                    e, attempt, session_deadline, cmd=cmd)
-                observed_reason = reason
                 # A written frame may already have executed in Unity. Only commands
                 # proven read-only/idempotent by ToolAnnotations may be resent after
-                # that boundary. Before SENT, reconnecting is transport recovery.
-                if delivery == DeliveryState.SENT and not self._is_retry_safe(cmd):
-                    do_retry, delay, reason = False, 0.0, "unsafe_sent"
+                # that boundary (reason "unsafe_sent"). Before SENT, reconnecting is
+                # transport recovery.
+                do_retry, delay, reason = self.should_retry(
+                    e, attempt, session_deadline, cmd=cmd,
+                    delivery_sent=delivery == DeliveryState.SENT)
+                # The crash log says whether Unity was busy, whatever the SENT boundary decided.
+                observed_reason = reason
+                if reason == "unsafe_sent":
+                    observed_reason = self._retry_policy.decide(e, attempt, session_deadline, cmd=cmd)[2]
                 self._crash_log.log_disconnect(cmd=cmd, retry=attempt,
                                                error_type=type(e).__name__,
                                                unity_busy=observed_reason in ("busy", "domain_reload"),

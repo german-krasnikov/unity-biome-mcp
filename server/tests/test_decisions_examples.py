@@ -14,7 +14,7 @@ import pytest
 
 DECISIONS = Path(__file__).resolve().parents[2] / "dsl" / "decisions"
 # The modules of step 7.2 that have examples; a module that loses its rows must fail, not vanish from the parametrization.
-MODULES = {"mutability", "verdict", "guards"}
+MODULES = {"mutability", "verdict", "guards", "retry"}
 
 
 def snake(name: str) -> str:
@@ -34,7 +34,7 @@ def run_rows(generated, rows: dict) -> tuple[int, list[str]]:
             count += 1
             got = function(input_type(**{snake(fact): value for fact, value in row["facts"].items()}))
             if got != row["expected"]:
-                failures.append(f"{decision} {row['id']}: got {got!r}, expected {row['expected']!r} ({row['provenance']})")
+                failures.append(f"{decision} {row['id']}: got {got!r}, expected {row['expected']!r} ({row.get('provenance', 'no provenance')})")
     return count, failures
 
 

@@ -14,12 +14,22 @@ from pathlib import Path
 import pytest
 from decisions_golden import retry_answer
 
+from unity_mcp import bridge_retry
+from unity_mcp.decisions.generated import retry_logic
+
 GOLDEN = Path(__file__).parent / "golden" / "decisions" / "retry.txt"
 _KEY = 7  # the first seven fields of a row are the call, the rest is the answer
 
 # repr(the key of a row) -> (the answer it has now, the reason): a difference the owner approved.
 # Any other difference fails, and an entry whose row no longer differs is stale.
-INTENDED: dict[str, tuple[tuple, str]] = {}
+# retryReason takes the two probe facts together, so a refused connection reads the pid of Unity also when the probe already says busy
+# (6 rows: refused, attempts 0..2, the process dead or alive). The answer is the same, the pid file is read once more; the hand-written
+# method returned before it asked. The expensive probe (has_strong_busy_signal) is read exactly as often as before, in every row.
+INTENDED: dict[str, tuple[tuple, str]] = {
+    repr(("refused", attempt, 3, False, False, True, dead)): (
+        (True, min(2.0 ** (attempt + 1), 8.0), "busy", 1, 1), "retryReason reads processDead with probeBusy: the pid is asked once more")
+    for attempt in range(3) for dead in (False, True)
+}
 
 pytestmark = pytest.mark.real_clock
 
@@ -76,3 +86,32 @@ def test_a_changed_answer_is_found_and_only_an_intended_one_is_let_through():
     assert differences(rows, slower, {name: ((True, 2.0, "transient", 1, 0), "owner 2026-10-29")}) == []
     assert differences(rows, same, {name: ((True, 1.0, "transient", 1, 0), "no change")}) == [f"INTENDED {name} says the golden answer: remove it"]
     assert differences(rows, same, {"('x',)": ((), "not a row")}) == ["INTENDED ('x',) is not a row of the golden: remove it"]
+
+
+@pytest.mark.parametrize(("delivery_sent", "retry_safe"), [(False, False), (False, True), (True, False), (True, True)])
+def test_the_sent_boundary_is_the_first_rule_and_costs_no_probe(delivery_sent, retry_safe):
+    """A frame the writer accepted is never resent for a command that is not retry-safe, whatever the error; every other row is the golden's."""
+    stopped = (False, 0.0, "unsafe_sent", 0, 0)
+    problems = []
+    for row in golden_rows():
+        key, was = row[:_KEY], row[_KEY:]
+        want = stopped if delivery_sent and not retry_safe else INTENDED.get(repr(key), (was,))[0]
+        if (now := retry_answer(key, delivery_sent=delivery_sent, retry_safe=retry_safe)) != want:
+            problems.append(f"{key} is {now}, expected {want}")
+    assert problems == []
+
+
+def test_retry_safety_is_asked_only_of_a_frame_that_was_sent():
+    asked = []
+    policy = bridge_retry.RetryPolicy(probe=None, reload=bridge_retry.DomainReloadTracker(), max_retries=0,
+                                      is_retry_safe=lambda cmd: asked.append(cmd) or True)
+    for sent in (False, True):
+        policy.decide(OSError(), 0, 0.0, cmd="x", delivery_sent=sent)
+    assert asked == ["x"]
+
+
+def test_every_reason_of_the_decisions_is_in_the_table_of_resends():
+    """A reason that retry.logic gains and the table lacks would be a KeyError at the first failure that meets it."""
+    reasons = {value for values in (retry_logic.RetryGateValues, retry_logic.RetryReasonValues)
+               for name, value in vars(values).items() if name.isupper()} - {retry_logic.RetryGateValues.OBSERVE}
+    assert set(bridge_retry._RESENDS) == reasons
