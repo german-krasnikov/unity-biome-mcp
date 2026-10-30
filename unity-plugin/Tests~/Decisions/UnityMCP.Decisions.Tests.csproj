@@ -21,6 +21,8 @@
     <!-- Relative to this file's own directory (unity-plugin/Tests~/Decisions/). -->
     <Compile Include="../../Editor/Generated/*.g.cs" />
     <None Include="../../../dsl/decisions/*.json" Link="rows/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- the read actions of the commands as ACTION_READS stated them before the catalog printed them (the oracle of test_action_reads_golden.py) -->
+    <None Include="../../../server/tests/golden/decisions/action_reads.txt" Link="rows/action_reads.txt" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

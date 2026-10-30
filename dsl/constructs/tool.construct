@@ -3,6 +3,7 @@
 # pyspec = ToolSpec kwargs, pyparams = schema descriptions,
 # pytools = what the catalog expects of the Python side and, for a FORWARD tool, the MCP wrapper itself (runtime: tools/_catalog_runtime.py),
 # mdtools = a row of the catalog table of docs/tools/index.md.
+# pyreads / csreads = the READ actions of a tool, which isMutating asks (step 7.2): ACTION_READS of the Python side, ActionReads.IsRead of the C# side.
 # A template indents its entries 4 columns deeper than its EACH/END lines, so that the dedent of the template leaves 4 for them.
 SURFACE tools CODES TOOLS CONSTRUCTS TOOL, PYTOOL, INTERNAL
 
@@ -14,6 +15,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
   ITEM MAXCHARS <maxchars:match([0-9]+)>
   ITEM DOC <line:string>
+  ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
   ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<adesc:string>]
   EXAMPLES tool.examples
   DECLARE
@@ -71,6 +73,29 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
 
     END
   END
+  TEMPLATE pyreads HEADER "ACTION_READS: dict[str, frozenset[str]] = {" FOOTER "}" ESCAPE data
+    IF ANY READ
+        '{name}': frozenset({
+    EACH READ
+            '{action}',
+    END
+        }),
+    END
+  END
+  TEMPLATE csreads HEADER "namespace UnityMCP.Editor\n{\n    // The actions of a command that only read (the READ lines of dsl/tools.biome): what CommandRegistry.IsMutating asks. A command that is\n    // not here, or an action that is not listed (or is spelt in another case), is a write.\n    internal static class ActionReads\n    {\n        internal static bool IsRead(string cmd, string action)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    return false;\n            }\n        }\n    }\n}" ESCAPE data
+    IF ANY READ
+                    case "{name}":
+                        switch (action)
+                        {
+    EACH READ
+                            case "{action}":
+    END
+                                return true;
+                            default:
+                                return false;
+                        }
+    END
+  END
   TEMPLATE mdtools HEADER "| Tool | Plane | Category | Effect |\n|---|---|---|---|" ESCAPE md
     | `{name}` | unity | {category} | {effect} |
   END
@@ -81,6 +106,7 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
   ITEM FLAG <flag:enum(core|tier1)>
   ITEM RUNTIME
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
+  ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
   ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)>] [DEFAULT_TEXT <dtext:string>] [<adesc:string>]
   EXAMPLES tool.examples
   DECLARE
@@ -113,6 +139,29 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
         ('{aname}', {atype}{?default:, {default}}{?dtext:, "{dtext}"}),
     END
     ))
+  END
+  TEMPLATE pyreads ESCAPE data
+    IF ANY READ
+        '{name}': frozenset({
+    EACH READ
+            '{action}',
+    END
+        }),
+    END
+  END
+  TEMPLATE csreads ESCAPE data
+    IF ANY READ
+                    case "{name}":
+                        switch (action)
+                        {
+    EACH READ
+                            case "{action}":
+    END
+                                return true;
+                            default:
+                                return false;
+                        }
+    END
   END
   TEMPLATE mdtools ESCAPE md
     | `{name}` | python | {category} | {effect} |

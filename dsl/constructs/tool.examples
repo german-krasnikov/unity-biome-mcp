@@ -189,3 +189,43 @@ EXAMPLE INTERNAL has no effect other than RO and RW, no flag but direct_only and
   EXPECT diagnostic DECLARE_SYNTAX at 1:12
   EXPECT diagnostic DECLARE_SYNTAX at 4:8
   EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 7:3
+
+EXAMPLE a READ action of a TOOL or a PYTOOL is printed for Python and for C#, a tool without one is not
+  SOURCE TOOL scene SCENE RW "Scene."
+  SOURCE   ARG action str
+  SOURCE   READ list
+  SOURCE   READ get_info
+  SOURCE END
+  SOURCE PYTOOL navmesh_query SCENE RW "NavMesh."
+  SOURCE   ARG action str
+  SOURCE   READ status
+  SOURCE END
+  SOURCE TOOL calm SCENE RO "Calm."
+  SOURCE   ARG a str
+  SOURCE END
+  EXPECT rendered.pyreads 'scene': frozenset({
+  EXPECT rendered.pyreads 'list',
+  EXPECT rendered.pyreads 'get_info',
+  EXPECT rendered.pyreads 'navmesh_query': frozenset({
+  EXPECT rendered.pyreads 'status',
+  EXPECT unrendered.pyreads 'calm'
+  EXPECT rendered.csreads case "scene":
+  EXPECT rendered.csreads case "list":
+  EXPECT rendered.csreads case "get_info":
+  EXPECT rendered.csreads case "navmesh_query":
+  EXPECT rendered.csreads case "status":
+  EXPECT unrendered.csreads case "calm":
+  EXPECT unrendered.pyspec READ
+
+EXAMPLE a READ action is spelt in lower case, once, and an INTERNAL has none
+  SOURCE TOOL x SCENE RW "X."
+  SOURCE   READ Get
+  SOURCE   READ list
+  SOURCE   READ list
+  SOURCE END
+  SOURCE INTERNAL y RO "Y."
+  SOURCE   READ get
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:8
+  EXPECT diagnostic DECLARE_DUPLICATE at 4:8
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 7:3

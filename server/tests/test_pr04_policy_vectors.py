@@ -137,7 +137,7 @@ def test_default_metadata_vectors(cmd, expected):
 
 def test_editor_play_action_write_classification_asymmetric_with_csharp():
     """Python's is_write("editor", {"action": "play"}) is True (only "state"/
-    "project_path" are reads per middleware_types._EDITOR_READ_ACTIONS), while
+    "project_path" are reads per the READ lines of the editor in dsl/tools.biome), while
     C#'s CommandRegistry.IsMutating("editor", {"action":"play"}) is False
     ("play/stop/select don't corrupt scene data" -- CommandRegistry.cs). This
     pins Python's actual (stricter) behavior; it is not a fix and not an

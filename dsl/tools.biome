@@ -9,6 +9,8 @@ SURFACE tools
 # ARG <name> <type> [DEFAULT <v> [OMIT]] [DEFAULT_TEXT "<s>" [OMIT]] [RAW] ["<schema description>"]: in the order of the Python signature,
 # required without a default; the type is str int float bool, o-prefixed when None is allowed, or Any (checked by name and default only:
 # Context, Literal, ...); OMIT: a value equal to the default is not sent, Unity applies it; RAW: a FORWARD wrapper sends the value as it is.
+# READ <action>: an action of this tool that only reads (any other action, or none, is a write). isMutating asks it: the Python side's ACTION_READS
+# (tools/generated/catalog_reads.py) and the C# side's ActionReads.IsRead (Editor/Generated/ActionReads.g.cs) are printed from these lines.
 
 TOOL alias_status SYSTEM RO "Check alias table health: loaded/empty/stale, sources, and total alias count."
   FORWARD
@@ -42,6 +44,9 @@ TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use wh
   ARG int_param oint DEFAULT None RAW
   ARG float_param ofloat DEFAULT None RAW
   ARG string_param ostr DEFAULT None
+  READ get
+  READ get_clip_path
+  READ get_events
 END
 
 TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param."
@@ -68,6 +73,8 @@ TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator
   ARG blending ostr DEFAULT None
   ARG value ostr DEFAULT None
   ARG avatar_path ostr DEFAULT None
+  READ get
+  READ get_blend_tree
 END
 
 PYTOOL animator_intent SYSTEM RW "Convert NL intent to Unity Animator Controller setup via DSL."
@@ -118,6 +125,11 @@ TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No conf
   ARG content ostr DEFAULT None
   ARG class_name ostr DEFAULT None
   ARG path_only bool DEFAULT False
+  READ find
+  READ find_dependents
+  READ get_dependencies
+  READ get_info
+  READ validate_move
 END
 
 TOOL attach_uitk UITOOLKIT RW "Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for UI Toolkit runtime panels)."
@@ -167,6 +179,8 @@ TOOL bake ASSETS RW "Bake operations."
   DOC "Poll status after start — lighting bake is async."
   ARG target str
   ARG action ostr DEFAULT None
+  READ settings
+  READ status
 END
 
 # timeout_s live for 9 internal _send("batch",...) callers w/o explicit timeout
@@ -333,6 +347,8 @@ TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|
   ARG path ostr DEFAULT None
   ARG paths ostr DEFAULT None
   ARG enable obool DEFAULT None
+  READ project_path
+  READ state
 END
 
 TOOL execute_code SYSTEM RW "Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile."
@@ -637,6 +653,11 @@ TOOL material ASSETS RW "Material asset management (for quick color change use `
   ARG slot oint DEFAULT None RAW
   ARG filter ostr DEFAULT None
   ARG target ostr DEFAULT None
+  READ get
+  READ get_errors
+  READ list_properties
+  READ list_shaders
+  READ list_slots
 END
 
 TOOL material_audit ASSETS RO "Material/texture scene-wide audit."
@@ -655,6 +676,7 @@ TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. action: execute|li
   FORWARD
   ARG action str
   ARG path ostr DEFAULT None "Unity Editor menu-item path to execute, or submenu prefix to list"
+  READ list
 END
 
 TOOL move_to RUNTIME RW "[Play Mode] Move character to position and wait for arrival."
@@ -677,6 +699,11 @@ PYTOOL navmesh_query SCENE RW "NavMesh queries and management. Bakes or clears N
   ARG agentHeight ofloat DEFAULT None
   ARG agentClimb ofloat DEFAULT None
   ARG agentSlope ofloat DEFAULT None
+  READ get_settings
+  READ path
+  READ raycast
+  READ sample
+  READ status
 END
 
 TOOL object_diff SCENE RO "Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."
@@ -693,6 +720,8 @@ TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmati
   ARG name ostr DEFAULT None "Unity Package Manager package identifier for add/remove (for example com.unity.inputsystem)"
   ARG version ostr DEFAULT None
   ARG query ostr DEFAULT None
+  READ list
+  READ search
 END
 
 TOOL particle MEDIA RW "Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
@@ -704,6 +733,7 @@ TOOL particle MEDIA RW "Particle System. action: get|create|set|apply|play|stop|
   ARG prop ostr DEFAULT None
   ARG value ostr DEFAULT None
   ARG preset ostr DEFAULT None
+  READ get
 END
 
 PYTOOL permission_prompt SYSTEM RO "Handle Claude permission prompts via MCP."
@@ -740,6 +770,7 @@ TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmatio
   ARG mode ostr DEFAULT None
   ARG scope ostr DEFAULT None
   ARG format ostr DEFAULT None
+  READ get_overrides
 END
 
 TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
@@ -751,6 +782,10 @@ TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
   ARG focus str DEFAULT_TEXT ""
   ARG mode str DEFAULT_TEXT "burst"
   ARG threshold_ms float DEFAULT 33.3
+  READ analyze
+  READ compare
+  READ list_sessions
+  READ status
 END
 
 TOOL project_settings ASSETS RW_IDEM "Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input."
@@ -764,6 +799,7 @@ TOOL project_settings ASSETS RW_IDEM "Project settings. Modifies project setting
   ARG value ostr DEFAULT None
   ARG index oint DEFAULT None RAW
   ARG build_target ostr DEFAULT None
+  READ get
 END
 
 TOOL query_state RUNTIME RO "[Play Mode] Snapshot multiple game values in one call."
@@ -929,6 +965,7 @@ TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_addit
   ARG path ostr DEFAULT None "Asset path — required for open/save/open_additive/close/set_active"
   ARG scene ostr DEFAULT None "Scene name for save/discard when multiple scenes are loaded"
   ARG include_unsaved bool DEFAULT True
+  READ list
 END
 
 PYTOOL scene_change_plan SCENE RW "Pre-flight + plan for safe scene edit."
@@ -951,6 +988,7 @@ TOOL scene_environment SCENE RW "Read/write scene environment: ambient light, fo
   ARG action str DEFAULT_TEXT "get"
   ARG prop ostr DEFAULT None
   ARG value ostr DEFAULT None
+  READ get
 END
 
 TOOL scene_health VERIFY RO "Scene hierarchy/health audit."
@@ -1007,6 +1045,9 @@ TOOL scriptable_object ASSETS RW "ScriptableObject. action: create|get|set|list_
   ARG value ostr DEFAULT None
   ARG fields ostr DEFAULT None
   ARG filter ostr DEFAULT None
+  READ find
+  READ get
+  READ list_types
 END
 
 TOOL search_scene SCENE RO "Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces."
@@ -1134,6 +1175,8 @@ TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Cre
   ARG layout ostr DEFAULT None
   ARG h_gap ofloat DEFAULT None RAW
   ARG v_gap ofloat DEFAULT None RAW
+  READ get
+  READ graph_get
 END
 
 PYTOOL smart_build SYSTEM RW "Build scene objects from natural language description using MCP sampling + execute_code."
@@ -1221,6 +1264,8 @@ TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use f
   ARG index oint DEFAULT None RAW
   ARG offset ofloat DEFAULT None RAW
   ARG value ostr DEFAULT None "Action-specific Timeline value; set_track_offset accepts auto|transform|scene"
+  READ get
+  READ get_bindings
 END
 
 TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene. action: move|copy."
@@ -1269,6 +1314,7 @@ TOOL uitk_file UITOOLKIT RW "Read or edit a UXML or USS asset file."
   ARG tag ostr DEFAULT None
   ARG attrs ostr DEFAULT None
   ARG prop ostr DEFAULT None
+  READ read
 END
 
 PYTOOL uitk_intent UITOOLKIT RW "Generate a UXML + USS file pair from a natural-language UI description."

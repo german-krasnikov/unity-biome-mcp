@@ -3,6 +3,7 @@ import time
 
 from .decisions.generated.mutability_logic import IsMutatingInput, is_mutating
 from .tools._annotations import _INTERNAL_RETRY_SAFE_CMDS as _KNOWN_SAFE_READS
+from .tools.generated.catalog_reads import ACTION_READS as _CATALOG_ACTION_READS
 from .tools.playtest_async import _RUNNING_PHASE_PREFIX as _PLAYTEST_RUNNING_PREFIX
 from .tools.tool_specs import _SPECS as _TOOL_SPECS
 
@@ -75,35 +76,11 @@ VERIFICATION_NUDGE_NEUTRAL_WRITES: frozenset[str] = (
     SCENE_STATE_NEUTRAL_WRITES - frozenset({"run_playtest", "start_playtest"})
 )
 
-# editor actions that are reads; all others (play/stop/pause/step/select) are writes
-_EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})
-
-# Per-cmd frozenset of action values that are reads.
-# Conservative: absent/unknown action → write.
-# "editor" included to absorb the _is_batch_readonly special-case.
-ACTION_READS: dict[str, frozenset[str]] = {
-    "animation":         frozenset({"get", "get_events", "get_clip_path"}),
-    "timeline":          frozenset({"get", "get_bindings"}),
-    "animator":          frozenset({"get", "get_blend_tree"}),
-    "particle":          frozenset({"get"}),
-    "shader":            frozenset({"get", "graph_get"}),
-    "material":          frozenset({"get", "list_properties", "list_slots", "get_errors", "list_shaders"}),
-    "prefab":            frozenset({"get_overrides"}),
-    "scriptable_object": frozenset({"get", "list_types", "find"}),
-    "asset":             frozenset({"find", "get_info", "validate_move", "get_dependencies",
-                                    "find_dependents"}),
-    "scene":             frozenset({"list"}),
-    "project_settings":  frozenset({"get"}),
-    "menu":              frozenset({"list"}),
-    "editor":            _EDITOR_READ_ACTIONS,  # same object — no duplication
-    "bake":              frozenset({"status", "settings"}),
-    "package":           frozenset({"list", "search"}),
-    "scene_environment": frozenset({"get"}),
-    "uitk_file":         frozenset({"read"}),
-    "navmesh":           frozenset({"sample", "path", "raycast", "status", "get_settings"}),
-    "navmesh_query":     frozenset({"sample", "path", "raycast", "status", "get_settings"}),
-    "profile":           frozenset({"status", "analyze", "compare", "list_sessions"}),
-}
+# Per-cmd frozenset of action values that are reads: the READ lines of dsl/tools.biome, printed into tools/generated/catalog_reads.py
+# (and, for the C# side, into Editor/Generated/ActionReads.g.cs). Conservative: absent/unknown action -> write.
+# The editor's reads are state and project_path; play/stop/pause/step/select and the rest are writes.
+# navmesh is the wire command that the tool navmesh_query sends (the raw transport alias stays fail-closed as a write-capable command).
+ACTION_READS: dict[str, frozenset[str]] = {**_CATALOG_ACTION_READS, "navmesh": _CATALOG_ACTION_READS["navmesh_query"]}
 
 
 def _switch(args: dict, key: str) -> str:

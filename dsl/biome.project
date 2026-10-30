@@ -17,3 +17,5 @@ GENERATE guards logic generate --source {dir}/decisions/guards.logic --contract 
 GENERATE guards-rows logic examples --source {dir}/decisions/guards.examples --logic {dir}/decisions/guards.logic --contract {dir}/decisions/guards.contract --out {dir}/decisions/guards.json
 GENERATE retry logic generate --source {dir}/decisions/retry.logic --contract {dir}/decisions/retry.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/retry_logic.py"
 GENERATE retry-rows logic examples --source {dir}/decisions/retry.examples --logic {dir}/decisions/retry.logic --contract {dir}/decisions/retry.contract --out {dir}/decisions/retry.json
+GENERATE py-reads  render {dir}/tools.biome pyreads  {dir}/../server/src/unity_mcp/tools/generated/catalog_reads.py
+GENERATE cs-reads  render {dir}/tools.biome csreads  {dir}/../unity-plugin/Editor/Generated/ActionReads.g.cs
