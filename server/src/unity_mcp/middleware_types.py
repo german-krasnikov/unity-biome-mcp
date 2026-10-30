@@ -1,6 +1,7 @@
 """Constants and CircuitBreaker for Unity Biome MCP middleware."""
 import time
 
+from .decisions.generated.mutability_logic import IsMutatingInput, is_mutating
 from .tools._annotations import _INTERNAL_RETRY_SAFE_CMDS as _KNOWN_SAFE_READS
 from .tools.playtest_async import _RUNNING_PHASE_PREFIX as _PLAYTEST_RUNNING_PREFIX
 from .tools.tool_specs import _SPECS as _TOOL_SPECS
@@ -105,47 +106,43 @@ ACTION_READS: dict[str, frozenset[str]] = {
 }
 
 
+def _switch(args: dict, key: str) -> str:
+    """absent, off (the literal false: False or "false") or on (any other value) of a switch argument."""
+    if key not in args:
+        return "absent"
+    return "off" if args[key] in (False, "false") else "on"
+
+
 def is_write(cmd: str, args: dict | None = None, *, unknown_is_write: bool = False) -> bool:
     """Return True iff cmd+args represents a mutation.
 
-    For action-parameterised commands in WRITE_CMDS, check args["action"].
-    Unknown/absent action → True (conservative).
-    Commands not in WRITE_CMDS are never writes (returns False) UNLESS cmd is
-    also absent from READ_CMDS, in which case the unknown_is_write kwarg
-    decides: False (default, unchanged) is what every existing advisory
-    caller gets — check_retry/check_verification_needed/transition/
-    log_mutation treat an unrecognized cmd as a non-write; the worst case is
-    a missed nudge. Read-only AUTHORIZATION callers (check_read_only in
-    middleware_guards.py and server.py) pass True: a wire command absent
-    from _SPECS must fail closed, not silently pass through, in read-only
-    mode.
+    The rule is the DECISION isMutating of dsl/decisions/mutability.logic (printed into
+    decisions/generated/mutability_logic.py); this function reads its facts from the registries and the arguments:
+    call.base (read, write or unknown: the live sets, which plugin_api.register_read_cmds/register_write_cmds and
+    server._warm_cmd_flags change), call.actionRead (args["action"] is one of ACTION_READS[cmd]), and the literals of the
+    switch arguments (doctor fix, get_metrics reset, wait_until abort_on_fail, get_changes clear, editor enable).
+
+    A command that is in neither WRITE_CMDS nor READ_CMDS is unknown: the unknown_is_write kwarg decides. False (the
+    default) is what every advisory caller gets -- check_retry/check_verification_needed/transition/log_mutation treat an
+    unrecognized cmd as a non-write; the worst case is a missed nudge. Read-only AUTHORIZATION callers (check_read_only in
+    middleware_guards.py and server.py) pass True: a wire command absent from _SPECS must fail closed, not silently pass
+    through, in read-only mode. Unknown/absent action of an action-parameterised write command -> True (conservative).
     """
-    if cmd in _KNOWN_SAFE_READS:
-        return False
-    if cmd not in WRITE_CMDS:
-        return False if cmd in READ_CMDS else unknown_is_write
-    # doctor is observational by default, but fix=True deletes stale local
-    # discovery files. Treat unknown truthy values conservatively as writes.
-    if cmd == "doctor":
-        return bool((args or {}).get("fix", False))
-    if cmd == "wait_until":
-        # Missing/false is observational. Any other value is conservative: the
-        # Unity handler may stop Play Mode after a timeout.
-        return (args or {}).get("abort_on_fail", False) not in (False, "false")
-    if cmd == "editor" and (args or {}).get("action") == "mutation_mode":
-        # P0-70: a query (no "enable") is a read; a set (enable present,
-        # including an explicit False) is a write.
-        return "enable" in (args or {})
-    if cmd == "get_metrics":
-        # Python-local counter consumption; malformed values fail closed.
-        return (args or {}).get("reset", False) not in (False, "false")
-    if cmd == "get_changes":
-        # Unity defaults clear=True. Only an explicit false is non-consuming.
-        return (args or {}).get("clear", True) not in (False, "false")
-    reads = ACTION_READS.get(cmd)
-    if reads is None:
-        return True  # plain write cmd, no action map
-    return (args or {}).get("action", "") not in reads
+    args = args or {}
+    action = args.get("action", "")
+    return is_mutating(IsMutatingInput(
+        call_base="read" if cmd in _KNOWN_SAFE_READS else "write" if cmd in WRITE_CMDS else "read" if cmd in READ_CMDS else "unknown",
+        call_cmd=str(cmd),
+        call_unknown_is_write=unknown_is_write,
+        call_action_read=action in ACTION_READS.get(cmd, ()),
+        args_action=str(action),
+        args_has_enable="enable" in args,
+        # doctor is observational by default, but fix=True deletes stale local discovery files: any truthy value is a write.
+        args_fix="absent" if "fix" not in args else "on" if args["fix"] else "off",
+        args_reset=_switch(args, "reset"),
+        args_abort_on_fail=_switch(args, "abort_on_fail"),
+        args_clear=_switch(args, "clear"),
+    ))
 
 
 # Commands whose OWN send exception is treated as an uncertain scenario

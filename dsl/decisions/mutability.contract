@@ -1,0 +1,16 @@
+# Facts of isMutating: what one wire call says (cmd, args), read by the host as typed values. Absence is its own state: args.hasEnable is a bool, the switches are absent|off|on.
+# off = the literal false (False or "false"; for fix: any falsy value), on = any other present value. call.base = the registry (read|write|unknown); call.actionRead = the catalog lists args.action as a read of call.cmd.
+CONTRACT unitymcp.mutability
+COVERAGE declared-scope
+MODULE mutability_facts
+FACT call.base enum=read,write,unknown closed
+FACT call.cmd string
+FACT call.unknownIsWrite bool
+FACT call.actionRead bool
+FACT args.action string
+FACT args.hasEnable bool
+FACT args.fix enum=absent,off,on closed
+FACT args.reset enum=absent,off,on closed
+FACT args.abortOnFail enum=absent,off,on closed
+FACT args.clear enum=absent,off,on closed
+INPUT isMutating call.base call.cmd call.unknownIsWrite call.actionRead args.action args.hasEnable args.fix args.reset args.abortOnFail args.clear

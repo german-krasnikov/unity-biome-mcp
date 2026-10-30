@@ -20,6 +20,11 @@ def _violations(root: Path, pattern: str) -> list[str]:
     return [str(f.relative_to(root)) for f in _py_files(root) if pattern in f.read_text(encoding="utf-8")]
 
 
+def _future_import_problems(found: list[str], printed: list[str]) -> list[str]:
+    """The files that break the rule: one with the import that biome-dsl did not print, or a printed one without it (a stale exemption)."""
+    return [f for f in found if f not in printed] + [f for f in printed if f not in found]
+
+
 class TestPython314Compliance:
     """Fence tests preventing regression to pre-3.14 patterns."""
 
@@ -27,8 +32,18 @@ class TestPython314Compliance:
         assert sys.version_info >= (3, 14), f"Running on {sys.version}"
 
     def test_no_future_annotations_in_src(self):
+        # The decisions that biome-dsl prints (decisions/generated/*_logic.py, step 7.2) open every module with this import: its
+        # Python printer writes it whatever the target's LANG. Exactly those files may carry it until the printer leaves it out for
+        # 3.14; a hand-written file may not, and a printed file that no longer has it makes this exemption stale.
+        printed = sorted(str(f.relative_to(SRC_ROOT)) for f in (SRC_ROOT / "decisions" / "generated").glob("*_logic.py"))
         v = _violations(SRC_ROOT, "from __future__ import annotations")
-        assert not v, f"Files still importing __future__ annotations: {v}"
+        assert not _future_import_problems(v, printed), f"Files importing __future__ annotations: {v}; printed: {printed}"
+
+    def test_the_exemption_of_the_printed_decisions_is_exact(self):
+        printed = ["decisions/generated/a_logic.py"]
+        assert _future_import_problems(["decisions/generated/a_logic.py"], printed) == []
+        assert _future_import_problems(["decisions/generated/a_logic.py", "tools/b.py"], printed) == ["tools/b.py"]
+        assert _future_import_problems([], printed) == ["decisions/generated/a_logic.py"]
 
     def test_no_future_annotations_in_tests(self):
         v = _violations(TEST_ROOT, "from __future__ import annotations")

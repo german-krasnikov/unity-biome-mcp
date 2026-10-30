@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Pure dotnet-test lane for the decisions that biome-dsl prints from dsl/decisions (step 7.2). No Unity install: the generated
+    files under Editor/Generated depend on nothing but the BCL, and are compiled here at LangVersion 9 (the C# of Unity 6) with
+    warnings as errors. The `Tests~` folder name is load-bearing: Unity's importer skips a path that ends in `~`.
+    The rows are the machine rows of the examples (dsl/decisions/<module>.json, printed by `biome logic examples`, never authored);
+    they are copied next to the test assembly under rows/.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>9</LangVersion>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <RootNamespace>UnityMCP.Decisions.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Relative to this file's own directory (unity-plugin/Tests~/Decisions/). -->
+    <Compile Include="../../Editor/Generated/*.g.cs" />
+    <None Include="../../../dsl/decisions/*.json" Link="rows/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+  </ItemGroup>
+
+</Project>

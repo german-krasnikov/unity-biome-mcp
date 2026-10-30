@@ -1,7 +1,8 @@
-"""Tier 0 of the freshness of the tool catalog, without Node: every generated file carries the sha256 of the dsl/tools.biome it was printed from.
+"""Tier 0 of the freshness of what dsl/ generates, without Node: every generated file carries the sha256 of the source it was printed from.
 
-It catches "the catalog was edited and scripts/dsl.sh generate was not run". A hand edit of a generated file, or a change of the
-construct, is what tier 1 finds: scripts/dsl.sh check (generate --check, needs Node and the biome-dsl checkout of the TOOLCHAIN line).
+It catches "the catalog (or a decision) was edited and scripts/dsl.sh generate was not run". A hand edit of a generated file, a change
+of the construct or a contract, and the machine rows of the examples (dsl/decisions/*.json, which have no banner) are what tier 1
+finds: scripts/dsl.sh check (generate --check, needs Node and the biome-dsl checkout of the TOOLCHAIN line).
 """
 import hashlib
 import re
@@ -10,6 +11,10 @@ from pathlib import Path
 DSL = Path(__file__).resolve().parents[2] / "dsl"
 # GENERATE <name> render {dir}/<source> <target> {dir}/<out>: a whole file starts with the banner, a region (out#region) does not
 _RENDER = re.compile(r"^GENERATE\s+\S+\s+render\s+\{dir\}/(\S+)\s+\S+\s+\{dir\}/([^\s#]+)$", re.MULTILINE)
+# GENERATE <name> logic generate --source {dir}/<m>.logic --contract ... --target "<lang> {dir}/<out> [AS <name>] [LANG <v>]"...
+_LOGIC = re.compile(r"^GENERATE\s+\S+\s+logic generate\s+--source\s+\{dir\}/(\S+)\s+--contract\s+\S+((?:\s+--target\s+\"[^\"]*\")+)\s*$",
+                    re.MULTILINE)
+_TARGET = re.compile(r'--target\s+"\w+\s+\{dir\}/([^\s"]+)')
 
 
 def source_sha256(source: Path) -> str:
@@ -28,10 +33,36 @@ def stale_outputs(steps: list[tuple[Path, Path]]) -> list[str]:
     return stale
 
 
+def render_steps(project: str) -> list[tuple[Path, Path]]:
+    """(source, output) of every whole-file render step of a biome.project text."""
+    return [(DSL / source, (DSL / out).resolve()) for source, out in _RENDER.findall(project)]
+
+
+def logic_steps(project: str) -> list[tuple[Path, Path]]:
+    """(.logic source, generated file) of every target of every `logic generate` step of a biome.project text."""
+    return [(DSL / source, (DSL / out).resolve()) for source, targets in _LOGIC.findall(project) for out in _TARGET.findall(targets)]
+
+
 def test_every_generated_file_was_printed_from_the_current_catalog():
-    steps = [(DSL / source, (DSL / out).resolve()) for source, out in _RENDER.findall((DSL / "biome.project").read_text(encoding="utf-8"))]
+    steps = render_steps((DSL / "biome.project").read_text(encoding="utf-8"))
     assert steps, "dsl/biome.project has no whole-file render step"
     assert stale_outputs(steps) == [], "run scripts/dsl.sh generate"
+
+
+def test_every_generated_decision_was_printed_from_its_current_logic():
+    steps = logic_steps((DSL / "biome.project").read_text(encoding="utf-8"))
+    assert steps, "dsl/biome.project has no logic generate step"
+    assert stale_outputs(steps) == [], "run scripts/dsl.sh generate"
+
+
+def test_the_logic_steps_of_a_project_name_their_sources_and_every_target():
+    project = (
+        'GENERATE m logic generate --source {dir}/decisions/m.logic --contract {dir}/decisions/m.contract'
+        ' --target "py {dir}/../server/m_logic.py" --target "cs {dir}/../unity/M.g.cs AS A.M LANG 9"\n'
+        'GENERATE m-rows logic examples --source {dir}/decisions/m.examples --logic {dir}/decisions/m.logic --out {dir}/decisions/m.json\n'
+        'GENERATE t render {dir}/tools.biome pyspec {dir}/../server/t.py\n')
+    assert [(source.name, out.name) for source, out in logic_steps(project)] == [("m.logic", "m_logic.py"), ("m.logic", "M.g.cs")]
+    assert [(source.name, out.name) for source, out in render_steps(project)] == [("tools.biome", "t.py")]
 
 
 def test_an_edited_source_or_a_missing_output_is_stale(tmp_path):

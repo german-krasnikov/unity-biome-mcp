@@ -1,4 +1,4 @@
-# The tool catalog of unity-biome-mcp: dsl/tools.biome printed through constructs/tool.construct.
+# What unity-biome-mcp generates: the tool catalog (dsl/tools.biome printed through constructs/tool.construct) and the decisions (dsl/decisions).
 TOOLCHAIN 224bf1022bc70fa3f1cb42775b358d1837c86c3b
 CONSTRUCTS constructs
 
@@ -6,3 +6,8 @@ GENERATE py-specs  render {dir}/tools.biome pyspec   {dir}/../server/src/unity_m
 GENERATE py-params render {dir}/tools.biome pyparams {dir}/../server/src/unity_mcp/tools/generated/catalog_params.py
 GENERATE py-tools  render {dir}/tools.biome pytools  {dir}/../server/src/unity_mcp/tools/generated/catalog_tools.py
 GENERATE docs-tools render {dir}/tools.biome mdtools {dir}/../docs/tools/index.md#catalog
+
+# The decisions (dsl/decisions, step 7.2): the rules of what is a write, whether a playtest passed, which guard stops a call and why a
+# send is retried. A step pair per module: the generated Python (and C#) and the rows of the examples that pytest and dotnet run.
+GENERATE mutability logic generate --source {dir}/decisions/mutability.logic --contract {dir}/decisions/mutability.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/mutability_logic.py" --target "cs {dir}/../unity-plugin/Editor/Generated/Mutability.g.cs AS UnityMCP.Editor.Decisions.Mutability LANG 9"
+GENERATE mutability-rows logic examples --source {dir}/decisions/mutability.examples --logic {dir}/decisions/mutability.logic --contract {dir}/decisions/mutability.contract --out {dir}/decisions/mutability.json
