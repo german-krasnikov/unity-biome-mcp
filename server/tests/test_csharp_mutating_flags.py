@@ -19,6 +19,7 @@ FLIPPED: dict[str, tuple[bool, bool]] = {
     "package": (True, False),  # async; list and search are reads (READ lines), the rest write; Play Mode is not a concern of the package manager
     "run_playtest": (True, False),  # async; the playtest gates Play Mode itself (B05), so the Play Mode block of a mutating command must not meet it
     "run_tests": (True, False),  # async; the test runner drives Play Mode itself
+    "start_playtest": (True, False),  # async; the same gates as run_playtest (E02)
 }
 
 
