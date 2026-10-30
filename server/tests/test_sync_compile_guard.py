@@ -171,19 +171,20 @@ async def test_sync_unity_guard_hit_stays_compiling_past_deadline_times_out(monk
 _COMMAND_ROUTER_CS_PATH = (
     pathlib.Path(__file__).parents[2] / "unity-plugin/Editor/CommandRouter.cs"
 )
-# Anchored to CheckGuards' IsCompiling() branch specifically -- not the
-# "Server initializing. Retry in 2s." CommandRegistry.Ready branch a few
-# lines above it, which also calls FormatBusyResponse but is a different
-# guard with a different retry contract.
+# Anchored to CheckGuards' answer for the `compiling` verdict of guardVerdict
+# (dsl/decisions/guards.logic decides when it applies) specifically -- not the
+# "Server initializing. Retry in 2s." answer for `initializing` beside it,
+# which also calls FormatBusyResponse but is a different guard with a
+# different retry contract. The `[^;]` keeps the match inside that one case.
 _CS_COMPILE_GUARD_RE = re.compile(
-    r'IsCompiling\(\)[^;]*?FormatBusyResponse\([^,]+,\s*"([^"]+)"', re.DOTALL
+    r'GuardVerdictValues\.Compiling:[^;]*?FormatBusyResponse\([^,]+,\s*"([^"]+)"', re.DOTALL
 )
 
 
 @pytest.mark.csharp_parity
 def test_sync_compile_guard_text_matches_csharp_compile_branch():
     """SYNC_COMPILE_GUARD_TEXT (constants.py) must be byte-identical to the
-    literal CommandRouter.CheckGuards emits from its IsCompiling() branch --
+    literal CommandRouter.CheckGuards emits for the `compiling` verdict --
     the two are independent by necessity (different runtimes/files), and
     tools/sync.py matches this string by exact equality (not substring), so
     any drift here silently breaks the PD-1 guard-catch path this module

@@ -95,33 +95,45 @@ namespace UnityMCP.Editor
         };
 
         // Returns error response string if a guard blocks the command, null otherwise.
+        // Which guard stops a call, and in which order, is the decision guardVerdict (site top) of dsl/decisions/guards.logic; GuardFacts
+        // states the world to it. What each verdict says to the caller is here. A verdict that has no answer here fails closed.
         private static string CheckGuards(string id, string cmd, string argsJson, string chatMode = "")
         {
-            if (!CommandRegistry.Ready)
-                return JsonHelper.FormatBusyResponse(id, "Server initializing. Retry in 2s.", 2000);
-            if (_PythonOnlyTools.Contains(cmd))
-                return JsonHelper.FormatResponse(id, false, null,
-                    $"'{cmd}' is a Python-only tool — use the MCP server (not direct TCP) to call it");
             var authError = SessionAuthorization.Check(chatMode, cmd, argsJson);
-            if (authError != null)
-                return JsonHelper.FormatResponse(id, false, null, authError);
-            if (IsCompiling() && !IsAllowedDuringCompile(cmd))
-                return JsonHelper.FormatBusyResponse(id, "Unity is compiling. Retry in 5s.", 5000);
-            if (IsPlayMode() && IsMutatingCommand(cmd, argsJson)
-                && !IsAllowedMutationInPlayMode(cmd, argsJson))
-                return JsonHelper.FormatResponse(id, false, null,
-                    "Play mode active — changes will be lost. Stop play mode first.");
-            if (!IsPlayMode() && CommandRegistry.IsRuntime(cmd))
-                return JsonHelper.FormatResponse(id, false, null, "Not in Play Mode. Use editor(action='play') first.");
-            if (IsReadOnly() && IsMutatingCommand(cmd, argsJson))
-                return JsonHelper.FormatResponse(id, false, null,
-                    $"READ_ONLY_BLOCKED: '{cmd}' is a mutating command — this worker is read-only");
-            if (!IsAlwaysAllowed(cmd) && !IsToolEnabledFn(cmd))
-                return JsonHelper.FormatResponse(id, false, null, $"Tool '{cmd}' is disabled in settings");
-            return null;
+            var verdict = Decisions.Guards.Policy.GuardVerdict(Decisions.GuardFacts.Top(
+                ready: CommandRegistry.Ready, pythonOnly: _PythonOnlyTools.Contains(cmd), authDenied: authError != null,
+                compiling: IsCompiling(), allowedDuringCompile: IsAllowedDuringCompile(cmd), playMode: IsPlayMode(),
+                mutating: IsMutatingCommand(cmd, argsJson), allowedInPlay: IsAllowedMutationInPlayMode(cmd, argsJson),
+                runtime: CommandRegistry.IsRuntime(cmd), readOnly: IsReadOnly(), alwaysAllowed: IsAlwaysAllowed(cmd),
+                toolEnabled: IsToolEnabledFn(cmd)));
+            switch (verdict)
+            {
+                case Decisions.Guards.Policy.GuardVerdictValues.Ok:
+                    return null;
+                case Decisions.Guards.Policy.GuardVerdictValues.Initializing:
+                    return JsonHelper.FormatBusyResponse(id, "Server initializing. Retry in 2s.", 2000);
+                case Decisions.Guards.Policy.GuardVerdictValues.PythonOnly:
+                    return JsonHelper.FormatResponse(id, false, null,
+                        $"'{cmd}' is a Python-only tool — use the MCP server (not direct TCP) to call it");
+                case Decisions.Guards.Policy.GuardVerdictValues.AuthDenied:
+                    return JsonHelper.FormatResponse(id, false, null, authError);
+                case Decisions.Guards.Policy.GuardVerdictValues.Compiling:
+                    return JsonHelper.FormatBusyResponse(id, "Unity is compiling. Retry in 5s.", 5000);
+                case Decisions.Guards.Policy.GuardVerdictValues.PlayBlocked:
+                    return JsonHelper.FormatResponse(id, false, null,
+                        "Play mode active — changes will be lost. Stop play mode first.");
+                case Decisions.Guards.Policy.GuardVerdictValues.NotInPlay:
+                    return JsonHelper.FormatResponse(id, false, null, "Not in Play Mode. Use editor(action='play') first.");
+                case Decisions.Guards.Policy.GuardVerdictValues.ReadOnlyBlocked:
+                    return JsonHelper.FormatResponse(id, false, null,
+                        $"READ_ONLY_BLOCKED: '{cmd}' is a mutating command — this worker is read-only");
+                case Decisions.Guards.Policy.GuardVerdictValues.Disabled:
+                    return JsonHelper.FormatResponse(id, false, null, $"Tool '{cmd}' is disabled in settings");
+                default:
+                    throw new InvalidOperationException($"guardVerdict gave '{verdict}' for the top site: CheckGuards has no answer for it");
+            }
         }
 
-        // editor excluded: play/stop/select don't corrupt scene data
         private static bool IsMutatingCommand(string cmd, string argsJson) =>
             CommandRegistry.IsMutating(cmd, argsJson);
 
