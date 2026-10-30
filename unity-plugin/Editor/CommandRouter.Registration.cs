@@ -678,6 +678,7 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAsync("get_playtest_run", AsyncGetPlaytestRun,
                 required: "run_id", optional: "", allowedDuringCompile: true);
             CommandRegistry.RegisterAsync("build", AsyncBuild,
+                mutating: true, playOk: true,
                 required: "action", optional: "target,scenes,path,dev");
             CommandRegistry.RegisterAsync("package", AsyncPackage,
                 required: "action", optional: "name,version,query");

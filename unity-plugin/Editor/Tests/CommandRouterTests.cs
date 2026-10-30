@@ -1268,6 +1268,18 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(CommandRegistry.IsNoUndo("editor"), "play, stop and select change no Undo-recorded scene data");
         }
 
+        // Step 7.2 M3: the commands whose registration was repaired to say what Python says (owner 2026-10-29), one TestCase per
+        // command in the commit that repairs it, with the two flags that keep Play Mode and the Undo history as they were.
+        // server/tests/test_csharp_mutating_flags.py reads the same Register calls without Unity.
+        [TestCase("editor", true, true)]
+        [TestCase("build", true, false)]
+        public void RepairedCommand_IsMutatingAndKeepsPlayModeAndUndo(string cmd, bool playOk, bool noUndo)
+        {
+            Assert.IsTrue(CommandRegistry.IsMutating(cmd), cmd + " is mutating, as in Python");
+            Assert.AreEqual(playOk, CommandRegistry.IsPlayOk(cmd), cmd + " playOk");
+            Assert.AreEqual(noUndo, CommandRegistry.IsNoUndo(cmd), cmd + " noUndo");
+        }
+
         // ── AlreadyRegistered: double registration guard ──────────────────────
 
         [Test]

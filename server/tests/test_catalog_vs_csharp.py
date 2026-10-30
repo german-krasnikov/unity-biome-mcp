@@ -21,7 +21,7 @@ _EDITOR = Path(__file__).resolve().parents[2] / "unity-plugin" / "Editor"
 _CALL = re.compile(r'CommandRegistry\.(Register|RegisterAsync|RegisterAction)\(\s*"([^"]+)"')
 
 KNOWN_DIVERGENT = {
-    "mutating": {"batch", "build", "cancel_test_run", "checkpoint", "export_playtest_aliases_to_defs", "invoke_method",
+    "mutating": {"batch", "cancel_test_run", "checkpoint", "export_playtest_aliases_to_defs", "invoke_method",
                  "move_to", "package", "recompile", "run_playtest", "run_tests", "scene", "start_playtest",
                  "sync_playtest_aliases_from_defs", "test_step", "timeline"},
     "runtime": set(),
