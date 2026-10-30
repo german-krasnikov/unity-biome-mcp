@@ -8,6 +8,7 @@ scripts/decisions_golden.py. A difference is allowed only by an Intended rule be
 gives; the golden is never regenerated to make a difference disappear.
 """
 import ast
+import json
 from collections.abc import Callable  # noqa: TC003  (read by dataclass)
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,6 +19,7 @@ from unity_mcp.suite_verdict import _classify_state, _parse_counts, compute_suit
 from unity_mcp.tools.runtime import _classify_outcome, _is_playtest_pass
 
 GOLDEN = Path(__file__).parent / "golden" / "decisions" / "verdict.txt"
+CORPUS = Path(__file__).parent / "golden" / "decisions" / "verdict_reports.txt"
 COLUMNS = ("passes", "outcome", "counts", "state")
 
 
@@ -116,3 +118,11 @@ def test_a_changed_answer_is_found_and_only_an_intended_one_is_let_through():
     names_other_answer = Intended("wrong answer", lambda raw, fmt, column, was: column == "passes", lambda raw, fmt, column: False)
     assert differences([row], [names_other_answer]) == [
         "passes of 'PLAYTEST: 1/1' (format 'text') is True, expected False (golden True)"]
+
+
+def test_the_editor_plane_corpus_is_the_reports_of_the_golden():
+    """verdict_reports.txt feeds the C# oracle test (Tests~/Decisions/PlaytestOracleTests.cs): it must list exactly the reports of verdict.txt, in order."""
+    lines = [line.split("\t") for line in CORPUS.read_text(encoding="utf-8").splitlines() if line and not line.startswith("#")]
+    corpus = [(None if fmt == "-" else fmt, json.loads(raw)) for fmt, raw in lines]
+    assert len(corpus) >= 500, "the corpus is nearly empty: the C# test would pass without checking"
+    assert corpus == [(fmt, raw) for kind, raw, fmt, *_ in golden_rows() if kind == "report"]

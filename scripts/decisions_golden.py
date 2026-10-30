@@ -13,6 +13,7 @@ Usage (from the repository root; <commit> is the commit the file is taken at, wr
   python scripts/decisions_golden.py retry <commit>
   python scripts/decisions_golden.py action_reads <commit>
   python scripts/decisions_golden.py is_write_wire <commit>
+  python scripts/decisions_golden.py verdict_reports <commit>
 """
 import asyncio
 import contextlib
@@ -85,6 +86,13 @@ IS_WRITE_WIRE_HEADER = """\
 # its arguments as JSON (the Python values that go on the wire are strings), the answer. Left out: unknown_is_write=True (a Python
 # authorization caller's question, C# has none), doctor (the tool is Python-only, and its fix is read by truthiness), and a call
 # with a value that no tool wrapper sends (a boolean, a number, None).
+"""
+
+VERDICT_REPORTS_HEADER = """\
+# The reports of the verdict golden (verdict.txt) as inputs of the C# plane, taken at {commit}: one line per report, tab-separated, the format
+# the caller asked for ("-" for none) and the report as a JSON string (null for no report). Inputs only: the expectation of the C# test
+# (Tests~/Decisions/PlaytestOracleTests.cs) is the answer of the hand-written CommandRouter.IsPlaytestSuccess, copied verbatim into
+# Tests~/Decisions/Oracle. test_verdict_golden.py checks that these are exactly the reports of verdict.txt.
 """
 
 _CS_CALL = re.compile(r'CommandRegistry\.(?:Register|RegisterAsync|RegisterAction)\(\s*"([^"]+)"')
@@ -365,6 +373,11 @@ def retry_lines() -> list[str]:
     return [repr((*key, *retry_answer(key))) for key in retry_keys()]
 
 
+def verdict_reports_lines() -> list[str]:
+    """The tab-separated (format, JSON report) lines of verdict_reports(), see VERDICT_REPORTS_HEADER."""
+    return [f"{fmt or '-'}\t{json.dumps(raw)}" for raw, fmt in verdict_reports()]
+
+
 def action_reads_lines() -> list[str]:
     """One literal line per (command, read action) of the live middleware_types.ACTION_READS, sorted."""
     from unity_mcp.middleware_types import ACTION_READS
@@ -390,7 +403,7 @@ def is_write_wire_lines() -> list[str]:
 
 _FAMILIES = {"is_write": (IS_WRITE_HEADER, is_write_lines), "verdict": (VERDICT_HEADER, verdict_lines), "guards": (GUARDS_HEADER, guards_lines),
              "retry": (RETRY_HEADER, retry_lines), "action_reads": (ACTION_READS_HEADER, action_reads_lines),
-             "is_write_wire": (IS_WRITE_WIRE_HEADER, is_write_wire_lines)}
+             "is_write_wire": (IS_WRITE_WIRE_HEADER, is_write_wire_lines), "verdict_reports": (VERDICT_REPORTS_HEADER, verdict_reports_lines)}
 
 
 def main(argv: list[str]) -> None:

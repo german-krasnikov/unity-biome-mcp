@@ -976,7 +976,7 @@ namespace UnityMCP.Editor.Tests
         public void IsPlaytestSuccess_JsonShapedBody_TextFormatUsesTextScanNotLedger()
         {
             // Body is a well-formed PASSING JSON ledger. If the leading '{' sniff
-            // routed this through IsPlaytestSuccessFromLedger, it would return true
+            // routed this to the ledger reading, it would return true
             // (see IsPlaytestSuccess_JsonReport_UsesLedgerNotRegex for the
             // format="json" case). Requesting format="text" explicitly must skip
             // that sniff and run the text scan instead, which requires a literal

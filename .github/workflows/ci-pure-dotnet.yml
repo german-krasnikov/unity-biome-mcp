@@ -17,7 +17,12 @@ on:
       - "scripts/source_patch_provider_pin.json"
       - "unity-plugin/Tests~/**"
       - "unity-plugin/Editor/Generated/**"
+      - "unity-plugin/Editor/Decisions/**"
+      - "unity-plugin/Editor/CommandRegistry.cs"
+      - "unity-plugin/Editor/CommandOptions.cs"
+      - "unity-plugin/Editor/JsonHelper.cs"
       - "dsl/decisions/**"
+      - "server/tests/golden/decisions/**"
       - ".github/workflows/ci-pure-dotnet.yml"
   pull_request:
     branches: [master]
@@ -35,7 +40,12 @@ on:
       - "scripts/source_patch_provider_pin.json"
       - "unity-plugin/Tests~/**"
       - "unity-plugin/Editor/Generated/**"
+      - "unity-plugin/Editor/Decisions/**"
+      - "unity-plugin/Editor/CommandRegistry.cs"
+      - "unity-plugin/Editor/CommandOptions.cs"
+      - "unity-plugin/Editor/JsonHelper.cs"
       - "dsl/decisions/**"
+      - "server/tests/golden/decisions/**"
       - ".github/workflows/ci-pure-dotnet.yml"
   workflow_dispatch:
 
