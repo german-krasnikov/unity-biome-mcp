@@ -12,5 +12,9 @@ scripts/source_patch_provider_pin.json text eol=lf
 # everywhere; review tools fold the generated files (docs/product/layout.md of biome-dsl, "Markers").
 dsl/** text eol=lf
 server/src/unity_mcp/tools/generated/** text eol=lf linguist-generated=true gitlab-generated
+# The decisions (dsl/decisions, step 7.2): the Python and C# they are printed into and the machine rows of their examples, LF as well.
+server/src/unity_mcp/decisions/generated/*_logic.py text eol=lf linguist-generated=true gitlab-generated
+unity-plugin/Editor/Generated/*.g.cs text eol=lf linguist-generated=true gitlab-generated
+dsl/decisions/*.json text eol=lf linguist-generated=true gitlab-generated
 # The Tools Reference holds a generated region: LF as well, or `scripts/dsl.sh check` would compare other bytes on Windows.
 docs/tools/index.md text eol=lf

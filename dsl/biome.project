@@ -1,5 +1,5 @@
 # The tool catalog of unity-biome-mcp: dsl/tools.biome printed through constructs/tool.construct.
-TOOLCHAIN 61cc0c34fc4ed872a24ca87d320d6b369b0eb1e1
+TOOLCHAIN 224bf1022bc70fa3f1cb42775b358d1837c86c3b
 CONSTRUCTS constructs
 
 GENERATE py-specs  render {dir}/tools.biome pyspec   {dir}/../server/src/unity_mcp/tools/generated/catalog_specs.py
