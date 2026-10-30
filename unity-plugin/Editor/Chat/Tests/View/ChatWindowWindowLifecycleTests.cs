@@ -8,6 +8,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Chat.Turn;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
@@ -87,7 +88,7 @@ namespace UnityMCP.Editor.Chat.Tests
             => WithOwnedWindow(w => Assert.IsFalse((bool)F("_agentMode").GetValue(w)));
 
         [Test] public void Open_Activity_DefaultIdle()
-            => WithOwnedWindow(w => Assert.AreEqual(ActivityPhase.Idle, ((ChatActivityState)F("_activity").GetValue(w)).Phase));
+            => WithOwnedWindow(w => Assert.AreEqual(ChatTurnPhase.Idle, w._turn.Phase));
 
         [Test] public void Open_InputTokens_DefaultZero()
             => WithOwnedWindow(w => Assert.AreEqual(0, (int)F("_inputTokens").GetValue(w)));

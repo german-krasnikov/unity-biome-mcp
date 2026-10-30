@@ -19,6 +19,7 @@ namespace UnityMCP.Editor.Chat.Turn
         public ChatTurnViewModel View { get; private set; }
         public ChatTurnPhase Phase => View.Phase;
         public bool CanSend => _decisions.CanSend(new ChatTurnCanSendInput(View.Phase));   // the DECISION canSend: no second copy of "idle"
+        public bool Active => _decisions.Active(new ChatTurnActiveInput(View.Phase));      // the DECISION active: a turn is open
         public bool Asking => View.Asks > 0;
 
         public ChatTurnDriver(IChatTurnPorts ports, Action<ChatTurnViewModel> redraw, Action<Exception> onError)

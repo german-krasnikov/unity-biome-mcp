@@ -16,13 +16,16 @@ namespace UnityMCP.Editor.Chat.Turn.Tests
         {
             var d = new ChatTurnDriver(new ChatTurnFakePorts(), null, Ignore);
             Assert.That(d.CanSend, Is.True);
+            Assert.That(d.Active, Is.False);
             d.Dispatch(ChatTurnIntent.Send());
             d.Dispatch(ChatTurnIntent.AskRaised());
             Assert.That(d.Phase, Is.EqualTo(ChatTurnPhase.Sending));
             Assert.That(d.CanSend, Is.False);
+            Assert.That(d.Active, Is.True);
             Assert.That(d.Asking, Is.True);
             d.Dispatch(ChatTurnIntent.Cancel());
             Assert.That(d.CanSend, Is.True);
+            Assert.That(d.Active, Is.False);
             Assert.That(d.Asking, Is.False);
         }
 

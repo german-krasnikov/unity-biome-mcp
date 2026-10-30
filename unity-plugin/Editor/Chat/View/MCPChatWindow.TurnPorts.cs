@@ -13,6 +13,7 @@ namespace UnityMCP.Editor.Chat
 {
     public partial class MCPChatWindow : IChatTurnPorts
     {
+        internal ChatTurnDriver _turn;                                        // the one door of the FEATURE: every way out of a turn is a Dispatch (made in OnEnable; internal for the tests)
         private string    _undoLabel;                                          // label of the undo group of the turn being sent
         private ChatEvent _exitEvent;                                          // the TurnDone or Error event that ends the turn (usage, error text)
         private readonly HashSet<string> _turnAskIds = new HashSet<string>();  // MCP asks raised while the turn is open: they die with it
@@ -34,12 +35,14 @@ namespace UnityMCP.Editor.Chat
         void IChatTurnPorts.NoteProcessExited() => Run(() => _transcript?.AppendOrExtendAssistant("\n[Process exited]"));
         void IChatTurnPorts.NoteTimedOut()      => Run(AppendTimeoutNote);
         void IChatTurnPorts.FinalizeAssistant() => Run(() => _transcript?.FinalizeAssistant());
-        void IChatTurnPorts.ErrorChip()         => Run(() => _transcript?.AppendToolChip(_exitEvent.Text ?? "Error", ok: false));
+        void IChatTurnPorts.ErrorChip()         => Run(() => AppendErrorChip(_exitEvent.Text));
         void IChatTurnPorts.AfterAnswer()       => Run(ShowUsageAndAutoFixChips);
         void IChatTurnPorts.RestoreButton()     => Run(() => _transcript?.Append(RestoreButton.Create(_undoTracker)));
         void IChatTurnPorts.OfferApprove()      => Run(OfferApproveButton);
         void IChatTurnPorts.RestartBackend()    => Run(() => { _backend?.Stop(); _backend = null; CreateBackend(); });
         void IChatTurnPorts.ResetTurn()         => Run(ResetTurnFlags);
+
+        private void AppendErrorChip(string text) => _transcript?.AppendToolChip(text ?? "Error", ok: false);
 
         // PR-05 05.2: the asks this turn raised would otherwise wait their 300 s for an answer that the dead turn cannot use.
         // Asks of other providers, raised before the turn, are not touched; OnDisable still cancels every ask of the window.

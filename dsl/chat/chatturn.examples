@@ -1,6 +1,6 @@
 # Independent requirements of the chat-turn exit protocol (step 7.3), written from the hand-written exits at 86eca971 and the rules below, never from generated output.
 # PINNED by hand tests (kept verbatim): finalize BEFORE the error chip (TranscriptReloadEdgeCaseTests 16b); the dead/timeout note BEFORE finalize (it extends the open bubble);
-# every exit releases the lock and closes the undo group (CancelTurnCleanupTests, BackendSwitchMidTurnTests, ReloadGuardTests); OnDisable cancels the asks of its window (MCPChatWindowAskUserLifecycleTests); the resolver refreshes BEFORE finalize (F20).
+# every exit releases the lock and closes the undo group (CancelTurnCleanupTests, deleted in S4 of step 7.3 because these examples state its cases; BackendSwitchMidTurnTests, ReloadGuardTests); OnDisable cancels the asks of its window (MCPChatWindowAskUserLifecycleTests); the resolver refreshes BEFORE finalize (F20).
 # ORDER DECISION (requirement change vs 86eca971, owner confirms, P15): one order for all eight exits: resources (unlock, asks, undo), then the transcript (notes, finalize, error chip, tail,
 # restore, approve), then the backend, the per-turn scratch LAST. done, error, dead and timeout already release first; cancel and abort used to finalize first (invisible). Also new: asks=0 and
 # cancelAsks on every exit (hand code: 2 of 8 and 1 of 8), undoClose on reset (hand code forgets the group with Invalidate), a second exit is inert (TurnDone and Error had no guard).

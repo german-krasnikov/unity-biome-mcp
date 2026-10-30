@@ -310,7 +310,7 @@ namespace UnityMCP.Editor.Chat.Tests
         //   → Confirm 16b (ErrorTurn_ViaProductionMethod_ClearsTaskCardAndCreatesNew) still passes.
         //
         // The production path already handles this correctly:
-        //   MCPChatWindow.ApplyErrorTurn → FinalizeAssistant → ClearForNextTurn (see 16b).
+        //   the exit `error` runs FinalizeAssistant → ClearForNextTurn before the chip (see 16b).
         [Test]
         public void ErrorChip_WithoutFinalizeAssistant_BugSnapshot_StalesTaskCard()
         {
@@ -333,11 +333,11 @@ namespace UnityMCP.Editor.Chat.Tests
                 "both TaskCreates land in the same stale card");
         }
 
-        // 16b. FIX: MCPChatWindow.ApplyErrorTurn calls FinalizeAssistant internally,
-        //      so the next turn's TaskCreate gets a fresh card.
-        //      RED B: remove FinalizeAssistant from ApplyErrorTurn → test fails (1 stale card).
+        // 16b. FIX: the exit `error` finalizes the assistant before the error chip (ports finalizeAssistant, errorChip; the order is
+        //      the example error_finalizes_before_the_error_chip of dsl/chat/chatturn.examples), so the next turn's TaskCreate gets a fresh card.
+        //      RED B: leave FinalizeAssistant out of the sequence → test fails (1 stale card).
         [Test]
-        public void ErrorTurn_ViaProductionMethod_ClearsTaskCardAndCreatesNew()
+        public void ErrorTurn_FinalizeThenChip_ClearsTaskCardAndCreatesNew()
         {
             var t = Make(out var c);
 
@@ -345,16 +345,17 @@ namespace UnityMCP.Editor.Chat.Tests
             t.AppendOrExtendAssistant("Создаю задачу: анализ сцены «Возрождение»");
             t.AppendToolChip("TaskCreate", ok: true, toolId: "task-т1-01");
 
-            // Call the actual production method that EventHandlers invokes for Error events.
-            // If FinalizeAssistant is removed from ApplyErrorTurn, only 1 card appears → RED.
-            MCPChatWindow.ApplyErrorTurn(t, "✕ Ошибка подключения к Claude API");
+            // The two effects of the exit `error`, in the order of the protocol.
+            // If FinalizeAssistant is left out, only 1 card appears → RED.
+            t.FinalizeAssistant();
+            t.AppendToolChip("✕ Ошибка подключения к Claude API", ok: false);
 
             // Next turn: fresh TaskCreate must get its own card
             t.AppendToolChip("TaskCreate", ok: true, toolId: "task-т2-02");
 
             var taskCards = c.Query(className: TaskChecklistCard.CardClass).ToList();
             Assert.AreEqual(2, taskCards.Count,
-                "ApplyErrorTurn must call FinalizeAssistant first — removing it leaves " +
+                "FinalizeAssistant must run before the error chip — leaving it out leaves " +
                 "_taskCard stale and both TaskCreates land in the same card");
         }
 
