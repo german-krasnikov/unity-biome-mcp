@@ -21,7 +21,7 @@ _EDITOR = Path(__file__).resolve().parents[2] / "unity-plugin" / "Editor"
 _CALL = re.compile(r'CommandRegistry\.(Register|RegisterAsync|RegisterAction)\(\s*"([^"]+)"')
 
 KNOWN_DIVERGENT = {
-    "mutating": {"batch", "build", "cancel_test_run", "checkpoint", "editor", "export_playtest_aliases_to_defs", "invoke_method",
+    "mutating": {"batch", "build", "cancel_test_run", "checkpoint", "export_playtest_aliases_to_defs", "invoke_method",
                  "move_to", "package", "recompile", "run_playtest", "run_tests", "scene", "start_playtest",
                  "sync_playtest_aliases_from_defs", "test_step", "timeline"},
     "runtime": set(),
@@ -68,7 +68,7 @@ def _csv(args: str, key: str) -> set[str]:
 
 
 def registrations(sources: list[str]) -> dict[str, dict]:
-    """name -> the flags of its Register call: mutating, runtime, required and optional (sets), max_chars."""
+    """name -> the flags of its Register call: mutating, runtime, play_ok, no_undo, required and optional (sets), max_chars."""
     found = {}
     for text in sources:
         for match in _CALL.finditer(text):
@@ -78,6 +78,8 @@ def registrations(sources: list[str]) -> dict[str, dict]:
             found[name] = {
                 "mutating": bool(re.search(r"\bmutating:\s*true\b", args)),
                 "runtime": bool(re.search(r"\bruntime:\s*true\b", args)),
+                "play_ok": bool(re.search(r"\bplayOk:\s*true\b", args)),
+                "no_undo": bool(re.search(r"\bnoUndo:\s*true\b", args)),
                 "required": _csv(args, "required") | ({"action"} if kind == "RegisterAction" else set()),
                 "optional": _csv(args, "optional"),
                 "max_chars": int(chars.group(1)) if chars else 0,
@@ -127,17 +129,20 @@ def test_the_tools_of_the_catalog_state_their_response_limit():
 _CS = '''
     CommandRegistry.Register("a", args => H.F(  // it's a comment with a quote "
         JsonHelper.ExtractString(args, "required: \\"x\\""), 'c'),
-        mutating: true, required: "p,q", optional: "r", maxResponseChars: 30000);
-    CommandRegistry.RegisterAction("b", ExecB, required: "", optional: "s,t");
+        mutating: true, playOk: true, required: "p,q", optional: "r", maxResponseChars: 30000);
+    CommandRegistry.RegisterAction("b", ExecB, required: "", optional: "s,t", noUndo: true);
     CommandRegistry.RegisterAsync("c", AsyncC, runtime: true, required: "u", optional: "");
 '''
 
 
 def test_the_registration_reader_takes_the_flags_of_the_call_and_nothing_nested():
     found = registrations([_CS])
-    assert found["a"] == {"mutating": True, "runtime": False, "required": {"p", "q"}, "optional": {"r"}, "max_chars": 30000}
-    assert found["b"] == {"mutating": False, "runtime": False, "required": {"action"}, "optional": {"s", "t"}, "max_chars": 0}
-    assert found["c"] == {"mutating": False, "runtime": True, "required": {"u"}, "optional": set(), "max_chars": 0}
+    assert found["a"] == {"mutating": True, "runtime": False, "play_ok": True, "no_undo": False, "required": {"p", "q"}, "optional": {"r"},
+                          "max_chars": 30000}
+    assert found["b"] == {"mutating": False, "runtime": False, "play_ok": False, "no_undo": True, "required": {"action"}, "optional": {"s", "t"},
+                          "max_chars": 0}
+    assert found["c"] == {"mutating": False, "runtime": True, "play_ok": False, "no_undo": False, "required": {"u"}, "optional": set(),
+                          "max_chars": 0}
 
 
 def test_each_kind_of_difference_is_found():

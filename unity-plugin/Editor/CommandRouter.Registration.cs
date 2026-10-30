@@ -269,7 +269,9 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "path_a"),
                 JsonHelper.ExtractString(args, "path_b")),
                 required: "path_a,path_b", optional: "");
-            CommandRegistry.Register("editor", ExecEditor,
+            // Python is the authority (owner 2026-10-29): every action but the reads state and project_path is a write, so the editor is
+            // registered mutating. playOk: it must run in Play Mode (stop, pause, step); noUndo: it changes no Undo-recorded scene data.
+            CommandRegistry.Register("editor", ExecEditor, mutating: true, playOk: true, noUndo: true,
                 required: "", optional: "action,path,paths,enable");
             CommandRegistry.Register("ping_object", args =>
                 EditorStateHelper.PingObject(JsonHelper.ExtractString(args, "path")),
@@ -613,12 +615,12 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("attach_uitk", ExecAttachUITK, mutating: true,
                 required: "path",
                 optional: "uxml,panel_settings,sort_order");
-            // PR-04: mutation classification and batch exclusion now declared here by the
-            // owner, not hardcoded in CommandRegistry.IsMutating/IsBatchable.
+            // PR-04: batch exclusion declared here by the owner, not hardcoded in CommandRegistry.IsBatchable. Which actions
+            // read is the catalog's (READ read, dsl/tools.biome); a call with no action is a write, as in Python.
             CommandRegistry.Register("uitk_file", ExecUitkFile, mutating: true,
                 required: "path",
                 optional: "action,content,selector,attr,value,class,parent,tag,attrs,prop",
-                mutatingArgsPolicy: IsUitkFileMutating, notBatchable: true);
+                notBatchable: true);
 
             // Action-based (Phase 26, mutating). Per-action params genuinely vary (e.g. asset's
             // create/move/delete each need different fields) — flat contract is intentionally

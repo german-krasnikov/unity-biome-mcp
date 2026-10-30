@@ -42,10 +42,6 @@ namespace UnityMCP.Editor
 
         // All mutations happen on Unity main thread (dispatched by MCPServer).
         private static readonly Dictionary<string, Entry> _commands = new Dictionary<string, Entry>();
-        private static readonly HashSet<string> _navMeshReadActions = new HashSet<string>
-        {
-            "sample", "path", "raycast", "status", "get_settings"
-        };
 
         // True after RegisterAll() completes. volatile: written once on main thread (RegisterAll),
         // read on TCP background thread. Reset by Clear() on each domain reload.
@@ -260,56 +256,18 @@ namespace UnityMCP.Editor
         internal static bool IsMutating(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.Mutating;
 
         /// <summary>
-        /// Returns the effective mutability for one invocation. Most commands use their
-        /// registration-level classification; mixed read/write commands narrow it from args.
-        /// Unknown or unrecognised actions remain conservatively mutating.
+        /// Returns the effective mutability for one invocation: the decision isMutating (dsl/decisions/mutability.logic; Python's
+        /// middleware_types.is_write is the authority, owner 2026-10-29) over the registration's base (registered mutating or not, or not
+        /// registered) and the arguments (Decisions/MutabilityFacts.cs). A command whose action is not one of its read actions, or that has
+        /// none, is a write. An owner-declared MutatingArgsPolicy (PR-04, plugins) classifies its own command instead.
         /// </summary>
         internal static bool IsMutating(string cmd, string argsJson)
         {
-            // PR-04: owner-declared policy takes precedence over every cascade below —
-            // lets a command's own registration site classify itself without editing this
-            // method. See CommandRouter.MediaHandlers.cs's IsUitkFileMutating for the first
-            // real user (uitk_file, migrated off the hardcoded branch that used to live here).
-            if (_commands.TryGetValue(cmd, out var policyEntry) && policyEntry.MutatingArgsPolicy != null)
-                return policyEntry.MutatingArgsPolicy(argsJson);
-            if (cmd == "editor")
-            {
-                // "editor" is base-registered non-mutating (play/stop/select/state/
-                // project_path don't corrupt scene data — see CommandRouter.
-                // IsMutatingCommand). mutation_mode is the one action with real
-                // state-changing effect (P0-70): a query (no "enable") is a read;
-                // a set (enable present) is a write, regardless of the base flag.
-                var editorAction = JsonHelper.ExtractString(argsJson, "action") ?? "state";
-                return editorAction == "mutation_mode" &&
-                    JsonHelper.ExtractString(argsJson, "enable") != null;
-            }
-            if (!IsMutating(cmd)) return false;
-            if (cmd == "navmesh")
-            {
-                // Missing/unknown/case-mismatched actions stay conservatively mutating.
-                var navMeshAction = JsonHelper.ExtractString(argsJson, "action");
-                return navMeshAction == null || !_navMeshReadActions.Contains(navMeshAction);
-            }
-            if (cmd == "wait_until")
-            {
-                // Missing/false only polls. Any other value may stop Play Mode.
-                var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail");
-                return abortOnFail != null && !abortOnFail.Equals("false", StringComparison.Ordinal);
-            }
-            if (cmd == "get_changes")
-            {
-                // ChangeWatcher defaults clear=true; only explicit false preserves its buffer.
-                var clear = JsonHelper.ExtractString(argsJson, "clear");
-                return clear == null || !clear.Equals("false", StringComparison.Ordinal);
-            }
-            if (cmd == "profile")
-            {
-                var profileAction = JsonHelper.ExtractString(argsJson, "action");
-                return profileAction == null ||
-                    (profileAction != "status" && profileAction != "analyze" &&
-                     profileAction != "compare" && profileAction != "list_sessions");
-            }
-            return true;
+            var registered = _commands.TryGetValue(cmd, out var entry);
+            if (registered && entry.MutatingArgsPolicy != null)
+                return entry.MutatingArgsPolicy(argsJson);
+            var callBase = !registered ? "unknown" : entry.Mutating ? "write" : "read";
+            return Decisions.Mutability.Policy.IsMutating(Decisions.MutabilityFacts.Read(cmd, argsJson, callBase));
         }
 
         internal static bool IsRuntime(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.Runtime;

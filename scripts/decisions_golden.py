@@ -12,6 +12,7 @@ Usage (from the repository root; <commit> is the commit the file is taken at, wr
   python scripts/decisions_golden.py guards <commit>
   python scripts/decisions_golden.py retry <commit>
   python scripts/decisions_golden.py action_reads <commit>
+  python scripts/decisions_golden.py is_write_wire <commit>
 """
 import asyncio
 import contextlib
@@ -75,6 +76,15 @@ ACTION_READS_HEADER = """\
 # The read actions of the action-parameterised commands as middleware_types.ACTION_READS stated them at {commit}, when the dictionary was a
 # literal of the module, before the tool catalog (dsl/tools.biome, READ lines) became its source. One line per pair: (command, action).
 # Do not regenerate this file to remove a difference: an intended change is an INTENDED entry of test_action_reads_golden.py.
+"""
+
+IS_WRITE_WIRE_HEADER = """\
+# The calls of the is_write golden that a Unity command can receive, for the C# side: what middleware_types.is_write answered at {commit}
+# (read out of is_write.txt, not asked of the code) and the registry state it answered under. One line per call, tab-separated: the base of
+# the command (read, write or unknown: _KNOWN_SAFE_READS and READ_CMDS are read, WRITE_CMDS write, anything else unknown), the command,
+# its arguments as JSON (the Python values that go on the wire are strings), the answer. Left out: unknown_is_write=True (a Python
+# authorization caller's question, C# has none), doctor (the tool is Python-only, and its fix is read by truthiness), and a call
+# with a value that no tool wrapper sends (a boolean, a number, None).
 """
 
 _CS_CALL = re.compile(r'CommandRegistry\.(?:Register|RegisterAsync|RegisterAction)\(\s*"([^"]+)"')
@@ -362,8 +372,25 @@ def action_reads_lines() -> list[str]:
     return [repr((cmd, action)) for cmd in sorted(ACTION_READS) for action in sorted(ACTION_READS[cmd])]
 
 
+def is_write_wire_lines() -> list[str]:
+    """The tab-separated lines of the wire calls of server/tests/golden/decisions/is_write.txt (see IS_WRITE_WIRE_HEADER)."""
+    import ast
+
+    from unity_mcp.middleware_types import _KNOWN_SAFE_READS, READ_CMDS, WRITE_CMDS
+
+    golden = (_ROOT / "server" / "tests" / "golden" / "decisions" / "is_write.txt").read_text(encoding="utf-8").splitlines()
+    lines = []
+    for cmd, args, unknown, answer in (ast.literal_eval(line) for line in golden if line and not line.startswith("#")):
+        if unknown or cmd == "doctor" or not all(isinstance(value, str) for value in args.values()):
+            continue
+        base = "read" if cmd in _KNOWN_SAFE_READS else "write" if cmd in WRITE_CMDS else "read" if cmd in READ_CMDS else "unknown"
+        lines.append(f"{base}\t{cmd}\t{json.dumps(args, sort_keys=True)}\t{'true' if answer else 'false'}")
+    return lines
+
+
 _FAMILIES = {"is_write": (IS_WRITE_HEADER, is_write_lines), "verdict": (VERDICT_HEADER, verdict_lines), "guards": (GUARDS_HEADER, guards_lines),
-             "retry": (RETRY_HEADER, retry_lines), "action_reads": (ACTION_READS_HEADER, action_reads_lines)}
+             "retry": (RETRY_HEADER, retry_lines), "action_reads": (ACTION_READS_HEADER, action_reads_lines),
+             "is_write_wire": (IS_WRITE_WIRE_HEADER, is_write_wire_lines)}
 
 
 def main(argv: list[str]) -> None:

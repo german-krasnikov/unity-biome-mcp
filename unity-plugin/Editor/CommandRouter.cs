@@ -134,10 +134,7 @@ namespace UnityMCP.Editor
             if (cmd == "set_parent" || cmd == "execute_code" || cmd == "screenshot" ||
                 cmd == "wait_until")
                 return true;
-            if (cmd == "editor")
-                // Toggling Source Patch intent touches no scene data — never
-                // blocked by "changes will be lost, stop play mode first".
-                return JsonHelper.ExtractString(argsJson, "action") == "mutation_mode";
+            // editor is playOk: (registration), every action of it, including the Source Patch intent that touches no scene data.
             if (cmd != "profile") return false;
             var action = JsonHelper.ExtractString(argsJson, "action");
             return action == "start" || action == "stop";
