@@ -32,6 +32,9 @@ namespace UnityMCP.Editor
             // PR-04: owner-declared mutation/batch policy (see CommandOptions.cs).
             public Func<string, bool> MutatingArgsPolicy;
             public bool NotBatchable;
+            // Step 7.2 (M3.0): see CommandOptions.
+            public bool PlayOk;
+            public bool NoUndo;
             // N1a T7: registration data, not a prefix guess. null = host/built-in;
             // non-null = the registering plugin's IMCPPlugin.Name.
             public string Owner;
@@ -130,6 +133,8 @@ namespace UnityMCP.Editor
                 MaxResponseChars = options.MaxResponseChars,
                 MutatingArgsPolicy = options.MutatingArgsPolicy,
                 NotBatchable = options.NotBatchable,
+                PlayOk = options.PlayOk,
+                NoUndo = options.NoUndo,
                 Owner = CallerPluginName
             };
         }
@@ -139,7 +144,8 @@ namespace UnityMCP.Editor
             bool alwaysAllowed = false, bool allowedDuringCompile = false,
             Func<string, string, string> fileHandler = null, string description = null,
             int maxResponseChars = 0,
-            Func<string, bool> mutatingArgsPolicy = null, bool notBatchable = false) =>
+            Func<string, bool> mutatingArgsPolicy = null, bool notBatchable = false,
+            bool playOk = false, bool noUndo = false) =>
             Register(cmd, handler, new CommandOptions
             {
                 Mutating = mutating,
@@ -153,7 +159,9 @@ namespace UnityMCP.Editor
                 Description = description,
                 MaxResponseChars = maxResponseChars,
                 MutatingArgsPolicy = mutatingArgsPolicy,
-                NotBatchable = notBatchable
+                NotBatchable = notBatchable,
+                PlayOk = playOk,
+                NoUndo = noUndo
             });
 
         // action is always required (enforced by the wrapper below) — callers only
@@ -183,13 +191,15 @@ namespace UnityMCP.Editor
                 Optional = Split(options.Optional),
                 Description = options.Description,
                 MaxResponseChars = options.MaxResponseChars,
+                PlayOk = options.PlayOk,
+                NoUndo = options.NoUndo,
                 Owner = CallerPluginName
             };
         }
 
         public static void RegisterAction(string cmd, Func<string, string, string> handler, bool mutating = false, bool runtime = false,
             string required = null, string optional = null, bool alwaysAllowed = false, bool allowedDuringCompile = false,
-            string description = null, int maxResponseChars = 0) =>
+            string description = null, int maxResponseChars = 0, bool playOk = false, bool noUndo = false) =>
             RegisterAction(cmd, handler, new CommandOptions
             {
                 Mutating = mutating,
@@ -199,7 +209,9 @@ namespace UnityMCP.Editor
                 AlwaysAllowed = alwaysAllowed,
                 AllowedDuringCompile = allowedDuringCompile,
                 Description = description,
-                MaxResponseChars = maxResponseChars
+                MaxResponseChars = maxResponseChars,
+                PlayOk = playOk,
+                NoUndo = noUndo
             });
 
         // handler signature: (id, argsJson, tcs)
@@ -220,6 +232,8 @@ namespace UnityMCP.Editor
                 Optional = Split(options.Optional),
                 Description = options.Description,
                 MaxResponseChars = options.MaxResponseChars,
+                PlayOk = options.PlayOk,
+                NoUndo = options.NoUndo,
                 Owner = CallerPluginName
             };
         }
@@ -227,7 +241,7 @@ namespace UnityMCP.Editor
         public static void RegisterAsync(string cmd, Action<string, string, TaskCompletionSource<string>> handler,
             bool mutating = false, bool runtime = false, string required = null, string optional = null,
             bool alwaysAllowed = false, bool allowedDuringCompile = false, string description = null,
-            int maxResponseChars = 0) =>
+            int maxResponseChars = 0, bool playOk = false, bool noUndo = false) =>
             RegisterAsync(cmd, handler, new CommandOptions
             {
                 Mutating = mutating,
@@ -237,7 +251,9 @@ namespace UnityMCP.Editor
                 AlwaysAllowed = alwaysAllowed,
                 AllowedDuringCompile = allowedDuringCompile,
                 Description = description,
-                MaxResponseChars = maxResponseChars
+                MaxResponseChars = maxResponseChars,
+                PlayOk = playOk,
+                NoUndo = noUndo
             });
 
         public static bool IsRegistered(string cmd) => _commands.ContainsKey(cmd);
@@ -297,6 +313,10 @@ namespace UnityMCP.Editor
         }
 
         internal static bool IsRuntime(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.Runtime;
+        // Step 7.2 (M3.0): registration data, see CommandOptions. IsPlayOk lets a mutating command through the Play Mode guard
+        // (CommandRouter.IsAllowedMutationInPlayMode); IsNoUndo keeps its calls out of the Undo history and the change watcher.
+        internal static bool IsPlayOk(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.PlayOk;
+        internal static bool IsNoUndo(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.NoUndo;
         // Guard-list flags (DRY audit issues-23-29 Cat.1) — single source of truth, travels
         // with the registration. CommandRouter.IsAlwaysAllowed/IsAllowedDuringCompile delegate here.
         internal static bool IsAlwaysAllowed(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.AlwaysAllowed;

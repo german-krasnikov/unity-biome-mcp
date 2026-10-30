@@ -183,7 +183,7 @@ namespace UnityMCP.Editor
                     }
 
                     okCount++;
-                    if (CommandRegistry.IsMutating(cmd, argsJson))
+                    if (CommandRegistry.IsMutating(cmd, argsJson) && !CommandRegistry.IsNoUndo(cmd))
                     {
                         ChangeWatcher.RecordMutation($"MCP_BATCH_{cmd.ToUpper()}");
                         _batchRootMutationCount++;

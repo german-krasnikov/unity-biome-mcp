@@ -20,6 +20,10 @@
   <ItemGroup>
     <!-- Relative to this file's own directory (unity-plugin/Tests~/Decisions/). -->
     <Compile Include="../../Editor/Generated/*.g.cs" />
+    <!-- the real files under test; the Unity-only symbols they touch are in UnityStubs.cs -->
+    <Compile Include="../../Editor/CommandRegistry.cs" />
+    <Compile Include="../../Editor/CommandOptions.cs" />
+    <Compile Include="../../Editor/JsonHelper.cs" />
     <None Include="../../../dsl/decisions/*.json" Link="rows/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <!-- the read actions of the commands as ACTION_READS stated them before the catalog printed them (the oracle of test_action_reads_golden.py) -->
     <None Include="../../../server/tests/golden/decisions/action_reads.txt" Link="rows/action_reads.txt" CopyToOutputDirectory="PreserveNewest" />

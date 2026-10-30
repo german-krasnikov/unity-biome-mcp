@@ -129,6 +129,8 @@ namespace UnityMCP.Editor
         // this permission separate from read/write classification.
         internal static bool IsAllowedMutationInPlayMode(string cmd, string argsJson = null)
         {
+            if (CommandRegistry.IsPlayOk(cmd))  // registration data (playOk:), step 7.2
+                return true;
             if (cmd == "set_parent" || cmd == "execute_code" || cmd == "screenshot" ||
                 cmd == "wait_until")
                 return true;
@@ -173,10 +175,12 @@ namespace UnityMCP.Editor
                 var guard = CheckGuards(id, cmd, argsJson);
                 if (guard != null) return guard;
 
-                bool mutating = IsMutatingCommand(cmd, argsJson);
+                // undo: a mutating call opens an Undo group and is recorded, unless its registration says noUndo:
+                // (a mutating command whose effect is no Undo-recorded scene change, step 7.2 M3.0).
+                bool undo = IsMutatingCommand(cmd, argsJson) && !CommandRegistry.IsNoUndo(cmd);
                 int groupId = -1;
 
-                if (mutating)
+                if (undo)
                     groupId = UndoGroupHelper.OpenNamedGroup($"MCP: {cmd}");
                 else
                     UndoGroupHelper.SetCommandFallback(cmd);
@@ -184,7 +188,7 @@ namespace UnityMCP.Editor
                 if (CommandRegistry.TryGetFileHandler(cmd, out var fileHandler))
                 {
                     var result = fileHandler(id, argsJson);
-                    if (mutating)
+                    if (undo)
                         UndoGroupHelper.CloseNamedGroup(groupId);
                     else
                         UndoGroupHelper.EndGroup();
@@ -208,11 +212,11 @@ namespace UnityMCP.Editor
                 }
                 catch
                 {
-                    if (mutating) UndoGroupHelper.CloseNamedGroup(groupId);
+                    if (undo) UndoGroupHelper.CloseNamedGroup(groupId);
                     throw;
                 }
 
-                if (mutating)
+                if (undo)
                 {
                     UndoGroupHelper.CloseNamedGroup(groupId);
                     UndoGroupStack.Push(groupId, mutations: 1);
