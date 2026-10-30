@@ -1274,6 +1274,7 @@ namespace UnityMCP.Editor.Tests
         [TestCase("editor", true, true)]
         [TestCase("build", true, false)]
         [TestCase("move_to", true, false)]
+        [TestCase("package", true, false)]
         public void RepairedCommand_IsMutatingAndKeepsPlayModeAndUndo(string cmd, bool playOk, bool noUndo)
         {
             Assert.IsTrue(CommandRegistry.IsMutating(cmd), cmd + " is mutating, as in Python");
