@@ -664,6 +664,7 @@ namespace UnityMCP.Editor
                 mutating: true, playOk: true,
                 required: "path,position", optional: "timeout");
             CommandRegistry.RegisterAsync("test_step", AsyncTestStep, runtime: true,
+                mutating: true, playOk: true,
                 required: "path,position", optional: "checks_before,checks_after,wait_after,timeout");
             // B05: the Play-mode gate moved past parsing — AsyncRunPlaytest scans the script's
             // `# @needs editmode` header itself and decides, instead of registration pre-blocking

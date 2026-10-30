@@ -20,6 +20,7 @@ FLIPPED: dict[str, tuple[bool, bool]] = {
     "run_playtest": (True, False),  # async; the playtest gates Play Mode itself (B05), so the Play Mode block of a mutating command must not meet it
     "run_tests": (True, False),  # async; the test runner drives Play Mode itself
     "start_playtest": (True, False),  # async; the same gates as run_playtest (E02)
+    "test_step": (True, False),  # async, runtime: it steps the running game
 }
 
 
