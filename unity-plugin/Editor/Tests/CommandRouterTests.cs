@@ -1225,9 +1225,10 @@ namespace UnityMCP.Editor.Tests
         public bool Pr04_IsRegistered_FiveCommands(string cmd)
             => CommandRegistry.IsRegistered(cmd);
 
-        // Base (no-args) mutating flag. run_playtest is registered non-mutating at the base
-        // level because Play-mode scenario execution is not itself an Edit-mode scene
-        // mutation (see SCENE_STATE_NEUTRAL_WRITES on the Python side). The editor is
+        // Base (no-args) mutating flag. run_playtest is mutating as in Python since step 7.2
+        // (a playtest can change the scene; SCENE_STATE_NEUTRAL_WRITES on the Python side
+        // only keeps it out of the consecutive-write guard); its playOk registration lets it
+        // through the Play Mode block, the script header decides (B05). The editor is
         // mutating as in Python since step 7.2 (its reads are narrowed per call by the READ
         // lines of the catalog; playOk and noUndo keep Play Mode and the Undo history as
         // they were). uitk_file's base flag is true, narrowed per call to its READ action --
@@ -1235,7 +1236,7 @@ namespace UnityMCP.Editor.Tests
         [TestCase("inspect", ExpectedResult = false)]
         [TestCase("set_property", ExpectedResult = true)]
         [TestCase("editor", ExpectedResult = true)]
-        [TestCase("run_playtest", ExpectedResult = false)]
+        [TestCase("run_playtest", ExpectedResult = true)]
         public bool Pr04_IsMutating_BaseFlag_FourCommands(string cmd)
             => CommandRegistry.IsMutating(cmd);
 
@@ -1275,6 +1276,7 @@ namespace UnityMCP.Editor.Tests
         [TestCase("build", true, false)]
         [TestCase("move_to", true, false)]
         [TestCase("package", true, false)]
+        [TestCase("run_playtest", true, false)]
         public void RepairedCommand_IsMutatingAndKeepsPlayModeAndUndo(string cmd, bool playOk, bool noUndo)
         {
             Assert.IsTrue(CommandRegistry.IsMutating(cmd), cmd + " is mutating, as in Python");

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`build` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. Play Mode is unchanged (`playOk`).
 - **`move_to` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. It still runs in Play Mode (`playOk`).
 - **`package` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse its write actions; `list` and `search` stay reads. Play Mode is unchanged (`playOk`).
+- **`run_playtest` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it (a playtest can change the scene). The script header still decides Play Mode (`playOk`).
 
 ## [v2.1.0] — 2026-09-25
 

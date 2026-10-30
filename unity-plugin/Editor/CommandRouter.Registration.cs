@@ -668,6 +668,7 @@ namespace UnityMCP.Editor
             // `# @needs editmode` header itself and decides, instead of registration pre-blocking
             // every Edit-mode call before the header is ever read.
             CommandRegistry.RegisterAsync("run_playtest", AsyncRunPlaytest, runtime: false,
+                mutating: true, playOk: true,
                 required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure,fresh");
             // E02: internal wire command (not @mcp.tool() until E04) — non-blocking playtest
             // dispatch, paired with get_playtest_run's poll. Same gates as run_playtest above.
