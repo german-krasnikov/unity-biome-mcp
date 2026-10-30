@@ -1285,6 +1285,7 @@ namespace UnityMCP.Editor.Tests
         [TestCase("export_playtest_aliases_to_defs", true, true)]
         [TestCase("sync_playtest_aliases_from_defs", true, true)]
         [TestCase("invoke_method", true, true)]
+        [TestCase("set_runtime_property", true, true)]
         public void RepairedCommand_IsMutatingAndKeepsPlayModeAndUndo(string cmd, bool playOk, bool noUndo)
         {
             Assert.IsTrue(CommandRegistry.IsMutating(cmd), cmd + " is mutating, as in Python");

@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`export_playtest_aliases_to_defs` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it (it writes a `.defs` file). Play Mode and the Undo history are unchanged.
 - **`sync_playtest_aliases_from_defs` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it (it rewrites the PlaytestConfig asset). Play Mode and the Undo history are unchanged.
 - **`invoke_method` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. It still runs only in Play Mode, outside the Undo history (`playOk`, `noUndo`).
+- **`set_runtime_property` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. It still runs only in Play Mode, outside the Undo history (`playOk`, `noUndo`).
 
 ## [v2.1.0] — 2026-09-25
 

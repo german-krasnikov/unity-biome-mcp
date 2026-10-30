@@ -474,8 +474,8 @@ namespace UnityMCP.Editor
             }, mutating: true, required: "", optional: "turns");
 
             // Runtime (Play Mode only) — mutate runtime GameObject/component state directly. runtime: true routes them through the
-            // Play-Mode-only guard. invoke_method is mutating as in Python (step 7.2; playOk: it must run in Play Mode, noUndo: runtime
-            // changes are no Undo-recorded scene change); set_runtime_property follows in its own change.
+            // Play-Mode-only guard. Both are mutating as in Python (step 7.2), with playOk (they must run in Play Mode) and noUndo
+            // (runtime changes are no Undo-recorded scene change).
             CommandRegistry.Register("invoke_method", args => RuntimeHelper.InvokeMethod(
                 JsonHelper.ExtractString(args, "path"),
                 JsonHelper.ExtractString(args, "component"),
@@ -488,6 +488,7 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "component"),
                 JsonHelper.ExtractString(args, "field"),
                 JsonHelper.ExtractString(args, "value")), runtime: true,
+                mutating: true, playOk: true, noUndo: true,
                 required: "path,component,field,value", optional: "");
             // Write (mutating)
             CommandRegistry.Register("create_object", ExecCreateObject, mutating: true,
