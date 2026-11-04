@@ -77,20 +77,28 @@ def _check(
 
 
 def _decide_is_mutating(s: IsMutatingInput) -> bool:
+    # rule: readBase (priority 10)
     if s.call_base == "read":
         return False
+    # rule: unknownWrites (priority 11)
     if (s.call_base == "unknown") and (s.call_unknown_is_write is True):
         return True
+    # rule: unknownReads (priority 12)
     if s.call_base == "unknown":
         return False
+    # rule: doctorIdle (priority 20)
     if (s.call_cmd == "doctor") and (s.args_fix != "on"):
         return False
+    # rule: metricsKept (priority 21)
     if (s.call_cmd == "get_metrics") and (s.args_reset != "on"):
         return False
+    # rule: waitPolls (priority 22)
     if (s.call_cmd == "wait_until") and (s.args_abort_on_fail != "on"):
         return False
+    # rule: changesKept (priority 23)
     if (s.call_cmd == "get_changes") and (s.args_clear == "off"):
         return False
+    # rule: modeQuery (priority 24)
     if (((s.call_cmd == "editor") and (s.args_action == "mutation_mode")) and (
             s.args_has_enable is not True)):
         return False

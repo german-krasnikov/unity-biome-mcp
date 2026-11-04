@@ -104,53 +104,71 @@ def _check(
 
 
 def _decide_guard_verdict(s: GuardVerdictInput) -> str:
+    # rule: topNotReady (priority 10)
     if (s.guard_site == "top") and (s.guard_ready is not True):
         return "initializing"
+    # rule: topPythonOnly (priority 11)
     if (s.guard_site == "top") and (s.guard_python_only is True):
         return "pythonOnly"
+    # rule: topAuth (priority 12)
     if (s.guard_site == "top") and (s.guard_auth_denied is True):
         return "authDenied"
+    # rule: topCompiling (priority 13)
     if (((s.guard_site == "top") and (s.guard_compiling is True)) and (
             s.guard_allowed_during_compile is not True)):
         return "compiling"
+    # rule: topPlayBlocked (priority 14)
     if ((((s.guard_site == "top") and (s.guard_play_mode is True)) and (s.guard_mutating
             is True)) and (s.guard_allowed_in_play is not True)):
         return "playBlocked"
+    # rule: topNotInPlay (priority 15)
     if (((s.guard_site == "top") and (s.guard_play_mode is not True)) and (
             s.guard_runtime is True)):
         return "notInPlay"
+    # rule: topReadOnly (priority 16)
     if (((s.guard_site == "top") and (s.guard_read_only is True)) and (s.guard_mutating
             is True)):
         return "readOnlyBlocked"
+    # rule: topDisabled (priority 17)
     if (((s.guard_site == "top") and (s.guard_always_allowed is not True)) and (
             s.guard_tool_enabled is not True)):
         return "disabled"
+    # rule: batchAsyncOnly (priority 20)
     if (s.guard_site == "batch") and (s.guard_batchable is not True):
         return "asyncOnly"
+    # rule: batchPlayBlocked (priority 21)
     if ((((s.guard_site == "batch") and (s.guard_play_mode is True)) and (
             s.guard_mutating is True)) and (s.guard_allowed_in_play is not True)):
         return "playBlocked"
+    # rule: batchNotInPlay (priority 22)
     if (((s.guard_site == "batch") and (s.guard_play_mode is not True)) and (
             s.guard_runtime is True)):
         return "notInPlay"
+    # rule: batchCompiling (priority 23)
     if ((((s.guard_site == "batch") and (s.guard_compiling is True)) and (
             s.guard_mutating is True)) and (s.guard_allowed_during_compile is not
             True)):
         return "compiling"
+    # rule: batchReadOnly (priority 24)
     if (((s.guard_site == "batch") and (s.guard_read_only is True)) and (
             s.guard_mutating is True)):
         return "readOnlyBlocked"
+    # rule: batchDisabled (priority 25)
     if (((s.guard_site == "batch") and (s.guard_always_allowed is not True)) and (
             s.guard_tool_enabled is not True)):
         return "disabled"
+    # rule: batchNotReady (priority 26)
     if (s.guard_site == "batch") and (s.guard_ready is not True):
         return "initializing"
+    # rule: pyReadOnly (priority 30)
     if (((s.guard_site == "py") and (s.guard_read_only is True)) and (s.guard_mutating
             is True)):
         return "readOnlyBlocked"
+    # rule: pyNotInPlay (priority 31)
     if ((((s.guard_site == "py") and (s.guard_play_known is True)) and (
             s.guard_play_mode is not True)) and (s.guard_runtime is True)):
         return "notInPlay"
+    # rule: pyPythonOnly (priority 32)
     if (s.guard_site == "py") and (s.guard_python_only is True):
         return "pythonOnly"
     return "ok"

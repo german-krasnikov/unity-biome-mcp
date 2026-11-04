@@ -53,14 +53,23 @@ public static class Policy {
         {
             public static bool Evaluate(string value8, string value4, string value9, string value6, bool value5, string value7, bool value3, string value0, string value1, bool value2)
             {
+                // rule: readBase (priority 10)
                 if (value0 == "read") return false;
+                // rule: unknownWrites (priority 11)
                 if ((value0 == "unknown") && (value2 == true)) return true;
+                // rule: unknownReads (priority 12)
                 if (value0 == "unknown") return false;
+                // rule: doctorIdle (priority 20)
                 if ((value1 == "doctor") && (value6 != "on")) return false;
+                // rule: metricsKept (priority 21)
                 if ((value1 == "get_metrics") && (value7 != "on")) return false;
+                // rule: waitPolls (priority 22)
                 if ((value1 == "wait_until") && (value8 != "on")) return false;
+                // rule: changesKept (priority 23)
                 if ((value1 == "get_changes") && (value9 == "off")) return false;
+                // rule: modeQuery (priority 24)
                 if (((value1 == "editor") && (value4 == "mutation_mode")) && (!(value5 == true))) return false;
+                // rule: actionIsRead (priority 30)
                 if (value3 == true) return false;
                 return true;
             }

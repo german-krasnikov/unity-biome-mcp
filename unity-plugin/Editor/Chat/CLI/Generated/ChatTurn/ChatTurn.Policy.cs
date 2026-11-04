@@ -35,6 +35,7 @@ public static class Policy {
         {
             public static bool Evaluate(string value0)
             {
+                // rule: idle (priority 10)
                 if (value0 == "idle") return true;
                 return false;
             }
@@ -44,6 +45,7 @@ public static class Policy {
         {
             public static bool Evaluate(string value0)
             {
+                // rule: idle (priority 10)
                 if (value0 == "idle") return false;
                 return true;
             }

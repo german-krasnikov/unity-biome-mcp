@@ -222,67 +222,89 @@ def _check(
 
 
 def _decide_passes(s: PassesInput | OutcomeInput) -> bool:
+    # rule: blank (priority 10)
     if s.report_blank is True:
         return False
+    # rule: textAborted (priority 11)
     if (s.report_format == "text") and (s.text_has_aborted is True):
         return False
+    # rule: textNoHeader (priority 20)
     if (s.report_format == "text") and (s.text_header == "none"):
         return False
+    # rule: textNoAssertions (priority 21)
     if (s.report_format == "text") and (s.text_total == 0):
         return False
+    # rule: textPartial (priority 22)
     if (s.report_format == "text") and (s.text_passed != s.text_total):
         return False
+    # rule: textFailureMarker (priority 23)
     if (((s.report_format == "text") and (s.report_plane == "server")) and (((((
             s.text_has_fail is True) or (s.text_has_error is True)) or (
             s.text_has_console_err is True)) or (s.text_has_blocked is True)) or (
             s.text_has_timeout is True))):
         return False
+    # rule: textPass (priority 24)
     if s.report_format == "text":
         return True
+    # rule: ledgerTeardown (priority 30)
     if s.ledger_teardown_ok is not True:
         return False
+    # rule: ledgerAggregate (priority 31)
     if (s.ledger_has_failed is not True) or (s.ledger_failed != 0):
         return False
+    # rule: ledgerEmpty (priority 32)
     if s.ledger_steps == 0:
         return False
+    # rule: ledgerBadStep (priority 33)
     if s.ledger_steps_not_ok > 0:
         return False
     return s.report_format == "json"
 
 
 def _decide_outcome(s: OutcomeInput) -> str:
+    # rule: pass (priority 10)
     if _decide_passes(s) is True:
         return "pass"
+    # rule: nothing (priority 20)
     if (s.report_blank is True) or (s.report_zero_of_zero is True):
         return "error"
+    # rule: unreadable (priority 30)
     if (s.report_format == "json") and (s.ledger_readable is not True):
         return "error"
+    # rule: noSteps (priority 31)
     if (s.report_format == "json") and (s.ledger_steps == 0):
         return "error"
+    # rule: contradicts (priority 32)
     if (s.report_format == "json") and (s.ledger_failed_matches_steps is not True):
         return "error"
     return "fail"
 
 
 def _decide_file_state(s: FileStateInput) -> str:
+    # rule: noVerdict (priority 10)
     if s.file_expected == 0:
         return "no_verdict"
+    # rule: passed (priority 20)
     if s.file_passed == s.file_expected:
         return "pass"
+    # rule: errored (priority 30)
     if s.file_error_text is True:
         return "error"
     return "fail"
 
 
 def _decide_suite_inner(s: SuiteInnerInput) -> str:
+    # rule: noVerdict (priority 10)
     if s.suite_all_no_verdict is True:
         return "NO_VERDICT"
+    # rule: failed (priority 20)
     if (s.suite_any_fail is True) or (s.suite_any_error is True):
         return "INNER_FAIL"
     return "INNER_PASS"
 
 
 def _decide_suite_outer(s: SuiteOuterInput) -> str:
+    # rule: failed (priority 10)
     if s.suite_outer_failed is True:
         return "OUTER_FAIL"
     return "OUTER_PASS"

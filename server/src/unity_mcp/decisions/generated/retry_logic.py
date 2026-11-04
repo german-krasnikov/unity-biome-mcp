@@ -117,30 +117,41 @@ def _check(
 
 
 def _decide_retry_gate(s: RetryGateInput) -> str:
+    # rule: unsafeSent (priority 5)
     if (s.retry_delivery_sent is True) and (s.retry_retry_safe is not True):
         return "unsafe_sent"
+    # rule: maxRetries (priority 10)
     if s.retry_attempt >= s.retry_max_retries:
         return "max_retries"
+    # rule: deadline (priority 20)
     if s.retry_deadline_passed is True:
         return "deadline"
+    # rule: identity (priority 30)
     if s.retry_error_kind == "identityMismatch":
         return "identity_mismatch"
+    # rule: capacity (priority 40)
     if s.retry_error_kind == "capacityBusy":
         return "capacity_busy"
+    # rule: reload (priority 50)
     if s.retry_error_kind == "domainReload":
         return "domain_reload"
+    # rule: reloadWindow (priority 60)
     if s.retry_reload_active is True:
         return "busy"
     return "observe"
 
 
 def _decide_retry_reason(s: RetryReasonInput) -> str:
+    # rule: compiling (priority 60)
     if s.retry_probe_busy is True:
         return "busy"
+    # rule: processDead (priority 70)
     if (s.retry_error_kind == "connectionRefused") and (s.retry_process_dead is True):
         return "process_dead"
+    # rule: refused (priority 80)
     if s.retry_error_kind == "connectionRefused":
         return "connection_refused"
+    # rule: transient (priority 90)
     if s.retry_attempt < 1:
         return "transient"
     return "grace_expired"

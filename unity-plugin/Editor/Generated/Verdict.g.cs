@@ -179,17 +179,29 @@ public static class Policy {
         {
             public static bool Evaluate(double value7, bool value6, double value8, double value9, bool value5, bool value2, string value1, string value0, bool value19, bool value17, bool value16, bool value15, bool value14, bool value18, string value11, double value12, double value13)
             {
+                // rule: blank (priority 10)
                 if (value2 == true) return false;
+                // rule: textAborted (priority 11)
                 if ((value1 == "text") && (value19 == true)) return false;
+                // rule: textNoHeader (priority 20)
                 if ((value1 == "text") && (value11 == "none")) return false;
+                // rule: textNoAssertions (priority 21)
                 if ((value1 == "text") && (value13 == 0)) return false;
+                // rule: textPartial (priority 22)
                 if ((value1 == "text") && (value12 != value13)) return false;
+                // rule: textFailureMarker (priority 23)
                 if (((value1 == "text") && (value0 == "server")) && (((((value14 == true) || (value15 == true)) || (value16 == true)) || (value17 == true)) || (value18 == true))) return false;
+                // rule: textPass (priority 24)
                 if (value1 == "text") return true;
+                // rule: ledgerTeardown (priority 30)
                 if (!(value5 == true)) return false;
+                // rule: ledgerAggregate (priority 31)
                 if ((!(value6 == true)) || (value7 != 0)) return false;
+                // rule: ledgerEmpty (priority 32)
                 if (value8 == 0) return false;
+                // rule: ledgerBadStep (priority 33)
                 if (value9 > 0) return false;
+                // rule: ledgerPass (priority 34)
                 if (value1 == "json") return true;
                 return false;
             }
@@ -199,10 +211,15 @@ public static class Policy {
         {
             public static string Evaluate(double value7, bool value10, bool value6, bool value4, double value8, double value9, bool value5, bool value2, string value1, string value0, bool value3, bool value19, bool value17, bool value16, bool value15, bool value14, bool value18, string value11, double value12, double value13)
             {
+                // rule: pass (priority 10)
                 if (Decision_passes.Evaluate(value7, value6, value8, value9, value5, value2, value1, value0, value19, value17, value16, value15, value14, value18, value11, value12, value13) == true) return "pass";
+                // rule: nothing (priority 20)
                 if ((value2 == true) || (value3 == true)) return "error";
+                // rule: unreadable (priority 30)
                 if ((value1 == "json") && (!(value4 == true))) return "error";
+                // rule: noSteps (priority 31)
                 if ((value1 == "json") && (value8 == 0)) return "error";
+                // rule: contradicts (priority 32)
                 if ((value1 == "json") && (!(value10 == true))) return "error";
                 return "fail";
             }
@@ -212,8 +229,11 @@ public static class Policy {
         {
             public static string Evaluate(bool value22, double value21, double value20)
             {
+                // rule: noVerdict (priority 10)
                 if (value21 == 0) return "no_verdict";
+                // rule: passed (priority 20)
                 if (value20 == value21) return "pass";
+                // rule: errored (priority 30)
                 if (value22 == true) return "error";
                 return "fail";
             }
@@ -223,7 +243,9 @@ public static class Policy {
         {
             public static string Evaluate(bool value25, bool value24, bool value23)
             {
+                // rule: noVerdict (priority 10)
                 if (value25 == true) return "NO_VERDICT";
+                // rule: failed (priority 20)
                 if ((value23 == true) || (value24 == true)) return "INNER_FAIL";
                 return "INNER_PASS";
             }
@@ -233,6 +255,7 @@ public static class Policy {
         {
             public static string Evaluate(bool value26)
             {
+                // rule: failed (priority 10)
                 if (value26 == true) return "OUTER_FAIL";
                 return "OUTER_PASS";
             }
