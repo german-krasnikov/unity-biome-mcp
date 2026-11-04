@@ -3,8 +3,12 @@
 #
 # Usage: scripts/dsl.sh generate | check
 # Env:   BIOME_DSL_ROOT  a clean checkout of biome-dsl at the TOOLCHAIN commit of dsl/biome.project (Node >= 22).
+#        PYTHON          the interpreter of the content lock (default python3; the script needs the standard library only).
 #
-# check = `generate --check` (a stale or hand-edited generated file) and the examples of the construct, which `generate` does not run.
+# generate also refreshes dsl/content-lock.json (scripts/dsl_content_lock.py), the sha256 of every DSL source and generated file that
+# server/tests/test_dsl_content_lock.py checks without Node.
+# check = `generate --check` (a stale or hand-edited generated file), the examples of the construct, which `generate` does not run,
+# and that the content lock states the files as they are.
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -14,10 +18,12 @@ biome="$BIOME_DSL_ROOT/implementations/typescript/packages/biome/src/bin.mjs"
 case "${1:-}" in
     generate)
         node "$biome" generate --project dsl
+        "${PYTHON:-python3}" scripts/dsl_content_lock.py generate
         ;;
     check)
         node "$biome" generate --project dsl --check
         node "$biome" verify --construct-examples dsl/constructs/tool.examples
+        "${PYTHON:-python3}" scripts/dsl_content_lock.py check
         ;;
     *)
         echo "usage: scripts/dsl.sh generate | check" >&2

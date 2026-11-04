@@ -1,8 +1,10 @@
 """Tier 0 of the freshness of what dsl/ generates, without Node: every generated file carries the sha256 of the source it was printed from.
 
-It catches "the catalog (or a decision, or the chat turn) was edited and scripts/dsl.sh generate was not run". A hand edit of a generated file, a change
-of the construct or a contract, and the machine rows of the examples (dsl/decisions/*.json, which have no banner) are what tier 1
-finds: scripts/dsl.sh check (generate --check, needs Node and the biome-dsl checkout of the TOOLCHAIN line).
+It catches "the catalog (or a decision, or the chat turn) was edited and scripts/dsl.sh generate was not run". The banner states the digest of the source and nothing
+of the body, so a hand edit of a generated file that keeps its banner, a change of the construct, a contract or the examples, and the machine rows of the examples
+(dsl/decisions/*.json, which have no banner) are not seen here: test_dsl_content_lock.py is the tier 0 that sees them (dsl/content-lock.json, which scripts/dsl.sh
+generate refreshes). That the locked files are what the compiler prints is what tier 1 finds: scripts/dsl.sh check (generate --check, needs Node and the biome-dsl
+checkout of the TOOLCHAIN line).
 """
 import hashlib
 import re

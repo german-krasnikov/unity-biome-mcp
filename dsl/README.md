@@ -37,12 +37,13 @@ other tools stay in their modules.
 | `decisions/` | the rules both planes share: per module `<m>.logic`, `<m>.contract`, `<m>.examples` and the printed `<m>.json` rows (see Decisions) |
 | `chat/` | how a turn of the chat window ends: `chatturn.feature` (the ordered list of what each of the eight exits does), `chatturn.logic` and `.contract` (its two guards), `chatturn.examples` (what must hold; see Chat turn) |
 | `biome.project` | the compiler it needs (`TOOLCHAIN`) and the generate steps |
+| `content-lock.json` | printed by `scripts/dsl_content_lock.py generate`, which `scripts/dsl.sh generate` runs last: the sha256 of every source and every generated file, which `test_dsl_content_lock.py` checks without Node (see Checks); never edited |
 
 ## Change a tool
 
 1. Edit `tools.biome`.
 2. `export BIOME_DSL_ROOT=<a clean biome-dsl checkout at the TOOLCHAIN commit>` (Node 22 or newer), then `scripts/dsl.sh generate`.
-3. Commit the catalog and the generated files together. Never edit a file in `generated/`.
+3. Commit the catalog, the generated files and `dsl/content-lock.json` together. Never edit a file in `generated/`.
 
 ## Add a tool
 
@@ -80,8 +81,8 @@ the code that owns them. `unity_mcp.decisions` is a leaf (import-linter, `test_d
 
 1. Edit the rule in `<m>.logic`, and the expectation in `<m>.examples` (from a test, with its `file:line`; a change of the requirement is its own commit with the
    reason, and the rows that said the opposite are replaced, never edited to fit the output).
-2. `scripts/dsl.sh generate`. Commit the sources, the generated files and the rows together; never edit `generated/` or `dsl/decisions/*.json`.
-3. `scripts/dsl.sh check`, `pytest server/tests/test_decisions_examples.py test_dsl_fresh.py` and the golden of the family, and, for a C# change,
+2. `scripts/dsl.sh generate`. Commit the sources, the generated files, the rows and `dsl/content-lock.json` together; never edit `generated/` or `dsl/decisions/*.json`.
+3. `scripts/dsl.sh check`, `pytest server/tests/test_decisions_examples.py test_dsl_fresh.py test_dsl_content_lock.py` and the golden of the family, and, for a C# change,
    `dotnet test unity-plugin/Tests~/Decisions/UnityMCP.Decisions.Tests.csproj -c Release`.
 
 What checks what:
@@ -93,7 +94,7 @@ What checks what:
 - `Tests~/Decisions` compiles the generated C# with the real `CommandRegistry.cs`, `JsonHelper.cs` and `Editor/Decisions/*.cs` (a stub file stands for Unity) at
   LangVersion 9, and checks them against the verbatim old code (`Oracle/`) or the golden: `MutabilityWireTests`, `GuardsOracleTests`, `PlaytestOracleTests`.
   `CommandRouter` and `BatchHelper` themselves need Unity: only the EditMode tests run them.
-- `test_dsl_fresh.py` (no Node) and `dsl.sh check` (Node) find a stale generated file; `test_decisions_boundary.py` and import-linter keep
+- `test_dsl_fresh.py` and `test_dsl_content_lock.py` (no Node) and `dsl.sh check` (Node) find a stale generated file; `test_decisions_boundary.py` and import-linter keep
   `unity_mcp.decisions` a leaf; `test_csharp_mutating_flags.py` and `test_catalog_vs_csharp.py` read the Register calls of the plugin.
 
 ## Chat turn
@@ -122,20 +123,26 @@ the 16 ports, and the window only detects an exit (an event, the dead-process an
 1. State the change in `chatturn.examples` (a change of what an exit does is a change of the requirement: its own commit, with the reason, and the rows that said the
    opposite are replaced, never fitted to the output), then in `chatturn.feature`: a new effect is a `PORT`, an `ON` line at the place it must run and a body in `TurnPorts.cs`;
    a new way out is an `ACTION` that ends in `phase = idle` with its `exit`, an example, and a `Dispatch` where the window detects it.
-2. `scripts/dsl.sh generate`. Commit the sources, the generated files and the `.meta` of a new file together; never edit `Generated/ChatTurn/`.
-3. `scripts/dsl.sh check`, `pytest server/tests/test_dsl_fresh.py test_generated_cs_meta.py` and `dotnet test unity-plugin/Tests~/ChatTurn/ChatTurn.Tests.csproj -c Release`.
+2. `scripts/dsl.sh generate`. Commit the sources, the generated files, `dsl/content-lock.json` and the `.meta` of a new file together; never edit `Generated/ChatTurn/`.
+3. `scripts/dsl.sh check`, `pytest server/tests/test_dsl_fresh.py test_dsl_content_lock.py test_generated_cs_meta.py` and `dotnet test unity-plugin/Tests~/ChatTurn/ChatTurn.Tests.csproj -c Release`.
    The bodies of the ports and the wiring of the window need Unity: the EditMode tests `ChatTurnPortsTests` and `ChatTurnWiringTests`.
 
 What checks what: the examples run as `ChatTurn.Examples.cs` (19 tests) beside `ChatTurnDriverTests` (7) in `Tests~/ChatTurn`, a pure dotnet project that compiles the
 reducer and the driver at LangVersion 9 with warnings as errors, so a use of `UnityEngine` in either fails the build; the banner of every printed file states the digest of its source
-(the `.feature`, or the `.logic` for `ChatTurn.Policy.cs`), which `test_dsl_fresh.py` (no Node) compares; a change of the examples only is found by `scripts/dsl.sh check`. Mutants of `chatturn.feature` (drop or move an `ON` line, drop a guard,
+(the `.feature`, or the `.logic` for `ChatTurn.Policy.cs`), which `test_dsl_fresh.py` (no Node) compares; a change of the examples only is found by `test_dsl_content_lock.py` (no Node) and `scripts/dsl.sh check`. Mutants of `chatturn.feature` (drop or move an `ON` line, drop a guard,
 forget `exit = none`) were generated and run to show that the examples can fail: 16 of 17 are killed, the survivor is equivalent (`askAnswered` without its guard: the range saturates at 0).
 
 ## Checks
 
-- `scripts/dsl.sh check`: `generate --check` (a stale or hand-edited generated file) and the examples of the construct. Needs Node.
+- `scripts/dsl.sh check`: `generate --check` (a stale or hand-edited generated file), the examples of the construct and the content lock. Needs Node.
 - `server/tests/test_dsl_fresh.py`: without Node, each generated file states the sha256 of the current `tools.biome`. The docs region has
-  no banner: only `scripts/dsl.sh check` finds it stale; `server/tests/test_catalog_docs.py` checks its rows against the ToolSpecs.
+  no banner: `scripts/dsl.sh check` finds it stale and `test_dsl_content_lock.py` only a hand edit of it; `server/tests/test_catalog_docs.py` checks its rows against the ToolSpecs.
+- `server/tests/test_dsl_content_lock.py`: without Node, `dsl/content-lock.json` states the sha256 of every source in `dsl/` (not the prose), of every file with the kit
+  banner or in a `.biome-files` manifest, of the machine rows `dsl/decisions/*.json` and of the `catalog` region of the docs. A generated body edited under an intact
+  banner, the rows, a `.contract`, `.examples` or construct edited without `scripts/dsl.sh generate`, a file deleted: stale, whatever the banner says. It also checks
+  that the lock names every file that `biome.project` prints. It cannot see a lock that was refreshed by hand around a stale file
+  (`python scripts/dsl_content_lock.py generate`, which `scripts/dsl.sh generate` runs): that the files are what the compiler prints is `scripts/dsl.sh check`.
+  `python scripts/dsl_content_lock.py check` is the same check from the shell, with the standard library only.
 - `server/tests/test_tool_surface_golden.py`: the MCP surface, the ToolSpec and the wire of every tool equal `golden/tool_surface.txt`, taken
   before the generator existed. A `wire` line is the digest of everything a wrapper that only forwards sends for a fixed set of calls
   (`scripts/dsl_golden.py`), so a generated wrapper sends what the hand-written one sent. A change of a tool on purpose is an `INTENDED`
