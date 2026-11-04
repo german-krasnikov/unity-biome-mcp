@@ -7,6 +7,7 @@ on:
       - "unity-plugin/**"
       - "unity-test-project/**"
       - "unity-test-project/Playtests/**"
+      - "dsl/**"
       - ".github/workflows/unity-tests.yml"
   pull_request:
     branches: [master]
@@ -14,6 +15,7 @@ on:
       - "unity-plugin/**"
       - "unity-test-project/**"
       - "unity-test-project/Playtests/**"
+      - "dsl/**"
       - ".github/workflows/unity-tests.yml"
   workflow_dispatch:
     inputs:

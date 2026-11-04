@@ -9,6 +9,7 @@ on:
       - 'unity-plugin/**'
       - 'unity-plugin-reload/**'
       - 'unity-test-project/**'
+      - 'dsl/**'
       - '.github/workflows/ci-conformance.yml'
   push:
     branches: [master]
@@ -18,6 +19,7 @@ on:
       - 'unity-plugin/**'
       - 'unity-plugin-reload/**'
       - 'unity-test-project/**'
+      - 'dsl/**'
       - '.github/workflows/ci-conformance.yml'
   workflow_dispatch:
     inputs: {}
