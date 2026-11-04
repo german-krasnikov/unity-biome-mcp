@@ -8,6 +8,7 @@ on:
       - "unity-test-project/**"
       - "unity-test-project/Playtests/**"
       - "dsl/**"
+      - "ci/full-baseline.json"
       - ".github/workflows/unity-tests.yml"
   pull_request:
     branches: [master]
@@ -16,6 +17,7 @@ on:
       - "unity-test-project/**"
       - "unity-test-project/Playtests/**"
       - "dsl/**"
+      - "ci/full-baseline.json"
       - ".github/workflows/unity-tests.yml"
   workflow_dispatch:
     inputs:
@@ -183,7 +185,8 @@ jobs:
         env:
           MATRIX_NAME: ${{ matrix.name }}
         run: |
-          import xml.etree.ElementTree as ET, os
+          import json, os, pathlib
+          import xml.etree.ElementTree as ET
           r = ET.parse('artifacts/editmode-results.xml').getroot()
           passed  = r.get('passed',  '?')
           failed  = r.get('failed',  '?')
@@ -200,6 +203,10 @@ jobs:
               f.write('| Passed | Failed | Skipped | Total |\n')
               f.write('|:------:|:------:|:-------:|:-----:|\n')
               f.write(f'| **{passed}** | **{failed}** | {skipped} | {total} |\n\n')
+          # Same floor run_unity_tests.py enforces for an unfiltered EditMode run; lowering it is a reviewed edit of the file.
+          floor = json.loads(pathlib.Path('ci/full-baseline.json').read_text(encoding='utf-8'))['expected_count']
+          if int(total) < floor:
+              raise SystemExit(f'Unity EditMode test run executed {total} tests, below the {floor} floor of ci/full-baseline.json')
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         if: always()
