@@ -5,47 +5,14 @@
 // examples the EXPECT lines of playtest*.examples (read as DECLARE_*, default tokenizer) say the same through the SURFACE (PT_*, TOKENS words, COMMENT line)
 // probes   what the examples cannot see: the options of the SURFACE line (TOKENS words, COMMENT line, ORDERED), the slots of a line and the RULES
 import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { resolve } from 'node:path';
+import { dirs, load, place, PREPROCESSOR, root, rule } from './surface.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..'), dirs = [resolve(root, 'dsl/constructs')];
-if (!process.env.BIOME_DSL_ROOT) throw new Error('set BIOME_DSL_ROOT to the biome-dsl checkout named by TOOLCHAIN in dsl/biome.project');
-const { readSurface } = await import(pathToFileURL(resolve(process.env.BIOME_DSL_ROOT, 'implementations/typescript/packages/biome/src/support/surface-host.mjs')).href);
+const { read } = await load();
 const unescape = s => s.replace(/\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|[\\nrt])/g, (_, e) => ({ n: '\n', r: '\r', t: '\t', '\\': '\\' })[e] ?? String.fromCharCode(parseInt(e.slice(1), 16)));
-const verbs = new Set([...readFileSync(resolve(dirs[0], 'playtest.construct'), 'utf8').matchAll(/^\s+(?:PATTERN|HEAD)\s+(\S+)/gm)].map(m => m[1]));
 const oracle = readFileSync(resolve(root, 'dsl/playtest/oracle.rows'), 'utf8'), rows = oracle.split('\n');
-const place = d => `${d.code}@${d.line}:${d.col}`, problems = [];
+const problems = [];
 
-// CONTINUATION: after the head of SWEEP_PATH, COMPLETE_PURCHASE or INVOKE_REPEAT, the lines whose first word is no verb of the SURFACE (waypoints, UNTIL, EXPECT, TIMEOUT, a list of
-// names) belong to the host: the grammar reads the head, the reader gets those lines blank (the line numbers stay). A verb ends them, as in the native lookaheads (H3 keeps those;
-// COMPLETE_PURCHASE there reads on to a TIMEOUT line, whatever comes first). Blank and comment lines neither start nor end a continuation.
-const HEADS = new Set(['SWEEP_PATH', 'COMPLETE_PURCHASE', 'INVOKE_REPEAT']);
-const host = text => {
-  let on = false;
-  return text.split('\n').map(line => {
-    const word = line.trim().split(/\s+/)[0];
-    if (!word || word[0] === '#') return line;
-    if (HEADS.has(word)) { on = true; return line; }
-    if (on && !verbs.has(word.toUpperCase())) return '';
-    on = false;
-    return line;
-  }).join('\n');
-};
-const read = (text, file = 'x') => readSurface('playtest', host(text), file, { dirs });
-// HOST rows: the text-to-text phases of the hand parser (design class E), which the host runs before a line reaches the reader; the grammar has no construct for them
-const PREPROCESSOR = new Set(['FOR', 'END_FOR', 'COMMENT', 'END_COMMENT', 'MACRO', 'END_MACRO', 'CALL']);
-
-// RULES: what a use must obey and the grammar cannot say; each is a way to read a line whole and wrongly. AND and OR are groups of their own, so a line can hold both
-// (PT_MIXED); a chain of four terms reads its 4th into the value of the 3rd (PT_CHAIN); TOKENS words cuts at blanks, so a name with a blank and an operator word in
-// [..] is cut at that word (PT_BRACKET), where the hand parser keeps [..] whole; a line of an ASSERT_BATCH is a use of its own. The builder (H2) and check.mjs (D1) refuse the same three.
-const rule = u => {
-  const sets = [u.head, ...u.items], has = (...k) => k.some(x => u.head.has(x)), raw = (b, k) => b.get(k)?.raw ?? '';
-  if (has('q2', 'q3') && has('q4', 'q5')) return 'PT_MIXED';
-  const bare = v => [...v.matchAll(/"[^"]*"|\S+/g)].slice(1).some(t => t[0] === 'AND' || t[0] === 'OR');   // after the first token, a word outside quotes
-  if (['v1', 'v2', 'v3', 'v4', 'v5'].some(k => bare(raw(u.head, k)))) return 'PT_CHAIN';
-  const open = v => { let d = 0; for (const c of v.replace(/"[^"]*"/g, '')) d = Math.max(0, d + (c === '[' ? 1 : c === ']' ? -1 : 0)); return d > 0; };   // as SplitTokens counts
-  return sets.some(b => ['query', 'q1', 'q2', 'q3', 'q4', 'q5'].some(k => open(raw(b, k)))) ? 'PT_BRACKET' : null;
-};
 // KNOWN: a row where the reader differs from the oracle, and why. Checked both ways: a row that no longer differs is stale.
 const KNOWN = new Map([
   ['unity-plugin/Editor/Tests/WaitConditionTests.cs:143', 'INTENDED I3: TIMEOUT before AND/OR (AI/playtest-dsl.md: the chain, then TIMEOUT, then ABORT)'],
