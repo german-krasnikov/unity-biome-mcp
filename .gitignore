@@ -50,6 +50,8 @@ unity-plugin/Tests~/Decisions/bin/
 unity-plugin/Tests~/Decisions/obj/
 unity-plugin/Tests~/ChatTurn/bin/
 unity-plugin/Tests~/ChatTurn/obj/
+unity-plugin/Tests~/PlaytestGrammar/bin/
+unity-plugin/Tests~/PlaytestGrammar/obj/
 
 # macOS
 .DS_Store
