@@ -1,0 +1,131 @@
+# The grammar of a .playtest script as a project construct (Plans/STEP_7_5_PLAYTEST_GRAMMAR_DESIGN.md of biome-dsl): a line is a use of one PT_* construct.
+# Here are the verb, the number and the types of its slots and the code of a refusal (PT_*); what a step does stays in PlaytestParser and the runners.
+# `text` takes the rest of the line as written. One token is a quoted text, or a run without blanks that leaves no `[` open: a path with a blank is written in quotes.
+# The names are PT_*: a name like WAIT would shadow a construct of core (CONSTRUCT_SHADOW).
+SURFACE playtest CODES PT CONSTRUCTS PT_INCLUDE, PT_PATH_PREFIX, PT_VAL, PT_VAR, PT_SETUP, PT_SETUP_END, PT_TEARDOWN, PT_TEARDOWN_END, PT_SECTION, PT_LOG, PT_WAIT, PT_TIMESCALE, PT_SET_DEFAULT_TIMEOUT, PT_INVOKE, PT_SET, PT_SET_ACTIVE, PT_SNAPSHOT, PT_CLICK, PT_FILL, PT_FOCUS, PT_ASSERT_CONSOLE_CLEAN ORDERED TOKENS words COMMENT line
+
+CONSTRUCT PT_INCLUDE VERSION 1 IR 1 SCOPE project
+  PATTERN INCLUDE <file:text>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_PATH_PREFIX VERSION 1 IR 1 SCOPE project
+  PATTERN PATH_PREFIX <prefix:text>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_VAL VERSION 1 IR 1 SCOPE project
+  PATTERN VAL <name:match(\$?[A-Za-z_][A-Za-z0-9_]*)> <value:text>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_VAR VERSION 1 IR 1 SCOPE project
+  PATTERN VAR <name:match(\$?[A-Za-z_][A-Za-z0-9_]*)> <query:match(@\S*\|\S*\|\S*)>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SETUP VERSION 1 IR 1 SCOPE project
+  PATTERN SETUP
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SETUP_END VERSION 1 IR 1 SCOPE project
+  PATTERN SETUP_END
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_TEARDOWN VERSION 1 IR 1 SCOPE project
+  PATTERN TEARDOWN
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_TEARDOWN_END VERSION 1 IR 1 SCOPE project
+  PATTERN TEARDOWN_END
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SECTION VERSION 1 IR 1 SCOPE project
+  PATTERN SECTION [<name:text>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_LOG VERSION 1 IR 1 SCOPE project
+  PATTERN LOG [<message:text>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_WAIT VERSION 1 IR 1 SCOPE project
+  PATTERN WAIT <seconds:number CODE NUMBER>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_TIMESCALE VERSION 1 IR 1 SCOPE project
+  PATTERN TIMESCALE <scale:number CODE NUMBER>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SET_DEFAULT_TIMEOUT VERSION 1 IR 1 SCOPE project
+  PATTERN SET_DEFAULT_TIMEOUT <seconds:number CODE NUMBER>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_INVOKE VERSION 1 IR 1 SCOPE project
+  PATTERN INVOKE <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <component:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <method:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [<args:text>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SET VERSION 1 IR 1 SCOPE project
+  PATTERN SET <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <component:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <field:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <value:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SET_ACTIVE VERSION 1 IR 1 SCOPE project
+  PATTERN SET_ACTIVE <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <active:enum(true|false|True|False|TRUE|FALSE|1|0)>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SNAPSHOT VERSION 1 IR 1 SCOPE project
+  PATTERN SNAPSHOT [<queries:text>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_CLICK VERSION 1 IR 1 SCOPE project
+  PATTERN CLICK <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [WAIT <wait:number CODE NUMBER>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_FILL VERSION 1 IR 1 SCOPE project
+  PATTERN FILL <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [<value:text>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_FOCUS VERSION 1 IR 1 SCOPE project
+  PATTERN FOCUS <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_CONSOLE_CLEAN VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT_CONSOLE_CLEAN [IGNORE <patterns:text>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
