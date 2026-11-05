@@ -8,7 +8,7 @@
 # generate also refreshes dsl/content-lock.json (scripts/dsl_content_lock.py), the sha256 of every DSL source and generated file that
 # server/tests/test_dsl_content_lock.py checks without Node.
 # check = `generate --check` (a stale or hand-edited generated file), the examples of the constructs (tool, playtest), which `generate` does not run,
-# and that the content lock states the files as they are.
+# the reader of the playtest SURFACE against its frozen oracle (dsl/playtest/compare.mjs), and that the content lock states the files as they are.
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -24,6 +24,8 @@ case "${1:-}" in
         node "$biome" generate --project dsl --check
         node "$biome" verify --construct-examples dsl/constructs/tool.examples
         node "$biome" verify --construct-examples dsl/constructs/playtest.examples
+        node "$biome" verify --construct-examples dsl/constructs/playtest-lazy.examples
+        node dsl/playtest/compare.mjs
         "${PYTHON:-python3}" scripts/dsl_content_lock.py check
         ;;
     *)

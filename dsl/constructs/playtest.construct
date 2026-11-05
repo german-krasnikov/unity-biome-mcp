@@ -2,7 +2,10 @@
 # Here are the verb, the number and the types of its slots and the code of a refusal (PT_*); what a step does stays in PlaytestParser and the runners.
 # `text` takes the rest of the line as written. One token is a quoted text, or a run without blanks that leaves no `[` open: a path with a blank is written in quotes.
 # The names are PT_*: a name like WAIT would shadow a construct of core (CONSTRUCT_SHADOW).
-SURFACE playtest CODES PT CONSTRUCTS PT_INCLUDE, PT_PATH_PREFIX, PT_VAL, PT_VAR, PT_SETUP, PT_SETUP_END, PT_TEARDOWN, PT_TEARDOWN_END, PT_SECTION, PT_LOG, PT_WAIT, PT_TIMESCALE, PT_SET_DEFAULT_TIMEOUT, PT_INVOKE, PT_SET, PT_SET_ACTIVE, PT_SNAPSHOT, PT_CLICK, PT_FILL, PT_FOCUS, PT_ASSERT_CONSOLE_CLEAN ORDERED TOKENS words COMMENT line
+# A `text LAZY` ends before the first word that starts what follows it (an operator, TIMEOUT, AS, AND, OR, INTO); its first token is always the text, and a quoted word starts nothing.
+# One token after ASSERT is a flag (a $sigil, a path, a group of names), after WAIT_UNTIL a $sigil. PT_MCP_INTO comes before PT_MCP: ORDERED takes the first construct that reads the line.
+# What the grammar cannot say stays in the builder and in check.mjs: AND with OR, a fourth term of a chain, a name cut at an operator word inside [..] (compare.mjs `rule`), the JSON of an MCP argument (ParseMcpStep).
+SURFACE playtest CODES PT CONSTRUCTS PT_INCLUDE, PT_PATH_PREFIX, PT_VAL, PT_VAR, PT_SETUP, PT_SETUP_END, PT_TEARDOWN, PT_TEARDOWN_END, PT_SECTION, PT_LOG, PT_WAIT, PT_TIMESCALE, PT_SET_DEFAULT_TIMEOUT, PT_INVOKE, PT_SET, PT_SET_ACTIVE, PT_SNAPSHOT, PT_CLICK, PT_FILL, PT_FOCUS, PT_ASSERT_CONSOLE_CLEAN, PT_ASSERT, PT_ASSERT_FLAG, PT_WAIT_UNTIL, PT_WAIT_UNTIL_FLAG, PT_INVARIANT, PT_MCP_INTO, PT_MCP ORDERED TOKENS words COMMENT line
 
 CONSTRUCT PT_INCLUDE VERSION 1 IR 1 SCOPE project
   PATTERN INCLUDE <file:text>
@@ -127,5 +130,49 @@ END
 CONSTRUCT PT_ASSERT_CONSOLE_CLEAN VERSION 1 IR 1 SCOPE project
   PATTERN ASSERT_CONSOLE_CLEAN [IGNORE <patterns:text>]
   EXAMPLES playtest.examples
+  DECLARE
+END
+
+# AS may be followed by TIMEOUT (PlaytestParserTests.cs:487): the label stops there. A slot name is declared once, so that TIMEOUT is timeout2.
+CONSTRUCT PT_ASSERT VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT <query:text LAZY> <op:match([<>]=?|==|!=|contains)> <value:text LAZY> [TIMEOUT <timeout:number CODE NUMBER>] [AS <label:text LAZY> [TIMEOUT <timeout2:number CODE NUMBER>]]
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_FLAG VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT <flag:match(!?(?:\$\S*|[/#]\S*|\(\S+\)))>
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+# Up to three AND terms (q1, q2, q3) or three OR terms (q1, q4, q5). All four groups are there so that every LAZY value stops at AND and OR.
+CONSTRUCT PT_WAIT_UNTIL VERSION 1 IR 1 SCOPE project
+  PATTERN WAIT_UNTIL <q1:text LAZY> <op1:match([<>]=?|==|!=|contains)> <v1:text LAZY> [AND <q2:text LAZY> <op2:match([<>]=?|==|!=|contains)> <v2:text LAZY>] [AND <q3:text LAZY> <op3:match([<>]=?|==|!=|contains)> <v3:text LAZY>] [OR <q4:text LAZY> <op4:match([<>]=?|==|!=|contains)> <v4:text LAZY>] [OR <q5:text LAZY> <op5:match([<>]=?|==|!=|contains)> <v5:text LAZY>] [TIMEOUT <timeout:number CODE NUMBER>] [ABORT]
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+CONSTRUCT PT_WAIT_UNTIL_FLAG VERSION 1 IR 1 SCOPE project
+  PATTERN WAIT_UNTIL <flag:match(!?\$\S*)>
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+CONSTRUCT PT_INVARIANT VERSION 1 IR 1 SCOPE project
+  PATTERN INVARIANT <query:text LAZY> <op:match([<>]=?|==|!=|contains)> <value:text>
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+CONSTRUCT PT_MCP_INTO VERSION 1 IR 1 SCOPE project
+  PATTERN MCP <command:match(\S+)> [<args:text LAZY>] INTO <var:match(\$[A-Za-z_]\w*)>
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+CONSTRUCT PT_MCP VERSION 1 IR 1 SCOPE project
+  PATTERN MCP <command:match(\S+)> [<args:text>]
+  EXAMPLES playtest-lazy.examples
   DECLARE
 END
