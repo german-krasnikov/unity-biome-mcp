@@ -2,13 +2,11 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityMCP.Playtest.Core.SharedTests;
-using Element = UnityMCP.Playtest.Core.PlaytestGrammar.Element;
-using ElementKind = UnityMCP.Playtest.Core.PlaytestGrammar.ElementKind;
 
 namespace UnityMCP.Playtest.Core.GrammarTests
 {
     // The forms of the real table, read by the front. Every fate below was printed by the reader in JavaScript (matchPattern of pattern.ts, driven as uses.ts does: the forms of the first word
-    // in the order of the table, the furthest failure when none reads the line), not by this code. Only verbs with no LAZY text: the end of a LAZY text is H1.1.
+    // in the order of the table, the furthest failure when none reads the line), not by this code. The verbs with a LAZY text (ASSERT, WAIT_UNTIL, INVARIANT, MCP, ASSERT_CONSERVED, MOVE_PATH) come last.
     public class PatternMatcherTableTests
     {
         // What the reader will do with a line: the first form of its verb that reads it wins; if none does, the furthest failure of them tells where.
@@ -25,9 +23,6 @@ namespace UnityMCP.Playtest.Core.GrammarTests
             }
             return furthest == null ? "no form" : "no match, " + MatchShow.Failed(furthest);
         }
-
-        private static IEnumerable<Element> Walk(IEnumerable<Element> elements) =>
-            elements.SelectMany(e => e.Kind == ElementKind.Group ? Walk(e.Items) : new[] { e });
 
         [TestCase("WAIT 2.5", "PT_WAIT: seconds=2.5@5")]
         [TestCase("  WAIT   2.5", "PT_WAIT: seconds=2.5@9")]
@@ -98,16 +93,81 @@ namespace UnityMCP.Playtest.Core.GrammarTests
         [TestCase("ASSERT_MIN hp > 3", "PT_ASSERT_MIN: name=hp@11; op=>@14; value=3@16")]
         [TestCase("ASSERT_MIN hp >", "no match, at 3 slot value")]
         [TestCase("DESC hello world", "PT_DESC: label=hello world@5")]
+        [TestCase("ASSERT /x|C|f == TIMEOUT", "PT_ASSERT: op===@14; query=/x|C|f@7; value=TIMEOUT@17")]
+        [TestCase("  ASSERT /x|C|f == TIMEOUT", "PT_ASSERT: op===@16; query=/x|C|f@9; value=TIMEOUT@19")]
+        [TestCase("ASSERT /Player|Health|hp == 100", "PT_ASSERT: op===@25; query=/Player|Health|hp@7; value=100@28")]
+        [TestCase("ASSERT /My Object|C|f == 1", "PT_ASSERT: op===@22; query=/My Object|C|f@7; value=1@25")]
+        [TestCase("ASSERT /x|C|state == hello world", "PT_ASSERT: op===@18; query=/x|C|state@7; value=hello world@21")]
+        [TestCase("ASSERT $hud|health-label|text == \"75 HP\"", "PT_ASSERT: op===@30; query=$hud|health-label|text@7; value=\"75 HP\"@33")]
+        [TestCase("ASSERT /GridPlayer|GridPlayer|StateText contains pos=0,0", "PT_ASSERT: op=contains@40; query=/GridPlayer|GridPlayer|StateText@7; value=pos=0,0@49")]
+        [TestCase("ASSERT /[MECHANICS/ZONE TEMPLATE]/Child|Comp|field == value", "PT_ASSERT: op===@51; query=/[MECHANICS/ZONE TEMPLATE]/Child|Comp|field@7; value=value@54")]
+        [TestCase("ASSERT /Player|Health|hp > 0 TIMEOUT 5", "PT_ASSERT: op=>@25; query=/Player|Health|hp@7; timeout=5@37; value=0@27")]
+        [TestCase("ASSERT /Enemy|Health|hp == 0 TIMEOUT 3 AS enemy dead", "PT_ASSERT: label=enemy dead@42; op===@24; query=/Enemy|Health|hp@7; timeout=3@37; value=0@27")]
+        [TestCase("ASSERT /Obj|Comp|f == 1 AS my_label TIMEOUT 3", "PT_ASSERT: label=my_label@27; op===@19; query=/Obj|Comp|f@7; timeout2=3@44; value=1@22")]
+        [TestCase("ASSERT /X|C|f == 1 AS \"health is full\"", "PT_ASSERT: label=\"health is full\"@22; op===@14; query=/X|C|f@7; value=1@17")]
+        [TestCase("ASSERT $title == Bird AS Prey", "PT_ASSERT: label=Prey@25; op===@14; query=$title@7; value=Bird@17")]
+        [TestCase("ASSERT $l == Rock AND Roll", "PT_ASSERT: op===@10; query=$l@7; value=Rock AND Roll@13")]
+        [TestCase("ASSERT $x", "PT_ASSERT_FLAG: flag=$x@7")]
+        [TestCase("ASSERT !/Player|Health|isAlive", "PT_ASSERT_FLAG: flag=!/Player|Health|isAlive@7")]
+        [TestCase("ASSERT", "no match, at 1 slot query")]
+        [TestCase("ASSERT /A|B|c TIMEOUT 5", "no match, at 4 slot op")]
+        [TestCase("ASSERT /x|C|f ==", "no match, at 3 slot value")]
+        [TestCase("ASSERT /x|C|f == 1 AS", "no match, at 5 slot label")]
+        [TestCase("ASSERT /x|C|f == 1 TIMEOUT abc", "no match, at 5 slot timeout")]
+        [TestCase("ASSERT /x|C|f == 1 TIMEOUT 5 TIMEOUT 6", "no match, at 6 word AS")]
+        [TestCase("ASSERT $x = 5", "no match, at 4 slot op")]
+        [TestCase("WAIT_UNTIL /P|C|f == 1", "PT_WAIT_UNTIL: op1===@18; q1=/P|C|f@11; v1=1@21")]
+        [TestCase("WAIT_UNTIL q1 == v1 AND q2 >= v2", "PT_WAIT_UNTIL: op1===@14; op2=>=@27; q1=q1@11; q2=q2@24; v1=v1@17; v2=v2@30")]
+        [TestCase("WAIT_UNTIL q1 == v1 OR q2 == v2", "PT_WAIT_UNTIL: op1===@14; op4===@26; q1=q1@11; q4=q2@23; v1=v1@17; v4=v2@29")]
+        [TestCase("WAIT_UNTIL q1 == v1 AND q2 == v2 AND q3 == v3 TIMEOUT 5 ABORT", "PT_WAIT_UNTIL: op1===@14; op2===@27; op3===@40; q1=q1@11; q2=q2@24; q3=q3@37; timeout=5@54; v1=v1@17; v2=v2@30; v3=v3@43; +ABORT")]
+        [TestCase("WAIT_UNTIL q1 == v1 OR q2 == v2 OR q3 == v3 TIMEOUT 5 ABORT", "PT_WAIT_UNTIL: op1===@14; op4===@26; op5===@38; q1=q1@11; q4=q2@23; q5=q3@35; timeout=5@52; v1=v1@17; v4=v2@29; v5=v3@41; +ABORT")]
+        [TestCase("WAIT_UNTIL /P|C|state == ok AND /Q|C|mode == ABORT", "PT_WAIT_UNTIL: op1===@22; op2===@42; q1=/P|C|state@11; q2=/Q|C|mode@32; v1=ok@25; v2=ABORT@45")]
+        [TestCase("WAIT_UNTIL /P|C|state == ok AND /Q|C|mode == run ABORT", "PT_WAIT_UNTIL: op1===@22; op2===@42; q1=/P|C|state@11; q2=/Q|C|mode@32; v1=ok@25; v2=run@45; +ABORT")]
+        [TestCase("WAIT_UNTIL q1 == AND", "PT_WAIT_UNTIL: op1===@14; q1=q1@11; v1=AND@17")]
+        [TestCase("WAIT_UNTIL q1 == v1 AND q2 == v2 TIMEOUT 10", "PT_WAIT_UNTIL: op1===@14; op2===@27; q1=q1@11; q2=q2@24; timeout=10@41; v1=v1@17; v2=v2@30")]
+        [TestCase("WAIT_UNTIL $door_open", "PT_WAIT_UNTIL_FLAG: flag=$door_open@11")]
+        [TestCase("WAIT_UNTIL /My Object|C|f == 1 AND /Other Space|C|g == 2 TIMEOUT 5", "PT_WAIT_UNTIL: op1===@26; op2===@52; q1=/My Object|C|f@11; q2=/Other Space|C|g@35; timeout=5@65; v1=1@29; v2=2@55")]
+        [TestCase("WAIT_UNTIL a == 1 AND b == 2 AND c == 3 AND d == 4", "PT_WAIT_UNTIL: op1===@13; op2===@24; op3===@35; q1=a@11; q2=b@22; q3=c@33; v1=1@16; v2=2@27; v3=3 AND d == 4@38")]
+        [TestCase("WAIT_UNTIL $x == \"a AND b\" AND $y == 2", "PT_WAIT_UNTIL: op1===@14; op2===@34; q1=$x@11; q2=$y@31; v1=\"a AND b\"@17; v2=2@37")]
+        [TestCase("WAIT_UNTIL", "no match, at 1 slot q1")]
+        [TestCase("WAIT_UNTIL /Player|Health|ready", "no match, at 2 slot op1")]
+        [TestCase("WAIT_UNTIL /x|C|f ==", "no match, at 3 slot v1")]
+        [TestCase("WAIT_UNTIL q1 == v1 AND", "no match, at 5 slot q2")]
+        [TestCase("WAIT_UNTIL q1 == v1 TIMEOUT 5 OR q2 == v2", "no match, at 6 word ABORT")]
+        [TestCase("WAIT_UNTIL q1 == v1 ABORT TIMEOUT 5", "no match, at 5")]
+        [TestCase("INVARIANT /Enemy|H|hp > 0", "PT_INVARIANT: op=>@22; query=/Enemy|H|hp@10; value=0@24")]
+        [TestCase("INVARIANT /x|C|f == a TIMEOUT 5", "PT_INVARIANT: op===@17; query=/x|C|f@10; value=a TIMEOUT 5@20")]
+        [TestCase("INVARIANT /x|C|f", "no match, at 2 slot op")]
+        [TestCase("INVARIANT /x|C|f >", "no match, at 3 slot value")]
+        [TestCase("INVARIANT", "no match, at 1 slot query")]
+        [TestCase("MCP get_hierarchy depth=2", "PT_MCP: args=depth=2@18; command=get_hierarchy@4")]
+        [TestCase("MCP get_hierarchy depth=2 INTO $tree", "PT_MCP_INTO: args=depth=2@18; command=get_hierarchy@4; var=$tree@31")]
+        [TestCase("MCP get_hierarchy INTO $tree", "PT_MCP_INTO: command=get_hierarchy@4; var=$tree@23")]
+        [TestCase("MCP run_sql query=\"insert INTO $table\"", "PT_MCP: args=query=\"insert INTO $table\"@12; command=run_sql@4")]
+        [TestCase("MCP list_tools", "PT_MCP: command=list_tools@4")]
+        [TestCase("MCP", "no match, at 1 slot command")]
+        [TestCase("MCP fake_cmd n=null arr=[1,2,\"x\"] obj={\"x\":1}", "PT_MCP: args=n=null arr=[1,2,\"x\"] obj={\"x\":1}@13; command=fake_cmd@4")]
+        [TestCase("MCP get_hierarchy depth=2 INTO tree", "PT_MCP: args=depth=2 INTO tree@18; command=get_hierarchy@4")]
+        [TestCase("MCP get_hierarchy INTO", "PT_MCP: args=INTO@18; command=get_hierarchy@4")]
+        [TestCase("ASSERT_CONSERVED SUM /A|C|f + /B|C|f == 100 OVER 5", "PT_ASSERT_CONSERVED: expected=100@40; over=5@49; terms=/A|C|f + /B|C|f@21; +SUM")]
+        [TestCase("ASSERT_CONSERVED a + b OVER 5", "PT_ASSERT_CONSERVED: over=5@28; terms=a + b@17")]
+        [TestCase("ASSERT_CONSERVED SUM a + b", "no match, at 5 word OVER")]
+        [TestCase("ASSERT_CONSERVED SUM a + b == high OVER 5", "no match, at 6 slot expected")]
+        [TestCase("ASSERT_CONSERVED", "no match, at 1 word SUM")]
+        [TestCase("MOVE_PATH 1,0,0 > 5,0,0 > 10,0,3", "PT_MOVE_PATH: path=1,0,0 > 5,0,0 > 10,0,3@10")]
+        [TestCase("MOVE_PATH 0,0,0 > 5,0,5 > 10,0,0 TIMEOUT 8", "PT_MOVE_PATH: path=0,0,0 > 5,0,5 > 10,0,0@10; timeout=8@41")]
+        [TestCase("MOVE_PATH 1,0,0 > 5,0,0 TIMEOUT", "no match, at 5 slot timeout")]
+        [TestCase("MOVE_PATH 1,0,0 > 5,0,0 TIMEOUT 8 9", "no match, at 6")]
+        [TestCase("MOVE_PATH", "no match, at 1 slot path")]
         public void Match_TheFormsOfTheTable_ReadALineAsTheReaderInJavaScriptDoes(string line, string fate) => Assert.That(Fate(line), Is.EqualTo(fate));
 
         // The lines of the examples of the repository for which no diagnostic is expected (dsl/constructs/playtest*.examples, the requirement examples both readers are held to) are read.
-        // A block (ASSERT_BATCH ... END) is read as a whole by the reader, and a line whose verb has a LAZY text waits for H1.1; both are counted, not skipped in silence.
+        // A block (ASSERT_BATCH ... END) is read as a whole by the reader, not line by line here; its lines are counted, not skipped in silence.
         [Test]
         public void Match_EveryFlatLineOfTheExamplesThatExpectNoDiagnostic_IsReadByTheFirstFormOfItsVerb()
         {
-            var lazyVerbs = new HashSet<string>(PlaytestGrammar.Forms.Where(f => Walk(f.Elements).Any(e => e.Lazy)).Select(f => f.Verb));
             var blockVerbs = new HashSet<string>(PlaytestGrammar.Forms.Where(f => f.IsBlock).Select(f => f.Verb));
-            int read = 0, lazy = 0, blocks = 0;
+            int read = 0, blocks = 0;
             var refused = new List<string>();
             foreach (var block in ExamplesFile.ReadAll().Where(b => b.Expect.Count == 0))
             {
@@ -119,14 +179,13 @@ namespace UnityMCP.Playtest.Core.GrammarTests
                 }
                 foreach (var line in lines)
                 {
-                    if (lazyVerbs.Contains(PatternTokens.Split(line)[0].Text)) lazy++;
-                    else if (Fate(line).StartsWith("no ")) refused.Add(block.FileName + ": " + line + " => " + Fate(line));
+                    if (Fate(line).StartsWith("no ")) refused.Add(block.FileName + ": " + line + " => " + Fate(line));
                     else read++;
                 }
             }
-            TestContext.WriteLine("lines read: " + read + "; waiting for LAZY: " + lazy + "; in blocks: " + blocks);
+            TestContext.WriteLine("lines read: " + read + "; in blocks: " + blocks);
             Assert.That(refused, Is.Empty);
-            Assert.That(read, Is.GreaterThan(100), "a check over (almost) no line is no check");
+            Assert.That(read, Is.GreaterThan(200), "151 lines of the verbs with no LAZY text, 74 more with one");
         }
     }
 }

@@ -36,14 +36,23 @@ namespace UnityMCP.Playtest.Core
         public Element Slot;
         public string Lit;
         public long Work;
+
+        /// <summary>Notes a failure if it is further than the ones before it; of two at one token the first stays.</summary>
+        public void Note(int at, Element slot, string lit)
+        {
+            if (at <= At) return;
+            At = at;
+            Slot = slot;
+            Lit = lit;
+        }
     }
 
     /// <summary>
     /// Matches the tokens of a line against the elements of a form as matchPattern of the reader of the SURFACE in JavaScript (pattern.ts) does with the options that READ uses. A word is
     /// a token as written. A slot is one token that SlotCheck accepts, but a Text, which is the rest of the line or, with a word after it in its own list, the tokens before the first
     /// token that is that word (at least one). An optional group is read with what follows it and left out when that fails, unless its first element is a word that is the token in hand:
-    /// then it must match whole. A group of only words that matched is a flag. Every token must be used. The end of a Lazy text with no word after it is PatternLazy (step 7.5 H1.1);
-    /// until that is written, such a slot throws NotSupportedException.
+    /// then it must match whole. A group of only words that matched is a flag. Every token must be used. The end of a Lazy text with no word after it is PatternLazy; for a text in a group
+    /// that includes what follows the group, which the matcher carries along as `after`.
     /// </summary>
     internal static class PatternMatcher
     {
@@ -59,7 +68,7 @@ namespace UnityMCP.Playtest.Core
         public static SlotBindings Match(IReadOnlyList<Element> els, IReadOnlyList<PatternToken> toks, string line, MatchTrace trace)
         {
             var run = new Run(toks, line, trace);
-            var bound = run.Go(els, 0, 0, Nothing, (ti, acc) => ti == toks.Count ? acc : run.Fail(ti));
+            var bound = run.Go(els, 0, 0, Nothing, (ti, acc) => ti == toks.Count ? acc : run.Fail(ti), NoElements);
             return bound == null ? null : Collect(bound);
         }
 
@@ -76,6 +85,8 @@ namespace UnityMCP.Playtest.Core
 
         // No binding yet. null is "no match", so "nothing bound" needs a value of its own.
         private static readonly Bound Nothing = new Bound(null, default, false, null);
+
+        private static readonly Element[] NoElements = new Element[0];
 
         private static SlotBindings Collect(Bound bound)
         {
@@ -106,20 +117,15 @@ namespace UnityMCP.Playtest.Core
 
             public Run(IReadOnlyList<PatternToken> toks, string line, MatchTrace trace) { this.toks = toks; this.line = line; this.trace = trace; }
 
-            /// <summary>Notes a failure if it is further than the ones before it, and says "no match".</summary>
+            /// <summary>Notes a failure in the trace, if there is one, and says "no match".</summary>
             public Bound Fail(int at, Element slot = null, string lit = null)
             {
-                if (trace != null && at > trace.At)
-                {
-                    trace.At = at;
-                    trace.Slot = slot;
-                    trace.Lit = lit;
-                }
+                trace?.Note(at, slot, lit);
                 return null;
             }
 
-            /// <summary>Matches list[li..] from token ti on, then `rest` (what comes after the list); the bindings of the whole, or null.</summary>
-            public Bound Go(IReadOnlyList<Element> list, int li, int ti, Bound acc, Func<int, Bound, Bound> rest)
+            /// <summary>Matches list[li..] from token ti on, then `rest` (what comes after the list); the bindings of the whole, or null. `after`: the elements that follow the group that holds the list.</summary>
+            public Bound Go(IReadOnlyList<Element> list, int li, int ti, Bound acc, Func<int, Bound, Bound> rest, IReadOnlyList<Element> after)
             {
                 if (trace != null) trace.Work++;
                 if (li == list.Count) return rest(ti, acc);
@@ -127,17 +133,17 @@ namespace UnityMCP.Playtest.Core
                 switch (el.Kind)
                 {
                     case ElementKind.Word:
-                        return ti < toks.Count && toks[ti].Text == el.Text ? Go(list, li + 1, ti + 1, acc, rest) : Fail(ti, null, el.Text);
+                        return ti < toks.Count && toks[ti].Text == el.Text ? Go(list, li + 1, ti + 1, acc, rest, after) : Fail(ti, null, el.Text);
                     case ElementKind.Slot:
-                        return Slot(list, li, ti, acc, rest);
+                        return Slot(list, li, ti, acc, rest, after);
                     case ElementKind.Group:
-                        return Group(list, li, ti, acc, rest);
+                        return Group(list, li, ti, acc, rest, after);
                     default:
                         throw new NotSupportedException("The reader does not know the element kind " + el.Kind + ".");
                 }
             }
 
-            private Bound Slot(IReadOnlyList<Element> list, int li, int ti, Bound acc, Func<int, Bound, Bound> rest)
+            private Bound Slot(IReadOnlyList<Element> list, int li, int ti, Bound acc, Func<int, Bound, Bound> rest, IReadOnlyList<Element> after)
             {
                 var el = list[li];
                 if (ti >= toks.Count) return Fail(ti, el);
@@ -157,24 +163,29 @@ namespace UnityMCP.Playtest.Core
                         end = k - 1;
                     }
                     else if (el.Lazy)
-                        throw new NotSupportedException("The end of the LAZY text " + el.Text + " is PatternLazy (step 7.5 H1.1), which is not written yet.");
+                    {
+                        end = PatternLazy.LazyEnd(PatternLazy.Ahead(list, li + 1, after), toks, ti, trace);
+                        if (end < 0) return null;
+                    }
                 }
                 var first = toks[ti];
                 var last = toks[end];
                 var raw = el.Type == SlotType.Text ? line.Substring(first.Col, last.Col + last.Text.Length - first.Col) : first.Text;
                 if (!SlotCheck.Accepts(el, raw)) return Fail(ti, el);
-                return Go(list, li + 1, end + 1, new Bound(el.Text, new SlotValue(raw, first.Col), false, acc), rest);
+                return Go(list, li + 1, end + 1, new Bound(el.Text, new SlotValue(raw, first.Col), false, acc), rest, after);
             }
 
-            private Bound Group(IReadOnlyList<Element> list, int li, int ti, Bound acc, Func<int, Bound, Bound> rest)
+            private Bound Group(IReadOnlyList<Element> list, int li, int ti, Bound acc, Func<int, Bound, Bound> rest, IReadOnlyList<Element> after)
             {
                 var items = list[li].Items;
                 var head = items.Count > 0 ? items[0] : null;
                 var flag = OnlyWords(items) ? head.Text : null;
                 // READ commits: a group whose first word is the token in hand must match whole; it is not left out so that the token is read some other way.
                 var committed = head != null && head.Kind == ElementKind.Word && ti < toks.Count && toks[ti].Text == head.Text;
-                var taken = Go(items, 0, ti, acc, (t2, a2) => Go(list, li + 1, t2, flag == null ? a2 : new Bound(flag, default, true, a2), rest));
-                return taken ?? (committed ? null : Go(list, li + 1, ti, acc, rest));
+                // A LAZY text in the group ends before what follows the group, too.
+                var inside = PatternLazy.HoldsLazy(list[li]) ? PatternLazy.Ahead(list, li + 1, after) : after;
+                var taken = Go(items, 0, ti, acc, (t2, a2) => Go(list, li + 1, t2, flag == null ? a2 : new Bound(flag, default, true, a2), rest, after), inside);
+                return taken ?? (committed ? null : Go(list, li + 1, ti, acc, rest, after));
             }
         }
     }

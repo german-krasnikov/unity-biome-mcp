@@ -4,6 +4,7 @@ using NUnit.Framework;
 using Element = UnityMCP.Playtest.Core.PlaytestGrammar.Element;
 using ElementKind = UnityMCP.Playtest.Core.PlaytestGrammar.ElementKind;
 using SlotType = UnityMCP.Playtest.Core.PlaytestGrammar.SlotType;
+using static UnityMCP.Playtest.Core.GrammarTests.SyntheticForms;
 
 namespace UnityMCP.Playtest.Core.GrammarTests
 {
@@ -12,23 +13,6 @@ namespace UnityMCP.Playtest.Core.GrammarTests
     // rule that goes wrong is the test that fails; every case below was also run through matchPattern on the same pattern text. The forms of the real table: PatternMatcherTableTests.
     public class PatternMatcherTests
     {
-        private static Element W(string word) => new Element(ElementKind.Word, word);
-        private static Element S(string name, SlotType type = SlotType.Text, string arg = null) => new Element(ElementKind.Slot, name, type, arg);
-        private static Element One(string name) => S(name, SlotType.Match, "\\S+");
-        private static Element Lazy(string name) => new Element(ElementKind.Slot, name, SlotType.Text, lazy: true);
-        private static Element G(params Element[] items) => new Element(ElementKind.Group, null, items: items);
-
-        private static SlotBindings Read(Element[] form, string line, MatchTrace trace = null) => PatternMatcher.Match(form, PatternTokens.Split(line), line, trace);
-
-        private static string Bound(Element[] form, string line) => MatchShow.Bound(Read(form, line));
-
-        // Where the furthest failure was, "matched" when there was none to speak of.
-        private static string Why(Element[] form, string line)
-        {
-            var trace = new MatchTrace();
-            return Read(form, line, trace) == null ? MatchShow.Failed(trace) : "matched";
-        }
-
         private static readonly Element[] Wait = { W("WAIT"), S("seconds", SlotType.Number) };
         private static readonly Element[] Log = { W("LOG"), G(S("message")) };
         private static readonly Element[] Move = { W("MOVE"), G(One("path")), W("TO"), One("to"), G(S("offset")) };
@@ -162,11 +146,6 @@ namespace UnityMCP.Playtest.Core.GrammarTests
         [Test]
         public void Match_ALazyTextWithAWordAfterIt_EndsAtThatWord_AsAPlainOneDoes() =>
             Assert.That(Bound(new[] { W("X"), Lazy("q"), W("AT"), S("n", SlotType.Number) }, "X a b AT 5"), Is.EqualTo("n=5@9; q=a b@2"));
-
-        // The end of a LAZY text with no word after it is PatternLazy (H1.1), not written yet: reading it as a plain text would refuse the lines it exists for, in silence.
-        [Test]
-        public void Match_ALazyTextWithNoWordAfterIt_IsNotSupportedYet() =>
-            Assert.Throws<NotSupportedException>(() => Read(new[] { W("ASSERT"), Lazy("query"), One("op") }, "ASSERT a == 1"));
 
         [Test]
         public void Match_AnElementKindItDoesNotKnow_IsRefusedLoudly() =>
