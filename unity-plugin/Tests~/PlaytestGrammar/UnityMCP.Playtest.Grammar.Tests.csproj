@@ -27,6 +27,8 @@
          Named, not Reader/*.cs: the folder will also hold the builder, which needs PlaytestStep. -->
     <Compile Include="../../Runtime/Playtest/Core/Reader/Pattern*.cs" />
     <Compile Include="../../Runtime/Playtest/Core/Reader/SlotCheck.cs" />
+    <!-- RepoRoot and the reader of the examples files: the data that this lane and the reader in JavaScript are both held to. -->
+    <Compile Include="../PlaytestShared/*.cs" />
     <Compile Include="*.cs" />
   </ItemGroup>
 
