@@ -108,6 +108,19 @@ const probes = [
   ['MCP get_hierarchy INTO $tree', 'INTO without arguments is the INTO form', 'PT_MCP_INTO {"command":"get_hierarchy","var":"$tree"}'],
   ['MCP create_object name=pt_$RUN_ID primitive=Cube', 'biome_smoke.playtest:7: no INTO, the args are the rest', 'PT_MCP {"command":"create_object","args":"name=pt_$RUN_ID primitive=Cube"}'],
   ['MCP run_sql query="insert INTO $table"', 'an INTO inside a quoted argument is no INTO: the var must be a bare $name', 'PT_MCP {"command":"run_sql","args":"query=\\"insert INTO $table\\""}'],
+  ['MOVE Player TO @/Enemy.position + (5,0,0)', 'AI/playtest-dsl.md:640: the position is one token, the offset after it is text; the hand parser keeps the token and drops the offset (the builder does the same)', 'PT_MOVE {"path":"Player","to":"@/Enemy.position","offset":"+ (5,0,0)"}'],
+  ['MOVE TO 1,2,3', 'the optional path steps back for TO', 'PT_MOVE {"to":"1,2,3"}'],
+  ['MOVE Player TO @/Enemy.position            # use enemy\'s current position', 'AI/playtest-dsl.md:639: a # after a position is in the offset text (COMMENT line)', 'PT_MOVE {"path":"Player","to":"@/Enemy.position","offset":"# use enemy\'s current position"}'],
+  ['TELEPORT Enemy @/Player.position + (2,0,0)', 'AI/playtest-dsl.md:777', 'PT_TELEPORT {"path":"Enemy","to":"@/Player.position","offset":"+ (2,0,0)"}'],
+  ['MOVE Player TO 100,50', 'INTENDED I9: ParseFloats throws on two components (NumericParsing.cs:17); the position is typed', 'PT_SYNTAX@1:16'],
+  ['CAPTURE gold /My Player|Wallet|Gold', 'the query is the rest of the line (PlaytestParser.Internals.cs:298 joins the tokens)', 'PT_CAPTURE {"label":"gold","query":"/My Player|Wallet|Gold"}'],
+  ['CAPTURE_MIN $minFps /Stats|Fps|v OVER 3.5', 'PlaytestParserTests.cs:835', 'PT_CAPTURE_MIN {"name":"$minFps","query":"/Stats|Fps|v","over":"3.5"}'],
+  ['ASSERT_CAPTURED money INCREASED_BY >= 50', 'Runtime/PlaytestParserTests.cs:353: mode, operator and value', 'PT_ASSERT_CAPTURED {"label":"money","mode":"INCREASED_BY","subop":">=","value":"50"}'],
+  ['ASSERT_CAPTURED initial_pos != 100,100,0', 'INTENDED I9: AI/playtest-dsl.md:279 writes it, PlaytestState.cs:95 throws on the mode !=', 'PT_SYNTAX@1:29'],
+  ['ASSERT_ONE_ACTIVE /A /B /C /D', 'two paths and the rest (PlaytestParser.Internals.cs:547 takes every token)', 'PT_ASSERT_ONE_ACTIVE {"path1":"/A","path2":"/B","more":"/C /D"}'],
+  ['ASSERT_CTA', 'no state: the builder takes VISIBLE (AI/playtest-dsl.md:253)', 'PT_ASSERT_CTA {}'],
+  ['DESC "check health"', 'the quotes stay in the text, the builder takes them off', 'PT_DESC {"label":"\\"check health\\""}'],
+  ['MONITOR STOP', 'STOP is a name for the grammar; the builder reads it as the end', 'PT_MONITOR {"query":"STOP"}'],
 ];
 for (const [line, why, exp] of probes) {
   const r = read(line), got = r.diagnostics[0] ? place(r.diagnostics[0]) : (rule(r.uses[0]) ?? slots(r.uses[0]));

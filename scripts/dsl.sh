@@ -23,8 +23,7 @@ case "${1:-}" in
     check)
         node "$biome" generate --project dsl --check
         node "$biome" verify --construct-examples dsl/constructs/tool.examples
-        node "$biome" verify --construct-examples dsl/constructs/playtest.examples
-        node "$biome" verify --construct-examples dsl/constructs/playtest-lazy.examples
+        for examples in dsl/constructs/playtest*.examples; do node "$biome" verify --construct-examples "$examples"; done
         node dsl/playtest/compare.mjs
         "${PYTHON:-python3}" scripts/dsl_content_lock.py check
         ;;
