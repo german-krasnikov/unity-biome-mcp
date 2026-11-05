@@ -2,13 +2,13 @@
 // usage: node dsl/playtest/compare.mjs      env: BIOME_DSL_ROOT, the biome-dsl checkout of TOOLCHAIN (as scripts/dsl.sh)
 // files    the `line` rows of the oracle, each file read whole: no diagnostic, and a use of the verb of the row on the line of the row, so the commands, and with them the steps, are the oracle's
 // literals every `accept` / `reject` row of the oracle, none left out: the reader and the RULES agree with the row, or the row is HOST (the host resolves INCLUDE and expands FOR and COMMENT) or KNOWN (with its reason)
-// examples the EXPECT lines of playtest*.examples (read as DECLARE_*, default tokenizer) say the same through the SURFACE (PT_*, TOKENS words, COMMENT line)
+// examples the EXPECT lines of playtest*.examples (read as DECLARE_*, default tokenizer) say the same through the SURFACE (PT_*, TOKENS words, COMMENT line), and every construct is read from at least one SOURCE line
 // probes   what the examples cannot see: the options of the SURFACE line (TOKENS words, COMMENT line, ORDERED), the slots of a line and the RULES
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { dirs, load, place, PREPROCESSOR, root, rule } from './surface.mjs';
 
-const { read } = await load();
+const { forms, read } = await load();
 const unescape = s => s.replace(/\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|[\\nrt])/g, (_, e) => ({ n: '\n', r: '\r', t: '\t', '\\': '\\' })[e] ?? String.fromCharCode(parseInt(e.slice(1), 16)));
 const oracle = readFileSync(resolve(root, 'dsl/playtest/oracle.rows'), 'utf8'), rows = oracle.split('\n');
 const problems = [];
@@ -62,14 +62,17 @@ for (const text of texts) for (const [name, mutate, columns] of MUTATIONS) {
 
 // examples
 let blocks = 0;
+const covered = new Set();   // the constructs that a SOURCE line of an example is read as: a line that reads is a positive example of its construct, in any block
 for (const f of readdirSync(dirs[0]).filter(f => /^playtest.*\.examples$/.test(f))) {
   for (const b of readFileSync(resolve(dirs[0], f), 'utf8').split(/\n(?=EXAMPLE )/).map(b => b.split('\n'))) {
     blocks++;
     const src = b.filter(l => l.startsWith('  SOURCE ')).map(l => l.slice(9)).join('\n'), exp = b.filter(l => l.startsWith('  EXPECT diagnostic ')).map(l => l.slice(20).replace('DECLARE_', 'PT_').replace(' at ', '@')).sort().join();
-    const got = read(src).diagnostics.map(place).sort().join();
+    const out = read(src), got = out.diagnostics.map(place).sort().join();
+    for (const u of out.uses) covered.add(u.def.name);
     if (got !== exp) problems.push(`example "${b[0].slice(8, 70)}" (${f}): through the SURFACE [${got}], in the file [${exp}]`);
   }
 }
+for (const c of forms) if (!covered.has(c.name)) problems.push(`construct ${c.name} is read from no SOURCE line of playtest*.examples: write a positive example`);
 
 // probes: [text, why, expected]. Expected is the construct and the raw slots of each use (what BuildSteps and ParseQOV make of the tokens: read, not run) or a PT_ code of a rule, joined by " | ", or the first diagnostic.
 const raws = b => Object.fromEntries([...b].map(([k, v]) => [k, v.raw])), slots = u => `${u.def.name} ${JSON.stringify(raws(u.head))}${u.items.length ? ` ${JSON.stringify(u.items.map(raws))}` : ''}`;
@@ -139,6 +142,6 @@ for (const [text, why, exp] of probes) {
   if (got !== exp) problems.push(`probe ${JSON.stringify(text)} (${why}): ${got}`);
 }
 
-console.log(`files ${byFile.size}: commands ${commands}, steps ${steps} | literals ${calls}: same ${same}, host ${include + preprocessor} (INCLUDE ${include}, FOR/COMMENT ${preprocessor}), known ${known} | mutants ${mutants} | examples ${blocks} | probes ${probes.length}`);
+console.log(`files ${byFile.size}: commands ${commands}, steps ${steps} | literals ${calls}: same ${same}, host ${include + preprocessor} (INCLUDE ${include}, FOR/COMMENT ${preprocessor}), known ${known} | mutants ${mutants} | examples ${blocks}, constructs read ${covered.size}/${forms.length} | probes ${probes.length}`);
 for (const p of problems) console.log('DIFF', p);
 process.exit(problems.length ? 1 : 0);

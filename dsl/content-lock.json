@@ -35,7 +35,7 @@
     "dsl/decisions/verdict.logic": "19b8bf67b026382459d636d81e58f5c321b78cee4ea78b8caf3e5988469b967a",
     "dsl/playtest/check.mjs": "d4c993c759c814d3621ed7d040a5714749f5cfcdca641419503be7373ecbb0f3",
     "dsl/playtest/check.test.mjs": "cc3e640b693154de971b5a0a5607d50376495305ae84757e321bbf75bad8d504",
-    "dsl/playtest/compare.mjs": "54fc9be8011c2fa9017b2f55b2b3576c9f41e0144466f6f8bed350f3afadb8a7",
+    "dsl/playtest/compare.mjs": "bd11c17908128c44fd546daba9b54469460fff26040f2c31041a946069e4e392",
     "dsl/playtest/oracle.rows": "cdca331e38e4bc7e44b43b7825857317c4cbcc4730dcc8148ed8c59d5a8426ba",
     "dsl/playtest/surface.mjs": "2a20eb9484a720555d97f59c61d01182950ab5552e90f88612b47065ca059690",
     "dsl/tools.biome": "4a62d26acdf8771382ca94b9fcf315645beab55a84791e47d9781eb3967f039f",
