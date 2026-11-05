@@ -1,8 +1,9 @@
 {
   "generated": "by scripts/dsl_content_lock.py generate (scripts/dsl.sh generate runs it); do not edit",
   "files": {
+    "AI/playtest-dsl.md#verbs": "96f0f388f7670b09dc37aa128450d94783470ed425827ddd9a5cb1617619d8a1",
     "docs/tools/index.md#catalog": "33634cc6ca655a43dee455643a31e57e432cd4e6d1ece1d3bc71d0fdd06587a0",
-    "dsl/biome.project": "17c3104b117a28fa6ec9b17c168129ed6cb81db064f1d6dd2f1d088585f6eca5",
+    "dsl/biome.project": "a892bcb876ae63602198b20d720b956e3aaf81d89ef14adb5c11d2d3e6d6fcb1",
     "dsl/chat/chatturn.contract": "e1854115855583b32d5a0379a614fee00cc4fe95e0c8d4838f13e9c40359c096",
     "dsl/chat/chatturn.examples": "a1f40504c40de0548e551f031755eaeef9030f630f27001fbd5e369b423b7a14",
     "dsl/chat/chatturn.feature": "9996348d029ec77d8d29e79946e2a454180230ead038ce29eda06229b1eee1f7",
@@ -33,6 +34,7 @@
     "dsl/decisions/verdict.examples": "bc36160c53a5ec853379309867f60873b4bf092f0bde604ed3de461349dca974",
     "dsl/decisions/verdict.json": "5463d8a44aa2f716a136c6bd46333a7b4b19bf64531c41b91d064e145558df97",
     "dsl/decisions/verdict.logic": "19b8bf67b026382459d636d81e58f5c321b78cee4ea78b8caf3e5988469b967a",
+    "dsl/playtest/PlaytestGrammar.cs.tmpl": "58eb532746598e17ae4afdc20dcf763dc59887b71f70913d4f3cc66ef6430a42",
     "dsl/playtest/check.mjs": "d4c993c759c814d3621ed7d040a5714749f5cfcdca641419503be7373ecbb0f3",
     "dsl/playtest/check.test.mjs": "cc3e640b693154de971b5a0a5607d50376495305ae84757e321bbf75bad8d504",
     "dsl/playtest/compare.mjs": "bd11c17908128c44fd546daba9b54469460fff26040f2c31041a946069e4e392",
@@ -61,6 +63,7 @@
     "unity-plugin/Editor/Generated/Guards.g.cs": "c145caefc64bfe48c88dc2eb010112633b0f85fd62cc3ed0252f65c710711745",
     "unity-plugin/Editor/Generated/Mutability.g.cs": "750901db0bbf3200841460b0a77c46024acd9bb0b4fd298148189085b54f41eb",
     "unity-plugin/Editor/Generated/Verdict.g.cs": "7d67edab491e0fa3e9e6b5c7be3e2e368573c72c85b1f0b0a3b69c86d09054b5",
+    "unity-plugin/Runtime/Playtest/Core/Generated/PlaytestGrammar.g.cs": "2a3f5256851491b6fb5bab9ae5d2419e74003cf772ad6d9197d24b51b624b9aa",
     "unity-plugin/Tests~/ChatTurn/Generated/.biome-files": "0986c3523de7699420ae57e4a2f40acab3f4c90eed82eb4943f859565285e4ff",
     "unity-plugin/Tests~/ChatTurn/Generated/ChatTurn.Examples.cs": "c1269f39549f0d73c900e022e092423a4a850351a951f21db940f255f0312f41"
   }

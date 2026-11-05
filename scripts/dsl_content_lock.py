@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 LOCK = "dsl/content-lock.json"
 # A region of a hand-written file, `path#name`: the text between <!-- biome:begin name --> and <!-- biome:end name -->
-REGIONS = ("docs/tools/index.md#catalog",)
+REGIONS = ("AI/playtest-dsl.md#verbs", "docs/tools/index.md#catalog")
 # The banner of a file that the kit printed: two comment lines, the second one states the digest of the source
 BANNER = re.compile(rb"\A(?:#|//) Generated from [^\n]*\n(?:#|//) source-sha256=[0-9a-f]{64}\r?\n")
 

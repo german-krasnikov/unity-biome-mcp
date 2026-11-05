@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# What dsl/ generates (the tool catalog dsl/tools.biome, the decisions dsl/decisions): print it, or check that the generated files are current.
+# What dsl/ generates (the tool catalog dsl/tools.biome, the decisions dsl/decisions, the chat turn dsl/chat, the playtest grammar dsl/constructs/playtest.construct): print it, or check that the generated files are current.
 #
 # Usage: scripts/dsl.sh generate | check
 # Env:   BIOME_DSL_ROOT  a clean checkout of biome-dsl at the TOOLCHAIN commit of dsl/biome.project (Node >= 22).

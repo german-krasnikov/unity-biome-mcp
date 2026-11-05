@@ -23,3 +23,6 @@ unity-plugin/Tests~/ChatTurn/Generated/*.cs text eol=lf linguist-generated=true 
 unity-plugin/Tests~/ChatTurn/Generated/.biome-files text eol=lf
 # The Tools Reference holds a generated region: LF as well, or `scripts/dsl.sh check` would compare other bytes on Windows.
 docs/tools/index.md text eol=lf
+# The playtest grammar (dsl/playtest, step 7.5): the C# table of its verbs and forms, and the Playtest DSL Reference with its generated table of verbs, LF as well.
+unity-plugin/Runtime/Playtest/Core/Generated/*.g.cs text eol=lf linguist-generated=true gitlab-generated
+AI/playtest-dsl.md text eol=lf

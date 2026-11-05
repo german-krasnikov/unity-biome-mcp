@@ -6,7 +6,7 @@ import json
 
 import pytest
 from dsl_content_lock import LOCK, REGIONS, digest, discover, generate, locked, stale
-from test_dsl_fresh import DSL, feature_steps, logic_steps, render_steps
+from test_dsl_fresh import DSL, feature_steps, grammar_steps, logic_steps, render_steps
 
 ROOT = DSL.parent
 BANNER = f"// Generated from dsl/a.logic\n// source-sha256={'0' * 64}\n// Edit the source, then run biome generate.\n\n"
@@ -28,7 +28,7 @@ def test_no_generated_file_or_dsl_source_differs_from_the_content_lock():
 
 def test_the_lock_names_every_file_that_biome_project_prints():
     project = (DSL / "biome.project").read_text(encoding="utf-8")
-    printed = [out for _, out in render_steps(project) + logic_steps(project) + feature_steps(project)] + sorted((DSL / "decisions").glob("*.json"))
+    printed = [out for _, out in render_steps(project) + logic_steps(project) + feature_steps(project) + grammar_steps(project)] + sorted((DSL / "decisions").glob("*.json"))
     names = [path.relative_to(ROOT).as_posix() for path in printed]
     pinned = locked()
     assert names, "dsl/biome.project prints nothing"
@@ -75,6 +75,7 @@ def test_generate_locks_what_discover_takes_and_never_writes_a_region_that_is_go
         generate(tmp_path, ["dsl/a.logic"])
     assert not (tmp_path / LOCK).exists()
     write(tmp_path, "docs/tools/index.md", "<!-- biome:begin catalog -->\n| a |\n<!-- biome:end catalog -->\n")
-    assert generate(tmp_path, ["dsl/a.logic"]) == 2
-    assert list(locked(tmp_path)) == ["docs/tools/index.md#catalog", "dsl/a.logic"]
+    write(tmp_path, "AI/playtest-dsl.md", "<!-- biome:begin verbs -->\n| a |\n<!-- biome:end verbs -->\n")
+    assert generate(tmp_path, ["dsl/a.logic"]) == 3
+    assert list(locked(tmp_path)) == ["AI/playtest-dsl.md#verbs", "docs/tools/index.md#catalog", "dsl/a.logic"]
     assert stale(tmp_path) == []
