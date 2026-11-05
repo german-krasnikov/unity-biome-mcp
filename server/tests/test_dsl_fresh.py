@@ -20,9 +20,9 @@ _TARGET = re.compile(r'--target\s+"\w+\s+\{dir\}/([^\s"]+)')
 # GENERATE <name> feature generate --feature {dir}/<f>.feature ... --out {dir}/<dir> [--tests-out {dir}/<dir>] ...: the files of both directories carry the digest of the feature
 _FEATURE = re.compile(r"^GENERATE\s+\S+\s+feature generate\s+--feature\s+\{dir\}/(\S+)(.*)$", re.MULTILINE)
 _FEATURE_DIR = re.compile(r"--(?:out|tests-out)\s+\{dir\}/(\S+)")
-# GENERATE playtest-grammar derive {dir}/playtest/gen.mjs grammar OUT {dir}/<construct file> {dir}/<template> {dir}/<C# file> {dir}/<md file>: the C# carries the digest of the construct file
-# (step 7.5 D1); the region of the md file has no banner (test_dsl_content_lock.py locks it)
-_GRAMMAR = re.compile(r"^GENERATE\s+playtest-grammar\s+derive\s+\{dir\}/\S+\s+\S+\s+OUT\s+\{dir\}/(\S+)\s+\{dir\}/\S+\s+\{dir\}/(\S+\.g\.cs)\s+\{dir\}/\S+$", re.MULTILINE)
+# GENERATE <name> reader --surface <surface> --target cs [--cs-namespace <ns>] --out {dir}/<C# file>: the C# carries the digest of dsl/constructs/<surface>.construct
+# (step 7.5 R7); the table of verbs of AI/playtest-dsl.md has no banner (test_dsl_content_lock.py locks it)
+_READER = re.compile(r"^GENERATE\s+\S+\s+reader\s+--surface\s+(\S+)\s+--target\s+cs\s+(?:--cs-namespace\s+\S+\s+)?--out\s+\{dir\}/(\S+\.g\.cs)$", re.MULTILINE)
 
 
 def source_sha256(source: Path) -> str:
@@ -63,8 +63,8 @@ def feature_steps(project: str, dsl: Path = DSL) -> list[tuple[Path, Path]]:
 
 
 def grammar_steps(project: str) -> list[tuple[Path, Path]]:
-    """(construct file, generated C#) of the playtest-grammar derive step of a biome.project text."""
-    return [(DSL / source, (DSL / out).resolve()) for source, out in _GRAMMAR.findall(project)]
+    """(construct file, generated C#) of the playtest reader step of a biome.project text."""
+    return [(DSL / "constructs" / f"{surface}.construct", (DSL / out).resolve()) for surface, out in _READER.findall(project)]
 
 
 def test_every_generated_file_was_printed_from_the_current_catalog():
@@ -87,7 +87,7 @@ def test_every_generated_chat_turn_file_was_printed_from_its_current_feature():
 
 def test_the_playtest_grammar_was_printed_from_its_current_construct():
     steps = grammar_steps((DSL / "biome.project").read_text(encoding="utf-8"))
-    assert steps, "dsl/biome.project has no playtest-grammar derive step"
+    assert steps, "dsl/biome.project has no playtest reader step"
     assert stale_outputs(steps) == [], "run scripts/dsl.sh generate"
 
 
@@ -114,7 +114,7 @@ def test_the_logic_steps_of_a_project_name_their_sources_and_every_target():
 
 
 def test_the_grammar_step_names_its_construct_file_and_its_c_sharp():
-    project = "GENERATE playtest-grammar derive {dir}/p/gen.mjs grammar OUT {dir}/c/p.construct {dir}/p/G.cs.tmpl {dir}/../u/G.g.cs {dir}/../AI/p.md\n"
+    project = "GENERATE playtest-reader reader --surface p --target cs --cs-namespace A.B --out {dir}/../u/G.g.cs\n"
     assert [(source.name, out.name) for source, out in grammar_steps(project)] == [("p.construct", "G.g.cs")]
 
 

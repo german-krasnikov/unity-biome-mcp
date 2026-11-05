@@ -30,8 +30,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Relative to this file's own directory (unity-plugin/Tests~/Pure/). `**` takes the subfolders of Core too: Generated/ (the table of the playtest grammar) and
-         Reader/ (the reader that matches a line against it, step 7.5). -->
+    <!-- Relative to this file's own directory (unity-plugin/Tests~/Pure/). `**` takes the subfolders of Core too: Generated/ holds PlaytestReader.g.cs, which biome-dsl prints
+         (the table of the playtest grammar and the reader that matches a line against it, step 7.5). -->
     <Compile Include="../../Runtime/Playtest/Core/**/*.cs" />
   </ItemGroup>
 

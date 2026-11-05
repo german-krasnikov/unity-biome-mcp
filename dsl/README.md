@@ -132,6 +132,14 @@ reducer and the driver at LangVersion 9 with warnings as errors, so a use of `Un
 (the `.feature`, or the `.logic` for `ChatTurn.Policy.cs`), which `test_dsl_fresh.py` (no Node) compares; a change of the examples only is found by `test_dsl_content_lock.py` (no Node) and `scripts/dsl.sh check`. Mutants of `chatturn.feature` (drop or move an `ON` line, drop a guard,
 forget `exit = none`) were generated and run to show that the examples can fail: 16 of 17 are killed, the survivor is equivalent (`askAnswered` without its guard: the range saturates at 0).
 
+## Playtest reader
+
+The C# that reads a line of a playtest script by the grammar (`constructs/playtest.construct`, step 7.5) is printed by the compiler, not written here: `GENERATE playtest-reader reader --surface playtest --target cs`
+writes `unity-plugin/Runtime/Playtest/Core/Generated/PlaytestReader.g.cs` (the table of forms, the tokens, the matcher, the diagnostic and the reader of a command; C# 9, namespace `UnityMCP.Playtest.Core`), and its `.meta` is hand-written beside it.
+The runtime half of that file is `packages/languages/cs-print/reader/*.cs.tmpl` in biome-dsl: a defect of how a line is read is fixed there, then `generate --pin` to the new commit and `scripts/dsl.sh generate`, in one commit with the file it prints.
+Never edit `PlaytestReader.g.cs`. The table of verbs of `AI/playtest-dsl.md` is the other step, `playtest-verbs` (`playtest/gen.mjs verbs`). The file is held by `scripts/dsl.sh check`, by `dotnet test unity-plugin/Tests~/PlaytestGrammar/UnityMCP.Playtest.Grammar.Tests.csproj -c Release`
+(the table and the front of the reader, compiled alone at C# 9 with warnings as errors) and by `Tests~/Pure`, which compiles it with the rest of Core.
+
 ## Checks
 
 - `scripts/dsl.sh check`: `generate --check` (a stale or hand-edited generated file), the examples of the construct and the content lock. Needs Node.

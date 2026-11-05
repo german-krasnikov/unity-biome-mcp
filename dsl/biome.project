@@ -1,5 +1,5 @@
 # What unity-biome-mcp generates: the tool catalog (dsl/tools.biome printed through constructs/tool.construct), the decisions (dsl/decisions), the chat turn (dsl/chat) and the playtest grammar (constructs/playtest.construct).
-TOOLCHAIN b4d898da4aec13c3355545406029efa4bafeeb22
+TOOLCHAIN ffd0be86a04b4d230d623299210f8db0dc448703
 CONSTRUCTS constructs
 
 GENERATE py-specs  render {dir}/tools.biome pyspec   {dir}/../server/src/unity_mcp/tools/generated/catalog_specs.py
@@ -26,5 +26,6 @@ GENERATE cs-reads  render {dir}/tools.biome csreads  {dir}/../unity-plugin/Edito
 GENERATE chat-policy logic generate --source {dir}/chat/chatturn.logic --contract {dir}/chat/chatturn.contract --target "cs {dir}/../unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/ChatTurn.Policy.cs AS UnityMCP.Editor.Chat.Turn LANG 9"
 GENERATE chat-turn feature generate --feature {dir}/chat/chatturn.feature --uses elm --lang cs --flat --out {dir}/../unity-plugin/Editor/Chat/CLI/Generated/ChatTurn --tests-out {dir}/../unity-plugin/Tests~/ChatTurn/Generated --cs-namespace UnityMCP.Editor.Chat.Turn --cs-policy UnityMCP.Editor.Chat.Turn.Policy
 
-# The playtest grammar (dsl/constructs/playtest.construct, step 7.5 D1): the verbs and the forms for the C# host, and the table of verbs of AI/playtest-dsl.md.
-GENERATE playtest-grammar derive {dir}/playtest/gen.mjs grammar OUT {dir}/constructs/playtest.construct {dir}/playtest/PlaytestGrammar.cs.tmpl {dir}/../unity-plugin/Runtime/Playtest/Core/Generated/PlaytestGrammar.g.cs {dir}/../AI/playtest-dsl.md
+# The playtest grammar (dsl/constructs/playtest.construct, step 7.5): the C# reader (table of forms and the front that reads a line by it) is printed by the compiler; the table of verbs of AI/playtest-dsl.md by gen.mjs.
+GENERATE playtest-reader reader --surface playtest --target cs --cs-namespace UnityMCP.Playtest.Core --out {dir}/../unity-plugin/Runtime/Playtest/Core/Generated/PlaytestReader.g.cs
+GENERATE playtest-verbs derive {dir}/playtest/gen.mjs verbs OUT {dir}/constructs/playtest.construct {dir}/../AI/playtest-dsl.md

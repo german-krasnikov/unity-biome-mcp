@@ -24,7 +24,7 @@ def _words(file: str, initializer: str) -> set[str]:
 
 def _lists() -> tuple[set[str], set[str]]:
     hand = _words("PlaytestParser.cs", "_DSL_KEYWORDS")
-    grammar = _words("Generated/PlaytestGrammar.g.cs", "Keywords")
+    grammar = _words("Generated/PlaytestReader.g.cs", "Keywords = new")
     assert len(hand) > 50 and len(grammar) > 50, "a list was not read: this test would pass without checking"
     return hand, grammar
 
