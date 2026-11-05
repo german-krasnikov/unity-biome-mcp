@@ -2,9 +2,10 @@
 
   <!--
     Pure dotnet-test lane for the table of the playtest grammar (step 7.5 D1), next to Tests~/Pure. No Unity install: the file that biome-dsl prints from
-    dsl/constructs/playtest.construct (Runtime/Playtest/Core/Generated/PlaytestGrammar.g.cs) is compiled alone at LangVersion 9 (the C# of Unity 6) with
-    warnings as errors and with no reference to Unity, as its assembly UnityMCP.Playtest.Core (noEngineReferences) is: a use of UnityEngine or of a later
-    C# in the printer fails this build. The tests state what the table must hold, written from the requirements and not from the printer.
+    dsl/constructs/playtest.construct (Runtime/Playtest/Core/Generated/PlaytestGrammar.g.cs) and the front of the reader that matches a line against it
+    (Runtime/Playtest/Core/Reader/, step 7.5 H0) are compiled alone, nothing else of Core, at LangVersion 9 (the C# of Unity 6) with warnings as errors and
+    with no reference to Unity, as their assembly UnityMCP.Playtest.Core (noEngineReferences) is: a use of UnityEngine or of a later C# fails this build.
+    The tests state what the table and the front must hold, written from the requirements and not from the code.
     The `Tests~` folder name is load-bearing: Unity's importer skips a path that ends in `~`.
   -->
 
@@ -22,7 +23,11 @@
   <ItemGroup>
     <!-- Relative to this file's own directory (unity-plugin/Tests~/PlaytestGrammar/). -->
     <Compile Include="../../Runtime/Playtest/Core/Generated/*.cs" />
-    <Compile Include="PlaytestGrammarTests.cs" />
+    <!-- The front of the reader knows the table and nothing else: PlaytestStep and PlaytestParser are not in this build, so a use of them fails it (CS0246).
+         Named, not Reader/*.cs: the folder will also hold the builder, which needs PlaytestStep. -->
+    <Compile Include="../../Runtime/Playtest/Core/Reader/Pattern*.cs" />
+    <Compile Include="../../Runtime/Playtest/Core/Reader/SlotCheck.cs" />
+    <Compile Include="*.cs" />
   </ItemGroup>
 
   <ItemGroup>
