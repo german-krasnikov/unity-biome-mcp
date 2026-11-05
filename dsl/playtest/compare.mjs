@@ -1,7 +1,7 @@
 // The reader of the playtest SURFACE against the frozen oracle of the hand-written PlaytestParser (step 7.5).
 // usage: node dsl/playtest/compare.mjs      env: BIOME_DSL_ROOT, the biome-dsl checkout of TOOLCHAIN (as scripts/dsl.sh)
 // files    the `line` rows of the oracle, each file read whole: no diagnostic, and a use of the verb of the row on the line of the row, so the commands, and with them the steps, are the oracle's
-// literals the `accept` / `reject` rows made of verbs that have a construct: the reader and the RULES agree with the row, or the row is HOST (INCLUDE is resolved by the host) or KNOWN (with its reason)
+// literals every `accept` / `reject` row of the oracle, none left out: the reader and the RULES agree with the row, or the row is HOST (the host resolves INCLUDE and expands FOR and COMMENT) or KNOWN (with its reason)
 // examples the EXPECT lines of playtest*.examples (read as DECLARE_*, default tokenizer) say the same through the SURFACE (PT_*, TOKENS words, COMMENT line)
 // probes   what the examples cannot see: the options of the SURFACE line (TOKENS words, COMMENT line, ORDERED), the slots of a line and the RULES
 import { readdirSync, readFileSync } from 'node:fs';
@@ -11,22 +11,40 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..'), dirs = [resolve(root, 'dsl/constructs')];
 if (!process.env.BIOME_DSL_ROOT) throw new Error('set BIOME_DSL_ROOT to the biome-dsl checkout named by TOOLCHAIN in dsl/biome.project');
 const { readSurface } = await import(pathToFileURL(resolve(process.env.BIOME_DSL_ROOT, 'implementations/typescript/packages/biome/src/support/surface-host.mjs')).href);
-const read = (text, file = 'x') => readSurface('playtest', text, file, { dirs });
 const unescape = s => s.replace(/\\(x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|[\\nrt])/g, (_, e) => ({ n: '\n', r: '\r', t: '\t', '\\': '\\' })[e] ?? String.fromCharCode(parseInt(e.slice(1), 16)));
 const verbs = new Set([...readFileSync(resolve(dirs[0], 'playtest.construct'), 'utf8').matchAll(/^\s+(?:PATTERN|HEAD)\s+(\S+)/gm)].map(m => m[1]));
 const oracle = readFileSync(resolve(root, 'dsl/playtest/oracle.rows'), 'utf8'), rows = oracle.split('\n');
 const place = d => `${d.code}@${d.line}:${d.col}`, problems = [];
 
+// CONTINUATION: after the head of SWEEP_PATH, COMPLETE_PURCHASE or INVOKE_REPEAT, the lines whose first word is no verb of the SURFACE (waypoints, UNTIL, EXPECT, TIMEOUT, a list of
+// names) belong to the host: the grammar reads the head, the reader gets those lines blank (the line numbers stay). A verb ends them, as in the native lookaheads (H3 keeps those;
+// COMPLETE_PURCHASE there reads on to a TIMEOUT line, whatever comes first). Blank and comment lines neither start nor end a continuation.
+const HEADS = new Set(['SWEEP_PATH', 'COMPLETE_PURCHASE', 'INVOKE_REPEAT']);
+const host = text => {
+  let on = false;
+  return text.split('\n').map(line => {
+    const word = line.trim().split(/\s+/)[0];
+    if (!word || word[0] === '#') return line;
+    if (HEADS.has(word)) { on = true; return line; }
+    if (on && !verbs.has(word.toUpperCase())) return '';
+    on = false;
+    return line;
+  }).join('\n');
+};
+const read = (text, file = 'x') => readSurface('playtest', host(text), file, { dirs });
+// HOST rows: the text-to-text phases of the hand parser (design class E), which the host runs before a line reaches the reader; the grammar has no construct for them
+const PREPROCESSOR = new Set(['FOR', 'END_FOR', 'COMMENT', 'END_COMMENT', 'MACRO', 'END_MACRO', 'CALL']);
+
 // RULES: what a use must obey and the grammar cannot say; each is a way to read a line whole and wrongly. AND and OR are groups of their own, so a line can hold both
 // (PT_MIXED); a chain of four terms reads its 4th into the value of the 3rd (PT_CHAIN); TOKENS words cuts at blanks, so a name with a blank and an operator word in
-// [..] is cut at that word (PT_BRACKET), where the hand parser keeps [..] whole. The builder (H2) and check.mjs (D1) refuse the same three.
+// [..] is cut at that word (PT_BRACKET), where the hand parser keeps [..] whole; a line of an ASSERT_BATCH is a use of its own. The builder (H2) and check.mjs (D1) refuse the same three.
 const rule = u => {
-  const has = (...k) => k.some(x => u.head.has(x)), raw = k => u.head.get(k)?.raw ?? '';
+  const sets = [u.head, ...u.items], has = (...k) => k.some(x => u.head.has(x)), raw = (b, k) => b.get(k)?.raw ?? '';
   if (has('q2', 'q3') && has('q4', 'q5')) return 'PT_MIXED';
   const bare = v => [...v.matchAll(/"[^"]*"|\S+/g)].slice(1).some(t => t[0] === 'AND' || t[0] === 'OR');   // after the first token, a word outside quotes
-  if (['v1', 'v2', 'v3', 'v4', 'v5'].some(k => bare(raw(k)))) return 'PT_CHAIN';
+  if (['v1', 'v2', 'v3', 'v4', 'v5'].some(k => bare(raw(u.head, k)))) return 'PT_CHAIN';
   const open = v => { let d = 0; for (const c of v.replace(/"[^"]*"/g, '')) d = Math.max(0, d + (c === '[' ? 1 : c === ']' ? -1 : 0)); return d > 0; };   // as SplitTokens counts
-  return ['query', 'q1', 'q2', 'q3', 'q4', 'q5'].some(k => open(raw(k))) ? 'PT_BRACKET' : null;
+  return sets.some(b => ['query', 'q1', 'q2', 'q3', 'q4', 'q5'].some(k => open(raw(b, k)))) ? 'PT_BRACKET' : null;
 };
 // KNOWN: a row where the reader differs from the oracle, and why. Checked both ways: a row that no longer differs is stale.
 const KNOWN = new Map([
@@ -39,9 +57,10 @@ const byFile = new Map();
 for (const m of rows.map(r => /^line (\S+):(\d+) (\S+)/.exec(r)).filter(Boolean)) byFile.set(m[1], [...(byFile.get(m[1]) ?? []), `${m[2]}:${m[3]}`]);
 const NOT_STEPS = new Set(['INCLUDE', 'VAL', 'VAR', 'SETUP', 'TEARDOWN']);
 let commands = 0, steps = 0;
+const texts = [];
 for (const [file, cmds] of byFile) {
-  const out = read(readFileSync(resolve(root, file), 'utf8'), file), got = out.uses.map(u => `${u.startLine}:${u.keyword}`);
-  commands += got.length; steps += out.uses.filter(u => !NOT_STEPS.has(u.keyword)).length;
+  const source = readFileSync(resolve(root, file), 'utf8'), out = read(source, file), got = out.uses.map(u => `${u.startLine}:${u.keyword}`);
+  texts.push(source); commands += got.length; steps += out.uses.filter(u => !NOT_STEPS.has(u.keyword)).length;
   const refused = out.uses.map(rule).filter(Boolean);
   if (out.diagnostics.length || refused.length || got.join() !== cmds.join()) problems.push(`file ${file}: ${[...out.diagnostics.map(place), ...refused].join() || 'no diagnostic'}; uses [${got}], the oracle has [${cmds}]`);
 }
@@ -49,20 +68,30 @@ const header = /^# (\d+) files, (\d+) commands \((\d+) steps/m.exec(oracle)?.sli
 if (header !== [byFile.size, commands, steps].join()) problems.push(`files, commands, steps: the header of oracle.rows says ${header}, the reader has ${byFile.size},${commands},${steps}`);
 
 // literals
-let same = 0, host = 0, known = 0, scope = 0, calls = 0;
+let same = 0, include = 0, preprocessor = 0, known = 0, calls = 0;
 const differing = new Set();
 for (const m of rows.map(r => /^(accept|reject) (\S+):(\d+) (\S+) ?(.*)$/.exec(r)).filter(Boolean)) {
-  calls++;
-  const lines = unescape(m[5]).split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('#'));
-  if (!lines.length || !lines.every(l => verbs.has(l.split(/\s+/)[0]))) continue;
-  scope++;
-  const id = `${m[2]}:${m[3]}`, outs = lines.map(l => read(l)), verdict = outs.some(o => o.diagnostics.length || o.uses.some(rule)) ? 'reject' : 'accept';
+  calls++; texts.push(unescape(m[5]));
+  const id = `${m[2]}:${m[3]}`, text = unescape(m[5]), words = text.split('\n').map(l => l.trim().split(/\s+/)[0]);
+  if (words.some(w => PREPROCESSOR.has(w))) { preprocessor++; continue; }
+  const out = read(text), verdict = out.diagnostics.length || out.uses.some(rule) ? 'reject' : 'accept';
   if (verdict === m[1]) { same++; if (KNOWN.has(id)) problems.push(`KNOWN ${id} is stale: the reader agrees with the oracle`); }
   else if (KNOWN.has(id)) { known++; differing.add(id); }
-  else if (m[1] === 'reject' && lines.some(l => l.startsWith('INCLUDE '))) host++;
-  else problems.push(`literal ${id} ${m[1]} ${JSON.stringify(unescape(m[5]))}: the reader says ${verdict}`);
+  else if (m[1] === 'reject' && words.includes('INCLUDE')) include++;
+  else problems.push(`literal ${id} ${m[1]} ${JSON.stringify(text)}: the reader says ${verdict}`);
 }
 for (const id of KNOWN.keys()) if (!differing.has(id)) problems.push(`KNOWN ${id} matches no differing row`);
+const calledFor = /^# (\d+) calls/m.exec(oracle)?.[1];
+if (calledFor !== String(calls)) problems.push(`literals: the header of oracle.rows says ${calledFor} calls, the rows are ${calls}`);
+
+// mutations: a script reads the same whatever its line ends and blanks are. A BOM is a character of the first line, so the columns of line 1 move (the host reads files as File.ReadAllText does and strips it): only codes and lines are compared
+const sign = (out, columns) => [...out.uses.map(u => `${u.startLine}:${u.keyword}`), ...out.diagnostics.map(d => (columns ? place(d) : `${d.code}@${d.line}`))].join();
+const MUTATIONS = [['CRLF', t => t.replace(/\n/g, '\r\n'), true], ['BOM', t => `\uFEFF${t}`, false], ['blanks at the end of a line', t => t.replace(/\n/g, ' \t\n'), true]];
+let mutants = 0;
+for (const text of texts) for (const [name, mutate, columns] of MUTATIONS) {
+  mutants++;
+  if (sign(read(mutate(text)), columns) !== sign(read(text), columns)) problems.push(`mutation ${name}: ${JSON.stringify(text.slice(0, 60))} is read differently`);
+}
 
 // examples
 let blocks = 0;
@@ -75,8 +104,8 @@ for (const f of readdirSync(dirs[0]).filter(f => /^playtest.*\.examples$/.test(f
   }
 }
 
-// probes: [line, why, expected]. Expected is the construct and the raw slots of the one use (what BuildSteps and ParseQOV make of the tokens: read, not run), a PT_ code of a rule, or the first diagnostic.
-const slots = u => `${u.def.name} ${JSON.stringify(Object.fromEntries([...u.head].map(([k, v]) => [k, v.raw])))}`;
+// probes: [text, why, expected]. Expected is the construct and the raw slots of each use (what BuildSteps and ParseQOV make of the tokens: read, not run) or a PT_ code of a rule, joined by " | ", or the first diagnostic.
+const raws = b => Object.fromEntries([...b].map(([k, v]) => [k, v.raw])), slots = u => `${u.def.name} ${JSON.stringify(raws(u.head))}${u.items.length ? ` ${JSON.stringify(u.items.map(raws))}` : ''}`;
 const probes = [
   ['LOG # UNPARSED: x', 'COMMENT line: a # inside a line is text', 'PT_LOG {"message":"# UNPARSED: x"}'],
   ['SET /obj Comp field a==b', 'TOKENS words: == is no token of its own', 'PT_SET {"path":"/obj","component":"Comp","field":"field","value":"a==b"}'],
@@ -121,12 +150,28 @@ const probes = [
   ['ASSERT_CTA', 'no state: the builder takes VISIBLE (AI/playtest-dsl.md:253)', 'PT_ASSERT_CTA {}'],
   ['DESC "check health"', 'the quotes stay in the text, the builder takes them off', 'PT_DESC {"label":"\\"check health\\""}'],
   ['MONITOR STOP', 'STOP is a name for the grammar; the builder reads it as the end', 'PT_MONITOR {"query":"STOP"}'],
+  ['WAIT_CAPTURED gold UNCHANGED OVER 2 TIMEOUT 8', 'AI/playtest-dsl.md:955: OVER before TIMEOUT; the builder takes timeout ?? timeout2', 'PT_WAIT_CAPTURED {"label":"gold","mode":"UNCHANGED","over":"2","timeout2":"8"}'],
+  ['WAIT_CAPTURED gold INCREASED_BY TIMEOUT 5', 'AI/playtest-dsl.md:969: a BY mode without a sub-value; TIMEOUT is no operator', 'PT_WAIT_CAPTURED {"label":"gold","mode":"INCREASED_BY","timeout":"5"}'],
+  ['CAPTURE_FRAMES 3 INTERVAL 0.5 CAMERA Main MODE list LABEL run1', 'PlaytestFrameCaptureTests.cs:33', 'PT_CAPTURE_FRAMES {"count":"3","interval":"0.5","camera":"Main","mode":"list","label":"run1"}'],
+  ['WAIT_STABLE /Obj|C|f DELTA 1 OVER 3 TIMEOUT 10', 'PlaytestParserTests.cs:911', 'PT_WAIT_STABLE {"query":"/Obj|C|f","delta":"1","over":"3","timeout":"10"}'],
+  ['ASSERT_CONSERVED SUM /A|C|f + /B|C|f == 100 OVER 5', 'PlaytestParserTests.cs:950: the names are one text, the builder splits it at +', 'PT_ASSERT_CONSERVED {"flag:SUM":"true","terms":"/A|C|f + /B|C|f","expected":"100","over":"5"}'],
+  ['ASSERT_CONSERVED a + b OVER 5', 'SUM is optional, as in the hand parser (PlaytestParser.Internals.cs:381)', 'PT_ASSERT_CONSERVED {"terms":"a + b","over":"5"}'],
+  ['SIMULATE random_walk DURATION 60 TIMESCALE 2 TARGET "/Player" FREQUENCY 5', 'Runtime/PlaytestParserTests.cs:401', 'PT_SIMULATE {"name":"random_walk","duration":"60","timescale":"2","target":"\\"/Player\\"","frequency":"5"}'],
+  ['TRACE_FLOW FROM /A TO /B FIELD Count TIMEOUT 10', 'Runtime/PlaytestParserTests.cs:436', 'PT_TRACE_FLOW {"from":"/A","to":"/B","field":"Count","timeout":"10"}'],
+  ['MOVE_PATH 1,0,0 > 5,0,0 TIMEOUT 8', 'PlaytestDslExtensionTests.cs:70: the waypoints end before TIMEOUT', 'PT_MOVE_PATH {"path":"1,0,0 > 5,0,0","timeout":"8"}'],
+  ['ASSERT_BATCH\nASSERT Player/Health == 100\nASSERT Enemy/Health > 0 TIMEOUT 5\nEND', 'INTENDED I1: the value of a line of a block is the rest of it (the hand parser dropped TIMEOUT 5)', 'PT_ASSERT_BATCH {} [{"query":"Player/Health","op":"==","value":"100"},{"query":"Enemy/Health","op":">","value":"0 TIMEOUT 5"}]'],
+  ['ASSERT_BATCH\nASSERT /[Box contains Items]/Slot|C|f == 1\nEND', 'the RULES see the lines of a block: the query is cut at contains', 'PT_BRACKET'],
+  ['SWEEP_PATH /Player DWELL 0.4\n  1,0,0 > 2,0,0\nUNTIL /q|C|f >= 2 TIMEOUT 5\nASSERT /X|C|f == 1', 'CONTINUATION: the waypoints and UNTIL are the host\'s, the verb after them is read (PlaytestDslExtensionTests.cs:166)', 'PT_SWEEP_PATH {"path":"/Player","dwell":"0.4"} | PT_ASSERT {"query":"/X|C|f","op":"==","value":"1"}'],
+  ['SWEEP_PATH /Player 0.4\n  1,0,0 > 2,0,0', 'CONTINUATION does not hide the error of the head (PlaytestDslExtensionTests.cs:159)', 'PT_SYNTAX@1:20'],
+  ['INVOKE_REPEAT 2 /P C M\nwait 1', 'CONTINUATION: a verb in lower case ends it, so I4 is reported on that line', 'PT_UNKNOWN_KEYWORD@2:1'],
+  ['COMPLETE_PURCHASE /Store/Item EXPECT\n  /Store|PlacementPurchase|IsPurchased\n  /Player|Currency|Coins > 0\nTIMEOUT 5\nLOG done', 'AI/playtest-dsl.md:387: names and TIMEOUT go on, LOG is read', 'PT_COMPLETE_PURCHASE {"path":"/Store/Item","flag:EXPECT":"true"} | PT_LOG {"message":"done"}'],
+  ['INVOKE_REPEAT 3 /Player PlayerController TakeDamage 10\nEXPECT /Player|PlayerController|Health < 70 TIMEOUT 5', 'AI/playtest-dsl.md:516', 'PT_INVOKE_REPEAT {"count":"3","path":"/Player","component":"PlayerController","method":"TakeDamage","args":"10"}'],
 ];
-for (const [line, why, exp] of probes) {
-  const r = read(line), got = r.diagnostics[0] ? place(r.diagnostics[0]) : (rule(r.uses[0]) ?? slots(r.uses[0]));
-  if (got !== exp) problems.push(`probe "${line}" (${why}): ${got}`);
+for (const [text, why, exp] of probes) {
+  const r = read(text), got = r.diagnostics[0] ? place(r.diagnostics[0]) : r.uses.map(u => rule(u) ?? slots(u)).join(' | ');
+  if (got !== exp) problems.push(`probe ${JSON.stringify(text)} (${why}): ${got}`);
 }
 
-console.log(`files ${byFile.size}: commands ${commands}, steps ${steps} | literals in scope ${scope} of ${calls}: same ${same}, host ${host}, known ${known} | examples ${blocks} | probes ${probes.length}`);
+console.log(`files ${byFile.size}: commands ${commands}, steps ${steps} | literals ${calls}: same ${same}, host ${include + preprocessor} (INCLUDE ${include}, FOR/COMMENT ${preprocessor}), known ${known} | mutants ${mutants} | examples ${blocks} | probes ${probes.length}`);
 for (const p of problems) console.log('DIFF', p);
 process.exit(problems.length ? 1 : 0);
