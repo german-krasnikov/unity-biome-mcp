@@ -190,6 +190,7 @@ spec checkpoint category=SYSTEM core=False tier1=False timeout_s=30.0 mutability
 spec checkpoint_create category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
 spec checkpoint_restore category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
 spec compile_preflight category=VERIFY core=True tier1=False timeout_s=60.0 mutability=read runtime_only=False direct_only=False unity_transport=False
+spec compile_status category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
 spec configure_objects category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
 spec console_mark category=RUNTIME core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
 spec create_object category=CORE core=True tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
@@ -227,6 +228,7 @@ spec get_playtest_run category=_INTERNAL core=False tier1=False timeout_s=30.0 m
 spec get_schema category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
 spec get_selection category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
 spec get_spatial_context category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
+spec get_status category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
 spec get_test_count category=TESTS core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False
 spec get_test_progress category=TESTS core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
 spec get_test_results category=TESTS core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False

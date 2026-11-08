@@ -257,6 +257,9 @@ TOOL compile_preflight VERIFY RO "Validate C# WITHOUT writing/recompiling (Rosly
   ARG new_content str
 END
 
+INTERNAL compile_status RO "Compile notifier state plus reload state string; await_compile (code_intel.py) polls it directly, allowedDuringCompile."
+END
+
 PYTOOL configure_objects SCENE RW "Configure multiple objects at once."
   ARG config str
 END
@@ -520,6 +523,9 @@ TOOL get_spatial_context SCENE RO "Collider info + approach vectors + nearby obj
   FORWARD
   ARG path str
   ARG radius float DEFAULT 5.0
+END
+
+INTERNAL get_status RO "Scene/dirty/playing/compiling/port/alias/readOnly/version snapshot; retry-safe health probe (meta.py, transaction.py)."
 END
 
 TOOL get_test_count TESTS RO "Number of edit-mode and play-mode tests in the project."

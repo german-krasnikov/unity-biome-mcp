@@ -1,5 +1,5 @@
 // Generated from dsl/tools.biome
-// source-sha256=57969cbaed0d0c5e9a2b61a501b70c29c90e633e3c4cccfd85d2201549e717a7
+// source-sha256=8d9d7ec60320675ee3ac64b4a452d8429aee96f4439d88f9f2295120b8bb2a69
 // Edit the source, then run biome generate.
 
 namespace UnityMCP.Editor
