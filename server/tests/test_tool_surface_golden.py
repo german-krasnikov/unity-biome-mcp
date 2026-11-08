@@ -17,6 +17,12 @@ GOLDEN = Path(__file__).parent / "golden" / "tool_surface.txt"
 # annotations, or a ToolSpec field). Any other difference fails, and an entry whose field no longer differs is stale.
 # `session`: ToolSpec gained this field (D2, 2026-11-08, S0) -- every spec now reports it, default False, until a tool opts in.
 INTENDED: dict[str, dict[str, str]] = {name: {"session": "S0 D2: new ToolSpec.session field, default False"} for name in _SPECS}
+# S0 2/11: discover_tools moves off the bare mcp.tool() (no annotation) onto the catalog's derive("RO", session=True).
+INTENDED["discover_tools"]["annotations"] = 'S0 2/11: None -> derive("RO", session=True)'
+# S0 4/11: lint_playtest moves off the hand _RW_IDEM constant onto the catalog's derive("RO") -- pure read-only, and its
+# ARG path/script descriptions move from _param_descriptions.py into the catalog (dsl/tools.biome), changing the schema line too.
+INTENDED["lint_playtest"]["annotations"] = 'S0 4/11: RW_IDEM -> derive("RO") (pure read-only)'
+INTENDED["lint_playtest"]["schema"] = "S0 4/11: path/script descriptions moved from _param_descriptions.py into the catalog"
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:
