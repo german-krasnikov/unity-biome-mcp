@@ -31,6 +31,9 @@ class ToolSpec:
     runtime_only: True = Play Mode required; blocked before TCP when is_playing=False.
     direct_only: True = callable through its typed MCP wrapper, but not inside batch.
     unity_transport: a direct-only wrapper delegates the same command name to Unity.
+    session: True = the side effect is outside the Unity project (selection, connection,
+    visible tools, server config) — never a project mutation; `mutability` still follows
+    `effect` alone (D2, 2026-11-08).
     """
     category: str
     core: bool = False
@@ -40,6 +43,7 @@ class ToolSpec:
     runtime_only: bool = False
     direct_only: bool = False
     unity_transport: bool = False
+    session: bool = False
 
     @property
     def plane(self) -> str:

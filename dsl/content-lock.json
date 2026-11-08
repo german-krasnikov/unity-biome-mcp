@@ -16,7 +16,7 @@
     "dsl/constructs/playtest-tails.examples": "327e67bab2af764730d2661af977598549de5711f05e61ea97d8a88915392f10",
     "dsl/constructs/playtest.construct": "4488af3986367387fcc4ee2da4c52b1cc5059494957837c1c6437cd9289a6006",
     "dsl/constructs/playtest.examples": "d511bc5183921a0efd430bd857920fe9c528cc8e34e8812967e50c2098d9e9c1",
-    "dsl/constructs/tool.construct": "cc0630efc96030dfb6867d8ebce26993f6d7df3d19c6e7d7a231b20c6cea607b",
+    "dsl/constructs/tool.construct": "aaaf8b0901f7e167c5e0b95f992c853cf85d5b1d0f7fa3f272261df09605844a",
     "dsl/constructs/tool.examples": "801ce63117b1c1f5b68364ff500ab17682167d32c13fedd183ea23a3d4ecc597",
     "dsl/decisions/guards.contract": "9df2bd05cfc1f7d85932306bafeacadea15ef5bcc1a19ab4359c716fa279c45b",
     "dsl/decisions/guards.examples": "6da4e00e4690b8ce200e9ea636a7467d75f2168a92b606be70dec2aa3b6891b4",

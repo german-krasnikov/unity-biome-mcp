@@ -5,6 +5,23 @@ RW = ToolAnnotations(readOnlyHint=False)
 RW_IDEM = ToolAnnotations(readOnlyHint=False, idempotentHint=True)
 DEL = ToolAnnotations(readOnlyHint=False, destructiveHint=True)
 
+
+def derive(effect: str, session: bool = False) -> ToolAnnotations:
+    """DERIVED MCP annotation from catalog `effect` + `SESSION` (owner D2, 2026-11-08).
+    readOnlyHint = effect RO and not SESSION; idempotentHint = effect RW_IDEM or SESSION
+    (set only when True, left unset otherwise); destructiveHint = effect DEL (same).
+    mutability (guards) stays effect-only — see ToolSpec.session. Bit-for-bit identical to
+    the RO/RW/RW_IDEM/DEL constants above when session=False: those only ever set
+    idempotentHint/destructiveHint when True, never explicit False (ToolAnnotations' SDK
+    default is None, not False — setting it unconditionally would change every tool's
+    wire annotation, not just the ones that opt into SESSION)."""
+    kwargs: dict[str, bool] = {"readOnlyHint": effect == "RO" and not session}
+    if effect == "RW_IDEM" or session:
+        kwargs["idempotentHint"] = True
+    if effect == "DEL":
+        kwargs["destructiveHint"] = True
+    return ToolAnnotations(**kwargs)
+
 # Internal wire commands with no MCP tool annotation (mcp.list_tools() never
 # sees them -- they aren't registered via mcp.tool()) but proven safe to
 # resend after a SENT/uncertain-delivery boundary:

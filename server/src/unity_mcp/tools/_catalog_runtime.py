@@ -5,10 +5,9 @@ It holds no fact about any tool; the names, types, defaults, flags and descripti
 import inspect
 from typing import Any
 
-from ._annotations import DEL, RO, RW, RW_IDEM
+from ._annotations import derive
 
 ANY = Any  # a parameter the catalog types Any (Context, Literal, dict, ...) is checked by name and default, not by annotation
-_ANNOTATION = {"RO": RO, "RW": RW, "RW_IDEM": RW_IDEM, "DEL": DEL}
 _NOTHING = object()
 
 
@@ -49,12 +48,14 @@ class ToolSet:
         self._expected = {}
         self._provided = {}    # name -> a generated wrapper, registered by install()
         self._registered = {}  # name -> (module, qualname) of a hand-written function that its module registered
+        self._session = {}     # name -> SESSION flag, read by derive() when registering
 
-    def expect(self, name, effect, summary, params):
+    def expect(self, name, effect, summary, params, session=False):
         """The catalog states a tool: its effect, the first line of its description and its parameters, (name, type[, default]) in order."""
         if name in self._expected:
             raise ValueError(f"{name} is stated twice in the catalog")
         self._expected[name] = (effect, summary, params)
+        self._session[name] = session
 
     def provide(self, fn):
         """The function (a decorator) that fulfils the expectation of its name: a generated wrapper, which install() registers."""
@@ -73,7 +74,7 @@ class ToolSet:
             _, summary, params = self._expected[fn.__name__]
             _conform(fn.__name__, fn, summary, params)
         for fn in fns:
-            mcp.tool(annotations=_ANNOTATION[self._expected[fn.__name__][0]])(fn)
+            mcp.tool(annotations=derive(self._expected[fn.__name__][0], self._session[fn.__name__]))(fn)
             self._registered[fn.__name__] = _origin(fn)
 
     def install(self, mcp):
@@ -86,4 +87,4 @@ class ToolSet:
         for name, fn in wrappers:
             _conform(name, fn, *self._expected[name][1:])
         for name, fn in wrappers:
-            mcp.tool(annotations=_ANNOTATION[self._expected[name][0]])(fn)
+            mcp.tool(annotations=derive(self._expected[name][0], self._session[name]))(fn)
