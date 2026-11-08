@@ -229,6 +229,7 @@ reference for every tool.
 | `search_scene` | unity | SCENE | RO |
 | `serialized_field_rename_audit` | unity | VERIFY | RO |
 | `set_active` | unity | SCENE | RW_IDEM |
+| `set_llm_config` | python | SYSTEM | RW_IDEM |
 | `set_material` | unity | SCENE | RW_IDEM |
 | `set_parent` | unity | SCENE | RW_IDEM |
 | `set_properties` | python | SCENE | RW |

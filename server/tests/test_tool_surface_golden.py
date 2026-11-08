@@ -29,6 +29,9 @@ INTENDED["ping_object"]["annotations"] = 'S0 5/11: RW -> derive("RO", session=Tr
 # S0 7/11: resolve_tool_schema moves off a bare mcp.tool() (no MCP annotation) onto the catalog's
 # derive("RO") -- plain read-only, no SESSION (it only reads the schema registry, no side effect at all).
 INTENDED["resolve_tool_schema"]["annotations"] = 'S0 7/11: None -> derive("RO") (readOnlyHint=True)'
+# S0 8/11: set_llm_config moves off a bare mcp.tool() (no MCP annotation) onto the catalog's
+# derive("RW_IDEM") -- idempotentHint flips True; mutability (guards) stays write (effect RW_IDEM).
+INTENDED["set_llm_config"]["annotations"] = 'S0 8/11: None -> derive("RW_IDEM") (idempotentHint=True, guards stay write)'
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:

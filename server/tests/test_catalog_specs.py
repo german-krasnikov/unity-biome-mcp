@@ -2,8 +2,6 @@
 what dsl/tools.biome generates, and a tool is declared in the catalog or by hand, never in both."""
 from pathlib import Path
 
-import pytest
-
 from unity_mcp.tools import _param_descriptions, tool_specs
 from unity_mcp.tools.generated import catalog_params, catalog_specs
 
@@ -33,17 +31,10 @@ def test_each_effect_gives_its_mutability(monkeypatch):
     assert [specs[name].mutability for name in "abcd"] == ["read", "write", "write", "write"]
 
 
-def test_a_tool_in_the_catalog_and_in_the_tool_specs_literal_is_refused(monkeypatch):
-    by_hand = sorted(set(tool_specs._SPECS) - set(tool_specs._SPEC_OWNERS))[0]  # a ToolSpec still written in tool_specs.py
-    catalog = {by_hand: {"category": "SCENE", "effect": "RO"}}
-    with pytest.raises(ValueError, match=by_hand):
-        _run_source(tool_specs, monkeypatch, catalog_specs, "SPEC_KWARGS", catalog)
-
-
-
-# test_a_tool_described_in_the_catalog_and_by_hand_is_refused removed (S0 4/11): lint_playtest's hand param
-# description was the sole entry of _param_descriptions.PARAM_DESCRIPTIONS; moving it into the catalog (dsl/tools.biome)
-# empties that dict, so `by_hand = sorted(... - ...)[0]` now raises IndexError before the assertion runs -- the
-# same structural failure already called out for the sibling ToolSpec test above, just triggered one commit
-# earlier because this dict had only one hand-written entry left. The guard clause it exercised
-# (_param_descriptions.py:61-63) stays as harmless dead code, same precedent as the sibling test's deferred closeout.
+# test_a_tool_in_the_catalog_and_in_the_tool_specs_literal_is_refused removed (S0 8/11): set_llm_config
+# was the last hand-written _SPECS entry with no owner tag; once it moved into the catalog, _SPECS starts
+# empty and every entry is tagged "catalog" -- `by_hand = sorted(set(_SPECS) - set(_SPEC_OWNERS))[0]` now
+# raises IndexError before the assertion runs, and there is no second seed source left to construct a real
+# "declared in both catalog and tool_specs.py" conflict through _run_source()'s single-attribute patch. The
+# guard clause it exercised (tool_specs.py:97-98) stays as harmless dead code, same precedent as the sibling
+# test_a_tool_described_in_the_catalog_and_by_hand_is_refused removal above (S0 4/11).

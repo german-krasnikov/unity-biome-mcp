@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=7a54be23a01e1d854a437069c517d99e30f4ec336dd5095a39281449e64823b5
+# source-sha256=5e891c455356d1761f226448d687cb53a0739d603d391e91a0d2b13a86e6f460
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
@@ -669,6 +669,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'SCENE',
         'effect': 'RW_IDEM',
         'tier1': True,
+    },
+    'set_llm_config': {
+        'category': 'SYSTEM',
+        'effect': 'RW_IDEM',
+        'direct_only': True,
     },
     'set_material': {
         'category': 'SCENE',

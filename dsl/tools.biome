@@ -1120,6 +1120,10 @@ TOOL set_active SCENE RW_IDEM "Set GameObject active/inactive."
   ARG active bool "True to activate, False to deactivate"
 END
 
+PYTOOL set_llm_config SYSTEM RW_IDEM "Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line)."
+  ARG config str
+END
+
 TOOL set_material SCENE RW_IDEM "Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto."
   FORWARD
   ARG path str

@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=7a54be23a01e1d854a437069c517d99e30f4ec336dd5095a39281449e64823b5
+# source-sha256=5e891c455356d1761f226448d687cb53a0739d603d391e91a0d2b13a86e6f460
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -1690,6 +1690,9 @@ async def set_active(
     ))
 
 
+tools.expect('set_llm_config', 'RW_IDEM', "Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line).", (
+    ('config', str),
+))
 tools.expect('set_material', 'RW_IDEM', "Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto.", (
     ('path', str),
     ('color', str),

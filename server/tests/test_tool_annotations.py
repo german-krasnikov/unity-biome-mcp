@@ -110,6 +110,17 @@ def test_resolve_tool_schema_gets_read_only_annotation():
     assert ann.readOnlyHint is True, "resolve_tool_schema: readOnlyHint should be True"
 
 
+def test_set_llm_config_gets_idempotent_annotation():
+    """S0 8/11: set_llm_config moves off a bare mcp.tool() (no annotation)
+    onto the catalog's derive("RW_IDEM") -- idempotentHint=True, readOnlyHint
+    stays False. mutability (guards) is unaffected -- effect RW_IDEM keeps
+    ToolSpec.mutability == 'write' (tool_specs.py:102)."""
+    ann = _get_annotation(meta, "set_llm_config")
+    assert ann is not None, "set_llm_config: no annotation found"
+    assert ann.idempotentHint is True, "set_llm_config: idempotentHint should be True"
+    assert ann.readOnlyHint is False, "set_llm_config: readOnlyHint should be False"
+
+
 def test_run_tests_not_marked_read_only():
     """run_tests triggers domain reload — must NOT have readOnlyHint=True."""
     ann = _get_annotation(testing, "run_tests")

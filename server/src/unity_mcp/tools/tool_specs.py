@@ -8,9 +8,8 @@ import time instead of hand-typing 4 separately-drifting literals.
 
 Where an entry comes from: the tool catalog (dsl/tools.biome, dsl/README.md) generates
 tools/generated/catalog_specs.py, merged at the end of this module; watch, get_watches and
-sync_unity are owned by their modules (watch.py, sync_spec.py); one tool is still written in the
-literal below, because its MCP annotation and its ToolSpec disagree and one catalog effect
-cannot say both (step 7.1, a decision for the owner).
+sync_unity are owned by their modules (watch.py, sync_spec.py); no tool is written by hand
+in this module any more -- set_llm_config was the last one (S0 8/11).
 """
 from dataclasses import dataclass
 from typing import Literal
@@ -59,10 +58,9 @@ class ToolSpec:
 
 DEFAULT_TIMEOUT: float = 30.0
 
-# Written by hand until the owner decides: set_llm_config registers without an MCP annotation.
-_SPECS: dict[str, ToolSpec] = {
-    'set_llm_config': ToolSpec(category='SYSTEM', direct_only=True),
-}
+# Populated solely by the merge loops below (watch, sync, catalog) -- no tool is
+# written by hand in this literal any more (S0 8/11).
+_SPECS: dict[str, ToolSpec] = {}
 
 # PR-04 pilot: watch/get_watches ToolSpec entries are owned by tools/watch.py
 # (mirrors the C# WatchCommandHandler.RegisterAll physical pilot). One-way

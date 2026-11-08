@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=7a54be23a01e1d854a437069c517d99e30f4ec336dd5095a39281449e64823b5
+# source-sha256=5e891c455356d1761f226448d687cb53a0739d603d391e91a0d2b13a86e6f460
 # Edit the source, then run biome generate.
 
 PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
@@ -362,6 +362,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'set_active': {
         'path': "Scene path to the GameObject",
         'active': "True to activate, False to deactivate",
+    },
+    'set_llm_config': {
     },
     'set_material': {
     },
