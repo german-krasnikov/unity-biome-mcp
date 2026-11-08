@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=4a62d26acdf8771382ca94b9fcf315645beab55a84791e47d9781eb3967f039f
+# source-sha256=eeb50910821a2a7988ff1f99bc3b011f7f94cb21d721df0037192d6431b8cfcd
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -523,6 +523,14 @@ tools.expect('diagnose', 'RO', "Read Unity compile/reload fact-signals atomicall
     ('prev_mvid', str, ""),
     ('expected_compile', bool, True),
 ))
+tools.expect('discover_tools', 'RO', "Find and enable tools by category.", (
+    ('category', ostr, None),
+    ('enable', bool, True),
+    ('include_legacy', bool, False),
+    ('structured', bool, False),
+    ('ctx', Any, None),
+)
+, session=True)
 tools.expect('do', 'RW', "Convert natural language intent into Unity scene operations. Use when scene structure unknown or task is ambiguous. NOT for targeted mutations on known objects — use batch directly.", (
     ('intent', str),
     ('dry_run', bool, False),

@@ -328,6 +328,16 @@ TOOL diagnose VERIFY RO "Read Unity compile/reload fact-signals atomically; retu
   ARG expected_compile bool DEFAULT True
 END
 
+PYTOOL discover_tools SYSTEM RO "Find and enable tools by category."
+  FLAG tier1
+  SESSION
+  ARG category ostr DEFAULT None
+  ARG enable bool DEFAULT True
+  ARG include_legacy bool DEFAULT False
+  ARG structured bool DEFAULT False
+  ARG ctx Any DEFAULT None
+END
+
 PYTOOL do SYSTEM RW "Convert natural language intent into Unity scene operations. Use when scene structure unknown or task is ambiguous. NOT for targeted mutations on known objects — use batch directly."
   ARG intent str
   ARG dry_run bool DEFAULT False

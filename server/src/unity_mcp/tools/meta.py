@@ -165,7 +165,7 @@ def register(mcp, send, args, *, get_slot=None):
     global _get_slot
     bind(globals(), send, args)
     _get_slot = get_slot
-    mcp.tool()(discover_tools)
+    tools.register(mcp, discover_tools)
     tools.register(mcp, doctor)
     mcp.tool()(resolve_tool_schema)
     mcp.tool()(set_llm_config)

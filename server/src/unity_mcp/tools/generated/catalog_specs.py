@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=4a62d26acdf8771382ca94b9fcf315645beab55a84791e47d9781eb3967f039f
+# source-sha256=eeb50910821a2a7988ff1f99bc3b011f7f94cb21d721df0037192d6431b8cfcd
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
@@ -174,6 +174,13 @@ SPEC_KWARGS: dict[str, dict] = {
     'diagnose': {
         'category': 'VERIFY',
         'effect': 'RO',
+    },
+    'discover_tools': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
+        'tier1': True,
+        'session': True,
     },
     'do': {
         'category': 'SYSTEM',

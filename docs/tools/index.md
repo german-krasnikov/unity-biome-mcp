@@ -137,6 +137,7 @@ reference for every tool.
 | `debug_physics` | unity | RUNTIME | RO |
 | `delete_object` | unity | SCENE | DEL |
 | `diagnose` | unity | VERIFY | RO |
+| `discover_tools` | python | SYSTEM | RO |
 | `do` | python | SYSTEM | RW |
 | `doctor` | python | SYSTEM | RW |
 | `editor` | unity | CORE | RW |

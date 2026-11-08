@@ -3,7 +3,7 @@ import pytest
 from mcp.types import ToolAnnotations
 from unity_mcp.tools import objects, scene, asset, ui, connection, runtime
 from unity_mcp.tools import console, testing, editor_control, screenshot, spatial
-from unity_mcp.tools import metrics_tool, profiling
+from unity_mcp.tools import metrics_tool, profiling, meta
 
 
 def _get_annotation(module, fn_name: str) -> ToolAnnotations | None:
@@ -80,6 +80,16 @@ def test_non_idempotent_tool_lacks_idempotentHint(mod, fn):
     ann = _get_annotation(mod, fn)
     assert ann is not None, f"{mod.__name__}.{fn}: no annotation found"
     assert ann.idempotentHint is not True, f"{mod.__name__}.{fn}: should NOT have idempotentHint=True"
+
+
+def test_discover_tools_gets_session_annotation():
+    """S0 D2: discover_tools moves from a bare mcp.tool() (no annotation) to
+    the catalog's derive("RO", session=True) -- its FLAG tier1 SESSION entry
+    in dsl/tools.biome (S0 2/11)."""
+    ann = _get_annotation(meta, "discover_tools")
+    assert ann is not None, "discover_tools: no annotation found"
+    assert ann.idempotentHint is True, "discover_tools: idempotentHint should be True (SESSION)"
+    assert ann.readOnlyHint is False, "discover_tools: readOnlyHint should be False (SESSION overrides RO)"
 
 
 def test_run_tests_not_marked_read_only():
