@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=8e63b7c593155f9bd3e41af115773d62e0e61d048ff849606c63e1a7b34fa06f
+# source-sha256=57969cbaed0d0c5e9a2b61a501b70c29c90e633e3c4cccfd85d2201549e717a7
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -2268,6 +2268,16 @@ tools.expect('wait_until', 'RW_IDEM', "[Play Mode] Poll field until it matches v
     ('timeout', float, 5.0),
     ('negate', bool, False),
     ('abort_on_fail', bool, False),
+))
+tools.expect('watch', 'RW', "[Play Mode] Manage watches. Registers or removes watches. No confirmation required. action: add|remove|clear|reset.", (
+    ('action', str),
+    ('watch_id', str, ""),
+    ('path', str, ""),
+    ('component', str, ""),
+    ('field', str, ""),
+    ('condition', str, ""),
+    ('trigger_action', str, "log"),
+    ('interval_ms', int, 500),
 ))
 tools.expect('wire_event', 'RW', "Wire UnityEvent persistent listener. Mutates scene. No confirmation required.", (
     ('path', str),

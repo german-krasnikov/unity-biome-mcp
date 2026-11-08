@@ -1460,6 +1460,17 @@ TOOL wait_until RUNTIME RW_IDEM "[Play Mode] Poll field until it matches value (
   ARG abort_on_fail bool DEFAULT False "Stop Play Mode if the comparison times out (default False)"
 END
 
+PYTOOL watch RUNTIME RW "[Play Mode] Manage watches. Registers or removes watches. No confirmation required. action: add|remove|clear|reset."
+  ARG action str
+  ARG watch_id str DEFAULT_TEXT ""
+  ARG path str DEFAULT_TEXT ""
+  ARG component str DEFAULT_TEXT ""
+  ARG field str DEFAULT_TEXT ""
+  ARG condition str DEFAULT_TEXT ""
+  ARG trigger_action str DEFAULT_TEXT "log"
+  ARG interval_ms int DEFAULT 500
+END
+
 TOOL wire_event COMPONENTS RW "Wire UnityEvent persistent listener. Mutates scene. No confirmation required."
   FORWARD
   DOC "path: object with the event. component: type owning the event field."

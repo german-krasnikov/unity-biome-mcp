@@ -260,6 +260,7 @@ reference for every tool.
 | `verify_after_change` | python | VERIFY | RW |
 | `vfx_intent` | python | MEDIA | RW |
 | `wait_until` | unity | RUNTIME | RW_IDEM |
+| `watch` | python | RUNTIME | RW |
 | `wire_event` | unity | COMPONENTS | RW |
 <!-- biome:end catalog -->
 

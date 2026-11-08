@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=8e63b7c593155f9bd3e41af115773d62e0e61d048ff849606c63e1a7b34fa06f
+# source-sha256=57969cbaed0d0c5e9a2b61a501b70c29c90e633e3c4cccfd85d2201549e717a7
 # Edit the source, then run biome generate.
 
 PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
@@ -446,6 +446,8 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'wait_until': {
         'value': "Expected field value to compare against (this tool does not set the field)",
         'abort_on_fail': "Stop Play Mode if the comparison times out (default False)",
+    },
+    'watch': {
     },
     'wire_event': {
     },

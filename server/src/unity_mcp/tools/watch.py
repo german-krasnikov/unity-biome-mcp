@@ -1,19 +1,9 @@
 """Watch System — path-based field polling in Play Mode."""
 from mcp.server.fastmcp.exceptions import ToolError
 
-from ._annotations import RW as _RW
 from .generated.catalog_tools import tools
 
 _DEFAULT_INTERVAL_MS = 500
-
-# PR-04 physical registration pilot: watch's ToolSpec kwargs are owned here,
-# not hand-typed in tool_specs.py (get_watches moved to the catalog, S0 3/11).
-# Plain dict kwargs (not ToolSpec instances) so this module never needs to
-# import tool_specs -- see Plans/PR-04.md "Ordering trace" for why the import
-# direction must stay one-way (tool_specs -> watch).
-SPEC_KWARGS: dict[str, dict] = {
-    'watch': {'category': 'RUNTIME', 'direct_only': True},
-}
 
 
 class WatchModule:
@@ -52,8 +42,7 @@ class WatchModule:
         return await self._send("get_watches", {})
 
     def register(self, mcp) -> None:
-        mcp.tool(annotations=_RW)(self.watch)
-        tools.register(mcp, self.get_watches)
+        tools.register(mcp, self.watch, self.get_watches)
 
 
 # Process-wide singleton pointer -- same shape as every other tools/*.py module

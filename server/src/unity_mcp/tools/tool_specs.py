@@ -6,11 +6,10 @@ timeout only) get exactly one ToolSpec entry in _SPECS. gating.py derives its
 _CORE_TOOLS/_THEMED_CATEGORIES/TIER1/_ALL_KNOWN collections from this dict at
 import time instead of hand-typing 4 separately-drifting literals.
 
-Where an entry comes from: the tool catalog (dsl/tools.biome, dsl/README.md) generates
-tools/generated/catalog_specs.py, merged at the end of this module; watch and get_watches
-are owned by tools/watch.py (S0 10/11 will retire this too); sync_unity moved to the catalog
-(S0 9/11); no tool is written by hand in this module's literal any more -- set_llm_config
-was the last one (S0 8/11).
+Every entry comes from the tool catalog (dsl/tools.biome, dsl/README.md): the catalog
+generates tools/generated/catalog_specs.py, merged below into _SPECS (S0, commits 1-10).
+No tool's ToolSpec is written by hand in this module any more -- the last three holdouts
+(set_llm_config, sync_unity, watch/get_watches) each moved into dsl/tools.biome in turn.
 """
 from dataclasses import dataclass
 from typing import Literal
@@ -59,25 +58,15 @@ class ToolSpec:
 
 DEFAULT_TIMEOUT: float = 30.0
 
-# Populated solely by the merge loops below (watch, sync, catalog) -- no tool is
-# written by hand in this literal any more (S0 8/11).
+# Populated solely by the catalog merge loop below -- no tool is written by
+# hand in this literal, and no module owns a ToolSpec pilot any more (S0 10/11).
 _SPECS: dict[str, ToolSpec] = {}
-
-# PR-04 pilot: watch/get_watches ToolSpec entries are owned by tools/watch.py
-# (mirrors the C# WatchCommandHandler.RegisterAll physical pilot). One-way
-# import only (tool_specs -> watch, never the reverse) -- see Plans/PR-04.md
-# "Ordering trace" for why. watch.py exports plain kwargs, not ToolSpec
-# instances, so it never needs to import ToolSpec back from this module.
-from .watch import SPEC_KWARGS as _WATCH_SPEC_KWARGS  # noqa: E402
-
 _SPEC_OWNERS: dict[str, str] = {}
-for _name, _kwargs in _WATCH_SPEC_KWARGS.items():
-    _SPECS[_name] = ToolSpec(**_kwargs)
-    _SPEC_OWNERS[_name] = "watch"
 
-# Tool catalog (dsl/tools.biome): the ToolSpec kwargs of its tools are generated, imported one way like the owners above. 'effect' is
-# the catalog's RO|RW|RW_IDEM|DEL; ToolSpec keeps only whether the tool writes (the MCP annotation follows from effect elsewhere).
-# 'max_chars' is the response limit of the Unity registration, checked by test_catalog_vs_csharp.py; ToolSpec has no such field.
+# Tool catalog (dsl/tools.biome): the ToolSpec kwargs of its tools are generated, imported one way (catalog -> tool_specs, never
+# the reverse). 'effect' is the catalog's RO|RW|RW_IDEM|DEL; ToolSpec keeps only whether the tool writes (the MCP annotation
+# follows from effect elsewhere). 'max_chars' is the response limit of the Unity registration, checked by
+# test_catalog_vs_csharp.py; ToolSpec has no such field.
 from .generated.catalog_specs import SPEC_KWARGS as _CATALOG_SPEC_KWARGS  # noqa: E402
 
 for _name, _kwargs in _CATALOG_SPEC_KWARGS.items():
