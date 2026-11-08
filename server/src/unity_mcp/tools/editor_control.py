@@ -2,7 +2,6 @@
 (B2: split from scene.py)"""
 from unity_mcp.constants import NOOP_RECOVERY_RESULT as _NOOP_RECOVERY_RESULT
 
-from ._annotations import RW as _RW
 from ._common import bind
 from ._source_patch_intent import set_cached_intent as _set_cached_intent
 
@@ -38,5 +37,4 @@ async def ping_object(path: str) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, editor)
-    mcp.tool(annotations=_RW)(ping_object)
+    tools.register(mcp, editor, ping_object)

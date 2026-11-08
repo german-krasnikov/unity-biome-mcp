@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=d6c3dd6ca5be687916a622d8303891fc96cd7d71250259017f9f191545e1f7f1
+# source-sha256=c3ba21201e706da1eeb03d34e3784440903bd83b6a2f3a1a768358cb724a81bf
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
@@ -485,6 +485,11 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': '_INTERNAL',
         'effect': 'RO',
         'timeout_s': 5.0,
+    },
+    'ping_object': {
+        'category': 'SCENE',
+        'effect': 'RO',
+        'session': True,
     },
     'prefab': {
         'category': 'ASSETS',

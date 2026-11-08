@@ -766,6 +766,11 @@ INTERNAL ping RO "Liveness probe: Unity answers pong."
   TIMEOUT 5.0
 END
 
+TOOL ping_object SCENE RO "Highlight object in Hierarchy and Project, and select it."
+  SESSION
+  ARG path str
+END
+
 TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate."
   FORWARD
   DOC "edit: asset_path + component + prop + value (set property on prefab asset)."

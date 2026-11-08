@@ -193,6 +193,7 @@ reference for every tool.
 | `package` | unity | ASSETS | RW |
 | `particle` | unity | MEDIA | RW |
 | `permission_prompt` | python | SYSTEM | RO |
+| `ping_object` | unity | SCENE | RO |
 | `prefab` | unity | ASSETS | RW |
 | `profile` | unity | RUNTIME | RW |
 | `project_settings` | unity | ASSETS | RW_IDEM |

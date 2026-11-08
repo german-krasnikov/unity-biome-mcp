@@ -48,6 +48,7 @@ IDEM_TOOLS = [
     (asset, "project_settings"),
     (ui, "set_rect"),
     (connection, "reconnect_unity"),
+    (editor_control, "ping_object"),
     (runtime, "wait_until"),
     (testing, "run_tests"),
     (testing, "cancel_test_run"),
@@ -131,6 +132,7 @@ async def test_retry_safe_cmds_includes_only_readonly_or_idempotent():
     safe = await retry_safe_cmds(mcp)
     assert "get_console" in safe          # RO
     assert "execute_code" not in safe     # RW, no idempotentHint
+    assert "ping_object" in safe          # S0 5/11: derive("RO", session=True) -> idempotentHint=True
 
 
 async def test_retry_safe_cmds_includes_internal_status_commands():

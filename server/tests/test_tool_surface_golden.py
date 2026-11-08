@@ -23,6 +23,9 @@ INTENDED["discover_tools"]["annotations"] = 'S0 2/11: None -> derive("RO", sessi
 # ARG path/script descriptions move from _param_descriptions.py into the catalog (dsl/tools.biome), changing the schema line too.
 INTENDED["lint_playtest"]["annotations"] = 'S0 4/11: RW_IDEM -> derive("RO") (pure read-only)'
 INTENDED["lint_playtest"]["schema"] = "S0 4/11: path/script descriptions moved from _param_descriptions.py into the catalog"
+# S0 5/11: ping_object moves off the hand _RW constant onto the catalog's derive("RO", session=True) --
+# idempotentHint flips True (retry-safe), readOnlyHint stays False (SESSION overrides the RO effect).
+INTENDED["ping_object"]["annotations"] = 'S0 5/11: RW -> derive("RO", session=True) (retry-safe)'
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:
