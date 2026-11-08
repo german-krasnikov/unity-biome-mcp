@@ -207,6 +207,7 @@ reference for every tool.
 | `render_analyze` | unity | MEDIA | RO |
 | `resolve_scene_refs` | unity | VERIFY | RO |
 | `resolve_test_request` | unity | TESTS | RO |
+| `resolve_tool_schema` | python | SYSTEM | RO |
 | `run_playtest` | unity | TESTS | RW |
 | `run_playtest_suite` | python | TESTS | RW |
 | `run_tests` | unity | TESTS | RW_IDEM |

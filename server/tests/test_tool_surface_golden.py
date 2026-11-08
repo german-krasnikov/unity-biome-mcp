@@ -26,6 +26,9 @@ INTENDED["lint_playtest"]["schema"] = "S0 4/11: path/script descriptions moved f
 # S0 5/11: ping_object moves off the hand _RW constant onto the catalog's derive("RO", session=True) --
 # idempotentHint flips True (retry-safe), readOnlyHint stays False (SESSION overrides the RO effect).
 INTENDED["ping_object"]["annotations"] = 'S0 5/11: RW -> derive("RO", session=True) (retry-safe)'
+# S0 7/11: resolve_tool_schema moves off a bare mcp.tool() (no MCP annotation) onto the catalog's
+# derive("RO") -- plain read-only, no SESSION (it only reads the schema registry, no side effect at all).
+INTENDED["resolve_tool_schema"]["annotations"] = 'S0 7/11: None -> derive("RO") (readOnlyHint=True)'
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:

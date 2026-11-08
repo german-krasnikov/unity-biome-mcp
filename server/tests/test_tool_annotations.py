@@ -102,6 +102,14 @@ def test_lint_playtest_is_read_only():
     assert ann.readOnlyHint is True, "lint_playtest: readOnlyHint should be True"
 
 
+def test_resolve_tool_schema_gets_read_only_annotation():
+    """S0 7/11: resolve_tool_schema moves off a bare mcp.tool() (no annotation)
+    onto the catalog's derive("RO") -- no SESSION, a pure schema-registry read."""
+    ann = _get_annotation(meta, "resolve_tool_schema")
+    assert ann is not None, "resolve_tool_schema: no annotation found"
+    assert ann.readOnlyHint is True, "resolve_tool_schema: readOnlyHint should be True"
+
+
 def test_run_tests_not_marked_read_only():
     """run_tests triggers domain reload — must NOT have readOnlyHint=True."""
     ann = _get_annotation(testing, "run_tests")

@@ -167,7 +167,7 @@ def register(mcp, send, args, *, get_slot=None):
     _get_slot = get_slot
     tools.register(mcp, discover_tools)
     tools.register(mcp, doctor)
-    mcp.tool()(resolve_tool_schema)
+    tools.register(mcp, resolve_tool_schema)
     mcp.tool()(set_llm_config)
     tools.register(mcp, mcp_status)
     tools.register(mcp, release_smoke)

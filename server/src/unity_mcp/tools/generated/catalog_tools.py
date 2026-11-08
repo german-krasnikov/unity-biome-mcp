@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=5c81c5269c41cd3d98020fa67f4314c1d0db3d2ef359f10d8fe2440b6df72c57
+# source-sha256=7a54be23a01e1d854a437069c517d99e30f4ec336dd5095a39281449e64823b5
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -1387,6 +1387,9 @@ tools.expect('resolve_scene_refs', 'RO', "Read-only scene reference resolver.", 
 ))
 tools.expect('resolve_test_request', 'RO', "Resolve a possibly lost start ACK without dispatching another test run.", (
     ('request_id', str),
+))
+tools.expect('resolve_tool_schema', 'RO', "Return full parameter schemas for deferred tools. tools=comma-separated names.", (
+    ('tools', str),
 ))
 tools.expect('run_playtest', 'RW', "[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`).", (
     ('script', ostr, None),

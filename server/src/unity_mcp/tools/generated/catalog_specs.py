@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=5c81c5269c41cd3d98020fa67f4314c1d0db3d2ef359f10d8fe2440b6df72c57
+# source-sha256=7a54be23a01e1d854a437069c517d99e30f4ec336dd5095a39281449e64823b5
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
@@ -550,6 +550,12 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'TESTS',
         'effect': 'RO',
         'timeout_s': 10.0,
+    },
+    'resolve_tool_schema': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
+        'tier1': True,
     },
     'run_playtest': {
         'category': 'TESTS',
