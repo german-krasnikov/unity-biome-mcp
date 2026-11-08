@@ -3,7 +3,7 @@
   "files": {
     "AI/playtest-dsl.md#verbs": "96f0f388f7670b09dc37aa128450d94783470ed425827ddd9a5cb1617619d8a1",
     "docs/tools/index.md#catalog": "33634cc6ca655a43dee455643a31e57e432cd4e6d1ece1d3bc71d0fdd06587a0",
-    "dsl/biome.project": "a240847368d0c928d5306e58213346db4ef577ee179376946f40c0bc1778f071",
+    "dsl/biome.project": "4bac43f62daadea8c9bd418a8c5dad883f4bf05da3868f9d9156e4574c5ee60a",
     "dsl/chat/chatturn.contract": "e1854115855583b32d5a0379a614fee00cc4fe95e0c8d4838f13e9c40359c096",
     "dsl/chat/chatturn.examples": "a1f40504c40de0548e551f031755eaeef9030f630f27001fbd5e369b423b7a14",
     "dsl/chat/chatturn.feature": "9996348d029ec77d8d29e79946e2a454180230ead038ce29eda06229b1eee1f7",
