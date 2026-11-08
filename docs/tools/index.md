@@ -167,6 +167,7 @@ reference for every tool.
 | `get_test_results` | unity | TESTS | RO |
 | `get_test_run` | unity | TESTS | RO |
 | `get_unity_events` | unity | SCENE | RO |
+| `get_watches` | unity | RUNTIME | RO |
 | `inspect` | unity | CORE | RO |
 | `inspect_uitk` | unity | UITOOLKIT | RO |
 | `invoke_method` | unity | RUNTIME | RW |

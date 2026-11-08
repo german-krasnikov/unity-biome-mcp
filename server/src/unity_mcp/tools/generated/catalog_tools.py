@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=eeb50910821a2a7988ff1f99bc3b011f7f94cb21d721df0037192d6431b8cfcd
+# source-sha256=c03a6fd2cde65008bb68508f6d0bd563e0dafa72dccbe5afca276afd781c2e36
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -857,6 +857,8 @@ async def get_unity_events(
     ))
 
 
+tools.expect('get_watches', 'RO', "Get all active watches and recent log entries.", (
+))
 tools.expect('inspect', 'RO', "Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all).", (
     ('paths', ostr, None),
     ('components', ostr, None),

@@ -550,6 +550,9 @@ INTERNAL get_version RO "Version and protocol handshake; the Unity server answer
   TIMEOUT 5.0
 END
 
+TOOL get_watches RUNTIME RO "Get all active watches and recent log entries."
+END
+
 INTERNAL import_package RW "Protocol name of the asset action import_package; only its timeout is used, Unity registers no command of this name."
   TIMEOUT 120.0
 END
