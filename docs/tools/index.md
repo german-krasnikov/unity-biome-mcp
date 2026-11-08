@@ -171,6 +171,7 @@ reference for every tool.
 | `inspect` | unity | CORE | RO |
 | `inspect_uitk` | unity | UITOOLKIT | RO |
 | `invoke_method` | unity | RUNTIME | RW |
+| `lint_playtest` | unity | TESTS | RO |
 | `lint_playtest_suite` | python | TESTS | RO |
 | `lint_scene_refs` | unity | VERIFY | RO |
 | `lint_ugui` | unity | UGUI | RO |

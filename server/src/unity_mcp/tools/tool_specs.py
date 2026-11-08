@@ -60,9 +60,8 @@ class ToolSpec:
 DEFAULT_TIMEOUT: float = 30.0
 
 # Written by hand until the owner decides: resolve_tool_schema and set_llm_config register without an MCP annotation;
-# ping_object, lint_playtest and reconnect_unity register as writes (RW, RW_IDEM, RW_IDEM) although their ToolSpec says read.
+# ping_object and reconnect_unity register as writes (RW, RW_IDEM) although their ToolSpec says read.
 _SPECS: dict[str, ToolSpec] = {
-    'lint_playtest': ToolSpec(category='TESTS', timeout_s=60.0, mutability='read'),
     'ping_object': ToolSpec(category='SCENE', mutability='read'),
     'reconnect_unity': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     'resolve_tool_schema': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),

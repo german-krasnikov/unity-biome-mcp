@@ -588,6 +588,12 @@ TOOL invoke_method RUNTIME RW "[Play Mode] Call public method on a component via
   ARG args str DEFAULT_TEXT "" OMIT
 END
 
+TOOL lint_playtest TESTS RO "Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list."
+  TIMEOUT 60.0
+  ARG path ostr DEFAULT None "Project-relative path to .playtest file"
+  ARG script ostr DEFAULT None "Inline DSL (mutually exclusive with path)"
+END
+
 PYTOOL lint_playtest_suite TESTS RO "Read-only preflight check across multiple .playtest files."
   TIMEOUT 120.0
   ARG pattern ostr DEFAULT None

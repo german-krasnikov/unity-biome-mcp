@@ -92,6 +92,15 @@ def test_discover_tools_gets_session_annotation():
     assert ann.readOnlyHint is False, "discover_tools: readOnlyHint should be False (SESSION overrides RO)"
 
 
+def test_lint_playtest_is_read_only():
+    """S0 4/11: lint_playtest moves from the hand _RW_IDEM constant
+    (idempotentHint=True, readOnlyHint=False) to the catalog's TESTS RO
+    block -- a pure read-only static validator, no scene changes."""
+    ann = _get_annotation(runtime, "lint_playtest")
+    assert ann is not None, "lint_playtest: no annotation found"
+    assert ann.readOnlyHint is True, "lint_playtest: readOnlyHint should be True"
+
+
 def test_run_tests_not_marked_read_only():
     """run_tests triggers domain reload — must NOT have readOnlyHint=True."""
     ann = _get_annotation(testing, "run_tests")

@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=c03a6fd2cde65008bb68508f6d0bd563e0dafa72dccbe5afca276afd781c2e36
+# source-sha256=d6c3dd6ca5be687916a622d8303891fc96cd7d71250259017f9f191545e1f7f1
 # Edit the source, then run biome generate.
 
 PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
@@ -187,6 +187,10 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'inspect_uitk': {
     },
     'invoke_method': {
+    },
+    'lint_playtest': {
+        'path': "Project-relative path to .playtest file",
+        'script': "Inline DSL (mutually exclusive with path)",
     },
     'lint_playtest_suite': {
     },

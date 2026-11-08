@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=c03a6fd2cde65008bb68508f6d0bd563e0dafa72dccbe5afca276afd781c2e36
+# source-sha256=d6c3dd6ca5be687916a622d8303891fc96cd7d71250259017f9f191545e1f7f1
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -902,6 +902,10 @@ async def invoke_method(
     ))
 
 
+tools.expect('lint_playtest', 'RO', "Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list.", (
+    ('path', ostr, None),
+    ('script', ostr, None),
+))
 tools.expect('lint_playtest_suite', 'RO', "Read-only preflight check across multiple .playtest files.", (
     ('pattern', ostr, None),
     ('suite_path', ostr, None),

@@ -8,7 +8,6 @@ from ..bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S
 from ..decisions import verdict_facts
 from ..errors import SessionIdentityMismatch, UncertainDeliveryError, recovery_barrier
 from ..sampling import sampling_service as _sampling
-from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 from .editor_state import parse_editor_field as _editor_field
 from .editor_state import parse_world_ready as _parse_world_ready
@@ -823,5 +822,5 @@ def register(mcp, send, args):
     tools.register(mcp, test_step)
     tools.register(mcp, run_playtest)
     tools.register(mcp, run_playtest_suite)
-    mcp.tool(annotations=_RW_IDEM)(lint_playtest)
+    tools.register(mcp, lint_playtest)
     tools.register(mcp, lint_playtest_suite)

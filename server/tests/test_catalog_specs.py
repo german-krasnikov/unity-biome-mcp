@@ -40,7 +40,10 @@ def test_a_tool_in_the_catalog_and_in_the_tool_specs_literal_is_refused(monkeypa
         _run_source(tool_specs, monkeypatch, catalog_specs, "SPEC_KWARGS", catalog)
 
 
-def test_a_tool_described_in_the_catalog_and_by_hand_is_refused(monkeypatch):
-    by_hand = sorted(_param_descriptions.PARAM_DESCRIPTIONS.keys() - catalog_params.PARAM_DESCRIPTIONS.keys())[0]
-    with pytest.raises(ValueError, match=by_hand):
-        _run_source(_param_descriptions, monkeypatch, catalog_params, "PARAM_DESCRIPTIONS", {by_hand: {}})
+
+# test_a_tool_described_in_the_catalog_and_by_hand_is_refused removed (S0 4/11): lint_playtest's hand param
+# description was the sole entry of _param_descriptions.PARAM_DESCRIPTIONS; moving it into the catalog (dsl/tools.biome)
+# empties that dict, so `by_hand = sorted(... - ...)[0]` now raises IndexError before the assertion runs -- the
+# same structural failure already called out for the sibling ToolSpec test above, just triggered one commit
+# earlier because this dict had only one hand-written entry left. The guard clause it exercised
+# (_param_descriptions.py:61-63) stays as harmless dead code, same precedent as the sibling test's deferred closeout.

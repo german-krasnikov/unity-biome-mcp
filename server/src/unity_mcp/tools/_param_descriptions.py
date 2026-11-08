@@ -33,13 +33,10 @@ _COMMON: dict[str, str] = {
 
 # Per-tool descriptions — key must match fn.__name__ exactly.
 # Values override _COMMON for that param on that tool.
-PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
-    # The other tools are described in the tool catalog (dsl/tools.biome), merged at the end of this module; lint_playtest is one of
-    # the six whose ToolSpec the catalog does not own yet (see tool_specs.py).
-    "lint_playtest": {
-        "path": "Project-relative path to a .playtest DSL file (mutually exclusive with script)",
-    },
-}
+# Every tool is now described in the tool catalog (dsl/tools.biome), merged at the end of this module (S0 4/11:
+# lint_playtest's hand entry moved there). This dict stays as the hand-written override point for any future tool
+# whose ToolSpec the catalog does not own yet.
+PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {}
 
 # Matches any non-empty string including newlines; suppresses CWE-78 without restricting valid input.
 _RE_ANY = r"^[\s\S]+$"
