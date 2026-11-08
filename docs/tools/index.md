@@ -199,6 +199,7 @@ reference for every tool.
 | `project_settings` | unity | ASSETS | RW_IDEM |
 | `query_state` | unity | RUNTIME | RO |
 | `recompile` | unity | SYSTEM | RW |
+| `reconnect_unity` | python | SYSTEM | RO |
 | `references` | unity | COMPONENTS | RW |
 | `region_clear` | unity | SCENE | RW |
 | `release_smoke` | python | SYSTEM | RO |

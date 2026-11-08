@@ -8,7 +8,7 @@ import time instead of hand-typing 4 separately-drifting literals.
 
 Where an entry comes from: the tool catalog (dsl/tools.biome, dsl/README.md) generates
 tools/generated/catalog_specs.py, merged at the end of this module; watch, get_watches and
-sync_unity are owned by their modules (watch.py, sync_spec.py); three tools are still written in the
+sync_unity are owned by their modules (watch.py, sync_spec.py); two tools are still written in the
 literal below, because their MCP annotation and their ToolSpec disagree and one catalog effect
 cannot say both (step 7.1, a decision for the owner).
 """
@@ -59,10 +59,8 @@ class ToolSpec:
 
 DEFAULT_TIMEOUT: float = 30.0
 
-# Written by hand until the owner decides: resolve_tool_schema and set_llm_config register without an MCP annotation;
-# reconnect_unity registers as a write (RW_IDEM) although its ToolSpec says read.
+# Written by hand until the owner decides: resolve_tool_schema and set_llm_config register without an MCP annotation.
 _SPECS: dict[str, ToolSpec] = {
-    'reconnect_unity': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     'resolve_tool_schema': ToolSpec(category='SYSTEM', tier1=True, mutability='read', direct_only=True),
     'set_llm_config': ToolSpec(category='SYSTEM', direct_only=True),
 }

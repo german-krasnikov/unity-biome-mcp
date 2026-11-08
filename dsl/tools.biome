@@ -836,6 +836,13 @@ END
 TOOL recompile SYSTEM RW "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done."
 END
 
+PYTOOL reconnect_unity SYSTEM RO "Reconnect to Unity. Port 0 or omitted = auto-discover from port files."
+  FLAG tier1
+  SESSION
+  ARG port int DEFAULT 0
+  ARG ctx Any DEFAULT None
+END
+
 TOOL references COMPONENTS RW "References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs."
   FORWARD
   ARG action str

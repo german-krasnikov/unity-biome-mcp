@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=c3ba21201e706da1eeb03d34e3784440903bd83b6a2f3a1a768358cb724a81bf
+# source-sha256=5c81c5269c41cd3d98020fa67f4314c1d0db3d2ef359f10d8fe2440b6df72c57
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -1277,6 +1277,11 @@ tools.expect('query_state', 'RO', "[Play Mode] Snapshot multiple game values in 
 ))
 tools.expect('recompile', 'RW', "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done.", (
 ))
+tools.expect('reconnect_unity', 'RO', "Reconnect to Unity. Port 0 or omitted = auto-discover from port files.", (
+    ('port', int, 0),
+    ('ctx', Any, None),
+)
+, session=True)
 tools.expect('references', 'RW', "References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs.", (
     ('action', str),
     ('path', str),

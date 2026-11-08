@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=c3ba21201e706da1eeb03d34e3784440903bd83b6a2f3a1a768358cb724a81bf
+# source-sha256=5c81c5269c41cd3d98020fa67f4314c1d0db3d2ef359f10d8fe2440b6df72c57
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
@@ -512,6 +512,13 @@ SPEC_KWARGS: dict[str, dict] = {
     'recompile': {
         'category': 'SYSTEM',
         'effect': 'RW',
+    },
+    'reconnect_unity': {
+        'category': 'SYSTEM',
+        'effect': 'RO',
+        'direct_only': True,
+        'tier1': True,
+        'session': True,
     },
     'references': {
         'category': 'COMPONENTS',
