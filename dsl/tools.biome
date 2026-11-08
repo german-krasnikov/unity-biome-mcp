@@ -1269,6 +1269,13 @@ TOOL sync_playtest_aliases_from_defs TESTS RW "Overwrite PlaytestConfig.asset al
   ARG asset str DEFAULT_TEXT "Assets/Configs/PlaytestConfig.asset"
 END
 
+PYTOOL sync_unity SYSTEM RW "Refresh Unity and await its matching compile cycle within one timeout."
+  FLAG tier1
+  ARG resolve bool DEFAULT False
+  ARG bump bool DEFAULT False
+  ARG timeout float DEFAULT 120.0
+END
+
 TOOL test_step TESTS RW "[Play Mode] Move character, snapshot state before/after, check console."
   FLAG direct_only
   FLAG unity_transport

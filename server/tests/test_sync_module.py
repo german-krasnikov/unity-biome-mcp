@@ -241,7 +241,9 @@ async def test_interleaved_instances_keep_their_own_send():
 def test_sync_module_owned_and_consumed_listed_separately():
     """The module declares owned public->wire names and consumed
     dependencies as distinct data (not just prose); _SPEC_OWNERS routes
-    sync_unity to 'sync'; consumed names are never owned."""
+    sync_unity to 'catalog' (S0 9/11: its ToolSpec kwargs moved from the
+    retired sync_spec.SPEC_KWARGS pilot into dsl/tools.biome, merged by
+    tool_specs.py's generic catalog loop); consumed names are never owned."""
     owned_wire = set(sync_module.OWNED_WIRE_COMMANDS["sync_unity"])
     consumed = sync_module.CONSUMED_DEPENDENCIES
 
@@ -251,7 +253,7 @@ def test_sync_module_owned_and_consumed_listed_separately():
     assert "warm_type_cache" in consumed
     assert "force_refresh" in consumed  # C# Reload/recovery owns it; Sync only consumes it
 
-    assert _SPEC_OWNERS["sync_unity"] == "sync"
+    assert _SPEC_OWNERS["sync_unity"] == "catalog"
 
 
 def test_negative_control_wrong_owner_mapping_fails_ownership_check(monkeypatch):
@@ -260,7 +262,7 @@ def test_negative_control_wrong_owner_mapping_fails_ownership_check(monkeypatch)
     check now fails."""
     monkeypatch.setitem(_SPEC_OWNERS, "sync_unity", "watch")
     with pytest.raises(AssertionError):
-        assert _SPEC_OWNERS["sync_unity"] == "sync"
+        assert _SPEC_OWNERS["sync_unity"] == "catalog"
 
 
 # ── Production route (checkbox 3) ────────────────────────────────────────

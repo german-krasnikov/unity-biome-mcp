@@ -243,6 +243,7 @@ reference for every tool.
 | `snapshot` | python | RUNTIME | RO |
 | `spatial_query` | unity | SCENE | RO |
 | `sync_playtest_aliases_from_defs` | unity | TESTS | RW |
+| `sync_unity` | python | SYSTEM | RW |
 | `test_step` | unity | TESTS | RW |
 | `timeline` | unity | MEDIA | RW |
 | `transfer_object` | unity | SCENE | RW |

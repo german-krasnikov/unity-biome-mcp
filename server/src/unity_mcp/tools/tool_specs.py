@@ -7,9 +7,10 @@ _CORE_TOOLS/_THEMED_CATEGORIES/TIER1/_ALL_KNOWN collections from this dict at
 import time instead of hand-typing 4 separately-drifting literals.
 
 Where an entry comes from: the tool catalog (dsl/tools.biome, dsl/README.md) generates
-tools/generated/catalog_specs.py, merged at the end of this module; watch, get_watches and
-sync_unity are owned by their modules (watch.py, sync_spec.py); no tool is written by hand
-in this module any more -- set_llm_config was the last one (S0 8/11).
+tools/generated/catalog_specs.py, merged at the end of this module; watch and get_watches
+are owned by tools/watch.py (S0 10/11 will retire this too); sync_unity moved to the catalog
+(S0 9/11); no tool is written by hand in this module's literal any more -- set_llm_config
+was the last one (S0 8/11).
 """
 from dataclasses import dataclass
 from typing import Literal
@@ -73,18 +74,6 @@ _SPEC_OWNERS: dict[str, str] = {}
 for _name, _kwargs in _WATCH_SPEC_KWARGS.items():
     _SPECS[_name] = ToolSpec(**_kwargs)
     _SPEC_OWNERS[_name] = "watch"
-
-# N1b pilot #2: sync_unity ToolSpec kwargs are owned by the sync module
-# (tools/sync_module.py: SyncModule + this same SPEC_KWARGS re-exported), but
-# imported here from tools/sync_spec.py specifically -- tool_specs.py must
-# not transitively import tools/sync.py (reload_ladder.py imports tool_specs
-# for _SPECS, and reload_ladder -> sync is a forbidden import-linter
-# contract; see sync_spec.py's docstring).
-from .sync_spec import SPEC_KWARGS as _SYNC_SPEC_KWARGS  # noqa: E402
-
-for _name, _kwargs in _SYNC_SPEC_KWARGS.items():
-    _SPECS[_name] = ToolSpec(**_kwargs)
-    _SPEC_OWNERS[_name] = "sync"
 
 # Tool catalog (dsl/tools.biome): the ToolSpec kwargs of its tools are generated, imported one way like the owners above. 'effect' is
 # the catalog's RO|RW|RW_IDEM|DEL; ToolSpec keeps only whether the tool writes (the MCP annotation follows from effect elsewhere).

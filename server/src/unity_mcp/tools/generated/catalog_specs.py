@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=5e891c455356d1761f226448d687cb53a0739d603d391e91a0d2b13a86e6f460
+# source-sha256=8e63b7c593155f9bd3e41af115773d62e0e61d048ff849606c63e1a7b34fa06f
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
@@ -744,6 +744,12 @@ SPEC_KWARGS: dict[str, dict] = {
     'sync_playtest_aliases_from_defs': {
         'category': 'TESTS',
         'effect': 'RW',
+    },
+    'sync_unity': {
+        'category': 'SYSTEM',
+        'effect': 'RW',
+        'direct_only': True,
+        'tier1': True,
     },
     'test_step': {
         'category': 'TESTS',
