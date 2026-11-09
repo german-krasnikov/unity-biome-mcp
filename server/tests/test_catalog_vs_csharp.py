@@ -10,6 +10,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+import toolmeta_reader
 
 from unity_mcp.server import mcp
 from unity_mcp.tools.generated import catalog_specs
@@ -82,6 +83,16 @@ def registrations(sources: list[str]) -> dict[str, dict]:
                 "optional": _csv(args, "optional"),
                 "max_chars": int(chars.group(1)) if chars else 0,
             }
+            if toolmeta_reader.delegates(args):
+                # ToolMeta.Get("<name>") replaced the named flags (A2-DESIGN.md Sec 1) -- read them from
+                # the generated switch instead of the (now-absent) call-site text.
+                meta = toolmeta_reader.read_generated().get(name, {})
+                found[name] = {
+                    "mutating": meta.get("mutating", False), "runtime": meta.get("runtime", False),
+                    "play_ok": meta.get("playok", False), "no_undo": meta.get("noundo", False),
+                    "required": meta.get("required", set()), "optional": meta.get("optional", set()),
+                    "max_chars": meta.get("max", 0),
+                }
     return found
 
 
@@ -131,6 +142,16 @@ _CS = '''
     CommandRegistry.RegisterAction("b", ExecB, required: "", optional: "s,t", noUndo: true);
     CommandRegistry.RegisterAsync("c", AsyncC, runtime: true, required: "u", optional: "");
 '''
+
+
+def test_a_delegating_call_reads_its_fields_from_toolmeta_reader(monkeypatch):
+    monkeypatch.setattr(toolmeta_reader, "read_generated", lambda: {
+        "d": {"mutating": True, "runtime": False, "playok": True, "noundo": False, "max": 500,
+              "required": {"p"}, "optional": {"q"}},
+    })
+    found = registrations(['CommandRegistry.Register("d", ExecD, ToolMeta.Get("d"));'])
+    assert found["d"] == {"mutating": True, "runtime": False, "play_ok": True, "no_undo": False,
+                          "required": {"p"}, "optional": {"q"}, "max_chars": 500}
 
 
 def test_the_registration_reader_takes_the_flags_of_the_call_and_nothing_nested():

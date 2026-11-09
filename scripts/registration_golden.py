@@ -23,6 +23,7 @@ _SERVER_TESTS = _REPO_ROOT / "server" / "tests"
 if str(_SERVER_TESTS) not in sys.path:
     sys.path.insert(0, str(_SERVER_TESTS))
 
+import toolmeta_reader  # noqa: E402  (same directory as this module)
 from test_catalog_vs_csharp import _CALL, _top_level  # noqa: E402  (path set up above)
 
 _EDITOR = _REPO_ROOT / "unity-plugin" / "Editor"
@@ -73,6 +74,16 @@ def _line(name: str, kind: str, args: str) -> str:
         "required": ",".join(required),
         "optional": ",".join(optional),
     }
+    if toolmeta_reader.delegates(args):
+        # ToolMeta.Get("<name>") replaced the named flags -- read them from the generated switch instead
+        # of the (now-absent) call-site text (A2-DESIGN.md Sec 1). kind/filehandler/policy are untouched:
+        # ToolMeta never emits them, and they correctly read as absent from `args` either way.
+        meta = toolmeta_reader.read_generated().get(name, {})
+        for key in ("mutating", "runtime", "special", "always", "compile", "notbatch", "playok", "noundo"):
+            fields[key] = str(int(meta.get(key, False)))
+        fields["max"] = str(meta.get("max", 0))
+        fields["required"] = ",".join(sorted(meta.get("required", set())))
+        fields["optional"] = ",".join(sorted(meta.get("optional", set())))
     return name + " " + " ".join(f"{key}={fields[key]}" for key in _FIELD_ORDER)
 
 

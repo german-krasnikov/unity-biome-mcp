@@ -9,6 +9,7 @@ never a silent regeneration of the golden.
 from pathlib import Path
 
 import pytest
+import toolmeta_reader
 from registration_golden import registration_lines
 
 pytestmark = pytest.mark.csharp_parity
@@ -74,6 +75,22 @@ def test_the_extractor_reads_every_flag_and_nothing_nested():
         "noundo=1 policy=1 max=30000 required=p,q optional=r",
         "b kind=RegisterAction mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 "
         "playok=0 noundo=0 policy=0 max=0 required=action optional=s,t",
+    ]
+
+
+_CS_DELEGATED = '''
+    CommandRegistry.Register("d", ExecD, ToolMeta.Get("d"));
+'''
+
+
+def test_a_delegating_call_reads_its_fields_from_toolmeta_reader(monkeypatch):
+    monkeypatch.setattr(toolmeta_reader, "read_generated", lambda: {
+        "d": {"mutating": True, "runtime": False, "special": False, "always": False, "compile": False,
+              "notbatch": False, "playok": True, "noundo": False, "max": 500, "required": {"p"}, "optional": {"q"}},
+    })
+    assert registration_lines([_CS_DELEGATED]) == [
+        "d kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 "
+        "playok=1 noundo=0 policy=0 max=500 required=p optional=q",
     ]
 
 
