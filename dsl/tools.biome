@@ -194,6 +194,7 @@ TOOL batch CORE RW "Execute multiple commands in one call. Use for 2+ ops — re
   GUARD compile
   FLAG core
   TIMEOUT 120.0
+  VERB "Running batch"
   ARG commands str "One command per line (e.g. 'get_component path=/Player type=Transform')"
   ARG on_error str DEFAULT_TEXT "continue" "Error behavior: continue (default) | stop — stop aborts remaining commands"
   ARG timeout float DEFAULT 75.0 "Total timeout in seconds (default 75)"
@@ -285,6 +286,7 @@ END
 TOOL create_object CORE RW "Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene)."
   FORWARD
   FLAG core
+  VERB "Creating"
   ARG name str "Name for the new GameObject"
   ARG parent ostr DEFAULT None "Scene path of the parent (omit = scene root)"
   ARG components ostr DEFAULT None "Comma-separated component types to add on creation (e.g. 'Rigidbody,BoxCollider')"
@@ -334,6 +336,7 @@ END
 
 TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."
   FLAG tier1
+  VERB "Deleting"
   ARG id oint DEFAULT None "Instance ID of the GameObject to delete (from get_hierarchy)"
   ARG path ostr DEFAULT None "Scene path of the GameObject to delete"
   ARG force bool DEFAULT False "True to delete non-empty container objects without error"
@@ -445,10 +448,12 @@ END
 TOOL get_compile_errors CORE RO "Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed."
   GUARD compile
   FLAG core
+  VERB "Checking errors"
 END
 
 TOOL get_component CORE RO "Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N."
   FLAG core
+  VERB "Reading component"
   ARG path str "Scene path to the GameObject (e.g. /Player or /World/Enemy)"
   ARG type str DEFAULT_TEXT "" "Component type name (e.g. 'Transform', 'Rigidbody', 'MeshRenderer')"
   ARG fields ostr DEFAULT None "Comma-separated fields to return (e.g. 'mass,localPosition') — skips all others, saves tokens"
@@ -459,6 +464,7 @@ END
 
 TOOL get_components_list SCENE RO "List all components on object by instance ID."
   FORWARD
+  VERB "Reading components"
   ARG id int RAW
 END
 
@@ -467,6 +473,7 @@ TOOL get_console CORE RO "Recent console logs. For C# compile errors use get_com
   FLAG core
   TIMEOUT 10.0
   MAXCHARS 20000
+  VERB "Reading console"
   ARG count int DEFAULT 10 "Max log entries to return (default 10)"
   ARG level ostr DEFAULT None "Filter by level: log|warning|error|exception|assert (omit = all)"
   ARG first int DEFAULT 0 "Skip the first N entries (pagination offset)"
@@ -501,6 +508,7 @@ TOOL get_hierarchy CORE RO "Scene hierarchy as text tree. For finding specific o
   FLAG core
   TIMEOUT 15.0
   MAXCHARS 50000
+  VERB "Reading scene"
   ARG depth int DEFAULT 2 "Traversal depth (default 2; increase for deeper trees)"
   ARG root ostr DEFAULT None "Scene path to scope the hierarchy (omit = whole scene)"
   ARG filter ostr DEFAULT None "Substring filter on GameObject name"
@@ -598,6 +606,7 @@ END
 
 TOOL inspect CORE RO "Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all)."
   FLAG core
+  VERB "Reading"
   ARG paths ostr DEFAULT None "Comma-separated scene paths (e.g. '/Player,/Enemy,/Camera')"
   ARG components ostr DEFAULT None "Comma-separated component types to read (omit = all)"
   ARG fields ostr DEFAULT None "Comma-separated field names to project across all objects — reduces tokens"
@@ -698,6 +707,7 @@ END
 TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
   FORWARD
   FLAG core
+  VERB "Editing components"
   ARG path str "Scene path to the GameObject"
   ARG type str "Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button')"
   ARG action str "'add' or 'remove' — not 'enable'/'disable' (use set_property m_Enabled for that)"
@@ -747,6 +757,7 @@ TOOL move_to RUNTIME RW "[Play Mode] Move character to position and wait for arr
   FLAG direct_only
   FLAG unity_transport
   RUNTIME
+  VERB "Moving"
   ARG path str
   ARG position str
   ARG timeout float DEFAULT 15.0
@@ -969,6 +980,7 @@ TOOL run_playtest TESTS RW "[Play Mode] Execute a playtest DSL script. Returns s
   FLAG direct_only
   FLAG unity_transport
   TIMEOUT 300.0
+  VERB "Playtesting"
   ARG script ostr DEFAULT None "Inline DSL script (mutually exclusive with path)"
   ARG timeout float DEFAULT 120.0 "Max seconds to wait for the playtest to finish (default 120)"
   ARG abort_on_fail bool DEFAULT False "Stop after the first failed step or automatic console failure; remaining steps, including teardown, are skipped"
@@ -1002,6 +1014,7 @@ TOOL run_tests TESTS RW_IDEM "Dispatch Unity tests and return their durable iden
   FLAG tier1
   FLAG direct_only
   FLAG unity_transport
+  VERB "Running tests"
   ARG mode str DEFAULT_TEXT "EditMode" "Test runner mode: EditMode or PlayMode"
   ARG filter ostr DEFAULT None "NUnit filter expression (e.g. 'MyNamespace.MyTest')"
   ARG request_id ostr DEFAULT None "Caller-supplied idempotency ID — reuse to retry a failed dispatch without double-running"
@@ -1052,6 +1065,7 @@ TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_addit
   GUARD play_ok
   WIRE no_undo
   FLAG tier1
+  VERB "Managing scene"
   ARG action str "Operation: new|open|save|discard|open_additive|close|set_active|list"
   ARG path ostr DEFAULT None "Asset path — required for open/save/open_additive/close/set_active"
   ARG scene ostr DEFAULT None "Scene name for save/discard when multiple scenes are loaded"
@@ -1095,6 +1109,7 @@ TOOL screenshot MEDIA RW "Capture screenshot (file path); describe= -> Haiku tex
   FLAG tier1
   FLAG direct_only
   FLAG unity_transport
+  VERB "Capturing screenshot"
   ARG width int DEFAULT 640 "Image width in pixels (default 640)"
   ARG height int DEFAULT 480 "Image height in pixels (default 480)"
   ARG camera ostr DEFAULT None "View type: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game"
@@ -1151,6 +1166,7 @@ TOOL search_scene SCENE RO "Search scene objects. Syntax: name text, t:Component
   DOC "root: scope search to subtree (path or None for whole scene)."
   DOC "limit: max results (default 50; 0=unlimited)."
   DOC "scene: filter to a single scene by name (multi-scene only)."
+  VERB "Searching"
   ARG query str "Syntax: 'name text', 't:Component', 'tag=Tag', 'layer=N', 'active=bool' — combine with spaces"
   ARG root ostr DEFAULT None "Scene path to scope the search (omit = whole scene)"
   ARG limit int DEFAULT 50 OMIT "Max results (default 50; 0 = unlimited)"
@@ -1191,6 +1207,7 @@ END
 TOOL set_parent SCENE RW_IDEM "Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent."
   FORWARD
   FLAG tier1
+  VERB "Re-parenting"
   ARG path str "Scene path of the GameObject to reparent"
   ARG parent ostr DEFAULT None "New parent scene path (omit or null = move to scene root)"
   ARG world_position_stays bool DEFAULT True OMIT "True (default) = preserve world transform; False = keep local transform relative to new parent"
@@ -1203,6 +1220,7 @@ END
 
 TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`)."
   FLAG core
+  VERB "Editing"
   ARG path ostr DEFAULT None "Scene path to the GameObject (e.g. /Player/Body)"
   ARG component str DEFAULT_TEXT "" "Component type (empty string = Transform)"
   ARG prop str DEFAULT_TEXT "" "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
@@ -1475,6 +1493,7 @@ TOOL validate_references VERIFY RO "Validate all ObjectReference fields under pa
   DOC "Use depth=1 for quick top-level scan, depth=3-5 for full subtree."
   DOC "verbose=True also shows [OK] lines (off by default to save tokens)."
   DOC "ignore_optional=True skips fields marked [Optional] (reduces noise)."
+  VERB "Checking refs"
   ARG path str
   ARG depth int DEFAULT 3 RAW
   ARG verbose bool DEFAULT False OMIT
@@ -1544,6 +1563,7 @@ TOOL wire_event COMPONENTS RW "Wire UnityEvent persistent listener. Mutates scen
   DOC "arg_value: required when arg_type != void. For object: scene path or asset path."
   DOC "target_component_type: narrow component search to this type (e.g. 'Animator')."
   DOC "parameter_types: comma-separated param types to resolve overloads (e.g. 'string')."
+  VERB "Wiring"
   ARG path str
   ARG component str
   ARG event str

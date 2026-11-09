@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=283efb35d922fa640ef0a62fe3cb6030cc8cf302f676d98b46867f6ea6c454a8
+# source-sha256=248027926549299f4c3163bc33876cec4fa2c56aa2a1ec3ea1f690994f128a6e
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {

@@ -20,6 +20,7 @@ GENERATE retry-rows logic examples --source {dir}/decisions/retry.examples --log
 GENERATE py-reads  render {dir}/tools.biome pyreads  {dir}/../server/src/unity_mcp/tools/generated/catalog_reads.py
 GENERATE cs-reads  render {dir}/tools.biome csreads  {dir}/../unity-plugin/Editor/Generated/ActionReads.g.cs
 GENERATE cs-tools  render {dir}/tools.biome cstools  {dir}/../unity-plugin/Editor/Generated/ToolMeta.g.cs
+GENERATE cs-verbs  render {dir}/tools.biome csverbs {dir}/../unity-plugin/Editor/Generated/ToolVerbs.g.cs
 
 # The chat turn (dsl/chat, step 7.3): the one ordered list of what ends a turn of the chat window, whichever way it ends. chat-policy prints the two guards
 # (the decisions of the FEATURE), chat-turn the reducer into the CLI assembly of the chat (UnityMCP.Editor.Chat.CLI, namespace UnityMCP.Editor.Chat.Turn, C# 9)
