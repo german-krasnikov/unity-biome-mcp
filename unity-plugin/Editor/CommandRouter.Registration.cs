@@ -601,14 +601,9 @@ namespace UnityMCP.Editor
                 required: "request_id", optional: "mode,filter,group,categories,assemblies,tests");
             CommandRegistry.RegisterAsync("ask_user", AsyncAskUser, required: "", optional: "questions",
                 alwaysAllowed: true, allowedDuringCompile: true);  // UI-only card, no assembly access
-            CommandRegistry.RegisterAsync("wait_until", AsyncWaitUntil, mutating: true, runtime: true,
-                required: "path,component,field,value", optional: "timeout,negate,abort_on_fail");
-            CommandRegistry.RegisterAsync("move_to", AsyncMoveTo, runtime: true,
-                mutating: true, playOk: true,
-                required: "path,position", optional: "timeout");
-            CommandRegistry.RegisterAsync("test_step", AsyncTestStep, runtime: true,
-                mutating: true, playOk: true,
-                required: "path,position", optional: "checks_before,checks_after,wait_after,timeout");
+            CommandRegistry.RegisterAsync("wait_until", AsyncWaitUntil, ToolMeta.Get("wait_until"));
+            CommandRegistry.RegisterAsync("move_to", AsyncMoveTo, ToolMeta.Get("move_to"));
+            CommandRegistry.RegisterAsync("test_step", AsyncTestStep, ToolMeta.Get("test_step"));
             // B05: the Play-mode gate moved past parsing — AsyncRunPlaytest scans the script's
             // `# @needs editmode` header itself and decides, instead of registration pre-blocking
             // every Edit-mode call before the header is ever read.
@@ -625,12 +620,8 @@ namespace UnityMCP.Editor
             // unrelated compile.
             CommandRegistry.RegisterAsync("get_playtest_run", AsyncGetPlaytestRun,
                 required: "run_id", optional: "", allowedDuringCompile: true);
-            CommandRegistry.RegisterAsync("build", AsyncBuild,
-                mutating: true, playOk: true,
-                required: "action", optional: "target,scenes,path,dev");
-            CommandRegistry.RegisterAsync("package", AsyncPackage,
-                mutating: true, playOk: true,
-                required: "action", optional: "name,version,query");
+            CommandRegistry.RegisterAsync("build", AsyncBuild, ToolMeta.Get("build"));
+            CommandRegistry.RegisterAsync("package", AsyncPackage, ToolMeta.Get("package"));
             CommandRegistry.RegisterAsync("source_patch_write", AsyncSourcePatchWrite,
                 mutating: true, required: "path,content", optional: "");
         }
