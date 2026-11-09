@@ -9,6 +9,8 @@ SURFACE tools CODES TOOLS CONSTRUCTS TOOL, PYTOOL, INTERNAL
 
 CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   HEAD TOOL <name:match([a-z][a-z0-9_]*) UNIQUE> <category:enum(CORE|SCENE|COMPONENTS|ASSETS|UGUI|UITOOLKIT|MEDIA|VERIFY|RUNTIME|TESTS|SYSTEM)> <effect:enum(RO|RW|RW_IDEM|DEL)> <summary:string>
+  ITEM GUARD <flag:enum(always|compile|play_ok)>
+  ITEM WIRE <flag:enum(special|not_batch|no_undo)>
   ITEM FORWARD
   ITEM FLAG <flag:enum(core|tier1|direct_only|unity_transport)>
   ITEM RUNTIME
@@ -105,6 +107,42 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
                         }
     END
   END
+  TEMPLATE cstools HEADER "namespace UnityMCP.Editor\n{\n    // CommandOptions for every TOOL/INTERNAL of dsl/tools.biome that this construct can state: Mutating\n    // (effect != RO), Runtime, Required/Optional (from ARG), MaxResponseChars (from MAXCHARS), and the GUARD/WIRE flags.\n    // Description, FileHandler and MutatingArgsPolicy are not data here: a caller sets one on the returned struct (a mutable\n    // struct) after Get. kind (Register/RegisterAction/RegisterAsync) is a call-site choice, not data here either.\n    internal static class ToolMeta\n    {\n        internal static CommandOptions Get(string cmd)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    throw new System.ArgumentException($\"ToolMeta.Get: no entry for '{cmd}'\");\n            }\n        }\n    }\n}" ESCAPE data
+                    case "{name}":
+                        return new CommandOptions
+                        {
+                            Mutating = {?effect=RO:false}{!effect=RO:true},
+    IF ANY RUNTIME
+                            Runtime = true,
+    END
+                            Required = string.Join(",", new string[] {
+    EACH ARG WHERE NOT default AND NOT dtext
+                                "{aname}",
+    END
+                            }),
+                            Optional = string.Join(",", new string[] {
+    EACH ARG WHERE default
+                                "{aname}",
+    END
+    EACH ARG WHERE dtext
+                                "{aname}",
+    END
+                            }),
+    EACH MAXCHARS
+                            MaxResponseChars = {maxchars},
+    END
+    EACH GUARD
+    {?flag=always:                        AlwaysAllowed = true,}
+    {?flag=compile:                        AllowedDuringCompile = true,}
+    {?flag=play_ok:                        PlayOk = true,}
+    END
+    EACH WIRE
+    {?flag=special:                        SpecialDispatch = true,}
+    {?flag=not_batch:                        NotBatchable = true,}
+    {?flag=no_undo:                        NoUndo = true,}
+    END
+                        };
+  END
   TEMPLATE mdtools HEADER "| Tool | Plane | Category | Effect |\n|---|---|---|---|" ESCAPE md
     | `{name}` | unity | {category} | {effect} |
   END
@@ -188,6 +226,8 @@ END
 
 CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
   HEAD INTERNAL <name:match([a-z][a-z0-9_]*) UNIQUE> <effect:enum(RO|RW)> <summary:string>
+  ITEM GUARD <flag:enum(always|compile|play_ok)>
+  ITEM WIRE <flag:enum(special|not_batch|no_undo)>
   ITEM FLAG <flag:enum(direct_only|unity_transport)>
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
   EXAMPLES tool.examples
@@ -203,5 +243,24 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
             'timeout_s': {seconds},
     END
         },
+  END
+  TEMPLATE cstools ESCAPE data
+                    case "{name}":
+                        return new CommandOptions
+                        {
+                            Mutating = {?effect=RO:false}{!effect=RO:true},
+                            Required = "",
+                            Optional = "",
+    EACH GUARD
+    {?flag=always:                        AlwaysAllowed = true,}
+    {?flag=compile:                        AllowedDuringCompile = true,}
+    {?flag=play_ok:                        PlayOk = true,}
+    END
+    EACH WIRE
+    {?flag=special:                        SpecialDispatch = true,}
+    {?flag=not_batch:                        NotBatchable = true,}
+    {?flag=no_undo:                        NoUndo = true,}
+    END
+                        };
   END
 END
