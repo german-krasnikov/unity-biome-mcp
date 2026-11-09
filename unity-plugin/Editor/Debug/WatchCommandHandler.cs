@@ -14,8 +14,7 @@ namespace UnityMCP.Editor
                 required: "path,component,field", optional: "condition,action,interval_ms",
                 notBatchable: true);
             // read/management: available outside Play Mode too
-            CommandRegistry.Register("get_watches",  _ => ExecGetWatches(),
-                required: "", optional: "");
+            CommandRegistry.Register("get_watches", _ => ExecGetWatches(), ToolMeta.Get("get_watches"));
             CommandRegistry.Register("watch_remove", args =>
             {
                 var id = JsonHelper.ExtractString(args, "id");

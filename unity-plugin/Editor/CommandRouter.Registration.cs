@@ -152,7 +152,7 @@ namespace UnityMCP.Editor
                 else return "err: path or snippet required";
                 var issues = SceneRefLinter.LintScript(script);
                 return issues.Count == 0 ? "OK: no issues" : SceneRefLinter.FormatReport(path ?? "<snippet>", issues);
-            }, required: "", optional: "path,snippet");
+            }, ToolMeta.Get("lint_scene_refs"));
             CommandRegistry.Register("alias_status", ExecAliasStatus,
                 required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("validate_playtest_aliases", ExecValidateAliases,
@@ -165,19 +165,17 @@ namespace UnityMCP.Editor
                 required: "", optional: "asset,defs");
             CommandRegistry.Register("get_component", ExecGetComponent,
                 required: "path,type", optional: "fields,compress");
-            CommandRegistry.Register("get_components_list", ExecGetComponentsList,
-                required: "id", optional: "");
+            CommandRegistry.Register("get_components_list", ExecGetComponentsList, ToolMeta.Get("get_components_list"));
             CommandRegistry.Register("get_object_detail", ExecGetObjectDetail,
                 required: "id", optional: "");
-            CommandRegistry.Register("find_objects", ExecFindObjects,
-                required: "", optional: "name,tag,layer,component");
+            CommandRegistry.Register("find_objects", ExecFindObjects, ToolMeta.Get("find_objects"));
             CommandRegistry.Register("resolve_scene_refs", args =>
             {
                 var refs = JsonHelper.ExtractString(args, "refs");
                 if (string.IsNullOrEmpty(refs)) return "err: refs required";
                 var results = SceneRefResolver.ResolveMany(refs, JsonHelper.ExtractString(args, "fields"));
                 return SceneRefResolver.FormatResults(results);
-            }, required: "refs", optional: "fields");
+            }, ToolMeta.Get("resolve_scene_refs"));
             CommandRegistry.Register("get_console", ExecGetConsole,
                 required: "", optional: "count,level,first,keyword,count_only,since", allowedDuringCompile: true,
                 maxResponseChars: 20000);
@@ -271,20 +269,18 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("object_diff", args => ObjectDiffHelper.Diff(
                 JsonHelper.ExtractString(args, "path_a"),
                 JsonHelper.ExtractString(args, "path_b")),
-                required: "path_a,path_b", optional: "");
+                ToolMeta.Get("object_diff"));
             // Python is the authority (owner 2026-10-29): every action but the reads state and project_path is a write, so the editor is
             // registered mutating. playOk: it must run in Play Mode (stop, pause, step); noUndo: it changes no Undo-recorded scene data.
             CommandRegistry.Register("editor", ExecEditor, mutating: true, playOk: true, noUndo: true,
                 required: "", optional: "action,path,paths,enable");
             CommandRegistry.Register("ping_object", args =>
                 EditorStateHelper.PingObject(JsonHelper.ExtractString(args, "path")),
-                required: "path", optional: "");
-            CommandRegistry.Register("get_selection", _ => EditorStateHelper.GetSelection(),
-                required: "", optional: "");
+                ToolMeta.Get("ping_object"));
+            CommandRegistry.Register("get_selection", _ => EditorStateHelper.GetSelection(), ToolMeta.Get("get_selection"));
             CommandRegistry.Register("inspect", ExecInspect,
                 required: "", optional: "paths,find_type,components,fields,compress,type");
-            CommandRegistry.Register("get_unity_events", ExecGetUnityEvents,
-                required: "", optional: "path");
+            CommandRegistry.Register("get_unity_events", ExecGetUnityEvents, ToolMeta.Get("get_unity_events"));
             CommandRegistry.Register("runtime_snapshot", ExecRuntimeSnapshot,
                 required: "type", optional: "name,component,compress",
                 maxResponseChars: 50000);
@@ -293,7 +289,7 @@ namespace UnityMCP.Editor
                 ExtractInt(args, "depth", 3),
                 JsonHelper.ExtractString(args, "ignore_optional") == "true",
                 JsonHelper.ExtractString(args, "verbose") == "true"),
-                required: "path", optional: "depth,ignore_optional,verbose");
+                ToolMeta.Get("validate_references"));
             CommandRegistry.Register("checkpoint", args =>
             {
                 var label = JsonHelper.ExtractString(args, "label");
@@ -321,19 +317,18 @@ namespace UnityMCP.Editor
                 float.TryParse(JsonHelper.ExtractString(args, "min_distance") ?? "3",
                     System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out var md) ? md : 3f),
-                required: "", optional: "root,min_distance");
+                ToolMeta.Get("validate_triggers"));
             CommandRegistry.Register("get_spatial_context", args => LayoutValidator.GetSpatialContext(
                 JsonHelper.ExtractString(args, "path"),
                 float.TryParse(JsonHelper.ExtractString(args, "radius") ?? "5",
                     System.Globalization.NumberStyles.Float,
                     System.Globalization.CultureInfo.InvariantCulture, out var r) ? r : 5f),
-                required: "path", optional: "radius");
+                ToolMeta.Get("get_spatial_context"));
             CommandRegistry.Register("fingerprint", args => FingerprintHelper.Fingerprint(
                 JsonHelper.ExtractString(args, "path"),
                 ExtractInt(args, "depth", 3)),
-                required: "", optional: "path,depth");
-            CommandRegistry.Register("scan_scene", _ => ScanHelper.Scan(),
-                required: "", optional: "");
+                ToolMeta.Get("fingerprint"));
+            CommandRegistry.Register("scan_scene", _ => ScanHelper.Scan(), ToolMeta.Get("scan_scene"));
             CommandRegistry.Register("render_analyze", args =>
             {
                 var r = RenderAnalyzer.Execute(args);
@@ -343,22 +338,20 @@ namespace UnityMCP.Editor
             }, required: "", optional: "action,path,detail,baseline_id,max_events");
             CommandRegistry.Register("check_colliders", args => ColliderChecker.Check(
                 JsonHelper.ExtractString(args, "path")),
-                required: "", optional: "path");
-            CommandRegistry.Register("material_audit", args => MaterialAuditHelper.Execute(args),
-                required: "", optional: "action,platform");
+                ToolMeta.Get("check_colliders"));
+            CommandRegistry.Register("material_audit", args => MaterialAuditHelper.Execute(args), ToolMeta.Get("material_audit"));
             CommandRegistry.Register("scene_health", args =>
                 SceneHealthAnalyzer.Analyze(JsonHelper.ExtractString(args, "focus") ?? "all"),
-                required: "", optional: "focus");
+                ToolMeta.Get("scene_health"));
             CommandRegistry.Register("analyze_lod_culling", args => LodCullingAnalyzer.Analyze(
                 JsonHelper.ExtractString(args, "focus")),
-                required: "", optional: "focus");
+                ToolMeta.Get("analyze_lod_culling"));
             CommandRegistry.Register("get_schema", args => SchemaHelper.GetSchema(
                 JsonHelper.ExtractString(args, "type")),
                 required: "", optional: "type");
             CommandRegistry.Register("get_changes", args => ChangeWatcher.GetChanges(
                 JsonHelper.ExtractString(args, "clear") != "false"),
-                mutating: true,
-                required: "", optional: "clear");
+                ToolMeta.Get("get_changes"));
             CommandRegistry.Register("resolve_test_request", args => TestRunner.ResolveRequest(
                     JsonHelper.ExtractString(args, "request_id")),
                 required: "request_id", optional: "", allowedDuringCompile: true);
@@ -414,9 +407,8 @@ namespace UnityMCP.Editor
             }, runtime: true, required: "path", optional: "radius");
             CommandRegistry.Register("get_memory", args =>
                 MemoryHelper.GetSnapshot(JsonHelper.ExtractString(args, "include") ?? "all"),
-                required: "", optional: "include");
-            CommandRegistry.Register("scene_diff", _ => SceneDiffHelper.Diff(),
-                required: "", optional: "");
+                ToolMeta.Get("get_memory"));
+            CommandRegistry.Register("scene_diff", _ => SceneDiffHelper.Diff(), ToolMeta.Get("scene_diff"));
             // batch stays here (mutating:false) — it's a dispatcher; its DSL sub-commands are
             // separately guarded/mutating-flagged by CommandRegistry when each one executes.
             CommandRegistry.Register("batch", args => {
@@ -433,8 +425,7 @@ namespace UnityMCP.Editor
                allowedDuringCompile: true);
 
             // Spatial queries (read-only)
-            CommandRegistry.Register("spatial_query", args => SpatialHelper.Execute(args),
-                required: "action", optional: "path,target,distance,radius,component,cell_size,layer_mask,center,vertices,region_id,cap");
+            CommandRegistry.Register("spatial_query", args => SpatialHelper.Execute(args), ToolMeta.Get("spatial_query"));
 #if UNITY_MODULE_AI || UNITY_AI_NAVIGATION
             CommandRegistry.Register("navmesh", NavMeshHelper.Execute,
                 mutating: true,
@@ -463,7 +454,7 @@ namespace UnityMCP.Editor
                allowedDuringCompile: true);  // Roslyn in-process — safe during Unity compile
             CommandRegistry.Register("serialized_field_rename_audit",
                 args => SerializedFieldRenameAudit.Execute(args),
-                required: "type,old_field,new_field", optional: "include");
+                ToolMeta.Get("serialized_field_rename_audit"));
         }
 
         internal static void RegisterMutatingCommands()
@@ -472,7 +463,7 @@ namespace UnityMCP.Editor
             {
                 var turns = ExtractInt(args, "turns", 1);
                 return UndoGroupStack.RevertLast(turns);
-            }, mutating: true, required: "", optional: "turns");
+            }, ToolMeta.Get("undo_last"));
 
             // Runtime (Play Mode only) — mutate runtime GameObject/component state directly. runtime: true routes them through the
             // Play-Mode-only guard. Both are mutating as in Python (step 7.2), with playOk (they must run in Play Mode) and noUndo
@@ -492,16 +483,12 @@ namespace UnityMCP.Editor
                 mutating: true, playOk: true, noUndo: true,
                 required: "path,component,field,value", optional: "");
             // Write (mutating)
-            CommandRegistry.Register("create_object", ExecCreateObject, mutating: true,
-                required: "name", optional: "parent,components,primitive,prefab_path,scene");
-            CommandRegistry.Register("transfer_object", ExecTransferObject, mutating: true,
-                required: "path,action", optional: "target_scene,parent,world_position_stays");
-            CommandRegistry.Register("delete_object", ExecDeleteObject, mutating: true,
-                required: "", optional: "id,path,force");
+            CommandRegistry.Register("create_object", ExecCreateObject, ToolMeta.Get("create_object"));
+            CommandRegistry.Register("transfer_object", ExecTransferObject, ToolMeta.Get("transfer_object"));
+            CommandRegistry.Register("delete_object", ExecDeleteObject, ToolMeta.Get("delete_object"));
             CommandRegistry.Register("set_property", ExecSetProperty, mutating: true,
                 required: "", optional: "path,find_type,component,prop,value,dry_run");
-            CommandRegistry.Register("set_property_delta", ExecSetPropertyDelta, mutating: true,
-                required: "path,component,prop,delta", optional: "");
+            CommandRegistry.Register("set_property_delta", ExecSetPropertyDelta, ToolMeta.Get("set_property_delta"));
             CommandRegistry.Register("set_active", args =>
             {
                 var path   = JsonHelper.ExtractString(args, "path");
@@ -514,7 +501,7 @@ namespace UnityMCP.Editor
                     Reversible = true
                 });
                 return result;
-            }, mutating: true, required: "path,active", optional: "");
+            }, ToolMeta.Get("set_active"));
             CommandRegistry.Register("wire_event", args =>
             {
                 var path            = JsonHelper.ExtractString(args, "path");
@@ -534,25 +521,19 @@ namespace UnityMCP.Editor
                     Prop = eventName, After = "wired", Reversible = false
                 });
                 return result;
-            }, mutating: true, required: "path,component,event,target,method",
-                optional: "arg_type,arg_value,target_component_type,parameter_types");
+            }, ToolMeta.Get("wire_event"));
             CommandRegistry.Register("unwire_event", args => ObjectManager.UnwireEvent(
                 JsonHelper.ExtractString(args, "path"),
                 JsonHelper.ExtractString(args, "component"),
                 JsonHelper.ExtractString(args, "event"),
-                JsonHelper.ExtractString(args, "index")), mutating: true,
-                required: "path,component,event", optional: "index");
+                JsonHelper.ExtractString(args, "index")), ToolMeta.Get("unwire_event"));
             CommandRegistry.Register("list_events", args => ObjectManager.ListEvents(
                 JsonHelper.ExtractString(args, "path"),
                 JsonHelper.ExtractString(args, "component"),
-                JsonHelper.ExtractString(args, "event")), mutating: false,
-                required: "path,component,event", optional: "");
-            CommandRegistry.Register("auto_wire", ExecAutoWire, mutating: true,
-                required: "path", optional: "dry_run");
-            CommandRegistry.Register("manage_component", ExecManageComponent, mutating: true,
-                required: "path,type,action", optional: "");
-            CommandRegistry.Register("autofit_collider", ColliderFitHelper.Execute, mutating: true,
-                required: "path", optional: "type");
+                JsonHelper.ExtractString(args, "event")), ToolMeta.Get("list_events"));
+            CommandRegistry.Register("auto_wire", ExecAutoWire, ToolMeta.Get("auto_wire"));
+            CommandRegistry.Register("manage_component", ExecManageComponent, ToolMeta.Get("manage_component"));
+            CommandRegistry.Register("autofit_collider", ColliderFitHelper.Execute, ToolMeta.Get("autofit_collider"));
             // parent is optional: null/omitted unparents to scene root (ObjectManager.SetParent
             // tolerates a null newParent — this is a valid, intentional operation, not an error).
             CommandRegistry.Register("set_parent", args =>
@@ -572,15 +553,13 @@ namespace UnityMCP.Editor
                     Prop = "parent", Before = oldParent, After = newParent, Reversible = true
                 });
                 return result;
-            }, mutating: true, required: "path", optional: "parent,world_position_stays");
+            }, ToolMeta.Get("set_parent"));
             CommandRegistry.Register("rename_object", args => ObjectManager.RenameObject(
                 JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "name")), mutating: true,
-                required: "path,name", optional: "");
+                JsonHelper.ExtractString(args, "name")), ToolMeta.Get("rename_object"));
             CommandRegistry.Register("set_sibling_index", args => ObjectManager.SetSiblingIndex(
                 JsonHelper.ExtractString(args, "path"),
-                int.Parse(JsonHelper.ExtractString(args, "index") ?? "0")), mutating: true,
-                required: "path,index", optional: "");
+                int.Parse(JsonHelper.ExtractString(args, "index") ?? "0")), ToolMeta.Get("set_sibling_index"));
             // color is optional: null/omitted leaves the material's existing color untouched
             // (ObjectManager.SetMaterial tolerates a null color, applying only shader if given).
             CommandRegistry.Register("set_material", args => ObjectManager.SetMaterial(
@@ -599,30 +578,19 @@ namespace UnityMCP.Editor
                 required: "action", optional: "path,track,track_type,clip,binding,start,duration,blend_in,blend_out,asset_path,director_path,tracks,time,name,clip_in,index,offset,value");
             CommandRegistry.Register("references", ExecReferencesConsolidated, mutating: true,
                 required: "action", optional: "path,children,depth,source,target,mappings");
-            CommandRegistry.Register("create_ui", ExecCreateUI, mutating: true,
-                required: "type", optional: "name,parent,anchor,pos,size,pivot,color,text,font_size,render_mode,font_min,font_max");
-            CommandRegistry.Register("set_rect", ExecSetRect, mutating: true,
-                required: "path", optional: "anchor,pos,size,pivot,offset_min,offset_max,pos3");
-            CommandRegistry.Register("lint_ugui", ExecLintUGUI, mutating: false,
-                required: "", optional: "root");
-            CommandRegistry.Register("lint_uitk", ExecLintUITK, mutating: false,
-                required: "", optional: "path,fix");
+            CommandRegistry.Register("create_ui", ExecCreateUI, ToolMeta.Get("create_ui"));
+            CommandRegistry.Register("set_rect", ExecSetRect, ToolMeta.Get("set_rect"));
+            CommandRegistry.Register("lint_ugui", ExecLintUGUI, ToolMeta.Get("lint_ugui"));
+            CommandRegistry.Register("lint_uitk", ExecLintUITK, ToolMeta.Get("lint_uitk"));
             CommandRegistry.Register("inspect_uitk", ExecInspectUITK, mutating: false,
                 required: "", optional: "path,depth,selector,filter,include_internal,show_style");
-            CommandRegistry.Register("uitk_element", ExecUitkElement, mutating: true,
-                required: "action",
-                optional: "path,ref,selector,name,value,property,class_name");
-            CommandRegistry.Register("animator", ExecAnimatorConsolidated, mutating: true,
-                required: "action,path", optional: "state,states,params,source,target,conditions,duration,exit_time,has_exit_time,type,name,blend_type,param,param_y,children,edit_action,layer,weight,blending,value,avatar_path");
-            CommandRegistry.Register("particle", ExecParticleConsolidated, mutating: true,
-                required: "action,path", optional: "name,module,prop,value,preset");
+            CommandRegistry.Register("uitk_element", ExecUitkElement, ToolMeta.Get("uitk_element"));
+            CommandRegistry.Register("animator", ExecAnimatorConsolidated, ToolMeta.Get("animator"));
+            CommandRegistry.Register("particle", ExecParticleConsolidated, ToolMeta.Get("particle"));
             CommandRegistry.Register("shader", ExecShaderConsolidated, mutating: true,
                 required: "action,path", optional: "target,preset,code,shader_name,prop,value,keyword,enabled,node_type,node_id,node_action,output_node,output_slot,input_node,input_slot,edge_action,name,type,default_value,reference_name,new_name");
-            CommandRegistry.Register("menu", ExecMenu, mutating: true,
-                required: "action", optional: "path");
-            CommandRegistry.Register("attach_uitk", ExecAttachUITK, mutating: true,
-                required: "path",
-                optional: "uxml,panel_settings,sort_order");
+            CommandRegistry.Register("menu", ExecMenu, ToolMeta.Get("menu"));
+            CommandRegistry.Register("attach_uitk", ExecAttachUITK, ToolMeta.Get("attach_uitk"));
             // PR-04: batch exclusion declared here by the owner, not hardcoded in CommandRegistry.IsBatchable. Which actions
             // read is the catalog's (READ read, dsl/tools.biome); a call with no action is a write, as in Python.
             CommandRegistry.Register("uitk_file", ExecUitkFile, mutating: true,
@@ -652,11 +620,10 @@ namespace UnityMCP.Editor
             {
                 var act = JsonHelper.ExtractString(argsJson, "action") ?? "start";
                 return BakeHelper.Execute(act, argsJson);
-            }, mutating: true, required: "target", optional: "action");
+            }, ToolMeta.Get("bake"));
 
             // Spatial mutation: region_clear (delete objects inside polygon)
-            CommandRegistry.Register("region_clear", args => SpatialHelper.RegionClear(args), mutating: true,
-                required: "vertices", optional: "dry_run,filter,cap");
+            CommandRegistry.Register("region_clear", args => SpatialHelper.RegionClear(args), ToolMeta.Get("region_clear"));
         }
 
         internal static void RegisterAsyncCommands()
