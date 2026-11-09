@@ -13,6 +13,7 @@ SURFACE tools
 # (tools/generated/catalog_reads.py) and the C# side's ActionReads.IsRead (Editor/Generated/ActionReads.g.cs) are printed from these lines.
 
 TOOL alias_status SYSTEM RO "Check alias table health: loaded/empty/stale, sources, and total alias count."
+  GUARD compile
   FORWARD
 END
 
@@ -102,6 +103,8 @@ PYTOOL ask SYSTEM RO "Answer a read-only question about the Unity scene (AI-rout
 END
 
 TOOL ask_user SYSTEM RO "Show a question card in Unity chat; wait for user answer (interactive UI — use `ask` for read-only AI scene questions instead)."
+  GUARD always
+  GUARD compile
   FLAG direct_only
   FLAG unity_transport
   TIMEOUT 300.0
@@ -188,6 +191,7 @@ END
 # ui_intent_tool.py:152, debug_tool.py:78, do_intent/executor.py:38/67).
 # Public batch() tool always overrides -- see tools/batch.py timeout param.
 TOOL batch CORE RW "Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls."
+  GUARD compile
   FLAG core
   TIMEOUT 120.0
   ARG commands str "One command per line (e.g. 'get_component path=/Player type=Transform')"
@@ -206,6 +210,7 @@ PYTOOL budget_status SYSTEM RO "Returns Haiku cost: session/cap/day/skipped feat
 END
 
 TOOL build SYSTEM RW "Build player. action: build."
+  GUARD play_ok
   FORWARD
   FLAG direct_only
   FLAG unity_transport
@@ -222,6 +227,10 @@ TOOL build SYSTEM RW "Build player. action: build."
 END
 
 TOOL cancel_test_run TESTS RW_IDEM "Request cancellation of one exact test run; cancellation is asynchronous."
+  GUARD always
+  GUARD compile
+  GUARD play_ok
+  WIRE no_undo
   FORWARD
   TIMEOUT 10.0
   ARG run_id str
@@ -233,6 +242,8 @@ TOOL check_colliders SCENE RO "Check collider issues: triggers without Rigidbody
 END
 
 TOOL checkpoint SYSTEM RW "Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity."
+  GUARD play_ok
+  WIRE no_undo
   FORWARD
   ARG label str DEFAULT_TEXT "checkpoint"
 END
@@ -251,6 +262,7 @@ END
 # timeout_s is a fallback ceiling only -- code_intel.py:25 always passes
 # timeout=15.0 (fast-fail by design).
 TOOL compile_preflight VERIFY RO "Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile."
+  GUARD compile
   FLAG core
   TIMEOUT 60.0
   ARG file_path str
@@ -258,6 +270,7 @@ TOOL compile_preflight VERIFY RO "Validate C# WITHOUT writing/recompiling (Rosly
 END
 
 INTERNAL compile_status RO "Compile notifier state plus reload state string; await_compile (code_intel.py) polls it directly, allowedDuringCompile."
+  GUARD compile
 END
 
 PYTOOL configure_objects SCENE RW "Configure multiple objects at once."
@@ -327,6 +340,8 @@ TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. De
 END
 
 TOOL diagnose VERIFY RO "Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`."
+  GUARD always
+  GUARD compile
   ARG prev_mvid str DEFAULT_TEXT ""
   ARG expected_compile bool DEFAULT True
 END
@@ -355,6 +370,8 @@ PYTOOL doctor SYSTEM RW "Run health diagnostics. fix=True removes safe stale por
 END
 
 TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode."
+  GUARD play_ok
+  WIRE no_undo
   FLAG core
   ARG action str DEFAULT_TEXT "state"
   ARG path ostr DEFAULT None
@@ -365,6 +382,7 @@ TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|
 END
 
 TOOL execute_code SYSTEM RW "Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile."
+  GUARD compile
   FORWARD
   FLAG core
   TIMEOUT 60.0
@@ -380,6 +398,8 @@ INTERNAL export_package RW "Protocol name of the asset action export_package; on
 END
 
 TOOL export_playtest_aliases_to_defs TESTS RW "Export PlaytestConfig.asset aliases to a readable .defs text file."
+  GUARD play_ok
+  WIRE no_undo
   FORWARD
   DOC "asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset)."
   DOC "defs: project-relative output path (default: Assets/PlaytestDefs/farm_core.defs)."
@@ -403,9 +423,11 @@ TOOL fingerprint SYSTEM RO "Scene state hash. Returns fp:XXXXXXXX. If unchanged,
 END
 
 INTERNAL get_aliases RO "The alias table as name=value lines; the server reads it when it connects."
+  GUARD compile
 END
 
 TOOL get_capabilities SYSTEM RO "Unity version, platform, render pipeline, scripting backend, and optional packages available."
+  GUARD compile
   FORWARD
 END
 
@@ -421,6 +443,7 @@ PYTOOL get_changeset VERIFY RO "Return the current ChangeSet: accumulated mutati
 END
 
 TOOL get_compile_errors CORE RO "Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed."
+  GUARD compile
   FLAG core
 END
 
@@ -440,6 +463,7 @@ TOOL get_components_list SCENE RO "List all components on object by instance ID.
 END
 
 TOOL get_console CORE RO "Recent console logs. For C# compile errors use get_compile_errors instead. keyword: case-insensitive substring filter. count_only: return N matches as string. since: only logs from last N seconds."
+  GUARD compile
   FLAG core
   TIMEOUT 10.0
   MAXCHARS 20000
@@ -461,6 +485,8 @@ PYTOOL get_console_since RUNTIME RO "Console entries after the watermark created
 END
 
 TOOL get_enabled_tools SYSTEM RO "List enabled tool names, comma-separated."
+  GUARD always
+  GUARD compile
   FORWARD
 END
 
@@ -506,6 +532,7 @@ END
 # wires run_playtest(timeout>120) through the async start/poll pair. Same shape as
 # source_patch_write below (RegisterAsync in C#, no Python-typed wrapper yet).
 INTERNAL get_playtest_run RO "Polls the asynchronous playtest run that start_playtest began."
+  GUARD compile
   FLAG direct_only
   FLAG unity_transport
 END
@@ -526,22 +553,28 @@ TOOL get_spatial_context SCENE RO "Collider info + approach vectors + nearby obj
 END
 
 INTERNAL get_status RO "Scene/dirty/playing/compiling/port/alias/readOnly/version snapshot; retry-safe health probe (meta.py, transaction.py)."
+  GUARD always
+  GUARD compile
 END
 
 TOOL get_test_count TESTS RO "Number of edit-mode and play-mode tests in the project."
+  GUARD compile
   FORWARD
   TIMEOUT 10.0
 END
 
 TOOL get_test_progress TESTS RO "Legacy progress facade. Pass run_id to correlate the response."
+  GUARD compile
   ARG run_id ostr DEFAULT None
 END
 
 TOOL get_test_results TESTS RO "Legacy result facade. Pass run_id to prevent reading a stale latest run."
+  GUARD compile
   ARG run_id ostr DEFAULT None
 END
 
 TOOL get_test_run TESTS RO "Return the durable JSON snapshot for one exact test run."
+  GUARD compile
   TIMEOUT 10.0
   ARG run_id str
 END
@@ -584,6 +617,8 @@ TOOL inspect_uitk UITOOLKIT RO "Inspect the VisualElement tree of a UIDocument o
 END
 
 TOOL invoke_method RUNTIME RW "[Play Mode] Call public method on a component via reflection."
+  GUARD play_ok
+  WIRE no_undo
   FORWARD
   RUNTIME
   DOC "args: comma-separated values matching method parameters."
@@ -595,6 +630,7 @@ TOOL invoke_method RUNTIME RW "[Play Mode] Call public method on a component via
 END
 
 TOOL lint_playtest TESTS RO "Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list."
+  GUARD compile
   TIMEOUT 60.0
   ARG path ostr DEFAULT None "Project-relative path to .playtest file"
   ARG script ostr DEFAULT None "Inline DSL (mutually exclusive with path)"
@@ -640,6 +676,7 @@ TOOL list_events COMPONENTS RO "Read persistent listeners on a UnityEvent field.
 END
 
 INTERNAL list_playtest_files RO "Lists the files that match a glob pattern (default Playtests/*.playtest), one project-relative path per line."
+  GUARD compile
   TIMEOUT 10.0
 END
 
@@ -650,6 +687,7 @@ PYTOOL list_templates SYSTEM RO "List available scene templates in .claude/templ
 END
 
 TOOL list_test_runs TESTS RO "List recent durable test runs as JSON, newest first."
+  GUARD compile
   TIMEOUT 10.0
   ARG limit int DEFAULT 20
 END
@@ -705,6 +743,7 @@ TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. action: execute|li
 END
 
 TOOL move_to RUNTIME RW "[Play Mode] Move character to position and wait for arrival."
+  GUARD play_ok
   FLAG direct_only
   FLAG unity_transport
   RUNTIME
@@ -738,6 +777,7 @@ TOOL object_diff SCENE RO "Diff two GameObjects (components, properties, childre
 END
 
 TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove."
+  GUARD play_ok
   FLAG direct_only
   FLAG unity_transport
   TIMEOUT 60.0
@@ -769,6 +809,8 @@ PYTOOL permission_prompt SYSTEM RO "Handle Claude permission prompts via MCP."
 END
 
 INTERNAL ping RO "Liveness probe: Unity answers pong."
+  GUARD always
+  GUARD compile
   TIMEOUT 5.0
 END
 
@@ -840,6 +882,8 @@ END
 # Every dispatch intentionally starts a fresh AssetDatabase.Refresh. The receiver-side dedup registry is lost
 # across Domain Reload, so resending a lost ACK can start a second compile/reload cycle: RW, not RW_IDEM.
 TOOL recompile SYSTEM RW "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done."
+  GUARD play_ok
+  WIRE no_undo
 END
 
 PYTOOL reconnect_unity SYSTEM RO "Reconnect to Unity. Port 0 or omitted = auto-discover from port files."
@@ -902,6 +946,7 @@ TOOL resolve_scene_refs VERIFY RO "Read-only scene reference resolver."
 END
 
 TOOL resolve_test_request TESTS RO "Resolve a possibly lost start ACK without dispatching another test run."
+  GUARD compile
   TIMEOUT 10.0
   ARG request_id str
 END
@@ -919,6 +964,7 @@ END
 # True here would reintroduce a second, stale Python-only authority (see
 # test_runtime_only_single_source).
 TOOL run_playtest TESTS RW "[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`)."
+  GUARD play_ok
   FLAG tier1
   FLAG direct_only
   FLAG unity_transport
@@ -952,6 +998,7 @@ END
 # The bridge may retry run_tests only because every retry carries the same durable request_id (RW_IDEM);
 # run_tests_wait is a composite operation, not idempotent (RW).
 TOOL run_tests TESTS RW_IDEM "Dispatch Unity tests and return their durable identity immediately."
+  GUARD play_ok
   FLAG tier1
   FLAG direct_only
   FLAG unity_transport
@@ -1002,6 +1049,8 @@ TOOL scan_scene VERIFY RO "Scene infrastructure scan: colliders, triggers, audio
 END
 
 TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy."
+  GUARD play_ok
+  WIRE no_undo
   FLAG tier1
   ARG action str "Operation: new|open|save|discard|open_additive|close|set_active|list"
   ARG path ostr DEFAULT None "Asset path — required for open/save/open_additive/close/set_active"
@@ -1041,6 +1090,8 @@ TOOL scene_health VERIFY RO "Scene hierarchy/health audit."
 END
 
 TOOL screenshot MEDIA RW "Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), raw=True forces path."
+  GUARD compile
+  WIRE special
   FLAG tier1
   FLAG direct_only
   FLAG unity_transport
@@ -1262,11 +1313,14 @@ END
 # E02: Wave E non-blocking playtest dispatch — internal wire command, no @mcp.tool()
 # until E04. Same shape as source_patch_write above.
 INTERNAL start_playtest RW "Starts a playtest without blocking; get_playtest_run polls it."
+  GUARD play_ok
   FLAG direct_only
   FLAG unity_transport
 END
 
 TOOL sync_playtest_aliases_from_defs TESTS RW "Overwrite PlaytestConfig.asset aliases from a .defs text file."
+  GUARD play_ok
+  WIRE no_undo
   FORWARD
   DOC "defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs)."
   DOC "asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset)."
@@ -1283,6 +1337,7 @@ PYTOOL sync_unity SYSTEM RW "Refresh Unity and await its matching compile cycle 
 END
 
 TOOL test_step TESTS RW "[Play Mode] Move character, snapshot state before/after, check console."
+  GUARD play_ok
   FLAG direct_only
   FLAG unity_transport
   RUNTIME
@@ -1354,6 +1409,7 @@ TOOL uitk_element UITOOLKIT RW "Mutate or query a VisualElement in a UIDocument 
 END
 
 TOOL uitk_file UITOOLKIT RW "Read or edit a UXML or USS asset file."
+  WIRE not_batch
   FLAG direct_only
   FLAG unity_transport
   ARG path str "Assets/ path to a .uxml or .uss project file; Library/ and Packages/ are rejected"
@@ -1403,6 +1459,7 @@ PYTOOL use_skill SYSTEM RW "Execute a previously saved skill. params: comma-sepa
 END
 
 TOOL validate_playtest_aliases TESTS RO "Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed."
+  GUARD compile
   FORWARD
   DOC "defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs)."
   DOC "asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset)."

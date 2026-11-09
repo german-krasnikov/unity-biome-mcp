@@ -1,5 +1,5 @@
 // Generated from dsl/tools.biome
-// source-sha256=8d9d7ec60320675ee3ac64b4a452d8429aee96f4439d88f9f2295120b8bb2a69
+// source-sha256=283efb35d922fa640ef0a62fe3cb6030cc8cf302f676d98b46867f6ea6c454a8
 // Edit the source, then run biome generate.
 
 namespace UnityMCP.Editor
@@ -22,6 +22,7 @@ namespace UnityMCP.Editor
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "analyze_lod_culling":
                     return new CommandOptions
@@ -97,6 +98,8 @@ namespace UnityMCP.Editor
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
+                       AlwaysAllowed = true,
+                       AllowedDuringCompile = true,
                     };
                 case "asset":
                     return new CommandOptions
@@ -182,6 +185,7 @@ namespace UnityMCP.Editor
                             "validate_aliases",
                             "on_error",
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "build":
                     return new CommandOptions
@@ -196,6 +200,7 @@ namespace UnityMCP.Editor
                             "path",
                             "dev",
                         }),
+                       PlayOk = true,
                     };
                 case "cancel_test_run":
                     return new CommandOptions
@@ -206,6 +211,10 @@ namespace UnityMCP.Editor
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
+                       AlwaysAllowed = true,
+                       AllowedDuringCompile = true,
+                       PlayOk = true,
+                       NoUndo = true,
                     };
                 case "check_colliders":
                     return new CommandOptions
@@ -226,6 +235,8 @@ namespace UnityMCP.Editor
                         Optional = string.Join(",", new string[] {
                             "label",
                         }),
+                       PlayOk = true,
+                       NoUndo = true,
                     };
                 case "compile_preflight":
                     return new CommandOptions
@@ -237,6 +248,7 @@ namespace UnityMCP.Editor
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "compile_status":
                     return new CommandOptions
@@ -244,6 +256,7 @@ namespace UnityMCP.Editor
                         Mutating = false,
                         Required = "",
                         Optional = "",
+                       AllowedDuringCompile = true,
                     };
                 case "create_object":
                     return new CommandOptions
@@ -327,6 +340,8 @@ namespace UnityMCP.Editor
                             "expected_compile",
                             "prev_mvid",
                         }),
+                       AlwaysAllowed = true,
+                       AllowedDuringCompile = true,
                     };
                 case "editor":
                     return new CommandOptions
@@ -340,6 +355,8 @@ namespace UnityMCP.Editor
                             "enable",
                             "action",
                         }),
+                       PlayOk = true,
+                       NoUndo = true,
                     };
                 case "execute_code":
                     return new CommandOptions
@@ -351,6 +368,7 @@ namespace UnityMCP.Editor
                         Optional = string.Join(",", new string[] {
                             "undo_label",
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "export_package":
                     return new CommandOptions
@@ -369,6 +387,8 @@ namespace UnityMCP.Editor
                             "asset",
                             "defs",
                         }),
+                       PlayOk = true,
+                       NoUndo = true,
                     };
                 case "find_objects":
                     return new CommandOptions
@@ -400,6 +420,7 @@ namespace UnityMCP.Editor
                         Mutating = false,
                         Required = "",
                         Optional = "",
+                       AllowedDuringCompile = true,
                     };
                 case "get_capabilities":
                     return new CommandOptions
@@ -409,6 +430,7 @@ namespace UnityMCP.Editor
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "get_changes":
                     return new CommandOptions
@@ -428,6 +450,7 @@ namespace UnityMCP.Editor
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "get_component":
                     return new CommandOptions
@@ -469,6 +492,7 @@ namespace UnityMCP.Editor
                             "since",
                         }),
                         MaxResponseChars = 20000,
+                       AllowedDuringCompile = true,
                     };
                 case "get_enabled_tools":
                     return new CommandOptions
@@ -478,6 +502,8 @@ namespace UnityMCP.Editor
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
+                       AlwaysAllowed = true,
+                       AllowedDuringCompile = true,
                     };
                 case "get_frame_stats":
                     return new CommandOptions
@@ -536,6 +562,7 @@ namespace UnityMCP.Editor
                         Mutating = false,
                         Required = "",
                         Optional = "",
+                       AllowedDuringCompile = true,
                     };
                 case "get_schema":
                     return new CommandOptions
@@ -573,6 +600,8 @@ namespace UnityMCP.Editor
                         Mutating = false,
                         Required = "",
                         Optional = "",
+                       AlwaysAllowed = true,
+                       AllowedDuringCompile = true,
                     };
                 case "get_test_count":
                     return new CommandOptions
@@ -582,6 +611,7 @@ namespace UnityMCP.Editor
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "get_test_progress":
                     return new CommandOptions
@@ -592,6 +622,7 @@ namespace UnityMCP.Editor
                         Optional = string.Join(",", new string[] {
                             "run_id",
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "get_test_results":
                     return new CommandOptions
@@ -602,6 +633,7 @@ namespace UnityMCP.Editor
                         Optional = string.Join(",", new string[] {
                             "run_id",
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "get_test_run":
                     return new CommandOptions
@@ -612,6 +644,7 @@ namespace UnityMCP.Editor
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "get_unity_events":
                     return new CommandOptions
@@ -689,6 +722,8 @@ namespace UnityMCP.Editor
                         Optional = string.Join(",", new string[] {
                             "args",
                         }),
+                       PlayOk = true,
+                       NoUndo = true,
                     };
                 case "lint_playtest":
                     return new CommandOptions
@@ -700,6 +735,7 @@ namespace UnityMCP.Editor
                             "path",
                             "script",
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "lint_scene_refs":
                     return new CommandOptions
@@ -751,6 +787,7 @@ namespace UnityMCP.Editor
                         Mutating = false,
                         Required = "",
                         Optional = "",
+                       AllowedDuringCompile = true,
                     };
                 case "list_test_runs":
                     return new CommandOptions
@@ -761,6 +798,7 @@ namespace UnityMCP.Editor
                         Optional = string.Join(",", new string[] {
                             "limit",
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "manage_component":
                     return new CommandOptions
@@ -828,6 +866,7 @@ namespace UnityMCP.Editor
                         Optional = string.Join(",", new string[] {
                             "timeout",
                         }),
+                       PlayOk = true,
                     };
                 case "object_diff":
                     return new CommandOptions
@@ -852,6 +891,7 @@ namespace UnityMCP.Editor
                             "version",
                             "query",
                         }),
+                       PlayOk = true,
                     };
                 case "particle":
                     return new CommandOptions
@@ -875,6 +915,8 @@ namespace UnityMCP.Editor
                         Mutating = false,
                         Required = "",
                         Optional = "",
+                       AlwaysAllowed = true,
+                       AllowedDuringCompile = true,
                     };
                 case "ping_object":
                     return new CommandOptions
@@ -960,6 +1002,8 @@ namespace UnityMCP.Editor
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
+                       PlayOk = true,
+                       NoUndo = true,
                     };
                 case "references":
                     return new CommandOptions
@@ -1035,6 +1079,7 @@ namespace UnityMCP.Editor
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "run_playtest":
                     return new CommandOptions
@@ -1054,6 +1099,7 @@ namespace UnityMCP.Editor
                             "after_hook",
                             "format",
                         }),
+                       PlayOk = true,
                     };
                 case "run_tests":
                     return new CommandOptions
@@ -1066,6 +1112,7 @@ namespace UnityMCP.Editor
                             "request_id",
                             "mode",
                         }),
+                       PlayOk = true,
                     };
                 case "runtime_snapshot":
                     return new CommandOptions
@@ -1102,6 +1149,8 @@ namespace UnityMCP.Editor
                             "scene",
                             "include_unsaved",
                         }),
+                       PlayOk = true,
+                       NoUndo = true,
                     };
                 case "scene_diff":
                     return new CommandOptions
@@ -1158,6 +1207,8 @@ namespace UnityMCP.Editor
                             "angle",
                             "annotation_id",
                         }),
+                       AllowedDuringCompile = true,
+                       SpecialDispatch = true,
                     };
                 case "scriptable_object":
                     return new CommandOptions
@@ -1363,6 +1414,7 @@ namespace UnityMCP.Editor
                         Mutating = true,
                         Required = "",
                         Optional = "",
+                       PlayOk = true,
                     };
                 case "sync_playtest_aliases_from_defs":
                     return new CommandOptions
@@ -1374,6 +1426,8 @@ namespace UnityMCP.Editor
                             "defs",
                             "asset",
                         }),
+                       PlayOk = true,
+                       NoUndo = true,
                     };
                 case "test_step":
                     return new CommandOptions
@@ -1390,6 +1444,7 @@ namespace UnityMCP.Editor
                             "checks_before",
                             "checks_after",
                         }),
+                       PlayOk = true,
                     };
                 case "timeline":
                     return new CommandOptions
@@ -1469,6 +1524,7 @@ namespace UnityMCP.Editor
                             "prop",
                             "action",
                         }),
+                       NotBatchable = true,
                     };
                 case "undo_last":
                     return new CommandOptions
@@ -1503,6 +1559,7 @@ namespace UnityMCP.Editor
                             "defs",
                             "asset",
                         }),
+                       AllowedDuringCompile = true,
                     };
                 case "validate_references":
                     return new CommandOptions
