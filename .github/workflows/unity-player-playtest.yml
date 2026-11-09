@@ -129,7 +129,7 @@ jobs:
           restore-keys: |
             upm-${{ runner.os }}-
 
-      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
+      - uses: buildalon/unity-setup@f593b2d141ab3c6523b2ec97c555ff6b58c29ffa  # v3.0.1
         id: unity-setup
         if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 30
@@ -139,7 +139,7 @@ jobs:
           cache-installation: ${{ runner.os != 'Windows' }}
           hub-version: ${{ matrix.hub-version }}
 
-      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
+      - uses: buildalon/activate-unity-license@822d378246868a7bf55041ee23721a580aa38146  # v3.0.1
         if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         with:
           license: "Personal"
@@ -155,7 +155,7 @@ jobs:
             sudo apt-get install -y xvfb
           }
 
-      - uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
+      - uses: buildalon/unity-action@44d34289477726e7d24cd4f62d6376479e6251a2  # v4.0.1
         name: Build Standalone Player Smoke
         if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 35
@@ -509,7 +509,7 @@ jobs:
         shell: bash
         run: test -f artifacts/player-playtest.xml && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
 
-      - uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2  # v3.0.0
+      - uses: dorny/test-reporter@d1b5dff021aa968b288b02285a8bf47471c5928a  # v3.2.0
         if: always() && steps.check-player-results.outputs.exists == 'true'
         with:
           name: Player PlayTest (${{ matrix.name }})

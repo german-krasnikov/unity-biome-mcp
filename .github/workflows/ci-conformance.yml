@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: '3.14'
 
@@ -60,7 +60,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: '3.14'
 
@@ -135,7 +135,7 @@ jobs:
         shell: powershell
         run: choco install vcredist2010 -y
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: '3.14'
 
@@ -162,7 +162,7 @@ jobs:
           restore-keys: |
             conformance-upm-${{ runner.os }}-
 
-      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
+      - uses: buildalon/unity-setup@f593b2d141ab3c6523b2ec97c555ff6b58c29ffa  # v3.0.1
         id: unity-setup
         if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 30
@@ -172,7 +172,7 @@ jobs:
           cache-installation: ${{ runner.os != 'Windows' }}
           hub-version: ${{ matrix.hub-version }}
 
-      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
+      - uses: buildalon/activate-unity-license@822d378246868a7bf55041ee23721a580aa38146  # v3.0.1
         if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         with:
           license: 'Personal'

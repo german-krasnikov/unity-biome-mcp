@@ -129,7 +129,7 @@ jobs:
           restore-keys: |
             unity-library-${{ runner.os }}-
 
-      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
+      - uses: buildalon/unity-setup@f593b2d141ab3c6523b2ec97c555ff6b58c29ffa  # v3.0.1
         id: unity-setup
         if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 60
@@ -139,14 +139,14 @@ jobs:
           cache-installation: ${{ runner.os != 'Windows' }}
           hub-version: ${{ matrix.hub-version }}
 
-      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
+      - uses: buildalon/activate-unity-license@822d378246868a7bf55041ee23721a580aa38146  # v3.0.1
         if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         with:
           license: 'Personal'
           username: ${{ secrets.UNITY_EMAIL }}
           password: ${{ secrets.UNITY_PASSWORD }}
 
-      - uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
+      - uses: buildalon/unity-action@44d34289477726e7d24cd4f62d6376479e6251a2  # v4.0.1
         name: Run EditMode Tests
         if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         with:
@@ -168,7 +168,7 @@ jobs:
         shell: bash
         run: test -f artifacts/editmode-results.xml && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
 
-      - uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2  # v3.0.0
+      - uses: dorny/test-reporter@d1b5dff021aa968b288b02285a8bf47471c5928a  # v3.2.0
         if: always() && steps.check-results.outputs.exists == 'true'
         with:
           name: NUnit Results (${{ matrix.name }})
@@ -282,7 +282,7 @@ jobs:
           restore-keys: |
             unity-library-${{ runner.os }}-
 
-      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
+      - uses: buildalon/unity-setup@f593b2d141ab3c6523b2ec97c555ff6b58c29ffa  # v3.0.1
         id: unity-setup
         if: env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 30
@@ -292,14 +292,14 @@ jobs:
           cache-installation: true
           hub-version: '3.19.5'
 
-      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
+      - uses: buildalon/activate-unity-license@822d378246868a7bf55041ee23721a580aa38146  # v3.0.1
         if: env.HAS_UNITY_SECRETS == 'true'
         with:
           license: 'Personal'
           username: ${{ secrets.UNITY_EMAIL }}
           password: ${{ secrets.UNITY_PASSWORD }}
 
-      - uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
+      - uses: buildalon/unity-action@44d34289477726e7d24cd4f62d6376479e6251a2  # v4.0.1
         name: Run PlayMode Tests
         if: env.HAS_UNITY_SECRETS == 'true'
         with:
@@ -321,7 +321,7 @@ jobs:
         shell: bash
         run: test -f artifacts/playmode-results.xml && echo "exists=true" >> "$GITHUB_OUTPUT" || echo "exists=false" >> "$GITHUB_OUTPUT"
 
-      - uses: dorny/test-reporter@a43b3a5f7366b97d083190328d2c652e1a8b6aa2  # v3.0.0
+      - uses: dorny/test-reporter@d1b5dff021aa968b288b02285a8bf47471c5928a  # v3.2.0
         if: always() && steps.check-results.outputs.exists == 'true'
         with:
           name: PlayMode Tests (Play-bound corpus)
@@ -407,7 +407,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: "3.14"
 
@@ -458,7 +458,7 @@ jobs:
           # git_changed_lines needs the PR base ref's tree available locally.
           fetch-depth: 0
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: "3.14"
 
