@@ -574,14 +574,11 @@ namespace UnityMCP.Editor
             // loose here (required: "action" only, everything else optional). See Issue 23 plan.
             CommandRegistry.RegisterAction("asset", AssetDatabaseHelper.Execute, mutating: true,
                 optional: "path,type,name,folder,source,dest,prop,value,recursive,labels,output,include_deps,content,class");
-            CommandRegistry.RegisterAction("project_settings", ProjectSettingsHelper.Execute, mutating: true,
-                required: "target", optional: "prop,value,index,build_target");
-            CommandRegistry.RegisterAction("material", MaterialHelper.Execute, mutating: true,
-                optional: "path,object_path,shader,prop,value,source,targets,slot,filter,target");
+            CommandRegistry.RegisterAction("project_settings", ProjectSettingsHelper.Execute, ToolMeta.Get("project_settings"));
+            CommandRegistry.RegisterAction("material", MaterialHelper.Execute, ToolMeta.Get("material"));
             CommandRegistry.RegisterAction("prefab", PrefabHelper.Execute, mutating: true,
                 optional: "path,asset_path,base_path,variant_path,parent,recursive,component,prop,value,add_component,remove_component,child_path,mode,scope,format");
-            CommandRegistry.RegisterAction("scriptable_object", ScriptableObjectHelper.Execute, mutating: true,
-                optional: "path,type,prop,value,filter,fields");
+            CommandRegistry.RegisterAction("scriptable_object", ScriptableObjectHelper.Execute, ToolMeta.Get("scriptable_object"));
             CommandRegistry.RegisterAction("scene_environment", EnvironmentHelper.Execute, mutating: true,
                 optional: "prop,value");
 
