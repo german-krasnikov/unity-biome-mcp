@@ -3,14 +3,11 @@ from . import (
     animation,
     animator_intent_tool,
     ask_tool,
-    ask_user_tool,
     asset,
-    auto_wire,
     autobatch,
     batch,
     brief_tool,
     budget_tool,
-    build,
     changeset_tool,
     checkpoint_tool,
     code_intel,
@@ -19,25 +16,20 @@ from . import (
     console,
     debug_tool,
     diagnose,
-    diagnostics,
     do_tool,
     editor_control,
     meta,
     objects,
-    packages,
     permission_prompt_tool,
     profiling,
-    rendering,
     runtime,
     scene,
-    scene_health,
     screenshot,
     skills,
     spatial,
     sync_module,
     testing,
     transaction,
-    ui,
     ui_intent_tool,
     uitk,
     uitk_intent_tool,
@@ -52,8 +44,8 @@ from .metrics_tool import register as register_metrics
 def register_all(mcp, send, args, *, get_slot, get_middleware=None,
                   stdio_alive=None, refresh_tools_cache=None, push_catalog=None):
     for mod in [scene, objects, asset, animation, runtime, watch, code_intel,
-                batch, codegen, skills, spatial, ui, uitk, sync_module, diagnose,
-                debug_tool, diagnostics, snapshot_tool, profiling, rendering, scene_health, auto_wire, build, packages,
+                batch, codegen, skills, spatial, uitk, sync_module, diagnose,
+                debug_tool, snapshot_tool, profiling,
                 console, screenshot, editor_control, verify, transaction]:
         mod.register(mcp, send, args)
     testing.register(mcp, send, args, get_slot=get_slot)
@@ -66,7 +58,6 @@ def register_all(mcp, send, args, *, get_slot, get_middleware=None,
     autobatch.register(mcp, send, args)
     do_tool.register(mcp, send, args)
     ask_tool.register(mcp, send, args)
-    ask_user_tool.register(mcp, send, args)
     permission_prompt_tool.register(mcp, send, args)
     for mod in [animator_intent_tool, vfx_intent_tool, ui_intent_tool, uitk_intent_tool]:
         mod.register(mcp, send, args)
