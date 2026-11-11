@@ -1,8 +1,11 @@
 # The 14 CommandOptions fields (minus Description) of every hand-written Register/RegisterAction/RegisterAsync
-# call in unity-plugin/Editor, taken at cc566bf4 before ToolMeta.g.cs existed (the oracle of A1/A2's migration).
+# call in unity-plugin/Editor, taken at cc566bf4 before ToolMeta.g.cs existed. Frozen (A4): the generator that
+# produced it, scripts/registration_golden.py, and the test that compared it against the live C# literal,
+# test_registration_golden.py, were both A0 scaffolding and are gone. The only remaining reader is
+# server/tests/test_toolmeta_vs_golden.py, which compares ToolMeta.g.cs's generated switch against this file
+# on the overlap of names (its own KNOWN_DIVERGENT/KNOWN_UNCOVERED) -- never regenerate this file.
 # <name> kind=<Register|RegisterAction|RegisterAsync> mutating=0|1 runtime=0|1 special=0|1 filehandler=0|1
 #   always=0|1 compile=0|1 notbatch=0|1 playok=0|1 noundo=0|1 policy=0|1 max=<int> required=a,b optional=c,d
-# Do not regenerate this file to remove a difference: an intended change is an INTENDED entry of test_registration_golden.py.
 alias_status kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=1 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=
 analyze_lod_culling kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=focus
 animation kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action,path optional=binding_path,clip,clip_name,compact,component_type,float_param,function_name,int_param,keys,property,string_param,tangent,time

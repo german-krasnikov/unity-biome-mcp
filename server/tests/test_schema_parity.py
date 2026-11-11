@@ -82,8 +82,6 @@ _PYTHON_ONLY = {
     "get_changeset",
     # T19: checkpoint orchestrators — call C# internally (checkpoint, diagnose, checkpoint_undo_restore)
     "checkpoint_create", "checkpoint_restore",
-    # T20: plan orchestrators — pure Python, no C# handler
-    "plan_create", "plan_approve", "plan_reject", "plan_edit", "plan_status",
     # T21: project brief — pure Python context aggregator, no C# handler
     "brief_build",
 }

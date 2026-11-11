@@ -1,39 +1,23 @@
-"""While the Unity registrations of the catalog's tools are hand-written, they must say what the catalog says (step 7.1).
+"""The catalog is the source (A4, Plans/DSL/PLAN.md A4): a tool of the catalog states its own MAXCHARS, and the
+subset of Register calls still hand-written (not yet `ToolMeta.Get(cmd)`-delegated) must say the same number in
+its `maxResponseChars:` argument.
 
-For every tool with a hand-written CommandRegistry.Register* call in unity-plugin/Editor this compares `mutating` with
-ToolSpec.mutability, `runtime` with runtime_only, `required` and `optional` with the Python parameters, and, for a tool of the
-catalog, `maxResponseChars` with its MAXCHARS. KNOWN_DIVERGENT is the census of the tools that differ today (measured at 86eca971,
-no verdict on any of them): it must match exactly, so a new difference fails and a repaired one asks to be removed from the list.
+`registrations()`/`_top_level`/`_CALL` are the shared literal-call-site reader: for a delegated call it reads
+the generated ToolMeta.g.cs switch instead (via toolmeta_reader), since a delegating call site states none of
+these flags itself.
 """
 import re
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 import toolmeta_reader
 
-from unity_mcp.server import mcp
 from unity_mcp.tools.generated import catalog_specs
-from unity_mcp.tools.tool_specs import _SPECS
 
 pytestmark = pytest.mark.csharp_parity
 
 _EDITOR = Path(__file__).resolve().parents[2] / "unity-plugin" / "Editor"
 _CALL = re.compile(r'CommandRegistry\.(Register|RegisterAsync|RegisterAction)\(\s*"([^"]+)"')
-
-KNOWN_DIVERGENT = {
-    "mutating": {"batch"},
-    "runtime": set(),
-    # A3-DESIGN.md Sec 3 #30/#31: get_component.type's DEFAULT_TEXT "" fallback (component= alias) and
-    # scene_environment's RegisterAction-forced action are structural, not bugs -- see both tools' optional
-    # entries below for the same two facts viewed from the other field.
-    "required": {"get_component", "scene_environment"},
-    # A3-DESIGN.md Sec 3 #30/#31 (get_component, scene_environment, as above); #32-34 (asset/uitk_file/
-    # inspect_uitk's class_name/cls/show_unity_private renames -- WIRE fixes test_toolmeta_vs_golden.py but
-    # not this oracle, which compares Python's own live property name against the untouched C# literal);
-    # #35 (inspect.type is a C#-only legacy fallback for components, never exposed in Python).
-    "optional": {"asset", "get_component", "inspect", "inspect_uitk", "scene_environment", "uitk_file"},
-}
 
 
 def _top_level(text: str, start: int) -> str:
@@ -99,35 +83,8 @@ def registrations(sources: list[str]) -> dict[str, dict]:
     return found
 
 
-def divergences(cs: dict, spec, tool) -> set[str]:
-    """The kinds in which the hand-written registration `cs` differs from the Python side: ToolSpec `spec`, registered `tool`."""
-    found = set()
-    if spec and (spec.mutability == "write") != cs["mutating"]:
-        found.add("mutating")
-    if spec and spec.runtime_only != cs["runtime"]:
-        found.add("runtime")
-    if tool:
-        properties, required = set(tool.parameters.get("properties", {})), set(tool.parameters.get("required", []))
-        if required != cs["required"]:
-            found.add("required")
-        if properties - required != cs["optional"]:
-            found.add("optional")
-    return found
-
-
 def _hand_written() -> dict[str, dict]:
     return registrations([path.read_text(encoding="utf-8") for path in _EDITOR.rglob("*.cs") if "Tests" not in path.parts])
-
-
-def test_the_hand_written_registrations_differ_from_the_python_side_only_as_known():
-    live = {name: divergences(cs, _SPECS.get(name), mcp._tool_manager._tools.get(name)) for name, cs in _hand_written().items()}
-    assert len(live) > 100, "no registration was read: this test would pass without checking"
-    problems = []
-    for kind, known in KNOWN_DIVERGENT.items():
-        now = {name for name, kinds in live.items() if kind in kinds}
-        problems += [f"{kind}: {name} differs and is not in KNOWN_DIVERGENT" for name in sorted(now - known)]
-        problems += [f"{kind}: {name} no longer differs: remove it from KNOWN_DIVERGENT" for name in sorted(known - now)]
-    assert not problems, "\n".join(problems)
 
 
 def test_the_tools_of_the_catalog_state_their_response_limit():
@@ -165,12 +122,3 @@ def test_the_registration_reader_takes_the_flags_of_the_call_and_nothing_nested(
                           "max_chars": 0}
     assert found["c"] == {"mutating": False, "runtime": True, "play_ok": False, "no_undo": False, "required": {"u"}, "optional": set(),
                           "max_chars": 0}
-
-
-def test_each_kind_of_difference_is_found():
-    tool = SimpleNamespace(parameters={"properties": {"p": {}, "q": {}}, "required": ["p"]})
-    spec = SimpleNamespace(mutability="write", runtime_only=True)
-    same = {"mutating": True, "runtime": True, "required": {"p"}, "optional": {"q"}}
-    assert divergences(same, spec, tool) == set()
-    assert divergences({**same, "mutating": False, "runtime": False, "required": {"p", "q"}, "optional": set()}, spec, tool) == {
-        "mutating", "runtime", "required", "optional"}

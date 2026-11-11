@@ -13,9 +13,32 @@ import re
 from pathlib import Path
 
 import pytest
-from test_registration_golden import _parse, diff_registrations
 
 pytestmark = pytest.mark.csharp_parity
+
+
+def _parse(line: str) -> tuple[str, dict[str, str]]:
+    name, *pairs = line.split(" ")
+    return name, dict(pair.split("=", 1) for pair in pairs)
+
+
+def diff_registrations(golden: list[str], live: list[str], intended: dict[str, dict[str, str]]) -> list[str]:
+    """What differs between the golden lines and the live ones, minus what `intended` allows."""
+    want, got = (dict(map(_parse, lines)) for lines in (golden, live))
+    problems = [f"{name}: not in the golden" for name in sorted(got.keys() - want.keys())]
+    problems += [f"{name}: in the golden, not live" for name in sorted(want.keys() - got.keys())]
+    allowed = set()
+    for name in sorted(want.keys() & got.keys()):
+        for field in sorted(want[name].keys() | got[name].keys()):
+            if want[name].get(field) == got[name].get(field):
+                continue
+            if field in intended.get(name, {}):
+                allowed.add((name, field))
+            else:
+                problems.append(f"{name}: {field} is {got[name].get(field)}, the golden has {want[name].get(field)}")
+    problems += [f"INTENDED {name}.{field} does not differ any more: remove it"
+                 for name, fields in sorted(intended.items()) for field in fields if (name, field) not in allowed]
+    return problems
 
 _GOLDEN = Path(__file__).parent / "golden" / "registration.txt"
 _TOOLMETA = Path(__file__).resolve().parents[2] / "unity-plugin" / "Editor" / "Generated" / "ToolMeta.g.cs"
@@ -51,7 +74,7 @@ KNOWN_DIVERGENT.setdefault("run_playtest", {})["optional"] = "A3-DESIGN.md Sec 3
 KNOWN_DIVERGENT.setdefault("start_playtest", {})["optional"] = "A3-DESIGN.md Sec 3 #29: golden predates before_hook/after_hook/format"
 KNOWN_DIVERGENT.setdefault("run_tests", {})["optional"] = "A3-DESIGN.md Sec 3 #8/#9: golden predates request_id as optional"
 KNOWN_DIVERGENT.setdefault("batch", {})["mutating"] = (
-    "dispatcher, not itself a write (test_catalog_vs_csharp.py's own KNOWN_DIVERGENT)")
+    "dispatcher, not itself a write (per-line guards in C#, see BatchHelperReadOnlyTests)")
 
 KNOWN_UNCOVERED = frozenset({
     "checkpoint_undo_restore", "clear_console", "console_clear_buffer", "force_play_stop", "force_refresh",

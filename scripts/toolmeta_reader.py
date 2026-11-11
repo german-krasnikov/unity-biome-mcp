@@ -1,8 +1,7 @@
 """Parses unity-plugin/Editor/Generated/ToolMeta.g.cs's generated switch into the CommandOptions fields it
-states. Shared by scripts/registration_golden.py and server/tests/test_catalog_vs_csharp.py so there is one
-reader of the generated switch (DRY) -- needed starting A2 (Plans/DSL/A2-DESIGN.md Sec 1), for when a call
-site stops stating its flags as named parameters and states `ToolMeta.Get(cmd)` instead; the old
-per-call-site regexes find nothing in that shape.
+states. Used by server/tests/test_catalog_vs_csharp.py -- needed starting A2 (Plans/DSL/A2-DESIGN.md Sec 1),
+for when a call site stops stating its flags as named parameters and states `ToolMeta.Get(cmd)` instead; the
+old per-call-site regexes find nothing in that shape.
 """
 import re
 from functools import lru_cache
@@ -47,8 +46,8 @@ def read_generated() -> dict[str, dict]:
 def delegates(args: str) -> bool:
     """True if a call's own argument text is `ToolMeta.Get(...)` rather than named parameters.
 
-    Matches the bare `ToolMeta.Get` identifier, not `ToolMeta.Get(` -- the bracket-depth-aware extractors
-    both call sites use (test_catalog_vs_csharp.py's `_top_level`) strip a nested call's own opening paren,
-    so the `args` text they hand to `delegates()` never contains the trailing "(".
+    Matches the bare `ToolMeta.Get` identifier, not `ToolMeta.Get(` -- the bracket-depth-aware extractor
+    test_catalog_vs_csharp.py's `_top_level` uses strips a nested call's own opening paren, so the `args`
+    text it hands to `delegates()` never contains the trailing "(".
     """
     return bool(_DELEGATES.search(args))
