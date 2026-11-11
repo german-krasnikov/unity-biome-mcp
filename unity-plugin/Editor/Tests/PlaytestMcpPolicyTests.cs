@@ -16,7 +16,7 @@ namespace UnityMCP.Editor.Tests
             new PlaytestStep { Type = StepType.Mcp, Method = cmd, Args = args };
 
         [TestCase("execute_code")]
-        [TestCase("create_script")]
+        [TestCase("source_patch_write")]
         [TestCase("sync_unity")]
         [TestCase("await_compile")]
         [TestCase("smart_build")]

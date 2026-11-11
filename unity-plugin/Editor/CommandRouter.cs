@@ -66,19 +66,8 @@ namespace UnityMCP.Editor
             if (_recentCmds.Count > 3) _recentCmds.Dequeue();
         }
 
-        // Feature 2: suggest next tool for mutating commands
-        internal static string SuggestNext(string cmd) => cmd switch
-        {
-            "set_property" => "get_console level=Error",
-            "create_object" => "get_hierarchy depth=1",
-            "wire_event" => "validate_references",
-            "unwire_event" => "get_component",
-            "manage_component" => "get_components_list",
-            "delete_object" => "get_hierarchy depth=1",
-            "set_parent" => "get_hierarchy depth=1",
-            "batch" => "get_console level=Error",
-            _ => null
-        };
+        // Feature 2: suggest next tool for mutating commands (NEXT lines of dsl/tools.biome, ToolUi.NextAfter)
+        internal static string SuggestNext(string cmd) => ToolUi.NextAfter(cmd);
 
         // Returns error response string if a guard blocks the command, null otherwise.
         // Which guard stops a call, and in which order, is the decision guardVerdict (site top) of dsl/decisions/guards.logic; GuardFacts

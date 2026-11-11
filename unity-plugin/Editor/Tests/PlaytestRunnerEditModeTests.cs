@@ -455,7 +455,7 @@ namespace UnityMCP.Editor.Tests
             // all, so denial for them is pure defense-in-depth, not registry policing.
             var hardDenylist = new[]
             {
-                "execute_code", "create_script", "sync_unity", "await_compile",
+                "execute_code", "source_patch_write", "sync_unity", "await_compile",
                 "smart_build", "run_tests", "run_playtest", "package", "build",
             };
             foreach (var name in hardDenylist)
@@ -476,10 +476,10 @@ namespace UnityMCP.Editor.Tests
                 string.Join(",", deniedButUnregistered));
 
             CollectionAssert.AreEquivalent(
-                new[] { "execute_code", "run_tests", "run_playtest", "package", "build" },
+                new[] { "execute_code", "run_tests", "run_playtest", "package", "build", "source_patch_write" },
                 deniedAndRegistered);
             CollectionAssert.AreEquivalent(
-                new[] { "create_script", "sync_unity", "await_compile", "smart_build" },
+                new[] { "sync_unity", "await_compile", "smart_build" },
                 deniedButUnregistered);
         }
 

@@ -27,6 +27,10 @@ GENERATE cs-tools  render {dir}/tools.biome cstools  {dir}/../unity-plugin/Edito
 GENERATE cs-verbs  render {dir}/tools.biome csverbs {dir}/../unity-plugin/Editor/Generated/ToolVerbs.g.cs
 GENERATE cs-roster render {dir}/tools.biome csroster {dir}/../unity-plugin/Editor/Generated/ToolRoster.g.cs
 GENERATE cs-pyonly render {dir}/tools.biome cspyonly {dir}/../unity-plugin/Editor/Generated/PythonOnlyTools.g.cs
+GENERATE cs-card  render {dir}/tools.biome cscard {dir}/../unity-plugin/Editor/Generated/ToolUi.Card.g.cs
+GENERATE cs-next  render {dir}/tools.biome csnext {dir}/../unity-plugin/Editor/Generated/ToolUi.Next.g.cs
+GENERATE cs-deny  render {dir}/tools.biome csdeny {dir}/../unity-plugin/Editor/Generated/ToolUi.Deny.g.cs
+GENERATE cs-role  render {dir}/tools.biome csrole {dir}/../unity-plugin/Editor/Generated/ToolUi.Roles.g.cs
 
 # The chat turn (dsl/chat, step 7.3): the one ordered list of what ends a turn of the chat window, whichever way it ends. chat-policy prints the two guards
 # (the decisions of the FEATURE), chat-turn the reducer into the CLI assembly of the chat (UnityMCP.Editor.Chat.CLI, namespace UnityMCP.Editor.Chat.Turn, C# 9)

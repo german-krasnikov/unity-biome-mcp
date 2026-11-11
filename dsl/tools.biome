@@ -104,6 +104,7 @@ PYTOOL animator_intent SYSTEM RW "Convert NL intent to Unity Animator Controller
 END
 
 PYTOOL apply_scene_change SCENE RW "Execute scene mutations with atomic apply, post-verify, and optional save."
+  CARD generic
   BODY transaction
   DOC "1. Validate plan_id exists and not expired (TTL 600s)"
   DOC "2. Reject empty input and commands outside the Unity-Undo-safe scene allowlist"
@@ -221,6 +222,7 @@ TOOL autofit_collider SCENE RW "Auto-fit collider to mesh/renderer bounds. type:
 END
 
 PYTOOL await_compile VERIFY RO "Block until Unity finishes compiling + reloading, then return compile errors."
+  DENY
   BODY code_intel
   DOC "Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'."
   DOC "Handles domain reload disconnects transparently. timeout=0 → immediate check, no loop."
@@ -248,6 +250,9 @@ END
 # ui_intent_tool.py:152, debug_tool.py:78, do_intent/executor.py:38/67).
 # Public batch() tool always overrides -- see tools/batch.py timeout param.
 TOOL batch CORE RW "Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls."
+  CARD generic
+  NEXT "get_console level=Error"
+  DENY
   BODY batch
   GUARD compile
   FLAG core
@@ -277,6 +282,7 @@ PYTOOL budget_status SYSTEM RO "Returns Haiku cost: session/cap/day/skipped feat
 END
 
 TOOL build SYSTEM RW "Build player. action: build."
+  DENY
   GUARD play_ok
   FORWARD
   FLAG direct_only
@@ -371,10 +377,12 @@ PYTOOL console_mark RUNTIME RO "Create a console watermark. Returns mark_id enco
 END
 
 TOOL create_object CORE RW "Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene)."
+  CARD create
+  NEXT "get_hierarchy depth=1"
   FORWARD
   FLAG core
   VERB "Creating"
-  ARG name str EXAMPLE "__seam_surface_probe" "Name for the new GameObject"
+  ARG name str EXAMPLE "__seam_surface_probe" ROLE name "Name for the new GameObject"
   ARG parent ostr DEFAULT None "Scene path of the parent (omit = scene root)"
   ARG components ostr DEFAULT None "Comma-separated component types to add on creation (e.g. 'Rigidbody,BoxCollider')"
   ARG primitive ostr DEFAULT None "Primitive mesh type: Cube|Sphere|Cylinder|Capsule|Plane|Quad"
@@ -434,11 +442,13 @@ TOOL debug_physics RUNTIME RO "[Play Mode] Read Rigidbody state, colliders, cont
 END
 
 TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."
+  CARD delete
+  NEXT "get_hierarchy depth=1"
   BODY objects
   FLAG tier1
   VERB "Deleting"
   ARG id oint DEFAULT None "Instance ID of the GameObject to delete (from get_hierarchy)"
-  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent" "Scene path of the GameObject to delete"
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent" ROLE target "Scene path of the GameObject to delete"
   ARG force bool DEFAULT False "True to delete non-empty container objects without error"
   TAG atomic_scene
   TAG distill_skip
@@ -510,6 +520,7 @@ TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|
 END
 
 TOOL execute_code SYSTEM RW "Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile."
+  DENY
   GUARD compile
   FORWARD
   FLAG core
@@ -932,11 +943,13 @@ PYTOOL load_session SYSTEM RO "Load previous session context beside the current 
 END
 
 TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
+  CARD component
+  NEXT "get_components_list"
   FORWARD
   FLAG core
   VERB "Editing components"
-  ARG path str EXAMPLE "/__seam_nonexistent" "Scene path to the GameObject"
-  ARG type str EXAMPLE "Rigidbody" "Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button')"
+  ARG path str EXAMPLE "/__seam_nonexistent" ROLE target "Scene path to the GameObject"
+  ARG type str EXAMPLE "Rigidbody" ROLE name "Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button')"
   ARG action str EXAMPLE "add" "'add' or 'remove' — not 'enable'/'disable' (use set_property m_Enabled for that)"
   TAG atomic_scene
   TAG distill_skip
@@ -1040,6 +1053,7 @@ TOOL object_diff SCENE RO "Diff two GameObjects (components, properties, childre
 END
 
 TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove."
+  DENY
   GUARD play_ok
   FORWARD
   FLAG direct_only
@@ -1219,11 +1233,12 @@ PYTOOL release_smoke SYSTEM RO "Run release readiness checks: status, aliases, c
 END
 
 TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path after rename."
+  CARD rename
   FORWARD
   DOC "path: current scene path, &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy). name: new name (non-empty)."
   DOC "Note: all subsequent MCP calls must use the new path."
-  ARG path str EXAMPLE "/__seam_nonexistent"
-  ARG name str EXAMPLE "__seam_renamed"
+  ARG path str EXAMPLE "/__seam_nonexistent" ROLE target
+  ARG name str EXAMPLE "__seam_renamed" ROLE newname
   TAG atomic_scene
   TAG reflect_custom
 END
@@ -1276,6 +1291,7 @@ END
 # True here would reintroduce a second, stale Python-only authority (see
 # test_runtime_only_single_source).
 TOOL run_playtest TESTS RW "[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`)."
+  DENY
   BODY runtime
   DOC "Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |"
   DOC "ASSERT_CONSOLE_CLEAN [IGNORE \"pat\"] | SNAPSHOT queries | INVOKE path comp method args |"
@@ -1350,6 +1366,7 @@ END
 # The bridge may retry run_tests only because every retry carries the same durable request_id (RW_IDEM);
 # run_tests_wait is a composite operation, not idempotent (RW).
 TOOL run_tests TESTS RW_IDEM "Dispatch Unity tests and return their durable identity immediately."
+  DENY
   BODY testing
   DOC "A successful response is"
   DOC "``tests-started|request_id=...|run_id=...|utf_guid=...|state=dispatched``."
@@ -1589,10 +1606,11 @@ TOOL serialized_field_rename_audit VERIFY RO "Audit [SerializeField] rename safe
 END
 
 TOOL set_active SCENE RW_IDEM "Set GameObject active/inactive."
+  CARD set
   FORWARD
   FLAG tier1
-  ARG path str EXAMPLE "/__seam_nonexistent" "Scene path to the GameObject"
-  ARG active bool EXAMPLE "false" "True to activate, False to deactivate"
+  ARG path str EXAMPLE "/__seam_nonexistent" ROLE target "Scene path to the GameObject"
+  ARG active bool EXAMPLE "false" ROLE value "True to activate, False to deactivate"
   TAG atomic_scene
   TAG distill_skip
   TAG do_allowed
@@ -1618,6 +1636,8 @@ TOOL set_material SCENE RW_IDEM "Set scene object material color (for full asset
 END
 
 TOOL set_parent SCENE RW_IDEM "Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent."
+  CARD generic
+  NEXT "get_hierarchy depth=1"
   FORWARD
   FLAG tier1
   VERB "Re-parenting"
@@ -1638,6 +1658,8 @@ PYTOOL set_properties SCENE RW "Set multiple properties on ONE object. For multi
 END
 
 TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`)."
+  CARD set
+  NEXT "get_console level=Error"
   BODY objects
   DOC "find_type: component type — bulk-sets prop on all matching objects without specifying paths."
   DOC "For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'. dry_run=True shows what would change without applying."
@@ -1645,10 +1667,10 @@ TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObj
   DOC "effects: mutates scene via SerializedObject, creates an undo entry. Verify with get_component after."
   FLAG core
   VERB "Editing"
-  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent" "Scene path to the GameObject (e.g. /Player/Body)"
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent" ROLE target "Scene path to the GameObject (e.g. /Player/Body)"
   ARG component str DEFAULT_TEXT "" EXAMPLE "Transform" "Component type (empty string = Transform)"
-  ARG prop str DEFAULT_TEXT "" EXAMPLE "m_LocalPosition" "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
-  ARG value Any DEFAULT None EXAMPLE "0,0,0" "New value. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'"
+  ARG prop str DEFAULT_TEXT "" EXAMPLE "m_LocalPosition" ROLE prop "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
+  ARG value Any DEFAULT None EXAMPLE "0,0,0" ROLE value "New value. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'"
   ARG dry_run bool DEFAULT False "Show what would change without applying (safe preview)"
   ARG find_type ostr DEFAULT None "Component type — bulk-sets prop on ALL scene objects with this component (no path needed)"
   ARG ref_component_type ostr DEFAULT None LOCAL
@@ -1660,11 +1682,12 @@ TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObj
 END
 
 TOOL set_property_delta SCENE RW "Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new."
+  CARD set
   FORWARD
-  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG path str EXAMPLE "/__seam_nonexistent" ROLE target
   ARG component str EXAMPLE "Transform"
-  ARG prop str EXAMPLE "m_LocalPosition.x"
-  ARG delta str EXAMPLE "1"
+  ARG prop str EXAMPLE "m_LocalPosition.x" ROLE prop
+  ARG delta str EXAMPLE "1" ROLE value
   TAG atomic_scene
   TAG reflect_custom
 END
@@ -1735,6 +1758,7 @@ TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Cre
 END
 
 PYTOOL smart_build SYSTEM RW "Build scene objects from natural language description using MCP sampling + execute_code."
+  DENY
   ARG description str
   ARG ctx Any
   TAG reflect_silent
@@ -1750,6 +1774,7 @@ END
 # own internal sender when Source Patch mutation is armed; never a public
 # MCP tool, never batchable (see server/tests/test_source_patch_boundary.py).
 INTERNAL source_patch_write RW "Writes a source patch; the internal sender of asset.py routes it when Source Patch mutation is armed."
+  DENY
   FLAG direct_only
   FLAG unity_transport
   ARG path str
@@ -1816,6 +1841,7 @@ TOOL sync_playtest_aliases_from_defs TESTS RW "Overwrite PlaytestConfig.asset al
 END
 
 PYTOOL sync_unity SYSTEM RW "Refresh Unity and await its matching compile cycle within one timeout."
+  DENY
   FLAG tier1
   ARG resolve bool DEFAULT False
   ARG bump bool DEFAULT False
@@ -1959,6 +1985,7 @@ TOOL undo_last SYSTEM RW "Undo the last N AI turns in the Unity Undo stack. Defa
 END
 
 TOOL unwire_event COMPONENTS DEL "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required."
+  NEXT "get_component"
   FORWARD
   DOC "index: remove specific entry (0-based). Omit to clear all."
   ARG path str EXAMPLE "/__seam_nonexistent"
@@ -2072,6 +2099,8 @@ PYTOOL watch RUNTIME RW "[Play Mode] Manage watches. Registers or removes watche
 END
 
 TOOL wire_event COMPONENTS RW "Wire UnityEvent persistent listener. Mutates scene. No confirmation required."
+  CARD generic
+  NEXT "validate_references"
   FORWARD
   DOC "path: object with the event. component: type owning the event field."
   DOC "event: serialized field name (e.g. 'onClick', '_onComplete')."
