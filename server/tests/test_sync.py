@@ -73,19 +73,22 @@ def _patch_sleep():
 
 
 @pytest.fixture(autouse=True)
+def _reset_send():
+    # tools/sync.py has no register() of its own, so _tool_binding's autouse
+    # fixture doesn't cover it -- restore _sync._send by hand (SV7, see
+    # test_sync_module.py's docstring for the grounded reason).
+    original = _sync._send
+    yield
+    _sync._send = original
+
+
+@pytest.fixture(autouse=True)
 def _zero_recovery_timeout(monkeypatch):
     """Default: recovery exits instantly (timeout=0) so existing REIMPORT-NEEDED asserts hold.
 
     Tests that need real recovery override via monkeypatch(_sync, '_RECOVERY_TIMEOUT', N).
     """
     monkeypatch.setattr(_sync, "_RECOVERY_TIMEOUT", 0.0)
-
-
-@pytest.fixture(autouse=True)
-def _reset_send():
-    original = _sync._send
-    yield
-    _sync._send = original
 
 
 @pytest.fixture(autouse=True)

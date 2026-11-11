@@ -18,7 +18,7 @@ def screenshot_tool():
 
     scene_mod._send = _send
     scene_mod._args = _args
-    yield scene_mod.screenshot, captured
+    return scene_mod.screenshot, captured
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ def screenshot_tool_with_manifest():
 
     scene_mod._send = _send
     scene_mod._args = _args
-    yield scene_mod.screenshot, captured
+    return scene_mod.screenshot, captured
 
 
 async def test_screenshot_highlight_param_passed(screenshot_tool):

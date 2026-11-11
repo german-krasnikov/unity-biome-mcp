@@ -5,9 +5,8 @@ import unity_mcp.tools.runtime as _rt
 
 @pytest.fixture(autouse=True)
 def _bind():
-    """Bind _send/_args so module functions work without server init."""
+    """Bind _args so module functions work without server init."""
     _rt._args = lambda **kw: {k: v for k, v in kw.items() if v is not None}
-    yield
 
 
 async def test_lint_sends_path():

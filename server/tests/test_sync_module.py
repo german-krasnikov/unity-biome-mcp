@@ -5,9 +5,14 @@ pattern (Plans/N1b-second-module-sync.md section 3.1).
 Self-contained: patches unity_mcp.tools.sync.editor_log directly instead of
 relying on test_sync.py's autouse fixtures, and restores every module global
 tools/sync_module.py touches (_default) or tools/sync.py touches (_send,
-_args, _bump_used) after each test -- these are process-wide singletons
-(same shape as every other tools/*.py module), so leaking a fake send into
-them would pollute later tests/production state.
+_bump_used) after each test -- these are process-wide singletons (same shape
+as every other tools/*.py module), so leaking a fake send into them would
+pollute later tests/production state. Unlike every other tools/*.py module,
+tools/sync.py has no register() of its own (tools/sync_module.py drives its
+algorithm through an explicit SyncContext instead), so SV7's autouse
+_tool_binding_restore fixture -- which derives what to restore from each
+module's register() signature -- never touches it; this fixture's _send
+restore (and sync_module.py's _default) stay hand-rolled for that reason.
 """
 import asyncio
 from unittest.mock import AsyncMock, patch
@@ -70,18 +75,17 @@ def _patch_editor_log():
 
 @pytest.fixture(autouse=True)
 def _restore_module_globals():
-    """sync_module._default and sync.{_send,_args,_bump_used} are process-wide
+    """sync_module._default and sync.{_send,_bump_used} are process-wide
     singletons production code depends on -- restore whatever this test
     session already had (production register_all() runs at server.py import
-    time, before any test runs)."""
+    time, before any test runs). Not covered by SV7's autouse fixture: see
+    module docstring (tools/sync.py has no register())."""
     orig_default = sync_module._default
     orig_send = _sync._send
-    orig_args = getattr(_sync, "_args", None)
     orig_bump = _sync._bump_used
     yield
     sync_module._default = orig_default
     _sync._send = orig_send
-    _sync._args = orig_args
     _sync._bump_used = orig_bump
 
 

@@ -20,7 +20,7 @@ def screenshot_tool():
 
     scene_mod._send = _send
     scene_mod._args = _args
-    yield scene_mod.screenshot, captured
+    return scene_mod.screenshot, captured
 
 
 async def test_screenshot_offset_passthrough(screenshot_tool):
