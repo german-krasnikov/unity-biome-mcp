@@ -225,19 +225,10 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void CloneWithModel_NewInstance_PreservesPermissionMode()
-        {
-            var src = new BackendConfigStore();
-            src.Claude.PermissionMode = "acceptEdits";
-            var result = src.WithModel(BackendKind.Claude, "new-model");
-            Assert.AreEqual("acceptEdits", result.Claude.PermissionMode);
-        }
-
-        [Test]
         public void CloneWithModel_NewInstance_PreservesCodexConfig()
         {
             var src = new BackendConfigStore();
-            src.Codex.StartupTimeoutSec = 99;
+            src.Codex.Model = "o3";
             var result = src.WithModel(BackendKind.Claude, "new-model");
             Assert.AreSame(src.Codex, result.Codex);
         }

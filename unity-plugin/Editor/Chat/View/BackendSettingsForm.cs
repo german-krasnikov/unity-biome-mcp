@@ -112,19 +112,6 @@ namespace UnityMCP.Editor.Chat
             modelField.AddToClassList("chat-form-field");
             modelField.RegisterValueChangedCallback(e => { config.Model = e.newValue; onSave(); });
             parent.Add(modelField);
-
-            var permField = new DropdownField(
-                "Permission Mode",
-                new List<string> { "plan", "acceptEdits" },
-                config.PermissionMode == "acceptEdits" ? 1 : 0);
-            permField.AddToClassList("chat-form-field");
-            permField.RegisterValueChangedCallback(e => { config.PermissionMode = e.newValue; onSave(); });
-            parent.Add(permField);
-
-            var extraField = new TextField("Extra Args") { value = config.ExtraArgs };
-            extraField.AddToClassList("chat-form-field");
-            extraField.RegisterValueChangedCallback(e => { config.ExtraArgs = e.newValue; onSave(); });
-            parent.Add(extraField);
         }
 
         /// <summary>
@@ -176,24 +163,6 @@ namespace UnityMCP.Editor.Chat
             modelField.AddToClassList("chat-form-field");
             modelField.RegisterValueChangedCallback(e => { config.Model = e.newValue; onSave(); });
             parent.Add(modelField);
-
-            var approvalField = new DropdownField(
-                "Approval Mode",
-                new List<string> { "default", "yolo" },
-                config.ApprovalMode == "yolo" ? 1 : 0);
-            approvalField.AddToClassList("chat-form-field");
-            approvalField.RegisterValueChangedCallback(e => { config.ApprovalMode = e.newValue == "default" ? "" : e.newValue; onSave(); });
-            parent.Add(approvalField);
-
-            var sandboxToggle = new Toggle("Sandbox") { value = config.Sandbox };
-            sandboxToggle.AddToClassList("chat-form-field");
-            sandboxToggle.RegisterValueChangedCallback(e => { config.Sandbox = e.newValue; onSave(); });
-            parent.Add(sandboxToggle);
-
-            var extraField = new TextField("Extra Args") { value = config.ExtraArgs };
-            extraField.AddToClassList("chat-form-field");
-            extraField.RegisterValueChangedCallback(e => { config.ExtraArgs = e.newValue; onSave(); });
-            parent.Add(extraField);
         }
 
         internal static void BuildKimiForm(
@@ -209,23 +178,6 @@ namespace UnityMCP.Editor.Chat
             modelField.AddToClassList("chat-form-field");
             modelField.RegisterValueChangedCallback(e => { config.Model = e.newValue; onSave(); });
             parent.Add(modelField);
-
-            var approvalField = new DropdownField(
-                "Approval Mode",
-                new List<string> { "default", "yolo", "plan" },
-                config.ApprovalMode == "yolo" ? 1 : config.ApprovalMode == "plan" ? 2 : 0);
-            approvalField.AddToClassList("chat-form-field");
-            approvalField.RegisterValueChangedCallback(e =>
-            {
-                config.ApprovalMode = e.newValue == "default" ? "" : e.newValue;
-                onSave();
-            });
-            parent.Add(approvalField);
-
-            var extraField = new TextField("Extra Args") { value = config.ExtraArgs };
-            extraField.AddToClassList("chat-form-field");
-            extraField.RegisterValueChangedCallback(e => { config.ExtraArgs = e.newValue; onSave(); });
-            parent.Add(extraField);
         }
 
         internal static void BuildOpenCodeForm(
@@ -245,16 +197,6 @@ namespace UnityMCP.Editor.Chat
             modelField.AddToClassList("chat-form-field");
             modelField.RegisterValueChangedCallback(e => { config.Model = e.newValue; onSave(); });
             parent.Add(modelField);
-
-            var skipToggle = new Toggle("Skip Permissions") { value = config.SkipPermissions };
-            skipToggle.AddToClassList("chat-form-field");
-            skipToggle.RegisterValueChangedCallback(e => { config.SkipPermissions = e.newValue; onSave(); });
-            parent.Add(skipToggle);
-
-            var extraField = new TextField("Extra Args") { value = config.ExtraArgs };
-            extraField.AddToClassList("chat-form-field");
-            extraField.RegisterValueChangedCallback(e => { config.ExtraArgs = e.newValue; onSave(); });
-            parent.Add(extraField);
         }
 
         internal static void BuildModelPresetsForm(
@@ -387,30 +329,6 @@ namespace UnityMCP.Editor.Chat
             modelField.AddToClassList("chat-form-field");
             modelField.RegisterValueChangedCallback(e => { config.Model = e.newValue; onSave(); });
             parent.Add(modelField);
-
-            var permField = new DropdownField(
-                "Permission Mode",
-                new List<string> { "danger-full-access" },
-                0);
-            permField.AddToClassList("chat-form-field");
-            permField.RegisterValueChangedCallback(e => { config.PermissionMode = e.newValue; onSave(); });
-            parent.Add(permField);
-
-            var timeoutField = new IntegerField("Startup Timeout (s)") { value = config.StartupTimeoutSec };
-            timeoutField.AddToClassList("chat-form-field");
-            timeoutField.RegisterValueChangedCallback(e =>
-            {
-                int value = Mathf.Clamp(e.newValue, 1, 120);
-                timeoutField.SetValueWithoutNotify(value);
-                config.StartupTimeoutSec = value;
-                onSave();
-            });
-            parent.Add(timeoutField);
-
-            var extraField = new TextField("Extra Args") { value = config.ExtraArgs };
-            extraField.AddToClassList("chat-form-field");
-            extraField.RegisterValueChangedCallback(e => { config.ExtraArgs = e.newValue; onSave(); });
-            parent.Add(extraField);
         }
     }
 }
