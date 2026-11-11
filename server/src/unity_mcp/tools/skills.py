@@ -7,7 +7,15 @@ import time
 from pathlib import Path
 
 from ._common import _guard_read_only, bind
-from .generated.catalog_tools import tools
+from .generated.catalog_tools import (  # noqa: F401
+    apply_template,
+    list_skills,
+    list_templates,
+    save_skill,
+    save_template,
+    tools,
+    use_skill,
+)
 
 _send = None
 _args = None
@@ -65,7 +73,7 @@ def _detect_kind(code: str) -> str:
     return "csharp" if any(kw in code for kw in ("var ", "new ", "GameObject", "//", ";", "using ")) else "batch"
 
 
-async def save_skill(name: str, description: str, code: str) -> str:
+async def _save_skill_body(name: str, description: str, code: str) -> str:
     """Save a learned skill (C# code or batch commands) for reuse across sessions.
     name: skill identifier. description: what it does. code: C# or batch commands."""
     _guard_read_only("save_skill")
@@ -78,12 +86,12 @@ async def save_skill(name: str, description: str, code: str) -> str:
     return f"Skill saved: {name} — {description}"
 
 
-async def use_skill(name: str, params: str | None = None) -> str:
+async def _use_skill_body(name: str, params: str | None = None) -> str:
     """Execute a previously saved skill. params: comma-separated key=value for substitution."""
     name = _safe_name(name)
     path = os.path.join(_skills_dir(), f"{name}.json")
     if not os.path.exists(path):
-        return await list_skills()
+        return await list_skills()  # module-level name, now the generated wrapper re-exported above
     skill = await asyncio.to_thread(_read_json, path)
     code = skill["code"]
     if params:
@@ -100,7 +108,7 @@ async def use_skill(name: str, params: str | None = None) -> str:
     return await _send("batch", {"commands": code})
 
 
-async def list_skills() -> str:
+async def _list_skills_body() -> str:
     """List all saved skills with descriptions and usage counts."""
     if not os.path.exists(_skills_dir()):
         return "No skills saved yet. Use save_skill to create one."
@@ -113,7 +121,7 @@ async def list_skills() -> str:
     return "\n".join(skills) if skills else "No skills saved yet. Use save_skill to create one."
 
 
-async def apply_template(name: str, params: str | None = None) -> str:
+async def _apply_template_body(name: str, params: str | None = None) -> str:
     """Apply a scene template (.cs file from .claude/templates/).
     params: comma-separated key=value pairs for ${key} replacement.
     Example: apply_template('level_setup', 'player_pos=(0,0,0),count=3')"""
@@ -136,7 +144,7 @@ async def apply_template(name: str, params: str | None = None) -> str:
     return await _send("execute_code", {"code": code, "undo_label": f"template:{name}"})
 
 
-async def save_template(name: str, code: str) -> str:
+async def _save_template_body(name: str, code: str) -> str:
     """Save C# code as a reusable scene template in .claude/templates/."""
     _guard_read_only("save_template")
     name = _safe_name(name)
@@ -146,7 +154,7 @@ async def save_template(name: str, code: str) -> str:
     return f"Template saved: {path}"
 
 
-async def list_templates() -> str:
+async def _list_templates_body() -> str:
     """List available scene templates in .claude/templates/."""
     template_dir = os.path.join(os.getcwd(), ".claude", "templates")
     if not os.path.exists(template_dir):
@@ -157,9 +165,3 @@ async def list_templates() -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, save_skill)
-    tools.register(mcp, use_skill)
-    tools.register(mcp, list_skills)
-    tools.register(mcp, apply_template)
-    tools.register(mcp, save_template)
-    tools.register(mcp, list_templates)

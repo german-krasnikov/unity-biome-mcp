@@ -14,8 +14,14 @@ from ._common import _guard_read_only, bind
 from .generated.catalog_tools import (  # noqa: F401
     fingerprint,
     get_changes,
+    get_hierarchy,
+    load_session,
+    save_session,
+    scene,
     scene_diff,
     scene_environment,
+    screenshot_baseline,
+    screenshot_compare,
     search_scene,
     tools,
 )
@@ -134,10 +140,10 @@ def compress_hierarchy(text: str) -> str:
     return '\n'.join(result)
 
 
-async def get_hierarchy(depth: int = 2, root: str | None = None, filter: str | None = None,
+async def _get_hierarchy_body(depth: int = 2, root: str | None = None, filter: str | None = None,
                         components: bool = False, compress: bool = False,
                         summary: bool = False, incremental: bool = False, full: bool = False,
-                        scene: str | None = None) -> str:
+                        scene: str | None = None) -> str:  # noqa: F811 -- param name must match the catalog ARG the generated wrapper calls by keyword
     """Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only)."""
     no_distill = {"_no_distill": True} if full else {}
     if summary:
@@ -154,7 +160,7 @@ async def get_hierarchy(depth: int = 2, root: str | None = None, filter: str | N
     return result
 
 
-async def scene(action: str, path: str | None = None, scene: str | None = None,
+async def _scene_body(action: str, path: str | None = None, scene: str | None = None,  # noqa: F811 -- param name must match the catalog ARG the generated wrapper calls by keyword
                 include_unsaved: bool = True) -> str:
     """Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy.
     path: required for open/open_additive/close/set_active/save_copy. For save,
@@ -178,7 +184,7 @@ def _safe_baseline_name(name: str) -> str:
     return name
 
 
-async def save_session() -> str:
+async def _save_session_body() -> str:
     """Save current scene state to .claude/session-context.json for cold-start recovery."""
     _guard_read_only("save_session")
     hierarchy = await _send("get_hierarchy", {"summary": "true"})
@@ -192,7 +198,7 @@ async def save_session() -> str:
     return f"Session saved to {path}"
 
 
-async def load_session() -> str:
+async def _load_session_body() -> str:
     """Load previous session context beside the current hierarchy."""
     path = _session_context_path()
     async with _path_lock(path):
@@ -209,7 +215,7 @@ async def load_session() -> str:
     return f"Previous ({label}):\n{hier.strip()}\n\nCurrent:\n{current}"
 
 
-async def screenshot_baseline(name: str = "default", width: int = 640, height: int = 480,
+async def _screenshot_baseline_body(name: str = "default", width: int = 640, height: int = 480,
                                camera: str | None = None) -> str:
     """Save screenshot as baseline for visual regression. name: file-safe identifier."""
     name = _safe_baseline_name(name)
@@ -224,7 +230,7 @@ async def screenshot_baseline(name: str = "default", width: int = 640, height: i
     return f"Baseline saved: {baseline_path}"
 
 
-async def screenshot_compare(name: str = "default", width: int = 640, height: int = 480,
+async def _screenshot_compare_body(name: str = "default", width: int = 640, height: int = 480,
                               camera: str | None = None, mode: str = "auto",
                               question: str | None = None) -> str:
     """Compare current screenshot with saved baseline.
@@ -245,9 +251,3 @@ async def screenshot_compare(name: str = "default", width: int = 640, height: in
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, get_hierarchy)
-    tools.register(mcp, scene)
-    tools.register(mcp, save_session)
-    tools.register(mcp, load_session)
-    tools.register(mcp, screenshot_baseline)
-    tools.register(mcp, screenshot_compare)

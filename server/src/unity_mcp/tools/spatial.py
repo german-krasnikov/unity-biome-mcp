@@ -7,7 +7,10 @@ from .generated.catalog_tools import (  # noqa: F401
     autofit_collider,
     check_colliders,
     get_spatial_context,
+    navmesh_query,
+    region_clear,
     scan_scene,
+    spatial_query,
     tools,
     validate_triggers,
 )
@@ -38,7 +41,7 @@ def _validate_polygon(vertices: str | None) -> None:
             raise ToolError(f"vertex {i}: coordinates out of range (max 100000)")
 
 
-async def spatial_query(action: str, path: str | None = None, target: str | None = None,
+async def _spatial_query_body(action: str, path: str | None = None, target: str | None = None,
                         distance: float | None = None, radius: float | None = None,
                         component: str | None = None, cell_size: float | None = None,
                         layer_mask: str | None = None,
@@ -75,7 +78,7 @@ async def spatial_query(action: str, path: str | None = None, target: str | None
         cap=str(cap) if cap is not None else None))
 
 
-async def region_clear(vertices: str, dry_run: bool = True,
+async def _region_clear_body(vertices: str, dry_run: bool = True,
                        filter: str | None = None, cap: int = 50) -> str:
     """Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required.
 
@@ -92,7 +95,7 @@ async def region_clear(vertices: str, dry_run: bool = True,
         cap=str(cap)))
 
 
-async def navmesh_query(action: str, center: str | None = None,
+async def _navmesh_query_body(action: str, center: str | None = None,
                         from_pos: str | None = None, to: str | None = None,
                         max_distance: float = 5.0, area_mask: int = -1,
                         agentRadius: float | None = None,
@@ -125,6 +128,3 @@ async def navmesh_query(action: str, center: str | None = None,
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, spatial_query)
-    tools.register(mcp, region_clear)
-    tools.register(mcp, navmesh_query)

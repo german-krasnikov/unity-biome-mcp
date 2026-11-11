@@ -240,21 +240,29 @@ def test_install_ignores_var_positional_and_var_keyword_in_body(monkeypatch):
     assert [name for name, _ in mcp.registered] == ["x"]
 
 
-def test_the_hand_written_use_skill_is_checked_against_the_catalog_when_its_module_registers_it():
-    """skills.register() registers use_skill through the ToolSet, so a drift of its signature or description stops it; install() registers
-    the generated wrappers and nothing else."""
+def test_the_hand_written_sync_unity_is_checked_against_the_catalog_when_its_module_registers_it():
+    """sync_module.SyncModule.register() registers sync_unity (a bound method) through the ToolSet, so a
+    drift of its signature or description stops it; install() registers the generated wrappers and nothing
+    else. sync_unity (like watch/get_watches) is a deliberate BODY escape hatch -- SV8's design doc §Risks
+    notes it stays hand-registered because its instance-scoped multi-tenancy (two independently-configured
+    hosts never cross-contaminate each other's Unity connection) needs the real bound-method object
+    registered with MCP, not a generated module-level wrapper."""
     import unity_mcp.server  # noqa: F401  (register_all lets every module register its tools)
 
     mcp = _Mcp()
     catalog_tools.tools.install(mcp)
     assert sorted(name for name, _ in mcp.registered) == sorted(catalog_tools.tools._provided)
-    summary = "Execute a previously saved skill. params: comma-separated key=value for substitution."
+    summary = "Refresh Unity and await its matching compile cycle within one timeout."
     for signature, doc, message in [
-        ("name: str, args: ostr = None", summary, "args"),   # a parameter renamed
-        ("name: str, params: ostr = ''", summary, "''"),     # a default changed
-        ("name: str, params: ostr = None", "Run it.", "description of use_skill"),   # the description changed
+        ("resolve: bool = False, bump: bool = False, wait: float = 120.0", summary, "wait"),   # a parameter renamed
+        ("resolve: bool = False, bump: bool = False, timeout: float = 99.0", summary, "99.0"),     # a default changed
+        ("resolve: bool = False, bump: bool = False, timeout: float = 120.0", "Run it.", "description of sync_unity"),   # the description changed
     ]:
-        namespace = {"ostr": ostr, "__name__": "unity_mcp.tools.skills"}  # the module and name of the real use_skill
-        exec(f'async def use_skill({signature}) -> str:\n    """{doc}"""', namespace)
+        # the real sync_unity is a bound method (SyncModule.sync_unity, not a bare module-level
+        # function) -- register()'s two-owners check compares __module__/__qualname__ against what
+        # is already registered, so the stand-in needs the same class-qualified origin.
+        namespace = {"__name__": "unity_mcp.tools.sync_module"}
+        exec(f'class SyncModule:\n    async def sync_unity(self, {signature}) -> str:\n        """{doc}"""', namespace)
+        bound = namespace["SyncModule"]().sync_unity
         with pytest.raises(TypeError, match=message):
-            catalog_tools.tools.register(_Mcp(), namespace["use_skill"])
+            catalog_tools.tools.register(_Mcp(), bound)

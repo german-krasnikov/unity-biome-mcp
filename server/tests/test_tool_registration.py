@@ -42,8 +42,9 @@ def test_objects_register_wires_tools():
 
     mod.register(mcp, send, MagicMock())
 
-    # get_component, inspect, set_property, delete_object and get_object_detail (the other 13 tools of the module are the catalog's)
-    assert mcp.tool.call_count >= 5
+    # get_component/inspect/set_property/delete_object/get_object_detail moved to BODY (SV8):
+    # register() only binds _send/_args now; the catalog's install() registers their wrappers.
+    assert mcp.tool.call_count == 0
 
 
 # ── Part 2: scene.py (B2: slimmed — get_hierarchy/scene/search_scene/fingerprint/
@@ -69,10 +70,10 @@ def test_scene_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # get_hierarchy, scene (2; fingerprint, scene_diff, scene_environment, get_changes and search_scene are
-    # registered by the tool catalog) + scene.py delegation: save_session, load_session,
-    # screenshot_baseline, screenshot_compare (4) = 6
-    assert mcp.tool.call_count >= 6
+    # get_hierarchy/scene/save_session/load_session/screenshot_baseline/screenshot_compare
+    # moved to BODY (SV8): register() only binds _send/_args now; the catalog's install()
+    # registers their wrappers.
+    assert mcp.tool.call_count == 0
 
 
 # ── Part 3: runtime.py ────────────────────────────────────────────────────────
@@ -259,15 +260,13 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
         mod.register(mcp, AsyncMock(), MagicMock())
         return mcp.tool.call_count
 
-    scene_total = _own_count(scene_mod)  # includes scene.py's 4 delegated tools
-    scene_own = scene_total - 4
-    total = (scene_own + _own_count(console_mod) + _own_count(screenshot_mod)
+    # SV8 moved every tool of scene.py/console.py/screenshot.py/editor_control.py to BODY:
+    # register() only binds _send/_args for all four now; the catalog's install() registers
+    # their wrappers. Only testing.py's tools (7: see test_testing_register_wires_tools) remain
+    # hand-registered through this module list's own register() calls.
+    total = (_own_count(scene_mod) + _own_count(console_mod) + _own_count(screenshot_mod)
              + _own_count(testing_mod) + _own_count(ec_mod))
-    # 27 before the tool catalog took 5 tools from scene.py, 2 from testing.py and 4 from editor_control.py;
-    # SV4 took get_console/recompile from console.py and ping_object from editor_control.py: 17 -> 14.
-    # SV8 moved console's/screenshot's/editor_control's remaining hand tools to BODY: 14 -> 9
-    # (console_mod and screenshot_mod and ec_mod now contribute 0; scene_mod/testing_mod unchanged).
-    assert total == 9
+    assert total == 7
 
 
 # ── PR-02 Track A: register_all() threads stdio_alive through to connection ────

@@ -362,7 +362,6 @@ wire get_console calls=50 digest=7047393faee7bca6
 wire get_enabled_tools calls=1 digest=2b94a056458a223e
 wire get_frame_stats calls=2 digest=d1bd76ee36c7cf8d
 wire get_memory calls=3 digest=b33ec5d91be7fa20
-wire get_object_detail calls=6 digest=1b06b20ce5133a6e
 wire get_schema calls=2 digest=1466d5b0be8dd402
 wire get_selection calls=1 digest=66e28edf5676325d
 wire get_spatial_context calls=6 digest=a1b98c5b41739068
@@ -378,7 +377,6 @@ wire material calls=62 digest=d743caae779d3870
 wire material_audit calls=9 digest=46609aebf90f0bf7
 wire menu calls=6 digest=8d595b0697bbf1d4
 wire move_to calls=12 digest=812e32d9b0186827
-wire navmesh_query calls=60 digest=acc7240505c3c9ba
 wire object_diff calls=4 digest=038ed076c197fcdb
 wire package calls=33 digest=df36cefa33b4dbe0
 wire particle calls=51 digest=b16762246e11e36e
@@ -394,7 +392,6 @@ wire resolve_scene_refs calls=6 digest=3ba87f53813fc9e5
 wire resolve_test_request calls=2 digest=721b7ef8fa0ca21b
 wire runtime_snapshot calls=26 digest=cfcf7d3434358678
 wire scan_scene calls=1 digest=a737fa6df4491083
-wire scene calls=28 digest=ec914024817cf3f9
 wire scene_diff calls=1 digest=d1930ff6f4b94759
 wire scene_environment calls=23 digest=982e1d5a6feacc89
 wire scene_health calls=3 digest=7547d7d318d6d9e4

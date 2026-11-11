@@ -114,6 +114,9 @@ PYTOOL apply_scene_change SCENE RW "Execute scene mutations with atomic apply, p
 END
 
 PYTOOL apply_template SYSTEM RW "Apply a scene template (.cs file from .claude/templates/)."
+  BODY skills
+  DOC "params: comma-separated key=value pairs for ${key} replacement."
+  DOC "Example: apply_template('level_setup', 'player_pos=(0,0,0),count=3')"
   ARG name str "Saved scene-template identifier from .claude/templates (without .cs)"
   ARG params ostr DEFAULT None
   TAG reflect_silent
@@ -403,6 +406,7 @@ TOOL debug_physics RUNTIME RO "[Play Mode] Read Rigidbody state, colliders, cont
 END
 
 TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."
+  BODY objects
   FLAG tier1
   VERB "Deleting"
   ARG id oint DEFAULT None "Instance ID of the GameObject to delete (from get_hierarchy)"
@@ -555,6 +559,10 @@ TOOL get_compile_errors CORE RO "Compilation errors with file:line:column. Not l
 END
 
 TOOL get_component CORE RO "Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N."
+  BODY objects
+  DOC "fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name."
+  DOC "full=True: bypass distillation, return raw response. compress=True: strip default values before transfer."
+  DOC "component: alias for type= (backward-compat with set_property naming). type= wins when both provided."
   FLAG core
   VERB "Reading component"
   ARG path str EXAMPLE "/__seam_nonexistent" "Scene path to the GameObject (e.g. /Player or /World/Enemy)"
@@ -621,6 +629,7 @@ TOOL get_frame_stats RUNTIME RO "Current frame performance snapshot (fps, cpu, g
 END
 
 TOOL get_hierarchy CORE RO "Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only)."
+  BODY scene
   FLAG core
   TIMEOUT 15.0
   MAXCHARS 50000
@@ -653,6 +662,7 @@ PYTOOL get_metrics RUNTIME RW "Returns telemetry snapshot. Clears counters when 
 END
 
 TOOL get_object_detail SCENE RO "Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation."
+  BODY objects
   ARG id int EXAMPLE "999999999"
   ARG full bool DEFAULT False LOCAL
   TAG async_full
@@ -734,6 +744,9 @@ INTERNAL import_package RW "Protocol name of the asset action import_package; on
 END
 
 TOOL inspect CORE RO "Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all)."
+  BODY objects
+  DOC "find_type: component type to find — populates paths automatically (replaces explicit paths)."
+  DOC "fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation. compress=True: strip default values before transfer."
   FLAG core
   VERB "Reading"
   ARG paths ostr DEFAULT None EXAMPLE "/Main Camera" "Comma-separated scene paths (e.g. '/Player,/Enemy,/Camera')"
@@ -827,9 +840,11 @@ INTERNAL list_playtest_files RO "Lists the files that match a glob pattern (defa
 END
 
 PYTOOL list_skills SYSTEM RO "List all saved skills with descriptions and usage counts."
+  BODY skills
 END
 
 PYTOOL list_templates SYSTEM RO "List available scene templates in .claude/templates/."
+  BODY skills
 END
 
 TOOL list_test_runs TESTS RO "List recent durable test runs as JSON, newest first."
@@ -839,6 +854,7 @@ TOOL list_test_runs TESTS RO "List recent durable test runs as JSON, newest firs
 END
 
 PYTOOL load_session SYSTEM RO "Load previous session context beside the current hierarchy."
+  BODY scene
 END
 
 TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
@@ -909,6 +925,15 @@ TOOL move_to RUNTIME RW "[Play Mode] Move character to position and wait for arr
 END
 
 PYTOOL navmesh_query SCENE RW "NavMesh queries and management. Bakes or clears NavMesh data for bake/clear actions. No confirmation required. action: sample|path|raycast|bake|status|clear|get_settings|set_settings."
+  BODY spatial
+  DOC "sample: find nearest walkable point to center."
+  DOC "path: calculate path from from_pos to to."
+  DOC "raycast: NavMesh raycast from from_pos toward to."
+  DOC "bake: build NavMesh (NavMeshSurface components or legacy NavMeshBuilder)."
+  DOC "status: triangulation stats (triangles, vertices, areas)."
+  DOC "clear: remove all baked NavMesh data."
+  DOC "get_settings: list all NavMesh agent type settings."
+  DOC "set_settings: update NavMeshSurface agent params (agentRadius/agentHeight/agentClimb/agentSlope)."
   ARG action str
   ARG center ostr DEFAULT None
   ARG from_pos ostr DEFAULT None
@@ -1093,6 +1118,11 @@ TOOL references COMPONENTS RW "References. action: get|find_to|remap. get: outgo
 END
 
 TOOL region_clear SCENE RW "Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required."
+  BODY spatial
+  DOC "vertices: CSV polygon 'x1,z1;x2,z2;...' (>=3 pairs)."
+  DOC "dry_run: True = list objects that WOULD be deleted (safe default). False = delete them."
+  DOC "filter: optional name-pattern substring; only matching objects are affected."
+  DOC "cap: max objects processed (default 50, hard max 200)."
   ARG vertices str EXAMPLE "0,0 1,0 1,1 0,1"
   ARG dry_run bool DEFAULT True
   ARG filter ostr DEFAULT None
@@ -1240,10 +1270,13 @@ TOOL runtime_snapshot RUNTIME RO "Snapshot all runtime objects of a given compon
 END
 
 PYTOOL save_session SYSTEM RW "Save current scene state to .claude/session-context.json for cold-start recovery."
+  BODY scene
   TAG reflect_silent
 END
 
 PYTOOL save_skill SYSTEM RW "Save a learned skill (C# code or batch commands) for reuse across sessions."
+  BODY skills
+  DOC "name: skill identifier. description: what it does. code: C# or batch commands."
   ARG name str "File-safe identifier for the learned skill"
   ARG description str
   ARG code str "C# code or batch commands to save as a reusable skill"
@@ -1251,6 +1284,7 @@ PYTOOL save_skill SYSTEM RW "Save a learned skill (C# code or batch commands) fo
 END
 
 PYTOOL save_template SYSTEM RW_IDEM "Save C# code as a reusable scene template in .claude/templates/."
+  BODY skills
   ARG name str "File-safe identifier for the reusable scene template"
   ARG code str "C# code or batch commands to save as a scene template"
   TAG reflect_silent
@@ -1261,6 +1295,12 @@ TOOL scan_scene VERIFY RO "Scene infrastructure scan: colliders, triggers, audio
 END
 
 TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy."
+  BODY scene
+  DOC "path: required for open/open_additive/close/set_active/save_copy. For save,"
+  DOC "omit it to save to the current path; an untitled scene requires a path."
+  DOC "scene: save/discard/save_copy target when multiple scenes loaded (identifies by name)."
+  DOC "save_copy: writes current dirty state to path as backup; active scene reference unchanged."
+  DOC "include_unsaved: always True — save_copy always captures current in-memory state."
   GUARD play_ok
   WIRE no_undo
   FLAG tier1
@@ -1342,6 +1382,7 @@ TOOL screenshot MEDIA RW "Capture screenshot (file path); describe= -> Haiku tex
 END
 
 PYTOOL screenshot_baseline MEDIA RW "Save screenshot as baseline for visual regression. name: file-safe identifier."
+  BODY scene
   ARG name str DEFAULT_TEXT "default" "File-safe baseline identifier (not a GameObject name; no '/', '\\', or '..')"
   ARG width int DEFAULT 640
   ARG height int DEFAULT 480
@@ -1350,6 +1391,10 @@ PYTOOL screenshot_baseline MEDIA RW "Save screenshot as baseline for visual regr
 END
 
 PYTOOL screenshot_compare MEDIA RW "Compare current screenshot with saved baseline."
+  BODY scene
+  DOC "mode: auto (pixel->escalate), pixel (local), structural (general),"
+  DOC "      targeted (needs question=), ui_layout|animation|color|position|regression."
+  DOC "Model-assisted modes require configured sampling. Cached by image hashes."
   ARG name str DEFAULT_TEXT "default" "File-safe saved-baseline identifier (not a GameObject name; no '/', '\\', or '..')"
   ARG width int DEFAULT 640
   ARG height int DEFAULT 480
@@ -1447,6 +1492,11 @@ PYTOOL set_properties SCENE RW "Set multiple properties on ONE object. For multi
 END
 
 TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`)."
+  BODY objects
+  DOC "find_type: component type — bulk-sets prop on all matching objects without specifying paths."
+  DOC "For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'. dry_run=True shows what would change without applying."
+  DOC "ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'."
+  DOC "effects: mutates scene via SerializedObject, creates an undo entry. Verify with get_component after."
   FLAG core
   VERB "Editing"
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent" "Scene path to the GameObject (e.g. /Player/Body)"
@@ -1559,6 +1609,16 @@ INTERNAL source_patch_write RW "Writes a source patch; the internal sender of as
 END
 
 TOOL spatial_query SCENE RO "Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon."
+  BODY spatial
+  DOC "nearest: find closest object (optionally filtered by component name)."
+  DOC "in_front_of: position in front of object at distance."
+  DOC "objects_in_radius: list all objects within radius. path is optional when center='x,y,z' is given."
+  DOC "bounds_info: detailed bounds/dimensions of object."
+  DOC "raycast: cast ray from path/pos to target, returns hits sorted by distance."
+  DOC "spatial_map: ASCII grid map of objects in XZ plane. cell_size in meters."
+  DOC "objects_in_polygon: objects whose XZ pivot is inside a polygon. Provide either"
+  DOC "vertices='x1,z1;x2,z2;...' (>=3 pairs) or a previously defined region_id;"
+  DOC "supplied vertices are always validated. cap=max results (default 50)."
   ARG action str
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG target ostr DEFAULT None
@@ -1758,6 +1818,7 @@ TOOL unwire_event COMPONENTS DEL "Remove persistent listener(s) from UnityEvent.
 END
 
 PYTOOL use_skill SYSTEM RW "Execute a previously saved skill. params: comma-separated key=value for substitution."
+  BODY skills
   ARG name str "Saved learned-skill identifier from list_skills"
   ARG params ostr DEFAULT None
   TAG reflect_silent

@@ -8,9 +8,13 @@ from ._common import bind
 # `tools` registers the others.
 from .generated.catalog_tools import (  # noqa: F401
     create_object,
+    delete_object,
     find_objects,
+    get_component,
     get_components_list,
+    get_object_detail,
     get_unity_events,
+    inspect,
     list_events,
     manage_component,
     object_diff,
@@ -18,6 +22,7 @@ from .generated.catalog_tools import (  # noqa: F401
     set_active,
     set_material,
     set_parent,
+    set_property,
     set_property_delta,
     set_sibling_index,
     tools,
@@ -30,7 +35,7 @@ _send = None
 _args = None
 
 
-async def get_component(path: str, type: str = "", fields: str | None = None, full: bool = False, compress: bool = False,
+async def _get_component_body(path: str, type: str = "", fields: str | None = None, full: bool = False, compress: bool = False,
                         component: str | None = None) -> str:
     """Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N.
     fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name.
@@ -54,7 +59,7 @@ async def get_component(path: str, type: str = "", fields: str | None = None, fu
     return await _send("get_component", args)
 
 
-async def inspect(paths: str | None = None, components: str | None = None, fields: str | None = None, full: bool = False, compress: bool = False, find_type: str | None = None) -> str:
+async def _inspect_body(paths: str | None = None, components: str | None = None, fields: str | None = None, full: bool = False, compress: bool = False, find_type: str | None = None) -> str:
     """Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all).
     find_type: component type to find — populates paths automatically (replaces explicit paths).
     fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation. compress=True: strip default values before transfer."""
@@ -70,7 +75,7 @@ async def inspect(paths: str | None = None, components: str | None = None, field
     return await _send("inspect", _args(paths=paths, find_type=find_type, components=components, **extra))
 
 
-async def set_property(path: str | None = None, component: str = "", prop: str = "", value=None,
+async def _set_property_body(path: str | None = None, component: str = "", prop: str = "", value=None,
                        dry_run: bool = False, find_type: str | None = None,
                        ref_component_type: str | None = None) -> str:
     """Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`).
@@ -89,7 +94,7 @@ async def set_property(path: str | None = None, component: str = "", prop: str =
     return await _send("set_property", args)
 
 
-async def delete_object(id: int | None = None, path: str | None = None, force: bool = False) -> str:
+async def _delete_object_body(id: int | None = None, path: str | None = None, force: bool = False) -> str:
     """Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."""
     if id is None and not path:
         raise ValueError("delete_object: id or path required")
@@ -100,7 +105,7 @@ async def delete_object(id: int | None = None, path: str | None = None, force: b
     return await _send("delete_object", args)
 
 
-async def get_object_detail(id: int, full: bool = False) -> str:
+async def _get_object_detail_body(id: int, full: bool = False) -> str:
     """Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation."""
     args: dict = {"id": id}
     if full:
@@ -110,8 +115,3 @@ async def get_object_detail(id: int, full: bool = False) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, get_component)
-    tools.register(mcp, inspect)
-    tools.register(mcp, set_property)
-    tools.register(mcp, delete_object)
-    tools.register(mcp, get_object_detail)

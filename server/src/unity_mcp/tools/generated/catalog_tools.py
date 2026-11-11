@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=0d23eafda5b0019f0d91aa9ca0f289b3e72abeb1f547e4898b07f6e1dedf22f2
+# source-sha256=96cc9776615f88bb33183de59251840ee54cdb32d1c0970602d4ba9c1afd6878
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -181,8 +181,8 @@ async def animator(
      "\n    blending: Override|Additive for add_layer/set_layer_blending."
      "\n    value: speed multiplier for set_state_speed. avatar_path: asset path for set_avatar."
     )
-    from .. import animation
-    return await animation._animator_body(
+    from .. import animation as _biome_body_mod
+    return await _biome_body_mod._animator_body(
         action=action,
         path=path,
         state=state,
@@ -226,8 +226,8 @@ async def animator_intent(
     ("Convert NL intent to Unity Animator Controller setup via DSL."
      "\n    dry_run=True returns the batch plan without executing it."
     )
-    from .. import animator_intent_tool
-    return await animator_intent_tool._animator_intent_body(
+    from .. import animator_intent_tool as _biome_body_mod
+    return await _biome_body_mod._animator_intent_body(
         target=target,
         intent=intent,
         dry_run=dry_run,
@@ -244,6 +244,25 @@ tools.expect('apply_template', 'RW', "Apply a scene template (.cs file from .cla
     ('name', str),
     ('params', ostr, None),
 ))
+tools.expect_body('apply_template', 'skills')
+
+
+@tools.provide
+async def apply_template(
+    name: str,
+    params: ostr = None,
+) -> str:
+    ("Apply a scene template (.cs file from .claude/templates/)."
+     "\n    params: comma-separated key=value pairs for ${key} replacement."
+     "\n    Example: apply_template('level_setup', 'player_pos=(0,0,0),count=3')"
+    )
+    from .. import skills as _biome_body_mod
+    return await _biome_body_mod._apply_template_body(
+        name=name,
+        params=params,
+    )
+
+
 tools.expect('ask', 'RO', "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).", (
     ('question', str),
 ))
@@ -258,8 +277,8 @@ async def ask(
      "\n    Routes to deterministic tool plans for common patterns,"
      "\n    uses Haiku summarization for complex multi-tool results."
     )
-    from .. import ask_tool
-    return await ask_tool._ask_body(
+    from .. import ask_tool as _biome_body_mod
+    return await _biome_body_mod._ask_body(
         question=question,
     )
 
@@ -326,8 +345,8 @@ async def asset(
 ) -> str:
     ("Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."
     )
-    from .. import asset
-    return await asset._asset_body(
+    from .. import asset as _biome_body_mod
+    return await _biome_body_mod._asset_body(
         action=action,
         path=path,
         type=type,
@@ -469,8 +488,8 @@ async def batch(
 ) -> str:
     ("Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls."
     )
-    from .. import batch
-    return await batch._batch_body(
+    from .. import batch as _biome_body_mod
+    return await _biome_body_mod._batch_body(
         commands=commands,
         on_error=on_error,
         timeout=timeout,
@@ -496,8 +515,8 @@ async def brief_build(
      "\n    kinds: comma-separated subset of: console, compile_errors, hierarchy, selection, profiler"
      "\n    budget: max token estimate (default 2000; 1 token ≈ 4 chars)"
     )
-    from .. import brief_tool
-    return await brief_tool._brief_build_body(
+    from .. import brief_tool as _biome_body_mod
+    return await _biome_body_mod._brief_build_body(
         kinds=kinds,
         budget=budget,
     )
@@ -513,8 +532,8 @@ async def budget_status(
 ) -> str:
     ("Returns Haiku cost: session/cap/day/skipped features. Text format."
     )
-    from .. import budget_tool
-    return await budget_tool._budget_status_body(
+    from .. import budget_tool as _biome_body_mod
+    return await _biome_body_mod._budget_status_body(
     )
 
 
@@ -626,8 +645,8 @@ async def console_mark(
      "\n    Pass to get_console_since() to retrieve only logs after this point."
      "\n    Pure Python — no TCP call."
     )
-    from .. import console
-    return await console._console_mark_body(
+    from .. import console as _biome_body_mod
+    return await _biome_body_mod._console_mark_body(
         label=label,
     )
 
@@ -735,8 +754,8 @@ async def debug(
      "\n    gather: Override comma-separated batch-safe tool names (\"inspect,get_console\")"
      "\n    Returns structured diagnostic text for LLM analysis."
     )
-    from .. import debug_tool
-    return await debug_tool._debug_body(
+    from .. import debug_tool as _biome_body_mod
+    return await _biome_body_mod._debug_body(
         symptom=symptom,
         path=path,
         gather=gather,
@@ -786,6 +805,25 @@ tools.expect('delete_object', 'DEL', "Delete GameObject by instance ID or scene 
     ('path', ostr, None),
     ('force', bool, False),
 ))
+tools.expect_body('delete_object', 'objects')
+
+
+@tools.provide
+async def delete_object(
+    id: oint = None,
+    path: ostr = None,
+    force: bool = False,
+) -> str:
+    ("Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."
+    )
+    from .. import objects as _biome_body_mod
+    return await _biome_body_mod._delete_object_body(
+        id=id,
+        path=path,
+        force=force,
+    )
+
+
 tools.expect('diagnose', 'RO', "Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`.", (
     ('prev_mvid', str, ""),
     ('expected_compile', bool, True),
@@ -808,8 +846,8 @@ async def diagnose(
      "\n             BUILD-FAILED-WEDGE / STALE-CACHE / TESTS-INVISIBLE / REBUILDING /"
      "\n             NO-OP / UNKNOWN"
     )
-    from .. import diagnose
-    return await diagnose._diagnose_body(
+    from .. import diagnose as _biome_body_mod
+    return await _biome_body_mod._diagnose_body(
         prev_mvid=prev_mvid,
         expected_compile=expected_compile,
     )
@@ -839,8 +877,8 @@ async def do(
      "\n    Haiku generates a batch DSL plan, which is validated then executed."
      "\n    dry_run=True returns the plan without executing it."
     )
-    from .. import do_tool
-    return await do_tool._do_body(
+    from .. import do_tool as _biome_body_mod
+    return await _biome_body_mod._do_body(
         intent=intent,
         dry_run=dry_run,
     )
@@ -869,8 +907,8 @@ async def editor(
      "\n    select: path (single) or paths (comma-sep multi, e.g. \"/Player,/Enemy,/NPC\")."
      "\n    mutation_mode: omit enable to query current intent; enable=True/False to set it."
     )
-    from .. import editor_control
-    return await editor_control._editor_body(
+    from .. import editor_control as _biome_body_mod
+    return await _biome_body_mod._editor_body(
         action=action,
         path=path,
         paths=paths,
@@ -1006,8 +1044,8 @@ async def get_changeset(
     ("Return the current ChangeSet: accumulated mutations this session."
      "\n    Use after any mutation sequence to review what changed."
     )
-    from .. import changeset_tool
-    return await changeset_tool._get_changeset_body(
+    from .. import changeset_tool as _biome_body_mod
+    return await _biome_body_mod._get_changeset_body(
     )
 
 
@@ -1021,8 +1059,8 @@ async def get_compile_errors(
 ) -> str:
     ("Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed."
     )
-    from .. import console
-    return await console._get_compile_errors_body(
+    from .. import console as _biome_body_mod
+    return await _biome_body_mod._get_compile_errors_body(
     )
 
 
@@ -1034,6 +1072,34 @@ tools.expect('get_component', 'RO', "Component properties as key-value. For MULT
     ('compress', bool, False),
     ('component', ostr, None),
 ))
+tools.expect_body('get_component', 'objects')
+
+
+@tools.provide
+async def get_component(
+    path: str,
+    type: str = "",
+    fields: ostr = None,
+    full: bool = False,
+    compress: bool = False,
+    component: ostr = None,
+) -> str:
+    ("Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N."
+     "\n    fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name."
+     "\n    full=True: bypass distillation, return raw response. compress=True: strip default values before transfer."
+     "\n    component: alias for type= (backward-compat with set_property naming). type= wins when both provided."
+    )
+    from .. import objects as _biome_body_mod
+    return await _biome_body_mod._get_component_body(
+        path=path,
+        type=type,
+        fields=fields,
+        full=full,
+        compress=compress,
+        component=component,
+    )
+
+
 tools.expect('get_components_list', 'RO', "List all components on object by instance ID.", (
     ('id', int),
 ))
@@ -1106,8 +1172,8 @@ async def get_console_since(
      "\n    count_only: return match count as string."
      "\n    count: max entries to return (default 500)."
     )
-    from .. import console
-    return await console._get_console_since_body(
+    from .. import console as _biome_body_mod
+    return await _biome_body_mod._get_console_since_body(
         mark_id=mark_id,
         level=level,
         count=count,
@@ -1157,6 +1223,37 @@ tools.expect('get_hierarchy', 'RO', "Scene hierarchy as text tree. For finding s
     ('full', bool, False),
     ('scene', ostr, None),
 ))
+tools.expect_body('get_hierarchy', 'scene')
+
+
+@tools.provide
+async def get_hierarchy(
+    depth: int = 2,
+    root: ostr = None,
+    filter: ostr = None,
+    components: bool = False,
+    compress: bool = False,
+    summary: bool = False,
+    incremental: bool = False,
+    full: bool = False,
+    scene: ostr = None,
+) -> str:
+    ("Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only)."
+    )
+    from .. import scene as _biome_body_mod
+    return await _biome_body_mod._get_hierarchy_body(
+        depth=depth,
+        root=root,
+        filter=filter,
+        components=components,
+        compress=compress,
+        summary=summary,
+        incremental=incremental,
+        full=full,
+        scene=scene,
+    )
+
+
 tools.expect('get_memory', 'RO', "Memory snapshot.", (
     ('include', str, "all"),
 ))
@@ -1188,8 +1285,8 @@ async def get_metrics(
 ) -> str:
     ("Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json."
     )
-    from .. import metrics_tool
-    return await metrics_tool._get_metrics_body(
+    from .. import metrics_tool as _biome_body_mod
+    return await _biome_body_mod._get_metrics_body(
         format=format,
         reset=reset,
     )
@@ -1199,6 +1296,23 @@ tools.expect('get_object_detail', 'RO', "Get ALL components with ALL values. Hea
     ('id', int),
     ('full', bool, False),
 ))
+tools.expect_body('get_object_detail', 'objects')
+
+
+@tools.provide
+async def get_object_detail(
+    id: int,
+    full: bool = False,
+) -> str:
+    ("Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation."
+    )
+    from .. import objects as _biome_body_mod
+    return await _biome_body_mod._get_object_detail_body(
+        id=id,
+        full=full,
+    )
+
+
 tools.expect('get_schema', 'RO', "Get all serialized fields of a component type with types. Use before set_property to know exact field names.", (
     ('type', str),
 ))
@@ -1297,6 +1411,33 @@ tools.expect('inspect', 'RO', "Get components for multiple objects at once. path
     ('compress', bool, False),
     ('find_type', ostr, None),
 ))
+tools.expect_body('inspect', 'objects')
+
+
+@tools.provide
+async def inspect(
+    paths: ostr = None,
+    components: ostr = None,
+    fields: ostr = None,
+    full: bool = False,
+    compress: bool = False,
+    find_type: ostr = None,
+) -> str:
+    ("Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all)."
+     "\n    find_type: component type to find — populates paths automatically (replaces explicit paths)."
+     "\n    fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation. compress=True: strip default values before transfer."
+    )
+    from .. import objects as _biome_body_mod
+    return await _biome_body_mod._inspect_body(
+        paths=paths,
+        components=components,
+        fields=fields,
+        full=full,
+        compress=compress,
+        find_type=find_type,
+    )
+
+
 tools.expect('inspect_uitk', 'RO', "Inspect the VisualElement tree of a UIDocument or PanelRenderer panel", (
     ('path', ostr, None),
     ('depth', oint, None),
@@ -1395,13 +1536,52 @@ async def list_events(
 
 tools.expect('list_skills', 'RO', "List all saved skills with descriptions and usage counts.", (
 ))
+tools.expect_body('list_skills', 'skills')
+
+
+@tools.provide
+async def list_skills(
+) -> str:
+    ("List all saved skills with descriptions and usage counts."
+    )
+    from .. import skills as _biome_body_mod
+    return await _biome_body_mod._list_skills_body(
+    )
+
+
 tools.expect('list_templates', 'RO', "List available scene templates in .claude/templates/.", (
 ))
+tools.expect_body('list_templates', 'skills')
+
+
+@tools.provide
+async def list_templates(
+) -> str:
+    ("List available scene templates in .claude/templates/."
+    )
+    from .. import skills as _biome_body_mod
+    return await _biome_body_mod._list_templates_body(
+    )
+
+
 tools.expect('list_test_runs', 'RO', "List recent durable test runs as JSON, newest first.", (
     ('limit', int, 20),
 ))
 tools.expect('load_session', 'RO', "Load previous session context beside the current hierarchy.", (
 ))
+tools.expect_body('load_session', 'scene')
+
+
+@tools.provide
+async def load_session(
+) -> str:
+    ("Load previous session context beside the current hierarchy."
+    )
+    from .. import scene as _biome_body_mod
+    return await _biome_body_mod._load_session_body(
+    )
+
+
 tools.expect('manage_component', 'RW', "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button').", (
     ('path', str),
     ('type', str),
@@ -1529,6 +1709,47 @@ tools.expect('navmesh_query', 'RW', "NavMesh queries and management. Bakes or cl
     ('agentClimb', ofloat, None),
     ('agentSlope', ofloat, None),
 ))
+tools.expect_body('navmesh_query', 'spatial')
+
+
+@tools.provide
+async def navmesh_query(
+    action: str,
+    center: ostr = None,
+    from_pos: ostr = None,
+    to: ostr = None,
+    max_distance: float = 5.0,
+    area_mask: int = -1,
+    agentRadius: ofloat = None,
+    agentHeight: ofloat = None,
+    agentClimb: ofloat = None,
+    agentSlope: ofloat = None,
+) -> str:
+    ("NavMesh queries and management. Bakes or clears NavMesh data for bake/clear actions. No confirmation required. action: sample|path|raycast|bake|status|clear|get_settings|set_settings."
+     "\n    sample: find nearest walkable point to center."
+     "\n    path: calculate path from from_pos to to."
+     "\n    raycast: NavMesh raycast from from_pos toward to."
+     "\n    bake: build NavMesh (NavMeshSurface components or legacy NavMeshBuilder)."
+     "\n    status: triangulation stats (triangles, vertices, areas)."
+     "\n    clear: remove all baked NavMesh data."
+     "\n    get_settings: list all NavMesh agent type settings."
+     "\n    set_settings: update NavMeshSurface agent params (agentRadius/agentHeight/agentClimb/agentSlope)."
+    )
+    from .. import spatial as _biome_body_mod
+    return await _biome_body_mod._navmesh_query_body(
+        action=action,
+        center=center,
+        from_pos=from_pos,
+        to=to,
+        max_distance=max_distance,
+        area_mask=area_mask,
+        agentRadius=agentRadius,
+        agentHeight=agentHeight,
+        agentClimb=agentClimb,
+        agentSlope=agentSlope,
+    )
+
+
 tools.expect('object_diff', 'RO', "Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'.", (
     ('path_a', str),
     ('path_b', str),
@@ -1629,8 +1850,8 @@ async def permission_prompt(
      "\n    Registered as --permission-prompt-tool so Claude routes all permission"
      "\n    checks here instead of blocking on stdin."
     )
-    from .. import permission_prompt_tool
-    return await permission_prompt_tool._permission_prompt_body(
+    from .. import permission_prompt_tool as _biome_body_mod
+    return await _biome_body_mod._permission_prompt_body(
         tool_name=tool_name,
         input=input,
         tool_use_id=tool_use_id,
@@ -1749,8 +1970,8 @@ async def profile(
      "\n    mode: burst (auto-stop after duration) | manual (explicit stop) | triggered (on spike)"
      "\n    focus: narrow analyze output to gc|rendering|physics|cpu"
     )
-    from .. import profiling
-    return await profiling._profile_body(
+    from .. import profiling as _biome_body_mod
+    return await _biome_body_mod._profile_body(
         action=action,
         duration=duration,
         session=session,
@@ -1856,6 +2077,31 @@ tools.expect('region_clear', 'RW', "Delete (or preview) all objects whose XZ piv
     ('filter', ostr, None),
     ('cap', int, 50),
 ))
+tools.expect_body('region_clear', 'spatial')
+
+
+@tools.provide
+async def region_clear(
+    vertices: str,
+    dry_run: bool = True,
+    filter: ostr = None,
+    cap: int = 50,
+) -> str:
+    ("Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required."
+     "\n    vertices: CSV polygon 'x1,z1;x2,z2;...' (>=3 pairs)."
+     "\n    dry_run: True = list objects that WOULD be deleted (safe default). False = delete them."
+     "\n    filter: optional name-pattern substring; only matching objects are affected."
+     "\n    cap: max objects processed (default 50, hard max 200)."
+    )
+    from .. import spatial as _biome_body_mod
+    return await _biome_body_mod._region_clear_body(
+        vertices=vertices,
+        dry_run=dry_run,
+        filter=filter,
+        cap=cap,
+    )
+
+
 tools.expect('release_smoke', 'RO', "Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summary.", (
 ))
 tools.expect('rename_object', 'RW_IDEM', "Rename a GameObject. Returns new scene path after rename.", (
@@ -2013,15 +2259,65 @@ async def runtime_snapshot(
 
 tools.expect('save_session', 'RW', "Save current scene state to .claude/session-context.json for cold-start recovery.", (
 ))
+tools.expect_body('save_session', 'scene')
+
+
+@tools.provide
+async def save_session(
+) -> str:
+    ("Save current scene state to .claude/session-context.json for cold-start recovery."
+    )
+    from .. import scene as _biome_body_mod
+    return await _biome_body_mod._save_session_body(
+    )
+
+
 tools.expect('save_skill', 'RW', "Save a learned skill (C# code or batch commands) for reuse across sessions.", (
     ('name', str),
     ('description', str),
     ('code', str),
 ))
+tools.expect_body('save_skill', 'skills')
+
+
+@tools.provide
+async def save_skill(
+    name: str,
+    description: str,
+    code: str,
+) -> str:
+    ("Save a learned skill (C# code or batch commands) for reuse across sessions."
+     "\n    name: skill identifier. description: what it does. code: C# or batch commands."
+    )
+    from .. import skills as _biome_body_mod
+    return await _biome_body_mod._save_skill_body(
+        name=name,
+        description=description,
+        code=code,
+    )
+
+
 tools.expect('save_template', 'RW_IDEM', "Save C# code as a reusable scene template in .claude/templates/.", (
     ('name', str),
     ('code', str),
 ))
+tools.expect_body('save_template', 'skills')
+
+
+@tools.provide
+async def save_template(
+    name: str,
+    code: str,
+) -> str:
+    ("Save C# code as a reusable scene template in .claude/templates/."
+    )
+    from .. import skills as _biome_body_mod
+    return await _biome_body_mod._save_template_body(
+        name=name,
+        code=code,
+    )
+
+
 tools.expect('scan_scene', 'RO', "Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats.", (
 ))
 
@@ -2041,6 +2337,32 @@ tools.expect('scene', 'DEL', "Scene management. action: new|open|save|discard|op
     ('scene', ostr, None),
     ('include_unsaved', bool, True),
 ))
+tools.expect_body('scene', 'scene')
+
+
+@tools.provide
+async def scene(
+    action: str,
+    path: ostr = None,
+    scene: ostr = None,
+    include_unsaved: bool = True,
+) -> str:
+    ("Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy."
+     "\n    path: required for open/open_additive/close/set_active/save_copy. For save,"
+     "\n    omit it to save to the current path; an untitled scene requires a path."
+     "\n    scene: save/discard/save_copy target when multiple scenes loaded (identifies by name)."
+     "\n    save_copy: writes current dirty state to path as backup; active scene reference unchanged."
+     "\n    include_unsaved: always True — save_copy always captures current in-memory state."
+    )
+    from .. import scene as _biome_body_mod
+    return await _biome_body_mod._scene_body(
+        action=action,
+        path=path,
+        scene=scene,
+        include_unsaved=include_unsaved,
+    )
+
+
 tools.expect('scene_change_plan', 'RW', "Pre-flight + plan for safe scene edit.", (
     ('goal', str),
     ('targets', str, ""),
@@ -2151,8 +2473,8 @@ async def screenshot(
      "\n    warn:ScreenSpaceOverlay canvas not captured in Edit Mode (bypasses camera pipeline)."
      "\n    Workarounds: switch to ScreenSpace-Camera, use Play Mode, or camera=scene_view."
     )
-    from .. import screenshot
-    return await screenshot._screenshot_body(
+    from .. import screenshot as _biome_body_mod
+    return await _biome_body_mod._screenshot_body(
         width=width,
         height=height,
         camera=camera,
@@ -2178,6 +2500,27 @@ tools.expect('screenshot_baseline', 'RW', "Save screenshot as baseline for visua
     ('height', int, 480),
     ('camera', ostr, None),
 ))
+tools.expect_body('screenshot_baseline', 'scene')
+
+
+@tools.provide
+async def screenshot_baseline(
+    name: str = "default",
+    width: int = 640,
+    height: int = 480,
+    camera: ostr = None,
+) -> str:
+    ("Save screenshot as baseline for visual regression. name: file-safe identifier."
+    )
+    from .. import scene as _biome_body_mod
+    return await _biome_body_mod._screenshot_baseline_body(
+        name=name,
+        width=width,
+        height=height,
+        camera=camera,
+    )
+
+
 tools.expect('screenshot_compare', 'RW', "Compare current screenshot with saved baseline.", (
     ('name', str, "default"),
     ('width', int, 640),
@@ -2186,6 +2529,34 @@ tools.expect('screenshot_compare', 'RW', "Compare current screenshot with saved 
     ('mode', str, "auto"),
     ('question', ostr, None),
 ))
+tools.expect_body('screenshot_compare', 'scene')
+
+
+@tools.provide
+async def screenshot_compare(
+    name: str = "default",
+    width: int = 640,
+    height: int = 480,
+    camera: ostr = None,
+    mode: str = "auto",
+    question: ostr = None,
+) -> str:
+    ("Compare current screenshot with saved baseline."
+     "\n    mode: auto (pixel->escalate), pixel (local), structural (general),"
+     "\n          targeted (needs question=), ui_layout|animation|color|position|regression."
+     "\n    Model-assisted modes require configured sampling. Cached by image hashes."
+    )
+    from .. import scene as _biome_body_mod
+    return await _biome_body_mod._screenshot_compare_body(
+        name=name,
+        width=width,
+        height=height,
+        camera=camera,
+        mode=mode,
+        question=question,
+    )
+
+
 tools.expect('scriptable_object', 'RW', "ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter.", (
     ('action', str),
     ('path', ostr, None),
@@ -2357,6 +2728,37 @@ tools.expect('set_property', 'RW_IDEM', "Set component property (Edit Mode, Seri
     ('find_type', ostr, None),
     ('ref_component_type', ostr, None),
 ))
+tools.expect_body('set_property', 'objects')
+
+
+@tools.provide
+async def set_property(
+    path: ostr = None,
+    component: str = "",
+    prop: str = "",
+    value: Any = None,
+    dry_run: bool = False,
+    find_type: ostr = None,
+    ref_component_type: ostr = None,
+) -> str:
+    ("Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`)."
+     "\n    find_type: component type — bulk-sets prop on all matching objects without specifying paths."
+     "\n    For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'. dry_run=True shows what would change without applying."
+     "\n    ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'."
+     "\n    effects: mutates scene via SerializedObject, creates an undo entry. Verify with get_component after."
+    )
+    from .. import objects as _biome_body_mod
+    return await _biome_body_mod._set_property_body(
+        path=path,
+        component=component,
+        prop=prop,
+        value=value,
+        dry_run=dry_run,
+        find_type=find_type,
+        ref_component_type=ref_component_type,
+    )
+
+
 tools.expect('set_property_delta', 'RW', "Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new.", (
     ('path', str),
     ('component', str),
@@ -2557,6 +2959,52 @@ tools.expect('spatial_query', 'RO', "Spatial queries. action: nearest|in_front_o
     ('region_id', ostr, None),
     ('cap', oint, None),
 ))
+tools.expect_body('spatial_query', 'spatial')
+
+
+@tools.provide
+async def spatial_query(
+    action: str,
+    path: ostr = None,
+    target: ostr = None,
+    distance: ofloat = None,
+    radius: ofloat = None,
+    component: ostr = None,
+    cell_size: ofloat = None,
+    layer_mask: ostr = None,
+    center: ostr = None,
+    vertices: ostr = None,
+    region_id: ostr = None,
+    cap: oint = None,
+) -> str:
+    ("Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon."
+     "\n    nearest: find closest object (optionally filtered by component name)."
+     "\n    in_front_of: position in front of object at distance."
+     "\n    objects_in_radius: list all objects within radius. path is optional when center='x,y,z' is given."
+     "\n    bounds_info: detailed bounds/dimensions of object."
+     "\n    raycast: cast ray from path/pos to target, returns hits sorted by distance."
+     "\n    spatial_map: ASCII grid map of objects in XZ plane. cell_size in meters."
+     "\n    objects_in_polygon: objects whose XZ pivot is inside a polygon. Provide either"
+     "\n    vertices='x1,z1;x2,z2;...' (>=3 pairs) or a previously defined region_id;"
+     "\n    supplied vertices are always validated. cap=max results (default 50)."
+    )
+    from .. import spatial as _biome_body_mod
+    return await _biome_body_mod._spatial_query_body(
+        action=action,
+        path=path,
+        target=target,
+        distance=distance,
+        radius=radius,
+        component=component,
+        cell_size=cell_size,
+        layer_mask=layer_mask,
+        center=center,
+        vertices=vertices,
+        region_id=region_id,
+        cap=cap,
+    )
+
+
 tools.expect('sync_playtest_aliases_from_defs', 'RW', "Overwrite PlaytestConfig.asset aliases from a .defs text file.", (
     ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
     ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
@@ -2714,8 +3162,8 @@ async def ui_intent(
     ("Convert NL intent to Unity UI hierarchy. Templates bypass Haiku."
      "\n    template: hud|menu|dialog|grid. dry_run=True skips execution."
     )
-    from .. import ui_intent_tool
-    return await ui_intent_tool._ui_intent_body(
+    from .. import ui_intent_tool as _biome_body_mod
+    return await _biome_body_mod._ui_intent_body(
         intent=intent,
         parent=parent,
         template=template,
@@ -2780,8 +3228,8 @@ async def uitk_intent(
      "\n    attach_to: scene path to UIDocument or PanelRenderer GameObject to wire after creation."
      "\n    dry_run: return UXML+USS text without writing files."
     )
-    from .. import uitk_intent_tool
-    return await uitk_intent_tool._uitk_intent_body(
+    from .. import uitk_intent_tool as _biome_body_mod
+    return await _biome_body_mod._uitk_intent_body(
         intent=intent,
         name=name,
         path=path,
@@ -2839,6 +3287,23 @@ tools.expect('use_skill', 'RW', "Execute a previously saved skill. params: comma
     ('name', str),
     ('params', ostr, None),
 ))
+tools.expect_body('use_skill', 'skills')
+
+
+@tools.provide
+async def use_skill(
+    name: str,
+    params: ostr = None,
+) -> str:
+    ("Execute a previously saved skill. params: comma-separated key=value for substitution."
+    )
+    from .. import skills as _biome_body_mod
+    return await _biome_body_mod._use_skill_body(
+        name=name,
+        params=params,
+    )
+
+
 tools.expect('validate_playtest_aliases', 'RO', "Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed.", (
     ('defs', str, "Assets/PlaytestDefs/farm_core.defs"),
     ('asset', str, "Assets/Configs/PlaytestConfig.asset"),
@@ -2939,8 +3404,8 @@ async def vfx_intent(
     ("Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely."
      "\n    kind: particle|auto (shader/material not yet implemented). dry_run=True skips execution."
     )
-    from .. import vfx_intent_tool
-    return await vfx_intent_tool._vfx_intent_body(
+    from .. import vfx_intent_tool as _biome_body_mod
+    return await _biome_body_mod._vfx_intent_body(
         target=target,
         intent=intent,
         kind=kind,

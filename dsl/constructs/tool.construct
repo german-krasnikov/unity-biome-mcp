@@ -120,8 +120,8 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
     END
         )
     EACH BODY
-        from .. import {module}
-        return await {module}._{name}_body(
+        from .. import {module} as _biome_body_mod
+        return await _biome_body_mod._{name}_body(
     END
     EACH ARG
             {aname}={aname},
@@ -292,8 +292,8 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
     END
         )
     EACH BODY
-        from .. import {module}
-        return await {module}._{name}_body(
+        from .. import {module} as _biome_body_mod
+        return await _biome_body_mod._{name}_body(
     END
     EACH ARG
             {aname}={aname},

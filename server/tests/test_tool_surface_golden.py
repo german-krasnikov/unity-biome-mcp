@@ -100,7 +100,12 @@ INTENDED["permission_prompt"]["schema"] = "SV8: BODY; generated wrapper types in
 # loses that row once it becomes BODY, even though nothing about what it sends over the wire changed.
 # diff_surface() only diffs FIELDS of a row present on both sides -- it cannot allow a row that
 # disappears entirely -- so each such `wire <name> ...` line is deleted from golden/tool_surface.txt
-# directly, once, in the same commit as the conversion that causes it: profile (SV8).
+# directly, once, in the same commit as the conversion that causes it: profile, get_object_detail,
+# scene, navmesh_query (SV8).
+# set_property's `value` param had no type annotation at all in the hand function (bare `value=None`);
+# the generated BODY wrapper types every ARG from the catalog, so it is now explicitly `Any`.
+INTENDED["set_property"]["schema"] = "SV8: BODY; generated wrapper types value as Any (the catalog's ARG type); the hand function left it unannotated"
+INTENDED["region_clear"]["description"] = "SV8: BODY; DOC lines drop the blank line between the summary and \"vertices:...\" (content unchanged)"
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:
