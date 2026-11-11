@@ -6,6 +6,7 @@ from .decisions.guard_facts import Verdict, guard_verdict
 from .middleware_types import (
     _RUNTIME_ONLY_CMDS,
     ACTION_READS,
+    BLAST_HIGH,
     BLAST_RADIUS,
     READ_CMDS,
     SCENE_STATE_NEUTRAL_WRITES,
@@ -120,7 +121,7 @@ class MiddlewareGuardsMixin:
             radius = max(write_radii) if write_radii else 1
         else:
             radius = BLAST_RADIUS.get(cmd, 1)
-        if radius >= 3:
+        if radius >= BLAST_HIGH:
             return f"⚠ HIGH BLAST RADIUS ({radius}): '{cmd}' affects multiple objects. Consider checkpoint first."
         return None
 

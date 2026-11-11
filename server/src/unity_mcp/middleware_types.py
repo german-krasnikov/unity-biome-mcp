@@ -3,23 +3,26 @@ import time
 
 from .decisions.generated.mutability_logic import IsMutatingInput, is_mutating
 from .tools._annotations import _INTERNAL_RETRY_SAFE_CMDS as _KNOWN_SAFE_READS
+from .tools.generated.catalog_blast import BLAST_RADIUS as _GENERATED_BLAST_RADIUS
 from .tools.generated.catalog_reads import ACTION_READS as _CATALOG_ACTION_READS
 from .tools.playtest_async import _RUNNING_PHASE_PREFIX as _PLAYTEST_RUNNING_PREFIX
+from .tools.tags import tagged
 from .tools.tool_specs import _SPECS as _TOOL_SPECS
 
 # get_status/sync_status: pure-read wire commands with no ToolSpec entry
 # (audited in tools/_annotations.py). Reused here, not duplicated, so the
 # read-only gate and the retry-safety allowlist can never drift apart.
 
-_STRIP_CMDS: frozenset = frozenset({"get_component", "inspect", "get_object_detail"})
+_STRIP_CMDS: frozenset = tagged("strip_defaults")
 
-BLAST_RADIUS = {
-    "get_hierarchy": 0, "get_component": 0, "inspect": 0, "screenshot": 0,
-    "query_state": 0, "get_object_detail": 0, "find_objects": 0,
-    "set_property": 1, "set_active": 1, "set_material": 1, "set_runtime_property": 1,
-    "create_object": 2, "manage_component": 2, "wire_event": 2,
-    "delete_object": 4, "execute_code": 5, "scene": 3, "batch": 3,
-}
+# Threshold at which a write is flagged HIGH BLAST RADIUS (check_blast_radius,
+# watchdog); DANGEROUS_BLAST is denied outright in agent mode (permission_broker).
+BLAST_HIGH, BLAST_DANGEROUS = 3, 4
+
+# set_runtime_property: Python MCP tool removed, C# handler remains (see
+# _RUNTIME_ONLY_CMDS.add("set_runtime_property") below) — no catalog block,
+# so it stays a native exception to the generated table (SV3-DESIGN.md §0).
+BLAST_RADIUS = {**_GENERATED_BLAST_RADIUS, "set_runtime_property": 1}
 
 # Derived from _SPECS — tool_specs.py is now the single source of truth.
 # Kept as mutable set for:
@@ -55,12 +58,7 @@ WRITE_CMDS.add("navmesh")
 # run_playtest / run_playtest_suite execute in Play Mode; Edit Mode scene state
 # is unchanged, so they must not count against the consecutive-write guard
 # (MCP-GUARD-007).
-SCENE_STATE_NEUTRAL_WRITES: frozenset[str] = frozenset({
-    "screenshot",
-    "run_playtest",
-    "run_playtest_suite",
-    "start_playtest",           # same Play-mode-neutral scene-state axis as run_playtest
-})
+SCENE_STATE_NEUTRAL_WRITES: frozenset[str] = tagged("scene_state_neutral")
 
 # check_verification_needed's advisory every-10th-mutation nudge must count an
 # Edit-mode run_playtest as a real scene-state write: C03 wired `MCP
@@ -127,9 +125,7 @@ def is_write(cmd: str, args: dict | None = None, *, unknown_is_write: bool = Fal
 # SCENE_STATE_NEUTRAL_WRITES: that frozenset answers "does this count as a
 # blind write for the advisory guard" (transition()); this answers "can this
 # command's outcome make scene-derived caches stale."
-PLAYTEST_SCENARIO_CMDS: frozenset[str] = frozenset(
-    {"start_playtest", "run_playtest", "run_playtest_suite", "get_playtest_run"}
-)
+PLAYTEST_SCENARIO_CMDS: frozenset[str] = tagged("playtest_scenario")
 
 
 def is_scenario_terminal(cmd: str, result: str) -> bool:
@@ -154,9 +150,7 @@ def is_scenario_terminal(cmd: str, result: str) -> bool:
 # of whether any GATE_PRIORS entry currently targets it. get_compile_errors
 # is intentionally excluded for exactly this reason (see prefetch_cache.py's
 # GATE_PRIORS comment for the paired write-side fix).
-_READ_CACHEABLE = frozenset({
-    "get_component", "get_hierarchy", "get_components_list", "inspect",
-})
+_READ_CACHEABLE = tagged("read_cacheable")
 
 
 class CircuitBreaker:

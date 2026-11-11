@@ -1,9 +1,12 @@
-"""Reflection rules for scene-object mutation commands."""
+"""Reflection rules for scene-object mutation commands.
+
+set_rect/apply_scene_change/scene/scene_environment moved to reflect_noerror's
+single installer loop (rules_assets.py) — SV3-DESIGN.md §3.7 #4.
+"""
 import re
 
-from ..middleware_types import ACTION_READS
 from . import Mismatch, register_rule
-from .factory import _has_error, make_action_guarded_no_error_rule, make_no_error_rule
+from .factory import _has_error
 
 # ── Group A: path-echo verification ──────────────────────────────────────────
 
@@ -130,12 +133,3 @@ async def _rule_create_ui(args: dict, response: str, send_fn) -> Mismatch | None
     if "Created" not in response:
         return Mismatch("create_ui: expected 'Created' in response")
     return None
-
-
-make_no_error_rule("set_rect")
-make_no_error_rule("apply_scene_change")
-
-# ── Group D: action-aware (scene and scene_environment) ───────────────────────
-
-make_action_guarded_no_error_rule("scene", ACTION_READS.get("scene", frozenset()))
-make_action_guarded_no_error_rule("scene_environment", ACTION_READS.get("scene_environment", frozenset()))

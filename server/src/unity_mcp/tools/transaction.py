@@ -12,34 +12,19 @@ from ._common import bind
 from .editor_state import is_play_mode as _is_play_mode
 from .editor_state import parse_editor_field as _parse_editor_field
 from .generated.catalog_tools import tools
+from .tags import tagged
 
 _send = None
 _args = None
 _plans: dict = {}  # plan_id → plan dict, TTL 600s
 
-# apply_scene_change promises an atomic Unity-Undo transaction. Keep this list
-# deliberately narrower than the general batch surface: every command below has
-# a direct, source-backed Unity Undo implementation and changes scene state only.
-# Asset/file commands, nested batches, and plugin commands must use `batch` (and
-# report their own partial side effects) instead of this stronger workflow.
-_ATOMIC_SCENE_COMMANDS = frozenset({
-    "attach_uitk",
-    "auto_wire",
-    "autofit_collider",
-    "create_object",
-    "create_ui",
-    "delete_object",
-    "manage_component",
-    "rename_object",
-    "set_active",
-    "set_parent",
-    "set_property",
-    "set_property_delta",
-    "set_rect",
-    "set_sibling_index",
-    "unwire_event",
-    "wire_event",
-})
+# apply_scene_change promises an atomic Unity-Undo transaction. Keep this set
+# deliberately narrower than the general batch surface: every command tagged
+# atomic_scene has a direct, source-backed Unity Undo implementation and
+# changes scene state only. Asset/file commands, nested batches, and plugin
+# commands must use `batch` (and report their own partial side effects)
+# instead of this stronger workflow.
+_ATOMIC_SCENE_COMMANDS = tagged("atomic_scene")
 
 
 def _make_plan_id() -> str:

@@ -77,6 +77,17 @@ def test_maybe_trigger_normal_cmd_reaches_threshold():
     assert wd._counter == 0  # reset after trigger
 
 
+def test_maybe_trigger_execute_code_is_high_blast_immediate():
+    """SV3 Q4: execute_code (BLAST 5) must trip the immediate threshold like
+    delete_object/scene/batch, now that HIGH_BLAST_CMDS is derived from
+    BLAST_RADIUS >= BLAST_HIGH instead of a hand-picked literal set that
+    never included it."""
+    send = AsyncMock(return_value="ok")
+    wd = ProactiveWatchdog(send, interval=10)
+    wd.maybe_trigger("execute_code")
+    assert wd._counter == 0  # reset after triggering at threshold=1, not 10
+
+
 # ── consume_alert() ──────────────────────────────────────────────────────────
 
 def test_consume_alert_returns_none_when_empty():

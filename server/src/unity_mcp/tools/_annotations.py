@@ -1,5 +1,7 @@
 from mcp.types import ToolAnnotations
 
+from .tags import tagged
+
 RO = ToolAnnotations(readOnlyHint=True)
 RW = ToolAnnotations(readOnlyHint=False)
 RW_IDEM = ToolAnnotations(readOnlyHint=False, idempotentHint=True)
@@ -40,7 +42,7 @@ def derive(effect: str, session: bool = False) -> ToolAnnotations:
 #                  true, zero mutation. await_compile (code_intel.py) polls it
 #                  directly; without this it fails closed under
 #                  UNITY_MCP_READ_ONLY=1 even though it is pure diagnostics.
-_INTERNAL_RETRY_SAFE_CMDS = frozenset({"get_status", "sync_status", "compile_status"})
+_INTERNAL_RETRY_SAFE_CMDS = tagged("retry_safe_internal") | frozenset({"sync_status"})  # sync_status has no catalog block yet
 
 
 async def retry_safe_cmds(mcp) -> frozenset[str]:

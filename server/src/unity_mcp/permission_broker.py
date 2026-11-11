@@ -9,13 +9,13 @@ import os
 import uuid
 from dataclasses import dataclass
 
-from .middleware_types import BLAST_RADIUS, WRITE_CMDS
+from .middleware_types import BLAST_DANGEROUS, BLAST_RADIUS, WRITE_CMDS
 
 _log = logging.getLogger(__name__)
 
-# Commands with blast_radius >= 4 are "dangerous" — denied even in agent mode.
+# Commands with blast_radius >= BLAST_DANGEROUS are denied even in agent mode.
 _DANGEROUS_CMDS: frozenset[str] = frozenset(
-    cmd for cmd, r in BLAST_RADIUS.items() if r >= 4
+    cmd for cmd, r in BLAST_RADIUS.items() if r >= BLAST_DANGEROUS
 )
 
 

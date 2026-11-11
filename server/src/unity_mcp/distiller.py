@@ -9,6 +9,8 @@ Pure stateless transform — caller owns cache, focus tracking, scheduling.
 import re
 from dataclasses import dataclass
 
+from .tools.tags import tagged
+
 
 @dataclass
 class DistillResult:
@@ -24,9 +26,7 @@ _SCENE_HEADER_RE = re.compile(r"^\[.+\]$")
 
 
 # Commands too small or destructive to distill
-_SKIP_CMDS = frozenset({"set_property", "ping", "batch", "wire_event", "set_active",
-                         "create_object", "delete_object", "manage_component", "recompile",
-                         "execute_code"})
+_SKIP_CMDS = tagged("distill_skip")
 
 
 class ResponseDistiller:

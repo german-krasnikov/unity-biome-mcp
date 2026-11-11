@@ -63,6 +63,14 @@ class ToolSet:
             raise ValueError(f"{fn.__name__} is provided by two functions")
         return fn
 
+    def signature(self, name: str) -> dict[str, frozenset[str]]:
+        """Required/optional ARG names of a catalog tool (no DEFAULT/DEFAULT_TEXT -> required)."""
+        _, _, params = self._expected[name]
+        return {
+            "required": frozenset(p[0] for p in params if len(p) < 3),
+            "optional": frozenset(p[0] for p in params if len(p) >= 3),
+        }
+
     def register(self, mcp, *fns):
         """A module registers its hand-written tools: each function is checked against the catalog, then all are registered with the
         MCP annotation of their effect (a refusal registers none). Registering the same function again, for another mcp, is fine."""
