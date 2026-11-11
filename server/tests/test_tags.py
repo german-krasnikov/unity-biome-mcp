@@ -28,7 +28,7 @@ def test_tagged_consistent_with_pairs():
 
 
 def test_tags_constant_is_union_of_pair_tags():
-    assert TAGS == frozenset(tag for tag, _ in TAG_PAIRS)
+    assert frozenset(tag for tag, _ in TAG_PAIRS) == TAGS
 
 
 # Parity oracle: the hand-written sets of the 15 consumers this slice rewires
