@@ -184,6 +184,9 @@ namespace UnityMCP.Editor
                 var guard = CheckGuards(id, cmd, argsJson);
                 if (guard != null) return guard;
 
+                var contractErr = ArgContract.Check(cmd, argsJson);
+                if (contractErr != null) return JsonHelper.FormatResponse(id, false, null, contractErr);
+
                 // undo: a mutating call opens an Undo group and is recorded, unless its registration says noUndo:
                 // (a mutating command whose effect is no Undo-recorded scene change, step 7.2 M3.0).
                 bool undo = IsMutatingCommand(cmd, argsJson) && !CommandRegistry.IsNoUndo(cmd);
@@ -284,6 +287,8 @@ namespace UnityMCP.Editor
                     argsJson = AliasExpander.ExpandJson(argsJson);  // expand $sigils in args
                     var guard = CheckGuards(id, cmd, argsJson, chatMode);
                     if (guard != null) { tcs.TrySetResult(guard); return; }
+                    var contractErr = ArgContract.Check(cmd, argsJson);
+                    if (contractErr != null) { tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, contractErr)); return; }
                     UndoGroupHelper.SetCommandFallback(cmd);
                     asyncHandler(id, argsJson, tcs);
                     return;
