@@ -67,6 +67,18 @@ def restore_bindings(snapshot: Snapshot) -> None:
         setattr(mod, name, value)
 
 
+def clear_bindings(modules: list[types.ModuleType]) -> None:
+    """Reset every DI global to None — safe default before a test runs.
+
+    The old _reset_diagnose_send forced diagnose._send = None so tests that
+    call diagnose indirectly (via testing.run_tests → diagnose.diagnose) hit
+    the skip-path instead of reaching the real bridge.  This generalises it
+    to every bindable module."""
+    for mod in modules:
+        for name in di_globals(mod):
+            setattr(mod, name, None)
+
+
 @contextlib.contextmanager
 def reset_scope():
     """Snapshot every bindable module's DI globals, yield, always restore."""

@@ -108,7 +108,9 @@ def _tool_binding_restore():
     diagnose, and needs no edit when a module is added or split (see
     Plans/DSL/SV7-DESIGN.md)."""
     from _tool_binding import bindable_tool_modules, restore_bindings, snapshot_bindings
+    import unity_mcp.tools.diagnose as _diag
     snap = snapshot_bindings(bindable_tool_modules())
+    _diag._send = None
     yield
     restore_bindings(snap)
 
