@@ -370,7 +370,6 @@ wire get_unity_events calls=3 digest=b2a99cf7746603ee
 wire invoke_method calls=14 digest=06c6249cd6b262b0
 wire lint_ugui calls=3 digest=0ab04ee8587008ca
 wire list_events calls=8 digest=5b35849cee364af2
-wire list_test_runs calls=4 digest=7d7654ed934d4f14
 wire manage_component calls=8 digest=8fc441af791b0611
 wire material calls=62 digest=d743caae779d3870
 wire material_audit calls=9 digest=46609aebf90f0bf7
@@ -386,7 +385,6 @@ wire references calls=52 digest=788d384473a0e825
 wire rename_object calls=4 digest=1c04484384f0db93
 wire render_analyze calls=44 digest=f95ea4f8a2ddf8b7
 wire resolve_scene_refs calls=6 digest=3ba87f53813fc9e5
-wire resolve_test_request calls=2 digest=721b7ef8fa0ca21b
 wire runtime_snapshot calls=26 digest=cfcf7d3434358678
 wire scan_scene calls=1 digest=a737fa6df4491083
 wire scene_diff calls=1 digest=d1930ff6f4b94759

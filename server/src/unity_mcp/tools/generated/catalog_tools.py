@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=155390e11e0a39ab5bf443fb0524b50f57e614df313f08b60d1f4d57f32cee4d
+# source-sha256=463bbd25819ec5086a4da7555791f7cedc3d95950cceece8c6c45449a602ff9d
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -1501,13 +1501,69 @@ async def get_test_count(
 tools.expect('get_test_progress', 'RO', "Legacy progress facade. Pass run_id to correlate the response.", (
     ('run_id', ostr, None),
 ))
+tools.expect_body('get_test_progress', 'testing')
+
+
+@tools.provide
+async def get_test_progress(
+    run_id: ostr = None,
+) -> str:
+    ("Legacy progress facade. Pass run_id to correlate the response."
+    )
+    from .. import testing as _biome_body_mod
+    return await _biome_body_mod._get_test_progress_body(
+        run_id=run_id,
+    )
+
+
 tools.expect('get_test_results', 'RO', "Legacy result facade. Pass run_id to prevent reading a stale latest run.", (
     ('run_id', ostr, None),
 ))
+tools.expect_body('get_test_results', 'testing')
+
+
+@tools.provide
+async def get_test_results(
+    run_id: ostr = None,
+) -> str:
+    ("Legacy result facade. Pass run_id to prevent reading a stale latest run."
+    )
+    from .. import testing as _biome_body_mod
+    return await _biome_body_mod._get_test_results_body(
+        run_id=run_id,
+    )
+
+
 tools.expect('get_test_run', 'RO', "Return the durable JSON snapshot for one exact test run.", (
     ('run_id', str),
     ('compact', bool, False),
 ))
+tools.expect_body('get_test_run', 'testing')
+
+
+@tools.provide
+async def get_test_run(
+    run_id: str,
+    compact: bool = False,
+) -> str:
+    ("Return the durable JSON snapshot for one exact test run."
+     "\n    Fails closed on terminal-invalid evidence: a snapshot claiming"
+     "\n    ``state == \"terminal\"`` that doesn't pass ARC-1/ARC-3 validation (an"
+     "\n    honest zero-match filter, a stalled/unresponsive terminal claim, a"
+     "\n    corrupted count) comes back as"
+     "\n    ``PROTOCOL-ERROR|run_id=...|reason=...|snapshot=...`` instead of the raw"
+     "\n    snapshot -- closes the direct-poll path around ``run_tests_wait``'s own"
+     "\n    validation."
+     "\n    compact=True trims leaf-detail arrays on a non-terminal snapshot (A27) --"
+     "\n    use for a tight-cadence poll loop; a terminal snapshot is unaffected."
+    )
+    from .. import testing as _biome_body_mod
+    return await _biome_body_mod._get_test_run_body(
+        run_id=run_id,
+        compact=compact,
+    )
+
+
 tools.expect('get_unity_events', 'RO', "List all UnityEvent persistent listeners in the active scene.", (
     ('path', ostr, None),
 ))
@@ -1810,6 +1866,21 @@ async def list_templates(
 tools.expect('list_test_runs', 'RO', "List recent durable test runs as JSON, newest first.", (
     ('limit', int, 20),
 ))
+tools.expect_body('list_test_runs', 'testing')
+
+
+@tools.provide
+async def list_test_runs(
+    limit: int = 20,
+) -> str:
+    ("List recent durable test runs as JSON, newest first."
+    )
+    from .. import testing as _biome_body_mod
+    return await _biome_body_mod._list_test_runs_body(
+        limit=limit,
+    )
+
+
 tools.expect('load_session', 'RO', "Load previous session context beside the current hierarchy.", (
 ))
 tools.expect_body('load_session', 'scene')
@@ -2467,6 +2538,21 @@ async def resolve_scene_refs(
 tools.expect('resolve_test_request', 'RO', "Resolve a possibly lost start ACK without dispatching another test run.", (
     ('request_id', str),
 ))
+tools.expect_body('resolve_test_request', 'testing')
+
+
+@tools.provide
+async def resolve_test_request(
+    request_id: str,
+) -> str:
+    ("Resolve a possibly lost start ACK without dispatching another test run."
+    )
+    from .. import testing as _biome_body_mod
+    return await _biome_body_mod._resolve_test_request_body(
+        request_id=request_id,
+    )
+
+
 tools.expect('resolve_tool_schema', 'RO', "Return full parameter schemas for deferred tools. tools=comma-separated names.", (
     ('tools', str),
 ))
@@ -2597,6 +2683,41 @@ tools.expect('run_tests', 'RW_IDEM', "Dispatch Unity tests and return their dura
     ('group', ostr, None),
     ('tests', ostr, None),
 ))
+tools.expect_body('run_tests', 'testing')
+
+
+@tools.provide
+async def run_tests(
+    mode: str = "EditMode",
+    filter: ostr = None,
+    request_id: ostr = None,
+    assemblies: ostr = None,
+    categories: ostr = None,
+    group: ostr = None,
+    tests: ostr = None,
+) -> str:
+    ("Dispatch Unity tests and return their durable identity immediately."
+     "\n    A successful response is"
+     "\n    ``tests-started|request_id=...|run_id=...|utf_guid=...|state=dispatched``."
+     "\n    If transport fails after dispatch may have happened, the result is"
+     "\n    ``START-UNKNOWN`` with the same request_id; resolve it instead of retrying"
+     "\n    with a new identity."
+     "\n    assemblies/categories/tests: comma-separated selection lists narrowing"
+     "\n    the run (assembly names, NUnit categories, fully-qualified test names)."
+     "\n    group: a named test group to restrict the run to."
+    )
+    from .. import testing as _biome_body_mod
+    return await _biome_body_mod._run_tests_body(
+        mode=mode,
+        filter=filter,
+        request_id=request_id,
+        assemblies=assemblies,
+        categories=categories,
+        group=group,
+        tests=tests,
+    )
+
+
 tools.expect('run_tests_wait', 'RW', "Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required.", (
     ('mode', str, "EditMode"),
     ('filter', str, ""),
@@ -2604,6 +2725,33 @@ tools.expect('run_tests_wait', 'RW', "Dispatch tests and wait for the exact run 
     ('poll_interval', float, 5.0),
     ('request_id', ostr, None),
 ))
+tools.expect_body('run_tests_wait', 'testing')
+
+
+@tools.provide
+async def run_tests_wait(
+    mode: str = "EditMode",
+    filter: str = "",
+    timeout: float = 900.0,
+    poll_interval: float = 5.0,
+    request_id: ostr = None,
+) -> str:
+    ("Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required."
+     "\n    Transport failures and domain reloads do not erase the last snapshot. A"
+     "\n    caller timeout is observational only: it returns ``TIMEOUT`` with request,"
+     "\n    run and snapshot data and never marks the Unity run complete."
+     "\n    on_timeout: result starts with TIMEOUT|request_id=...|run_id=... — use run_id to resume polling via get_test_run without re-dispatching."
+    )
+    from .. import testing as _biome_body_mod
+    return await _biome_body_mod._run_tests_wait_body(
+        mode=mode,
+        filter=filter,
+        timeout=timeout,
+        poll_interval=poll_interval,
+        request_id=request_id,
+    )
+
+
 tools.expect('runtime_snapshot', 'RO', "Snapshot all runtime objects of a given component type. Returns per-object field dump.", (
     ('type', str),
     ('name', ostr, None),
@@ -3849,6 +3997,45 @@ tools.expect('verify_after_change', 'RW', "Single verification gate after code/s
     ('restart_between', bool, False),
     ('suite_timeout', float, 300.0),
 ))
+tools.expect_body('verify_after_change', 'verify')
+
+
+@tools.provide
+async def verify_after_change(
+    changed_files: str = "",
+    test_filter: str = "",
+    run_tests_mode: str = "",
+    playtests: str = "",
+    mark_id: str = "",
+    timeout: float = 300.0,
+    auto_play: bool = False,
+    restart_between: bool = False,
+    suite_timeout: float = 300.0,
+) -> str:
+    ("Single verification gate after code/scene changes."
+     "\n    Gates are additive — only enabled ones run:"
+     "\n    1. await_compile (always)"
+     "\n    2. get_compile_errors (always)"
+     "\n    3. get_console_since mark_id (if mark_id provided)"
+     "\n    4. run_tests_wait mode filter (if run_tests_mode provided)"
+     "\n    5. run_playtest_suite paths (if playtests provided)"
+     "\n    Returns PASS only when ALL enabled gates pass."
+     "\n    Failure includes which gate failed and recommended next command."
+    )
+    from .. import verify as _biome_body_mod
+    return await _biome_body_mod._verify_after_change_body(
+        changed_files=changed_files,
+        test_filter=test_filter,
+        run_tests_mode=run_tests_mode,
+        playtests=playtests,
+        mark_id=mark_id,
+        timeout=timeout,
+        auto_play=auto_play,
+        restart_between=restart_between,
+        suite_timeout=suite_timeout,
+    )
+
+
 tools.expect('vfx_intent', 'RW', "Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely.", (
     ('target', str),
     ('intent', str),

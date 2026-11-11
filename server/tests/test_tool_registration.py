@@ -182,8 +182,11 @@ def test_testing_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # run_tests, get_test_results, get_test_count, get_test_progress = 4 tools
-    assert mcp.tool.call_count >= 3
+    # All 7 of testing.py's own tools (run_tests/run_tests_wait/resolve_test_request/
+    # get_test_run/list_test_runs/get_test_results/get_test_progress) moved to BODY (SV8):
+    # register() only binds _send/_args/_get_slot now; the catalog's install() registers
+    # their wrappers (get_test_count/cancel_test_run were already the catalog's, pre-SV8).
+    assert mcp.tool.call_count == 0
 
 
 def test_editor_control_register_sets_send():
@@ -263,13 +266,12 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
         mod.register(mcp, AsyncMock(), MagicMock())
         return mcp.tool.call_count
 
-    # SV8 moved every tool of scene.py/console.py/screenshot.py/editor_control.py to BODY:
-    # register() only binds _send/_args for all four now; the catalog's install() registers
-    # their wrappers. Only testing.py's tools (7: see test_testing_register_wires_tools) remain
-    # hand-registered through this module list's own register() calls.
+    # SV8 moved every tool of scene.py/console.py/screenshot.py/editor_control.py/testing.py
+    # to BODY: register() only binds DI globals now for all five; the catalog's install()
+    # registers their wrappers.
     total = (_own_count(scene_mod) + _own_count(console_mod) + _own_count(screenshot_mod)
              + _own_count(testing_mod) + _own_count(ec_mod))
-    assert total == 7
+    assert total == 0
 
 
 # ── PR-02 Track A: register_all() threads stdio_alive through to connection ────

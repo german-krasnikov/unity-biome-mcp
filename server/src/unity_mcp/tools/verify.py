@@ -18,6 +18,7 @@ from . import console as _con
 from . import runtime as _rt
 from . import testing as _test
 from ._common import bind
+from .generated.catalog_tools import verify_after_change  # noqa: F401
 
 _DROPPED_RE = re.compile(r"\[\+\d+ older problem entries dropped\]")
 _ALWAYS_GATES = ("compile", "errors_clean")
@@ -279,7 +280,7 @@ async def _run_gates(
     return passed, ""
 
 
-async def verify_after_change(
+async def _verify_after_change_body(
     changed_files: str = "",
     test_filter: str = "",
     run_tests_mode: str = "",
@@ -320,5 +321,3 @@ async def verify_after_change(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    from .generated.catalog_tools import tools
-    tools.register(mcp, verify_after_change)

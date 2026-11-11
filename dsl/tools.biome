@@ -737,16 +737,28 @@ TOOL get_test_count TESTS RO "Number of edit-mode and play-mode tests in the pro
 END
 
 TOOL get_test_progress TESTS RO "Legacy progress facade. Pass run_id to correlate the response."
+  BODY testing
   GUARD compile
   ARG run_id ostr DEFAULT None EXAMPLE "__seam_nonexistent"
 END
 
 TOOL get_test_results TESTS RO "Legacy result facade. Pass run_id to prevent reading a stale latest run."
+  BODY testing
   GUARD compile
   ARG run_id ostr DEFAULT None EXAMPLE "__seam_nonexistent"
 END
 
 TOOL get_test_run TESTS RO "Return the durable JSON snapshot for one exact test run."
+  BODY testing
+  DOC "Fails closed on terminal-invalid evidence: a snapshot claiming"
+  DOC "``state == \"terminal\"`` that doesn't pass ARC-1/ARC-3 validation (an"
+  DOC "honest zero-match filter, a stalled/unresponsive terminal claim, a"
+  DOC "corrupted count) comes back as"
+  DOC "``PROTOCOL-ERROR|run_id=...|reason=...|snapshot=...`` instead of the raw"
+  DOC "snapshot -- closes the direct-poll path around ``run_tests_wait``'s own"
+  DOC "validation."
+  DOC "compact=True trims leaf-detail arrays on a non-terminal snapshot (A27) --"
+  DOC "use for a tight-cadence poll loop; a terminal snapshot is unaffected."
   GUARD compile
   TIMEOUT 10.0
   ARG run_id str EXAMPLE "__seam_nonexistent"
@@ -907,6 +919,7 @@ PYTOOL list_templates SYSTEM RO "List available scene templates in .claude/templ
 END
 
 TOOL list_test_runs TESTS RO "List recent durable test runs as JSON, newest first."
+  BODY testing
   GUARD compile
   TIMEOUT 10.0
   ARG limit int DEFAULT 20
@@ -1236,6 +1249,7 @@ TOOL resolve_scene_refs VERIFY RO "Read-only scene reference resolver."
 END
 
 TOOL resolve_test_request TESTS RO "Resolve a possibly lost start ACK without dispatching another test run."
+  BODY testing
   GUARD compile
   TIMEOUT 10.0
   ARG request_id str EXAMPLE "__seam_nonexistent"
@@ -1328,6 +1342,15 @@ END
 # The bridge may retry run_tests only because every retry carries the same durable request_id (RW_IDEM);
 # run_tests_wait is a composite operation, not idempotent (RW).
 TOOL run_tests TESTS RW_IDEM "Dispatch Unity tests and return their durable identity immediately."
+  BODY testing
+  DOC "A successful response is"
+  DOC "``tests-started|request_id=...|run_id=...|utf_guid=...|state=dispatched``."
+  DOC "If transport fails after dispatch may have happened, the result is"
+  DOC "``START-UNKNOWN`` with the same request_id; resolve it instead of retrying"
+  DOC "with a new identity."
+  DOC "assemblies/categories/tests: comma-separated selection lists narrowing"
+  DOC "the run (assembly names, NUnit categories, fully-qualified test names)."
+  DOC "group: a named test group to restrict the run to."
   GUARD play_ok
   FLAG tier1
   FLAG direct_only
@@ -1344,6 +1367,11 @@ TOOL run_tests TESTS RW_IDEM "Dispatch Unity tests and return their durable iden
 END
 
 PYTOOL run_tests_wait TESTS RW "Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required."
+  BODY testing
+  DOC "Transport failures and domain reloads do not erase the last snapshot. A"
+  DOC "caller timeout is observational only: it returns ``TIMEOUT`` with request,"
+  DOC "run and snapshot data and never marks the Unity run complete."
+  DOC "on_timeout: result starts with TIMEOUT|request_id=...|run_id=... — use run_id to resume polling via get_test_run without re-dispatching."
   FLAG tier1
   TIMEOUT 1200.0
   ARG mode str DEFAULT_TEXT "EditMode" "Test runner mode: EditMode or PlayMode"
@@ -1970,6 +1998,15 @@ END
 
 # May run Unity tests/playtests and stop or restart Play Mode.
 PYTOOL verify_after_change VERIFY RW "Single verification gate after code/scene changes."
+  BODY verify
+  DOC "Gates are additive — only enabled ones run:"
+  DOC "1. await_compile (always)"
+  DOC "2. get_compile_errors (always)"
+  DOC "3. get_console_since mark_id (if mark_id provided)"
+  DOC "4. run_tests_wait mode filter (if run_tests_mode provided)"
+  DOC "5. run_playtest_suite paths (if playtests provided)"
+  DOC "Returns PASS only when ALL enabled gates pass."
+  DOC "Failure includes which gate failed and recommended next command."
   FLAG tier1
   TIMEOUT 600.0
   ARG changed_files str DEFAULT_TEXT ""

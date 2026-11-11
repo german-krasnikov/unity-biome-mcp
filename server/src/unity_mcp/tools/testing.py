@@ -16,7 +16,18 @@ from . import run_disk_fallback
 from ._common import bind
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
-from .generated.catalog_tools import cancel_test_run, get_test_count, tools  # noqa: F401
+from .generated.catalog_tools import (  # noqa: F401
+    cancel_test_run,
+    get_test_count,
+    get_test_progress,
+    get_test_results,
+    get_test_run,
+    list_test_runs,
+    resolve_test_request,
+    run_tests,
+    run_tests_wait,
+    tools,
+)
 from .run_handle import TestRunRegistry
 
 _send = None
@@ -332,7 +343,7 @@ async def _preflight() -> str | None:
     return None
 
 
-async def run_tests(
+async def _run_tests_body(
     mode: str = "EditMode",
     filter: str | None = None,
     request_id: str | None = None,
@@ -453,7 +464,7 @@ async def run_tests(
     return _unknown_start(stable_request_id, "invalid-ack")
 
 
-async def run_tests_wait(
+async def _run_tests_wait_body(
     mode: str = "EditMode",
     filter: str = "",
     timeout: float = 900.0,
@@ -651,7 +662,7 @@ async def run_tests_wait(
     )
 
 
-async def resolve_test_request(request_id: str) -> str:
+async def _resolve_test_request_body(request_id: str) -> str:
     """Resolve a possibly lost start ACK without dispatching another test run."""
     return await _send("resolve_test_request", {"request_id": request_id})
 
@@ -703,7 +714,7 @@ async def _fetch_test_run_json(run_id: str, *, compact: bool = False) -> str:
     return result
 
 
-async def get_test_run(run_id: str, compact: bool = False) -> str:
+async def _get_test_run_body(run_id: str, compact: bool = False) -> str:
     """Return the durable JSON snapshot for one exact test run.
 
     Fails closed on terminal-invalid evidence: a snapshot claiming
@@ -735,12 +746,12 @@ async def get_test_run(run_id: str, compact: bool = False) -> str:
     )
 
 
-async def list_test_runs(limit: int = 20) -> str:
+async def _list_test_runs_body(limit: int = 20) -> str:
     """List recent durable test runs as JSON, newest first."""
     return await _send("list_test_runs", {"limit": max(1, min(int(limit), 100))})
 
 
-async def get_test_results(run_id: str | None = None) -> str:
+async def _get_test_results_body(run_id: str | None = None) -> str:
     """Legacy result facade. Pass run_id to prevent reading a stale latest run."""
     args = {"run_id": run_id} if run_id else {}
     try:
@@ -749,7 +760,7 @@ async def get_test_results(run_id: str | None = None) -> str:
         return "pending"
 
 
-async def get_test_progress(run_id: str | None = None) -> str:
+async def _get_test_progress_body(run_id: str | None = None) -> str:
     """Legacy progress facade. Pass run_id to correlate the response."""
     args = {"run_id": run_id} if run_id else {}
     try:
@@ -812,10 +823,3 @@ def register(mcp, send, args, *, get_slot=None):
     bind(globals(), send, args)
     global _get_slot
     _get_slot = get_slot
-    tools.register(mcp, run_tests)
-    tools.register(mcp, run_tests_wait)
-    tools.register(mcp, resolve_test_request)
-    tools.register(mcp, get_test_run)
-    tools.register(mcp, list_test_runs)
-    tools.register(mcp, get_test_results)
-    tools.register(mcp, get_test_progress)

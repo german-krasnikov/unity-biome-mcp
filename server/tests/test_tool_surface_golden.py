@@ -34,9 +34,9 @@ INTENDED["resolve_tool_schema"]["annotations"] = 'S0 7/11: None -> derive("RO") 
 INTENDED["set_llm_config"]["annotations"] = 'S0 8/11: None -> derive("RW_IDEM") (idempotentHint=True, guards stay write)'
 # A3-DESIGN.md Sec 3 #9/#10: run_tests/get_test_run gain real parameters (assemblies/categories/group/tests;
 # compact) that C# already read but the Python wrapper never exposed -- description and schema both change.
-INTENDED["run_tests"]["description"] = "A3 #9: assemblies/categories/group/tests documented"
+INTENDED["run_tests"]["description"] = "A3 #9: assemblies/categories/group/tests documented (also covers SV8: BODY, DOC-line blank/trailing-newline drop)"
 INTENDED["run_tests"]["schema"] = "A3 #9: assemblies/categories/group/tests params added (C# already read them)"
-INTENDED["get_test_run"]["description"] = "A3 #10: compact documented"
+INTENDED["get_test_run"]["description"] = "A3 #10: compact documented (also covers SV8: BODY, DOC-line blank/trailing-newline drop)"
 # A3-DESIGN.md Sec 3 #11/#12: animation gains compact (C# already read it, undeclared in the catalog); prefab
 # gains parent/child_path (C# already read both) -- new FORWARD params change the schema hash and the sampled
 # wire calls/digest for both tools.
@@ -103,11 +103,13 @@ INTENDED["permission_prompt"]["schema"] = "SV8: BODY; generated wrapper types in
 # diff_surface() only diffs FIELDS of a row present on both sides -- it cannot allow a row that
 # disappears entirely -- so each such `wire <name> ...` line is deleted from golden/tool_surface.txt
 # directly, once, in the same commit as the conversion that causes it: profile, get_object_detail,
-# scene, navmesh_query, inspect_uitk, move_to, query_state, test_step, wait_until (SV8).
+# scene, navmesh_query, inspect_uitk, move_to, query_state, test_step, wait_until,
+# list_test_runs, resolve_test_request (SV8).
 # set_property's `value` param had no type annotation at all in the hand function (bare `value=None`);
 # the generated BODY wrapper types every ARG from the catalog, so it is now explicitly `Any`.
 INTENDED["set_property"]["schema"] = "SV8: BODY; generated wrapper types value as Any (the catalog's ARG type); the hand function left it unannotated"
 INTENDED["region_clear"]["description"] = "SV8: BODY; DOC lines drop the blank line between the summary and \"vertices:...\" (content unchanged)"
+INTENDED["run_tests_wait"]["description"] = "SV8: BODY; DOC lines drop the blank line + trailing newline before the closing triple-quote (content unchanged)"
 # auto_fix/smart_build stay hand-written (not BODY): their `ctx` param must keep a real Context
 # annotation for FastMCP's find_context_parameter() to auto-inject the session object; BODY
 # would type it Any from the catalog's ARG and silently break that injection. Same reasoning as
