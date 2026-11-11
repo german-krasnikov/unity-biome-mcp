@@ -73,6 +73,11 @@ INTENDED["get_console"]["digest"] = "SV4: FORWARD; first<0 now sent raw instead 
 # SV4: ask_user's docstring had a blank line between the summary and "questions:"; DOC lines (one per
 # original docstring line) carry no blank line, so the regenerated description drops it -- same content.
 INTENDED["ask_user"]["description"] = "SV4: FORWARD; DOC lines drop the blank line between the summary and \"questions:\" (content unchanged)"
+# SV8 pilot: ask/do move to BODY (typed generated wrapper calling _ask_body/_do_body in their own
+# module) -- same docstring pattern as the SV4 ask_user conversion above, DOC lines drop the blank
+# line between the summary and the continuation text (content unchanged).
+INTENDED["ask"]["description"] = "SV8: BODY; DOC lines drop the blank line between the summary and \"Routes to...\" (content unchanged)"
+INTENDED["do"]["description"] = "SV8: BODY; DOC lines drop the blank line between the summary and \"Haiku generates...\" (content unchanged)"
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:
@@ -176,7 +181,12 @@ def test_the_digest_follows_what_a_wrapper_sends():
 
 
 def test_every_wrapper_the_catalog_generates_is_covered_by_the_wire_oracle():
-    """A generated wrapper the oracle cannot run (a type or a call it does not know) would send anything and pass."""
+    """A generated wrapper the oracle cannot run (a type or a call it does not know) would send anything and pass.
+
+    A BODY wrapper is exempt by design: it never calls _send itself (ToolSet.install's own body-drift
+    check guards those instead), it calls the hand module's _<name>_body -- see ToolSet._body_modules.
+    """
     from unity_mcp.tools.generated import catalog_tools
-    uncovered = [name for name, fn in catalog_tools.tools._provided.items() if not wire_digest(fn, _args_of_server)]
+    uncovered = [name for name, fn in catalog_tools.tools._provided.items()
+                 if name not in catalog_tools.tools._body_modules and not wire_digest(fn, _args_of_server)]
     assert not uncovered, f"the wire oracle does not run {uncovered}"

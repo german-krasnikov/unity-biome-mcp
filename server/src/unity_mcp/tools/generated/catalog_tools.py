@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=3c37b76ad882fea3d1902c82d29f8a8f1bd8ff9b288144245afe02ac4f3173de
+# source-sha256=80175124b230071d5d07c3470a90b5fd42435ad080b790e2120c22bd48dce712
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -158,6 +158,23 @@ tools.expect('apply_template', 'RW', "Apply a scene template (.cs file from .cla
 tools.expect('ask', 'RO', "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).", (
     ('question', str),
 ))
+tools.expect_body('ask', 'ask_tool')
+
+
+@tools.provide
+async def ask(
+    question: str,
+) -> str:
+    ("Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input)."
+     "\n    Routes to deterministic tool plans for common patterns,"
+     "\n    uses Haiku summarization for complex multi-tool results."
+    )
+    from .. import ask_tool
+    return await ask_tool._ask_body(
+        question=question,
+    )
+
+
 tools.expect('ask_user', 'RO', "Show a question card in Unity chat; wait for user answer (interactive UI — use `ask` for read-only AI scene questions instead).", (
     ('questions', str),
 ))
@@ -555,6 +572,25 @@ tools.expect('do', 'RW', "Convert natural language intent into Unity scene opera
     ('intent', str),
     ('dry_run', bool, False),
 ))
+tools.expect_body('do', 'do_tool')
+
+
+@tools.provide
+async def do(
+    intent: str,
+    dry_run: bool = False,
+) -> str:
+    ("Convert natural language intent into Unity scene operations. Use when scene structure unknown or task is ambiguous. NOT for targeted mutations on known objects — use batch directly."
+     "\n    Haiku generates a batch DSL plan, which is validated then executed."
+     "\n    dry_run=True returns the plan without executing it."
+    )
+    from .. import do_tool
+    return await do_tool._do_body(
+        intent=intent,
+        dry_run=dry_run,
+    )
+
+
 tools.expect('doctor', 'RW', "Run health diagnostics. fix=True removes safe stale port/lock files.", (
     ('fix', bool, False),
 ))

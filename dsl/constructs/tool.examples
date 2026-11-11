@@ -66,6 +66,23 @@ EXAMPLE a BODY tool prints its expectation and a wrapper that calls the hand mod
   EXPECT rendered.pytools a=a,
   EXPECT unrendered.pytools _send(
 
+EXAMPLE a PYTOOL with BODY prints its expectation, a wrapper that calls the hand module, and its DOC lines
+  SOURCE PYTOOL gizmo SYSTEM RW "Gizmo."
+  SOURCE   BODY gizmo_tool
+  SOURCE   DOC "a: the thing."
+  SOURCE   ARG a str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pytools tools.expect_body('gizmo', 'gizmo_tool')
+  EXPECT rendered.pytools @tools.provide
+  EXPECT rendered.pytools async def gizmo(
+  EXPECT rendered.pytools ("Gizmo."
+  EXPECT rendered.pytools "\n    a: the thing."
+  EXPECT rendered.pytools from .. import gizmo_tool
+  EXPECT rendered.pytools return await gizmo_tool._gizmo_body(
+  EXPECT rendered.pytools a=a,
+  EXPECT unrendered.pytools _send(
+
 EXAMPLE a PYTOOL is direct_only, escapes its descriptions, and prints only an expectation like a TOOL that is not FORWARD
   SOURCE PYTOOL use_skill SYSTEM RW "Use."
   SOURCE   ARG name str "say \"hi\" \\ bye"

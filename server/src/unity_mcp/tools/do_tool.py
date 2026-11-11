@@ -6,7 +6,7 @@ from ..do_intent.planner import Planner
 from ..do_intent.validator import validate_plan
 from ..sampling import sampling_service as _sampling
 from ._common import bind
-from .generated.catalog_tools import tools
+from .generated.catalog_tools import do  # noqa: F401 -- wrapper the catalog generates; this module provides _do_body
 from .intent_common import sanitize_intent
 
 # Module-level references — patched in tests
@@ -23,7 +23,7 @@ async def _get_scene_brief() -> str:
         return ""
 
 
-async def do(intent: str, dry_run: bool = False) -> str:
+async def _do_body(intent: str, dry_run: bool = False) -> str:
     """Convert natural language intent into Unity scene operations. Use when scene structure unknown or task is ambiguous. NOT for targeted mutations on known objects — use batch directly.
 
     Haiku generates a batch DSL plan, which is validated then executed.
@@ -67,4 +67,3 @@ def _extract_paths(hierarchy: str) -> set[str]:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, do)

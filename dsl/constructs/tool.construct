@@ -228,6 +228,7 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
   ITEM BLAST <blast:match([0-9]+)>
   ITEM SESSION
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
+  ITEM DOC <line:string>
   ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
   ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)>] [DEFAULT_TEXT <dtext:string>] [<adesc:string>]
   ITEM VERB <vtext:string>
@@ -287,6 +288,9 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
     END
     ) -> str:
         ("{summary}"
+    EACH DOC
+         "\n    {line}"
+    END
         )
     EACH BODY
         from .. import {module}
