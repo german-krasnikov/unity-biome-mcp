@@ -106,6 +106,8 @@ INTENDED["permission_prompt"]["schema"] = "SV8: BODY; generated wrapper types in
 # the generated BODY wrapper types every ARG from the catalog, so it is now explicitly `Any`.
 INTENDED["set_property"]["schema"] = "SV8: BODY; generated wrapper types value as Any (the catalog's ARG type); the hand function left it unannotated"
 INTENDED["region_clear"]["description"] = "SV8: BODY; DOC lines drop the blank line between the summary and \"vertices:...\" (content unchanged)"
+INTENDED["auto_fix"]["schema"] = "SV8: BODY; generated wrapper types ctx as Any (the catalog's ARG type), not the hand function's Context annotation"
+INTENDED["smart_build"]["schema"] = "SV8: BODY; generated wrapper types ctx as Any (the catalog's ARG type), not the hand function's Context annotation"
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:

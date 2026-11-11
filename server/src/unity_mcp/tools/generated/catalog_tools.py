@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=96cc9776615f88bb33183de59251840ee54cdb32d1c0970602d4ba9c1afd6878
+# source-sha256=6d253c2bee7140a94dccf2015c65971108285ecbf428472e504a1a50654db62e
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -240,6 +240,38 @@ tools.expect('apply_scene_change', 'RW', "Execute scene mutations with atomic ap
     ('verify', bool, True),
     ('save', bool, True),
 ))
+tools.expect_body('apply_scene_change', 'transaction')
+
+
+@tools.provide
+async def apply_scene_change(
+    plan_id: str,
+    commands: str,
+    verify: bool = True,
+    save: bool = True,
+) -> str:
+    ("Execute scene mutations with atomic apply, post-verify, and optional save."
+     "\n    1. Validate plan_id exists and not expired (TTL 600s)"
+     "\n    2. Reject empty input and commands outside the Unity-Undo-safe scene allowlist"
+     "\n    3. Execute an atomic, stop-on-error batch"
+     "\n    4. On batch failure/rollback: stop without verification or save"
+     "\n    5. If verify: require clean references and console before save"
+     "\n    6. If save: save only after a successful batch and verification"
+     "\n    7. Return applied, verified, and saved states separately"
+     "\n    Allowed commands: attach_uitk, auto_wire, autofit_collider, create_object,"
+     "\n    create_ui, delete_object, manage_component, rename_object, set_active,"
+     "\n    set_parent, set_property, set_property_delta, set_rect, set_sibling_index,"
+     "\n    unwire_event, wire_event. Use batch for all other command types."
+    )
+    from .. import transaction as _biome_body_mod
+    return await _biome_body_mod._apply_scene_change_body(
+        plan_id=plan_id,
+        commands=commands,
+        verify=verify,
+        save=save,
+    )
+
+
 tools.expect('apply_template', 'RW', "Apply a scene template (.cs file from .claude/templates/).", (
     ('name', str),
     ('params', ostr, None),
@@ -402,6 +434,22 @@ async def attach_uitk(
 tools.expect('auto_fix', 'RO', "Analyze recent Unity errors and ask MCP client sampling for a fix suggestion.", (
     ('ctx', Any),
 ))
+tools.expect_body('auto_fix', 'codegen')
+
+
+@tools.provide
+async def auto_fix(
+    ctx: Any,
+) -> str:
+    ("Analyze recent Unity errors and ask MCP client sampling for a fix suggestion."
+     "\n    This read-only tool does not edit files or apply the suggested change."
+    )
+    from .. import codegen as _biome_body_mod
+    return await _biome_body_mod._auto_fix_body(
+        ctx=ctx,
+    )
+
+
 tools.expect('auto_wire', 'RW', "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required.", (
     ('path', str),
     ('dry_run', bool, False),
@@ -445,6 +493,26 @@ tools.expect('await_compile', 'RO', "Block until Unity finishes compiling + relo
     ('timeout', float, 60.0),
     ('expected_generation', oint, None),
 ))
+tools.expect_body('await_compile', 'code_intel')
+
+
+@tools.provide
+async def await_compile(
+    timeout: float = 60.0,
+    expected_generation: oint = None,
+) -> str:
+    ("Block until Unity finishes compiling + reloading, then return compile errors."
+     "\n    Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'."
+     "\n    Handles domain reload disconnects transparently. timeout=0 → immediate check, no loop."
+     "\n    Epoch-aware via sync_status when available (+10 from MAJOR-1); falls back to compile_status."
+    )
+    from .. import code_intel as _biome_body_mod
+    return await _biome_body_mod._await_compile_body(
+        timeout=timeout,
+        expected_generation=expected_generation,
+    )
+
+
 tools.expect('bake', 'RW', "Bake operations.", (
     ('target', str),
     ('action', ostr, None),
@@ -620,17 +688,89 @@ async def checkpoint(
 tools.expect('checkpoint_create', 'RW', "Create a durable checkpoint before an agent turn.", (
     ('paths', str, ""),
 ))
+tools.expect_body('checkpoint_create', 'checkpoint_tool')
+
+
+@tools.provide
+async def checkpoint_create(
+    paths: str = "",
+) -> str:
+    ("Create a durable checkpoint before an agent turn."
+     "\n    paths: comma-separated file paths to snapshot. Empty = open dirty scenes."
+    )
+    from .. import checkpoint_tool as _biome_body_mod
+    return await _biome_body_mod._checkpoint_create_body(
+        paths=paths,
+    )
+
+
 tools.expect('checkpoint_restore', 'DEL', "Restore files to their pre-turn state.", (
     ('checkpoint_id', str),
     ('force', bool, False),
 ))
+tools.expect_body('checkpoint_restore', 'checkpoint_tool')
+
+
+@tools.provide
+async def checkpoint_restore(
+    checkpoint_id: str,
+    force: bool = False,
+) -> str:
+    ("Restore files to their pre-turn state."
+     "\n    Tries Unity Undo first when domain stamp matches; falls back to file restore."
+     "\n    MVP: after_refs always empty — no ChangeSet-based conflict detection yet."
+    )
+    from .. import checkpoint_tool as _biome_body_mod
+    return await _biome_body_mod._checkpoint_restore_body(
+        checkpoint_id=checkpoint_id,
+        force=force,
+    )
+
+
 tools.expect('compile_preflight', 'RO', "Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile.", (
     ('file_path', str),
     ('new_content', str),
 ))
+tools.expect_body('compile_preflight', 'code_intel')
+
+
+@tools.provide
+async def compile_preflight(
+    file_path: str,
+    new_content: str,
+) -> str:
+    ("Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile."
+     "\n    file_path: Assets-relative. new_content: full file. Returns OK preflight (ms) / ERR preflight + diagnostics / [ROSLYN UNAVAILABLE]."
+    )
+    from .. import code_intel as _biome_body_mod
+    return await _biome_body_mod._compile_preflight_body(
+        file_path=file_path,
+        new_content=new_content,
+    )
+
+
 tools.expect('configure_objects', 'RW', "Configure multiple objects at once.", (
     ('config', str),
 ))
+tools.expect_body('configure_objects', 'autobatch')
+
+
+@tools.provide
+async def configure_objects(
+    config: str,
+) -> str:
+    ("Configure multiple objects at once."
+     "\n    Format: /Path component.prop=value [...] per line."
+     "\n    Example:"
+     "\n    /NPC1 Transform.m_LocalPosition=(1,0,0) Health.maxHp=100"
+     "\n    /NPC2 Transform.m_LocalPosition=(3,0,0)"
+    )
+    from .. import autobatch as _biome_body_mod
+    return await _biome_body_mod._configure_objects_body(
+        config=config,
+    )
+
+
 tools.expect('console_mark', 'RO', "Create a console watermark. Returns mark_id encoding current timestamp.", (
     ('label', str, ""),
 ))
@@ -2368,6 +2508,31 @@ tools.expect('scene_change_plan', 'RW', "Pre-flight + plan for safe scene edit."
     ('targets', str, ""),
     ('dry_run', bool, False),
 ))
+tools.expect_body('scene_change_plan', 'transaction')
+
+
+@tools.provide
+async def scene_change_plan(
+    goal: str,
+    targets: str = "",
+    dry_run: bool = False,
+) -> str:
+    ("Pre-flight + plan for safe scene edit."
+     "\n    1. Check Play Mode — reject if playing (mutations blocked)"
+     "\n    2. Check compile clean"
+     "\n    3. Check console for errors"
+     "\n    4. Resolve targets via resolve_scene_refs"
+     "\n    5. Take checkpoint"
+     "\n    6. Return plan_id + baseline status"
+    )
+    from .. import transaction as _biome_body_mod
+    return await _biome_body_mod._scene_change_plan_body(
+        goal=goal,
+        targets=targets,
+        dry_run=dry_run,
+    )
+
+
 tools.expect('scene_diff', 'RO', "Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines.", (
 ))
 
@@ -2719,6 +2884,25 @@ tools.expect('set_properties', 'RW', "Set multiple properties on ONE object. For
     ('path', str),
     ('props', str),
 ))
+tools.expect_body('set_properties', 'autobatch')
+
+
+@tools.provide
+async def set_properties(
+    path: str,
+    props: str,
+) -> str:
+    ("Set multiple properties on ONE object. For multiple objects, use configure_objects instead."
+     "\n    Format: component.prop=value per line or semicolon-separated."
+     "\n    Example: Transform.m_LocalPosition=(1,0,0);Rigidbody.mass=5"
+    )
+    from .. import autobatch as _biome_body_mod
+    return await _biome_body_mod._set_properties_body(
+        path=path,
+        props=props,
+    )
+
+
 tools.expect('set_property', 'RW_IDEM', "Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`).", (
     ('path', ostr, None),
     ('component', str, ""),
@@ -2843,6 +3027,23 @@ async def set_sibling_index(
 tools.expect('setup_objects', 'RW', "Create+configure multiple objects in one call.", (
     ('specs', str),
 ))
+tools.expect_body('setup_objects', 'autobatch')
+
+
+@tools.provide
+async def setup_objects(
+    specs: str,
+) -> str:
+    ("Create+configure multiple objects in one call."
+     "\n    One per line: name [primitive=X] [parent=Y] [pos=(x,y,z)] [components=A,B]"
+     "\n    Example: NPC1 primitive=Capsule pos=(1,0,0) components=Health"
+    )
+    from .. import autobatch as _biome_body_mod
+    return await _biome_body_mod._setup_objects_body(
+        specs=specs,
+    )
+
+
 tools.expect('shader', 'RW', "Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network.", (
     ('action', str),
     ('path', str),
@@ -2940,6 +3141,23 @@ tools.expect('smart_build', 'RW', "Build scene objects from natural language des
     ('description', str),
     ('ctx', Any),
 ))
+tools.expect_body('smart_build', 'codegen')
+
+
+@tools.provide
+async def smart_build(
+    description: str,
+    ctx: Any,
+) -> str:
+    ("Build scene objects from natural language description using MCP sampling + execute_code."
+    )
+    from .. import codegen as _biome_body_mod
+    return await _biome_body_mod._smart_build_body(
+        description=description,
+        ctx=ctx,
+    )
+
+
 tools.expect('snapshot', 'RO', "Capture or compare object state.", (
     ('path', str),
     ('label', str, "default"),

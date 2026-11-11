@@ -4,7 +4,7 @@ Reduces multi-step setup to a single tool call.
 """
 from ..utils import _KV_RE, parse_kv
 from ._common import bind
-from .generated.catalog_tools import tools
+from .generated.catalog_tools import configure_objects, set_properties, setup_objects, tools  # noqa: F401
 
 _send = None
 
@@ -18,7 +18,7 @@ def _quote_if_spaces(v: str) -> str:
     return f'"{v}"'
 
 
-async def setup_objects(specs: str) -> str:
+async def _setup_objects_body(specs: str) -> str:
     """Create+configure multiple objects in one call.
     One per line: name [primitive=X] [parent=Y] [pos=(x,y,z)] [components=A,B]
     Example: NPC1 primitive=Capsule pos=(1,0,0) components=Health"""
@@ -69,7 +69,7 @@ async def setup_objects(specs: str) -> str:
     return await _send("batch", {"commands": "\n".join(lines), "on_error": "continue"}, timeout=75.0)
 
 
-async def set_properties(path: str, props: str) -> str:
+async def _set_properties_body(path: str, props: str) -> str:
     """Set multiple properties on ONE object. For multiple objects, use configure_objects instead.
     Format: component.prop=value per line or semicolon-separated.
     Example: Transform.m_LocalPosition=(1,0,0);Rigidbody.mass=5"""
@@ -96,7 +96,7 @@ async def set_properties(path: str, props: str) -> str:
     return await _send("batch", {"commands": "\n".join(lines), "on_error": "continue"}, timeout=75.0)
 
 
-async def configure_objects(config: str) -> str:
+async def _configure_objects_body(config: str) -> str:
     """Configure multiple objects at once.
     Format: /Path component.prop=value [...] per line.
     Example:
@@ -136,6 +136,3 @@ async def configure_objects(config: str) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, setup_objects)
-    tools.register(mcp, set_properties)
-    tools.register(mcp, configure_objects)

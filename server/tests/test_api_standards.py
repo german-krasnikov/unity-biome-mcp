@@ -29,9 +29,9 @@ BOOL_TRUE_EXCEPTIONS = {
     ("catalog_tools", "region_clear", "dry_run"),              # safety guard: preview before delete (SV8: BODY, now generated)
     ("catalog_tools", "asset", "include_deps"),                # semantic: True=include deps by default (SV8: BODY, now generated)
     ("runtime", "run_playtest_suite", "stop_after"),          # semantic: True=stop suite on failure
-    ("transaction", "scene_change_plan", "dry_run"),          # semantic: True=safe preview by default
-    ("transaction", "apply_scene_change", "verify"),          # semantic: True=verify after apply
-    ("transaction", "apply_scene_change", "save"),            # semantic: True=save after apply
+    ("catalog_tools", "scene_change_plan", "dry_run"),         # semantic: True=safe preview by default (SV8: BODY, now generated)
+    ("catalog_tools", "apply_scene_change", "verify"),         # semantic: True=verify after apply (SV8: BODY, now generated)
+    ("catalog_tools", "apply_scene_change", "save"),           # semantic: True=save after apply (SV8: BODY, now generated)
     ("catalog_tools", "scene", "include_unsaved"),             # semantic: save_copy always captures dirty state; True=expected default (SV8: BODY, now generated)
 }
 

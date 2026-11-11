@@ -6,7 +6,7 @@ from ..metrics import METRICS
 from ._common import bind
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
-from .generated.catalog_tools import execute_code, get_schema, tools  # noqa: F401
+from .generated.catalog_tools import auto_fix, execute_code, get_schema, smart_build, tools  # noqa: F401
 
 _send = None
 _args = None
@@ -20,7 +20,7 @@ except ImportError:
     _has_context = False
 
 
-async def auto_fix(ctx: _Context) -> str:
+async def _auto_fix_body(ctx: _Context) -> str:
     """Analyze recent Unity errors and ask MCP client sampling for a fix suggestion.
     This read-only tool does not edit files or apply the suggested change."""
     from .. import editor_log
@@ -47,7 +47,7 @@ async def auto_fix(ctx: _Context) -> str:
         return f"ERRORS:\n{error_text}\n\n(Auto-fix unavailable: {e})"
 
 
-async def smart_build(description: str, ctx: _Context) -> str:
+async def _smart_build_body(description: str, ctx: _Context) -> str:
     """Build scene objects from natural language description using MCP sampling + execute_code."""
     try:
         response = await ctx.session.create_message(
@@ -75,5 +75,3 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
-    tools.register(mcp, auto_fix)
-    tools.register(mcp, smart_build)

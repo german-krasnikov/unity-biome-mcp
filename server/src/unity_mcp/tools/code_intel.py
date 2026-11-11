@@ -18,14 +18,14 @@ from unity_mcp.utils import parse_pipe_fields
 from ._common import bind
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
-from .generated.catalog_tools import serialized_field_rename_audit  # noqa: F401
+from .generated.catalog_tools import await_compile, compile_preflight, serialized_field_rename_audit  # noqa: F401
 
 _send = None
 
 _STILL_BUSY_STATES = frozenset({"compiling", "reloading"})
 
 
-async def compile_preflight(file_path: str, new_content: str) -> str:
+async def _compile_preflight_body(file_path: str, new_content: str) -> str:
     """Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile.
     file_path: Assets-relative. new_content: full file. Returns OK preflight (ms) / ERR preflight + diagnostics / [ROSLYN UNAVAILABLE]."""
     from mcp.server.fastmcp.exceptions import ToolError
@@ -123,7 +123,7 @@ async def _await_compile_generation(timeout: float, expected_generation: int) ->
         await asyncio.sleep(1)
 
 
-async def await_compile(timeout: float = 60.0, expected_generation: int | None = None) -> str:
+async def _await_compile_body(timeout: float = 60.0, expected_generation: int | None = None) -> str:
     """Block until Unity finishes compiling + reloading, then return compile errors.
     Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'.
     Handles domain reload disconnects transparently. timeout=0 → immediate check, no loop.
@@ -258,6 +258,3 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
-    from .generated.catalog_tools import tools
-    tools.register(mcp, compile_preflight)
-    tools.register(mcp, await_compile)

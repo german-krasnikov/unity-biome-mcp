@@ -11,7 +11,7 @@ import time as _time
 from ._common import bind
 from .editor_state import is_play_mode as _is_play_mode
 from .editor_state import parse_editor_field as _parse_editor_field
-from .generated.catalog_tools import tools
+from .generated.catalog_tools import apply_scene_change, scene_change_plan, tools  # noqa: F401
 from .tags import tagged
 
 _send = None
@@ -146,7 +146,7 @@ def _broken_reference_count(data: str) -> int | None:
     return int(legacy.group(1)) if legacy else None
 
 
-async def scene_change_plan(
+async def _scene_change_plan_body(
     goal: str,
     targets: str = "",
     dry_run: bool = False,
@@ -282,7 +282,7 @@ def _not_sent_response(reason: str) -> str:
     )
 
 
-async def apply_scene_change(
+async def _apply_scene_change_body(
     plan_id: str,
     commands: str,
     verify: bool = True,
@@ -363,5 +363,3 @@ async def apply_scene_change(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, scene_change_plan)
-    tools.register(mcp, apply_scene_change)
