@@ -21,7 +21,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM MAXCHARS <maxchars:match([0-9]+)>
   ITEM DOC <line:string>
   ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
-  ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [<adesc:string>]
+  ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [EXAMPLE <example:string>] [<adesc:string>]
   ITEM VERB <vtext:string>
   EXAMPLES tool.examples
   DECLARE
@@ -52,6 +52,13 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
         '{name}': {
     EACH ARG
             {?adesc:'{aname}': "{adesc}",}
+    END
+        },
+  END
+  TEMPLATE pyexamples HEADER "ARG_EXAMPLES: dict[str, dict[str, str]] = {" FOOTER "}" ESCAPE data
+        '{name}': {
+    EACH ARG
+            {?example:'{aname}': "{example}",}
     END
         },
   END

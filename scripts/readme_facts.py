@@ -70,60 +70,33 @@ def _find_dict_literal(tree: ast.Module, name: str) -> ast.Dict | None:
     return None
 
 
-def _count_owner_module_contribution(tools_dir: pathlib.Path, module_name: str) -> int:
-    """Count non-_INTERNAL entries in <module_name>.py's own SPEC_KWARGS dict
-    literal (PR-04 physical registration pilot: tool_specs.py merges these into
-    _SPECS at import time via a for-loop the static scan below can't see)."""
-    mod_file = tools_dir.joinpath(*module_name.split(".")).with_suffix(".py")  # "generated.catalog_specs" is tools/generated/catalog_specs.py
-    tree = ast.parse(mod_file.read_text(encoding="utf-8"), filename=str(mod_file))
-    spec_kwargs = _find_dict_literal(tree, "SPEC_KWARGS")
-    if spec_kwargs is None:
-        raise ValueError(f"SPEC_KWARGS dictionary not found in {mod_file}")
+def _count_dict_literal_public(tree: ast.Module, dict_name: str, source_file: pathlib.Path) -> int:
+    """Count a dict literal's non-_INTERNAL entries, or 0 if the dict is absent."""
+    literal = _find_dict_literal(tree, dict_name)
+    if literal is None:
+        return 0
     return sum(
-        1 for value in spec_kwargs.values
-        if _category_of(value, str(mod_file)) != "_INTERNAL"
+        1 for value in literal.values
+        if _category_of(value, str(source_file)) != "_INTERNAL"
     )
-
-
-def _find_merged_owner_modules(tree: ast.Module) -> list[str]:
-    """Recognize `from .<mod> import SPEC_KWARGS as <alias>` + a top-level
-    `for _, _ in <alias>.items(): _SPECS[...] = ToolSpec(**...)` loop (the one
-    PR-04 merge shape) and return the owner module name(s) found."""
-    aliases: dict[str, str] = {}
-    for node in tree.body:
-        if isinstance(node, ast.ImportFrom) and node.module:
-            for alias in node.names:
-                if alias.name == "SPEC_KWARGS" and alias.asname:
-                    aliases[alias.asname] = node.module.lstrip(".")
-    modules = []
-    for node in tree.body:
-        if not isinstance(node, ast.For):
-            continue
-        it = node.iter
-        if (
-            isinstance(it, ast.Call)
-            and isinstance(it.func, ast.Attribute)
-            and it.func.attr == "items"
-            and isinstance(it.func.value, ast.Name)
-            and it.func.value.id in aliases
-        ):
-            modules.append(aliases[it.func.value.id])
-    return modules
 
 
 def _count_public_tool_specs(specs_file: pathlib.Path) -> int:
-    """Count public ToolSpec entries while excluding protocol-only commands."""
+    """Count public tool entries: tool_specs.py's hand-written _SPECS literal
+    (its override escape hatch for a tool the catalog does not own yet --
+    usually empty, SV6) plus the generated tool catalog's SPEC_KWARGS registry
+    (dsl/tools.biome -> tools/generated/catalog_specs.py)."""
     tree = ast.parse(specs_file.read_text(encoding="utf-8"), filename=str(specs_file))
-    specs_dict = _find_dict_literal(tree, "_SPECS")
-    if specs_dict is None:
+    if _find_dict_literal(tree, "_SPECS") is None:
         raise ValueError(f"_SPECS dictionary not found in {specs_file}")
+    count = _count_dict_literal_public(tree, "_SPECS", specs_file)
 
-    count = sum(
-        1 for value in specs_dict.values
-        if _category_of(value, str(specs_file)) != "_INTERNAL"
-    )
-    for module_name in _find_merged_owner_modules(tree):
-        count += _count_owner_module_contribution(specs_file.parent, module_name)
+    catalog_file = specs_file.parent / "generated" / "catalog_specs.py"
+    if catalog_file.exists():
+        catalog_tree = ast.parse(catalog_file.read_text(encoding="utf-8"), filename=str(catalog_file))
+        if _find_dict_literal(catalog_tree, "SPEC_KWARGS") is None:
+            raise ValueError(f"SPEC_KWARGS dictionary not found in {catalog_file}")
+        count += _count_dict_literal_public(catalog_tree, "SPEC_KWARGS", catalog_file)
     return count
 
 

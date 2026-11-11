@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=25f0d8d3327300a7121d6209899f434ca13aff2e27ef733c833bda852df5edf6
+# source-sha256=ca439810c94f1710a3aa833e312b0731fae4f7da85933569ff8f6ae09e805cb3
 # Edit the source, then run biome generate.
 
 TAG_PAIRS: tuple[tuple[str, str], ...] = (

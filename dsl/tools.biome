@@ -31,8 +31,8 @@ TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use wh
   DOC "binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root."
   DOC "tangent: tangent mode for keyframes: auto (default) | smooth | linear | constant."
   DOC "function_name: method name for add_event. int_param/float_param/string_param: event parameters."
-  ARG action str
-  ARG path str
+  ARG action str EXAMPLE "list"
+  ARG path str EXAMPLE "/Main Camera"
   ARG clip ostr DEFAULT None
   ARG clip_name ostr DEFAULT None
   ARG property ostr DEFAULT None
@@ -55,7 +55,7 @@ END
 
 TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param."
   ARG action str
-  ARG path str
+  ARG path str EXAMPLE "/Main Camera"
   ARG state ostr DEFAULT None
   ARG states ostr DEFAULT None
   ARG params ostr DEFAULT None
@@ -125,7 +125,7 @@ TOOL ask_user SYSTEM RO "Show a question card in Unity chat; wait for user answe
 END
 
 TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."
-  ARG action str
+  ARG action str EXAMPLE "list"
   ARG path ostr DEFAULT None "Action-specific project asset/package path (usually Assets/...; import_package accepts a package file path)"
   ARG type ostr DEFAULT None "Unity asset type filter or create kind (for example Material or ScriptableObject)"
   ARG name ostr DEFAULT None "Asset-name search filter used by find (not a GameObject name)"
@@ -159,7 +159,7 @@ TOOL attach_uitk UITOOLKIT RW "Attach UIDocument (or PanelRenderer on Unity 6.4+
   DOC "sort_order: UIDocument.sortingOrder (default 0; ignored on Unity 6.4+ PanelRenderer)."
   DOC "err: if UIDocument or PanelRenderer already present — remove it first or use inspect_uitk/uitk_element."
   DOC ""
-  ARG path str
+  ARG path str EXAMPLE "/__seam_nonexistent"
   ARG uxml ostr DEFAULT None
   ARG panel_settings ostr DEFAULT None
   ARG sort_order oint DEFAULT None RAW
@@ -173,14 +173,14 @@ END
 TOOL auto_wire COMPONENTS RW "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required."
   FORWARD
   DOC "dry_run=true previews without applying. Returns wired/ambiguous/no-match summary."
-  ARG path str
+  ARG path str EXAMPLE "/__seam_nonexistent"
   ARG dry_run bool DEFAULT False OMIT
   TAG atomic_scene
 END
 
 TOOL autofit_collider SCENE RW "Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule."
   FORWARD
-  ARG path str
+  ARG path str EXAMPLE "/__seam_nonexistent"
   ARG type str DEFAULT_TEXT "box" "Collider shape to fit: box|sphere|capsule"
   TAG atomic_scene
 END
@@ -213,7 +213,7 @@ TOOL batch CORE RW "Execute multiple commands in one call. Use for 2+ ops — re
   FLAG core
   TIMEOUT 120.0
   VERB "Running batch"
-  ARG commands str "One command per line (e.g. 'get_component path=/Player type=Transform')"
+  ARG commands str EXAMPLE "get_status" "One command per line (e.g. 'get_component path=/Player type=Transform')"
   ARG on_error str DEFAULT_TEXT "continue" "Error behavior: continue (default) | stop — stop aborts remaining commands"
   ARG timeout float DEFAULT 75.0 LOCAL "Total timeout in seconds (default 75)"
   ARG atomic bool DEFAULT False "On failure, revert prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain"
@@ -255,13 +255,13 @@ TOOL cancel_test_run TESTS RW_IDEM "Request cancellation of one exact test run; 
   WIRE no_undo
   FORWARD
   TIMEOUT 10.0
-  ARG run_id str
+  ARG run_id str EXAMPLE "__seam_nonexistent"
   TAG reflect_silent
 END
 
 TOOL check_colliders SCENE RO "Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given."
   FORWARD
-  ARG path ostr DEFAULT None
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
 END
 
 TOOL checkpoint SYSTEM RW "Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity."
@@ -311,7 +311,7 @@ TOOL create_object CORE RW "Create new GameObject. components: comma-separated t
   FORWARD
   FLAG core
   VERB "Creating"
-  ARG name str "Name for the new GameObject"
+  ARG name str EXAMPLE "__seam_surface_probe" "Name for the new GameObject"
   ARG parent ostr DEFAULT None "Scene path of the parent (omit = scene root)"
   ARG components ostr DEFAULT None "Comma-separated component types to add on creation (e.g. 'Rigidbody,BoxCollider')"
   ARG primitive ostr DEFAULT None "Primitive mesh type: Cube|Sphere|Cylinder|Capsule|Plane|Quad"
@@ -325,9 +325,9 @@ END
 
 TOOL create_ui UGUI RW "Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace. font_min/font_max: enable TMP autoSizing for Text type."
   FORWARD
-  ARG type str "uGUI element type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView"
+  ARG type str EXAMPLE "Button" "uGUI element type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView"
   ARG name ostr DEFAULT None
-  ARG parent ostr DEFAULT None
+  ARG parent ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG anchor ostr DEFAULT None
   ARG pos ostr DEFAULT None
   ARG size ostr DEFAULT None
@@ -367,7 +367,7 @@ TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. De
   FLAG tier1
   VERB "Deleting"
   ARG id oint DEFAULT None "Instance ID of the GameObject to delete (from get_hierarchy)"
-  ARG path ostr DEFAULT None "Scene path of the GameObject to delete"
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent" "Scene path of the GameObject to delete"
   ARG force bool DEFAULT False "True to delete non-empty container objects without error"
   TAG atomic_scene
   TAG distill_skip
@@ -412,7 +412,7 @@ TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|
   GUARD play_ok
   WIRE no_undo
   FLAG core
-  ARG action str DEFAULT_TEXT "state"
+  ARG action str DEFAULT_TEXT "state" EXAMPLE "status"
   ARG path ostr DEFAULT None
   ARG paths ostr DEFAULT None
   ARG enable obool DEFAULT None
@@ -454,7 +454,7 @@ END
 
 TOOL find_objects SCENE RO "Find objects by criteria. Use search_scene for complex queries. Does NOT support: parent, path, active/inactive filtering, regex. Only: name (substring), tag, layer, component (full namespace)."
   FORWARD
-  ARG name ostr DEFAULT None
+  ARG name ostr DEFAULT None EXAMPLE "__seam_surface_nonexistent"
   ARG tag ostr DEFAULT None
   ARG layer ostr DEFAULT None
   ARG component ostr DEFAULT None
@@ -498,8 +498,8 @@ END
 TOOL get_component CORE RO "Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N."
   FLAG core
   VERB "Reading component"
-  ARG path str "Scene path to the GameObject (e.g. /Player or /World/Enemy)"
-  ARG type str DEFAULT_TEXT "" "Component type name (e.g. 'Transform', 'Rigidbody', 'MeshRenderer')"
+  ARG path str EXAMPLE "/__seam_nonexistent" "Scene path to the GameObject (e.g. /Player or /World/Enemy)"
+  ARG type str DEFAULT_TEXT "" EXAMPLE "Transform" "Component type name (e.g. 'Transform', 'Rigidbody', 'MeshRenderer')"
   ARG fields ostr DEFAULT None "Comma-separated fields to return (e.g. 'mass,localPosition') — skips all others, saves tokens"
   ARG full bool DEFAULT False LOCAL "Return raw uncompressed response (bypass distillation)"
   ARG compress bool DEFAULT False "Strip fields at their default value before TCP transfer — reduces response size"
@@ -513,7 +513,7 @@ END
 TOOL get_components_list SCENE RO "List all components on object by instance ID."
   FORWARD
   VERB "Reading components"
-  ARG id int RAW
+  ARG id int RAW EXAMPLE "999999999"
   TAG read_cacheable
 END
 
@@ -560,7 +560,7 @@ TOOL get_hierarchy CORE RO "Scene hierarchy as text tree. For finding specific o
   TIMEOUT 15.0
   MAXCHARS 50000
   VERB "Reading scene"
-  ARG depth int DEFAULT 2 "Traversal depth (default 2; increase for deeper trees)"
+  ARG depth int DEFAULT 2 EXAMPLE "1" "Traversal depth (default 2; increase for deeper trees)"
   ARG root ostr DEFAULT None "Scene path to scope the hierarchy (omit = whole scene)"
   ARG filter ostr DEFAULT None "Substring filter on GameObject name"
   ARG components bool DEFAULT False "Show component types next to each object (increases token cost)"
@@ -587,7 +587,7 @@ PYTOOL get_metrics RUNTIME RW "Returns telemetry snapshot. Clears counters when 
 END
 
 TOOL get_object_detail SCENE RO "Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation."
-  ARG id int
+  ARG id int EXAMPLE "999999999"
   ARG full bool DEFAULT False LOCAL
   TAG async_full
   TAG strip_defaults
@@ -607,7 +607,7 @@ END
 
 TOOL get_schema SYSTEM RO "Get all serialized fields of a component type with types. Use before set_property to know exact field names."
   FORWARD
-  ARG type str
+  ARG type str EXAMPLE "Transform"
 END
 
 TOOL get_selection SCENE RO "Currently selected GameObject: path and component list."
@@ -616,7 +616,7 @@ END
 
 TOOL get_spatial_context SCENE RO "Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only."
   FORWARD
-  ARG path str
+  ARG path str EXAMPLE "/__seam_nonexistent"
   ARG radius float DEFAULT 5.0
 END
 
@@ -634,25 +634,25 @@ END
 
 TOOL get_test_progress TESTS RO "Legacy progress facade. Pass run_id to correlate the response."
   GUARD compile
-  ARG run_id ostr DEFAULT None
+  ARG run_id ostr DEFAULT None EXAMPLE "__seam_nonexistent"
 END
 
 TOOL get_test_results TESTS RO "Legacy result facade. Pass run_id to prevent reading a stale latest run."
   GUARD compile
-  ARG run_id ostr DEFAULT None
+  ARG run_id ostr DEFAULT None EXAMPLE "__seam_nonexistent"
 END
 
 TOOL get_test_run TESTS RO "Return the durable JSON snapshot for one exact test run."
   GUARD compile
   TIMEOUT 10.0
-  ARG run_id str
+  ARG run_id str EXAMPLE "__seam_nonexistent"
   ARG compact bool DEFAULT False "Return a shorter summary instead of the full per-test breakdown"
 END
 
 TOOL get_unity_events SCENE RO "List all UnityEvent persistent listeners in the active scene."
   FORWARD
   DOC "path: optional scene-path prefix filter (e.g. '/UI' to scan only the UI subtree)."
-  ARG path ostr DEFAULT None
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
 END
 
 INTERNAL get_version RO "Version and protocol handshake; the Unity server answers it before the command router."
@@ -670,7 +670,7 @@ END
 TOOL inspect CORE RO "Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all)."
   FLAG core
   VERB "Reading"
-  ARG paths ostr DEFAULT None "Comma-separated scene paths (e.g. '/Player,/Enemy,/Camera')"
+  ARG paths ostr DEFAULT None EXAMPLE "/Main Camera" "Comma-separated scene paths (e.g. '/Player,/Enemy,/Camera')"
   ARG components ostr DEFAULT None "Comma-separated component types to read (omit = all)"
   ARG fields ostr DEFAULT None "Comma-separated field names to project across all objects — reduces tokens"
   ARG full bool DEFAULT False LOCAL "Return raw uncompressed response (bypass distillation)"
@@ -684,7 +684,7 @@ END
 
 TOOL inspect_uitk UITOOLKIT RO "Inspect the VisualElement tree of a UIDocument or PanelRenderer panel"
   TIMEOUT 15.0
-  ARG path ostr DEFAULT None
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG depth oint DEFAULT None
   ARG selector ostr DEFAULT None
   ARG filter ostr DEFAULT None
@@ -710,7 +710,7 @@ TOOL lint_playtest TESTS RO "Static validation for playtest DSL. Read-only — n
   GUARD compile
   TIMEOUT 60.0
   ARG path ostr DEFAULT None "Project-relative path to .playtest file"
-  ARG script ostr DEFAULT None "Inline DSL (mutually exclusive with path)"
+  ARG script ostr DEFAULT None EXAMPLE "ASSERT_CONSOLE_CLEAN" "Inline DSL (mutually exclusive with path)"
 END
 
 PYTOOL lint_playtest_suite TESTS RO "Read-only preflight check across multiple .playtest files."
@@ -749,7 +749,7 @@ TOOL list_events COMPONENTS RO "Read persistent listeners on a UnityEvent field.
   FORWARD
   DOC "Returns listener details: target path, method name, call state, arg type/value."
   DOC "event: serialized field name — same as wire_event 'event' param (e.g. 'onClick')."
-  ARG path str
+  ARG path str EXAMPLE "/__seam_nonexistent"
   ARG component str
   ARG event str
 END
@@ -779,9 +779,9 @@ TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No conf
   FORWARD
   FLAG core
   VERB "Editing components"
-  ARG path str "Scene path to the GameObject"
-  ARG type str "Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button')"
-  ARG action str "'add' or 'remove' — not 'enable'/'disable' (use set_property m_Enabled for that)"
+  ARG path str EXAMPLE "/__seam_nonexistent" "Scene path to the GameObject"
+  ARG type str EXAMPLE "Rigidbody" "Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button')"
+  ARG action str EXAMPLE "add" "'add' or 'remove' — not 'enable'/'disable' (use set_property m_Enabled for that)"
   TAG atomic_scene
   TAG distill_skip
   TAG do_allowed
@@ -790,8 +790,8 @@ END
 
 TOOL material ASSETS RW "Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared)."
   FORWARD
-  ARG action str
-  ARG path ostr DEFAULT None
+  ARG action str EXAMPLE "get"
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG object_path ostr DEFAULT None
   ARG shader ostr DEFAULT None
   ARG prop ostr DEFAULT None
@@ -823,7 +823,7 @@ END
 
 TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API."
   FORWARD
-  ARG action str
+  ARG action str EXAMPLE "list"
   ARG path ostr DEFAULT None "Unity Editor menu-item path to execute, or submenu prefix to list"
   READ list
   TAG reflect_noerror
@@ -862,8 +862,8 @@ END
 
 TOOL object_diff SCENE RO "Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."
   FORWARD
-  ARG path_a str
-  ARG path_b str
+  ARG path_a str EXAMPLE "/__seam_nonexistent_a"
+  ARG path_b str EXAMPLE "/__seam_nonexistent_b"
 END
 
 TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove."
@@ -888,7 +888,7 @@ END
 TOOL particle MEDIA RW "Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
   FORWARD
   ARG action str
-  ARG path str
+  ARG path str EXAMPLE "/__seam_nonexistent"
   ARG name ostr DEFAULT None
   ARG module ostr DEFAULT None
   ARG prop ostr DEFAULT None
@@ -916,7 +916,7 @@ END
 TOOL ping_object SCENE RO "Highlight object in Hierarchy and Project, and select it."
   FORWARD
   SESSION
-  ARG path str
+  ARG path str EXAMPLE "/__seam_nonexistent"
 END
 
 TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate."
@@ -928,7 +928,7 @@ TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmatio
   DOC "get_overrides: format: text (default)|structured."
   DOC "create_variant: base_path + variant_path."
   DOC "instantiate: asset_path (instantiate prefab into active scene)."
-  ARG action str
+  ARG action str EXAMPLE "list"
   ARG path ostr DEFAULT None
   ARG asset_path ostr DEFAULT None
   ARG base_path ostr DEFAULT None
@@ -968,8 +968,8 @@ TOOL project_settings ASSETS RW_IDEM "Project settings. Modifies project setting
   DOC "tags set: prop=remove value=<tag> to remove; else adds."
   DOC "quality set prop=currentLevel: calls SetQualityLevel()."
   DOC "player set prop=ScriptingBackend: needs build_target (Standalone|iOS|Android|etc) + value (Mono2x|IL2CPP)."
-  ARG action str
-  ARG target str
+  ARG action str EXAMPLE "get"
+  ARG target str EXAMPLE "tags"
   ARG prop ostr DEFAULT None
   ARG value ostr DEFAULT None
   ARG index oint DEFAULT None RAW
@@ -1006,8 +1006,8 @@ END
 
 TOOL references COMPONENTS RW "References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs."
   FORWARD
-  ARG action str
-  ARG path str
+  ARG action str EXAMPLE "get"
+  ARG path str EXAMPLE "/__seam_nonexistent"
   ARG children bool DEFAULT False OMIT
   ARG depth int DEFAULT 1 OMIT RAW
   ARG source ostr DEFAULT None
@@ -1017,7 +1017,7 @@ TOOL references COMPONENTS RW "References. action: get|find_to|remap. get: outgo
 END
 
 TOOL region_clear SCENE RW "Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required."
-  ARG vertices str
+  ARG vertices str EXAMPLE "0,0 1,0 1,1 0,1"
   ARG dry_run bool DEFAULT True
   ARG filter ostr DEFAULT None
   ARG cap int DEFAULT 50
@@ -1030,8 +1030,8 @@ TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path af
   FORWARD
   DOC "path: current scene path, &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy). name: new name (non-empty)."
   DOC "Note: all subsequent MCP calls must use the new path."
-  ARG path str
-  ARG name str
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG name str EXAMPLE "__seam_renamed"
   TAG atomic_scene
 END
 
@@ -1065,7 +1065,7 @@ END
 TOOL resolve_test_request TESTS RO "Resolve a possibly lost start ACK without dispatching another test run."
   GUARD compile
   TIMEOUT 10.0
-  ARG request_id str
+  ARG request_id str EXAMPLE "__seam_nonexistent"
 END
 
 PYTOOL resolve_tool_schema SYSTEM RO "Return full parameter schemas for deferred tools. tools=comma-separated names."
@@ -1187,7 +1187,7 @@ TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_addit
   WIRE no_undo
   FLAG tier1
   VERB "Managing scene"
-  ARG action str "Operation: new|open|save|discard|open_additive|close|set_active|list"
+  ARG action str EXAMPLE "get" "Operation: new|open|save|discard|open_additive|close|set_active|list"
   ARG path ostr DEFAULT None "Asset path — required for open/save/open_additive/close/set_active"
   ARG scene ostr DEFAULT None "Scene name for save/discard when multiple scenes are loaded"
   ARG include_unsaved bool DEFAULT True
@@ -1214,7 +1214,7 @@ TOOL scene_environment SCENE RW "Read/write scene environment: ambient light, fo
   DOC "Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,"
   DOC "ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance,"
   DOC "reflectionIntensity, reflectionBounces, subtractiveShadowColor, defaultReflectionResolution."
-  ARG action str DEFAULT_TEXT "get"
+  ARG action str DEFAULT_TEXT "get" EXAMPLE "get"
   ARG prop ostr DEFAULT None
   ARG value ostr DEFAULT None
   READ get
@@ -1275,7 +1275,7 @@ END
 
 TOOL scriptable_object ASSETS RW "ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter."
   FORWARD
-  ARG action str
+  ARG action str EXAMPLE "list"
   ARG path ostr DEFAULT None "Project asset path to the ScriptableObject .asset file"
   ARG type ostr DEFAULT None
   ARG prop ostr DEFAULT None
@@ -1297,7 +1297,7 @@ TOOL search_scene SCENE RO "Search scene objects. Syntax: name text, t:Component
   DOC "limit: max results (default 50; 0=unlimited)."
   DOC "scene: filter to a single scene by name (multi-scene only)."
   VERB "Searching"
-  ARG query str "Syntax: 'name text', 't:Component', 'tag=Tag', 'layer=N', 'active=bool' — combine with spaces"
+  ARG query str EXAMPLE "__seam_nonexistent" "Syntax: 'name text', 't:Component', 'tag=Tag', 'layer=N', 'active=bool' — combine with spaces"
   ARG root ostr DEFAULT None "Scene path to scope the search (omit = whole scene)"
   ARG limit int DEFAULT 50 OMIT "Max results (default 50; 0 = unlimited)"
   ARG scene ostr DEFAULT None "Filter to a single scene by name (multi-scene only)"
@@ -1310,17 +1310,17 @@ TOOL serialized_field_rename_audit VERIFY RO "Audit [SerializeField] rename safe
   DOC "new_field: renamed field name in current C# source."
   DOC "include: comma-separated scan targets (prefabs,scenes,scriptable_objects)."
   DOC "Returns: has_formerly_serialized_as, stale_assets, safe_to_remove_attribute, recommended_actions."
-  ARG type str
-  ARG old_field str
-  ARG new_field str
+  ARG type str EXAMPLE "MyNamespace.PlayerStats"
+  ARG old_field str EXAMPLE "oldFieldName"
+  ARG new_field str EXAMPLE "newFieldName"
   ARG include str DEFAULT_TEXT "prefabs,scenes,scriptable_objects" OMIT
 END
 
 TOOL set_active SCENE RW_IDEM "Set GameObject active/inactive."
   FORWARD
   FLAG tier1
-  ARG path str "Scene path to the GameObject"
-  ARG active bool "True to activate, False to deactivate"
+  ARG path str EXAMPLE "/__seam_nonexistent" "Scene path to the GameObject"
+  ARG active bool EXAMPLE "false" "True to activate, False to deactivate"
   TAG atomic_scene
   TAG distill_skip
   TAG do_allowed
@@ -1333,8 +1333,8 @@ END
 
 TOOL set_material SCENE RW_IDEM "Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto."
   FORWARD
-  ARG path str
-  ARG color str
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG color str EXAMPLE "#FFFFFF"
   ARG shader ostr DEFAULT None
   TAG do_allowed
   BLAST 1
@@ -1344,8 +1344,8 @@ TOOL set_parent SCENE RW_IDEM "Reparent existing GameObject. parent=null → mov
   FORWARD
   FLAG tier1
   VERB "Re-parenting"
-  ARG path str "Scene path of the GameObject to reparent"
-  ARG parent ostr DEFAULT None "New parent scene path (omit or null = move to scene root)"
+  ARG path str EXAMPLE "/__seam_nonexistent" "Scene path of the GameObject to reparent"
+  ARG parent ostr DEFAULT None EXAMPLE "/" "New parent scene path (omit or null = move to scene root)"
   ARG world_position_stays bool DEFAULT True OMIT "True (default) = preserve world transform; False = keep local transform relative to new parent"
   TAG atomic_scene
 END
@@ -1359,10 +1359,10 @@ END
 TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`)."
   FLAG core
   VERB "Editing"
-  ARG path ostr DEFAULT None "Scene path to the GameObject (e.g. /Player/Body)"
-  ARG component str DEFAULT_TEXT "" "Component type (empty string = Transform)"
-  ARG prop str DEFAULT_TEXT "" "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
-  ARG value Any DEFAULT None "New value. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'"
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent" "Scene path to the GameObject (e.g. /Player/Body)"
+  ARG component str DEFAULT_TEXT "" EXAMPLE "Transform" "Component type (empty string = Transform)"
+  ARG prop str DEFAULT_TEXT "" EXAMPLE "m_LocalPosition" "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
+  ARG value Any DEFAULT None EXAMPLE "0,0,0" "New value. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'"
   ARG dry_run bool DEFAULT False "Show what would change without applying (safe preview)"
   ARG find_type ostr DEFAULT None "Component type — bulk-sets prop on ALL scene objects with this component (no path needed)"
   ARG ref_component_type ostr DEFAULT None LOCAL
@@ -1374,16 +1374,16 @@ END
 
 TOOL set_property_delta SCENE RW "Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new."
   FORWARD
-  ARG path str
-  ARG component str
-  ARG prop str
-  ARG delta str
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG component str EXAMPLE "Transform"
+  ARG prop str EXAMPLE "m_LocalPosition.x"
+  ARG delta str EXAMPLE "1"
   TAG atomic_scene
 END
 
 TOOL set_rect UGUI RW_IDEM "Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y). pos3: (x,y,z) sets anchoredPosition3D — use for WorldSpace canvases (wins over pos if both given)."
   FORWARD
-  ARG path str
+  ARG path str EXAMPLE "/__seam_nonexistent"
   ARG anchor ostr DEFAULT None
   ARG pos ostr DEFAULT None
   ARG size ostr DEFAULT None
@@ -1397,8 +1397,8 @@ END
 
 TOOL set_sibling_index SCENE RW "Set sibling index of a GameObject within its parent. index=0 moves to first child."
   FORWARD
-  ARG path str
-  ARG index int
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG index int EXAMPLE "0"
   TAG atomic_scene
 END
 
@@ -1412,7 +1412,7 @@ TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Cre
   DOC "action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional)."
   DOC "For material shader assignment use `material` tool instead."
   ARG action str
-  ARG path str "Project asset path to a .shader or .shadergraph file"
+  ARG path str EXAMPLE "/__seam_nonexistent" "Project asset path to a .shader or .shadergraph file"
   ARG target ostr DEFAULT None
   ARG preset ostr DEFAULT None
   ARG code ostr DEFAULT None
@@ -1466,7 +1466,7 @@ END
 
 TOOL spatial_query SCENE RO "Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon."
   ARG action str
-  ARG path ostr DEFAULT None
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG target ostr DEFAULT None
   ARG distance ofloat DEFAULT None
   ARG radius ofloat DEFAULT None
@@ -1537,7 +1537,7 @@ TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use f
   FORWARD
   DOC "action: get | create | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview."
   DOC "track=track name. index=target position for reorder_track. offset=time shift for duplicate_clip. value=offset mode (auto|transform|scene) for set_track_offset."
-  ARG path str
+  ARG path str EXAMPLE "/__seam_nonexistent"
   ARG action str
   ARG track ostr DEFAULT None
   ARG track_type ostr DEFAULT None
@@ -1567,8 +1567,8 @@ TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene
   DOC "target_scene: destination scene name. Omit = same scene (copy = duplicate)."
   DOC "parent: target parent path in destination scene."
   DOC "world_position_stays: preserve world transform (default True)."
-  ARG path str
-  ARG action str
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG action str EXAMPLE "move"
   ARG target_scene ostr DEFAULT None
   ARG parent ostr DEFAULT None
   ARG world_position_stays bool DEFAULT True OMIT
@@ -1585,8 +1585,8 @@ END
 
 TOOL uitk_element UITOOLKIT RW "Mutate or query a VisualElement in a UIDocument or PanelRenderer host"
   TIMEOUT 15.0
-  ARG action Any
-  ARG path ostr DEFAULT None
+  ARG action Any EXAMPLE "get"
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG ref ostr DEFAULT None
   ARG selector ostr DEFAULT None
   ARG name ostr DEFAULT None "VisualElement name used after ref and before selector in addressing priority"
@@ -1637,9 +1637,9 @@ END
 TOOL unwire_event COMPONENTS DEL "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required."
   FORWARD
   DOC "index: remove specific entry (0-based). Omit to clear all."
-  ARG path str
+  ARG path str EXAMPLE "/__seam_nonexistent"
   ARG component str
-  ARG event str
+  ARG event str EXAMPLE "onClick"
   ARG index oint DEFAULT None RAW
   TAG atomic_scene
 END
@@ -1668,7 +1668,7 @@ TOOL validate_references VERIFY RO "Validate all ObjectReference fields under pa
   DOC "verbose=True also shows [OK] lines (off by default to save tokens)."
   DOC "ignore_optional=True skips fields marked [Optional] (reduces noise)."
   VERB "Checking refs"
-  ARG path str
+  ARG path str EXAMPLE "/__seam_nonexistent"
   ARG depth int DEFAULT 3 RAW
   ARG verbose bool DEFAULT False OMIT
   ARG ignore_optional bool DEFAULT False OMIT
@@ -1741,11 +1741,11 @@ TOOL wire_event COMPONENTS RW "Wire UnityEvent persistent listener. Mutates scen
   DOC "target_component_type: narrow component search to this type (e.g. 'Animator')."
   DOC "parameter_types: comma-separated param types to resolve overloads (e.g. 'string')."
   VERB "Wiring"
-  ARG path str
+  ARG path str EXAMPLE "/__seam_nonexistent"
   ARG component str
-  ARG event str
-  ARG target str
-  ARG method str
+  ARG event str EXAMPLE "onClick"
+  ARG target str EXAMPLE "/__seam_tgt"
+  ARG method str EXAMPLE "SetActive"
   ARG arg_type str DEFAULT_TEXT "void"
   ARG arg_value ostr DEFAULT None
   ARG target_component_type ostr DEFAULT None

@@ -4,6 +4,7 @@ CONSTRUCTS constructs
 
 GENERATE py-specs  render {dir}/tools.biome pyspec   {dir}/../server/src/unity_mcp/tools/generated/catalog_specs.py
 GENERATE py-params render {dir}/tools.biome pyparams {dir}/../server/src/unity_mcp/tools/generated/catalog_params.py
+GENERATE py-examples render {dir}/tools.biome pyexamples {dir}/../server/src/unity_mcp/tools/generated/catalog_examples.py
 GENERATE py-tools  render {dir}/tools.biome pytools  {dir}/../server/src/unity_mcp/tools/generated/catalog_tools.py
 GENERATE py-tags  render {dir}/tools.biome pytags  {dir}/../server/src/unity_mcp/tools/generated/catalog_tags.py
 GENERATE py-blast render {dir}/tools.biome pyblast {dir}/../server/src/unity_mcp/tools/generated/catalog_blast.py

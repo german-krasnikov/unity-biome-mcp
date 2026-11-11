@@ -16,6 +16,15 @@ EXAMPLE a TOOL prints the fields of its ToolSpec and the descriptions of its arg
   EXPECT rendered.pyparams 'query': "Syntax",
   EXPECT unrendered.pyparams limit
 
+EXAMPLE EXAMPLE on an ARG prints its illustrative value, one without prints nothing
+  SOURCE TOOL search_scene SCENE RO "Search."
+  SOURCE   ARG query str EXAMPLE "Player"
+  SOURCE   ARG limit int DEFAULT 50
+  SOURCE END
+  EXPECT rendered.pyexamples 'search_scene': {
+  EXPECT rendered.pyexamples 'query': "Player",
+  EXPECT unrendered.pyexamples limit
+
 EXAMPLE a FORWARD tool prints its expectation and its wrapper, which leaves out an OMIT argument that equals its default
   SOURCE TOOL search_scene SCENE RO "Search."
   SOURCE   FORWARD
