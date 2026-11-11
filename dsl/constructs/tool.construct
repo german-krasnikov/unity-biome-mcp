@@ -12,6 +12,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM GUARD <flag:enum(always|compile|play_ok)>
   ITEM WIRE <flag:enum(special|not_batch|no_undo)>
   ITEM FORWARD
+  ITEM BODY <module:match([a-z_][a-z0-9_]*)>
   ITEM FLAG <flag:enum(core|tier1|direct_only|unity_transport)>
   ITEM RUNTIME
   ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_custom|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
@@ -30,6 +31,10 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ENSURE (COUNT ARG WHERE it.has_default AND it.has_dtext) == 0 ELSE "ARG may not set both DEFAULT and DEFAULT_TEXT"
   ENSURE effect == RO OR (ANY TAG WHERE it.tag IN {reflect_silent, reflect_noerror, reflect_custom}) OR COUNT EXPECT > 0 ELSE "a write tool needs a reflect decision: TAG reflect_silent/reflect_noerror/reflect_custom, or EXPECT"
   ENSURE (COUNT EXPECT WHERE it.mode == bool_arg AND NOT it.has_argname) == 0 ELSE "EXPECT bool_arg needs ARG <name>"
+  ENSURE COUNT BODY <= 1 ELSE "a tool may declare BODY at most once"
+  ENSURE COUNT FORWARD == 0 OR COUNT BODY == 0 ELSE "FORWARD and BODY are mutually exclusive — FORWARD generates the whole tool, BODY generates its signature and calls a hand-written implementation"
+  ENSURE COUNT BODY == 0 OR (COUNT ARG WHERE it.has_wname) == 0 ELSE "BODY tools never call _send through the generated wrapper — ARG WIRE only means something for FORWARD"
+  ENSURE COUNT BODY == 0 OR (COUNT ARG WHERE it.has_raw) == 0 ELSE "BODY tools never call _send through the generated wrapper — ARG RAW only means something for FORWARD"
   TEMPLATE pyspec HEADER "SPEC_KWARGS: dict[str, dict] = {" FOOTER "}" ESCAPE data
         '{name}': {
             'category': '{category}',
@@ -95,6 +100,34 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
             {aname}=rt.w_{atype}({aname}{?omit:, {default}}{?omit2:, "{dtext}"}{?raw:, raw=True}),
     END
         ))
+
+
+    END
+    IF ANY BODY
+    EACH BODY
+    tools.expect_body('{name}', '{module}')
+    END
+
+
+    @tools.provide
+    async def {name}(
+    EACH ARG
+        {aname}: {atype}{?default:  = {default}}{?dtext:  = "{dtext}"},
+    END
+    ) -> str:
+        ("{summary}"
+    EACH DOC
+         "\n    {line}"
+    END
+        )
+    EACH BODY
+        from .. import {module}
+        return await {module}._{name}_body(
+    END
+    EACH ARG
+            {aname}={aname},
+    END
+        )
 
 
     END
@@ -188,6 +221,7 @@ END
 
 CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
   HEAD PYTOOL <name:match([a-z][a-z0-9_]*) UNIQUE> <category:enum(CORE|SCENE|COMPONENTS|ASSETS|UGUI|UITOOLKIT|MEDIA|VERIFY|RUNTIME|TESTS|SYSTEM)> <effect:enum(RO|RW|RW_IDEM|DEL)> <summary:string>
+  ITEM BODY <module:match([a-z_][a-z0-9_]*)>
   ITEM FLAG <flag:enum(core|tier1)>
   ITEM RUNTIME
   ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_custom|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
@@ -202,6 +236,7 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
   DECLARE
   ENSURE effect == RO OR (ANY TAG WHERE it.tag IN {reflect_silent, reflect_noerror, reflect_custom}) OR COUNT EXPECT > 0 ELSE "a write tool needs a reflect decision: TAG reflect_silent/reflect_noerror/reflect_custom, or EXPECT"
   ENSURE (COUNT EXPECT WHERE it.mode == bool_arg AND NOT it.has_argname) == 0 ELSE "EXPECT bool_arg needs ARG <name>"
+  ENSURE COUNT BODY <= 1 ELSE "a tool may declare BODY at most once"
   TEMPLATE pyspec ESCAPE data
         '{name}': {
             'category': '{category}',
@@ -238,6 +273,31 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
     , session=True)
     ELSE
     ))
+    END
+    IF ANY BODY
+    EACH BODY
+    tools.expect_body('{name}', '{module}')
+    END
+
+
+    @tools.provide
+    async def {name}(
+    EACH ARG
+        {aname}: {atype}{?default:  = {default}}{?dtext:  = "{dtext}"},
+    END
+    ) -> str:
+        ("{summary}"
+        )
+    EACH BODY
+        from .. import {module}
+        return await {module}._{name}_body(
+    END
+    EACH ARG
+            {aname}={aname},
+    END
+        )
+
+
     END
   END
   TEMPLATE pyreads ESCAPE data

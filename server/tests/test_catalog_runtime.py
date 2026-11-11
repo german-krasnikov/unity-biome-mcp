@@ -1,4 +1,7 @@
 """The runtime of the generated tool module: the wire encoders, and the ToolSet that checks a function against the catalog and registers it."""
+import sys
+import types
+
 import pytest
 from mcp.types import ToolAnnotations
 
@@ -167,6 +170,74 @@ def test_two_owners_of_a_name_are_refused():
         tools.expect("rename", "RO", "Again.", ())
     with pytest.raises(ValueError, match="rename"):
         tools.provide(_function())
+
+
+def _fake_tools_module(monkeypatch, name, **attrs):
+    """Register a fake module at unity_mcp.tools.<name> in sys.modules, so importlib.import_module (what
+    ToolSet.install()'s body-drift check uses) resolves it without a real file on disk."""
+    mod = types.ModuleType(f"unity_mcp.tools.{name}")
+    for key, value in attrs.items():
+        setattr(mod, key, value)
+    monkeypatch.setitem(sys.modules, f"unity_mcp.tools.{name}", mod)
+    return mod
+
+
+def test_expect_body_unknown_name_raises():
+    tools = rt.ToolSet()
+    with pytest.raises(LookupError, match="nope"):
+        tools.expect_body("nope", "objects")
+
+
+def test_install_raises_on_missing_body_function(monkeypatch):
+    tools, mcp = rt.ToolSet(), _Mcp()
+    tools.expect("x", "RO", "X.", (("a", str),))
+    tools.provide(_function("a: str", "X.", name="x"))
+    tools.expect_body("x", "fakemod_missing")
+    _fake_tools_module(monkeypatch, "fakemod_missing")  # no _x_body attribute
+    with pytest.raises(LookupError, match="_x_body"):
+        tools.install(mcp)
+
+
+def test_install_raises_on_body_keyword_drift(monkeypatch):
+    tools, mcp = rt.ToolSet(), _Mcp()
+    tools.expect("x", "RO", "X.", (("a", str), ("b", str)))
+    tools.provide(_function("a: str, b: str", "X.", name="x"))
+    tools.expect_body("x", "fakemod_drift")
+
+    async def _x_body(a, c):
+        pass
+
+    _fake_tools_module(monkeypatch, "fakemod_drift", _x_body=_x_body)
+    with pytest.raises(TypeError, match="drift"):
+        tools.install(mcp)
+
+
+def test_install_passes_when_body_keywords_match_any_order_and_defaults(monkeypatch):
+    tools, mcp = rt.ToolSet(), _Mcp()
+    tools.expect("x", "RO", "X.", (("a", str), ("b", str)))
+    tools.provide(_function("a: str, b: str", "X.", name="x"))
+    tools.expect_body("x", "fakemod_order")
+
+    async def _x_body(b, a=1):
+        pass
+
+    _fake_tools_module(monkeypatch, "fakemod_order", _x_body=_x_body)
+    tools.install(mcp)
+    assert [name for name, _ in mcp.registered] == ["x"]
+
+
+def test_install_ignores_var_positional_and_var_keyword_in_body(monkeypatch):
+    tools, mcp = rt.ToolSet(), _Mcp()
+    tools.expect("x", "RO", "X.", (("a", str), ("b", str)))
+    tools.provide(_function("a: str, b: str", "X.", name="x"))
+    tools.expect_body("x", "fakemod_varargs")
+
+    async def _x_body(a, b, **extra):
+        pass
+
+    _fake_tools_module(monkeypatch, "fakemod_varargs", _x_body=_x_body)
+    tools.install(mcp)
+    assert [name for name, _ in mcp.registered] == ["x"]
 
 
 def test_the_hand_written_use_skill_is_checked_against_the_catalog_when_its_module_registers_it():

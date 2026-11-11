@@ -2,6 +2,7 @@
 
 It holds no fact about any tool; the names, types, defaults, flags and descriptions are in dsl/tools.biome.
 """
+import importlib
 import inspect
 from typing import Any
 
@@ -49,6 +50,7 @@ class ToolSet:
         self._provided = {}    # name -> a generated wrapper, registered by install()
         self._registered = {}  # name -> (module, qualname) of a hand-written function that its module registered
         self._session = {}     # name -> SESSION flag, read by derive() when registering
+        self._body_modules = {}  # name -> module name (unity_mcp.tools.<module>) of a BODY tool's hand-written _<name>_body
 
     def expect(self, name, effect, summary, params, session=False):
         """The catalog states a tool: its effect, the first line of its description and its parameters, (name, type[, default]) in order."""
@@ -62,6 +64,15 @@ class ToolSet:
         if self._provided.setdefault(fn.__name__, fn) is not fn:
             raise ValueError(f"{fn.__name__} is provided by two functions")
         return fn
+
+    def expect_body(self, name: str, module: str) -> None:
+        """Record that <module> (unity_mcp.tools.<module>) owns the hand-written `_<name>_body` that a BODY-tagged
+        generated wrapper calls. Stores the module name only -- importing it now would recreate the circular-import
+        problem the generated wrapper's own lazy import already avoids; install() resolves it once every
+        tools/*.py module has finished loading."""
+        if name not in self._expected:
+            raise LookupError(f"{name} is not a tool of the catalog")
+        self._body_modules[name] = module
 
     def signature(self, name: str) -> dict[str, frozenset[str]]:
         """Required/optional ARG names of a catalog tool (no DEFAULT/DEFAULT_TEXT -> required)."""
@@ -91,6 +102,16 @@ class ToolSet:
         missing, unknown = self._expected.keys() - done, self._provided.keys() - self._expected.keys()
         if missing or unknown:
             raise LookupError(f"catalog tools without a function: {sorted(missing)}; functions without a catalog tool: {sorted(unknown)}")
+        for name, module_name in self._body_modules.items():
+            mod = importlib.import_module(f".{module_name}", "unity_mcp.tools")
+            fn = getattr(mod, f"_{name}_body", None)
+            if fn is None:
+                raise LookupError(f"{module_name}._{name}_body does not exist for BODY tool '{name}'")
+            want = self.signature(name)["required"] | self.signature(name)["optional"]
+            got = frozenset(p.name for p in inspect.signature(fn).parameters.values()
+                            if p.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD))
+            if got != want:
+                raise TypeError(f"catalog drift: {module_name}._{name}_body{sorted(got)} must accept keyword(s) {sorted(want)}")
         wrappers = [(name, self._provided[name]) for name in self._expected if name in self._provided]
         for name, fn in wrappers:
             _conform(name, fn, *self._expected[name][1:])

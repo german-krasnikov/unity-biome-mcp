@@ -49,6 +49,23 @@ EXAMPLE a FORWARD tool prints its expectation and its wrapper, which leaves out 
   EXPECT rendered.pytools limit=rt.w_int(limit, 50),
   EXPECT rendered.pytools count=rt.w_int(count),
 
+EXAMPLE a BODY tool prints its expectation and a wrapper that calls the hand module instead of _send
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   BODY objects
+  SOURCE   DOC "a: the thing."
+  SOURCE   ARG a str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pytools tools.expect_body('frob', 'objects')
+  EXPECT rendered.pytools @tools.provide
+  EXPECT rendered.pytools async def frob(
+  EXPECT rendered.pytools ("Frob."
+  EXPECT rendered.pytools "\n    a: the thing."
+  EXPECT rendered.pytools from .. import objects
+  EXPECT rendered.pytools return await objects._frob_body(
+  EXPECT rendered.pytools a=a,
+  EXPECT unrendered.pytools _send(
+
 EXAMPLE a PYTOOL is direct_only, escapes its descriptions, and prints only an expectation like a TOOL that is not FORWARD
   SOURCE PYTOOL use_skill SYSTEM RW "Use."
   SOURCE   ARG name str "say \"hi\" \\ bye"
@@ -371,6 +388,38 @@ EXAMPLE cstools emits WIRE's name instead of the ARG's own name in Required/Opti
 EXAMPLE ARG LOCAL and WIRE exclude each other
   SOURCE TOOL conflicted SCENE RW "Conflicted."
   SOURCE   ARG dual str LOCAL WIRE "x"
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE FORWARD and BODY exclude each other
+  SOURCE TOOL dual_body SCENE RW "Dual."
+  SOURCE   FORWARD
+  SOURCE   BODY objects
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE BODY and ARG WIRE exclude each other
+  SOURCE TOOL dual_body SCENE RW "Dual."
+  SOURCE   BODY objects
+  SOURCE   ARG a str WIRE "b"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE BODY and ARG RAW exclude each other
+  SOURCE TOOL dual_body SCENE RW "Dual."
+  SOURCE   BODY objects
+  SOURCE   ARG a int RAW
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE a tool may declare BODY at most once
+  SOURCE TOOL dual_body SCENE RW "Dual."
+  SOURCE   BODY objects
+  SOURCE   BODY asset
+  SOURCE   TAG reflect_silent
   SOURCE END
   EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
 
