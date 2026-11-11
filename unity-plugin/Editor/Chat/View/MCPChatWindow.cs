@@ -311,11 +311,24 @@ namespace UnityMCP.Editor.Chat
                 _backend = BackendFactoryForTest(resumeSessionId);
                 return;
             }
-            var backendId  = BackendProviderRegistry.KindToId(_selectedKind);
+            var backendId  = KindToId(_selectedKind);
             var sysPrompt  = ChipSystemPrompt.ForBackend(_selectedKind);
             _backend = new RelayBackend(backendId, _agentMode ? "agent" : "ask",
                                         _selectedModel, MCPServer.ServerChatPort, resumeSessionId,
                                         sysPrompt);
+        }
+
+        /// <summary>Map BackendKind enum to the relay's ProviderId string.</summary>
+        private static string KindToId(BackendKind kind)
+        {
+            switch (kind)
+            {
+                case BackendKind.Codex:       return "codex";
+                case BackendKind.Antigravity: return "antigravity";
+                case BackendKind.Kimi:        return "kimi";
+                case BackendKind.OpenCode:    return "opencode";
+                default:                      return "claude";
+            }
         }
 
         internal static Func<string, IChatBackend> BackendFactoryForTest;
