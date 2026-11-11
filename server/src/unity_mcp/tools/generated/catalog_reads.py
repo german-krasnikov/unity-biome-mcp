@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=52f2faa606a844ba4cd88389499399b45b180d24e4cc5aa1dc9ac172c716d393
+# source-sha256=3d832f420083a6487760d371d72ff4366c408b0b35cb506ef11d339b098940ff
 # Edit the source, then run biome generate.
 
 ACTION_READS: dict[str, frozenset[str]] = {

@@ -45,6 +45,7 @@ TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use wh
   ARG int_param oint DEFAULT None RAW
   ARG float_param ofloat DEFAULT None RAW
   ARG string_param ostr DEFAULT None
+  ARG compact bool DEFAULT False OMIT
   READ get
   READ get_clip_path
   READ get_events
@@ -133,7 +134,7 @@ TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No conf
   ARG output ostr DEFAULT None
   ARG include_deps bool DEFAULT True
   ARG content ostr DEFAULT None
-  ARG class_name ostr DEFAULT None
+  ARG class_name ostr DEFAULT None WIRE "class"
   ARG path_only bool DEFAULT False
   READ find
   READ find_dependents
@@ -209,7 +210,7 @@ TOOL batch CORE RW "Execute multiple commands in one call. Use for 2+ ops — re
   VERB "Running batch"
   ARG commands str "One command per line (e.g. 'get_component path=/Player type=Transform')"
   ARG on_error str DEFAULT_TEXT "continue" "Error behavior: continue (default) | stop — stop aborts remaining commands"
-  ARG timeout float DEFAULT 75.0 "Total timeout in seconds (default 75)"
+  ARG timeout float DEFAULT 75.0 LOCAL "Total timeout in seconds (default 75)"
   ARG atomic bool DEFAULT False "On failure, revert prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain"
   ARG validate_aliases bool DEFAULT False "Dry-run alias validation before executing any mutations"
   TAG distill_skip
@@ -683,7 +684,7 @@ TOOL inspect_uitk UITOOLKIT RO "Inspect the VisualElement tree of a UIDocument o
   ARG depth oint DEFAULT None
   ARG selector ostr DEFAULT None
   ARG filter ostr DEFAULT None
-  ARG show_unity_private obool DEFAULT None
+  ARG show_unity_private obool DEFAULT None WIRE "include_internal"
   ARG show_style obool DEFAULT None
 END
 
@@ -751,6 +752,7 @@ END
 INTERNAL list_playtest_files RO "Lists the files that match a glob pattern (default Playtests/*.playtest), one project-relative path per line."
   GUARD compile
   TIMEOUT 10.0
+  ARG pattern ostr DEFAULT None
 END
 
 PYTOOL list_skills SYSTEM RO "List all saved skills with descriptions and usage counts."
@@ -929,6 +931,8 @@ TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmatio
   ARG mode ostr DEFAULT None
   ARG scope ostr DEFAULT None
   ARG format ostr DEFAULT None
+  ARG parent ostr DEFAULT None
+  ARG child_path ostr DEFAULT None
   READ get_overrides
   TAG reflect_noerror
 END
@@ -1218,8 +1222,8 @@ TOOL screenshot MEDIA RW "Capture screenshot (file path); describe= -> Haiku tex
   ARG camera ostr DEFAULT None "View type: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game"
   ARG path ostr DEFAULT None "For single_view/multi_view: target GameObject scene path; for standard captures: legacy project-contained .png destination (prefer output_path)"
   ARG output_path ostr DEFAULT None "Unambiguous project-contained .png destination for every capture mode"
-  ARG describe ostr DEFAULT None "Haiku prompt for AI text description instead of returning file path (15-100x fewer tokens)"
-  ARG raw bool DEFAULT False "Force returning file path even when describe= is set"
+  ARG describe ostr DEFAULT None LOCAL "Haiku prompt for AI text description instead of returning file path (15-100x fewer tokens)"
+  ARG raw bool DEFAULT False LOCAL "Force returning file path even when describe= is set"
   ARG zoom ofloat DEFAULT None "Zoom factor — higher = closer"
   ARG angles ostr DEFAULT None "Per-view Euler angles: 'ex,ey,ez|...' (underscore = skip this view)"
   ARG supersample oint DEFAULT None "Anti-alias quality 1-4 (higher = sharper, slower)"
@@ -1343,7 +1347,7 @@ TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObj
   ARG value Any DEFAULT None "New value. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'"
   ARG dry_run bool DEFAULT False "Show what would change without applying (safe preview)"
   ARG find_type ostr DEFAULT None "Component type — bulk-sets prop on ALL scene objects with this component (no path needed)"
-  ARG ref_component_type ostr DEFAULT None
+  ARG ref_component_type ostr DEFAULT None LOCAL
   TAG atomic_scene
   TAG distill_skip
   TAG do_allowed
@@ -1438,6 +1442,8 @@ END
 INTERNAL source_patch_write RW "Writes a source patch; the internal sender of asset.py routes it when Source Patch mutation is armed."
   FLAG direct_only
   FLAG unity_transport
+  ARG path str
+  ARG content str
 END
 
 TOOL spatial_query SCENE RO "Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon."
@@ -1582,7 +1588,7 @@ TOOL uitk_file UITOOLKIT RW "Read or edit a UXML or USS asset file."
   ARG selector ostr DEFAULT None
   ARG attr ostr DEFAULT None
   ARG value ostr DEFAULT None
-  ARG cls ostr DEFAULT None
+  ARG cls ostr DEFAULT None WIRE "class"
   ARG parent ostr DEFAULT None
   ARG tag ostr DEFAULT None
   ARG attrs ostr DEFAULT None

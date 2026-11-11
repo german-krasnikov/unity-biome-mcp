@@ -37,7 +37,7 @@ namespace UnityMCP.Editor
             // registered here only for IsRegistered/IsMutating queries
             CommandRegistry.Register("screenshot", _ => throw new InvalidOperationException("screenshot intercepted before ExecuteCommand"),
                 mutating: true,
-                required: "", optional: "width,height,camera,path,output_path,supersample,angles,zoom,offset,fixed_size,highlight,show_colliders,angle,annotation_id",
+                required: "", optional: "width,height,camera,path,output_path,supersample,angles,zoom,offset,fixed_size,highlight,show_colliders,angle,annotation_id,describe,raw",
                 fileHandler: BuildScreenshotResponse,
                 specialDispatch: true, allowedDuringCompile: true);
             CommandRegistry.Register("diagnose", args => DiagnoseCommand.Execute(args),
@@ -151,7 +151,7 @@ namespace UnityMCP.Editor
             }, ToolMeta.Get("lint_scene_refs"));
             CommandRegistry.Register("alias_status", ExecAliasStatus, ToolMeta.Get("alias_status"));
             CommandRegistry.Register("validate_playtest_aliases", ExecValidateAliases,
-                required: "defs", optional: "asset", allowedDuringCompile: true);
+                required: "", optional: "defs,asset", allowedDuringCompile: true);
             CommandRegistry.Register("sync_playtest_aliases_from_defs", ExecSyncFromDefs, ToolMeta.Get("sync_playtest_aliases_from_defs"));
             CommandRegistry.Register("export_playtest_aliases_to_defs", ExecExportToDefs, ToolMeta.Get("export_playtest_aliases_to_defs"));
             CommandRegistry.Register("get_component", ExecGetComponent,
@@ -316,7 +316,7 @@ namespace UnityMCP.Editor
                 if (r.StartsWith("err:", System.StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException(r.Substring(4).Trim());
                 return r;
-            }, required: "", optional: "action,path,detail,baseline_id,max_events");
+            }, required: "action", optional: "path,detail,baseline_id,max_events");
             CommandRegistry.Register("check_colliders", args => ColliderChecker.Check(
                 JsonHelper.ExtractString(args, "path")),
                 ToolMeta.Get("check_colliders"));
@@ -329,7 +329,7 @@ namespace UnityMCP.Editor
                 ToolMeta.Get("analyze_lod_culling"));
             CommandRegistry.Register("get_schema", args => SchemaHelper.GetSchema(
                 JsonHelper.ExtractString(args, "type")),
-                required: "", optional: "type");
+                required: "type", optional: "");
             CommandRegistry.Register("get_changes", args => ChangeWatcher.GetChanges(
                 JsonHelper.ExtractString(args, "clear") != "false"),
                 ToolMeta.Get("get_changes"));
@@ -358,9 +358,9 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("query_state", args => GameStateHelper.Snapshot(
                 JsonHelper.ExtractString(args, "queries")), ToolMeta.Get("query_state"));
             CommandRegistry.Register("get_frame_stats", _ => ProfilerHelper.GetFrameStats(), runtime: true,
-                required: "", optional: "");
+                required: "", optional: "include");
             CommandRegistry.RegisterAction("profile", Profiling.ProfileRecorder.Dispatch, mutating: true, runtime: true,
-                required: "", optional: "mode,duration,session,focus,compare_with");
+                required: "", optional: "mode,duration,session,focus,compare_with,threshold_ms");
             // NOTE: NOT runtime:true — sessions persist after Play Mode ends
             CommandRegistry.Register("get_profile_context", args =>
             {
@@ -398,7 +398,7 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(args, "commands"),
                     JsonHelper.ExtractString(args, "on_error") ?? "continue",
                     timeoutMs, atomic, validateAliases);
-            }, mutating: false, required: "commands", optional: "on_error,timeout_ms,atomic,validate_aliases",
+            }, mutating: false, required: "commands", optional: "on_error,timeout,atomic,validate_aliases",
                allowedDuringCompile: true);
 
             // Spatial queries (read-only)
@@ -459,7 +459,7 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("transfer_object", ExecTransferObject, ToolMeta.Get("transfer_object"));
             CommandRegistry.Register("delete_object", ExecDeleteObject, ToolMeta.Get("delete_object"));
             CommandRegistry.Register("set_property", ExecSetProperty, mutating: true,
-                required: "", optional: "path,find_type,component,prop,value,dry_run");
+                required: "", optional: "path,find_type,component,prop,value,dry_run,ref_component_type");
             CommandRegistry.Register("set_property_delta", ExecSetPropertyDelta, ToolMeta.Get("set_property_delta"));
             CommandRegistry.Register("set_active", args =>
             {
@@ -538,7 +538,7 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "path"),
                 JsonHelper.ExtractString(args, "color"),
                 JsonHelper.ExtractString(args, "shader")), mutating: true,
-                required: "path", optional: "color,shader");
+                required: "path,color", optional: "shader");
             // P-414: scene save must NOT create an undo group (prevents isDirty clearing in Unity 6): noUndo. scene is mutating as in
             // Python (step 7.2) and its read is the READ line `list`; the mutating actions (new/open/discard/close) record
             // mutation explicitly inside ExecScene
@@ -546,9 +546,9 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("animation", ExecAnimationConsolidated, mutating: true,
                 required: "action,path", optional: "clip,clip_name,property,keys,time,component_type,binding_path,tangent,function_name,int_param,float_param,string_param,compact");
             CommandRegistry.Register("timeline", ExecTimelineConsolidated, mutating: true,
-                required: "action", optional: "path,track,track_type,clip,binding,start,duration,blend_in,blend_out,asset_path,director_path,tracks,time,name,clip_in,index,offset,value");
+                required: "action,path", optional: "track,track_type,clip,binding,start,duration,blend_in,blend_out,asset_path,director_path,tracks,time,name,clip_in,index,offset,value");
             CommandRegistry.Register("references", ExecReferencesConsolidated, mutating: true,
-                required: "action", optional: "path,children,depth,source,target,mappings");
+                required: "action,path", optional: "children,depth,source,target,mappings");
             CommandRegistry.Register("create_ui", ExecCreateUI, ToolMeta.Get("create_ui"));
             CommandRegistry.Register("set_rect", ExecSetRect, ToolMeta.Get("set_rect"));
             CommandRegistry.Register("lint_ugui", ExecLintUGUI, ToolMeta.Get("lint_ugui"));
@@ -559,7 +559,7 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("animator", ExecAnimatorConsolidated, ToolMeta.Get("animator"));
             CommandRegistry.Register("particle", ExecParticleConsolidated, ToolMeta.Get("particle"));
             CommandRegistry.Register("shader", ExecShaderConsolidated, mutating: true,
-                required: "action,path", optional: "target,preset,code,shader_name,prop,value,keyword,enabled,node_type,node_id,node_action,output_node,output_slot,input_node,input_slot,edge_action,name,type,default_value,reference_name,new_name");
+                required: "action,path", optional: "target,preset,code,shader_name,prop,value,keyword,enabled,node_type,node_id,node_action,output_node,output_slot,input_node,input_slot,edge_action,name,type,default_value,reference_name,new_name,layout,h_gap,v_gap");
             CommandRegistry.Register("menu", ExecMenu, ToolMeta.Get("menu"));
             CommandRegistry.Register("attach_uitk", ExecAttachUITK, ToolMeta.Get("attach_uitk"));
             // PR-04: batch exclusion declared here by the owner, not hardcoded in CommandRegistry.IsBatchable. Which actions
@@ -573,7 +573,7 @@ namespace UnityMCP.Editor
             // create/move/delete each need different fields) — flat contract is intentionally
             // loose here (required: "action" only, everything else optional). See Issue 23 plan.
             CommandRegistry.RegisterAction("asset", AssetDatabaseHelper.Execute, mutating: true,
-                optional: "path,type,name,folder,source,dest,prop,value,recursive,labels,output,include_deps,content,class");
+                optional: "path,type,name,folder,source,dest,prop,value,recursive,labels,output,include_deps,content,class,path_only");
             CommandRegistry.RegisterAction("project_settings", ProjectSettingsHelper.Execute, ToolMeta.Get("project_settings"));
             CommandRegistry.RegisterAction("material", MaterialHelper.Execute, ToolMeta.Get("material"));
             CommandRegistry.RegisterAction("prefab", PrefabHelper.Execute, mutating: true,
@@ -599,7 +599,7 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAsync("run_tests", AsyncRunTests,
                 mutating: true, playOk: true,
                 required: "", optional: "request_id,mode,filter,group,categories,assemblies,tests");
-            CommandRegistry.RegisterAsync("ask_user", AsyncAskUser, required: "", optional: "questions",
+            CommandRegistry.RegisterAsync("ask_user", AsyncAskUser, required: "questions", optional: "",
                 alwaysAllowed: true, allowedDuringCompile: true);  // UI-only card, no assembly access
             CommandRegistry.RegisterAsync("wait_until", AsyncWaitUntil, ToolMeta.Get("wait_until"));
             CommandRegistry.RegisterAsync("move_to", AsyncMoveTo, ToolMeta.Get("move_to"));

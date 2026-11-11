@@ -27,15 +27,21 @@ _FIELDS = ["mutating", "runtime", "special", "always", "compile", "notbatch", "p
 _ENTRY = re.compile(r'case "([^"]+)":\s*return new CommandOptions\s*\{(.*?)\};', re.DOTALL)
 
 KNOWN_DIVERGENT: dict[str, dict[str, str]] = {}
+# A3-DESIGN.md Sec 3 #1-6: ask_user/get_schema/references/render_analyze/set_material/timeline flip required<->optional
+# only in the hand-written C# literal (test_catalog_vs_csharp's concern); the catalog's own ARG shape (no DEFAULT ->
+# required) was already correct and unchanged, so it keeps disagreeing with this frozen golden regardless.
 for _name in ["ask_user", "get_component", "get_schema", "references", "render_analyze",
-              "run_tests", "scene_environment", "set_material", "source_patch_write", "timeline",
+              "run_tests", "scene_environment", "set_material", "timeline",
               "validate_playtest_aliases"]:
     KNOWN_DIVERGENT.setdefault(_name, {})["required"] = "A1-DESIGN.md Sec 4: pre-existing ARG-name drift, A3's scope"
-for _name in ["animation", "ask_user", "asset", "batch", "get_component", "get_frame_stats",
-              "get_schema", "inspect", "inspect_uitk",
-              "list_playtest_files", "prefab", "profile", "references", "render_analyze",
-              "scene_environment", "screenshot", "set_material", "set_property", "shader",
-              "timeline", "uitk_file", "validate_playtest_aliases"]:
+# A3-DESIGN.md Sec 3 #16/#17/#25: profile/get_frame_stats/batch's remaining gaps (threshold_ms/include not generated
+# at all; batch's LOCAL timeout vs golden's still-literal timeout_ms) are catalog-shape facts this slice's C#-literal-only
+# edits do not touch -- the asset/get_component/scene_environment/uitk_file/inspect_uitk renames are the same kind of
+# residual (WIRE only closes this oracle when no second field also differs; see A3-DESIGN.md Sec 3 #31-35).
+for _name in ["ask_user", "asset", "batch", "get_component", "get_frame_stats",
+              "get_schema", "inspect", "profile", "references", "render_analyze",
+              "scene_environment", "set_material", "shader",
+              "timeline", "validate_playtest_aliases"]:
     KNOWN_DIVERGENT.setdefault(_name, {})["optional"] = "A1-DESIGN.md Sec 4: pre-existing ARG-name drift, A3's scope"
 # A3-DESIGN.md Sec 3 #8/#9/#14/#29: catalog already declared these ARGs (DEFAULT-based, so always generated as
 # Optional); golden is a frozen pre-A1 C# snapshot that never listed them at all -- stays divergent regardless

@@ -24,12 +24,15 @@ _CALL = re.compile(r'CommandRegistry\.(Register|RegisterAsync|RegisterAction)\(\
 KNOWN_DIVERGENT = {
     "mutating": {"batch"},
     "runtime": set(),
-    "required": {"ask_user", "get_component", "get_schema", "references", "render_analyze", "scene_environment",
-                 "set_material", "timeline", "validate_playtest_aliases"},
-    "optional": {"animation", "ask_user", "asset", "batch", "get_component", "get_frame_stats",
-                 "get_schema", "inspect", "inspect_uitk", "prefab", "profile", "references",
-                 "render_analyze", "scene_environment", "screenshot", "set_material", "set_property",
-                 "shader", "timeline", "uitk_file", "validate_playtest_aliases"},
+    # A3-DESIGN.md Sec 3 #30/#31: get_component.type's DEFAULT_TEXT "" fallback (component= alias) and
+    # scene_environment's RegisterAction-forced action are structural, not bugs -- see both tools' optional
+    # entries below for the same two facts viewed from the other field.
+    "required": {"get_component", "scene_environment"},
+    # A3-DESIGN.md Sec 3 #30/#31 (get_component, scene_environment, as above); #32-34 (asset/uitk_file/
+    # inspect_uitk's class_name/cls/show_unity_private renames -- WIRE fixes test_toolmeta_vs_golden.py but
+    # not this oracle, which compares Python's own live property name against the untouched C# literal);
+    # #35 (inspect.type is a C#-only legacy fallback for components, never exposed in Python).
+    "optional": {"asset", "get_component", "inspect", "inspect_uitk", "scene_environment", "uitk_file"},
 }
 
 

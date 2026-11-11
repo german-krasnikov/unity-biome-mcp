@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=52f2faa606a844ba4cd88389499399b45b180d24e4cc5aa1dc9ac172c716d393
+# source-sha256=3d832f420083a6487760d371d72ff4366c408b0b35cb506ef11d339b098940ff
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -66,6 +66,7 @@ tools.expect('animation', 'RW', "Animate GameObject properties via AnimationClip
     ('int_param', oint, None),
     ('float_param', ofloat, None),
     ('string_param', ostr, None),
+    ('compact', bool, False),
 ))
 
 
@@ -85,6 +86,7 @@ async def animation(
     int_param: oint = None,
     float_param: ofloat = None,
     string_param: ostr = None,
+    compact: bool = False,
 ) -> str:
     ("Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this)."
      "\n    action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path)."
@@ -109,6 +111,7 @@ async def animation(
         int_param=rt.w_oint(int_param, raw=True),
         float_param=rt.w_ofloat(float_param, raw=True),
         string_param=rt.w_ostr(string_param),
+        compact=rt.w_bool(compact, False),
     ))
 
 
@@ -1183,6 +1186,8 @@ tools.expect('prefab', 'RW', "Prefab. Creates or modifies prefab assets. No conf
     ('mode', ostr, None),
     ('scope', ostr, None),
     ('format', ostr, None),
+    ('parent', ostr, None),
+    ('child_path', ostr, None),
 ))
 
 
@@ -1202,6 +1207,8 @@ async def prefab(
     mode: ostr = None,
     scope: ostr = None,
     format: ostr = None,
+    parent: ostr = None,
+    child_path: ostr = None,
 ) -> str:
     ("Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate."
      "\n    edit: asset_path + component + prop + value (set property on prefab asset)."
@@ -1227,6 +1234,8 @@ async def prefab(
         mode=rt.w_ostr(mode),
         scope=rt.w_ostr(scope),
         format=rt.w_ostr(format),
+        parent=rt.w_ostr(parent),
+        child_path=rt.w_ostr(child_path),
     ))
 
 

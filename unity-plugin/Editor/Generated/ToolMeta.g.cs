@@ -1,5 +1,5 @@
 // Generated from dsl/tools.biome
-// source-sha256=52f2faa606a844ba4cd88389499399b45b180d24e4cc5aa1dc9ac172c716d393
+// source-sha256=3d832f420083a6487760d371d72ff4366c408b0b35cb506ef11d339b098940ff
 // Edit the source, then run biome generate.
 
 namespace UnityMCP.Editor
@@ -55,6 +55,7 @@ namespace UnityMCP.Editor
                             "int_param",
                             "float_param",
                             "string_param",
+                            "compact",
                         }),
                     };
                 case "animator":
@@ -122,7 +123,7 @@ namespace UnityMCP.Editor
                             "output",
                             "include_deps",
                             "content",
-                            "class_name",
+                            "class",
                             "path_only",
                         }),
                     };
@@ -180,7 +181,6 @@ namespace UnityMCP.Editor
                             "commands",
                         }),
                         Optional = string.Join(",", new string[] {
-                            "timeout",
                             "atomic",
                             "validate_aliases",
                             "on_error",
@@ -714,7 +714,7 @@ namespace UnityMCP.Editor
                             "depth",
                             "selector",
                             "filter",
-                            "show_unity_private",
+                            "include_internal",
                             "show_style",
                         }),
                     };
@@ -797,6 +797,7 @@ namespace UnityMCP.Editor
                         Required = string.Join(",", new string[] {
                         }),
                         Optional = string.Join(",", new string[] {
+                            "pattern",
                         }),
                        AllowedDuringCompile = true,
                     };
@@ -962,6 +963,8 @@ namespace UnityMCP.Editor
                             "mode",
                             "scope",
                             "format",
+                            "parent",
+                            "child_path",
                         }),
                     };
                 case "profile":
@@ -1212,8 +1215,6 @@ namespace UnityMCP.Editor
                             "camera",
                             "path",
                             "output_path",
-                            "describe",
-                            "raw",
                             "zoom",
                             "angles",
                             "supersample",
@@ -1316,7 +1317,6 @@ namespace UnityMCP.Editor
                             "value",
                             "dry_run",
                             "find_type",
-                            "ref_component_type",
                             "component",
                             "prop",
                         }),
@@ -1402,6 +1402,8 @@ namespace UnityMCP.Editor
                     {
                         Mutating = true,
                         Required = string.Join(",", new string[] {
+                            "path",
+                            "content",
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
@@ -1548,7 +1550,7 @@ namespace UnityMCP.Editor
                             "selector",
                             "attr",
                             "value",
-                            "cls",
+                            "class",
                             "parent",
                             "tag",
                             "attrs",

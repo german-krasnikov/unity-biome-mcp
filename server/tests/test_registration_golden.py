@@ -19,7 +19,9 @@ _EDITOR = Path(__file__).resolve().parents[2] / "unity-plugin" / "Editor"
 
 # name -> {field: reason}: a difference the owner approved (a real A1/A2/A3 migration step). Empty at A0's own
 # commit. Any other difference fails, and an entry whose field no longer differs is stale.
-# A3-DESIGN.md Sec 3: the playtest pair, the tests pair and the distillation-alias family (first 3 of 9 commits).
+# A3-DESIGN.md Sec 3: the playtest pair, the tests pair, the distillation-alias family (first 3 of 9 commits), and
+# families 4-9 (screenshot/profile/memory, batch, the required-flip family, playtest-adjacent leftovers, and the
+# rename/misc family).
 INTENDED: dict[str, dict[str, str]] = {
     "diagnose": {"optional": "A3 #22: prev_mvid/expected_compile are LOCAL -- added to satisfy test_catalog_vs_csharp's live-property check"},
     "get_component": {"optional": "A3 #18: component/full are LOCAL -- added to satisfy test_catalog_vs_csharp's live-property check"},
@@ -32,6 +34,41 @@ INTENDED: dict[str, dict[str, str]] = {
         "optional": "A3 #8: request_id flips to optional -- catalog already defaults it, AsyncRunTests null-guards it",
     },
     "start_playtest": {"optional": "A3 #29: mirrors run_playtest's before_hook/after_hook/format gap (same TryBuildPlaytestRunRequest)"},
+    "ask_user": {
+        "required": "A3 #1: questions flips to required -- plain RegisterAsync, no alias, safe",
+        "optional": "A3 #1: questions flips to required -- plain RegisterAsync, no alias, safe",
+    },
+    "get_schema": {
+        "required": "A3 #2: type flips to required -- FORWARD, ARG type has no default, always sent",
+        "optional": "A3 #2: type flips to required -- FORWARD, ARG type has no default, always sent",
+    },
+    "references": {
+        "required": "A3 #3: path flips to required -- FORWARD, ARG path has no default",
+        "optional": "A3 #3: path flips to required -- FORWARD, ARG path has no default",
+    },
+    "render_analyze": {
+        "required": "A3 #4: action flips to required -- FORWARD, ARG action has no default",
+        "optional": "A3 #4: action flips to required -- FORWARD, ARG action has no default",
+    },
+    "set_material": {
+        "required": "A3 #5: color flips to required -- FORWARD, ARG color has no default",
+        "optional": "A3 #5: color flips to required -- FORWARD, ARG color has no default",
+    },
+    "timeline": {
+        "required": "A3 #6: path flips to required -- FORWARD, ARG path has no default",
+        "optional": "A3 #6: path flips to required -- FORWARD, ARG path has no default",
+    },
+    "validate_playtest_aliases": {
+        "required": "A3 #7: defs flips to optional -- catalog already has DEFAULT_TEXT, no alias-fallback complication",
+        "optional": "A3 #7: defs flips to optional -- catalog already has DEFAULT_TEXT, no alias-fallback complication",
+    },
+    "screenshot": {"optional": "A3 #23: describe/raw are LOCAL -- added to satisfy test_catalog_vs_csharp's live-property check"},
+    "set_property": {"optional": "A3 #24: ref_component_type is LOCAL -- added to satisfy test_catalog_vs_csharp's live-property check"},
+    "profile": {"optional": "A3 #16: threshold_ms is genuinely sent by profiling.py in triggered mode -- closes a real batch gap"},
+    "get_frame_stats": {"optional": "A3 #17: include is a FORWARD ARG the registration never listed -- closes a real batch gap"},
+    "batch": {"optional": "A3 #25: timeout is LOCAL (Python converts seconds->timeout_ms); literal renamed timeout_ms->timeout to match"},
+    "asset": {"optional": "A3 #13/#32: path_only closes a real batch gap; class_name's WIRE \"class\" leaves the literal's existing \"class\" untouched"},
+    "shader": {"optional": "A3 #15: h_gap/v_gap/layout are genuinely read by ShaderHelper -- closes a real batch gap"},
 }
 
 

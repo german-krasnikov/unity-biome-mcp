@@ -37,6 +37,15 @@ INTENDED["set_llm_config"]["annotations"] = 'S0 8/11: None -> derive("RW_IDEM") 
 INTENDED["run_tests"]["description"] = "A3 #9: assemblies/categories/group/tests documented"
 INTENDED["run_tests"]["schema"] = "A3 #9: assemblies/categories/group/tests params added (C# already read them)"
 INTENDED["get_test_run"]["description"] = "A3 #10: compact documented"
+# A3-DESIGN.md Sec 3 #11/#12: animation gains compact (C# already read it, undeclared in the catalog); prefab
+# gains parent/child_path (C# already read both) -- new FORWARD params change the schema hash and the sampled
+# wire calls/digest for both tools.
+INTENDED["animation"]["schema"] = "A3 #11: compact bool param added (C# already read it)"
+INTENDED["animation"]["calls"] = "A3 #11: compact param changes the sampled wire calls"
+INTENDED["animation"]["digest"] = "A3 #11: compact param changes the sampled wire digest"
+INTENDED["prefab"]["schema"] = "A3 #12: parent/child_path params added (C# already read both)"
+INTENDED["prefab"]["calls"] = "A3 #12: parent/child_path params change the sampled wire calls"
+INTENDED["prefab"]["digest"] = "A3 #12: parent/child_path params change the sampled wire digest"
 INTENDED["get_test_run"]["schema"] = "A3 #10: compact bool param added (C# already read it)"
 
 
