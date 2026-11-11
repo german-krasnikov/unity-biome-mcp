@@ -16,6 +16,7 @@ from .editor_state import parse_world_ready as _parse_world_ready
 from .generated.catalog_tools import (  # noqa: F401
     export_playtest_aliases_to_defs,
     invoke_method,
+    resolve_scene_refs,
     runtime_snapshot,
     sync_playtest_aliases_from_defs,
     tools,
@@ -80,7 +81,7 @@ async def query_state(queries: str) -> str:
     """[Play Mode] Snapshot multiple game values in one call.
     queries: comma-separated 'path|component|field_or_method' triplets.
     Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')"""
-    return await _send("query_state", _args(queries=queries), timeout=10.0)
+    return await _send("query_state", _args(queries=queries))
 
 
 async def test_step(path: str, position: str,
@@ -791,14 +792,6 @@ async def lint_playtest_suite(pattern: str | None = None,
     return f"LINT: {ok_count}/{len(results)} clean\n" + "\n".join(results)
 
 
-async def resolve_scene_refs(refs: str, fields: str | None = None) -> str:
-    """Read-only scene reference resolver.
-    refs: comma-separated list of $alias, /path, or t:Type tokens.
-    fields: optional comma-separated field names to check existence on matched component.
-    Returns one tab-aligned line per ref: OK|MISS|AMB + path + details."""
-    return await _send("resolve_scene_refs", _args(refs=refs, fields=fields), timeout=15.0)
-
-
 async def lint_scene_refs(path: str | None = None, snippet: str | None = None) -> str:
     """Read-only linter for scene references in DSL scripts or batch commands.
     path: project-relative path to .playtest file.
@@ -809,12 +802,11 @@ async def lint_scene_refs(path: str | None = None, snippet: str | None = None) -
         raise ValueError("path and snippet are mutually exclusive")
     if not path and not snippet:
         raise ValueError("path or snippet required")
-    return await _send("lint_scene_refs", _args(path=path, snippet=snippet), timeout=30.0)
+    return await _send("lint_scene_refs", _args(path=path, snippet=snippet))
 
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, resolve_scene_refs)
     tools.register(mcp, lint_scene_refs)
     tools.register(mcp, wait_until)
     tools.register(mcp, move_to)

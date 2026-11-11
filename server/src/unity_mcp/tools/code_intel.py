@@ -34,7 +34,7 @@ async def compile_preflight(file_path: str, new_content: str) -> str:
     if not new_content or not new_content.strip():
         raise ToolError("compile_preflight: new_content is required (full file content)")
     args: dict[str, Any] = {"file_path": file_path, "new_content": new_content}
-    return await _send("compile_preflight", args, timeout=15.0)
+    return await _send("compile_preflight", args)
 
 
 def _parse_status(status: str) -> tuple[str, float]:

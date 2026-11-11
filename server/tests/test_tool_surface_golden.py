@@ -47,6 +47,32 @@ INTENDED["prefab"]["schema"] = "A3 #12: parent/child_path params added (C# alrea
 INTENDED["prefab"]["calls"] = "A3 #12: parent/child_path params change the sampled wire calls"
 INTENDED["prefab"]["digest"] = "A3 #12: parent/child_path params change the sampled wire digest"
 INTENDED["get_test_run"]["schema"] = "A3 #10: compact bool param added (C# already read it)"
+# SV4: compile_preflight/query_state/recompile gain a real catalog TIMEOUT -- the golden recorded a stale
+# literal (compile_preflight) or the unset ToolSpec default (query_state/recompile had none before); each
+# hand-written wrapper's own timeout= kwarg governed the real wire timeout until now, so the golden never
+# saw the catalog value. lint_scene_refs gains TIMEOUT 30.0 too, but that equals the unset default already
+# recorded, so it has no diff to allow.
+INTENDED["compile_preflight"]["timeout_s"] = "SV4: catalog fixed to the active 15s fast-fail value (was 60.0, contradicted code_intel.py's literal, Q3)"
+INTENDED["query_state"]["timeout_s"] = "SV4: catalog gains the real 10s timeout (golden recorded the unset ToolSpec default, 30.0)"
+INTENDED["recompile"]["timeout_s"] = "SV4: catalog gains the real 60s timeout (golden recorded the unset ToolSpec default, 30.0)"
+# SV4: ask_user/get_console/package/ping_object/recompile/resolve_scene_refs move to FORWARD (generated
+# wrapper); each hand-written wrapper's literal timeout= kwarg to _send is gone now that the catalog alone
+# governs it (one place, not two) -- the golden's wire sampler records what the wrapper itself passes to
+# _send, not what _send_raw resolves it to, so this changes the digest even where the catalog's timeout
+# value is unchanged (ask_user/package/resolve_scene_refs). ping_object had no timeout kwarg before or
+# after and its one str ARG is unchanged, so its digest has no diff to allow.
+INTENDED["ask_user"]["digest"] = "SV4: FORWARD; literal timeout=300.0 kwarg removed from the wrapper (catalog now governs it alone)"
+INTENDED["package"]["digest"] = "SV4: FORWARD; literal timeout=60.0 kwarg removed from the wrapper (catalog now governs it alone)"
+INTENDED["recompile"]["digest"] = "SV4: FORWARD; literal timeout=60.0 kwarg removed from the wrapper (catalog now governs it alone)"
+INTENDED["resolve_scene_refs"]["digest"] = "SV4: FORWARD; literal timeout=15.0 kwarg removed from the wrapper (catalog now governs it alone)"
+INTENDED["query_state"]["digest"] = "SV4: literal timeout=10.0 kwarg removed from the (still hand-written) wrapper -- the catalog governs it alone now"
+# SV4: get_console's first (pagination offset) used a hand ternary that omitted any first<=0, not just the
+# exact default (0); the catalog's OMIT is exact-default only, so first<0 (sampled by the golden's int
+# sampler) is now sent raw instead of silently omitted. No real caller passes a negative offset.
+INTENDED["get_console"]["digest"] = "SV4: FORWARD; first<0 now sent raw instead of silently omitted (OMIT is exact-default 0 only, not <=0)"
+# SV4: ask_user's docstring had a blank line between the summary and "questions:"; DOC lines (one per
+# original docstring line) carry no blank line, so the regenerated description drops it -- same content.
+INTENDED["ask_user"]["description"] = "SV4: FORWARD; DOC lines drop the blank line between the summary and \"questions:\" (content unchanged)"
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:

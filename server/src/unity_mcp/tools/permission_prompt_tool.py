@@ -31,7 +31,7 @@ async def permission_prompt(tool_name: str, input: dict, tool_use_id: str):
     if tool_name == "AskUserQuestion":
         try:
             questions = input.get("questions", [])
-            answers_raw = await _send("ask_user", {"questions": json.dumps(questions)}, timeout=300.0)
+            answers_raw = await _send("ask_user", {"questions": json.dumps(questions)})
             answers = json.loads(answers_raw)
             return json.dumps({
                 "behavior": "allow",

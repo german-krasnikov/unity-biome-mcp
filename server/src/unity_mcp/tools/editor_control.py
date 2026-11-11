@@ -6,7 +6,7 @@ from ._common import bind
 from ._source_patch_intent import set_cached_intent as _set_cached_intent
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
-from .generated.catalog_tools import checkpoint, get_capabilities, get_selection, tools, undo_last  # noqa: F401
+from .generated.catalog_tools import checkpoint, get_capabilities, get_selection, ping_object, tools, undo_last  # noqa: F401
 
 _send = None
 _args = None
@@ -30,11 +30,6 @@ async def editor(action: str = "state", path: str | None = None,
     return result
 
 
-async def ping_object(path: str) -> str:
-    """Highlight object in Hierarchy and Project, and select it."""
-    return await _send("ping_object", _args(path=path))
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, editor, ping_object)
+    tools.register(mcp, editor)

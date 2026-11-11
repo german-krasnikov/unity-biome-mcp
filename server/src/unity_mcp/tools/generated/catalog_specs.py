@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=3d832f420083a6487760d371d72ff4366c408b0b35cb506ef11d339b098940ff
+# source-sha256=25f0d8d3327300a7121d6209899f434ca13aff2e27ef733c833bda852df5edf6
 # Edit the source, then run biome generate.
 
 SPEC_KWARGS: dict[str, dict] = {
@@ -129,7 +129,7 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'VERIFY',
         'effect': 'RO',
         'core': True,
-        'timeout_s': 60.0,
+        'timeout_s': 15.0,
     },
     'compile_status': {
         'category': '_INTERNAL',
@@ -388,6 +388,7 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'VERIFY',
         'effect': 'RO',
         'tier1': True,
+        'timeout_s': 30.0,
     },
     'lint_ugui': {
         'category': 'UGUI',
@@ -516,10 +517,12 @@ SPEC_KWARGS: dict[str, dict] = {
         'category': 'RUNTIME',
         'effect': 'RO',
         'runtime_only': True,
+        'timeout_s': 10.0,
     },
     'recompile': {
         'category': 'SYSTEM',
         'effect': 'RW',
+        'timeout_s': 60.0,
     },
     'reconnect_unity': {
         'category': 'SYSTEM',

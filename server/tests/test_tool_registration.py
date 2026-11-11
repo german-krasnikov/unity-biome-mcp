@@ -200,8 +200,9 @@ def test_editor_control_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # editor, ping_object = 2 tools (get_selection, checkpoint, undo_last and get_capabilities are the catalog's)
-    assert mcp.tool.call_count >= 2
+    # editor = 1 tool (get_selection, checkpoint, undo_last, get_capabilities and
+    # ping_object (SV4) are the catalog's)
+    assert mcp.tool.call_count >= 1
 
 
 def test_b2_split_modules_wired_into_register_all():

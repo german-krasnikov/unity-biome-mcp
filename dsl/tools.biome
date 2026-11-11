@@ -113,9 +113,14 @@ END
 TOOL ask_user SYSTEM RO "Show a question card in Unity chat; wait for user answer (interactive UI — use `ask` for read-only AI scene questions instead)."
   GUARD always
   GUARD compile
+  FORWARD
   FLAG direct_only
   FLAG unity_transport
   TIMEOUT 300.0
+  DOC "questions: JSON array matching AskUserQuestion schema:"
+  DOC "[{\"question\":\"...\",\"header\":\"...\",\"options\":[{\"label\":\"...\"}],\"multiSelect\":false}]"
+  DOC "Returns JSON map of question→answer (or free text if Other field used)."
+  DOC "Use this instead of AskUserQuestion for in-Unity interactive prompts."
   ARG questions str
 END
 
@@ -279,12 +284,10 @@ PYTOOL checkpoint_restore SYSTEM DEL "Restore files to their pre-turn state."
   ARG force bool DEFAULT False
 END
 
-# timeout_s is a fallback ceiling only -- code_intel.py:25 always passes
-# timeout=15.0 (fast-fail by design).
 TOOL compile_preflight VERIFY RO "Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile."
   GUARD compile
   FLAG core
-  TIMEOUT 60.0
+  TIMEOUT 15.0
   ARG file_path str
   ARG new_content str
 END
@@ -516,16 +519,17 @@ END
 
 TOOL get_console CORE RO "Recent console logs. For C# compile errors use get_compile_errors instead. keyword: case-insensitive substring filter. count_only: return N matches as string. since: only logs from last N seconds."
   GUARD compile
+  FORWARD
   FLAG core
   TIMEOUT 10.0
   MAXCHARS 20000
   VERB "Reading console"
-  ARG count int DEFAULT 10 "Max log entries to return (default 10)"
+  ARG count int DEFAULT 10 RAW "Max log entries to return (default 10)"
   ARG level ostr DEFAULT None "Filter by level: log|warning|error|exception|assert (omit = all)"
-  ARG first int DEFAULT 0 "Skip the first N entries (pagination offset)"
+  ARG first int DEFAULT 0 OMIT RAW "Skip the first N entries (pagination offset)"
   ARG keyword ostr DEFAULT None
-  ARG count_only bool DEFAULT False
-  ARG since ofloat DEFAULT None
+  ARG count_only bool DEFAULT False OMIT
+  ARG since ofloat DEFAULT None RAW
 END
 
 PYTOOL get_console_since RUNTIME RO "Console entries after the watermark created by console_mark()."
@@ -717,6 +721,7 @@ END
 
 TOOL lint_scene_refs VERIFY RO "Read-only linter for scene references in DSL scripts or batch commands."
   FLAG tier1
+  TIMEOUT 30.0
   ARG path ostr DEFAULT None "Project-relative path to a .playtest DSL file"
   ARG snippet ostr DEFAULT None
 END
@@ -863,9 +868,14 @@ END
 
 TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove."
   GUARD play_ok
+  FORWARD
   FLAG direct_only
   FLAG unity_transport
   TIMEOUT 60.0
+  DOC "list: all installed packages."
+  DOC "search: query required."
+  DOC "add: name required, version optional."
+  DOC "remove: name required."
   ARG action str
   ARG name ostr DEFAULT None "Unity Package Manager package identifier for add/remove (for example com.unity.inputsystem)"
   ARG version ostr DEFAULT None
@@ -904,6 +914,7 @@ INTERNAL ping RO "Liveness probe: Unity answers pong."
 END
 
 TOOL ping_object SCENE RO "Highlight object in Hierarchy and Project, and select it."
+  FORWARD
   SESSION
   ARG path str
 END
@@ -969,6 +980,7 @@ END
 
 TOOL query_state RUNTIME RO "[Play Mode] Snapshot multiple game values in one call."
   RUNTIME
+  TIMEOUT 10.0
   ARG queries str
   BLAST 0
 END
@@ -978,6 +990,8 @@ END
 TOOL recompile SYSTEM RW "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done."
   GUARD play_ok
   WIRE no_undo
+  FORWARD
+  TIMEOUT 60.0
   TAG distill_skip
   TAG do_forbidden
 END
@@ -1039,7 +1053,11 @@ TOOL render_analyze MEDIA RO "Rendering analysis."
 END
 
 TOOL resolve_scene_refs VERIFY RO "Read-only scene reference resolver."
+  FORWARD
   TIMEOUT 15.0
+  DOC "refs: comma-separated list of $alias, /path, or t:Type tokens."
+  DOC "fields: optional comma-separated field names to check existence on matched component."
+  DOC "Returns one tab-aligned line per ref: OK|MISS|AMB + path + details."
   ARG refs str
   ARG fields ostr DEFAULT None
 END

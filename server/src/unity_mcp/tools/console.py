@@ -3,24 +3,13 @@ import contextlib
 import time as _time
 
 from ._common import bind
-from .generated.catalog_tools import tools
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import get_console, recompile, tools  # noqa: F401
 
 _send = None
 _args = None
 _mark_epoch: int = 0
-
-
-async def get_console(count: int = 10, level: str | None = None, first: int = 0,
-                      keyword: str | None = None, count_only: bool = False,
-                      since: float | None = None) -> str:
-    """Recent console logs. For C# compile errors use get_compile_errors instead. keyword: case-insensitive substring filter. count_only: return N matches as string. since: only logs from last N seconds."""
-    return await _send("get_console", _args(
-        count=count, level=level,
-        first=first if first > 0 else None,
-        keyword=keyword,
-        count_only="true" if count_only else None,
-        since=since,
-    ))
 
 
 async def get_compile_errors() -> str:
@@ -90,8 +79,6 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
-    tools.register(mcp, get_console)
     tools.register(mcp, get_compile_errors)
-    tools.register(mcp, recompile)
     tools.register(mcp, console_mark)
     tools.register(mcp, get_console_since)

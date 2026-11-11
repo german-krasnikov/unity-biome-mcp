@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=3d832f420083a6487760d371d72ff4366c408b0b35cb506ef11d339b098940ff
+# source-sha256=25f0d8d3327300a7121d6209899f434ca13aff2e27ef733c833bda852df5edf6
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -161,6 +161,23 @@ tools.expect('ask', 'RO', "Answer a read-only question about the Unity scene (AI
 tools.expect('ask_user', 'RO', "Show a question card in Unity chat; wait for user answer (interactive UI — use `ask` for read-only AI scene questions instead).", (
     ('questions', str),
 ))
+
+
+@tools.provide
+async def ask_user(
+    questions: str,
+) -> str:
+    ("Show a question card in Unity chat; wait for user answer (interactive UI — use `ask` for read-only AI scene questions instead)."
+     "\n    questions: JSON array matching AskUserQuestion schema:"
+     "\n    [{\"question\":\"...\",\"header\":\"...\",\"options\":[{\"label\":\"...\"}],\"multiSelect\":false}]"
+     "\n    Returns JSON map of question→answer (or free text if Other field used)."
+     "\n    Use this instead of AskUserQuestion for in-Unity interactive prompts."
+    )
+    return await _send('ask_user', _args(
+        questions=rt.w_str(questions),
+    ))
+
+
 tools.expect('asset', 'RW', "Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path.", (
     ('action', str),
     ('path', ostr, None),
@@ -700,6 +717,29 @@ tools.expect('get_console', 'RO', "Recent console logs. For C# compile errors us
     ('count_only', bool, False),
     ('since', ofloat, None),
 ))
+
+
+@tools.provide
+async def get_console(
+    count: int = 10,
+    level: ostr = None,
+    first: int = 0,
+    keyword: ostr = None,
+    count_only: bool = False,
+    since: ofloat = None,
+) -> str:
+    ("Recent console logs. For C# compile errors use get_compile_errors instead. keyword: case-insensitive substring filter. count_only: return N matches as string. since: only logs from last N seconds."
+    )
+    return await _send('get_console', _args(
+        count=rt.w_int(count, raw=True),
+        level=rt.w_ostr(level),
+        first=rt.w_int(first, 0, raw=True),
+        keyword=rt.w_ostr(keyword),
+        count_only=rt.w_bool(count_only, False),
+        since=rt.w_ofloat(since, raw=True),
+    ))
+
+
 tools.expect('get_console_since', 'RO', "Console entries after the watermark created by console_mark().", (
     ('mark_id', str),
     ('level', ostr, None),
@@ -1128,6 +1168,29 @@ tools.expect('package', 'RW', "Package manager. Adds or removes packages. No con
     ('version', ostr, None),
     ('query', ostr, None),
 ))
+
+
+@tools.provide
+async def package(
+    action: str,
+    name: ostr = None,
+    version: ostr = None,
+    query: ostr = None,
+) -> str:
+    ("Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove."
+     "\n    list: all installed packages."
+     "\n    search: query required."
+     "\n    add: name required, version optional."
+     "\n    remove: name required."
+    )
+    return await _send('package', _args(
+        action=rt.w_str(action),
+        name=rt.w_ostr(name),
+        version=rt.w_ostr(version),
+        query=rt.w_ostr(query),
+    ))
+
+
 tools.expect('particle', 'RW', "Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail.", (
     ('action', str),
     ('path', str),
@@ -1171,6 +1234,19 @@ tools.expect('ping_object', 'RO', "Highlight object in Hierarchy and Project, an
     ('path', str),
 )
 , session=True)
+
+
+@tools.provide
+async def ping_object(
+    path: str,
+) -> str:
+    ("Highlight object in Hierarchy and Project, and select it."
+    )
+    return await _send('ping_object', _args(
+        path=rt.w_str(path),
+    ))
+
+
 tools.expect('prefab', 'RW', "Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate.", (
     ('action', str),
     ('path', ostr, None),
@@ -1287,6 +1363,17 @@ tools.expect('query_state', 'RO', "[Play Mode] Snapshot multiple game values in 
 ))
 tools.expect('recompile', 'RW', "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done.", (
 ))
+
+
+@tools.provide
+async def recompile(
+) -> str:
+    ("Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done."
+    )
+    return await _send('recompile', _args(
+    ))
+
+
 tools.expect('reconnect_unity', 'RO', "Reconnect to Unity. Port 0 or omitted = auto-discover from port files.", (
     ('port', int, 0),
     ('ctx', Any, None),
@@ -1395,6 +1482,24 @@ tools.expect('resolve_scene_refs', 'RO', "Read-only scene reference resolver.", 
     ('refs', str),
     ('fields', ostr, None),
 ))
+
+
+@tools.provide
+async def resolve_scene_refs(
+    refs: str,
+    fields: ostr = None,
+) -> str:
+    ("Read-only scene reference resolver."
+     "\n    refs: comma-separated list of $alias, /path, or t:Type tokens."
+     "\n    fields: optional comma-separated field names to check existence on matched component."
+     "\n    Returns one tab-aligned line per ref: OK|MISS|AMB + path + details."
+    )
+    return await _send('resolve_scene_refs', _args(
+        refs=rt.w_str(refs),
+        fields=rt.w_ostr(fields),
+    ))
+
+
 tools.expect('resolve_test_request', 'RO', "Resolve a possibly lost start ACK without dispatching another test run.", (
     ('request_id', str),
 ))
