@@ -20,8 +20,9 @@ async def test_ask_user_routes_to_send(monkeypatch):
     send = AsyncMock(return_value=json.dumps({"Color?": "Red"}))
     monkeypatch.setattr(mod, "_send", send)
     await mod.permission_prompt("AskUserQuestion", {"questions": questions}, "tu-1")
+    # SV4: the literal timeout=300.0 kwarg is gone -- the catalog's TIMEOUT governs it alone now.
     send.assert_awaited_once_with(
-        "ask_user", {"questions": json.dumps(questions)}, timeout=300.0,
+        "ask_user", {"questions": json.dumps(questions)},
     )
 
 

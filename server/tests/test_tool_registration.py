@@ -260,7 +260,9 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
     scene_own = scene_total - 4
     total = (scene_own + _own_count(console_mod) + _own_count(screenshot_mod)
              + _own_count(testing_mod) + _own_count(ec_mod))
-    assert total == 17  # 27 before the tool catalog took 5 tools from scene.py, 2 from testing.py and 4 from editor_control.py
+    # 27 before the tool catalog took 5 tools from scene.py, 2 from testing.py and 4 from editor_control.py;
+    # SV4 took get_console/recompile from console.py and ping_object from editor_control.py: 17 -> 14.
+    assert total == 14
 
 
 # ── PR-02 Track A: register_all() threads stdio_alive through to connection ────

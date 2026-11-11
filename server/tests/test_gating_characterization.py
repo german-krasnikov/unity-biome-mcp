@@ -151,8 +151,10 @@ _TIMEOUT_CATEGORIES_SNAPSHOT = {
     "resolve_scene_refs": 15.0, "search_scene": 15.0, "uitk_element": 15.0,
     "verify_after_change": 600.0,
     "uitk_intent": 60.0,
-    # SV4: 3 literal timeouts moved from code into the catalog (were absent here).
-    "recompile": 60.0, "query_state": 10.0, "lint_scene_refs": 30.0,
+    # SV4: recompile/query_state move from code into the catalog (were absent here).
+    # lint_scene_refs also gains a catalog TIMEOUT (30.0), but TIMEOUT_CATEGORIES omits any
+    # entry equal to DEFAULT_TIMEOUT (30.0), so it still has no key here.
+    "recompile": 60.0, "query_state": 10.0,
 }
 
 

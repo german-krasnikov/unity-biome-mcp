@@ -24,11 +24,6 @@ async def get_compile_errors() -> str:
     return editor_log.corroborate(csharp, compile_status=state)
 
 
-async def recompile() -> str:
-    """Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done."""
-    return await _send("recompile", {}, timeout=60.0)
-
-
 async def console_mark(label: str = "") -> str:
     """Create a console watermark. Returns mark_id encoding current timestamp.
     Pass to get_console_since() to retrieve only logs after this point.
