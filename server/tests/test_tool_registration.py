@@ -5,41 +5,8 @@ Guards against silent argument-order breakage. Each test:
   2. Confirms _send and _args module globals are set
   3. Confirms mcp.tool was called (tools actually wired)
 """
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 import importlib
-
-
-@pytest.fixture(autouse=True)
-def _restore_tool_globals():
-    """Restore module-level _send/_args after each test to avoid cross-test pollution.
-
-    B2: console/screenshot/testing/editor_control added (split out of scene.py).
-    """
-    import unity_mcp.tools.objects as obj_mod
-    import unity_mcp.tools.runtime as rt_mod
-    import unity_mcp.tools.scene as sc_mod
-    import unity_mcp.tools.console as con_mod
-    import unity_mcp.tools.screenshot as shot_mod
-    import unity_mcp.tools.testing as test_mod
-    import unity_mcp.tools.editor_control as ec_mod
-    saved = {
-        "obj": (obj_mod._send, obj_mod._args),
-        "rt": (rt_mod._send, rt_mod._args),
-        "sc": (sc_mod._send, sc_mod._args),
-        "con": (con_mod._send, con_mod._args),
-        "shot": (shot_mod._send, shot_mod._args),
-        "test": (test_mod._send, test_mod._args),
-        "ec": (ec_mod._send, ec_mod._args),
-    }
-    yield
-    obj_mod._send, obj_mod._args = saved["obj"]
-    rt_mod._send, rt_mod._args = saved["rt"]
-    sc_mod._send, sc_mod._args = saved["sc"]
-    con_mod._send, con_mod._args = saved["con"]
-    shot_mod._send, shot_mod._args = saved["shot"]
-    test_mod._send, test_mod._args = saved["test"]
-    ec_mod._send, ec_mod._args = saved["ec"]
 
 
 def _make_mcp():
