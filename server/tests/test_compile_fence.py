@@ -20,13 +20,6 @@ def _patch_sleep():
         yield
 
 
-@pytest.fixture(autouse=True)
-def _reset_send():
-    original = _ci._send
-    yield
-    _ci._send = original
-
-
 def _sync_status_send(responses: list[str], errors_response: str = ""):
     """Mock send that returns sync_status responses in sequence, then repeats last.
 

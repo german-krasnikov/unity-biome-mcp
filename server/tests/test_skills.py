@@ -144,19 +144,14 @@ async def test_skills_file_operations_use_async_threading(monkeypatch, tmp_path)
     monkeypatch.setattr(skills_mod.asyncio, "to_thread", fake_to_thread)
     monkeypatch.setattr(skills_mod, "_skills_dir", lambda: str(tmp_path))
 
-    orig_send, orig_args = skills_mod._send, skills_mod._args
     async def fake_send(cmd, args=None):
         return {"ok": True, "data": "ok"}
 
     skills_mod._send = fake_send
     skills_mod._args = lambda **kwargs: kwargs
-    try:
-        await save_skill("threaded", "description", "set_property a=b")
-        await use_skill("threaded")
-        await list_skills()
-    finally:
-        skills_mod._send = orig_send
-        skills_mod._args = orig_args
+    await save_skill("threaded", "description", "set_property a=b")
+    await use_skill("threaded")
+    await list_skills()
 
     assert "_read_json" in calls
     assert "_write_json" in calls
@@ -182,7 +177,6 @@ async def test_template_operations_use_async_threading(monkeypatch, tmp_path):
     template_path = template_dir / "hello.cs"
     template_path.write_text("Debug.Log(\"x\");", encoding="utf-8")
 
-    orig_send, orig_args = skills_mod._send, skills_mod._args
     sent: list[tuple] = []
 
     async def fake_send(cmd, args=None):
@@ -195,8 +189,6 @@ async def test_template_operations_use_async_threading(monkeypatch, tmp_path):
         await apply_template("hello")
         await save_template("greet", "Debug.Log(\"y\");")
     finally:
-        skills_mod._send = orig_send
-        skills_mod._args = orig_args
         skills_mod.os.getcwd = orig_getcwd
         skills_mod.asyncio.to_thread = orig_to_thread
 

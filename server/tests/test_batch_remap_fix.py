@@ -52,13 +52,9 @@ async def test_batch_remap_does_not_corrupt_embedded_brackets():
         return None
 
     # Patch _send so no real TCP call
-    orig_send = batch_mod._send
     batch_mod._send = fake_send
-    try:
-        # No pre_errors case — remap doesn't run, result unchanged
-        result = await batch_mod.batch(commands)
-    finally:
-        batch_mod._send = orig_send
+    # No pre_errors case — remap doesn't run, result unchanged
+    result = await batch_mod.batch(commands)
 
     # Without pre_errors, remap never runs → embedded brackets safe
     assert "data=[2,3]" in result

@@ -64,14 +64,9 @@ async def test_get_hierarchy_compress_passes_to_bridge():
         captured_args.update(args)
         return "Hierarchy output"
 
-    orig_send, orig_args = scene_mod._send, scene_mod._args
     scene_mod._send = fake_send
     scene_mod._args = _make_args
-    try:
-        await scene_mod.get_hierarchy(compress=True)
-    finally:
-        scene_mod._send = orig_send
-        scene_mod._args = orig_args
+    await scene_mod.get_hierarchy(compress=True)
 
     assert captured_args.get("compress") == "true"
 
@@ -87,13 +82,8 @@ async def test_get_hierarchy_no_compress_no_key():
         captured_args.update(args)
         return "Hierarchy output"
 
-    orig_send, orig_args = scene_mod._send, scene_mod._args
     scene_mod._send = fake_send
     scene_mod._args = _make_args
-    try:
-        await scene_mod.get_hierarchy(compress=False)
-    finally:
-        scene_mod._send = orig_send
-        scene_mod._args = orig_args
+    await scene_mod.get_hierarchy(compress=False)
 
     assert "compress" not in captured_args

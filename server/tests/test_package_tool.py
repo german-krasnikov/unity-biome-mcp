@@ -75,9 +75,5 @@ def test_package_registered_with_mcp():
 
     mock_mcp = MagicMock()
     mock_mcp.tool = mock_tool
-    orig_send, orig_args = m._send, m._args
-    try:
-        m.register(mock_mcp, AsyncMock(), lambda **kw: {k: v for k, v in kw.items() if v is not None})
-        assert "package" in registered
-    finally:
-        m._send, m._args = orig_send, orig_args
+    m.register(mock_mcp, AsyncMock(), lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    assert "package" in registered

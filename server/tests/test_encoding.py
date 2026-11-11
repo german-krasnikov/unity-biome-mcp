@@ -75,7 +75,6 @@ def test_skills_write_utf8(tmp_path):
     """save_skill() must write UTF-8 no-BOM with ensure_ascii=False."""
     import unity_mcp.tools.skills as skills_mod
 
-    orig_send, orig_args = skills_mod._send, skills_mod._args
     orig_dir = skills_mod._skills_dir
     skills_mod._send = None  # not needed for save
     skills_mod._args = None
@@ -85,8 +84,6 @@ def test_skills_write_utf8(tmp_path):
         asyncio.run(skills_mod.save_skill(name="test_skill", description=CYR, code=CYR))
     finally:
         skills_mod._skills_dir = orig_dir
-        skills_mod._send = orig_send
-        skills_mod._args = orig_args
 
     path = tmp_path / "test_skill.json"
     raw = path.read_bytes()
@@ -107,7 +104,6 @@ def test_skills_read_utf8_file(tmp_path):
     path = tmp_path / "t.json"
     path.write_bytes(json.dumps(skill, ensure_ascii=False).encode("utf-8"))
 
-    orig_send, orig_args = skills_mod._send, skills_mod._args
     orig_dir = skills_mod._skills_dir
     skills_mod._skills_dir = lambda: str(tmp_path)
 
@@ -120,8 +116,6 @@ def test_skills_read_utf8_file(tmp_path):
         listing = asyncio.run(skills_mod.list_skills())
     finally:
         skills_mod._skills_dir = orig_dir
-        skills_mod._send = orig_send
-        skills_mod._args = orig_args
 
     assert CYR in listing, (
         f"list_skills() must contain Cyrillic description '{CYR}', got: {listing!r}"

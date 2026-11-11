@@ -45,13 +45,6 @@ def _patch_sleep():
         yield
 
 
-@pytest.fixture(autouse=True)
-def _reset_send():
-    original = _ci._send
-    yield
-    _ci._send = original
-
-
 async def test_already_idle_returns_errors_immediately():
     errors = "Assets/Scripts/Foo.cs(12,5): error CS0103: 'bar' does not exist"
     _ci._send = _make_send(["idle|8.2"], errors_response=errors)

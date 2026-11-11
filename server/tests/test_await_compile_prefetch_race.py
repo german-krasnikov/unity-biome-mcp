@@ -37,13 +37,6 @@ def _patch_sleep(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _reset_ci_send():
-    original = _ci._send
-    yield
-    _ci._send = original
-
-
-@pytest.fixture(autouse=True)
 def _reset_editor_log_globals(monkeypatch):
     # No log path -> corroborate() takes its "no log path" pass-through branch
     # (editor_log.py corroborate_compile_status: `if log_path is None: return

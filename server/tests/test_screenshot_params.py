@@ -18,12 +18,9 @@ def screenshot_tool():
         captured['args'] = args
         return "Data saved to: /tmp/test.png"
 
-    orig_send, orig_args = scene_mod._send, scene_mod._args
     scene_mod._send = _send
     scene_mod._args = _args
     yield scene_mod.screenshot, captured
-    scene_mod._send = orig_send
-    scene_mod._args = orig_args
 
 
 async def test_screenshot_offset_passthrough(screenshot_tool):
@@ -79,16 +76,11 @@ async def test_screenshot_dimension_mismatch_error_surfaced_as_is():
     async def _fail_send(cmd, args, **_kw):
         return error_msg
 
-    orig_send, orig_args = mod._send, mod._args
     mod._send = _fail_send
     mod._args = _args
-    try:
-        result = await mod.screenshot(width=640, height=480, describe="scene")
-        # When C# returns an error (no "Data saved to:"), it must be returned unchanged
-        assert result == error_msg
-    finally:
-        mod._send = orig_send
-        mod._args = orig_args
+    result = await mod.screenshot(width=640, height=480, describe="scene")
+    # When C# returns an error (no "Data saved to:"), it must be returned unchanged
+    assert result == error_msg
 
 
 async def test_screenshot_dimension_mismatch_not_described():
@@ -104,13 +96,8 @@ async def test_screenshot_dimension_mismatch_not_described():
         calls.append(cmd)
         return "Error: dimensions mismatch: got 3456x40, expected 640x480"
 
-    orig_send, orig_args = mod._send, mod._args
     mod._send = _fail_send
     mod._args = _args
-    try:
-        await mod.screenshot(width=640, height=480, describe="all")
-        # Only the screenshot call should happen, no fingerprint/describe round-trips
-        assert calls == ["screenshot"]
-    finally:
-        mod._send = orig_send
-        mod._args = orig_args
+    await mod.screenshot(width=640, height=480, describe="all")
+    # Only the screenshot call should happen, no fingerprint/describe round-trips
+    assert calls == ["screenshot"]
