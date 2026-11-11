@@ -488,6 +488,7 @@ END
 # Conservative effect: fix=True may remove stale local files. Runtime read-only enforcement remains
 # argument-aware in doctor() itself.
 PYTOOL doctor SYSTEM RW "Run health diagnostics. fix=True removes safe stale port/lock files."
+  BODY meta
   ARG fix bool DEFAULT False
   TAG reflect_silent
 END
@@ -892,6 +893,7 @@ TOOL lint_uitk UITOOLKIT RO "Validate a UXML or USS file for structural errors a
 END
 
 PYTOOL list_connections SYSTEM RO "List Unity connection status."
+  BODY connection
   TAG meta_cmd
 END
 
@@ -973,6 +975,10 @@ TOOL material_audit ASSETS RO "Material/texture scene-wide audit."
 END
 
 PYTOOL mcp_status SYSTEM RO "Compact MCP status: scene, dirty, play/compile state, port, alias count,"
+  BODY meta
+  DOC "version — plus Python-side liveness diagnostics (ARC-7 T3) that answer"
+  DOC "honestly, never raising, when Unity itself is unreachable."
+  DOC "liveness: connected | connected-stalled | waking | reconnecting | domain-reloading | dormant | disconnected | unknown"
   FLAG core
 END
 
@@ -1209,6 +1215,7 @@ TOOL region_clear SCENE RW "Delete (or preview) all objects whose XZ pivot is in
 END
 
 PYTOOL release_smoke SYSTEM RO "Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summary."
+  BODY meta
 END
 
 TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path after rename."
@@ -1256,6 +1263,7 @@ TOOL resolve_test_request TESTS RO "Resolve a possibly lost start ACK without di
 END
 
 PYTOOL resolve_tool_schema SYSTEM RO "Return full parameter schemas for deferred tools. tools=comma-separated names."
+  BODY meta
   FLAG tier1
   ARG tools str
 END
@@ -1593,6 +1601,8 @@ TOOL set_active SCENE RW_IDEM "Set GameObject active/inactive."
 END
 
 PYTOOL set_llm_config SYSTEM RW_IDEM "Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line)."
+  BODY meta
+  DOC "Features: visual_verify, screenshot_describe, visual_diff, do_intent, ui_intent, vfx_intent, animator_intent, summarize, distiller."
   ARG config str
   TAG reflect_custom
 END

@@ -14,7 +14,15 @@ from ._common import _guard_read_only, bind
 from .gating import discover_tools as _discover_tools_impl
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
-from .generated.catalog_tools import alias_status, tools  # noqa: F401
+from .generated.catalog_tools import (  # noqa: F401
+    alias_status,
+    doctor,
+    mcp_status,
+    release_smoke,
+    resolve_tool_schema,
+    set_llm_config,
+    tools,
+)
 from .schema_registry import _registry as _schema_registry
 
 _send = None
@@ -36,6 +44,8 @@ _LIVENESS_STALLED = "connected-stalled"
 async def discover_tools(category: str | None = None, enable: bool = True,
                          include_legacy: bool = False, structured: bool = False,
                          ctx: Context = None) -> str:
+    # ctx's annotation must stay a real Context (not catalog Any) -- see
+    # codegen.py's auto_fix/smart_build comment for why (stays hand-written, SV8).
     """Find and enable tools by category.
     Canonical 10: SCENE, COMPONENTS, ASSETS, UGUI, UITOOLKIT, MEDIA,
     VERIFY, RUNTIME, TESTS, SYSTEM.
@@ -52,7 +62,7 @@ async def discover_tools(category: str | None = None, enable: bool = True,
     return result
 
 
-async def doctor(fix: bool = False) -> str:
+async def _doctor_body(fix: bool = False) -> str:
     """Run health diagnostics. fix=True removes safe stale port/lock files."""
     if fix:
         _guard_read_only("doctor")
@@ -60,7 +70,7 @@ async def doctor(fix: bool = False) -> str:
     return format_report(results)
 
 
-async def resolve_tool_schema(tools: str) -> str:
+async def _resolve_tool_schema_body(tools: str) -> str:  # noqa: F811 -- param name must match the catalog ARG the generated wrapper calls by keyword
     """Return full parameter schemas for deferred tools. tools=comma-separated names."""
     names = [n.strip() for n in tools.split(",") if n.strip()]
     text = _schema_registry.format_text(names)
@@ -70,7 +80,7 @@ async def resolve_tool_schema(tools: str) -> str:
     return text
 
 
-async def set_llm_config(config: str) -> str:
+async def _set_llm_config_body(config: str) -> str:
     """Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line).
     Features: visual_verify, screenshot_describe, visual_diff, do_intent, ui_intent, vfx_intent, animator_intent, summarize, distiller."""
     parsed = parse_tcp_config(config)
@@ -97,7 +107,7 @@ def _fmt_bool(val) -> str:
     return "true" if val is True else "false" if val is False else "n/a"
 
 
-async def mcp_status() -> str:
+async def _mcp_status_body() -> str:
     """Compact MCP status: scene, dirty, play/compile state, port, alias count,
     version — plus Python-side liveness diagnostics (ARC-7 T3) that answer
     honestly, never raising, when Unity itself is unreachable.
@@ -144,7 +154,7 @@ async def mcp_status() -> str:
     return "\n".join(x for x in lines if x)
 
 
-async def release_smoke() -> str:
+async def _release_smoke_body() -> str:
     """Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summary."""
     results = []
 
@@ -166,8 +176,3 @@ def register(mcp, send, args, *, get_slot=None):
     bind(globals(), send, args)
     _get_slot = get_slot
     tools.register(mcp, discover_tools)
-    tools.register(mcp, doctor)
-    tools.register(mcp, resolve_tool_schema)
-    tools.register(mcp, set_llm_config)
-    tools.register(mcp, mcp_status)
-    tools.register(mcp, release_smoke)

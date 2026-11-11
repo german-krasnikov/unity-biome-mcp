@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=463bbd25819ec5086a4da7555791f7cedc3d95950cceece8c6c45449a602ff9d
+# source-sha256=55255bc01110cb7ce61726dd9c3488889d79e8ec0dbf23f77653f1a652c59356
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -1011,6 +1011,21 @@ async def do(
 tools.expect('doctor', 'RW', "Run health diagnostics. fix=True removes safe stale port/lock files.", (
     ('fix', bool, False),
 ))
+tools.expect_body('doctor', 'meta')
+
+
+@tools.provide
+async def doctor(
+    fix: bool = False,
+) -> str:
+    ("Run health diagnostics. fix=True removes safe stale port/lock files."
+    )
+    from .. import meta as _biome_body_mod
+    return await _biome_body_mod._doctor_body(
+        fix=fix,
+    )
+
+
 tools.expect('editor', 'RW', "Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode.", (
     ('action', str, "state"),
     ('path', ostr, None),
@@ -1809,6 +1824,19 @@ async def lint_uitk(
 
 tools.expect('list_connections', 'RO', "List Unity connection status.", (
 ))
+tools.expect_body('list_connections', 'connection')
+
+
+@tools.provide
+async def list_connections(
+) -> str:
+    ("List Unity connection status."
+    )
+    from .. import connection as _biome_body_mod
+    return await _biome_body_mod._list_connections_body(
+    )
+
+
 tools.expect('list_events', 'RO', "Read persistent listeners on a UnityEvent field. Use after wire_event to verify.", (
     ('path', str),
     ('component', str),
@@ -1987,6 +2015,22 @@ async def material_audit(
 
 tools.expect('mcp_status', 'RO', "Compact MCP status: scene, dirty, play/compile state, port, alias count,", (
 ))
+tools.expect_body('mcp_status', 'meta')
+
+
+@tools.provide
+async def mcp_status(
+) -> str:
+    ("Compact MCP status: scene, dirty, play/compile state, port, alias count,"
+     "\n    version — plus Python-side liveness diagnostics (ARC-7 T3) that answer"
+     "\n    honestly, never raising, when Unity itself is unreachable."
+     "\n    liveness: connected | connected-stalled | waking | reconnecting | domain-reloading | dormant | disconnected | unknown"
+    )
+    from .. import meta as _biome_body_mod
+    return await _biome_body_mod._mcp_status_body(
+    )
+
+
 tools.expect('menu', 'RW', "Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API.", (
     ('action', str),
     ('path', ostr, None),
@@ -2456,6 +2500,19 @@ async def region_clear(
 
 tools.expect('release_smoke', 'RO', "Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summary.", (
 ))
+tools.expect_body('release_smoke', 'meta')
+
+
+@tools.provide
+async def release_smoke(
+) -> str:
+    ("Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summary."
+    )
+    from .. import meta as _biome_body_mod
+    return await _biome_body_mod._release_smoke_body(
+    )
+
+
 tools.expect('rename_object', 'RW_IDEM', "Rename a GameObject. Returns new scene path after rename.", (
     ('path', str),
     ('name', str),
@@ -2556,6 +2613,21 @@ async def resolve_test_request(
 tools.expect('resolve_tool_schema', 'RO', "Return full parameter schemas for deferred tools. tools=comma-separated names.", (
     ('tools', str),
 ))
+tools.expect_body('resolve_tool_schema', 'meta')
+
+
+@tools.provide
+async def resolve_tool_schema(
+    tools: str,
+) -> str:
+    ("Return full parameter schemas for deferred tools. tools=comma-separated names."
+    )
+    from .. import meta as _biome_body_mod
+    return await _biome_body_mod._resolve_tool_schema_body(
+        tools=tools,
+    )
+
+
 tools.expect('run_playtest', 'RW', "[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`).", (
     ('script', ostr, None),
     ('timeout', float, 120.0),
@@ -3220,6 +3292,22 @@ async def set_active(
 tools.expect('set_llm_config', 'RW_IDEM', "Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line).", (
     ('config', str),
 ))
+tools.expect_body('set_llm_config', 'meta')
+
+
+@tools.provide
+async def set_llm_config(
+    config: str,
+) -> str:
+    ("Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line)."
+     "\n    Features: visual_verify, screenshot_describe, visual_diff, do_intent, ui_intent, vfx_intent, animator_intent, summarize, distiller."
+    )
+    from .. import meta as _biome_body_mod
+    return await _biome_body_mod._set_llm_config_body(
+        config=config,
+    )
+
+
 tools.expect('set_material', 'RW_IDEM', "Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto.", (
     ('path', str),
     ('color', str),

@@ -54,11 +54,13 @@ async def sdk_session(send):
         return {key: value for key, value in kwargs.items() if value is not None}
     for module in (editor_control, objects, runtime):
         module.register(app, send, args)
-    # `editor` moved to BODY (SV8): its MCP registration now lives in the catalog's
-    # generated wrapper, not editor_control.register(). tools.install(app) is not an
-    # option here (it demands every catalog tool, including ones this limited harness
-    # never provides) -- add just the one wrapper this phase actually calls.
-    app.add_tool(catalog_tools.editor)
+    # editor/get_object_detail/run_playtest moved to BODY (SV8): their MCP registration
+    # now lives in the catalog's generated wrapper, not editor_control/objects/runtime's
+    # own register(). tools.install(app) is not an option here (it demands every catalog
+    # tool, including ones this limited harness never provides) -- add just the wrappers
+    # this phase actually calls.
+    for wrapper in (catalog_tools.editor, catalog_tools.get_object_detail, catalog_tools.run_playtest):
+        app.add_tool(wrapper)
     async with create_client_server_memory_streams() as (client, server):
         task = asyncio.create_task(app._mcp_server.run(
             *server, app._mcp_server.create_initialization_options()))

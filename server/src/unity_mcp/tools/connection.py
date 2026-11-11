@@ -1,7 +1,7 @@
 from mcp.server.fastmcp import Context  # noqa: TC002 — fastmcp eval_str=True requires runtime
 from mcp.server.fastmcp.exceptions import ToolError
 
-from .generated.catalog_tools import tools
+from .generated.catalog_tools import list_connections, tools  # noqa: F401
 
 _get_slot = None
 _stdio_alive = None            # Callable[[], bool] | None — injected by register()
@@ -9,7 +9,7 @@ _refresh_tools_cache = None
 _push_catalog = None
 
 
-async def list_connections() -> str:
+async def _list_connections_body() -> str:
     """List Unity connection status."""
     s = _get_slot() if _get_slot else None
     if s is None:
@@ -22,6 +22,8 @@ async def list_connections() -> str:
 
 
 async def reconnect_unity(port: int = 0, ctx: Context = None) -> str:
+    # ctx's annotation must stay a real Context (not catalog Any) -- see
+    # codegen.py's auto_fix/smart_build comment for why (stays hand-written, SV8).
     """Reconnect to Unity. Port 0 or omitted = auto-discover from port files."""
     s = _get_slot() if _get_slot else None
     if s is None:
@@ -54,4 +56,4 @@ def register(mcp, send, args, *, get_slot, stdio_alive=None,
     _stdio_alive = stdio_alive
     _refresh_tools_cache = refresh_tools_cache
     _push_catalog = push_catalog
-    tools.register(mcp, list_connections, reconnect_unity)
+    tools.register(mcp, reconnect_unity)
