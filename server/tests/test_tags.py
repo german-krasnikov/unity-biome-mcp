@@ -48,6 +48,19 @@ _ORACLE: dict[str, frozenset[str]] = {
         "screenshot_baseline", "screenshot_compare",
         "scene_change_plan",
         "doctor", "get_changes", "get_metrics",
+        # SV5: 10 write tools/commands that had no reflect decision (Q7/K-3);
+        # explicit reflect_silent now, a rule can replace it later by touch.
+        "attach_uitk", "checkpoint_create", "checkpoint_restore", "editor",
+        "profile", "screenshot", "sync_unity", "verify_after_change",
+        "source_patch_write",
+    }),
+    # SV5: write tools whose reflect decision is a hand-written Python rule
+    # (reflect/rules_*.py), not a catalog TAG reflect_silent/noerror or an
+    # EXPECT row — the tag only satisfies the catalog's own ENSURE.
+    "reflect_custom": frozenset({
+        "batch", "create_object", "manage_component", "rename_object",
+        "set_active", "set_llm_config", "set_parent", "set_property",
+        "set_property_delta", "set_sibling_index",
     }),
     "atomic_scene": frozenset({
         "attach_uitk", "auto_wire", "autofit_collider", "create_object", "create_ui",

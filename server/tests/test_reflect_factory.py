@@ -207,3 +207,99 @@ async def test_make_action_guarded_no_error_rule_write_error():
     rule = _RULES[cmd]
     result = await rule({"action": "set"}, "Error: mutation failed", None)
     assert isinstance(result, Mismatch)
+
+
+# ── make_ok_rule(strict=True) — SV5: catalog EXPECT rows that treat an error
+# response as just another missing token, not a fail-open skip (wire_event,
+# delete_object) ─────────────────────────────────────────────────────────────
+
+def test_make_ok_rule_strict_mismatches_on_error():
+    from unity_mcp.reflect.factory import make_ok_rule
+    cmd = f"{_PFX}strict_err"
+    make_ok_rule(cmd, ("wired", "connected"), strict=True)
+    rule = _RULES[cmd]
+    result = rule({}, "Failed: target not found", None)
+    assert isinstance(result, Mismatch)
+    assert cmd in result.msg
+
+
+def test_make_ok_rule_strict_happy_path_unaffected():
+    from unity_mcp.reflect.factory import make_ok_rule
+    cmd = f"{_PFX}strict_ok"
+    make_ok_rule(cmd, ("wired", "connected"), strict=True)
+    rule = _RULES[cmd]
+    assert rule({}, "Wired: OnClick", None) is None
+
+
+def test_make_ok_rule_default_is_not_strict():
+    """strict defaults False: existing fail-open callers (set_llm_config) are unaffected."""
+    from unity_mcp.reflect.factory import make_ok_rule
+    cmd = f"{_PFX}notstrict_err"
+    make_ok_rule(cmd, ("ok",))
+    rule = _RULES[cmd]
+    assert rule({}, "Error: boom", None) is None
+
+
+# ── make_bool_token_rule — EXPECT bool_arg rows (region_clear: dry_run picks
+# which single literal token must be present; no fail-open) ──────────────────
+
+def test_make_bool_token_rule_true_branch_happy():
+    from unity_mcp.reflect.factory import make_bool_token_rule
+    cmd = f"{_PFX}bool_true_ok"
+    make_bool_token_rule(cmd, "dry_run", "DRY", "DELETED")
+    rule = _RULES[cmd]
+    assert rule({"dry_run": "true"}, "DRY: 3 would be deleted", None) is None
+
+
+def test_make_bool_token_rule_false_branch_happy():
+    from unity_mcp.reflect.factory import make_bool_token_rule
+    cmd = f"{_PFX}bool_false_ok"
+    make_bool_token_rule(cmd, "dry_run", "DRY", "DELETED")
+    rule = _RULES[cmd]
+    assert rule({}, "DELETED: 3 object(s)", None) is None
+
+
+def test_make_bool_token_rule_wrong_token_mismatches():
+    from unity_mcp.reflect.factory import make_bool_token_rule
+    cmd = f"{_PFX}bool_mismatch"
+    make_bool_token_rule(cmd, "dry_run", "DRY", "DELETED")
+    rule = _RULES[cmd]
+    result = rule({"dry_run": "true"}, "DELETED: 3 object(s)", None)
+    assert isinstance(result, Mismatch)
+
+
+def test_make_bool_token_rule_is_sync():
+    """No I/O needed: the inner closure must not be async (S7503 posture)."""
+    from unity_mcp.reflect.factory import make_bool_token_rule
+    cmd = f"{_PFX}bool_sync"
+    make_bool_token_rule(cmd, "dry_run", "DRY", "DELETED")
+    assert not inspect.iscoroutinefunction(_RULES[cmd])
+
+
+# ── make_arg_echo_rule — EXPECT arg_echo rows (set_material: each supplied
+# arg name must echo back as "<name>=" in the response; fail-open on error) ──
+
+def test_make_arg_echo_rule_only_supplied_args_checked():
+    from unity_mcp.reflect.factory import make_arg_echo_rule
+    cmd = f"{_PFX}echo_shader_only"
+    make_arg_echo_rule(cmd, ("shader", "color"))
+    rule = _RULES[cmd]
+    assert rule({"shader": "Standard"}, "shader=Standard color=#FF0000FF", None) is None
+
+
+def test_make_arg_echo_rule_missing_token_mismatches():
+    from unity_mcp.reflect.factory import make_arg_echo_rule
+    cmd = f"{_PFX}echo_missing"
+    make_arg_echo_rule(cmd, ("shader", "color"))
+    rule = _RULES[cmd]
+    result = rule({"color": "#FF0000"}, "shader=Standard", None)
+    assert isinstance(result, Mismatch)
+    assert "color=" in result.msg
+
+
+def test_make_arg_echo_rule_fail_open_on_error():
+    from unity_mcp.reflect.factory import make_arg_echo_rule
+    cmd = f"{_PFX}echo_err"
+    make_arg_echo_rule(cmd, ("shader",))
+    rule = _RULES[cmd]
+    assert rule({"shader": "S"}, "Error: material not found", None) is None

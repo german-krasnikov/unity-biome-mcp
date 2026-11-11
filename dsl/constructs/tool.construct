@@ -14,7 +14,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM FORWARD
   ITEM FLAG <flag:enum(core|tier1|direct_only|unity_transport)>
   ITEM RUNTIME
-  ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
+  ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_custom|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
   ITEM BLAST <blast:match([0-9]+)>
   ITEM SESSION
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
@@ -23,10 +23,13 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
   ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [EXAMPLE <example:string>] [<adesc:string>]
   ITEM VERB <vtext:string>
+  ITEM EXPECT <mode:enum(token|bool_arg|arg_echo)> <tokens:string> [<strict:enum(STRICT)>] [ARG <argname:match([a-z][a-z0-9_]*)>]
   EXAMPLES tool.examples
   DECLARE
   ENSURE (COUNT ARG WHERE it.has_local AND it.has_wname) == 0 ELSE "ARG may not set both LOCAL and WIRE"
   ENSURE (COUNT ARG WHERE it.has_default AND it.has_dtext) == 0 ELSE "ARG may not set both DEFAULT and DEFAULT_TEXT"
+  ENSURE effect == RO OR (ANY TAG WHERE it.tag IN {reflect_silent, reflect_noerror, reflect_custom}) OR COUNT EXPECT > 0 ELSE "a write tool needs a reflect decision: TAG reflect_silent/reflect_noerror/reflect_custom, or EXPECT"
+  ENSURE (COUNT EXPECT WHERE it.mode == bool_arg AND NOT it.has_argname) == 0 ELSE "EXPECT bool_arg needs ARG <name>"
   TEMPLATE pyspec HEADER "SPEC_KWARGS: dict[str, dict] = {" FOOTER "}" ESCAPE data
         '{name}': {
             'category': '{category}',
@@ -176,21 +179,29 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
         '{name}': {blast},
     END
   END
+  TEMPLATE pyexpect HEADER "# A literal success token (or an OR-list, pipe-separated) that confirms a\n# mutation (EXPECT rows of dsl/tools.biome): see reflect/rules_catalog.py.\n# mode: 'token' (tokens is the OR-list), 'bool_arg' (tokens is 'true_token|false_token', argname picks the branch), 'arg_echo' (tokens is the arg names whose presence each requires its own '<name>=' echo).\nEXPECT_RULES: dict[str, tuple] = {" FOOTER "}" ESCAPE data
+    EACH EXPECT
+        '{name}': ('{mode}', '{tokens}', {?strict:True}{!strict:False}, {?argname:'{argname}'}{!argname:None}),
+    END
+  END
 END
 
 CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
   HEAD PYTOOL <name:match([a-z][a-z0-9_]*) UNIQUE> <category:enum(CORE|SCENE|COMPONENTS|ASSETS|UGUI|UITOOLKIT|MEDIA|VERIFY|RUNTIME|TESTS|SYSTEM)> <effect:enum(RO|RW|RW_IDEM|DEL)> <summary:string>
   ITEM FLAG <flag:enum(core|tier1)>
   ITEM RUNTIME
-  ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
+  ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_custom|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
   ITEM BLAST <blast:match([0-9]+)>
   ITEM SESSION
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
   ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
   ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)>] [DEFAULT_TEXT <dtext:string>] [<adesc:string>]
   ITEM VERB <vtext:string>
+  ITEM EXPECT <mode:enum(token|bool_arg|arg_echo)> <tokens:string> [<strict:enum(STRICT)>] [ARG <argname:match([a-z][a-z0-9_]*)>]
   EXAMPLES tool.examples
   DECLARE
+  ENSURE effect == RO OR (ANY TAG WHERE it.tag IN {reflect_silent, reflect_noerror, reflect_custom}) OR COUNT EXPECT > 0 ELSE "a write tool needs a reflect decision: TAG reflect_silent/reflect_noerror/reflect_custom, or EXPECT"
+  ENSURE (COUNT EXPECT WHERE it.mode == bool_arg AND NOT it.has_argname) == 0 ELSE "EXPECT bool_arg needs ARG <name>"
   TEMPLATE pyspec ESCAPE data
         '{name}': {
             'category': '{category}',
@@ -276,6 +287,11 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
         '{name}': {blast},
     END
   END
+  TEMPLATE pyexpect ESCAPE data
+    EACH EXPECT
+        '{name}': ('{mode}', '{tokens}', {?strict:True}{!strict:False}, {?argname:'{argname}'}{!argname:None}),
+    END
+  END
 END
 
 CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
@@ -283,7 +299,7 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
   ITEM GUARD <flag:enum(always|compile|play_ok)>
   ITEM WIRE <flag:enum(special|not_batch|no_undo)>
   ITEM FLAG <flag:enum(direct_only|unity_transport)>
-  ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
+  ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_custom|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
   ITEM BLAST <blast:match([0-9]+)>
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
   ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [<adesc:string>]
@@ -291,6 +307,7 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
   DECLARE
   ENSURE (COUNT ARG WHERE it.has_local AND it.has_wname) == 0 ELSE "ARG may not set both LOCAL and WIRE"
   ENSURE (COUNT ARG WHERE it.has_default AND it.has_dtext) == 0 ELSE "ARG may not set both DEFAULT and DEFAULT_TEXT"
+  ENSURE effect == RO OR (ANY TAG WHERE it.tag IN {reflect_silent, reflect_noerror, reflect_custom}) ELSE "a write command needs a reflect decision: TAG reflect_silent/reflect_noerror/reflect_custom"
   TEMPLATE pyspec ESCAPE data
         '{name}': {
             'category': '_INTERNAL',

@@ -164,6 +164,7 @@ TOOL attach_uitk UITOOLKIT RW "Attach UIDocument (or PanelRenderer on Unity 6.4+
   ARG panel_settings ostr DEFAULT None
   ARG sort_order oint DEFAULT None RAW
   TAG atomic_scene
+  TAG reflect_silent
 END
 
 PYTOOL auto_fix SYSTEM RO "Analyze recent Unity errors and ask MCP client sampling for a fix suggestion."
@@ -176,6 +177,7 @@ TOOL auto_wire COMPONENTS RW "Fill null ObjectReference fields on a GameObject b
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG dry_run bool DEFAULT False OMIT
   TAG atomic_scene
+  EXPECT token "Wired:"
 END
 
 TOOL autofit_collider SCENE RW "Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule."
@@ -183,6 +185,7 @@ TOOL autofit_collider SCENE RW "Auto-fit collider to mesh/renderer bounds. type:
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG type str DEFAULT_TEXT "box" "Collider shape to fit: box|sphere|capsule"
   TAG atomic_scene
+  EXPECT token "fitted"
 END
 
 PYTOOL await_compile VERIFY RO "Block until Unity finishes compiling + reloading, then return compile errors."
@@ -219,6 +222,7 @@ TOOL batch CORE RW "Execute multiple commands in one call. Use for 2+ ops — re
   ARG atomic bool DEFAULT False "On failure, revert prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain"
   ARG validate_aliases bool DEFAULT False "Dry-run alias validation before executing any mutations"
   TAG distill_skip
+  TAG reflect_custom
   BLAST 3
 END
 
@@ -276,12 +280,14 @@ END
 # T19: Python orchestrator, no C# handler
 PYTOOL checkpoint_create SYSTEM RW "Create a durable checkpoint before an agent turn."
   ARG paths str DEFAULT_TEXT ""
+  TAG reflect_silent
 END
 
 # T19: Python orchestrator, no C# handler
 PYTOOL checkpoint_restore SYSTEM DEL "Restore files to their pre-turn state."
   ARG checkpoint_id str
   ARG force bool DEFAULT False
+  TAG reflect_silent
 END
 
 TOOL compile_preflight VERIFY RO "Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile."
@@ -320,6 +326,7 @@ TOOL create_object CORE RW "Create new GameObject. components: comma-separated t
   TAG atomic_scene
   TAG distill_skip
   TAG do_allowed
+  TAG reflect_custom
   BLAST 2
 END
 
@@ -339,6 +346,7 @@ TOOL create_ui UGUI RW "Create UI element with smart defaults. type: Canvas|Pane
   ARG font_min ostr DEFAULT None
   ARG font_max ostr DEFAULT None
   TAG atomic_scene
+  EXPECT token "Created"
 END
 
 PYTOOL debug RUNTIME RO "AI-assisted scene debug: gather diagnostic context based on symptom (not compile/reload — use `diagnose` for that; not runtime state — use `debug_animator` or `debug_physics`)."
@@ -373,6 +381,7 @@ TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. De
   TAG distill_skip
   TAG do_forbidden
   BLAST 4
+  EXPECT token "deleted" STRICT
 END
 
 TOOL diagnose VERIFY RO "Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`."
@@ -418,6 +427,7 @@ TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|
   ARG enable obool DEFAULT None
   READ project_path
   READ state
+  TAG reflect_silent
 END
 
 TOOL execute_code SYSTEM RW "Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile."
@@ -785,6 +795,7 @@ TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No conf
   TAG atomic_scene
   TAG distill_skip
   TAG do_allowed
+  TAG reflect_custom
   BLAST 2
 END
 
@@ -961,6 +972,7 @@ TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
   READ compare
   READ list_sessions
   READ status
+  TAG reflect_silent
 END
 
 TOOL project_settings ASSETS RW_IDEM "Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input."
@@ -994,6 +1006,7 @@ TOOL recompile SYSTEM RW "Trigger Unity to reimport C# scripts. Returns immediat
   TIMEOUT 60.0
   TAG distill_skip
   TAG do_forbidden
+  EXPECT token "ok"
 END
 
 PYTOOL reconnect_unity SYSTEM RO "Reconnect to Unity. Port 0 or omitted = auto-discover from port files."
@@ -1021,6 +1034,7 @@ TOOL region_clear SCENE RW "Delete (or preview) all objects whose XZ pivot is in
   ARG dry_run bool DEFAULT True
   ARG filter ostr DEFAULT None
   ARG cap int DEFAULT 50
+  EXPECT bool_arg "DRY|DELETED" ARG dry_run
 END
 
 PYTOOL release_smoke SYSTEM RO "Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summary."
@@ -1033,6 +1047,7 @@ TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path af
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG name str EXAMPLE "__seam_renamed"
   TAG atomic_scene
+  TAG reflect_custom
 END
 
 TOOL render_analyze MEDIA RO "Rendering analysis."
@@ -1252,6 +1267,7 @@ TOOL screenshot MEDIA RW "Capture screenshot (file path); describe= -> Haiku tex
   ARG angle ostr DEFAULT None "Euler angle for single_view: front|left|top|iso|ex,ey,ez"
   ARG annotation_id ostr DEFAULT None "Frame + highlight annotation by ID (auto-sets camera=annotation_frame)"
   TAG scene_state_neutral
+  TAG reflect_silent
   BLAST 0
 END
 
@@ -1324,11 +1340,13 @@ TOOL set_active SCENE RW_IDEM "Set GameObject active/inactive."
   TAG atomic_scene
   TAG distill_skip
   TAG do_allowed
+  TAG reflect_custom
   BLAST 1
 END
 
 PYTOOL set_llm_config SYSTEM RW_IDEM "Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line)."
   ARG config str
+  TAG reflect_custom
 END
 
 TOOL set_material SCENE RW_IDEM "Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto."
@@ -1338,6 +1356,7 @@ TOOL set_material SCENE RW_IDEM "Set scene object material color (for full asset
   ARG shader ostr DEFAULT None
   TAG do_allowed
   BLAST 1
+  EXPECT arg_echo "shader|color"
 END
 
 TOOL set_parent SCENE RW_IDEM "Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent."
@@ -1348,6 +1367,7 @@ TOOL set_parent SCENE RW_IDEM "Reparent existing GameObject. parent=null → mov
   ARG parent ostr DEFAULT None EXAMPLE "/" "New parent scene path (omit or null = move to scene root)"
   ARG world_position_stays bool DEFAULT True OMIT "True (default) = preserve world transform; False = keep local transform relative to new parent"
   TAG atomic_scene
+  TAG reflect_custom
 END
 
 PYTOOL set_properties SCENE RW "Set multiple properties on ONE object. For multiple objects, use configure_objects instead."
@@ -1369,6 +1389,7 @@ TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObj
   TAG atomic_scene
   TAG distill_skip
   TAG do_allowed
+  TAG reflect_custom
   BLAST 1
 END
 
@@ -1379,6 +1400,7 @@ TOOL set_property_delta SCENE RW "Apply delta to numeric property. delta: +5, -0
   ARG prop str EXAMPLE "m_LocalPosition.x"
   ARG delta str EXAMPLE "1"
   TAG atomic_scene
+  TAG reflect_custom
 END
 
 TOOL set_rect UGUI RW_IDEM "Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y). pos3: (x,y,z) sets anchoredPosition3D — use for WorldSpace canvases (wins over pos if both given)."
@@ -1400,6 +1422,7 @@ TOOL set_sibling_index SCENE RW "Set sibling index of a GameObject within its pa
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG index int EXAMPLE "0"
   TAG atomic_scene
+  TAG reflect_custom
 END
 
 PYTOOL setup_objects SCENE RW "Create+configure multiple objects in one call."
@@ -1462,6 +1485,7 @@ INTERNAL source_patch_write RW "Writes a source patch; the internal sender of as
   FLAG unity_transport
   ARG path str
   ARG content str
+  TAG reflect_silent
 END
 
 TOOL spatial_query SCENE RO "Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon."
@@ -1517,6 +1541,7 @@ PYTOOL sync_unity SYSTEM RW "Refresh Unity and await its matching compile cycle 
   ARG resolve bool DEFAULT False
   ARG bump bool DEFAULT False
   ARG timeout float DEFAULT 120.0
+  TAG reflect_silent
 END
 
 TOOL test_step TESTS RW "[Play Mode] Move character, snapshot state before/after, check console."
@@ -1572,6 +1597,7 @@ TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene
   ARG target_scene ostr DEFAULT None
   ARG parent ostr DEFAULT None
   ARG world_position_stays bool DEFAULT True OMIT
+  EXPECT token "Moved|→"
 END
 
 PYTOOL ui_intent UGUI RW "Convert NL intent to Unity UI hierarchy. Templates bypass Haiku."
@@ -1632,6 +1658,7 @@ TOOL undo_last SYSTEM RW "Undo the last N AI turns in the Unity Undo stack. Defa
   DOC "warn: file-system operations (asset creation/deletion via asset tool) are"
   DOC "not reversed by undo. Only scene-object and component mutations are undoable."
   ARG turns int DEFAULT 1 RAW
+  EXPECT token "reverted|nothing"
 END
 
 TOOL unwire_event COMPONENTS DEL "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required."
@@ -1642,6 +1669,7 @@ TOOL unwire_event COMPONENTS DEL "Remove persistent listener(s) from UnityEvent.
   ARG event str EXAMPLE "onClick"
   ARG index oint DEFAULT None RAW
   TAG atomic_scene
+  EXPECT token "Cleared|Removed"
 END
 
 PYTOOL use_skill SYSTEM RW "Execute a previously saved skill. params: comma-separated key=value for substitution."
@@ -1693,6 +1721,7 @@ PYTOOL verify_after_change VERIFY RW "Single verification gate after code/scene 
   ARG auto_play bool DEFAULT False
   ARG restart_between bool DEFAULT False
   ARG suite_timeout float DEFAULT 300.0
+  TAG reflect_silent
 END
 
 PYTOOL vfx_intent MEDIA RW "Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely."
@@ -1754,4 +1783,5 @@ TOOL wire_event COMPONENTS RW "Wire UnityEvent persistent listener. Mutates scen
   TAG distill_skip
   TAG do_allowed
   BLAST 2
+  EXPECT token "wired|connected" STRICT
 END

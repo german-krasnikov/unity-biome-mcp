@@ -52,9 +52,11 @@ EXAMPLE a FORWARD tool prints its expectation and its wrapper, which leaves out 
 EXAMPLE a PYTOOL is direct_only, escapes its descriptions, and prints only an expectation like a TOOL that is not FORWARD
   SOURCE PYTOOL use_skill SYSTEM RW "Use."
   SOURCE   ARG name str "say \"hi\" \\ bye"
+  SOURCE   TAG reflect_silent
   SOURCE END
   SOURCE TOOL x SCENE RW "X."
   SOURCE   ARG a str
+  SOURCE   TAG reflect_silent
   SOURCE END
   EXPECT rendered.pyspec 'use_skill': {
   EXPECT rendered.pyspec 'direct_only': True,
@@ -68,6 +70,7 @@ EXAMPLE a PYTOOL is direct_only, escapes its descriptions, and prints only an ex
 
 EXAMPLE the table of the docs has a row per tool: its plane, category and effect
   SOURCE TOOL x SCENE RW_IDEM "X."
+  SOURCE   TAG reflect_silent
   SOURCE END
   SOURCE PYTOOL y SYSTEM RO "Y."
   SOURCE END
@@ -138,6 +141,7 @@ EXAMPLE a parameter typed Any and a text default are only expected, for a TOOL a
   SOURCE TOOL run_it TESTS RW "Run."
   SOURCE   ARG ctx Any DEFAULT None
   SOURCE   ARG mode str DEFAULT_TEXT "x y" "A mode"
+  SOURCE   TAG reflect_silent
   SOURCE END
   SOURCE PYTOOL py_one SYSTEM RO "Py."
   SOURCE   ARG value Any
@@ -153,6 +157,7 @@ EXAMPLE a parameter typed Any and a text default are only expected, for a TOOL a
 EXAMPLE RUNTIME gives runtime_only to a TOOL
   SOURCE TOOL run_it TESTS RW "Run."
   SOURCE   RUNTIME
+  SOURCE   TAG reflect_silent
   SOURCE END
   EXPECT rendered.pyspec 'runtime_only': True,
 
@@ -176,6 +181,7 @@ EXAMPLE INTERNAL is a wire command that has a ToolSpec and nothing else
   SOURCE INTERNAL put_it RW "Import."
   SOURCE   FLAG direct_only
   SOURCE   FLAG unity_transport
+  SOURCE   TAG reflect_silent
   SOURCE END
   EXPECT rendered.pyspec 'ping': {
   EXPECT rendered.pyspec 'category': '_INTERNAL',
@@ -204,10 +210,12 @@ EXAMPLE a READ action of a TOOL or a PYTOOL is printed for Python and for C#, a 
   SOURCE   ARG action str
   SOURCE   READ list
   SOURCE   READ get_info
+  SOURCE   TAG reflect_silent
   SOURCE END
   SOURCE PYTOOL navmesh_query SCENE RW "NavMesh."
   SOURCE   ARG action str
   SOURCE   READ status
+  SOURCE   TAG reflect_silent
   SOURCE END
   SOURCE TOOL calm SCENE RO "Calm."
   SOURCE   ARG a str
@@ -244,6 +252,7 @@ EXAMPLE cstools sorts ARGs into Required/Optional and reads Mutating from effect
   SOURCE   ARG target str
   SOURCE   ARG amount int DEFAULT 5
   SOURCE   ARG label str DEFAULT_TEXT "x"
+  SOURCE   TAG reflect_silent
   SOURCE END
   EXPECT rendered.cstools case "frobnicate":
   EXPECT rendered.cstools Mutating = true,
@@ -283,6 +292,7 @@ EXAMPLE cstools prints RUNTIME, MAXCHARS and every GUARD/WIRE flag when a TOOL d
   SOURCE   WIRE special
   SOURCE   WIRE not_batch
   SOURCE   WIRE no_undo
+  SOURCE   TAG reflect_silent
   SOURCE END
   EXPECT rendered.cstools case "loaded_up":
   EXPECT rendered.cstools Runtime = true,
@@ -314,6 +324,7 @@ EXAMPLE cstools sorts an INTERNAL's ARGs into Required/Optional like a TOOL's
   SOURCE INTERNAL fetch_it RW "Fetch."
   SOURCE   ARG path str
   SOURCE   ARG limit int DEFAULT 10
+  SOURCE   TAG reflect_silent
   SOURCE END
   EXPECT rendered.cstools case "fetch_it":
   EXPECT rendered.cstools Required = string.Join(",", new string[] {
@@ -329,6 +340,7 @@ EXAMPLE cstools excludes a LOCAL ARG from both Required and Optional
   SOURCE   ARG amount int DEFAULT 5
   SOURCE   ARG hidden str LOCAL
   SOURCE   ARG cached int DEFAULT 1 LOCAL
+  SOURCE   TAG reflect_silent
   SOURCE END
   EXPECT rendered.cstools case "frobnicate":
   EXPECT rendered.cstools Required = string.Join(",", new string[] {
@@ -344,6 +356,7 @@ EXAMPLE cstools emits WIRE's name instead of the ARG's own name in Required/Opti
   SOURCE TOOL relabel SCENE RW "Relabel."
   SOURCE   ARG old_name str WIRE "new_name"
   SOURCE   ARG old_opt str DEFAULT_TEXT "x" WIRE "new_opt"
+  SOURCE   TAG reflect_silent
   SOURCE END
   EXPECT rendered.cstools case "relabel":
   EXPECT rendered.cstools Required = string.Join(",", new string[] {
@@ -358,5 +371,51 @@ EXAMPLE cstools emits WIRE's name instead of the ARG's own name in Required/Opti
 EXAMPLE ARG LOCAL and WIRE exclude each other
   SOURCE TOOL conflicted SCENE RW "Conflicted."
   SOURCE   ARG dual str LOCAL WIRE "x"
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE EXPECT token prints the OR-list and the strict flag, for a TOOL and a PYTOOL
+  SOURCE TOOL kick SCENE RW "Kick."
+  SOURCE   EXPECT token "Wired|Connected"
+  SOURCE END
+  SOURCE PYTOOL nudge SYSTEM RW "Nudge."
+  SOURCE   EXPECT token "ok" STRICT
+  SOURCE END
+  EXPECT rendered.pyexpect 'kick': ('token', 'Wired|Connected', False, None),
+  EXPECT rendered.pyexpect 'nudge': ('token', 'ok', True, None),
+
+EXAMPLE EXPECT bool_arg prints its ARG and no strict flag
+  SOURCE TOOL sweep SCENE RW "Sweep."
+  SOURCE   ARG preview bool DEFAULT False
+  SOURCE   EXPECT bool_arg "DRY|DELETED" ARG preview
+  SOURCE END
+  EXPECT rendered.pyexpect 'sweep': ('bool_arg', 'DRY|DELETED', False, 'preview'),
+
+EXAMPLE EXPECT arg_echo prints its arg names as tokens
+  SOURCE TOOL tint SCENE RW "Tint."
+  SOURCE   ARG hue ostr DEFAULT None
+  SOURCE   EXPECT arg_echo "hue"
+  SOURCE END
+  EXPECT rendered.pyexpect 'tint': ('arg_echo', 'hue', False, None),
+
+EXAMPLE a write tool with no TAG and no EXPECT fails the reflect-decision ENSURE
+  SOURCE TOOL silent_write SCENE RW "Silent write."
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE a write tool is fine with only a reflect TAG and no EXPECT
+  SOURCE TOOL tagged_write SCENE RW "Tagged write."
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pyspec 'tagged_write': {
+
+EXAMPLE EXPECT bool_arg without ARG fails its own ENSURE
+  SOURCE TOOL half_baked SCENE RW "Half baked."
+  SOURCE   EXPECT bool_arg "DRY|DELETED"
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE a write INTERNAL with no reflect TAG fails the same ENSURE
+  SOURCE INTERNAL raw_write RW "Raw write."
   SOURCE END
   EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
