@@ -3,7 +3,7 @@ import re
 
 from ..sampling import sampling_service as _sampling
 from ._common import bind
-from .generated.catalog_tools import tools
+from .generated.catalog_tools import animator_intent, tools  # noqa: F401
 from .intent_common import build_batch_line, run_intent_pipeline
 
 _send = None
@@ -93,7 +93,7 @@ def build_animator_batch(target: str, data: dict) -> list[str]:
     return lines
 
 
-async def animator_intent(target: str, intent: str, dry_run: bool = False) -> str:
+async def _animator_intent_body(target: str, intent: str, dry_run: bool = False) -> str:
     """Convert NL intent to Unity Animator Controller setup via DSL.
 
     dry_run=True returns the batch plan without executing it.
@@ -111,4 +111,3 @@ async def animator_intent(target: str, intent: str, dry_run: bool = False) -> st
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, animator_intent)

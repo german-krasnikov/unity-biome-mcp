@@ -416,14 +416,6 @@ EXAMPLE FORWARD and BODY exclude each other
   SOURCE END
   EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
 
-EXAMPLE BODY and ARG WIRE exclude each other
-  SOURCE TOOL dual_body SCENE RW "Dual."
-  SOURCE   BODY objects
-  SOURCE   ARG a str WIRE "b"
-  SOURCE   TAG reflect_silent
-  SOURCE END
-  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
-
 EXAMPLE BODY and ARG RAW exclude each other
   SOURCE TOOL dual_body SCENE RW "Dual."
   SOURCE   BODY objects

@@ -5,14 +5,21 @@ import time as _time
 from ._common import bind
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
-from .generated.catalog_tools import get_console, recompile, tools  # noqa: F401
+from .generated.catalog_tools import (  # noqa: F401
+    console_mark,
+    get_compile_errors,
+    get_console,
+    get_console_since,
+    recompile,
+    tools,
+)
 
 _send = None
 _args = None
 _mark_epoch: int = 0
 
 
-async def get_compile_errors() -> str:
+async def _get_compile_errors_body() -> str:
     """Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed."""
     from .. import editor_log
     csharp = await _send("get_compile_errors", {})
@@ -24,7 +31,7 @@ async def get_compile_errors() -> str:
     return editor_log.corroborate(csharp, compile_status=state)
 
 
-async def console_mark(label: str = "") -> str:
+async def _console_mark_body(label: str = "") -> str:
     """Create a console watermark. Returns mark_id encoding current timestamp.
     Pass to get_console_since() to retrieve only logs after this point.
     Pure Python — no TCP call."""
@@ -34,7 +41,7 @@ async def console_mark(label: str = "") -> str:
     return f"{ts}:{label}" if label else ts
 
 
-async def get_console_since(mark_id: str, level: str | None = None,
+async def _get_console_since_body(mark_id: str, level: str | None = None,
                              count: int = 500,
                              keyword: str | None = None,
                              count_only: bool = False) -> str:
@@ -74,6 +81,3 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
-    tools.register(mcp, get_compile_errors)
-    tools.register(mcp, console_mark)
-    tools.register(mcp, get_console_since)

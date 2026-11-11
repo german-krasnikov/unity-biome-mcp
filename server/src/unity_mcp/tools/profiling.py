@@ -2,13 +2,13 @@
 from ._common import bind
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
-from .generated.catalog_tools import get_frame_stats, get_memory, tools  # noqa: F401
+from .generated.catalog_tools import get_frame_stats, get_memory, profile, tools  # noqa: F401
 
 _send = None
 _args = None
 
 
-async def profile(
+async def _profile_body(
     action: str,
     duration: float = 5.0,
     session: str = "",
@@ -34,4 +34,3 @@ async def profile(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, profile)

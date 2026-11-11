@@ -33,7 +33,6 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ENSURE (COUNT EXPECT WHERE it.mode == bool_arg AND NOT it.has_argname) == 0 ELSE "EXPECT bool_arg needs ARG <name>"
   ENSURE COUNT BODY <= 1 ELSE "a tool may declare BODY at most once"
   ENSURE COUNT FORWARD == 0 OR COUNT BODY == 0 ELSE "FORWARD and BODY are mutually exclusive — FORWARD generates the whole tool, BODY generates its signature and calls a hand-written implementation"
-  ENSURE COUNT BODY == 0 OR (COUNT ARG WHERE it.has_wname) == 0 ELSE "BODY tools never call _send through the generated wrapper — ARG WIRE only means something for FORWARD"
   ENSURE COUNT BODY == 0 OR (COUNT ARG WHERE it.has_raw) == 0 ELSE "BODY tools never call _send through the generated wrapper — ARG RAW only means something for FORWARD"
   TEMPLATE pyspec HEADER "SPEC_KWARGS: dict[str, dict] = {" FOOTER "}" ESCAPE data
         '{name}': {

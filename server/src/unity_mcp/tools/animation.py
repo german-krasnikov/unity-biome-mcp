@@ -1,13 +1,13 @@
 from ._common import bind
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
-from .generated.catalog_tools import animation, particle, timeline, tools  # noqa: F401
+from .generated.catalog_tools import animation, animator, particle, timeline, tools  # noqa: F401
 
 _send = None
 _args = None
 
 
-async def animator(action: str, path: str,
+async def _animator_body(action: str, path: str,
                    state: str | None = None, states: str | None = None,
                    params: str | None = None,
                    source: str | None = None, target: str | None = None,
@@ -50,4 +50,3 @@ async def animator(action: str, path: str,
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, animator)

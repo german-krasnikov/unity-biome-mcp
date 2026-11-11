@@ -47,12 +47,18 @@ async def sdk_session(send):
     from mcp.shared.memory import create_client_server_memory_streams
 
     from unity_mcp.tools import editor_control, objects, runtime
+    from unity_mcp.tools.generated import catalog_tools
 
     app = FastMCP("owned-readiness-dsl-qualification", log_level="ERROR")
     def args(**kwargs):
         return {key: value for key, value in kwargs.items() if value is not None}
     for module in (editor_control, objects, runtime):
         module.register(app, send, args)
+    # `editor` moved to BODY (SV8): its MCP registration now lives in the catalog's
+    # generated wrapper, not editor_control.register(). tools.install(app) is not an
+    # option here (it demands every catalog tool, including ones this limited harness
+    # never provides) -- add just the one wrapper this phase actually calls.
+    app.add_tool(catalog_tools.editor)
     async with create_client_server_memory_streams() as (client, server):
         task = asyncio.create_task(app._mcp_server.run(
             *server, app._mcp_server.create_initialization_options()))

@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=80175124b230071d5d07c3470a90b5fd42435ad080b790e2120c22bd48dce712
+# source-sha256=0d23eafda5b0019f0d91aa9ca0f289b3e72abeb1f547e4898b07f6e1dedf22f2
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -140,11 +140,100 @@ tools.expect('animator', 'RW', "Animator Controller — state machine. Modifies 
     ('value', ostr, None),
     ('avatar_path', ostr, None),
 ))
+tools.expect_body('animator', 'animation')
+
+
+@tools.provide
+async def animator(
+    action: str,
+    path: str,
+    state: ostr = None,
+    states: ostr = None,
+    params: ostr = None,
+    source: ostr = None,
+    target: ostr = None,
+    conditions: ostr = None,
+    duration: ofloat = None,
+    exit_time: ofloat = None,
+    has_exit_time: obool = None,
+    type: ostr = None,
+    name: ostr = None,
+    blend_type: ostr = None,
+    param: ostr = None,
+    param_y: ostr = None,
+    children: ostr = None,
+    edit_action: ostr = None,
+    layer: Any = None,
+    weight: ofloat = None,
+    blending: ostr = None,
+    value: ostr = None,
+    avatar_path: ostr = None,
+) -> str:
+    ("Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param."
+     "\n    params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'."
+     "\n    conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState)."
+     "\n    blend_type: 1d|2d_simple|2d_freeform|2d_cartesian|direct."
+     "\n    param/param_y: blend parameters (auto-created as float if missing)."
+     "\n    children: '(1D) Idle:0; Walk:0.5; Run:1' or '(2D) Idle:0,0; Walk:0,1'."
+     "\n    edit_action: add_child|remove_child|set_thresholds|set_param|set_type."
+     "\n    layer: layer index (int) for add_state/add_transition/set_default, or name/index string for CRUD ops."
+     "\n    weight: defaultWeight for add_layer/set_layer_weight (0.0–1.0)."
+     "\n    blending: Override|Additive for add_layer/set_layer_blending."
+     "\n    value: speed multiplier for set_state_speed. avatar_path: asset path for set_avatar."
+    )
+    from .. import animation
+    return await animation._animator_body(
+        action=action,
+        path=path,
+        state=state,
+        states=states,
+        params=params,
+        source=source,
+        target=target,
+        conditions=conditions,
+        duration=duration,
+        exit_time=exit_time,
+        has_exit_time=has_exit_time,
+        type=type,
+        name=name,
+        blend_type=blend_type,
+        param=param,
+        param_y=param_y,
+        children=children,
+        edit_action=edit_action,
+        layer=layer,
+        weight=weight,
+        blending=blending,
+        value=value,
+        avatar_path=avatar_path,
+    )
+
+
 tools.expect('animator_intent', 'RW', "Convert NL intent to Unity Animator Controller setup via DSL.", (
     ('target', str),
     ('intent', str),
     ('dry_run', bool, False),
 ))
+tools.expect_body('animator_intent', 'animator_intent_tool')
+
+
+@tools.provide
+async def animator_intent(
+    target: str,
+    intent: str,
+    dry_run: bool = False,
+) -> str:
+    ("Convert NL intent to Unity Animator Controller setup via DSL."
+     "\n    dry_run=True returns the batch plan without executing it."
+    )
+    from .. import animator_intent_tool
+    return await animator_intent_tool._animator_intent_body(
+        target=target,
+        intent=intent,
+        dry_run=dry_run,
+    )
+
+
 tools.expect('apply_scene_change', 'RW', "Execute scene mutations with atomic apply, post-verify, and optional save.", (
     ('plan_id', str),
     ('commands', str),
@@ -213,6 +302,51 @@ tools.expect('asset', 'RW', "Asset database. Creates, moves, or deletes assets. 
     ('class_name', ostr, None),
     ('path_only', bool, False),
 ))
+tools.expect_body('asset', 'asset')
+
+
+@tools.provide
+async def asset(
+    action: str,
+    path: ostr = None,
+    type: ostr = None,
+    name: ostr = None,
+    folder: ostr = None,
+    source: ostr = None,
+    dest: ostr = None,
+    prop: ostr = None,
+    value: ostr = None,
+    recursive: bool = False,
+    labels: ostr = None,
+    output: ostr = None,
+    include_deps: bool = True,
+    content: ostr = None,
+    class_name: ostr = None,
+    path_only: bool = False,
+) -> str:
+    ("Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."
+    )
+    from .. import asset
+    return await asset._asset_body(
+        action=action,
+        path=path,
+        type=type,
+        name=name,
+        folder=folder,
+        source=source,
+        dest=dest,
+        prop=prop,
+        value=value,
+        recursive=recursive,
+        labels=labels,
+        output=output,
+        include_deps=include_deps,
+        content=content,
+        class_name=class_name,
+        path_only=path_only,
+    )
+
+
 tools.expect('attach_uitk', 'RW', "Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for UI Toolkit runtime panels).", (
     ('path', str),
     ('uxml', ostr, None),
@@ -322,12 +456,68 @@ tools.expect('batch', 'RW', "Execute multiple commands in one call. Use for 2+ o
     ('atomic', bool, False),
     ('validate_aliases', bool, False),
 ))
+tools.expect_body('batch', 'batch')
+
+
+@tools.provide
+async def batch(
+    commands: str,
+    on_error: str = "continue",
+    timeout: float = 75.0,
+    atomic: bool = False,
+    validate_aliases: bool = False,
+) -> str:
+    ("Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls."
+    )
+    from .. import batch
+    return await batch._batch_body(
+        commands=commands,
+        on_error=on_error,
+        timeout=timeout,
+        atomic=atomic,
+        validate_aliases=validate_aliases,
+    )
+
+
 tools.expect('brief_build', 'RO', "Use to get a snapshot of project state before starting work.", (
     ('kinds', str, "console,compile_errors,hierarchy"),
     ('budget', int, 2000),
 ))
+tools.expect_body('brief_build', 'brief_tool')
+
+
+@tools.provide
+async def brief_build(
+    kinds: str = "console,compile_errors,hierarchy",
+    budget: int = 2000,
+) -> str:
+    ("Use to get a snapshot of project state before starting work."
+     "\n    Returns compact text block with requested context within token budget."
+     "\n    kinds: comma-separated subset of: console, compile_errors, hierarchy, selection, profiler"
+     "\n    budget: max token estimate (default 2000; 1 token ≈ 4 chars)"
+    )
+    from .. import brief_tool
+    return await brief_tool._brief_build_body(
+        kinds=kinds,
+        budget=budget,
+    )
+
+
 tools.expect('budget_status', 'RO', "Returns Haiku cost: session/cap/day/skipped features. Text format.", (
 ))
+tools.expect_body('budget_status', 'budget_tool')
+
+
+@tools.provide
+async def budget_status(
+) -> str:
+    ("Returns Haiku cost: session/cap/day/skipped features. Text format."
+    )
+    from .. import budget_tool
+    return await budget_tool._budget_status_body(
+    )
+
+
 tools.expect('build', 'RW', "Build player. action: build.", (
     ('action', str),
     ('target', ostr, None),
@@ -425,6 +615,23 @@ tools.expect('configure_objects', 'RW', "Configure multiple objects at once.", (
 tools.expect('console_mark', 'RO', "Create a console watermark. Returns mark_id encoding current timestamp.", (
     ('label', str, ""),
 ))
+tools.expect_body('console_mark', 'console')
+
+
+@tools.provide
+async def console_mark(
+    label: str = "",
+) -> str:
+    ("Create a console watermark. Returns mark_id encoding current timestamp."
+     "\n    Pass to get_console_since() to retrieve only logs after this point."
+     "\n    Pure Python — no TCP call."
+    )
+    from .. import console
+    return await console._console_mark_body(
+        label=label,
+    )
+
+
 tools.expect('create_object', 'RW', "Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene).", (
     ('name', str),
     ('parent', ostr, None),
@@ -513,6 +720,29 @@ tools.expect('debug', 'RO', "AI-assisted scene debug: gather diagnostic context 
     ('path', str, ""),
     ('gather', str, ""),
 ))
+tools.expect_body('debug', 'debug_tool')
+
+
+@tools.provide
+async def debug(
+    symptom: str = "",
+    path: str = "",
+    gather: str = "",
+) -> str:
+    ("AI-assisted scene debug: gather diagnostic context based on symptom (not compile/reload — use `diagnose` for that; not runtime state — use `debug_animator` or `debug_physics`)."
+     "\n    symptom: Natural language description (\"enemy doesn't move\", \"button not clickable\")"
+     "\n    path: Optional target object path (\"/Enemy_01\")"
+     "\n    gather: Override comma-separated batch-safe tool names (\"inspect,get_console\")"
+     "\n    Returns structured diagnostic text for LLM analysis."
+    )
+    from .. import debug_tool
+    return await debug_tool._debug_body(
+        symptom=symptom,
+        path=path,
+        gather=gather,
+    )
+
+
 tools.expect('debug_animator', 'RO', "[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile).", (
     ('path', str),
 ))
@@ -560,6 +790,31 @@ tools.expect('diagnose', 'RO', "Read Unity compile/reload fact-signals atomicall
     ('prev_mvid', str, ""),
     ('expected_compile', bool, True),
 ))
+tools.expect_body('diagnose', 'diagnose')
+
+
+@tools.provide
+async def diagnose(
+    prev_mvid: str = "",
+    expected_compile: bool = True,
+) -> str:
+    ("Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`."
+     "\n    prev_mvid: MVID from before a sync operation. When provided, enables STALE-DOMAIN"
+     "\n    detection (unchanged MVID after intended recompile). Pass '' for standalone probing."
+     "\n    expected_compile: True when a compile was explicitly triggered (default)."
+     "\n    False for Bee cache-hit / will_compile=false / reverted-edit probes — prevents"
+     "\n    false STALE-DOMAIN on legitimately-frozen MVID (A5/G27)."
+     "\n    Returns: CLEAN-LIVE / FAIL:<CS> / STALE-DOMAIN / WEDGE-ENGINE / WEDGE-STATE /"
+     "\n             BUILD-FAILED-WEDGE / STALE-CACHE / TESTS-INVISIBLE / REBUILDING /"
+     "\n             NO-OP / UNKNOWN"
+    )
+    from .. import diagnose
+    return await diagnose._diagnose_body(
+        prev_mvid=prev_mvid,
+        expected_compile=expected_compile,
+    )
+
+
 tools.expect('discover_tools', 'RO', "Find and enable tools by category.", (
     ('category', ostr, None),
     ('enable', bool, True),
@@ -600,6 +855,29 @@ tools.expect('editor', 'RW', "Editor state/control. action: state|play|pause|sto
     ('paths', ostr, None),
     ('enable', obool, None),
 ))
+tools.expect_body('editor', 'editor_control')
+
+
+@tools.provide
+async def editor(
+    action: str = "state",
+    path: ostr = None,
+    paths: ostr = None,
+    enable: obool = None,
+) -> str:
+    ("Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode."
+     "\n    select: path (single) or paths (comma-sep multi, e.g. \"/Player,/Enemy,/NPC\")."
+     "\n    mutation_mode: omit enable to query current intent; enable=True/False to set it."
+    )
+    from .. import editor_control
+    return await editor_control._editor_body(
+        action=action,
+        path=path,
+        paths=paths,
+        enable=enable,
+    )
+
+
 tools.expect('execute_code', 'RW', "Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.", (
     ('code', str),
     ('undo_label', str, "execute_code"),
@@ -719,8 +997,35 @@ async def get_changes(
 
 tools.expect('get_changeset', 'RO', "Return the current ChangeSet: accumulated mutations this session.", (
 ))
+tools.expect_body('get_changeset', 'changeset_tool')
+
+
+@tools.provide
+async def get_changeset(
+) -> str:
+    ("Return the current ChangeSet: accumulated mutations this session."
+     "\n    Use after any mutation sequence to review what changed."
+    )
+    from .. import changeset_tool
+    return await changeset_tool._get_changeset_body(
+    )
+
+
 tools.expect('get_compile_errors', 'RO', "Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed.", (
 ))
+tools.expect_body('get_compile_errors', 'console')
+
+
+@tools.provide
+async def get_compile_errors(
+) -> str:
+    ("Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed."
+    )
+    from .. import console
+    return await console._get_compile_errors_body(
+    )
+
+
 tools.expect('get_component', 'RO', "Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N.", (
     ('path', str),
     ('type', str, ""),
@@ -783,6 +1088,34 @@ tools.expect('get_console_since', 'RO', "Console entries after the watermark cre
     ('keyword', ostr, None),
     ('count_only', bool, False),
 ))
+tools.expect_body('get_console_since', 'console')
+
+
+@tools.provide
+async def get_console_since(
+    mark_id: str,
+    level: ostr = None,
+    count: int = 500,
+    keyword: ostr = None,
+    count_only: bool = False,
+) -> str:
+    ("Console entries after the watermark created by console_mark()."
+     "\n    mark_id: string from console_mark() or bare float timestamp."
+     "\n    level: optional filter ('error,exception,assert')."
+     "\n    keyword: case-insensitive substring filter."
+     "\n    count_only: return match count as string."
+     "\n    count: max entries to return (default 500)."
+    )
+    from .. import console
+    return await console._get_console_since_body(
+        mark_id=mark_id,
+        level=level,
+        count=count,
+        keyword=keyword,
+        count_only=count_only,
+    )
+
+
 tools.expect('get_enabled_tools', 'RO', "List enabled tool names, comma-separated.", (
 ))
 
@@ -845,6 +1178,23 @@ tools.expect('get_metrics', 'RW', "Returns telemetry snapshot. Clears counters w
     ('format', str, "text"),
     ('reset', bool, False),
 ))
+tools.expect_body('get_metrics', 'metrics_tool')
+
+
+@tools.provide
+async def get_metrics(
+    format: str = "text",
+    reset: bool = False,
+) -> str:
+    ("Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json."
+    )
+    from .. import metrics_tool
+    return await metrics_tool._get_metrics_body(
+        format=format,
+        reset=reset,
+    )
+
+
 tools.expect('get_object_detail', 'RO', "Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation.", (
     ('id', int),
     ('full', bool, False),
@@ -1266,6 +1616,27 @@ tools.expect('permission_prompt', 'RO', "Handle Claude permission prompts via MC
     ('input', Any),
     ('tool_use_id', str),
 ))
+tools.expect_body('permission_prompt', 'permission_prompt_tool')
+
+
+@tools.provide
+async def permission_prompt(
+    tool_name: str,
+    input: Any,
+    tool_use_id: str,
+) -> str:
+    ("Handle Claude permission prompts via MCP."
+     "\n    Registered as --permission-prompt-tool so Claude routes all permission"
+     "\n    checks here instead of blocking on stdin."
+    )
+    from .. import permission_prompt_tool
+    return await permission_prompt_tool._permission_prompt_body(
+        tool_name=tool_name,
+        input=input,
+        tool_use_id=tool_use_id,
+    )
+
+
 tools.expect('ping_object', 'RO', "Highlight object in Hierarchy and Project, and select it.", (
     ('path', str),
 )
@@ -1360,6 +1731,36 @@ tools.expect('profile', 'RW', "Profile CPU/GPU/memory over time.", (
     ('mode', str, "burst"),
     ('threshold_ms', float, 33.3),
 ))
+tools.expect_body('profile', 'profiling')
+
+
+@tools.provide
+async def profile(
+    action: str,
+    duration: float = 5.0,
+    session: str = "",
+    compare_with: str = "",
+    focus: str = "",
+    mode: str = "burst",
+    threshold_ms: float = 33.3,
+) -> str:
+    ("Profile CPU/GPU/memory over time."
+     "\n    action: start|stop|status|analyze|compare|list_sessions"
+     "\n    mode: burst (auto-stop after duration) | manual (explicit stop) | triggered (on spike)"
+     "\n    focus: narrow analyze output to gc|rendering|physics|cpu"
+    )
+    from .. import profiling
+    return await profiling._profile_body(
+        action=action,
+        duration=duration,
+        session=session,
+        compare_with=compare_with,
+        focus=focus,
+        mode=mode,
+        threshold_ms=threshold_ms,
+    )
+
+
 tools.expect('project_settings', 'RW_IDEM', "Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input.", (
     ('action', str),
     ('target', str),
@@ -1720,6 +2121,57 @@ tools.expect('screenshot', 'RW', "Capture screenshot (file path); describe= -> H
     ('angle', ostr, None),
     ('annotation_id', ostr, None),
 ))
+tools.expect_body('screenshot', 'screenshot')
+
+
+@tools.provide
+async def screenshot(
+    width: int = 640,
+    height: int = 480,
+    camera: ostr = None,
+    path: ostr = None,
+    output_path: ostr = None,
+    describe: ostr = None,
+    raw: bool = False,
+    zoom: ofloat = None,
+    angles: ostr = None,
+    supersample: oint = None,
+    offset: ostr = None,
+    fixed_size: ofloat = None,
+    highlight: ostr = None,
+    show_colliders: obool = None,
+    angle: ostr = None,
+    annotation_id: ostr = None,
+) -> str:
+    ("Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), raw=True forces path."
+     "\n    camera: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game. angle (single_view): front|left|top|iso|ex,ey,ez."
+     "\n    zoom: higher=closer. angles: per-view Euler \"ex,ey,ez|...\" (_=skip). supersample 1-4. offset/fixed_size: framing."
+     "\n    highlight: paths[:#RRGGBB] for bbox. show_colliders: wireframes."
+     "\n    annotation_id: frame + highlight annotation by id (auto sets camera=annotation_frame)."
+     "\n    warn:ScreenSpaceOverlay canvas not captured in Edit Mode (bypasses camera pipeline)."
+     "\n    Workarounds: switch to ScreenSpace-Camera, use Play Mode, or camera=scene_view."
+    )
+    from .. import screenshot
+    return await screenshot._screenshot_body(
+        width=width,
+        height=height,
+        camera=camera,
+        path=path,
+        output_path=output_path,
+        describe=describe,
+        raw=raw,
+        zoom=zoom,
+        angles=angles,
+        supersample=supersample,
+        offset=offset,
+        fixed_size=fixed_size,
+        highlight=highlight,
+        show_colliders=show_colliders,
+        angle=angle,
+        annotation_id=annotation_id,
+    )
+
+
 tools.expect('screenshot_baseline', 'RW', "Save screenshot as baseline for visual regression. name: file-safe identifier.", (
     ('name', str, "default"),
     ('width', int, 640),
@@ -2249,6 +2701,28 @@ tools.expect('ui_intent', 'RW', "Convert NL intent to Unity UI hierarchy. Templa
     ('template', ostr, None),
     ('dry_run', bool, False),
 ))
+tools.expect_body('ui_intent', 'ui_intent_tool')
+
+
+@tools.provide
+async def ui_intent(
+    intent: str,
+    parent: ostr = None,
+    template: ostr = None,
+    dry_run: bool = False,
+) -> str:
+    ("Convert NL intent to Unity UI hierarchy. Templates bypass Haiku."
+     "\n    template: hud|menu|dialog|grid. dry_run=True skips execution."
+    )
+    from .. import ui_intent_tool
+    return await ui_intent_tool._ui_intent_body(
+        intent=intent,
+        parent=parent,
+        template=template,
+        dry_run=dry_run,
+    )
+
+
 tools.expect('uitk_element', 'RW', "Mutate or query a VisualElement in a UIDocument or PanelRenderer host", (
     ('action', Any),
     ('path', ostr, None),
@@ -2280,6 +2754,43 @@ tools.expect('uitk_intent', 'RW', "Generate a UXML + USS file pair from a natura
     ('template', ostr, None),
     ('dry_run', bool, False),
 ))
+tools.expect_body('uitk_intent', 'uitk_intent_tool')
+
+
+@tools.provide
+async def uitk_intent(
+    intent: str,
+    name: str,
+    path: str = "Assets/UI",
+    attach_to: ostr = None,
+    template: ostr = None,
+    dry_run: bool = False,
+) -> str:
+    ("Generate a UXML + USS file pair from a natural-language UI description."
+     "\n    Side effect: unless dry_run=True, writes both project assets; attach_to also adds a"
+     "\n    UIDocument or PanelRenderer scene component. Completed steps are not rolled back if a later"
+     "\n    step fails. Failure output distinguishes retained files, confirmed Unity"
+     "\n    auto-reverts, and attempted files whose cleanup is uncertain. Without"
+     "\n    template, invokes"
+     "\n    configured Claude sampling and may"
+     "\n    consume provider quota. For uGUI use ui_intent."
+     "\n    template: hud|menu|dialog|settings|editor_window bypasses Haiku entirely."
+     "\n    name: base filename (e.g. \"InventoryPanel\" → InventoryPanel.uxml + .uss)."
+     "\n    path: output folder, default \"Assets/UI\"."
+     "\n    attach_to: scene path to UIDocument or PanelRenderer GameObject to wire after creation."
+     "\n    dry_run: return UXML+USS text without writing files."
+    )
+    from .. import uitk_intent_tool
+    return await uitk_intent_tool._uitk_intent_body(
+        intent=intent,
+        name=name,
+        path=path,
+        attach_to=attach_to,
+        template=template,
+        dry_run=dry_run,
+    )
+
+
 tools.expect('undo_last', 'RW', "Undo the last N AI turns in the Unity Undo stack. Default: 1.", (
     ('turns', int, 1),
 ))
@@ -2415,6 +2926,28 @@ tools.expect('vfx_intent', 'RW', "Convert NL intent to Unity VFX setup. Presets 
     ('kind', str, "auto"),
     ('dry_run', bool, False),
 ))
+tools.expect_body('vfx_intent', 'vfx_intent_tool')
+
+
+@tools.provide
+async def vfx_intent(
+    target: str,
+    intent: str,
+    kind: str = "auto",
+    dry_run: bool = False,
+) -> str:
+    ("Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely."
+     "\n    kind: particle|auto (shader/material not yet implemented). dry_run=True skips execution."
+    )
+    from .. import vfx_intent_tool
+    return await vfx_intent_tool._vfx_intent_body(
+        target=target,
+        intent=intent,
+        kind=kind,
+        dry_run=dry_run,
+    )
+
+
 tools.expect('wait_until', 'RW_IDEM', "[Play Mode] Poll field until it matches value (or timeout).", (
     ('path', str),
     ('component', str),

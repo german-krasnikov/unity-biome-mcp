@@ -3,6 +3,7 @@ from ._source_patch_intent import get_cached_intent as _get_cached_intent
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
 from .generated.catalog_tools import (  # noqa: F401
+    asset,
     get_enabled_tools,
     material,
     material_audit,
@@ -48,7 +49,7 @@ async def _write_text_with_capture(path: str, content: str) -> str:
     return result
 
 
-async def asset(action: str, path: str | None = None, type: str | None = None,
+async def _asset_body(action: str, path: str | None = None, type: str | None = None,
                 name: str | None = None, folder: str | None = None,
                 source: str | None = None, dest: str | None = None,
                 prop: str | None = None, value: str | None = None,
@@ -73,4 +74,3 @@ async def asset(action: str, path: str | None = None, type: str | None = None,
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, asset)

@@ -22,12 +22,12 @@ import pytest
 BOOL_TRUE_EXCEPTIONS = {
     ("catalog_tools", "transfer_object", "world_position_stays"),   # semantic: False=snap
     ("catalog_tools", "set_parent", "world_position_stays"),        # semantic: False=snap
-    ("diagnose", "diagnose", "expected_compile"),             # semantic: True=normal state
+    ("catalog_tools", "diagnose", "expected_compile"),        # semantic: True=normal state (SV8: BODY, now generated)
     ("gating", "discover_tools", "enable"),                   # semantic: True=enable on discover
     ("meta", "discover_tools", "enable"),                     # semantic: True=enable on discover
     ("catalog_tools", "get_changes", "clear"),                # semantic: True=consume-on-read
     ("spatial", "region_clear", "dry_run"),                   # safety guard: preview before delete
-    ("asset", "asset", "include_deps"),                       # semantic: True=include deps by default
+    ("catalog_tools", "asset", "include_deps"),                # semantic: True=include deps by default (SV8: BODY, now generated)
     ("runtime", "run_playtest_suite", "stop_after"),          # semantic: True=stop suite on failure
     ("transaction", "scene_change_plan", "dry_run"),          # semantic: True=safe preview by default
     ("transaction", "apply_scene_change", "verify"),          # semantic: True=verify after apply

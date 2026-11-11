@@ -54,6 +54,17 @@ TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use wh
 END
 
 TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param."
+  BODY animation
+  DOC "params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'."
+  DOC "conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState)."
+  DOC "blend_type: 1d|2d_simple|2d_freeform|2d_cartesian|direct."
+  DOC "param/param_y: blend parameters (auto-created as float if missing)."
+  DOC "children: '(1D) Idle:0; Walk:0.5; Run:1' or '(2D) Idle:0,0; Walk:0,1'."
+  DOC "edit_action: add_child|remove_child|set_thresholds|set_param|set_type."
+  DOC "layer: layer index (int) for add_state/add_transition/set_default, or name/index string for CRUD ops."
+  DOC "weight: defaultWeight for add_layer/set_layer_weight (0.0–1.0)."
+  DOC "blending: Override|Additive for add_layer/set_layer_blending."
+  DOC "value: speed multiplier for set_state_speed. avatar_path: asset path for set_avatar."
   ARG action str
   ARG path str EXAMPLE "/Main Camera"
   ARG state ostr DEFAULT None
@@ -84,6 +95,8 @@ TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator
 END
 
 PYTOOL animator_intent SYSTEM RW "Convert NL intent to Unity Animator Controller setup via DSL."
+  BODY animator_intent_tool
+  DOC "dry_run=True returns the batch plan without executing it."
   ARG target str
   ARG intent str
   ARG dry_run bool DEFAULT False
@@ -128,6 +141,7 @@ TOOL ask_user SYSTEM RO "Show a question card in Unity chat; wait for user answe
 END
 
 TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."
+  BODY asset
   ARG action str EXAMPLE "list"
   ARG path ostr DEFAULT None "Action-specific project asset/package path (usually Assets/...; import_package accepts a package file path)"
   ARG type ostr DEFAULT None "Unity asset type filter or create kind (for example Material or ScriptableObject)"
@@ -215,6 +229,7 @@ END
 # ui_intent_tool.py:152, debug_tool.py:78, do_intent/executor.py:38/67).
 # Public batch() tool always overrides -- see tools/batch.py timeout param.
 TOOL batch CORE RW "Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls."
+  BODY batch
   GUARD compile
   FLAG core
   TIMEOUT 120.0
@@ -230,11 +245,16 @@ TOOL batch CORE RW "Execute multiple commands in one call. Use for 2+ ops — re
 END
 
 PYTOOL brief_build SYSTEM RO "Use to get a snapshot of project state before starting work."
+  BODY brief_tool
+  DOC "Returns compact text block with requested context within token budget."
+  DOC "kinds: comma-separated subset of: console, compile_errors, hierarchy, selection, profiler"
+  DOC "budget: max token estimate (default 2000; 1 token ≈ 4 chars)"
   ARG kinds str DEFAULT_TEXT "console,compile_errors,hierarchy"
   ARG budget int DEFAULT 2000
 END
 
 PYTOOL budget_status SYSTEM RO "Returns Haiku cost: session/cap/day/skipped features. Text format."
+  BODY budget_tool
 END
 
 TOOL build SYSTEM RW "Build player. action: build."
@@ -312,6 +332,9 @@ PYTOOL configure_objects SCENE RW "Configure multiple objects at once."
 END
 
 PYTOOL console_mark RUNTIME RO "Create a console watermark. Returns mark_id encoding current timestamp."
+  BODY console
+  DOC "Pass to get_console_since() to retrieve only logs after this point."
+  DOC "Pure Python — no TCP call."
   FLAG tier1
   ARG label str DEFAULT_TEXT ""
 END
@@ -353,6 +376,11 @@ TOOL create_ui UGUI RW "Create UI element with smart defaults. type: Canvas|Pane
 END
 
 PYTOOL debug RUNTIME RO "AI-assisted scene debug: gather diagnostic context based on symptom (not compile/reload — use `diagnose` for that; not runtime state — use `debug_animator` or `debug_physics`)."
+  BODY debug_tool
+  DOC "symptom: Natural language description (\"enemy doesn't move\", \"button not clickable\")"
+  DOC "path: Optional target object path (\"/Enemy_01\")"
+  DOC "gather: Override comma-separated batch-safe tool names (\"inspect,get_console\")"
+  DOC "Returns structured diagnostic text for LLM analysis."
   ARG symptom str DEFAULT_TEXT ""
   ARG path str DEFAULT_TEXT ""
   ARG gather str DEFAULT_TEXT ""
@@ -388,6 +416,15 @@ TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. De
 END
 
 TOOL diagnose VERIFY RO "Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`."
+  BODY diagnose
+  DOC "prev_mvid: MVID from before a sync operation. When provided, enables STALE-DOMAIN"
+  DOC "detection (unchanged MVID after intended recompile). Pass '' for standalone probing."
+  DOC "expected_compile: True when a compile was explicitly triggered (default)."
+  DOC "False for Bee cache-hit / will_compile=false / reverted-edit probes — prevents"
+  DOC "false STALE-DOMAIN on legitimately-frozen MVID (A5/G27)."
+  DOC "Returns: CLEAN-LIVE / FAIL:<CS> / STALE-DOMAIN / WEDGE-ENGINE / WEDGE-STATE /"
+  DOC "         BUILD-FAILED-WEDGE / STALE-CACHE / TESTS-INVISIBLE / REBUILDING /"
+  DOC "         NO-OP / UNKNOWN"
   GUARD always
   GUARD compile
   ARG prev_mvid str DEFAULT_TEXT "" LOCAL
@@ -424,6 +461,9 @@ PYTOOL doctor SYSTEM RW "Run health diagnostics. fix=True removes safe stale por
 END
 
 TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode."
+  BODY editor_control
+  DOC "select: path (single) or paths (comma-sep multi, e.g. \"/Player,/Enemy,/NPC\")."
+  DOC "mutation_mode: omit enable to query current intent; enable=True/False to set it."
   GUARD play_ok
   WIRE no_undo
   FLAG core
@@ -501,11 +541,14 @@ TOOL get_changes SYSTEM RW "Get Unity editor changes since last call. Tracks: hi
 END
 
 PYTOOL get_changeset VERIFY RO "Return the current ChangeSet: accumulated mutations this session."
+  BODY changeset_tool
+  DOC "Use after any mutation sequence to review what changed."
   FLAG tier1
   TIMEOUT 5.0
 END
 
 TOOL get_compile_errors CORE RO "Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed."
+  BODY console
   GUARD compile
   FLAG core
   VERB "Checking errors"
@@ -549,6 +592,12 @@ TOOL get_console CORE RO "Recent console logs. For C# compile errors use get_com
 END
 
 PYTOOL get_console_since RUNTIME RO "Console entries after the watermark created by console_mark()."
+  BODY console
+  DOC "mark_id: string from console_mark() or bare float timestamp."
+  DOC "level: optional filter ('error,exception,assert')."
+  DOC "keyword: case-insensitive substring filter."
+  DOC "count_only: return match count as string."
+  DOC "count: max entries to return (default 500)."
   FLAG tier1
   ARG mark_id str
   ARG level ostr DEFAULT None
@@ -597,6 +646,7 @@ TOOL get_memory RUNTIME RO "Memory snapshot."
 END
 
 PYTOOL get_metrics RUNTIME RW "Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json."
+  BODY metrics_tool
   ARG format str DEFAULT_TEXT "text"
   ARG reset bool DEFAULT False
   TAG reflect_silent
@@ -916,6 +966,9 @@ TOOL particle MEDIA RW "Particle System. action: get|create|set|apply|play|stop|
 END
 
 PYTOOL permission_prompt SYSTEM RO "Handle Claude permission prompts via MCP."
+  BODY permission_prompt_tool
+  DOC "Registered as --permission-prompt-tool so Claude routes all permission"
+  DOC "checks here instead of blocking on stdin."
   FLAG tier1
   ARG tool_name str
   ARG input Any
@@ -966,6 +1019,10 @@ TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmatio
 END
 
 TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
+  BODY profiling
+  DOC "action: start|stop|status|analyze|compare|list_sessions"
+  DOC "mode: burst (auto-stop after duration) | manual (explicit stop) | triggered (on spike)"
+  DOC "focus: narrow analyze output to gc|rendering|physics|cpu"
   RUNTIME
   ARG action str
   ARG duration float DEFAULT 5.0
@@ -1250,6 +1307,13 @@ TOOL scene_health VERIFY RO "Scene hierarchy/health audit."
 END
 
 TOOL screenshot MEDIA RW "Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), raw=True forces path."
+  BODY screenshot
+  DOC "camera: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game. angle (single_view): front|left|top|iso|ex,ey,ez."
+  DOC "zoom: higher=closer. angles: per-view Euler \"ex,ey,ez|...\" (_=skip). supersample 1-4. offset/fixed_size: framing."
+  DOC "highlight: paths[:#RRGGBB] for bbox. show_colliders: wireframes."
+  DOC "annotation_id: frame + highlight annotation by id (auto sets camera=annotation_frame)."
+  DOC "warn:ScreenSpaceOverlay canvas not captured in Edit Mode (bypasses camera pipeline)."
+  DOC "Workarounds: switch to ScreenSpace-Camera, use Play Mode, or camera=scene_view."
   GUARD compile
   WIRE special
   FLAG tier1
@@ -1607,6 +1671,8 @@ TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene
 END
 
 PYTOOL ui_intent UGUI RW "Convert NL intent to Unity UI hierarchy. Templates bypass Haiku."
+  BODY ui_intent_tool
+  DOC "template: hud|menu|dialog|grid. dry_run=True skips execution."
   FLAG tier1
   ARG intent str
   ARG parent ostr DEFAULT None
@@ -1648,6 +1714,19 @@ TOOL uitk_file UITOOLKIT RW "Read or edit a UXML or USS asset file."
 END
 
 PYTOOL uitk_intent UITOOLKIT RW "Generate a UXML + USS file pair from a natural-language UI description."
+  BODY uitk_intent_tool
+  DOC "Side effect: unless dry_run=True, writes both project assets; attach_to also adds a"
+  DOC "UIDocument or PanelRenderer scene component. Completed steps are not rolled back if a later"
+  DOC "step fails. Failure output distinguishes retained files, confirmed Unity"
+  DOC "auto-reverts, and attempted files whose cleanup is uncertain. Without"
+  DOC "template, invokes"
+  DOC "configured Claude sampling and may"
+  DOC "consume provider quota. For uGUI use ui_intent."
+  DOC "template: hud|menu|dialog|settings|editor_window bypasses Haiku entirely."
+  DOC "name: base filename (e.g. \"InventoryPanel\" → InventoryPanel.uxml + .uss)."
+  DOC "path: output folder, default \"Assets/UI\"."
+  DOC "attach_to: scene path to UIDocument or PanelRenderer GameObject to wire after creation."
+  DOC "dry_run: return UXML+USS text without writing files."
   FLAG tier1
   TIMEOUT 60.0
   ARG intent str
@@ -1731,6 +1810,8 @@ PYTOOL verify_after_change VERIFY RW "Single verification gate after code/scene 
 END
 
 PYTOOL vfx_intent MEDIA RW "Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely."
+  BODY vfx_intent_tool
+  DOC "kind: particle|auto (shader/material not yet implemented). dry_run=True skips execution."
   FLAG tier1
   ARG target str
   ARG intent str

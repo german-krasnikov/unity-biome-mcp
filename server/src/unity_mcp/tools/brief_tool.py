@@ -1,13 +1,13 @@
 """T21: brief_build MCP tool — project context snapshot."""
 
 from ._common import bind
-from .generated.catalog_tools import tools
+from .generated.catalog_tools import brief_build, tools  # noqa: F401
 
 _send = None
 _args = None
 
 
-async def brief_build(
+async def _brief_build_body(
     kinds: str = "console,compile_errors,hierarchy",
     budget: int = 2000,
 ) -> str:
@@ -28,4 +28,3 @@ async def brief_build(
 
 def register(mcp, send, args) -> None:
     bind(globals(), send, args)
-    tools.register(mcp, brief_build)

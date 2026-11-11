@@ -79,7 +79,9 @@ def test_register_wires_send(monkeypatch):
     send = AsyncMock()
     mod.register(mcp, send, MagicMock())
     assert mod._send is send
-    mcp.tool.assert_called_once()
+    # permission_prompt moved to BODY (SV8): register() only binds _send/_args now;
+    # the catalog's install() registers its MCP wrapper.
+    mcp.tool.assert_not_called()
 
 
 async def test_ask_mode_blocks_write_tool_via_broker(monkeypatch):

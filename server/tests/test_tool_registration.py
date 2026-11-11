@@ -128,8 +128,9 @@ def test_console_register_wires_tools(monkeypatch):
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # get_console, get_compile_errors, recompile = 3 tools
-    assert mcp.tool.call_count >= 3
+    # get_compile_errors/console_mark/get_console_since moved to BODY (SV8): register()
+    # only binds _send/_args now; the catalog's install() registers their MCP wrappers.
+    assert mcp.tool.call_count == 0
 
 
 def test_screenshot_register_sets_send():
@@ -152,8 +153,9 @@ def test_screenshot_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # screenshot = 1 tool
-    assert mcp.tool.call_count == 1
+    # screenshot moved to BODY (SV8): register() only binds _send/_args now; the
+    # catalog's install() registers its MCP wrapper.
+    assert mcp.tool.call_count == 0
 
 
 def test_testing_register_sets_send():
@@ -200,9 +202,10 @@ def test_editor_control_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # editor = 1 tool (get_selection, checkpoint, undo_last, get_capabilities and
-    # ping_object (SV4) are the catalog's)
-    assert mcp.tool.call_count >= 1
+    # editor moved to BODY (SV8): register() only binds _send/_args now; the catalog's
+    # install() registers its MCP wrapper (get_selection, checkpoint, undo_last,
+    # get_capabilities and ping_object were already the catalog's, pre-SV8).
+    assert mcp.tool.call_count == 0
 
 
 def test_b2_split_modules_wired_into_register_all():
@@ -262,7 +265,9 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
              + _own_count(testing_mod) + _own_count(ec_mod))
     # 27 before the tool catalog took 5 tools from scene.py, 2 from testing.py and 4 from editor_control.py;
     # SV4 took get_console/recompile from console.py and ping_object from editor_control.py: 17 -> 14.
-    assert total == 14
+    # SV8 moved console's/screenshot's/editor_control's remaining hand tools to BODY: 14 -> 9
+    # (console_mod and screenshot_mod and ec_mod now contribute 0; scene_mod/testing_mod unchanged).
+    assert total == 9
 
 
 # ── PR-02 Track A: register_all() threads stdio_alive through to connection ────

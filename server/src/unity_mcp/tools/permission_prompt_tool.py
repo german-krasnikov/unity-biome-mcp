@@ -3,7 +3,7 @@ import json
 import sys
 
 from ._common import bind
-from .generated.catalog_tools import tools
+from .generated.catalog_tools import permission_prompt, tools  # noqa: F401
 
 _send = None
 # Lazily initialized on first call to break circular import
@@ -22,7 +22,7 @@ def _get_broker():
     return _default
 
 
-async def permission_prompt(tool_name: str, input: dict, tool_use_id: str):
+async def _permission_prompt_body(tool_name: str, input: dict, tool_use_id: str):
     """Handle Claude permission prompts via MCP.
 
     Registered as --permission-prompt-tool so Claude routes all permission
@@ -51,4 +51,3 @@ async def permission_prompt(tool_name: str, input: dict, tool_use_id: str):
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, permission_prompt)

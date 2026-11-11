@@ -7,7 +7,7 @@ from ..decisions.guard_facts import Verdict, guard_verdict
 from ._common import bind
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
-from .generated.catalog_tools import references, tools, validate_references  # noqa: F401
+from .generated.catalog_tools import batch, references, tools, validate_references  # noqa: F401
 from .tool_specs import _SPECS
 
 _send = None
@@ -182,7 +182,7 @@ def _merge_pre_errors(result: str, pre_errors: list[str], orig_indices: list[int
     return "\n".join(pre_errors) + "\n" + result
 
 
-async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
+async def _batch_body(commands: str, on_error: str = "continue", timeout: float = 75.0,
                 atomic: bool = False, validate_aliases: bool = False) -> str:
     """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls."""
     pre_errors: list[str] = []
@@ -202,4 +202,3 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, batch)

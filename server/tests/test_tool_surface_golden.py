@@ -78,6 +78,29 @@ INTENDED["ask_user"]["description"] = "SV4: FORWARD; DOC lines drop the blank li
 # line between the summary and the continuation text (content unchanged).
 INTENDED["ask"]["description"] = "SV8: BODY; DOC lines drop the blank line between the summary and \"Routes to...\" (content unchanged)"
 INTENDED["do"]["description"] = "SV8: BODY; DOC lines drop the blank line between the summary and \"Haiku generates...\" (content unchanged)"
+# SV8 bulk basket (single-function modules): same DOC-line pattern as the pilot above -- a tool whose
+# hand docstring had a blank line between the summary and its continuation, or whose closing \"\"\" sat
+# on its own line (trailing newline the DOC-line concatenation does not reproduce), gets this entry.
+# Content is unchanged in every case; only this cosmetic whitespace differs.
+INTENDED["animator_intent"]["description"] = "SV8: BODY; DOC lines drop the blank line + trailing newline before the closing triple-quote (content unchanged)"
+INTENDED["vfx_intent"]["description"] = "SV8: BODY; DOC lines drop the blank line + trailing newline before the closing triple-quote (content unchanged)"
+INTENDED["ui_intent"]["description"] = "SV8: BODY; DOC lines drop the blank line + trailing newline before the closing triple-quote (content unchanged)"
+INTENDED["debug"]["description"] = "SV8: BODY; DOC lines drop blank lines + trailing newline before the closing triple-quote (content unchanged)"
+INTENDED["diagnose"]["description"] = "SV8: BODY; DOC lines drop blank lines + trailing newline before the closing triple-quote (content unchanged)"
+INTENDED["permission_prompt"]["description"] = "SV8: BODY; DOC lines drop the blank line + trailing newline before the closing triple-quote (content unchanged)"
+INTENDED["uitk_intent"]["description"] = "SV8: BODY; DOC lines drop the trailing newline before the closing triple-quote (content unchanged, no blank line in this one)"
+# permission_prompt's `input: dict` and animator's `layer: int | str | None` were hand-written annotations
+# narrower than the catalog's own ARG type (Any in both cases); the generated BODY wrapper types every
+# ARG from the catalog, so the schema now reports `Any` -- the catalog's true type all along.
+INTENDED["animator"]["schema"] = "SV8: BODY; generated wrapper types layer as Any (the catalog's ARG type), not the hand function's int | str | None annotation"
+INTENDED["permission_prompt"]["schema"] = "SV8: BODY; generated wrapper types input as Any (the catalog's ARG type), not the hand function's dict annotation"
+# SV8: a BODY wrapper's generated body has `from .. import <module>` right after its docstring --
+# an ast.ImportFrom node, which only_forwards()/scripts/dsl_golden.py always refuses, so a tool that
+# used to qualify for a `wire <name> ...` row (a hand function simple enough to be pure-forwarding)
+# loses that row once it becomes BODY, even though nothing about what it sends over the wire changed.
+# diff_surface() only diffs FIELDS of a row present on both sides -- it cannot allow a row that
+# disappears entirely -- so each such `wire <name> ...` line is deleted from golden/tool_surface.txt
+# directly, once, in the same commit as the conversion that causes it: profile (SV8).
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:

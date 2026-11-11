@@ -6,13 +6,21 @@ from ._common import bind
 from ._source_patch_intent import set_cached_intent as _set_cached_intent
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
-from .generated.catalog_tools import checkpoint, get_capabilities, get_selection, ping_object, tools, undo_last  # noqa: F401
+from .generated.catalog_tools import (  # noqa: F401
+    checkpoint,
+    editor,
+    get_capabilities,
+    get_selection,
+    ping_object,
+    tools,
+    undo_last,
+)
 
 _send = None
 _args = None
 
 
-async def editor(action: str = "state", path: str | None = None,
+async def _editor_body(action: str = "state", path: str | None = None,
                  paths: str | None = None, enable: bool | None = None) -> str:
     """Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode.
     select: path (single) or paths (comma-sep multi, e.g. "/Player,/Enemy,/NPC").
@@ -32,4 +40,3 @@ async def editor(action: str = "state", path: str | None = None,
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, editor)
