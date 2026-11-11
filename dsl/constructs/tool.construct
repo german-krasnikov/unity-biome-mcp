@@ -156,6 +156,9 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
             ("{name}", "{vtext}"),
     END
   END
+  TEMPLATE csroster HEADER "namespace UnityMCP.Editor\n{\n    // The default roster of the settings UI, one row per command of dsl/tools.biome that is an MCP tool (category, name); MCPSettings groups it.\n    internal static class ToolRoster\n    {\n        internal static readonly (string Category, string Name)[] Rows =\n        {" FOOTER "        };\n    }\n}" ESCAPE data
+            ("{category}", "{name}"),
+  END
   TEMPLATE pytags HEADER "TAG_PAIRS: tuple[tuple[str, str], ...] = (" FOOTER ")" ESCAPE data
     EACH TAG
         ('{tag}', '{name}'),
@@ -249,6 +252,12 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
     EACH VERB
             ("{name}", "{vtext}"),
     END
+  END
+  TEMPLATE csroster ESCAPE data
+            ("{category}", "{name}"),
+  END
+  TEMPLATE cspyonly HEADER "namespace UnityMCP.Editor\n{\n    // The tools that only the Python server implements (PYTOOL lines of dsl/tools.biome): a direct TCP caller gets an actionable error.\n    internal static class PythonOnlyTools\n    {\n        internal static readonly System.Collections.Generic.HashSet<string> Names = new System.Collections.Generic.HashSet<string>\n        {" FOOTER "        };\n    }\n}" ESCAPE data
+            "{name}",
   END
   TEMPLATE pytags ESCAPE data
     EACH TAG

@@ -165,22 +165,24 @@ def test_python_only_entries_have_no_csharp_command():
 
 
 def test_direct_only_tools_covered_by_csharp_guard():
-    """Every Python-only direct tool must be in CommandRouter's C# guard.
+    """Every Python-only direct tool must be in the generated C# guard.
 
     Direct-only tools with unity_transport=True have real C# handlers and are
     excluded only from batch. The remaining subset needs an actionable direct
-    TCP error instead of InvalidOperationException.
+    TCP error instead of InvalidOperationException. CommandRouter._PythonOnlyTools
+    is generated (PythonOnlyTools.g.cs, from PYTOOL lines of dsl/tools.biome) — the
+    literal names live there, not in CommandRouter.cs.
     """
     python_only = {
         name for name, spec in _specs().items()
         if spec.direct_only and not spec.unity_transport
     }
-    guard_path = _EDITOR / "CommandRouter.cs"
+    guard_path = _EDITOR / "Generated" / "PythonOnlyTools.g.cs"
     text = guard_path.read_text(encoding="utf-8")
     for tool in sorted(python_only):
         assert f'"{tool}"' in text, (
-            f"Python-only tool '{tool}' missing from CommandRouter._PythonOnlyTools — "
-            "add it so direct TCP callers get a clear error."
+            f"Python-only tool '{tool}' missing from PythonOnlyTools.g.cs — "
+            "add a PYTOOL line in dsl/tools.biome and run `dsl.sh generate`."
         )
 
 

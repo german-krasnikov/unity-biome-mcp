@@ -53,23 +53,9 @@ namespace UnityMCP.Editor
 
         // Tools handled entirely by the Python MCP server — no C# handler exists.
         // Direct TCP callers that send these commands get an actionable error instead of
-        // an opaque InvalidOperationException("Command not registered").
-        internal static readonly HashSet<string> _PythonOnlyTools = new HashSet<string>
-        {
-            "animator_intent", "apply_scene_change", "apply_template", "ask",
-            "auto_fix", "await_compile", "brief_build", "budget_status",
-            "checkpoint_create", "checkpoint_restore", "configure_objects",
-            "console_mark", "debug", "discover_tools", "do", "doctor",
-            "get_changeset", "get_console_since", "get_metrics", "lint_playtest_suite",
-            "list_connections", "list_skills", "list_templates", "load_session",
-            "mcp_status", "navmesh_query", "permission_prompt", "reconnect_unity",
-            "release_smoke", "resolve_tool_schema", "run_playtest_suite",
-            "run_tests_wait", "save_session", "save_skill", "save_template",
-            "scene_change_plan", "screenshot_baseline", "screenshot_compare",
-            "set_llm_config", "set_properties", "setup_objects", "smart_build",
-            "snapshot", "sync_unity", "ui_intent", "uitk_intent", "use_skill", "verify_after_change",
-            "vfx_intent", "watch",
-        };
+        // an opaque InvalidOperationException("Command not registered"). Source of truth is
+        // the generated PythonOnlyTools.Names (PYTOOL lines of dsl/tools.biome).
+        internal static readonly HashSet<string> _PythonOnlyTools = PythonOnlyTools.Names;
 
         // Feature 3: recent command history for smart checkpoint naming
         internal static readonly Queue<string> _recentCmds = new Queue<string>();
