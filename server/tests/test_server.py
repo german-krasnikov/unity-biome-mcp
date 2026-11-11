@@ -1179,6 +1179,48 @@ async def test_spawn_reconnect_task_holds_task_reference_until_done(monkeypatch)
     assert task not in srv._reconnect_bg_tasks
 
 
+async def test_lifespan_cancels_reconnect_bg_tasks_on_exit(monkeypatch):
+    """lifespan's finally block must cancel every outstanding reconnect
+    background task (_refresh_tools_cache/_warm_alias_cache/etc, spawned via
+    _spawn_reconnect_task) and clear the set -- otherwise they keep running
+    against a bridge/slot that slot.close() already tore down."""
+    import unity_mcp.server as srv
+
+    monkeypatch.setenv("UNITY_MCP_BUDGET", "0")
+    monkeypatch.setenv("UNITY_MCP_HINTS", "0")
+
+    class FakeSlot:
+        def __init__(self, **kwargs): pass
+        bridge = None
+        connected = False
+        port = 9500
+
+        def add_reconnect_callback(self, cb): pass
+        async def connect(self, *a, **kw): return "ok"
+        async def close(self): pass
+
+    monkeypatch.setattr(srv, "ConnectionSlot", FakeSlot)
+    monkeypatch.setattr(srv, "slot", None)
+    monkeypatch.setattr(srv, "manager", None)
+    monkeypatch.setattr(srv, "_middleware", None)
+
+    async def never_ending():
+        await asyncio.Event().wait()
+
+    class FakeApp: pass
+    async with srv.lifespan(FakeApp()):
+        srv._spawn_reconnect_task(never_ending())
+        srv._spawn_reconnect_task(never_ending())
+        await asyncio.sleep(0)  # let both tasks actually start
+        tasks = list(srv._reconnect_bg_tasks)
+        assert len(tasks) == 2
+
+    # Cancellation requested in the finally block; let it be delivered.
+    await asyncio.gather(*tasks, return_exceptions=True)
+    assert all(t.cancelled() for t in tasks)
+    assert not srv._reconnect_bg_tasks
+
+
 # ---------------------------------------------------------------------------
 # PY2.test.2: ConnectionError → UNITY_UNAVAILABLE ToolError
 # ---------------------------------------------------------------------------

@@ -647,6 +647,9 @@ async def lifespan(app):
         if _middleware and _middleware.watchdog:
             with suppress(Exception):
                 await _middleware.watchdog.cancel()
+        for task in _reconnect_bg_tasks:
+            task.cancel()
+        _reconnect_bg_tasks.clear()
         if slot:
             await slot.close()
         if lock_fd is not None:
