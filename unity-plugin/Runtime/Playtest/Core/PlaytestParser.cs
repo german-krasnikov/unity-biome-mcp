@@ -175,7 +175,11 @@ namespace UnityMCP.Playtest.Core
             "SET_ACTIVE",
             "SETUP", "SETUP_END", "TEARDOWN", "TEARDOWN_END",
             "WAIT_STABLE", "CAPTURE_MIN", "CAPTURE_MAX", "ASSERT_MIN", "ASSERT_MAX",
-            "FILL", "FOCUS"
+            "FILL", "FOCUS",
+            // PT-1/Q23: close the VAL injection guard gap — a VAL value starting with
+            // "MCP" would otherwise expand into a live MCP command invocation wherever
+            // the alias is substituted; "EXPECT_FAIL" is the same gap named in Q23.
+            "MCP", "EXPECT_FAIL"
         };
 
         public static ParseResult Parse(string script, IncludeResolver resolver = null, bool strict = false)

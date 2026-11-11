@@ -205,5 +205,36 @@ LOG $a";
             var result = PlaytestParser.Parse(script);
             Assert.IsTrue(result.Warnings == null || result.Warnings.Count == 0);
         }
+
+        // C18 — PT-1/Q23: ordinary path VAL still works (guard must not over-block)
+        [Test]
+        public void Parse_Val_NormalPathValue_Works()
+        {
+            var script = "VAL $path /Player\nASSERT $path|Health|hp == 100";
+            ParseResult result = null;
+            Assert.DoesNotThrow(() => result = PlaytestParser.Parse(script));
+            Assert.AreEqual(1, result.Count);
+            StringAssert.Contains("/Player", result[0].Query);
+        }
+
+        // C19 — PT-1/Q23: VAL value starting with "MCP" must be rejected — otherwise a
+        // VAL alias can inject an arbitrary MCP command invocation wherever it's expanded.
+        [Test]
+        public void Parse_Val_ValueStartsWithMcp_ThrowsArgumentException()
+        {
+            var script = "VAL $cmd MCP set_property\nASSERT /X|C|f == 1";
+            var ex = Assert.Throws<ArgumentException>(() => PlaytestParser.Parse(script));
+            StringAssert.Contains("DSL keyword", ex.Message);
+        }
+
+        // C20 — PT-1/Q23: VAL value starting with "EXPECT_FAIL" must be rejected — same
+        // injection-guard gap as C19, named explicitly in Q23.
+        [Test]
+        public void Parse_Val_ValueStartsWithExpectFail_ThrowsArgumentException()
+        {
+            var script = "VAL $flag EXPECT_FAIL\nASSERT /X|C|f == 1";
+            var ex = Assert.Throws<ArgumentException>(() => PlaytestParser.Parse(script));
+            StringAssert.Contains("DSL keyword", ex.Message);
+        }
     }
 }
