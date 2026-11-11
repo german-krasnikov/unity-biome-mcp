@@ -129,7 +129,7 @@ namespace UnityMCP.Editor
             return result;
         }
 
-        private static string ExecGetComponentsList(string args)
+        internal static string ExecGetComponentsList(string args)
         {
             var id = JsonHelper.ExtractString(args, "id");
             if (string.IsNullOrEmpty(id))
@@ -149,7 +149,7 @@ namespace UnityMCP.Editor
             return result;
         }
 
-        private static string ExecFindObjects(string args)
+        internal static string ExecFindObjects(string args)
         {
             var name = JsonHelper.ExtractString(args, "name");
             var tag = JsonHelper.ExtractString(args, "tag");
@@ -221,7 +221,7 @@ namespace UnityMCP.Editor
             return FormatPropResult(prp, actual, oldStr);
         }
 
-        private static string ExecTransferObject(string args)
+        internal static string ExecTransferObject(string args)
         {
             var path = JsonHelper.ExtractString(args, "path");
             var action = JsonHelper.ExtractString(args, "action");
@@ -231,7 +231,7 @@ namespace UnityMCP.Editor
             return ObjectManager.TransferObject(path, action, targetScene, parent, wps);
         }
 
-        private static string ExecSetPropertyDelta(string args)
+        internal static string ExecSetPropertyDelta(string args)
         {
             var path = JsonHelper.ExtractString(args, "path");
             var component = JsonHelper.ExtractString(args, "component");
@@ -240,7 +240,7 @@ namespace UnityMCP.Editor
             return ObjectManager.SetPropertyDelta(path, component, prop, delta);
         }
 
-        private static string ExecCreateObject(string args)
+        internal static string ExecCreateObject(string args)
         {
             var name = JsonHelper.ExtractString(args, "name");
             var parent = JsonHelper.ExtractString(args, "parent");
@@ -277,7 +277,7 @@ namespace UnityMCP.Editor
             return $"Created {path}{warn}";
         }
 
-        private static string ExecDeleteObject(string args)
+        internal static string ExecDeleteObject(string args)
         {
             var id = JsonHelper.ExtractString(args, "id");
             var path = JsonHelper.ExtractString(args, "path");
@@ -301,7 +301,7 @@ namespace UnityMCP.Editor
             return $"Deleted {label}";
         }
 
-        private static string ExecManageComponent(string args)
+        internal static string ExecManageComponent(string args)
         {
             var path   = JsonHelper.ExtractString(args, "path");
             var type   = JsonHelper.ExtractString(args, "type");
@@ -321,7 +321,7 @@ namespace UnityMCP.Editor
                 : $"Removed: {type}. Remaining: {csv}";
         }
 
-        private static string ExecGetConsole(string args)
+        internal static string ExecGetConsole(string args)
         {
             var count     = ExtractInt(args, "count", -1);
             var level     = JsonHelper.ExtractString(args, "level");
@@ -333,7 +333,7 @@ namespace UnityMCP.Editor
         }
 
 
-        private static string ExecAutoWire(string args)
+        internal static string ExecAutoWire(string args)
         {
             var path   = JsonHelper.ExtractString(args, "path");
             var dryRun = JsonHelper.ExtractString(args, "dry_run") == "true";
@@ -343,7 +343,7 @@ namespace UnityMCP.Editor
             return AutoWiringHelper.Format(wired, skipped, dryRun);
         }
 
-        private static string ExecGetUnityEvents(string args)
+        internal static string ExecGetUnityEvents(string args)
         {
             var pathFilter = JsonHelper.ExtractString(args, "path");
             var sb = new StringBuilder();
@@ -388,7 +388,7 @@ namespace UnityMCP.Editor
                 ScanForEvents(child.gameObject, pathFilter, sb, ref found);
         }
 
-        private static string ExecRuntimeSnapshot(string args)
+        internal static string ExecRuntimeSnapshot(string args)
         {
             var typeName  = JsonHelper.ExtractString(args, "type");
             var nameMatch = JsonHelper.ExtractString(args, "name");

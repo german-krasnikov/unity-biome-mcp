@@ -477,3 +477,39 @@ EXAMPLE a write INTERNAL with no reflect TAG fails the same ENSURE
   SOURCE INTERNAL raw_write RW "Raw write."
   SOURCE END
   EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE a TOOL with HANDLER register prints a CommandRegistry.Register call for ToolBindings.g.cs
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   HANDLER register "CommandRouter.ExecFrob"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csbindings CommandRegistry.Register("frob", CommandRouter.ExecFrob, ToolMeta.Get("frob"));
+
+EXAMPLE a TOOL with HANDLER register_async prints a CommandRegistry.RegisterAsync call
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   HANDLER register_async "CommandRouter.AsyncFrob"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csbindings CommandRegistry.RegisterAsync("frob", CommandRouter.AsyncFrob, ToolMeta.Get("frob"));
+
+EXAMPLE a TOOL with HANDLER register_action prints a CommandRegistry.RegisterAction call, method unprefixed
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   HANDLER register_action "FrobHelper.Execute"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csbindings CommandRegistry.RegisterAction("frob", FrobHelper.Execute, ToolMeta.Get("frob"));
+
+EXAMPLE an INTERNAL with HANDLER register prints into the same ToolBindings.g.cs, no extra HEADER/FOOTER
+  SOURCE INTERNAL raw_write RW "Raw write."
+  SOURCE   HANDLER register "CommandRouter.ExecRawWrite"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csbindings CommandRegistry.Register("raw_write", CommandRouter.ExecRawWrite, ToolMeta.Get("raw_write"));
+
+EXAMPLE a tool may declare HANDLER at most once
+  SOURCE TOOL dual_handler SCENE RW "Dual handler."
+  SOURCE   HANDLER register "CommandRouter.ExecDualHandler"
+  SOURCE   HANDLER register_async "CommandRouter.AsyncDualHandler"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1

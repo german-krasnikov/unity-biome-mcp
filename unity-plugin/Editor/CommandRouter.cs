@@ -304,7 +304,7 @@ namespace UnityMCP.Editor
             }, group, filter, requestId, selection);
         }
 
-        private static void AsyncBuild(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncBuild(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             var action = JsonHelper.ExtractString(argsJson, "action");
             var target = JsonHelper.ExtractString(argsJson, "target");
@@ -317,7 +317,7 @@ namespace UnityMCP.Editor
                 r => !r.StartsWith("err:"));
         }
 
-        private static void AsyncPackage(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncPackage(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             var action  = JsonHelper.ExtractString(argsJson, "action");
             var name    = JsonHelper.ExtractString(argsJson, "name");
@@ -364,7 +364,7 @@ namespace UnityMCP.Editor
             });
         }
 
-        private static void AsyncWaitUntil(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncWaitUntil(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             var path = JsonHelper.ExtractString(argsJson, "path");
             var component = JsonHelper.ExtractString(argsJson, "component");
@@ -379,7 +379,7 @@ namespace UnityMCP.Editor
                 r => !r.StartsWith("wait_until") && !r.StartsWith("err:"));
         }
 
-        private static void AsyncMoveTo(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncMoveTo(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             var path = JsonHelper.ExtractString(argsJson, "path");
             var position = JsonHelper.ExtractString(argsJson, "position");
@@ -390,7 +390,7 @@ namespace UnityMCP.Editor
                 r => !r.StartsWith("Error:") && !r.StartsWith("err:"));
         }
 
-        private static void AsyncTestStep(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncTestStep(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             var path = JsonHelper.ExtractString(argsJson, "path");
             var position = JsonHelper.ExtractString(argsJson, "position");
@@ -650,6 +650,7 @@ namespace UnityMCP.Editor
         internal static void RegisterAll()
         {
             CommandRegistry.Clear();
+            ToolBindings.RegisterAll();
             RegisterMetaCommands();
             RegisterReadCommands();
             RegisterMutatingCommands();

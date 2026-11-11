@@ -125,7 +125,10 @@ namespace UnityMCP.Editor
 
         // --- Consolidated command handlers ---
 
-        private static string ExecScene(string args)
+        // P-414: scene save must NOT create an undo group (prevents isDirty clearing in Unity 6): noUndo. scene is mutating as in
+        // Python (step 7.2) and its read is the READ line `list`; the mutating actions (new/open/discard/close) record
+        // mutation explicitly inside ExecScene
+        internal static string ExecScene(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
             var result = action switch
@@ -228,7 +231,7 @@ namespace UnityMCP.Editor
             };
         }
 
-        private static string ExecCreateUI(string args)
+        internal static string ExecCreateUI(string args)
         {
             return UIHelper.CreateUI(
                 JsonHelper.ExtractString(args, "type"),
@@ -247,16 +250,16 @@ namespace UnityMCP.Editor
         }
 
         // G2: Lint uGUI — check EventSystem presence and GraphicRaycaster on Canvas.
-        private static string ExecLintUGUI(string args) =>
+        internal static string ExecLintUGUI(string args) =>
             UILinter.LintUGUI(JsonHelper.ExtractString(args, "root"));
 
         // S4: Lint UITK — structural checks for .uxml/.uss files (A1–A6).
-        private static string ExecLintUITK(string args) =>
+        internal static string ExecLintUITK(string args) =>
             UILinter.LintUITK(
                 JsonHelper.ExtractString(args, "path"),
                 JsonHelper.ExtractString(args, "fix") == "true");
 
-        private static string ExecSetRect(string args)
+        internal static string ExecSetRect(string args)
         {
             return UIHelper.SetRect(
                 JsonHelper.ExtractString(args, "path"),
@@ -279,7 +282,7 @@ namespace UnityMCP.Editor
                 ParseOptBool(args, "show_style") ?? false);
 
         // Phase 2: uitk_element — read/mutate a VisualElement
-        private static string ExecUitkElement(string args) =>
+        internal static string ExecUitkElement(string args) =>
             UIHelper.UitkElement(
                 JsonHelper.ExtractString(args, "action"),
                 JsonHelper.ExtractString(args, "path"),
@@ -291,7 +294,7 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "class_name"));
 
         // Session 9: attach UIDocument component to a GameObject
-        private static string ExecAttachUITK(string args)
+        internal static string ExecAttachUITK(string args)
         {
             var sortingOrderStr = JsonHelper.ExtractString(args, "sort_order");
             int sortingOrder = sortingOrderStr != null && int.TryParse(sortingOrderStr, out int so) ? so : 0;
@@ -329,7 +332,7 @@ namespace UnityMCP.Editor
                 prop:     JsonHelper.ExtractString(args, "prop"));
         }
 
-        private static string ExecEditor(string args)
+        internal static string ExecEditor(string args)
         {
             var action = JsonHelper.ExtractString(args, "action") ?? "state";
             if (action == "state")
@@ -339,7 +342,7 @@ namespace UnityMCP.Editor
             return EditorStateHelper.Control(action, JsonHelper.ExtractString(args, "path"), args);
         }
 
-        private static string ExecAnimatorConsolidated(string args)
+        internal static string ExecAnimatorConsolidated(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
             var layerStr = JsonHelper.ExtractString(args, "layer");
@@ -461,7 +464,7 @@ namespace UnityMCP.Editor
             return ParticleHelper.Create(parentPath, name, JsonHelper.ExtractString(args, "preset"));
         }
 
-        private static string ExecParticleConsolidated(string args)
+        internal static string ExecParticleConsolidated(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
             return action switch
@@ -569,7 +572,7 @@ namespace UnityMCP.Editor
                 hasExitTime, layer);
         }
 
-        private static string ExecMenu(string args)
+        internal static string ExecMenu(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
             return action switch

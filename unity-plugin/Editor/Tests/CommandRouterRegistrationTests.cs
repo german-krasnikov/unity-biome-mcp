@@ -13,17 +13,20 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class CommandRouterRegistrationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        // A5: "ping" and "get_status" moved to ToolBindings.g.cs (HANDLER DSL item) — RegisterMetaCommands()
+        // alone no longer registers them, only CommandRouter.RegisterAll() does (via ToolBindings.RegisterAll()).
         private static readonly string[] MetaCommands =
         {
-            "ping", "get_capabilities", "get_enabled_tools", "get_disabled_tools",
+            "get_capabilities", "get_enabled_tools", "get_disabled_tools",
             "set_tool_catalog", "set_client_label", "screenshot", "diagnose", "force_play_stop",
-            "get_status",
         };
 
+        // A5: "wait_until", "move_to", "test_step", "build", "package" moved to ToolBindings.g.cs
+        // (HANDLER DSL item) — RegisterAsyncCommands() alone no longer registers them.
         private static readonly string[] AsyncCommands =
         {
-            "run_tests", "ask_user", "wait_until", "move_to", "test_step", "run_playtest",
-            "start_playtest", "get_playtest_run", "build", "package", "source_patch_write",
+            "run_tests", "ask_user", "run_playtest",
+            "start_playtest", "get_playtest_run", "source_patch_write",
         };
 
         [TearDown]
@@ -131,8 +134,10 @@ namespace UnityMCP.Editor.Tests
             var src = ReadRequiredPackageSource(typeof(CommandRouter), "Editor/CommandRouter.Registration.cs");
             var start = src.IndexOf("CommandRegistry.Register(\"force_refresh\"");
             Assert.That(start, Is.GreaterThanOrEqualTo(0), "force_refresh registration not found");
-            var end = src.IndexOf("CommandRegistry.Register(\"search_scene\"", start);
-            Assert.That(end, Is.GreaterThan(start), "search_scene registration not found after force_refresh");
+            // A5: "search_scene" moved to ToolBindings.g.cs (HANDLER DSL item) — "search_context"
+            // (hand-written, stays) is the next surviving marker after force_refresh.
+            var end = src.IndexOf("CommandRegistry.Register(\"search_context\"", start);
+            Assert.That(end, Is.GreaterThan(start), "search_context registration not found after force_refresh");
             var body = src.Substring(start, end - start);
 
             StringAssert.Contains("MainThreadDispatcher.Enqueue", body,

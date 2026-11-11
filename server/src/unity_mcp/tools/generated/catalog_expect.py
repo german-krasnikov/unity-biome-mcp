@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=54de48251af21c5f88fb063ce6d37eaae1066ecbcfc12d10c7d4a3cc2ba52cbf
+# source-sha256=ae7ae5192ef26bc47e023f639ac9ca2c0ed65b883653a301f194ebed26f4de43
 # Edit the source, then run biome generate.
 
 # A literal success token (or an OR-list, pipe-separated) that confirms a

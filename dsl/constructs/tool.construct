@@ -16,6 +16,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM WIRE <flag:enum(special|not_batch|no_undo)>
   ITEM FORWARD
   ITEM BODY <module:match([a-z_][a-z0-9_]*)>
+  ITEM HANDLER <kind:enum(register|register_async|register_action)> <method:string>
   ITEM FLAG <flag:enum(core|tier1|direct_only|unity_transport)>
   ITEM RUNTIME
   ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_custom|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
@@ -35,6 +36,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ENSURE effect == RO OR (ANY TAG WHERE it.tag IN {reflect_silent, reflect_noerror, reflect_custom}) OR COUNT EXPECT > 0 ELSE "a write tool needs a reflect decision: TAG reflect_silent/reflect_noerror/reflect_custom, or EXPECT"
   ENSURE (COUNT EXPECT WHERE it.mode == bool_arg AND NOT it.has_argname) == 0 ELSE "EXPECT bool_arg needs ARG <name>"
   ENSURE COUNT BODY <= 1 ELSE "a tool may declare BODY at most once"
+  ENSURE COUNT HANDLER <= 1 ELSE "a tool may declare HANDLER at most once"
   ENSURE COUNT FORWARD == 0 OR COUNT BODY == 0 ELSE "FORWARD and BODY are mutually exclusive — FORWARD generates the whole tool, BODY generates its signature and calls a hand-written implementation"
   ENSURE COUNT BODY == 0 OR (COUNT ARG WHERE it.has_raw) == 0 ELSE "BODY tools never call _send through the generated wrapper — ARG RAW only means something for FORWARD"
   TEMPLATE pyspec HEADER "SPEC_KWARGS: dict[str, dict] = {" FOOTER "}" ESCAPE data
@@ -239,6 +241,13 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
             {?role:("{name}", "{role}", "{aname}"),}
     END
   END
+  TEMPLATE csbindings HEADER "namespace UnityMCP.Editor\n{\n    internal static partial class ToolBindings\n    {\n        internal static void RegisterAll()\n        {" FOOTER "        }\n    }\n}" ESCAPE data
+    EACH HANDLER
+    {?kind=register:            CommandRegistry.Register("{name}", {method}, ToolMeta.Get("{name}"));}
+    {?kind=register_async:            CommandRegistry.RegisterAsync("{name}", {method}, ToolMeta.Get("{name}"));}
+    {?kind=register_action:            CommandRegistry.RegisterAction("{name}", {method}, ToolMeta.Get("{name}"));}
+    END
+  END
 END
 
 CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
@@ -407,6 +416,7 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
   HEAD INTERNAL <name:match([a-z][a-z0-9_]*) UNIQUE> <effect:enum(RO|RW)> <summary:string>
   ITEM DENY
   ITEM GUARD <flag:enum(always|compile|play_ok)>
+  ITEM HANDLER <kind:enum(register|register_async|register_action)> <method:string>
   ITEM WIRE <flag:enum(special|not_batch|no_undo)>
   ITEM FLAG <flag:enum(direct_only|unity_transport)>
   ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_custom|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
@@ -418,6 +428,7 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
   ENSURE (COUNT ARG WHERE it.has_local AND it.has_wname) == 0 ELSE "ARG may not set both LOCAL and WIRE"
   ENSURE (COUNT ARG WHERE it.has_default AND it.has_dtext) == 0 ELSE "ARG may not set both DEFAULT and DEFAULT_TEXT"
   ENSURE effect == RO OR (ANY TAG WHERE it.tag IN {reflect_silent, reflect_noerror, reflect_custom}) ELSE "a write command needs a reflect decision: TAG reflect_silent/reflect_noerror/reflect_custom"
+  ENSURE COUNT HANDLER <= 1 ELSE "a tool may declare HANDLER at most once"
   TEMPLATE pyspec ESCAPE data
         '{name}': {
             'category': '_INTERNAL',
@@ -473,6 +484,11 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
   TEMPLATE csdeny ESCAPE data
     IF ANY DENY
             "{name}",
+    END
+  END
+  TEMPLATE csbindings ESCAPE data
+    EACH HANDLER
+    {?kind=register:            CommandRegistry.Register("{name}", {method}, ToolMeta.Get("{name}"));}
     END
   END
 END

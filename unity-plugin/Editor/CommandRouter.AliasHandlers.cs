@@ -66,7 +66,7 @@ namespace UnityMCP.Editor
             return sb.Length > 0 ? sb.ToString() : "no aliases";
         }
 
-        private static string ExecAliasStatus(string _)
+        internal static string ExecAliasStatus(string _)
         {
             var sources = new List<string>();
             int count = 0;
@@ -88,7 +88,7 @@ namespace UnityMCP.Editor
 
         // Overwrite PlaytestConfig.asset aliases from .defs text file.
         // defs: project-relative path to .defs file; asset: asset path to PlaytestConfig.
-        private static string ExecSyncFromDefs(string argsJson)
+        internal static string ExecSyncFromDefs(string argsJson)
         {
             var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/game_core.defs";
             var assetPath = JsonHelper.ExtractString(argsJson, "asset");
@@ -132,7 +132,7 @@ namespace UnityMCP.Editor
 
         // Export PlaytestConfig.asset aliases to a .defs text file.
         // asset: asset path to PlaytestConfig; defs: project-relative output path.
-        private static string ExecExportToDefs(string argsJson)
+        internal static string ExecExportToDefs(string argsJson)
         {
             var assetPath = JsonHelper.ExtractString(argsJson, "asset");
             var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/game_core.defs";

@@ -13,11 +13,13 @@ SURFACE tools
 # (tools/generated/catalog_reads.py) and the C# side's ActionReads.IsRead (Editor/Generated/ActionReads.g.cs) are printed from these lines.
 
 TOOL alias_status SYSTEM RO "Check alias table health: loaded/empty/stale, sources, and total alias count."
+  HANDLER register "CommandRouter.ExecAliasStatus"
   GUARD compile
   FORWARD
 END
 
 TOOL analyze_lod_culling MEDIA RO "LOD group coverage + occlusion culling analysis."
+  HANDLER register "CommandRouter.ExecAnalyzeLodCulling"
   FORWARD
   DOC "focus: lod|culling|occlusion|null=all."
   ARG focus ostr DEFAULT None
@@ -54,6 +56,7 @@ TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use wh
 END
 
 TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param."
+  HANDLER register "CommandRouter.ExecAnimatorConsolidated"
   BODY animation
   DOC "params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'."
   DOC "conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState)."
@@ -183,6 +186,7 @@ TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No conf
 END
 
 TOOL attach_uitk UITOOLKIT RW "Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for UI Toolkit runtime panels)."
+  HANDLER register "CommandRouter.ExecAttachUITK"
   FORWARD
   DOC "Side effect: mutates the scene by adding one Undo-recorded UIDocument after validating"
   DOC "every supplied asset; it does not create UXML or PanelSettings assets."
@@ -205,6 +209,7 @@ PYTOOL auto_fix SYSTEM RO "Analyze recent Unity errors and ask MCP client sampli
 END
 
 TOOL auto_wire COMPONENTS RW "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required."
+  HANDLER register "CommandRouter.ExecAutoWire"
   FORWARD
   DOC "dry_run=true previews without applying. Returns wired/ambiguous/no-match summary."
   ARG path str EXAMPLE "/__seam_nonexistent"
@@ -214,6 +219,7 @@ TOOL auto_wire COMPONENTS RW "Fill null ObjectReference fields on a GameObject b
 END
 
 TOOL autofit_collider SCENE RW "Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule."
+  HANDLER register "ColliderFitHelper.Execute"
   FORWARD
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG type str DEFAULT_TEXT "box" "Collider shape to fit: box|sphere|capsule"
@@ -233,6 +239,7 @@ PYTOOL await_compile VERIFY RO "Block until Unity finishes compiling + reloading
 END
 
 TOOL bake ASSETS RW "Bake operations."
+  HANDLER register "CommandRouter.ExecBake"
   FORWARD
   DOC "target: lighting|occlusion."
   DOC "action (lighting): start(default)|status|cancel|clear|settings."
@@ -282,6 +289,7 @@ PYTOOL budget_status SYSTEM RO "Returns Haiku cost: session/cap/day/skipped feat
 END
 
 TOOL build SYSTEM RW "Build player. action: build."
+  HANDLER register_async "CommandRouter.AsyncBuild"
   DENY
   GUARD play_ok
   FORWARD
@@ -301,6 +309,7 @@ TOOL build SYSTEM RW "Build player. action: build."
 END
 
 TOOL cancel_test_run TESTS RW_IDEM "Request cancellation of one exact test run; cancellation is asynchronous."
+  HANDLER register "CommandRouter.ExecCancelTestRun"
   GUARD always
   GUARD compile
   GUARD play_ok
@@ -312,11 +321,13 @@ TOOL cancel_test_run TESTS RW_IDEM "Request cancellation of one exact test run; 
 END
 
 TOOL check_colliders SCENE RO "Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given."
+  HANDLER register "CommandRouter.ExecCheckColliders"
   FORWARD
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
 END
 
 TOOL checkpoint SYSTEM RW "Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity."
+  HANDLER register "CommandRouter.ExecCheckpoint"
   GUARD play_ok
   WIRE no_undo
   FORWARD
@@ -344,6 +355,7 @@ PYTOOL checkpoint_restore SYSTEM DEL "Restore files to their pre-turn state."
 END
 
 TOOL compile_preflight VERIFY RO "Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile."
+  HANDLER register "CommandRouter.ExecCompilePreflight"
   BODY code_intel
   DOC "file_path: Assets-relative. new_content: full file. Returns OK preflight (ms) / ERR preflight + diagnostics / [ROSLYN UNAVAILABLE]."
   GUARD compile
@@ -354,6 +366,7 @@ TOOL compile_preflight VERIFY RO "Validate C# WITHOUT writing/recompiling (Rosly
 END
 
 INTERNAL compile_status RO "Compile notifier state plus reload state string; await_compile (code_intel.py) polls it directly, allowedDuringCompile."
+  HANDLER register "CommandRouter.ExecCompileStatus"
   GUARD compile
   TAG retry_safe_internal
 END
@@ -377,6 +390,7 @@ PYTOOL console_mark RUNTIME RO "Create a console watermark. Returns mark_id enco
 END
 
 TOOL create_object CORE RW "Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene)."
+  HANDLER register "CommandRouter.ExecCreateObject"
   CARD create
   NEXT "get_hierarchy depth=1"
   FORWARD
@@ -396,6 +410,7 @@ TOOL create_object CORE RW "Create new GameObject. components: comma-separated t
 END
 
 TOOL create_ui UGUI RW "Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace. font_min/font_max: enable TMP autoSizing for Text type."
+  HANDLER register "CommandRouter.ExecCreateUI"
   FORWARD
   ARG type str EXAMPLE "Button" "uGUI element type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView"
   ARG name ostr DEFAULT None
@@ -426,6 +441,7 @@ PYTOOL debug RUNTIME RO "AI-assisted scene debug: gather diagnostic context base
 END
 
 TOOL debug_animator RUNTIME RO "[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile)."
+  HANDLER register "CommandRouter.ExecDebugAnimator"
   FORWARD
   RUNTIME
   DOC "path: scene path to GameObject with Animator component."
@@ -433,6 +449,7 @@ TOOL debug_animator RUNTIME RO "[Play Mode] Read Animator state: layers, transit
 END
 
 TOOL debug_physics RUNTIME RO "[Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (use `debug` for scene; `diagnose` for compile)."
+  HANDLER register "CommandRouter.ExecDebugPhysics"
   FORWARD
   RUNTIME
   DOC "path: scene path to GameObject."
@@ -442,6 +459,7 @@ TOOL debug_physics RUNTIME RO "[Play Mode] Read Rigidbody state, colliders, cont
 END
 
 TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."
+  HANDLER register "CommandRouter.ExecDeleteObject"
   CARD delete
   NEXT "get_hierarchy depth=1"
   BODY objects
@@ -504,6 +522,7 @@ PYTOOL doctor SYSTEM RW "Run health diagnostics. fix=True removes safe stale por
 END
 
 TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode."
+  HANDLER register "CommandRouter.ExecEditor"
   BODY editor_control
   DOC "select: path (single) or paths (comma-sep multi, e.g. \"/Player,/Enemy,/NPC\")."
   DOC "mutation_mode: omit enable to query current intent; enable=True/False to set it."
@@ -520,6 +539,7 @@ TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|
 END
 
 TOOL execute_code SYSTEM RW "Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile."
+  HANDLER register "CommandRouter.ExecExecuteCode"
   DENY
   GUARD compile
   FORWARD
@@ -542,6 +562,7 @@ INTERNAL export_package RW "Protocol name of the asset action export_package; on
 END
 
 TOOL export_playtest_aliases_to_defs TESTS RW "Export PlaytestConfig.asset aliases to a readable .defs text file."
+  HANDLER register "CommandRouter.ExecExportToDefs"
   GUARD play_ok
   WIRE no_undo
   FORWARD
@@ -553,6 +574,7 @@ TOOL export_playtest_aliases_to_defs TESTS RW "Export PlaytestConfig.asset alias
 END
 
 TOOL find_objects SCENE RO "Find objects by criteria. Use search_scene for complex queries. Does NOT support: parent, path, active/inactive filtering, regex. Only: name (substring), tag, layer, component (full namespace)."
+  HANDLER register "CommandRouter.ExecFindObjects"
   FORWARD
   ARG name ostr DEFAULT None EXAMPLE "__seam_surface_nonexistent"
   ARG tag ostr DEFAULT None
@@ -562,6 +584,7 @@ TOOL find_objects SCENE RO "Find objects by criteria. Use search_scene for compl
 END
 
 TOOL fingerprint SYSTEM RO "Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens."
+  HANDLER register "CommandRouter.ExecFingerprint"
   FORWARD
   TIMEOUT 10.0
   ARG path ostr DEFAULT None
@@ -569,15 +592,18 @@ TOOL fingerprint SYSTEM RO "Scene state hash. Returns fp:XXXXXXXX. If unchanged,
 END
 
 INTERNAL get_aliases RO "The alias table as name=value lines; the server reads it when it connects."
+  HANDLER register "CommandRouter.ExecGetAliases"
   GUARD compile
 END
 
 TOOL get_capabilities SYSTEM RO "Unity version, platform, render pipeline, scripting backend, and optional packages available."
+  HANDLER register "CommandRouter.ExecGetCapabilities"
   GUARD compile
   FORWARD
 END
 
 TOOL get_changes SYSTEM RW "Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,"
+  HANDLER register "CommandRouter.ExecGetChanges"
   FORWARD
   DOC "play mode, scene open/save, selection. Returns chronological event list or NO_CHANGES."
   ARG clear bool DEFAULT True
@@ -592,6 +618,7 @@ PYTOOL get_changeset VERIFY RO "Return the current ChangeSet: accumulated mutati
 END
 
 TOOL get_compile_errors CORE RO "Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed."
+  HANDLER register "CommandRouter.ExecGetCompileErrors"
   BODY console
   GUARD compile
   FLAG core
@@ -618,6 +645,7 @@ TOOL get_component CORE RO "Component properties as key-value. For MULTIPLE obje
 END
 
 TOOL get_components_list SCENE RO "List all components on object by instance ID."
+  HANDLER register "CommandRouter.ExecGetComponentsList"
   FORWARD
   VERB "Reading components"
   ARG id int RAW EXAMPLE "999999999"
@@ -625,6 +653,7 @@ TOOL get_components_list SCENE RO "List all components on object by instance ID.
 END
 
 TOOL get_console CORE RO "Recent console logs. For C# compile errors use get_compile_errors instead. keyword: case-insensitive substring filter. count_only: return N matches as string. since: only logs from last N seconds."
+  HANDLER register "CommandRouter.ExecGetConsole"
   GUARD compile
   FORWARD
   FLAG core
@@ -655,6 +684,7 @@ PYTOOL get_console_since RUNTIME RO "Console entries after the watermark created
 END
 
 TOOL get_enabled_tools SYSTEM RO "List enabled tool names, comma-separated."
+  HANDLER register "CommandRouter.ExecGetEnabledToolsCommand"
   GUARD always
   GUARD compile
   FORWARD
@@ -689,6 +719,7 @@ TOOL get_hierarchy CORE RO "Scene hierarchy as text tree. For finding specific o
 END
 
 TOOL get_memory RUNTIME RO "Memory snapshot."
+  HANDLER register "CommandRouter.ExecGetMemory"
   FORWARD
   DOC "include: all|textures|meshes|audio|gc — narrow the asset-type breakdown."
   ARG include str DEFAULT_TEXT "all" OMIT
@@ -727,34 +758,40 @@ TOOL get_schema SYSTEM RO "Get all serialized fields of a component type with ty
 END
 
 TOOL get_selection SCENE RO "Currently selected GameObject: path and component list."
+  HANDLER register "CommandRouter.ExecGetSelection"
   FORWARD
 END
 
 TOOL get_spatial_context SCENE RO "Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only."
+  HANDLER register "CommandRouter.ExecGetSpatialContext"
   FORWARD
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG radius float DEFAULT 5.0
 END
 
 INTERNAL get_status RO "Scene/dirty/playing/compiling/port/alias/readOnly/version snapshot; retry-safe health probe (meta.py, transaction.py)."
+  HANDLER register "CommandRouter.ExecGetStatus"
   GUARD always
   GUARD compile
   TAG retry_safe_internal
 END
 
 TOOL get_test_count TESTS RO "Number of edit-mode and play-mode tests in the project."
+  HANDLER register "CommandRouter.ExecGetTestCount"
   GUARD compile
   FORWARD
   TIMEOUT 10.0
 END
 
 TOOL get_test_progress TESTS RO "Legacy progress facade. Pass run_id to correlate the response."
+  HANDLER register "CommandRouter.ExecGetTestProgress"
   BODY testing
   GUARD compile
   ARG run_id ostr DEFAULT None EXAMPLE "__seam_nonexistent"
 END
 
 TOOL get_test_results TESTS RO "Legacy result facade. Pass run_id to prevent reading a stale latest run."
+  HANDLER register "CommandRouter.ExecGetTestResults"
   BODY testing
   GUARD compile
   ARG run_id ostr DEFAULT None EXAMPLE "__seam_nonexistent"
@@ -778,6 +815,7 @@ TOOL get_test_run TESTS RO "Return the durable JSON snapshot for one exact test 
 END
 
 TOOL get_unity_events SCENE RO "List all UnityEvent persistent listeners in the active scene."
+  HANDLER register "CommandRouter.ExecGetUnityEvents"
   FORWARD
   DOC "path: optional scene-path prefix filter (e.g. '/UI' to scan only the UI subtree)."
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
@@ -835,6 +873,7 @@ TOOL inspect_uitk UITOOLKIT RO "Inspect the VisualElement tree of a UIDocument o
 END
 
 TOOL invoke_method RUNTIME RW "[Play Mode] Call public method on a component via reflection."
+  HANDLER register "CommandRouter.ExecInvokeMethod"
   GUARD play_ok
   WIRE no_undo
   FORWARD
@@ -849,6 +888,7 @@ TOOL invoke_method RUNTIME RW "[Play Mode] Call public method on a component via
 END
 
 TOOL lint_playtest TESTS RO "Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list."
+  HANDLER register "CommandRouter.ExecLintPlaytest"
   BODY runtime
   DOC "Checks: $alias resolution, deprecated ALIAS, unimplemented steps, missing ASSERT_CONSOLE_CLEAN."
   DOC "path: project-relative path to .playtest file."
@@ -870,6 +910,7 @@ PYTOOL lint_playtest_suite TESTS RO "Read-only preflight check across multiple .
 END
 
 TOOL lint_scene_refs VERIFY RO "Read-only linter for scene references in DSL scripts or batch commands."
+  HANDLER register "CommandRouter.ExecLintSceneRefs"
   BODY runtime
   DOC "path: project-relative path to .playtest file."
   DOC "snippet: inline DSL or batch commands to lint (mutually exclusive with path)."
@@ -882,6 +923,7 @@ TOOL lint_scene_refs VERIFY RO "Read-only linter for scene references in DSL scr
 END
 
 TOOL lint_ugui UGUI RO "Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Use when clicks miss or UI appears broken."
+  HANDLER register "CommandRouter.ExecLintUGUI"
   FORWARD
   TIMEOUT 15.0
   DOC "Returns compact text: 'ok: 0 issues' or newline-separated warnings."
@@ -891,6 +933,7 @@ TOOL lint_ugui UGUI RO "Diagnose uGUI problems: missing EventSystem, Canvas with
 END
 
 TOOL lint_uitk UITOOLKIT RO "Validate a UXML or USS file for structural errors and broken references"
+  HANDLER register "CommandRouter.ExecLintUITK"
   BODY uitk
   DOC "(use `get_compile_errors` for C# compile errors,"
   DOC "use `verify_after_change` for multi-gate scene verification after mutations)."
@@ -909,6 +952,7 @@ PYTOOL list_connections SYSTEM RO "List Unity connection status."
 END
 
 TOOL list_events COMPONENTS RO "Read persistent listeners on a UnityEvent field. Use after wire_event to verify."
+  HANDLER register "CommandRouter.ExecListEvents"
   FORWARD
   DOC "Returns listener details: target path, method name, call state, arg type/value."
   DOC "event: serialized field name — same as wire_event 'event' param (e.g. 'onClick')."
@@ -932,6 +976,7 @@ PYTOOL list_templates SYSTEM RO "List available scene templates in .claude/templ
 END
 
 TOOL list_test_runs TESTS RO "List recent durable test runs as JSON, newest first."
+  HANDLER register "CommandRouter.ExecListTestRuns"
   BODY testing
   GUARD compile
   TIMEOUT 10.0
@@ -943,6 +988,7 @@ PYTOOL load_session SYSTEM RO "Load previous session context beside the current 
 END
 
 TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
+  HANDLER register "CommandRouter.ExecManageComponent"
   CARD component
   NEXT "get_components_list"
   FORWARD
@@ -959,6 +1005,7 @@ TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No conf
 END
 
 TOOL material ASSETS RW "Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared)."
+  HANDLER register_action "MaterialHelper.Execute"
   FORWARD
   ARG action str EXAMPLE "get"
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
@@ -980,6 +1027,7 @@ TOOL material ASSETS RW "Material asset management (for quick color change use `
 END
 
 TOOL material_audit ASSETS RO "Material/texture scene-wide audit."
+  HANDLER register "CommandRouter.ExecMaterialAudit"
   FORWARD
   DOC "action: summary|materials|textures|duplicates|compression|recommendations."
   DOC "platform: Android|iOS|Standalone|Default (for compression check)."
@@ -996,6 +1044,7 @@ PYTOOL mcp_status SYSTEM RO "Compact MCP status: scene, dirty, play/compile stat
 END
 
 TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API."
+  HANDLER register "CommandRouter.ExecMenu"
   FORWARD
   ARG action str EXAMPLE "list"
   ARG path ostr DEFAULT None "Unity Editor menu-item path to execute, or submenu prefix to list"
@@ -1004,6 +1053,7 @@ TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. action: execute|li
 END
 
 TOOL move_to RUNTIME RW "[Play Mode] Move character to position and wait for arrival."
+  HANDLER register_async "CommandRouter.AsyncMoveTo"
   BODY runtime
   DOC "path: scene path to GO with movement component."
   DOC "position: x,y,z (e.g. '5,0,-3'). Returns 'arrived' or 'blocked'."
@@ -1047,12 +1097,14 @@ PYTOOL navmesh_query SCENE RW "NavMesh queries and management. Bakes or clears N
 END
 
 TOOL object_diff SCENE RO "Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."
+  HANDLER register "CommandRouter.ExecObjectDiff"
   FORWARD
   ARG path_a str EXAMPLE "/__seam_nonexistent_a"
   ARG path_b str EXAMPLE "/__seam_nonexistent_b"
 END
 
 TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove."
+  HANDLER register_async "CommandRouter.AsyncPackage"
   DENY
   GUARD play_ok
   FORWARD
@@ -1073,6 +1125,7 @@ TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmati
 END
 
 TOOL particle MEDIA RW "Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
+  HANDLER register "CommandRouter.ExecParticleConsolidated"
   FORWARD
   ARG action str
   ARG path str EXAMPLE "/__seam_nonexistent"
@@ -1096,6 +1149,7 @@ PYTOOL permission_prompt SYSTEM RO "Handle Claude permission prompts via MCP."
 END
 
 INTERNAL ping RO "Liveness probe: Unity answers pong."
+  HANDLER register "CommandRouter.ExecPing"
   GUARD always
   GUARD compile
   TIMEOUT 5.0
@@ -1104,6 +1158,7 @@ INTERNAL ping RO "Liveness probe: Unity answers pong."
 END
 
 TOOL ping_object SCENE RO "Highlight object in Hierarchy and Project, and select it."
+  HANDLER register "CommandRouter.ExecPingObject"
   FORWARD
   SESSION
   ARG path str EXAMPLE "/__seam_nonexistent"
@@ -1159,6 +1214,7 @@ TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
 END
 
 TOOL project_settings ASSETS RW_IDEM "Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input."
+  HANDLER register_action "ProjectSettingsHelper.Execute"
   FORWARD
   DOC "tags set: prop=remove value=<tag> to remove; else adds."
   DOC "quality set prop=currentLevel: calls SetQualityLevel()."
@@ -1174,6 +1230,7 @@ TOOL project_settings ASSETS RW_IDEM "Project settings. Modifies project setting
 END
 
 TOOL query_state RUNTIME RO "[Play Mode] Snapshot multiple game values in one call."
+  HANDLER register "CommandRouter.ExecQueryState"
   BODY runtime
   DOC "queries: comma-separated 'path|component|field_or_method' triplets."
   DOC "Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')"
@@ -1186,6 +1243,7 @@ END
 # Every dispatch intentionally starts a fresh AssetDatabase.Refresh. The receiver-side dedup registry is lost
 # across Domain Reload, so resending a lost ACK can start a second compile/reload cycle: RW, not RW_IDEM.
 TOOL recompile SYSTEM RW "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done."
+  HANDLER register "CommandRouter.ExecRecompile"
   GUARD play_ok
   WIRE no_undo
   FORWARD
@@ -1216,6 +1274,7 @@ TOOL references COMPONENTS RW "References. action: get|find_to|remap. get: outgo
 END
 
 TOOL region_clear SCENE RW "Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required."
+  HANDLER register "CommandRouter.ExecRegionClear"
   BODY spatial
   DOC "vertices: CSV polygon 'x1,z1;x2,z2;...' (>=3 pairs)."
   DOC "dry_run: True = list objects that WOULD be deleted (safe default). False = delete them."
@@ -1233,6 +1292,7 @@ PYTOOL release_smoke SYSTEM RO "Run release readiness checks: status, aliases, c
 END
 
 TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path after rename."
+  HANDLER register "CommandRouter.ExecRenameObject"
   CARD rename
   FORWARD
   DOC "path: current scene path, &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy). name: new name (non-empty)."
@@ -1261,6 +1321,7 @@ TOOL render_analyze MEDIA RO "Rendering analysis."
 END
 
 TOOL resolve_scene_refs VERIFY RO "Read-only scene reference resolver."
+  HANDLER register "CommandRouter.ExecResolveSceneRefs"
   FORWARD
   TIMEOUT 15.0
   DOC "refs: comma-separated list of $alias, /path, or t:Type tokens."
@@ -1271,6 +1332,7 @@ TOOL resolve_scene_refs VERIFY RO "Read-only scene reference resolver."
 END
 
 TOOL resolve_test_request TESTS RO "Resolve a possibly lost start ACK without dispatching another test run."
+  HANDLER register "CommandRouter.ExecResolveTestRequest"
   BODY testing
   GUARD compile
   TIMEOUT 10.0
@@ -1408,6 +1470,7 @@ PYTOOL run_tests_wait TESTS RW "Dispatch tests and wait for the exact run to bec
 END
 
 TOOL runtime_snapshot RUNTIME RO "Snapshot all runtime objects of a given component type. Returns per-object field dump."
+  HANDLER register "CommandRouter.ExecRuntimeSnapshot"
   FORWARD
   MAXCHARS 50000
   DOC "type: component type name (e.g. 'Rigidbody', 'EnemyController')."
@@ -1442,10 +1505,12 @@ PYTOOL save_template SYSTEM RW_IDEM "Save C# code as a reusable scene template i
 END
 
 TOOL scan_scene VERIFY RO "Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats."
+  HANDLER register "CommandRouter.ExecScanScene"
   FORWARD
 END
 
 TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy."
+  HANDLER register "CommandRouter.ExecScene"
   BODY scene
   DOC "path: required for open/open_additive/close/set_active/save_copy. For save,"
   DOC "omit it to save to the current path; an untitled scene requires a path."
@@ -1481,6 +1546,7 @@ PYTOOL scene_change_plan SCENE RW "Pre-flight + plan for safe scene edit."
 END
 
 TOOL scene_diff SCENE RO "Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines."
+  HANDLER register "CommandRouter.ExecSceneDiff"
   FORWARD
 END
 
@@ -1498,6 +1564,7 @@ TOOL scene_environment SCENE RW "Read/write scene environment: ambient light, fo
 END
 
 TOOL scene_health VERIFY RO "Scene hierarchy/health audit."
+  HANDLER register "CommandRouter.ExecSceneHealth"
   FORWARD
   DOC "focus: all | hierarchy | naming | duplicates | origins | missing | empty | disabled"
   DOC "Returns severity-tagged findings: CRITICAL/WARNING/INFO/OK per check."
@@ -1563,6 +1630,7 @@ PYTOOL screenshot_compare MEDIA RW "Compare current screenshot with saved baseli
 END
 
 TOOL scriptable_object ASSETS RW "ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter."
+  HANDLER register_action "ScriptableObjectHelper.Execute"
   FORWARD
   ARG action str EXAMPLE "list"
   ARG path ostr DEFAULT None "Project asset path to the ScriptableObject .asset file"
@@ -1578,6 +1646,7 @@ TOOL scriptable_object ASSETS RW "ScriptableObject. action: create|get|set|list_
 END
 
 TOOL search_scene SCENE RO "Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces."
+  HANDLER register "CommandRouter.ExecSearchScene"
   FORWARD
   FLAG tier1
   TIMEOUT 15.0
@@ -1593,6 +1662,7 @@ TOOL search_scene SCENE RO "Search scene objects. Syntax: name text, t:Component
 END
 
 TOOL serialized_field_rename_audit VERIFY RO "Audit [SerializeField] rename safety."
+  HANDLER register "CommandRouter.ExecSerializedFieldRenameAudit"
   FORWARD
   DOC "type: fully-qualified or simple component type name (e.g. 'MyNamespace.PlayerStats')."
   DOC "old_field: field name as it exists in serialized assets."
@@ -1606,6 +1676,7 @@ TOOL serialized_field_rename_audit VERIFY RO "Audit [SerializeField] rename safe
 END
 
 TOOL set_active SCENE RW_IDEM "Set GameObject active/inactive."
+  HANDLER register "CommandRouter.ExecSetActive"
   CARD set
   FORWARD
   FLAG tier1
@@ -1636,6 +1707,7 @@ TOOL set_material SCENE RW_IDEM "Set scene object material color (for full asset
 END
 
 TOOL set_parent SCENE RW_IDEM "Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent."
+  HANDLER register "CommandRouter.ExecSetParent"
   CARD generic
   NEXT "get_hierarchy depth=1"
   FORWARD
@@ -1682,6 +1754,7 @@ TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObj
 END
 
 TOOL set_property_delta SCENE RW "Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new."
+  HANDLER register "CommandRouter.ExecSetPropertyDelta"
   CARD set
   FORWARD
   ARG path str EXAMPLE "/__seam_nonexistent" ROLE target
@@ -1693,6 +1766,7 @@ TOOL set_property_delta SCENE RW "Apply delta to numeric property. delta: +5, -0
 END
 
 TOOL set_rect UGUI RW_IDEM "Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y). pos3: (x,y,z) sets anchoredPosition3D — use for WorldSpace canvases (wins over pos if both given)."
+  HANDLER register "CommandRouter.ExecSetRect"
   FORWARD
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG anchor ostr DEFAULT None
@@ -1707,6 +1781,7 @@ TOOL set_rect UGUI RW_IDEM "Set RectTransform. anchor: stretch|center|top-left|t
 END
 
 TOOL set_sibling_index SCENE RW "Set sibling index of a GameObject within its parent. index=0 moves to first child."
+  HANDLER register "CommandRouter.ExecSetSiblingIndex"
   FORWARD
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG index int EXAMPLE "0"
@@ -1783,6 +1858,7 @@ INTERNAL source_patch_write RW "Writes a source patch; the internal sender of as
 END
 
 TOOL spatial_query SCENE RO "Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon."
+  HANDLER register "CommandRouter.ExecSpatialQuery"
   BODY spatial
   DOC "nearest: find closest object (optionally filtered by component name)."
   DOC "in_front_of: position in front of object at distance."
@@ -1829,6 +1905,7 @@ INTERNAL start_playtest RW "Starts a playtest without blocking; get_playtest_run
 END
 
 TOOL sync_playtest_aliases_from_defs TESTS RW "Overwrite PlaytestConfig.asset aliases from a .defs text file."
+  HANDLER register "CommandRouter.ExecSyncFromDefs"
   GUARD play_ok
   WIRE no_undo
   FORWARD
@@ -1850,6 +1927,7 @@ PYTOOL sync_unity SYSTEM RW "Refresh Unity and await its matching compile cycle 
 END
 
 TOOL test_step TESTS RW "[Play Mode] Move character, snapshot state before/after, check console."
+  HANDLER register_async "CommandRouter.AsyncTestStep"
   BODY runtime
   DOC "checks_before/after: comma-separated 'path|component|field' triplets."
   DOC "Returns structured BEFORE/MOVE/AFTER/CONSOLE report."
@@ -1896,6 +1974,7 @@ TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use f
 END
 
 TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene. action: move|copy."
+  HANDLER register "CommandRouter.ExecTransferObject"
   FORWARD
   DOC "target_scene: destination scene name. Omit = same scene (copy = duplicate)."
   DOC "parent: target parent path in destination scene."
@@ -1920,6 +1999,7 @@ PYTOOL ui_intent UGUI RW "Convert NL intent to Unity UI hierarchy. Templates byp
 END
 
 TOOL uitk_element UITOOLKIT RW "Mutate or query a VisualElement in a UIDocument or PanelRenderer host"
+  HANDLER register "CommandRouter.ExecUitkElement"
   TIMEOUT 15.0
   ARG action Any EXAMPLE "get"
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
@@ -1977,6 +2057,7 @@ PYTOOL uitk_intent UITOOLKIT RW "Generate a UXML + USS file pair from a natural-
 END
 
 TOOL undo_last SYSTEM RW "Undo the last N AI turns in the Unity Undo stack. Default: 1."
+  HANDLER register "CommandRouter.ExecUndoLast"
   FORWARD
   DOC "warn: file-system operations (asset creation/deletion via asset tool) are"
   DOC "not reversed by undo. Only scene-object and component mutations are undoable."
@@ -1985,6 +2066,7 @@ TOOL undo_last SYSTEM RW "Undo the last N AI turns in the Unity Undo stack. Defa
 END
 
 TOOL unwire_event COMPONENTS DEL "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required."
+  HANDLER register "CommandRouter.ExecUnwireEvent"
   NEXT "get_component"
   FORWARD
   DOC "index: remove specific entry (0-based). Omit to clear all."
@@ -2014,6 +2096,7 @@ TOOL validate_playtest_aliases TESTS RO "Compare alias .defs text file vs Playte
 END
 
 TOOL validate_references VERIFY RO "Validate all ObjectReference fields under path recursively."
+  HANDLER register "CommandRouter.ExecValidateReferences"
   FORWARD
   FLAG tier1
   DOC "Returns [ERROR]/[MISSING] for broken refs. Summary: \"N ERROR, M OK\"."
@@ -2028,6 +2111,7 @@ TOOL validate_references VERIFY RO "Validate all ObjectReference fields under pa
 END
 
 TOOL validate_triggers SCENE RO "Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters."
+  HANDLER register "CommandRouter.ExecValidateTriggers"
   FORWARD
   ARG root str DEFAULT_TEXT "/"
   ARG min_distance float DEFAULT 3.0
@@ -2070,6 +2154,7 @@ PYTOOL vfx_intent MEDIA RW "Convert NL intent to Unity VFX setup. Presets bypass
 END
 
 TOOL wait_until RUNTIME RW_IDEM "[Play Mode] Poll field until it matches value (or timeout)."
+  HANDLER register_async "CommandRouter.AsyncWaitUntil"
   BODY runtime
   DOC "Python timeout = Unity timeout + 5s buffer."
   DOC "abort_on_fail=True: stops Play Mode on timeout."
@@ -2099,6 +2184,7 @@ PYTOOL watch RUNTIME RW "[Play Mode] Manage watches. Registers or removes watche
 END
 
 TOOL wire_event COMPONENTS RW "Wire UnityEvent persistent listener. Mutates scene. No confirmation required."
+  HANDLER register "CommandRouter.ExecWireEvent"
   CARD generic
   NEXT "validate_references"
   FORWARD
