@@ -367,7 +367,6 @@ wire get_selection calls=1 digest=66e28edf5676325d
 wire get_spatial_context calls=6 digest=a1b98c5b41739068
 wire get_test_count calls=1 digest=af38607c979dc836
 wire get_unity_events calls=3 digest=b2a99cf7746603ee
-wire inspect_uitk calls=52 digest=1d188768c4fefaf8
 wire invoke_method calls=14 digest=06c6249cd6b262b0
 wire lint_ugui calls=3 digest=0ab04ee8587008ca
 wire list_events calls=8 digest=5b35849cee364af2
@@ -376,14 +375,12 @@ wire manage_component calls=8 digest=8fc441af791b0611
 wire material calls=62 digest=d743caae779d3870
 wire material_audit calls=9 digest=46609aebf90f0bf7
 wire menu calls=6 digest=8d595b0697bbf1d4
-wire move_to calls=12 digest=812e32d9b0186827
 wire object_diff calls=4 digest=038ed076c197fcdb
 wire package calls=33 digest=df36cefa33b4dbe0
 wire particle calls=51 digest=b16762246e11e36e
 wire ping_object calls=2 digest=57d1027a2c9c544d
 wire prefab calls=67 digest=58d480edabe492de
 wire project_settings calls=50 digest=1dbfae82da617289
-wire query_state calls=2 digest=95908fa96c720ad3
 wire recompile calls=1 digest=40a7602b57226526
 wire references calls=52 digest=788d384473a0e825
 wire rename_object calls=4 digest=1c04484384f0db93
@@ -406,7 +403,6 @@ wire set_rect calls=56 digest=00522add390f7228
 wire set_sibling_index calls=6 digest=7c33ab85f1f8a8a9
 wire shader calls=91 digest=df70a9abc8fe4774
 wire sync_playtest_aliases_from_defs calls=9 digest=da85aa84e209ce06
-wire test_step calls=42 digest=39820a72107f12f7
 wire timeline calls=77 digest=2e1fd2f72a132e53
 wire transfer_object calls=37 digest=4c1925d2ed5253aa
 wire uitk_element calls=62 digest=019f4620d4cfc208
@@ -416,5 +412,4 @@ wire unwire_event calls=22 digest=32c4599693ed463c
 wire validate_playtest_aliases calls=9 digest=d0b1c91e9f5c2439
 wire validate_references calls=27 digest=e210e6f415719f18
 wire validate_triggers calls=9 digest=78431ae8c8eb98c9
-wire wait_until calls=45 digest=03533906f080d463
 wire wire_event calls=53 digest=f982fba268404fc1

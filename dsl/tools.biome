@@ -200,8 +200,6 @@ TOOL attach_uitk UITOOLKIT RW "Attach UIDocument (or PanelRenderer on Unity 6.4+
 END
 
 PYTOOL auto_fix SYSTEM RO "Analyze recent Unity errors and ask MCP client sampling for a fix suggestion."
-  BODY codegen
-  DOC "This read-only tool does not edit files or apply the suggested change."
   ARG ctx Any
 END
 
@@ -792,6 +790,17 @@ TOOL inspect CORE RO "Get components for multiple objects at once. paths: comma-
 END
 
 TOOL inspect_uitk UITOOLKIT RO "Inspect the VisualElement tree of a UIDocument or PanelRenderer panel"
+  BODY uitk
+  DOC "(UI Toolkit only — use `get_component` for UIDocument component fields,"
+  DOC "use `get_hierarchy` for the scene GameObject tree,"
+  DOC "use `create_ui` for uGUI Canvas elements)."
+  DOC "Returns compact text tree with ~N refids; pass ~N to uitk_element as selector."
+  DOC "path: scene path to UIDocument or PanelRenderer GameObject (e.g. /HUD), or 'scene' to list all."
+  DOC "depth: max traversal depth (default 4; use selector to focus a subtree)."
+  DOC "selector: start tree from first matching element (name, .class, TypeName, ~refid)."
+  DOC "filter: show only elements whose name or classes contain this substring."
+  DOC "show_unity_private: show #unity-* prefixed elements normally hidden by default."
+  DOC "show_style: include non-default computed style values per element."
   TIMEOUT 15.0
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG depth oint DEFAULT None
@@ -816,6 +825,10 @@ TOOL invoke_method RUNTIME RW "[Play Mode] Call public method on a component via
 END
 
 TOOL lint_playtest TESTS RO "Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list."
+  BODY runtime
+  DOC "Checks: $alias resolution, deprecated ALIAS, unimplemented steps, missing ASSERT_CONSOLE_CLEAN."
+  DOC "path: project-relative path to .playtest file."
+  DOC "script: inline DSL (mutually exclusive with path)."
   GUARD compile
   TIMEOUT 60.0
   ARG path ostr DEFAULT None "Project-relative path to .playtest file"
@@ -823,12 +836,21 @@ TOOL lint_playtest TESTS RO "Static validation for playtest DSL. Read-only — n
 END
 
 PYTOOL lint_playtest_suite TESTS RO "Read-only preflight check across multiple .playtest files."
+  BODY runtime
+  DOC "pattern: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list."
+  DOC "suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment)."
+  DOC "Returns: aggregated lint report, one block per file."
   TIMEOUT 120.0
   ARG pattern ostr DEFAULT None
   ARG suite_path ostr DEFAULT None
 END
 
 TOOL lint_scene_refs VERIFY RO "Read-only linter for scene references in DSL scripts or batch commands."
+  BODY runtime
+  DOC "path: project-relative path to .playtest file."
+  DOC "snippet: inline DSL or batch commands to lint (mutually exclusive with path)."
+  DOC "Checks: unresolved aliases, embedded aliases, missing objects, ambiguous names."
+  DOC "Returns: 'OK: no issues' or severity-tagged issues (ERROR/WARN) with file:line:token."
   FLAG tier1
   TIMEOUT 30.0
   ARG path ostr DEFAULT None "Project-relative path to a .playtest DSL file"
@@ -845,6 +867,13 @@ TOOL lint_ugui UGUI RO "Diagnose uGUI problems: missing EventSystem, Canvas with
 END
 
 TOOL lint_uitk UITOOLKIT RO "Validate a UXML or USS file for structural errors and broken references"
+  BODY uitk
+  DOC "(use `get_compile_errors` for C# compile errors,"
+  DOC "use `verify_after_change` for multi-gate scene verification after mutations)."
+  DOC "Checks: A1 malformed UXML; A2 broken <Style src>; A3 missing <Template src>;"
+  DOC "A4 unnamed interactive elements; A5 duplicate USS selectors; A6 empty USS rules."
+  DOC "fix: reserved for compatibility. True is unsupported and never changes the file."
+  DOC "path: Assets/ path to UXML or USS file."
   TIMEOUT 15.0
   ARG path ostr DEFAULT None "Assets/ path to the UXML or USS file to validate"
   ARG fix obool DEFAULT None
@@ -943,6 +972,9 @@ TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. action: execute|li
 END
 
 TOOL move_to RUNTIME RW "[Play Mode] Move character to position and wait for arrival."
+  BODY runtime
+  DOC "path: scene path to GO with movement component."
+  DOC "position: x,y,z (e.g. '5,0,-3'). Returns 'arrived' or 'blocked'."
   GUARD play_ok
   FLAG direct_only
   FLAG unity_transport
@@ -1109,6 +1141,9 @@ TOOL project_settings ASSETS RW_IDEM "Project settings. Modifies project setting
 END
 
 TOOL query_state RUNTIME RO "[Play Mode] Snapshot multiple game values in one call."
+  BODY runtime
+  DOC "queries: comma-separated 'path|component|field_or_method' triplets."
+  DOC "Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')"
   RUNTIME
   TIMEOUT 10.0
   ARG queries str
@@ -1219,6 +1254,18 @@ END
 # True here would reintroduce a second, stale Python-only authority (see
 # test_runtime_only_single_source).
 TOOL run_playtest TESTS RW "[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`)."
+  BODY runtime
+  DOC "Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |"
+  DOC "ASSERT_CONSOLE_CLEAN [IGNORE \"pat\"] | SNAPSHOT queries | INVOKE path comp method args |"
+  DOC "SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t |"
+  DOC "ASSERT_CTA VISIBLE|CLICKABLE | VAL name query | TELEPORT path x,y,z |"
+  DOC "ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | INVARIANT query op value |"
+  DOC "SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f |"
+  DOC "CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED."
+  DOC "defs: inline VAL definitions prepended to script."
+  DOC "abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown."
+  DOC "format=\"json\": return the canonical step-ledger receipt instead of the legacy text report; skips compression/summarization."
+  DOC "Non-pass outcomes (fail/aborted/malformed/empty) raise ToolError with the full report text (both sync and async routes)."
   GUARD play_ok
   FLAG tier1
   FLAG direct_only
@@ -1241,6 +1288,27 @@ TOOL run_playtest TESTS RW "[Play Mode] Execute a playtest DSL script. Returns s
 END
 
 PYTOOL run_playtest_suite TESTS RW "Run multiple .playtest files sequentially and return a compact matrix."
+  BODY runtime
+  DOC "Side effects: auto_play/restart_between may enter or restart Play Mode;"
+  DOC "stop_after exits Play Mode. No confirmation is requested."
+  DOC "pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,"
+  DOC "         or newline-separated list of project-relative paths."
+  DOC "suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment)."
+  DOC "Exactly one of pattern or suite_path must be provided."
+  DOC "stop_on_fail=True: abort suite after first failure."
+  DOC "stop_after=True: exit Play Mode when suite completes."
+  DOC "auto_play=True: enter Play Mode automatically if not already playing."
+  DOC "restart_between=True: stop+play between each file to reset runtime state;"
+  DOC "with auto_play=True, also resets an already-running editor before file one."
+  DOC "suite_timeout: total suite wall-clock deadline in seconds (default 300s)."
+  DOC "tag: only run files whose `# @tags` header (space-separated) includes this"
+  DOC "tag; matches after pattern/suite_path resolution. A tag that matches zero"
+  DOC "files fails closed (same shape as an empty pattern/suite match), it never"
+  DOC "silently runs the unfiltered set."
+  DOC "Lifecycle commands must return successfully and reach their observed state."
+  DOC "A failed transition stops the suite and is reported as a failed row."
+  DOC "Empty matches return a failing SUITE: 0/0 report."
+  DOC "Output: SUITE: X/Y passed (Zs) terminal:true play_stopped:true/false + per-file lines."
   FLAG tier1
   TIMEOUT 3600.0
   ARG pattern ostr DEFAULT None
@@ -1629,7 +1697,6 @@ TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Cre
 END
 
 PYTOOL smart_build SYSTEM RW "Build scene objects from natural language description using MCP sampling + execute_code."
-  BODY codegen
   ARG description str
   ARG ctx Any
   TAG reflect_silent
@@ -1719,6 +1786,9 @@ PYTOOL sync_unity SYSTEM RW "Refresh Unity and await its matching compile cycle 
 END
 
 TOOL test_step TESTS RW "[Play Mode] Move character, snapshot state before/after, check console."
+  BODY runtime
+  DOC "checks_before/after: comma-separated 'path|component|field' triplets."
+  DOC "Returns structured BEFORE/MOVE/AFTER/CONSOLE report."
   GUARD play_ok
   FLAG direct_only
   FLAG unity_transport
@@ -1926,6 +1996,9 @@ PYTOOL vfx_intent MEDIA RW "Convert NL intent to Unity VFX setup. Presets bypass
 END
 
 TOOL wait_until RUNTIME RW_IDEM "[Play Mode] Poll field until it matches value (or timeout)."
+  BODY runtime
+  DOC "Python timeout = Unity timeout + 5s buffer."
+  DOC "abort_on_fail=True: stops Play Mode on timeout."
   FLAG direct_only
   FLAG unity_transport
   RUNTIME

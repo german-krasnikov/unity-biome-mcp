@@ -6,13 +6,13 @@ from mcp.server.fastmcp.exceptions import ToolError
 from ._common import bind
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
-from .generated.catalog_tools import attach_uitk, tools  # noqa: F401
+from .generated.catalog_tools import attach_uitk, inspect_uitk, lint_uitk, tools  # noqa: F401
 
 _send = None
 _args = None
 
 
-async def inspect_uitk(
+async def _inspect_uitk_body(
     path: str | None = None,
     depth: int | None = None,
     selector: str | None = None,
@@ -38,7 +38,7 @@ async def inspect_uitk(
     ))
 
 
-async def lint_uitk(
+async def _lint_uitk_body(
     path: str | None = None,
     fix: bool | None = None,
 ) -> str:
@@ -56,6 +56,10 @@ async def lint_uitk(
 
 
 async def uitk_element(
+    # Literal (not catalog Any) is load-bearing: FastMCP turns it into a JSON-schema enum,
+    # which is the only client-side validation this action string gets. The catalog's ARG
+    # grammar has no Literal/enum type, so BODY (which types every ARG from the catalog)
+    # would silently widen this to Any and drop that enum — stays hand-written (SV8).
     action: Literal["query", "get", "set_style", "add_class", "remove_class", "get_style", "enable", "disable"],
     path: str | None = None,
     ref: str | None = None,
@@ -88,6 +92,7 @@ async def uitk_element(
 
 async def uitk_file(
     path: str,
+    # Literal (not catalog Any) is load-bearing here too — see uitk_element's comment above.
     action: Literal[
         "read", "write", "create_uxml", "create_uss",
         "set-attr", "add-class", "remove-class",
@@ -134,7 +139,5 @@ async def uitk_file(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, inspect_uitk)
-    tools.register(mcp, lint_uitk)
     tools.register(mcp, uitk_element)
     tools.register(mcp, uitk_file)

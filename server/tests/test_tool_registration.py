@@ -98,8 +98,11 @@ def test_runtime_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # invoke_method, wait_until, move_to, query_state, test_step, run_playtest = 6 tools minimum
-    assert mcp.tool.call_count >= 6
+    # All 9 of runtime.py's own tools (wait_until/move_to/query_state/test_step/run_playtest/
+    # run_playtest_suite/lint_playtest/lint_playtest_suite/lint_scene_refs) moved to BODY (SV8):
+    # register() only binds _send/_args now; the catalog's install() registers their wrappers
+    # (invoke_method was already the catalog's, pre-SV8).
+    assert mcp.tool.call_count == 0
 
 
 # ── Part 4: console.py / screenshot.py / testing.py / editor_control.py

@@ -16,11 +16,20 @@ from .editor_state import parse_world_ready as _parse_world_ready
 from .generated.catalog_tools import (  # noqa: F401
     export_playtest_aliases_to_defs,
     invoke_method,
+    lint_playtest,
+    lint_playtest_suite,
+    lint_scene_refs,
+    move_to,
+    query_state,
     resolve_scene_refs,
+    run_playtest,
+    run_playtest_suite,
     runtime_snapshot,
     sync_playtest_aliases_from_defs,
+    test_step,
     tools,
     validate_playtest_aliases,
+    wait_until,
 )
 from .playtest_async import _RUN_PLAYTEST_SYNC_CEILING_S
 from .playtest_async import run_via_start_poll as _run_via_start_poll
@@ -54,7 +63,7 @@ _CLEANUP_RELOAD_WAIT_S = 15.0
 _NO_RECEIPT_MSG = "run_playtest produced no terminal receipt"
 
 
-async def wait_until(path: str, component: str, field: str, value: str,
+async def _wait_until_body(path: str, component: str, field: str, value: str,
                      timeout: float = 5.0, negate: bool = False,
                      abort_on_fail: bool = False) -> str:
     """[Play Mode] Poll field until it matches value (or timeout).
@@ -68,7 +77,7 @@ async def wait_until(path: str, component: str, field: str, value: str,
         timeout=timeout + _TCP_POLL_BUFFER)
 
 
-async def move_to(path: str, position: str, timeout: float = 15.0) -> str:
+async def _move_to_body(path: str, position: str, timeout: float = 15.0) -> str:
     """[Play Mode] Move character to position and wait for arrival.
     path: scene path to GO with movement component.
     position: x,y,z (e.g. '5,0,-3'). Returns 'arrived' or 'blocked'."""
@@ -77,14 +86,14 @@ async def move_to(path: str, position: str, timeout: float = 15.0) -> str:
         timeout=timeout + _TCP_POLL_BUFFER)
 
 
-async def query_state(queries: str) -> str:
+async def _query_state_body(queries: str) -> str:
     """[Play Mode] Snapshot multiple game values in one call.
     queries: comma-separated 'path|component|field_or_method' triplets.
     Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')"""
     return await _send("query_state", _args(queries=queries))
 
 
-async def test_step(path: str, position: str,
+async def _test_step_body(path: str, position: str,
                     checks_before: str = "", checks_after: str = "",
                     wait_after: float = 0.5, timeout: float = 15.0) -> str:
     """[Play Mode] Move character, snapshot state before/after, check console.
@@ -172,7 +181,7 @@ async def _enter_fresh_play() -> None:
     )
 
 
-async def run_playtest(script: str | None = None, timeout: float = _RUN_PLAYTEST_SYNC_CEILING_S,
+async def _run_playtest_body(script: str | None = None, timeout: float = _RUN_PLAYTEST_SYNC_CEILING_S,
                        abort_on_fail: bool = False,
                        defs: str | None = None,
                        path: str | None = None,
@@ -599,7 +608,7 @@ async def _suite_body(
     return None
 
 
-async def run_playtest_suite(
+async def _run_playtest_suite_body(
     pattern: str | None = None,
     suite_path: str | None = None,
     timeout_per_test: float = 120.0,
@@ -744,7 +753,7 @@ def _format_suite_report(results, total_elapsed, play_stopped=True, timed_out=Fa
     return "\n".join(lines)
 
 
-async def lint_playtest(
+async def _lint_playtest_body(
     path: str | None = None,
     script: str | None = None,
 ) -> str:
@@ -759,7 +768,7 @@ async def lint_playtest(
     return await _send("lint_playtest", _args(path=path, script=script), timeout=60.0)
 
 
-async def lint_playtest_suite(pattern: str | None = None,
+async def _lint_playtest_suite_body(pattern: str | None = None,
                               suite_path: str | None = None) -> str:
     """Read-only preflight check across multiple .playtest files.
     pattern: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list.
@@ -792,7 +801,7 @@ async def lint_playtest_suite(pattern: str | None = None,
     return f"LINT: {ok_count}/{len(results)} clean\n" + "\n".join(results)
 
 
-async def lint_scene_refs(path: str | None = None, snippet: str | None = None) -> str:
+async def _lint_scene_refs_body(path: str | None = None, snippet: str | None = None) -> str:
     """Read-only linter for scene references in DSL scripts or batch commands.
     path: project-relative path to .playtest file.
     snippet: inline DSL or batch commands to lint (mutually exclusive with path).
@@ -807,12 +816,3 @@ async def lint_scene_refs(path: str | None = None, snippet: str | None = None) -
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    tools.register(mcp, lint_scene_refs)
-    tools.register(mcp, wait_until)
-    tools.register(mcp, move_to)
-    tools.register(mcp, query_state)
-    tools.register(mcp, test_step)
-    tools.register(mcp, run_playtest)
-    tools.register(mcp, run_playtest_suite)
-    tools.register(mcp, lint_playtest)
-    tools.register(mcp, lint_playtest_suite)

@@ -6,7 +6,7 @@ from ..metrics import METRICS
 from ._common import bind
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
-from .generated.catalog_tools import auto_fix, execute_code, get_schema, smart_build, tools  # noqa: F401
+from .generated.catalog_tools import execute_code, get_schema, tools  # noqa: F401
 
 _send = None
 _args = None
@@ -20,7 +20,11 @@ except ImportError:
     _has_context = False
 
 
-async def _auto_fix_body(ctx: _Context) -> str:
+async def auto_fix(ctx: _Context) -> str:
+    # ctx's annotation must stay a real Context (not catalog Any) -- FastMCP's
+    # find_context_parameter() only recognizes an exact Context (or "Context | None")
+    # type hint to auto-inject the session object; BODY would type it Any from the
+    # catalog's ARG and silently stop Context injection (stays hand-written, SV8).
     """Analyze recent Unity errors and ask MCP client sampling for a fix suggestion.
     This read-only tool does not edit files or apply the suggested change."""
     from .. import editor_log
@@ -47,7 +51,8 @@ async def _auto_fix_body(ctx: _Context) -> str:
         return f"ERRORS:\n{error_text}\n\n(Auto-fix unavailable: {e})"
 
 
-async def _smart_build_body(description: str, ctx: _Context) -> str:
+async def smart_build(description: str, ctx: _Context) -> str:
+    # See auto_fix's comment above -- ctx must keep its real Context annotation.
     """Build scene objects from natural language description using MCP sampling + execute_code."""
     try:
         response = await ctx.session.create_message(
@@ -75,3 +80,5 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
+    tools.register(mcp, auto_fix)
+    tools.register(mcp, smart_build)

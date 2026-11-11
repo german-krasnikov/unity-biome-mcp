@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=6d253c2bee7140a94dccf2015c65971108285ecbf428472e504a1a50654db62e
+# source-sha256=155390e11e0a39ab5bf443fb0524b50f57e614df313f08b60d1f4d57f32cee4d
 # Edit the source, then run biome generate.
 
 ARG_EXAMPLES: dict[str, dict[str, str]] = {

@@ -65,7 +65,9 @@ INTENDED["ask_user"]["digest"] = "SV4: FORWARD; literal timeout=300.0 kwarg remo
 INTENDED["package"]["digest"] = "SV4: FORWARD; literal timeout=60.0 kwarg removed from the wrapper (catalog now governs it alone)"
 INTENDED["recompile"]["digest"] = "SV4: FORWARD; literal timeout=60.0 kwarg removed from the wrapper (catalog now governs it alone)"
 INTENDED["resolve_scene_refs"]["digest"] = "SV4: FORWARD; literal timeout=15.0 kwarg removed from the wrapper (catalog now governs it alone)"
-INTENDED["query_state"]["digest"] = "SV4: literal timeout=10.0 kwarg removed from the (still hand-written) wrapper -- the catalog governs it alone now"
+# query_state's SV4 digest entry (the hand wrapper's literal timeout=10.0 kwarg removed) is
+# retired here: SV8 moves query_state to BODY, and its `wire query_state ...` row disappears
+# entirely (deferred import disqualifies only_forwards) -- there is no digest field left to diff.
 # SV4: get_console's first (pagination offset) used a hand ternary that omitted any first<=0, not just the
 # exact default (0); the catalog's OMIT is exact-default only, so first<0 (sampled by the golden's int
 # sampler) is now sent raw instead of silently omitted. No real caller passes a negative offset.
@@ -101,13 +103,24 @@ INTENDED["permission_prompt"]["schema"] = "SV8: BODY; generated wrapper types in
 # diff_surface() only diffs FIELDS of a row present on both sides -- it cannot allow a row that
 # disappears entirely -- so each such `wire <name> ...` line is deleted from golden/tool_surface.txt
 # directly, once, in the same commit as the conversion that causes it: profile, get_object_detail,
-# scene, navmesh_query (SV8).
+# scene, navmesh_query, inspect_uitk, move_to, query_state, test_step, wait_until (SV8).
 # set_property's `value` param had no type annotation at all in the hand function (bare `value=None`);
 # the generated BODY wrapper types every ARG from the catalog, so it is now explicitly `Any`.
 INTENDED["set_property"]["schema"] = "SV8: BODY; generated wrapper types value as Any (the catalog's ARG type); the hand function left it unannotated"
 INTENDED["region_clear"]["description"] = "SV8: BODY; DOC lines drop the blank line between the summary and \"vertices:...\" (content unchanged)"
-INTENDED["auto_fix"]["schema"] = "SV8: BODY; generated wrapper types ctx as Any (the catalog's ARG type), not the hand function's Context annotation"
-INTENDED["smart_build"]["schema"] = "SV8: BODY; generated wrapper types ctx as Any (the catalog's ARG type), not the hand function's Context annotation"
+# auto_fix/smart_build stay hand-written (not BODY): their `ctx` param must keep a real Context
+# annotation for FastMCP's find_context_parameter() to auto-inject the session object; BODY
+# would type it Any from the catalog's ARG and silently break that injection. Same reasoning as
+# uitk_element/uitk_file's Literal exclusion below, different mechanism (Context, not an enum).
+# SV8: these 4 hand docstrings close their triple-quote on its own line (a separate "    \"\"\""
+# line after the last content line), so the raw __doc__ has a trailing "\n" the DOC-line
+# concatenation does not reproduce (content unchanged) -- same mechanism as the SV4 ask_user
+# entry above, just at the end of the string instead of the start.
+INTENDED["inspect_uitk"]["description"] = "SV8: BODY; DOC lines drop the trailing newline before the closing triple-quote (content unchanged)"
+INTENDED["lint_uitk"]["description"] = "SV8: BODY; DOC lines drop the trailing newline before the closing triple-quote (content unchanged)"
+# uitk_element/uitk_file stay hand-written (not BODY): their `action` param is typed Literal[...]
+# for a real JSON-schema enum; the catalog's ARG grammar has no Literal type, only Any, so BODY
+# would silently drop that client-side validation. See uitk.py's uitk_element/uitk_file comments.
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:

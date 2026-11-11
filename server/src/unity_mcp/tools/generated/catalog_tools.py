@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=6d253c2bee7140a94dccf2015c65971108285ecbf428472e504a1a50654db62e
+# source-sha256=155390e11e0a39ab5bf443fb0524b50f57e614df313f08b60d1f4d57f32cee4d
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -434,22 +434,6 @@ async def attach_uitk(
 tools.expect('auto_fix', 'RO', "Analyze recent Unity errors and ask MCP client sampling for a fix suggestion.", (
     ('ctx', Any),
 ))
-tools.expect_body('auto_fix', 'codegen')
-
-
-@tools.provide
-async def auto_fix(
-    ctx: Any,
-) -> str:
-    ("Analyze recent Unity errors and ask MCP client sampling for a fix suggestion."
-     "\n    This read-only tool does not edit files or apply the suggested change."
-    )
-    from .. import codegen as _biome_body_mod
-    return await _biome_body_mod._auto_fix_body(
-        ctx=ctx,
-    )
-
-
 tools.expect('auto_wire', 'RW', "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required.", (
     ('path', str),
     ('dry_run', bool, False),
@@ -1586,6 +1570,41 @@ tools.expect('inspect_uitk', 'RO', "Inspect the VisualElement tree of a UIDocume
     ('show_unity_private', obool, None),
     ('show_style', obool, None),
 ))
+tools.expect_body('inspect_uitk', 'uitk')
+
+
+@tools.provide
+async def inspect_uitk(
+    path: ostr = None,
+    depth: oint = None,
+    selector: ostr = None,
+    filter: ostr = None,
+    show_unity_private: obool = None,
+    show_style: obool = None,
+) -> str:
+    ("Inspect the VisualElement tree of a UIDocument or PanelRenderer panel"
+     "\n    (UI Toolkit only — use `get_component` for UIDocument component fields,"
+     "\n    use `get_hierarchy` for the scene GameObject tree,"
+     "\n    use `create_ui` for uGUI Canvas elements)."
+     "\n    Returns compact text tree with ~N refids; pass ~N to uitk_element as selector."
+     "\n    path: scene path to UIDocument or PanelRenderer GameObject (e.g. /HUD), or 'scene' to list all."
+     "\n    depth: max traversal depth (default 4; use selector to focus a subtree)."
+     "\n    selector: start tree from first matching element (name, .class, TypeName, ~refid)."
+     "\n    filter: show only elements whose name or classes contain this substring."
+     "\n    show_unity_private: show #unity-* prefixed elements normally hidden by default."
+     "\n    show_style: include non-default computed style values per element."
+    )
+    from .. import uitk as _biome_body_mod
+    return await _biome_body_mod._inspect_uitk_body(
+        path=path,
+        depth=depth,
+        selector=selector,
+        filter=filter,
+        show_unity_private=show_unity_private,
+        show_style=show_style,
+    )
+
+
 tools.expect('invoke_method', 'RW', "[Play Mode] Call public method on a component via reflection.", (
     ('path', str),
     ('component', str),
@@ -1617,14 +1636,75 @@ tools.expect('lint_playtest', 'RO', "Static validation for playtest DSL. Read-on
     ('path', ostr, None),
     ('script', ostr, None),
 ))
+tools.expect_body('lint_playtest', 'runtime')
+
+
+@tools.provide
+async def lint_playtest(
+    path: ostr = None,
+    script: ostr = None,
+) -> str:
+    ("Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list."
+     "\n    Checks: $alias resolution, deprecated ALIAS, unimplemented steps, missing ASSERT_CONSOLE_CLEAN."
+     "\n    path: project-relative path to .playtest file."
+     "\n    script: inline DSL (mutually exclusive with path)."
+    )
+    from .. import runtime as _biome_body_mod
+    return await _biome_body_mod._lint_playtest_body(
+        path=path,
+        script=script,
+    )
+
+
 tools.expect('lint_playtest_suite', 'RO', "Read-only preflight check across multiple .playtest files.", (
     ('pattern', ostr, None),
     ('suite_path', ostr, None),
 ))
+tools.expect_body('lint_playtest_suite', 'runtime')
+
+
+@tools.provide
+async def lint_playtest_suite(
+    pattern: ostr = None,
+    suite_path: ostr = None,
+) -> str:
+    ("Read-only preflight check across multiple .playtest files."
+     "\n    pattern: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list."
+     "\n    suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment)."
+     "\n    Returns: aggregated lint report, one block per file."
+    )
+    from .. import runtime as _biome_body_mod
+    return await _biome_body_mod._lint_playtest_suite_body(
+        pattern=pattern,
+        suite_path=suite_path,
+    )
+
+
 tools.expect('lint_scene_refs', 'RO', "Read-only linter for scene references in DSL scripts or batch commands.", (
     ('path', ostr, None),
     ('snippet', ostr, None),
 ))
+tools.expect_body('lint_scene_refs', 'runtime')
+
+
+@tools.provide
+async def lint_scene_refs(
+    path: ostr = None,
+    snippet: ostr = None,
+) -> str:
+    ("Read-only linter for scene references in DSL scripts or batch commands."
+     "\n    path: project-relative path to .playtest file."
+     "\n    snippet: inline DSL or batch commands to lint (mutually exclusive with path)."
+     "\n    Checks: unresolved aliases, embedded aliases, missing objects, ambiguous names."
+     "\n    Returns: 'OK: no issues' or severity-tagged issues (ERROR/WARN) with file:line:token."
+    )
+    from .. import runtime as _biome_body_mod
+    return await _biome_body_mod._lint_scene_refs_body(
+        path=path,
+        snippet=snippet,
+    )
+
+
 tools.expect('lint_ugui', 'RO', "Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Use when clicks miss or UI appears broken.", (
     ('root', ostr, None),
 ))
@@ -1648,6 +1728,29 @@ tools.expect('lint_uitk', 'RO', "Validate a UXML or USS file for structural erro
     ('path', ostr, None),
     ('fix', obool, None),
 ))
+tools.expect_body('lint_uitk', 'uitk')
+
+
+@tools.provide
+async def lint_uitk(
+    path: ostr = None,
+    fix: obool = None,
+) -> str:
+    ("Validate a UXML or USS file for structural errors and broken references"
+     "\n    (use `get_compile_errors` for C# compile errors,"
+     "\n    use `verify_after_change` for multi-gate scene verification after mutations)."
+     "\n    Checks: A1 malformed UXML; A2 broken <Style src>; A3 missing <Template src>;"
+     "\n    A4 unnamed interactive elements; A5 duplicate USS selectors; A6 empty USS rules."
+     "\n    fix: reserved for compatibility. True is unsupported and never changes the file."
+     "\n    path: Assets/ path to UXML or USS file."
+    )
+    from .. import uitk as _biome_body_mod
+    return await _biome_body_mod._lint_uitk_body(
+        path=path,
+        fix=fix,
+    )
+
+
 tools.expect('list_connections', 'RO', "List Unity connection status.", (
 ))
 tools.expect('list_events', 'RO', "Read persistent listeners on a UnityEvent field. Use after wire_event to verify.", (
@@ -1837,6 +1940,27 @@ tools.expect('move_to', 'RW', "[Play Mode] Move character to position and wait f
     ('position', str),
     ('timeout', float, 15.0),
 ))
+tools.expect_body('move_to', 'runtime')
+
+
+@tools.provide
+async def move_to(
+    path: str,
+    position: str,
+    timeout: float = 15.0,
+) -> str:
+    ("[Play Mode] Move character to position and wait for arrival."
+     "\n    path: scene path to GO with movement component."
+     "\n    position: x,y,z (e.g. '5,0,-3'). Returns 'arrived' or 'blocked'."
+    )
+    from .. import runtime as _biome_body_mod
+    return await _biome_body_mod._move_to_body(
+        path=path,
+        position=position,
+        timeout=timeout,
+    )
+
+
 tools.expect('navmesh_query', 'RW', "NavMesh queries and management. Bakes or clears NavMesh data for bake/clear actions. No confirmation required. action: sample|path|raycast|bake|status|clear|get_settings|set_settings.", (
     ('action', str),
     ('center', ostr, None),
@@ -2159,6 +2283,23 @@ async def project_settings(
 tools.expect('query_state', 'RO', "[Play Mode] Snapshot multiple game values in one call.", (
     ('queries', str),
 ))
+tools.expect_body('query_state', 'runtime')
+
+
+@tools.provide
+async def query_state(
+    queries: str,
+) -> str:
+    ("[Play Mode] Snapshot multiple game values in one call."
+     "\n    queries: comma-separated 'path|component|field_or_method' triplets."
+     "\n    Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')"
+    )
+    from .. import runtime as _biome_body_mod
+    return await _biome_body_mod._query_state_body(
+        queries=queries,
+    )
+
+
 tools.expect('recompile', 'RW', "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done.", (
 ))
 
@@ -2341,6 +2482,50 @@ tools.expect('run_playtest', 'RW', "[Play Mode] Execute a playtest DSL script. R
     ('after_hook', ostr, None),
     ('format', str, "text"),
 ))
+tools.expect_body('run_playtest', 'runtime')
+
+
+@tools.provide
+async def run_playtest(
+    script: ostr = None,
+    timeout: float = 120.0,
+    abort_on_fail: bool = False,
+    defs: ostr = None,
+    path: ostr = None,
+    snapshot_on_failure: bool = False,
+    fresh: bool = False,
+    before_hook: ostr = None,
+    after_hook: ostr = None,
+    format: str = "text",
+) -> str:
+    ("[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`)."
+     "\n    Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |"
+     "\n    ASSERT_CONSOLE_CLEAN [IGNORE \"pat\"] | SNAPSHOT queries | INVOKE path comp method args |"
+     "\n    SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t |"
+     "\n    ASSERT_CTA VISIBLE|CLICKABLE | VAL name query | TELEPORT path x,y,z |"
+     "\n    ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | INVARIANT query op value |"
+     "\n    SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f |"
+     "\n    CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED."
+     "\n    defs: inline VAL definitions prepended to script."
+     "\n    abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown."
+     "\n    format=\"json\": return the canonical step-ledger receipt instead of the legacy text report; skips compression/summarization."
+     "\n    Non-pass outcomes (fail/aborted/malformed/empty) raise ToolError with the full report text (both sync and async routes)."
+    )
+    from .. import runtime as _biome_body_mod
+    return await _biome_body_mod._run_playtest_body(
+        script=script,
+        timeout=timeout,
+        abort_on_fail=abort_on_fail,
+        defs=defs,
+        path=path,
+        snapshot_on_failure=snapshot_on_failure,
+        fresh=fresh,
+        before_hook=before_hook,
+        after_hook=after_hook,
+        format=format,
+    )
+
+
 tools.expect('run_playtest_suite', 'RW', "Run multiple .playtest files sequentially and return a compact matrix.", (
     ('pattern', ostr, None),
     ('suite_path', ostr, None),
@@ -2352,6 +2537,57 @@ tools.expect('run_playtest_suite', 'RW', "Run multiple .playtest files sequentia
     ('suite_timeout', float, 300.0),
     ('tag', ostr, None),
 ))
+tools.expect_body('run_playtest_suite', 'runtime')
+
+
+@tools.provide
+async def run_playtest_suite(
+    pattern: ostr = None,
+    suite_path: ostr = None,
+    timeout_per_test: float = 120.0,
+    stop_on_fail: bool = False,
+    stop_after: bool = True,
+    auto_play: bool = False,
+    restart_between: bool = False,
+    suite_timeout: float = 300.0,
+    tag: ostr = None,
+) -> str:
+    ("Run multiple .playtest files sequentially and return a compact matrix."
+     "\n    Side effects: auto_play/restart_between may enter or restart Play Mode;"
+     "\n    stop_after exits Play Mode. No confirmation is requested."
+     "\n    pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,"
+     "\n             or newline-separated list of project-relative paths."
+     "\n    suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment)."
+     "\n    Exactly one of pattern or suite_path must be provided."
+     "\n    stop_on_fail=True: abort suite after first failure."
+     "\n    stop_after=True: exit Play Mode when suite completes."
+     "\n    auto_play=True: enter Play Mode automatically if not already playing."
+     "\n    restart_between=True: stop+play between each file to reset runtime state;"
+     "\n    with auto_play=True, also resets an already-running editor before file one."
+     "\n    suite_timeout: total suite wall-clock deadline in seconds (default 300s)."
+     "\n    tag: only run files whose `# @tags` header (space-separated) includes this"
+     "\n    tag; matches after pattern/suite_path resolution. A tag that matches zero"
+     "\n    files fails closed (same shape as an empty pattern/suite match), it never"
+     "\n    silently runs the unfiltered set."
+     "\n    Lifecycle commands must return successfully and reach their observed state."
+     "\n    A failed transition stops the suite and is reported as a failed row."
+     "\n    Empty matches return a failing SUITE: 0/0 report."
+     "\n    Output: SUITE: X/Y passed (Zs) terminal:true play_stopped:true/false + per-file lines."
+    )
+    from .. import runtime as _biome_body_mod
+    return await _biome_body_mod._run_playtest_suite_body(
+        pattern=pattern,
+        suite_path=suite_path,
+        timeout_per_test=timeout_per_test,
+        stop_on_fail=stop_on_fail,
+        stop_after=stop_after,
+        auto_play=auto_play,
+        restart_between=restart_between,
+        suite_timeout=suite_timeout,
+        tag=tag,
+    )
+
+
 tools.expect('run_tests', 'RW_IDEM', "Dispatch Unity tests and return their durable identity immediately.", (
     ('mode', str, "EditMode"),
     ('filter', ostr, None),
@@ -3141,23 +3377,6 @@ tools.expect('smart_build', 'RW', "Build scene objects from natural language des
     ('description', str),
     ('ctx', Any),
 ))
-tools.expect_body('smart_build', 'codegen')
-
-
-@tools.provide
-async def smart_build(
-    description: str,
-    ctx: Any,
-) -> str:
-    ("Build scene objects from natural language description using MCP sampling + execute_code."
-    )
-    from .. import codegen as _biome_body_mod
-    return await _biome_body_mod._smart_build_body(
-        description=description,
-        ctx=ctx,
-    )
-
-
 tools.expect('snapshot', 'RO', "Capture or compare object state.", (
     ('path', str),
     ('label', str, "default"),
@@ -3258,6 +3477,33 @@ tools.expect('test_step', 'RW', "[Play Mode] Move character, snapshot state befo
     ('wait_after', float, 0.5),
     ('timeout', float, 15.0),
 ))
+tools.expect_body('test_step', 'runtime')
+
+
+@tools.provide
+async def test_step(
+    path: str,
+    position: str,
+    checks_before: str = "",
+    checks_after: str = "",
+    wait_after: float = 0.5,
+    timeout: float = 15.0,
+) -> str:
+    ("[Play Mode] Move character, snapshot state before/after, check console."
+     "\n    checks_before/after: comma-separated 'path|component|field' triplets."
+     "\n    Returns structured BEFORE/MOVE/AFTER/CONSOLE report."
+    )
+    from .. import runtime as _biome_body_mod
+    return await _biome_body_mod._test_step_body(
+        path=path,
+        position=position,
+        checks_before=checks_before,
+        checks_after=checks_after,
+        wait_after=wait_after,
+        timeout=timeout,
+    )
+
+
 tools.expect('timeline', 'RW', "Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that).", (
     ('path', str),
     ('action', str),
@@ -3640,6 +3886,35 @@ tools.expect('wait_until', 'RW_IDEM', "[Play Mode] Poll field until it matches v
     ('negate', bool, False),
     ('abort_on_fail', bool, False),
 ))
+tools.expect_body('wait_until', 'runtime')
+
+
+@tools.provide
+async def wait_until(
+    path: str,
+    component: str,
+    field: str,
+    value: str,
+    timeout: float = 5.0,
+    negate: bool = False,
+    abort_on_fail: bool = False,
+) -> str:
+    ("[Play Mode] Poll field until it matches value (or timeout)."
+     "\n    Python timeout = Unity timeout + 5s buffer."
+     "\n    abort_on_fail=True: stops Play Mode on timeout."
+    )
+    from .. import runtime as _biome_body_mod
+    return await _biome_body_mod._wait_until_body(
+        path=path,
+        component=component,
+        field=field,
+        value=value,
+        timeout=timeout,
+        negate=negate,
+        abort_on_fail=abort_on_fail,
+    )
+
+
 tools.expect('watch', 'RW', "[Play Mode] Manage watches. Registers or removes watches. No confirmation required. action: add|remove|clear|reset.", (
     ('action', str),
     ('watch_id', str, ""),
