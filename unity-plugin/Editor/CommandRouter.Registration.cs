@@ -13,34 +13,34 @@ namespace UnityMCP.Editor
     // meta (always-allowed escape hatches) -> read (non-mutating) -> mutating -> async.
     // Every Register/RegisterAction/RegisterAsync call below is moved verbatim from the
     // original RegisterAll() — no flags, params, or handlers were changed by this split.
+    //
+    // A5 prep: every inline lambda handler below was extracted to a named static method
+    // (grouped by section at the bottom of this file) so the HANDLER DSL generator can take
+    // a method reference for every command. No flags, params, or handler logic changed.
     public static partial class CommandRouter
     {
         internal static void RegisterMetaCommands()
         {
             // Meta (non-mutating) — always allowed + allowed during compile: these are the
             // escape-hatch/discovery commands that must work regardless of settings or wedge state.
-            CommandRegistry.Register("ping", _ => "pong", ToolMeta.Get("ping"));
+            CommandRegistry.Register("ping", ExecPing, ToolMeta.Get("ping"));
             // C7: "get_version" fast-path is in MCPServer.cs:293 (emits MVID stamp).
             // The VersionTracker delegation here was dead code — MCPServer intercepts get_version
             // before it reaches CommandRouter. Removed so get_version unambiguously means MVID stamp.
-            CommandRegistry.Register("get_capabilities", _ => GetCapabilities(), ToolMeta.Get("get_capabilities"));
-            CommandRegistry.Register("get_enabled_tools", _ => ExecGetEnabledTools(), ToolMeta.Get("get_enabled_tools"));
-            CommandRegistry.Register("get_disabled_tools", _ => ExecGetDisabledTools(), required: "", optional: "",
+            CommandRegistry.Register("get_capabilities", ExecGetCapabilities, ToolMeta.Get("get_capabilities"));
+            CommandRegistry.Register("get_enabled_tools", ExecGetEnabledToolsCommand, ToolMeta.Get("get_enabled_tools"));
+            CommandRegistry.Register("get_disabled_tools", ExecGetDisabledToolsCommand, required: "", optional: "",
                 alwaysAllowed: true, allowedDuringCompile: true);
-            CommandRegistry.Register("set_tool_catalog", args =>
-            {
-                var json = JsonHelper.ExtractString(args, "catalog");
-                if (!string.IsNullOrEmpty(json)) MCPSettings.SetCatalog(json);
-                return "ok";
-            }, required: "", optional: "catalog", alwaysAllowed: true, allowedDuringCompile: true);
+            CommandRegistry.Register("set_tool_catalog", ExecSetToolCatalog,
+                required: "", optional: "catalog", alwaysAllowed: true, allowedDuringCompile: true);
             // screenshot is intercepted in Process/ProcessAsync for file response formatting;
             // registered here only for IsRegistered/IsMutating queries
-            CommandRegistry.Register("screenshot", _ => throw new InvalidOperationException("screenshot intercepted before ExecuteCommand"),
+            CommandRegistry.Register("screenshot", ExecScreenshotIntercepted,
                 mutating: true,
                 required: "", optional: "width,height,camera,path,output_path,supersample,angles,zoom,offset,fixed_size,highlight,show_colliders,angle,annotation_id,describe,raw",
                 fileHandler: BuildScreenshotResponse,
                 specialDispatch: true, allowedDuringCompile: true);
-            CommandRegistry.Register("diagnose", args => DiagnoseCommand.Execute(args),
+            CommandRegistry.Register("diagnose", ExecDiagnose,
                 required: "", optional: "prev_mvid,expected_compile",  // C8: read-only multi-signal snapshot
                 alwaysAllowed: true, allowedDuringCompile: true);
             // T5 recovery: play+stop cycle forces domain reload without going through SecurityScan.
@@ -50,50 +50,11 @@ namespace UnityMCP.Editor
             // subscription registered inline here (RELAY-FIX, commit 1bcc90b7) — the pending
             // stop/start survives via SessionState instead, consumed by PlayModeEpochTracker,
             // whose static-ctor subscription re-arms on every domain reload.
-            CommandRegistry.Register("force_play_stop", _ =>
-            {
-                var blocked = SyncHelper.ReloadBlockReason(false);
-                if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
-                if (EditorApplication.isCompiling)
-                {
-                    SessionState.SetBool(PlayModeEpochTracker.PendingPlayStartKey, true);
-                    PlayModeEpochTracker.WaitForCompileThenEnterPlayMode();
-                    return "play_stop queued (waiting for compile)";
-                }
-                // Direct (non-compiling) entry: EditorApplication.isCompiling being false does
-                // not guarantee isPlaying = true actually succeeds (leftover compile errors from
-                // a finished build, or an in-progress unrelated transition can silently refuse
-                // it) — go through the same reload-survival helper the compiling branch above
-                // uses, so a refused entry here cannot strand PendingPlayStopKey either (C1 r6 #2).
-                PlayModeEpochTracker.EnterPlayModeWithPendingStop();
-                return "play_stop triggered";
-            }, required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
-            CommandRegistry.Register("set_client_label", args =>
-            {
-                var label = JsonHelper.ExtractString(args, "label");
-                if (!string.IsNullOrEmpty(label))
-                {
-                    MCPServer._mainSlot.Label = label;
-                    MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} Client identified as: {label}"));
-                }
-                return "ok";
-            }, required: "label", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
-            CommandRegistry.Register("get_status", _ =>
-            {
-                var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-                var sb = new System.Text.StringBuilder();
-                sb.AppendLine($"scene={scene.name}");
-                sb.AppendLine($"dirty={scene.isDirty}");
-                sb.AppendLine($"playing={UnityEditor.EditorApplication.isPlaying}");
-                sb.AppendLine($"compiling={UnityEditor.EditorApplication.isCompiling}");
-                sb.AppendLine($"port={MCPServer.ServerPort}");
-                sb.AppendLine($"aliases={AliasExpander.CountConfigAliases()}");
-                sb.AppendLine($"readOnly={IsReadOnly()}");
-                sb.AppendLine($"plugin_version={BiomeVersion.Plugin}");
-                sb.AppendLine($"protocol={BiomeVersion.Protocol}");
-                sb.AppendLine(SourcePatchModePolicy.StatusProjection());
-                return sb.ToString().TrimEnd();
-            }, ToolMeta.Get("get_status"));
+            CommandRegistry.Register("force_play_stop", ExecForcePlayStop,
+                required: "", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
+            CommandRegistry.Register("set_client_label", ExecSetClientLabel,
+                required: "label", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
+            CommandRegistry.Register("get_status", ExecGetStatus, ToolMeta.Get("get_status"));
         }
 
         internal static void RegisterReadCommands()
@@ -102,53 +63,11 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("get_hierarchy", ExecGetHierarchy,
                 required: "", optional: "depth,root,filter,components,summary,incremental,scene,compress,full",
                 maxResponseChars: 50000);
-            CommandRegistry.Register("get_aliases", _ => GetAliasesText(), ToolMeta.Get("get_aliases"));
-            CommandRegistry.Register("list_playtest_files", args =>
-            {
-                var pattern = JsonHelper.ExtractString(args, "pattern") ?? "Playtests/*.playtest";
-                var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
-                var absDir = Path.GetFullPath(Path.Combine(projectRoot, Path.GetDirectoryName(pattern) ?? ""));
-                if (!absDir.StartsWith(projectRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal)
-                    && absDir != projectRoot)
-                    return "err: path must be inside project";
-                if (!Directory.Exists(absDir)) return "err: directory not found: " + absDir;
-                var files = Directory.GetFiles(absDir, Path.GetFileName(pattern))
-                    .Select(f => f.Substring(projectRoot.Length).TrimStart(Path.DirectorySeparatorChar)
-                                  .Replace(Path.DirectorySeparatorChar, '/'))
-                    .OrderBy(f => f)
-                    .ToArray();
-                return files.Length == 0 ? "no files" : string.Join("\n", files);
-            }, required: "", optional: "pattern", allowedDuringCompile: true);
-            CommandRegistry.Register("lint_playtest", args =>
-            {
-                var path   = JsonHelper.ExtractString(args, "path");
-                var script = JsonHelper.ExtractString(args, "script");
-                if (path != null && script != null) return "err: use path or script, not both";
-                string result;
-                if (path != null)        result = PlaytestLinter.LintFile(path);
-                else if (script != null) result = PlaytestLinter.LintScript(script);
-                else return "err: path or script required";
-                if (result.StartsWith("ERROR") || result.Contains("\nERROR"))
-                    throw new InvalidOperationException(result);
-                return result;
-            }, ToolMeta.Get("lint_playtest"));
-            CommandRegistry.Register("lint_scene_refs", args =>
-            {
-                var path    = JsonHelper.ExtractString(args, "path");
-                var snippet = JsonHelper.ExtractString(args, "snippet");
-                if (path != null && snippet != null) return "err: path and snippet are mutually exclusive";
-                string script;
-                if (path != null)
-                {
-                    var fullPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", path));
-                    if (!File.Exists(fullPath)) return $"err: file not found: {path}";
-                    script = File.ReadAllText(fullPath, System.Text.Encoding.UTF8);
-                }
-                else if (snippet != null) script = snippet;
-                else return "err: path or snippet required";
-                var issues = SceneRefLinter.LintScript(script);
-                return issues.Count == 0 ? "OK: no issues" : SceneRefLinter.FormatReport(path ?? "<snippet>", issues);
-            }, ToolMeta.Get("lint_scene_refs"));
+            CommandRegistry.Register("get_aliases", ExecGetAliases, ToolMeta.Get("get_aliases"));
+            CommandRegistry.Register("list_playtest_files", ExecListPlaytestFiles,
+                required: "", optional: "pattern", allowedDuringCompile: true);
+            CommandRegistry.Register("lint_playtest", ExecLintPlaytest, ToolMeta.Get("lint_playtest"));
+            CommandRegistry.Register("lint_scene_refs", ExecLintSceneRefs, ToolMeta.Get("lint_scene_refs"));
             CommandRegistry.Register("alias_status", ExecAliasStatus, ToolMeta.Get("alias_status"));
             CommandRegistry.Register("validate_playtest_aliases", ExecValidateAliases,
                 required: "", optional: "defs,asset", allowedDuringCompile: true);
@@ -160,76 +79,31 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("get_object_detail", ExecGetObjectDetail,
                 required: "id", optional: "full");
             CommandRegistry.Register("find_objects", ExecFindObjects, ToolMeta.Get("find_objects"));
-            CommandRegistry.Register("resolve_scene_refs", args =>
-            {
-                var refs = JsonHelper.ExtractString(args, "refs");
-                if (string.IsNullOrEmpty(refs)) return "err: refs required";
-                var results = SceneRefResolver.ResolveMany(refs, JsonHelper.ExtractString(args, "fields"));
-                return SceneRefResolver.FormatResults(results);
-            }, ToolMeta.Get("resolve_scene_refs"));
+            CommandRegistry.Register("resolve_scene_refs", ExecResolveSceneRefs, ToolMeta.Get("resolve_scene_refs"));
             CommandRegistry.Register("get_console", ExecGetConsole, ToolMeta.Get("get_console"));
-            CommandRegistry.Register("clear_console", _ => { ConsoleCapture.Clear(); return "ok"; },
+            CommandRegistry.Register("clear_console", ExecClearConsole,
                 required: "", optional: "", allowedDuringCompile: true);
-            CommandRegistry.Register("console_clear_buffer", _ => { ConsoleCapture.ClearDroppedCount(); return "ok"; },
+            CommandRegistry.Register("console_clear_buffer", ExecConsoleClearBuffer,
                 required: "", optional: "", allowedDuringCompile: true);
-            CommandRegistry.Register("get_compile_errors", _ => CompileErrorCapture.GetErrors(), ToolMeta.Get("get_compile_errors"));
-            CommandRegistry.Register("compile_status",
-                _ => $"{CompileNotifier.GetStatus()}|reload={SyncHelper.SyncState}",
-                ToolMeta.Get("compile_status"));
+            CommandRegistry.Register("get_compile_errors", ExecGetCompileErrors, ToolMeta.Get("get_compile_errors"));
+            CommandRegistry.Register("compile_status", ExecCompileStatus, ToolMeta.Get("compile_status"));
             // sync/sync_status: unified reload API (v0.21)
             // N1b: 'sync' triggers a real mutation (SyncHelper.Ops.Refresh +
             // RequestScriptCompilation via TriggerSync) — mutating/notBatchable
             // were missing their explicit flags (both defaulted false), so the
             // read-only gate and IsBatchable never saw this command as unsafe.
-            CommandRegistry.Register("sync",        args => SyncHelper.TriggerSync(
-                JsonHelper.ExtractString(args, "resolve") == "true"),
+            CommandRegistry.Register("sync", ExecSync,
                 mutating: true, notBatchable: true, required: "", optional: "resolve");
-            CommandRegistry.Register("sync_status", _ => SyncHelper.GetSyncStatus(),
+            CommandRegistry.Register("sync_status", ExecSyncStatus,
                 required: "", optional: "", allowedDuringCompile: true);
-            CommandRegistry.Register("recompile", _ =>
-            {
-                var blocked = SyncHelper.ReloadBlockReason(false);
-                if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
-                UnityEditor.AssetDatabase.Refresh();
-                return "ok";
-            }, ToolMeta.Get("recompile"));
-            CommandRegistry.Register("warm_type_cache", _ =>
-            {
-                var count = UnityEditor.TypeCache.GetTypesDerivedFrom<Component>().Count;
-                return $"ok:types={count}";
-            }, required: "", optional: "", allowedDuringCompile: false);
+            CommandRegistry.Register("recompile", ExecRecompile, ToolMeta.Get("recompile"));
+            CommandRegistry.Register("warm_type_cache", ExecWarmTypeCache,
+                required: "", optional: "", allowedDuringCompile: false);
             // G11: force_refresh — CLASS-A recovery sequence for file: UPM packages.
             // 1. ImportPackageSources: targeted ImportAsset bypasses dead directory-monitor.
             // 2. Refresh: whole-DB rescan as fallback for multi-file/asmdef edits.
             // 3. RequestScriptCompilation(None): compile ingested source (CleanBuildCache has 6.x no-op bug).
             // 4. StartTickPump: nudge backgrounded editor to start compiling.
-            CommandRegistry.Register("force_refresh", _ =>
-            {
-                var blocked = SyncHelper.ReloadBlockReason(false);
-                if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
-                if (SessionState.GetBool("MCP_ReloadGuardLocked", false))
-                {
-                    SessionState.EraseBool("MCP_ReloadGuardLocked");
-                    try { EditorApplication.UnlockReloadAssemblies(); } catch { }
-                    try { AssetDatabase.AllowAutoRefresh(); } catch { }
-                    try { AssetDatabase.Refresh(); } catch { }
-                }
-                SyncHelper.Ops.ImportPackageSources();
-                SyncHelper.Ops.Refresh();
-                SyncHelper.Ops.RequestScriptCompilation(RequestScriptCompilationOptions.None);
-                // Defer reload request — calling RequestScriptReload synchronously triggers
-                // immediate domain reload that wipes pending callbacks (B3 fix).
-                // MainThreadDispatcher (EditorApplication.update-driven) reaches a backgrounded
-                // Editor reliably (RELAY-FIX, commit 1bcc90b7); its next-tick guarantee comes
-                // from Drain's snapshot-count pass, not a self-unsubscribing one-shot.
-                MainThreadDispatcher.Enqueue(() =>
-                {
-                    if (!EditorApplication.isCompiling && string.IsNullOrEmpty(SyncHelper.ReloadBlockReason(false)))
-                        EditorUtility.RequestScriptReload();
-                });
-                InternalEditorUtility.RepaintAllViews();
-                SyncHelper.Ops.StartTickPump();
-                return "force_refresh triggered";
             // N1b: same gap as 'sync' above (real mutation, flags defaulted
             // false). allowedDuringCompile stays true (G11: must work when
             // wedged) -- that axis is independent of read-only/batch safety.
@@ -237,172 +111,65 @@ namespace UnityMCP.Editor
             // test_send_with_fallback_does_not_catch_plain_tool_error already
             // pins READ_ONLY_BLOCKED on force_refresh as expected propagation,
             // not a case the recovery ladder silently works around.
-            }, mutating: true, notBatchable: true, required: "", optional: "", allowedDuringCompile: true);
-            CommandRegistry.Register("search_scene", args => SearchHelper.Search(
-                JsonHelper.ExtractString(args, "query"),
-                JsonHelper.ExtractString(args, "root"),
-                int.TryParse(JsonHelper.ExtractString(args, "limit") ?? "50",
-                    out var sl) ? sl : 50,
-                JsonHelper.ExtractString(args, "scene")),
-                ToolMeta.Get("search_scene"));
-            CommandRegistry.Register("search_context", args => SearchHelper.SearchContext(
-                JsonHelper.ExtractString(args, "query") ?? "",
-                int.TryParse(JsonHelper.ExtractString(args, "limit") ?? "30", out var scl) ? scl : 30,
-                JsonHelper.ExtractString(args, "types")),
+            CommandRegistry.Register("force_refresh", ExecForceRefresh,
+                mutating: true, notBatchable: true, required: "", optional: "", allowedDuringCompile: true);
+            CommandRegistry.Register("search_scene", ExecSearchScene, ToolMeta.Get("search_scene"));
+            CommandRegistry.Register("search_context", ExecSearchContext,
                 optional: "query,limit,types",
                 maxResponseChars: 30000);
-            CommandRegistry.Register("object_diff", args => ObjectDiffHelper.Diff(
-                JsonHelper.ExtractString(args, "path_a"),
-                JsonHelper.ExtractString(args, "path_b")),
-                ToolMeta.Get("object_diff"));
+            CommandRegistry.Register("object_diff", ExecObjectDiff, ToolMeta.Get("object_diff"));
             // Python is the authority (owner 2026-10-29): every action but the reads state and project_path is a write, so the editor is
             // registered mutating. playOk: it must run in Play Mode (stop, pause, step); noUndo: it changes no Undo-recorded scene data.
             CommandRegistry.Register("editor", ExecEditor, ToolMeta.Get("editor"));
-            CommandRegistry.Register("ping_object", args =>
-                EditorStateHelper.PingObject(JsonHelper.ExtractString(args, "path")),
-                ToolMeta.Get("ping_object"));
-            CommandRegistry.Register("get_selection", _ => EditorStateHelper.GetSelection(), ToolMeta.Get("get_selection"));
+            CommandRegistry.Register("ping_object", ExecPingObject, ToolMeta.Get("ping_object"));
+            CommandRegistry.Register("get_selection", ExecGetSelection, ToolMeta.Get("get_selection"));
             CommandRegistry.Register("inspect", ExecInspect,
                 required: "", optional: "paths,find_type,components,fields,compress,type,full");
             CommandRegistry.Register("get_unity_events", ExecGetUnityEvents, ToolMeta.Get("get_unity_events"));
             CommandRegistry.Register("runtime_snapshot", ExecRuntimeSnapshot, ToolMeta.Get("runtime_snapshot"));
-            CommandRegistry.Register("validate_references", args => ValidateReferencesHelper.Validate(
-                JsonHelper.ExtractString(args, "path"),
-                ExtractInt(args, "depth", 3),
-                JsonHelper.ExtractString(args, "ignore_optional") == "true",
-                JsonHelper.ExtractString(args, "verbose") == "true"),
-                ToolMeta.Get("validate_references"));
-            CommandRegistry.Register("checkpoint", args =>
-            {
-                var label = JsonHelper.ExtractString(args, "label");
-                if (string.IsNullOrEmpty(label) || label == "checkpoint")
-                    label = $"before_{_recentCmds.Count}_{string.Join("_", _recentCmds)}";
-                UndoGroupHelper.BeginGroup($"AI: {label}");
-                var groupId = UndoGroupHelper.CurrentGroupId;
-                var domainStamp = SyncHelper.CurrentDomainStamp;
-                return $"Checkpoint: {label}\ngroup_id={groupId}\ndomain_stamp={domainStamp}";
-            }, ToolMeta.Get("checkpoint"));
-            CommandRegistry.Register("checkpoint_undo_restore", args =>
-            {
-                var groupIdStr = JsonHelper.ExtractString(args, "group_id");
-                var storedStamp = JsonHelper.ExtractString(args, "domain_stamp");
-                if (!int.TryParse(groupIdStr, out var groupId) || groupId < 0)
-                    return "err=invalid_group_id";
-                if (storedStamp != SyncHelper.CurrentDomainStamp)
-                    return "stale_domain";
-                UndoGroupHelper.RevertToBeforeGroup(groupId);
-                return "ok";
-            }, required: "group_id,domain_stamp", optional: "");
-            CommandRegistry.Register("validate_triggers", args => LayoutValidator.Validate(
-                JsonHelper.ExtractString(args, "root") ?? "/",
-                float.TryParse(JsonHelper.ExtractString(args, "min_distance") ?? "3",
-                    System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var md) ? md : 3f),
-                ToolMeta.Get("validate_triggers"));
-            CommandRegistry.Register("get_spatial_context", args => LayoutValidator.GetSpatialContext(
-                JsonHelper.ExtractString(args, "path"),
-                float.TryParse(JsonHelper.ExtractString(args, "radius") ?? "5",
-                    System.Globalization.NumberStyles.Float,
-                    System.Globalization.CultureInfo.InvariantCulture, out var r) ? r : 5f),
-                ToolMeta.Get("get_spatial_context"));
-            CommandRegistry.Register("fingerprint", args => FingerprintHelper.Fingerprint(
-                JsonHelper.ExtractString(args, "path"),
-                ExtractInt(args, "depth", 3)),
-                ToolMeta.Get("fingerprint"));
-            CommandRegistry.Register("scan_scene", _ => ScanHelper.Scan(), ToolMeta.Get("scan_scene"));
-            CommandRegistry.Register("render_analyze", args =>
-            {
-                var r = RenderAnalyzer.Execute(args);
-                if (r.StartsWith("err:", System.StringComparison.OrdinalIgnoreCase))
-                    throw new InvalidOperationException(r.Substring(4).Trim());
-                return r;
-            }, required: "action", optional: "path,detail,baseline_id,max_events");
-            CommandRegistry.Register("check_colliders", args => ColliderChecker.Check(
-                JsonHelper.ExtractString(args, "path")),
-                ToolMeta.Get("check_colliders"));
-            CommandRegistry.Register("material_audit", args => MaterialAuditHelper.Execute(args), ToolMeta.Get("material_audit"));
-            CommandRegistry.Register("scene_health", args =>
-                SceneHealthAnalyzer.Analyze(JsonHelper.ExtractString(args, "focus") ?? "all"),
-                ToolMeta.Get("scene_health"));
-            CommandRegistry.Register("analyze_lod_culling", args => LodCullingAnalyzer.Analyze(
-                JsonHelper.ExtractString(args, "focus")),
-                ToolMeta.Get("analyze_lod_culling"));
-            CommandRegistry.Register("get_schema", args => SchemaHelper.GetSchema(
-                JsonHelper.ExtractString(args, "type")),
-                required: "type", optional: "");
-            CommandRegistry.Register("get_changes", args => ChangeWatcher.GetChanges(
-                JsonHelper.ExtractString(args, "clear") != "false"),
-                ToolMeta.Get("get_changes"));
-            CommandRegistry.Register("resolve_test_request", args => TestRunner.ResolveRequest(
-                    JsonHelper.ExtractString(args, "request_id")),
-                ToolMeta.Get("resolve_test_request"));
-            CommandRegistry.Register("get_test_run", args => TestRunner.GetRun(
-                    JsonHelper.ExtractString(args, "run_id"),
-                    JsonHelper.ExtractString(args, "compact") == "true"),
+            CommandRegistry.Register("validate_references", ExecValidateReferences, ToolMeta.Get("validate_references"));
+            CommandRegistry.Register("checkpoint", ExecCheckpoint, ToolMeta.Get("checkpoint"));
+            CommandRegistry.Register("checkpoint_undo_restore", ExecCheckpointUndoRestore,
+                required: "group_id,domain_stamp", optional: "");
+            CommandRegistry.Register("validate_triggers", ExecValidateTriggers, ToolMeta.Get("validate_triggers"));
+            CommandRegistry.Register("get_spatial_context", ExecGetSpatialContext, ToolMeta.Get("get_spatial_context"));
+            CommandRegistry.Register("fingerprint", ExecFingerprint, ToolMeta.Get("fingerprint"));
+            CommandRegistry.Register("scan_scene", ExecScanScene, ToolMeta.Get("scan_scene"));
+            CommandRegistry.Register("render_analyze", ExecRenderAnalyze, required: "action", optional: "path,detail,baseline_id,max_events");
+            CommandRegistry.Register("check_colliders", ExecCheckColliders, ToolMeta.Get("check_colliders"));
+            CommandRegistry.Register("material_audit", ExecMaterialAudit, ToolMeta.Get("material_audit"));
+            CommandRegistry.Register("scene_health", ExecSceneHealth, ToolMeta.Get("scene_health"));
+            CommandRegistry.Register("analyze_lod_culling", ExecAnalyzeLodCulling, ToolMeta.Get("analyze_lod_culling"));
+            CommandRegistry.Register("get_schema", ExecGetSchema, required: "type", optional: "");
+            CommandRegistry.Register("get_changes", ExecGetChanges, ToolMeta.Get("get_changes"));
+            CommandRegistry.Register("resolve_test_request", ExecResolveTestRequest, ToolMeta.Get("resolve_test_request"));
+            CommandRegistry.Register("get_test_run", ExecGetTestRun,
                 required: "run_id", optional: "compact", allowedDuringCompile: true);
-            CommandRegistry.Register("list_test_runs", args => TestRunner.ListRuns(
-                    ExtractInt(args, "limit", 20)),
-                ToolMeta.Get("list_test_runs"));
-            CommandRegistry.Register("cancel_test_run", args => TestRunner.CancelRun(
-                    JsonHelper.ExtractString(args, "run_id")),
-                ToolMeta.Get("cancel_test_run"));
-            CommandRegistry.Register("get_test_results", args => TestRunner.GetResults(
-                    JsonHelper.ExtractString(args, "run_id")),
-                ToolMeta.Get("get_test_results"));
-            CommandRegistry.Register("get_test_progress", args => TestRunner.GetProgress(
-                    JsonHelper.ExtractString(args, "run_id")),
-                ToolMeta.Get("get_test_progress"));
-            CommandRegistry.Register("get_test_count", _ => TestRunner.GetTestCount(), ToolMeta.Get("get_test_count"));  // discovery-only, no test run
+            CommandRegistry.Register("list_test_runs", ExecListTestRuns, ToolMeta.Get("list_test_runs"));
+            CommandRegistry.Register("cancel_test_run", ExecCancelTestRun, ToolMeta.Get("cancel_test_run"));
+            CommandRegistry.Register("get_test_results", ExecGetTestResults, ToolMeta.Get("get_test_results"));
+            CommandRegistry.Register("get_test_progress", ExecGetTestProgress, ToolMeta.Get("get_test_progress"));
+            CommandRegistry.Register("get_test_count", ExecGetTestCount, ToolMeta.Get("get_test_count"));  // discovery-only, no test run
 
             // Runtime (Play Mode only), read-only queries
-            CommandRegistry.Register("query_state", args => GameStateHelper.Snapshot(
-                JsonHelper.ExtractString(args, "queries")), ToolMeta.Get("query_state"));
-            CommandRegistry.Register("get_frame_stats", _ => ProfilerHelper.GetFrameStats(), runtime: true,
+            CommandRegistry.Register("query_state", ExecQueryState, ToolMeta.Get("query_state"));
+            CommandRegistry.Register("get_frame_stats", ExecGetFrameStats, runtime: true,
                 required: "", optional: "include");
             CommandRegistry.RegisterAction("profile", Profiling.ProfileRecorder.Dispatch, mutating: true, runtime: true,
                 required: "", optional: "mode,duration,session,focus,compare_with,threshold_ms");
             // NOTE: NOT runtime:true — sessions persist after Play Mode ends
-            CommandRegistry.Register("get_profile_context", args =>
-            {
-                var sid = JsonHelper.ExtractString(args, "session");
-                return sid != null
-                    ? Profiling.ProfileContextSerializer.Get(sid)
-                    : Profiling.ProfileContextSerializer.GetLatest();
-            }, required: "", optional: "session");
-            CommandRegistry.Register("debug_animator", args =>
-            {
-                var go = ComponentSerializer.FindObjectOrThrow(JsonHelper.ExtractString(args, "path"));
-                var animator = go.GetComponent<Animator>();
-                if (animator == null) throw new ArgumentException("No Animator on " + go.name);
-                return AnimatorHelper.GetState(animator);
-            }, ToolMeta.Get("debug_animator"));
-            CommandRegistry.Register("debug_physics", args =>
-            {
-                var go = ComponentSerializer.FindObjectOrThrow(JsonHelper.ExtractString(args, "path"));
-                float radius = JsonHelper.ExtractFloat(args, "radius");
-                return PhysicsHelper.GetState(go, radius > 0f ? radius : 5f);
-            }, ToolMeta.Get("debug_physics"));
-            CommandRegistry.Register("get_memory", args =>
-                MemoryHelper.GetSnapshot(JsonHelper.ExtractString(args, "include") ?? "all"),
-                ToolMeta.Get("get_memory"));
-            CommandRegistry.Register("scene_diff", _ => SceneDiffHelper.Diff(), ToolMeta.Get("scene_diff"));
+            CommandRegistry.Register("get_profile_context", ExecGetProfileContext, required: "", optional: "session");
+            CommandRegistry.Register("debug_animator", ExecDebugAnimator, ToolMeta.Get("debug_animator"));
+            CommandRegistry.Register("debug_physics", ExecDebugPhysics, ToolMeta.Get("debug_physics"));
+            CommandRegistry.Register("get_memory", ExecGetMemory, ToolMeta.Get("get_memory"));
+            CommandRegistry.Register("scene_diff", ExecSceneDiff, ToolMeta.Get("scene_diff"));
             // batch stays here (mutating:false) — it's a dispatcher; its DSL sub-commands are
             // separately guarded/mutating-flagged by CommandRegistry when each one executes.
-            CommandRegistry.Register("batch", args => {
-                var timeoutStr = JsonHelper.ExtractString(args, "timeout_ms");
-                int timeoutMs = 25000;
-                if (timeoutStr != null) int.TryParse(timeoutStr, out timeoutMs);
-                bool atomic = JsonHelper.ExtractString(args, "atomic") == "true";
-                bool validateAliases = JsonHelper.ExtractString(args, "validate_aliases") == "true";
-                return BatchHelper.Execute(
-                    JsonHelper.ExtractString(args, "commands"),
-                    JsonHelper.ExtractString(args, "on_error") ?? "continue",
-                    timeoutMs, atomic, validateAliases);
-            }, mutating: false, required: "commands", optional: "on_error,timeout,atomic,validate_aliases",
+            CommandRegistry.Register("batch", ExecBatch, mutating: false, required: "commands", optional: "on_error,timeout,atomic,validate_aliases",
                allowedDuringCompile: true);
 
             // Spatial queries (read-only)
-            CommandRegistry.Register("spatial_query", args => SpatialHelper.Execute(args), ToolMeta.Get("spatial_query"));
+            CommandRegistry.Register("spatial_query", ExecSpatialQuery, ToolMeta.Get("spatial_query"));
 #if UNITY_MODULE_AI || UNITY_AI_NAVIGATION
             CommandRegistry.Register("navmesh", NavMeshHelper.Execute,
                 mutating: true,
@@ -414,44 +181,26 @@ namespace UnityMCP.Editor
             // execute_code only ever accepts "code" (required) + "undo_label" (optional) —
             // a structured contract, not free-form (Issue 23 review M7). The code BODY the
             // user submits is arbitrary C#, but the command's own args are fixed.
-            CommandRegistry.Register("execute_code", args => CodeExecutor.Execute(
-                JsonHelper.ExtractString(args, "code"),
-                JsonHelper.ExtractString(args, "undo_label") ?? "execute_code"),
+            CommandRegistry.Register("execute_code", ExecExecuteCode,
                 ToolMeta.Get("execute_code"));  // T2.5: ReloadGuard probe must work when wedged
             // Both file_path and new_content are required — a preflight check needs the file
             // and the candidate content to validate (Issue 23 review M8).
-            CommandRegistry.Register("compile_preflight", args =>
-            {
-                var r = CompilePreflightCommand.Execute(args);
-                if (r.StartsWith("ERR")) throw new InvalidOperationException(r);
-                return r;
-            }, ToolMeta.Get("compile_preflight"));  // Roslyn in-process — safe during Unity compile
+            CommandRegistry.Register("compile_preflight", ExecCompilePreflight,
+                ToolMeta.Get("compile_preflight"));  // Roslyn in-process — safe during Unity compile
             CommandRegistry.Register("serialized_field_rename_audit",
-                args => SerializedFieldRenameAudit.Execute(args),
+                ExecSerializedFieldRenameAudit,
                 ToolMeta.Get("serialized_field_rename_audit"));
         }
 
         internal static void RegisterMutatingCommands()
         {
-            CommandRegistry.Register("undo_last", args =>
-            {
-                var turns = ExtractInt(args, "turns", 1);
-                return UndoGroupStack.RevertLast(turns);
-            }, ToolMeta.Get("undo_last"));
+            CommandRegistry.Register("undo_last", ExecUndoLast, ToolMeta.Get("undo_last"));
 
             // Runtime (Play Mode only) — mutate runtime GameObject/component state directly. runtime: true routes them through the
             // Play-Mode-only guard. Both are mutating as in Python (step 7.2), with playOk (they must run in Play Mode) and noUndo
             // (runtime changes are no Undo-recorded scene change).
-            CommandRegistry.Register("invoke_method", args => RuntimeHelper.InvokeMethod(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "component"),
-                JsonHelper.ExtractString(args, "method"),
-                JsonHelper.ExtractString(args, "args")), ToolMeta.Get("invoke_method"));
-            CommandRegistry.Register("set_runtime_property", args => RuntimeHelper.SetRuntimeProperty(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "component"),
-                JsonHelper.ExtractString(args, "field"),
-                JsonHelper.ExtractString(args, "value")), runtime: true,
+            CommandRegistry.Register("invoke_method", ExecInvokeMethod, ToolMeta.Get("invoke_method"));
+            CommandRegistry.Register("set_runtime_property", ExecSetRuntimeProperty, runtime: true,
                 mutating: true, playOk: true, noUndo: true,
                 required: "path,component,field,value", optional: "");
             // Write (mutating)
@@ -461,83 +210,21 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("set_property", ExecSetProperty, mutating: true,
                 required: "", optional: "path,find_type,component,prop,value,dry_run,ref_component_type");
             CommandRegistry.Register("set_property_delta", ExecSetPropertyDelta, ToolMeta.Get("set_property_delta"));
-            CommandRegistry.Register("set_active", args =>
-            {
-                var path   = JsonHelper.ExtractString(args, "path");
-                var active = JsonHelper.ExtractString(args, "active") == "true";
-                var result = ObjectManager.SetActive(path, active);
-                // T16: pend receipt for set_active
-                CommandRouter.PendReceipt(new MutationReceipt {
-                    Path = path, Op = "modify", TargetType = "scene_object",
-                    Prop = "active", Before = (!active).ToString(), After = active.ToString(),
-                    Reversible = true
-                });
-                return result;
-            }, ToolMeta.Get("set_active"));
-            CommandRegistry.Register("wire_event", args =>
-            {
-                var path            = JsonHelper.ExtractString(args, "path");
-                var component       = JsonHelper.ExtractString(args, "component");
-                var eventName       = JsonHelper.ExtractString(args, "event");
-                var target          = JsonHelper.ExtractString(args, "target");
-                var method          = JsonHelper.ExtractString(args, "method");
-                var argType         = JsonHelper.ExtractString(args, "arg_type") ?? "void";
-                var argValue        = JsonHelper.ExtractString(args, "arg_value");
-                var targetCompType  = JsonHelper.ExtractString(args, "target_component_type");
-                var paramTypes      = JsonHelper.ExtractString(args, "parameter_types");
-                var result = ObjectManager.WireEvent(path, component, eventName, target, method,
-                    argType, argValue, targetCompType, paramTypes);
-                // T16: pend receipt for wire_event
-                CommandRouter.PendReceipt(new MutationReceipt {
-                    Path = path, Op = "modify", TargetType = "component",
-                    Prop = eventName, After = "wired", Reversible = false
-                });
-                return result;
-            }, ToolMeta.Get("wire_event"));
-            CommandRegistry.Register("unwire_event", args => ObjectManager.UnwireEvent(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "component"),
-                JsonHelper.ExtractString(args, "event"),
-                JsonHelper.ExtractString(args, "index")), ToolMeta.Get("unwire_event"));
-            CommandRegistry.Register("list_events", args => ObjectManager.ListEvents(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "component"),
-                JsonHelper.ExtractString(args, "event")), ToolMeta.Get("list_events"));
+            CommandRegistry.Register("set_active", ExecSetActive, ToolMeta.Get("set_active"));
+            CommandRegistry.Register("wire_event", ExecWireEvent, ToolMeta.Get("wire_event"));
+            CommandRegistry.Register("unwire_event", ExecUnwireEvent, ToolMeta.Get("unwire_event"));
+            CommandRegistry.Register("list_events", ExecListEvents, ToolMeta.Get("list_events"));
             CommandRegistry.Register("auto_wire", ExecAutoWire, ToolMeta.Get("auto_wire"));
             CommandRegistry.Register("manage_component", ExecManageComponent, ToolMeta.Get("manage_component"));
             CommandRegistry.Register("autofit_collider", ColliderFitHelper.Execute, ToolMeta.Get("autofit_collider"));
             // parent is optional: null/omitted unparents to scene root (ObjectManager.SetParent
             // tolerates a null newParent — this is a valid, intentional operation, not an error).
-            CommandRegistry.Register("set_parent", args =>
-            {
-                var path              = JsonHelper.ExtractString(args, "path");
-                var newParent         = JsonHelper.ExtractString(args, "parent");
-                var worldPositionStays = JsonHelper.ExtractString(args, "world_position_stays") != "false";
-                // Capture old parent before mutation
-                var go        = ComponentSerializer.FindObject(path);
-                var oldParent = go?.transform.parent != null
-                    ? ComponentSerializer.GetPath(go.transform.parent.gameObject)
-                    : null;
-                var result = ObjectManager.SetParent(path, newParent, worldPositionStays);
-                // T16: pend receipt for set_parent
-                CommandRouter.PendReceipt(new MutationReceipt {
-                    Path = path, Op = "modify", TargetType = "scene_object",
-                    Prop = "parent", Before = oldParent, After = newParent, Reversible = true
-                });
-                return result;
-            }, ToolMeta.Get("set_parent"));
-            CommandRegistry.Register("rename_object", args => ObjectManager.RenameObject(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "name")), ToolMeta.Get("rename_object"));
-            CommandRegistry.Register("set_sibling_index", args => ObjectManager.SetSiblingIndex(
-                JsonHelper.ExtractString(args, "path"),
-                int.Parse(JsonHelper.ExtractString(args, "index") ?? "0")), ToolMeta.Get("set_sibling_index"));
+            CommandRegistry.Register("set_parent", ExecSetParent, ToolMeta.Get("set_parent"));
+            CommandRegistry.Register("rename_object", ExecRenameObject, ToolMeta.Get("rename_object"));
+            CommandRegistry.Register("set_sibling_index", ExecSetSiblingIndex, ToolMeta.Get("set_sibling_index"));
             // color is optional: null/omitted leaves the material's existing color untouched
             // (ObjectManager.SetMaterial tolerates a null color, applying only shader if given).
-            CommandRegistry.Register("set_material", args => ObjectManager.SetMaterial(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "color"),
-                JsonHelper.ExtractString(args, "shader")), mutating: true,
+            CommandRegistry.Register("set_material", ExecSetMaterial, mutating: true,
                 required: "path,color", optional: "shader");
             // P-414: scene save must NOT create an undo group (prevents isDirty clearing in Unity 6): noUndo. scene is mutating as in
             // Python (step 7.2) and its read is the READ line `list`; the mutating actions (new/open/discard/close) record
@@ -584,14 +271,10 @@ namespace UnityMCP.Editor
 
             // Bake: lighting (async fire-and-forget) + occlusion (synchronous).
             // Uses Register (not RegisterAction) because 'action' is optional — defaults to "start".
-            CommandRegistry.Register("bake", argsJson =>
-            {
-                var act = JsonHelper.ExtractString(argsJson, "action") ?? "start";
-                return BakeHelper.Execute(act, argsJson);
-            }, ToolMeta.Get("bake"));
+            CommandRegistry.Register("bake", ExecBake, ToolMeta.Get("bake"));
 
             // Spatial mutation: region_clear (delete objects inside polygon)
-            CommandRegistry.Register("region_clear", args => SpatialHelper.RegionClear(args), ToolMeta.Get("region_clear"));
+            CommandRegistry.Register("region_clear", ExecRegionClear, ToolMeta.Get("region_clear"));
         }
 
         internal static void RegisterAsyncCommands()
@@ -625,5 +308,481 @@ namespace UnityMCP.Editor
             CommandRegistry.RegisterAsync("source_patch_write", AsyncSourcePatchWrite,
                 mutating: true, required: "path,content", optional: "");
         }
+
+        // ============================================================
+        // Extracted command handlers (A5 prep). Grouped to mirror the
+        // Register*Commands buckets above. Pure mechanical extraction
+        // from the inline lambdas that used to sit in the Register calls —
+        // no handler logic, flags, or params were changed.
+        // ============================================================
+
+        // ---- Meta command handlers ----
+
+        private static string ExecPing(string args) => "pong";
+
+        private static string ExecGetCapabilities(string args) => GetCapabilities();
+
+        private static string ExecGetEnabledToolsCommand(string args) => ExecGetEnabledTools();
+
+        private static string ExecGetDisabledToolsCommand(string args) => ExecGetDisabledTools();
+
+        private static string ExecSetToolCatalog(string args)
+        {
+            var json = JsonHelper.ExtractString(args, "catalog");
+            if (!string.IsNullOrEmpty(json)) MCPSettings.SetCatalog(json);
+            return "ok";
+        }
+
+        private static string ExecScreenshotIntercepted(string args) =>
+            throw new InvalidOperationException("screenshot intercepted before ExecuteCommand");
+
+        private static string ExecDiagnose(string args) => DiagnoseCommand.Execute(args);
+
+        private static string ExecForcePlayStop(string args)
+        {
+            var blocked = SyncHelper.ReloadBlockReason(false);
+            if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
+            if (EditorApplication.isCompiling)
+            {
+                SessionState.SetBool(PlayModeEpochTracker.PendingPlayStartKey, true);
+                PlayModeEpochTracker.WaitForCompileThenEnterPlayMode();
+                return "play_stop queued (waiting for compile)";
+            }
+            // Direct (non-compiling) entry: EditorApplication.isCompiling being false does
+            // not guarantee isPlaying = true actually succeeds (leftover compile errors from
+            // a finished build, or an in-progress unrelated transition can silently refuse
+            // it) — go through the same reload-survival helper the compiling branch above
+            // uses, so a refused entry here cannot strand PendingPlayStopKey either (C1 r6 #2).
+            PlayModeEpochTracker.EnterPlayModeWithPendingStop();
+            return "play_stop triggered";
+        }
+
+        private static string ExecSetClientLabel(string args)
+        {
+            var label = JsonHelper.ExtractString(args, "label");
+            if (!string.IsNullOrEmpty(label))
+            {
+                MCPServer._mainSlot.Label = label;
+                MainThreadDispatcher.Enqueue(() => Debug.Log($"{BiomeLabel.Tag} Client identified as: {label}"));
+            }
+            return "ok";
+        }
+
+        private static string ExecGetStatus(string args)
+        {
+            var scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"scene={scene.name}");
+            sb.AppendLine($"dirty={scene.isDirty}");
+            sb.AppendLine($"playing={UnityEditor.EditorApplication.isPlaying}");
+            sb.AppendLine($"compiling={UnityEditor.EditorApplication.isCompiling}");
+            sb.AppendLine($"port={MCPServer.ServerPort}");
+            sb.AppendLine($"aliases={AliasExpander.CountConfigAliases()}");
+            sb.AppendLine($"readOnly={IsReadOnly()}");
+            sb.AppendLine($"plugin_version={BiomeVersion.Plugin}");
+            sb.AppendLine($"protocol={BiomeVersion.Protocol}");
+            sb.AppendLine(SourcePatchModePolicy.StatusProjection());
+            return sb.ToString().TrimEnd();
+        }
+
+        // ---- Read command handlers ----
+
+        private static string ExecGetAliases(string args) => GetAliasesText();
+
+        private static string ExecListPlaytestFiles(string args)
+        {
+            var pattern = JsonHelper.ExtractString(args, "pattern") ?? "Playtests/*.playtest";
+            var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+            var absDir = Path.GetFullPath(Path.Combine(projectRoot, Path.GetDirectoryName(pattern) ?? ""));
+            if (!absDir.StartsWith(projectRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                && absDir != projectRoot)
+                return "err: path must be inside project";
+            if (!Directory.Exists(absDir)) return "err: directory not found: " + absDir;
+            var files = Directory.GetFiles(absDir, Path.GetFileName(pattern))
+                .Select(f => f.Substring(projectRoot.Length).TrimStart(Path.DirectorySeparatorChar)
+                              .Replace(Path.DirectorySeparatorChar, '/'))
+                .OrderBy(f => f)
+                .ToArray();
+            return files.Length == 0 ? "no files" : string.Join("\n", files);
+        }
+
+        private static string ExecLintPlaytest(string args)
+        {
+            var path   = JsonHelper.ExtractString(args, "path");
+            var script = JsonHelper.ExtractString(args, "script");
+            if (path != null && script != null) return "err: use path or script, not both";
+            string result;
+            if (path != null)        result = PlaytestLinter.LintFile(path);
+            else if (script != null) result = PlaytestLinter.LintScript(script);
+            else return "err: path or script required";
+            if (result.StartsWith("ERROR") || result.Contains("\nERROR"))
+                throw new InvalidOperationException(result);
+            return result;
+        }
+
+        private static string ExecLintSceneRefs(string args)
+        {
+            var path    = JsonHelper.ExtractString(args, "path");
+            var snippet = JsonHelper.ExtractString(args, "snippet");
+            if (path != null && snippet != null) return "err: path and snippet are mutually exclusive";
+            string script;
+            if (path != null)
+            {
+                var fullPath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", path));
+                if (!File.Exists(fullPath)) return $"err: file not found: {path}";
+                script = File.ReadAllText(fullPath, System.Text.Encoding.UTF8);
+            }
+            else if (snippet != null) script = snippet;
+            else return "err: path or snippet required";
+            var issues = SceneRefLinter.LintScript(script);
+            return issues.Count == 0 ? "OK: no issues" : SceneRefLinter.FormatReport(path ?? "<snippet>", issues);
+        }
+
+        private static string ExecResolveSceneRefs(string args)
+        {
+            var refs = JsonHelper.ExtractString(args, "refs");
+            if (string.IsNullOrEmpty(refs)) return "err: refs required";
+            var results = SceneRefResolver.ResolveMany(refs, JsonHelper.ExtractString(args, "fields"));
+            return SceneRefResolver.FormatResults(results);
+        }
+
+        private static string ExecClearConsole(string args) { ConsoleCapture.Clear(); return "ok"; }
+
+        private static string ExecConsoleClearBuffer(string args) { ConsoleCapture.ClearDroppedCount(); return "ok"; }
+
+        private static string ExecGetCompileErrors(string args) => CompileErrorCapture.GetErrors();
+
+        private static string ExecCompileStatus(string args) =>
+            $"{CompileNotifier.GetStatus()}|reload={SyncHelper.SyncState}";
+
+        private static string ExecSync(string args) => SyncHelper.TriggerSync(
+            JsonHelper.ExtractString(args, "resolve") == "true");
+
+        private static string ExecSyncStatus(string args) => SyncHelper.GetSyncStatus();
+
+        private static string ExecRecompile(string args)
+        {
+            var blocked = SyncHelper.ReloadBlockReason(false);
+            if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
+            UnityEditor.AssetDatabase.Refresh();
+            return "ok";
+        }
+
+        private static string ExecWarmTypeCache(string args)
+        {
+            var count = UnityEditor.TypeCache.GetTypesDerivedFrom<Component>().Count;
+            return $"ok:types={count}";
+        }
+
+        private static string ExecForceRefresh(string args)
+        {
+            var blocked = SyncHelper.ReloadBlockReason(false);
+            if (!string.IsNullOrEmpty(blocked)) return "blocked|reason=" + blocked;
+            if (SessionState.GetBool("MCP_ReloadGuardLocked", false))
+            {
+                SessionState.EraseBool("MCP_ReloadGuardLocked");
+                try { EditorApplication.UnlockReloadAssemblies(); } catch { }
+                try { AssetDatabase.AllowAutoRefresh(); } catch { }
+                try { AssetDatabase.Refresh(); } catch { }
+            }
+            SyncHelper.Ops.ImportPackageSources();
+            SyncHelper.Ops.Refresh();
+            SyncHelper.Ops.RequestScriptCompilation(RequestScriptCompilationOptions.None);
+            // Defer reload request — calling RequestScriptReload synchronously triggers
+            // immediate domain reload that wipes pending callbacks (B3 fix).
+            // MainThreadDispatcher (EditorApplication.update-driven) reaches a backgrounded
+            // Editor reliably (RELAY-FIX, commit 1bcc90b7); its next-tick guarantee comes
+            // from Drain's snapshot-count pass, not a self-unsubscribing one-shot.
+            MainThreadDispatcher.Enqueue(() =>
+            {
+                if (!EditorApplication.isCompiling && string.IsNullOrEmpty(SyncHelper.ReloadBlockReason(false)))
+                    EditorUtility.RequestScriptReload();
+            });
+            InternalEditorUtility.RepaintAllViews();
+            SyncHelper.Ops.StartTickPump();
+            return "force_refresh triggered";
+        }
+
+        private static string ExecSearchScene(string args) => SearchHelper.Search(
+            JsonHelper.ExtractString(args, "query"),
+            JsonHelper.ExtractString(args, "root"),
+            int.TryParse(JsonHelper.ExtractString(args, "limit") ?? "50",
+                out var sl) ? sl : 50,
+            JsonHelper.ExtractString(args, "scene"));
+
+        private static string ExecSearchContext(string args) => SearchHelper.SearchContext(
+            JsonHelper.ExtractString(args, "query") ?? "",
+            int.TryParse(JsonHelper.ExtractString(args, "limit") ?? "30", out var scl) ? scl : 30,
+            JsonHelper.ExtractString(args, "types"));
+
+        private static string ExecObjectDiff(string args) => ObjectDiffHelper.Diff(
+            JsonHelper.ExtractString(args, "path_a"),
+            JsonHelper.ExtractString(args, "path_b"));
+
+        private static string ExecPingObject(string args) =>
+            EditorStateHelper.PingObject(JsonHelper.ExtractString(args, "path"));
+
+        private static string ExecGetSelection(string args) => EditorStateHelper.GetSelection();
+
+        private static string ExecValidateReferences(string args) => ValidateReferencesHelper.Validate(
+            JsonHelper.ExtractString(args, "path"),
+            ExtractInt(args, "depth", 3),
+            JsonHelper.ExtractString(args, "ignore_optional") == "true",
+            JsonHelper.ExtractString(args, "verbose") == "true");
+
+        private static string ExecCheckpoint(string args)
+        {
+            var label = JsonHelper.ExtractString(args, "label");
+            if (string.IsNullOrEmpty(label) || label == "checkpoint")
+                label = $"before_{_recentCmds.Count}_{string.Join("_", _recentCmds)}";
+            UndoGroupHelper.BeginGroup($"AI: {label}");
+            var groupId = UndoGroupHelper.CurrentGroupId;
+            var domainStamp = SyncHelper.CurrentDomainStamp;
+            return $"Checkpoint: {label}\ngroup_id={groupId}\ndomain_stamp={domainStamp}";
+        }
+
+        private static string ExecCheckpointUndoRestore(string args)
+        {
+            var groupIdStr = JsonHelper.ExtractString(args, "group_id");
+            var storedStamp = JsonHelper.ExtractString(args, "domain_stamp");
+            if (!int.TryParse(groupIdStr, out var groupId) || groupId < 0)
+                return "err=invalid_group_id";
+            if (storedStamp != SyncHelper.CurrentDomainStamp)
+                return "stale_domain";
+            UndoGroupHelper.RevertToBeforeGroup(groupId);
+            return "ok";
+        }
+
+        private static string ExecValidateTriggers(string args) => LayoutValidator.Validate(
+            JsonHelper.ExtractString(args, "root") ?? "/",
+            float.TryParse(JsonHelper.ExtractString(args, "min_distance") ?? "3",
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var md) ? md : 3f);
+
+        private static string ExecGetSpatialContext(string args) => LayoutValidator.GetSpatialContext(
+            JsonHelper.ExtractString(args, "path"),
+            float.TryParse(JsonHelper.ExtractString(args, "radius") ?? "5",
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var r) ? r : 5f);
+
+        private static string ExecFingerprint(string args) => FingerprintHelper.Fingerprint(
+            JsonHelper.ExtractString(args, "path"),
+            ExtractInt(args, "depth", 3));
+
+        private static string ExecScanScene(string args) => ScanHelper.Scan();
+
+        private static string ExecRenderAnalyze(string args)
+        {
+            var r = RenderAnalyzer.Execute(args);
+            if (r.StartsWith("err:", System.StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException(r.Substring(4).Trim());
+            return r;
+        }
+
+        private static string ExecCheckColliders(string args) => ColliderChecker.Check(
+            JsonHelper.ExtractString(args, "path"));
+
+        private static string ExecMaterialAudit(string args) => MaterialAuditHelper.Execute(args);
+
+        private static string ExecSceneHealth(string args) =>
+            SceneHealthAnalyzer.Analyze(JsonHelper.ExtractString(args, "focus") ?? "all");
+
+        private static string ExecAnalyzeLodCulling(string args) => LodCullingAnalyzer.Analyze(
+            JsonHelper.ExtractString(args, "focus"));
+
+        private static string ExecGetSchema(string args) => SchemaHelper.GetSchema(
+            JsonHelper.ExtractString(args, "type"));
+
+        private static string ExecGetChanges(string args) => ChangeWatcher.GetChanges(
+            JsonHelper.ExtractString(args, "clear") != "false");
+
+        private static string ExecResolveTestRequest(string args) => TestRunner.ResolveRequest(
+                JsonHelper.ExtractString(args, "request_id"));
+
+        private static string ExecGetTestRun(string args) => TestRunner.GetRun(
+                JsonHelper.ExtractString(args, "run_id"),
+                JsonHelper.ExtractString(args, "compact") == "true");
+
+        private static string ExecListTestRuns(string args) => TestRunner.ListRuns(
+                ExtractInt(args, "limit", 20));
+
+        private static string ExecCancelTestRun(string args) => TestRunner.CancelRun(
+                JsonHelper.ExtractString(args, "run_id"));
+
+        private static string ExecGetTestResults(string args) => TestRunner.GetResults(
+                JsonHelper.ExtractString(args, "run_id"));
+
+        private static string ExecGetTestProgress(string args) => TestRunner.GetProgress(
+                JsonHelper.ExtractString(args, "run_id"));
+
+        private static string ExecGetTestCount(string args) => TestRunner.GetTestCount();
+
+        private static string ExecQueryState(string args) => GameStateHelper.Snapshot(
+            JsonHelper.ExtractString(args, "queries"));
+
+        private static string ExecGetFrameStats(string args) => ProfilerHelper.GetFrameStats();
+
+        private static string ExecGetProfileContext(string args)
+        {
+            var sid = JsonHelper.ExtractString(args, "session");
+            return sid != null
+                ? Profiling.ProfileContextSerializer.Get(sid)
+                : Profiling.ProfileContextSerializer.GetLatest();
+        }
+
+        private static string ExecDebugAnimator(string args)
+        {
+            var go = ComponentSerializer.FindObjectOrThrow(JsonHelper.ExtractString(args, "path"));
+            var animator = go.GetComponent<Animator>();
+            if (animator == null) throw new ArgumentException("No Animator on " + go.name);
+            return AnimatorHelper.GetState(animator);
+        }
+
+        private static string ExecDebugPhysics(string args)
+        {
+            var go = ComponentSerializer.FindObjectOrThrow(JsonHelper.ExtractString(args, "path"));
+            float radius = JsonHelper.ExtractFloat(args, "radius");
+            return PhysicsHelper.GetState(go, radius > 0f ? radius : 5f);
+        }
+
+        private static string ExecGetMemory(string args) =>
+            MemoryHelper.GetSnapshot(JsonHelper.ExtractString(args, "include") ?? "all");
+
+        private static string ExecSceneDiff(string args) => SceneDiffHelper.Diff();
+
+        private static string ExecBatch(string args)
+        {
+            var timeoutStr = JsonHelper.ExtractString(args, "timeout_ms");
+            int timeoutMs = 25000;
+            if (timeoutStr != null) int.TryParse(timeoutStr, out timeoutMs);
+            bool atomic = JsonHelper.ExtractString(args, "atomic") == "true";
+            bool validateAliases = JsonHelper.ExtractString(args, "validate_aliases") == "true";
+            return BatchHelper.Execute(
+                JsonHelper.ExtractString(args, "commands"),
+                JsonHelper.ExtractString(args, "on_error") ?? "continue",
+                timeoutMs, atomic, validateAliases);
+        }
+
+        private static string ExecSpatialQuery(string args) => SpatialHelper.Execute(args);
+
+        private static string ExecExecuteCode(string args) => CodeExecutor.Execute(
+            JsonHelper.ExtractString(args, "code"),
+            JsonHelper.ExtractString(args, "undo_label") ?? "execute_code");
+
+        private static string ExecCompilePreflight(string args)
+        {
+            var r = CompilePreflightCommand.Execute(args);
+            if (r.StartsWith("ERR")) throw new InvalidOperationException(r);
+            return r;
+        }
+
+        private static string ExecSerializedFieldRenameAudit(string args) =>
+            SerializedFieldRenameAudit.Execute(args);
+
+        // ---- Mutating command handlers ----
+
+        private static string ExecUndoLast(string args)
+        {
+            var turns = ExtractInt(args, "turns", 1);
+            return UndoGroupStack.RevertLast(turns);
+        }
+
+        private static string ExecInvokeMethod(string args) => RuntimeHelper.InvokeMethod(
+            JsonHelper.ExtractString(args, "path"),
+            JsonHelper.ExtractString(args, "component"),
+            JsonHelper.ExtractString(args, "method"),
+            JsonHelper.ExtractString(args, "args"));
+
+        private static string ExecSetRuntimeProperty(string args) => RuntimeHelper.SetRuntimeProperty(
+            JsonHelper.ExtractString(args, "path"),
+            JsonHelper.ExtractString(args, "component"),
+            JsonHelper.ExtractString(args, "field"),
+            JsonHelper.ExtractString(args, "value"));
+
+        private static string ExecSetActive(string args)
+        {
+            var path   = JsonHelper.ExtractString(args, "path");
+            var active = JsonHelper.ExtractString(args, "active") == "true";
+            var result = ObjectManager.SetActive(path, active);
+            // T16: pend receipt for set_active
+            CommandRouter.PendReceipt(new MutationReceipt {
+                Path = path, Op = "modify", TargetType = "scene_object",
+                Prop = "active", Before = (!active).ToString(), After = active.ToString(),
+                Reversible = true
+            });
+            return result;
+        }
+
+        private static string ExecWireEvent(string args)
+        {
+            var path            = JsonHelper.ExtractString(args, "path");
+            var component       = JsonHelper.ExtractString(args, "component");
+            var eventName       = JsonHelper.ExtractString(args, "event");
+            var target          = JsonHelper.ExtractString(args, "target");
+            var method          = JsonHelper.ExtractString(args, "method");
+            var argType         = JsonHelper.ExtractString(args, "arg_type") ?? "void";
+            var argValue        = JsonHelper.ExtractString(args, "arg_value");
+            var targetCompType  = JsonHelper.ExtractString(args, "target_component_type");
+            var paramTypes      = JsonHelper.ExtractString(args, "parameter_types");
+            var result = ObjectManager.WireEvent(path, component, eventName, target, method,
+                argType, argValue, targetCompType, paramTypes);
+            // T16: pend receipt for wire_event
+            CommandRouter.PendReceipt(new MutationReceipt {
+                Path = path, Op = "modify", TargetType = "component",
+                Prop = eventName, After = "wired", Reversible = false
+            });
+            return result;
+        }
+
+        private static string ExecUnwireEvent(string args) => ObjectManager.UnwireEvent(
+            JsonHelper.ExtractString(args, "path"),
+            JsonHelper.ExtractString(args, "component"),
+            JsonHelper.ExtractString(args, "event"),
+            JsonHelper.ExtractString(args, "index"));
+
+        private static string ExecListEvents(string args) => ObjectManager.ListEvents(
+            JsonHelper.ExtractString(args, "path"),
+            JsonHelper.ExtractString(args, "component"),
+            JsonHelper.ExtractString(args, "event"));
+
+        private static string ExecSetParent(string args)
+        {
+            var path              = JsonHelper.ExtractString(args, "path");
+            var newParent         = JsonHelper.ExtractString(args, "parent");
+            var worldPositionStays = JsonHelper.ExtractString(args, "world_position_stays") != "false";
+            // Capture old parent before mutation
+            var go        = ComponentSerializer.FindObject(path);
+            var oldParent = go?.transform.parent != null
+                ? ComponentSerializer.GetPath(go.transform.parent.gameObject)
+                : null;
+            var result = ObjectManager.SetParent(path, newParent, worldPositionStays);
+            // T16: pend receipt for set_parent
+            CommandRouter.PendReceipt(new MutationReceipt {
+                Path = path, Op = "modify", TargetType = "scene_object",
+                Prop = "parent", Before = oldParent, After = newParent, Reversible = true
+            });
+            return result;
+        }
+
+        private static string ExecRenameObject(string args) => ObjectManager.RenameObject(
+            JsonHelper.ExtractString(args, "path"),
+            JsonHelper.ExtractString(args, "name"));
+
+        private static string ExecSetSiblingIndex(string args) => ObjectManager.SetSiblingIndex(
+            JsonHelper.ExtractString(args, "path"),
+            int.Parse(JsonHelper.ExtractString(args, "index") ?? "0"));
+
+        private static string ExecSetMaterial(string args) => ObjectManager.SetMaterial(
+            JsonHelper.ExtractString(args, "path"),
+            JsonHelper.ExtractString(args, "color"),
+            JsonHelper.ExtractString(args, "shader"));
+
+        private static string ExecBake(string args)
+        {
+            var act = JsonHelper.ExtractString(args, "action") ?? "start";
+            return BakeHelper.Execute(act, args);
+        }
+
+        private static string ExecRegionClear(string args) => SpatialHelper.RegionClear(args);
     }
 }
