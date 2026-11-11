@@ -21,10 +21,11 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM MAXCHARS <maxchars:match([0-9]+)>
   ITEM DOC <line:string>
   ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
-  ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<adesc:string>]
+  ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [<adesc:string>]
   ITEM VERB <vtext:string>
   EXAMPLES tool.examples
   DECLARE
+  ENSURE (COUNT ARG WHERE it.has_local AND it.has_wname) == 0 ELSE "ARG may not set both LOCAL and WIRE"
   TEMPLATE pyspec HEADER "SPEC_KWARGS: dict[str, dict] = {" FOOTER "}" ESCAPE data
         '{name}': {
             'category': '{category}',
@@ -119,16 +120,16 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
                             Runtime = true,
     END
                             Required = string.Join(",", new string[] {
-    EACH ARG WHERE NOT default AND NOT dtext
-                                "{aname}",
+    EACH ARG WHERE NOT default AND NOT dtext AND NOT local
+                                "{?wname:{wname}}{!wname:{aname}}",
     END
                             }),
                             Optional = string.Join(",", new string[] {
-    EACH ARG WHERE default
-                                "{aname}",
+    EACH ARG WHERE default AND NOT local
+                                "{?wname:{wname}}{!wname:{aname}}",
     END
-    EACH ARG WHERE dtext
-                                "{aname}",
+    EACH ARG WHERE dtext AND NOT local
+                                "{?wname:{wname}}{!wname:{aname}}",
     END
                             }),
     EACH MAXCHARS
@@ -268,8 +269,10 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
   ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
   ITEM BLAST <blast:match([0-9]+)>
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
+  ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [<adesc:string>]
   EXAMPLES tool.examples
   DECLARE
+  ENSURE (COUNT ARG WHERE it.has_local AND it.has_wname) == 0 ELSE "ARG may not set both LOCAL and WIRE"
   TEMPLATE pyspec ESCAPE data
         '{name}': {
             'category': '_INTERNAL',
@@ -287,8 +290,19 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
                         return new CommandOptions
                         {
                             Mutating = {?effect=RO:false}{!effect=RO:true},
-                            Required = "",
-                            Optional = "",
+                            Required = string.Join(",", new string[] {
+    EACH ARG WHERE NOT default AND NOT dtext AND NOT local
+                                "{?wname:{wname}}{!wname:{aname}}",
+    END
+                            }),
+                            Optional = string.Join(",", new string[] {
+    EACH ARG WHERE default AND NOT local
+                                "{?wname:{wname}}{!wname:{aname}}",
+    END
+    EACH ARG WHERE dtext AND NOT local
+                                "{?wname:{wname}}{!wname:{aname}}",
+    END
+                            }),
     EACH GUARD
     {?flag=always:                        AlwaysAllowed = true,}
     {?flag=compile:                        AllowedDuringCompile = true,}

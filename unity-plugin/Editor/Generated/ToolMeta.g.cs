@@ -254,8 +254,10 @@ namespace UnityMCP.Editor
                     return new CommandOptions
                     {
                         Mutating = false,
-                        Required = "",
-                        Optional = "",
+                        Required = string.Join(",", new string[] {
+                        }),
+                        Optional = string.Join(",", new string[] {
+                        }),
                        AllowedDuringCompile = true,
                     };
                 case "create_object":
@@ -374,8 +376,10 @@ namespace UnityMCP.Editor
                     return new CommandOptions
                     {
                         Mutating = true,
-                        Required = "",
-                        Optional = "",
+                        Required = string.Join(",", new string[] {
+                        }),
+                        Optional = string.Join(",", new string[] {
+                        }),
                     };
                 case "export_playtest_aliases_to_defs":
                     return new CommandOptions
@@ -418,8 +422,10 @@ namespace UnityMCP.Editor
                     return new CommandOptions
                     {
                         Mutating = false,
-                        Required = "",
-                        Optional = "",
+                        Required = string.Join(",", new string[] {
+                        }),
+                        Optional = string.Join(",", new string[] {
+                        }),
                        AllowedDuringCompile = true,
                     };
                 case "get_capabilities":
@@ -560,8 +566,10 @@ namespace UnityMCP.Editor
                     return new CommandOptions
                     {
                         Mutating = false,
-                        Required = "",
-                        Optional = "",
+                        Required = string.Join(",", new string[] {
+                        }),
+                        Optional = string.Join(",", new string[] {
+                        }),
                        AllowedDuringCompile = true,
                     };
                 case "get_schema":
@@ -598,8 +606,10 @@ namespace UnityMCP.Editor
                     return new CommandOptions
                     {
                         Mutating = false,
-                        Required = "",
-                        Optional = "",
+                        Required = string.Join(",", new string[] {
+                        }),
+                        Optional = string.Join(",", new string[] {
+                        }),
                        AlwaysAllowed = true,
                        AllowedDuringCompile = true,
                     };
@@ -660,8 +670,10 @@ namespace UnityMCP.Editor
                     return new CommandOptions
                     {
                         Mutating = false,
-                        Required = "",
-                        Optional = "",
+                        Required = string.Join(",", new string[] {
+                        }),
+                        Optional = string.Join(",", new string[] {
+                        }),
                     };
                 case "get_watches":
                     return new CommandOptions
@@ -676,8 +688,10 @@ namespace UnityMCP.Editor
                     return new CommandOptions
                     {
                         Mutating = true,
-                        Required = "",
-                        Optional = "",
+                        Required = string.Join(",", new string[] {
+                        }),
+                        Optional = string.Join(",", new string[] {
+                        }),
                     };
                 case "inspect":
                     return new CommandOptions
@@ -785,8 +799,10 @@ namespace UnityMCP.Editor
                     return new CommandOptions
                     {
                         Mutating = false,
-                        Required = "",
-                        Optional = "",
+                        Required = string.Join(",", new string[] {
+                        }),
+                        Optional = string.Join(",", new string[] {
+                        }),
                        AllowedDuringCompile = true,
                     };
                 case "list_test_runs":
@@ -913,8 +929,10 @@ namespace UnityMCP.Editor
                     return new CommandOptions
                     {
                         Mutating = false,
-                        Required = "",
-                        Optional = "",
+                        Required = string.Join(",", new string[] {
+                        }),
+                        Optional = string.Join(",", new string[] {
+                        }),
                        AlwaysAllowed = true,
                        AllowedDuringCompile = true,
                     };
@@ -1384,8 +1402,10 @@ namespace UnityMCP.Editor
                     return new CommandOptions
                     {
                         Mutating = true,
-                        Required = "",
-                        Optional = "",
+                        Required = string.Join(",", new string[] {
+                        }),
+                        Optional = string.Join(",", new string[] {
+                        }),
                     };
                 case "spatial_query":
                     return new CommandOptions
@@ -1412,8 +1432,10 @@ namespace UnityMCP.Editor
                     return new CommandOptions
                     {
                         Mutating = true,
-                        Required = "",
-                        Optional = "",
+                        Required = string.Join(",", new string[] {
+                        }),
+                        Optional = string.Join(",", new string[] {
+                        }),
                        PlayOk = true,
                     };
                 case "sync_playtest_aliases_from_defs":

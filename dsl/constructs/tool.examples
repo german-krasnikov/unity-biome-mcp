@@ -177,14 +177,14 @@ EXAMPLE INTERNAL is a wire command that has a ToolSpec and nothing else
   EXPECT unrendered.pyparams put_it
   EXPECT unrendered.mdtools ping
 
-EXAMPLE INTERNAL has no effect other than RO and RW, no flag but direct_only and unity_transport, and no argument
+EXAMPLE INTERNAL has no effect other than RO and RW, no flag but direct_only and unity_transport, and no RUNTIME
   SOURCE INTERNAL x WRITE "X."
   SOURCE END
   SOURCE INTERNAL y RO "Y."
   SOURCE   FLAG core
   SOURCE END
   SOURCE INTERNAL z RO "Z."
-  SOURCE   ARG a str
+  SOURCE   RUNTIME
   SOURCE END
   EXPECT diagnostic DECLARE_SYNTAX at 1:12
   EXPECT diagnostic DECLARE_SYNTAX at 4:8
@@ -285,7 +285,7 @@ EXAMPLE cstools prints RUNTIME, MAXCHARS and every GUARD/WIRE flag when a TOOL d
   EXPECT rendered.cstools NotBatchable = true,
   EXPECT rendered.cstools NoUndo = true,
 
-EXAMPLE cstools hardcodes empty Required/Optional for an INTERNAL and never renders a PYTOOL
+EXAMPLE cstools prints the empty-array form for an INTERNAL with no ARG and never renders a PYTOOL
   SOURCE INTERNAL stop_it RO "Stop."
   SOURCE   GUARD play_ok
   SOURCE   WIRE no_undo
@@ -293,8 +293,61 @@ EXAMPLE cstools hardcodes empty Required/Optional for an INTERNAL and never rend
   SOURCE PYTOOL py_side SYSTEM RO "Py."
   SOURCE END
   EXPECT rendered.cstools case "stop_it":
-  EXPECT rendered.cstools Required = "",
-  EXPECT rendered.cstools Optional = "",
+  EXPECT rendered.cstools Required = string.Join(",", new string[] {
+  EXPECT rendered.cstools }),
+  EXPECT rendered.cstools Optional = string.Join(",", new string[] {
+  EXPECT rendered.cstools }),
   EXPECT rendered.cstools PlayOk = true,
   EXPECT rendered.cstools NoUndo = true,
   EXPECT unrendered.cstools py_side
+
+EXAMPLE cstools sorts an INTERNAL's ARGs into Required/Optional like a TOOL's
+  SOURCE INTERNAL fetch_it RW "Fetch."
+  SOURCE   ARG path str
+  SOURCE   ARG limit int DEFAULT 10
+  SOURCE END
+  EXPECT rendered.cstools case "fetch_it":
+  EXPECT rendered.cstools Required = string.Join(",", new string[] {
+  EXPECT rendered.cstools "path",
+  EXPECT rendered.cstools }),
+  EXPECT rendered.cstools Optional = string.Join(",", new string[] {
+  EXPECT rendered.cstools "limit",
+  EXPECT rendered.cstools }),
+
+EXAMPLE cstools excludes a LOCAL ARG from both Required and Optional
+  SOURCE TOOL frobnicate SCENE RW "Frob."
+  SOURCE   ARG target str
+  SOURCE   ARG amount int DEFAULT 5
+  SOURCE   ARG hidden str LOCAL
+  SOURCE   ARG cached int DEFAULT 1 LOCAL
+  SOURCE END
+  EXPECT rendered.cstools case "frobnicate":
+  EXPECT rendered.cstools Required = string.Join(",", new string[] {
+  EXPECT rendered.cstools "target",
+  EXPECT rendered.cstools }),
+  EXPECT rendered.cstools Optional = string.Join(",", new string[] {
+  EXPECT rendered.cstools "amount",
+  EXPECT rendered.cstools }),
+  EXPECT unrendered.cstools hidden
+  EXPECT unrendered.cstools cached
+
+EXAMPLE cstools emits WIRE's name instead of the ARG's own name in Required/Optional
+  SOURCE TOOL relabel SCENE RW "Relabel."
+  SOURCE   ARG old_name str WIRE "new_name"
+  SOURCE   ARG old_opt str DEFAULT_TEXT "x" WIRE "new_opt"
+  SOURCE END
+  EXPECT rendered.cstools case "relabel":
+  EXPECT rendered.cstools Required = string.Join(",", new string[] {
+  EXPECT rendered.cstools "new_name",
+  EXPECT rendered.cstools }),
+  EXPECT rendered.cstools Optional = string.Join(",", new string[] {
+  EXPECT rendered.cstools "new_opt",
+  EXPECT rendered.cstools }),
+  EXPECT unrendered.cstools old_name
+  EXPECT unrendered.cstools old_opt
+
+EXAMPLE ARG LOCAL and WIRE exclude each other
+  SOURCE TOOL conflicted SCENE RW "Conflicted."
+  SOURCE   ARG dual str LOCAL WIRE "x"
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
