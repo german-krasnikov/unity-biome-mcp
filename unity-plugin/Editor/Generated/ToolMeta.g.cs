@@ -1,5 +1,5 @@
 // Generated from dsl/tools.biome
-// source-sha256=8d3c8a351d8bb768c9e25036e4edef9c42756e03019906c35297495ef1d8351e
+// source-sha256=52f2faa606a844ba4cd88389499399b45b180d24e4cc5aa1dc9ac172c716d393
 // Edit the source, then run biome generate.
 
 namespace UnityMCP.Editor
@@ -339,8 +339,6 @@ namespace UnityMCP.Editor
                         Required = string.Join(",", new string[] {
                         }),
                         Optional = string.Join(",", new string[] {
-                            "expected_compile",
-                            "prev_mvid",
                         }),
                        AlwaysAllowed = true,
                        AllowedDuringCompile = true,
@@ -467,9 +465,7 @@ namespace UnityMCP.Editor
                         }),
                         Optional = string.Join(",", new string[] {
                             "fields",
-                            "full",
                             "compress",
-                            "component",
                             "type",
                         }),
                     };
@@ -536,7 +532,6 @@ namespace UnityMCP.Editor
                             "compress",
                             "summary",
                             "incremental",
-                            "full",
                             "scene",
                         }),
                         MaxResponseChars = 50000,
@@ -559,7 +554,6 @@ namespace UnityMCP.Editor
                             "id",
                         }),
                         Optional = string.Join(",", new string[] {
-                            "full",
                         }),
                     };
                 case "get_playtest_run":
@@ -567,6 +561,7 @@ namespace UnityMCP.Editor
                     {
                         Mutating = false,
                         Required = string.Join(",", new string[] {
+                            "run_id",
                         }),
                         Optional = string.Join(",", new string[] {
                         }),
@@ -653,6 +648,7 @@ namespace UnityMCP.Editor
                             "run_id",
                         }),
                         Optional = string.Join(",", new string[] {
+                            "compact",
                         }),
                        AllowedDuringCompile = true,
                     };
@@ -703,7 +699,6 @@ namespace UnityMCP.Editor
                             "paths",
                             "components",
                             "fields",
-                            "full",
                             "compress",
                             "find_type",
                         }),
@@ -1128,6 +1123,10 @@ namespace UnityMCP.Editor
                         Optional = string.Join(",", new string[] {
                             "filter",
                             "request_id",
+                            "assemblies",
+                            "categories",
+                            "group",
+                            "tests",
                             "mode",
                         }),
                        PlayOk = true,
@@ -1435,6 +1434,16 @@ namespace UnityMCP.Editor
                         Required = string.Join(",", new string[] {
                         }),
                         Optional = string.Join(",", new string[] {
+                            "script",
+                            "timeout",
+                            "abort_on_fail",
+                            "defs",
+                            "path",
+                            "snapshot_on_failure",
+                            "fresh",
+                            "before_hook",
+                            "after_hook",
+                            "format",
                         }),
                        PlayOk = true,
                     };

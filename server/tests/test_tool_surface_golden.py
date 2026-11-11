@@ -32,6 +32,12 @@ INTENDED["resolve_tool_schema"]["annotations"] = 'S0 7/11: None -> derive("RO") 
 # S0 8/11: set_llm_config moves off a bare mcp.tool() (no MCP annotation) onto the catalog's
 # derive("RW_IDEM") -- idempotentHint flips True; mutability (guards) stays write (effect RW_IDEM).
 INTENDED["set_llm_config"]["annotations"] = 'S0 8/11: None -> derive("RW_IDEM") (idempotentHint=True, guards stay write)'
+# A3-DESIGN.md Sec 3 #9/#10: run_tests/get_test_run gain real parameters (assemblies/categories/group/tests;
+# compact) that C# already read but the Python wrapper never exposed -- description and schema both change.
+INTENDED["run_tests"]["description"] = "A3 #9: assemblies/categories/group/tests documented"
+INTENDED["run_tests"]["schema"] = "A3 #9: assemblies/categories/group/tests params added (C# already read them)"
+INTENDED["get_test_run"]["description"] = "A3 #10: compact documented"
+INTENDED["get_test_run"]["schema"] = "A3 #10: compact bool param added (C# already read it)"
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:

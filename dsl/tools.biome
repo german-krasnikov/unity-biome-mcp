@@ -374,8 +374,8 @@ END
 TOOL diagnose VERIFY RO "Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`."
   GUARD always
   GUARD compile
-  ARG prev_mvid str DEFAULT_TEXT ""
-  ARG expected_compile bool DEFAULT True
+  ARG prev_mvid str DEFAULT_TEXT "" LOCAL
+  ARG expected_compile bool DEFAULT True LOCAL
 END
 
 PYTOOL discover_tools SYSTEM RO "Find and enable tools by category."
@@ -497,9 +497,9 @@ TOOL get_component CORE RO "Component properties as key-value. For MULTIPLE obje
   ARG path str "Scene path to the GameObject (e.g. /Player or /World/Enemy)"
   ARG type str DEFAULT_TEXT "" "Component type name (e.g. 'Transform', 'Rigidbody', 'MeshRenderer')"
   ARG fields ostr DEFAULT None "Comma-separated fields to return (e.g. 'mass,localPosition') — skips all others, saves tokens"
-  ARG full bool DEFAULT False "Return raw uncompressed response (bypass distillation)"
+  ARG full bool DEFAULT False LOCAL "Return raw uncompressed response (bypass distillation)"
   ARG compress bool DEFAULT False "Strip fields at their default value before TCP transfer — reduces response size"
-  ARG component ostr DEFAULT None
+  ARG component ostr DEFAULT None LOCAL
   TAG async_full
   TAG read_cacheable
   TAG strip_defaults
@@ -562,7 +562,7 @@ TOOL get_hierarchy CORE RO "Scene hierarchy as text tree. For finding specific o
   ARG compress bool DEFAULT False "Group repeated slot/point/mesh siblings to save tokens on dense scenes"
   ARG summary bool DEFAULT False "Return compact root-only counts (~60-100 tokens) instead of the full tree"
   ARG incremental bool DEFAULT False "Return NO_CHANGE if scene is unchanged since last call (saves tokens)"
-  ARG full bool DEFAULT False "Bypass distillation — return raw response"
+  ARG full bool DEFAULT False LOCAL "Bypass distillation — return raw response"
   ARG scene ostr DEFAULT None "Filter to a single scene by name (multi-scene only)"
   TAG async_full
   TAG read_cacheable
@@ -583,7 +583,7 @@ END
 
 TOOL get_object_detail SCENE RO "Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation."
   ARG id int
-  ARG full bool DEFAULT False
+  ARG full bool DEFAULT False LOCAL
   TAG async_full
   TAG strip_defaults
   BLAST 0
@@ -596,6 +596,7 @@ INTERNAL get_playtest_run RO "Polls the asynchronous playtest run that start_pla
   GUARD compile
   FLAG direct_only
   FLAG unity_transport
+  ARG run_id str
   TAG playtest_scenario
 END
 
@@ -640,6 +641,7 @@ TOOL get_test_run TESTS RO "Return the durable JSON snapshot for one exact test 
   GUARD compile
   TIMEOUT 10.0
   ARG run_id str
+  ARG compact bool DEFAULT False "Return a shorter summary instead of the full per-test breakdown"
 END
 
 TOOL get_unity_events SCENE RO "List all UnityEvent persistent listeners in the active scene."
@@ -666,7 +668,7 @@ TOOL inspect CORE RO "Get components for multiple objects at once. paths: comma-
   ARG paths ostr DEFAULT None "Comma-separated scene paths (e.g. '/Player,/Enemy,/Camera')"
   ARG components ostr DEFAULT None "Comma-separated component types to read (omit = all)"
   ARG fields ostr DEFAULT None "Comma-separated field names to project across all objects — reduces tokens"
-  ARG full bool DEFAULT False "Return raw uncompressed response (bypass distillation)"
+  ARG full bool DEFAULT False LOCAL "Return raw uncompressed response (bypass distillation)"
   ARG compress bool DEFAULT False "Strip fields at their default value before TCP transfer — reduces response size"
   ARG find_type ostr DEFAULT None "Component type — auto-populates paths from all scene objects with this component"
   TAG async_full
@@ -1106,6 +1108,10 @@ TOOL run_tests TESTS RW_IDEM "Dispatch Unity tests and return their durable iden
   ARG mode str DEFAULT_TEXT "EditMode" "Test runner mode: EditMode or PlayMode"
   ARG filter ostr DEFAULT None "NUnit filter expression (e.g. 'MyNamespace.MyTest')"
   ARG request_id ostr DEFAULT None "Caller-supplied idempotency ID — reuse to retry a failed dispatch without double-running"
+  ARG assemblies ostr DEFAULT None "Comma-separated assembly names to restrict the run to"
+  ARG categories ostr DEFAULT None "Comma-separated NUnit category names to restrict the run to"
+  ARG group ostr DEFAULT None "Named test group to restrict the run to"
+  ARG tests ostr DEFAULT None "Comma-separated fully-qualified test names to restrict the run to"
   TAG reflect_silent
 END
 
@@ -1455,6 +1461,16 @@ INTERNAL start_playtest RW "Starts a playtest without blocking; get_playtest_run
   GUARD play_ok
   FLAG direct_only
   FLAG unity_transport
+  ARG script ostr DEFAULT None "Inline DSL script (mutually exclusive with path)"
+  ARG timeout float DEFAULT 120.0 "Max seconds to wait for the playtest to finish (default 120)"
+  ARG abort_on_fail bool DEFAULT False "Stop after the first failed step or automatic console failure; remaining steps, including teardown, are skipped"
+  ARG defs ostr DEFAULT None "Inline VAL definitions prepended to script (alias block)"
+  ARG path ostr DEFAULT None "Path to .playtest DSL file on disk (mutually exclusive with script)"
+  ARG snapshot_on_failure bool DEFAULT False "Auto-capture screenshot on first ASSERT failure"
+  ARG fresh bool DEFAULT False "Stop and restart Play Mode before running the script"
+  ARG before_hook ostr DEFAULT None "DSL commands to run before entering Play Mode"
+  ARG after_hook ostr DEFAULT None "DSL commands to run after Play Mode exits"
+  ARG format str DEFAULT_TEXT "text"
   TAG playtest_scenario
   TAG reflect_silent
   TAG scene_state_neutral

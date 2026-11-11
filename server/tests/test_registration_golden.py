@@ -19,7 +19,20 @@ _EDITOR = Path(__file__).resolve().parents[2] / "unity-plugin" / "Editor"
 
 # name -> {field: reason}: a difference the owner approved (a real A1/A2/A3 migration step). Empty at A0's own
 # commit. Any other difference fails, and an entry whose field no longer differs is stale.
-INTENDED: dict[str, dict[str, str]] = {}
+# A3-DESIGN.md Sec 3: the playtest pair, the tests pair and the distillation-alias family (first 3 of 9 commits).
+INTENDED: dict[str, dict[str, str]] = {
+    "diagnose": {"optional": "A3 #22: prev_mvid/expected_compile are LOCAL -- added to satisfy test_catalog_vs_csharp's live-property check"},
+    "get_component": {"optional": "A3 #18: component/full are LOCAL -- added to satisfy test_catalog_vs_csharp's live-property check"},
+    "get_hierarchy": {"optional": "A3 #19: full is LOCAL -- added to satisfy test_catalog_vs_csharp's live-property check"},
+    "get_object_detail": {"optional": "A3 #20: full is LOCAL -- added to satisfy test_catalog_vs_csharp's live-property check"},
+    "inspect": {"optional": "A3 #21: full is LOCAL -- added to satisfy test_catalog_vs_csharp's live-property check"},
+    "run_playtest": {"optional": "A3 #14: before_hook/after_hook/format are genuinely read by TryBuildPlaytestRunRequest -- closes a real batch gap"},
+    "run_tests": {
+        "required": "A3 #8: request_id flips to optional -- catalog already defaults it, AsyncRunTests null-guards it",
+        "optional": "A3 #8: request_id flips to optional -- catalog already defaults it, AsyncRunTests null-guards it",
+    },
+    "start_playtest": {"optional": "A3 #29: mirrors run_playtest's before_hook/after_hook/format gap (same TryBuildPlaytestRunRequest)"},
+}
 
 
 def _parse(line: str) -> tuple[str, dict[str, str]]:

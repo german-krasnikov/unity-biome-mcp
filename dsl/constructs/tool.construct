@@ -26,6 +26,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   EXAMPLES tool.examples
   DECLARE
   ENSURE (COUNT ARG WHERE it.has_local AND it.has_wname) == 0 ELSE "ARG may not set both LOCAL and WIRE"
+  ENSURE (COUNT ARG WHERE it.has_default AND it.has_dtext) == 0 ELSE "ARG may not set both DEFAULT and DEFAULT_TEXT"
   TEMPLATE pyspec HEADER "SPEC_KWARGS: dict[str, dict] = {" FOOTER "}" ESCAPE data
         '{name}': {
             'category': '{category}',
@@ -273,6 +274,7 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
   EXAMPLES tool.examples
   DECLARE
   ENSURE (COUNT ARG WHERE it.has_local AND it.has_wname) == 0 ELSE "ARG may not set both LOCAL and WIRE"
+  ENSURE (COUNT ARG WHERE it.has_default AND it.has_dtext) == 0 ELSE "ARG may not set both DEFAULT and DEFAULT_TEXT"
   TEMPLATE pyspec ESCAPE data
         '{name}': {
             'category': '_INTERNAL',

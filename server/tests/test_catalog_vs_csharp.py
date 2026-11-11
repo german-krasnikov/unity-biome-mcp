@@ -24,11 +24,11 @@ _CALL = re.compile(r'CommandRegistry\.(Register|RegisterAsync|RegisterAction)\(\
 KNOWN_DIVERGENT = {
     "mutating": {"batch"},
     "runtime": set(),
-    "required": {"ask_user", "get_component", "get_schema", "references", "render_analyze", "run_tests", "scene_environment",
+    "required": {"ask_user", "get_component", "get_schema", "references", "render_analyze", "scene_environment",
                  "set_material", "timeline", "validate_playtest_aliases"},
-    "optional": {"animation", "ask_user", "asset", "batch", "diagnose", "get_component", "get_frame_stats", "get_hierarchy",
-                 "get_object_detail", "get_schema", "get_test_run", "inspect", "inspect_uitk", "prefab", "profile", "references",
-                 "render_analyze", "run_playtest", "run_tests", "scene_environment", "screenshot", "set_material", "set_property",
+    "optional": {"animation", "ask_user", "asset", "batch", "get_component", "get_frame_stats",
+                 "get_schema", "inspect", "inspect_uitk", "prefab", "profile", "references",
+                 "render_analyze", "scene_environment", "screenshot", "set_material", "set_property",
                  "shader", "timeline", "uitk_file", "validate_playtest_aliases"},
 }
 

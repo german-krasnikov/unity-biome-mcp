@@ -336,6 +336,10 @@ async def run_tests(
     mode: str = "EditMode",
     filter: str | None = None,
     request_id: str | None = None,
+    assemblies: str | None = None,
+    categories: str | None = None,
+    group: str | None = None,
+    tests: str | None = None,
 ) -> str:
     """Dispatch Unity tests and return their durable identity immediately.
 
@@ -344,6 +348,10 @@ async def run_tests(
     If transport fails after dispatch may have happened, the result is
     ``START-UNKNOWN`` with the same request_id; resolve it instead of retrying
     with a new identity.
+
+    assemblies/categories/tests: comma-separated selection lists narrowing
+    the run (assembly names, NUnit categories, fully-qualified test names).
+    group: a named test group to restrict the run to.
     """
     caller_supplied_request = request_id is not None
     if caller_supplied_request and not _valid_identity(request_id):
@@ -406,6 +414,14 @@ async def run_tests(
     args = {"mode": mode, "request_id": stable_request_id}
     if filter:
         args["filter"] = filter
+    if assemblies:
+        args["assemblies"] = assemblies
+    if categories:
+        args["categories"] = categories
+    if group:
+        args["group"] = group
+    if tests:
+        args["tests"] = tests
 
     try:
         result = await _send("run_tests", args)
@@ -687,7 +703,7 @@ async def _fetch_test_run_json(run_id: str, *, compact: bool = False) -> str:
     return result
 
 
-async def get_test_run(run_id: str) -> str:
+async def get_test_run(run_id: str, compact: bool = False) -> str:
     """Return the durable JSON snapshot for one exact test run.
 
     Fails closed on terminal-invalid evidence: a snapshot claiming
@@ -697,8 +713,11 @@ async def get_test_run(run_id: str) -> str:
     ``PROTOCOL-ERROR|run_id=...|reason=...|snapshot=...`` instead of the raw
     snapshot -- closes the direct-poll path around ``run_tests_wait``'s own
     validation.
+
+    compact=True trims leaf-detail arrays on a non-terminal snapshot (A27) --
+    use for a tight-cadence poll loop; a terminal snapshot is unaffected.
     """
-    result = await _fetch_test_run_json(run_id)
+    result = await _fetch_test_run_json(run_id, compact=compact)
     try:
         data = json.loads(result)
     except (TypeError, ValueError, json.JSONDecodeError):

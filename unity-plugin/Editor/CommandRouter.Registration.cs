@@ -41,7 +41,7 @@ namespace UnityMCP.Editor
                 fileHandler: BuildScreenshotResponse,
                 specialDispatch: true, allowedDuringCompile: true);
             CommandRegistry.Register("diagnose", args => DiagnoseCommand.Execute(args),
-                required: "", optional: "",  // C8: read-only multi-signal snapshot
+                required: "", optional: "prev_mvid,expected_compile",  // C8: read-only multi-signal snapshot
                 alwaysAllowed: true, allowedDuringCompile: true);
             // T5 recovery: play+stop cycle forces domain reload without going through SecurityScan.
             // allowedDuringCompile=true so it works in compile-latch state.
@@ -100,7 +100,7 @@ namespace UnityMCP.Editor
         {
             // Read (non-mutating)
             CommandRegistry.Register("get_hierarchy", ExecGetHierarchy,
-                required: "", optional: "depth,root,filter,components,summary,incremental,scene,compress",
+                required: "", optional: "depth,root,filter,components,summary,incremental,scene,compress,full",
                 maxResponseChars: 50000);
             CommandRegistry.Register("get_aliases", _ => GetAliasesText(), ToolMeta.Get("get_aliases"));
             CommandRegistry.Register("list_playtest_files", args =>
@@ -155,10 +155,10 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("sync_playtest_aliases_from_defs", ExecSyncFromDefs, ToolMeta.Get("sync_playtest_aliases_from_defs"));
             CommandRegistry.Register("export_playtest_aliases_to_defs", ExecExportToDefs, ToolMeta.Get("export_playtest_aliases_to_defs"));
             CommandRegistry.Register("get_component", ExecGetComponent,
-                required: "path,type", optional: "fields,compress");
+                required: "path,type", optional: "fields,compress,component,full");
             CommandRegistry.Register("get_components_list", ExecGetComponentsList, ToolMeta.Get("get_components_list"));
             CommandRegistry.Register("get_object_detail", ExecGetObjectDetail,
-                required: "id", optional: "");
+                required: "id", optional: "full");
             CommandRegistry.Register("find_objects", ExecFindObjects, ToolMeta.Get("find_objects"));
             CommandRegistry.Register("resolve_scene_refs", args =>
             {
@@ -263,7 +263,7 @@ namespace UnityMCP.Editor
                 ToolMeta.Get("ping_object"));
             CommandRegistry.Register("get_selection", _ => EditorStateHelper.GetSelection(), ToolMeta.Get("get_selection"));
             CommandRegistry.Register("inspect", ExecInspect,
-                required: "", optional: "paths,find_type,components,fields,compress,type");
+                required: "", optional: "paths,find_type,components,fields,compress,type,full");
             CommandRegistry.Register("get_unity_events", ExecGetUnityEvents, ToolMeta.Get("get_unity_events"));
             CommandRegistry.Register("runtime_snapshot", ExecRuntimeSnapshot, ToolMeta.Get("runtime_snapshot"));
             CommandRegistry.Register("validate_references", args => ValidateReferencesHelper.Validate(
@@ -598,7 +598,7 @@ namespace UnityMCP.Editor
         {
             CommandRegistry.RegisterAsync("run_tests", AsyncRunTests,
                 mutating: true, playOk: true,
-                required: "request_id", optional: "mode,filter,group,categories,assemblies,tests");
+                required: "", optional: "request_id,mode,filter,group,categories,assemblies,tests");
             CommandRegistry.RegisterAsync("ask_user", AsyncAskUser, required: "", optional: "questions",
                 alwaysAllowed: true, allowedDuringCompile: true);  // UI-only card, no assembly access
             CommandRegistry.RegisterAsync("wait_until", AsyncWaitUntil, ToolMeta.Get("wait_until"));
@@ -609,12 +609,12 @@ namespace UnityMCP.Editor
             // every Edit-mode call before the header is ever read.
             CommandRegistry.RegisterAsync("run_playtest", AsyncRunPlaytest, runtime: false,
                 mutating: true, playOk: true,
-                required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure,fresh");
+                required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure,fresh,before_hook,after_hook,format");
             // E02: internal wire command (not @mcp.tool() until E04) — non-blocking playtest
             // dispatch, paired with get_playtest_run's poll. Same gates as run_playtest above.
             CommandRegistry.RegisterAsync("start_playtest", AsyncStartPlaytest, runtime: false,
                 mutating: true, playOk: true,
-                required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure,fresh");
+                required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure,fresh,before_hook,after_hook,format");
             // E03: internal wire command (not @mcp.tool() until E04) — compact poll for
             // start_playtest. allowedDuringCompile mirrors get_test_run so polling survives an
             // unrelated compile.

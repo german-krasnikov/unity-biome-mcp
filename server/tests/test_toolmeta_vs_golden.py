@@ -27,16 +27,23 @@ _FIELDS = ["mutating", "runtime", "special", "always", "compile", "notbatch", "p
 _ENTRY = re.compile(r'case "([^"]+)":\s*return new CommandOptions\s*\{(.*?)\};', re.DOTALL)
 
 KNOWN_DIVERGENT: dict[str, dict[str, str]] = {}
-for _name in ["ask_user", "get_component", "get_playtest_run", "get_schema", "references", "render_analyze",
+for _name in ["ask_user", "get_component", "get_schema", "references", "render_analyze",
               "run_tests", "scene_environment", "set_material", "source_patch_write", "timeline",
               "validate_playtest_aliases"]:
     KNOWN_DIVERGENT.setdefault(_name, {})["required"] = "A1-DESIGN.md Sec 4: pre-existing ARG-name drift, A3's scope"
-for _name in ["animation", "ask_user", "asset", "batch", "diagnose", "get_component", "get_frame_stats",
-              "get_hierarchy", "get_object_detail", "get_schema", "get_test_run", "inspect", "inspect_uitk",
-              "list_playtest_files", "prefab", "profile", "references", "render_analyze", "run_playtest",
-              "run_tests", "scene_environment", "screenshot", "set_material", "set_property", "shader",
-              "start_playtest", "timeline", "uitk_file", "validate_playtest_aliases"]:
+for _name in ["animation", "ask_user", "asset", "batch", "get_component", "get_frame_stats",
+              "get_schema", "inspect", "inspect_uitk",
+              "list_playtest_files", "prefab", "profile", "references", "render_analyze",
+              "scene_environment", "screenshot", "set_material", "set_property", "shader",
+              "timeline", "uitk_file", "validate_playtest_aliases"]:
     KNOWN_DIVERGENT.setdefault(_name, {})["optional"] = "A1-DESIGN.md Sec 4: pre-existing ARG-name drift, A3's scope"
+# A3-DESIGN.md Sec 3 #8/#9/#14/#29: catalog already declared these ARGs (DEFAULT-based, so always generated as
+# Optional); golden is a frozen pre-A1 C# snapshot that never listed them at all -- stays divergent regardless
+# of the C#-literal fix landing in this commit (run_tests.required's divergence is the same request_id, viewed
+# from the other field: golden still calls it required, the generated/live side no longer does).
+KNOWN_DIVERGENT.setdefault("run_playtest", {})["optional"] = "A3-DESIGN.md Sec 3 #14: golden predates before_hook/after_hook/format"
+KNOWN_DIVERGENT.setdefault("start_playtest", {})["optional"] = "A3-DESIGN.md Sec 3 #29: golden predates before_hook/after_hook/format"
+KNOWN_DIVERGENT.setdefault("run_tests", {})["optional"] = "A3-DESIGN.md Sec 3 #8/#9: golden predates request_id as optional"
 KNOWN_DIVERGENT.setdefault("batch", {})["mutating"] = (
     "dispatcher, not itself a write (test_catalog_vs_csharp.py's own KNOWN_DIVERGENT)")
 

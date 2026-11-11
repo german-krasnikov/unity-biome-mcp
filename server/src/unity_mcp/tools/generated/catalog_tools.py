@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=8d3c8a351d8bb768c9e25036e4edef9c42756e03019906c35297495ef1d8351e
+# source-sha256=52f2faa606a844ba4cd88389499399b45b180d24e4cc5aa1dc9ac172c716d393
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -839,6 +839,7 @@ tools.expect('get_test_results', 'RO', "Legacy result facade. Pass run_id to pre
 ))
 tools.expect('get_test_run', 'RO', "Return the durable JSON snapshot for one exact test run.", (
     ('run_id', str),
+    ('compact', bool, False),
 ))
 tools.expect('get_unity_events', 'RO', "List all UnityEvent persistent listeners in the active scene.", (
     ('path', ostr, None),
@@ -1418,6 +1419,10 @@ tools.expect('run_tests', 'RW_IDEM', "Dispatch Unity tests and return their dura
     ('mode', str, "EditMode"),
     ('filter', ostr, None),
     ('request_id', ostr, None),
+    ('assemblies', ostr, None),
+    ('categories', ostr, None),
+    ('group', ostr, None),
+    ('tests', ostr, None),
 ))
 tools.expect('run_tests_wait', 'RW', "Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required.", (
     ('mode', str, "EditMode"),
