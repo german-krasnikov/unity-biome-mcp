@@ -1,0 +1,478 @@
+# The tool catalog as a project construct (Plans/STEP_7_1_TOOL_CONSTRUCT_DESIGN.md of biome-dsl): TOOL = a tool that Unity handles,
+# PYTOOL = one that only the Python server implements (direct_only), INTERNAL = a wire command that is no MCP tool (ToolSpec only).
+# pyspec = ToolSpec kwargs, pyparams = schema descriptions,
+# pytools = what the catalog expects of the Python side and, for a FORWARD tool, the MCP wrapper itself (runtime: tools/_catalog_runtime.py),
+# mdtools = a row of the catalog table of docs/tools/index.md.
+# pyreads / csreads = the READ actions of a tool, which isMutating asks (step 7.2): ACTION_READS of the Python side, ActionReads.IsRead of the C# side.
+# A template indents its entries 4 columns deeper than its EACH/END lines, so that the dedent of the template leaves 4 for them.
+SURFACE tools CODES TOOLS CONSTRUCTS TOOL, PYTOOL, INTERNAL
+
+CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
+  HEAD TOOL <name:match([a-z][a-z0-9_]*) UNIQUE> <category:enum(CORE|SCENE|COMPONENTS|ASSETS|UGUI|UITOOLKIT|MEDIA|VERIFY|RUNTIME|TESTS|SYSTEM)> <effect:enum(RO|RW|RW_IDEM|DEL)> <summary:string>
+  ITEM CARD <card:enum(set|create|delete|rename|component|generic)>
+  ITEM NEXT <next:string>
+  ITEM DENY
+  ITEM GUARD <flag:enum(always|compile|play_ok)>
+  ITEM WIRE <flag:enum(special|not_batch|no_undo)>
+  ITEM FORWARD
+  ITEM BODY <module:match([a-z_][a-z0-9_]*)>
+  ITEM FLAG <flag:enum(core|tier1|direct_only|unity_transport)>
+  ITEM RUNTIME
+  ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_custom|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
+  ITEM BLAST <blast:match([0-9]+)>
+  ITEM SESSION
+  ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
+  ITEM MAXCHARS <maxchars:match([0-9]+)>
+  ITEM DOC <line:string>
+  ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
+  ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [EXAMPLE <example:string>] [ROLE <role:enum(target|prop|value|name|newname)>] [<adesc:string>]
+  ITEM VERB <vtext:string>
+  ITEM EXPECT <mode:enum(token|bool_arg|arg_echo)> <tokens:string> [<strict:enum(STRICT)>] [ARG <argname:match([a-z][a-z0-9_]*)>]
+  EXAMPLES tool.examples
+  DECLARE
+  ENSURE (COUNT ARG WHERE it.has_local AND it.has_wname) == 0 ELSE "ARG may not set both LOCAL and WIRE"
+  ENSURE (COUNT ARG WHERE it.has_default AND it.has_dtext) == 0 ELSE "ARG may not set both DEFAULT and DEFAULT_TEXT"
+  ENSURE effect == RO OR (ANY TAG WHERE it.tag IN {reflect_silent, reflect_noerror, reflect_custom}) OR COUNT EXPECT > 0 ELSE "a write tool needs a reflect decision: TAG reflect_silent/reflect_noerror/reflect_custom, or EXPECT"
+  ENSURE (COUNT EXPECT WHERE it.mode == bool_arg AND NOT it.has_argname) == 0 ELSE "EXPECT bool_arg needs ARG <name>"
+  ENSURE COUNT BODY <= 1 ELSE "a tool may declare BODY at most once"
+  ENSURE COUNT FORWARD == 0 OR COUNT BODY == 0 ELSE "FORWARD and BODY are mutually exclusive — FORWARD generates the whole tool, BODY generates its signature and calls a hand-written implementation"
+  ENSURE COUNT BODY == 0 OR (COUNT ARG WHERE it.has_raw) == 0 ELSE "BODY tools never call _send through the generated wrapper — ARG RAW only means something for FORWARD"
+  TEMPLATE pyspec HEADER "SPEC_KWARGS: dict[str, dict] = {" FOOTER "}" ESCAPE data
+        '{name}': {
+            'category': '{category}',
+            'effect': '{effect}',
+    EACH FLAG
+            '{flag}': True,
+    END
+    IF ANY RUNTIME
+            'runtime_only': True,
+    END
+    IF ANY SESSION
+            'session': True,
+    END
+    EACH TIMEOUT
+            'timeout_s': {seconds},
+    END
+    EACH MAXCHARS
+            'max_chars': {maxchars},
+    END
+        },
+  END
+  TEMPLATE pyparams HEADER "PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {" FOOTER "}" ESCAPE data
+        '{name}': {
+    EACH ARG
+            {?adesc:'{aname}': "{adesc}",}
+    END
+        },
+  END
+  TEMPLATE pyexamples HEADER "ARG_EXAMPLES: dict[str, dict[str, str]] = {" FOOTER "}" ESCAPE data
+        '{name}': {
+    EACH ARG
+            {?example:'{aname}': "{example}",}
+    END
+        },
+  END
+  TEMPLATE pytools HEADER "from .. import _catalog_runtime as rt\nfrom .._common import bind\n\nAny = rt.ANY\nostr = str | None\noint = int | None\nofloat = float | None\nobool = bool | None\n\n_send = None\n_args = None\ntools = rt.ToolSet()\n\n\ndef register(mcp, send, args):\n    bind(globals(), send, args)\n    tools.install(mcp)\n\n" ESCAPE data
+    tools.expect('{name}', '{effect}', "{summary}", (
+    EACH ARG
+        ('{aname}', {atype}{?default:, {default}}{?dtext:, "{dtext}"}),
+    END
+    IF ANY SESSION
+    )
+    , session=True)
+    ELSE
+    ))
+    END
+    IF ANY FORWARD
+
+
+    @tools.provide
+    async def {name}(
+    EACH ARG
+        {aname}: {atype}{?default:  = {default}}{?dtext:  = "{dtext}"},
+    END
+    ) -> str:
+        ("{summary}"
+    EACH DOC
+         "\n    {line}"
+    END
+        )
+        return await _send('{name}', _args(
+    EACH ARG
+            {aname}=rt.w_{atype}({aname}{?omit:, {default}}{?omit2:, "{dtext}"}{?raw:, raw=True}),
+    END
+        ))
+
+
+    END
+    IF ANY BODY
+    EACH BODY
+    tools.expect_body('{name}', '{module}')
+    END
+
+
+    @tools.provide
+    async def {name}(
+    EACH ARG
+        {aname}: {atype}{?default:  = {default}}{?dtext:  = "{dtext}"},
+    END
+    ) -> str:
+        ("{summary}"
+    EACH DOC
+         "\n    {line}"
+    END
+        )
+    EACH BODY
+        from .. import {module} as _biome_body_mod
+        return await _biome_body_mod._{name}_body(
+    END
+    EACH ARG
+            {aname}={aname},
+    END
+        )
+
+
+    END
+  END
+  TEMPLATE pyreads HEADER "ACTION_READS: dict[str, frozenset[str]] = {" FOOTER "}" ESCAPE data
+    IF ANY READ
+        '{name}': frozenset({
+    EACH READ
+            '{action}',
+    END
+        }),
+    END
+  END
+  TEMPLATE csreads HEADER "namespace UnityMCP.Editor\n{\n    // The actions of a command that only read (the READ lines of dsl/tools.biome): what CommandRegistry.IsMutating asks. A command that is\n    // not here, or an action that is not listed (or is spelt in another case), is a write.\n    internal static class ActionReads\n    {\n        internal static bool IsRead(string cmd, string action)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    return false;\n            }\n        }\n    }\n}" ESCAPE data
+    IF ANY READ
+                    case "{name}":
+                        switch (action)
+                        {
+    EACH READ
+                            case "{action}":
+    END
+                                return true;
+                            default:
+                                return false;
+                        }
+    END
+  END
+  TEMPLATE cstools HEADER "namespace UnityMCP.Editor\n{\n    // CommandOptions for every TOOL/INTERNAL of dsl/tools.biome that this construct can state: Mutating\n    // (effect != RO), Runtime, Required/Optional (from ARG), MaxResponseChars (from MAXCHARS), and the GUARD/WIRE flags.\n    // Description, FileHandler and MutatingArgsPolicy are not data here: a caller sets one on the returned struct (a mutable\n    // struct) after Get. kind (Register/RegisterAction/RegisterAsync) is a call-site choice, not data here either.\n    internal static class ToolMeta\n    {\n        internal static CommandOptions Get(string cmd)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    throw new System.ArgumentException($\"ToolMeta.Get: no entry for '{cmd}'\");\n            }\n        }\n    }\n}" ESCAPE data
+                    case "{name}":
+                        return new CommandOptions
+                        {
+                            Mutating = {?effect=RO:false}{!effect=RO:true},
+    IF ANY RUNTIME
+                            Runtime = true,
+    END
+                            Required = string.Join(",", new string[] {
+    EACH ARG WHERE NOT default AND NOT dtext AND NOT local
+                                "{?wname:{wname}}{!wname:{aname}}",
+    END
+                            }),
+                            Optional = string.Join(",", new string[] {
+    EACH ARG WHERE default AND NOT local
+                                "{?wname:{wname}}{!wname:{aname}}",
+    END
+    EACH ARG WHERE dtext AND NOT local
+                                "{?wname:{wname}}{!wname:{aname}}",
+    END
+                            }),
+    EACH MAXCHARS
+                            MaxResponseChars = {maxchars},
+    END
+    EACH GUARD
+    {?flag=always:                        AlwaysAllowed = true,}
+    {?flag=compile:                        AllowedDuringCompile = true,}
+    {?flag=play_ok:                        PlayOk = true,}
+    END
+    EACH WIRE
+    {?flag=special:                        SpecialDispatch = true,}
+    {?flag=not_batch:                        NotBatchable = true,}
+    {?flag=no_undo:                        NoUndo = true,}
+    END
+                        };
+  END
+  TEMPLATE mdtools HEADER "| Tool | Plane | Category | Effect |\n|---|---|---|---|" ESCAPE md
+    | `{name}` | unity | {category} | {effect} |
+  END
+  TEMPLATE csverbs HEADER "namespace UnityMCP.Editor.Chat\n{\n    // The human verb of a tool in the chat UI (VERB lines of dsl/tools.biome); a tool without one falls back to its name.\n    internal static class ToolVerbs\n    {\n        internal static readonly (string Tool, string Verb)[] Rows =\n        {" FOOTER "        };\n    }\n}" ESCAPE data
+    EACH VERB
+            ("{name}", "{vtext}"),
+    END
+  END
+  TEMPLATE csroster HEADER "namespace UnityMCP.Editor\n{\n    // The default roster of the settings UI, one row per command of dsl/tools.biome that is an MCP tool (category, name); MCPSettings groups it.\n    internal static class ToolRoster\n    {\n        internal static readonly (string Category, string Name)[] Rows =\n        {" FOOTER "        };\n    }\n}" ESCAPE data
+            ("{category}", "{name}"),
+  END
+  TEMPLATE pytags HEADER "TAG_PAIRS: tuple[tuple[str, str], ...] = (" FOOTER ")" ESCAPE data
+    EACH TAG
+        ('{tag}', '{name}'),
+    END
+  END
+  TEMPLATE pyblast HEADER "BLAST_RADIUS: dict[str, int] = {" FOOTER "}" ESCAPE data
+    EACH BLAST
+        '{name}': {blast},
+    END
+  END
+  TEMPLATE pyexpect HEADER "# A literal success token (or an OR-list, pipe-separated) that confirms a\n# mutation (EXPECT rows of dsl/tools.biome): see reflect/rules_catalog.py.\n# mode: 'token' (tokens is the OR-list), 'bool_arg' (tokens is 'true_token|false_token', argname picks the branch), 'arg_echo' (tokens is the arg names whose presence each requires its own '<name>=' echo).\nEXPECT_RULES: dict[str, tuple] = {" FOOTER "}" ESCAPE data
+    EACH EXPECT
+        '{name}': ('{mode}', '{tokens}', {?strict:True}{!strict:False}, {?argname:'{argname}'}{!argname:None}),
+    END
+  END
+  TEMPLATE cscard HEADER "namespace UnityMCP.Editor\n{\n    // generated: the card of a tool (CARD lines of dsl/tools.biome)\n    internal static partial class ToolUi\n    {\n        internal static string CardOf(string cmd)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    return null;\n            }\n        }\n    }\n}" ESCAPE data
+    EACH CARD
+                    case "{name}": return "{card}";
+    END
+  END
+  TEMPLATE csnext HEADER "namespace UnityMCP.Editor\n{\n    internal static partial class ToolUi\n    {\n        internal static string NextAfter(string cmd)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    return null;\n            }\n        }\n    }\n}" ESCAPE data
+    EACH NEXT
+                    case "{name}": return "{next}";
+    END
+  END
+  TEMPLATE csdeny HEADER "using System;\nusing System.Collections.Generic;\n\nnamespace UnityMCP.Editor\n{\n    internal static partial class ToolUi\n    {\n        internal static readonly HashSet<string> PlaytestDenied = new HashSet<string>(StringComparer.Ordinal)\n        {" FOOTER "        };\n    }\n}" ESCAPE data
+    IF ANY DENY
+            "{name}",
+    END
+  END
+  TEMPLATE csrole HEADER "namespace UnityMCP.Editor\n{\n    internal static partial class ToolUi\n    {\n        // (tool, role, argument name): what the mutation card reads. The argument names are the catalog's own.\n        internal static readonly (string tool, string role, string arg)[] Roles =\n        {" FOOTER "        };\n    }\n}" ESCAPE data
+    EACH ARG
+            {?role:("{name}", "{role}", "{aname}"),}
+    END
+  END
+END
+
+CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
+  HEAD PYTOOL <name:match([a-z][a-z0-9_]*) UNIQUE> <category:enum(CORE|SCENE|COMPONENTS|ASSETS|UGUI|UITOOLKIT|MEDIA|VERIFY|RUNTIME|TESTS|SYSTEM)> <effect:enum(RO|RW|RW_IDEM|DEL)> <summary:string>
+  ITEM CARD <card:enum(set|create|delete|rename|component|generic)>
+  ITEM NEXT <next:string>
+  ITEM DENY
+  ITEM BODY <module:match([a-z_][a-z0-9_]*)>
+  ITEM FLAG <flag:enum(core|tier1)>
+  ITEM RUNTIME
+  ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_custom|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
+  ITEM BLAST <blast:match([0-9]+)>
+  ITEM SESSION
+  ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
+  ITEM DOC <line:string>
+  ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
+  ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)>] [DEFAULT_TEXT <dtext:string>] [ROLE <role:enum(target|prop|value|name|newname)>] [<adesc:string>]
+  ITEM VERB <vtext:string>
+  ITEM EXPECT <mode:enum(token|bool_arg|arg_echo)> <tokens:string> [<strict:enum(STRICT)>] [ARG <argname:match([a-z][a-z0-9_]*)>]
+  EXAMPLES tool.examples
+  DECLARE
+  ENSURE effect == RO OR (ANY TAG WHERE it.tag IN {reflect_silent, reflect_noerror, reflect_custom}) OR COUNT EXPECT > 0 ELSE "a write tool needs a reflect decision: TAG reflect_silent/reflect_noerror/reflect_custom, or EXPECT"
+  ENSURE (COUNT EXPECT WHERE it.mode == bool_arg AND NOT it.has_argname) == 0 ELSE "EXPECT bool_arg needs ARG <name>"
+  ENSURE COUNT BODY <= 1 ELSE "a tool may declare BODY at most once"
+  TEMPLATE pyspec ESCAPE data
+        '{name}': {
+            'category': '{category}',
+            'effect': '{effect}',
+            'direct_only': True,
+    EACH FLAG
+            '{flag}': True,
+    END
+    IF ANY RUNTIME
+            'runtime_only': True,
+    END
+    IF ANY SESSION
+            'session': True,
+    END
+    EACH TIMEOUT
+            'timeout_s': {seconds},
+    END
+        },
+  END
+  TEMPLATE pyparams ESCAPE data
+        '{name}': {
+    EACH ARG
+            {?adesc:'{aname}': "{adesc}",}
+    END
+        },
+  END
+  TEMPLATE pytools ESCAPE data
+    tools.expect('{name}', '{effect}', "{summary}", (
+    EACH ARG
+        ('{aname}', {atype}{?default:, {default}}{?dtext:, "{dtext}"}),
+    END
+    IF ANY SESSION
+    )
+    , session=True)
+    ELSE
+    ))
+    END
+    IF ANY BODY
+    EACH BODY
+    tools.expect_body('{name}', '{module}')
+    END
+
+
+    @tools.provide
+    async def {name}(
+    EACH ARG
+        {aname}: {atype}{?default:  = {default}}{?dtext:  = "{dtext}"},
+    END
+    ) -> str:
+        ("{summary}"
+    EACH DOC
+         "\n    {line}"
+    END
+        )
+    EACH BODY
+        from .. import {module} as _biome_body_mod
+        return await _biome_body_mod._{name}_body(
+    END
+    EACH ARG
+            {aname}={aname},
+    END
+        )
+
+
+    END
+  END
+  TEMPLATE pyreads ESCAPE data
+    IF ANY READ
+        '{name}': frozenset({
+    EACH READ
+            '{action}',
+    END
+        }),
+    END
+  END
+  TEMPLATE csreads ESCAPE data
+    IF ANY READ
+                    case "{name}":
+                        switch (action)
+                        {
+    EACH READ
+                            case "{action}":
+    END
+                                return true;
+                            default:
+                                return false;
+                        }
+    END
+  END
+  TEMPLATE mdtools ESCAPE md
+    | `{name}` | python | {category} | {effect} |
+  END
+  TEMPLATE csverbs ESCAPE data
+    EACH VERB
+            ("{name}", "{vtext}"),
+    END
+  END
+  TEMPLATE csroster ESCAPE data
+            ("{category}", "{name}"),
+  END
+  TEMPLATE cspyonly HEADER "namespace UnityMCP.Editor\n{\n    // The tools that only the Python server implements (PYTOOL lines of dsl/tools.biome): a direct TCP caller gets an actionable error.\n    internal static class PythonOnlyTools\n    {\n        internal static readonly System.Collections.Generic.HashSet<string> Names = new System.Collections.Generic.HashSet<string>\n        {" FOOTER "        };\n    }\n}" ESCAPE data
+            "{name}",
+  END
+  TEMPLATE pytags ESCAPE data
+    EACH TAG
+        ('{tag}', '{name}'),
+    END
+  END
+  TEMPLATE pyblast ESCAPE data
+    EACH BLAST
+        '{name}': {blast},
+    END
+  END
+  TEMPLATE pyexpect ESCAPE data
+    EACH EXPECT
+        '{name}': ('{mode}', '{tokens}', {?strict:True}{!strict:False}, {?argname:'{argname}'}{!argname:None}),
+    END
+  END
+  TEMPLATE cscard ESCAPE data
+    EACH CARD
+                    case "{name}": return "{card}";
+    END
+  END
+  TEMPLATE csnext ESCAPE data
+    EACH NEXT
+                    case "{name}": return "{next}";
+    END
+  END
+  TEMPLATE csdeny ESCAPE data
+    IF ANY DENY
+            "{name}",
+    END
+  END
+  TEMPLATE csrole ESCAPE data
+    EACH ARG
+            {?role:("{name}", "{role}", "{aname}"),}
+    END
+  END
+END
+
+CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
+  HEAD INTERNAL <name:match([a-z][a-z0-9_]*) UNIQUE> <effect:enum(RO|RW)> <summary:string>
+  ITEM DENY
+  ITEM GUARD <flag:enum(always|compile|play_ok)>
+  ITEM WIRE <flag:enum(special|not_batch|no_undo)>
+  ITEM FLAG <flag:enum(direct_only|unity_transport)>
+  ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_custom|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
+  ITEM BLAST <blast:match([0-9]+)>
+  ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
+  ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [<adesc:string>]
+  EXAMPLES tool.examples
+  DECLARE
+  ENSURE (COUNT ARG WHERE it.has_local AND it.has_wname) == 0 ELSE "ARG may not set both LOCAL and WIRE"
+  ENSURE (COUNT ARG WHERE it.has_default AND it.has_dtext) == 0 ELSE "ARG may not set both DEFAULT and DEFAULT_TEXT"
+  ENSURE effect == RO OR (ANY TAG WHERE it.tag IN {reflect_silent, reflect_noerror, reflect_custom}) ELSE "a write command needs a reflect decision: TAG reflect_silent/reflect_noerror/reflect_custom"
+  TEMPLATE pyspec ESCAPE data
+        '{name}': {
+            'category': '_INTERNAL',
+            'effect': '{effect}',
+    EACH FLAG
+            '{flag}': True,
+    END
+    EACH TIMEOUT
+            'timeout_s': {seconds},
+    END
+        },
+  END
+  TEMPLATE cstools ESCAPE data
+                    case "{name}":
+                        return new CommandOptions
+                        {
+                            Mutating = {?effect=RO:false}{!effect=RO:true},
+                            Required = string.Join(",", new string[] {
+    EACH ARG WHERE NOT default AND NOT dtext AND NOT local
+                                "{?wname:{wname}}{!wname:{aname}}",
+    END
+                            }),
+                            Optional = string.Join(",", new string[] {
+    EACH ARG WHERE default AND NOT local
+                                "{?wname:{wname}}{!wname:{aname}}",
+    END
+    EACH ARG WHERE dtext AND NOT local
+                                "{?wname:{wname}}{!wname:{aname}}",
+    END
+                            }),
+    EACH GUARD
+    {?flag=always:                        AlwaysAllowed = true,}
+    {?flag=compile:                        AllowedDuringCompile = true,}
+    {?flag=play_ok:                        PlayOk = true,}
+    END
+    EACH WIRE
+    {?flag=special:                        SpecialDispatch = true,}
+    {?flag=not_batch:                        NotBatchable = true,}
+    {?flag=no_undo:                        NoUndo = true,}
+    END
+                        };
+  END
+  TEMPLATE pytags ESCAPE data
+    EACH TAG
+        ('{tag}', '{name}'),
+    END
+  END
+  TEMPLATE pyblast ESCAPE data
+    EACH BLAST
+        '{name}': {blast},
+    END
+  END
+  TEMPLATE csdeny ESCAPE data
+    IF ANY DENY
+            "{name}",
+    END
+  END
+END

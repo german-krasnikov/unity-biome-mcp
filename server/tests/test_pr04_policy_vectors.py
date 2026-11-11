@@ -133,19 +133,16 @@ def test_default_metadata_vectors(cmd, expected):
     assert spec.runtime_only is expected["runtime_only"]
 
 
-# ── Discovered, characterized (not fixed) cross-route asymmetry ────────────
+# ── Was a characterized cross-route asymmetry; unified by step 7.2 (owner 2026-10-29: Python is the authority) ────
 
-def test_editor_play_action_write_classification_asymmetric_with_csharp():
-    """Python's is_write("editor", {"action": "play"}) is True (only "state"/
-    "project_path" are reads per middleware_types._EDITOR_READ_ACTIONS), while
-    C#'s CommandRegistry.IsMutating("editor", {"action":"play"}) is False
-    ("play/stop/select don't corrupt scene data" -- CommandRegistry.cs). This
-    pins Python's actual (stricter) behavior; it is not a fix and not an
-    xfail. See CommandRouterTests.cs::
-    Pr04_EditorPlayAction_IsMutating_False_AsymmetricWithPython for the pinned
-    C#-side counterpart. Consistent with the plan's "Python консервативно
-    защищает свой endpoint, C# авторитетно защищает Unity" -- not necessarily
-    a bug, flagged for a future PR if the team wants the two routes unified.
+def test_editor_play_action_is_a_write_on_both_routes():
+    """Python's is_write("editor", {"action": "play"}) is True: only "state" and
+    "project_path" are reads (the READ lines of the editor in dsl/tools.biome). C# used to
+    say False ("play/stop/select don't corrupt scene data"); since step 7.2 its
+    CommandRegistry.IsMutating asks the same generated decision and says True, and the
+    editor keeps running in Play Mode and out of the Undo history by its playOk and noUndo
+    registration. See CommandRouterTests.cs::Pr04_EditorPlayAction_IsMutating_True_AgreesWithPython
+    for the C#-side counterpart.
     """
     assert is_write("editor", {"action": "play"}) is True
 

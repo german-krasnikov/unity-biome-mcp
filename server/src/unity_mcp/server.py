@@ -170,6 +170,7 @@ class _UnstructuredMCP(FastMCP):
 
 from .bridge_result import unwrap_bridge_result
 from .connection_slot import ConnectionSlot
+from .decisions.guard_facts import Verdict, guard_verdict
 from .errors import UnityUnavailableError
 from .lockfile import acquire_lock, cleanup_stale_locks, release_lock, write_lock_metadata
 from .middleware import Middleware, wrap_send
@@ -395,11 +396,13 @@ def _stdio_alive() -> bool:
 
 
 def _check_read_only(cmd: str, args: dict) -> None:
-    """Raise ToolError when the server is in read-only mode and cmd is a write."""
-    if os.environ.get("UNITY_MCP_READ_ONLY", "0") != "1":
-        return
-    from .middleware_types import is_write
-    if is_write(cmd, args, unknown_is_write=True):
+    """Raise ToolError when the server is in read-only mode and cmd is a write (the DECISION guardVerdict, site py)."""
+    read_only = os.environ.get("UNITY_MCP_READ_ONLY", "0") == "1"
+    mutating = False
+    if read_only:  # a writable server never looks at the call
+        from .middleware_types import is_write
+        mutating = is_write(cmd, args, unknown_is_write=True)
+    if guard_verdict("py", read_only=read_only, mutating=mutating) == Verdict.READ_ONLY_BLOCKED:
         raise ToolError(
             f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
         )
@@ -435,7 +438,7 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
         raise ToolError("Server not initialized. Restart MCP server (/mcp).")
     from .tools.tool_specs import _SPECS
     spec = _SPECS.get(cmd)
-    if spec is not None and spec.direct_only and not spec.unity_transport:
+    if guard_verdict("py", python_only=bool(spec is not None and spec.direct_only and not spec.unity_transport)) == Verdict.PYTHON_ONLY:
         raise ToolError(
             f"'{cmd}' is a Python-only control-plane tool and cannot be sent to Unity. "
             "Call it as a typed MCP tool."

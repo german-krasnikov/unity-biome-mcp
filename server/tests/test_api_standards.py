@@ -20,24 +20,24 @@ import pytest
 # bool = True params that are semantically correct (not Pattern A violations).
 # Tuple: (module_short_name, function_name, param_name)
 BOOL_TRUE_EXCEPTIONS = {
-    ("objects", "transfer_object", "world_position_stays"),   # semantic: False=snap
-    ("objects", "set_parent", "world_position_stays"),        # semantic: False=snap
-    ("diagnose", "diagnose", "expected_compile"),             # semantic: True=normal state
+    ("catalog_tools", "transfer_object", "world_position_stays"),   # semantic: False=snap
+    ("catalog_tools", "set_parent", "world_position_stays"),        # semantic: False=snap
+    ("catalog_tools", "diagnose", "expected_compile"),        # semantic: True=normal state (SV8: BODY, now generated)
     ("gating", "discover_tools", "enable"),                   # semantic: True=enable on discover
     ("meta", "discover_tools", "enable"),                     # semantic: True=enable on discover
-    ("scene", "get_changes", "clear"),                        # semantic: True=consume-on-read
-    ("spatial", "region_clear", "dry_run"),                   # safety guard: preview before delete
-    ("asset", "asset", "include_deps"),                       # semantic: True=include deps by default
-    ("runtime", "run_playtest_suite", "stop_after"),          # semantic: True=stop suite on failure
-    ("transaction", "scene_change_plan", "dry_run"),          # semantic: True=safe preview by default
-    ("transaction", "apply_scene_change", "verify"),          # semantic: True=verify after apply
-    ("transaction", "apply_scene_change", "save"),            # semantic: True=save after apply
-    ("scene", "scene", "include_unsaved"),                    # semantic: save_copy always captures dirty state; True=expected default
+    ("catalog_tools", "get_changes", "clear"),                # semantic: True=consume-on-read
+    ("catalog_tools", "region_clear", "dry_run"),              # safety guard: preview before delete (SV8: BODY, now generated)
+    ("catalog_tools", "asset", "include_deps"),                # semantic: True=include deps by default (SV8: BODY, now generated)
+    ("catalog_tools", "run_playtest_suite", "stop_after"),     # semantic: True=stop suite on failure (SV8: BODY, now generated)
+    ("catalog_tools", "scene_change_plan", "dry_run"),         # semantic: True=safe preview by default (SV8: BODY, now generated)
+    ("catalog_tools", "apply_scene_change", "verify"),         # semantic: True=verify after apply (SV8: BODY, now generated)
+    ("catalog_tools", "apply_scene_change", "save"),           # semantic: True=save after apply (SV8: BODY, now generated)
+    ("catalog_tools", "scene", "include_unsaved"),             # semantic: save_copy always captures dirty state; True=expected default (SV8: BODY, now generated)
 }
 
 # bool params with no default — allowed ONLY when the bool IS the payload.
 BOOL_NO_DEFAULT_ALLOWED = {
-    ("objects", "set_active", "active"),  # sole purpose: set active state
+    ("catalog_tools", "set_active", "active"),  # sole purpose: set active state
 }
 
 # Modules to enforce (short names match module_path.split(".")[-1]).
@@ -59,6 +59,7 @@ TOOL_MODULES = [
     "unity_mcp.tools.debug_tool",
     "unity_mcp.tools.diagnose",
     "unity_mcp.tools.diagnostics",
+    "unity_mcp.tools.generated.catalog_tools",
     "unity_mcp.tools.do_tool",
     "unity_mcp.tools.editor_control",
     "unity_mcp.tools.gating",

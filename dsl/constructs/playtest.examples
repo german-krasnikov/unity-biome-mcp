@@ -1,0 +1,176 @@
+EXAMPLE WAIT, TIMESCALE and SET_DEFAULT_TIMEOUT read a number (PlaytestParserTests.cs:207, :660, :400; L_long_pass.playtest:4; player_ci_bounds.playtest:3; PlayerProfilePreflightTests.cs:216)
+  SOURCE WAIT 2.5
+  SOURCE WAIT 15
+  SOURCE TIMESCALE 0.5
+  SOURCE TIMESCALE 10
+  SOURCE SET_DEFAULT_TIMEOUT 3
+  SOURCE SET_DEFAULT_TIMEOUT 0.01
+
+EXAMPLE a number verb refuses a missing number and a word (EVAL2 C1), a decimal comma and a form without digits before the point (INTENDED I5), a token too many (INTENDED I1)
+  SOURCE WAIT
+  SOURCE WAIT abc
+  SOURCE WAIT 1,5
+  SOURCE WAIT .5
+  SOURCE WAIT 1 2
+  SOURCE TIMESCALE
+  SOURCE TIMESCALE fast
+  SOURCE SET_DEFAULT_TIMEOUT
+  SOURCE SET_DEFAULT_TIMEOUT x
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_NUMBER at 2:6
+  EXPECT diagnostic DECLARE_NUMBER at 3:6
+  EXPECT diagnostic DECLARE_NUMBER at 4:6
+  EXPECT diagnostic DECLARE_SYNTAX at 5:8
+  EXPECT diagnostic DECLARE_SYNTAX at 6:1
+  EXPECT diagnostic DECLARE_NUMBER at 7:11
+  EXPECT diagnostic DECLARE_SYNTAX at 8:1
+  EXPECT diagnostic DECLARE_NUMBER at 9:21
+
+EXAMPLE INVOKE, SET and SET_ACTIVE read their tokens; a token with a blank is written in quotes (PlaytestParserTests.cs:498, :540, :639, :619, :629; PlayerPlaytestQueryTests.cs:82; INVOKE_arguments.playtest:4; ValueParser.ParseBool takes true, false, 1, 0)
+  SOURCE INVOKE /Player Health TakeDamage 42 true
+  SOURCE INVOKE /Obj Comp Method
+  SOURCE INVOKE /Combiner CombinerBehaviour Combine [hello there] world
+  SOURCE INVOKE /Fixture/State FixtureState Record "hello world","second arg",42
+  SOURCE INVOKE "/My Object" Comp Method
+  SOURCE SET /obj Comp field 42
+  SOURCE SET /GridPlayer GridPlayer MoveSpeed 50
+  SOURCE SET /obj Comp field "hello world"
+  SOURCE SET_ACTIVE /obj true
+  SOURCE SET_ACTIVE /obj False
+  SOURCE SET_ACTIVE /obj 1
+
+EXAMPLE INVOKE, SET and SET_ACTIVE refuse a missing token (EVAL2 C1), a [ left open (INTENDED I8), a token too many (INTENDED I1) and a bool the runner refuses (INTENDED I9)
+  SOURCE INVOKE
+  SOURCE INVOKE /A B
+  SOURCE INVOKE /[My Obj]/X Comp Method
+  SOURCE SET /A B C
+  SOURCE SET /A B C 1 2 3
+  SOURCE SET /A B C hello world
+  SOURCE SET_ACTIVE /obj
+  SOURCE SET_ACTIVE /obj yes
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_SYNTAX at 2:11
+  EXPECT diagnostic DECLARE_SYNTAX at 3:8
+  EXPECT diagnostic DECLARE_SYNTAX at 4:10
+  EXPECT diagnostic DECLARE_SYNTAX at 5:14
+  EXPECT diagnostic DECLARE_SYNTAX at 6:18
+  EXPECT diagnostic DECLARE_SYNTAX at 7:12
+  EXPECT diagnostic DECLARE_SYNTAX at 8:17
+
+EXAMPLE CLICK, FILL and FOCUS read a path; CLICK a WAIT, FILL a text that may be missing (ClickStepTests.cs:35, :44; PlaytestParserTests.cs:700, :710, :724; uitk-click.playtest:5; uitk-fill-edit.playtest:3, :5)
+  SOURCE CLICK /Canvas/Button
+  SOURCE CLICK /Canvas/Button WAIT 0.5
+  SOURCE CLICK $hud|submitBtn
+  SOURCE FILL /panel|UIDocument|input hello
+  SOURCE FILL /field hello world
+  SOURCE FILL /field
+  SOURCE FILL $ui|emailInput user@test.com
+  SOURCE FOCUS /panel|UIDocument|input
+  SOURCE FOCUS $ui|emailInput
+
+EXAMPLE CLICK, FILL and FOCUS refuse a missing path (PlaytestParserTests.cs:718, :733) and a word for WAIT, and a WAIT without a number or a token too many (INTENDED I1)
+  SOURCE CLICK
+  SOURCE CLICK /x WAIT
+  SOURCE CLICK /x WAIT abc
+  SOURCE CLICK /x foo
+  SOURCE FILL
+  SOURCE FOCUS
+  SOURCE FOCUS /a /b
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_SYNTAX at 2:10
+  EXPECT diagnostic DECLARE_NUMBER at 3:15
+  EXPECT diagnostic DECLARE_SYNTAX at 4:10
+  EXPECT diagnostic DECLARE_SYNTAX at 5:1
+  EXPECT diagnostic DECLARE_SYNTAX at 6:1
+  EXPECT diagnostic DECLARE_SYNTAX at 7:10
+
+EXAMPLE LOG, SECTION and SNAPSHOT take the rest of the line as written, or nothing (PlaytestParserTests.cs:651, :600, :609; Runtime/PlaytestParserTests.cs:101; PlaytestProvenanceTests.cs:52; ci_smoke.playtest:1; AI/playtest-dsl.md:1016; design 7.5 section 2.2 for LOG #)
+  SOURCE LOG hello world
+  SOURCE LOG # UNPARSED: x
+  SOURCE LOG
+  SOURCE SECTION "ci smoke"
+  SOURCE SECTION Zone phase
+  SOURCE SECTION
+  SOURCE SNAPSHOT game
+  SOURCE SNAPSHOT /cam,/minimap
+  SOURCE SNAPSHOT Currency, GridPlayer.Corn, GridPlayer.Eggs
+  SOURCE SNAPSHOT
+
+EXAMPLE a verb is written in upper case (INTENDED I4); a word that is no verb is an unknown keyword (PlaytestParserCorpusTests.cs:59, Runtime/PlaytestParserTests.cs:152)
+  SOURCE wait 1
+  SOURCE log hello
+  SOURCE section a
+  SOURCE snapshot game
+  SOURCE FOOBAR_CMD arg1
+  SOURCE BLAH foo
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 1:1
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 2:1
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 3:1
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 4:1
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 5:1
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 6:1
+
+EXAMPLE ASSERT_CONSOLE_CLEAN takes nothing, or IGNORE and a list as written (PlaytestParserTests.cs:230, :686; Runtime/PlaytestParserTests.cs:309)
+  SOURCE ASSERT_CONSOLE_CLEAN
+  SOURCE ASSERT_CONSOLE_CLEAN IGNORE pat1,pat2
+  SOURCE ASSERT_CONSOLE_CLEAN IGNORE "DOTween warning", "shader"
+
+EXAMPLE ASSERT_CONSOLE_CLEAN refuses IGNORE without a list and a word other than IGNORE (INTENDED I1)
+  SOURCE ASSERT_CONSOLE_CLEAN IGNORE
+  SOURCE ASSERT_CONSOLE_CLEAN foo
+  EXPECT diagnostic DECLARE_SYNTAX at 1:22
+  EXPECT diagnostic DECLARE_SYNTAX at 2:22
+
+EXAMPLE SETUP and TEARDOWN open a block, SETUP_END and TEARDOWN_END close it (biome_smoke.playtest:6, :15; PlaytestParserEdgeCaseTests.cs:217, :223)
+  SOURCE SETUP
+  SOURCE SETUP_END
+  SOURCE TEARDOWN
+  SOURCE TEARDOWN_END
+
+EXAMPLE a block word refuses a token after it (INTENDED I1)
+  SOURCE SETUP foo
+  SOURCE SETUP_END now
+  SOURCE TEARDOWN foo
+  SOURCE TEARDOWN_END now
+  EXPECT diagnostic DECLARE_SYNTAX at 1:7
+  EXPECT diagnostic DECLARE_SYNTAX at 2:11
+  EXPECT diagnostic DECLARE_SYNTAX at 3:10
+  EXPECT diagnostic DECLARE_SYNTAX at 4:14
+
+EXAMPLE VAL, VAR, INCLUDE and PATH_PREFIX read their text (uitk-click.playtest:4; PlaytestParserCorpusTests.cs:194; DSL_types.playtest:2; PlayerProfilePreflightTests.cs:227; A_shared_setup.playtest:3; PlaytestPathPrefixTests.cs:78; AI/playtest-dsl.md:861)
+  SOURCE VAL $hud /HUD|UIDocument
+  SOURCE VAL $RUN_ID abc12345
+  SOURCE VAR $runtime_progress @/Fixture/Async|FixtureAsyncState|Progress
+  SOURCE VAR $hp @/Player|Health|currentHp
+  SOURCE VAR $hp @$base|Health|hp
+  SOURCE INCLUDE common.defs
+  SOURCE PATH_PREFIX /L
+
+EXAMPLE the grammar reads the name of an INCLUDE; the resolver refuses a path outside PlaytestDefs (HOST: PlaytestParserCorpusTests.cs:66, :79; PlaytestVarTests.cs:251, :260)
+  SOURCE INCLUDE ../../etc/passwd
+  SOURCE INCLUDE /etc/passwd
+  SOURCE INCLUDE .
+
+EXAMPLE VAL, VAR, INCLUDE and PATH_PREFIX refuse a missing part (PlaytestValEdgeCaseTests.cs:64, :134; PlaytestVarTests.cs:289, :297), a name no $sigil spells (INTENDED I9), a token after the query and a bare PATH_PREFIX (INTENDED I1)
+  SOURCE VAL $name
+  SOURCE VAL $my-var 5
+  SOURCE VAR $hp
+  SOURCE VAR $hp /Player|Health|hp
+  SOURCE VAR $hp @/Player|Health
+  SOURCE VAR $hp @/A|B|c extra
+  SOURCE INCLUDE
+  SOURCE PATH_PREFIX
+  EXPECT diagnostic DECLARE_SYNTAX at 1:5
+  EXPECT diagnostic DECLARE_SYNTAX at 2:5
+  EXPECT diagnostic DECLARE_SYNTAX at 3:5
+  EXPECT diagnostic DECLARE_SYNTAX at 4:9
+  EXPECT diagnostic DECLARE_SYNTAX at 5:9
+  EXPECT diagnostic DECLARE_SYNTAX at 6:17
+  EXPECT diagnostic DECLARE_SYNTAX at 7:1
+  EXPECT diagnostic DECLARE_SYNTAX at 8:1
+
+EXAMPLE a # inside a line is text, so a comment after a fixed form is refused (INTENDED I1; AI/playtest-dsl.md:791 and docs/features/playtest.md:281 must change)
+  SOURCE TIMESCALE 0.5  # half speed
+  SOURCE SET_ACTIVE /Player true      # or: yes, on
+  EXPECT diagnostic DECLARE_SYNTAX at 1:16
+  EXPECT diagnostic DECLARE_SYNTAX at 2:30

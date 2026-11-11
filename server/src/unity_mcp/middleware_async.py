@@ -4,9 +4,9 @@ import json
 import os
 from collections.abc import Awaitable, Callable  # noqa: TC003
 
-_FULL_SUPPORTED: frozenset[str] = frozenset({
-    "get_hierarchy", "get_component", "inspect", "get_object_detail",
-})
+from .tools.tags import tagged
+
+_FULL_SUPPORTED: frozenset[str] = tagged("async_full")
 
 
 class MiddlewareAsyncMixin:

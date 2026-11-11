@@ -5,41 +5,8 @@ Guards against silent argument-order breakage. Each test:
   2. Confirms _send and _args module globals are set
   3. Confirms mcp.tool was called (tools actually wired)
 """
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 import importlib
-
-
-@pytest.fixture(autouse=True)
-def _restore_tool_globals():
-    """Restore module-level _send/_args after each test to avoid cross-test pollution.
-
-    B2: console/screenshot/testing/editor_control added (split out of scene.py).
-    """
-    import unity_mcp.tools.objects as obj_mod
-    import unity_mcp.tools.runtime as rt_mod
-    import unity_mcp.tools.scene as sc_mod
-    import unity_mcp.tools.console as con_mod
-    import unity_mcp.tools.screenshot as shot_mod
-    import unity_mcp.tools.testing as test_mod
-    import unity_mcp.tools.editor_control as ec_mod
-    saved = {
-        "obj": (obj_mod._send, obj_mod._args),
-        "rt": (rt_mod._send, rt_mod._args),
-        "sc": (sc_mod._send, sc_mod._args),
-        "con": (con_mod._send, con_mod._args),
-        "shot": (shot_mod._send, shot_mod._args),
-        "test": (test_mod._send, test_mod._args),
-        "ec": (ec_mod._send, ec_mod._args),
-    }
-    yield
-    obj_mod._send, obj_mod._args = saved["obj"]
-    rt_mod._send, rt_mod._args = saved["rt"]
-    sc_mod._send, sc_mod._args = saved["sc"]
-    con_mod._send, con_mod._args = saved["con"]
-    shot_mod._send, shot_mod._args = saved["shot"]
-    test_mod._send, test_mod._args = saved["test"]
-    ec_mod._send, ec_mod._args = saved["ec"]
 
 
 def _make_mcp():
@@ -75,8 +42,9 @@ def test_objects_register_wires_tools():
 
     mod.register(mcp, send, MagicMock())
 
-    # At least get_component and set_property must be registered
-    assert mcp.tool.call_count >= 8
+    # get_component/inspect/set_property/delete_object/get_object_detail moved to BODY (SV8):
+    # register() only binds _send/_args now; the catalog's install() registers their wrappers.
+    assert mcp.tool.call_count == 0
 
 
 # ── Part 2: scene.py (B2: slimmed — get_hierarchy/scene/search_scene/fingerprint/
@@ -102,10 +70,10 @@ def test_scene_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # get_hierarchy, scene, search_scene, fingerprint, scene_diff, scene_environment (6)
-    # + scene.py delegation: save_session, load_session, screenshot_baseline,
-    # screenshot_compare, get_changes (5) = 11
-    assert mcp.tool.call_count >= 11
+    # get_hierarchy/scene/save_session/load_session/screenshot_baseline/screenshot_compare
+    # moved to BODY (SV8): register() only binds _send/_args now; the catalog's install()
+    # registers their wrappers.
+    assert mcp.tool.call_count == 0
 
 
 # ── Part 3: runtime.py ────────────────────────────────────────────────────────
@@ -130,8 +98,11 @@ def test_runtime_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # invoke_method, wait_until, move_to, query_state, test_step, run_playtest = 6 tools minimum
-    assert mcp.tool.call_count >= 6
+    # All 9 of runtime.py's own tools (wait_until/move_to/query_state/test_step/run_playtest/
+    # run_playtest_suite/lint_playtest/lint_playtest_suite/lint_scene_refs) moved to BODY (SV8):
+    # register() only binds _send/_args now; the catalog's install() registers their wrappers
+    # (invoke_method was already the catalog's, pre-SV8).
+    assert mcp.tool.call_count == 0
 
 
 # ── Part 4: console.py / screenshot.py / testing.py / editor_control.py
@@ -161,8 +132,9 @@ def test_console_register_wires_tools(monkeypatch):
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # get_console, get_compile_errors, recompile = 3 tools
-    assert mcp.tool.call_count >= 3
+    # get_compile_errors/console_mark/get_console_since moved to BODY (SV8): register()
+    # only binds _send/_args now; the catalog's install() registers their MCP wrappers.
+    assert mcp.tool.call_count == 0
 
 
 def test_screenshot_register_sets_send():
@@ -185,8 +157,9 @@ def test_screenshot_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # screenshot = 1 tool
-    assert mcp.tool.call_count == 1
+    # screenshot moved to BODY (SV8): register() only binds _send/_args now; the
+    # catalog's install() registers its MCP wrapper.
+    assert mcp.tool.call_count == 0
 
 
 def test_testing_register_sets_send():
@@ -209,8 +182,11 @@ def test_testing_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # run_tests, get_test_results, get_test_count, get_test_progress = 4 tools
-    assert mcp.tool.call_count >= 3
+    # All 7 of testing.py's own tools (run_tests/run_tests_wait/resolve_test_request/
+    # get_test_run/list_test_runs/get_test_results/get_test_progress) moved to BODY (SV8):
+    # register() only binds _send/_args/_get_slot now; the catalog's install() registers
+    # their wrappers (get_test_count/cancel_test_run were already the catalog's, pre-SV8).
+    assert mcp.tool.call_count == 0
 
 
 def test_editor_control_register_sets_send():
@@ -233,8 +209,10 @@ def test_editor_control_register_wires_tools():
     mcp = _make_mcp()
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    # editor, ping_object, get_selection, checkpoint, undo_last, get_capabilities = 6 tools
-    assert mcp.tool.call_count >= 6
+    # editor moved to BODY (SV8): register() only binds _send/_args now; the catalog's
+    # install() registers its MCP wrapper (get_selection, checkpoint, undo_last,
+    # get_capabilities and ping_object were already the catalog's, pre-SV8).
+    assert mcp.tool.call_count == 0
 
 
 def test_b2_split_modules_wired_into_register_all():
@@ -288,11 +266,12 @@ def test_b2_split_total_tool_count_unchanged(monkeypatch):
         mod.register(mcp, AsyncMock(), MagicMock())
         return mcp.tool.call_count
 
-    scene_total = _own_count(scene_mod)  # includes scene.py's 5 delegated tools
-    scene_own = scene_total - 5
-    total = (scene_own + _own_count(console_mod) + _own_count(screenshot_mod)
+    # SV8 moved every tool of scene.py/console.py/screenshot.py/editor_control.py/testing.py
+    # to BODY: register() only binds DI globals now for all five; the catalog's install()
+    # registers their wrappers.
+    total = (_own_count(scene_mod) + _own_count(console_mod) + _own_count(screenshot_mod)
              + _own_count(testing_mod) + _own_count(ec_mod))
-    assert total == 27
+    assert total == 0
 
 
 # ── PR-02 Track A: register_all() threads stdio_alive through to connection ────

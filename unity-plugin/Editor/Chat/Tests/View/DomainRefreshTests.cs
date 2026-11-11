@@ -6,6 +6,7 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Chat.Turn;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
@@ -173,10 +174,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 Assert.AreEqual(1, stub.SentPayloads.Count,
                     "The resumed payload must be dispatched exactly once.");
                 StringAssert.Contains("fix the bug", stub.SentPayloads[0]);
-                var activity = (ChatActivityState)typeof(MCPChatWindow)
-                    .GetField("_activity", BindingFlags.NonPublic | BindingFlags.Instance)
-                    .GetValue(w);
-                Assert.AreEqual(ActivityPhase.Sending, activity.Phase,
+                Assert.AreEqual(ChatTurnPhase.Sending, w._turn.Phase,
                     "TryResumePendingTurn with active state must transition to Sending phase");
             }
             finally
@@ -219,10 +217,7 @@ namespace UnityMCP.Editor.Chat.Tests
                     .Invoke(w, null);
 
                 // Activity must remain Idle — stale turn was discarded without dispatch
-                var activity = (ChatActivityState)typeof(MCPChatWindow)
-                    .GetField("_activity", BindingFlags.NonPublic | BindingFlags.Instance)
-                    .GetValue(w);
-                Assert.AreEqual(ActivityPhase.Idle, activity.Phase,
+                Assert.AreEqual(ChatTurnPhase.Idle, w._turn.Phase,
                     "Stale turn must be discarded; activity must remain Idle");
             }
             finally
@@ -269,10 +264,7 @@ namespace UnityMCP.Editor.Chat.Tests
                     .SetValue(w, stub);
 
                 // Move activity to Sending so SaveState takes the non-idle path
-                var activity = (ChatActivityState)typeof(MCPChatWindow)
-                    .GetField("_activity", BindingFlags.NonPublic | BindingFlags.Instance)
-                    .GetValue(w);
-                activity.Send();
+                w._turn.Dispatch(ChatTurnIntent.Send());
 
                 // Also set a non-empty sentTextCache so state is worth saving
                 var cache = typeof(MCPChatWindow)

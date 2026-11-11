@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
+using UnityMCP.Editor.Chat.Turn;
 
 namespace UnityMCP.Editor.Chat
 {
@@ -12,7 +13,7 @@ namespace UnityMCP.Editor.Chat
     {
         private void OnSend()
         {
-            if (!_activity.CanSend) return;
+            if (!_turn.CanSend) return;
             _autoFix.Disarm();
 
             var store    = BackendConfigStore.Load();
@@ -60,12 +61,11 @@ namespace UnityMCP.Editor.Chat
         private void DispatchTurn(string turnJson, UserMessage displayMsg,
             string llmPayload, string screenshotPath = null)
         {
+            if (!_turn.CanSend) return; // D4: a second send (ApproveAndExecute) over an open turn took the lock and the undo group again
             _pendingAgentName = AgentMissDetector.ExtractAgentName(llmPayload);
-            ReloadGuard.OnTurnStarted();
             var displayText = ChipTextInterleaver.ToDisplayText(displayMsg);
-            _undoTracker.OnTurnStart(displayText.Length > 40
-                ? displayText.Substring(0, 40)
-                : displayText);
+            _undoLabel = displayText.Length > 40 ? displayText.Substring(0, 40) : displayText;
+            _turn.Dispatch(ChatTurnIntent.Send()); // ports lockReload, undoStart
             _sentTextCache.Set(displayText);
             _sentLlmCache.Set(llmPayload); // task#10: persist the EXACT full-path bytes sent this turn
             _resolver?.Refresh(); // ensure objects created since last turn are visible to BareNameNormalizer
@@ -77,7 +77,6 @@ namespace UnityMCP.Editor.Chat
             else if (_input != null) { _input.value = ""; _input.cursorIndex = _input.selectIndex = 0; }
             _heightCalc.Reset();
             ResetInputAreaHeight();
-            if (_activity.Send()) OnActivityChanged();
         }
 
         // Overload accepting plain string — used by InjectCompileErrors and ApproveAndExecute.

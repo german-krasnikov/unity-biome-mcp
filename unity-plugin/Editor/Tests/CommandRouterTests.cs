@@ -96,7 +96,9 @@ namespace UnityMCP.Editor.Tests
         public bool Registry_IsMutating_ReadCommands_ReturnFalse(string cmd)
             => CommandRegistry.IsMutating(cmd);
 
-        [TestCase("{}", ExpectedResult = false)]
+        // Step 7.2: Python's is_write is the authority (owner 2026-10-29): a call with no action is a write, as the READ lines of the
+        // catalog say that only "read" reads. ExecUitkFile still defaults a missing action to read; the classification does not.
+        [TestCase("{}", ExpectedResult = true)]
         [TestCase("{\"action\":\"read\"}", ExpectedResult = false)]
         [TestCase("{\"action\":\"READ\"}", ExpectedResult = true)]
         [TestCase("{\"action\":\"write\"}", ExpectedResult = true)]
@@ -131,15 +133,16 @@ namespace UnityMCP.Editor.Tests
         public bool Registry_IsMutating_Profile_DependsOnAction(string argsJson)
             => CommandRegistry.IsMutating("profile", argsJson);
 
-        // P0-70: "editor" itself stays base-registered non-mutating (play/stop/
-        // select/state/project_path don't corrupt scene data) — only
-        // mutation_mode's SET form (enable present) is a write.
+        // P0-70, step 7.2: the editor is registered mutating, as in Python (owner 2026-10-29). Its reads are state and project_path (the READ
+        // lines of the catalog) and the mutation_mode QUERY (no "enable"); play, stop, select, a mutation_mode SET and a call with no action
+        // are writes. It stays out of the Undo history and may run in Play Mode: playOk and noUndo of its registration.
         [TestCase("{\"action\":\"mutation_mode\"}", ExpectedResult = false)]
         [TestCase("{\"action\":\"mutation_mode\",\"enable\":\"true\"}", ExpectedResult = true)]
         [TestCase("{\"action\":\"mutation_mode\",\"enable\":\"false\"}", ExpectedResult = true)]
-        [TestCase("{\"action\":\"play\"}", ExpectedResult = false)]
+        [TestCase("{\"action\":\"play\"}", ExpectedResult = true)]
         [TestCase("{\"action\":\"state\"}", ExpectedResult = false)]
-        [TestCase("{}", ExpectedResult = false)]
+        [TestCase("{\"action\":\"project_path\"}", ExpectedResult = false)]
+        [TestCase("{}", ExpectedResult = true)]
         public bool Registry_IsMutating_Editor_MutationModeDependsOnEnable(string argsJson)
             => CommandRegistry.IsMutating("editor", argsJson);
 
@@ -150,7 +153,8 @@ namespace UnityMCP.Editor.Tests
         [TestCase("execute_code", "{}", ExpectedResult = true)]
         [TestCase("screenshot", "{}", ExpectedResult = true)]
         [TestCase("editor", "{\"action\":\"mutation_mode\",\"enable\":\"true\"}", ExpectedResult = true)]
-        [TestCase("editor", "{\"action\":\"play\"}", ExpectedResult = false)]
+        [TestCase("editor", "{\"action\":\"play\"}", ExpectedResult = true)]    // playOk: stop, pause and step must work in Play Mode
+        [TestCase("get_hierarchy", "{}", ExpectedResult = false)]                    // not playOk, not on the hand list
         public bool PlayMutationAllowance_IsNarrowAndArgumentAware(string cmd, string argsJson)
             => CommandRouter.IsAllowedMutationInPlayMode(cmd, argsJson);
 
@@ -972,7 +976,7 @@ namespace UnityMCP.Editor.Tests
         public void IsPlaytestSuccess_JsonShapedBody_TextFormatUsesTextScanNotLedger()
         {
             // Body is a well-formed PASSING JSON ledger. If the leading '{' sniff
-            // routed this through IsPlaytestSuccessFromLedger, it would return true
+            // routed this to the ledger reading, it would return true
             // (see IsPlaytestSuccess_JsonReport_UsesLedgerNotRegex for the
             // format="json" case). Requesting format="text" explicitly must skip
             // that sniff and run the text scan instead, which requires a literal
@@ -1221,16 +1225,18 @@ namespace UnityMCP.Editor.Tests
         public bool Pr04_IsRegistered_FiveCommands(string cmd)
             => CommandRegistry.IsRegistered(cmd);
 
-        // Base (no-args) mutating flag. run_playtest and editor are both registered
-        // non-mutating at the base level -- editor because play/stop/select don't
-        // corrupt scene data, run_playtest because Play-mode scenario execution is not
-        // itself an Edit-mode scene mutation (see SCENE_STATE_NEUTRAL_WRITES on the
-        // Python side). uitk_file's base flag is true but is superseded per-call by its
-        // MutatingArgsPolicy -- see Registry_IsMutating_UitkFile_DependsOnAction.
+        // Base (no-args) mutating flag. run_playtest is mutating as in Python since step 7.2
+        // (a playtest can change the scene; SCENE_STATE_NEUTRAL_WRITES on the Python side
+        // only keeps it out of the consecutive-write guard); its playOk registration lets it
+        // through the Play Mode block, the script header decides (B05). The editor is
+        // mutating as in Python since step 7.2 (its reads are narrowed per call by the READ
+        // lines of the catalog; playOk and noUndo keep Play Mode and the Undo history as
+        // they were). uitk_file's base flag is true, narrowed per call to its READ action --
+        // see Registry_IsMutating_UitkFile_DependsOnAction.
         [TestCase("inspect", ExpectedResult = false)]
         [TestCase("set_property", ExpectedResult = true)]
-        [TestCase("editor", ExpectedResult = false)]
-        [TestCase("run_playtest", ExpectedResult = false)]
+        [TestCase("editor", ExpectedResult = true)]
+        [TestCase("run_playtest", ExpectedResult = true)]
         public bool Pr04_IsMutating_BaseFlag_FourCommands(string cmd)
             => CommandRegistry.IsMutating(cmd);
 
@@ -1251,16 +1257,43 @@ namespace UnityMCP.Editor.Tests
             => CommandRegistry.IsRuntime(cmd);
 
         [Test]
-        public void Pr04_EditorPlayAction_IsMutating_False_AsymmetricWithPython()
+        public void Pr04_EditorPlayAction_IsMutating_True_AgreesWithPython()
         {
-            // Discovered, characterized cross-route asymmetry (not fixed, not a bug per
-            // se): Python's is_write("editor", {"action":"play"}) returns True
-            // (middleware_types.py's _EDITOR_READ_ACTIONS only exempts state/
-            // project_path), but C# here returns False ("play/stop/select don't corrupt
-            // scene data"). See server/tests/test_pr04_policy_vectors.py::
-            // test_editor_play_action_write_classification_asymmetric_with_csharp for the
-            // pinned Python-side counterpart.
-            Assert.IsFalse(CommandRegistry.IsMutating("editor", "{\"action\":\"play\"}"));
+            // Step 7.2: the cross-route asymmetry this test used to characterise is gone (owner 2026-10-29: Python is the
+            // authority). Python's is_write("editor", {"action":"play"}) is True (only state and project_path are reads);
+            // C# says True too, and server/tests/test_pr04_policy_vectors.py::
+            // test_editor_play_action_is_a_write_on_both_routes pins the Python side. The editor stays runnable
+            // in Play Mode and out of the Undo history by its registration (playOk, noUndo).
+            Assert.IsTrue(CommandRegistry.IsMutating("editor", "{\"action\":\"play\"}"));
+            Assert.IsTrue(CommandRegistry.IsPlayOk("editor"), "stop, pause and step must work in Play Mode");
+            Assert.IsTrue(CommandRegistry.IsNoUndo("editor"), "play, stop and select change no Undo-recorded scene data");
+        }
+
+        // Step 7.2 M3: the commands whose registration was repaired to say what Python says (owner 2026-10-29), one TestCase per
+        // command in the commit that repairs it, with the two flags that keep Play Mode and the Undo history as they were.
+        // server/tests/test_csharp_mutating_flags.py reads the same Register calls without Unity.
+        [TestCase("editor", true, true)]
+        [TestCase("build", true, false)]
+        [TestCase("move_to", true, false)]
+        [TestCase("package", true, false)]
+        [TestCase("run_playtest", true, false)]
+        [TestCase("run_tests", true, false)]
+        [TestCase("start_playtest", true, false)]
+        [TestCase("test_step", true, false)]
+        [TestCase("cancel_test_run", true, true)]
+        [TestCase("checkpoint", true, true)]
+        [TestCase("export_playtest_aliases_to_defs", true, true)]
+        [TestCase("sync_playtest_aliases_from_defs", true, true)]
+        [TestCase("invoke_method", true, true)]
+        [TestCase("set_runtime_property", true, true)]
+        [TestCase("recompile", true, true)]
+        [TestCase("scene", true, true)]
+        [TestCase("timeline", false, false)]
+        public void RepairedCommand_IsMutatingAndKeepsPlayModeAndUndo(string cmd, bool playOk, bool noUndo)
+        {
+            Assert.IsTrue(CommandRegistry.IsMutating(cmd), cmd + " is mutating, as in Python");
+            Assert.AreEqual(playOk, CommandRegistry.IsPlayOk(cmd), cmd + " playOk");
+            Assert.AreEqual(noUndo, CommandRegistry.IsNoUndo(cmd), cmd + " noUndo");
         }
 
         // ── AlreadyRegistered: double registration guard ──────────────────────

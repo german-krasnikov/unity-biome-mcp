@@ -1,0 +1,145 @@
+EXAMPLE ASSERT reads a query, an operator and a value; blanks may be in the query or the value (PlaytestParserTests.cs:195, :446; PlaytestParserEdgeCaseTests.cs:133, :164, :207; PlaytestDslExtensionTests.cs:268; Runtime/PlaytestIntegrationTests.cs:119; uitk-read.playtest:4; biome_smoke.playtest:9; player_ci_smoke.playtest:6; AI/playtest-dsl.md:181, :186 for != and <=; PlaytestParser.Subroutines.cs:541 for the value TIMEOUT)
+  SOURCE ASSERT /Player|Health|hp == 100
+  SOURCE ASSERT /Player|Health|hp > 0
+  SOURCE ASSERT /Player|HP|value <= 100
+  SOURCE ASSERT Enemy/Status != active
+  SOURCE ASSERT $count >= 4
+  SOURCE ASSERT /My Object/Child|Health|hp == 100
+  SOURCE ASSERT /My Player|Health|isAlive == True
+  SOURCE ASSERT /x|C|state == hello world
+  SOURCE ASSERT Name contains Test
+  SOURCE ASSERT $hud|health-label|text == "75 HP"
+  SOURCE ASSERT $tree contains pt_$RUN_ID
+  SOURCE ASSERT /GridPlayer|GridPlayer|StateText contains pos=0,0
+  SOURCE ASSERT /[MECHANICS/ZONE TEMPLATE]/Child|Comp|field == value
+  SOURCE ASSERT /x|C|f == TIMEOUT
+
+EXAMPLE ASSERT takes TIMEOUT and AS as tails, and AS before TIMEOUT too (PlaytestParserTests.cs:437, :454, :487; PlaytestDslExtensionTests.cs:101; Pure/PlayerProfilePreflightTests.cs:113)
+  SOURCE ASSERT /Player|Health|hp > 0 TIMEOUT 5
+  SOURCE ASSERT /Enemy|Health|hp == 0 TIMEOUT 3 AS enemy dead
+  SOURCE ASSERT /Obj|Comp|f == 1 AS my_label TIMEOUT 3
+  SOURCE ASSERT /X|C|f == 1 AS "health is full"
+  SOURCE ASSERT /A|Comp|flag == True TIMEOUT 2
+
+EXAMPLE ASSERT with one token is a flag: a $sigil, a path, a group of names, each with a ! to negate (PlaytestDslExtensionTests.cs:222, :233, :244, :258; PlaytestParserEdgeCaseTests.cs:154; DSL_types.playtest:7, :8; biome_smoke.playtest:10; PlaytestParser.Internals.cs:166, :175 for a $path and for #)
+  SOURCE ASSERT $worker_cart_active
+  SOURCE ASSERT !$door_open
+  SOURCE ASSERT $hud|panel|visible
+  SOURCE ASSERT /Player|Health|isAlive
+  SOURCE ASSERT !/Player|Health|isAlive
+  SOURCE ASSERT #cam|Comp|enabled
+  SOURCE ASSERT /pt_$RUN_ID|activeSelf
+  SOURCE ASSERT ($a,$b,$c)
+  SOURCE ASSERT !($a,$b)
+
+EXAMPLE ASSERT refuses a line without operator or value (EVAL2 C1, INTENDED I1; PlaytestDslExtensionTests.cs:279), a bad or missing number and a second TIMEOUT (INTENDED I1; PlaytestParser.Internals.cs:159 for the empty group)
+  SOURCE ASSERT
+  SOURCE ASSERT /x|C|f ==
+  SOURCE ASSERT /A|B|c TIMEOUT 5
+  SOURCE ASSERT someNonSigilToken
+  SOURCE ASSERT ()
+  SOURCE ASSERT /x|C|f == 1 TIMEOUT abc
+  SOURCE ASSERT /x|C|f == 1 TIMEOUT
+  SOURCE ASSERT /x|C|f == 1 AS
+  SOURCE ASSERT /x|C|f == 1 TIMEOUT 5 TIMEOUT 6
+  SOURCE ASSERT $x = 5
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_SYNTAX at 2:15
+  EXPECT diagnostic DECLARE_SYNTAX at 3:23
+  EXPECT diagnostic DECLARE_SYNTAX at 4:8
+  EXPECT diagnostic DECLARE_SYNTAX at 5:8
+  EXPECT diagnostic DECLARE_NUMBER at 6:28
+  EXPECT diagnostic DECLARE_SYNTAX at 7:20
+  EXPECT diagnostic DECLARE_SYNTAX at 8:20
+  EXPECT diagnostic DECLARE_SYNTAX at 9:30
+  EXPECT diagnostic DECLARE_SYNTAX at 10:13
+
+EXAMPLE WAIT_UNTIL reads one condition or a chain of up to three, then TIMEOUT and ABORT (PlaytestParserTests.cs:262, :298, :420; Runtime/PlaytestParserTests.cs:64; WaitConditionTests.cs:99, :111, :120, :134, :159; PlaytestParserEdgeCaseTests.cs:98, :106, :114, :143, :184; Pure/PlayerProfilePreflightTests.cs:238; player_ci_preflight_reject.playtest:7; C_shared_finish.playtest:5; AI/playtest-dsl.md:851 and :937 for the order; design 7.5 section 3.2 for three OR terms)
+  SOURCE WAIT_UNTIL /P|C|f == 1
+  SOURCE WAIT_UNTIL /Player|Health|value > 0 TIMEOUT 5
+  SOURCE WAIT_UNTIL Currency == 200 TIMEOUT 10
+  SOURCE WAIT_UNTIL $completed == True TIMEOUT 5
+  SOURCE WAIT_UNTIL $hp < 50 TIMEOUT 10
+  SOURCE WAIT_UNTIL /My Object|AI|active == True TIMEOUT 5
+  SOURCE WAIT_UNTIL /P|H|v > 0 TIMEOUT 5 ABORT
+  SOURCE WAIT_UNTIL /A|Comp|flag == True TIMEOUT 0.01 ABORT
+  SOURCE WAIT_UNTIL /P|C|f == ok ABORT
+  SOURCE WAIT_UNTIL q1 == v1 AND q2 >= v2
+  SOURCE WAIT_UNTIL q1 == v1 OR q2 == v2
+  SOURCE WAIT_UNTIL q1 == v1 AND q2 == v2 AND q3 == v3
+  SOURCE WAIT_UNTIL q1 == v1 OR q2 == v2 OR q3 == v3
+  SOURCE WAIT_UNTIL q1 == v1 AND q2 == v2 TIMEOUT 10
+  SOURCE WAIT_UNTIL q1 == v1 AND q2 == v2 AND q3 == v3 TIMEOUT 5 ABORT
+  SOURCE WAIT_UNTIL q1 == v1 OR q2 == v2 OR q3 == v3 TIMEOUT 5 ABORT
+  SOURCE WAIT_UNTIL /My Object|C|f == 1 AND /Other Space|C|g == 2 TIMEOUT 5
+  SOURCE WAIT_UNTIL /P|C|state == ok AND /Q|C|mode == ABORT
+  SOURCE WAIT_UNTIL /P|C|state == ok AND /Q|C|mode == run ABORT
+  SOURCE WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False AND /GridPlayer|GridPlayer|IsMoving == True TIMEOUT 1
+
+EXAMPLE WAIT_UNTIL with one token is a flag: $sigil or !$sigil, no path and no group (PlaytestParserTests.cs:276, :287, :310)
+  SOURCE WAIT_UNTIL $door_open
+  SOURCE WAIT_UNTIL !$door_open
+
+EXAMPLE WAIT_UNTIL refuses a condition that is cut short, a path or a group as flag (PlaytestParserTests.cs:310; PlaytestParser.Internals.cs:104), a flag with TIMEOUT, TIMEOUT before a chain (WaitConditionTests.cs:143, INTENDED I3) and ABORT before TIMEOUT (INTENDED I2)
+  SOURCE WAIT_UNTIL
+  SOURCE WAIT_UNTIL /Player|Health|ready
+  SOURCE WAIT_UNTIL /x|C|f ==
+  SOURCE WAIT_UNTIL q1 == v1 AND
+  SOURCE WAIT_UNTIL q1 == v1 AND q2
+  SOURCE WAIT_UNTIL $flag TIMEOUT 5
+  SOURCE WAIT_UNTIL q1 == v1 TIMEOUT 5 OR q2 == v2
+  SOURCE WAIT_UNTIL q1 == v1 ABORT TIMEOUT 5
+  SOURCE WAIT_UNTIL q1 == v1 TIMEOUT abc
+  SOURCE WAIT_UNTIL ($a,$b)
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_SYNTAX at 2:12
+  EXPECT diagnostic DECLARE_SYNTAX at 3:19
+  EXPECT diagnostic DECLARE_SYNTAX at 4:21
+  EXPECT diagnostic DECLARE_SYNTAX at 5:25
+  EXPECT diagnostic DECLARE_SYNTAX at 6:26
+  EXPECT diagnostic DECLARE_SYNTAX at 7:31
+  EXPECT diagnostic DECLARE_SYNTAX at 8:27
+  EXPECT diagnostic DECLARE_NUMBER at 9:29
+  EXPECT diagnostic DECLARE_SYNTAX at 10:12
+
+EXAMPLE WAIT_UNTIL refuses a single = in each of its five conditions (INTENDED I1: the hand parser built a query that held the rest of the line)
+  SOURCE WAIT_UNTIL q1 = v1
+  SOURCE WAIT_UNTIL q1 == v1 AND q2 = v2
+  SOURCE WAIT_UNTIL q1 == v1 AND q2 == v2 AND q3 = v3
+  SOURCE WAIT_UNTIL q1 == v1 OR q2 = v2
+  SOURCE WAIT_UNTIL q1 == v1 OR q2 == v2 OR q3 = v3
+  EXPECT diagnostic DECLARE_SYNTAX at 1:17
+  EXPECT diagnostic DECLARE_SYNTAX at 2:30
+  EXPECT diagnostic DECLARE_SYNTAX at 3:43
+  EXPECT diagnostic DECLARE_SYNTAX at 4:29
+  EXPECT diagnostic DECLARE_SYNTAX at 5:41
+
+EXAMPLE INVARIANT reads a query, an operator and the rest of the line as the value (PlaytestParserTests.cs:961; Runtime/PlaytestParserTests.cs:365; AI/playtest-dsl.md:464)
+  SOURCE INVARIANT /Enemy|H|hp > 0
+  SOURCE INVARIANT /Money|CurrencyComp|Value >= 0
+  SOURCE INVARIANT Player/Health > 0
+  SOURCE INVARIANT /x|C|f == a TIMEOUT 5
+
+EXAMPLE INVARIANT refuses a line without operator or value (INTENDED I1)
+  SOURCE INVARIANT
+  SOURCE INVARIANT /x|C|f
+  SOURCE INVARIANT /x|C|f >
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_SYNTAX at 2:11
+  EXPECT diagnostic DECLARE_SYNTAX at 3:18
+
+EXAMPLE MCP reads a command, then key=value arguments and an optional INTO $name (PlaytestParserCorpusTests.cs:154, :167, :176, :185, :194, :203; biome_smoke.playtest:7, :8, :11, :16; PlaytestParser.Mcp.cs:27, :31 for the command alone)
+  SOURCE MCP get_hierarchy depth=2
+  SOURCE MCP create_object name=pt_$RUN_ID primitive=Cube
+  SOURCE MCP set_property path=/pt_$RUN_ID component=Transform prop=position value=1,2,3
+  SOURCE MCP delete_object path=/pt_$RUN_ID
+  SOURCE MCP fake_cmd flag=TRUE count=3 ratio=2.5 label=hello
+  SOURCE MCP fake_cmd n=null arr=[1,2,"x"] obj={"x":1}
+  SOURCE MCP fake_cmd label="hello world"
+  SOURCE MCP get_hierarchy depth=2 INTO $tree
+  SOURCE MCP get_hierarchy INTO $tree
+  SOURCE MCP list_tools
+
+EXAMPLE MCP refuses a line without a command (EVAL2 C1; PlaytestParser.Mcp.cs:28)
+  SOURCE MCP
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1

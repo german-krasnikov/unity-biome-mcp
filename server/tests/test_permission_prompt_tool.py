@@ -20,8 +20,9 @@ async def test_ask_user_routes_to_send(monkeypatch):
     send = AsyncMock(return_value=json.dumps({"Color?": "Red"}))
     monkeypatch.setattr(mod, "_send", send)
     await mod.permission_prompt("AskUserQuestion", {"questions": questions}, "tu-1")
+    # SV4: the literal timeout=300.0 kwarg is gone -- the catalog's TIMEOUT governs it alone now.
     send.assert_awaited_once_with(
-        "ask_user", {"questions": json.dumps(questions)}, timeout=300.0,
+        "ask_user", {"questions": json.dumps(questions)},
     )
 
 
@@ -78,7 +79,9 @@ def test_register_wires_send(monkeypatch):
     send = AsyncMock()
     mod.register(mcp, send, MagicMock())
     assert mod._send is send
-    mcp.tool.assert_called_once()
+    # permission_prompt moved to BODY (SV8): register() only binds _send/_args now;
+    # the catalog's install() registers its MCP wrapper.
+    mcp.tool.assert_not_called()
 
 
 async def test_ask_mode_blocks_write_tool_via_broker(monkeypatch):

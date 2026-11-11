@@ -1,0 +1,28 @@
+EXAMPLE DESC takes the rest of the line or nothing, ABORT_ON_FAIL and EXPECT_FAIL stand alone, MONITOR takes a query, STOP or nothing (PlaytestDslExtensionTests.cs:90; WaitConditionTests.cs:173, :185; Pure/PlayerProfilePreflightTests.cs:85, :205, :263; Runtime/PlaytestParserTests.cs:416, :425; AI/playtest-dsl.md:148, :431, :575, :615)
+  SOURCE DESC "check health"
+  SOURCE DESC move player to start position
+  SOURCE DESC
+  SOURCE ABORT_ON_FAIL
+  SOURCE EXPECT_FAIL
+  SOURCE MONITOR economy
+  SOURCE MONITOR Player/Health
+  SOURCE MONITOR STOP
+  SOURCE MONITOR
+
+EXAMPLE ABORT_ON_FAIL and EXPECT_FAIL refuse a token after them, MONITOR a second token, a lower-case verb is an unknown keyword (INTENDED I1, I4)
+  SOURCE ABORT_ON_FAIL now
+  SOURCE EXPECT_FAIL x
+  SOURCE ABORT_ON_FAIL # fail fast
+  SOURCE MONITOR a b
+  SOURCE abort_on_fail
+  SOURCE desc hello
+  EXPECT diagnostic DECLARE_SYNTAX at 1:15
+  EXPECT diagnostic DECLARE_SYNTAX at 2:13
+  EXPECT diagnostic DECLARE_SYNTAX at 3:15
+  EXPECT diagnostic DECLARE_SYNTAX at 4:11
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 5:1
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 6:1
+
+EXAMPLE MONITOR refuses a query with a blank inside [..], written without quotes (INTENDED I8)
+  SOURCE MONITOR /[My Obj]/X|C|f
+  EXPECT diagnostic DECLARE_SYNTAX at 1:9

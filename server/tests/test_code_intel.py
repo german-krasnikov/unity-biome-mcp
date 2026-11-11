@@ -62,7 +62,10 @@ def test_removed_tools_not_registered():
     mcp.tool = MagicMock(return_value=lambda fn: registered.append(fn.__name__) or fn)
     mod.register(mcp, AsyncMock(), MagicMock())
 
-    assert registered == ["compile_preflight", "await_compile", "serialized_field_rename_audit"]
+    # compile_preflight/await_compile moved to BODY (SV8): register() only binds _send now;
+    # the catalog's install() registers their wrappers (and serialized_field_rename_audit's,
+    # generated all along).
+    assert registered == []
 
 
 # --- gating ---

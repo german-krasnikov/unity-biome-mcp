@@ -25,7 +25,7 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test]
         public void ChipKindDetector_MonoScript_ReturnsScriptKind()
         {
-            var guids = AssetDatabase.FindAssets("t:MonoScript ChatActivityState");
+            var guids = AssetDatabase.FindAssets("t:MonoScript ChatEvent");
             if (guids.Length == 0) { Assert.Ignore("No MonoScript found in project"); return; }
             var path = AssetDatabase.GUIDToAssetPath(guids[0]);
             var ms   = AssetDatabase.LoadAssetAtPath<MonoScript>(path);
@@ -43,7 +43,7 @@ namespace UnityMCP.Editor.Chat.Tests
 
         private static MonoScript FindTestMonoScript()
         {
-            var guids = AssetDatabase.FindAssets("t:MonoScript ChatActivityState");
+            var guids = AssetDatabase.FindAssets("t:MonoScript ChatEvent");
             if (guids.Length == 0) return null;
             return AssetDatabase.LoadAssetAtPath<MonoScript>(
                 AssetDatabase.GUIDToAssetPath(guids[0]));

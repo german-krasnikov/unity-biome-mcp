@@ -1,0 +1,75 @@
+EXAMPLE ASSERT_BATCH holds ASSERT lines up to END, each a query, an operator and a value; the value is the rest of the line (PlaytestParserEdgeCaseTests.cs:87, :174; AI/playtest-dsl.md:207-228, :1008-1011)
+  SOURCE ASSERT_BATCH
+  SOURCE ASSERT Player/Health == 100
+  SOURCE ASSERT Enemy/Health > 0
+  SOURCE ASSERT /My Object|C|f == 1
+  SOURCE END
+  SOURCE ASSERT_BATCH
+  SOURCE # an empty block and a comment are fine
+  SOURCE END
+
+EXAMPLE ASSERT_BATCH refuses a line of the block that is no complete ASSERT (the hand parser skips it; INTENDED I6)
+  SOURCE ASSERT_BATCH
+  SOURCE LOG hi
+  SOURCE ASSERT $x
+  SOURCE ASSERT /x|C|f ==
+  SOURCE ASSERT /x|C|f ~ 1
+  SOURCE END
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 2:1
+  EXPECT diagnostic DECLARE_SYNTAX at 3:8
+  EXPECT diagnostic DECLARE_SYNTAX at 4:15
+  EXPECT diagnostic DECLARE_SYNTAX at 5:17
+
+EXAMPLE ASSERT_BATCH refuses a word after it (INTENDED I1): the block is skipped, so the one diagnostic is on the head
+  SOURCE ASSERT_BATCH extra
+  SOURCE ASSERT /X|C|f == 1
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 1:14
+
+EXAMPLE ASSERT_BATCH refuses a block without END (PlaytestParserEdgeCaseTests.cs:80) and an end in lower case (INTENDED I4)
+  SOURCE ASSERT_BATCH
+  SOURCE ASSERT /X|C|f == 1
+  SOURCE end
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 3:1
+
+EXAMPLE SWEEP_PATH, COMPLETE_PURCHASE and INVOKE_REPEAT are read by their first line; the lines that go on (waypoints, UNTIL, EXPECT, TIMEOUT, names) are the host's and are not in the grammar (PlaytestDslExtensionTests.cs:111, :287, :321, :336, :352; PlaytestParserTests.cs:509; AI/playtest-dsl.md:387, :516, :744)
+  SOURCE SWEEP_PATH /Player DWELL 1.5
+  SOURCE SWEEP_PATH /Player DWELL 0
+  SOURCE COMPLETE_PURCHASE /Store/Item EXPECT
+  SOURCE COMPLETE_PURCHASE $buy_item_pipe EXPECT
+  SOURCE COMPLETE_PURCHASE /Store/Item
+  SOURCE INVOKE_REPEAT 3 /Player PlayerController TakeDamage 10
+  SOURCE INVOKE_REPEAT 2 /Player Health TakeDamage 42 true
+  SOURCE INVOKE_REPEAT 0 $gate ClearingZoneCounter OnBoardDestroyed
+  SOURCE INVOKE_REPEAT 2 /Player "My Comp" "My Method"
+
+EXAMPLE SWEEP_PATH, COMPLETE_PURCHASE and INVOKE_REPEAT refuse a missing part (PlaytestDslExtensionTests.cs:159), a word instead of DWELL or a number, a path with a blank inside [..] (INTENDED I8), a token after EXPECT (INTENDED I1) and a count that is no whole number (INTENDED I5)
+  SOURCE SWEEP_PATH
+  SOURCE SWEEP_PATH /Player
+  SOURCE SWEEP_PATH /Player 0.4
+  SOURCE SWEEP_PATH /Player DWELL
+  SOURCE SWEEP_PATH /Player DWELL abc
+  SOURCE COMPLETE_PURCHASE
+  SOURCE COMPLETE_PURCHASE /x EXPECT now
+  SOURCE INVOKE_REPEAT
+  SOURCE INVOKE_REPEAT x /P C M
+  SOURCE INVOKE_REPEAT -1 /P C M
+  SOURCE INVOKE_REPEAT 3 /P C
+  SOURCE SWEEP_PATH /[My Obj]/X DWELL 1
+  SOURCE COMPLETE_PURCHASE /[My Obj]/X EXPECT
+  SOURCE INVOKE_REPEAT 2 /[My Obj]/X C M
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_SYNTAX at 2:12
+  EXPECT diagnostic DECLARE_SYNTAX at 3:20
+  EXPECT diagnostic DECLARE_SYNTAX at 4:20
+  EXPECT diagnostic DECLARE_NUMBER at 5:26
+  EXPECT diagnostic DECLARE_SYNTAX at 6:1
+  EXPECT diagnostic DECLARE_SYNTAX at 7:29
+  EXPECT diagnostic DECLARE_SYNTAX at 8:1
+  EXPECT diagnostic DECLARE_COUNT at 9:15
+  EXPECT diagnostic DECLARE_COUNT at 10:15
+  EXPECT diagnostic DECLARE_SYNTAX at 11:20
+  EXPECT diagnostic DECLARE_SYNTAX at 12:12
+  EXPECT diagnostic DECLARE_SYNTAX at 13:19
+  EXPECT diagnostic DECLARE_SYNTAX at 14:17

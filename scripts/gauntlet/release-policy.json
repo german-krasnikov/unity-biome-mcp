@@ -4,7 +4,7 @@
   "activation_product_version": "2.1.0",
   "harness_lock_path": "server/uv.lock",
   "contract_catalog_path": "scripts/gauntlet/contracts.json",
-  "contract_catalog_sha": "64a553fb93035458d9b2d5f39f6d4501a0ed053d3f44ecaafdcb40101d2bdbde",
+  "contract_catalog_sha": "7332e852fb145145bb6cef24b2edf42063b6f6a05c3c6e18ff9fd68b2fb529eb",
   "artifact_types": [
     "python_wheel",
     "unity_editor_upm",

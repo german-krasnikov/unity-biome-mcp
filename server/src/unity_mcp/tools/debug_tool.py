@@ -1,8 +1,8 @@
 """AI-assisted debugging: gather diagnostic context based on symptom."""
 from mcp.server.fastmcp.exceptions import ToolError
 
-from ._annotations import RO as _RO
 from ._common import bind
+from .generated.catalog_tools import debug  # noqa: F401
 
 _send = None
 
@@ -62,7 +62,7 @@ def format_diagnostic(result: str, symptom: str, path: str) -> str:
     return "\n".join(header) + "\n" + result
 
 
-async def debug(symptom: str = "", path: str = "", gather: str = "") -> str:
+async def _debug_body(symptom: str = "", path: str = "", gather: str = "") -> str:
     """AI-assisted scene debug: gather diagnostic context based on symptom (not compile/reload — use `diagnose` for that; not runtime state — use `debug_animator` or `debug_physics`).
 
     symptom: Natural language description ("enemy doesn't move", "button not clickable")
@@ -88,4 +88,3 @@ async def debug(symptom: str = "", path: str = "", gather: str = "") -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(debug)

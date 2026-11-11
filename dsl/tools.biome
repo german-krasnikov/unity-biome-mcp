@@ -1,0 +1,2128 @@
+SURFACE tools
+# One block per tool, by name (dsl/README.md). TOOL: Unity handles it; PYTOOL: only the Python server implements it (direct_only).
+# INTERNAL <name> <RO|RW> "<what it is>": a wire command that is no MCP tool; it has a ToolSpec (timeout, flags) and nothing else.
+# TOOL <name> <CATEGORY> <effect> "<summary>": RO read-only | RW writes | RW_IDEM writes, safe to repeat | DEL destructive
+# (ToolSpec.mutability, MCP annotation); the summary is the first line of the description. FORWARD: the MCP wrapper is generated, its
+# description is the summary and the DOC lines, one per line. FLAG (core tier1 direct_only unity_transport), RUNTIME (runtime_only),
+# TIMEOUT <s>: ToolSpec fields.
+# MAXCHARS <n>: the response limit of the Unity registration (maxResponseChars), checked against it by test_catalog_vs_csharp.py.
+# ARG <name> <type> [DEFAULT <v> [OMIT]] [DEFAULT_TEXT "<s>" [OMIT]] [RAW] ["<schema description>"]: in the order of the Python signature,
+# required without a default; the type is str int float bool, o-prefixed when None is allowed, or Any (checked by name and default only:
+# Context, Literal, ...); OMIT: a value equal to the default is not sent, Unity applies it; RAW: a FORWARD wrapper sends the value as it is.
+# READ <action>: an action of this tool that only reads (any other action, or none, is a write). isMutating asks it: the Python side's ACTION_READS
+# (tools/generated/catalog_reads.py) and the C# side's ActionReads.IsRead (Editor/Generated/ActionReads.g.cs) are printed from these lines.
+
+TOOL alias_status SYSTEM RO "Check alias table health: loaded/empty/stale, sources, and total alias count."
+  GUARD compile
+  FORWARD
+END
+
+TOOL analyze_lod_culling MEDIA RO "LOD group coverage + occlusion culling analysis."
+  FORWARD
+  DOC "focus: lod|culling|occlusion|null=all."
+  ARG focus ostr DEFAULT None
+END
+
+TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this)."
+  FORWARD
+  DOC "action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path)."
+  DOC "clip=clip name, keys='t:0 v:(0,0,0); t:1 v:(0,2,0)', property=e.g. localPosition.x."
+  DOC "component_type: Unity component to animate (default: Transform). Examples: Light, Camera, Rigidbody."
+  DOC "binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root."
+  DOC "tangent: tangent mode for keyframes: auto (default) | smooth | linear | constant."
+  DOC "function_name: method name for add_event. int_param/float_param/string_param: event parameters."
+  ARG action str EXAMPLE "list"
+  ARG path str EXAMPLE "/Main Camera"
+  ARG clip ostr DEFAULT None
+  ARG clip_name ostr DEFAULT None
+  ARG property ostr DEFAULT None
+  ARG keys ostr DEFAULT None
+  ARG time ofloat DEFAULT None RAW
+  ARG component_type ostr DEFAULT None
+  ARG binding_path ostr DEFAULT None
+  ARG tangent ostr DEFAULT None
+  ARG function_name ostr DEFAULT None
+  ARG int_param oint DEFAULT None RAW
+  ARG float_param ofloat DEFAULT None RAW
+  ARG string_param ostr DEFAULT None
+  ARG compact bool DEFAULT False OMIT
+  READ get
+  READ get_clip_path
+  READ get_events
+  TAG reflect_noerror
+  TAG schema_keep_full
+END
+
+TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param."
+  BODY animation
+  DOC "params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'."
+  DOC "conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState)."
+  DOC "blend_type: 1d|2d_simple|2d_freeform|2d_cartesian|direct."
+  DOC "param/param_y: blend parameters (auto-created as float if missing)."
+  DOC "children: '(1D) Idle:0; Walk:0.5; Run:1' or '(2D) Idle:0,0; Walk:0,1'."
+  DOC "edit_action: add_child|remove_child|set_thresholds|set_param|set_type."
+  DOC "layer: layer index (int) for add_state/add_transition/set_default, or name/index string for CRUD ops."
+  DOC "weight: defaultWeight for add_layer/set_layer_weight (0.0–1.0)."
+  DOC "blending: Override|Additive for add_layer/set_layer_blending."
+  DOC "value: speed multiplier for set_state_speed. avatar_path: asset path for set_avatar."
+  ARG action str
+  ARG path str EXAMPLE "/Main Camera"
+  ARG state ostr DEFAULT None
+  ARG states ostr DEFAULT None
+  ARG params ostr DEFAULT None
+  ARG source ostr DEFAULT None
+  ARG target ostr DEFAULT None
+  ARG conditions ostr DEFAULT None
+  ARG duration ofloat DEFAULT None
+  ARG exit_time ofloat DEFAULT None
+  ARG has_exit_time obool DEFAULT None
+  ARG type ostr DEFAULT None
+  ARG name ostr DEFAULT None
+  ARG blend_type ostr DEFAULT None
+  ARG param ostr DEFAULT None
+  ARG param_y ostr DEFAULT None
+  ARG children ostr DEFAULT None
+  ARG edit_action ostr DEFAULT None
+  ARG layer Any DEFAULT None
+  ARG weight ofloat DEFAULT None
+  ARG blending ostr DEFAULT None
+  ARG value ostr DEFAULT None
+  ARG avatar_path ostr DEFAULT None
+  READ get
+  READ get_blend_tree
+  TAG reflect_noerror
+  TAG schema_keep_full
+END
+
+PYTOOL animator_intent SYSTEM RW "Convert NL intent to Unity Animator Controller setup via DSL."
+  BODY animator_intent_tool
+  DOC "dry_run=True returns the batch plan without executing it."
+  ARG target str
+  ARG intent str
+  ARG dry_run bool DEFAULT False
+  TAG reflect_silent
+END
+
+PYTOOL apply_scene_change SCENE RW "Execute scene mutations with atomic apply, post-verify, and optional save."
+  CARD generic
+  BODY transaction
+  DOC "1. Validate plan_id exists and not expired (TTL 600s)"
+  DOC "2. Reject empty input and commands outside the Unity-Undo-safe scene allowlist"
+  DOC "3. Execute an atomic, stop-on-error batch"
+  DOC "4. On batch failure/rollback: stop without verification or save"
+  DOC "5. If verify: require clean references and console before save"
+  DOC "6. If save: save only after a successful batch and verification"
+  DOC "7. Return applied, verified, and saved states separately"
+  DOC "Allowed commands: attach_uitk, auto_wire, autofit_collider, create_object,"
+  DOC "create_ui, delete_object, manage_component, rename_object, set_active,"
+  DOC "set_parent, set_property, set_property_delta, set_rect, set_sibling_index,"
+  DOC "unwire_event, wire_event. Use batch for all other command types."
+  FLAG tier1
+  TIMEOUT 120.0
+  ARG plan_id str
+  ARG commands str
+  ARG verify bool DEFAULT True
+  ARG save bool DEFAULT True
+  TAG reflect_noerror
+END
+
+PYTOOL apply_template SYSTEM RW "Apply a scene template (.cs file from .claude/templates/)."
+  BODY skills
+  DOC "params: comma-separated key=value pairs for ${key} replacement."
+  DOC "Example: apply_template('level_setup', 'player_pos=(0,0,0),count=3')"
+  ARG name str "Saved scene-template identifier from .claude/templates (without .cs)"
+  ARG params ostr DEFAULT None
+  TAG reflect_silent
+END
+
+PYTOOL ask SYSTEM RO "Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input)."
+  BODY ask_tool
+  DOC "Routes to deterministic tool plans for common patterns,"
+  DOC "uses Haiku summarization for complex multi-tool results."
+  ARG question str
+END
+
+TOOL ask_user SYSTEM RO "Show a question card in Unity chat; wait for user answer (interactive UI — use `ask` for read-only AI scene questions instead)."
+  GUARD always
+  GUARD compile
+  FORWARD
+  FLAG direct_only
+  FLAG unity_transport
+  TIMEOUT 300.0
+  DOC "questions: JSON array matching AskUserQuestion schema:"
+  DOC "[{\"question\":\"...\",\"header\":\"...\",\"options\":[{\"label\":\"...\"}],\"multiSelect\":false}]"
+  DOC "Returns JSON map of question→answer (or free text if Other field used)."
+  DOC "Use this instead of AskUserQuestion for in-Unity interactive prompts."
+  ARG questions str
+END
+
+TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."
+  BODY asset
+  ARG action str EXAMPLE "list"
+  ARG path ostr DEFAULT None "Action-specific project asset/package path (usually Assets/...; import_package accepts a package file path)"
+  ARG type ostr DEFAULT None "Unity asset type filter or create kind (for example Material or ScriptableObject)"
+  ARG name ostr DEFAULT None "Asset-name search filter used by find (not a GameObject name)"
+  ARG folder ostr DEFAULT None
+  ARG source ostr DEFAULT None
+  ARG dest ostr DEFAULT None
+  ARG prop ostr DEFAULT None
+  ARG value ostr DEFAULT None "Import-setting/property value for the selected asset action"
+  ARG recursive bool DEFAULT False
+  ARG labels ostr DEFAULT None
+  ARG output ostr DEFAULT None
+  ARG include_deps bool DEFAULT True
+  ARG content ostr DEFAULT None
+  ARG class_name ostr DEFAULT None WIRE "class"
+  ARG path_only bool DEFAULT False
+  READ find
+  READ find_dependents
+  READ get_dependencies
+  READ get_info
+  READ validate_move
+  TAG reflect_noerror
+END
+
+TOOL attach_uitk UITOOLKIT RW "Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for UI Toolkit runtime panels)."
+  FORWARD
+  DOC "Side effect: mutates the scene by adding one Undo-recorded UIDocument after validating"
+  DOC "every supplied asset; it does not create UXML or PanelSettings assets."
+  DOC "path: scene path to the target GameObject."
+  DOC "uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted)."
+  DOC "panel_settings: optional Assets/ path to a PanelSettings asset; omitted leaves the field unset."
+  DOC "sort_order: UIDocument.sortingOrder (default 0; ignored on Unity 6.4+ PanelRenderer)."
+  DOC "err: if UIDocument or PanelRenderer already present — remove it first or use inspect_uitk/uitk_element."
+  DOC ""
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG uxml ostr DEFAULT None
+  ARG panel_settings ostr DEFAULT None
+  ARG sort_order oint DEFAULT None RAW
+  TAG atomic_scene
+  TAG reflect_silent
+END
+
+PYTOOL auto_fix SYSTEM RO "Analyze recent Unity errors and ask MCP client sampling for a fix suggestion."
+  ARG ctx Any
+END
+
+TOOL auto_wire COMPONENTS RW "Fill null ObjectReference fields on a GameObject by matching field name or type to scene objects. Mutates scene when dry_run=False. No confirmation required."
+  FORWARD
+  DOC "dry_run=true previews without applying. Returns wired/ambiguous/no-match summary."
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG dry_run bool DEFAULT False OMIT
+  TAG atomic_scene
+  EXPECT token "Wired:"
+END
+
+TOOL autofit_collider SCENE RW "Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule."
+  FORWARD
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG type str DEFAULT_TEXT "box" "Collider shape to fit: box|sphere|capsule"
+  TAG atomic_scene
+  EXPECT token "fitted"
+END
+
+PYTOOL await_compile VERIFY RO "Block until Unity finishes compiling + reloading, then return compile errors."
+  DENY
+  BODY code_intel
+  DOC "Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'."
+  DOC "Handles domain reload disconnects transparently. timeout=0 → immediate check, no loop."
+  DOC "Epoch-aware via sync_status when available (+10 from MAJOR-1); falls back to compile_status."
+  FLAG tier1
+  ARG timeout float DEFAULT 60.0
+  ARG expected_generation oint DEFAULT None
+END
+
+TOOL bake ASSETS RW "Bake operations."
+  FORWARD
+  DOC "target: lighting|occlusion."
+  DOC "action (lighting): start(default)|status|cancel|clear|settings."
+  DOC "action (occlusion): start(default)|status|clear."
+  DOC "Poll status after start — lighting bake is async."
+  ARG target str
+  ARG action ostr DEFAULT None
+  READ settings
+  READ status
+  TAG reflect_noerror
+END
+
+# timeout_s live for 9 internal _send("batch",...) callers w/o explicit timeout
+# (animator_intent_tool.py:119, skills.py:61, autobatch.py:69/98/136,
+# ui_intent_tool.py:152, debug_tool.py:78, do_intent/executor.py:38/67).
+# Public batch() tool always overrides -- see tools/batch.py timeout param.
+TOOL batch CORE RW "Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls."
+  CARD generic
+  NEXT "get_console level=Error"
+  DENY
+  BODY batch
+  GUARD compile
+  FLAG core
+  TIMEOUT 120.0
+  VERB "Running batch"
+  ARG commands str EXAMPLE "get_status" "One command per line (e.g. 'get_component path=/Player type=Transform')"
+  ARG on_error str DEFAULT_TEXT "continue" "Error behavior: continue (default) | stop — stop aborts remaining commands"
+  ARG timeout float DEFAULT 75.0 LOCAL "Total timeout in seconds (default 75)"
+  ARG atomic bool DEFAULT False "On failure, revert prior Undo-recorded Unity mutations; external/file/asset/package/process effects may remain"
+  ARG validate_aliases bool DEFAULT False "Dry-run alias validation before executing any mutations"
+  TAG distill_skip
+  TAG reflect_custom
+  BLAST 3
+END
+
+PYTOOL brief_build SYSTEM RO "Use to get a snapshot of project state before starting work."
+  BODY brief_tool
+  DOC "Returns compact text block with requested context within token budget."
+  DOC "kinds: comma-separated subset of: console, compile_errors, hierarchy, selection, profiler"
+  DOC "budget: max token estimate (default 2000; 1 token ≈ 4 chars)"
+  ARG kinds str DEFAULT_TEXT "console,compile_errors,hierarchy"
+  ARG budget int DEFAULT 2000
+END
+
+PYTOOL budget_status SYSTEM RO "Returns Haiku cost: session/cap/day/skipped features. Text format."
+  BODY budget_tool
+END
+
+TOOL build SYSTEM RW "Build player. action: build."
+  DENY
+  GUARD play_ok
+  FORWARD
+  FLAG direct_only
+  FLAG unity_transport
+  TIMEOUT 300.0
+  DOC "target: StandaloneWindows64|StandaloneOSX|Android|iOS|WebGL (default: active)."
+  DOC "scenes: comma-sep asset paths (default: Build Settings list)."
+  DOC "path: output path (default: Builds/<target>)."
+  DOC "dev: development build flag."
+  ARG action str
+  ARG target ostr DEFAULT None
+  ARG scenes ostr DEFAULT None
+  ARG path ostr DEFAULT None "Player build output file or directory (default Builds/<target>)"
+  ARG dev bool DEFAULT False OMIT
+  TAG reflect_silent
+END
+
+TOOL cancel_test_run TESTS RW_IDEM "Request cancellation of one exact test run; cancellation is asynchronous."
+  GUARD always
+  GUARD compile
+  GUARD play_ok
+  WIRE no_undo
+  FORWARD
+  TIMEOUT 10.0
+  ARG run_id str EXAMPLE "__seam_nonexistent"
+  TAG reflect_silent
+END
+
+TOOL check_colliders SCENE RO "Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given."
+  FORWARD
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
+END
+
+TOOL checkpoint SYSTEM RW "Create a named Undo checkpoint. Use before major scene changes. Allows rollback via Ctrl+Z in Unity."
+  GUARD play_ok
+  WIRE no_undo
+  FORWARD
+  ARG label str DEFAULT_TEXT "checkpoint"
+  TAG reflect_noerror
+  TAG schema_keep_full
+END
+
+# T19: Python orchestrator, no C# handler
+PYTOOL checkpoint_create SYSTEM RW "Create a durable checkpoint before an agent turn."
+  BODY checkpoint_tool
+  DOC "paths: comma-separated file paths to snapshot. Empty = open dirty scenes."
+  ARG paths str DEFAULT_TEXT ""
+  TAG reflect_silent
+END
+
+# T19: Python orchestrator, no C# handler
+PYTOOL checkpoint_restore SYSTEM DEL "Restore files to their pre-turn state."
+  BODY checkpoint_tool
+  DOC "Tries Unity Undo first when domain stamp matches; falls back to file restore."
+  DOC "MVP: after_refs always empty — no ChangeSet-based conflict detection yet."
+  ARG checkpoint_id str
+  ARG force bool DEFAULT False
+  TAG reflect_silent
+END
+
+TOOL compile_preflight VERIFY RO "Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile."
+  BODY code_intel
+  DOC "file_path: Assets-relative. new_content: full file. Returns OK preflight (ms) / ERR preflight + diagnostics / [ROSLYN UNAVAILABLE]."
+  GUARD compile
+  FLAG core
+  TIMEOUT 15.0
+  ARG file_path str
+  ARG new_content str
+END
+
+INTERNAL compile_status RO "Compile notifier state plus reload state string; await_compile (code_intel.py) polls it directly, allowedDuringCompile."
+  GUARD compile
+  TAG retry_safe_internal
+END
+
+PYTOOL configure_objects SCENE RW "Configure multiple objects at once."
+  BODY autobatch
+  DOC "Format: /Path component.prop=value [...] per line."
+  DOC "Example:"
+  DOC "/NPC1 Transform.m_LocalPosition=(1,0,0) Health.maxHp=100"
+  DOC "/NPC2 Transform.m_LocalPosition=(3,0,0)"
+  ARG config str
+  TAG reflect_silent
+END
+
+PYTOOL console_mark RUNTIME RO "Create a console watermark. Returns mark_id encoding current timestamp."
+  BODY console
+  DOC "Pass to get_console_since() to retrieve only logs after this point."
+  DOC "Pure Python — no TCP call."
+  FLAG tier1
+  ARG label str DEFAULT_TEXT ""
+END
+
+TOOL create_object CORE RW "Create new GameObject. components: comma-separated types to add on creation. primitive: Cube|Sphere|Cylinder|Capsule|Plane|Quad. prefab_path: instantiate from prefab asset. scene: create in named loaded scene (omit = active scene)."
+  CARD create
+  NEXT "get_hierarchy depth=1"
+  FORWARD
+  FLAG core
+  VERB "Creating"
+  ARG name str EXAMPLE "__seam_surface_probe" ROLE name "Name for the new GameObject"
+  ARG parent ostr DEFAULT None "Scene path of the parent (omit = scene root)"
+  ARG components ostr DEFAULT None "Comma-separated component types to add on creation (e.g. 'Rigidbody,BoxCollider')"
+  ARG primitive ostr DEFAULT None "Primitive mesh type: Cube|Sphere|Cylinder|Capsule|Plane|Quad"
+  ARG prefab_path ostr DEFAULT None "Asset path to instantiate from prefab (e.g. Assets/Prefabs/Enemy.prefab)"
+  ARG scene ostr DEFAULT None "Target scene name when multiple scenes are loaded (omit = active scene)"
+  TAG atomic_scene
+  TAG distill_skip
+  TAG do_allowed
+  TAG reflect_custom
+  BLAST 2
+END
+
+TOOL create_ui UGUI RW "Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace. font_min/font_max: enable TMP autoSizing for Text type."
+  FORWARD
+  ARG type str EXAMPLE "Button" "uGUI element type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView"
+  ARG name ostr DEFAULT None
+  ARG parent ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
+  ARG anchor ostr DEFAULT None
+  ARG pos ostr DEFAULT None
+  ARG size ostr DEFAULT None
+  ARG pivot ostr DEFAULT None
+  ARG color ostr DEFAULT None
+  ARG text ostr DEFAULT None
+  ARG font_size ostr DEFAULT None
+  ARG render_mode ostr DEFAULT None
+  ARG font_min ostr DEFAULT None
+  ARG font_max ostr DEFAULT None
+  TAG atomic_scene
+  EXPECT token "Created"
+END
+
+PYTOOL debug RUNTIME RO "AI-assisted scene debug: gather diagnostic context based on symptom (not compile/reload — use `diagnose` for that; not runtime state — use `debug_animator` or `debug_physics`)."
+  BODY debug_tool
+  DOC "symptom: Natural language description (\"enemy doesn't move\", \"button not clickable\")"
+  DOC "path: Optional target object path (\"/Enemy_01\")"
+  DOC "gather: Override comma-separated batch-safe tool names (\"inspect,get_console\")"
+  DOC "Returns structured diagnostic text for LLM analysis."
+  ARG symptom str DEFAULT_TEXT ""
+  ARG path str DEFAULT_TEXT ""
+  ARG gather str DEFAULT_TEXT ""
+END
+
+TOOL debug_animator RUNTIME RO "[Play Mode] Read Animator state: layers, transitions, parameters (use `debug` for scene; `diagnose` for compile)."
+  FORWARD
+  RUNTIME
+  DOC "path: scene path to GameObject with Animator component."
+  ARG path str
+END
+
+TOOL debug_physics RUNTIME RO "[Play Mode] Read Rigidbody state, colliders, contacts, and nearby objects (use `debug` for scene; `diagnose` for compile)."
+  FORWARD
+  RUNTIME
+  DOC "path: scene path to GameObject."
+  DOC "radius: overlap sphere radius for nearby detection (default 5m)."
+  ARG path str
+  ARG radius float DEFAULT 5.0 RAW
+END
+
+TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."
+  CARD delete
+  NEXT "get_hierarchy depth=1"
+  BODY objects
+  FLAG tier1
+  VERB "Deleting"
+  ARG id oint DEFAULT None "Instance ID of the GameObject to delete (from get_hierarchy)"
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent" ROLE target "Scene path of the GameObject to delete"
+  ARG force bool DEFAULT False "True to delete non-empty container objects without error"
+  TAG atomic_scene
+  TAG distill_skip
+  TAG do_forbidden
+  BLAST 4
+  EXPECT token "deleted" STRICT
+END
+
+TOOL diagnose VERIFY RO "Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`."
+  BODY diagnose
+  DOC "prev_mvid: MVID from before a sync operation. When provided, enables STALE-DOMAIN"
+  DOC "detection (unchanged MVID after intended recompile). Pass '' for standalone probing."
+  DOC "expected_compile: True when a compile was explicitly triggered (default)."
+  DOC "False for Bee cache-hit / will_compile=false / reverted-edit probes — prevents"
+  DOC "false STALE-DOMAIN on legitimately-frozen MVID (A5/G27)."
+  DOC "Returns: CLEAN-LIVE / FAIL:<CS> / STALE-DOMAIN / WEDGE-ENGINE / WEDGE-STATE /"
+  DOC "         BUILD-FAILED-WEDGE / STALE-CACHE / TESTS-INVISIBLE / REBUILDING /"
+  DOC "         NO-OP / UNKNOWN"
+  GUARD always
+  GUARD compile
+  ARG prev_mvid str DEFAULT_TEXT "" LOCAL
+  ARG expected_compile bool DEFAULT True LOCAL
+END
+
+PYTOOL discover_tools SYSTEM RO "Find and enable tools by category."
+  FLAG tier1
+  SESSION
+  ARG category ostr DEFAULT None
+  ARG enable bool DEFAULT True
+  ARG include_legacy bool DEFAULT False
+  ARG structured bool DEFAULT False
+  ARG ctx Any DEFAULT None
+  TAG meta_cmd
+END
+
+PYTOOL do SYSTEM RW "Convert natural language intent into Unity scene operations. Use when scene structure unknown or task is ambiguous. NOT for targeted mutations on known objects — use batch directly."
+  BODY do_tool
+  DOC "Haiku generates a batch DSL plan, which is validated then executed."
+  DOC "dry_run=True returns the plan without executing it."
+  ARG intent str
+  ARG dry_run bool DEFAULT False
+  TAG reflect_silent
+END
+
+# Conditional: default is observational; fix=True removes stale local files.
+# middleware_types.is_write() handles the argument-aware classification.
+# Conservative effect: fix=True may remove stale local files. Runtime read-only enforcement remains
+# argument-aware in doctor() itself.
+PYTOOL doctor SYSTEM RW "Run health diagnostics. fix=True removes safe stale port/lock files."
+  BODY meta
+  ARG fix bool DEFAULT False
+  TAG reflect_silent
+END
+
+TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode."
+  BODY editor_control
+  DOC "select: path (single) or paths (comma-sep multi, e.g. \"/Player,/Enemy,/NPC\")."
+  DOC "mutation_mode: omit enable to query current intent; enable=True/False to set it."
+  GUARD play_ok
+  WIRE no_undo
+  FLAG core
+  ARG action str DEFAULT_TEXT "state" EXAMPLE "status"
+  ARG path ostr DEFAULT None
+  ARG paths ostr DEFAULT None
+  ARG enable obool DEFAULT None
+  READ project_path
+  READ state
+  TAG reflect_silent
+END
+
+TOOL execute_code SYSTEM RW "Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile."
+  DENY
+  GUARD compile
+  FORWARD
+  FLAG core
+  TIMEOUT 60.0
+  DOC "Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed."
+  DOC "Bare statements are auto-wrapped in a static class — no boilerplate needed."
+  DOC "Example: \"var go = new GameObject(\\\"Test\\\"); return go.name;\""
+  ARG code str "C# code to execute in the Unity Editor context"
+  ARG undo_label str DEFAULT_TEXT "execute_code" "Label for the Undo group entry (default 'execute_code')"
+  TAG distill_skip
+  TAG do_forbidden
+  TAG reflect_silent
+  BLAST 5
+END
+
+INTERNAL export_package RW "Protocol name of the asset action export_package; only its timeout is used, Unity registers no command of this name."
+  TIMEOUT 120.0
+  TAG reflect_silent
+END
+
+TOOL export_playtest_aliases_to_defs TESTS RW "Export PlaytestConfig.asset aliases to a readable .defs text file."
+  GUARD play_ok
+  WIRE no_undo
+  FORWARD
+  DOC "asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset)."
+  DOC "defs: project-relative output path (default: Assets/PlaytestDefs/farm_core.defs)."
+  ARG asset str DEFAULT_TEXT "Assets/Configs/PlaytestConfig.asset"
+  ARG defs str DEFAULT_TEXT "Assets/PlaytestDefs/farm_core.defs"
+  TAG reflect_noerror
+END
+
+TOOL find_objects SCENE RO "Find objects by criteria. Use search_scene for complex queries. Does NOT support: parent, path, active/inactive filtering, regex. Only: name (substring), tag, layer, component (full namespace)."
+  FORWARD
+  ARG name ostr DEFAULT None EXAMPLE "__seam_surface_nonexistent"
+  ARG tag ostr DEFAULT None
+  ARG layer ostr DEFAULT None
+  ARG component ostr DEFAULT None
+  BLAST 0
+END
+
+TOOL fingerprint SYSTEM RO "Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens."
+  FORWARD
+  TIMEOUT 10.0
+  ARG path ostr DEFAULT None
+  ARG depth int DEFAULT 3 RAW
+END
+
+INTERNAL get_aliases RO "The alias table as name=value lines; the server reads it when it connects."
+  GUARD compile
+END
+
+TOOL get_capabilities SYSTEM RO "Unity version, platform, render pipeline, scripting backend, and optional packages available."
+  GUARD compile
+  FORWARD
+END
+
+TOOL get_changes SYSTEM RW "Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,"
+  FORWARD
+  DOC "play mode, scene open/save, selection. Returns chronological event list or NO_CHANGES."
+  ARG clear bool DEFAULT True
+  TAG reflect_silent
+END
+
+PYTOOL get_changeset VERIFY RO "Return the current ChangeSet: accumulated mutations this session."
+  BODY changeset_tool
+  DOC "Use after any mutation sequence to review what changed."
+  FLAG tier1
+  TIMEOUT 5.0
+END
+
+TOOL get_compile_errors CORE RO "Compilation errors with file:line:column. Not lost on Console.Clear(). Structured, typed."
+  BODY console
+  GUARD compile
+  FLAG core
+  VERB "Checking errors"
+END
+
+TOOL get_component CORE RO "Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N."
+  BODY objects
+  DOC "fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name."
+  DOC "full=True: bypass distillation, return raw response. compress=True: strip default values before transfer."
+  DOC "component: alias for type= (backward-compat with set_property naming). type= wins when both provided."
+  FLAG core
+  VERB "Reading component"
+  ARG path str EXAMPLE "/__seam_nonexistent" "Scene path to the GameObject (e.g. /Player or /World/Enemy)"
+  ARG type str DEFAULT_TEXT "" EXAMPLE "Transform" "Component type name (e.g. 'Transform', 'Rigidbody', 'MeshRenderer')"
+  ARG fields ostr DEFAULT None "Comma-separated fields to return (e.g. 'mass,localPosition') — skips all others, saves tokens"
+  ARG full bool DEFAULT False LOCAL "Return raw uncompressed response (bypass distillation)"
+  ARG compress bool DEFAULT False "Strip fields at their default value before TCP transfer — reduces response size"
+  ARG component ostr DEFAULT None LOCAL
+  TAG async_full
+  TAG read_cacheable
+  TAG strip_defaults
+  BLAST 0
+END
+
+TOOL get_components_list SCENE RO "List all components on object by instance ID."
+  FORWARD
+  VERB "Reading components"
+  ARG id int RAW EXAMPLE "999999999"
+  TAG read_cacheable
+END
+
+TOOL get_console CORE RO "Recent console logs. For C# compile errors use get_compile_errors instead. keyword: case-insensitive substring filter. count_only: return N matches as string. since: only logs from last N seconds."
+  GUARD compile
+  FORWARD
+  FLAG core
+  TIMEOUT 10.0
+  MAXCHARS 20000
+  VERB "Reading console"
+  ARG count int DEFAULT 10 RAW "Max log entries to return (default 10)"
+  ARG level ostr DEFAULT None "Filter by level: log|warning|error|exception|assert (omit = all)"
+  ARG first int DEFAULT 0 OMIT RAW "Skip the first N entries (pagination offset)"
+  ARG keyword ostr DEFAULT None
+  ARG count_only bool DEFAULT False OMIT
+  ARG since ofloat DEFAULT None RAW
+END
+
+PYTOOL get_console_since RUNTIME RO "Console entries after the watermark created by console_mark()."
+  BODY console
+  DOC "mark_id: string from console_mark() or bare float timestamp."
+  DOC "level: optional filter ('error,exception,assert')."
+  DOC "keyword: case-insensitive substring filter."
+  DOC "count_only: return match count as string."
+  DOC "count: max entries to return (default 500)."
+  FLAG tier1
+  ARG mark_id str
+  ARG level ostr DEFAULT None
+  ARG count int DEFAULT 500
+  ARG keyword ostr DEFAULT None
+  ARG count_only bool DEFAULT False
+END
+
+TOOL get_enabled_tools SYSTEM RO "List enabled tool names, comma-separated."
+  GUARD always
+  GUARD compile
+  FORWARD
+  TAG meta_cmd
+END
+
+TOOL get_frame_stats RUNTIME RO "Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed."
+  FORWARD
+  RUNTIME
+  DOC "include: narrow output — e.g. 'gc' for GC stats only."
+  ARG include str DEFAULT_TEXT "" OMIT
+END
+
+TOOL get_hierarchy CORE RO "Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only)."
+  BODY scene
+  FLAG core
+  TIMEOUT 15.0
+  MAXCHARS 50000
+  VERB "Reading scene"
+  ARG depth int DEFAULT 2 EXAMPLE "1" "Traversal depth (default 2; increase for deeper trees)"
+  ARG root ostr DEFAULT None "Scene path to scope the hierarchy (omit = whole scene)"
+  ARG filter ostr DEFAULT None "Substring filter on GameObject name"
+  ARG components bool DEFAULT False "Show component types next to each object (increases token cost)"
+  ARG compress bool DEFAULT False "Group repeated slot/point/mesh siblings to save tokens on dense scenes"
+  ARG summary bool DEFAULT False "Return compact root-only counts (~60-100 tokens) instead of the full tree"
+  ARG incremental bool DEFAULT False "Return NO_CHANGE if scene is unchanged since last call (saves tokens)"
+  ARG full bool DEFAULT False LOCAL "Bypass distillation — return raw response"
+  ARG scene ostr DEFAULT None "Filter to a single scene by name (multi-scene only)"
+  TAG async_full
+  TAG read_cacheable
+  BLAST 0
+END
+
+TOOL get_memory RUNTIME RO "Memory snapshot."
+  FORWARD
+  DOC "include: all|textures|meshes|audio|gc — narrow the asset-type breakdown."
+  ARG include str DEFAULT_TEXT "all" OMIT
+END
+
+PYTOOL get_metrics RUNTIME RW "Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json."
+  BODY metrics_tool
+  ARG format str DEFAULT_TEXT "text"
+  ARG reset bool DEFAULT False
+  TAG reflect_silent
+END
+
+TOOL get_object_detail SCENE RO "Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation."
+  BODY objects
+  ARG id int EXAMPLE "999999999"
+  ARG full bool DEFAULT False LOCAL
+  TAG async_full
+  TAG strip_defaults
+  BLAST 0
+END
+
+# E03: Wave E async playtest poll — internal wire command, not @mcp.tool() until E04
+# wires run_playtest(timeout>120) through the async start/poll pair. Same shape as
+# source_patch_write below (RegisterAsync in C#, no Python-typed wrapper yet).
+INTERNAL get_playtest_run RO "Polls the asynchronous playtest run that start_playtest began."
+  GUARD compile
+  FLAG direct_only
+  FLAG unity_transport
+  ARG run_id str
+  TAG playtest_scenario
+END
+
+TOOL get_schema SYSTEM RO "Get all serialized fields of a component type with types. Use before set_property to know exact field names."
+  FORWARD
+  ARG type str EXAMPLE "Transform"
+END
+
+TOOL get_selection SCENE RO "Currently selected GameObject: path and component list."
+  FORWARD
+END
+
+TOOL get_spatial_context SCENE RO "Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only."
+  FORWARD
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG radius float DEFAULT 5.0
+END
+
+INTERNAL get_status RO "Scene/dirty/playing/compiling/port/alias/readOnly/version snapshot; retry-safe health probe (meta.py, transaction.py)."
+  GUARD always
+  GUARD compile
+  TAG retry_safe_internal
+END
+
+TOOL get_test_count TESTS RO "Number of edit-mode and play-mode tests in the project."
+  GUARD compile
+  FORWARD
+  TIMEOUT 10.0
+END
+
+TOOL get_test_progress TESTS RO "Legacy progress facade. Pass run_id to correlate the response."
+  BODY testing
+  GUARD compile
+  ARG run_id ostr DEFAULT None EXAMPLE "__seam_nonexistent"
+END
+
+TOOL get_test_results TESTS RO "Legacy result facade. Pass run_id to prevent reading a stale latest run."
+  BODY testing
+  GUARD compile
+  ARG run_id ostr DEFAULT None EXAMPLE "__seam_nonexistent"
+END
+
+TOOL get_test_run TESTS RO "Return the durable JSON snapshot for one exact test run."
+  BODY testing
+  DOC "Fails closed on terminal-invalid evidence: a snapshot claiming"
+  DOC "``state == \"terminal\"`` that doesn't pass ARC-1/ARC-3 validation (an"
+  DOC "honest zero-match filter, a stalled/unresponsive terminal claim, a"
+  DOC "corrupted count) comes back as"
+  DOC "``PROTOCOL-ERROR|run_id=...|reason=...|snapshot=...`` instead of the raw"
+  DOC "snapshot -- closes the direct-poll path around ``run_tests_wait``'s own"
+  DOC "validation."
+  DOC "compact=True trims leaf-detail arrays on a non-terminal snapshot (A27) --"
+  DOC "use for a tight-cadence poll loop; a terminal snapshot is unaffected."
+  GUARD compile
+  TIMEOUT 10.0
+  ARG run_id str EXAMPLE "__seam_nonexistent"
+  ARG compact bool DEFAULT False "Return a shorter summary instead of the full per-test breakdown"
+END
+
+TOOL get_unity_events SCENE RO "List all UnityEvent persistent listeners in the active scene."
+  FORWARD
+  DOC "path: optional scene-path prefix filter (e.g. '/UI' to scan only the UI subtree)."
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
+END
+
+INTERNAL get_version RO "Version and protocol handshake; the Unity server answers it before the command router."
+  TIMEOUT 5.0
+END
+
+TOOL get_watches RUNTIME RO "Get all active watches and recent log entries."
+END
+
+INTERNAL import_package RW "Protocol name of the asset action import_package; only its timeout is used, Unity registers no command of this name."
+  TIMEOUT 120.0
+  TAG reflect_silent
+END
+
+TOOL inspect CORE RO "Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all)."
+  BODY objects
+  DOC "find_type: component type to find — populates paths automatically (replaces explicit paths)."
+  DOC "fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation. compress=True: strip default values before transfer."
+  FLAG core
+  VERB "Reading"
+  ARG paths ostr DEFAULT None EXAMPLE "/Main Camera" "Comma-separated scene paths (e.g. '/Player,/Enemy,/Camera')"
+  ARG components ostr DEFAULT None "Comma-separated component types to read (omit = all)"
+  ARG fields ostr DEFAULT None "Comma-separated field names to project across all objects — reduces tokens"
+  ARG full bool DEFAULT False LOCAL "Return raw uncompressed response (bypass distillation)"
+  ARG compress bool DEFAULT False "Strip fields at their default value before TCP transfer — reduces response size"
+  ARG find_type ostr DEFAULT None "Component type — auto-populates paths from all scene objects with this component"
+  TAG async_full
+  TAG read_cacheable
+  TAG strip_defaults
+  BLAST 0
+END
+
+TOOL inspect_uitk UITOOLKIT RO "Inspect the VisualElement tree of a UIDocument or PanelRenderer panel"
+  BODY uitk
+  DOC "(UI Toolkit only — use `get_component` for UIDocument component fields,"
+  DOC "use `get_hierarchy` for the scene GameObject tree,"
+  DOC "use `create_ui` for uGUI Canvas elements)."
+  DOC "Returns compact text tree with ~N refids; pass ~N to uitk_element as selector."
+  DOC "path: scene path to UIDocument or PanelRenderer GameObject (e.g. /HUD), or 'scene' to list all."
+  DOC "depth: max traversal depth (default 4; use selector to focus a subtree)."
+  DOC "selector: start tree from first matching element (name, .class, TypeName, ~refid)."
+  DOC "filter: show only elements whose name or classes contain this substring."
+  DOC "show_unity_private: show #unity-* prefixed elements normally hidden by default."
+  DOC "show_style: include non-default computed style values per element."
+  TIMEOUT 15.0
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
+  ARG depth oint DEFAULT None
+  ARG selector ostr DEFAULT None
+  ARG filter ostr DEFAULT None
+  ARG show_unity_private obool DEFAULT None WIRE "include_internal"
+  ARG show_style obool DEFAULT None
+END
+
+TOOL invoke_method RUNTIME RW "[Play Mode] Call public method on a component via reflection."
+  GUARD play_ok
+  WIRE no_undo
+  FORWARD
+  RUNTIME
+  DOC "args: comma-separated values matching method parameters."
+  DOC "Example: invoke_method('/Player', 'PlayerController', 'MoveTo', '10,0,5')"
+  ARG path str
+  ARG component str
+  ARG method str
+  ARG args str DEFAULT_TEXT "" OMIT
+  TAG reflect_silent
+END
+
+TOOL lint_playtest TESTS RO "Static validation for playtest DSL. Read-only — no scene changes. Returns warnings list."
+  BODY runtime
+  DOC "Checks: $alias resolution, deprecated ALIAS, unimplemented steps, missing ASSERT_CONSOLE_CLEAN."
+  DOC "path: project-relative path to .playtest file."
+  DOC "script: inline DSL (mutually exclusive with path)."
+  GUARD compile
+  TIMEOUT 60.0
+  ARG path ostr DEFAULT None "Project-relative path to .playtest file"
+  ARG script ostr DEFAULT None EXAMPLE "ASSERT_CONSOLE_CLEAN" "Inline DSL (mutually exclusive with path)"
+END
+
+PYTOOL lint_playtest_suite TESTS RO "Read-only preflight check across multiple .playtest files."
+  BODY runtime
+  DOC "pattern: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list."
+  DOC "suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment)."
+  DOC "Returns: aggregated lint report, one block per file."
+  TIMEOUT 120.0
+  ARG pattern ostr DEFAULT None
+  ARG suite_path ostr DEFAULT None
+END
+
+TOOL lint_scene_refs VERIFY RO "Read-only linter for scene references in DSL scripts or batch commands."
+  BODY runtime
+  DOC "path: project-relative path to .playtest file."
+  DOC "snippet: inline DSL or batch commands to lint (mutually exclusive with path)."
+  DOC "Checks: unresolved aliases, embedded aliases, missing objects, ambiguous names."
+  DOC "Returns: 'OK: no issues' or severity-tagged issues (ERROR/WARN) with file:line:token."
+  FLAG tier1
+  TIMEOUT 30.0
+  ARG path ostr DEFAULT None "Project-relative path to a .playtest DSL file"
+  ARG snippet ostr DEFAULT None
+END
+
+TOOL lint_ugui UGUI RO "Diagnose uGUI problems: missing EventSystem, Canvas without GraphicRaycaster. Use when clicks miss or UI appears broken."
+  FORWARD
+  TIMEOUT 15.0
+  DOC "Returns compact text: 'ok: 0 issues' or newline-separated warnings."
+  DOC "root: scene path to root GameObject to scan (default: scan all loaded scenes)."
+  DOC ""
+  ARG root ostr DEFAULT None
+END
+
+TOOL lint_uitk UITOOLKIT RO "Validate a UXML or USS file for structural errors and broken references"
+  BODY uitk
+  DOC "(use `get_compile_errors` for C# compile errors,"
+  DOC "use `verify_after_change` for multi-gate scene verification after mutations)."
+  DOC "Checks: A1 malformed UXML; A2 broken <Style src>; A3 missing <Template src>;"
+  DOC "A4 unnamed interactive elements; A5 duplicate USS selectors; A6 empty USS rules."
+  DOC "fix: reserved for compatibility. True is unsupported and never changes the file."
+  DOC "path: Assets/ path to UXML or USS file."
+  TIMEOUT 15.0
+  ARG path ostr DEFAULT None "Assets/ path to the UXML or USS file to validate"
+  ARG fix obool DEFAULT None
+END
+
+PYTOOL list_connections SYSTEM RO "List Unity connection status."
+  BODY connection
+  TAG meta_cmd
+END
+
+TOOL list_events COMPONENTS RO "Read persistent listeners on a UnityEvent field. Use after wire_event to verify."
+  FORWARD
+  DOC "Returns listener details: target path, method name, call state, arg type/value."
+  DOC "event: serialized field name — same as wire_event 'event' param (e.g. 'onClick')."
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG component str
+  ARG event str
+END
+
+INTERNAL list_playtest_files RO "Lists the files that match a glob pattern (default Playtests/*.playtest), one project-relative path per line."
+  GUARD compile
+  TIMEOUT 10.0
+  ARG pattern ostr DEFAULT None
+END
+
+PYTOOL list_skills SYSTEM RO "List all saved skills with descriptions and usage counts."
+  BODY skills
+END
+
+PYTOOL list_templates SYSTEM RO "List available scene templates in .claude/templates/."
+  BODY skills
+END
+
+TOOL list_test_runs TESTS RO "List recent durable test runs as JSON, newest first."
+  BODY testing
+  GUARD compile
+  TIMEOUT 10.0
+  ARG limit int DEFAULT 20
+END
+
+PYTOOL load_session SYSTEM RO "Load previous session context beside the current hierarchy."
+  BODY scene
+END
+
+TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
+  CARD component
+  NEXT "get_components_list"
+  FORWARD
+  FLAG core
+  VERB "Editing components"
+  ARG path str EXAMPLE "/__seam_nonexistent" ROLE target "Scene path to the GameObject"
+  ARG type str EXAMPLE "Rigidbody" ROLE name "Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button')"
+  ARG action str EXAMPLE "add" "'add' or 'remove' — not 'enable'/'disable' (use set_property m_Enabled for that)"
+  TAG atomic_scene
+  TAG distill_skip
+  TAG do_allowed
+  TAG reflect_custom
+  BLAST 2
+END
+
+TOOL material ASSETS RW "Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared)."
+  FORWARD
+  ARG action str EXAMPLE "get"
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
+  ARG object_path ostr DEFAULT None
+  ARG shader ostr DEFAULT None
+  ARG prop ostr DEFAULT None
+  ARG value ostr DEFAULT None
+  ARG source ostr DEFAULT None
+  ARG targets ostr DEFAULT None
+  ARG slot oint DEFAULT None RAW
+  ARG filter ostr DEFAULT None
+  ARG target ostr DEFAULT None
+  READ get
+  READ get_errors
+  READ list_properties
+  READ list_shaders
+  READ list_slots
+  TAG reflect_noerror
+END
+
+TOOL material_audit ASSETS RO "Material/texture scene-wide audit."
+  FORWARD
+  DOC "action: summary|materials|textures|duplicates|compression|recommendations."
+  DOC "platform: Android|iOS|Standalone|Default (for compression check)."
+  ARG action str DEFAULT_TEXT "summary"
+  ARG platform ostr DEFAULT None
+END
+
+PYTOOL mcp_status SYSTEM RO "Compact MCP status: scene, dirty, play/compile state, port, alias count,"
+  BODY meta
+  DOC "version — plus Python-side liveness diagnostics (ARC-7 T3) that answer"
+  DOC "honestly, never raising, when Unity itself is unreachable."
+  DOC "liveness: connected | connected-stalled | waking | reconnecting | domain-reloading | dormant | disconnected | unknown"
+  FLAG core
+END
+
+TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API."
+  FORWARD
+  ARG action str EXAMPLE "list"
+  ARG path ostr DEFAULT None "Unity Editor menu-item path to execute, or submenu prefix to list"
+  READ list
+  TAG reflect_noerror
+END
+
+TOOL move_to RUNTIME RW "[Play Mode] Move character to position and wait for arrival."
+  BODY runtime
+  DOC "path: scene path to GO with movement component."
+  DOC "position: x,y,z (e.g. '5,0,-3'). Returns 'arrived' or 'blocked'."
+  GUARD play_ok
+  FLAG direct_only
+  FLAG unity_transport
+  RUNTIME
+  VERB "Moving"
+  ARG path str
+  ARG position str
+  ARG timeout float DEFAULT 15.0
+  TAG reflect_silent
+END
+
+PYTOOL navmesh_query SCENE RW "NavMesh queries and management. Bakes or clears NavMesh data for bake/clear actions. No confirmation required. action: sample|path|raycast|bake|status|clear|get_settings|set_settings."
+  BODY spatial
+  DOC "sample: find nearest walkable point to center."
+  DOC "path: calculate path from from_pos to to."
+  DOC "raycast: NavMesh raycast from from_pos toward to."
+  DOC "bake: build NavMesh (NavMeshSurface components or legacy NavMeshBuilder)."
+  DOC "status: triangulation stats (triangles, vertices, areas)."
+  DOC "clear: remove all baked NavMesh data."
+  DOC "get_settings: list all NavMesh agent type settings."
+  DOC "set_settings: update NavMeshSurface agent params (agentRadius/agentHeight/agentClimb/agentSlope)."
+  ARG action str
+  ARG center ostr DEFAULT None
+  ARG from_pos ostr DEFAULT None
+  ARG to ostr DEFAULT None
+  ARG max_distance float DEFAULT 5.0
+  ARG area_mask int DEFAULT -1
+  ARG agentRadius ofloat DEFAULT None
+  ARG agentHeight ofloat DEFAULT None
+  ARG agentClimb ofloat DEFAULT None
+  ARG agentSlope ofloat DEFAULT None
+  READ get_settings
+  READ path
+  READ raycast
+  READ sample
+  READ status
+  TAG reflect_noerror
+END
+
+TOOL object_diff SCENE RO "Diff two GameObjects (components, properties, children). Cross-scene: 'SceneA:/Alice'."
+  FORWARD
+  ARG path_a str EXAMPLE "/__seam_nonexistent_a"
+  ARG path_b str EXAMPLE "/__seam_nonexistent_b"
+END
+
+TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove."
+  DENY
+  GUARD play_ok
+  FORWARD
+  FLAG direct_only
+  FLAG unity_transport
+  TIMEOUT 60.0
+  DOC "list: all installed packages."
+  DOC "search: query required."
+  DOC "add: name required, version optional."
+  DOC "remove: name required."
+  ARG action str
+  ARG name ostr DEFAULT None "Unity Package Manager package identifier for add/remove (for example com.unity.inputsystem)"
+  ARG version ostr DEFAULT None
+  ARG query ostr DEFAULT None
+  READ list
+  READ search
+  TAG reflect_silent
+END
+
+TOOL particle MEDIA RW "Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
+  FORWARD
+  ARG action str
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG name ostr DEFAULT None
+  ARG module ostr DEFAULT None
+  ARG prop ostr DEFAULT None
+  ARG value ostr DEFAULT None
+  ARG preset ostr DEFAULT None
+  READ get
+  TAG reflect_noerror
+END
+
+PYTOOL permission_prompt SYSTEM RO "Handle Claude permission prompts via MCP."
+  BODY permission_prompt_tool
+  DOC "Registered as --permission-prompt-tool so Claude routes all permission"
+  DOC "checks here instead of blocking on stdin."
+  FLAG tier1
+  ARG tool_name str
+  ARG input Any
+  ARG tool_use_id str
+END
+
+INTERNAL ping RO "Liveness probe: Unity answers pong."
+  GUARD always
+  GUARD compile
+  TIMEOUT 5.0
+  TAG distill_skip
+  TAG meta_cmd
+END
+
+TOOL ping_object SCENE RO "Highlight object in Hierarchy and Project, and select it."
+  FORWARD
+  SESSION
+  ARG path str EXAMPLE "/__seam_nonexistent"
+END
+
+TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate."
+  FORWARD
+  DOC "edit: asset_path + component + prop + value (set property on prefab asset)."
+  DOC "edit: asset_path + add_component or remove_component (manage components)."
+  DOC "save: path (scene) + asset_path [+ mode: new|overwrite (default)]."
+  DOC "revert: scope: object (default)|children."
+  DOC "get_overrides: format: text (default)|structured."
+  DOC "create_variant: base_path + variant_path."
+  DOC "instantiate: asset_path (instantiate prefab into active scene)."
+  ARG action str EXAMPLE "list"
+  ARG path ostr DEFAULT None
+  ARG asset_path ostr DEFAULT None
+  ARG base_path ostr DEFAULT None
+  ARG variant_path ostr DEFAULT None
+  ARG component ostr DEFAULT None
+  ARG prop ostr DEFAULT None
+  ARG value ostr DEFAULT None
+  ARG add_component ostr DEFAULT None
+  ARG remove_component ostr DEFAULT None
+  ARG recursive bool DEFAULT False OMIT
+  ARG mode ostr DEFAULT None
+  ARG scope ostr DEFAULT None
+  ARG format ostr DEFAULT None
+  ARG parent ostr DEFAULT None
+  ARG child_path ostr DEFAULT None
+  READ get_overrides
+  TAG reflect_noerror
+END
+
+TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
+  BODY profiling
+  DOC "action: start|stop|status|analyze|compare|list_sessions"
+  DOC "mode: burst (auto-stop after duration) | manual (explicit stop) | triggered (on spike)"
+  DOC "focus: narrow analyze output to gc|rendering|physics|cpu"
+  RUNTIME
+  ARG action str
+  ARG duration float DEFAULT 5.0
+  ARG session str DEFAULT_TEXT ""
+  ARG compare_with str DEFAULT_TEXT ""
+  ARG focus str DEFAULT_TEXT ""
+  ARG mode str DEFAULT_TEXT "burst"
+  ARG threshold_ms float DEFAULT 33.3
+  READ analyze
+  READ compare
+  READ list_sessions
+  READ status
+  TAG reflect_silent
+END
+
+TOOL project_settings ASSETS RW_IDEM "Project settings. Modifies project settings when action=set. No confirmation required. action: get|set. target: tags|layers|sorting_layers|quality|physics|time|player|graphics|audio|input."
+  FORWARD
+  DOC "tags set: prop=remove value=<tag> to remove; else adds."
+  DOC "quality set prop=currentLevel: calls SetQualityLevel()."
+  DOC "player set prop=ScriptingBackend: needs build_target (Standalone|iOS|Android|etc) + value (Mono2x|IL2CPP)."
+  ARG action str EXAMPLE "get"
+  ARG target str EXAMPLE "tags"
+  ARG prop ostr DEFAULT None
+  ARG value ostr DEFAULT None
+  ARG index oint DEFAULT None RAW
+  ARG build_target ostr DEFAULT None
+  READ get
+  TAG reflect_noerror
+END
+
+TOOL query_state RUNTIME RO "[Play Mode] Snapshot multiple game values in one call."
+  BODY runtime
+  DOC "queries: comma-separated 'path|component|field_or_method' triplets."
+  DOC "Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')"
+  RUNTIME
+  TIMEOUT 10.0
+  ARG queries str
+  BLAST 0
+END
+
+# Every dispatch intentionally starts a fresh AssetDatabase.Refresh. The receiver-side dedup registry is lost
+# across Domain Reload, so resending a lost ACK can start a second compile/reload cycle: RW, not RW_IDEM.
+TOOL recompile SYSTEM RW "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done."
+  GUARD play_ok
+  WIRE no_undo
+  FORWARD
+  TIMEOUT 60.0
+  TAG distill_skip
+  TAG do_forbidden
+  EXPECT token "ok"
+END
+
+PYTOOL reconnect_unity SYSTEM RO "Reconnect to Unity. Port 0 or omitted = auto-discover from port files."
+  FLAG tier1
+  SESSION
+  ARG port int DEFAULT 0
+  ARG ctx Any DEFAULT None
+  TAG meta_cmd
+END
+
+TOOL references COMPONENTS RW "References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs."
+  FORWARD
+  ARG action str EXAMPLE "get"
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG children bool DEFAULT False OMIT
+  ARG depth int DEFAULT 1 OMIT RAW
+  ARG source ostr DEFAULT None
+  ARG target ostr DEFAULT None
+  ARG mappings ostr DEFAULT None
+  TAG reflect_noerror
+END
+
+TOOL region_clear SCENE RW "Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required."
+  BODY spatial
+  DOC "vertices: CSV polygon 'x1,z1;x2,z2;...' (>=3 pairs)."
+  DOC "dry_run: True = list objects that WOULD be deleted (safe default). False = delete them."
+  DOC "filter: optional name-pattern substring; only matching objects are affected."
+  DOC "cap: max objects processed (default 50, hard max 200)."
+  ARG vertices str EXAMPLE "0,0 1,0 1,1 0,1"
+  ARG dry_run bool DEFAULT True
+  ARG filter ostr DEFAULT None
+  ARG cap int DEFAULT 50
+  EXPECT bool_arg "DRY|DELETED" ARG dry_run
+END
+
+PYTOOL release_smoke SYSTEM RO "Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summary."
+  BODY meta
+END
+
+TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path after rename."
+  CARD rename
+  FORWARD
+  DOC "path: current scene path, &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy). name: new name (non-empty)."
+  DOC "Note: all subsequent MCP calls must use the new path."
+  ARG path str EXAMPLE "/__seam_nonexistent" ROLE target
+  ARG name str EXAMPLE "__seam_renamed" ROLE newname
+  TAG atomic_scene
+  TAG reflect_custom
+END
+
+TOOL render_analyze MEDIA RO "Rendering analysis."
+  FORWARD
+  DOC "action: stats|materials|shaders|lights|batching|overdraw|audit|compare"
+  DOC "        |frame_debug|shadow_audit|probe_audit|light_optimize"
+  DOC "stats: draw calls, batches, tris, verts, set-pass from UnityStats."
+  DOC "batching: SRP Batcher / static / dynamic / GPU instancing analysis."
+  DOC "audit: full rendering health check (all sections, brief)."
+  DOC "compare: diff against last baseline snapshot."
+  DOC "frame_debug: per-draw-call data via FrameDebugger reflection (pauses rendering briefly)."
+  DOC "detail: brief (default) | full.  path: optional subtree root."
+  ARG action str
+  ARG path ostr DEFAULT None
+  ARG detail str DEFAULT_TEXT "brief"
+  ARG baseline_id ostr DEFAULT None
+  ARG max_events oint DEFAULT None RAW
+END
+
+TOOL resolve_scene_refs VERIFY RO "Read-only scene reference resolver."
+  FORWARD
+  TIMEOUT 15.0
+  DOC "refs: comma-separated list of $alias, /path, or t:Type tokens."
+  DOC "fields: optional comma-separated field names to check existence on matched component."
+  DOC "Returns one tab-aligned line per ref: OK|MISS|AMB + path + details."
+  ARG refs str
+  ARG fields ostr DEFAULT None
+END
+
+TOOL resolve_test_request TESTS RO "Resolve a possibly lost start ACK without dispatching another test run."
+  BODY testing
+  GUARD compile
+  TIMEOUT 10.0
+  ARG request_id str EXAMPLE "__seam_nonexistent"
+END
+
+PYTOOL resolve_tool_schema SYSTEM RO "Return full parameter schemas for deferred tools. tools=comma-separated names."
+  BODY meta
+  FLAG tier1
+  ARG tools str
+END
+
+# timeout_s is a fallback ceiling only -- tools/runtime.py always passes
+# timeout+20.0 explicitly.
+# B05/R-05: runtime_only intentionally NOT set here — C#'s CommandRouter.Registration.cs
+# registration (runtime: false) is the sole authority now that the Play-mode gate moved
+# past parsing into AsyncRunPlaytest's own `# @needs editmode` header check. A static
+# True here would reintroduce a second, stale Python-only authority (see
+# test_runtime_only_single_source).
+TOOL run_playtest TESTS RW "[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`)."
+  DENY
+  BODY runtime
+  DOC "Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |"
+  DOC "ASSERT_CONSOLE_CLEAN [IGNORE \"pat\"] | SNAPSHOT queries | INVOKE path comp method args |"
+  DOC "SET path comp field value | LOG msg | TIMESCALE n | ASSERT_CONSERVED SUM a+b OVER t |"
+  DOC "ASSERT_CTA VISIBLE|CLICKABLE | VAL name query | TELEPORT path x,y,z |"
+  DOC "ASSERT_BATCH...END | ASSERT_NEAR pathA pathB dist | INVARIANT query op value |"
+  DOC "SIMULATE name [DURATION n] [TIMESCALE n] | MONITOR name | TRACE_FLOW FROM a TO b FIELD f |"
+  DOC "CAPTURE label query | ASSERT_CAPTURED label INCREASED|DECREASED."
+  DOC "defs: inline VAL definitions prepended to script."
+  DOC "abort_on_fail=True: stop after the first failed step or automatic console failure; skip all remaining steps including teardown."
+  DOC "format=\"json\": return the canonical step-ledger receipt instead of the legacy text report; skips compression/summarization."
+  DOC "Non-pass outcomes (fail/aborted/malformed/empty) raise ToolError with the full report text (both sync and async routes)."
+  GUARD play_ok
+  FLAG tier1
+  FLAG direct_only
+  FLAG unity_transport
+  TIMEOUT 300.0
+  VERB "Playtesting"
+  ARG script ostr DEFAULT None "Inline DSL script (mutually exclusive with path)"
+  ARG timeout float DEFAULT 120.0 "Max seconds to wait for the playtest to finish (default 120)"
+  ARG abort_on_fail bool DEFAULT False "Stop after the first failed step or automatic console failure; remaining steps, including teardown, are skipped"
+  ARG defs ostr DEFAULT None "Inline VAL definitions prepended to script (alias block)"
+  ARG path ostr DEFAULT None "Path to .playtest DSL file on disk (mutually exclusive with script)"
+  ARG snapshot_on_failure bool DEFAULT False "Auto-capture screenshot on first ASSERT failure"
+  ARG fresh bool DEFAULT False "Stop and restart Play Mode before running the script"
+  ARG before_hook ostr DEFAULT None "DSL commands to run before entering Play Mode"
+  ARG after_hook ostr DEFAULT None "DSL commands to run after Play Mode exits"
+  ARG format str DEFAULT_TEXT "text"
+  TAG playtest_scenario
+  TAG reflect_silent
+  TAG scene_state_neutral
+END
+
+PYTOOL run_playtest_suite TESTS RW "Run multiple .playtest files sequentially and return a compact matrix."
+  BODY runtime
+  DOC "Side effects: auto_play/restart_between may enter or restart Play Mode;"
+  DOC "stop_after exits Play Mode. No confirmation is requested."
+  DOC "pattern: glob pattern (e.g. 'Playtests/*.playtest'), comma-separated list,"
+  DOC "         or newline-separated list of project-relative paths."
+  DOC "suite_path: absolute path to a .suite file (lines = project-relative .playtest paths, # = comment)."
+  DOC "Exactly one of pattern or suite_path must be provided."
+  DOC "stop_on_fail=True: abort suite after first failure."
+  DOC "stop_after=True: exit Play Mode when suite completes."
+  DOC "auto_play=True: enter Play Mode automatically if not already playing."
+  DOC "restart_between=True: stop+play between each file to reset runtime state;"
+  DOC "with auto_play=True, also resets an already-running editor before file one."
+  DOC "suite_timeout: total suite wall-clock deadline in seconds (default 300s)."
+  DOC "tag: only run files whose `# @tags` header (space-separated) includes this"
+  DOC "tag; matches after pattern/suite_path resolution. A tag that matches zero"
+  DOC "files fails closed (same shape as an empty pattern/suite match), it never"
+  DOC "silently runs the unfiltered set."
+  DOC "Lifecycle commands must return successfully and reach their observed state."
+  DOC "A failed transition stops the suite and is reported as a failed row."
+  DOC "Empty matches return a failing SUITE: 0/0 report."
+  DOC "Output: SUITE: X/Y passed (Zs) terminal:true play_stopped:true/false + per-file lines."
+  FLAG tier1
+  TIMEOUT 3600.0
+  ARG pattern ostr DEFAULT None
+  ARG suite_path ostr DEFAULT None
+  ARG timeout_per_test float DEFAULT 120.0
+  ARG stop_on_fail bool DEFAULT False
+  ARG stop_after bool DEFAULT True
+  ARG auto_play bool DEFAULT False
+  ARG restart_between bool DEFAULT False
+  ARG suite_timeout float DEFAULT 300.0
+  ARG tag ostr DEFAULT None
+  TAG playtest_scenario
+  TAG reflect_silent
+  TAG scene_state_neutral
+END
+
+# The bridge may retry run_tests only because every retry carries the same durable request_id (RW_IDEM);
+# run_tests_wait is a composite operation, not idempotent (RW).
+TOOL run_tests TESTS RW_IDEM "Dispatch Unity tests and return their durable identity immediately."
+  DENY
+  BODY testing
+  DOC "A successful response is"
+  DOC "``tests-started|request_id=...|run_id=...|utf_guid=...|state=dispatched``."
+  DOC "If transport fails after dispatch may have happened, the result is"
+  DOC "``START-UNKNOWN`` with the same request_id; resolve it instead of retrying"
+  DOC "with a new identity."
+  DOC "assemblies/categories/tests: comma-separated selection lists narrowing"
+  DOC "the run (assembly names, NUnit categories, fully-qualified test names)."
+  DOC "group: a named test group to restrict the run to."
+  GUARD play_ok
+  FLAG tier1
+  FLAG direct_only
+  FLAG unity_transport
+  VERB "Running tests"
+  ARG mode str DEFAULT_TEXT "EditMode" "Test runner mode: EditMode or PlayMode"
+  ARG filter ostr DEFAULT None "NUnit filter expression (e.g. 'MyNamespace.MyTest')"
+  ARG request_id ostr DEFAULT None "Caller-supplied idempotency ID — reuse to retry a failed dispatch without double-running"
+  ARG assemblies ostr DEFAULT None "Comma-separated assembly names to restrict the run to"
+  ARG categories ostr DEFAULT None "Comma-separated NUnit category names to restrict the run to"
+  ARG group ostr DEFAULT None "Named test group to restrict the run to"
+  ARG tests ostr DEFAULT None "Comma-separated fully-qualified test names to restrict the run to"
+  TAG reflect_silent
+END
+
+PYTOOL run_tests_wait TESTS RW "Dispatch tests and wait for the exact run to become terminal. Dispatches test run. No confirmation required."
+  BODY testing
+  DOC "Transport failures and domain reloads do not erase the last snapshot. A"
+  DOC "caller timeout is observational only: it returns ``TIMEOUT`` with request,"
+  DOC "run and snapshot data and never marks the Unity run complete."
+  DOC "on_timeout: result starts with TIMEOUT|request_id=...|run_id=... — use run_id to resume polling via get_test_run without re-dispatching."
+  FLAG tier1
+  TIMEOUT 1200.0
+  ARG mode str DEFAULT_TEXT "EditMode" "Test runner mode: EditMode or PlayMode"
+  ARG filter str DEFAULT_TEXT "" "NUnit filter expression (e.g. 'MyNamespace.MyTest')"
+  ARG timeout float DEFAULT 900.0 "Max seconds to wait for completion (default 900)"
+  ARG poll_interval float DEFAULT 5.0 "Seconds between status polls (default 5)"
+  ARG request_id ostr DEFAULT None "Caller-supplied idempotency ID"
+  TAG reflect_silent
+END
+
+TOOL runtime_snapshot RUNTIME RO "Snapshot all runtime objects of a given component type. Returns per-object field dump."
+  FORWARD
+  MAXCHARS 50000
+  DOC "type: component type name (e.g. 'Rigidbody', 'EnemyController')."
+  DOC "name: optional name substring filter."
+  DOC "component: component type to serialize (defaults to type)."
+  DOC "compress: strip default-value fields to reduce response size."
+  ARG type str
+  ARG name ostr DEFAULT None
+  ARG component ostr DEFAULT None
+  ARG compress bool DEFAULT False OMIT
+END
+
+PYTOOL save_session SYSTEM RW "Save current scene state to .claude/session-context.json for cold-start recovery."
+  BODY scene
+  TAG reflect_silent
+END
+
+PYTOOL save_skill SYSTEM RW "Save a learned skill (C# code or batch commands) for reuse across sessions."
+  BODY skills
+  DOC "name: skill identifier. description: what it does. code: C# or batch commands."
+  ARG name str "File-safe identifier for the learned skill"
+  ARG description str
+  ARG code str "C# code or batch commands to save as a reusable skill"
+  TAG reflect_silent
+END
+
+PYTOOL save_template SYSTEM RW_IDEM "Save C# code as a reusable scene template in .claude/templates/."
+  BODY skills
+  ARG name str "File-safe identifier for the reusable scene template"
+  ARG code str "C# code or batch commands to save as a scene template"
+  TAG reflect_silent
+END
+
+TOOL scan_scene VERIFY RO "Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats."
+  FORWARD
+END
+
+TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy."
+  BODY scene
+  DOC "path: required for open/open_additive/close/set_active/save_copy. For save,"
+  DOC "omit it to save to the current path; an untitled scene requires a path."
+  DOC "scene: save/discard/save_copy target when multiple scenes loaded (identifies by name)."
+  DOC "save_copy: writes current dirty state to path as backup; active scene reference unchanged."
+  DOC "include_unsaved: always True — save_copy always captures current in-memory state."
+  GUARD play_ok
+  WIRE no_undo
+  FLAG tier1
+  VERB "Managing scene"
+  ARG action str EXAMPLE "get" "Operation: new|open|save|discard|open_additive|close|set_active|list"
+  ARG path ostr DEFAULT None "Asset path — required for open/save/open_additive/close/set_active"
+  ARG scene ostr DEFAULT None "Scene name for save/discard when multiple scenes are loaded"
+  ARG include_unsaved bool DEFAULT True
+  READ list
+  TAG reflect_noerror
+  BLAST 3
+END
+
+PYTOOL scene_change_plan SCENE RW "Pre-flight + plan for safe scene edit."
+  BODY transaction
+  DOC "1. Check Play Mode — reject if playing (mutations blocked)"
+  DOC "2. Check compile clean"
+  DOC "3. Check console for errors"
+  DOC "4. Resolve targets via resolve_scene_refs"
+  DOC "5. Take checkpoint"
+  DOC "6. Return plan_id + baseline status"
+  FLAG tier1
+  ARG goal str
+  ARG targets str DEFAULT_TEXT ""
+  ARG dry_run bool DEFAULT False "False (default) = create plan_id. True = probe pre-flights only, no plan created."
+  TAG reflect_silent
+END
+
+TOOL scene_diff SCENE RO "Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines."
+  FORWARD
+END
+
+TOOL scene_environment SCENE RW "Read/write scene environment: ambient light, fog, skybox, reflections."
+  FORWARD
+  DOC "action: get|set. set requires prop and value."
+  DOC "Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,"
+  DOC "ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance,"
+  DOC "reflectionIntensity, reflectionBounces, subtractiveShadowColor, defaultReflectionResolution."
+  ARG action str DEFAULT_TEXT "get" EXAMPLE "get"
+  ARG prop ostr DEFAULT None
+  ARG value ostr DEFAULT None
+  READ get
+  TAG reflect_noerror
+END
+
+TOOL scene_health VERIFY RO "Scene hierarchy/health audit."
+  FORWARD
+  DOC "focus: all | hierarchy | naming | duplicates | origins | missing | empty | disabled"
+  DOC "Returns severity-tagged findings: CRITICAL/WARNING/INFO/OK per check."
+  ARG focus str DEFAULT_TEXT "all"
+END
+
+TOOL screenshot MEDIA RW "Capture screenshot (file path); describe= -> Haiku text (15-100x fewer tokens), raw=True forces path."
+  BODY screenshot
+  DOC "camera: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game. angle (single_view): front|left|top|iso|ex,ey,ez."
+  DOC "zoom: higher=closer. angles: per-view Euler \"ex,ey,ez|...\" (_=skip). supersample 1-4. offset/fixed_size: framing."
+  DOC "highlight: paths[:#RRGGBB] for bbox. show_colliders: wireframes."
+  DOC "annotation_id: frame + highlight annotation by id (auto sets camera=annotation_frame)."
+  DOC "warn:ScreenSpaceOverlay canvas not captured in Edit Mode (bypasses camera pipeline)."
+  DOC "Workarounds: switch to ScreenSpace-Camera, use Play Mode, or camera=scene_view."
+  GUARD compile
+  WIRE special
+  FLAG tier1
+  FLAG direct_only
+  FLAG unity_transport
+  VERB "Capturing screenshot"
+  ARG width int DEFAULT 640 "Image width in pixels (default 640)"
+  ARG height int DEFAULT 480 "Image height in pixels (default 480)"
+  ARG camera ostr DEFAULT None "View type: scene_view|scene_view_frame|multi_view|single_view|overview|overview_game"
+  ARG path ostr DEFAULT None "For single_view/multi_view: target GameObject scene path; for standard captures: legacy project-contained .png destination (prefer output_path)"
+  ARG output_path ostr DEFAULT None "Unambiguous project-contained .png destination for every capture mode"
+  ARG describe ostr DEFAULT None LOCAL "Haiku prompt for AI text description instead of returning file path (15-100x fewer tokens)"
+  ARG raw bool DEFAULT False LOCAL "Force returning file path even when describe= is set"
+  ARG zoom ofloat DEFAULT None "Zoom factor — higher = closer"
+  ARG angles ostr DEFAULT None "Per-view Euler angles: 'ex,ey,ez|...' (underscore = skip this view)"
+  ARG supersample oint DEFAULT None "Anti-alias quality 1-4 (higher = sharper, slower)"
+  ARG offset ostr DEFAULT None "Framing offset vector"
+  ARG fixed_size ofloat DEFAULT None "Fixed framing size override"
+  ARG highlight ostr DEFAULT None "Comma-separated paths to highlight with bounding box (e.g. /Player:#FF0000)"
+  ARG show_colliders obool DEFAULT None "Overlay collider wireframes on the screenshot"
+  ARG angle ostr DEFAULT None "Euler angle for single_view: front|left|top|iso|ex,ey,ez"
+  ARG annotation_id ostr DEFAULT None "Frame + highlight annotation by ID (auto-sets camera=annotation_frame)"
+  TAG scene_state_neutral
+  TAG reflect_silent
+  BLAST 0
+END
+
+PYTOOL screenshot_baseline MEDIA RW "Save screenshot as baseline for visual regression. name: file-safe identifier."
+  BODY scene
+  ARG name str DEFAULT_TEXT "default" "File-safe baseline identifier (not a GameObject name; no '/', '\\', or '..')"
+  ARG width int DEFAULT 640
+  ARG height int DEFAULT 480
+  ARG camera ostr DEFAULT None
+  TAG reflect_silent
+END
+
+PYTOOL screenshot_compare MEDIA RW "Compare current screenshot with saved baseline."
+  BODY scene
+  DOC "mode: auto (pixel->escalate), pixel (local), structural (general),"
+  DOC "      targeted (needs question=), ui_layout|animation|color|position|regression."
+  DOC "Model-assisted modes require configured sampling. Cached by image hashes."
+  ARG name str DEFAULT_TEXT "default" "File-safe saved-baseline identifier (not a GameObject name; no '/', '\\', or '..')"
+  ARG width int DEFAULT 640
+  ARG height int DEFAULT 480
+  ARG camera ostr DEFAULT None
+  ARG mode str DEFAULT_TEXT "auto"
+  ARG question ostr DEFAULT None
+  TAG reflect_silent
+END
+
+TOOL scriptable_object ASSETS RW "ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter."
+  FORWARD
+  ARG action str EXAMPLE "list"
+  ARG path ostr DEFAULT None "Project asset path to the ScriptableObject .asset file"
+  ARG type ostr DEFAULT None
+  ARG prop ostr DEFAULT None
+  ARG value ostr DEFAULT None
+  ARG fields ostr DEFAULT None
+  ARG filter ostr DEFAULT None
+  READ find
+  READ get
+  READ list_types
+  TAG reflect_noerror
+END
+
+TOOL search_scene SCENE RO "Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces."
+  FORWARD
+  FLAG tier1
+  TIMEOUT 15.0
+  MAXCHARS 30000
+  DOC "root: scope search to subtree (path or None for whole scene)."
+  DOC "limit: max results (default 50; 0=unlimited)."
+  DOC "scene: filter to a single scene by name (multi-scene only)."
+  VERB "Searching"
+  ARG query str EXAMPLE "__seam_nonexistent" "Syntax: 'name text', 't:Component', 'tag=Tag', 'layer=N', 'active=bool' — combine with spaces"
+  ARG root ostr DEFAULT None "Scene path to scope the search (omit = whole scene)"
+  ARG limit int DEFAULT 50 OMIT "Max results (default 50; 0 = unlimited)"
+  ARG scene ostr DEFAULT None "Filter to a single scene by name (multi-scene only)"
+END
+
+TOOL serialized_field_rename_audit VERIFY RO "Audit [SerializeField] rename safety."
+  FORWARD
+  DOC "type: fully-qualified or simple component type name (e.g. 'MyNamespace.PlayerStats')."
+  DOC "old_field: field name as it exists in serialized assets."
+  DOC "new_field: renamed field name in current C# source."
+  DOC "include: comma-separated scan targets (prefabs,scenes,scriptable_objects)."
+  DOC "Returns: has_formerly_serialized_as, stale_assets, safe_to_remove_attribute, recommended_actions."
+  ARG type str EXAMPLE "MyNamespace.PlayerStats"
+  ARG old_field str EXAMPLE "oldFieldName"
+  ARG new_field str EXAMPLE "newFieldName"
+  ARG include str DEFAULT_TEXT "prefabs,scenes,scriptable_objects" OMIT
+END
+
+TOOL set_active SCENE RW_IDEM "Set GameObject active/inactive."
+  CARD set
+  FORWARD
+  FLAG tier1
+  ARG path str EXAMPLE "/__seam_nonexistent" ROLE target "Scene path to the GameObject"
+  ARG active bool EXAMPLE "false" ROLE value "True to activate, False to deactivate"
+  TAG atomic_scene
+  TAG distill_skip
+  TAG do_allowed
+  TAG reflect_custom
+  BLAST 1
+END
+
+PYTOOL set_llm_config SYSTEM RW_IDEM "Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line)."
+  BODY meta
+  DOC "Features: visual_verify, screenshot_describe, visual_diff, do_intent, ui_intent, vfx_intent, animator_intent, summarize, distiller."
+  ARG config str
+  TAG reflect_custom
+END
+
+TOOL set_material SCENE RW_IDEM "Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto."
+  FORWARD
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG color str EXAMPLE "#FFFFFF"
+  ARG shader ostr DEFAULT None
+  TAG do_allowed
+  BLAST 1
+  EXPECT arg_echo "shader|color"
+END
+
+TOOL set_parent SCENE RW_IDEM "Reparent existing GameObject. parent=null → move to scene root. world_position_stays=True (default): preserves world transform. False: stays local to new parent."
+  CARD generic
+  NEXT "get_hierarchy depth=1"
+  FORWARD
+  FLAG tier1
+  VERB "Re-parenting"
+  ARG path str EXAMPLE "/__seam_nonexistent" "Scene path of the GameObject to reparent"
+  ARG parent ostr DEFAULT None EXAMPLE "/" "New parent scene path (omit or null = move to scene root)"
+  ARG world_position_stays bool DEFAULT True OMIT "True (default) = preserve world transform; False = keep local transform relative to new parent"
+  TAG atomic_scene
+  TAG reflect_custom
+END
+
+PYTOOL set_properties SCENE RW "Set multiple properties on ONE object. For multiple objects, use configure_objects instead."
+  BODY autobatch
+  DOC "Format: component.prop=value per line or semicolon-separated."
+  DOC "Example: Transform.m_LocalPosition=(1,0,0);Rigidbody.mass=5"
+  ARG path str
+  ARG props str
+  TAG reflect_silent
+END
+
+TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`)."
+  CARD set
+  NEXT "get_console level=Error"
+  BODY objects
+  DOC "find_type: component type — bulk-sets prop on all matching objects without specifying paths."
+  DOC "For GO rename use rename_object(). ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'. dry_run=True shows what would change without applying."
+  DOC "ref_component_type: when value is a plain scene path and the field expects a specific Component type (e.g. 'BoxCollider'), appends '::TypeName' to the value so C# resolves the correct component. Ignored when value already contains '::'."
+  DOC "effects: mutates scene via SerializedObject, creates an undo entry. Verify with get_component after."
+  FLAG core
+  VERB "Editing"
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent" ROLE target "Scene path to the GameObject (e.g. /Player/Body)"
+  ARG component str DEFAULT_TEXT "" EXAMPLE "Transform" "Component type (empty string = Transform)"
+  ARG prop str DEFAULT_TEXT "" EXAMPLE "m_LocalPosition" ROLE prop "Property name as shown in Inspector (e.g. 'mass', 'localPosition.x')"
+  ARG value Any DEFAULT None EXAMPLE "0,0,0" ROLE value "New value. ObjectReference: scene path (/Player), asset path (Assets/X.mat), sub-asset (Assets/X.fbx::ClipName), &ref (e.g. &1) or $hexId (legacy), #instanceID (legacy), or 'null'"
+  ARG dry_run bool DEFAULT False "Show what would change without applying (safe preview)"
+  ARG find_type ostr DEFAULT None "Component type — bulk-sets prop on ALL scene objects with this component (no path needed)"
+  ARG ref_component_type ostr DEFAULT None LOCAL
+  TAG atomic_scene
+  TAG distill_skip
+  TAG do_allowed
+  TAG reflect_custom
+  BLAST 1
+END
+
+TOOL set_property_delta SCENE RW "Apply delta to numeric property. delta: +5, -0.5, (+1,2,0). Returns: old → new."
+  CARD set
+  FORWARD
+  ARG path str EXAMPLE "/__seam_nonexistent" ROLE target
+  ARG component str EXAMPLE "Transform"
+  ARG prop str EXAMPLE "m_LocalPosition.x" ROLE prop
+  ARG delta str EXAMPLE "1" ROLE value
+  TAG atomic_scene
+  TAG reflect_custom
+END
+
+TOOL set_rect UGUI RW_IDEM "Set RectTransform. anchor: stretch|center|top-left|top-right|bottom-left|bottom-right|etc. pos/size: (x,y). pos3: (x,y,z) sets anchoredPosition3D — use for WorldSpace canvases (wins over pos if both given)."
+  FORWARD
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG anchor ostr DEFAULT None
+  ARG pos ostr DEFAULT None
+  ARG size ostr DEFAULT None
+  ARG pivot ostr DEFAULT None
+  ARG offset_min ostr DEFAULT None
+  ARG offset_max ostr DEFAULT None
+  ARG pos3 ostr DEFAULT None
+  TAG atomic_scene
+  TAG reflect_noerror
+END
+
+TOOL set_sibling_index SCENE RW "Set sibling index of a GameObject within its parent. index=0 moves to first child."
+  FORWARD
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG index int EXAMPLE "0"
+  TAG atomic_scene
+  TAG reflect_custom
+END
+
+PYTOOL setup_objects SCENE RW "Create+configure multiple objects in one call."
+  BODY autobatch
+  DOC "One per line: name [primitive=X] [parent=Y] [pos=(x,y,z)] [components=A,B]"
+  DOC "Example: NPC1 primitive=Capsule pos=(1,0,0) components=Health"
+  ARG specs str
+  TAG reflect_silent
+END
+
+TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network."
+  FORWARD
+  DOC "action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional)."
+  DOC "For material shader assignment use `material` tool instead."
+  ARG action str
+  ARG path str EXAMPLE "/__seam_nonexistent" "Project asset path to a .shader or .shadergraph file"
+  ARG target ostr DEFAULT None
+  ARG preset ostr DEFAULT None
+  ARG code ostr DEFAULT None
+  ARG shader_name ostr DEFAULT None "Shader declaration name used when creating shader source"
+  ARG prop ostr DEFAULT None
+  ARG value ostr DEFAULT None
+  ARG keyword ostr DEFAULT None
+  ARG enabled ostr DEFAULT None
+  ARG node_type ostr DEFAULT None
+  ARG node_id ostr DEFAULT None
+  ARG node_action ostr DEFAULT None
+  ARG output_node ostr DEFAULT None
+  ARG output_slot oint DEFAULT None RAW
+  ARG input_node ostr DEFAULT None
+  ARG input_slot oint DEFAULT None RAW
+  ARG edge_action ostr DEFAULT None
+  ARG name ostr DEFAULT None "Action-specific Shader Graph property/node name (not a GameObject name)"
+  ARG type ostr DEFAULT None "Action-specific Shader Graph property value type (not a component type)"
+  ARG default_value ostr DEFAULT None
+  ARG reference_name ostr DEFAULT None
+  ARG new_name ostr DEFAULT None
+  ARG layout ostr DEFAULT None
+  ARG h_gap ofloat DEFAULT None RAW
+  ARG v_gap ofloat DEFAULT None RAW
+  READ get
+  READ graph_get
+  TAG reflect_noerror
+END
+
+PYTOOL smart_build SYSTEM RW "Build scene objects from natural language description using MCP sampling + execute_code."
+  DENY
+  ARG description str
+  ARG ctx Any
+  TAG reflect_silent
+END
+
+PYTOOL snapshot RUNTIME RO "Capture or compare object state."
+  ARG path str
+  ARG label str DEFAULT_TEXT "default"
+  ARG compare str DEFAULT_TEXT ""
+END
+
+# P0-50: internal, direct-only, unity_transport — routed only by asset.py's
+# own internal sender when Source Patch mutation is armed; never a public
+# MCP tool, never batchable (see server/tests/test_source_patch_boundary.py).
+INTERNAL source_patch_write RW "Writes a source patch; the internal sender of asset.py routes it when Source Patch mutation is armed."
+  DENY
+  FLAG direct_only
+  FLAG unity_transport
+  ARG path str
+  ARG content str
+  TAG reflect_silent
+END
+
+TOOL spatial_query SCENE RO "Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon."
+  BODY spatial
+  DOC "nearest: find closest object (optionally filtered by component name)."
+  DOC "in_front_of: position in front of object at distance."
+  DOC "objects_in_radius: list all objects within radius. path is optional when center='x,y,z' is given."
+  DOC "bounds_info: detailed bounds/dimensions of object."
+  DOC "raycast: cast ray from path/pos to target, returns hits sorted by distance."
+  DOC "spatial_map: ASCII grid map of objects in XZ plane. cell_size in meters."
+  DOC "objects_in_polygon: objects whose XZ pivot is inside a polygon. Provide either"
+  DOC "vertices='x1,z1;x2,z2;...' (>=3 pairs) or a previously defined region_id;"
+  DOC "supplied vertices are always validated. cap=max results (default 50)."
+  ARG action str
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
+  ARG target ostr DEFAULT None
+  ARG distance ofloat DEFAULT None
+  ARG radius ofloat DEFAULT None
+  ARG component ostr DEFAULT None
+  ARG cell_size ofloat DEFAULT None
+  ARG layer_mask ostr DEFAULT None
+  ARG center ostr DEFAULT None
+  ARG vertices ostr DEFAULT None
+  ARG region_id ostr DEFAULT None
+  ARG cap oint DEFAULT None
+END
+
+# E02: Wave E non-blocking playtest dispatch — internal wire command, no @mcp.tool()
+# until E04. Same shape as source_patch_write above.
+INTERNAL start_playtest RW "Starts a playtest without blocking; get_playtest_run polls it."
+  GUARD play_ok
+  FLAG direct_only
+  FLAG unity_transport
+  ARG script ostr DEFAULT None "Inline DSL script (mutually exclusive with path)"
+  ARG timeout float DEFAULT 120.0 "Max seconds to wait for the playtest to finish (default 120)"
+  ARG abort_on_fail bool DEFAULT False "Stop after the first failed step or automatic console failure; remaining steps, including teardown, are skipped"
+  ARG defs ostr DEFAULT None "Inline VAL definitions prepended to script (alias block)"
+  ARG path ostr DEFAULT None "Path to .playtest DSL file on disk (mutually exclusive with script)"
+  ARG snapshot_on_failure bool DEFAULT False "Auto-capture screenshot on first ASSERT failure"
+  ARG fresh bool DEFAULT False "Stop and restart Play Mode before running the script"
+  ARG before_hook ostr DEFAULT None "DSL commands to run before entering Play Mode"
+  ARG after_hook ostr DEFAULT None "DSL commands to run after Play Mode exits"
+  ARG format str DEFAULT_TEXT "text"
+  TAG playtest_scenario
+  TAG reflect_silent
+  TAG scene_state_neutral
+END
+
+TOOL sync_playtest_aliases_from_defs TESTS RW "Overwrite PlaytestConfig.asset aliases from a .defs text file."
+  GUARD play_ok
+  WIRE no_undo
+  FORWARD
+  DOC "defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs)."
+  DOC "asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset)."
+  DOC "Invalidates AliasExpander cache after sync. Not allowed in Play Mode."
+  ARG defs str DEFAULT_TEXT "Assets/PlaytestDefs/farm_core.defs"
+  ARG asset str DEFAULT_TEXT "Assets/Configs/PlaytestConfig.asset"
+  TAG reflect_noerror
+END
+
+PYTOOL sync_unity SYSTEM RW "Refresh Unity and await its matching compile cycle within one timeout."
+  DENY
+  FLAG tier1
+  ARG resolve bool DEFAULT False
+  ARG bump bool DEFAULT False
+  ARG timeout float DEFAULT 120.0
+  TAG reflect_silent
+END
+
+TOOL test_step TESTS RW "[Play Mode] Move character, snapshot state before/after, check console."
+  BODY runtime
+  DOC "checks_before/after: comma-separated 'path|component|field' triplets."
+  DOC "Returns structured BEFORE/MOVE/AFTER/CONSOLE report."
+  GUARD play_ok
+  FLAG direct_only
+  FLAG unity_transport
+  RUNTIME
+  ARG path str
+  ARG position str
+  ARG checks_before str DEFAULT_TEXT ""
+  ARG checks_after str DEFAULT_TEXT ""
+  ARG wait_after float DEFAULT 0.5
+  ARG timeout float DEFAULT 15.0
+  TAG reflect_silent
+END
+
+TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that)."
+  FORWARD
+  DOC "action: get | create | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview."
+  DOC "track=track name. index=target position for reorder_track. offset=time shift for duplicate_clip. value=offset mode (auto|transform|scene) for set_track_offset."
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG action str
+  ARG track ostr DEFAULT None
+  ARG track_type ostr DEFAULT None
+  ARG clip ostr DEFAULT None
+  ARG binding ostr DEFAULT None
+  ARG start ofloat DEFAULT None RAW
+  ARG duration ofloat DEFAULT None RAW
+  ARG blend_in ofloat DEFAULT None RAW
+  ARG blend_out ofloat DEFAULT None RAW
+  ARG asset_path ostr DEFAULT None
+  ARG director_path ostr DEFAULT None
+  ARG tracks ostr DEFAULT None
+  ARG time ofloat DEFAULT None RAW
+  ARG name ostr DEFAULT None "Action-specific Timeline track, clip, or marker name"
+  ARG clip_in ofloat DEFAULT None RAW
+  ARG index oint DEFAULT None RAW
+  ARG offset ofloat DEFAULT None RAW
+  ARG value ostr DEFAULT None "Action-specific Timeline value; set_track_offset accepts auto|transform|scene"
+  READ get
+  READ get_bindings
+  TAG reflect_noerror
+  TAG schema_keep_full
+END
+
+TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene. action: move|copy."
+  FORWARD
+  DOC "target_scene: destination scene name. Omit = same scene (copy = duplicate)."
+  DOC "parent: target parent path in destination scene."
+  DOC "world_position_stays: preserve world transform (default True)."
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG action str EXAMPLE "move"
+  ARG target_scene ostr DEFAULT None
+  ARG parent ostr DEFAULT None
+  ARG world_position_stays bool DEFAULT True OMIT
+  EXPECT token "Moved|→"
+END
+
+PYTOOL ui_intent UGUI RW "Convert NL intent to Unity UI hierarchy. Templates bypass Haiku."
+  BODY ui_intent_tool
+  DOC "template: hud|menu|dialog|grid. dry_run=True skips execution."
+  FLAG tier1
+  ARG intent str
+  ARG parent ostr DEFAULT None
+  ARG template ostr DEFAULT None
+  ARG dry_run bool DEFAULT False
+  TAG reflect_silent
+END
+
+TOOL uitk_element UITOOLKIT RW "Mutate or query a VisualElement in a UIDocument or PanelRenderer host"
+  TIMEOUT 15.0
+  ARG action Any EXAMPLE "get"
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
+  ARG ref ostr DEFAULT None
+  ARG selector ostr DEFAULT None
+  ARG name ostr DEFAULT None "VisualElement name used after ref and before selector in addressing priority"
+  ARG value ostr DEFAULT None
+  ARG property ostr DEFAULT None
+  ARG class_name ostr DEFAULT None
+  TAG reflect_noerror
+END
+
+TOOL uitk_file UITOOLKIT RW "Read or edit a UXML or USS asset file."
+  WIRE not_batch
+  FLAG direct_only
+  FLAG unity_transport
+  ARG path str "Assets/ path to a .uxml or .uss project file; Library/ and Packages/ are rejected"
+  ARG action Any DEFAULT_TEXT "read"
+  ARG content ostr DEFAULT None
+  ARG selector ostr DEFAULT None
+  ARG attr ostr DEFAULT None
+  ARG value ostr DEFAULT None
+  ARG cls ostr DEFAULT None WIRE "class"
+  ARG parent ostr DEFAULT None
+  ARG tag ostr DEFAULT None
+  ARG attrs ostr DEFAULT None
+  ARG prop ostr DEFAULT None
+  READ read
+  TAG reflect_noerror
+END
+
+PYTOOL uitk_intent UITOOLKIT RW "Generate a UXML + USS file pair from a natural-language UI description."
+  BODY uitk_intent_tool
+  DOC "Side effect: unless dry_run=True, writes both project assets; attach_to also adds a"
+  DOC "UIDocument or PanelRenderer scene component. Completed steps are not rolled back if a later"
+  DOC "step fails. Failure output distinguishes retained files, confirmed Unity"
+  DOC "auto-reverts, and attempted files whose cleanup is uncertain. Without"
+  DOC "template, invokes"
+  DOC "configured Claude sampling and may"
+  DOC "consume provider quota. For uGUI use ui_intent."
+  DOC "template: hud|menu|dialog|settings|editor_window bypasses Haiku entirely."
+  DOC "name: base filename (e.g. \"InventoryPanel\" → InventoryPanel.uxml + .uss)."
+  DOC "path: output folder, default \"Assets/UI\"."
+  DOC "attach_to: scene path to UIDocument or PanelRenderer GameObject to wire after creation."
+  DOC "dry_run: return UXML+USS text without writing files."
+  FLAG tier1
+  TIMEOUT 60.0
+  ARG intent str
+  ARG name str "Base asset filename without extension (for <name>.uxml and <name>.uss)"
+  ARG path str DEFAULT_TEXT "Assets/UI" "Project asset output folder for the generated UXML/USS pair (default Assets/UI)"
+  ARG attach_to ostr DEFAULT None
+  ARG template ostr DEFAULT None
+  ARG dry_run bool DEFAULT False
+  TAG reflect_silent
+END
+
+TOOL undo_last SYSTEM RW "Undo the last N AI turns in the Unity Undo stack. Default: 1."
+  FORWARD
+  DOC "warn: file-system operations (asset creation/deletion via asset tool) are"
+  DOC "not reversed by undo. Only scene-object and component mutations are undoable."
+  ARG turns int DEFAULT 1 RAW
+  EXPECT token "reverted|nothing"
+END
+
+TOOL unwire_event COMPONENTS DEL "Remove persistent listener(s) from UnityEvent. Mutates scene. No confirmation required."
+  NEXT "get_component"
+  FORWARD
+  DOC "index: remove specific entry (0-based). Omit to clear all."
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG component str
+  ARG event str EXAMPLE "onClick"
+  ARG index oint DEFAULT None RAW
+  TAG atomic_scene
+  EXPECT token "Cleared|Removed"
+END
+
+PYTOOL use_skill SYSTEM RW "Execute a previously saved skill. params: comma-separated key=value for substitution."
+  BODY skills
+  ARG name str "Saved learned-skill identifier from list_skills"
+  ARG params ostr DEFAULT None
+  TAG reflect_silent
+END
+
+TOOL validate_playtest_aliases TESTS RO "Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed."
+  GUARD compile
+  FORWARD
+  DOC "defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs)."
+  DOC "asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset)."
+  DOC "Returns 'ok: N aliases in sync' when identical, or a diff report."
+  ARG defs str DEFAULT_TEXT "Assets/PlaytestDefs/farm_core.defs"
+  ARG asset str DEFAULT_TEXT "Assets/Configs/PlaytestConfig.asset"
+END
+
+TOOL validate_references VERIFY RO "Validate all ObjectReference fields under path recursively."
+  FORWARD
+  FLAG tier1
+  DOC "Returns [ERROR]/[MISSING] for broken refs. Summary: \"N ERROR, M OK\"."
+  DOC "Use depth=1 for quick top-level scan, depth=3-5 for full subtree."
+  DOC "verbose=True also shows [OK] lines (off by default to save tokens)."
+  DOC "ignore_optional=True skips fields marked [Optional] (reduces noise)."
+  VERB "Checking refs"
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG depth int DEFAULT 3 RAW
+  ARG verbose bool DEFAULT False OMIT
+  ARG ignore_optional bool DEFAULT False OMIT
+END
+
+TOOL validate_triggers SCENE RO "Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters."
+  FORWARD
+  ARG root str DEFAULT_TEXT "/"
+  ARG min_distance float DEFAULT 3.0
+END
+
+# May run Unity tests/playtests and stop or restart Play Mode.
+PYTOOL verify_after_change VERIFY RW "Single verification gate after code/scene changes."
+  BODY verify
+  DOC "Gates are additive — only enabled ones run:"
+  DOC "1. await_compile (always)"
+  DOC "2. get_compile_errors (always)"
+  DOC "3. get_console_since mark_id (if mark_id provided)"
+  DOC "4. run_tests_wait mode filter (if run_tests_mode provided)"
+  DOC "5. run_playtest_suite paths (if playtests provided)"
+  DOC "Returns PASS only when ALL enabled gates pass."
+  DOC "Failure includes which gate failed and recommended next command."
+  FLAG tier1
+  TIMEOUT 600.0
+  ARG changed_files str DEFAULT_TEXT ""
+  ARG test_filter str DEFAULT_TEXT ""
+  ARG run_tests_mode str DEFAULT_TEXT ""
+  ARG playtests str DEFAULT_TEXT ""
+  ARG mark_id str DEFAULT_TEXT ""
+  ARG timeout float DEFAULT 300.0
+  ARG auto_play bool DEFAULT False
+  ARG restart_between bool DEFAULT False
+  ARG suite_timeout float DEFAULT 300.0
+  TAG reflect_silent
+END
+
+PYTOOL vfx_intent MEDIA RW "Convert NL intent to Unity VFX setup. Presets bypass Haiku entirely."
+  BODY vfx_intent_tool
+  DOC "kind: particle|auto (shader/material not yet implemented). dry_run=True skips execution."
+  FLAG tier1
+  ARG target str
+  ARG intent str
+  ARG kind str DEFAULT_TEXT "auto"
+  ARG dry_run bool DEFAULT False
+  TAG reflect_silent
+END
+
+TOOL wait_until RUNTIME RW_IDEM "[Play Mode] Poll field until it matches value (or timeout)."
+  BODY runtime
+  DOC "Python timeout = Unity timeout + 5s buffer."
+  DOC "abort_on_fail=True: stops Play Mode on timeout."
+  FLAG direct_only
+  FLAG unity_transport
+  RUNTIME
+  ARG path str
+  ARG component str
+  ARG field str
+  ARG value str "Expected field value to compare against (this tool does not set the field)"
+  ARG timeout float DEFAULT 5.0
+  ARG negate bool DEFAULT False
+  ARG abort_on_fail bool DEFAULT False "Stop Play Mode if the comparison times out (default False)"
+  TAG reflect_silent
+END
+
+PYTOOL watch RUNTIME RW "[Play Mode] Manage watches. Registers or removes watches. No confirmation required. action: add|remove|clear|reset."
+  ARG action str
+  ARG watch_id str DEFAULT_TEXT ""
+  ARG path str DEFAULT_TEXT ""
+  ARG component str DEFAULT_TEXT ""
+  ARG field str DEFAULT_TEXT ""
+  ARG condition str DEFAULT_TEXT ""
+  ARG trigger_action str DEFAULT_TEXT "log"
+  ARG interval_ms int DEFAULT 500
+  TAG reflect_noerror
+END
+
+TOOL wire_event COMPONENTS RW "Wire UnityEvent persistent listener. Mutates scene. No confirmation required."
+  CARD generic
+  NEXT "validate_references"
+  FORWARD
+  DOC "path: object with the event. component: type owning the event field."
+  DOC "event: serialized field name (e.g. 'onClick', '_onComplete')."
+  DOC "target: scene path or asset path. Auto-resolves component owning the method."
+  DOC "method: method name (e.g. 'SetActive', 'Play')."
+  DOC "arg_type: void|bool|int|float|string|object."
+  DOC "arg_value: required when arg_type != void. For object: scene path or asset path."
+  DOC "target_component_type: narrow component search to this type (e.g. 'Animator')."
+  DOC "parameter_types: comma-separated param types to resolve overloads (e.g. 'string')."
+  VERB "Wiring"
+  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG component str
+  ARG event str EXAMPLE "onClick"
+  ARG target str EXAMPLE "/__seam_tgt"
+  ARG method str EXAMPLE "SetActive"
+  ARG arg_type str DEFAULT_TEXT "void"
+  ARG arg_value ostr DEFAULT None
+  ARG target_component_type ostr DEFAULT None
+  ARG parameter_types ostr DEFAULT None
+  TAG atomic_scene
+  TAG distill_skip
+  TAG do_allowed
+  BLAST 2
+  EXPECT token "wired|connected" STRICT
+END

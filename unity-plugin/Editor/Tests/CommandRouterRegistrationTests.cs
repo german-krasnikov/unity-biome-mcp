@@ -71,7 +71,7 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(CommandRegistry.TryGetContract(
                 "run_tests", out _, out var optional, out _));
             CollectionAssert.AreEqual(
-                new[] { "mode", "filter", "group", "categories", "assemblies", "tests" },
+                new[] { "request_id", "mode", "filter", "group", "categories", "assemblies", "tests" },
                 optional);
         }
 

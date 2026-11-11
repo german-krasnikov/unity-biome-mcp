@@ -137,7 +137,8 @@ _CATEGORY_SIZES_SNAPSHOT = {
 
 _TIMEOUT_CATEGORIES_SNAPSHOT = {
     "apply_scene_change": 120.0,
-    "ask_user": 300.0, "batch": 120.0, "build": 300.0, "compile_preflight": 60.0,
+    "ask_user": 300.0, "batch": 120.0, "build": 300.0,
+    "compile_preflight": 15.0,  # SV4: catalog fixed to match the active 15s fast-fail value
     "execute_code": 60.0, "export_package": 120.0, "fingerprint": 10.0,
     "cancel_test_run": 10.0, "get_changeset": 5.0, "get_console": 10.0, "get_hierarchy": 15.0,
     "get_test_count": 10.0, "get_test_run": 10.0, "get_version": 5.0,
@@ -150,6 +151,10 @@ _TIMEOUT_CATEGORIES_SNAPSHOT = {
     "resolve_scene_refs": 15.0, "search_scene": 15.0, "uitk_element": 15.0,
     "verify_after_change": 600.0,
     "uitk_intent": 60.0,
+    # SV4: recompile/query_state move from code into the catalog (were absent here).
+    # lint_scene_refs also gains a catalog TIMEOUT (30.0), but TIMEOUT_CATEGORIES omits any
+    # entry equal to DEFAULT_TIMEOUT (30.0), so it still has no key here.
+    "recompile": 60.0, "query_state": 10.0,
 }
 
 

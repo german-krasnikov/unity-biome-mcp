@@ -58,13 +58,6 @@ log=clean
 # Fixture
 # ---------------------------------------------------------------------------
 
-@pytest.fixture(autouse=True)
-def _reset_send():
-    original = _d._send
-    yield
-    _d._send = original
-
-
 def _make_send(payload: str):
     async def _send(cmd, args=None, **kwargs):
         if cmd == "diagnose":

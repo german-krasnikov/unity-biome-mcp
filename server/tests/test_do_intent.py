@@ -22,11 +22,15 @@ def test_catalog_allowed_commands():
     assert "execute_code" not in ALLOWED
 
 
-def test_catalog_required_keys():
+def test_catalog_required_keys_from_schema():
+    """Q5 (owner-decided, PLAN.md §6): catalog wins, ALLOWED is derived — no second
+    source of truth for do()'s argument requiredness (SV3-DESIGN.md §3.6)."""
     from unity_mcp.do_intent.catalog import ALLOWED
-    assert "name" in ALLOWED["create_object"]["required"]
-    assert "path" in ALLOWED["set_property"]["required"]
-    assert "component" in ALLOWED["set_property"]["required"]
+    assert ALLOWED["create_object"]["required"] == {"name"}
+    assert ALLOWED["set_property"]["required"] == set()        # was {path,component,prop,value}
+    assert ALLOWED["set_material"]["required"] == {"path", "color"}  # was {path}
+    assert ALLOWED["manage_component"]["required"] == {"path", "type", "action"}  # unchanged
+    assert ALLOWED["wire_event"]["required"] == {"path", "component", "event", "target", "method"}  # unchanged
 
 
 def test_catalog_glossary_returns_string():
@@ -61,11 +65,12 @@ def test_validator_rejects_execute_code():
 
 def test_validator_rejects_missing_required_key():
     from unity_mcp.do_intent.validator import validate_plan
-    # set_property requires path, component, prop, value
-    plan = "set_property path=/Cube component=Transform prop=m_LocalPosition"
+    # manage_component requires path, type, action (set_property's required set
+    # is now empty post-SV3 Q5 — see test_catalog_required_keys_from_schema)
+    plan = "manage_component path=/Cube type=BoxCollider"
     err = validate_plan(plan, scene_paths={"/Cube"})
     assert err is not None
-    assert "value" in err.lower() and "missing" in err.lower(), err
+    assert "action" in err.lower() and "missing" in err.lower(), err
 
 
 # ---------------------------------------------------------------------------

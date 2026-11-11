@@ -8,9 +8,9 @@ import time
 from collections.abc import Callable  # noqa: TC003
 
 from .console_levels import PROBLEM_LEVELS
-from .middleware_types import is_write
+from .middleware_types import BLAST_HIGH, BLAST_RADIUS, is_write
 
-HIGH_BLAST_CMDS = {"delete_object", "scene", "batch"}
+HIGH_BLAST_CMDS = {cmd for cmd, r in BLAST_RADIUS.items() if r >= BLAST_HIGH}
 
 
 class ProactiveWatchdog:

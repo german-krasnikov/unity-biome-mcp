@@ -1,9 +1,11 @@
 """N1b: second self-owned Python tool module (mirrors tools/watch.py's
-WatchModule pilot). SyncModule owns the public `sync_unity` ToolSpec kwargs,
-the explicit public->wire mapping, and instance-bound send state so two
-independently-configured SDK hosts (or interleaved async calls sharing one
-event loop) never cross-contaminate each other's Unity connection. See
-Plans/N1b-second-module-sync.md section 2.
+WatchModule pilot). SyncModule owns the public `sync_unity` MCP tool
+registration, the explicit public->wire mapping, and instance-bound send
+state so two independently-configured SDK hosts (or interleaved async calls
+sharing one event loop) never cross-contaminate each other's Unity
+connection. The ToolSpec kwargs themselves moved to the tool catalog
+(dsl/tools.biome, S0 9/11) -- sync_spec.py now keeps only the wire-mapping
+data. See Plans/N1b-second-module-sync.md section 2.
 
 Owned (public -> wire mapping):
     sync_unity (public MCP tool) -> C# wire 'sync' / 'sync_status'
@@ -30,13 +32,16 @@ from unity_mcp import editor_log
 from unity_mcp.constants import SESSION_TIMEOUT as _DEFAULT_TIMEOUT
 
 from . import sync
-from ._annotations import RW as _RW
-from .sync_spec import CONSUMED_DEPENDENCIES, OWNED_WIRE_COMMANDS, SPEC_KWARGS  # noqa: F401 -- re-export
+from .generated.catalog_tools import tools
+from .sync_spec import CONSUMED_DEPENDENCIES, OWNED_WIRE_COMMANDS  # noqa: F401 -- re-export
 
-# N1b pilot #2: SyncModule owns the sync_unity spec/wire-mapping exactly like
-# WatchModule owns watch/get_watches, but the data itself lives in sync_spec.py
-# (see that module's docstring for why: tool_specs.py must not transitively
-# reach tools/sync.py, which this file imports for algorithm delegation).
+# N1b pilot #2: SyncModule owns the sync_unity wire-mapping exactly like
+# WatchModule owns watch/get_watches' wire mapping, but the data itself lives
+# in sync_spec.py (see that module's docstring for why: tool_specs.py must not
+# transitively reach tools/sync.py, which this file imports for algorithm
+# delegation). sync_unity's ToolSpec kwargs are owned by the catalog
+# (dsl/tools.biome) since S0 9/11, merged by tool_specs.py's generic catalog
+# loop like every other cataloged tool.
 
 
 class SyncModule:
@@ -66,7 +71,7 @@ class SyncModule:
         return await sync._run_with_context(ctx, resolve, bump, timeout)
 
     def register(self, mcp) -> None:
-        mcp.tool(annotations=_RW)(self.sync_unity)
+        tools.register(mcp, self.sync_unity)
 
 
 # Process-wide singleton pointer -- same shape as every other tools/*.py

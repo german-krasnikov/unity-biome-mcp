@@ -13,10 +13,21 @@ from mcp.server.fastmcp.exceptions import ToolError
 
 from ..compile_state import CompileStateProbe
 from . import run_disk_fallback
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
-from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import (  # noqa: F401
+    cancel_test_run,
+    get_test_count,
+    get_test_progress,
+    get_test_results,
+    get_test_run,
+    list_test_runs,
+    resolve_test_request,
+    run_tests,
+    run_tests_wait,
+    tools,
+)
 from .run_handle import TestRunRegistry
 
 _send = None
@@ -332,10 +343,14 @@ async def _preflight() -> str | None:
     return None
 
 
-async def run_tests(
+async def _run_tests_body(
     mode: str = "EditMode",
     filter: str | None = None,
     request_id: str | None = None,
+    assemblies: str | None = None,
+    categories: str | None = None,
+    group: str | None = None,
+    tests: str | None = None,
 ) -> str:
     """Dispatch Unity tests and return their durable identity immediately.
 
@@ -344,6 +359,10 @@ async def run_tests(
     If transport fails after dispatch may have happened, the result is
     ``START-UNKNOWN`` with the same request_id; resolve it instead of retrying
     with a new identity.
+
+    assemblies/categories/tests: comma-separated selection lists narrowing
+    the run (assembly names, NUnit categories, fully-qualified test names).
+    group: a named test group to restrict the run to.
     """
     caller_supplied_request = request_id is not None
     if caller_supplied_request and not _valid_identity(request_id):
@@ -406,6 +425,14 @@ async def run_tests(
     args = {"mode": mode, "request_id": stable_request_id}
     if filter:
         args["filter"] = filter
+    if assemblies:
+        args["assemblies"] = assemblies
+    if categories:
+        args["categories"] = categories
+    if group:
+        args["group"] = group
+    if tests:
+        args["tests"] = tests
 
     try:
         result = await _send("run_tests", args)
@@ -437,7 +464,7 @@ async def run_tests(
     return _unknown_start(stable_request_id, "invalid-ack")
 
 
-async def run_tests_wait(
+async def _run_tests_wait_body(
     mode: str = "EditMode",
     filter: str = "",
     timeout: float = 900.0,
@@ -635,7 +662,7 @@ async def run_tests_wait(
     )
 
 
-async def resolve_test_request(request_id: str) -> str:
+async def _resolve_test_request_body(request_id: str) -> str:
     """Resolve a possibly lost start ACK without dispatching another test run."""
     return await _send("resolve_test_request", {"request_id": request_id})
 
@@ -687,7 +714,7 @@ async def _fetch_test_run_json(run_id: str, *, compact: bool = False) -> str:
     return result
 
 
-async def get_test_run(run_id: str) -> str:
+async def _get_test_run_body(run_id: str, compact: bool = False) -> str:
     """Return the durable JSON snapshot for one exact test run.
 
     Fails closed on terminal-invalid evidence: a snapshot claiming
@@ -697,8 +724,11 @@ async def get_test_run(run_id: str) -> str:
     ``PROTOCOL-ERROR|run_id=...|reason=...|snapshot=...`` instead of the raw
     snapshot -- closes the direct-poll path around ``run_tests_wait``'s own
     validation.
+
+    compact=True trims leaf-detail arrays on a non-terminal snapshot (A27) --
+    use for a tight-cadence poll loop; a terminal snapshot is unaffected.
     """
-    result = await _fetch_test_run_json(run_id)
+    result = await _fetch_test_run_json(run_id, compact=compact)
     try:
         data = json.loads(result)
     except (TypeError, ValueError, json.JSONDecodeError):
@@ -716,17 +746,12 @@ async def get_test_run(run_id: str) -> str:
     )
 
 
-async def cancel_test_run(run_id: str) -> str:
-    """Request cancellation of one exact test run; cancellation is asynchronous."""
-    return await _send("cancel_test_run", {"run_id": run_id})
-
-
-async def list_test_runs(limit: int = 20) -> str:
+async def _list_test_runs_body(limit: int = 20) -> str:
     """List recent durable test runs as JSON, newest first."""
     return await _send("list_test_runs", {"limit": max(1, min(int(limit), 100))})
 
 
-async def get_test_results(run_id: str | None = None) -> str:
+async def _get_test_results_body(run_id: str | None = None) -> str:
     """Legacy result facade. Pass run_id to prevent reading a stale latest run."""
     args = {"run_id": run_id} if run_id else {}
     try:
@@ -735,18 +760,13 @@ async def get_test_results(run_id: str | None = None) -> str:
         return "pending"
 
 
-async def get_test_progress(run_id: str | None = None) -> str:
+async def _get_test_progress_body(run_id: str | None = None) -> str:
     """Legacy progress facade. Pass run_id to correlate the response."""
     args = {"run_id": run_id} if run_id else {}
     try:
         return await _send("get_test_progress", args)
     except Exception:
         return "pending"
-
-
-async def get_test_count() -> str:
-    """Number of edit-mode and play-mode tests in the project."""
-    return await _send("get_test_count", {})
 
 
 def _resolve_project_path() -> Path | None:
@@ -803,14 +823,3 @@ def register(mcp, send, args, *, get_slot=None):
     bind(globals(), send, args)
     global _get_slot
     _get_slot = get_slot
-    # The bridge may retry run_tests only because every retry carries the same
-    # durable request_id. run_tests_wait is a composite operation, not idempotent.
-    mcp.tool(annotations=_RW_IDEM)(run_tests)
-    mcp.tool(annotations=_RW)(run_tests_wait)
-    mcp.tool(annotations=_RO)(resolve_test_request)
-    mcp.tool(annotations=_RO)(get_test_run)
-    mcp.tool(annotations=_RW_IDEM)(cancel_test_run)
-    mcp.tool(annotations=_RO)(list_test_runs)
-    mcp.tool(annotations=_RO)(get_test_results)
-    mcp.tool(annotations=_RO)(get_test_progress)
-    mcp.tool(annotations=_RO)(get_test_count)

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using UnityMCP.Playtest.Core;
 
@@ -18,17 +17,13 @@ namespace UnityMCP.Editor
         // Reload / recursive-test / mode-transition commands: allowing these from inside a
         // script would let a script trigger a domain reload, start a nested test run, or
         // rebuild the Player mid-DSL-execution. Hard denylist — independent of registration.
-        private static readonly HashSet<string> _hardDenylist = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "execute_code", "create_script", "sync_unity", "await_compile",
-            "smart_build", "run_tests", "run_playtest", "package", "build",
-            // batch: nested commands are opaque to CheckStep — hard-deny the wrapper itself
-            // rather than recursively parsing/validating its "commands" payload. Each MCP
-            // step already dispatches through CommandRouter, which handles sequencing, so a
-            // batch call inside a DSL script has no legitimate use and would otherwise let
-            // any denied command (e.g. "editor action=stop") bypass this whole policy.
-            "batch",
-        };
+        // Source of truth: DENY lines of dsl/tools.biome (ToolUi.PlaytestDenied, generated).
+        // batch is in the generated set too: nested commands are opaque to CheckStep — hard-deny
+        // the wrapper itself rather than recursively parsing/validating its "commands" payload.
+        // Each MCP step already dispatches through CommandRouter, which handles sequencing, so a
+        // batch call inside a DSL script has no legitimate use and would otherwise let any denied
+        // command (e.g. "editor action=stop") bypass this whole policy.
+        private static readonly HashSet<string> _hardDenylist = ToolUi.PlaytestDenied;
 
         internal const string HardDenialReason =
             "denied — reload/recursive/mode-transition command not allowed inside a playtest";

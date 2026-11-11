@@ -150,6 +150,15 @@ def _resolve_target(source: Path, destination: str, docs_root: Path) -> tuple[Pa
     return target.resolve(), unquote(fragment)
 
 
+def _catalog_tool_names(repo_root: Path) -> set[str]:
+    """The tools of dsl/tools.biome: the keys of the generated SPEC_KWARGS literal, without its _INTERNAL wire commands (tool_specs.py merges them into _SPECS)."""
+    source = repo_root / "server" / "src" / "unity_mcp" / "tools" / "generated" / "catalog_specs.py"
+    for node in ast.parse(source.read_text(encoding="utf-8")).body:
+        if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.target.id == "SPEC_KWARGS":
+            return {name for name, kwargs in ast.literal_eval(node.value).items() if kwargs["category"] != "_INTERNAL"}
+    raise AssertionError("SPEC_KWARGS dictionary not found")
+
+
 def _tool_names(repo_root: Path) -> set[str]:
     source = repo_root / "server" / "src" / "unity_mcp" / "tools" / "tool_specs.py"
     tree = ast.parse(source.read_text(encoding="utf-8"))
@@ -175,7 +184,7 @@ def _tool_names(repo_root: Path) -> set[str]:
                 )
             if not internal:
                 names.add(key.value)
-        return names
+        return names | _catalog_tool_names(repo_root)
     raise AssertionError("_SPECS dictionary not found")
 
 
@@ -183,7 +192,8 @@ def _tool_signatures(repo_root: Path) -> dict[str, ToolSignature]:
     names = _tool_names(repo_root)
     signatures: dict[str, ToolSignature] = {}
     tools_root = repo_root / "server" / "src" / "unity_mcp" / "tools"
-    source_paths = [*tools_root.glob("*.py"), repo_root / "server" / "src" / "unity_mcp" / "debug" / "snapshots.py"]
+    source_paths = [*tools_root.glob("*.py"), *tools_root.glob("generated/*.py"),
+                    repo_root / "server" / "src" / "unity_mcp" / "debug" / "snapshots.py"]
     for path in source_paths:
         tree = ast.parse(path.read_text(encoding="utf-8"))
         for node in tree.body:

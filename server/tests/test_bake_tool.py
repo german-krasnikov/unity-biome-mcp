@@ -48,22 +48,5 @@ def test_bake_in_tool_specs():
 
 
 def test_bake_is_registered_with_mcp():
-    import unity_mcp.tools.rendering as m
-    from mcp.types import ToolAnnotations
-
-    registered = {}
-
-    def mock_tool(annotations=None):
-        def decorator(fn):
-            registered[fn.__name__] = annotations
-            return fn
-        return decorator
-
-    mock_mcp = MagicMock()
-    mock_mcp.tool = mock_tool
-    orig_send, orig_args = m._send, m._args
-    try:
-        m.register(mock_mcp, AsyncMock(), lambda **kw: {k: v for k, v in kw.items() if v is not None})
-        assert "bake" in registered, "bake not registered"
-    finally:
-        m._send, m._args = orig_send, orig_args
+    from unity_mcp.server import mcp
+    assert "bake" in mcp._tool_manager._tools, "bake not registered"

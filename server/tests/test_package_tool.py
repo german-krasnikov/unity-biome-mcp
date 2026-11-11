@@ -1,6 +1,6 @@
 """TDD tests for package MCP tool (RED phase)."""
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 
 # ── package sends correct args ────────────────────────────────────────────────
@@ -64,20 +64,6 @@ def test_package_in_tool_specs():
 
 
 def test_package_registered_with_mcp():
-    import unity_mcp.tools.packages as m
-    registered = {}
-
-    def mock_tool(annotations=None):
-        def decorator(fn):
-            registered[fn.__name__] = annotations
-            return fn
-        return decorator
-
-    mock_mcp = MagicMock()
-    mock_mcp.tool = mock_tool
-    orig_send, orig_args = m._send, m._args
-    try:
-        m.register(mock_mcp, AsyncMock(), lambda **kw: {k: v for k, v in kw.items() if v is not None})
-        assert "package" in registered
-    finally:
-        m._send, m._args = orig_send, orig_args
+    """package is FORWARD (SV4): registered by catalog_tools.install(), not packages.register()."""
+    from unity_mcp.server import mcp
+    assert mcp._tool_manager._tools.get("package") is not None

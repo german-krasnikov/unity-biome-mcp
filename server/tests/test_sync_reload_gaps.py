@@ -51,6 +51,9 @@ def _patch_sleep():
 
 @pytest.fixture(autouse=True)
 def _reset_send():
+    # tools/sync.py has no register() of its own, so _tool_binding's autouse
+    # fixture doesn't cover it -- restore _sync._send by hand (SV7, see
+    # test_sync_module.py's docstring for the grounded reason).
     original = _sync._send
     yield
     _sync._send = original

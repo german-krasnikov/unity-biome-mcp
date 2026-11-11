@@ -3,14 +3,14 @@ from ..ask.executor import AskExecutor
 from ..ask.router import is_mutating, route
 from ..ask.summarizer import Summarizer
 from ..sampling import sampling_service as _sampling
-from ._annotations import RO as _RO
 from ._common import bind
+from .generated.catalog_tools import ask  # noqa: F401 -- wrapper the catalog generates; this module provides _ask_body
 
 # Module-level references — patched in tests
 _send = None
 
 
-async def ask(question: str) -> str:
+async def _ask_body(question: str) -> str:
     """Answer a read-only question about the Unity scene (AI-routed, not interactive — use `ask_user` to show a UI card and wait for user input).
 
     Routes to deterministic tool plans for common patterns,
@@ -33,4 +33,3 @@ async def ask(question: str) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(ask)

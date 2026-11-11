@@ -13,13 +13,6 @@ import unity_mcp.tools.code_intel as _ci
 import unity_mcp.tools.sync as _sync
 
 
-@pytest.fixture(autouse=True)
-def _reset_ci_send():
-    original = _ci._send
-    yield
-    _ci._send = original
-
-
 # ---------------------------------------------------------------------------
 # MCP091-002: compile_preflight input validation
 # ---------------------------------------------------------------------------

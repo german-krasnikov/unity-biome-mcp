@@ -18,15 +18,21 @@
 
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <!--
+      C# 9 is the language of Unity 6, where Core is compiled; net6.0 would default to C# 10 and let a C# 10 construct into Core unseen (step 7.5 H0, plan 7.1).
+      Implicit usings are off with it: they are `global using`, a C# 10 feature (CS8773 at LangVersion 9, measured), and the tests of this lane compile without them.
+    -->
+    <LangVersion>9</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <IsPackable>false</IsPackable>
     <RootNamespace>UnityMCP.Playtest.Core.PureTests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Relative to this file's own directory (unity-plugin/Tests~/Pure/). -->
-    <Compile Include="../../Runtime/Playtest/Core/*.cs" />
+    <!-- Relative to this file's own directory (unity-plugin/Tests~/Pure/). `**` takes the subfolders of Core too: Generated/ holds PlaytestReader.g.cs, which biome-dsl prints
+         (the table of the playtest grammar and the reader that matches a line against it, step 7.5). -->
+    <Compile Include="../../Runtime/Playtest/Core/**/*.cs" />
   </ItemGroup>
 
   <ItemGroup>

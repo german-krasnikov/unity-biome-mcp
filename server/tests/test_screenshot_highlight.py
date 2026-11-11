@@ -16,12 +16,9 @@ def screenshot_tool():
         captured['args'] = args
         return "Data saved to: /tmp/test.png"
 
-    orig_send, orig_args = scene_mod._send, scene_mod._args
     scene_mod._send = _send
     scene_mod._args = _args
-    yield scene_mod.screenshot, captured
-    scene_mod._send = orig_send
-    scene_mod._args = orig_args
+    return scene_mod.screenshot, captured
 
 
 @pytest.fixture
@@ -39,12 +36,9 @@ def screenshot_tool_with_manifest():
         captured['args'] = args
         return "FRONT:Player(vis)\nLEFT:Player(vis)\nData saved to: /tmp/test.png"
 
-    orig_send, orig_args = scene_mod._send, scene_mod._args
     scene_mod._send = _send
     scene_mod._args = _args
-    yield scene_mod.screenshot, captured
-    scene_mod._send = orig_send
-    scene_mod._args = orig_args
+    return scene_mod.screenshot, captured
 
 
 async def test_screenshot_highlight_param_passed(screenshot_tool):

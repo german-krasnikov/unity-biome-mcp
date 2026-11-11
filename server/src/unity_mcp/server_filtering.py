@@ -19,15 +19,13 @@ from .paths import ports_dir as _ports_dir
 from .tools.gating import _CORE_TOOLS, TIER1, filter_by_tier, get_catalog
 from .tools.schema_registry import STUB_SCHEMA
 from .tools.schema_registry import _registry as _schema_registry
+from .tools.tags import tagged
 
 # All TIER1/core tools get full schemas (auto-derived from _SPECS — no manual drift).
-# Only non-tier1 exceptions need explicit listing here.
-_SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = frozenset({
-    # B3: MEDIA tools with required params (path, action) not yet promoted to tier1
-    "timeline", "animation", "animator",
-    # B4: SYSTEM tool with label param; sub-agents need full schema to construct calls
-    "checkpoint",
-})
+# Non-tier1 exceptions (schema_keep_full tag): B3 MEDIA tools with required
+# params not yet promoted to tier1 (timeline/animation/animator), B4 SYSTEM
+# tool whose sub-agents need full schema to construct calls (checkpoint).
+_SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = tagged("schema_keep_full")
 _SCHEMA_KEEP_FULL: frozenset[str] = frozenset(TIER1) | _SCHEMA_KEEP_FULL_EXTRA
 
 # Non-core tool descriptions are truncated to this length in the initial

@@ -12,6 +12,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **C# classifies a call as a write the way Python does (step 7.2):** `CommandRegistry.IsMutating(cmd, argsJson)` asks the generated decision `isMutating` (`dsl/decisions/mutability.logic`), whose facts are the registration's base and the arguments; Python's `is_write` is the authority and runs the same rule. A command whose action is not one of its read actions (the `READ` lines of `dsl/tools.biome`), or that has none, is a write. Observable in the plugin: a read-only worker and chat "ask" mode now refuse `editor` `play`, `stop`, `pause`, `step`, `select` and a `mutation_mode` set (`state`, `project_path` and the `mutation_mode` query stay reads), and `uitk_file` with no `action` is a write (it was a read). The editor still runs in Play Mode and stays out of the Undo history (`playOk`, `noUndo` of its registration, new optional parameters of `CommandRegistry.Register`, `RegisterAction` and `RegisterAsync`). The same for the other commands whose C# flag differed from Python's follow, one command per change.
+- **`build` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. Play Mode is unchanged (`playOk`).
+- **`move_to` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. It still runs in Play Mode (`playOk`).
+- **`package` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse its write actions; `list` and `search` stay reads. Play Mode is unchanged (`playOk`).
+- **`run_playtest` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it (a playtest can change the scene). The script header still decides Play Mode (`playOk`).
+- **`run_tests` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it (tests can change scenes and files). It still runs in Play Mode (`playOk`).
+- **`start_playtest` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it, as they refuse `run_playtest`. Play Mode is unchanged (`playOk`).
+- **`test_step` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. It still runs in Play Mode (`playOk`).
+- **`cancel_test_run` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. Play Mode, the compile guard and the Undo history are unchanged.
+- **`checkpoint` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. It still makes its own Undo group and no second one (`noUndo`), and still runs in Play Mode (`playOk`).
+- **`export_playtest_aliases_to_defs` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it (it writes a `.defs` file). Play Mode and the Undo history are unchanged.
+- **`sync_playtest_aliases_from_defs` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it (it rewrites the PlaytestConfig asset). Play Mode and the Undo history are unchanged.
+- **`invoke_method` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. It still runs only in Play Mode, outside the Undo history (`playOk`, `noUndo`).
+- **`set_runtime_property` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. It still runs only in Play Mode, outside the Undo history (`playOk`, `noUndo`).
+- **`recompile` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse it. Play Mode and the Undo history are unchanged.
+- **`scene` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse its write actions; `list` stays a read. Play Mode and the Undo history (`scene save` makes no Undo group, P-414) are unchanged.
+- **`timeline` is a write in C# as in Python (step 7.2):** a read-only worker and chat "ask" mode now refuse its write actions (`get` and `get_bindings` stay reads). In Play Mode its write actions are now refused ("changes will be lost") instead of run and lost, and they make an Undo group like any scene mutation.
+- **How a chat turn ends is one ordered list (step 7.3):** the eight ways out of a turn (an answer, an error, a dead process, the inactivity timeout, Stop, a switch of backend or model, New Session, closing the window) now release the reload lock, cancel the questions the turn raised, close the Undo group, finalize the transcript and reset the per-turn state in ONE order, stated once in `dsl/chat/chatturn.feature` and printed as C# 9 into `Editor/Chat/CLI/Generated/ChatTurn` (19 examples in `dsl/chat/chatturn.examples` run in `dotnet test unity-plugin/Tests~/ChatTurn`). `MCPChatWindow` only detects an exit and dispatches it to `ChatTurnDriver`; `MCPChatWindow.TurnPorts.cs` holds the 16 effects. `ChatActivityState` and `ActivityPhase` (internal chat plumbing) are removed.
+
+### Fixed
+
+- **Chat: an open question no longer leaves the window showing Send (step 7.3):** a pending `ask_user` question was forgotten only on an answer or an error; Stop, a switch of backend or model, New Session, a dead process or a timeout left it set, and the next turn showed Send instead of Stop. Every way out of a turn now clears it and cancels the question the turn raised, so its caller is released at once and not after 300 s.
+- **Chat: the timeout message names the last tool again (step 7.3):** `[Timed out: no response for Ns (last tool: X)]`. The hint was lost when the per-turn state started to be reset before the message was written.
+- **Chat: a repeated or late end of a turn does nothing (step 7.3):** a second `TurnDone` no longer adds a second tail and a second Restore button, and a send, a resume after a reload or an Approve click over an open turn is refused instead of taking the reload lock a second time. An error that arrives with no turn open is still shown. New Session closes the open Undo group before it forgets it.
+
 ## [v2.1.0] — 2026-09-25
 
 ### Changed

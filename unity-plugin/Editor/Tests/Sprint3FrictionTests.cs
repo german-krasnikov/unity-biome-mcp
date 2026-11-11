@@ -28,23 +28,21 @@ namespace UnityMCP.Editor.Tests
                 "compress should strip default Transform fields");
         }
 
-        // ── #06C: timeline mutating:false — play-mode guard ───────────────────
+        // ── #06C, step 7.2: the timeline's reads are not blocked by the play-mode guard ───────────────────
 
         [Test]
         public void Timeline_ReadAction_NotBlockedByPlayModeGuard()
         {
-            // Without isPlaying, read actions should not return the play-mode error.
-            // We can't call ExecTimelineConsolidated directly (private), so we rely on
-            // registration guard behavior: timeline action=get in EditMode should not
-            // return the play-mode error string.
-            Assert.IsFalse(EditorApplication.isPlaying, "test must run outside Play Mode");
-            // If action=get is called outside Play Mode, no "not allowed" error should appear.
-            // This is a contract test — the guard only fires when isPlaying=true.
-            // Since we can't enter Play Mode in EditMode tests, we verify the guard logic
-            // directly via the registered action parameter list (mutating:false expected).
+            // The workaround of #06C was mutating:false for the whole command. Since step 7.2 the timeline is mutating as in
+            // Python, and its reads (get, get_bindings: the READ lines of dsl/tools.biome) are narrowed per call, so only its
+            // write actions meet the "changes will be lost" block of Play Mode. Both halves of the guard are decided here by
+            // IsMutating and IsAllowedMutationInPlayMode, which CheckGuards asks; no Play Mode is needed.
             CommandRouter.RegisterAll();
-            bool isMutating = CommandRegistry.IsMutating("timeline");
-            Assert.IsFalse(isMutating, "timeline should be registered as non-mutating after #06C fix");
+            Assert.IsFalse(CommandRegistry.IsMutating("timeline", "{\"action\":\"get\"}"), "get reads");
+            Assert.IsFalse(CommandRegistry.IsMutating("timeline", "{\"action\":\"get_bindings\"}"), "get_bindings reads");
+            Assert.IsTrue(CommandRegistry.IsMutating("timeline", "{\"action\":\"add_track\"}"), "add_track writes");
+            Assert.IsFalse(CommandRouter.IsAllowedMutationInPlayMode("timeline", "{\"action\":\"add_track\"}"),
+                "a write action of the timeline is not allowed in Play Mode");
         }
 
         // ── #07: AliasExpander .defs scan ────────────────────────────────────

@@ -7,3 +7,22 @@
 # checkout (and normalize back to LF on commit) regardless of platform
 # autocrlf settings so the bytes are identical everywhere.
 scripts/source_patch_provider_pin.json text eol=lf
+
+# The tool catalog (dsl/) and what biome generates from it: LF on every platform, so `scripts/dsl.sh check` compares the same bytes
+# everywhere; review tools fold the generated files (docs/product/layout.md of biome-dsl, "Markers").
+dsl/** text eol=lf
+server/src/unity_mcp/tools/generated/** text eol=lf linguist-generated=true gitlab-generated
+# The decisions (dsl/decisions, step 7.2): the Python and C# they are printed into and the machine rows of their examples, LF as well.
+server/src/unity_mcp/decisions/generated/*_logic.py text eol=lf linguist-generated=true gitlab-generated
+unity-plugin/Editor/Generated/*.g.cs text eol=lf linguist-generated=true gitlab-generated
+dsl/decisions/*.json text eol=lf linguist-generated=true gitlab-generated
+# The chat turn (dsl/chat, step 7.3): the C# reducer, the manifest that owns its files and the NUnit examples, LF as well.
+unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/*.cs text eol=lf linguist-generated=true gitlab-generated
+unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/.biome-files text eol=lf
+unity-plugin/Tests~/ChatTurn/Generated/*.cs text eol=lf linguist-generated=true gitlab-generated
+unity-plugin/Tests~/ChatTurn/Generated/.biome-files text eol=lf
+# The Tools Reference holds a generated region: LF as well, or `scripts/dsl.sh check` would compare other bytes on Windows.
+docs/tools/index.md text eol=lf
+# The playtest grammar (dsl/playtest, step 7.5): the C# table of its verbs and forms, and the Playtest DSL Reference with its generated table of verbs, LF as well.
+unity-plugin/Runtime/Playtest/Core/Generated/*.g.cs text eol=lf linguist-generated=true gitlab-generated
+AI/playtest-dsl.md text eol=lf

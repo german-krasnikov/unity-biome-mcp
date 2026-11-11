@@ -3,7 +3,7 @@ import pytest
 from mcp.types import ToolAnnotations
 from unity_mcp.tools import objects, scene, asset, ui, connection, runtime
 from unity_mcp.tools import console, testing, editor_control, screenshot, spatial
-from unity_mcp.tools import metrics_tool, profiling
+from unity_mcp.tools import metrics_tool, profiling, meta
 
 
 def _get_annotation(module, fn_name: str) -> ToolAnnotations | None:
@@ -35,7 +35,10 @@ def _get_annotation(module, fn_name: str) -> ToolAnnotations | None:
                     if kw.arg == "annotations" and isinstance(kw.value, ast.Name):
                         const_name = kw.value.id
                         return getattr(module, const_name)
-    return None
+    # No mcp.tool(...) line in the module: a tool of the tool catalog (dsl/tools.biome) is registered by catalog_tools.
+    from unity_mcp.server import mcp
+    tool = mcp._tool_manager._tools.get(fn_name)
+    return tool.annotations if tool else None
 
 
 IDEM_TOOLS = [
@@ -45,6 +48,7 @@ IDEM_TOOLS = [
     (asset, "project_settings"),
     (ui, "set_rect"),
     (connection, "reconnect_unity"),
+    (editor_control, "ping_object"),
     (runtime, "wait_until"),
     (testing, "run_tests"),
     (testing, "cancel_test_run"),
@@ -79,6 +83,44 @@ def test_non_idempotent_tool_lacks_idempotentHint(mod, fn):
     assert ann.idempotentHint is not True, f"{mod.__name__}.{fn}: should NOT have idempotentHint=True"
 
 
+def test_discover_tools_gets_session_annotation():
+    """S0 D2: discover_tools moves from a bare mcp.tool() (no annotation) to
+    the catalog's derive("RO", session=True) -- its FLAG tier1 SESSION entry
+    in dsl/tools.biome (S0 2/11)."""
+    ann = _get_annotation(meta, "discover_tools")
+    assert ann is not None, "discover_tools: no annotation found"
+    assert ann.idempotentHint is True, "discover_tools: idempotentHint should be True (SESSION)"
+    assert ann.readOnlyHint is False, "discover_tools: readOnlyHint should be False (SESSION overrides RO)"
+
+
+def test_lint_playtest_is_read_only():
+    """S0 4/11: lint_playtest moves from the hand _RW_IDEM constant
+    (idempotentHint=True, readOnlyHint=False) to the catalog's TESTS RO
+    block -- a pure read-only static validator, no scene changes."""
+    ann = _get_annotation(runtime, "lint_playtest")
+    assert ann is not None, "lint_playtest: no annotation found"
+    assert ann.readOnlyHint is True, "lint_playtest: readOnlyHint should be True"
+
+
+def test_resolve_tool_schema_gets_read_only_annotation():
+    """S0 7/11: resolve_tool_schema moves off a bare mcp.tool() (no annotation)
+    onto the catalog's derive("RO") -- no SESSION, a pure schema-registry read."""
+    ann = _get_annotation(meta, "resolve_tool_schema")
+    assert ann is not None, "resolve_tool_schema: no annotation found"
+    assert ann.readOnlyHint is True, "resolve_tool_schema: readOnlyHint should be True"
+
+
+def test_set_llm_config_gets_idempotent_annotation():
+    """S0 8/11: set_llm_config moves off a bare mcp.tool() (no annotation)
+    onto the catalog's derive("RW_IDEM") -- idempotentHint=True, readOnlyHint
+    stays False. mutability (guards) is unaffected -- effect RW_IDEM keeps
+    ToolSpec.mutability == 'write' (tool_specs.py:102)."""
+    ann = _get_annotation(meta, "set_llm_config")
+    assert ann is not None, "set_llm_config: no annotation found"
+    assert ann.idempotentHint is True, "set_llm_config: idempotentHint should be True"
+    assert ann.readOnlyHint is False, "set_llm_config: readOnlyHint should be False"
+
+
 def test_run_tests_not_marked_read_only():
     """run_tests triggers domain reload — must NOT have readOnlyHint=True."""
     ann = _get_annotation(testing, "run_tests")
@@ -109,6 +151,7 @@ async def test_retry_safe_cmds_includes_only_readonly_or_idempotent():
     safe = await retry_safe_cmds(mcp)
     assert "get_console" in safe          # RO
     assert "execute_code" not in safe     # RW, no idempotentHint
+    assert "ping_object" in safe          # S0 5/11: derive("RO", session=True) -> idempotentHint=True
 
 
 async def test_retry_safe_cmds_includes_internal_status_commands():

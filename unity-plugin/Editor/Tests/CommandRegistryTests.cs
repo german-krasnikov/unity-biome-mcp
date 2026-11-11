@@ -66,5 +66,25 @@ namespace UnityMCP.Editor.Tests
             Assert.IsNotNull(result, "timeline handler must return a response (even an error message)");
             Assert.IsNotEmpty(result, "Response must be non-empty");
         }
+
+        // ── A2 basket 3: RegisterAction's doubled "action" Required entry ──────────
+        // Documentation test, not a regression guard to "fix": RegisterAction's own
+        // overload (CommandRegistry.cs) always prepends "action" to Required via
+        // `new List<string> { "action" }`. "material" migrated to ToolMeta.Get("material")
+        // in A2 basket 3, and the catalog's own TOOL block for "material" already declares
+        // an explicit `ARG action str` — so after migration Required contains "action"
+        // twice (doubled, not deduplicated). This is accepted (Plans/DSL/A2-DESIGN.md §2/§7):
+        // every consumer (CommandValidator, the golden/parity tests) treats Required as a
+        // membership set, never a count/order-sensitive array. If a future change
+        // deduplicates Required and that is wrong, this test is what should start failing —
+        // it is not itself a bug to fix.
+        [Test]
+        public void Material_RequiredContainsAction_DoubledEntryIsExpected()
+        {
+            Assert.IsTrue(CommandRegistry.TryGetContract("material", out var required, out _, out _),
+                "material must be registered");
+            CollectionAssert.Contains(required, "action",
+                "RegisterAction always requires 'action', regardless of the ToolMeta.Get(cmd) migration");
+        }
     }
 }

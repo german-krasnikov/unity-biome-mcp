@@ -1,0 +1,99 @@
+EXAMPLE MOVE and TELEPORT read a position as the rest of the line: x,y,z, @/GoPath.position with an optional + or - offset, or a $val; MOVE may leave out the path (PlaytestParserTests.cs:575, :588, :755, :767; PlaytestParserEdgeCaseTests.cs:41; PlaytestParserCorpusTests.cs:120; PlaytestPositionResolverTests.cs:136, :149, :162; Runtime/PlaytestParserTests.cs:33, :45, :258; Runtime/PlaytestIntegrationTests.cs:332; Pure/PlayerProfilePreflightTests.cs:148; AI/playtest-dsl.md:637-641, :775-777, :825)
+  SOURCE MOVE Player TO 100,50,0
+  SOURCE MOVE /GridPlayer TO 1,2,3
+  SOURCE MOVE TO 1,2,3
+  SOURCE MOVE TO @/Ref.position
+  SOURCE MOVE Player TO @/Enemy.position + (5,0,0)
+  SOURCE MOVE Player TO @/Enemy.position - (0,0,3)
+  SOURCE MOVE Player TO $player_start
+  SOURCE MOVE Player TO (100,0,0)
+  SOURCE MOVE Player TO "1, 2, 3"
+  SOURCE TELEPORT /obj 1,2,3
+  SOURCE TELEPORT /hero @/SpawnPoint.position
+  SOURCE TELEPORT Enemy @/Player.position + (2,0,0)
+  SOURCE TELEPORT TeleportTarget 5,0,3
+
+EXAMPLE MOVE and TELEPORT refuse a line without TO or without a position (PlaytestParserEdgeCaseTests.cs:16, :25, :34; EVAL2 C1 for TELEPORT), a position that is none of x,y,z, @... and $... (the hand parser throws in ParseFloats: NumericParsing.cs:17-22; INTENDED I9) and a lower-case TO (INTENDED I4)
+  SOURCE MOVE
+  SOURCE MOVE /Player
+  SOURCE MOVE TO
+  SOURCE MOVE /Player TO
+  SOURCE MOVE player to 1,2,3
+  SOURCE MOVE Player TO 100,50
+  SOURCE MOVE TO abc
+  SOURCE TELEPORT
+  SOURCE TELEPORT /obj
+  SOURCE TELEPORT /obj 1,2
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_SYNTAX at 2:6
+  EXPECT diagnostic DECLARE_SYNTAX at 3:6
+  EXPECT diagnostic DECLARE_SYNTAX at 4:14
+  EXPECT diagnostic DECLARE_SYNTAX at 5:13
+  EXPECT diagnostic DECLARE_SYNTAX at 6:16
+  EXPECT diagnostic DECLARE_SYNTAX at 7:9
+  EXPECT diagnostic DECLARE_SYNTAX at 8:1
+  EXPECT diagnostic DECLARE_SYNTAX at 9:10
+  EXPECT diagnostic DECLARE_SYNTAX at 10:15
+
+EXAMPLE TAP is CLICK under another name: a path and an optional WAIT (ClickStepTests.cs:53; AI/playtest-dsl.md:408)
+  SOURCE TAP /Canvas/Button
+  SOURCE TAP /UI/ResumeButton WAIT 0.5
+  SOURCE TAP $hud|submitBtn
+
+EXAMPLE TAP refuses a missing path, a WAIT without a number or with a word, and a token too many (as CLICK; INTENDED I1)
+  SOURCE TAP
+  SOURCE TAP /x WAIT
+  SOURCE TAP /x WAIT abc
+  SOURCE TAP /x foo
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_SYNTAX at 2:8
+  EXPECT diagnostic DECLARE_NUMBER at 3:13
+  EXPECT diagnostic DECLARE_SYNTAX at 4:8
+
+EXAMPLE ASSERT_NEAR reads two paths and a distance, ASSERT_CTA a state or nothing, ASSERT_ONE_ACTIVE two paths or more (PlaytestParserTests.cs:465, :669; Runtime/PlaytestParserTests.cs:296, :451, :460; Runtime/PlaytestIntegrationTests.cs:351, :368, :480, :497; AI/playtest-dsl.md:235, :248, :337)
+  SOURCE ASSERT_NEAR /A /B 0.5
+  SOURCE ASSERT_NEAR NearA NearB 2.0
+  SOURCE ASSERT_NEAR Player Enemy 5.0
+  SOURCE ASSERT_CTA
+  SOURCE ASSERT_CTA VISIBLE
+  SOURCE ASSERT_CTA CLICKABLE
+  SOURCE ASSERT_ONE_ACTIVE /Cam_Intro /Cam_Menu
+  SOURCE ASSERT_ONE_ACTIVE /Cam_Intro /Cam_Menu /Cam_Game
+
+EXAMPLE ASSERT_NEAR refuses a missing path or distance and a word for it, ASSERT_CTA a state the runner does not know (it reads it as VISIBLE; INTENDED I9) and a token too many (INTENDED I1), ASSERT_ONE_ACTIVE fewer than two paths (PlaytestParserTests.cs:474, :481)
+  SOURCE ASSERT_NEAR
+  SOURCE ASSERT_NEAR /A
+  SOURCE ASSERT_NEAR /A /B
+  SOURCE ASSERT_NEAR /A /B far
+  SOURCE ASSERT_NEAR /A /B 1 2
+  SOURCE ASSERT_CTA CLICKABEL
+  SOURCE ASSERT_CTA visible
+  SOURCE ASSERT_CTA VISIBLE now
+  SOURCE ASSERT_ONE_ACTIVE
+  SOURCE ASSERT_ONE_ACTIVE /Cam_Intro
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_SYNTAX at 2:13
+  EXPECT diagnostic DECLARE_SYNTAX at 3:16
+  EXPECT diagnostic DECLARE_NUMBER at 4:19
+  EXPECT diagnostic DECLARE_SYNTAX at 5:21
+  EXPECT diagnostic DECLARE_SYNTAX at 6:12
+  EXPECT diagnostic DECLARE_SYNTAX at 7:12
+  EXPECT diagnostic DECLARE_SYNTAX at 8:20
+  EXPECT diagnostic DECLARE_SYNTAX at 9:1
+  EXPECT diagnostic DECLARE_SYNTAX at 10:19
+
+EXAMPLE a path with a blank inside [..] is two tokens and is refused: write it in quotes (INTENDED I8; AI/playtest-dsl.md:35)
+  SOURCE MOVE /[My Obj]/X TO 1,2,3
+  SOURCE TELEPORT /[My Obj]/X 1,2,3
+  SOURCE TAP /[My Obj]/X
+  SOURCE ASSERT_NEAR /[My Obj]/X /B 1
+  SOURCE ASSERT_NEAR /A /[My Obj]/X 1
+  SOURCE ASSERT_ONE_ACTIVE /[My Obj]/X /B
+  SOURCE ASSERT_ONE_ACTIVE /A /[My Obj]/X
+  EXPECT diagnostic DECLARE_SYNTAX at 1:6
+  EXPECT diagnostic DECLARE_SYNTAX at 2:10
+  EXPECT diagnostic DECLARE_SYNTAX at 3:5
+  EXPECT diagnostic DECLARE_SYNTAX at 4:13
+  EXPECT diagnostic DECLARE_SYNTAX at 5:16
+  EXPECT diagnostic DECLARE_SYNTAX at 6:19
+  EXPECT diagnostic DECLARE_SYNTAX at 7:22

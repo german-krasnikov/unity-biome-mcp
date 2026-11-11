@@ -10,6 +10,7 @@ on:
       - "unity-plugin/ClientSkills/**"
       - "unity-plugin/Editor/**"
       - "unity-plugin-reload/Editor/**"
+      - "dsl/**"
       - ".jscpd.json"
       - ".github/workflows/ci-python.yml"
   pull_request:

@@ -3,9 +3,11 @@ import re
 
 from mcp.server.fastmcp.exceptions import ToolError
 
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
+from ..decisions.guard_facts import Verdict, guard_verdict
 from ._common import bind
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import batch, references, tools, validate_references  # noqa: F401
 from .tool_specs import _SPECS
 
 _send = None
@@ -93,6 +95,12 @@ def _check_completeness(commands: str, result: str) -> str:
     return result
 
 
+def _not_batchable(cmd: str) -> bool:
+    """A direct_only tool must be called as its typed wrapper: not a line of a batch (the DECISION guardVerdict, site batch)."""
+    spec = _SPECS.get(cmd)
+    return guard_verdict("batch", batchable=not (spec and spec.direct_only)) == Verdict.ASYNC_ONLY
+
+
 def _preprocess_continue_mode(commands: str) -> tuple[str, list[str], list[int]]:
     """Filter/validate commands for on_error=continue. Returns (commands, pre_errors, orig_indices)."""
     pre_errors: list[str] = []
@@ -110,8 +118,7 @@ def _preprocess_continue_mode(commands: str) -> tuple[str, list[str], list[int]]
         if cmd in _dsl_tools:
             pre_errors.append(f"[{i}] err: '{cmd}' requires typed MCP tool, not batch")
             continue
-        spec = _SPECS.get(cmd)
-        if spec and spec.direct_only:
+        if _not_batchable(cmd):
             pre_errors.append(f"[{i}] err: '{cmd}' is direct-only; call it as a typed MCP tool, not in batch")
             continue
         clean.append(_strip_python_params(line))
@@ -128,8 +135,7 @@ def _preprocess_stop_mode(commands: str) -> str:
         cmd = line.strip().split()[0] if line.strip() else ""
         if cmd in _dsl_tools:
             raise ToolError(f"{cmd} requires typed MCP tool (Python DSL expansion), not batch")
-        spec = _SPECS.get(cmd)
-        if spec and spec.direct_only:
+        if _not_batchable(cmd):
             raise ToolError(f"'{cmd}' is direct-only; call it as a typed MCP tool, not in batch")
         stripped_lines.append(_strip_python_params(line))
     return "\n".join(stripped_lines)
@@ -176,7 +182,7 @@ def _merge_pre_errors(result: str, pre_errors: list[str], orig_indices: list[int
     return "\n".join(pre_errors) + "\n" + result
 
 
-async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0,
+async def _batch_body(commands: str, on_error: str = "continue", timeout: float = 75.0,
                 atomic: bool = False, validate_aliases: bool = False) -> str:
     """Execute multiple commands in one call. Use for 2+ ops — reads AND writes. commands: one per line (cmd key=value). on_error: continue|stop (default continue). timeout: seconds (default 75; inner soft-timeout capped at 60s). atomic: reverts prior Undo-recorded mutations on failure; external/file/asset/package/process effects may remain. PREFER over individual tool calls."""
     pre_errors: list[str] = []
@@ -194,32 +200,5 @@ async def batch(commands: str, on_error: str = "continue", timeout: float = 75.0
     return result
 
 
-async def references(action: str, path: str, children: bool = False, depth: int = 1,
-                     source: str | None = None, target: str | None = None,
-                     mappings: str | None = None) -> str:
-    """References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs."""
-    return await _send("references", _args(
-        action=action, path=path,
-        children="true" if children else None,
-        depth=depth if depth != 1 else None,
-        source=source, target=target, mappings=mappings,
-    ))
-
-
-async def validate_references(path: str, depth: int = 3, verbose: bool = False, ignore_optional: bool = False) -> str:
-    """Validate all ObjectReference fields under path recursively.
-    Returns [ERROR]/[MISSING] for broken refs. Summary: "N ERROR, M OK".
-    Use depth=1 for quick top-level scan, depth=3-5 for full subtree.
-    verbose=True also shows [OK] lines (off by default to save tokens).
-    ignore_optional=True skips fields marked [Optional] (reduces noise)."""
-    return await _send("validate_references", _args(
-        path=path, depth=depth,
-        verbose="true" if verbose else None,
-        ignore_optional="true" if ignore_optional else None))
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(batch)
-    mcp.tool(annotations=_RW)(references)
-    mcp.tool(annotations=_RO)(validate_references)

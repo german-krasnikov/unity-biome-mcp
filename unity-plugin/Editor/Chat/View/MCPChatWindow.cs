@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityMCP.Editor;
+using UnityMCP.Editor.Chat.Turn;
 
 namespace UnityMCP.Editor.Chat
 {
@@ -71,7 +72,7 @@ namespace UnityMCP.Editor.Chat
         // T-6.3: set when Agent or Task tool fires in the current turn (delegation occurred).
         internal bool _turnHadDelegation;
 
-        // P0-2: DRY helper — reset all per-turn flags (3 sites in Drain + CancelTurn + NewSession).
+        // P0-2: DRY helper — reset all per-turn flags: the resetTurn port of every exit (dsl/chat/chatturn.feature) and ResetSession.
         private void ResetTurnFlags()
         {
             _turnEditedCode = _turnHasToolCalls = _needsRefresh = _turnHadDelegation = false;
@@ -96,6 +97,7 @@ namespace UnityMCP.Editor.Chat
 
         private void OnEnable()
         {
+            _turn = new ChatTurnDriver(this, OnActivityChanged, Debug.LogException);
             // F-1: relay supports exactly one TCP client. A second MCPChatWindow would trigger
             // the relay's B4 displacement guard, silently breaking both windows after ~6–9 s.
             // Detect early and skip backend creation so only the first window is functional.
@@ -168,14 +170,13 @@ namespace UnityMCP.Editor.Chat
             ScreenshotToolbarButton.OnScreenshotCaptured = null;
             Annotation.AnnotationEditorWindow.OnAnnotationReady = null;
             CopyFlash.ShowAction = null;
-            ReloadGuard.OnTurnFinished();
-            if (_activity.Phase != ActivityPhase.Idle)
-                _undoTracker.OnTurnFailed();
+            _turn.Dispatch(ChatTurnIntent.Disable());   // an open turn leaves like any other: unlock, asks, undo group, transcript
             _backend?.Stop();
             ChatMcpConfigWriter.DeleteOwnConfig();
             _backend = null;
             _assetMentionIndex?.Dispose();
             _assetMentionIndex = null;
+            _turn.Dispose();                             // an event after this point reaches nobody
         }
 
         private ChatRefResolver _resolver;
@@ -252,7 +253,7 @@ namespace UnityMCP.Editor.Chat
             // F20: Esc cancels a running turn. Guard: Idle → no-op (slash popup handles its own Esc).
             root.RegisterCallback<KeyDownEvent>(evt =>
             {
-                if (evt.keyCode == KeyCode.Escape && _activity.Phase != ActivityPhase.Idle)
+                if (evt.keyCode == KeyCode.Escape && _turn.Active)
                 {
                     CancelTurn();
                     evt.StopPropagation();
@@ -323,19 +324,8 @@ namespace UnityMCP.Editor.Chat
             BackendConfigStore src, BackendKind kind, string selectedModel)
             => src.WithModel(kind, selectedModel);
 
-        internal void CancelTurn()
-        {
-            if (_activity.Phase == ActivityPhase.Idle) return;
-            _transcript?.FinalizeAssistant();
-            ReloadGuard.OnTurnFinished();
-            ResetTurnFlags(); // P0-2: clear stale per-turn flags on cancel
-            _undoTracker.OnTurnFailed();
-            _activity.Fail();
-            OnActivityChanged();
-            _backend?.Stop();
-            _backend = null;
-            CreateBackend();
-        }
+        // Stop / Esc: the exit `cancel` of the chat turn; it restarts the backend itself (dsl/chat/chatturn.feature).
+        internal void CancelTurn() => _turn.Dispatch(ChatTurnIntent.Cancel());
 
         private void ResetInputAreaHeight()
         {

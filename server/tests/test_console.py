@@ -9,12 +9,23 @@ def _freeze_time(monkeypatch, now: float):
     monkeypatch.setattr(console, "_time", mock_time)
 
 
+def _patch_get_console_send(monkeypatch, response="logs"):
+    """Patch _send/_args on console AND catalog_tools: get_console is FORWARD (SV4), so
+    get_console_since's call to it runs on catalog_tools's _send, not console's."""
+    from unity_mcp.tools import console
+    from unity_mcp.tools.generated import catalog_tools
+    mock_send = AsyncMock(return_value=response)
+    args_fn = lambda **kw: {k: v for k, v in kw.items() if v is not None}
+    for module in (console, catalog_tools):
+        monkeypatch.setattr(module, "_send", mock_send)
+        monkeypatch.setattr(module, "_args", args_fn)
+    return mock_send
+
+
 async def test_mark_id_standard_format(monkeypatch):
     """'mark:1234.5' → ts=1234.5, since_s = now - 1234.5."""
     from unity_mcp.tools import console
-    mock_send = AsyncMock(return_value="logs")
-    monkeypatch.setattr(console, "_send", mock_send)
-    monkeypatch.setattr(console, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    mock_send = _patch_get_console_send(monkeypatch)
     _freeze_time(monkeypatch, 10000.0)
 
     await console.get_console_since("mark:1234.5")
@@ -25,9 +36,7 @@ async def test_mark_id_standard_format(monkeypatch):
 async def test_mark_id_with_label(monkeypatch):
     """'mark:1234.5:my label' → ts=1234.5."""
     from unity_mcp.tools import console
-    mock_send = AsyncMock(return_value="logs")
-    monkeypatch.setattr(console, "_send", mock_send)
-    monkeypatch.setattr(console, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    mock_send = _patch_get_console_send(monkeypatch)
     _freeze_time(monkeypatch, 10000.0)
 
     await console.get_console_since("mark:1234.5:my label")
@@ -38,9 +47,7 @@ async def test_mark_id_with_label(monkeypatch):
 async def test_mark_id_with_colons_in_label(monkeypatch):
     """'mark:1234.5:label:with:colons' → ts=1234.5 (only split on first colon after 'mark:')."""
     from unity_mcp.tools import console
-    mock_send = AsyncMock(return_value="logs")
-    monkeypatch.setattr(console, "_send", mock_send)
-    monkeypatch.setattr(console, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    mock_send = _patch_get_console_send(monkeypatch)
     _freeze_time(monkeypatch, 10000.0)
 
     await console.get_console_since("mark:1234.5:label:with:colons")
@@ -51,9 +58,7 @@ async def test_mark_id_with_colons_in_label(monkeypatch):
 async def test_mark_id_bare_float(monkeypatch):
     """Bare float string '9999.0' → ts=9999.0 (no 'mark:' prefix needed)."""
     from unity_mcp.tools import console
-    mock_send = AsyncMock(return_value="logs")
-    monkeypatch.setattr(console, "_send", mock_send)
-    monkeypatch.setattr(console, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    mock_send = _patch_get_console_send(monkeypatch)
     _freeze_time(monkeypatch, 10000.0)
 
     await console.get_console_since("9999.0")
@@ -87,9 +92,7 @@ async def test_mark_id_future_timestamp_returns_error(monkeypatch):
 async def test_keyword_forwarded(monkeypatch):
     """keyword= param forwarded to get_console call."""
     from unity_mcp.tools import console
-    mock_send = AsyncMock(return_value="logs")
-    monkeypatch.setattr(console, "_send", mock_send)
-    monkeypatch.setattr(console, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    mock_send = _patch_get_console_send(monkeypatch)
     _freeze_time(monkeypatch, 10000.0)
 
     await console.get_console_since("mark:9000.0", keyword="error")
@@ -100,9 +103,7 @@ async def test_keyword_forwarded(monkeypatch):
 async def test_count_only_forwarded(monkeypatch):
     """count_only=True forwarded to get_console as 'true' string."""
     from unity_mcp.tools import console
-    mock_send = AsyncMock(return_value="5")
-    monkeypatch.setattr(console, "_send", mock_send)
-    monkeypatch.setattr(console, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    mock_send = _patch_get_console_send(monkeypatch, "5")
     _freeze_time(monkeypatch, 10000.0)
 
     await console.get_console_since("mark:9000.0", count_only=True)
@@ -134,9 +135,7 @@ async def test_epoch_monotonically_increasing(monkeypatch):
 async def test_epoch_in_mark_does_not_break_timestamp_parse(monkeypatch):
     """'mark:9000.0:e3' → parser extracts ts=9000.0 correctly."""
     from unity_mcp.tools import console
-    mock_send = AsyncMock(return_value="logs")
-    monkeypatch.setattr(console, "_send", mock_send)
-    monkeypatch.setattr(console, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    mock_send = _patch_get_console_send(monkeypatch)
     _freeze_time(monkeypatch, 10000.0)
 
     await console.get_console_since("mark:9000.0:e3")
@@ -147,9 +146,7 @@ async def test_epoch_in_mark_does_not_break_timestamp_parse(monkeypatch):
 async def test_epoch_with_label_does_not_break_parse(monkeypatch):
     """'mark:9000.0:e3:my_label' → parser extracts ts=9000.0 correctly."""
     from unity_mcp.tools import console
-    mock_send = AsyncMock(return_value="logs")
-    monkeypatch.setattr(console, "_send", mock_send)
-    monkeypatch.setattr(console, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    mock_send = _patch_get_console_send(monkeypatch)
     _freeze_time(monkeypatch, 10000.0)
 
     await console.get_console_since("mark:9000.0:e3:my_label")
@@ -160,11 +157,9 @@ async def test_epoch_with_label_does_not_break_parse(monkeypatch):
 # ── P-NEW-3: Overflow signal ───────────────────────────────────────────────────
 
 def _setup_console_send(monkeypatch, raw_response: str):
-    from unity_mcp.tools import console
-    mock_send = AsyncMock(return_value=raw_response)
-    monkeypatch.setattr(console, "_send", mock_send)
-    monkeypatch.setattr(console, "_args", lambda **kw: {k: v for k, v in kw.items() if v is not None})
+    mock_send = _patch_get_console_send(monkeypatch, raw_response)
     _freeze_time(monkeypatch, 10000.0)
+    return mock_send
 
 
 async def test_overflow_signal_detected(monkeypatch):

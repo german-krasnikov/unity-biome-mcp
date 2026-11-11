@@ -134,7 +134,9 @@ def test_scene_register_sets_send():
 
     assert mod._send is send
     assert mod._args is args
-    assert mcp.tool.call_count >= 2  # save_session + load_session at minimum
+    # save_session/load_session moved to BODY (SV8): register() only binds _send/_args now;
+    # the catalog's install() registers their wrappers.
+    assert mcp.tool.call_count == 0
 
 
 # ── internal helpers ──────────────────────────────────────────────────────────

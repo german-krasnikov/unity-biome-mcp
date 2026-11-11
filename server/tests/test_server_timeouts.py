@@ -8,7 +8,7 @@ from unity_mcp.server import COMMAND_TIMEOUTS
 def test_command_timeouts_dict_has_slow_commands():
     assert COMMAND_TIMEOUTS["run_tests_wait"] == 1200.0
     assert COMMAND_TIMEOUTS["run_playtest"] == 300.0
-    assert COMMAND_TIMEOUTS["compile_preflight"] == 60.0
+    assert COMMAND_TIMEOUTS["compile_preflight"] == 15.0  # SV4: catalog fixed to match the active 15s fast-fail value
     assert COMMAND_TIMEOUTS["batch"] == 120.0
 
 

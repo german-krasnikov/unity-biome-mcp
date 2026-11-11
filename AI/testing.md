@@ -370,7 +370,27 @@ Run with:
 dotnet test unity-plugin/Tests~/MutationAdapterContract/AdapterContract.Tests.csproj -c Release
 ```
 
-All three projects use the `~` folder convention to stay invisible to the Editor. They validate implementation-critical runtime invariants that cannot be observed through Editor UI alone. CI gates all three before running live mutation tests.
+**`unity-plugin/Tests~/Decisions/UnityMCP.Decisions.Tests.csproj`**
+- Compiles the C# printed from `dsl/decisions` (`Editor/Generated/*.g.cs`) with the real `CommandRegistry.cs`, `CommandOptions.cs`, `JsonHelper.cs` and `Editor/Decisions/*.cs` at LangVersion 9 with warnings as errors (`UnityStubs.cs` stands for the few Unity symbols they touch)
+- `RowsTests` runs the machine rows of the examples (`dsl/decisions/<module>.json`) through the generated policies; `MutabilityWireTests`, `GuardsOracleTests` and `PlaytestOracleTests` compare the registry, the guard facts and `PlaytestFacts` with the old hand-written code (`Oracle/`) or the golden of the Python side (`server/tests/golden/decisions`)
+- Does not run `CommandRouter` or `BatchHelper` (they need Unity): their guards and texts are covered by the EditMode tests only
+
+Run with:
+```bash
+dotnet test unity-plugin/Tests~/Decisions/UnityMCP.Decisions.Tests.csproj -c Release
+```
+
+**`unity-plugin/Tests~/ChatTurn/ChatTurn.Tests.csproj`**
+- Compiles the reducer printed from `dsl/chat/chatturn.feature` (`Editor/Chat/CLI/Generated/ChatTurn/*.cs`) and `Editor/Chat/CLI/ChatTurnDriver.cs` at LangVersion 9 with warnings as errors; a use of `UnityEngine` in either fails the build
+- `Generated/ChatTurn.Examples.cs` is printed from `dsl/chat/chatturn.examples`: the 19 examples of how a chat turn ends (the order of the effects of each exit, the inert repeat, the count of asks) and the 2 tests the generator adds; `ChatTurnDriverTests` (7) cover the queue, the redraw that throws and `Dispose`
+- Does not run the ports or the window (they need Unity): `ChatTurnPortsTests` (the 16 bodies) and `ChatTurnWiringTests` (what the window does around the FEATURE) are EditMode tests
+
+Run with:
+```bash
+dotnet test unity-plugin/Tests~/ChatTurn/ChatTurn.Tests.csproj -c Release
+```
+
+All five projects use the `~` folder convention to stay invisible to the Editor. They validate implementation-critical runtime invariants that cannot be observed through Editor UI alone. CI gates all five before running live mutation tests.
 
 ## Test Taxonomy and Lanes
 
@@ -489,7 +509,7 @@ Review the affected instructions against the live tool and product contracts.
 - Python suite (`server/tests/mutation`) with pytest marker `mutation_live`; run via `scripts/run_mutation_regression_cell.py --mode full` (driver, 1800 s budget per job)
 - Requires a disposable provider worker: `BIOME_FINAL_PORT_A`, `BIOME_WORKER_A` with FastScriptReload package installed and marked disposable
 - Stories S11–S16c: explicit disable (S14), source restore (S15), provider absence (S16), isolation (S16), remove (S16b), re-add (S16c)
-- Supersedes legacy `fsr-qualification.yml`; CI-gated by pure dotnet projects (`AssemblyFreshness`, `SourcePatchReadiness`, `MutationAdapterContract`) in `ci-pure-dotnet.yml`
+- Supersedes legacy `fsr-qualification.yml`; CI-gated by pure dotnet projects (`AssemblyFreshness`, `SourcePatchReadiness`, `MutationAdapterContract`, `Decisions`, `ChatTurn`) in `ci-pure-dotnet.yml`
 
 **Player fan-out runner** (v0.81.4+):
 ```bash

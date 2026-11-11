@@ -3,8 +3,8 @@
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ..sampling import sampling_service as _sampling
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools, ui_intent  # noqa: F401
 from .intent_common import build_batch_line, parse_indent_tree, parse_kv, run_intent_pipeline
 
 _send = None
@@ -208,7 +208,7 @@ def build_ui_batch(nodes: list[dict], parent: str | None) -> list[str]:
     return lines
 
 
-async def ui_intent(intent: str, parent: str | None = None, template: str | None = None, dry_run: bool = False) -> str:
+async def _ui_intent_body(intent: str, parent: str | None = None, template: str | None = None, dry_run: bool = False) -> str:
     """Convert NL intent to Unity UI hierarchy. Templates bypass Haiku.
 
     template: hud|menu|dialog|grid. dry_run=True skips execution.
@@ -244,4 +244,3 @@ async def ui_intent(intent: str, parent: str | None = None, template: str | None
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(ui_intent)

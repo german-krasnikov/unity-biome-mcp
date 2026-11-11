@@ -10,6 +10,7 @@ In-Unity MCP Chat window: partial `MCPChatWindow`, Markdown-to-UIElements render
 - `Chat/CLI/RelayChatProcess.cs`, `RelaySpawner.cs` — Sidecar connection and lifecycle (ACP-only event dispatch)
 - `Chat/CLI/BackendRegistry.cs`, `BackendConfigStore.cs` — Backend selection and project-local settings
 - `Chat/CLI/ChipKindRegistry.cs` — Plugin-extensible chip display registry (provider pattern)
+- `Chat/CLI/ChatTurnDriver.cs` + `Chat/CLI/Generated/ChatTurn/` — The phase of a turn and the protocol of its exits: the reducer is printed from `dsl/chat/chatturn.feature`, the driver is its one door (see agent-chat.md, Chat turn exit protocol)
 
 ### View Layer (UIElements Rendering)
 - `Chat/View/MCPChatWindow.cs` — Main window lifecycle and shared state
@@ -51,7 +52,8 @@ In-Unity MCP Chat window: partial `MCPChatWindow`, Markdown-to-UIElements render
 |---------|-----------------|
 | MCPChatWindow.cs | Lifecycle, fields, shared state, transcript construction |
 | MCPChatWindow.Send.cs / MCPChatWindow.ChipInput.cs | Turn construction and send path |
-| MCPChatWindow.Drain.cs / MCPChatWindow.EventHandlers.cs | Relay event draining and state changes |
+| MCPChatWindow.Drain.cs / MCPChatWindow.EventHandlers.cs | Relay event draining; each way a turn ends is detected here (or in Selector, Session, `OnDisable`) and dispatched to the chat-turn FEATURE |
+| MCPChatWindow.TurnPorts.cs | The 16 effects of the chat-turn FEATURE (`IChatTurnPorts`) and the boxes they read (`_undoLabel`, `_exitEvent`, `_turnAskIds`) |
 | MCPChatWindow.Selector.cs | Backend, model, and mode selection |
 | MCPChatWindow.Session.cs | Session restore and pending-turn recovery |
 | MCPChatWindow.Chips.cs / MCPChatWindow.InlineChips.cs / MCPChatWindow.Mention.cs | Context-chip and mention workflows |
@@ -65,7 +67,7 @@ In-Unity MCP Chat window: partial `MCPChatWindow`, Markdown-to-UIElements render
 - `_sentLlmCache`: Full-path payload cache (reload-survival)
 - `_permConfig`: Permission UI state
 - `_resumeRetryCount`: Bounded retry for compile-clean gate (max 30)
-- `_activity`: `ChatActivityState` — phase tracker (Idle / Sending / Receiving)
+- `_turn`: `ChatTurnDriver` — owner of the phase (Idle / Sending / Receiving), of the count of open asks and of the protocol of every exit; `Phase`, `CanSend`, `Active`, `Asking` read it, `Dispatch(intent)` changes it
 - `_sendBtn` / `_stopBtn`: Swapped via `OnActivityChanged` (F20: idle shows Send, active shows Stop)
 
 **Reload-Survival (F21):**
@@ -83,10 +85,10 @@ Active-only activity animation bar. Driven by `ArcadeAnim.ControlledSmoothLoop`.
 - `_flowAura` — glow halo behind fill (`flowbar__aura`)
 - `_flowParticles[7]` — pooled particles; alternating `flowbar__particle--hot` / `--soft` classes
 
-**State Machine (OnActivityChanged):**
+**State Machine (OnActivityChanged, the redraw of the chat-turn FEATURE, given the phase and the count of open asks):**
 | Phase | CSS classes on _flowBar | Fill class |
 |-------|------------------------|------------|
-| Idle / askPending | none | removed |
+| Idle / asks open | none | removed |
 | Sending | `flowbar--active flowbar--sending` | `flowbar__fill--sending` |
 | Receiving | `flowbar--active flowbar--receiving` | `flowbar__fill--receiving` |
 
@@ -257,7 +259,7 @@ Built-in subclasses live under `Chat/View/ToolCards/` and register through
 | Stream response | ChatTranscript._assistantBubble | Live tail; append + FinalizeAssistant() |
 | Handle tool results | ChatTranscript.AppendBlock(ToolBlock) | ToolChipGrouper batches display |
 | Add a CLI backend | Python backend registry + stream transformer, then existing settings/provider UI | Keeps CLI protocol knowledge out of C# |
-| Animate activity state | MCPChatWindow.FlowBar.cs / OnActivityChanged | Drives CSS classes + particle animation via ChatActivityState.Phase |
+| Animate activity state | MCPChatWindow.FlowBar.cs / OnActivityChanged | Drives CSS classes + particle animation from the `ChatTurnViewModel` (phase, asks) that `_turn` renders |
 | Add a read-only tool card | Inherit `ToolCardBase`, implement `TryBuildContent()`, optionally `OnAdditionalRender()` | Base enforces marker-last + exception safety; register via `[InitializeOnLoad]` + `ToolCardRendererRegistry.Register()` |
 
 ## Reload-Survival (F21 Innovation)

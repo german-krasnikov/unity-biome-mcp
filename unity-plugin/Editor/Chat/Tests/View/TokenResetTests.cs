@@ -3,6 +3,7 @@
 using System.Reflection;
 using NUnit.Framework;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Chat.Turn;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
@@ -84,8 +85,10 @@ namespace UnityMCP.Editor.Chat.Tests
                 .GetMethod("HandleEvent", BindingFlags.NonPublic | BindingFlags.Instance);
 
             // First turn
+            w._turn.Dispatch(ChatTurnIntent.Send());
             handleEvent.Invoke(w, new object[] { ChatEvent.TurnDone("s1", costUsd: 0.002f, inputTokens: 100, outputTokens: 50) });
             // Second turn: cumulative total (not delta)
+            w._turn.Dispatch(ChatTurnIntent.Send());
             handleEvent.Invoke(w, new object[] { ChatEvent.TurnDone("s1", costUsd: 0.005f, inputTokens: 200, outputTokens: 80) });
 
             // Must be 200 (latest), not 300 (sum)
