@@ -118,7 +118,7 @@ namespace UnityMCP.TestProject.Command
             CommandRegistry.InitDefaults();
             foreach (var cmd in new[] { "ping", "get_version", "get_hierarchy", "get_component",
                 "get_components_list", "get_object_detail", "find_objects", "get_console",
-                "recompile", "search_scene", "get_enabled_tools", "editor", "inspect",
+                "search_scene", "get_enabled_tools", "inspect",
                 "validate_references", "checkpoint", "timeline",
                 "scene" /* P-414: per-action mutation; registry flag is false */ })
             {
