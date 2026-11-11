@@ -14,6 +14,8 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM FORWARD
   ITEM FLAG <flag:enum(core|tier1|direct_only|unity_transport)>
   ITEM RUNTIME
+  ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
+  ITEM BLAST <blast:match([0-9]+)>
   ITEM SESSION
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
   ITEM MAXCHARS <maxchars:match([0-9]+)>
@@ -152,12 +154,24 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
             ("{name}", "{vtext}"),
     END
   END
+  TEMPLATE pytags HEADER "TAG_PAIRS: tuple[tuple[str, str], ...] = (" FOOTER ")" ESCAPE data
+    EACH TAG
+        ('{tag}', '{name}'),
+    END
+  END
+  TEMPLATE pyblast HEADER "BLAST_RADIUS: dict[str, int] = {" FOOTER "}" ESCAPE data
+    EACH BLAST
+        '{name}': {blast},
+    END
+  END
 END
 
 CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
   HEAD PYTOOL <name:match([a-z][a-z0-9_]*) UNIQUE> <category:enum(CORE|SCENE|COMPONENTS|ASSETS|UGUI|UITOOLKIT|MEDIA|VERIFY|RUNTIME|TESTS|SYSTEM)> <effect:enum(RO|RW|RW_IDEM|DEL)> <summary:string>
   ITEM FLAG <flag:enum(core|tier1)>
   ITEM RUNTIME
+  ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
+  ITEM BLAST <blast:match([0-9]+)>
   ITEM SESSION
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
   ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
@@ -234,6 +248,16 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
             ("{name}", "{vtext}"),
     END
   END
+  TEMPLATE pytags ESCAPE data
+    EACH TAG
+        ('{tag}', '{name}'),
+    END
+  END
+  TEMPLATE pyblast ESCAPE data
+    EACH BLAST
+        '{name}': {blast},
+    END
+  END
 END
 
 CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
@@ -241,6 +265,8 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
   ITEM GUARD <flag:enum(always|compile|play_ok)>
   ITEM WIRE <flag:enum(special|not_batch|no_undo)>
   ITEM FLAG <flag:enum(direct_only|unity_transport)>
+  ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
+  ITEM BLAST <blast:match([0-9]+)>
   ITEM TIMEOUT <seconds:match([0-9]+\.[0-9]+)>
   EXAMPLES tool.examples
   DECLARE
@@ -274,5 +300,15 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
     {?flag=no_undo:                        NoUndo = true,}
     END
                         };
+  END
+  TEMPLATE pytags ESCAPE data
+    EACH TAG
+        ('{tag}', '{name}'),
+    END
+  END
+  TEMPLATE pyblast ESCAPE data
+    EACH BLAST
+        '{name}': {blast},
+    END
   END
 END

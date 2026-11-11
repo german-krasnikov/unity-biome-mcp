@@ -5,6 +5,8 @@ CONSTRUCTS constructs
 GENERATE py-specs  render {dir}/tools.biome pyspec   {dir}/../server/src/unity_mcp/tools/generated/catalog_specs.py
 GENERATE py-params render {dir}/tools.biome pyparams {dir}/../server/src/unity_mcp/tools/generated/catalog_params.py
 GENERATE py-tools  render {dir}/tools.biome pytools  {dir}/../server/src/unity_mcp/tools/generated/catalog_tools.py
+GENERATE py-tags  render {dir}/tools.biome pytags  {dir}/../server/src/unity_mcp/tools/generated/catalog_tags.py
+GENERATE py-blast render {dir}/tools.biome pyblast {dir}/../server/src/unity_mcp/tools/generated/catalog_blast.py
 GENERATE docs-tools render {dir}/tools.biome mdtools {dir}/../docs/tools/index.md#catalog
 
 # The decisions (dsl/decisions, step 7.2): the rules of what is a write, whether a playtest passed, which guard stops a call and why a
