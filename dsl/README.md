@@ -5,29 +5,27 @@
 
 - in `server/src/unity_mcp/tools/generated/`, `catalog_specs.py` and `catalog_params.py`: the ToolSpec and the schema descriptions, which `tool_specs.py` and
   `_param_descriptions.py` merge;
-- there too, `catalog_tools.py`: what the catalog expects of the Python side and, for a `FORWARD` tool, the MCP wrapper itself. A hand-written
-  tool (a `PYTOOL`, or a `TOOL` without `FORWARD`) states only its expectation; its module's `register()` registers the function with
+- there too, `catalog_tools.py`: what the catalog expects of the Python side and, for a `FORWARD` or `BODY` tool, the MCP wrapper itself
+  (`FORWARD` sends straight to `_send`; `BODY <module>` calls that module's hand-written `async def _<name>_body(...)`). A hand-written
+  tool (a `PYTOOL`, or a `TOOL` without `FORWARD`/`BODY`) states only its expectation; its module's `register()` registers the function with
   `tools.register(mcp, fn)`, which checks it against the catalog (parameters, types, defaults, the first line of the description) and
   registers it with the annotation of its effect, where `mcp.tool(annotations=...)(fn)` stood. `catalog_tools.register()` runs last: it
-  checks that every tool of the catalog has a function and registers the generated wrappers. The runtime is `tools/_catalog_runtime.py`.
+  checks that every tool of the catalog has a function (and, for `BODY`, that the hand-written function's signature matches) and registers
+  the generated wrappers. The runtime is `tools/_catalog_runtime.py`.
 - the `catalog` region of `docs/tools/index.md`: a row per tool with its plane, category and effect.
 - `catalog_reads.py` there and `unity-plugin/Editor/Generated/ActionReads.g.cs`: which actions of a tool only read (its `READ` lines), the table that
   the decision `isMutating` asks on both sides.
 
 This is step 7.1 of the biome-dsl repository (`Plans/STEP_7_1_TOOL_CONSTRUCT_DESIGN.md`). Every tool is a block of `tools.biome`: `TOOL` (Unity
-handles it), `PYTOOL` (only the Python server implements it) or `INTERNAL` (a wire command that is no MCP tool: a ToolSpec and nothing else). Nine
-ToolSpecs are not in it:
-
-- `watch`, `get_watches` and `sync_unity` are owned by their modules (`tools/watch.py`, `tools/sync_spec.py`: PR-04, N1b), which tests pin;
-- `discover_tools`, `resolve_tool_schema` and `set_llm_config` register without an MCP annotation, and `ping_object`, `lint_playtest` and
-  `reconnect_unity` register as writes although their ToolSpec says read. One catalog `effect` gives both the ToolSpec and the annotation, so
-  these six wait for the owner's decision (step 7.1, question Q2); they stay in the `_SPECS` literal of `tool_specs.py` and keep their
-  `mcp.tool(...)` lines.
+handles it), `PYTOOL` (only the Python server implements it) or `INTERNAL` (a wire command that is no MCP tool: a ToolSpec and nothing else).
+Every tool's ToolSpec comes from the catalog now (S0): `_SPECS` in `tool_specs.py` is an empty literal, filled solely by merging
+`catalog_specs.py`; no module owns a ToolSpec by hand any more.
 
 A tool lives in one place: a name that is in the catalog and also in the hand-written `_SPECS`, `PARAM_DESCRIPTIONS` or `mcp.tool`
 registrations fails at import or in `test_single_owner.py`. A tool is `FORWARD` when its wrapper only forwards its arguments and the
-catalog can say how each goes out (text, `RAW`, `OMIT`): the wrapper is then generated and the hand-written one deleted. The wrappers of the
-other tools stay in their modules.
+catalog can say how each goes out (text, `RAW`, `OMIT`), or `BODY <module>` when it calls a hand-written `_<name>_body` in that module
+instead: either way the wrapper is generated and the hand-written one (if any) deleted. The wrappers of the remaining, fully hand-written
+tools stay in their modules.
 
 | File | Role |
 |---|---|
@@ -47,12 +45,18 @@ other tools stay in their modules.
 
 ## Add a tool
 
-1. A block in `tools.biome`, in alphabetical place. Without `FORWARD`, write the function in its module and register it in that module's
-   `register()` with `tools.register(mcp, fn)`; its signature and the first line of its docstring must be what the block states.
-2. `scripts/dsl.sh generate`.
-3. The new tool is not in `server/tests/golden/tool_surface.txt` yet: `python scripts/dsl_golden.py <name>` prints its lines. A tool that
-   the Unity side handles also needs its `CommandRegistry.Register` and, if it differs from the Python side on purpose, an entry of
-   `KNOWN_DIVERGENT` in `test_catalog_vs_csharp.py`.
+1. A `TOOL` (Unity-handled) or `PYTOOL` (Python-only) block in `tools.biome`, in alphabetical place: its category, effect, `ARG` lines
+   and any `TAG`/`FLAG` it needs. A wrapper that only forwards its arguments adds `FORWARD` — the catalog generates the whole wrapper,
+   skip step 2. Anything with real logic adds `BODY <module>` (the Python module that implements it) instead.
+2. For `BODY`: write the handler as `async def _<name>_body(...)` in `server/src/unity_mcp/tools/<module>.py`, matching the catalog's
+   `ARG` lines in name and order.
+3. `export BIOME_DSL_ROOT=<a clean biome-dsl checkout at the TOOLCHAIN commit>` (Node 22 or newer), then
+   `scripts/dsl.sh generate && scripts/dsl.sh check`.
+4. The new tool is not in `server/tests/golden/tool_surface.txt` yet: `python scripts/dsl_golden.py <name>` prints the lines to add there
+   (adding a new tool's lines is not the "regenerate to remove a difference" the freeze note at the top of that file forbids).
+5. For a `TOOL`: add its `Register`/`RegisterAsync`/`RegisterAction` call in `unity-plugin/Editor/CommandRouter.Registration.cs`. A
+   `PYTOOL` needs no C#.
+6. Commit the catalog, the generated files, the golden addition and `dsl/content-lock.json` together; never edit a file in `generated/`.
 
 `TOOLCHAIN_PIN_STALE` only says that the compiler checkout is at another commit than `TOOLCHAIN`; the generated bytes are compared anyway.
 
@@ -151,13 +155,15 @@ Never edit `PlaytestReader.g.cs`. The table of verbs of `AI/playtest-dsl.md` is 
   that the lock names every file that `biome.project` prints. It cannot see a lock that was refreshed by hand around a stale file
   (`python scripts/dsl_content_lock.py generate`, which `scripts/dsl.sh generate` runs): that the files are what the compiler prints is `scripts/dsl.sh check`.
   `python scripts/dsl_content_lock.py check` is the same check from the shell, with the standard library only.
-- `server/tests/test_tool_surface_golden.py`: the MCP surface, the ToolSpec and the wire of every tool equal `golden/tool_surface.txt`, taken
-  before the generator existed. A `wire` line is the digest of everything a wrapper that only forwards sends for a fixed set of calls
-  (`scripts/dsl_golden.py`), so a generated wrapper sends what the hand-written one sent. A change of a tool on purpose is an `INTENDED`
-  entry in that test, with its reason.
+- `server/tests/test_tool_surface_golden.py`: the MCP surface, the ToolSpec and the wire of every tool equal `golden/tool_surface.txt`, a
+  frozen baseline taken at the close of Track #1 and never regenerated to remove a difference. A `wire` line is the digest of everything a
+  wrapper that only forwards sends for a fixed set of calls (`scripts/dsl_golden.py`), so a generated wrapper sends what the hand-written
+  one sent. A change of a tool on purpose is a dated `INTENDED` entry in that test, with its reason.
 - `server/tests/test_single_owner.py`: no tool and no Unity command is registered twice.
 - `server/tests/test_catalog_wire.py`: the command and arguments that the first generated wrappers send, as readable vectors.
 - `server/tests/test_catalog_runtime.py`: the encoders and the `ToolSet` (a function that differs from its block is refused).
-- `server/tests/test_catalog_vs_csharp.py`: while a Unity registration is hand-written, its `mutating`, `runtime`, `required`, `optional`
-  (and `maxResponseChars` against `MAXCHARS`) say what the Python side says. `KNOWN_DIVERGENT` is the measured census of the tools
-  that differ today; it must match exactly, so it only shrinks.
+- `server/tests/test_catalog_vs_csharp.py`: while a Unity registration is still hand-written (not yet `ToolMeta.Get(cmd)`-delegated), its
+  `maxResponseChars` says what the catalog's `MAXCHARS` says.
+- `server/tests/test_toolmeta_vs_golden.py`: `ToolMeta.g.cs` (the generated switch a delegated `Register` call reads instead) states the
+  same `mutating`/`runtime`/`required`/`optional`/guard flags as `golden/registration.txt`, a frozen census of the hand-written C# taken
+  before `ToolMeta.g.cs` existed. `KNOWN_DIVERGENT` and `KNOWN_UNCOVERED` are that census's measured, shrink-only exceptions.

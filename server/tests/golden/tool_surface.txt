@@ -1,3 +1,6 @@
+# Frozen baseline -- do not regenerate. New tools go into dsl/tools.biome only.
+# This file captures the surface at the end of Track #1 (EVAL3 DSL migration).
+# Changes to it require a dated INTENDED entry in test_tool_surface_golden.py.
 # The MCP surface and the ToolSpec of every tool, taken at 86eca971 before any generator existed (the oracle of dsl/tools.biome).
 # tool <name> <first 16 hex digits of the sha256 of the canonical JSON of each field: title, description, inputSchema, annotations>
 # spec <name> <the fields of ToolSpec>
@@ -6,13 +9,13 @@
 # env python 3.14.6 mcp 1.30.0 pydantic 2.13.5
 tool alias_status title=b5576febc31500cf description=61a32cb36878c057 schema=a0472e7829ae9404 annotations=8803fb4b4971327e
 tool analyze_lod_culling title=3fe5d98bd19a6046 description=8e18b2e981a4e191 schema=c9a09f3d323d3d03 annotations=8803fb4b4971327e
-tool animation title=564e1768c8173481 description=95e63220638625c5 schema=65511c01b22871ba annotations=a928ca8041f158dd
-tool animator title=5de2148307ad2994 description=dba825e2e06855b7 schema=ef8643d12165d283 annotations=a928ca8041f158dd
-tool animator_intent title=16a3f27da8973895 description=db9cd3af791967bc schema=d8f079149d363c97 annotations=a928ca8041f158dd
+tool animation title=564e1768c8173481 description=95e63220638625c5 schema=51437da805c9f08a annotations=a928ca8041f158dd
+tool animator title=5de2148307ad2994 description=dba825e2e06855b7 schema=fdcf94a6ce5a8e01 annotations=a928ca8041f158dd
+tool animator_intent title=16a3f27da8973895 description=5222eca65e01549c schema=d8f079149d363c97 annotations=a928ca8041f158dd
 tool apply_scene_change title=a5b718626654ef62 description=a1f07393c56f07dc schema=d159770f3b0bf78b annotations=a928ca8041f158dd
 tool apply_template title=524b2c44234edfc8 description=596b0c05377074ad schema=17ca6e500dc7de7a annotations=a928ca8041f158dd
-tool ask title=5632aefc70ebd0e5 description=2f6de15971cb7f7e schema=7976778497fd43ed annotations=8803fb4b4971327e
-tool ask_user title=4abccb5be102f8f0 description=1572567a050f3adc schema=d5be8e47ae3fcde7 annotations=8803fb4b4971327e
+tool ask title=5632aefc70ebd0e5 description=d68cd540fa449b57 schema=7976778497fd43ed annotations=8803fb4b4971327e
+tool ask_user title=4abccb5be102f8f0 description=13679c8049a86fdc schema=d5be8e47ae3fcde7 annotations=8803fb4b4971327e
 tool asset title=7e8da454fb8405d9 description=074e2535f0b34dee schema=ae81fe86c27f928e annotations=a928ca8041f158dd
 tool attach_uitk title=2a930f23d1e82312 description=e90d0ba4eb0d7a01 schema=a49ad6f7d0b1250c annotations=a928ca8041f158dd
 tool auto_fix title=d66fd8cecbed2814 description=3841edcd1424a9b1 schema=f2dbe442d8259a37 annotations=8803fb4b4971327e
@@ -34,13 +37,13 @@ tool configure_objects title=16de77c85008b4ed description=110aa693d936012d schem
 tool console_mark title=008e65c24ed84744 description=14fd3daad9911253 schema=0ed7510e6cbed8b4 annotations=8803fb4b4971327e
 tool create_object title=12e083b637d94cbd description=b23d053308d99782 schema=4d805a688dc72755 annotations=a928ca8041f158dd
 tool create_ui title=389922fe90c74387 description=9af0141cd2afa0ca schema=a0174475fc4a9357 annotations=a928ca8041f158dd
-tool debug title=d64a75b7ed629b7b description=1a0aeaac9f764270 schema=764c2143d2c1f255 annotations=8803fb4b4971327e
+tool debug title=d64a75b7ed629b7b description=612979034160e859 schema=764c2143d2c1f255 annotations=8803fb4b4971327e
 tool debug_animator title=2f569bc1f9b05d1e description=b8aaac42798b9bdb schema=0838e55be1fa6c02 annotations=8803fb4b4971327e
 tool debug_physics title=34169eee95c7b986 description=76fc9716e1d1d69f schema=5450bce0aa4a675e annotations=8803fb4b4971327e
 tool delete_object title=4e5651052a763e88 description=c62f8f29b41b6112 schema=be56713734169eae annotations=d1b84d42d82a80d6
-tool diagnose title=fadc5e563bc01266 description=69b1af092fababd5 schema=db8d9eca46f87a5b annotations=8803fb4b4971327e
-tool discover_tools title=135aa37852149e6f description=5f3a581553e8ef5a schema=a600c025265b21e0 annotations=74234e98afe7498f
-tool do title=807acbb7307555ca description=9af6ed205217bed1 schema=e95c938eb7e1d0dd annotations=a928ca8041f158dd
+tool diagnose title=fadc5e563bc01266 description=6ad21e0390b7c512 schema=db8d9eca46f87a5b annotations=8803fb4b4971327e
+tool discover_tools title=135aa37852149e6f description=5f3a581553e8ef5a schema=a600c025265b21e0 annotations=aaa40413b96dbda4
+tool do title=807acbb7307555ca description=0593bc23c20ee33b schema=e95c938eb7e1d0dd annotations=a928ca8041f158dd
 tool doctor title=086f2f91ea334ae2 description=0450b7867659bce5 schema=445727f5209977d6 annotations=a928ca8041f158dd
 tool editor title=23278fb6dbe75ac8 description=2558a1027d9a0056 schema=7ca57e874d5e7b57 annotations=a928ca8041f158dd
 tool execute_code title=f190c17854ac97a8 description=f13e7d4d6c89220e schema=83712f525cdd1c20 annotations=a928ca8041f158dd
@@ -67,17 +70,17 @@ tool get_spatial_context title=50e93424dda98115 description=aac5f2e0d4df773d sch
 tool get_test_count title=c83a98443ea803fe description=7b6bf563fda0a0a9 schema=68d3fd1c95526777 annotations=8803fb4b4971327e
 tool get_test_progress title=1625db2da7264514 description=9cf330fe5ddb7a56 schema=22878bb180bfe107 annotations=8803fb4b4971327e
 tool get_test_results title=c5d48e8d591e1111 description=d7ac86704b241847 schema=e0d16ae4fc9206f8 annotations=8803fb4b4971327e
-tool get_test_run title=3bb686d224ddcd2f description=79eb6122911bb700 schema=f8e5bc5ffc1c3bf9 annotations=8803fb4b4971327e
+tool get_test_run title=3bb686d224ddcd2f description=bc8e74646b72ae23 schema=0312156f43887fc9 annotations=8803fb4b4971327e
 tool get_unity_events title=439bd4be982750c2 description=ad78503b0b1d2c8a schema=9552e2058a7c6065 annotations=8803fb4b4971327e
 tool get_watches title=c976ab99d53abebe description=f0e9c6e05bb3d523 schema=eb31384a448bc7e5 annotations=8803fb4b4971327e
 tool inspect title=ff1e2e26eccb70e1 description=7b2ec267fff63f82 schema=fcc2c724eb1cb347 annotations=8803fb4b4971327e
-tool inspect_uitk title=6db1d54e63836a5b description=cc833b301b2b6d24 schema=a0ce985649fb632e annotations=8803fb4b4971327e
+tool inspect_uitk title=6db1d54e63836a5b description=431c538dac785088 schema=a0ce985649fb632e annotations=8803fb4b4971327e
 tool invoke_method title=0eff6b8f005b4d01 description=169903d388a9fe4f schema=cb55caeabbcd5033 annotations=a928ca8041f158dd
-tool lint_playtest title=2f34f826655a8ebf description=ac8098c999294cf1 schema=ae00ee5b1bec359d annotations=aaa40413b96dbda4
+tool lint_playtest title=2f34f826655a8ebf description=ac8098c999294cf1 schema=078d38b6603e32c4 annotations=8803fb4b4971327e
 tool lint_playtest_suite title=b60e108976360a92 description=34026e3febbfecdb schema=2b0c02d9c46240a8 annotations=8803fb4b4971327e
 tool lint_scene_refs title=a2788167cac1f721 description=7d23444072610d48 schema=bff814752dff06c5 annotations=8803fb4b4971327e
 tool lint_ugui title=40ecb3a3033039ea description=66dbb92d713cd1ef schema=72afaf9a5d696a8b annotations=8803fb4b4971327e
-tool lint_uitk title=50fe78f9311c745c description=c310538cafe37acc schema=c136cc53b7bebc20 annotations=8803fb4b4971327e
+tool lint_uitk title=50fe78f9311c745c description=1846b48b3823490a schema=c136cc53b7bebc20 annotations=8803fb4b4971327e
 tool list_connections title=2203773f527e21f8 description=b747a8b0d6204549 schema=70380db33c98032f annotations=8803fb4b4971327e
 tool list_events title=b19f97634f295bd0 description=47a2d2f18a77e2e0 schema=1fd851e2ea1f50af annotations=8803fb4b4971327e
 tool list_skills title=fe76bd8d8e274391 description=7b8b6cdba76034cd schema=c143014260b8da51 annotations=8803fb4b4971327e
@@ -94,26 +97,26 @@ tool navmesh_query title=db8612abd1ccff3e description=1aac89deed3c9a47 schema=6f
 tool object_diff title=b4a26c8c28add8d6 description=f76014835ae0b232 schema=484d0d97a0c127c3 annotations=8803fb4b4971327e
 tool package title=53f9f2eb37744492 description=960c7fd7b82eaa89 schema=d723ac6e79fc0101 annotations=a928ca8041f158dd
 tool particle title=f232a4b364825170 description=99257c9c25a1b098 schema=2a22e3e716589ef8 annotations=a928ca8041f158dd
-tool permission_prompt title=afd1c0ef132db65d description=8c4d60539eac01a9 schema=4fc216995f108966 annotations=8803fb4b4971327e
-tool ping_object title=ab1ce9eb0ad32841 description=90b06b921b9acc2c schema=e0a677770330d34c annotations=a928ca8041f158dd
-tool prefab title=7420c1b8743f1307 description=7583f5e49c7ad93b schema=b3ca5888a6b60a9f annotations=a928ca8041f158dd
+tool permission_prompt title=afd1c0ef132db65d description=7614215c9ea0ea21 schema=9eb2a5ad6c527cd0 annotations=8803fb4b4971327e
+tool ping_object title=ab1ce9eb0ad32841 description=90b06b921b9acc2c schema=e0a677770330d34c annotations=aaa40413b96dbda4
+tool prefab title=7420c1b8743f1307 description=7583f5e49c7ad93b schema=e0e60a16878b562e annotations=a928ca8041f158dd
 tool profile title=96ad4bd0f7baa40e description=61c9c0ad85c5b188 schema=21409795bf80ce76 annotations=a928ca8041f158dd
 tool project_settings title=4578c01097848414 description=a6ecebfdf2512130 schema=6b743d4a60835c43 annotations=aaa40413b96dbda4
 tool query_state title=e6ac05f26c4734b6 description=e0aa3150574195bf schema=05d14e76a86af82c annotations=8803fb4b4971327e
 tool recompile title=8a27120a44e990f3 description=9dc8da6272d5490e schema=82c22b9e6140992b annotations=a928ca8041f158dd
 tool reconnect_unity title=6ec90c02d646141c description=32b2cbfef23c7424 schema=ad3b689ec6b7e282 annotations=aaa40413b96dbda4
 tool references title=a52848021f822f5b description=939de8c3e5889c6f schema=174b21b170e3b1eb annotations=a928ca8041f158dd
-tool region_clear title=287669a34f0dd09a description=df6cd4e7ef0836c9 schema=8e649b7d3b8845a5 annotations=a928ca8041f158dd
+tool region_clear title=287669a34f0dd09a description=41a7a3d77e763afb schema=8e649b7d3b8845a5 annotations=a928ca8041f158dd
 tool release_smoke title=3b95700eef0f3870 description=c61c40e6e000bd93 schema=2817b72692954c41 annotations=8803fb4b4971327e
 tool rename_object title=3ce035e1da276e89 description=93078634f962a84d schema=d7a47ff0e2eeadaa annotations=aaa40413b96dbda4
 tool render_analyze title=7a1d3c55953c5268 description=e59a0168addbea4a schema=9e52449b0b8615c9 annotations=8803fb4b4971327e
 tool resolve_scene_refs title=79bee5f3999711d4 description=f99fd2511d169668 schema=5fc4764aa460334d annotations=8803fb4b4971327e
 tool resolve_test_request title=a034de5ab32ac4de description=9fb1dc8c38fdffbf schema=c26b4f76904d71fb annotations=8803fb4b4971327e
-tool resolve_tool_schema title=4fcd7f5e94df2f29 description=28bcfe433cb4dd69 schema=c7da9cbf95dafc19 annotations=74234e98afe7498f
+tool resolve_tool_schema title=4fcd7f5e94df2f29 description=28bcfe433cb4dd69 schema=c7da9cbf95dafc19 annotations=8803fb4b4971327e
 tool run_playtest title=0c2602c725c71976 description=565744377bf8f884 schema=deb6ed84c1865118 annotations=a928ca8041f158dd
 tool run_playtest_suite title=15ed35f38d204618 description=0c1b4ebbb8a1a5a2 schema=e6d5b9efb8c1d316 annotations=a928ca8041f158dd
-tool run_tests title=37034a471bc8886b description=ed956773e610a99e schema=cc0085d649f919f0 annotations=aaa40413b96dbda4
-tool run_tests_wait title=90aba7f1b84fb1d1 description=a15fcbd0c211b8b6 schema=4b7113bc348a816a annotations=a928ca8041f158dd
+tool run_tests title=37034a471bc8886b description=dd688001a4a0b482 schema=7b26103c1371edb7 annotations=aaa40413b96dbda4
+tool run_tests_wait title=90aba7f1b84fb1d1 description=ef8b98fba57a55c0 schema=4b7113bc348a816a annotations=a928ca8041f158dd
 tool runtime_snapshot title=4ba341d4309b56f5 description=84073c8b1850a3d7 schema=410ece1b6b608076 annotations=8803fb4b4971327e
 tool save_session title=c153c4a481391a0f description=7a00be168a0dcfe0 schema=a72f119f01975f64 annotations=a928ca8041f158dd
 tool save_skill title=92158497b3d6e18c description=00ad5bd62689e7fb schema=601c1c2071059282 annotations=a928ca8041f158dd
@@ -131,11 +134,11 @@ tool scriptable_object title=1269e1cf07a1d4bf description=3d554ed16ca828e8 schem
 tool search_scene title=08ed438c75bd67bf description=e58d52749b00a2e1 schema=122bc73cd9f070fe annotations=8803fb4b4971327e
 tool serialized_field_rename_audit title=8df97ef5d5751c3c description=482fc536f1a41fa0 schema=eec734b93d16ee9d annotations=8803fb4b4971327e
 tool set_active title=920746d7037c4ee1 description=a8bca7e689239e55 schema=158c42c78e2d010e annotations=aaa40413b96dbda4
-tool set_llm_config title=464091b041ea74df description=e034c6af1acd4ab1 schema=2eef383a473919ff annotations=74234e98afe7498f
+tool set_llm_config title=464091b041ea74df description=e034c6af1acd4ab1 schema=2eef383a473919ff annotations=aaa40413b96dbda4
 tool set_material title=f45d8c9018aeedc7 description=84110a27ea094af2 schema=92b9b8e17faf4bce annotations=aaa40413b96dbda4
 tool set_parent title=3a66d48f8e458855 description=ce61ddc7f9fc5d77 schema=935935a3e637f834 annotations=aaa40413b96dbda4
 tool set_properties title=fda6ef23d6323e4f description=7f6e5cac9f42f036 schema=8fea8e97174cd71d annotations=a928ca8041f158dd
-tool set_property title=a338b0a0f57d28bc description=2264b5024006ffdb schema=ee7d4e8733d1a88e annotations=aaa40413b96dbda4
+tool set_property title=a338b0a0f57d28bc description=2264b5024006ffdb schema=50ed97979c96c452 annotations=aaa40413b96dbda4
 tool set_property_delta title=d73b501fa5f4f7f3 description=abcfb81bf4c1207c schema=c9ec8227a70dcd08 annotations=a928ca8041f158dd
 tool set_rect title=c63321b55a1bfa32 description=4198466a20a832ef schema=533fc66118667765 annotations=aaa40413b96dbda4
 tool set_sibling_index title=39dc8bbcb252b53e description=73f25a1f8b610abb schema=f9f58e95c893d5d0 annotations=a928ca8041f158dd
@@ -149,10 +152,10 @@ tool sync_unity title=a3dc611437d84ebe description=722c8d185a411bd2 schema=818b9
 tool test_step title=756d9c005eeecaf8 description=4ba50f482fbd8f78 schema=e339e66069a543c8 annotations=a928ca8041f158dd
 tool timeline title=704ef8cfcddd04e5 description=9293910e8b2c7fcf schema=7064b4f493048fca annotations=a928ca8041f158dd
 tool transfer_object title=aa97d0a22cdd00f3 description=6f98657ce57c69e5 schema=a3d85be5d4712984 annotations=a928ca8041f158dd
-tool ui_intent title=370f8e3df0f70c8c description=e886091e50176449 schema=5ec26b04131ec9c4 annotations=a928ca8041f158dd
+tool ui_intent title=370f8e3df0f70c8c description=59e7720dc852688e schema=5ec26b04131ec9c4 annotations=a928ca8041f158dd
 tool uitk_element title=1052064f1d17b244 description=0d2f6f138a05e18f schema=9c2570de4fddfdfb annotations=a928ca8041f158dd
 tool uitk_file title=1821a96d70188761 description=2c344a33e5c5c215 schema=8d9be852ca2491be annotations=a928ca8041f158dd
-tool uitk_intent title=fd94eaf57bbf11dc description=2847df20003c8441 schema=635ce8458e3c12d1 annotations=a928ca8041f158dd
+tool uitk_intent title=fd94eaf57bbf11dc description=07ffd8570718d130 schema=635ce8458e3c12d1 annotations=a928ca8041f158dd
 tool undo_last title=67994e126284743d description=a78f8286caa90ab5 schema=c3f445693bc11cf6 annotations=a928ca8041f158dd
 tool unwire_event title=0eb26c3e4d6f4015 description=d62eefb8abfe5b16 schema=f8016f315f008379 annotations=d1b84d42d82a80d6
 tool use_skill title=bc0f4106731c22bb description=296f55f22fa46ead schema=70afc90e3797df58 annotations=a928ca8041f158dd
@@ -160,185 +163,185 @@ tool validate_playtest_aliases title=a01014876d3ea0ee description=98bcfbb3f33908
 tool validate_references title=43f8ce5184e3f340 description=e5dc65d7dd73ba3d schema=21bbb08300813e92 annotations=8803fb4b4971327e
 tool validate_triggers title=290a1b716206027f description=d8cb10a2d20a951a schema=624ed7ab5d6910cd annotations=8803fb4b4971327e
 tool verify_after_change title=b26eeb325abd4c34 description=411af732d814c362 schema=7613dd07a5eeb1ec annotations=a928ca8041f158dd
-tool vfx_intent title=b98907e10627ca43 description=6ea15736163f7b05 schema=716dad959980e34b annotations=a928ca8041f158dd
+tool vfx_intent title=b98907e10627ca43 description=749bf9e021821a9b schema=716dad959980e34b annotations=a928ca8041f158dd
 tool wait_until title=579881b66747e5e5 description=ee32edd864aef6ef schema=7256e1c40cf535ae annotations=aaa40413b96dbda4
 tool watch title=5c63b785abb632ff description=4fe6d4ace6215d06 schema=1bb3020e166322e3 annotations=a928ca8041f158dd
 tool wire_event title=a85ab7507b112c66 description=7d21c26f3f330445 schema=522fed523dd4d26b annotations=a928ca8041f158dd
-spec alias_status category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec analyze_lod_culling category=MEDIA core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec animation category=MEDIA core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec animator category=MEDIA core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec animator_intent category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec apply_scene_change category=SCENE core=False tier1=True timeout_s=120.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec apply_template category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec ask category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec ask_user category=SYSTEM core=False tier1=False timeout_s=300.0 mutability=read runtime_only=False direct_only=True unity_transport=True
-spec asset category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec attach_uitk category=UITOOLKIT core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec auto_fix category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec auto_wire category=COMPONENTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec autofit_collider category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec await_compile category=VERIFY core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec bake category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec batch category=CORE core=True tier1=False timeout_s=120.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec brief_build category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec budget_status category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec build category=SYSTEM core=False tier1=False timeout_s=300.0 mutability=write runtime_only=False direct_only=True unity_transport=True
-spec cancel_test_run category=TESTS core=False tier1=False timeout_s=10.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec check_colliders category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec checkpoint category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec checkpoint_create category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec checkpoint_restore category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec compile_preflight category=VERIFY core=True tier1=False timeout_s=60.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec compile_status category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec configure_objects category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec console_mark category=RUNTIME core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec create_object category=CORE core=True tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec create_ui category=UGUI core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec debug category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec debug_animator category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=True direct_only=False unity_transport=False
-spec debug_physics category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=True direct_only=False unity_transport=False
-spec delete_object category=SCENE core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec diagnose category=VERIFY core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec discover_tools category=SYSTEM core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec do category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec doctor category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec editor category=CORE core=True tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec execute_code category=SYSTEM core=True tier1=False timeout_s=60.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec export_package category=_INTERNAL core=False tier1=False timeout_s=120.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec export_playtest_aliases_to_defs category=TESTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec find_objects category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec fingerprint category=SYSTEM core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_aliases category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_capabilities category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_changes category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec get_changeset category=VERIFY core=False tier1=True timeout_s=5.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec get_compile_errors category=CORE core=True tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_component category=CORE core=True tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_components_list category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_console category=CORE core=True tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_console_since category=RUNTIME core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec get_enabled_tools category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_frame_stats category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=True direct_only=False unity_transport=False
-spec get_hierarchy category=CORE core=True tier1=False timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_memory category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_metrics category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec get_object_detail category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_playtest_run category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=True
-spec get_schema category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_selection category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_spatial_context category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_status category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_test_count category=TESTS core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_test_progress category=TESTS core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_test_results category=TESTS core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_test_run category=TESTS core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_unity_events category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_version category=_INTERNAL core=False tier1=False timeout_s=5.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec get_watches category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec import_package category=_INTERNAL core=False tier1=False timeout_s=120.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec inspect category=CORE core=True tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec inspect_uitk category=UITOOLKIT core=False tier1=False timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec invoke_method category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=True direct_only=False unity_transport=False
-spec lint_playtest category=TESTS core=False tier1=False timeout_s=60.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec lint_playtest_suite category=TESTS core=False tier1=False timeout_s=120.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec lint_scene_refs category=VERIFY core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec lint_ugui category=UGUI core=False tier1=False timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec lint_uitk category=UITOOLKIT core=False tier1=False timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec list_connections category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec list_events category=COMPONENTS core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec list_playtest_files category=_INTERNAL core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec list_skills category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec list_templates category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec list_test_runs category=TESTS core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec load_session category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec manage_component category=CORE core=True tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec material category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec material_audit category=ASSETS core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec mcp_status category=SYSTEM core=True tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec menu category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec move_to category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=True direct_only=True unity_transport=True
-spec navmesh_query category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec object_diff category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec package category=ASSETS core=False tier1=False timeout_s=60.0 mutability=write runtime_only=False direct_only=True unity_transport=True
-spec particle category=MEDIA core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec permission_prompt category=SYSTEM core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec ping category=_INTERNAL core=False tier1=False timeout_s=5.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec ping_object category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec prefab category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec profile category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=True direct_only=False unity_transport=False
-spec project_settings category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec query_state category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=True direct_only=False unity_transport=False
-spec recompile category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec reconnect_unity category=SYSTEM core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec references category=COMPONENTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec region_clear category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec release_smoke category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec rename_object category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec render_analyze category=MEDIA core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec resolve_scene_refs category=VERIFY core=False tier1=False timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec resolve_test_request category=TESTS core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec resolve_tool_schema category=SYSTEM core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec run_playtest category=TESTS core=False tier1=True timeout_s=300.0 mutability=write runtime_only=False direct_only=True unity_transport=True
-spec run_playtest_suite category=TESTS core=False tier1=True timeout_s=3600.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec run_tests category=TESTS core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=True
-spec run_tests_wait category=TESTS core=False tier1=True timeout_s=1200.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec runtime_snapshot category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec save_session category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec save_skill category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec save_template category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec scan_scene category=VERIFY core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec scene category=SCENE core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec scene_change_plan category=SCENE core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec scene_diff category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec scene_environment category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec scene_health category=VERIFY core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec screenshot category=MEDIA core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=True
-spec screenshot_baseline category=MEDIA core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec screenshot_compare category=MEDIA core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec scriptable_object category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec search_scene category=SCENE core=False tier1=True timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec serialized_field_rename_audit category=VERIFY core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec set_active category=SCENE core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec set_llm_config category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec set_material category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec set_parent category=SCENE core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec set_properties category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec set_property category=CORE core=True tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec set_property_delta category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec set_rect category=UGUI core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec set_sibling_index category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec setup_objects category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec shader category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec smart_build category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec snapshot category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False
-spec source_patch_write category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=True
-spec spatial_query category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec start_playtest category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=True
-spec sync_playtest_aliases_from_defs category=TESTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec sync_unity category=SYSTEM core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec test_step category=TESTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=True direct_only=True unity_transport=True
-spec timeline category=MEDIA core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec transfer_object category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec ui_intent category=UGUI core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec uitk_element category=UITOOLKIT core=False tier1=False timeout_s=15.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec uitk_file category=UITOOLKIT core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=True
-spec uitk_intent category=UITOOLKIT core=False tier1=True timeout_s=60.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec undo_last category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec unwire_event category=COMPONENTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
-spec use_skill category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec validate_playtest_aliases category=TESTS core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec validate_references category=VERIFY core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec validate_triggers category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False
-spec verify_after_change category=VERIFY core=False tier1=True timeout_s=600.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec vfx_intent category=MEDIA core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec wait_until category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=True direct_only=True unity_transport=True
-spec watch category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False
-spec wire_event category=COMPONENTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False
+spec alias_status category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec analyze_lod_culling category=MEDIA core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec animation category=MEDIA core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec animator category=MEDIA core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec animator_intent category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec apply_scene_change category=SCENE core=False tier1=True timeout_s=120.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec apply_template category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec ask category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec ask_user category=SYSTEM core=False tier1=False timeout_s=300.0 mutability=read runtime_only=False direct_only=True unity_transport=True session=False
+spec asset category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec attach_uitk category=UITOOLKIT core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec auto_fix category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec auto_wire category=COMPONENTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec autofit_collider category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec await_compile category=VERIFY core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec bake category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec batch category=CORE core=True tier1=False timeout_s=120.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec brief_build category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec budget_status category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec build category=SYSTEM core=False tier1=False timeout_s=300.0 mutability=write runtime_only=False direct_only=True unity_transport=True session=False
+spec cancel_test_run category=TESTS core=False tier1=False timeout_s=10.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec check_colliders category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec checkpoint category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec checkpoint_create category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec checkpoint_restore category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec compile_preflight category=VERIFY core=True tier1=False timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec compile_status category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec configure_objects category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec console_mark category=RUNTIME core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec create_object category=CORE core=True tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec create_ui category=UGUI core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec debug category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec debug_animator category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=True direct_only=False unity_transport=False session=False
+spec debug_physics category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=True direct_only=False unity_transport=False session=False
+spec delete_object category=SCENE core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec diagnose category=VERIFY core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec discover_tools category=SYSTEM core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=True
+spec do category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec doctor category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec editor category=CORE core=True tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec execute_code category=SYSTEM core=True tier1=False timeout_s=60.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec export_package category=_INTERNAL core=False tier1=False timeout_s=120.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec export_playtest_aliases_to_defs category=TESTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec find_objects category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec fingerprint category=SYSTEM core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_aliases category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_capabilities category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_changes category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec get_changeset category=VERIFY core=False tier1=True timeout_s=5.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec get_compile_errors category=CORE core=True tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_component category=CORE core=True tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_components_list category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_console category=CORE core=True tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_console_since category=RUNTIME core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec get_enabled_tools category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_frame_stats category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=True direct_only=False unity_transport=False session=False
+spec get_hierarchy category=CORE core=True tier1=False timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_memory category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_metrics category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec get_object_detail category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_playtest_run category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=True session=False
+spec get_schema category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_selection category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_spatial_context category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_status category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_test_count category=TESTS core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_test_progress category=TESTS core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_test_results category=TESTS core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_test_run category=TESTS core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_unity_events category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_version category=_INTERNAL core=False tier1=False timeout_s=5.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec get_watches category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec import_package category=_INTERNAL core=False tier1=False timeout_s=120.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec inspect category=CORE core=True tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec inspect_uitk category=UITOOLKIT core=False tier1=False timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec invoke_method category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=True direct_only=False unity_transport=False session=False
+spec lint_playtest category=TESTS core=False tier1=False timeout_s=60.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec lint_playtest_suite category=TESTS core=False tier1=False timeout_s=120.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec lint_scene_refs category=VERIFY core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec lint_ugui category=UGUI core=False tier1=False timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec lint_uitk category=UITOOLKIT core=False tier1=False timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec list_connections category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec list_events category=COMPONENTS core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec list_playtest_files category=_INTERNAL core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec list_skills category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec list_templates category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec list_test_runs category=TESTS core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec load_session category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec manage_component category=CORE core=True tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec material category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec material_audit category=ASSETS core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec mcp_status category=SYSTEM core=True tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec menu category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec move_to category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=True direct_only=True unity_transport=True session=False
+spec navmesh_query category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec object_diff category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec package category=ASSETS core=False tier1=False timeout_s=60.0 mutability=write runtime_only=False direct_only=True unity_transport=True session=False
+spec particle category=MEDIA core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec permission_prompt category=SYSTEM core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec ping category=_INTERNAL core=False tier1=False timeout_s=5.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec ping_object category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=True
+spec prefab category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec profile category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=True direct_only=False unity_transport=False session=False
+spec project_settings category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec query_state category=RUNTIME core=False tier1=False timeout_s=10.0 mutability=read runtime_only=True direct_only=False unity_transport=False session=False
+spec recompile category=SYSTEM core=False tier1=False timeout_s=60.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec reconnect_unity category=SYSTEM core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=True
+spec references category=COMPONENTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec region_clear category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec release_smoke category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec rename_object category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec render_analyze category=MEDIA core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec resolve_scene_refs category=VERIFY core=False tier1=False timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec resolve_test_request category=TESTS core=False tier1=False timeout_s=10.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec resolve_tool_schema category=SYSTEM core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec run_playtest category=TESTS core=False tier1=True timeout_s=300.0 mutability=write runtime_only=False direct_only=True unity_transport=True session=False
+spec run_playtest_suite category=TESTS core=False tier1=True timeout_s=3600.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec run_tests category=TESTS core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=True session=False
+spec run_tests_wait category=TESTS core=False tier1=True timeout_s=1200.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec runtime_snapshot category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec save_session category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec save_skill category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec save_template category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec scan_scene category=VERIFY core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec scene category=SCENE core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec scene_change_plan category=SCENE core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec scene_diff category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec scene_environment category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec scene_health category=VERIFY core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec screenshot category=MEDIA core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=True session=False
+spec screenshot_baseline category=MEDIA core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec screenshot_compare category=MEDIA core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec scriptable_object category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec search_scene category=SCENE core=False tier1=True timeout_s=15.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec serialized_field_rename_audit category=VERIFY core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec set_active category=SCENE core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec set_llm_config category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec set_material category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec set_parent category=SCENE core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec set_properties category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec set_property category=CORE core=True tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec set_property_delta category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec set_rect category=UGUI core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec set_sibling_index category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec setup_objects category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec shader category=ASSETS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec smart_build category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec snapshot category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=True unity_transport=False session=False
+spec source_patch_write category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=True session=False
+spec spatial_query category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec start_playtest category=_INTERNAL core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=True session=False
+spec sync_playtest_aliases_from_defs category=TESTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec sync_unity category=SYSTEM core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec test_step category=TESTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=True direct_only=True unity_transport=True session=False
+spec timeline category=MEDIA core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec transfer_object category=SCENE core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec ui_intent category=UGUI core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec uitk_element category=UITOOLKIT core=False tier1=False timeout_s=15.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec uitk_file category=UITOOLKIT core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=True session=False
+spec uitk_intent category=UITOOLKIT core=False tier1=True timeout_s=60.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec undo_last category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec unwire_event category=COMPONENTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
+spec use_skill category=SYSTEM core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec validate_playtest_aliases category=TESTS core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec validate_references category=VERIFY core=False tier1=True timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec validate_triggers category=SCENE core=False tier1=False timeout_s=30.0 mutability=read runtime_only=False direct_only=False unity_transport=False session=False
+spec verify_after_change category=VERIFY core=False tier1=True timeout_s=600.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec vfx_intent category=MEDIA core=False tier1=True timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec wait_until category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=True direct_only=True unity_transport=True session=False
+spec watch category=RUNTIME core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=True unity_transport=False session=False
+spec wire_event category=COMPONENTS core=False tier1=False timeout_s=30.0 mutability=write runtime_only=False direct_only=False unity_transport=False session=False
 wire alias_status calls=1 digest=add92d114cc736fe
 wire analyze_lod_culling calls=3 digest=5c1b24b9797a97ee
-wire animation calls=67 digest=73a8e5005249c239
-wire ask_user calls=2 digest=4b3739294d367709
+wire animation calls=68 digest=5c4fe6a4d68b7636
+wire ask_user calls=2 digest=049ae863c82af73f
 wire attach_uitk calls=31 digest=79b16327791e3e0c
 wire auto_wire calls=4 digest=1b68a50d9c442c1f
 wire autofit_collider calls=6 digest=b9c7ef67ae7e5237
@@ -358,7 +361,7 @@ wire fingerprint calls=12 digest=80c43d14a1b144a4
 wire get_capabilities calls=1 digest=f4265c426ea0a587
 wire get_changes calls=2 digest=833c165f15243ccb
 wire get_components_list calls=3 digest=592d3433681ed18d
-wire get_console calls=50 digest=7047393faee7bca6
+wire get_console calls=50 digest=9314db325d4c030f
 wire get_enabled_tools calls=1 digest=2b94a056458a223e
 wire get_frame_stats calls=2 digest=d1bd76ee36c7cf8d
 wire get_memory calls=3 digest=b33ec5d91be7fa20
@@ -375,16 +378,16 @@ wire material calls=62 digest=d743caae779d3870
 wire material_audit calls=9 digest=46609aebf90f0bf7
 wire menu calls=6 digest=8d595b0697bbf1d4
 wire object_diff calls=4 digest=038ed076c197fcdb
-wire package calls=33 digest=df36cefa33b4dbe0
+wire package calls=33 digest=6cec89eec014ad63
 wire particle calls=51 digest=b16762246e11e36e
 wire ping_object calls=2 digest=57d1027a2c9c544d
-wire prefab calls=67 digest=58d480edabe492de
+wire prefab calls=71 digest=111efa5cfe725489
 wire project_settings calls=50 digest=1dbfae82da617289
-wire recompile calls=1 digest=40a7602b57226526
+wire recompile calls=1 digest=6532b09d2420c23a
 wire references calls=52 digest=788d384473a0e825
 wire rename_object calls=4 digest=1c04484384f0db93
 wire render_analyze calls=44 digest=f95ea4f8a2ddf8b7
-wire resolve_scene_refs calls=6 digest=3ba87f53813fc9e5
+wire resolve_scene_refs calls=6 digest=df37bd7ea9f73772
 wire runtime_snapshot calls=26 digest=cfcf7d3434358678
 wire scan_scene calls=1 digest=a737fa6df4491083
 wire scene_diff calls=1 digest=d1930ff6f4b94759
