@@ -4,9 +4,8 @@ import os
 import time
 from typing import Any, NamedTuple
 
-from mcp.server.mcpserver.exceptions import ToolError
-
 from biome_mcp.models.result import CommandResult, CommandStatus
+from mcp.server.mcpserver.exceptions import ToolError
 
 from . import middleware_alias as _alias_hooks  # noqa: F401 — trigger hook registration
 from .compressor import strip_defaults
