@@ -319,17 +319,7 @@ namespace UnityMCP.Editor.Chat
         }
 
         /// <summary>Map BackendKind enum to the relay's ProviderId string.</summary>
-        private static string KindToId(BackendKind kind)
-        {
-            switch (kind)
-            {
-                case BackendKind.Codex:       return "codex";
-                case BackendKind.Antigravity: return "antigravity";
-                case BackendKind.Kimi:        return "kimi";
-                case BackendKind.OpenCode:    return "opencode";
-                default:                      return "claude";
-            }
-        }
+        private static string KindToId(BackendKind kind) => BackendTable.Get(kind)?.Id ?? "claude";
 
         internal static Func<string, IChatBackend> BackendFactoryForTest;
 
