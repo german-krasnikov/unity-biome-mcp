@@ -1,0 +1,24 @@
+# "ABSENT" is animation_host.Run.ABSENT_SENTINEL: every tool.<arg>_sent query returns it
+# when the wire dict genuinely lacks that key (unity_mcp.server._args() strips every
+# None-valued kwarg before send) -- it is never a key present with a None/null value.
+# The *_sent queries are string-typed on purpose so every omittable arg (string, number,
+# or bool-shaped like compact) can share one sentinel regardless of its own wire type.
+TEST "animation omits every optional and compact when unset" PROFILE editmode
+    TESTCASE minimal action=edit path="/Obj"
+
+    FIXTURE tool
+    call_minimal action=case.action path=case.path
+    ASSERT tool.clip_sent == "ABSENT"
+    ASSERT tool.clip_name_sent == "ABSENT"
+    ASSERT tool.property_sent == "ABSENT"
+    ASSERT tool.keys_sent == "ABSENT"
+    ASSERT tool.time_sent == "ABSENT"
+    ASSERT tool.component_type_sent == "ABSENT"
+    ASSERT tool.binding_path_sent == "ABSENT"
+    ASSERT tool.tangent_sent == "ABSENT"
+    ASSERT tool.function_name_sent == "ABSENT"
+    ASSERT tool.int_param_sent == "ABSENT"
+    ASSERT tool.float_param_sent == "ABSENT"
+    ASSERT tool.string_param_sent == "ABSENT"
+    ASSERT tool.compact_sent == "ABSENT"
+END
