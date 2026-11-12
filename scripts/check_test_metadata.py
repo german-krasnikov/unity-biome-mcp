@@ -38,10 +38,11 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SCRIPTS_DIR = Path(__file__).resolve().parent
-if str(SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_DIR))
-import playtest_header  # noqa: E402
+# Allow running from repo root without installing the package.
+_SERVER_SRC = REPO_ROOT / "server" / "src"
+if str(_SERVER_SRC) not in sys.path:
+    sys.path.insert(0, str(_SERVER_SRC))
+from unity_mcp import playtest_header  # noqa: E402
 
 LANES_PATH = REPO_ROOT / "ci" / "biome-test-lanes.json"
 TAXONOMY_PATH = REPO_ROOT / "ci" / "taxonomy-map.json"

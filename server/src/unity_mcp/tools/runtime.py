@@ -531,7 +531,7 @@ def _filter_files_by_tag(file_list: list[str], tag: str) -> tuple[list[str], str
     _resolve_file_list reports an empty match — as an empty_reason, not a silent
     0/0 success."""
     try:
-        import playtest_header
+        from unity_mcp import playtest_header
     except ImportError as exc:
         return [], f"tag filtering unavailable: {exc}"
     import pathlib as _pathlib
