@@ -1,17 +1,27 @@
-"""TDD tests for degrade.py — graceful degradation ladder."""
-import os
+"""TDD tests for degrade.py — graceful degradation ladder.
+
+The ladder algorithm itself lives in biome_mcp.degrade (tested there). These
+tests cover Unity's wiring: METRICS is passed in explicitly as the metrics
+sink, and UNITY_MCP_DEGRADE_DISABLED is passed explicitly as disabled_env.
+"""
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+
+_DISABLED_ENV = "UNITY_MCP_DEGRADE_DISABLED"
 
 
 # ── Test 1: all steps fail → no_fallback surface marker ──────────────────────
 
 async def test_all_steps_fail_no_fallback():
-    from unity_mcp.degrade import degrade, wrap_degraded
+    from biome_mcp.degrade import degrade, wrap_degraded
+
     from unity_mcp.metrics import METRICS
     METRICS.reset()
 
-    step_name, value = await degrade("x", [("a", lambda: None), ("b", lambda: None)])
+    step_name, value = await degrade(
+        "x", [("a", lambda: None), ("b", lambda: None)], metrics=METRICS
+    )
 
     assert step_name == "b"
     assert value is None
@@ -25,11 +35,14 @@ async def test_all_steps_fail_no_fallback():
 # ── Test 2: first step succeeds → no metrics, no marker ──────────────────────
 
 async def test_first_step_succeeds_no_metrics():
-    from unity_mcp.degrade import degrade
+    from biome_mcp.degrade import degrade
+
     from unity_mcp.metrics import METRICS
     METRICS.reset()
 
-    step_name, value = await degrade("x", [("primary", lambda: "hello"), ("fallback", lambda: "world")])
+    step_name, value = await degrade(
+        "x", [("primary", lambda: "hello"), ("fallback", lambda: "world")], metrics=METRICS
+    )
 
     assert step_name == "primary"
     assert value == "hello"
@@ -39,7 +52,7 @@ async def test_first_step_succeeds_no_metrics():
 # ── Test 3: mix async and sync steps ─────────────────────────────────────────
 
 async def test_async_and_sync_steps():
-    from unity_mcp.degrade import degrade
+    from biome_mcp.degrade import degrade
 
     async def async_fail():
         return None
@@ -47,7 +60,9 @@ async def test_async_and_sync_steps():
     def sync_success():
         return "sync_result"
 
-    step_name, value = await degrade("mixed", [("async_step", async_fail), ("sync_step", sync_success)])
+    step_name, value = await degrade(
+        "mixed", [("async_step", async_fail), ("sync_step", sync_success)]
+    )
 
     assert step_name == "sync_step"
     assert value == "sync_result"
@@ -56,7 +71,8 @@ async def test_async_and_sync_steps():
 # ── Test 4: step raises exception → caught, treated as failure ────────────────
 
 async def test_step_raises_exception_caught():
-    from unity_mcp.degrade import degrade
+    from biome_mcp.degrade import degrade
+
     from unity_mcp.metrics import METRICS
     METRICS.reset()
 
@@ -72,7 +88,9 @@ async def test_step_raises_exception_caught():
         def boom():
             raise RuntimeError("boom")
 
-        step_name, value = await degrade("exc_test", [("raiser", boom), ("ok", lambda: "safe")])
+        step_name, value = await degrade(
+            "exc_test", [("raiser", boom), ("ok", lambda: "safe")], metrics=METRICS
+        )
         assert step_name == "ok"
         assert value == "safe"
         # Event recorded with raised reason
@@ -87,20 +105,21 @@ async def test_step_raises_exception_caught():
 # ── Test 5: env UNITY_MCP_DEGRADE_DISABLED=1 → exception bubbles raw ─────────
 
 async def test_env_disabled_propagates_exception(monkeypatch):
-    from unity_mcp.degrade import degrade
-    monkeypatch.setenv("UNITY_MCP_DEGRADE_DISABLED", "1")
+    from biome_mcp.degrade import degrade
+    monkeypatch.setenv(_DISABLED_ENV, "1")
 
     def explode():
         raise ValueError("raw error")
 
     with pytest.raises(ValueError, match="raw error"):
-        await degrade("feat", [("s1", explode), ("s2", lambda: "ok")])
+        await degrade("feat", [("s1", explode), ("s2", lambda: "ok")], disabled_env=_DISABLED_ENV)
 
 
 # ── Test 6: budget RouteDecision run=False → degraded marker ─────────────────
 
 async def test_budget_skip_as_degradation():
-    from unity_mcp.degrade import degrade, wrap_degraded
+    from biome_mcp.degrade import degrade, wrap_degraded
+
     from unity_mcp.metrics import METRICS
     METRICS.reset()
 
@@ -111,7 +130,7 @@ async def test_budget_skip_as_degradation():
     step_name, value = await degrade("visual_diff", [
         ("budget_day_cap_exceeded", budget_check),
         ("pixel_only", lambda: "px_result"),
-    ])
+    ], metrics=METRICS)
     assert step_name == "pixel_only"
     assert value == "px_result"
 
@@ -166,7 +185,8 @@ async def test_reflect_skipped_on_degraded_output(monkeypatch):
 # ── Test 9: counter cardinality — one feature × N steps ──────────────────────
 
 async def test_counter_cardinality_per_step():
-    from unity_mcp.degrade import degrade
+    from biome_mcp.degrade import degrade
+
     from unity_mcp.metrics import METRICS
     METRICS.reset()
 
@@ -175,7 +195,7 @@ async def test_counter_cardinality_per_step():
         ("step_a", lambda: None),
         ("step_b", lambda: None),
         ("step_c", lambda: "ok"),
-    ])
+    ], metrics=METRICS)
 
     snap = METRICS.snapshot()["counters"]
     # Per-step counters for failed steps
@@ -190,7 +210,8 @@ async def test_counter_cardinality_per_step():
 # ── Test 10: event log format ─────────────────────────────────────────────────
 
 async def test_event_log_format():
-    from unity_mcp.degrade import degrade
+    from biome_mcp.degrade import degrade
+
     from unity_mcp.metrics import METRICS
 
     events = []
@@ -201,7 +222,7 @@ async def test_event_log_format():
 
     METRICS.event = capture
     try:
-        await degrade("evt_feat", [("s1", lambda: None), ("s2", lambda: "ok")])
+        await degrade("evt_feat", [("s1", lambda: None), ("s2", lambda: "ok")], metrics=METRICS)
     finally:
         METRICS.event = original_event
 
@@ -217,7 +238,7 @@ async def test_event_log_format():
 # ── Test 11: wrap_degraded prefix exactly once ────────────────────────────────
 
 def test_wrap_degraded_prefix_not_doubled():
-    from unity_mcp.degrade import wrap_degraded
+    from biome_mcp.degrade import wrap_degraded
     result = wrap_degraded("feat", "step", "value")
     assert result.count("[DEGRADED:") == 1
     assert result.startswith("[DEGRADED:feat:step]\n")
@@ -227,13 +248,13 @@ def test_wrap_degraded_prefix_not_doubled():
 
 async def test_disabled_mode_falls_through_on_none(monkeypatch):
     """#2: DEGRADE_DISABLED=1 + first step returns None → second step runs, returns 'ok', no marker."""
-    from unity_mcp.degrade import degrade
-    monkeypatch.setenv("UNITY_MCP_DEGRADE_DISABLED", "1")
+    from biome_mcp.degrade import degrade
+    monkeypatch.setenv(_DISABLED_ENV, "1")
 
     step_name, result = await degrade("feat", [
         ("s1", lambda: None),
         ("s2", lambda: "ok"),
-    ])
+    ], disabled_env=_DISABLED_ENV)
     assert result == "ok"
     assert step_name == "s2"
 
@@ -242,14 +263,14 @@ async def test_disabled_mode_falls_through_on_none(monkeypatch):
 
 async def test_disabled_mode_propagates_exception_raw(monkeypatch):
     """#2: DEGRADE_DISABLED=1 + step raises → exception propagates, not suppressed."""
-    from unity_mcp.degrade import degrade
-    monkeypatch.setenv("UNITY_MCP_DEGRADE_DISABLED", "1")
+    from biome_mcp.degrade import degrade
+    monkeypatch.setenv(_DISABLED_ENV, "1")
 
     def explode():
         raise ValueError("raw!")
 
     with pytest.raises(ValueError, match="raw!"):
-        await degrade("feat", [("boom", explode), ("fallback", lambda: "safe")])
+        await degrade("feat", [("boom", explode), ("fallback", lambda: "safe")], disabled_env=_DISABLED_ENV)
 
 
 # ── Test 15: disabled mode → METRICS.event NOT fired ─────────────────────────
@@ -257,11 +278,12 @@ async def test_disabled_mode_propagates_exception_raw(monkeypatch):
 async def test_disabled_mode_no_metrics_event(monkeypatch):
     """Pattern E: UNITY_MCP_DEGRADE_DISABLED=1 → METRICS.event is never called,
     even when a step falls (returns None)."""
-    from unity_mcp.degrade import degrade
+    from biome_mcp.degrade import degrade
+
     from unity_mcp.metrics import METRICS
     METRICS.reset()
 
-    monkeypatch.setenv("UNITY_MCP_DEGRADE_DISABLED", "1")
+    monkeypatch.setenv(_DISABLED_ENV, "1")
 
     events = []
     monkeypatch.setattr(METRICS, "event", lambda kind, **fields: events.append({"kind": kind, **fields}))
@@ -269,18 +291,19 @@ async def test_disabled_mode_no_metrics_event(monkeypatch):
     await degrade("dis_feat", [
         ("s1", lambda: None),   # falls
         ("s2", lambda: "ok"),   # succeeds
-    ])
+    ], metrics=METRICS, disabled_env=_DISABLED_ENV)
 
     assert events == [], f"Expected no events, got {events}"
 
 
 async def test_disabled_mode_no_metrics_event_all_fail(monkeypatch):
     """Pattern E: all steps fail in disabled mode → still no METRICS.event."""
-    from unity_mcp.degrade import degrade
+    from biome_mcp.degrade import degrade
+
     from unity_mcp.metrics import METRICS
     METRICS.reset()
 
-    monkeypatch.setenv("UNITY_MCP_DEGRADE_DISABLED", "1")
+    monkeypatch.setenv(_DISABLED_ENV, "1")
 
     events = []
     monkeypatch.setattr(METRICS, "event", lambda kind, **fields: events.append({"kind": kind, **fields}))
@@ -288,7 +311,7 @@ async def test_disabled_mode_no_metrics_event_all_fail(monkeypatch):
     await degrade("dis_all_fail", [
         ("s1", lambda: None),
         ("s2", lambda: None),
-    ])
+    ], metrics=METRICS, disabled_env=_DISABLED_ENV)
 
     assert events == [], f"Expected no events, got {events}"
 
@@ -297,11 +320,12 @@ async def test_disabled_mode_no_metrics_event_all_fail(monkeypatch):
 
 async def test_empty_steps_list_returns_empty_name_none():
     """degrade() with no steps returns ('', None) and emits no metrics."""
-    from unity_mcp.degrade import degrade
+    from biome_mcp.degrade import degrade
+
     from unity_mcp.metrics import METRICS
     METRICS.reset()
 
-    step_name, value = await degrade("empty_feat", [])
+    step_name, value = await degrade("empty_feat", [], metrics=METRICS)
 
     assert step_name == ""
     assert value is None
@@ -313,8 +337,8 @@ async def test_empty_steps_list_returns_empty_name_none():
 
 async def test_disabled_async_step_falls_through(monkeypatch):
     """DEGRADE_DISABLED=1 with async step that returns None → next step runs."""
-    from unity_mcp.degrade import degrade
-    monkeypatch.setenv("UNITY_MCP_DEGRADE_DISABLED", "1")
+    from biome_mcp.degrade import degrade
+    monkeypatch.setenv(_DISABLED_ENV, "1")
 
     async def async_none():
         return None
@@ -322,7 +346,7 @@ async def test_disabled_async_step_falls_through(monkeypatch):
     step_name, value = await degrade("feat", [
         ("async_step", async_none),
         ("fallback", lambda: "ok"),
-    ])
+    ], disabled_env=_DISABLED_ENV)
 
     assert step_name == "fallback"
     assert value == "ok"
@@ -331,14 +355,15 @@ async def test_disabled_async_step_falls_through(monkeypatch):
 # ── Test 12: all steps raise → last step name returned, counter=1 ─────────────
 
 async def test_all_steps_raise_all_caught():
-    from unity_mcp.degrade import degrade
+    from biome_mcp.degrade import degrade
+
     from unity_mcp.metrics import METRICS
     METRICS.reset()
 
     step_name, value = await degrade("all_raise", [
         ("s1", lambda: (_ for _ in ()).throw(OSError("disk"))),
-        ("s2", lambda: (_ for _ in ()).throw(IOError("net"))),
-    ])
+        ("s2", lambda: (_ for _ in ()).throw(OSError("net"))),
+    ], metrics=METRICS)
 
     assert step_name == "s2"
     assert value is None

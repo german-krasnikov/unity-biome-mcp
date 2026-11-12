@@ -514,8 +514,10 @@ async def lifespan(app):
     _sigterm_state["loop"] = asyncio.get_running_loop()
     _sigterm_state["task"] = asyncio.current_task()
     unity_port = await _discover_port_with_retry()
-    from .server_control import evict_duplicate_servers as _evict
-    await asyncio.get_running_loop().run_in_executor(None, _evict)
+    from biome_mcp.server_control import evict_duplicate_servers as _evict
+
+    from .paths import unity_mcp_dir
+    await asyncio.get_running_loop().run_in_executor(None, _evict, unity_mcp_dir())
     cleanup_stale_locks(port=unity_port)
     from .lockfile import cleanup_stale_port_files as _cleanup_ports
     _cleanup_ports(tcp_probe=True)

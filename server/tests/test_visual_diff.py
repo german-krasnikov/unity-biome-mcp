@@ -291,10 +291,9 @@ async def test_visual_diff_all_rungs_none_produces_no_fallback_marker(tmp_path, 
     vd_mod._pixel_diff = lambda a, b: PixelDiff(0.0, 255, False, False, unavailable=True)
 
     # Also patch feature_unavailable to return None via degrade mock
-    from unity_mcp import degrade as degrade_mod
-    original_degrade = degrade_mod.degrade
+    from biome_mcp import degrade as degrade_mod
 
-    async def fake_degrade(feature, steps):
+    async def fake_degrade(feature, steps, **kwargs):
         # All rungs fail → returns last step name, None
         last_name = steps[-1][0] if steps else "unknown"
         return (last_name, None)

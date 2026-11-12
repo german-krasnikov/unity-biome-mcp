@@ -4,12 +4,12 @@ import os
 import time
 from typing import Any, NamedTuple
 
+from biome_mcp.hooks import register_post, run_post_hooks
 from biome_mcp.models.result import CommandResult, CommandStatus
 from mcp.server.mcpserver.exceptions import ToolError
 
 from . import middleware_alias as _alias_hooks  # noqa: F401 — trigger hook registration
 from .compressor import strip_defaults
-from .middleware_hooks import register_post, run_post_hooks
 from .middleware_types import (
     _READ_CACHEABLE,
     _STRIP_CMDS,

@@ -269,11 +269,18 @@ def cmd_configure(args: argparse.Namespace) -> None:
 
 
 def _load_stop_server():
-    """Import stop_server from unity_mcp. Returns None if not installed yet."""
+    """Import stop_server from biome_mcp. Returns None if not installed yet."""
     try:
         _add_server_to_path()
-        from unity_mcp.server_control import stop_server
-        return stop_server
+        from biome_mcp.server_control import stop_server
+
+        from unity_mcp.paths import unity_mcp_dir
+
+        def _stop(port, **kwargs):
+            kwargs.setdefault("lock_dir", unity_mcp_dir())
+            return stop_server(port, **kwargs)
+
+        return _stop
     except ImportError:
         return None
 

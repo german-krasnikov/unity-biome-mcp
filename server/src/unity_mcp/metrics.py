@@ -1,21 +1,22 @@
 """Telemetry/metrics registry. In-memory counters + timers + cost tracking.
 
-Subclasses biome-mcp's MetricsCollector for the shared command/counter/
-observation plumbing. Overridden where Unity's contract differs from biome's
-generic defaults: p50/p95 observation stats (not count/avg/min/max), a
-millisecond timer (not seconds), a costs_usd dict keyed by feature with Haiku
-per-million-token pricing, and an UNITY_MCP_METRICS/UNITY_MCP_LOG_DIR jsonl
-sink (biome's own sink uses a different env var and record shape).
+Subclasses biome-mcp's MetricsCollector for the shared counter/observation/
+timer/cost plumbing (p50/p95 observation stats, millisecond timer, per-
+million-token cost rates all come from the base class now). Overridden where
+Unity still needs its own behavior: a hard key cap on inc()/observe()
+(hostile/dynamic cmd protection), a costs_usd dict keyed by feature with
+Haiku per-million-token pricing (vs. base's append-only cost-event list), and
+an UNITY_MCP_METRICS/UNITY_MCP_LOG_DIR jsonl sink with a buffered file handle
+(biome's own sink uses a single env var holding the full path, opened
+per-event).
 
 Thread-unsafe by design — relies on CPython GIL for tiny dict[str]+=1 ops.
 """
 import atexit
 import json
 import os
-import statistics
 import time
-from collections.abc import Iterator  # noqa: TC003
-from contextlib import contextmanager, suppress
+from contextlib import suppress
 
 from biome_mcp.metrics import MetricsCollector
 from biome_mcp.metrics import counted as _biome_counted
@@ -64,7 +65,6 @@ class MetricsRegistry(MetricsCollector):
     def __init__(self):
         super().__init__()
         self._costs_usd: dict[str, float] = {}
-        self._start_ts = time.time()
 
     def _setup_sink(self) -> None:
         self._jsonl_f = None
@@ -97,14 +97,6 @@ class MetricsRegistry(MetricsCollector):
             return
         super().observe(key, value)
 
-    @contextmanager
-    def timer(self, key: str) -> Iterator[None]:
-        t0 = time.perf_counter()
-        try:
-            yield
-        finally:
-            self.observe(key, (time.perf_counter() - t0) * 1000.0)
-
     def cost(self, feature: str, model: str, in_tok: int, out_tok: int) -> None:
         in_per_mtok, out_per_mtok = _PRICING.get(model, _PRICING["haiku"])
         usd = in_tok * in_per_mtok / 1e6 + out_tok * out_per_mtok / 1e6
@@ -122,25 +114,13 @@ class MetricsRegistry(MetricsCollector):
             pass
 
     def snapshot(self) -> dict:
-        return {
-            "uptime_s": time.time() - self._start_ts,
-            "counters": dict(self._counters),
-            "observations": {
-                k: {
-                    "n": len(v),
-                    "p50": statistics.median(v) if v else 0,
-                    "p95": _p95(v) if len(v) >= 20 else (max(v) if v else 0),
-                    "avg": statistics.mean(v) if v else 0,
-                }
-                for k, v in self._observations.items()
-            },
-            "costs_usd": dict(self._costs_usd),
-        }
+        snap = super().snapshot()
+        snap["costs_usd"] = dict(self._costs_usd)
+        return snap
 
     def reset(self) -> None:
         super().reset()
         self._costs_usd.clear()
-        self._start_ts = time.time()
 
     def format_report(self) -> str:
         return _format_report(self.snapshot())

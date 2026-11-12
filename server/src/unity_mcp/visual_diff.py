@@ -149,7 +149,7 @@ async def visual_diff(before: str, after: str, *, mode: str = "auto",
     if cached:
         return f"[cached]\n{cached}"
 
-    from .degrade import degrade
+    from biome_mcp.degrade import degrade
     feature = "som_visual" if som_active else "visual_diff"
 
     if som_active:
@@ -165,22 +165,22 @@ async def visual_diff(before: str, after: str, *, mode: str = "auto",
             ("haiku_targeted", lambda: sampling.verify_visual_diff(before, after, prompt, feature=feature)),
             ("pixel_only_targeted", lambda: _format_pixel(px) if not px.unavailable else None),
             ("feature_unavailable", lambda: "PIXEL: unavailable | SEMANTIC: disabled"),
-        ])
+        ], metrics=METRICS, disabled_env="UNITY_MCP_DEGRADE_DISABLED")
     else:
         step_name, result = await degrade(feature, [
             ("haiku_two_image", lambda: sampling.verify_visual_diff(before, after, prompt, feature=feature)),
             ("pixel_only", lambda: _format_pixel(px) if not px.unavailable else None),
             ("feature_unavailable", lambda: "PIXEL: unavailable | SEMANTIC: disabled"),
-        ])
+        ], metrics=METRICS, disabled_env="UNITY_MCP_DEGRADE_DISABLED")
 
     first_step = "haiku_targeted" if mode == "targeted" else "haiku_two_image"
     if step_name != first_step:
-        from .degrade import wrap_degraded
+        from biome_mcp.degrade import wrap_degraded
         return wrap_degraded(feature, step_name, result)
 
     result, refused = normalize(result, "verdict")
     if refused or result is None:
-        from .degrade import wrap_degraded
+        from biome_mcp.degrade import wrap_degraded
         return wrap_degraded(feature, "haiku_refused", _format_pixel(px) + "\n(semantic refused)")
 
     _cache.put(cache_key, result)

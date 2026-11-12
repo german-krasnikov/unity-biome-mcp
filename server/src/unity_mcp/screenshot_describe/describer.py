@@ -1,5 +1,6 @@
+from biome_mcp.degrade import degrade, wrap_degraded
 
-from ..degrade import degrade, wrap_degraded
+from ..metrics import METRICS
 from ..sampling import SamplingService
 from ..sampling_postproc import is_refusal as _is_refusal  # noqa: F401 — re-export
 from ..sampling_postproc import normalize  # noqa: F401 — re-export
@@ -47,7 +48,7 @@ class ScreenshotDescriber:
         step_name, result = await degrade("screenshot_describe", [
             ("haiku_describe", _haiku_call),
             ("describe_disabled", lambda: "(describe unavailable)"),
-        ])
+        ], metrics=METRICS, disabled_env="UNITY_MCP_DEGRADE_DISABLED")
         if step_name != "haiku_describe":
             return wrap_degraded("screenshot_describe", step_name, result)
         return result

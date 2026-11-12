@@ -127,13 +127,12 @@ async def test_describer_all_rungs_none_no_fallback_marker(monkeypatch):
     """#1: degrade() returns (step, None) → output must use wrap_degraded, not inline f-string."""
     from unity_mcp.screenshot_describe.cache import FingerprintCache
     from unity_mcp.screenshot_describe import describer as describer_mod
-    from unity_mcp import degrade as degrade_mod
 
     cache = FingerprintCache()
     mock_sampling = MagicMock()
     mock_sampling.describe_image = AsyncMock(return_value=None)
 
-    async def fake_degrade(feature, steps):
+    async def fake_degrade(feature, steps, **kwargs):
         last_name = steps[-1][0] if steps else "unknown"
         return (last_name, None)
 

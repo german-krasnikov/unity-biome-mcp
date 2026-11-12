@@ -1420,7 +1420,7 @@ async def test_on_port_change_acquire_failure_logs_warning(monkeypatch):
     # Exception: pass` below, that produced a silent no-warning flake.
     monkeypatch.setattr(srv, "_discover_port_with_retry", AsyncMock(return_value=9500))
     monkeypatch.setattr(srv, "cleanup_stale_locks", lambda *a, **kw: 0)
-    monkeypatch.setattr("unity_mcp.server_control.evict_duplicate_servers", lambda *a, **kw: 0)
+    monkeypatch.setattr("biome_mcp.server_control.evict_duplicate_servers", lambda *a, **kw: 0)
     monkeypatch.setattr("unity_mcp.lockfile.cleanup_stale_port_files", lambda *a, **kw: 0)
     monkeypatch.setenv("UNITY_MCP_BUDGET", "0")
     monkeypatch.setenv("UNITY_MCP_HINTS", "0")
