@@ -199,5 +199,16 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.AreEqual(BackendKind.Antigravity, rt.Value.BackendKind,
                 "int=2 now maps to BackendKind.Antigravity");
         }
+
+        // ── Pin: Serialize()/Deserialize() persist BackendKind as (int) (see above).
+        //        A reorder or insertion in the generated enum silently remaps every saved pending-turn file.
+
+        [Test]
+        public void BackendKind_MemberOrder_IsPinned()
+        {
+            CollectionAssert.AreEqual(
+                new[] { "Claude", "Codex", "Antigravity", "Kimi", "OpenCode" },
+                Enum.GetNames(typeof(BackendKind)));
+        }
     }
 }

@@ -1,7 +1,6 @@
-// Bridges the hand-written BackendKind enum to the generated, data-contract-driven Backend rows
-// (dsl/data/backends.data-contract, UI-5/Q20). Get() mirrors a dictionary-or-null lookup rather than
-// throwing, so an out-of-range BackendKind behaves like the old switch statements' default arm.
-using System;
+// Bridges BackendKind (generated, dsl/data/backends.data-contract, UI-5/Q20) to the generated Backend
+// rows. Get() mirrors a dictionary-or-null lookup rather than throwing, so an out-of-range BackendKind
+// behaves like the old switch statements' default arm.
 using System.Collections.Generic;
 
 namespace UnityMCP.Editor.Chat
@@ -14,7 +13,7 @@ namespace UnityMCP.Editor.Chat
         {
             var map = new Dictionary<BackendKind, Backend>();
             foreach (var row in BackendRows.All)
-                map[(BackendKind)Enum.Parse(typeof(BackendKind), row.Kind)] = row;
+                map[row.Kind] = row;
             return map;
         }
 

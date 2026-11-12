@@ -3,9 +3,10 @@
 # ModelContextWindows.FallbackForBackend, MCPChatWindow.KindToId) — 23 arms total, now one typed row set.
 # sessionFormat also drives SessionScanner.Scan's choice of jsonl/codex/agy session-file reader.
 ENUM SessionFormat jsonl|codex|agy|none
+ENUM BackendKind Claude|Codex|Antigravity|Kimi|OpenCode
 
-RECORD Backend KEY kind COUNT 5
-  kind: string
+RECORD Backend KEY id COUNT 5
+  kind: BackendKind
   id: string
   display: string
   binary: string

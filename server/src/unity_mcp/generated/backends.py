@@ -1,5 +1,5 @@
 # Generated from dsl/data/backends.data-contract, dsl/data/backends.core-data
-# source-sha256=686c7ad27fdb5a95299d6ed57eb00f5cce6fdcc1563cf7f6df29bd31f580fb43
+# source-sha256=84c14f60890a5a5593076dd9e795e49cce9a6f1b093bf6abe88af12c4fd7ce37
 # Edit the source, then run biome generate.
 
 from dataclasses import dataclass
@@ -13,9 +13,17 @@ class SessionFormat(StrEnum):
     NONE = "none"
 
 
+class BackendKind(StrEnum):
+    CLAUDE = "Claude"
+    CODEX = "Codex"
+    ANTIGRAVITY = "Antigravity"
+    KIMI = "Kimi"
+    OPENCODE = "OpenCode"
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Backend:
-    kind: str
+    kind: BackendKind
     id: str
     display: str
     binary: str
@@ -29,7 +37,7 @@ class Backend:
 
 BACKEND_ROWS: tuple[Backend, ...] = (
     Backend(
-        kind="Claude",
+        kind=BackendKind.CLAUDE,
         id="claude",
         display="Claude",
         binary="claude",
@@ -41,7 +49,7 @@ BACKEND_ROWS: tuple[Backend, ...] = (
         contextFallback=200000,
     ),
     Backend(
-        kind="Codex",
+        kind=BackendKind.CODEX,
         id="codex",
         display="Codex",
         binary="codex",
@@ -53,7 +61,7 @@ BACKEND_ROWS: tuple[Backend, ...] = (
         contextFallback=1000000,
     ),
     Backend(
-        kind="Antigravity",
+        kind=BackendKind.ANTIGRAVITY,
         id="antigravity",
         display="Antigravity",
         binary="agy",
@@ -65,7 +73,7 @@ BACKEND_ROWS: tuple[Backend, ...] = (
         contextFallback=1000000,
     ),
     Backend(
-        kind="Kimi",
+        kind=BackendKind.KIMI,
         id="kimi",
         display="Kimi",
         binary="kimi",
@@ -77,7 +85,7 @@ BACKEND_ROWS: tuple[Backend, ...] = (
         contextFallback=128000,
     ),
     Backend(
-        kind="OpenCode",
+        kind=BackendKind.OPENCODE,
         id="opencode",
         display="OpenCode",
         binary="opencode",

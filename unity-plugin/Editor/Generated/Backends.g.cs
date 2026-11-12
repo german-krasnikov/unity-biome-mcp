@@ -1,5 +1,5 @@
 // Generated from dsl/data/backends.data-contract, dsl/data/backends.core-data
-// source-sha256=686c7ad27fdb5a95299d6ed57eb00f5cce6fdcc1563cf7f6df29bd31f580fb43
+// source-sha256=84c14f60890a5a5593076dd9e795e49cce9a6f1b093bf6abe88af12c4fd7ce37
 // Edit the source, then run biome generate.
 
 #nullable enable
@@ -22,9 +22,28 @@ namespace UnityMCP.Editor.Chat
         public static readonly string[] Names = { Jsonl, Codex, Agy, None };
     }
 
+    public enum BackendKind
+    {
+        Claude,
+        Codex,
+        Antigravity,
+        Kimi,
+        OpenCode,
+    }
+
+    public static class BackendKindValues
+    {
+        public const string Claude = "Claude";
+        public const string Codex = "Codex";
+        public const string Antigravity = "Antigravity";
+        public const string Kimi = "Kimi";
+        public const string OpenCode = "OpenCode";
+        public static readonly string[] Names = { Claude, Codex, Antigravity, Kimi, OpenCode };
+    }
+
     public sealed class Backend
     {
-        public readonly string Kind;
+        public readonly BackendKind Kind;
         public readonly string Id;
         public readonly string Display;
         public readonly string Binary;
@@ -35,7 +54,7 @@ namespace UnityMCP.Editor.Chat
         public readonly SessionFormat SessionFormat;
         public readonly int ContextFallback;
         public Backend(
-            string kind,
+            BackendKind kind,
             string id,
             string display,
             string binary,
@@ -64,7 +83,7 @@ namespace UnityMCP.Editor.Chat
         public static readonly Backend[] All =
         {
             new Backend(
-                kind: "Claude",
+                kind: BackendKind.Claude,
                 id: "claude",
                 display: "Claude",
                 binary: "claude",
@@ -76,7 +95,7 @@ namespace UnityMCP.Editor.Chat
                 contextFallback: 200000
             ),
             new Backend(
-                kind: "Codex",
+                kind: BackendKind.Codex,
                 id: "codex",
                 display: "Codex",
                 binary: "codex",
@@ -88,7 +107,7 @@ namespace UnityMCP.Editor.Chat
                 contextFallback: 1000000
             ),
             new Backend(
-                kind: "Antigravity",
+                kind: BackendKind.Antigravity,
                 id: "antigravity",
                 display: "Antigravity",
                 binary: "agy",
@@ -100,7 +119,7 @@ namespace UnityMCP.Editor.Chat
                 contextFallback: 1000000
             ),
             new Backend(
-                kind: "Kimi",
+                kind: BackendKind.Kimi,
                 id: "kimi",
                 display: "Kimi",
                 binary: "kimi",
@@ -112,7 +131,7 @@ namespace UnityMCP.Editor.Chat
                 contextFallback: 128000
             ),
             new Backend(
-                kind: "OpenCode",
+                kind: BackendKind.OpenCode,
                 id: "opencode",
                 display: "OpenCode",
                 binary: "opencode",
