@@ -4,7 +4,6 @@ Thread-unsafe by design — relies on CPython GIL for tiny dict[str]+=1 ops.
 Optional jsonl event log when UNITY_MCP_METRICS=1 + UNITY_MCP_LOG_DIR set.
 """
 import atexit
-import inspect
 import json
 import os
 import statistics
@@ -12,6 +11,9 @@ import time
 from collections import defaultdict, deque
 from collections.abc import Iterator  # noqa: TC003
 from contextlib import contextmanager, suppress
+
+from biome_mcp.metrics import counted as _biome_counted
+from biome_mcp.metrics import timed as _biome_timed
 
 from .metrics_report import _p95
 from .metrics_report import format_report as _format_report
@@ -22,9 +24,29 @@ __all__ = [
     "HAIKU_IN_PER_MTOK", "HAIKU_OUT_PER_MTOK", "_p95",
 ]
 
-# Haiku pricing (per 1M tokens)
-HAIKU_IN_PER_MTOK = 0.80
-HAIKU_OUT_PER_MTOK = 4.00
+def _env_float(name: str, default: float) -> float:
+    """Read a float override from env (UNITY_MCP_* convention, see llm_config.py);
+    falls back to `default` when unset or unparsable. Read once at import time —
+    same lazy-at-construction convention as MetricsRegistry._setup_sink below."""
+    raw = os.environ.get(name)
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+# Haiku pricing (per 1M tokens), overridable via env so deployments can repoint
+# pricing without a code change (P7: no hardcoded-only config). Kept as named
+# constants for backward compatibility (imported directly by tests/call sites,
+# e.g. budget/cost_tracker.py) and mirrored into _PRICING for model-name lookup
+# in cost().
+HAIKU_IN_PER_MTOK = _env_float("UNITY_MCP_HAIKU_IN_PER_MTOK", 0.80)
+HAIKU_OUT_PER_MTOK = _env_float("UNITY_MCP_HAIKU_OUT_PER_MTOK", 4.00)
+_PRICING: dict[str, tuple[float, float]] = {
+    "haiku": (HAIKU_IN_PER_MTOK, HAIKU_OUT_PER_MTOK),
+}
 
 
 class MetricsRegistry:
@@ -78,7 +100,8 @@ class MetricsRegistry:
             self.observe(key, (time.perf_counter() - t0) * 1000.0)
 
     def cost(self, feature: str, model: str, in_tok: int, out_tok: int) -> None:
-        usd = in_tok * HAIKU_IN_PER_MTOK / 1e6 + out_tok * HAIKU_OUT_PER_MTOK / 1e6
+        in_per_mtok, out_per_mtok = _PRICING.get(model, _PRICING["haiku"])
+        usd = in_tok * in_per_mtok / 1e6 + out_tok * out_per_mtok / 1e6
         self._costs_usd[feature] += usd
         self._costs_usd["__total__"] += usd
 
@@ -133,30 +156,15 @@ METRICS = MetricsRegistry()
 
 
 def timed(key: str):
-    """Decorator: records ms latency for sync or async function."""
-    def decorator(fn):
-        if inspect.iscoroutinefunction(fn):
-            async def awrapper(*args, **kwargs):
-                with METRICS.timer(key):
-                    return await fn(*args, **kwargs)
-            return awrapper
-        def wrapper(*args, **kwargs):
-            with METRICS.timer(key):
-                return fn(*args, **kwargs)
-        return wrapper
-    return decorator
+    """Decorator: records ms latency for sync or async function.
+
+    Delegates the sync/async wrapping logic to biome-mcp's `timed`, pointed at
+    our own METRICS registry (duck-typed as a collector: it implements
+    `.timer(key)`), so storage/units/reporting stay Unity-specific.
+    """
+    return _biome_timed(key, collector=METRICS)
 
 
 def counted(key: str):
-    """Decorator: increments counter on each call."""
-    def decorator(fn):
-        if inspect.iscoroutinefunction(fn):
-            async def awrapper(*args, **kwargs):
-                METRICS.inc(key)
-                return await fn(*args, **kwargs)
-            return awrapper
-        def wrapper(*args, **kwargs):
-            METRICS.inc(key)
-            return fn(*args, **kwargs)
-        return wrapper
-    return decorator
+    """Decorator: increments counter on each call. See `timed` re: delegation."""
+    return _biome_counted(key, collector=METRICS)

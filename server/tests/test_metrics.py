@@ -55,6 +55,32 @@ def test_metrics_timer_records_ms():
     assert snap["avg"] >= 5.0  # at least 5ms
 
 
+# ── 3b. pricing is config/env-overridable, not hardcoded-only (P7) ───────────
+
+def test_env_float_returns_override(monkeypatch):
+    from unity_mcp.metrics import _env_float
+    monkeypatch.setenv("UNITY_MCP_TEST_PRICE", "1.23")
+    assert _env_float("UNITY_MCP_TEST_PRICE", 9.0) == pytest.approx(1.23)
+
+
+def test_env_float_returns_default_when_unset(monkeypatch):
+    from unity_mcp.metrics import _env_float
+    monkeypatch.delenv("UNITY_MCP_TEST_PRICE", raising=False)
+    assert _env_float("UNITY_MCP_TEST_PRICE", 9.0) == 9.0
+
+
+def test_env_float_returns_default_when_unparsable(monkeypatch):
+    from unity_mcp.metrics import _env_float
+    monkeypatch.setenv("UNITY_MCP_TEST_PRICE", "not-a-number")
+    assert _env_float("UNITY_MCP_TEST_PRICE", 9.0) == 9.0
+
+
+def test_haiku_pricing_defaults_match_documented_literals():
+    from unity_mcp.metrics import HAIKU_IN_PER_MTOK, HAIKU_OUT_PER_MTOK
+    assert HAIKU_IN_PER_MTOK == pytest.approx(0.80)
+    assert HAIKU_OUT_PER_MTOK == pytest.approx(4.00)
+
+
 # ── 4. cost ───────────────────────────────────────────────────────────────────
 
 def test_metrics_cost_calculates_usd():
