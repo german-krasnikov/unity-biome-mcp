@@ -2,8 +2,8 @@
 // (PlaytestReader + StepBuilder, StepBuilder.cs) against the hand parser (PlaytestParser.BuildSteps)
 // on the committed reader.rows corpus (PT-5, RowsTests.cs) — same scripts RowsTests.cs already
 // proves the reader *reads* correctly; here both sides build full PlaytestStep objects and must
-// agree field by field, or the disagreement must be a named, counted construct still pending (PT-6
-// only — PT-7 registers the rest and the pending set goes to zero).
+// agree field by field, or the disagreement must land in a named, counted class (ClassifyStricter /
+// ClassifyFieldDiff below) — plan §6 Q1/Q2 open questions for the owner, not bugs in this harness.
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -29,16 +29,12 @@ namespace UnityMCP.Playtest.Core.PureTests
             "FOR", "END_FOR", "COMMENT", "END_COMMENT", "MACRO", "END_MACRO", "CALL", "INCLUDE", "VAL", "PATH_PREFIX",
         };
 
-        // PT-6: constructs PT-7 still has to register in StepBuilder. A "no builder for X" on one of
-        // these is expected right now; the set is non-empty on purpose — a regression that leaves it
-        // non-empty after PT-7 lands is exactly what this test is meant to catch (double-red: it goes
-        // red if StepBuilder regresses OR if this set is edited to hide a real gap).
-        private static readonly HashSet<string> PendingConstructs = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "PT_ASSERT", "PT_ASSERT_FLAG", "PT_WAIT_UNTIL_FLAG", "PT_WAIT_UNTIL",
-            "PT_ASSERT_CONSOLE_CLEAN", "PT_ASSERT_CONSERVED", "PT_ASSERT_BATCH",
-            "PT_MCP", "PT_MCP_INTO", "PT_MOVE_PATH", "PT_SWEEP_PATH", "PT_COMPLETE_PURCHASE", "PT_INVOKE_REPEAT",
-        };
+        // PT-7 registered every remaining construct (ASSERT/WAIT_UNTIL/ASSERT_CONSOLE_CLEAN/
+        // ASSERT_CONSERVED/ASSERT_BATCH/MCP/MCP_INTO/the D-heads) and filled in Rules.Check — so
+        // "no builder for X" should never happen again. Left empty, not deleted: a construct that
+        // regresses to unregistered now falls straight into `unexpected` below instead of being
+        // silently swallowed (double-red — see Build_EveryRow's doc comment).
+        private static readonly HashSet<string> PendingConstructs = new HashSet<string>(StringComparer.Ordinal);
 
         private const string NoBuilderPrefix = "InvalidOperationException:no builder for ";
 

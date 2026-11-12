@@ -56,11 +56,20 @@ namespace UnityMCP.Playtest.Core
     }
 
     /// <summary>What the grammar table alone cannot say: a fourth AND/OR term, a mixed AND+OR
-    /// chain, or a name cut at an operator word inside brackets (surface.mjs `rule`). Stubbed to
-    /// "no extra rule" for PT-6 — StepBuilder.Build calls it unconditionally; PT-7 fills it in.</summary>
+    /// chain, or a name cut at an operator word inside brackets (surface.mjs `rule`).</summary>
     internal static class Rules
     {
-        public static string Check(LineUse u) => null;
+        public static string Check(LineUse u)
+        {
+            var sets = new List<SlotBindings> { u.Head }; sets.AddRange(u.Items);
+            bool Has(params string[] k) => k.Any(x => u.Head.Slots.ContainsKey(x));
+            string Raw(SlotBindings b, string k) => b.Slots.TryGetValue(k, out var v) ? v.Raw : "";
+            if (Has("q2", "q3") && Has("q4", "q5")) return "PT_MIXED";
+            bool Bare(string v) => System.Text.RegularExpressions.Regex.Matches(v, "\"[^\"]*\"|\\S+").Cast<System.Text.RegularExpressions.Match>().Skip(1).Any(m => m.Value == "AND" || m.Value == "OR");
+            if (new[] { "v1", "v2", "v3", "v4", "v5" }.Any(k => Bare(Raw(u.Head, k)))) return "PT_CHAIN";
+            bool Open(string v) { var d = 0; foreach (var c in System.Text.RegularExpressions.Regex.Replace(v, "\"[^\"]*\"", "")) d = Math.Max(0, d + (c == '[' ? 1 : c == ']' ? -1 : 0)); return d > 0; }
+            return sets.Any(b => new[] { "query", "q1", "q2", "q3", "q4", "q5" }.Any(k => Open(Raw(b, k)))) ? "PT_BRACKET" : null;
+        }
     }
 
     internal static class StepBuilder
@@ -121,6 +130,14 @@ namespace UnityMCP.Playtest.Core
             Step("PT_MOVE", StepType.Move, (u, s) => { s.Path = u.Has("path") ? u.Unq("path") : null; PlaytestParser.SetPositionProxy(s, u.Unq("to")); });
             Step("PT_TELEPORT", StepType.Teleport, (u, s) => { s.Path = u.Unq("path"); PlaytestParser.SetPositionProxy(s, u.Unq("to")); });
             Step("PT_SECTION", StepType.Section, (u, s) => s.Message = (u.Norm("name") ?? "").Trim('"'));
+            Step("PT_ASSERT_CONSOLE_CLEAN", StepType.AssertConsoleClean, (u, s) => { if (u.Has("patterns")) s.Queries = u.Norm("patterns").Split(',').Select(p => p.Trim().Trim('"')).Where(p => p.Length > 0).ToArray(); });
+            Step("PT_ASSERT_CONSERVED", StepType.AssertConserved, Conserved);
+            Steps["PT_ASSERT"] = (u, s, st) => { s.Type = StepType.Assert; s.Query = u.Norm("query"); s.Op = u.Raw("op"); s.Value = u.Norm("value"); Tails(u, s, true); };
+            Steps["PT_ASSERT_FLAG"] = (u, s, st) => Flag(u.Raw("flag"), s, StepType.Assert);
+            Steps["PT_WAIT_UNTIL_FLAG"] = (u, s, st) => Flag(u.Raw("flag"), s, StepType.WaitUntil);
+            Steps["PT_WAIT_UNTIL"] = (u, s, st) => WaitUntil(u, s);
+            Steps["PT_MCP"] = (u, s, st) => PlaytestParser.ParseMcpStep(s, st.Lines[st.I].Trim());
+            Steps["PT_MCP_INTO"] = Steps["PT_MCP"];
 
             Directives["PT_DESC"] = (u, st) => st.Label = (u.Norm("label") ?? "").Trim('"');
             Directives["PT_ABORT_ON_FAIL"] = (u, st) => st.GlobalAbort = true;
@@ -137,10 +154,49 @@ namespace UnityMCP.Playtest.Core
         private static void Tracker(Use u, PlaytestStep s) { s.Message = u.Unq("name").TrimStart('$'); s.Query = u.Unq("query"); if (u.Has("over")) s.Delay = u.Num("over"); }
         private static void Bound(Use u, PlaytestStep s) { s.Message = u.Unq("name").TrimStart('$'); s.Op = u.Raw("op"); s.Value = u.Unq("value"); }
 
-        /// <summary>The build loop: PlaytestParser.BuildSteps' counterpart over the reader. PT-6
-        /// covers the constructs registered above; a construct PT-7 has not added yet throws
-        /// InvalidOperationException("no builder for " + construct) — ReaderDifferentialTests
-        /// names exactly which ones are still pending.</summary>
+        // ASSERT / WAIT_UNTIL tails: TIMEOUT before or after AS; the label is the text up to TIMEOUT.
+        private static void Tails(Use u, PlaytestStep s, bool label)
+        {
+            if (u.Has("timeout") || u.Has("timeout2")) { s.Timeout = u.Has("timeout") ? u.Num("timeout") : u.Num("timeout2"); s.HasExplicitTimeout = true; }
+            if (label && u.Has("label")) s.Message = (u.Norm("label") ?? "").Trim('"');
+        }
+
+        // ASSERT $x | !$x | /path | !/path | ($a,$b) | !($a,$b) and WAIT_UNTIL $x | !$x.
+        private static void Flag(string token, PlaytestStep s, StepType type)
+        {
+            var negated = token.StartsWith("!"); var inner = negated ? token.Substring(1) : token;
+            if (inner.StartsWith("("))
+            {
+                var names = inner.Trim('(', ')').Split(',').Select(q => q.Trim()).Where(q => q.Length > 0).ToArray();
+                if (names.Length == 0) throw new ArgumentException("ASSERT group: empty list");
+                s.Type = StepType.AssertBatch; s.Queries = names;
+                s.BatchOps = Enumerable.Repeat("==", names.Length).ToArray(); s.BatchValues = Enumerable.Repeat(negated ? "False" : "True", names.Length).ToArray();
+                return;
+            }
+            s.Type = type; s.Query = inner; s.Op = "=="; s.Value = negated ? "False" : "True";
+        }
+
+        private static void WaitUntil(Use u, PlaytestStep s)
+        {
+            s.Type = StepType.WaitUntil; s.Query = u.Norm("q1"); s.Op = u.Raw("op1"); s.Value = u.Norm("v1");
+            Tails(u, s, false);
+            s.AbortOnFail = u.Flag("ABORT");
+            var terms = new[] { "2", "3", "4", "5" }.Where(n => u.Has("q" + n)).ToArray();
+            if (terms.Length == 0) return;
+            var or = terms.Any(n => n == "4" || n == "5");
+            if (or && terms.Any(n => n == "2" || n == "3")) throw new ArgumentException("Cannot mix AND/OR in WAIT_UNTIL");
+            s.Queries = terms.Select(n => u.Norm("q" + n)).ToArray(); s.BatchOps = terms.Select(n => u.Raw("op" + n)).ToArray();
+            s.BatchValues = terms.Select(n => u.Norm("v" + n)).ToArray(); s.IsOr = or;
+        }
+
+        private static void Conserved(Use u, PlaytestStep s)
+        {
+            s.Queries = u.Toks("terms").Where(t => t != "+" && t.ToUpperInvariant() != "CONSTANT" && !float.TryParse(t, NumberStyles.Float, CultureInfo.InvariantCulture, out _)).ToArray();
+            s.Delay = u.Num("over");
+            if (u.Has("expected") && float.TryParse(u.Raw("expected"), NumberStyles.Float, CultureInfo.InvariantCulture, out _)) s.Value = u.Raw("expected");
+        }
+
+        /// <summary>The build loop: PlaytestParser.BuildSteps' counterpart over the reader.</summary>
         internal static void Build(string[] lines, SourcedLine[] sourced, out List<PlaytestStep> steps, out List<PlaytestStep> setup, out List<PlaytestStep> teardown,
             out Dictionary<string, string> vars, out bool abort, out float defaultTimeout)
         {
@@ -157,6 +213,8 @@ namespace UnityMCP.Playtest.Core
                 var rule = Rules.Check(use); if (rule != null) throw new ArgumentException(rule + " " + (use.Index + 1) + ":" + (use.Col + 1));
                 if (Directives.TryGetValue(c, out var d)) { d(u, st); continue; }
                 if (c == "PT_VAL" || c == "PT_PATH_PREFIX" || c == "PT_INCLUDE") continue; // text-to-text phases, done before the reader
+                if (c == "PT_ASSERT_BATCH") { Batch(use, st, sourced[use.Index], lines[use.Index].Trim()); continue; }
+                if (c == "PT_MOVE_PATH" || c == "PT_SWEEP_PATH" || c == "PT_COMPLETE_PURCHASE" || c == "PT_INVOKE_REPEAT") { Desugar(c, use, st, ref i); continue; }
                 if (!Steps.TryGetValue(c, out var h)) throw new InvalidOperationException("no builder for " + c);
                 var step = new PlaytestStep();
                 h(u, step, st);
@@ -164,6 +222,27 @@ namespace UnityMCP.Playtest.Core
                 st.Add(step, sourced[use.Index], lines[use.Index].Trim());
             }
             steps = st.Steps; setup = st.Setup; teardown = st.Teardown; vars = st.Vars; abort = st.GlobalAbort; defaultTimeout = st.DefaultTimeout;
+        }
+
+        private static void Batch(LineUse use, BuildState st, SourcedLine src, string trimmed)
+        {
+            var s = new PlaytestStep { Type = StepType.AssertBatch };
+            var its = use.Items.Select(b => new Use(b)).ToList();
+            s.Queries = its.Select(x => x.Norm("query")).ToArray(); s.BatchOps = its.Select(x => x.Raw("op")).ToArray(); s.BatchValues = its.Select(x => x.Norm("value")).ToArray();
+            st.Add(s, src, trimmed);
+        }
+
+        // MOVE_PATH, SWEEP_PATH, COMPLETE_PURCHASE and INVOKE_REPEAT keep their existing builders
+        // (lookahead over the continuation lines); the reader only vouches for the head.
+        private static void Desugar(string construct, LineUse use, BuildState st, ref int i)
+        {
+            var line = st.Lines[use.Index].Trim(); var tokens = PlaytestParser.SplitTokens(line); var label = st.Label; st.Label = null;
+            var at = use.Index;
+            if (construct == "PT_MOVE_PATH") PlaytestParser.BuildMovePathSteps(tokens, line, label, st.Steps);
+            else if (construct == "PT_SWEEP_PATH") PlaytestParser.BuildSweepPathSteps(tokens, line, st.Lines, ref at, label, st.Steps);
+            else if (construct == "PT_COMPLETE_PURCHASE") PlaytestParser.BuildCompletePurchaseSteps(tokens, line, st.Lines, ref at, label, st.Steps);
+            else PlaytestParser.BuildInvokeRepeatSteps(tokens, line, st.Lines, ref at, label, st.Steps);
+            i = at + 1;
         }
     }
 }
