@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Chat: an open question no longer leaves the window showing Send (step 7.3):** a pending `ask_user` question was forgotten only on an answer or an error; Stop, a switch of backend or model, New Session, a dead process or a timeout left it set, and the next turn showed Send instead of Stop. Every way out of a turn now clears it and cancels the question the turn raised, so its caller is released at once and not after 300 s.
 - **Chat: the timeout message names the last tool again (step 7.3):** `[Timed out: no response for Ns (last tool: X)]`. The hint was lost when the per-turn state started to be reset before the message was written.
+- **`dsl.sh check` refuses a wrong `TOOLCHAIN` pin (internal tooling):** `dsl/biome.project` named a commit that does not exist in the biome-dsl checkout, and `check` did not stop on it. The pin now names the real commit, and `check` exits 1 before any Node call with `TOOLCHAIN_PIN_MISSING`, `TOOLCHAIN_ROOT_NOT_GIT` or `TOOLCHAIN_PIN_MISMATCH`. `generate` is unchanged, so a repin still works.
 - **Chat: a repeated or late end of a turn does nothing (step 7.3):** a second `TurnDone` no longer adds a second tail and a second Restore button, and a send, a resume after a reload or an Approve click over an open turn is refused instead of taking the reload lock a second time. An error that arrives with no turn open is still shown. New Session closes the open Undo group before it forgets it.
 
 ## [v2.1.0] — 2026-09-25

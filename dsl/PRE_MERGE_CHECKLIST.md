@@ -84,8 +84,8 @@ Reproduce the static count: strip comments and strings as `scripts/readme_facts.
 From `server/` the venv comes from `uv sync --locked --extra dev` (Python 3.14).
 
 - [ ] `PYTHONWARNDEFAULTENCODING=1 .venv/bin/python -m pytest tests/ -m "$(.venv/bin/python ../scripts/gen_lane_args.py pytest pr-python-core)" -q --tb=short -n auto --dist load`
-      Measured: 6786 passed, 1 skipped, 0 failed.
-- [ ] From the repository root: `PYTHONWARNDEFAULTENCODING=1 server/.venv/bin/python -m pytest scripts/tests/ -q --tb=short --timeout=30`. Measured: 1580 passed, 1 skipped.
+      Green: 0 failed (the count is pytest's output, not copied here).
+- [ ] From the repository root: `PYTHONWARNDEFAULTENCODING=1 server/.venv/bin/python -m pytest scripts/tests/ -q --tb=short --timeout=30`. Green: 0 failed (the count is pytest's output, not copied here).
 - [ ] `PYTHONWARNDEFAULTENCODING=1 server/.venv/bin/python -m pytest install/tests/ -q --tb=short --timeout=30`. Measured: 89 passed, 1 skipped.
 - [ ] `server/.venv/bin/python scripts/update_readme.py --check-facts` and `--check`. Measured: `facts OK`, `all generated files are up to date`.
 
@@ -98,11 +98,12 @@ From `server/` the venv comes from `uv sync --locked --extra dev` (Python 3.14).
 
 ## 5. DSL
 
-- [ ] `scripts/dsl.sh check` with `BIOME_DSL_ROOT` set to a **git checkout** of biome-dsl at the `TOOLCHAIN` commit of `dsl/biome.project` (`224bf1022bc70fa3f1cb42775b358d1837c86c3b`), after
-      `npm ci --ignore-scripts` in its `implementations/typescript` (Node 22 or newer). A `git archive` copy fails with `TOOLCHAIN_UNVERIFIABLE`. Measured: exit 0,
-      `dsl/content-lock.json: 47 of 47 files as locked`.
+- [ ] `scripts/dsl.sh check` with `BIOME_DSL_ROOT` set to a **git checkout** of biome-dsl at the `TOOLCHAIN` commit of `dsl/biome.project`, after
+      `npm ci --ignore-scripts` in its `implementations/typescript` (Node 22 or newer). A copy without `.git` fails at the pin guard with `TOOLCHAIN_ROOT_NOT_GIT`, before Node runs; a checkout at
+      another commit fails with `TOOLCHAIN_PIN_MISMATCH`. Green: exit 0 and the content lock reports every file as locked. The last recorded result predates the 2026-11-12 pin correction
+      (it was taken at an earlier pin): re-run this item before ticking it.
 - [ ] CI does not run `dsl.sh check` (it needs the private biome-dsl). It runs the Node-free tier 0 in the server lane: `test_dsl_fresh.py`, `test_dsl_content_lock.py`, `test_decisions_examples.py`,
-      the goldens. A change under `dsl/` triggers `unity-tests`, `unity-compat`, `ci-conformance`, `ci-pure-dotnet` and `ci-python` (push; its pull request is unfiltered on purpose) as well.
+      the goldens. The pin guard tests need no Node either: `server/tests/test_dsl_toolchain_pin.py`, and `scripts/tests/test_dsl_sh_toolchain_pin_guard.py`, which the `scripts/tests` step of `ci-python.yml` runs. A change under `dsl/` triggers `unity-tests`, `unity-compat`, `ci-conformance`, `ci-pure-dotnet` and `ci-python` (push; its pull request is unfiltered on purpose) as well.
 
 ## 6. Lint
 
