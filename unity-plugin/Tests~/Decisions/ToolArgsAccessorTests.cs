@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text.RegularExpressions;
 using NUnit.Framework;
 using UnityMCP.Editor;
 
@@ -27,7 +26,7 @@ namespace UnityMCP.Decisions.Tests
         {
             AssertMatchesOracle(
                 j => JsonHelper.ExtractString(j, "component"),
-                j => set_propertyArgs.component(j),
+                j => SetPropertyArgs.Component(j),
                 "{}", "{\"component\":null}", "{\"component\":\"Transform\"}", "{\"component\":\"Box\\\"Collider\"}");
         }
 
@@ -37,7 +36,7 @@ namespace UnityMCP.Decisions.Tests
         {
             AssertMatchesOracle(
                 j => JsonHelper.ExtractString(j, "path"),
-                j => animationArgs.path(j),
+                j => AnimationArgs.Path(j),
                 "{}", "{\"path\":null}", "{\"path\":\"/Player\"}");
         }
 
@@ -47,7 +46,7 @@ namespace UnityMCP.Decisions.Tests
         {
             AssertMatchesOracle(
                 j => JsonHelper.ExtractString(j, "value"),
-                j => set_propertyArgs.value(j),
+                j => SetPropertyArgs.Value(j),
                 "{}", "{\"value\":null}", "{\"value\":\"0,0,0\"}", "{\"value\":true}");
         }
 
@@ -57,7 +56,7 @@ namespace UnityMCP.Decisions.Tests
         {
             AssertMatchesOracle(
                 j => JsonHelper.ExtractInt(j, "budget"),
-                j => brief_buildArgs.budget(j),
+                j => BriefBuildArgs.Budget(j),
                 "{}", "{\"budget\":null}", "{\"budget\":500}", "{\"budget\":\"500\"}");
         }
 
@@ -67,7 +66,7 @@ namespace UnityMCP.Decisions.Tests
         {
             AssertMatchesOracle(
                 j => JsonHelper.ParseOptInt(j, "int_param"),
-                j => animationArgs.int_param(j),
+                j => AnimationArgs.IntParam(j),
                 "{}", "{\"int_param\":null}", "{\"int_param\":3}", "{\"int_param\":\"3\"}");
         }
 
@@ -77,7 +76,7 @@ namespace UnityMCP.Decisions.Tests
         {
             AssertMatchesOracle(
                 j => JsonHelper.ExtractFloat(j, "radius"),
-                j => get_spatial_contextArgs.radius(j),
+                j => GetSpatialContextArgs.Radius(j),
                 "{}", "{\"radius\":null}", "{\"radius\":2.5}", "{\"radius\":\"2.5\"}");
         }
 
@@ -87,7 +86,7 @@ namespace UnityMCP.Decisions.Tests
         {
             AssertMatchesOracle(
                 j => JsonHelper.ParseOptFloat(j, "time"),
-                j => animationArgs.time(j),
+                j => AnimationArgs.Time(j),
                 "{}", "{\"time\":null}", "{\"time\":1.5}", "{\"time\":\"1.5\"}");
         }
 
@@ -97,7 +96,7 @@ namespace UnityMCP.Decisions.Tests
         {
             AssertMatchesOracle(
                 j => JsonHelper.ExtractString(j, "compact") == "true",
-                j => animationArgs.compact(j),
+                j => AnimationArgs.Compact(j),
                 "{}", "{\"compact\":null}", "{\"compact\":true}", "{\"compact\":\"true\"}", "{\"compact\":false}");
         }
 
@@ -121,7 +120,7 @@ namespace UnityMCP.Decisions.Tests
         {
             var oracle = JsonHelper.ExtractString(json, "compact") == "true";
             Assert.That(oracle, Is.EqualTo(expected), $"oracle expectation table is stale for: {json}");
-            Assert.That(animationArgs.compact(json), Is.EqualTo(oracle), $"accessor diverges from oracle for: {json}");
+            Assert.That(AnimationArgs.Compact(json), Is.EqualTo(oracle), $"accessor diverges from oracle for: {json}");
         }
 
         // obool: animator's "has_exit_time" (ARG has_exit_time obool).
@@ -130,7 +129,7 @@ namespace UnityMCP.Decisions.Tests
         {
             AssertMatchesOracle(
                 j => JsonHelper.ParseOptBool(j, "has_exit_time"),
-                j => animatorArgs.has_exit_time(j),
+                j => AnimatorArgs.HasExitTime(j),
                 "{}", "{\"has_exit_time\":null}", "{\"has_exit_time\":true}", "{\"has_exit_time\":\"true\"}", "{\"has_exit_time\":false}");
         }
 
@@ -183,37 +182,28 @@ namespace UnityMCP.Decisions.Tests
 
         // Structural oracle: the catalog (dsl/tools.biome, copied beside the test assembly) and the generated
         // ToolArgs.g.cs agree on the accessor set for every TOOL/PYTOOL/INTERNAL block -- not a hand list, so a
-        // template that drops or renames an ARG's accessor fails here without anyone updating this test. A LOCAL
-        // ARG (Python-only; excluded from cstools' Required/Optional too, so C# never receives it on the wire) has
-        // no accessor. A WIRE-renamed ARG's accessor is named and keyed by the wire name, never the catalog name.
+        // template that drops, renames or mis-cases an ARG's accessor fails here without anyone updating this
+        // test. A LOCAL ARG (Python-only; excluded from cstools' Required/Optional too, so C# never receives it
+        // on the wire) has no accessor. A WIRE-renamed ARG's accessor is named and keyed by the wire name, never
+        // the catalog name, and PascalCased by CatalogToolBlocks.ToPascalCase (ToolArgsPascalCaseTests pins and
+        // documents that exact algorithm).
         [Test]
         public void Every_non_local_catalog_arg_has_exactly_one_accessor_named_by_its_wire_key()
         {
             var source = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "tools.biome"));
-            var headRe = new Regex(@"^(?:TOOL|PYTOOL|INTERNAL) ([a-z][a-z0-9_]*)\b", RegexOptions.Multiline);
-            var argRe = new Regex(@"^  ARG ([A-Za-z][A-Za-z0-9_]*) (?:str|ostr|int|oint|float|ofloat|bool|obool|Any)\b(.*)$", RegexOptions.Multiline);
+            var blocks = CatalogToolBlocks.Parse(source);
+            Assert.That(blocks, Is.Not.Empty, "no TOOL/PYTOOL/INTERNAL head found: this test would pass without checking anything");
 
-            var heads = headRe.Matches(source).Cast<Match>().ToList();
-            Assert.That(heads, Is.Not.Empty, "no TOOL/PYTOOL/INTERNAL head found: this test would pass without checking anything");
-
-            for (var i = 0; i < heads.Count; i++)
+            foreach (var block in blocks)
             {
-                var name = heads[i].Groups[1].Value;
-                var blockStart = heads[i].Index;
-                var blockEnd = i + 1 < heads.Count ? heads[i + 1].Index : source.Length;
-                var block = source.Substring(blockStart, blockEnd - blockStart);
-                var expected = argRe.Matches(block).Cast<Match>()
-                    .Where(m => !Regex.IsMatch(m.Groups[2].Value, @"(?:^|\s)LOCAL(?:\s|$)"))
-                    .Select(m =>
-                    {
-                        var wire = Regex.Match(m.Groups[2].Value, "WIRE \"([^\"]+)\"");
-                        return wire.Success ? wire.Groups[1].Value : m.Groups[1].Value;
-                    })
+                var expected = block.Args
+                    .Select(a => CatalogToolBlocks.ToPascalCase(a.SourceKey))
                     .OrderBy(n => n)
                     .ToArray();
 
-                var type = Type.GetType($"UnityMCP.Editor.{name}Args");
-                Assert.That(type, Is.Not.Null, $"no generated UnityMCP.Editor.{name}Args for catalog tool '{name}'");
+                var className = CatalogToolBlocks.ToPascalCase(block.Name) + "Args";
+                var type = Type.GetType($"UnityMCP.Editor.{className}");
+                Assert.That(type, Is.Not.Null, $"no generated UnityMCP.Editor.{className} for catalog tool '{block.Name}'");
 
                 var actual = type.GetMethods(BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)
                     .Where(m => m.DeclaringType == type && !m.IsSpecialName)
@@ -221,7 +211,7 @@ namespace UnityMCP.Decisions.Tests
                     .OrderBy(n => n)
                     .ToArray();
 
-                CollectionAssert.AreEqual(expected, actual, $"accessor set mismatch for tool '{name}'");
+                CollectionAssert.AreEqual(expected, actual, $"accessor set mismatch for tool '{block.Name}'");
             }
         }
 
@@ -230,32 +220,32 @@ namespace UnityMCP.Decisions.Tests
         [TestCase("class_name", "class")]
         public void Asset_class_accessor_reads_the_wire_key_not_the_catalog_name(string catalogName, string wireKey)
         {
-            Assert.That(assetArgs.@class("{\"" + wireKey + "\":\"ScriptableObject\"}"), Is.EqualTo("ScriptableObject"));
-            Assert.That(assetArgs.@class("{\"" + catalogName + "\":\"ScriptableObject\"}"), Is.Null,
+            Assert.That(AssetArgs.Class("{\"" + wireKey + "\":\"ScriptableObject\"}"), Is.EqualTo("ScriptableObject"));
+            Assert.That(AssetArgs.Class("{\"" + catalogName + "\":\"ScriptableObject\"}"), Is.Null,
                 "reading the catalog name instead of the wire key would silently return the wrong value in a real call");
         }
 
         [TestCase("show_unity_private", "include_internal")]
         public void InspectUitk_include_internal_accessor_reads_the_wire_key_not_the_catalog_name(string catalogName, string wireKey)
         {
-            Assert.That(inspect_uitkArgs.@include_internal("{\"" + wireKey + "\":true}"), Is.True);
-            Assert.That(inspect_uitkArgs.@include_internal("{\"" + catalogName + "\":true}"), Is.Null,
+            Assert.That(InspectUitkArgs.IncludeInternal("{\"" + wireKey + "\":true}"), Is.True);
+            Assert.That(InspectUitkArgs.IncludeInternal("{\"" + catalogName + "\":true}"), Is.Null,
                 "reading the catalog name instead of the wire key would silently return null/false in a real call");
         }
 
         [TestCase("cls", "class")]
         public void UitkFile_class_accessor_reads_the_wire_key_not_the_catalog_name(string catalogName, string wireKey)
         {
-            Assert.That(uitk_fileArgs.@class("{\"" + wireKey + "\":\"my-class\"}"), Is.EqualTo("my-class"));
-            Assert.That(uitk_fileArgs.@class("{\"" + catalogName + "\":\"my-class\"}"), Is.Null,
+            Assert.That(UitkFileArgs.Class("{\"" + wireKey + "\":\"my-class\"}"), Is.EqualTo("my-class"));
+            Assert.That(UitkFileArgs.Class("{\"" + catalogName + "\":\"my-class\"}"), Is.Null,
                 "reading the catalog name instead of the wire key would silently return the wrong value in a real call");
         }
 
         // LOCAL ARGs never reach C#: get_component's "full"/"component" and screenshot's "describe"/"raw" are
         // Python-only (consumed before _send); no UnityMCP.Editor.get_componentArgs/screenshotArgs method exists
         // for them. Proven by absence via reflection, not by a differential call (there is nothing to call).
-        [TestCase("get_componentArgs", new[] { "full", "component" })]
-        [TestCase("screenshotArgs", new[] { "describe", "raw" })]
+        [TestCase("GetComponentArgs", new[] { "full", "component" })]
+        [TestCase("ScreenshotArgs", new[] { "describe", "raw" })]
         public void Local_args_have_no_accessor(string className, string[] localArgNames)
         {
             var type = Type.GetType($"UnityMCP.Editor.{className}");
@@ -265,7 +255,7 @@ namespace UnityMCP.Decisions.Tests
                 .Select(m => m.Name)
                 .ToArray();
             foreach (var local in localArgNames)
-                Assert.That(methodNames, Does.Not.Contain(local), $"LOCAL arg '{local}' must have no C# accessor");
+                Assert.That(methodNames, Does.Not.Contain(CatalogToolBlocks.ToPascalCase(local)), $"LOCAL arg '{local}' must have no C# accessor");
         }
     }
 }

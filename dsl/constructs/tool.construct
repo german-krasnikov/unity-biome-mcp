@@ -195,11 +195,11 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
     END
                         };
   END
-  TEMPLATE csargs HEADER "// identifier = wire key of dsl/tools.biome; LOCAL args have no accessor.\nnamespace UnityMCP.Editor\n{" FOOTER "}" ESCAPE data
-        internal static class @{name}Args
+  TEMPLATE csargs HEADER "// identifier = PascalCase of the wire key of dsl/tools.biome; LOCAL args have no accessor.\nnamespace UnityMCP.Editor\n{" FOOTER "}" ESCAPE data
+        internal static class {name:PascalCase}Args
         {
         EACH ARG WHERE NOT local
-            {?atype=str:internal static string @}{?atype=ostr:internal static string @}{?atype=Any:internal static string @}{?atype=int:internal static int @}{?atype=oint:internal static int? @}{?atype=float:internal static float @}{?atype=ofloat:internal static float? @}{?atype=bool:internal static bool @}{?atype=obool:internal static bool? @}{?wname:{wname}}{!wname:{aname}}{?atype=str:(string args) => JsonHelper.ExtractString(args, "}{?atype=ostr:(string args) => JsonHelper.ExtractString(args, "}{?atype=Any:(string args) => JsonHelper.ExtractString(args, "}{?atype=int:(string args) => JsonHelper.ExtractInt(args, "}{?atype=oint:(string args) => JsonHelper.ParseOptInt(args, "}{?atype=float:(string args) => JsonHelper.ExtractFloat(args, "}{?atype=ofloat:(string args) => JsonHelper.ParseOptFloat(args, "}{?atype=bool:(string args) => JsonHelper.ExtractString(args, "}{?atype=obool:(string args) => JsonHelper.ParseOptBool(args, "}{?wname:{wname}}{!wname:{aname}}{?atype=str:");}{?atype=ostr:");}{?atype=Any:");}{?atype=int:");}{?atype=oint:");}{?atype=float:");}{?atype=ofloat:");}{?atype=bool:") == "true";}{?atype=obool:");}
+            {?atype=str:internal static string }{?atype=ostr:internal static string }{?atype=Any:internal static string }{?atype=int:internal static int }{?atype=oint:internal static int? }{?atype=float:internal static float }{?atype=ofloat:internal static float? }{?atype=bool:internal static bool }{?atype=obool:internal static bool? }{?wname:{wname:PascalCase}}{!wname:{aname:PascalCase}}{?atype=str:(string args) => JsonHelper.ExtractString(args, "}{?atype=ostr:(string args) => JsonHelper.ExtractString(args, "}{?atype=Any:(string args) => JsonHelper.ExtractString(args, "}{?atype=int:(string args) => JsonHelper.ExtractInt(args, "}{?atype=oint:(string args) => JsonHelper.ParseOptInt(args, "}{?atype=float:(string args) => JsonHelper.ExtractFloat(args, "}{?atype=ofloat:(string args) => JsonHelper.ParseOptFloat(args, "}{?atype=bool:(string args) => JsonHelper.ExtractString(args, "}{?atype=obool:(string args) => JsonHelper.ParseOptBool(args, "}{?wname:{wname}}{!wname:{aname}}{?atype=str:");}{?atype=ostr:");}{?atype=Any:");}{?atype=int:");}{?atype=oint:");}{?atype=float:");}{?atype=ofloat:");}{?atype=bool:") == "true";}{?atype=obool:");}
         END
         }
 
@@ -376,18 +376,18 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
     END
   END
   TEMPLATE csargs ESCAPE data
-        internal static class @{name}Args
+        internal static class {name:PascalCase}Args
         {
         EACH ARG
-            {?atype=str:internal static string @{aname}(string args) => JsonHelper.ExtractString(args, "{aname}");}
-            {?atype=ostr:internal static string @{aname}(string args) => JsonHelper.ExtractString(args, "{aname}");}
-            {?atype=Any:internal static string @{aname}(string args) => JsonHelper.ExtractString(args, "{aname}");}
-            {?atype=int:internal static int @{aname}(string args) => JsonHelper.ExtractInt(args, "{aname}");}
-            {?atype=oint:internal static int? @{aname}(string args) => JsonHelper.ParseOptInt(args, "{aname}");}
-            {?atype=float:internal static float @{aname}(string args) => JsonHelper.ExtractFloat(args, "{aname}");}
-            {?atype=ofloat:internal static float? @{aname}(string args) => JsonHelper.ParseOptFloat(args, "{aname}");}
-            {?atype=bool:internal static bool @{aname}(string args) => JsonHelper.ExtractString(args, "{aname}") == "true";}
-            {?atype=obool:internal static bool? @{aname}(string args) => JsonHelper.ParseOptBool(args, "{aname}");}
+            {?atype=str:internal static string {aname:PascalCase}(string args) => JsonHelper.ExtractString(args, "{aname}");}
+            {?atype=ostr:internal static string {aname:PascalCase}(string args) => JsonHelper.ExtractString(args, "{aname}");}
+            {?atype=Any:internal static string {aname:PascalCase}(string args) => JsonHelper.ExtractString(args, "{aname}");}
+            {?atype=int:internal static int {aname:PascalCase}(string args) => JsonHelper.ExtractInt(args, "{aname}");}
+            {?atype=oint:internal static int? {aname:PascalCase}(string args) => JsonHelper.ParseOptInt(args, "{aname}");}
+            {?atype=float:internal static float {aname:PascalCase}(string args) => JsonHelper.ExtractFloat(args, "{aname}");}
+            {?atype=ofloat:internal static float? {aname:PascalCase}(string args) => JsonHelper.ParseOptFloat(args, "{aname}");}
+            {?atype=bool:internal static bool {aname:PascalCase}(string args) => JsonHelper.ExtractString(args, "{aname}") == "true";}
+            {?atype=obool:internal static bool? {aname:PascalCase}(string args) => JsonHelper.ParseOptBool(args, "{aname}");}
         END
         }
 
@@ -508,10 +508,10 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
                         };
   END
   TEMPLATE csargs ESCAPE data
-        internal static class @{name}Args
+        internal static class {name:PascalCase}Args
         {
         EACH ARG WHERE NOT local
-            {?atype=str:internal static string @}{?atype=ostr:internal static string @}{?atype=Any:internal static string @}{?atype=int:internal static int @}{?atype=oint:internal static int? @}{?atype=float:internal static float @}{?atype=ofloat:internal static float? @}{?atype=bool:internal static bool @}{?atype=obool:internal static bool? @}{?wname:{wname}}{!wname:{aname}}{?atype=str:(string args) => JsonHelper.ExtractString(args, "}{?atype=ostr:(string args) => JsonHelper.ExtractString(args, "}{?atype=Any:(string args) => JsonHelper.ExtractString(args, "}{?atype=int:(string args) => JsonHelper.ExtractInt(args, "}{?atype=oint:(string args) => JsonHelper.ParseOptInt(args, "}{?atype=float:(string args) => JsonHelper.ExtractFloat(args, "}{?atype=ofloat:(string args) => JsonHelper.ParseOptFloat(args, "}{?atype=bool:(string args) => JsonHelper.ExtractString(args, "}{?atype=obool:(string args) => JsonHelper.ParseOptBool(args, "}{?wname:{wname}}{!wname:{aname}}{?atype=str:");}{?atype=ostr:");}{?atype=Any:");}{?atype=int:");}{?atype=oint:");}{?atype=float:");}{?atype=ofloat:");}{?atype=bool:") == "true";}{?atype=obool:");}
+            {?atype=str:internal static string }{?atype=ostr:internal static string }{?atype=Any:internal static string }{?atype=int:internal static int }{?atype=oint:internal static int? }{?atype=float:internal static float }{?atype=ofloat:internal static float? }{?atype=bool:internal static bool }{?atype=obool:internal static bool? }{?wname:{wname:PascalCase}}{!wname:{aname:PascalCase}}{?atype=str:(string args) => JsonHelper.ExtractString(args, "}{?atype=ostr:(string args) => JsonHelper.ExtractString(args, "}{?atype=Any:(string args) => JsonHelper.ExtractString(args, "}{?atype=int:(string args) => JsonHelper.ExtractInt(args, "}{?atype=oint:(string args) => JsonHelper.ParseOptInt(args, "}{?atype=float:(string args) => JsonHelper.ExtractFloat(args, "}{?atype=ofloat:(string args) => JsonHelper.ParseOptFloat(args, "}{?atype=bool:(string args) => JsonHelper.ExtractString(args, "}{?atype=obool:(string args) => JsonHelper.ParseOptBool(args, "}{?wname:{wname}}{!wname:{aname}}{?atype=str:");}{?atype=ostr:");}{?atype=Any:");}{?atype=int:");}{?atype=oint:");}{?atype=float:");}{?atype=ofloat:");}{?atype=bool:") == "true";}{?atype=obool:");}
         END
         }
 

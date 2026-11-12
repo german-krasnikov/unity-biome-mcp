@@ -15,100 +15,100 @@ namespace UnityMCP.Editor
         private static string ExecGetAnimation(string args)
         {
             return AnimationSerializer.Serialize(
-                animationArgs.path(args),
-                animationArgs.clip(args),
-                animationArgs.time(args),
-                animationArgs.compact(args));
+                AnimationArgs.Path(args),
+                AnimationArgs.Clip(args),
+                AnimationArgs.Time(args),
+                AnimationArgs.Compact(args));
         }
 
         private static string ExecCreateAnimation(string args)
         {
             return AnimationHelper.CreateClip(
-                animationArgs.path(args),
-                animationArgs.clip_name(args) ?? animationArgs.clip(args),
-                animationArgs.property(args) ?? "localPosition",
-                animationArgs.keys(args) ?? "",
-                animationArgs.component_type(args),
-                animationArgs.binding_path(args),
-                animationArgs.tangent(args));
+                AnimationArgs.Path(args),
+                AnimationArgs.ClipName(args) ?? AnimationArgs.Clip(args),
+                AnimationArgs.Property(args) ?? "localPosition",
+                AnimationArgs.Keys(args) ?? "",
+                AnimationArgs.ComponentType(args),
+                AnimationArgs.BindingPath(args),
+                AnimationArgs.Tangent(args));
         }
 
         private static string ExecEditAnimation(string args)
         {
             return AnimationHelper.EditClip(
-                animationArgs.path(args),
-                animationArgs.clip(args),
-                animationArgs.action(args),
-                animationArgs.property(args),
-                animationArgs.keys(args),
-                animationArgs.component_type(args),
-                animationArgs.binding_path(args),
-                animationArgs.tangent(args));
+                AnimationArgs.Path(args),
+                AnimationArgs.Clip(args),
+                AnimationArgs.Action(args),
+                AnimationArgs.Property(args),
+                AnimationArgs.Keys(args),
+                AnimationArgs.ComponentType(args),
+                AnimationArgs.BindingPath(args),
+                AnimationArgs.Tangent(args));
         }
 
         private static string ExecPreviewAnimation(string args)
         {
             return AnimationHelper.Preview(
-                animationArgs.path(args),
-                animationArgs.clip(args),
-                animationArgs.action(args) ?? "sample",
-                animationArgs.time(args) ?? 0f);
+                AnimationArgs.Path(args),
+                AnimationArgs.Clip(args),
+                AnimationArgs.Action(args) ?? "sample",
+                AnimationArgs.Time(args) ?? 0f);
         }
 
         private static string ExecGetTimeline(string args)
         {
             return TimelineSerializer.Serialize(
-                timelineArgs.path(args),
-                timelineArgs.track(args));
+                TimelineArgs.Path(args),
+                TimelineArgs.Track(args));
         }
 
         private static string ExecCreateTimeline(string args)
         {
             return TimelineHelper.CreateTimeline(
-                timelineArgs.asset_path(args),
-                timelineArgs.director_path(args) ?? timelineArgs.path(args),
-                timelineArgs.tracks(args));
+                TimelineArgs.AssetPath(args),
+                TimelineArgs.DirectorPath(args) ?? TimelineArgs.Path(args),
+                TimelineArgs.Tracks(args));
         }
 
         private static string ExecEditTimeline(string args)
         {
             return TimelineHelper.Edit(
-                timelineArgs.path(args),
-                timelineArgs.action(args),
-                timelineArgs.track(args),
-                timelineArgs.track_type(args),
-                timelineArgs.clip(args),
-                timelineArgs.binding(args),
-                timelineArgs.start(args),
-                timelineArgs.duration(args),
-                timelineArgs.blend_in(args),
-                timelineArgs.blend_out(args),
-                timelineArgs.name(args),
-                timelineArgs.index(args),
-                timelineArgs.offset(args),
-                timelineArgs.value(args));
+                TimelineArgs.Path(args),
+                TimelineArgs.Action(args),
+                TimelineArgs.Track(args),
+                TimelineArgs.TrackType(args),
+                TimelineArgs.Clip(args),
+                TimelineArgs.Binding(args),
+                TimelineArgs.Start(args),
+                TimelineArgs.Duration(args),
+                TimelineArgs.BlendIn(args),
+                TimelineArgs.BlendOut(args),
+                TimelineArgs.Name(args),
+                TimelineArgs.Index(args),
+                TimelineArgs.Offset(args),
+                TimelineArgs.Value(args));
         }
 
         private static string ExecSetClipIn(string args)
         {
             return TimelineHelper.SetClipIn(
-                timelineArgs.path(args),
-                timelineArgs.track(args),
-                timelineArgs.clip(args),
-                timelineArgs.clip_in(args) ?? 0f);
+                TimelineArgs.Path(args),
+                TimelineArgs.Track(args),
+                TimelineArgs.Clip(args),
+                TimelineArgs.ClipIn(args) ?? 0f);
         }
 
         private static string ExecGetBindings(string args)
         {
-            return TimelineHelper.GetBindings(timelineArgs.path(args));
+            return TimelineHelper.GetBindings(TimelineArgs.Path(args));
         }
 
         private static string ExecPreviewTimeline(string args)
         {
             return TimelineHelper.Preview(
-                timelineArgs.path(args),
-                timelineArgs.action(args) ?? "sample",
-                timelineArgs.time(args) ?? 0f);
+                TimelineArgs.Path(args),
+                TimelineArgs.Action(args) ?? "sample",
+                TimelineArgs.Time(args) ?? 0f);
         }
 
         // --- Consolidated command handlers ---
@@ -144,9 +144,9 @@ namespace UnityMCP.Editor
 
         private static string ExecAnimationConsolidated(string args)
         {
-            var action = animationArgs.action(args);
-            var path = animationArgs.path(args);
-            var clip = animationArgs.clip(args);
+            var action = AnimationArgs.Action(args);
+            var path = AnimationArgs.Path(args);
+            var clip = AnimationArgs.Clip(args);
             return action switch
             {
                 "get" => ExecGetAnimation(args),
@@ -158,13 +158,13 @@ namespace UnityMCP.Editor
                 "get_events" => AnimationHelper.GetEvents(path, clip),
                 "add_event" => AnimationHelper.AddEvent(
                     path, clip,
-                    animationArgs.time(args) ?? 0f,
-                    animationArgs.function_name(args),
-                    animationArgs.int_param(args),
-                    animationArgs.float_param(args),
-                    animationArgs.string_param(args)),
+                    AnimationArgs.Time(args) ?? 0f,
+                    AnimationArgs.FunctionName(args),
+                    AnimationArgs.IntParam(args),
+                    AnimationArgs.FloatParam(args),
+                    AnimationArgs.StringParam(args)),
                 "remove_event" => AnimationHelper.RemoveEvent(
-                    path, clip, animationArgs.time(args) ?? 0f),
+                    path, clip, AnimationArgs.Time(args) ?? 0f),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
                     new[] { "get", "create", "edit", "add_key", "remove_key", "remove_curve",
                             "set_keys", "set_loop", "set_wrap", "set_framerate", "preview",
@@ -174,7 +174,7 @@ namespace UnityMCP.Editor
 
         private static string ExecTimelineConsolidated(string args)
         {
-            var action = timelineArgs.action(args);
+            var action = TimelineArgs.Action(args);
             // Read-only actions allowed in Play Mode; mutating actions are not.
             if (action != "get" && action != "get_bindings" && action != "preview"
                 && UnityEditor.EditorApplication.isPlaying)
