@@ -692,14 +692,6 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void HandleEvent_SessionState_IsNoOp_DoesNotCrash()
-        {
-            var w = ScriptableObject.CreateInstance<MCPChatWindow>();
-            try { Assert.DoesNotThrow(() => Fire(w, ChatEvent.SessionState("ready"))); }
-            finally { Object.DestroyImmediate(w); }
-        }
-
-        [Test]
         public void HandleEvent_SessionInit_IsNoOp_DoesNotCrash()
         {
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();

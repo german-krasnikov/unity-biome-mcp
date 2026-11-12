@@ -1,0 +1,131 @@
+SURFACE events
+# The vocabulary of the AgentEvent protocol (relay v2): one block per kind. FIELD = payload key, its type, optional | OR <local>: when absent use that local.
+# EMITS = the backends that can emit it. HOLD = the fields wait for the TAKE of a later event. UI = the ChatEvent the Unity window gets; CASE = the same, for a value of a field.
+EVENT session_started "A backend session is established."
+  FIELD provider_session_id text OR sid
+  UI SessionInit provider_session_id
+  EMITS claude,codex,kimi,agy,opencode
+END
+EVENT session_resumed "A session was resumed under a new id."
+  FIELD previous_session_id text
+  FIELD new_session_id text
+  IGNORE
+  EMITS claude
+END
+EVENT session_ended "A session ended."
+  FIELD reason text optional
+  IGNORE
+  EMITS claude,codex
+END
+EVENT turn_started "The user sent a message."
+  FIELD text text
+  IGNORE
+  EMITS claude,codex,agy
+  ORDER opens
+END
+EVENT turn_completed "The turn ended; the usage held by cost_update is taken."
+  TAKE cost_usd number
+  TAKE input_tokens int
+  TAKE output_tokens int
+  UI TurnDone sid, cost_usd, input_tokens, output_tokens
+  EMITS claude,codex,kimi,agy,opencode
+  ORDER closes
+END
+EVENT assistant_delta "A streamed token of the answer."
+  FIELD text text
+  UI TextDelta text
+  EMITS claude,codex,kimi,agy,opencode
+  ORDER opens
+END
+EVENT thought_delta "A streamed token of the reasoning."
+  FIELD text text
+  UI Thinking text
+  EMITS claude
+  ORDER opens
+END
+EVENT tool_call_started "A tool call begins."
+  FIELD name text
+  FIELD id text
+  FIELD args object
+  UI ToolStart name, args, id
+  EMITS claude,codex,opencode
+  ORDER opens
+END
+EVENT tool_call_completed "A tool call returned."
+  FIELD id text
+  FIELD result text
+  UI ToolResult id, result, true
+  EMITS claude,codex,opencode
+END
+EVENT tool_call_failed "A tool call failed."
+  FIELD id text
+  FIELD error text
+  UI ToolResult id, error, false
+  EMITS claude,codex,opencode
+END
+EVENT permission_requested "The backend asks to run a tool, or asks the user a question."
+  FIELD request_id text
+  FIELD tool_name text optional
+  FIELD input object
+  FIELD is_ask_user bool optional
+  CASE is_ask_user UI AskUser request_id, input
+  UI PermissionPrompt request_id, tool_name, input
+  EMITS claude,codex
+END
+EVENT permission_resolved "A permission request was answered."
+  FIELD request_id text
+  FIELD granted bool
+  IGNORE
+  EMITS claude,codex
+END
+EVENT file_change_detected "The agent changed a file."
+  FIELD path text
+  FIELD change_type text optional
+  UI FileChange path
+  EMITS claude,codex
+END
+EVENT plan_step_started "A plan step begins."
+  FIELD description text
+  FIELD step text optional
+  UI PlanUpdate kind, description
+  EMITS claude,codex
+END
+EVENT plan_step_completed "A plan step is done."
+  FIELD step text
+  FIELD description text optional
+  FIELD outcome text optional
+  UI PlanUpdate kind, description
+  EMITS claude,codex
+END
+EVENT error "The backend or the process failed."
+  FIELD message text
+  UI Error message
+  EMITS claude,codex
+END
+EVENT warning "A notice: a rate limit, or the progress of a tool."
+  FIELD code text
+  FIELD message text optional
+  FIELD progress_pct number optional
+  CASE code "rate_limit" UI RateLimit message
+  CASE code "tool_progress" UI ToolProgress progress_pct, message
+  IGNORE
+  EMITS claude,codex
+END
+EVENT cost_update "Usage of the turn; held until turn_completed."
+  FIELD cost_usd number
+  FIELD input_tokens int
+  FIELD output_tokens int
+  HOLD
+  EMITS claude,codex,kimi,opencode
+  ORDER usage
+END
+EVENT capabilities_changed "The backend's state changed."
+  FIELD state text
+  FIELD previous_state text optional
+  UI CapabilitiesChanged state
+  EMITS claude,codex
+END
+EVENT heartbeat "Keepalive."
+  UI Heartbeat
+  EMITS claude,codex
+END

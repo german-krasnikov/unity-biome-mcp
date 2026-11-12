@@ -77,7 +77,6 @@ namespace UnityMCP.Editor.Chat
                     break;
                 case ChatEventKind.ToolProgress:
                 case ChatEventKind.RateLimit:
-                case ChatEventKind.SessionState:
                 case ChatEventKind.Heartbeat:
                     break;
                 case ChatEventKind.Thinking:

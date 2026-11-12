@@ -25,6 +25,7 @@ case "${1:-}" in
         node "$biome" generate --project dsl --check
         node "$biome" verify --construct-examples dsl/constructs/tool.examples
         node "$biome" verify --construct-examples dsl/constructs/record.examples
+        node "$biome" verify --construct-examples dsl/constructs/event.examples
         for examples in dsl/constructs/playtest*.examples; do node "$biome" verify --construct-examples "$examples"; done
         node dsl/playtest/compare.mjs
         node --test dsl/playtest/*.test.mjs
