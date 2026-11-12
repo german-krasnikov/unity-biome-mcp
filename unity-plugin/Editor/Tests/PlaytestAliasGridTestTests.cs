@@ -449,13 +449,17 @@ ASSERT $ghost == 0
             Assert.AreEqual("/NonExistentObject|GridPlayer|Score", result[0].Query);
         }
 
-        // E2 — VAR with malformed @-query (no pipe) throws at parse
+        // E2 — VAR with malformed @-query (no pipe) throws at parse.
+        // PT-8/Q22: the grammar-generated reader rejects this with its own PT_SYNTAX text
+        // ("... is not like @\S*\|\S*\|\S* (query)"), not the hand parser's old "pipe-separated"
+        // wording — still throws ArgumentException, text is intentionally different.
         [Test]
         public void Var_MalformedAtQuery_NoPipe_ThrowsArgumentException()
         {
             var script = "VAR $bad @NotAPipePath\nASSERT /X|C|f == 1";
             var ex = Assert.Throws<ArgumentException>(() => PlaytestParser.Parse(script));
-            StringAssert.Contains("pipe", ex.Message);
+            StringAssert.Contains("VAR", ex.Message);
+            StringAssert.Contains("is not like", ex.Message);
         }
 
         // E3 — VAL name collision: second definition wins (last wins)

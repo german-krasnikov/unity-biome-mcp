@@ -49,12 +49,17 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("INTERVAL", ex.Message);
         }
 
+        // PT-8/Q22: the grammar encodes count>=2 structurally (count:match([2-9]|[1-9][0-9]+)),
+        // so the reader rejects "1" with its own PT_COUNT text ("... is not like [2-9]|[1-9][0-9]+
+        // (count)"), not the hand parser's old "n must be >= 2" wording — still throws
+        // ArgumentException, text is intentionally different.
         [Test]
         public void Parse_CaptureFrames_CountLessThan2_Throws()
         {
             var ex = Assert.Throws<ArgumentException>(() =>
                 PlaytestParser.Parse("CAPTURE_FRAMES 1 INTERVAL 0.1"));
-            StringAssert.Contains("n must be", ex.Message);
+            StringAssert.Contains("CAPTURE_FRAMES", ex.Message);
+            StringAssert.Contains("is not like", ex.Message);
         }
 
         [Test]
