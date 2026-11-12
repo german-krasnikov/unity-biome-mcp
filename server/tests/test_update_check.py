@@ -28,6 +28,27 @@ def test_is_newer_minor():
     assert _is_newer("0.38.1", "0.38.0")
 
 
+def test_is_newer_stable_user_never_sees_rc_banner():
+    # UI-1/Q16: semver 2.0 §11 -- a stable user never sees a pre-release banner,
+    # even for a numerically newer triple. The old suffix-stripping _is_newer
+    # returned True here.
+    assert not _is_newer("1.52.0-rc.1", "1.51.0")
+
+
+def test_is_newer_rc_user_sees_newer_stable_release():
+    assert _is_newer("1.52.0", "1.51.0-rc.1")
+
+
+def test_is_newer_rc_user_sees_release_of_their_own_line():
+    # the old suffix-stripping _is_newer compared the stripped triples as
+    # equal and returned False here.
+    assert _is_newer("1.52.0", "1.52.0-rc.1")
+
+
+def test_is_newer_rc_user_does_not_see_sibling_pre_release():
+    assert not _is_newer("1.52.0-rc.2", "1.52.0-rc.1")
+
+
 def test_cache_write_read(tmp_path, monkeypatch):
     monkeypatch.setattr("unity_mcp._update_check.CACHE_FILE", tmp_path / "cache.json")
     data = {"ts": time.time(), "latest": "0.38.0"}
