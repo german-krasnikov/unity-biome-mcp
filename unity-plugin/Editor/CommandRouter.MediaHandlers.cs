@@ -6,23 +6,11 @@ namespace UnityMCP.Editor
     // scene/ui/editor/menu/references) split from CommandRouter.cs for <200-line focus.
     public static partial class CommandRouter
     {
-        private static float? ParseOptFloat(string args, string key)
-        {
-            var s = JsonHelper.ExtractString(args, key);
-            return s != null ? float.Parse(s, System.Globalization.CultureInfo.InvariantCulture) : (float?)null;
-        }
-
-        private static bool? ParseOptBool(string args, string key)
-        {
-            var s = JsonHelper.ExtractString(args, key);
-            return s != null ? s == "true" : (bool?)null;
-        }
-
-        private static int? ParseOptInt(string args, string key)
-        {
-            var s = JsonHelper.ExtractString(args, key);
-            return s != null ? int.Parse(s, System.Globalization.CultureInfo.InvariantCulture) : (int?)null;
-        }
+        // Bodies live in JsonHelper (ParseOptFloat/ParseOptBool/ParseOptInt) — moved there for
+        // unity-plugin/Editor/Generated/ToolArgs.g.cs to reach without a CommandRouter dependency.
+        private static float? ParseOptFloat(string args, string key) => JsonHelper.ParseOptFloat(args, key);
+        private static bool? ParseOptBool(string args, string key) => JsonHelper.ParseOptBool(args, key);
+        private static int? ParseOptInt(string args, string key) => JsonHelper.ParseOptInt(args, key);
 
         private static string ExecGetAnimation(string args)
         {

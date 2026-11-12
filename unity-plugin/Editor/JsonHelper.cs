@@ -184,6 +184,30 @@ namespace UnityMCP.Editor
             return 0f;
         }
 
+        /// <summary>Optional float: null when the key is absent/null, moved verbatim from
+        /// CommandRouter.MediaHandlers.cs (ParseOptFloat) so ToolArgs.g.cs can call it without a CommandRouter dependency.</summary>
+        internal static float? ParseOptFloat(string args, string key)
+        {
+            var s = ExtractString(args, key);
+            return s != null ? float.Parse(s, System.Globalization.CultureInfo.InvariantCulture) : (float?)null;
+        }
+
+        /// <summary>Optional bool: null when the key is absent/null, moved verbatim from
+        /// CommandRouter.MediaHandlers.cs (ParseOptBool) so ToolArgs.g.cs can call it without a CommandRouter dependency.</summary>
+        internal static bool? ParseOptBool(string args, string key)
+        {
+            var s = ExtractString(args, key);
+            return s != null ? s == "true" : (bool?)null;
+        }
+
+        /// <summary>Optional int: null when the key is absent/null, moved verbatim from
+        /// CommandRouter.MediaHandlers.cs (ParseOptInt) so ToolArgs.g.cs can call it without a CommandRouter dependency.</summary>
+        internal static int? ParseOptInt(string args, string key)
+        {
+            var s = ExtractString(args, key);
+            return s != null ? int.Parse(s, System.Globalization.CultureInfo.InvariantCulture) : (int?)null;
+        }
+
         internal static string EscapeJson(string str)
         {
             if (string.IsNullOrEmpty(str)) return "";
