@@ -1,5 +1,5 @@
 # What unity-biome-mcp generates: the tool catalog (dsl/tools.biome printed through constructs/tool.construct), the decisions (dsl/decisions), the chat turn (dsl/chat) and the playtest grammar (constructs/playtest.construct).
-TOOLCHAIN 094e3ede213e2ae6912cd759e49bdfa50d1b5e3f
+TOOLCHAIN e9d718f474d76e48f8bfbe04b425dda4e4be3600
 CONSTRUCTS constructs
 
 GENERATE py-specs  render {dir}/tools.biome pyspec   {dir}/../server/src/unity_mcp/tools/generated/catalog_specs.py
