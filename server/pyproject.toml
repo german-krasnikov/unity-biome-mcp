@@ -114,7 +114,6 @@ source_modules = [
     "unity_mcp.bridge_socket",
     "unity_mcp.bridge_heartbeat",
     "unity_mcp.bridge_retry",
-    "unity_mcp.bridge_result",
     "unity_mcp.bridge_cassette",
     "unity_mcp.bridge_reload_state",
     "unity_mcp.connection_slot",

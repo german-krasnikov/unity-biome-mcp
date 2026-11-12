@@ -137,6 +137,7 @@ def _schedule_dormant(idle: float, timeout: float) -> None:
 from contextlib import asynccontextmanager, suppress
 
 from biome_mcp.mcp.compose import CompactMCP, inject_descriptions, inject_extras
+from biome_mcp.models.result import CommandResult, CommandStatus
 from mcp.server.mcpserver.exceptions import ToolError
 
 from . import __version__
@@ -155,7 +156,6 @@ def _force_additional_properties_false(tool_name: str, schema: dict) -> None:
     if schema.get("properties") is not None:
         schema.setdefault("additionalProperties", False)
 
-from .bridge_result import unwrap_bridge_result
 from .connection_slot import ConnectionSlot
 from .decisions.guard_facts import Verdict, guard_verdict
 from .errors import UnityUnavailableError
@@ -455,9 +455,15 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
         raise UnityUnavailableError(f"Unity connection lost: {e}. Retry or /mcp to reconnect.") from e
     except Exception as e:
         raise ToolError(f"Unexpected error: {type(e).__name__}: {e}") from e
-    text, ok = unwrap_bridge_result(result)
-    if not ok:
-        raise ToolError(text)
+    cr = CommandResult.from_raw(result)
+    if cr.status != CommandStatus.OK:
+        raise ToolError(result.get("err", "Unknown error"))
+    data = cr.data
+    if "file" in result:
+        file_msg = f"Data saved to: {result['file']}"
+        text = f"{data}\n{file_msg}" if data else file_msg
+    else:
+        text = data
     # ARC-9 T3: surface a same-pid port rebind on the next safe-to-prefix
     # response. Peek first (non-destructive) so an unsafe response (JSON,
     # a pipe-delimited protocol record) leaves the notice queued for a later

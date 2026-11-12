@@ -169,7 +169,7 @@ def check_missing_frontmatter(files: list[SkillFile | AgentFile]) -> list[Findin
 
 _FALSE_POSITIVE_TOOLS = frozenset({
     "send", "wrap_send", "frame_read", "frame_write", "args", "bridge_send",
-    "tool_specs", "open_connection", "configure_await", "bridge_result",
+    "tool_specs", "open_connection", "configure_await",
     "read_text", "parse_frontmatter", "run_skills", "check_unity", "tool_name",
     "skill_name", "plugin_api", "middleware_py",
 })

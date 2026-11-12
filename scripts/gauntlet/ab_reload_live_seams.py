@@ -25,10 +25,10 @@ def live_sync_unity(host: str):
     uncertain delivery, raising UncertainDeliveryError on a live connection
     hiccup that a harmless read should just retry."""
     async def run(port: int, project_path: str, *, timeout: float = 120.0) -> str:
+        from biome_mcp.models.result import CommandResult, CommandStatus
         from mcp.server.mcpserver.exceptions import ToolError
 
         from unity_mcp.bridge import UnityBridge
-        from unity_mcp.bridge_result import unwrap_bridge_result
         from unity_mcp.timeout_categories import get_timeout
         from unity_mcp.tools import sync as sync_tool
         from unity_mcp.tools._annotations import _INTERNAL_RETRY_SAFE_CMDS
@@ -41,10 +41,10 @@ def live_sync_unity(host: str):
 
         async def _send_raw_like(cmd: str, args: dict, timeout: float = 0) -> str:
             result = await bridge.send(cmd, args, timeout=timeout or get_timeout(cmd))
-            text, ok = unwrap_bridge_result(result)
-            if not ok:
-                raise ToolError(text)
-            return text
+            cr = CommandResult.from_raw(result)
+            if cr.status != CommandStatus.OK:
+                raise ToolError(result.get("err", "Unknown error"))
+            return cr.data
 
         previous_send = sync_tool._send
         sync_tool._send = _send_raw_like

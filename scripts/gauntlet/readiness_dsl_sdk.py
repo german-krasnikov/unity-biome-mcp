@@ -140,10 +140,10 @@ async def run_phase(session, project: Path, instance_id: int, owned_name: str,
 
 
 async def main_async(options):
+    from biome_mcp.models.result import CommandResult, CommandStatus
     from mcp.server.mcpserver.exceptions import ToolError
 
     from unity_mcp.bridge import UnityBridge
-    from unity_mcp.bridge_result import unwrap_bridge_result
     from unity_mcp.compile_state import CompileStateProbe
 
     project = options.project.resolve(strict=True)
@@ -152,10 +152,11 @@ async def main_async(options):
                          expected_project_path=project)
 
     async def send(command, args, timeout=0):
-        text, ok = unwrap_bridge_result(await bridge.send(command, args, timeout=min(timeout or 30, 30)))
-        if not ok:
-            raise ToolError(text)
-        return text
+        raw = await bridge.send(command, args, timeout=min(timeout or 30, 30))
+        cr = CommandResult.from_raw(raw)
+        if cr.status != CommandStatus.OK:
+            raise ToolError(raw.get("err", "Unknown error"))
+        return cr.data
 
     try:
         async with asyncio.timeout(90):

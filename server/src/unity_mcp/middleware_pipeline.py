@@ -6,8 +6,9 @@ from typing import Any, NamedTuple
 
 from mcp.server.mcpserver.exceptions import ToolError
 
+from biome_mcp.models.result import CommandResult, CommandStatus
+
 from . import middleware_alias as _alias_hooks  # noqa: F401 — trigger hook registration
-from .bridge_result import unwrap_bridge_result
 from .compressor import strip_defaults
 from .middleware_hooks import register_post, run_post_hooks
 from .middleware_types import (
@@ -242,8 +243,15 @@ async def _execute_cmd(
             _c = get_coordinator()
             if _c is not None:
                 _c.append(cmd, _receipt)
-        result, ok = unwrap_bridge_result(result)
-        protocol_err = not ok
+        cr = CommandResult.from_raw(result)
+        protocol_err = cr.status != CommandStatus.OK
+        if protocol_err:
+            result = result.get("err", "Unknown error")
+        elif "file" in result:
+            file_msg = f"Data saved to: {result['file']}"
+            result = f"{cr.data}\n{file_msg}" if cr.data else file_msg
+        else:
+            result = cr.data
 
     # F08: strip defaults unconditionally for component reads
     if cmd in _STRIP_CMDS and not no_strip:

@@ -1420,18 +1420,18 @@ async def sdk_runtime(wrapped_bridge, monkeypatch):
     middleware pre-applied) so wire-level failures surface the same way here
     as they do live, exactly like `run_playtest`'s own non-pass gate (N0b).
     """
+    from biome_mcp.models.result import CommandResult, CommandStatus
     from mcp.server.mcpserver.exceptions import ToolError
 
-    from unity_mcp.bridge_result import unwrap_bridge_result
     from unity_mcp.middleware import Middleware, wrap_send
     from unity_mcp.tools import runtime
 
     async def _send_raw_like(cmd, args, timeout=0):
         result = await wrapped_bridge._raw_send(cmd, args, timeout=timeout)
-        text, ok = unwrap_bridge_result(result)
-        if not ok:
-            raise ToolError(text)
-        return text
+        cr = CommandResult.from_raw(result)
+        if cr.status != CommandStatus.OK:
+            raise ToolError(result.get("err", "Unknown error"))
+        return cr.data
 
     def _args(**kwargs):
         return {k: v for k, v in kwargs.items() if v is not None}
