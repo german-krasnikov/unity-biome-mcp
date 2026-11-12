@@ -23,13 +23,12 @@ namespace UnityMCP.Editor.Wizard
         // optional dot-separated pre-release tag (e.g. "-rc.1"), per semver's
         // pre-release grammar. Single named constant substituted into all 4 regexes
         // below so a widening can't drift between SectionRe/MarkerVersionRe/PinRe/
-        // UnpinnedCommentLineRe. Mirrors Python's _TOML_VERSION_RE_FRAGMENT
-        // (merger.py) -- parity enforced by
-        // test_config_module.py::test_toml_version_fragment_matches_csharp_source.
+        // UnpinnedCommentLineRe. Generated from dsl/data/protocol.data-contract
+        // (T1 rest step 3), the same source as Python's PROTOCOL_ROWS (merger.py).
         // Internal (not private): WizardConfigWriter.GitInstallUrlFor reuses this
         // exact grammar to validate a git-ref pre-release suffix, so the TOML
         // marker and the install URL never accept different characters there.
-        internal const string VersionPattern = @"[\d.]+(?:-[0-9A-Za-z.]+)?";
+        internal static readonly string VersionPattern = ProtocolRows.All[0].VersionRefPattern;
 
         private static readonly Regex SectionRe = new Regex(
             @"(?:^# unity-(?:biome-mcp|mcp) generated v" + VersionPattern + @"\r?\n)?" +

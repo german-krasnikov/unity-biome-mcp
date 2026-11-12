@@ -8,6 +8,7 @@ import shutil
 import tempfile
 from collections.abc import Callable  # noqa: TC003
 
+from ..generated.protocol import PROTOCOL_ROWS
 from .generated.project_config_targets import PROJECT_CONFIG_TARGET_ROWS
 
 # Our MCP server name (config key). "unity-biome-mcp" — one "mcp", and distinct from
@@ -62,10 +63,9 @@ _UNITY_MCP_SECTION_RE = re.compile(
 # Version fragment for the marker comment: base semver (X.Y.Z) plus an
 # optional dot-separated pre-release tag (e.g. "-rc.1"), per semver's
 # pre-release grammar. Single source used by both regexes below so a widening
-# can't drift between them. Mirrors C#'s VersionPattern constant
-# (ProjectConfigToml.cs) -- parity enforced by
-# test_config_module.py::test_toml_version_fragment_matches_csharp_source.
-_TOML_VERSION_RE_FRAGMENT = r"[\d.]+(?:-[0-9A-Za-z.]+)?"
+# can't drift between them. Generated from dsl/data/protocol.data-contract
+# (T1 rest step 3), the same source as C#'s ProtocolRows (ProjectConfigToml.cs).
+_TOML_VERSION_RE_FRAGMENT = PROTOCOL_ROWS[0].versionRefPattern
 
 _TOML_MARKER_RE = re.compile(
     rf"^# unity-(?:biome-mcp|mcp) generated v{_TOML_VERSION_RE_FRAGMENT}(?: pinned)?\n"

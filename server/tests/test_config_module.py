@@ -1153,21 +1153,17 @@ def test_toml_pin_roundtrip_survives_prerelease_version(tmp_path):
     assert "generated v1.51.0-rc.1" not in text
 
 
-def test_toml_version_fragment_matches_csharp_source():
-    """Parity guard (mirrors test_project_config_targets_matches_csharp_source
-    below): the C# VersionPattern constant (ProjectConfigToml.cs) must be the
-    byte-identical regex fragment as Python's _TOML_VERSION_RE_FRAGMENT, or the
-    two independent TOML writers/classifiers will silently disagree on which
-    versions look "owned" vs "foreign"."""
+def test_toml_version_fragment_is_generated_protocol_row():
+    """_TOML_VERSION_RE_FRAGMENT (merger.py) must be PROTOCOL_ROWS[0].versionRefPattern,
+    not a re-hand-written copy -- the generator-output check (dsl/content-lock.json via
+    scripts/dsl.sh check) already guarantees C#'s ProtocolRows.All[0].VersionRefPattern is
+    byte-identical to the same row (T1 rest step 3), so this only needs to prove merger.py
+    actually reads the generated constant instead of drifting back to a literal."""
     from unity_mcp.config import merger
+    from unity_mcp.generated.protocol import PROTOCOL_ROWS
 
-    cs_path = pathlib.Path(__file__).parents[2] / "unity-plugin/Editor/Wizard/ProjectConfigToml.cs"
-    assert cs_path.exists(), f"C# source not found: {cs_path}"
-    cs_text = cs_path.read_text(encoding="utf-8")
-
-    m = re.search(r'VersionPattern\s*=\s*@"([^"]*)"', cs_text)
-    assert m, "VersionPattern constant not found in ProjectConfigToml.cs"
-    assert m.group(1) == merger._TOML_VERSION_RE_FRAGMENT
+    assert PROTOCOL_ROWS[0].versionRefPattern == merger._TOML_VERSION_RE_FRAGMENT
+    assert merger._TOML_VERSION_RE_FRAGMENT == r"[\d.]+(?:-[0-9A-Za-z.]+)?"
 
 
 # ─── merger.py: PROJECT_CONFIG_TARGETS parity with ProjectConfigTargets.g.cs ──

@@ -7,6 +7,17 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class ProjectConfigTomlTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        // VersionPattern must read the generated Protocol row (dsl/data/protocol.data-contract,
+        // T1 rest step 3), not a re-hand-written literal -- scripts/dsl.sh check already proves
+        // ProtocolRows.All[0].VersionRefPattern is byte-identical to Python's PROTOCOL_ROWS[0]
+        // row, so this only needs to prove the field actually reads it.
+        [Test]
+        public void VersionPattern_IsGeneratedProtocolRow()
+        {
+            Assert.AreEqual(ProtocolRows.All[0].VersionRefPattern, ProjectConfigToml.VersionPattern);
+            Assert.AreEqual(@"[\d.]+(?:-[0-9A-Za-z.]+)?", ProjectConfigToml.VersionPattern);
+        }
+
         [Test]
         public void BuildFresh_ContainsSectionHeader()
         {

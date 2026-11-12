@@ -1,0 +1,7 @@
+# The version-ref regex fragment (T1 rest step 3): one grammar instead of two hand-written copies
+# kept in sync only by a parity guard test -- server/src/unity_mcp/config/merger.py's
+# _TOML_VERSION_RE_FRAGMENT and unity-plugin/Editor/Wizard/ProjectConfigToml.cs's VersionPattern,
+# both matching a base semver (X.Y.Z) plus an optional dot-separated pre-release tag (e.g. "-rc.1").
+RECORD Protocol COUNT 1
+  versionRefPattern: string
+END
