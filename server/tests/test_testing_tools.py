@@ -197,6 +197,21 @@ async def test_cancel_test_run_sends_identity(testing_mod, _patch_send):
     _patch_send.assert_awaited_once_with("cancel_test_run", {"run_id": "run-1"})
 
 
+# ── PT-9: _RUN_STATES/_TERMINAL_OUTCOMES derive from the generated data-contract ──────────────
+
+def test_run_states_and_terminal_outcomes_match_generated_enums(testing_mod):
+    from unity_mcp.generated.testrun_enums import Lifecycle, RunOutcome
+
+    assert testing_mod._RUN_STATES == frozenset(Lifecycle)
+    assert testing_mod._TERMINAL_OUTCOMES == frozenset(RunOutcome)
+    assert testing_mod._RUN_STATES == {
+        "prepared", "dispatched", "running", "finalizing", "terminal",
+    }
+    assert testing_mod._TERMINAL_OUTCOMES == {
+        "passed", "failed", "cancelled", "incomplete", "invalid", "dispatch_failed",
+    }
+
+
 async def test_list_test_runs_clamps_limit(testing_mod, _patch_send):
     await testing_mod.list_test_runs(1000)
     _patch_send.assert_awaited_once_with("list_test_runs", {"limit": 100})

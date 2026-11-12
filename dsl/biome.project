@@ -42,6 +42,13 @@ CONTRACT backends FROM data/backends.data-contract
 GENERATE py-backends data --contract backends --rows Backend {dir}/data/backends.core-data --target py --out {dir}/../server/src/unity_mcp/generated/backends.py
 GENERATE cs-backends data --contract backends --rows Backend {dir}/data/backends.core-data --target cs --cs-namespace UnityMCP.Editor.Chat --out {dir}/../unity-plugin/Editor/Generated/Backends.g.cs
 
+# The test-run protocol vocabulary (dsl/data/testrun.data-contract, PT-9): one ENUM per word set instead of
+# TestRunProtocol.cs's hand-written Lifecycle/RunOutcome/LeafOutcome/Health string-const classes and
+# testing.py's _RUN_STATES/_TERMINAL_OUTCOMES literal sets.
+CONTRACT testrun FROM data/testrun.data-contract
+GENERATE py-testrun data --contract testrun --rows TerminalOutcome {dir}/data/testrun.core-data --target py --out {dir}/../server/src/unity_mcp/generated/testrun_enums.py
+GENERATE cs-testrun data --contract testrun --rows TerminalOutcome {dir}/data/testrun.core-data --target cs --cs-namespace UnityMCP.Editor.TestRuns --out {dir}/../unity-plugin/Editor/Generated/TestRunEnums.g.cs
+
 # The decisions (dsl/decisions, step 7.2): the rules of what is a write, whether a playtest passed, which guard stops a call and why a
 # send is retried. A step pair per module: the generated Python (and C#) and the rows of the examples that pytest and dotnet run.
 GENERATE mutability logic generate --source {dir}/decisions/mutability.logic --contract {dir}/decisions/mutability.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/mutability_logic.py" --target "cs {dir}/../unity-plugin/Editor/Generated/Mutability.g.cs AS UnityMCP.Editor.Decisions.Mutability LANG 9"

@@ -45,6 +45,17 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void GeneratedEnumValuesMatchHandWrittenConstants()
+        {
+            // PT-9: TestRunProtocol's nested string-const classes forward to the data-contract-generated
+            // TestRunEnums.g.cs so the two no longer drift. Backward compat: the nested names are unchanged.
+            Assert.AreEqual(LifecycleValues.Terminal, TestRunProtocol.Lifecycle.Terminal);
+            Assert.AreEqual(RunOutcomeValues.DispatchFailed, TestRunProtocol.RunOutcome.DispatchFailed);
+            Assert.AreEqual(LeafOutcomeValues.Inconclusive, TestRunProtocol.LeafOutcome.Inconclusive);
+            Assert.AreEqual(HealthValues.SuspectedStall, TestRunProtocol.Health.SuspectedStall);
+        }
+
+        [Test]
         public void PassedRequiresSealedManifestRunFinishedAndEveryExpectedLeaf()
         {
             AddExpected("suite.test-a");

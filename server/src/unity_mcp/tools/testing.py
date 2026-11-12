@@ -12,6 +12,7 @@ from typing import Any
 from mcp.server.fastmcp.exceptions import ToolError
 
 from ..compile_state import CompileStateProbe
+from ..generated.testrun_enums import Lifecycle, RunOutcome
 from . import run_disk_fallback
 from ._common import bind
 
@@ -45,10 +46,9 @@ _BLOCK_STARTS = (
 _STARTED = "tests-started"
 _REQUEST_STATUS = "test-request"
 _START_UNKNOWN = "START-UNKNOWN"
-_RUN_STATES = {"prepared", "dispatched", "running", "finalizing", "terminal"}
-_TERMINAL_OUTCOMES = {
-    "passed", "failed", "cancelled", "incomplete", "invalid", "dispatch_failed",
-}
+# PT-9: generated from dsl/data/testrun.data-contract -- the single source for these two word sets.
+_RUN_STATES = frozenset(Lifecycle)
+_TERMINAL_OUTCOMES = frozenset(RunOutcome)
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
 # Mirrors bridge_heartbeat.py's _ping_failures threshold (3): gates a
 # diagnostic TIMEOUT suffix only, never control flow.

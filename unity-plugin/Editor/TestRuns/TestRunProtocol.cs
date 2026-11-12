@@ -26,42 +26,45 @@ namespace UnityMCP.Editor.TestRuns
             return Math.Max(0d, (to - from).TotalSeconds);
         }
 
+        // PT-9: values forward to TestRunEnums.g.cs (dsl/data/testrun.data-contract) so the literal
+        // strings have one source. Kept as nested classes so existing TestRunProtocol.X.Y call sites
+        // (400+) do not change.
         public static class Lifecycle
         {
-            public const string Prepared = "prepared";
-            public const string Dispatched = "dispatched";
-            public const string Running = "running";
-            public const string Finalizing = "finalizing";
-            public const string Terminal = "terminal";
+            public const string Prepared = LifecycleValues.Prepared;
+            public const string Dispatched = LifecycleValues.Dispatched;
+            public const string Running = LifecycleValues.Running;
+            public const string Finalizing = LifecycleValues.Finalizing;
+            public const string Terminal = LifecycleValues.Terminal;
         }
 
         public static class RunOutcome
         {
-            public const string Passed = "passed";
-            public const string Failed = "failed";
-            public const string Cancelled = "cancelled";
-            public const string Incomplete = "incomplete";
-            public const string Invalid = "invalid";
-            public const string DispatchFailed = "dispatch_failed";
+            public const string Passed = RunOutcomeValues.Passed;
+            public const string Failed = RunOutcomeValues.Failed;
+            public const string Cancelled = RunOutcomeValues.Cancelled;
+            public const string Incomplete = RunOutcomeValues.Incomplete;
+            public const string Invalid = RunOutcomeValues.Invalid;
+            public const string DispatchFailed = RunOutcomeValues.DispatchFailed;
         }
 
         public static class LeafOutcome
         {
-            public const string Passed = "passed";
-            public const string Failed = "failed";
-            public const string Skipped = "skipped";
-            public const string Inconclusive = "inconclusive";
-            public const string Cancelled = "cancelled";
-            public const string Invalid = "invalid";
+            public const string Passed = LeafOutcomeValues.Passed;
+            public const string Failed = LeafOutcomeValues.Failed;
+            public const string Skipped = LeafOutcomeValues.Skipped;
+            public const string Inconclusive = LeafOutcomeValues.Inconclusive;
+            public const string Cancelled = LeafOutcomeValues.Cancelled;
+            public const string Invalid = LeafOutcomeValues.Invalid;
         }
 
         public static class Health
         {
-            public const string Healthy = "healthy";
-            public const string Reloading = "reloading";
-            public const string NoTestProgress = "no_test_progress";
-            public const string EditorUnresponsive = "editor_unresponsive";
-            public const string SuspectedStall = "suspected_stall";
+            public const string Healthy = HealthValues.Healthy;
+            public const string Reloading = HealthValues.Reloading;
+            public const string NoTestProgress = HealthValues.NoTestProgress;
+            public const string EditorUnresponsive = HealthValues.EditorUnresponsive;
+            public const string SuspectedStall = HealthValues.SuspectedStall;
         }
 
         public static class UntitledSceneSetup
