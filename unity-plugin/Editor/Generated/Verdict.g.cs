@@ -190,7 +190,7 @@ public static class Policy {
                 // rule: textPartial (priority 22)
                 if ((value1 == "text") && (value12 != value13)) return false;
                 // rule: textFailureMarker (priority 23)
-                if (((value1 == "text") && (value0 == "server")) && (((((value14 == true) || (value15 == true)) || (value16 == true)) || (value17 == true)) || (value18 == true))) return false;
+                if ((value1 == "text") && (value0 == "server") && ((value14 == true) || (value15 == true) || (value16 == true) || (value17 == true) || (value18 == true))) return false;
                 // rule: textPass (priority 24)
                 if (value1 == "text") return true;
                 // rule: ledgerTeardown (priority 30)

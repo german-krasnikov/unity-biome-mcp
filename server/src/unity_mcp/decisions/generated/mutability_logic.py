@@ -99,7 +99,7 @@ def _decide_is_mutating(s: IsMutatingInput) -> bool:
     if (s.call_cmd == "get_changes") and (s.args_clear == "off"):
         return False
     # rule: modeQuery (priority 24)
-    if (((s.call_cmd == "editor") and (s.args_action == "mutation_mode")) and (
+    if ((s.call_cmd == "editor") and (s.args_action == "mutation_mode") and (
             s.args_has_enable is not True)):
         return False
     return s.call_action_read is not True

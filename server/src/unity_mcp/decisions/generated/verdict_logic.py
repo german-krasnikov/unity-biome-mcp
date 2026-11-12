@@ -238,9 +238,9 @@ def _decide_passes(s: PassesInput | OutcomeInput) -> bool:
     if (s.report_format == "text") and (s.text_passed != s.text_total):
         return False
     # rule: textFailureMarker (priority 23)
-    if (((s.report_format == "text") and (s.report_plane == "server")) and (((((
-            s.text_has_fail is True) or (s.text_has_error is True)) or (
-            s.text_has_console_err is True)) or (s.text_has_blocked is True)) or (
+    if ((s.report_format == "text") and (s.report_plane == "server") and ((
+            s.text_has_fail is True) or (s.text_has_error is True) or (
+            s.text_has_console_err is True) or (s.text_has_blocked is True) or (
             s.text_has_timeout is True))):
         return False
     # rule: textPass (priority 24)

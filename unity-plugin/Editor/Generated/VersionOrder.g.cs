@@ -36,7 +36,7 @@ public static class Policy {
                 // rule: higher (priority 20)
                 if (value1 == "greater") return true;
                 // rule: releaseOverItsRc (priority 30)
-                if (((value1 == "equal") && (value3 == true)) && (!(value2 == true))) return true;
+                if ((value1 == "equal") && (value3 == true) && (!(value2 == true))) return true;
                 return false;
             }
         }

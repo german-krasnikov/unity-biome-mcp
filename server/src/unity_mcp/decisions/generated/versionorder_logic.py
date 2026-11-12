@@ -73,5 +73,5 @@ def _decide_is_newer(s: IsNewerInput) -> bool:
     # rule: higher (priority 20)
     if s.ver_triple == "greater":
         return True
-    return (((s.ver_triple == "equal") and (s.ver_cur_pre is True)) and (s.ver_cand_pre
-            is not True))
+    return ((s.ver_triple == "equal") and (s.ver_cur_pre is True) and (s.ver_cand_pre is
+            not True))

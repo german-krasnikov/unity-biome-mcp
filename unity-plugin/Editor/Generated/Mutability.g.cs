@@ -68,7 +68,7 @@ public static class Policy {
                 // rule: changesKept (priority 23)
                 if ((value1 == "get_changes") && (value9 == "off")) return false;
                 // rule: modeQuery (priority 24)
-                if (((value1 == "editor") && (value4 == "mutation_mode")) && (!(value5 == true))) return false;
+                if ((value1 == "editor") && (value4 == "mutation_mode") && (!(value5 == true))) return false;
                 // rule: actionIsRead (priority 30)
                 if (value3 == true) return false;
                 return true;

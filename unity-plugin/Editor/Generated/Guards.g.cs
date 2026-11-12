@@ -59,33 +59,33 @@ public static class Policy {
                 // rule: topAuth (priority 12)
                 if ((value0 == "top") && (value4 == true)) return "authDenied";
                 // rule: topCompiling (priority 13)
-                if (((value0 == "top") && (value5 == true)) && (!(value6 == true))) return "compiling";
+                if ((value0 == "top") && (value5 == true) && (!(value6 == true))) return "compiling";
                 // rule: topPlayBlocked (priority 14)
-                if ((((value0 == "top") && (value7 == true)) && (value9 == true)) && (!(value10 == true))) return "playBlocked";
+                if ((value0 == "top") && (value7 == true) && (value9 == true) && (!(value10 == true))) return "playBlocked";
                 // rule: topNotInPlay (priority 15)
-                if (((value0 == "top") && (!(value7 == true))) && (value11 == true)) return "notInPlay";
+                if ((value0 == "top") && (!(value7 == true)) && (value11 == true)) return "notInPlay";
                 // rule: topReadOnly (priority 16)
-                if (((value0 == "top") && (value12 == true)) && (value9 == true)) return "readOnlyBlocked";
+                if ((value0 == "top") && (value12 == true) && (value9 == true)) return "readOnlyBlocked";
                 // rule: topDisabled (priority 17)
-                if (((value0 == "top") && (!(value13 == true))) && (!(value14 == true))) return "disabled";
+                if ((value0 == "top") && (!(value13 == true)) && (!(value14 == true))) return "disabled";
                 // rule: batchAsyncOnly (priority 20)
                 if ((value0 == "batch") && (!(value2 == true))) return "asyncOnly";
                 // rule: batchPlayBlocked (priority 21)
-                if ((((value0 == "batch") && (value7 == true)) && (value9 == true)) && (!(value10 == true))) return "playBlocked";
+                if ((value0 == "batch") && (value7 == true) && (value9 == true) && (!(value10 == true))) return "playBlocked";
                 // rule: batchNotInPlay (priority 22)
-                if (((value0 == "batch") && (!(value7 == true))) && (value11 == true)) return "notInPlay";
+                if ((value0 == "batch") && (!(value7 == true)) && (value11 == true)) return "notInPlay";
                 // rule: batchCompiling (priority 23)
-                if ((((value0 == "batch") && (value5 == true)) && (value9 == true)) && (!(value6 == true))) return "compiling";
+                if ((value0 == "batch") && (value5 == true) && (value9 == true) && (!(value6 == true))) return "compiling";
                 // rule: batchReadOnly (priority 24)
-                if (((value0 == "batch") && (value12 == true)) && (value9 == true)) return "readOnlyBlocked";
+                if ((value0 == "batch") && (value12 == true) && (value9 == true)) return "readOnlyBlocked";
                 // rule: batchDisabled (priority 25)
-                if (((value0 == "batch") && (!(value13 == true))) && (!(value14 == true))) return "disabled";
+                if ((value0 == "batch") && (!(value13 == true)) && (!(value14 == true))) return "disabled";
                 // rule: batchNotReady (priority 26)
                 if ((value0 == "batch") && (!(value1 == true))) return "initializing";
                 // rule: pyReadOnly (priority 30)
-                if (((value0 == "py") && (value12 == true)) && (value9 == true)) return "readOnlyBlocked";
+                if ((value0 == "py") && (value12 == true) && (value9 == true)) return "readOnlyBlocked";
                 // rule: pyNotInPlay (priority 31)
-                if ((((value0 == "py") && (value8 == true)) && (!(value7 == true))) && (value11 == true)) return "notInPlay";
+                if ((value0 == "py") && (value8 == true) && (!(value7 == true)) && (value11 == true)) return "notInPlay";
                 // rule: pyPythonOnly (priority 32)
                 if ((value0 == "py") && (value3 == true)) return "pythonOnly";
                 return "ok";
