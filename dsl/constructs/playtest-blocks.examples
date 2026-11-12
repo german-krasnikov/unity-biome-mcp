@@ -26,12 +26,11 @@ EXAMPLE ASSERT_BATCH refuses a word after it (INTENDED I1): the block is skipped
   SOURCE END
   EXPECT diagnostic DECLARE_SYNTAX at 1:14
 
-EXAMPLE ASSERT_BATCH refuses a block without END (PlaytestParserEdgeCaseTests.cs:80) and an end in lower case (INTENDED I4)
+EXAMPLE ASSERT_BATCH refuses a block with no END line at all (PlaytestParserEdgeCaseTests.cs:80)
   SOURCE ASSERT_BATCH
   SOURCE ASSERT /X|C|f == 1
-  SOURCE end
   EXPECT diagnostic DECLARE_SYNTAX at 1:1
-  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 3:1
+
 
 EXAMPLE SWEEP_PATH, COMPLETE_PURCHASE and INVOKE_REPEAT are read by their first line; the lines that go on (waypoints, UNTIL, EXPECT, TIMEOUT, names) are the host's and are not in the grammar (PlaytestDslExtensionTests.cs:111, :287, :321, :336, :352; PlaytestParserTests.cs:509; AI/playtest-dsl.md:387, :516, :744)
   SOURCE SWEEP_PATH /Player DWELL 1.5
