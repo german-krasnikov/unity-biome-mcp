@@ -8,8 +8,9 @@ using UnityMCP.Editor;
 namespace UnityMCP.Decisions.Tests
 {
     // T2 slice 1: unity-plugin/Editor/Generated/ToolArgs.g.cs is a thin, per-tool accessor class generated from
-    // dsl/tools.biome (TEMPLATE csargs). No handler calls it yet (slice 2+). These tests are the behaviour-preservation
-    // oracle of Plans/typed-catalog-args.md: a differential check against the pre-existing extraction expression
+    // dsl/tools.biome (TEMPLATE csargs). Handlers already call it (e.g. CommandRouter.MediaHandlers.cs's animation
+    // and timeline dispatch read every ARG through AnimationArgs.*/TimelineArgs.* accessors). These tests remain the
+    // behaviour-preservation oracle of Plans/typed-catalog-args.md: a differential check against the pre-existing extraction expression
     // (kept here as a literal, never deleted when a handler migrates) for every accessor RETURN TYPE the template
     // emits, plus a structural check that the catalog and the generated class agree on the accessor set.
     public sealed class ToolArgsAccessorTests

@@ -162,6 +162,29 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Edit_AddClip_IndexArgHasNoEffect_ClipPlacementDependsOnlyOnStartAndDuration()
+        {
+            // ExecEditTimeline reads TimelineArgs.Index(args) and forwards it for EVERY action, but
+            // TimelineHelper.Edit's "add_clip" case calls AddClipToTrack(track, clip, start, duration)
+            // -- that method has no index parameter, and the add_clip branch never reads the `index`
+            // local at all (only "reorder_track" does). This characterizes that observable fact: the
+            // same add_clip call produces an identical result shape whether index is 0, a large
+            // positive number, or omitted -- the clip's placement depends only on start/duration.
+            CreateAsset("Case_AddClipIndex", "Animation:Hero");
+
+            var indexZero = CommandRouter.ExecuteCommand("timeline",
+                "{\"action\":\"add_clip\",\"path\":\"" + DirectorPath + "\",\"track\":\"Hero\",\"clip\":\"ShotA\",\"start\":0,\"duration\":2,\"index\":0}");
+            var indexLarge = CommandRouter.ExecuteCommand("timeline",
+                "{\"action\":\"add_clip\",\"path\":\"" + DirectorPath + "\",\"track\":\"Hero\",\"clip\":\"ShotB\",\"start\":2,\"duration\":2,\"index\":99}");
+            var indexOmitted = CommandRouter.ExecuteCommand("timeline",
+                "{\"action\":\"add_clip\",\"path\":\"" + DirectorPath + "\",\"track\":\"Hero\",\"clip\":\"ShotC\",\"start\":4,\"duration\":2}");
+
+            StringAssert.Contains("ShotA 0.0-2.0s", indexZero);
+            StringAssert.Contains("ShotB 2.0-4.0s", indexLarge, "index=99 must not affect add_clip's placement or result shape");
+            StringAssert.Contains("ShotC 4.0-6.0s", indexOmitted, "index omitted must behave identically to any explicit index value");
+        }
+
+        [Test]
         public void Edit_ReorderTrack_MovesTrackToIndex()
         {
             CreateAsset("Case_Reorder", "Animation:A;Audio:B;Activation:C");

@@ -32,6 +32,22 @@ namespace UnityMCP.Decisions.Tests
             Assert.That(CatalogToolBlocks.ToPascalCase(key), Is.EqualTo(expected));
         }
 
+        // Acronym-as-word behaviour: a split segment that is itself an acronym is capitalized as ONE
+        // word (e.g. "uitk" -> "Uitk"), never per-letter ("UITK") and never left lower-case ("uitk").
+        // Pinned with real dsl/tools.biome tool names, not a synthetic snippet -- each one checked
+        // below to actually be a TOOL/PYTOOL/INTERNAL name in the catalog. ("guid" was considered for
+        // this row per the review brief but does not occur anywhere in dsl/tools.biome as a tool name
+        // or ARG/WIRE key, so it was dropped in favor of names that are actually present.)
+        [TestCase("uitk_file", "UitkFile", TestName = "acronym-as-word segment (tool name uitk_file, UITOOLKIT)")]
+        [TestCase("vfx_intent", "VfxIntent", TestName = "acronym-as-word segment (tool name vfx_intent, MEDIA)")]
+        [TestCase("lint_ugui", "LintUgui", TestName = "acronym-as-word segment (tool name lint_ugui, UGUI)")]
+        public void ToPascalCase_acronymAsWordSegment_realCatalogToolNames(string toolName, string expected)
+        {
+            Assert.That(CatalogToolBlocks.Parse(Catalog()).Any(b => b.Name == toolName), Is.True,
+                $"'{toolName}' must be a real TOOL/PYTOOL/INTERNAL name in dsl/tools.biome for this pin to be meaningful");
+            Assert.That(CatalogToolBlocks.ToPascalCase(toolName), Is.EqualTo(expected));
+        }
+
         // Algorithm details no current catalog key happens to exercise, but the next one might.
         [TestCase("foo__bar", "FooBar", TestName = "consecutive separators collapse to one split, not an empty part")]
         [TestCase("_foo", "Foo", TestName = "a leading separator produces no empty leading part")]
