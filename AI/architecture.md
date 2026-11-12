@@ -86,6 +86,7 @@ No single handwritten roster is authoritative. Keep these sources aligned:
 | Session category visibility | `server/src/unity_mcp/tools/gating.py` |
 | Deferred schema behavior | `server/src/unity_mcp/tools/schema_registry.py` and `server_filtering.py` |
 | Unity handler and validation metadata | `unity-plugin/Editor/CommandRegistry.cs` registration sites |
+| C# argument reads of a catalog tool | `dsl/tools.biome` `ARG` lines, printed to `unity-plugin/Editor/Generated/ToolArgs.g.cs` (`{Tool}Args.{Key}(args)`; `LOCAL` args have none, `WIRE` names the accessor by its key, `DEFAULT` is not applied). Migrated handlers read through it; see `dsl/README.md` |
 | Argument-dependent read/write behavior | The decision `isMutating` (`dsl/decisions/mutability.logic`), read by `middleware_types.is_write` and `CommandRegistry.IsMutating(cmd, argsJson)`; the read actions of a tool are the `READ` lines of `dsl/tools.biome`. Python is the authority |
 | Which guard stops a call, and in which order | The decision `guardVerdict` (`dsl/decisions/guards.logic`), read by `CommandRouter.CheckGuards`, the per-line guards of `BatchHelper` and the Python read-only, Play Mode and direct-only gates |
 | Exhaustive generated public parameters | `docs/tools-schema/` |

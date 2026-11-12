@@ -112,7 +112,7 @@ by runtime boundary:
 | `unity-plugin/Editor/CommandRouter.cs` and `CommandRouter.*.cs` | Guarded command dispatch and domain registrations. |
 | `unity-plugin/Editor/CommandRegistry.cs` | Command handlers and their mutability, runtime, validation, dispatch, and trust metadata. |
 | `unity-plugin/Editor/CommandOptions.cs` | Internal structured registration options behind the public bool overloads. |
-| `unity-plugin/Editor/Generated/` | Printed from `dsl/`, never edited by hand: the decisions (`Mutability.g.cs`, `Verdict.g.cs`, `Guards.g.cs`, C# 9, depend on nothing but the BCL) and `ActionReads.g.cs` (the read actions of the catalog's tools). |
+| `unity-plugin/Editor/Generated/` | Printed from `dsl/`, never edited by hand: the decisions (`Mutability.g.cs`, `Verdict.g.cs`, `Guards.g.cs`, C# 9, depend on nothing but the BCL) `ActionReads.g.cs` (the read actions of the catalog's tools) and `ToolArgs.g.cs` (one `{Tool}Args` accessor class per catalog tool, the argument reads of migrated handlers). |
 | `unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/` | Printed from `dsl/chat/chatturn.feature`, never edited by hand: the reducer of the exits of a chat turn (C# 9, the BCL only) with its `.biome-files` manifest. `Chat/CLI/ChatTurnDriver.cs` is its door and `Chat/View/MCPChatWindow.TurnPorts.cs` holds the bodies of its 16 effects. |
 | `unity-plugin/Editor/Decisions/` | The native readers of the facts of those decisions (`MutabilityFacts.cs`, `PlaytestFacts.cs`, `GuardFacts.cs`); they decide nothing. `CommandRegistry`, `CommandRouter` and `BatchHelper` call the decisions through them. |
 | `unity-plugin/Editor/PluginRegistry.cs` and `IMCPPlugin.cs` | C# plugin discovery and registration contract. |
