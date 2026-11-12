@@ -94,8 +94,8 @@ ignore = ["E501", "E402", "E701", "E741"]
 [tool.ruff.lint.isort]
 known-first-party = ["unity_mcp"]
 
-[tool.uv.sources]
-biome-mcp = { path = "../../biome-mcp" }
+# [tool.uv.sources]
+# biome-mcp = { path = "../../biome-mcp" }  # uncomment for local dev
 
 [tool.importlinter]
 root_package = "unity_mcp"

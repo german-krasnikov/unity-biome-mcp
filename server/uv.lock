@@ -35,21 +35,12 @@ wheels = [
 [[package]]
 name = "biome-mcp"
 version = "0.1.0"
-source = { directory = "../../biome-mcp" }
+source = { git = "https://github.com/german-krasnikov/biome-mcp.git#5cb6ebcb46bede14952ef0a2affabb414a14da00" }
 
 [package.optional-dependencies]
 mcp = [
     { name = "mcp" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=2.3.0,<3" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8" },
-]
-provides-extras = ["mcp", "dev"]
 
 [[package]]
 name = "cffi"
@@ -928,7 +919,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "biome-mcp", extras = ["mcp"], directory = "../../biome-mcp" },
+    { name = "biome-mcp", extras = ["mcp"], git = "https://github.com/german-krasnikov/biome-mcp.git" },
     { name = "grimp", marker = "extra == 'dev'", specifier = "<3.17" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.1" },
     { name = "import-linter", marker = "extra == 'dev'", specifier = ">=2.14,<2.15" },
