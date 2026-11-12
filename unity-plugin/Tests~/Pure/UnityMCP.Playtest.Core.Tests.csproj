@@ -33,6 +33,27 @@
     <!-- Relative to this file's own directory (unity-plugin/Tests~/Pure/). `**` takes the subfolders of Core too: Generated/ holds PlaytestReader.g.cs, which biome-dsl prints
          (the table of the playtest grammar and the reader that matches a line against it, step 7.5). -->
     <Compile Include="../../Runtime/Playtest/Core/**/*.cs" />
+
+    <!--
+      PT-10: 5 of the Unity-side EditMode playtest-parser test files
+      (unity-plugin/Editor/Tests/) compile and pass unchanged against Core plus
+      the empty UnityMcpTestBase stub in PlaytestEditModeStubBase.cs above —
+      they call only PlaytestParser.Parse(...)/PlaytestComposer, never a Unity
+      API. Referenced in place (not copied) so there is one source of truth;
+      the real UnityMcpTestBase (Editor/TestSupport/) still runs them in the
+      Unity EditMode lane too.
+
+      PlaytestParserCorpusTests.cs was evaluated and excluded: 22 of its cases
+      read fixture files from the Unity project (Assets/MCPFeedbackFixture/,
+      Assets/PlaytestDefs/) by a path relative to the Unity project root, which
+      does not exist in this lane, so including it unchanged would fail
+      `dotnet test -c Release` in CI rather than add passing coverage.
+    -->
+    <Compile Include="../../Editor/Tests/PlaytestMacroTests.cs" />
+    <Compile Include="../../Editor/Tests/PlaytestForLoopTests.cs" />
+    <Compile Include="../../Editor/Tests/PlaytestPathPrefixTests.cs" />
+    <Compile Include="../../Editor/Tests/PlaytestParserEdgeCaseTests.cs" />
+    <Compile Include="../../Editor/Tests/PlaytestAliasRealWorldTests.cs" />
   </ItemGroup>
 
   <ItemGroup>
