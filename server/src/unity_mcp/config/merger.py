@@ -8,6 +8,8 @@ import shutil
 import tempfile
 from collections.abc import Callable  # noqa: TC003
 
+from .generated.project_config_targets import PROJECT_CONFIG_TARGET_ROWS
+
 # Our MCP server name (config key). "unity-biome-mcp" — one "mcp", and distinct from
 # the foreign bare [mcp_servers.unity] (CoplayDev) that the TOML strip removes.
 SERVER_NAME = "unity-biome-mcp"
@@ -22,18 +24,12 @@ _OLD_NAMES = ("unity-mcp",)
 PROJECT_CONFIG_FILENAME = ".mcp.json"
 
 # Every project-scoped client config unity-plugin/Editor/Wizard/ProjectConfigWriter
-# can pin, mirroring ProjectConfigTargets.All (C#) — (rel_path, root_key, is_toml).
-# root_key is "" for TOML (C#'s null — no JSON root section). Parity with the C#
-# source is enforced by test_config_module.py's
-# test_project_config_targets_matches_csharp_source (both a content and an order
-# guard) so the two lists cannot silently drift.
-PROJECT_CONFIG_TARGETS: tuple[tuple[str, str, bool], ...] = (
-    (PROJECT_CONFIG_FILENAME, "mcpServers", False),
-    (".cursor/mcp.json", "mcpServers", False),
-    (".vscode/mcp.json", "servers", False),
-    (".windsurf/mcp.json", "mcpServers", False),
-    (".codex/config.toml", "", True),
-    (".junie/mcp/mcp.json", "mcpServers", False),
+# can pin — (rel_path, root_key, is_toml). root_key is "" for TOML (no JSON root
+# section). Both planes (this tuple and C#'s ProjectConfigTargetRows.All) now
+# derive from the same dsl/data/projectconfig.data-contract (T1/Q10), so they
+# cannot drift independently of it — see scripts/dsl.sh check.
+PROJECT_CONFIG_TARGETS: tuple[tuple[str, str, bool], ...] = tuple(
+    (row.relativePath, row.rootKey or "", row.isToml) for row in PROJECT_CONFIG_TARGET_ROWS
 )
 
 # C1-FIX-01 (windows-platform CRITICAL): every config READ in this module uses

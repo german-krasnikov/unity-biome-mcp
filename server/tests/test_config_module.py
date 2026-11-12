@@ -1170,39 +1170,44 @@ def test_toml_version_fragment_matches_csharp_source():
     assert m.group(1) == merger._TOML_VERSION_RE_FRAGMENT
 
 
-# ─── merger.py: PROJECT_CONFIG_TARGETS parity with ProjectConfigTargets.cs ──
+# ─── merger.py: PROJECT_CONFIG_TARGETS parity with ProjectConfigTargets.g.cs ──
+# T1/Q10: both planes are generated from dsl/data/projectconfig.data-contract, so this is now a
+# generator-output check, not a cross-source parity guard (that guard is scripts/dsl.sh check +
+# dsl/content-lock.json, which fails if either generated file drifts from the contract/rows).
 
 _PROJECT = pathlib.Path(__file__).parents[2]
 _PROJECT_CONFIG_TARGETS_CS_PATH = (
-    _PROJECT / "unity-plugin/Editor/Wizard/ProjectConfigTargets.cs"
+    _PROJECT / "unity-plugin/Editor/Generated/ProjectConfigTargets.g.cs"
 )
 assert _PROJECT_CONFIG_TARGETS_CS_PATH.exists(), (
     f"C# source not found: {_PROJECT_CONFIG_TARGETS_CS_PATH}"
 )
 _PROJECT_CONFIG_TARGETS_CS = _PROJECT_CONFIG_TARGETS_CS_PATH.read_text(encoding="utf-8")
 
-# Captures (key, relativePath, rootKey, isToml) from each
-# `new ProjectConfigTarget("key", "relPath", rootKeyOrNull, true|false)` row.
+# Captures (key, relativePath, isToml, rootKey) from each
+# `new ProjectConfigTarget(key: "...", relativePath: "...", isToml: true|false[, rootKey: "..."])` row.
 _CS_PROJECT_CONFIG_TARGET_RE = re.compile(
     r'new ProjectConfigTarget\('
-    r'"([^"]+)",\s*"([^"]+)",\s*(null|"[^"]+"),\s*(true|false)\)'
+    r'key:\s*"([^"]+)",\s*relativePath:\s*"([^"]+)",\s*isToml:\s*(true|false)'
+    r'(?:,\s*rootKey:\s*"([^"]+)")?\)'
 )
 
 
 def test_project_config_targets_matches_csharp_source():
-    """PROJECT_CONFIG_TARGETS (merger.py) must mirror ProjectConfigTargets.All
-    (C#) -- the two lists are independent by necessity (different runtimes),
-    but a drift here means _default_is_pinned silently stops protecting a
-    client's pin, exactly what C1-round2 #6 found for every non-Claude-Code
-    client. This is a content AND order guard: both lists compare as tuples."""
+    """PROJECT_CONFIG_TARGETS (merger.py) must mirror ProjectConfigTargetRows.All
+    (C#, generated) -- the two lists are independent by necessity (different
+    runtimes), but a drift here means _default_is_pinned silently stops
+    protecting a client's pin, exactly what C1-round2 #6 found for every
+    non-Claude-Code client. This is a content AND order guard: both lists
+    compare as tuples."""
     from unity_mcp.config import merger
 
     matches = _CS_PROJECT_CONFIG_TARGET_RE.findall(_PROJECT_CONFIG_TARGETS_CS)
-    assert matches, "ProjectConfigTargets.cs regex found no matches -- source format changed"
+    assert matches, "ProjectConfigTargets.g.cs regex found no matches -- source format changed"
 
     parsed = tuple(
-        (rel_path, "" if root_key == "null" else root_key.strip('"'), is_toml == "true")
-        for _key, rel_path, root_key, is_toml in matches
+        (rel_path, root_key or "", is_toml == "true")
+        for _key, rel_path, is_toml, root_key in matches
     )
     assert parsed == merger.PROJECT_CONFIG_TARGETS
 
