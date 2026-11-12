@@ -735,8 +735,9 @@ namespace UnityMCP.Playtest.Core
     }
 
     /// <summary>
-    /// Reads a command of a script by the table PlaytestGrammar, as scanDeclarationLines of the reader of the SURFACE in JavaScript (uses.ts) does with the options that READ uses. The forms that
-    /// can read a line are those whose first word is the first token of the line, as written, in the order of the table, and the first that reads it wins. If none does, the one whose reading got
+    /// Reads a command of a script by the table PlaytestGrammar, as scanDeclarationLines of the reader of the SURFACE in JavaScript (uses.ts) does with the options its SURFACE gives it. The forms that
+    /// can read a line are those whose first word is the first token of the line, in the order of the table, and the first that reads it wins; the word is compared as written, and in any ASCII case when the
+    /// SURFACE says CASEFOLD (the index is keyed by PatternWords.Key, and Starting and IsEnd fold the same way). If none does, the one whose reading got
     /// furthest says what is wrong (PlaytestDiagnostic), the first of two that got equally far. A block is a head, lines that are read by the lines of the block, and an END that is not indented deeper than
     /// the head; a head that is not read skips the block to its END. Blank lines and comments (the first token starts with #) are no commands. The reader knows the table and nothing else: what a command
     /// means is the business of whoever builds from it.
