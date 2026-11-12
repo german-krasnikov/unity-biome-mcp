@@ -58,57 +58,57 @@ namespace UnityMCP.Editor
         private static string ExecGetTimeline(string args)
         {
             return TimelineSerializer.Serialize(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "track"));
+                timelineArgs.path(args),
+                timelineArgs.track(args));
         }
 
         private static string ExecCreateTimeline(string args)
         {
             return TimelineHelper.CreateTimeline(
-                JsonHelper.ExtractString(args, "asset_path"),
-                JsonHelper.ExtractString(args, "director_path") ?? JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "tracks"));
+                timelineArgs.asset_path(args),
+                timelineArgs.director_path(args) ?? timelineArgs.path(args),
+                timelineArgs.tracks(args));
         }
 
         private static string ExecEditTimeline(string args)
         {
             return TimelineHelper.Edit(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "action"),
-                JsonHelper.ExtractString(args, "track"),
-                JsonHelper.ExtractString(args, "track_type"),
-                JsonHelper.ExtractString(args, "clip"),
-                JsonHelper.ExtractString(args, "binding"),
-                ParseOptFloat(args, "start"),
-                ParseOptFloat(args, "duration"),
-                ParseOptFloat(args, "blend_in"),
-                ParseOptFloat(args, "blend_out"),
-                JsonHelper.ExtractString(args, "name"),
-                ParseOptInt(args, "index"),
-                ParseOptFloat(args, "offset"),
-                JsonHelper.ExtractString(args, "value"));
+                timelineArgs.path(args),
+                timelineArgs.action(args),
+                timelineArgs.track(args),
+                timelineArgs.track_type(args),
+                timelineArgs.clip(args),
+                timelineArgs.binding(args),
+                timelineArgs.start(args),
+                timelineArgs.duration(args),
+                timelineArgs.blend_in(args),
+                timelineArgs.blend_out(args),
+                timelineArgs.name(args),
+                timelineArgs.index(args),
+                timelineArgs.offset(args),
+                timelineArgs.value(args));
         }
 
         private static string ExecSetClipIn(string args)
         {
             return TimelineHelper.SetClipIn(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "track"),
-                JsonHelper.ExtractString(args, "clip"),
-                ParseOptFloat(args, "clip_in") ?? 0f);
+                timelineArgs.path(args),
+                timelineArgs.track(args),
+                timelineArgs.clip(args),
+                timelineArgs.clip_in(args) ?? 0f);
         }
 
         private static string ExecGetBindings(string args)
         {
-            return TimelineHelper.GetBindings(JsonHelper.ExtractString(args, "path"));
+            return TimelineHelper.GetBindings(timelineArgs.path(args));
         }
 
         private static string ExecPreviewTimeline(string args)
         {
             return TimelineHelper.Preview(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "action") ?? "sample",
-                ParseOptFloat(args, "time") ?? 0f);
+                timelineArgs.path(args),
+                timelineArgs.action(args) ?? "sample",
+                timelineArgs.time(args) ?? 0f);
         }
 
         // --- Consolidated command handlers ---
@@ -174,7 +174,7 @@ namespace UnityMCP.Editor
 
         private static string ExecTimelineConsolidated(string args)
         {
-            var action = JsonHelper.ExtractString(args, "action");
+            var action = timelineArgs.action(args);
             // Read-only actions allowed in Play Mode; mutating actions are not.
             if (action != "get" && action != "get_bindings" && action != "preview"
                 && UnityEditor.EditorApplication.isPlaying)
