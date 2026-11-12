@@ -29,12 +29,11 @@ GENERATE event-map      render {dir}/events.biome csmap    {dir}/../unity-plugin
 
 # The per-project MCP config file targets (dsl/data, T1/Q10): one typed row set instead of two hand-written,
 # regex-parity-tested copies -- server/src/unity_mcp/config/merger.py's PROJECT_CONFIG_TARGETS tuple and
-# unity-plugin/Editor/Wizard/ProjectConfigTargets.cs's ProjectConfigTarget[] All. `data generate --target cs`
-# does not exist in this TOOLCHAIN yet (LANG_UNSUPPORTED), so the C# side is printed by the derive stand-in
-# dsl/data/gen-cs-data.mjs instead of --target cs directly; delete it once biome ships that target.
+# unity-plugin/Editor/Wizard/ProjectConfigTargets.cs's ProjectConfigTarget[] All. Both sides are printed
+# directly by `data generate --target cs` / `--target py` (no derive stand-in).
 CONTRACT projectconfig FROM data/projectconfig.data-contract
 GENERATE py-projectconfig data --contract projectconfig --rows ProjectConfigTarget {dir}/data/projectconfig.core-data --target py --out {dir}/../server/src/unity_mcp/config/generated/project_config_targets.py
-GENERATE cs-projectconfig derive {dir}/data/gen-cs-data.mjs projectConfigTargets OUT {dir}/data/projectconfig.data-contract {dir}/data/projectconfig.core-data {dir}/../unity-plugin/Editor/Generated/ProjectConfigTargets.g.cs
+GENERATE cs-projectconfig data --contract projectconfig --rows ProjectConfigTarget {dir}/data/projectconfig.core-data --target cs --cs-namespace UnityMCP.Editor.Wizard --out {dir}/../unity-plugin/Editor/Generated/ProjectConfigTargets.g.cs
 
 # The decisions (dsl/decisions, step 7.2): the rules of what is a write, whether a playtest passed, which guard stops a call and why a
 # send is retried. A step pair per module: the generated Python (and C#) and the rows of the examples that pytest and dotnet run.

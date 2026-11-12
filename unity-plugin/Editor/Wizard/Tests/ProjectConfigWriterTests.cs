@@ -38,7 +38,7 @@ namespace UnityMCP.Editor.Tests
             // leaking it, per the typed EditorPrefs ownership rule this codebase
             // requires.
             foreach (var target in ProjectConfigTargets.All)
-                ProtectEditorPrefString(ProjectConfigWriter.LastSyncedVersionKey(_tmpDir, target.Key));
+                ProtectEditorPrefString(ProjectConfigWriter.LastSyncedVersionKey(_tmpDir, target.key));
             // R2-01: the pre-C1-r2-#1 shared baseline key (projectRoot only, no target
             // suffix) — some tests below seed it to simulate an existing user upgrading
             // onto the per-target scheme before any per-target key has ever been written.
@@ -50,7 +50,7 @@ namespace UnityMCP.Editor.Tests
         private static HashSet<string> AllKeys()
         {
             var keys = new HashSet<string>();
-            foreach (var t in ProjectConfigTargets.All) keys.Add(t.Key);
+            foreach (var t in ProjectConfigTargets.All) keys.Add(t.key);
             return keys;
         }
 
@@ -62,8 +62,8 @@ namespace UnityMCP.Editor.Tests
             ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", AllKeys());
 
             foreach (var target in ProjectConfigTargets.All)
-                Assert.IsTrue(File.Exists(Path.Combine(_tmpDir, target.RelativePath)),
-                    $"{target.RelativePath} should have been created");
+                Assert.IsTrue(File.Exists(Path.Combine(_tmpDir, target.relativePath)),
+                    $"{target.relativePath} should have been created");
         }
 
         [Test]
@@ -72,8 +72,8 @@ namespace UnityMCP.Editor.Tests
             ProjectConfigWriter.Run(_tmpDir, TestPort, "1.2.3", new HashSet<string>());
 
             foreach (var target in ProjectConfigTargets.All)
-                Assert.IsFalse(File.Exists(Path.Combine(_tmpDir, target.RelativePath)),
-                    $"{target.RelativePath} should NOT have been created");
+                Assert.IsFalse(File.Exists(Path.Combine(_tmpDir, target.relativePath)),
+                    $"{target.relativePath} should NOT have been created");
         }
 
         [Test]
@@ -123,7 +123,7 @@ namespace UnityMCP.Editor.Tests
             var active = new List<ProjectConfigTarget>(
                 ProjectConfigWriter.GetActiveTargets(_tmpDir, enabled));
 
-            Assert.IsFalse(active.Exists(t => t.Key == "cursor"),
+            Assert.IsFalse(active.Exists(t => t.key == "cursor"),
                 "cursor should be excluded — key not enabled, even though file exists");
         }
 
@@ -134,7 +134,7 @@ namespace UnityMCP.Editor.Tests
             var active = new List<ProjectConfigTarget>(
                 ProjectConfigWriter.GetActiveTargets(_tmpDir, enabled));
 
-            Assert.IsFalse(active.Exists(t => t.Key == "cursor"),
+            Assert.IsFalse(active.Exists(t => t.key == "cursor"),
                 "cursor should be excluded — file absent, not enabled");
         }
 
@@ -158,8 +158,8 @@ namespace UnityMCP.Editor.Tests
 
             foreach (var target in ProjectConfigTargets.All)
             {
-                var content = File.ReadAllText(Path.Combine(_tmpDir, target.RelativePath));
-                if (target.IsToml)
+                var content = File.ReadAllText(Path.Combine(_tmpDir, target.relativePath));
+                if (target.isToml)
                 {
                     StringAssert.Contains("v1.2.3", content);
                     StringAssert.Contains("9501", content);
@@ -469,7 +469,7 @@ namespace UnityMCP.Editor.Tests
 
             var gitignore = File.ReadAllText(Path.Combine(_tmpDir, ".gitignore"));
             foreach (var target in ProjectConfigTargets.All)
-                StringAssert.Contains(target.RelativePath, gitignore);
+                StringAssert.Contains(target.relativePath, gitignore);
         }
 
         [Test]

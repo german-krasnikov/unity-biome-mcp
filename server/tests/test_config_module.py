@@ -1186,10 +1186,12 @@ _PROJECT_CONFIG_TARGETS_CS = _PROJECT_CONFIG_TARGETS_CS_PATH.read_text(encoding=
 
 # Captures (key, relativePath, isToml, rootKey) from each
 # `new ProjectConfigTarget(key: "...", relativePath: "...", isToml: true|false[, rootKey: "..."])` row.
+# `--target cs` wraps a row onto several lines once it gets long (rootKey present), so `\s*`
+# surrounds every token boundary, including right after `(` and right before the closing `)`.
 _CS_PROJECT_CONFIG_TARGET_RE = re.compile(
-    r'new ProjectConfigTarget\('
+    r'new ProjectConfigTarget\(\s*'
     r'key:\s*"([^"]+)",\s*relativePath:\s*"([^"]+)",\s*isToml:\s*(true|false)'
-    r'(?:,\s*rootKey:\s*"([^"]+)")?\)'
+    r'(?:,\s*rootKey:\s*"([^"]+)")?\s*\)'
 )
 
 

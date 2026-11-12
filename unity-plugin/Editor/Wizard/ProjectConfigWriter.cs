@@ -78,7 +78,7 @@ namespace UnityMCP.Editor.Wizard
             var active = GetActiveTargets(projectRoot, keys).ToList();
             foreach (var target in active)
                 WriteOne(projectRoot, target, port, version, gitUrl);
-            GitignorePatcher.Apply(projectRoot, active.Select(t => t.RelativePath));
+            GitignorePatcher.Apply(projectRoot, active.Select(t => t.relativePath));
         }
 
         // Pure helper: include target only if its key is in enabledKeys (user opted in).
@@ -90,19 +90,19 @@ namespace UnityMCP.Editor.Wizard
         {
             foreach (var target in ProjectConfigTargets.All)
             {
-                if (enabledKeys != null && enabledKeys.Contains(target.Key))
+                if (enabledKeys != null && enabledKeys.Contains(target.key))
                     yield return target;
             }
         }
 
         internal static void WriteOne(string projectRoot, ProjectConfigTarget target, int port, string version, string gitUrl)
         {
-            var path = Path.Combine(projectRoot, target.RelativePath);
+            var path = Path.Combine(projectRoot, target.relativePath);
             try
             {
                 var exists = File.Exists(path);
                 var existingText = exists ? File.ReadAllText(path, Encoding.UTF8) : "";
-                var state = target.IsToml
+                var state = target.isToml
                     ? ProjectConfigToml.Classify(existingText, port, version)
                     : ProjectConfigFormats.Classify(existingText, port, version);
 
@@ -111,13 +111,13 @@ namespace UnityMCP.Editor.Wizard
                     // ARC-11 T2: stamp the baseline here too (not only after a Merge
                     // below) so an already-synced project has one recorded before the
                     // next real version bump, instead of only after the first drift.
-                    SetLastSyncedVersion(projectRoot, target.Key, version);
+                    SetLastSyncedVersion(projectRoot, target.key, version);
                     return; // no-op, cheapest path
                 }
                 if (state == EntryState.Foreign)
                 {
-                    Debug.Log($"{BiomeLabel.Tag} Adopting hand-edited entry in {target.RelativePath} (adding version marker).");
-                    var adopted = target.IsToml
+                    Debug.Log($"{BiomeLabel.Tag} Adopting hand-edited entry in {target.relativePath} (adding version marker).");
+                    var adopted = target.isToml
                         ? ProjectConfigToml.Adopt(existingText, version)
                         : ProjectConfigFormats.Adopt(existingText, version);
                     if (ReferenceEquals(adopted, existingText)) return; // entry not found — leave intact
@@ -127,10 +127,10 @@ namespace UnityMCP.Editor.Wizard
 
                 if (state == EntryState.OwnedStale)
                 {
-                    var marker = target.IsToml
+                    var marker = target.isToml
                         ? ProjectConfigToml.ExtractMarkerVersion(existingText)
                         : ProjectConfigFormats.ExtractMarkerVersion(existingText);
-                    var baseline = GetLastSyncedVersion(projectRoot, target.Key);
+                    var baseline = GetLastSyncedVersion(projectRoot, target.key);
 
                     // ARC-11 T2 (P7 regression): the on-disk marker no longer matches
                     // the version WE last wrote, yet the entry isn't flagged "_pin" —
@@ -141,7 +141,7 @@ namespace UnityMCP.Editor.Wizard
                     // through to the normal overwrite below.
                     if (!string.IsNullOrEmpty(baseline) && baseline != marker)
                     {
-                        var pinned = target.IsToml
+                        var pinned = target.isToml
                             ? ProjectConfigToml.Pin(existingText)
                             : ProjectConfigFormats.Pin(existingText);
                         if (!ReferenceEquals(pinned, existingText))
@@ -150,11 +150,11 @@ namespace UnityMCP.Editor.Wizard
                     }
                 }
 
-                string content = target.IsToml
+                string content = target.isToml
                     ? (exists ? ProjectConfigToml.Merge(existingText, port, gitUrl, version)
                               : ProjectConfigToml.BuildFresh(port, gitUrl, version))
-                    : (exists ? ProjectConfigFormats.Merge(existingText, port, gitUrl, version, target.RootKey)
-                              : ProjectConfigFormats.BuildFresh(port, gitUrl, version, target.RootKey));
+                    : (exists ? ProjectConfigFormats.Merge(existingText, port, gitUrl, version, target.rootKey)
+                              : ProjectConfigFormats.BuildFresh(port, gitUrl, version, target.rootKey));
 
                 var dir = Path.GetDirectoryName(path);
                 if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
@@ -163,12 +163,12 @@ namespace UnityMCP.Editor.Wizard
 
                 // ARC-11 T2: record the version WE just wrote — the baseline the next
                 // run compares the on-disk marker against to detect a foreign edit.
-                SetLastSyncedVersion(projectRoot, target.Key, version);
+                SetLastSyncedVersion(projectRoot, target.key, version);
             }
             catch (Exception ex)
             {
                 // Read-only FS / permission denied / etc — never throw out of the Editor-tick trigger.
-                Debug.LogWarning($"unity-biome-mcp: could not write {target.RelativePath}: {ex.Message}");
+                Debug.LogWarning($"unity-biome-mcp: could not write {target.relativePath}: {ex.Message}");
             }
         }
 
