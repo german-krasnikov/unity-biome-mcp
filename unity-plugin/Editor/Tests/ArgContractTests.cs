@@ -106,7 +106,7 @@ namespace UnityMCP.Editor.Tests
         // ── Router wiring: ProcessAsync async-handler branch ──────────────
 
         [Test]
-        public void ProcessAsync_EnabledCommand_MissingRequiredArg_FailsBeforeHandlerRuns()
+        public async System.Threading.Tasks.Task ProcessAsync_EnabledCommand_MissingRequiredArg_FailsBeforeHandlerRuns()
         {
             RegisterCleanup(() => CommandRouter.IsCompiling = CommandRouter.DefaultIsCompiling);
             RegisterCleanup(() => CommandRouter.IsPlayMode = () => UnityEditor.EditorApplication.isPlaying);
@@ -117,7 +117,10 @@ namespace UnityMCP.Editor.Tests
             var json = "{\"id\":\"ac-async1\",\"cmd\":\"package\",\"args\":{}}";
             var tcs = new System.Threading.Tasks.TaskCompletionSource<string>();
             CommandRouter.ProcessAsync(json, tcs);
-            var result = tcs.Task.Result;
+            // Contract gate must reject before any handler dispatch — TCS is already
+            // completed synchronously, so awaiting it next cannot hang.
+            Assert.IsTrue(tcs.Task.IsCompleted, "TCS should be set synchronously by the contract gate");
+            var result = await tcs.Task;
             Assert.IsTrue(result.Contains("\"ok\":false"), result);
             StringAssert.Contains("!action", result);
         }
