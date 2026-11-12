@@ -33,6 +33,11 @@ wheels = [
 ]
 
 [[package]]
+name = "biome-mcp"
+version = "0.1.0"
+source = { git = "https://github.com/german-krasnikov/biome-mcp.git#d82676ed11a63eec4d37d231c74b1f57fc32547d" }
+
+[[package]]
 name = "certifi"
 version = "2026.4.22"
 source = { registry = "https://pypi.org/simple" }
@@ -878,6 +883,7 @@ name = "unity-biome-mcp"
 version = "2.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "biome-mcp" },
     { name = "mcp" },
     { name = "pillow" },
     { name = "pydantic" },
@@ -905,6 +911,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "biome-mcp", git = "https://github.com/german-krasnikov/biome-mcp.git" },
     { name = "grimp", marker = "extra == 'dev'", specifier = "<3.17" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.1" },
     { name = "import-linter", marker = "extra == 'dev'", specifier = ">=2.14,<2.15" },

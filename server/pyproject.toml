@@ -17,6 +17,7 @@ dependencies = [
     "mcp>=1.28.0,<2",
     "pydantic>=2.0",
     "Pillow>=10.0",
+    "biome-mcp @ git+https://github.com/german-krasnikov/biome-mcp.git",
 ]
 
 [project.urls]
@@ -169,6 +170,11 @@ forbidden_modules = ["unity_mcp.*"]
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+# biome-mcp is pinned to a git URL (no PyPI release yet); hatchling refuses
+# direct references in [project.dependencies] unless this is explicitly opted in.
+allow-direct-references = true
 
 [dependency-groups]
 # Self-reference onto [project.optional-dependencies].dev, not an independent
