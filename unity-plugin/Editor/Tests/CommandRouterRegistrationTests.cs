@@ -13,11 +13,12 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class CommandRouterRegistrationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        // A5: "ping" and "get_status" moved to ToolBindings.g.cs (HANDLER DSL item) — RegisterMetaCommands()
-        // alone no longer registers them, only CommandRouter.RegisterAll() does (via ToolBindings.RegisterAll()).
+        // A5: "ping", "get_status", "get_capabilities" and "get_enabled_tools" moved to
+        // ToolBindings.g.cs (HANDLER DSL item) — RegisterMetaCommands() alone no longer
+        // registers them, only CommandRouter.RegisterAll() does (via ToolBindings.RegisterAll()).
         private static readonly string[] MetaCommands =
         {
-            "get_capabilities", "get_enabled_tools", "get_disabled_tools",
+            "get_disabled_tools",
             "set_tool_catalog", "set_client_label", "screenshot", "diagnose", "force_play_stop",
         };
 
@@ -106,11 +107,15 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ForcePlayStop_DoesNotDependOnDelayCall()
         {
+            // A5 prep: the inline force_play_stop lambda was extracted to the named
+            // ExecForcePlayStop handler further down in this file — the registration call
+            // itself is now just `CommandRegistry.Register("force_play_stop", ExecForcePlayStop, ...)`,
+            // so the logic this guard checks must be found in the handler body instead.
             var src = ReadRequiredPackageSource(typeof(CommandRouter), "Editor/CommandRouter.Registration.cs");
-            var start = src.IndexOf("CommandRegistry.Register(\"force_play_stop\"");
-            Assert.That(start, Is.GreaterThanOrEqualTo(0), "force_play_stop registration not found");
-            var end = src.IndexOf("CommandRegistry.Register(\"set_client_label\"", start);
-            Assert.That(end, Is.GreaterThan(start), "set_client_label registration not found after force_play_stop");
+            var start = src.IndexOf("private static string ExecForcePlayStop(string args)");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "ExecForcePlayStop handler not found");
+            var end = src.IndexOf("private static string ExecSetClientLabel(string args)", start);
+            Assert.That(end, Is.GreaterThan(start), "ExecSetClientLabel handler not found after ExecForcePlayStop");
             var body = src.Substring(start, end - start);
 
             StringAssert.Contains("EnterPlayModeWithPendingStop", body,
@@ -131,13 +136,16 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ForceRefresh_SchedulesReloadViaMainThreadDispatcher_NotDelayCall()
         {
+            // A5 prep: the inline force_refresh lambda was extracted to the named
+            // ExecForceRefresh handler further down in this file — the registration call
+            // itself is now just `CommandRegistry.Register("force_refresh", ExecForceRefresh, ...)`,
+            // so the logic this guard checks must be found in the handler body instead.
+            // ExecSearchScene is the next handler immediately after ExecForceRefresh in source.
             var src = ReadRequiredPackageSource(typeof(CommandRouter), "Editor/CommandRouter.Registration.cs");
-            var start = src.IndexOf("CommandRegistry.Register(\"force_refresh\"");
-            Assert.That(start, Is.GreaterThanOrEqualTo(0), "force_refresh registration not found");
-            // A5: "search_scene" moved to ToolBindings.g.cs (HANDLER DSL item) — "search_context"
-            // (hand-written, stays) is the next surviving marker after force_refresh.
-            var end = src.IndexOf("CommandRegistry.Register(\"search_context\"", start);
-            Assert.That(end, Is.GreaterThan(start), "search_context registration not found after force_refresh");
+            var start = src.IndexOf("private static string ExecForceRefresh(string args)");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "ExecForceRefresh handler not found");
+            var end = src.IndexOf("internal static string ExecSearchScene(string args)", start);
+            Assert.That(end, Is.GreaterThan(start), "ExecSearchScene handler not found after ExecForceRefresh");
             var body = src.Substring(start, end - start);
 
             StringAssert.Contains("MainThreadDispatcher.Enqueue", body,

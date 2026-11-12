@@ -114,6 +114,7 @@ namespace UnityMCP.Editor.Tests
         {
             CommandRegistry.Clear();
             CommandRouter.RegisterReadCommands();
+            ToolBindings.RegisterAll(); // A5: get_aliases moved to ToolBindings (HANDLER DSL item)
             try
             {
                 var result = CommandRegistry.Execute("get_aliases", "{}");
@@ -135,6 +136,7 @@ namespace UnityMCP.Editor.Tests
             });
             CommandRegistry.Clear();
             CommandRouter.RegisterReadCommands();
+            ToolBindings.RegisterAll(); // A5: get_aliases moved to ToolBindings (HANDLER DSL item)
             try
             {
                 var result = CommandRegistry.Execute("get_aliases", "{}");
@@ -154,6 +156,7 @@ namespace UnityMCP.Editor.Tests
         {
             CommandRegistry.Clear();
             CommandRouter.RegisterReadCommands();
+            ToolBindings.RegisterAll(); // A5: get_aliases moved to ToolBindings (HANDLER DSL item)
             try
             {
                 CollectionAssert.Contains(CommandRegistry.GetAllCommands(), "get_aliases");
@@ -170,6 +173,7 @@ namespace UnityMCP.Editor.Tests
         {
             CommandRegistry.Clear();
             CommandRouter.RegisterReadCommands();
+            ToolBindings.RegisterAll(); // A5: get_aliases moved to ToolBindings (HANDLER DSL item)
             try
             {
                 Assert.IsTrue(CommandRegistry.IsAllowedDuringCompile("get_aliases"));
