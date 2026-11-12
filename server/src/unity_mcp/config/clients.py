@@ -5,6 +5,10 @@ import sys
 from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass, field
 
+from unity_mcp.config.generated.install_dir_rows import INSTALL_DIR_ROWS
+
+_INSTALL_DIR_BY_KEY = {row.key: row for row in INSTALL_DIR_ROWS}
+
 
 @dataclass
 class ClientInfo:
@@ -17,10 +21,11 @@ class ClientInfo:
     is_toml: bool = False  # Codex uses TOML, not JSON
     # Directory whose mere existence signals the client CLI/app is installed,
     # independent of whether config_path has been written yet (e.g. ~/.claude
-    # is created on first `claude` run, before ~/.claude.json exists). Mirrors
-    # unity-plugin/Editor/Wizard/BackendDescriptor.cs's ConfigDir — the single
-    # source of truth for "is this client installed" (ARC-0b). None for
-    # clients where BackendDescriptor sets no ConfigDir (kimi, opencode, junie).
+    # is created on first `claude` run, before ~/.claude.json exists). Resolved
+    # from dsl/data/installdir.data-contract, the single generated source of
+    # truth for "is this client installed" (ARC-0b), shared with
+    # unity-plugin/Editor/Wizard/BackendDescriptor.cs's native reader. None for
+    # clients with no InstallDir row (kimi, opencode, junie, generic).
     install_dir: pathlib.Path | None = None
 
 
@@ -53,35 +58,16 @@ def _codex_path() -> pathlib.Path:
     return pathlib.Path.home() / ".codex" / "config.toml"
 
 
-def _claude_desktop_install_dir() -> pathlib.Path:
-    """Mirrors BackendDescriptor.cs ConfigDir for claude-desktop (per-platform)."""
+def _install_dir(key: str) -> pathlib.Path:
+    """Resolve the InstallDir row for `key` (dsl/data/installdir.data-contract) on this
+    platform. "~" and "{appdata}" are substituted the same way BackendDescriptor.cs's
+    native C# reader substitutes them for the identical generated rows (ARC-0b)."""
+    row = _INSTALL_DIR_BY_KEY[key]
     if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA", pathlib.Path.home() / "AppData" / "Roaming")
-        return pathlib.Path(appdata) / "Claude"
-    if sys.platform == "darwin":
-        return pathlib.Path.home() / "Library" / "Application Support" / "Claude"
-    return pathlib.Path.home() / ".config" / "Claude"
-
-
-def _windsurf_install_dir() -> pathlib.Path:
-    """Mirrors BackendDescriptor.cs ConfigDir for windsurf: ~/.codeium (non-Windows),
-    one level above config_path's parent — the Codeium install root, not the
-    windsurf-specific subfolder."""
-    if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA", pathlib.Path.home() / "AppData" / "Roaming")
-        return pathlib.Path(appdata) / "Codeium" / "windsurf"
-    return pathlib.Path.home() / ".codeium"
-
-
-def _vscode_install_dir() -> pathlib.Path:
-    """Mirrors BackendDescriptor.cs ConfigDir for vscode: the Code app-support
-    dir itself, one level above config_path's parent (.../Code/User)."""
-    if sys.platform == "darwin":
-        return pathlib.Path.home() / "Library" / "Application Support" / "Code"
-    if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA", pathlib.Path.home() / "AppData" / "Roaming")
-        return pathlib.Path(appdata) / "Code"
-    return pathlib.Path.home() / ".config" / "Code"
+        appdata = os.environ.get("APPDATA", str(pathlib.Path.home() / "AppData" / "Roaming"))
+        return pathlib.Path((row.dirWin or row.dir).replace("{appdata}", appdata))
+    template = row.dirMac if sys.platform == "darwin" and row.dirMac else row.dir
+    return pathlib.Path(template.replace("~", str(pathlib.Path.home())))
 
 
 def _opencode_path() -> pathlib.Path:
@@ -119,25 +105,25 @@ CLIENT_REGISTRY: dict[str, ClientInfo] = {
         name="Claude Desktop",
         config_path=_claude_desktop_path(),
         scope="global",
-        install_dir=_claude_desktop_install_dir(),
+        install_dir=_install_dir("claude-desktop"),
     ),
     "claude-code": ClientInfo(
         name="Claude Code",
         config_path=pathlib.Path.home() / ".claude.json",
         scope="global",
-        install_dir=pathlib.Path.home() / ".claude",
+        install_dir=_install_dir("claude-code"),
     ),
     "cursor": ClientInfo(
         name="Cursor",
         config_path=pathlib.Path.home() / ".cursor" / "mcp.json",
         scope="global",
-        install_dir=pathlib.Path.home() / ".cursor",
+        install_dir=_install_dir("cursor"),
     ),
     "windsurf": ClientInfo(
         name="Windsurf",
         config_path=_windsurf_path(),
         scope="global",
-        install_dir=_windsurf_install_dir(),
+        install_dir=_install_dir("windsurf"),
     ),
     "kimi": ClientInfo(
         name="Kimi",
@@ -157,7 +143,7 @@ CLIENT_REGISTRY: dict[str, ClientInfo] = {
         scope="global",
         root_key="servers",
         entry_transformer=_vscode_transform,
-        install_dir=_vscode_install_dir(),
+        install_dir=_install_dir("vscode"),
     ),
     "opencode": ClientInfo(
         name="OpenCode",
@@ -171,7 +157,7 @@ CLIENT_REGISTRY: dict[str, ClientInfo] = {
         config_path=_codex_path(),
         scope="global",
         is_toml=True,
-        install_dir=pathlib.Path.home() / ".codex",
+        install_dir=_install_dir("codex"),
     ),
     "generic": ClientInfo(
         name="Generic (stdout)",

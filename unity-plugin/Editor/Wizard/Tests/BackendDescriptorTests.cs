@@ -46,20 +46,20 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void ClaudeDesktop_HasConfigDir()
+        public void ClaudeDesktop_HasInstallDirRow()
         {
-            var found = System.Array.Find(BackendDescriptor.All, b => b.Key == "claude-desktop");
-            Assert.IsFalse(string.IsNullOrEmpty(found.ConfigDir), "claude-desktop should have ConfigDir (no CLI binary)");
+            Assert.IsFalse(string.IsNullOrEmpty(InstallDirTable.Resolve("claude-desktop")),
+                "claude-desktop should have an InstallDir row (no CLI binary)");
         }
 
         [Test]
-        public void AllPythonConfig_HaveBinaryOrConfigDir()
+        public void AllPythonConfig_HaveBinaryOrInstallDirRow()
         {
             foreach (var b in BackendDescriptor.All)
             {
                 if (b.Mechanism != InstallMechanism.PythonConfig) continue;
-                bool hasHint = !string.IsNullOrEmpty(b.BinaryName) || !string.IsNullOrEmpty(b.ConfigDir);
-                Assert.IsTrue(hasHint, $"PythonConfig backend '{b.Key}' has neither BinaryName nor ConfigDir");
+                bool hasHint = !string.IsNullOrEmpty(b.BinaryName) || InstallDirTable.Resolve(b.Key) != null;
+                Assert.IsTrue(hasHint, $"PythonConfig backend '{b.Key}' has neither BinaryName nor an InstallDir row");
             }
         }
 

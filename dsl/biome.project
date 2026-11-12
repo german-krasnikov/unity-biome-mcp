@@ -35,6 +35,13 @@ CONTRACT projectconfig FROM data/projectconfig.data-contract
 GENERATE py-projectconfig data --contract projectconfig --rows ProjectConfigTarget {dir}/data/projectconfig.core-data --target py --out {dir}/../server/src/unity_mcp/config/generated/project_config_targets.py
 GENERATE cs-projectconfig data --contract projectconfig --rows ProjectConfigTarget {dir}/data/projectconfig.core-data --target cs --cs-namespace UnityMCP.Editor.Wizard --out {dir}/../unity-plugin/Editor/Generated/ProjectConfigTargets.g.cs
 
+# The per-client "is this client installed" directory (dsl/data/installdir.data-contract, ARC-0b, T1 rest
+# step 2): one typed row set instead of clients.py's three _*_install_dir() functions and
+# BackendDescriptor.cs's ConfigDir #if blocks.
+CONTRACT installdir FROM data/installdir.data-contract
+GENERATE py-installdir data --contract installdir --rows InstallDir {dir}/data/installdir.core-data --target py --out {dir}/../server/src/unity_mcp/config/generated/install_dir_rows.py
+GENERATE cs-installdir data --contract installdir --rows InstallDir {dir}/data/installdir.core-data --target cs --cs-namespace UnityMCP.Editor.Wizard --out {dir}/../unity-plugin/Editor/Generated/InstallDir.g.cs
+
 # The CLI backend table (dsl/data/backends.data-contract, UI-5/Q20): one typed row set instead of 23 switch arms spread
 # across SessionHandoff, SessionScanner, ModelContextWindows and MCPChatWindow. The Python side has no call site yet;
 # it is generated for cross-language parity, same as every other data contract here.
