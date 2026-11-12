@@ -46,8 +46,10 @@ namespace UnityMCP.Playtest.Core.GrammarTests
             ("PT_ASSERT_FLAG", "flag", new[] { "$x", "/x", "#x", "(x)", "!(x)", "$" }, new[] { "()", "x", "!" }),
             ("PT_ASSERT", "op", new[] { "<", "<=", ">", ">=", "==", "!=", "contains" }, new[] { "=", "=>", "<>", "Contains", "contain", "<==" }),
             ("PT_CAPTURE_FRAMES", "count", new[] { "2", "9", "10", "99", "100" }, new[] { "1", "0", "01", "10x" }),
-            ("PT_SET_ACTIVE", "active", new[] { "true", "False", "TRUE", "1", "0" }, new[] { "yes", "tRue", "2", "01", "tru" }),
-            ("PT_ASSERT_CAPTURED", "mode", new[] { "INCREASED", "INCREASED_BY", "UNCHANGED" }, new[] { "INCREASED_", "increased", "INCREASE", "INCREASED|UNCHANGED" }),
+            // PT-8/Q22: the playtest SURFACE now says CASEFOLD, so an enum word folds ASCII
+            // case too — "tRue" and "increased" are case-folds of listed words, not refusals.
+            ("PT_SET_ACTIVE", "active", new[] { "true", "False", "TRUE", "tRue", "1", "0" }, new[] { "yes", "2", "01", "tru" }),
+            ("PT_ASSERT_CAPTURED", "mode", new[] { "INCREASED", "INCREASED_BY", "UNCHANGED", "increased" }, new[] { "INCREASED_", "INCREASE", "INCREASED|UNCHANGED" }),
         };
 
         [Test]
@@ -114,11 +116,13 @@ namespace UnityMCP.Playtest.Core.GrammarTests
             Assert.That(Takes(Slot(SlotType.UInt), Chr(code)), Is.False);
         }
 
+        // PT-8/Q22: CaseFold is true file-wide (the one generated table, playtest, says
+        // CASEFOLD), so "STRIP" is now a case-fold of a listed word, not a refusal.
         [Test]
-        public void Accepts_Enum_TakesOneWordOfTheList_AsWritten()
+        public void Accepts_Enum_TakesOneWordOfTheList_CaseFolded()
         {
-            Assert.That(Offenders("enum", Slot(SlotType.Enum, "strip|list|Strip"), new[] { "strip", "list", "Strip" },
-                new[] { "STRIP", "stri", "stripx", "strip|list", "", " strip", "lis", "Strip|" }), Is.Empty);
+            Assert.That(Offenders("enum", Slot(SlotType.Enum, "strip|list|Strip"), new[] { "strip", "list", "Strip", "STRIP" },
+                new[] { "stri", "stripx", "strip|list", "", " strip", "lis", "Strip|" }), Is.Empty);
         }
 
         [Test]

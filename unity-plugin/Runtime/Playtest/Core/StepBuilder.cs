@@ -1,9 +1,8 @@
-// PT-6/PT-7 (Plans/DSL/EVAL3_UNITY_MCP_PLAYTEST.md plan table): StepBuilder reads a command via
-// PlaytestReader and fills a PlaytestStep from its slots — the "expected" side of the reader-vs-
-// hand-parser differential (ReaderDifferentialTests.cs). Adapted from
+// PT-6/PT-7/PT-8 (Plans/DSL/EVAL3_UNITY_MCP_PLAYTEST.md plan table): StepBuilder reads a command via
+// PlaytestReader and fills a PlaytestStep from its slots. Adapted from
 // Plans/DSL/EVAL3_PROTOTYPES/playtest/proto_builder/StepBuilder.cs (E-2 measurement: 308/309 base
-// scripts equal against PlaytestParser.BuildSteps). Test-lane only — zero production lines — until
-// PT-8 flips the runtime default (plan §4).
+// scripts equal against the old hand parser's PlaytestParser.BuildSteps). PT-8 flips the runtime
+// default to this builder and deletes the hand parser (plan §4) — this is now the only parser.
 //
 // PT-6 registers the single-line, single-slot-fill constructs and the directives. PT-7 adds the
 // multi-term query constructs (ASSERT, WAIT_UNTIL, ASSERT_CONSOLE_CLEAN, ASSERT_CONSERVED),
@@ -127,8 +126,8 @@ namespace UnityMCP.Playtest.Core
                 if (u.Has("target")) s.Path = u.Unq("target").Trim('"'); if (u.Has("frequency")) s.Value = u.Unq("frequency");
             });
             Step("PT_TRACE_FLOW", StepType.TraceFlow, (u, s) => { s.Path = u.Unq("from"); s.Query = u.Unq("to"); s.Method = u.Unq("field"); if (u.Has("timeout")) s.Timeout = u.Num("timeout"); });
-            Step("PT_MOVE", StepType.Move, (u, s) => { s.Path = u.Has("path") ? u.Unq("path") : null; PlaytestParser.SetPositionProxy(s, u.Unq("to")); });
-            Step("PT_TELEPORT", StepType.Teleport, (u, s) => { s.Path = u.Unq("path"); PlaytestParser.SetPositionProxy(s, u.Unq("to")); });
+            Step("PT_MOVE", StepType.Move, (u, s) => { s.Path = u.Has("path") ? u.Unq("path") : null; PlaytestParser.SetPosition(s, u.Unq("to")); });
+            Step("PT_TELEPORT", StepType.Teleport, (u, s) => { s.Path = u.Unq("path"); PlaytestParser.SetPosition(s, u.Unq("to")); });
             Step("PT_SECTION", StepType.Section, (u, s) => s.Message = (u.Norm("name") ?? "").Trim('"'));
             Step("PT_ASSERT_CONSOLE_CLEAN", StepType.AssertConsoleClean, (u, s) => { if (u.Has("patterns")) s.Queries = u.Norm("patterns").Split(',').Select(p => p.Trim().Trim('"')).Where(p => p.Length > 0).ToArray(); });
             Step("PT_ASSERT_CONSERVED", StepType.AssertConserved, Conserved);

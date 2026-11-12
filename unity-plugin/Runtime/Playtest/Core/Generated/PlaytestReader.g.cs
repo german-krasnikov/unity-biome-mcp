@@ -1,5 +1,5 @@
 // Generated from dsl/constructs/playtest.construct
-// source-sha256=4488af3986367387fcc4ee2da4c52b1cc5059494957837c1c6437cd9289a6006
+// source-sha256=3a107c85900d7e1f363701617b5b23ec7ed04c0ed1e109ca460952b10631936f
 // Edit the source, then run biome generate.
 
 // The reader of a SURFACE: the table of its forms (Keywords, Forms) and the front that reads a line by it. C# 9, no reference but the base library.
@@ -109,7 +109,7 @@ namespace UnityMCP.Playtest.Core
         public const bool Ordered = true;
         public const bool TokensWords = true;
         public const bool CommentLine = true;
-        public const bool CaseFold = false;
+        public const bool CaseFold = true;
 
         /// <summary>The first word of each form, once, in ordinal order.</summary>
         public static readonly IReadOnlyList<string> Keywords = new[]

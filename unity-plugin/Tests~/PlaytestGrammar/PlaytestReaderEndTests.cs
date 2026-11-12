@@ -44,14 +44,16 @@ ASSERT a == 1");
             Assert.That(r.Uses[0].EndIndex, Is.EqualTo(2), "the block ends at the last line");
         }
 
-        // An END is a line of that word alone: `end` in lower case and `END x` are lines of the block.
+        // PT-8/Q22: the playtest SURFACE now says CASEFOLD, so an END is a line of that word
+        // alone in any ASCII case — `end` in lower case now closes the block too. `END x` (a
+        // word after END) is still a line of the block, case being irrelevant to that rule.
         [Test]
-        public void Read_AnEndInLowerCaseOrWithAWordAfterIt_IsNoEnd()
+        public void Read_AnEndInLowerCase_ClosesTheBlock_ButAWordAfterItIsStillNoEnd()
         {
             var lower = ReaderHarness.Read(@"ASSERT_BATCH
 ASSERT /X|C|f == 1
 end");
-            Assert.That(Said(lower), Is.EqualTo("PT_SYNTAX@1:1 ASSERT_BATCH block is missing END | PT_UNKNOWN_KEYWORD@3:1 unknown keyword end"));
+            Assert.That(Said(lower), Is.EqualTo(""));
             var more = ReaderHarness.Read(@"ASSERT_BATCH
 ASSERT a == 1
 END x

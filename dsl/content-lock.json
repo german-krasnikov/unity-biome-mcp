@@ -16,7 +16,7 @@
     "dsl/constructs/playtest-lazy.examples": "d8edd350d952b71e773b227b65b63e4651a71a8f9ffbfe96aa0958d073355a75",
     "dsl/constructs/playtest-scene.examples": "f166b8f00446ac762a362fa8591fbcdfc2c54cd2d0b8b9a190ad58eb90034fa4",
     "dsl/constructs/playtest-tails.examples": "327e67bab2af764730d2661af977598549de5711f05e61ea97d8a88915392f10",
-    "dsl/constructs/playtest.construct": "4488af3986367387fcc4ee2da4c52b1cc5059494957837c1c6437cd9289a6006",
+    "dsl/constructs/playtest.construct": "3a107c85900d7e1f363701617b5b23ec7ed04c0ed1e109ca460952b10631936f",
     "dsl/constructs/playtest.examples": "d511bc5183921a0efd430bd857920fe9c528cc8e34e8812967e50c2098d9e9c1",
     "dsl/constructs/record.construct": "8ab3a97c404dd4c3b5b65454f92b53690a226123a2e8a9131b1b9d362454feb8",
     "dsl/constructs/record.examples": "82f8e889ce1fb1b9aa964292f6a1bbec52408af7879689a397a8b71b346a4297",
@@ -57,7 +57,7 @@
     "dsl/playtest/gen.mjs": "297a63d4d1434025ee52b057d0667fa5394aa7cab8eecc8aaa50348ae66616ca",
     "dsl/playtest/gen.test.mjs": "80c775d14b0b91ee02d6f998a4660fe5512975f79400f0e5abf99be3b6a077cf",
     "dsl/playtest/oracle.rows": "cdca331e38e4bc7e44b43b7825857317c4cbcc4730dcc8148ed8c59d5a8426ba",
-    "dsl/playtest/reader.rows": "737d2cee98533ff1bc9b13ef396b2dd5c4abd88cfd6a0d5acabf3b3a5b94c895",
+    "dsl/playtest/reader.rows": "8bd41945ed455e2bf5ea762fcf841041f45d3165ac33abf5580cff8869b0f986",
     "dsl/playtest/surface.mjs": "2a20eb9484a720555d97f59c61d01182950ab5552e90f88612b47065ca059690",
     "dsl/protocol.biome": "352117f8394d358b392f15dab91f0159c771fe0ca2fba08a9e7a60f297dc6bd5",
     "dsl/tools.biome": "ae7ae5192ef26bc47e023f639ac9ca2c0ed65b883653a301f194ebed26f4de43",
@@ -112,7 +112,7 @@
     "unity-plugin/Editor/Generated/Verdict.g.cs": "ca7b255677fc54b463679574100f1bfc631d0214bec2ac72380af14dd3400f4f",
     "unity-plugin/Editor/Generated/VersionOrder.g.cs": "7bf62f075546b878fb5190c627bbfeef93ccd2a258d077798202b029a7a12e0e",
     "unity-plugin/Editor/Generated/WireRecords.g.cs": "c6627bc2c574d2510d43d86768b2d7ba3f2bc517d441558b32b1340ac0dc3400",
-    "unity-plugin/Runtime/Playtest/Core/Generated/PlaytestReader.g.cs": "9302882e6624d7e182641de78fd9d472495dffbbf42f6857dcf4f833eb141c7d",
+    "unity-plugin/Runtime/Playtest/Core/Generated/PlaytestReader.g.cs": "80617a423c1d3387bc9af513edca018bcef7706838945d4ecf6e7cca780efc8d",
     "unity-plugin/Tests~/ChatTurn/Generated/.biome-files": "0986c3523de7699420ae57e4a2f40acab3f4c90eed82eb4943f859565285e4ff",
     "unity-plugin/Tests~/ChatTurn/Generated/ChatTurn.Examples.cs": "c1269f39549f0d73c900e022e092423a4a850351a951f21db940f255f0312f41"
   }

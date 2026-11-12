@@ -30,8 +30,11 @@ namespace UnityMCP.Playtest.Core.GrammarTests
             Assert.That(Bound(Wait, "  WAIT   2.5"), Is.EqualTo("seconds=2.5@9"));
         }
 
+        // PT-8/Q22: the one generated table in this assembly (playtest) now says CASEFOLD, so
+        // PlaytestGrammar.CaseFold is true file-wide — a synthetic W("WAIT") folds case too, and
+        // "wait 1" now matches in full instead of failing at the word.
         [Test]
-        public void Match_AWordIsComparedAsWritten() => Assert.That(Why(Wait, "wait 1"), Is.EqualTo("at 0 word WAIT"));
+        public void Match_AWordIsComparedCaseFolded() => Assert.That(Why(Wait, "wait 1"), Is.EqualTo("matched"));
 
         [Test]
         public void Match_ATokenTooMany_FailsAtThatToken() => Assert.That(Why(Wait, "WAIT 1 2"), Is.EqualTo("at 2"));

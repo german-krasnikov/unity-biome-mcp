@@ -82,11 +82,14 @@ namespace UnityMCP.Playtest.Core.GrammarTests
             Assert.That(Uses(ReaderHarness.Read("WAIT_UNTIL $door_open")), Is.EqualTo("PT_WAIT_UNTIL_FLAG 1-1: flag=$door_open@11"));
         }
 
+        // PT-8/Q22: the playtest SURFACE now says CASEFOLD, so a verb folds ASCII case —
+        // "wait"/"Wait" are now read as WAIT, not rejected. A word that is not a verb in any
+        // case (a typo, or an unrelated command name) is still unknown, case being irrelevant.
         [Test]
-        public void Read_AVerbIsTakenAsWritten()
+        public void Read_AVerbFoldsCase_ButAnUnrelatedWordIsStillUnknown()
         {
-            Assert.That(Said(ReaderHarness.Read("wait 1")), Is.EqualTo("PT_UNKNOWN_KEYWORD@1:1 unknown keyword wait"));
-            Assert.That(Said(ReaderHarness.Read("Wait 1")), Is.EqualTo("PT_UNKNOWN_KEYWORD@1:1 unknown keyword Wait"));
+            Assert.That(Said(ReaderHarness.Read("wait 1")), Is.EqualTo(""));
+            Assert.That(Said(ReaderHarness.Read("Wait 1")), Is.EqualTo(""));
             Assert.That(Said(ReaderHarness.Read("  FOOBAR_CMD arg1")), Is.EqualTo("PT_UNKNOWN_KEYWORD@1:3 unknown keyword FOOBAR_CMD"));
             Assert.That(Said(ReaderHarness.Read(new[] { "LOG ok", "ASERT $x == 1" })), Is.EqualTo("PT_UNKNOWN_KEYWORD@2:1 unknown keyword ASERT"));
             Assert.That(Said(ReaderHarness.Read("END")), Is.EqualTo("PT_UNKNOWN_KEYWORD@1:1 unknown keyword END"), "an END with no block is no command");
@@ -151,7 +154,8 @@ namespace UnityMCP.Playtest.Core.GrammarTests
         [TestCase("WAIT \"abc\"", "PT_SYNTAX@1:6 WAIT: \"\"abc\"\" is not a number (seconds)")]
         [TestCase("WAIT", "PT_SYNTAX@1:1 WAIT: the line ends early")]
         [TestCase("SET /A B C 1 2 3", "PT_SYNTAX@1:14 SET: unexpected \"2\"")]
-        [TestCase("wait 1", "PT_UNKNOWN_KEYWORD@1:1 unknown keyword wait")]
+        // PT-8/Q22: CASEFOLD — "wait" now reads as WAIT, so the line reads clean (no diagnostic).
+        [TestCase("wait 1", "")]
         [TestCase("CAPTURE_FRAMES 1 INTERVAL 0.1", "PT_COUNT@1:16 CAPTURE_FRAMES: \"1\" is not like [2-9]|[1-9][0-9]+ (count)")]
         [TestCase("ASSERT /x|C|f == 1 TIMEOUT abc", "PT_NUMBER@1:28 ASSERT: \"abc\" is not a number (timeout)")]
         [TestCase("TRACE_FLOW FROM /a TO /b", "PT_SYNTAX@1:23 TRACE_FLOW FROM: the line ends early")]

@@ -57,9 +57,11 @@ namespace UnityMCP.Playtest.Core.GrammarTests
         [TestCase("X a b AT 5 AT 6", "no match, at 5 word BY")]
         public void Match_ALazyTextBeforeGroups_EndsBeforeTheFirstWordOfAnyOfThem(string line, string fate) => Assert.That(Fate(Tails, line), Is.EqualTo(fate));
 
-        [TestCase("X a b A B", "q=a b@2; +A")]
-        [TestCase("X a b B", "q=a b@2")]
-        [TestCase("X a b", "no match, at 3 word B")]
+        // PT-8/Q22: CASEFOLD folds the group/final words too — lower-case "b" now itself stops
+        // the lazy text (as a case-fold of "B"), changing which of these end in a match.
+        [TestCase("X a b A B", "no match, at 3")]
+        [TestCase("X a b B", "no match, at 3")]
+        [TestCase("X a b", "q=a@2")]
         [TestCase("X a A", "no match, at 3 word B")]
         [TestCase("X B", "no match, at 2 word B")]
         [TestCase("X a B b B", "no match, at 3")]
