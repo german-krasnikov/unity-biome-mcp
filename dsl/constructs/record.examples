@@ -1,0 +1,35 @@
+EXAMPLE a RECORD prints its parser and its formatter in the order of its fields
+  SOURCE RECORD sync_ack SyncAck LEAD sync_ack
+  SOURCE   FIELD epoch int
+  SOURCE   FIELD will_compile bool
+  SOURCE END
+  EXPECT rendered.pyrecord class SyncAck(NamedTuple):
+  EXPECT rendered.pyrecord ("will_compile", "bool"),
+  EXPECT rendered.pyrecord ), head="sync_ack")
+  EXPECT rendered.csrecord internal static string FormatSyncAck(
+  EXPECT rendered.csrecord sb.Append("sync_ack");
+
+EXAMPLE an OPTIONAL field is nullable in Python and skipped by the C# formatter when null
+  SOURCE RECORD sync_status SyncStatus
+  SOURCE   FIELD epoch int
+  SOURCE   FIELD err text OPTIONAL
+  SOURCE END
+  EXPECT rendered.pyrecord err: text | None = None
+  EXPECT rendered.csrecord text_opt err= default,
+  EXPECT rendered.csrecord if (err != null) sb.Append(sb.Length == 0 ? "" : "|").Append("err=").Append(Wire.w_text(err));
+  EXPECT unrendered.pyrecord head=
+
+EXAMPLE a lower-case class name is refused
+  SOURCE RECORD x xClass
+  SOURCE   FIELD a int
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 1:10
+
+EXAMPLE a field type outside the list and a duplicate field are refused
+  SOURCE RECORD x X
+  SOURCE   FIELD a integer
+  SOURCE   FIELD b int
+  SOURCE   FIELD b int
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:11
+  EXPECT diagnostic DECLARE_DUPLICATE at 4:9

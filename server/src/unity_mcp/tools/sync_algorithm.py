@@ -20,6 +20,8 @@ from pathlib import Path
 
 from unity_mcp.utils import parse_pipe_fields
 
+from .generated.wire_records import parse_sync_status as _parse_sync_status_record
+
 
 @dataclass
 class BumpFlag:
@@ -68,6 +70,15 @@ def _parse_status(status: str) -> tuple[int, str, str]:
 
 
 def _parse_stamp(status: str) -> str:
+    """Stamp field of a sync_status line, printed from dsl/protocol.biome (SV1, Q8).
+
+    Tries the generated, typed parser first; a line it rejects (not a clean
+    sync_status record) falls back to the old tolerant dict lookup so no
+    caller's behavior on malformed input changes.
+    """
+    record = _parse_sync_status_record(status)
+    if record is not None:
+        return record.stamp or ''
     return parse_pipe_fields(status).get('stamp', '')
 
 

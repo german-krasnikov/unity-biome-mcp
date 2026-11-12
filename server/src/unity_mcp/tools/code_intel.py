@@ -16,6 +16,7 @@ from typing import Any
 from unity_mcp.utils import parse_pipe_fields
 
 from ._common import bind
+from .generated.wire_records import parse_sync_status as _parse_sync_status_record
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
 from .generated.catalog_tools import await_compile, compile_preflight, serialized_field_rename_audit  # noqa: F401
@@ -55,7 +56,14 @@ def _parse_sync_status(status: str) -> tuple[int, str, str, str]:
     """Parse 'epoch=N|state=S[|dur=X][|stamp=G:T][|err=...]' → (epoch, state, extra, stamp).
 
     P4: adds stamp field to the return tuple so callers can compare MVIDs.
+    Backed by the generated, typed sync_status parser (dsl/protocol.biome, SV1/Q8); a
+    line it rejects (not a clean sync_status record) falls back to the old tolerant
+    dict lookup so no caller's behavior on malformed input changes.
     """
+    record = _parse_sync_status_record(status)
+    if record is not None:
+        extra = record.err if record.err is not None else ("" if record.dur is None else str(record.dur))
+        return record.epoch, record.state, extra, record.stamp or ""
     try:
         parts = parse_pipe_fields(status)
         epoch = int(parts.get("epoch", "0"))

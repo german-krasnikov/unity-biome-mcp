@@ -1,0 +1,43 @@
+# A wire record: one line of the text protocol between the Python server and the Unity plugin, `[head|]key=value|key=value`.
+# The fields, their order and their types are stated once here; the Python parser/formatter and the C# formatter are printed from them.
+SURFACE records CODES RECORDS CONSTRUCTS RECORD
+
+CONSTRUCT RECORD VERSION 1 IR 1 SCOPE project
+  HEAD RECORD <name:match([a-z][a-z0-9_]*) UNIQUE> <cls:match([A-Z][A-Za-z0-9]*)> [LEAD <head:match([a-z][a-z_-]*)>]
+  ITEM FIELD <fname:match([a-z][a-z0-9_]*) UNIQUE> <ftype:enum(int|float1|bool|word|text)> [<opt:enum(OPTIONAL)>]
+  EXAMPLES record.examples
+  DECLARE
+  TEMPLATE pyrecord HEADER "from typing import NamedTuple\n\nfrom .. import _record_runtime as rt\n\nfloat1 = float\nword = text = str\n\n" ESCAPE data
+    class {cls}(NamedTuple):
+    EACH FIELD
+        {fname}: {ftype}{?opt:  | None = None}
+    END
+
+
+    parse_{name} = rt.parser({cls}, (
+    EACH FIELD
+        ("{fname}", "{ftype}"{?opt:, "optional"}),
+    END
+    ){?head:, head="{head}"})
+    format_{name} = rt.formatter((
+    EACH FIELD
+        ("{fname}", "{ftype}"{?opt:, "optional"}),
+    END
+    ){?head:, head="{head}"})
+  END
+  TEMPLATE csrecord HEADER "using System.Globalization;\nusing System.Text;\n\nnamespace UnityMCP.Editor\n{\n    using int_opt = System.Nullable<int>;\n    using float1_opt = System.Nullable<double>;\n    using bool_opt = System.Nullable<bool>;\n    using float1 = System.Double;\n    using word = System.String;\n    using text = System.String;\n    using word_opt = System.String;\n    using text_opt = System.String;\n\n    // Printed from dsl/protocol.biome: the wire records. Never edit.\n    internal static class WireRecords\n    {" FOOTER "    }\n}" ESCAPE data
+        internal static string Format{cls}(
+    EACH FIELD
+            {ftype}{?opt:_opt} {fname}{?opt: = default},
+    END
+            int _end = 0)
+        {
+            var sb = new StringBuilder();
+            {?head:sb.Append("{head}");}
+    EACH FIELD
+            {?opt:if ({fname} != null) }sb.Append(sb.Length == 0 ? "" : "|").Append("{fname}=").Append(Wire.w_{ftype}({fname}));
+    END
+            return sb.ToString();
+        }
+  END
+END

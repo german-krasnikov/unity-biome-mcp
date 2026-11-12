@@ -1,0 +1,27 @@
+SURFACE records
+# The text records of the wire protocol; field order is the order on the wire. The hand-written parsers of
+# server/src/unity_mcp/tools/sync_algorithm.py and tools/code_intel.py, and the hand-written formatter of
+# unity-plugin/Editor/SyncHelper.cs (GetSyncStatusCore/TriggerSyncCore), are printed from this file (SV1, Q8).
+RECORD sync_status SyncStatus
+  FIELD epoch int
+  FIELD state word
+  FIELD err text OPTIONAL
+  FIELD dur float1 OPTIONAL
+  FIELD stamp text OPTIONAL
+  FIELD iscompiling bool OPTIONAL
+  FIELD cn_active bool OPTIONAL
+  FIELD started bool OPTIONAL
+  FIELD stamp_frozen bool OPTIONAL
+END
+
+RECORD sync_ack SyncAck LEAD sync_ack
+  FIELD epoch int
+  FIELD will_compile bool
+END
+
+RECORD tests_started TestsStarted LEAD tests-started
+  FIELD request_id word
+  FIELD run_id word
+  FIELD utf_guid word
+  FIELD state word
+END

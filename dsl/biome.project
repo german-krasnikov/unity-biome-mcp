@@ -12,6 +12,11 @@ GENERATE cs-blast render {dir}/tools.biome csblast {dir}/../unity-plugin/Editor/
 GENERATE py-expect render {dir}/tools.biome pyexpect {dir}/../server/src/unity_mcp/tools/generated/catalog_expect.py
 GENERATE docs-tools render {dir}/tools.biome mdtools {dir}/../docs/tools/index.md#catalog
 
+# The wire records (dsl/protocol.biome, SV1/Q8): the text protocol lines between the Python server and the Unity plugin
+# (`[head|]key=value|key=value`), printed once from dsl/protocol.biome instead of hand-written on each side.
+GENERATE py-records render {dir}/protocol.biome pyrecord {dir}/../server/src/unity_mcp/tools/generated/wire_records.py
+GENERATE cs-records render {dir}/protocol.biome csrecord {dir}/../unity-plugin/Editor/Generated/WireRecords.g.cs
+
 # The decisions (dsl/decisions, step 7.2): the rules of what is a write, whether a playtest passed, which guard stops a call and why a
 # send is retried. A step pair per module: the generated Python (and C#) and the rows of the examples that pytest and dotnet run.
 GENERATE mutability logic generate --source {dir}/decisions/mutability.logic --contract {dir}/decisions/mutability.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/mutability_logic.py" --target "cs {dir}/../unity-plugin/Editor/Generated/Mutability.g.cs AS UnityMCP.Editor.Decisions.Mutability LANG 9"
