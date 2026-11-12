@@ -3,7 +3,7 @@
   "files": {
     "AI/playtest-dsl.md#verbs": "96f0f388f7670b09dc37aa128450d94783470ed425827ddd9a5cb1617619d8a1",
     "docs/tools/index.md#catalog": "21d50299477b0a4cdc851b44af7c49af0d804e5404bda1b1cdb0a384dba436e6",
-    "dsl/biome.project": "0dcf3dc4b047fcbfa3ab4eb8f539201f9aee362c58d2c6111ad20667ae437b38",
+    "dsl/biome.project": "a9c42850ef1becb6b15b3839aff3a94c6bcbf711aa437468862d066416fb846d",
     "dsl/chat/chatturn.contract": "e1854115855583b32d5a0379a614fee00cc4fe95e0c8d4838f13e9c40359c096",
     "dsl/chat/chatturn.examples": "a1f40504c40de0548e551f031755eaeef9030f630f27001fbd5e369b423b7a14",
     "dsl/chat/chatturn.feature": "9996348d029ec77d8d29e79946e2a454180230ead038ce29eda06229b1eee1f7",
@@ -56,6 +56,7 @@
     "dsl/playtest/gen.mjs": "297a63d4d1434025ee52b057d0667fa5394aa7cab8eecc8aaa50348ae66616ca",
     "dsl/playtest/gen.test.mjs": "80c775d14b0b91ee02d6f998a4660fe5512975f79400f0e5abf99be3b6a077cf",
     "dsl/playtest/oracle.rows": "cdca331e38e4bc7e44b43b7825857317c4cbcc4730dcc8148ed8c59d5a8426ba",
+    "dsl/playtest/reader.rows": "737d2cee98533ff1bc9b13ef396b2dd5c4abd88cfd6a0d5acabf3b3a5b94c895",
     "dsl/playtest/surface.mjs": "2a20eb9484a720555d97f59c61d01182950ab5552e90f88612b47065ca059690",
     "dsl/protocol.biome": "352117f8394d358b392f15dab91f0159c771fe0ca2fba08a9e7a60f297dc6bd5",
     "dsl/tools.biome": "ae7ae5192ef26bc47e023f639ac9ca2c0ed65b883653a301f194ebed26f4de43",

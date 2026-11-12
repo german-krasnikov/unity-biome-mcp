@@ -1,7 +1,5 @@
-using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
-using UnityMCP.Playtest.Core.SharedTests;
 
 namespace UnityMCP.Playtest.Core.GrammarTests
 {
@@ -160,32 +158,5 @@ namespace UnityMCP.Playtest.Core.GrammarTests
         [TestCase("MOVE_PATH 1,0,0 > 5,0,0 TIMEOUT 8 9", "no match, at 6")]
         [TestCase("MOVE_PATH", "no match, at 1 slot path")]
         public void Match_TheFormsOfTheTable_ReadALineAsTheReaderInJavaScriptDoes(string line, string fate) => Assert.That(Fate(line), Is.EqualTo(fate));
-
-        // The lines of the examples of the repository for which no diagnostic is expected (dsl/constructs/playtest*.examples, the requirement examples both readers are held to) are read.
-        // A block (ASSERT_BATCH ... END) is read as a whole by the reader, not line by line here; its lines are counted, not skipped in silence.
-        [Test]
-        public void Match_EveryFlatLineOfTheExamplesThatExpectNoDiagnostic_IsReadByTheFirstFormOfItsVerb()
-        {
-            var blockVerbs = new HashSet<string>(PlaytestGrammar.Forms.Where(f => f.IsBlock).Select(f => f.Verb));
-            int read = 0, blocks = 0;
-            var refused = new List<string>();
-            foreach (var block in ExamplesFile.ReadAll().Where(b => b.Expect.Count == 0))
-            {
-                var lines = block.Source.Where(l => l.Trim().Length > 0 && !l.TrimStart().StartsWith("#")).ToList();
-                if (lines.Any(l => blockVerbs.Contains(PatternTokens.Split(l)[0].Text)))
-                {
-                    blocks += lines.Count;
-                    continue;
-                }
-                foreach (var line in lines)
-                {
-                    if (Fate(line).StartsWith("no ")) refused.Add(block.FileName + ": " + line + " => " + Fate(line));
-                    else read++;
-                }
-            }
-            TestContext.WriteLine("lines read: " + read + "; in blocks: " + blocks);
-            Assert.That(refused, Is.Empty);
-            Assert.That(read, Is.GreaterThan(200), "151 lines of the verbs with no LAZY text, 74 more with one");
-        }
     }
 }

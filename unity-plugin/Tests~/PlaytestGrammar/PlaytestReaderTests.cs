@@ -12,7 +12,7 @@ namespace UnityMCP.Playtest.Core.GrammarTests
 {
     // The reader of a command: the form of a line, the order of the forms, the diagnostic of a line no form reads, and the blocks. The expectations are what the reader in JavaScript says
     // (readSurface of the SURFACE playtest, the lines of a script numbered from 1), printed for these scripts, not read off this code: the construct and the slots of a use with their columns,
-    // the code, the line, the column and the text of a diagnostic. The positions the examples of the repository hold it to: PlaytestReaderExamplesTests.
+    // the code, the line, the column and the text of a diagnostic. The positions the examples of the repository hold it to: RowsTests (dsl/playtest/reader.rows).
     public class PlaytestReaderTests
     {
         [Test]

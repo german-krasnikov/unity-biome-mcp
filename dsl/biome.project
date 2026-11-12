@@ -70,4 +70,5 @@ GENERATE chat-turn feature generate --feature {dir}/chat/chatturn.feature --uses
 
 # The playtest grammar (dsl/constructs/playtest.construct, step 7.5): the C# reader (table of forms and the front that reads a line by it) is printed by the compiler; the table of verbs of AI/playtest-dsl.md by gen.mjs.
 GENERATE playtest-reader reader --surface playtest --target cs --cs-namespace UnityMCP.Playtest.Core --out {dir}/../unity-plugin/Runtime/Playtest/Core/Generated/PlaytestReader.g.cs
+GENERATE playtest-rows reader --surface playtest --target rows --out {dir}/playtest/reader.rows
 GENERATE playtest-verbs derive {dir}/playtest/gen.mjs verbs OUT {dir}/constructs/playtest.construct {dir}/../AI/playtest-dsl.md
