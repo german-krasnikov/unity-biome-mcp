@@ -101,6 +101,29 @@ namespace UnityMCP.Decisions.Tests
                 "{}", "{\"compact\":null}", "{\"compact\":true}", "{\"compact\":\"true\"}", "{\"compact\":false}");
         }
 
+        // T2 slice 2: full token table for animation's "compact" (ARG compact bool), proving the
+        // generated accessor (bool, not bool?) agrees with the hand expression at every token shape
+        // before the handler migrates to it. ToolArgs.g.cs emits the IDENTICAL source expression for
+        // a non-optional `bool` ARG (JsonHelper.ExtractString(args,key) == "true"), so this is a
+        // same-expression check, not merely a same-behaviour one.
+        [TestCase("{}", false)]
+        [TestCase("{\"compact\":null}", false)]
+        [TestCase("{\"compact\":true}", true)]
+        [TestCase("{\"compact\":false}", false)]
+        [TestCase("{\"compact\":\"true\"}", true)]
+        [TestCase("{\"compact\":\"false\"}", false)]
+        [TestCase("{\"compact\":\"True\"}", false)]
+        [TestCase("{\"compact\":\"TRUE\"}", false)]
+        [TestCase("{\"compact\":1}", false)]
+        [TestCase("{\"compact\":0}", false)]
+        [TestCase("{\"compact\":\"\"}", false)]
+        public void Compact_accessor_matches_string_equality_oracle_over_full_token_table(string json, bool expected)
+        {
+            var oracle = JsonHelper.ExtractString(json, "compact") == "true";
+            Assert.That(oracle, Is.EqualTo(expected), $"oracle expectation table is stale for: {json}");
+            Assert.That(animationArgs.compact(json), Is.EqualTo(oracle), $"accessor diverges from oracle for: {json}");
+        }
+
         // obool: animator's "has_exit_time" (ARG has_exit_time obool).
         [Test]
         public void Obool_accessor_matches_ParseOptBool_oracle()

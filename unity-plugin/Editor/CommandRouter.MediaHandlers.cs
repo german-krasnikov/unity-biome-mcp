@@ -15,44 +15,44 @@ namespace UnityMCP.Editor
         private static string ExecGetAnimation(string args)
         {
             return AnimationSerializer.Serialize(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip"),
-                ParseOptFloat(args, "time"),
-                JsonHelper.ExtractString(args, "compact") == "true");
+                animationArgs.path(args),
+                animationArgs.clip(args),
+                animationArgs.time(args),
+                animationArgs.compact(args));
         }
 
         private static string ExecCreateAnimation(string args)
         {
             return AnimationHelper.CreateClip(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip_name") ?? JsonHelper.ExtractString(args, "clip"),
-                JsonHelper.ExtractString(args, "property") ?? "localPosition",
-                JsonHelper.ExtractString(args, "keys") ?? "",
-                JsonHelper.ExtractString(args, "component_type"),
-                JsonHelper.ExtractString(args, "binding_path"),
-                JsonHelper.ExtractString(args, "tangent"));
+                animationArgs.path(args),
+                animationArgs.clip_name(args) ?? animationArgs.clip(args),
+                animationArgs.property(args) ?? "localPosition",
+                animationArgs.keys(args) ?? "",
+                animationArgs.component_type(args),
+                animationArgs.binding_path(args),
+                animationArgs.tangent(args));
         }
 
         private static string ExecEditAnimation(string args)
         {
             return AnimationHelper.EditClip(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip"),
-                JsonHelper.ExtractString(args, "action"),
-                JsonHelper.ExtractString(args, "property"),
-                JsonHelper.ExtractString(args, "keys"),
-                JsonHelper.ExtractString(args, "component_type"),
-                JsonHelper.ExtractString(args, "binding_path"),
-                JsonHelper.ExtractString(args, "tangent"));
+                animationArgs.path(args),
+                animationArgs.clip(args),
+                animationArgs.action(args),
+                animationArgs.property(args),
+                animationArgs.keys(args),
+                animationArgs.component_type(args),
+                animationArgs.binding_path(args),
+                animationArgs.tangent(args));
         }
 
         private static string ExecPreviewAnimation(string args)
         {
             return AnimationHelper.Preview(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip"),
-                JsonHelper.ExtractString(args, "action") ?? "sample",
-                ParseOptFloat(args, "time") ?? 0f);
+                animationArgs.path(args),
+                animationArgs.clip(args),
+                animationArgs.action(args) ?? "sample",
+                animationArgs.time(args) ?? 0f);
         }
 
         private static string ExecGetTimeline(string args)
@@ -144,9 +144,9 @@ namespace UnityMCP.Editor
 
         private static string ExecAnimationConsolidated(string args)
         {
-            var action = JsonHelper.ExtractString(args, "action");
-            var path = JsonHelper.ExtractString(args, "path");
-            var clip = JsonHelper.ExtractString(args, "clip");
+            var action = animationArgs.action(args);
+            var path = animationArgs.path(args);
+            var clip = animationArgs.clip(args);
             return action switch
             {
                 "get" => ExecGetAnimation(args),
@@ -158,13 +158,13 @@ namespace UnityMCP.Editor
                 "get_events" => AnimationHelper.GetEvents(path, clip),
                 "add_event" => AnimationHelper.AddEvent(
                     path, clip,
-                    ParseOptFloat(args, "time") ?? 0f,
-                    JsonHelper.ExtractString(args, "function_name"),
-                    ParseOptInt(args, "int_param"),
-                    ParseOptFloat(args, "float_param"),
-                    JsonHelper.ExtractString(args, "string_param")),
+                    animationArgs.time(args) ?? 0f,
+                    animationArgs.function_name(args),
+                    animationArgs.int_param(args),
+                    animationArgs.float_param(args),
+                    animationArgs.string_param(args)),
                 "remove_event" => AnimationHelper.RemoveEvent(
-                    path, clip, ParseOptFloat(args, "time") ?? 0f),
+                    path, clip, animationArgs.time(args) ?? 0f),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
                     new[] { "get", "create", "edit", "add_key", "remove_key", "remove_curve",
                             "set_keys", "set_loop", "set_wrap", "set_framerate", "preview",
