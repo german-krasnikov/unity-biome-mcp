@@ -4,7 +4,7 @@
 
 from typing import NamedTuple
 
-from .. import _record_runtime as rt
+from biome_mcp import record_runtime as rt
 
 float1 = float
 word = text = str

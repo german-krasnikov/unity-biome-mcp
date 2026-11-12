@@ -33,10 +33,16 @@ def test_reload_port_offset():
 # ── Scenario 3: wire protocol uses 4-byte big-endian length prefix ──────────
 
 def test_wire_protocol_length_prefix_be():
-    """Bridge must use big-endian (network order) 4-byte length prefix."""
-    bridge_src = _src("bridge_socket.py")
+    """Bridge must use big-endian (network order) 4-byte length prefix.
+
+    frame_write is re-exported from biome_mcp.transport.framing (DRY'd out of
+    bridge_socket.py), so inspect its real implementation rather than grepping
+    bridge_socket.py's source text.
+    """
+    from unity_mcp.bridge_socket import frame_write
+    frame_src = inspect.getsource(frame_write)
     # "!I" = network byte order (big-endian), unsigned int — equivalent to ">I"
-    assert 'struct.pack("!I"' in bridge_src or 'struct.pack(">I"' in bridge_src
+    assert 'struct.pack("!I"' in frame_src or 'struct.pack(">I"' in frame_src
 
 
 # ── Scenario 4: state file sequence names present in server source ──────────

@@ -35,7 +35,7 @@ wheels = [
 [[package]]
 name = "biome-mcp"
 version = "0.1.0"
-source = { git = "https://github.com/german-krasnikov/biome-mcp.git#66b08a80d1ac3290111a615149135038ac26ed5e" }
+source = { git = "https://github.com/german-krasnikov/biome-mcp.git#ae520d62675bc5671a0bd075eb4e3d0e79a59264" }
 
 [package.optional-dependencies]
 mcp = [

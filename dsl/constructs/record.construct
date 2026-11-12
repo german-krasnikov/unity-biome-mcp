@@ -7,7 +7,7 @@ CONSTRUCT RECORD VERSION 1 IR 1 SCOPE project
   ITEM FIELD <fname:match([a-z][a-z0-9_]*) UNIQUE> <ftype:enum(int|float1|bool|word|text)> [<opt:enum(OPTIONAL)>]
   EXAMPLES record.examples
   DECLARE
-  TEMPLATE pyrecord HEADER "from typing import NamedTuple\n\nfrom .. import _record_runtime as rt\n\nfloat1 = float\nword = text = str\n\n" ESCAPE data
+  TEMPLATE pyrecord HEADER "from typing import NamedTuple\n\nfrom biome_mcp import record_runtime as rt\n\nfloat1 = float\nword = text = str\n\n" ESCAPE data
     class {cls}(NamedTuple):
     EACH FIELD
         {fname}: {ftype}{?opt:  | None = None}

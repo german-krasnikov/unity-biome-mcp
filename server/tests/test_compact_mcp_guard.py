@@ -1,8 +1,4 @@
 """Guard tests: the production CompactMCP instance must never emit output_schema for any tool."""
-import pytest
-from biome_mcp.mcp.compose import CompactMCP, forbid_extra_properties
-from mcp.server.mcpserver.exceptions import ToolError
-
 from unity_mcp.server import _force_additional_properties_false, mcp
 
 
@@ -17,26 +13,6 @@ def test_no_tool_has_output_schema():
         if tool.output_schema is not None
     }
     assert schemas == {}, f"Tools with output_schema: {list(schemas)}"
-
-
-def test_structured_output_true_override_produces_no_schema():
-    from mcp.server.mcpserver import MCPServer as _BaseMCPServer
-    base = _BaseMCPServer("base")
-
-    @base.tool(structured_output=True)
-    def base_tool() -> str:
-        return "x"
-
-    assert base._tool_manager._tools["base_tool"].output_schema is not None
-
-    # Even when caller passes structured_output=True, CompactMCP forces False.
-    instance = CompactMCP("test")
-
-    @instance.tool(structured_output=True)
-    def my_tool() -> str:
-        return "hello"
-
-    assert instance._tool_manager._tools["my_tool"].output_schema is None
 
 
 async def test_list_tools_response_has_no_output_schema():
@@ -70,17 +46,3 @@ def test_zero_param_production_tool_still_rejects_unknown_arguments():
     tool = mcp._tool_manager._tools["recompile"]
     assert tool.parameters.get("additionalProperties") is False
 
-
-async def test_call_tool_rejects_unknown_argument_before_function_dispatch():
-    instance = CompactMCP("test", schema_hooks=[forbid_extra_properties], reject_unknown_args=True)
-    calls = []
-
-    @instance.tool()
-    def sample(required: int) -> str:
-        calls.append(required)
-        return "ok"
-
-    with pytest.raises(ToolError, match="unknown argument.*bogus"):
-        await instance.call_tool("sample", {"required": 1, "bogus": 2})
-
-    assert calls == []

@@ -1,5 +1,5 @@
 """Constants and CircuitBreaker for Unity Biome MCP middleware."""
-import time
+from biome_mcp.circuit_breaker import CircuitBreaker  # noqa: F401 (re-export)
 
 from .decisions.generated.mutability_logic import IsMutatingInput, is_mutating
 from .tools._annotations import _INTERNAL_RETRY_SAFE_CMDS as _KNOWN_SAFE_READS
@@ -151,58 +151,3 @@ def is_scenario_terminal(cmd: str, result: str) -> bool:
 # is intentionally excluded for exactly this reason (see prefetch_cache.py's
 # GATE_PRIORS comment for the paired write-side fix).
 _READ_CACHEABLE = tagged("read_cacheable")
-
-
-class CircuitBreaker:
-    CLOSED, OPEN, HALF_OPEN = 0, 1, 2
-
-    def __init__(self, threshold: int = 3, cooldown: float = 15.0, is_ready_fn=None):
-        self.state = self.CLOSED
-        self.failures = 0
-        self.threshold = threshold
-        self.cooldown = cooldown
-        self.opened_at = 0.0
-        self._probe_in_flight: bool = False
-        self._is_ready_fn = is_ready_fn
-
-    def record_success(self) -> None:
-        self.failures = 0
-        self.state = self.CLOSED
-        self._probe_in_flight = False
-
-    def release_probe(self) -> None:
-        self._probe_in_flight = False
-
-    def record_failure(self) -> None:
-        self.failures += 1
-        if self.failures >= self.threshold:
-            self.state = self.OPEN
-            self.opened_at = time.monotonic()
-
-    def allow_request(self) -> bool:
-        if self.state == self.CLOSED:
-            return True
-        if self.state == self.OPEN:
-            # Check external readiness signal (e.g. compile state) before time-based cooldown
-            if self._is_ready_fn is not None:
-                try:
-                    if self._is_ready_fn():
-                        self.state = self.HALF_OPEN
-                        self._probe_in_flight = True
-                        return True
-                except Exception:
-                    pass
-            if time.monotonic() - self.opened_at > self.cooldown:
-                self.state = self.HALF_OPEN
-                self._probe_in_flight = True
-                return True
-            return False
-        # HALF_OPEN: allow all concurrent requests so no request is falsely
-        # reported as "Circuit OPEN" while a probe is in flight (P-092).
-        return True
-
-    def get_status(self) -> str:
-        return ["CLOSED", "OPEN", "HALF_OPEN"][self.state]
-
-    def remaining(self) -> float:
-        return max(0.0, self.cooldown - (time.monotonic() - self.opened_at))
