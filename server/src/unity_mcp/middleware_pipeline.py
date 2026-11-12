@@ -4,7 +4,7 @@ import os
 import time
 from typing import Any, NamedTuple
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from . import middleware_alias as _alias_hooks  # noqa: F401 — trigger hook registration
 from .bridge_result import unwrap_bridge_result

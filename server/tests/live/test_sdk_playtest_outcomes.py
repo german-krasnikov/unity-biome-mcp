@@ -10,7 +10,7 @@ plugin. Run with: pytest -m live
 import json
 
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp.tools import runtime
 

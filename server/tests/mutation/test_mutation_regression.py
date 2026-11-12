@@ -19,7 +19,7 @@ import time
 import pytest
 from gauntlet.readiness_canary import render_dsl, target_body
 from gauntlet.readiness_dsl_sdk import qualify_receipt
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from tests.mutation._canary import _disable_mutation_mode, _quiet, _status_field, make_raw_send
 from unity_mcp.tools.diagnose import _parse_diagnose

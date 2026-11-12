@@ -5,7 +5,7 @@ All tests mock bridge.send — no Unity required.
 """
 import pytest
 from unittest.mock import AsyncMock
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp.tools.batch import batch
 from unity_mcp.tools.runtime import run_playtest, wait_until

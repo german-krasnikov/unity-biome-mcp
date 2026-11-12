@@ -296,7 +296,7 @@ async def test_send_auto_reconnects_transparently():
 
 async def test_connection_error_becomes_tool_error():
     """bridge.send() ConnectionError must be caught by _send_raw → ToolError."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     from unity_mcp.server import _send_raw
     import unity_mcp.server as server_mod
 

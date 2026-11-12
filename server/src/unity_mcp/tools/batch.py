@@ -1,7 +1,7 @@
 """Bulk command execution + reference inspection/validation."""
 import re
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..decisions.guard_facts import Verdict, guard_verdict
 from ._common import bind

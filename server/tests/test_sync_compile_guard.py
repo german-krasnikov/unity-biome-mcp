@@ -15,7 +15,7 @@ import re
 from unittest.mock import MagicMock, patch
 
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 import unity_mcp.tools.sync as _sync
 from unity_mcp import editor_log

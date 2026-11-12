@@ -3,7 +3,7 @@ import asyncio
 import enum
 from dataclasses import dataclass
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 
 class UnityUnavailableError(ToolError, ConnectionError):

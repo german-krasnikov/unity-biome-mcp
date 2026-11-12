@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp import editor_log, server
 from unity_mcp.errors import SessionIdentityMismatch, UncertainDeliveryError, UnityUnavailableError, recovery_barrier

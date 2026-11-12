@@ -22,7 +22,7 @@ async def test_get_changes_clear_false(mock_bridge):
 
 
 async def test_get_changes_default_clear_blocked_in_read_only(mock_bridge, monkeypatch):
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
 
     monkeypatch.setenv("UNITY_MCP_READ_ONLY", "1")
     with pytest.raises(ToolError, match="READ_ONLY_BLOCKED"):

@@ -111,6 +111,11 @@ class TestPython314Compliance:
             for name, obj in vars(mod).items():
                 if not callable(obj) or not hasattr(obj, "__annotations__"):
                     continue
+                # Only our own callables: a reimported SDK class (e.g. mcp's Context)
+                # resolves its OWN forward refs against its OWN module's globals, which
+                # this walk does not control and is not what this fence is guarding.
+                if getattr(obj, "__module__", None) != info.name:
+                    continue
                 try:
                     typing.get_type_hints(obj, include_extras=True)
                 except Exception as e:

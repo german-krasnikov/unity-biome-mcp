@@ -1420,7 +1420,7 @@ async def sdk_runtime(wrapped_bridge, monkeypatch):
     middleware pre-applied) so wire-level failures surface the same way here
     as they do live, exactly like `run_playtest`'s own non-pass gate (N0b).
     """
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
 
     from unity_mcp.bridge_result import unwrap_bridge_result
     from unity_mcp.middleware import Middleware, wrap_send

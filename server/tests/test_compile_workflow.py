@@ -7,7 +7,7 @@ Covers:
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, patch
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 import unity_mcp.tools.code_intel as _ci
 import unity_mcp.tools.sync as _sync

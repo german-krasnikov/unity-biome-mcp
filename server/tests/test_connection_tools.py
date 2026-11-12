@@ -227,7 +227,7 @@ async def test_send_routes_to_active(mock_bridge):
 
 async def test_send_no_slot_raises():
     """Verify _send() raises ToolError when slot is None."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     with patch("unity_mcp.server.slot", None):
         from unity_mcp.server import get_hierarchy
         with pytest.raises(ToolError, match="Server not initialized"):
@@ -236,7 +236,7 @@ async def test_send_no_slot_raises():
 
 async def test_send_no_bridge_raises():
     """Verify _send() raises ToolError when slot.bridge is None."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     mock_slot = Mock()
     mock_slot.bridge = None
     with patch("unity_mcp.server.slot", mock_slot):

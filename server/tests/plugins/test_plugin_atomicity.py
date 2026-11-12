@@ -129,14 +129,14 @@ def test_register_write_cmds_rejects_core_command_name():
 
 def test_host_tool_collision_rejects_plugin_and_rolls_back_staged_tools(monkeypatch):
     """A plugin tool name colliding with a pre-existing HOST tool must be caught
-    BEFORE the FastMCP SDK's silent add_tool() no-op (SDK: warn + return the
-    existing Tool, never raise). Uses a REAL FastMCP instance (_UnstructuredMCP)
-    because that no-op behavior is a property of the SDK's ToolManager, not of
+    BEFORE the MCPServer SDK's silent add_tool() no-op (SDK: warn + return the
+    existing Tool, never raise). Uses a REAL CompactMCP instance because that
+    no-op behavior is a property of the SDK's ToolManager, not of
     the _DictMcp fake used elsewhere in this file."""
     monkeypatch.setattr(_atomic, "_command_owner", {})
-    from unity_mcp.server import _UnstructuredMCP
+    from biome_mcp.mcp.compose import CompactMCP
 
-    mcp = _UnstructuredMCP("test_host_collision")
+    mcp = CompactMCP("test_host_collision")
 
     def host_fn():
         return "host"

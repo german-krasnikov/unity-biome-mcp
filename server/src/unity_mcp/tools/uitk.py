@@ -1,7 +1,7 @@
 """UI Toolkit tools: inspect_uitk, lint_uitk, uitk_element, attach_uitk, uitk_file."""
 from typing import Literal
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ._common import bind
 

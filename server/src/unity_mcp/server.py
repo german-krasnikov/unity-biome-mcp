@@ -136,37 +136,24 @@ def _schedule_dormant(idle: float, timeout: float) -> None:
 
 from contextlib import asynccontextmanager, suppress
 
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.exceptions import ToolError
+from biome_mcp.mcp.compose import CompactMCP, inject_descriptions, inject_extras
+from mcp.server.mcpserver.exceptions import ToolError
 
 from . import __version__
-from .tools._schema_postprocessor import postprocess_schema
+from .tools._param_descriptions import _COMMON, PARAM_DESCRIPTIONS, PARAM_SCHEMA_EXTRAS
 
 
-class _UnstructuredMCP(FastMCP):
-    def add_tool(self, fn, name=None, title=None, description=None,
-                 annotations=None, icons=None, meta=None,
-                 structured_output=None) -> None:
-        tool_name = name or fn.__name__
-        if not title:
-            title = tool_name.replace("_", " ").title()
-        super().add_tool(fn, name=tool_name, title=title, description=description,
-                         annotations=annotations, icons=icons, meta=meta,
-                         structured_output=False)
-        tool = self._tool_manager._tools.get(tool_name)
-        if tool is not None:
-            postprocess_schema(tool_name, tool.parameters)
+def _force_additional_properties_false(tool_name: str, schema: dict) -> None:
+    """additionalProperties=False for every tool with a declared properties object,
+    including an empty one ({}) for a zero-param tool.
 
-    async def call_tool(self, name: str, arguments: dict):
-        """Reject arguments that the published tool schema forbids."""
-        tool = self._tool_manager.get_tool(name)
-        if tool is not None and tool.parameters.get("additionalProperties") is False:
-            properties = tool.parameters.get("properties", {})
-            unknown = sorted(set(arguments) - set(properties))
-            if unknown:
-                joined = ", ".join(unknown)
-                raise ToolError(f"unknown argument(s) for tool {name}: {joined}")
-        return await super().call_tool(name, arguments)
+    biome-mcp's forbid_extra_properties skips an empty dict (a truthiness check), which
+    would silently disable CompactMCP's reject_unknown_args guard for zero-param tools --
+    the pre-migration postprocess_schema set it unconditionally whenever properties was
+    present (even empty), so this keeps that exact contract instead.
+    """
+    if schema.get("properties") is not None:
+        schema.setdefault("additionalProperties", False)
 
 from .bridge_result import unwrap_bridge_result
 from .connection_slot import ConnectionSlot
@@ -656,10 +643,19 @@ async def lifespan(app):
             release_lock(lock_fd)
 
 
-mcp = _UnstructuredMCP("UnityMCP", lifespan=lifespan)
-# FastMCP otherwise defaults initialize.serverInfo.version to the MCP SDK
+mcp = CompactMCP(
+    "UnityMCP",
+    schema_hooks=[
+        _force_additional_properties_false,
+        inject_descriptions(PARAM_DESCRIPTIONS, _COMMON),
+        inject_extras(PARAM_SCHEMA_EXTRAS),
+    ],
+    reject_unknown_args=True,
+    lifespan=lifespan,
+)
+# MCPServer otherwise defaults initialize.serverInfo.version to the MCP SDK
 # version. Product identity must describe the launched package bytes instead.
-mcp._mcp_server.version = __version__
+mcp._lowlevel_server.version = __version__
 
 register_all(mcp, _send, _args, get_slot=lambda: slot,
              get_middleware=lambda: _middleware,

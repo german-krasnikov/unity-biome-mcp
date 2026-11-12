@@ -5,7 +5,7 @@ is responsible for calling Physics.SyncTransforms() before reading col.bounds.
 """
 import pytest
 from unittest.mock import AsyncMock
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp.tools.spatial import spatial_query
 

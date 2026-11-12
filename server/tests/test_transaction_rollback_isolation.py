@@ -3,7 +3,7 @@ Mutation/transaction rollback isolation and read-only uniform enforcement.
 """
 import time
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 import unity_mcp.tools.transaction as tr
 from unity_mcp.middleware import Middleware
 

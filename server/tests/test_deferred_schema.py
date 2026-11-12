@@ -8,7 +8,7 @@ def _tool(name: str, description: str = "desc", input_schema: dict | None = None
     t = SimpleNamespace(
         name=name,
         description=description,
-        inputSchema=input_schema or {"type": "object", "properties": {"x": {"type": "string"}}, "required": ["x"]},
+        input_schema=input_schema or {"type": "object", "properties": {"x": {"type": "string"}}, "required": ["x"]},
     )
     return t
 
@@ -29,7 +29,7 @@ def test_core_tool_keeps_full_schema_after_strip():
     full = _full_schema()
     tool = _tool("get_hierarchy", "Core tool", full)
     result = _strip_deferred_schemas([tool])
-    assert result[0].inputSchema == full
+    assert result[0].input_schema == full
 
 
 def test_non_core_tool_gets_stub_after_strip():
@@ -37,7 +37,7 @@ def test_non_core_tool_gets_stub_after_strip():
     from unity_mcp.tools.schema_registry import STUB_SCHEMA
     tool = _tool("asset", "Asset tool", _full_schema())
     result = _strip_deferred_schemas([tool])
-    assert result[0].inputSchema == STUB_SCHEMA
+    assert result[0].input_schema == STUB_SCHEMA
 
 
 def test_stub_keeps_description_and_name():
@@ -55,7 +55,7 @@ def test_core_tools_survive_strip():
     tool = _tool("batch", "Batch", _full_schema())
     result = _strip_deferred_schemas([tool])
     # batch is core — schema always kept full
-    assert result[0].inputSchema == _full_schema()
+    assert result[0].input_schema == _full_schema()
 
 
 def test_stripped_list_char_count_less_than_full():
@@ -69,9 +69,9 @@ def test_stripped_list_char_count_less_than_full():
         _tool("timeline", "Timeline", _full_schema()),
     ]
     # Measure BEFORE stripping (strip mutates in-place)
-    full_size = sum(len(json.dumps(t.inputSchema)) for t in tools)
+    full_size = sum(len(json.dumps(t.input_schema)) for t in tools)
     stripped = _strip_deferred_schemas(tools)
-    stripped_size = sum(len(json.dumps(t.inputSchema)) for t in stripped)
+    stripped_size = sum(len(json.dumps(t.input_schema)) for t in stripped)
     assert stripped_size < full_size
 
 
@@ -82,7 +82,7 @@ def test_unity_mcp_full_schemas_disables_stripping(monkeypatch):
     full = _full_schema()
     tool = _tool("animation", "Anim", full)
     result = _strip_deferred_schemas([tool])
-    assert result[0].inputSchema == full
+    assert result[0].input_schema == full
 
 
 def test_unity_mcp_full_schemas_zero_still_strips(monkeypatch):
@@ -92,7 +92,7 @@ def test_unity_mcp_full_schemas_zero_still_strips(monkeypatch):
     from unity_mcp.tools.schema_registry import STUB_SCHEMA
     tool = _tool("asset", "Asset", _full_schema())
     result = _strip_deferred_schemas([tool])
-    assert result[0].inputSchema == STUB_SCHEMA
+    assert result[0].input_schema == STUB_SCHEMA
 
 
 # --- resolve_tool_schema meta-tool ---
@@ -148,7 +148,7 @@ def test_strip_does_not_touch_tool_manager_registry():
     """_strip_deferred_schemas mutates ListTools response objects — NOT _tool_manager._tools.
 
     FastMCP runs with validate_input=False internally; _tool_manager._tools holds the
-    callable fn independently of the ListTools response. So stripping inputSchema from
+    callable fn independently of the ListTools response. So stripping input_schema from
     the response object cannot block execution.
     """
     from unity_mcp.server import mcp, _strip_deferred_schemas
@@ -175,7 +175,7 @@ def test_plugin_tool_gets_stubbed():
     # A fake plugin tool name that is definitely not in core or known categories
     tool = _tool("my_plugin_custom_tool", "Custom plugin", _full_schema())
     result = _strip_deferred_schemas([tool])
-    assert result[0].inputSchema == STUB_SCHEMA
+    assert result[0].input_schema == STUB_SCHEMA
 
 
 # --- cold-start race: resolve before ListTools populates the registry ---
@@ -219,7 +219,7 @@ def test_resolve_tool_schema_keeps_full_schema():
     tool = _tool("resolve_tool_schema", "Resolve deferred schemas", full)
     assert "resolve_tool_schema" in _SCHEMA_KEEP_FULL
     result = _strip_deferred_schemas([tool])
-    assert result[0].inputSchema == full
+    assert result[0].input_schema == full
 
 
 def test_non_keep_full_tool_schema_is_stripped():
@@ -229,7 +229,7 @@ def test_non_keep_full_tool_schema_is_stripped():
     full = _full_schema()
     tool = _tool("asset", "Asset tool", full)
     result = _strip_deferred_schemas([tool])
-    assert result[0].inputSchema == STUB_SCHEMA
+    assert result[0].input_schema == STUB_SCHEMA
 
 
 # P-321: run_playtest_suite schema must not be stubbed in ListTools
@@ -241,7 +241,7 @@ def test_run_playtest_suite_schema_not_stubbed():
     tool = _tool("run_playtest_suite", "Run playtest suite", full)
     assert "run_playtest_suite" in _SCHEMA_KEEP_FULL
     result = _strip_deferred_schemas([tool])
-    assert result[0].inputSchema == full
+    assert result[0].input_schema == full
 
 
 # --- stripping is applied in the handler ---
@@ -257,6 +257,6 @@ async def test_filter_tools_applies_strip():
                  _tool("animation", "Anim", _full_schema())]
         result = await srv._filter_tools(tools, None)
         core = next(t for t in result if t.name == "get_hierarchy")
-        assert core.inputSchema == _full_schema()
+        assert core.input_schema == _full_schema()
     finally:
         srv._disabled_tools_cache = orig_cache

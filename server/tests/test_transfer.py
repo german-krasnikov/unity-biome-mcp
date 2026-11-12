@@ -14,7 +14,7 @@ async def test_reconnect_unity_calls_slot_connect(mock_bridge):
 
 
 async def test_reconnect_unity_no_slot_raises():
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     with patch("unity_mcp.tools.connection._get_slot", return_value=None):
         from unity_mcp.tools.connection import reconnect_unity
         with pytest.raises(ToolError, match="Server not initialized"):

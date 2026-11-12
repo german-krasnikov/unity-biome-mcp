@@ -20,7 +20,7 @@ from pathlib import Path  # noqa: TC003 -- used in runtime-evaluated annotations
 
 from gauntlet.fsr_qualification_fixture import mono_meta
 from gauntlet.readiness_canary import FIXTURES, target_body
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp.bridge_result import unwrap_bridge_result
 from unity_mcp.timeout_categories import get_timeout

@@ -1,5 +1,5 @@
 """AI-assisted debugging: gather diagnostic context based on symptom."""
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ._common import bind
 from .generated.catalog_tools import debug  # noqa: F401

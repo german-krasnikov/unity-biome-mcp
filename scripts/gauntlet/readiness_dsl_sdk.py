@@ -43,13 +43,13 @@ def qualify_receipt(data: dict, *, expect_failure: bool) -> None:
 async def sdk_session(send):
     """Memory transport still performs MCP initialization, schema and tool dispatch."""
     from mcp import ClientSession
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
     from mcp.shared.memory import create_client_server_memory_streams
 
     from unity_mcp.tools import editor_control, objects, runtime
     from unity_mcp.tools.generated import catalog_tools
 
-    app = FastMCP("owned-readiness-dsl-qualification", log_level="ERROR")
+    app = MCPServer("owned-readiness-dsl-qualification", log_level="ERROR")
     def args(**kwargs):
         return {key: value for key, value in kwargs.items() if value is not None}
     for module in (editor_control, objects, runtime):
@@ -62,8 +62,8 @@ async def sdk_session(send):
     for wrapper in (catalog_tools.editor, catalog_tools.get_object_detail, catalog_tools.run_playtest):
         app.add_tool(wrapper)
     async with create_client_server_memory_streams() as (client, server):
-        task = asyncio.create_task(app._mcp_server.run(
-            *server, app._mcp_server.create_initialization_options()))
+        task = asyncio.create_task(app._lowlevel_server.run(
+            *server, app._lowlevel_server.create_initialization_options()))
         try:
             async with ClientSession(*client) as session:
                 await session.initialize()
@@ -80,7 +80,7 @@ def _stamp():
 
 def decode_tool_response(name, response, *, expect_failure=False):
     text = "\n".join(block.text for block in response.content if block.type == "text")
-    if response.isError:
+    if response.is_error:
         prefix = "Error executing tool run_playtest: "
         if name == "run_playtest" and expect_failure and text.startswith(prefix):
             raw = text[len(prefix):]
@@ -140,7 +140,7 @@ async def run_phase(session, project: Path, instance_id: int, owned_name: str,
 
 
 async def main_async(options):
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
 
     from unity_mcp.bridge import UnityBridge
     from unity_mcp.bridge_result import unwrap_bridge_result

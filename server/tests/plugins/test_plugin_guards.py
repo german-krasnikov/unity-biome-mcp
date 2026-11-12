@@ -18,7 +18,7 @@ def test_negative_control_host_collision_guard_is_load_bearing(monkeypatch):
     """The host-collision check inside _GuardedMcp.tool() is what stops a
     plugin from claiming ownership of a pre-existing host tool name. Remove
     only that check (keep the plugin-vs-plugin collision check intact): the
-    plugin succeeds. The real FastMCP SDK's add_tool() no-ops on the
+    plugin succeeds. The real MCPServer SDK's add_tool() no-ops on the
     duplicate name (warns, keeps the original handler, never raises) — so
     the host handler's identity survives, but _command_owner still wrongly
     records the plugin as owner. Positive control:
@@ -42,8 +42,8 @@ def test_negative_control_host_collision_guard_is_load_bearing(monkeypatch):
 
     monkeypatch.setattr(_atomic._GuardedMcp, "tool", _tool_without_host_collision_check)
 
-    from unity_mcp.server import _UnstructuredMCP
-    mcp = _UnstructuredMCP("test_negctrl_host_collision")
+    from biome_mcp.mcp.compose import CompactMCP
+    mcp = CompactMCP("test_negctrl_host_collision")
 
     def host_fn():
         return "host"

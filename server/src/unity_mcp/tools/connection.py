@@ -1,5 +1,5 @@
-from mcp.server.fastmcp import Context  # noqa: TC002 — fastmcp eval_str=True requires runtime
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver import Context  # noqa: TC002 — fastmcp eval_str=True requires runtime
+from mcp.server.mcpserver.exceptions import ToolError
 
 from .generated.catalog_tools import list_connections, tools  # noqa: F401
 

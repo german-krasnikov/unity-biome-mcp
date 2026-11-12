@@ -14,10 +14,10 @@ classifiers = [
 ]
 requires-python = ">=3.14"
 dependencies = [
-    "mcp>=1.28.0,<2",
+    "mcp>=2.3.0,<3",
     "pydantic>=2.0",
     "Pillow>=10.0",
-    "biome-mcp @ git+https://github.com/german-krasnikov/biome-mcp.git",
+    "biome-mcp[mcp] @ git+https://github.com/german-krasnikov/biome-mcp.git",
 ]
 
 [project.urls]
@@ -93,6 +93,9 @@ ignore = ["E501", "E402", "E701", "E741"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["unity_mcp"]
+
+[tool.uv.sources]
+biome-mcp = { path = "../../biome-mcp" }
 
 [tool.importlinter]
 root_package = "unity_mcp"

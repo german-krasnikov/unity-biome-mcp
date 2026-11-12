@@ -1,6 +1,6 @@
 """TDD tests for intent_common — shared DSL utilities."""
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 # ---------------------------------------------------------------------------
 # 1. strip_fences

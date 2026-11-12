@@ -135,7 +135,7 @@ async def test_get_metrics_tool_reset_clears():
 
 
 async def test_get_metrics_reset_blocked_in_read_only(monkeypatch):
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     from unity_mcp.metrics import METRICS
     from unity_mcp.tools.metrics_tool import get_metrics
 

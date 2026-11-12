@@ -156,7 +156,7 @@ async def test_debug_gather_strips_whitespace():
 
 @pytest.mark.asyncio
 async def test_debug_rejects_screenshot_gather_before_transport():
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     import unity_mcp.tools.debug_tool as mod
 
     mock_send = AsyncMock(return_value="must not be reached")

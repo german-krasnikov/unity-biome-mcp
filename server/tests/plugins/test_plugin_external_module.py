@@ -20,8 +20,8 @@ that would drown the two fixture-tool assertions in unrelated noise. It is
 still the literal production function for this discovery source, not a
 substitute for one.
 """
+from biome_mcp.mcp.compose import CompactMCP
 from unity_mcp.plugins import _atomic, _load_plugin_dirs
-from unity_mcp.server import _UnstructuredMCP
 from unity_mcp.tools import gating
 
 _OK_SOURCE = '''
@@ -82,7 +82,7 @@ async def test_external_fixture_module_read_write_no_core_edits(tmp_path, monkey
     monkeypatch.setattr(_atomic, "_command_owner", {})
     from unity_mcp.middleware import READ_CMDS, WRITE_CMDS
 
-    mcp = _UnstructuredMCP("test_ext_fixture_ok")
+    mcp = CompactMCP("test_ext_fixture_ok")
 
     def host_fn():
         return "host"
@@ -98,7 +98,7 @@ async def test_external_fixture_module_read_write_no_core_edits(tmp_path, monkey
             tmp_path, monkeypatch, "fixture_ext_rw_ok", _OK_SOURCE, mcp
         )
 
-        # 1. both tools present in the FastMCP host manager...
+        # 1. both tools present in the CompactMCP host manager...
         assert "ext_fixture_read_tool" in mcp._tool_manager._tools
         assert "ext_fixture_write_tool" in mcp._tool_manager._tools
 
@@ -109,8 +109,8 @@ async def test_external_fixture_module_read_write_no_core_edits(tmp_path, monkey
 
         read_result = await mcp.call_tool("ext_fixture_read_tool", {})
         write_result = await mcp.call_tool("ext_fixture_write_tool", {})
-        assert read_result[0].text == "ext-read-value"
-        assert write_result[0].text == "ext-write-value"
+        assert read_result.content[0].text == "ext-read-value"
+        assert write_result.content[0].text == "ext-write-value"
 
         # 2. READ_CMDS/WRITE_CMDS grew by exactly the fixture's names, correctly classified.
         assert READ_CMDS - read_before == {"ext_fixture_read_tool"}
@@ -148,7 +148,7 @@ async def test_external_fixture_module_foreign_name_rejects_whole_fixture(tmp_pa
     monkeypatch.setattr(_atomic, "_command_owner", {})
     from unity_mcp.middleware import READ_CMDS, WRITE_CMDS
 
-    mcp = _UnstructuredMCP("test_ext_fixture_rejected")
+    mcp = CompactMCP("test_ext_fixture_rejected")
 
     all_known_before = set(gating._ALL_KNOWN)
     read_before, write_before = set(READ_CMDS), set(WRITE_CMDS)

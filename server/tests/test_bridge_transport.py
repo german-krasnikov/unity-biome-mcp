@@ -44,7 +44,7 @@ def _make_mcp():
 async def test_stdio_dead_raises_structured_error(monkeypatch):
     """When stdio is closed (_stdio_alive() returns False), _send_raw must raise
     ToolError with the TRANSPORT_DEAD tag so the LLM surfaces the right fix."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     import unity_mcp.server as srv
 
     # Wire a live bridge so the failure comes from stdio, not TCP.

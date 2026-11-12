@@ -5,13 +5,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-import mcp.types as mcp_types
-
 from unity_mcp.server import _filter_tools, mcp
 
 
 def _tool(name: str):
-    return SimpleNamespace(name=name, description=f"{name} tool.", inputSchema={"type": "object"})
+    return SimpleNamespace(name=name, description=f"{name} tool.", input_schema={"type": "object"})
 
 
 ALL_TOOLS = [_tool("get_hierarchy"), _tool("scene"), _tool("shader"), _tool("get_enabled_tools")]
@@ -249,7 +247,7 @@ def test_filter_tools_hides_disabled():
     from unity_mcp.server_filtering import filter_tools
     import unity_mcp.tools.gating as gating
     gating.reset()
-    tools = [SimpleNamespace(name="screenshot", description="x", inputSchema={})]
+    tools = [SimpleNamespace(name="screenshot", description="x", input_schema={})]
     result = filter_tools(tools, {"screenshot"})
     assert not any(t.name == "screenshot" for t in result)
     gating.reset()
@@ -258,9 +256,9 @@ def test_filter_tools_hides_disabled():
 # --- test handler registration ---
 
 def test_request_handler_is_patched():
-    """Our wrapper must be installed in request_handlers, not the original FastMCP handler."""
-    handler = mcp._mcp_server.request_handlers[mcp_types.ListToolsRequest]
-    assert handler.__name__ == "_filtered_tools_handler"
+    """Our wrapper must be installed for tools/list, not the original MCPServer handler."""
+    entry = mcp._lowlevel_server.get_request_handler("tools/list")
+    assert entry.handler.__name__ == "_filtered_tools_handler"
 
 
 # --- TDD F4: handler strips deferred / preserves core ---
@@ -272,32 +270,32 @@ async def test_handler_strips_non_core_schema(monkeypatch):
 
     full = {"type": "object", "properties": {"x": {"type": "string"}}, "required": ["x"]}
     tool_core = _tool("get_hierarchy")
-    tool_core.inputSchema = full
+    tool_core.input_schema = full
     tool_noncore = _tool("animation")
-    tool_noncore.inputSchema = full
+    tool_noncore.input_schema = full
 
     monkeypatch.setattr(srv, "_disabled_tools_cache", None)
     result = await srv._filter_tools([tool_core, tool_noncore], None)
     names = {t.name: t for t in result}
     # get_hierarchy passes gating — verify its schema kept (if returned)
     if "get_hierarchy" in names:
-        assert names["get_hierarchy"].inputSchema == full
+        assert names["get_hierarchy"].input_schema == full
     # animation gets gated out by tier filter (not in TIER1 and not enabled)
     assert "animation" not in names
 
 
 async def test_handler_preserves_core_full_schema():
-    """Core tools keep their full inputSchema after strip."""
+    """Core tools keep their full input_schema after strip."""
     import unity_mcp.server as srv
     from unity_mcp.server import _strip_deferred_schemas
 
     full = {"type": "object", "properties": {"p": {"type": "string"}}, "required": ["p"]}
     tool = _tool("batch")
-    tool.inputSchema = full
+    tool.input_schema = full
 
     tools = [tool]
     _strip_deferred_schemas(tools)
-    assert tools[0].inputSchema == full
+    assert tools[0].input_schema == full
 
 
 # ---------------------------------------------------------------------------
@@ -406,15 +404,15 @@ async def test_push_catalog_omits_empty_categories():
 # ---------------------------------------------------------------------------
 
 def test_strip_uses_canonical_stub():
-    """Non-core tool's inputSchema after strip must be the exact STUB_SCHEMA object."""
+    """Non-core tool's input_schema after strip must be the exact STUB_SCHEMA object."""
     from types import SimpleNamespace
     from unity_mcp.server_filtering import _strip_deferred_schemas
     from unity_mcp.tools.schema_registry import STUB_SCHEMA
 
-    tool = SimpleNamespace(name="lighting", description="Control scene lighting.", inputSchema={"type": "object", "properties": {}})
+    tool = SimpleNamespace(name="lighting", description="Control scene lighting.", input_schema={"type": "object", "properties": {}})
     tools = [tool]
     _strip_deferred_schemas(tools)
-    assert tools[0].inputSchema is STUB_SCHEMA
+    assert tools[0].input_schema is STUB_SCHEMA
 
 
 # ---------------------------------------------------------------------------
@@ -620,12 +618,12 @@ def test_strip_deferred_details_shortens_description_for_non_core_tool():
         "animation behavior end to end without manual clicking."
     )
     tool = SimpleNamespace(name="lighting", description=long_desc,
-                           inputSchema={"type": "object", "properties": {"clip": {"type": "string"}}})
+                           input_schema={"type": "object", "properties": {"clip": {"type": "string"}}})
     tools = [tool]
     _strip_deferred_schemas(tools)
     assert tools[0].description == _short_description(long_desc)
     assert tools[0].description != long_desc
-    assert tools[0].inputSchema is STUB_SCHEMA
+    assert tools[0].input_schema is STUB_SCHEMA
 
 
 def test_strip_deferred_details_preserves_full_description_for_core_tool():
@@ -636,11 +634,11 @@ def test_strip_deferred_details_preserves_full_description_for_core_tool():
         "GameObject, with component markers and active-state flags for quick inspection."
     )
     full_schema = {"type": "object", "properties": {"path": {"type": "string"}}}
-    tool = SimpleNamespace(name="get_hierarchy", description=long_desc, inputSchema=full_schema)
+    tool = SimpleNamespace(name="get_hierarchy", description=long_desc, input_schema=full_schema)
     tools = [tool]
     _strip_deferred_schemas(tools)
     assert tools[0].description == long_desc
-    assert tools[0].inputSchema == full_schema
+    assert tools[0].input_schema == full_schema
 
 
 async def test_schema_registry_capture_stores_full_description_before_truncation():
@@ -655,11 +653,11 @@ async def test_schema_registry_capture_stores_full_description_before_truncation
         "animation behavior end to end without manual clicking."
     )
     tool = SimpleNamespace(name="lighting", description=long_desc,
-                           inputSchema={"type": "object", "properties": {"clip": {"type": "string"}}})
+                           input_schema={"type": "object", "properties": {"clip": {"type": "string"}}})
 
     registry = SchemaRegistry()
     # Mirror install_list_tools_filter's capture-before-strip ordering.
-    registry.capture(tool.name, tool.inputSchema, tool.description)
+    registry.capture(tool.name, tool.input_schema, tool.description)
     _strip_deferred_schemas([tool])
 
     # Live tool object is now truncated...
@@ -684,7 +682,7 @@ async def test_schedule_client_label_sends_once_per_session():
     from unity_mcp.server_filtering import _schedule_client_label
 
     session = _WeakSession()
-    session.client_params = SimpleNamespace(clientInfo=SimpleNamespace(name="Cursor"))
+    session.client_params = SimpleNamespace(client_info=SimpleNamespace(name="Cursor"))
     bridge = SimpleNamespace(send=AsyncMock(return_value={"ok": True}))
 
     _schedule_client_label(session, lambda: bridge)
@@ -712,7 +710,7 @@ async def test_schedule_client_label_skips_default_label():
 
     session = _WeakSession()
     session.client_params = SimpleNamespace(
-        clientInfo=SimpleNamespace(name="Claude Code")
+        client_info=SimpleNamespace(name="Claude Code")
     )
     bridge = SimpleNamespace(send=AsyncMock())
 
@@ -727,7 +725,7 @@ async def test_schedule_client_label_retries_after_send_failure():
     from unity_mcp.server_filtering import _schedule_client_label
 
     session = _WeakSession()
-    session.client_params = SimpleNamespace(clientInfo=SimpleNamespace(name="Codex"))
+    session.client_params = SimpleNamespace(client_info=SimpleNamespace(name="Codex"))
     bridge = SimpleNamespace(
         send=AsyncMock(side_effect=[RuntimeError("tcp down"), {"ok": True}])
     )

@@ -1,7 +1,7 @@
 """P-011: direct_only tools must not be dispatched over TCP to Unity."""
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp.server import _send_raw
 

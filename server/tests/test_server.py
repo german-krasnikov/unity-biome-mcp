@@ -2,7 +2,7 @@ import asyncio
 import errno
 import pytest
 from unittest.mock import AsyncMock, Mock, call, patch, MagicMock
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp.server import (
     _send, get_hierarchy, get_component, get_components_list, find_objects,

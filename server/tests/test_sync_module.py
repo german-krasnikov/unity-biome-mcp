@@ -105,13 +105,13 @@ class _FakeMcp:
 # ── Instance binding (checkbox 1) ────────────────────────────────────────
 
 async def test_sync_module_instances_bind_send_independently():
-    """Two SyncModule instances registered on two real FastMCP hosts must
+    """Two SyncModule instances registered on two real CompactMCP hosts must
     never cross-contaminate _send. A's calls reach only send_a; after B
     registers later (on its own host), A's calls still go to send_a --
     late registration of B must not rebind A."""
-    from unity_mcp.server import _UnstructuredMCP
+    from biome_mcp.mcp.compose import CompactMCP
 
-    host_a = _UnstructuredMCP("test_sync_module_host_a")
+    host_a = CompactMCP("test_sync_module_host_a")
     send_a = _clean_send("a")
     mod_a = register(host_a, send_a, _plain_args)
     assert "sync_unity" in host_a._tool_manager._tools
@@ -121,7 +121,7 @@ async def test_sync_module_instances_bind_send_independently():
     assert "sync clean" in result_a1
     send_a.assert_awaited()
 
-    host_b = _UnstructuredMCP("test_sync_module_host_b")
+    host_b = CompactMCP("test_sync_module_host_b")
     send_b = _clean_send("b")
     mod_b = register(host_b, send_b, _plain_args)
     assert mod_a is not mod_b

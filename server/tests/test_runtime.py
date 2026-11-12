@@ -1,7 +1,7 @@
 """Tests for runtime Play Mode tools."""
 import pytest
 from unittest.mock import AsyncMock, patch
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 from unity_mcp.server import (
     invoke_method, wait_until, query_state, move_to,
     set_active, wire_event, unwire_event, run_playtest,

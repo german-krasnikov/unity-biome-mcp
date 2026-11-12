@@ -68,7 +68,7 @@ async def refresh_dynamic() -> None:
         rdict = _mcp._resource_manager._resources
         for uri in _dynamic_uris - new_uris:
             rdict.pop(uri, None)
-        from mcp.server.fastmcp.resources import FunctionResource
+        from mcp.server.mcpserver.resources import FunctionResource
         for uri in new_uris - _dynamic_uris:
             rest = uri[len("biome://"):]
             slash = rest.index("/")

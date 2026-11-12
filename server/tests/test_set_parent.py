@@ -1,7 +1,7 @@
 """Tests for set_parent tool."""
 import pytest
 from unittest.mock import AsyncMock
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 from unity_mcp.tools import objects
 
 
@@ -71,5 +71,5 @@ def test_set_parent_registered_as_rw_idem_tool():
     """set_parent is registered with the idempotent-write annotation (the tool catalog states it as RW_IDEM)."""
     from unity_mcp.server import mcp
     annotations = mcp._tool_manager._tools["set_parent"].annotations
-    assert annotations.idempotentHint is True
-    assert annotations.readOnlyHint is False
+    assert annotations.idempotent_hint is True
+    assert annotations.read_only_hint is False

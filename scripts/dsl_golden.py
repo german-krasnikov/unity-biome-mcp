@@ -136,7 +136,7 @@ def surface_lines(names: frozenset[str] = frozenset()) -> list[str]:
     for name, tool in sorted(mcp._tool_manager._tools.items()):
         if not tool.fn.__module__.startswith("unity_mcp.") or (names and name not in names):
             continue
-        annotations = tool.annotations.model_dump(exclude_none=True) if tool.annotations else None
+        annotations = tool.annotations.model_dump(exclude_none=True, by_alias=True) if tool.annotations else None
         fields = {"title": tool.title, "description": tool.description, "schema": tool.parameters, "annotations": annotations}
         lines.append(f"tool {name} " + " ".join(f"{key}={_digest(value)}" for key, value in fields.items()))
     for name, spec in sorted(_SPECS.items()):

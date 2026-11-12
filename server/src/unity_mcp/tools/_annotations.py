@@ -57,6 +57,6 @@ async def retry_safe_cmds(mcp) -> frozenset[str]:
     mcp_safe = frozenset(
         t.name for t in await mcp.list_tools()
         if t.annotations is not None
-        and (t.annotations.readOnlyHint or t.annotations.idempotentHint)
+        and (t.annotations.read_only_hint or t.annotations.idempotent_hint)
     )
     return mcp_safe | _INTERNAL_RETRY_SAFE_CMDS

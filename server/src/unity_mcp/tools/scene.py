@@ -5,7 +5,7 @@ import re
 import shutil
 import time
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ._common import _guard_read_only, bind
 

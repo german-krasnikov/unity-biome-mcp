@@ -61,7 +61,7 @@ def test_material_audit_null_platform_not_in_args():
 def test_material_audit_registered_readonly():
     """material_audit is registered with readOnlyHint=True (the tool catalog states it as RO)."""
     from unity_mcp.server import mcp
-    assert mcp._tool_manager._tools["material_audit"].annotations.readOnlyHint is True
+    assert mcp._tool_manager._tools["material_audit"].annotations.read_only_hint is True
 
 
 def test_material_audit_in_assets_category():

@@ -1,7 +1,7 @@
 """TDD tests for ask_user — interactive question card via Unity UI (FORWARD: SV4)."""
 import pytest
 from unittest.mock import AsyncMock
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 
 @pytest.fixture

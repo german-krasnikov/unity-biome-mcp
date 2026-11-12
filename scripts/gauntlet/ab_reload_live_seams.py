@@ -25,7 +25,7 @@ def live_sync_unity(host: str):
     uncertain delivery, raising UncertainDeliveryError on a live connection
     hiccup that a harmless read should just retry."""
     async def run(port: int, project_path: str, *, timeout: float = 120.0) -> str:
-        from mcp.server.fastmcp.exceptions import ToolError
+        from mcp.server.mcpserver.exceptions import ToolError
 
         from unity_mcp.bridge import UnityBridge
         from unity_mcp.bridge_result import unwrap_bridge_result

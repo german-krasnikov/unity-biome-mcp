@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 from unity_mcp.tools.objects import set_property_delta
 from unity_mcp.tools.scene import scene_diff
 

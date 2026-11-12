@@ -3,7 +3,7 @@ import json
 import struct
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 from unity_mcp.bridge import UnityBridge
 from unity_mcp.server import search_scene, scene
 from unity_mcp.tools.scene import get_hierarchy
@@ -100,7 +100,7 @@ async def test_search_scene_tool_calls_bridge(mock_bridge):
 
 async def test_search_scene_tool_error(mock_bridge):
     """Test search_scene MCP tool raises ToolError"""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "query is required"})
     with pytest.raises(ToolError, match="query is required"):
         await search_scene(query="")
@@ -110,7 +110,7 @@ async def test_search_scene_tool_error(mock_bridge):
 
 async def test_scene_open_error_raises_tool_error(mock_bridge):
     """scene open raises ToolError when Unity returns ok=False."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "Scene file not found"})
     with pytest.raises(ToolError, match="Scene file not found"):
         await scene(action="open", path="Assets/Missing.unity")
@@ -118,7 +118,7 @@ async def test_scene_open_error_raises_tool_error(mock_bridge):
 
 async def test_scene_save_error_raises_tool_error(mock_bridge):
     """scene save raises ToolError when Unity returns ok=False."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "Save failed: read-only"})
     with pytest.raises(ToolError, match="Save failed"):
         await scene(action="save", path="Assets/Scene.unity")

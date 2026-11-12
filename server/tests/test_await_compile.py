@@ -5,7 +5,7 @@ Returns: "compile clean (Xs)" | errors string | "timeout after Xs..." on timeout
 """
 import pytest
 from unittest.mock import AsyncMock, patch
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 import unity_mcp.tools.code_intel as _ci
 from unity_mcp import editor_log

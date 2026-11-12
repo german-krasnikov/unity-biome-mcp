@@ -1,5 +1,5 @@
 """do() meta-tool: NL intent → Haiku plan → validate → batch execute."""
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..do_intent.executor import Executor
 from ..do_intent.planner import Planner

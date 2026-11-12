@@ -21,7 +21,7 @@ _args = None
 
 def _validate_polygon(vertices: str | None) -> None:
     """Fast-fail validation for polygon CSV. Raises ToolError on bad input."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     if not vertices:
         raise ToolError("vertices required for objects_in_polygon")
     pairs = vertices.split(";")
@@ -61,7 +61,7 @@ async def _spatial_query_body(action: str, path: str | None = None, target: str 
     supplied vertices are always validated. cap=max results (default 50)."""
     if action == "objects_in_polygon":
         if vertices is None and not region_id:
-            from mcp.server.fastmcp.exceptions import ToolError
+            from mcp.server.mcpserver.exceptions import ToolError
             raise ToolError("vertices or region_id required for objects_in_polygon")
         if vertices is not None:
             _validate_polygon(vertices)

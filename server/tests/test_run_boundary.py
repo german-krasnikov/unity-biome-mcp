@@ -5,7 +5,7 @@ import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 import unity_mcp.tools.testing as testing
 from unity_mcp.tools.run_handle import TestRunRegistry

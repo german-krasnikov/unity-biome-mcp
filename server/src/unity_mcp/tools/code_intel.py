@@ -29,7 +29,7 @@ _STILL_BUSY_STATES = frozenset({"compiling", "reloading"})
 async def _compile_preflight_body(file_path: str, new_content: str) -> str:
     """Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile.
     file_path: Assets-relative. new_content: full file. Returns OK preflight (ms) / ERR preflight + diagnostics / [ROSLYN UNAVAILABLE]."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     if not file_path or not file_path.strip():
         raise ToolError("compile_preflight: file_path is required (Assets-relative path)")
     if not new_content or not new_content.strip():

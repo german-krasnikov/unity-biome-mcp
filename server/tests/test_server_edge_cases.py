@@ -1,7 +1,7 @@
 """Edge cases tests for all 18 MCP tools."""
 import pytest
 from unittest.mock import AsyncMock, patch
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp.server import (
     get_hierarchy, get_component, set_property, create_object, find_objects,

@@ -1,5 +1,5 @@
 """Watch System — path-based field polling in Play Mode."""
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from .generated.catalog_tools import tools
 

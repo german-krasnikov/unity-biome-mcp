@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import AsyncMock
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp.server import create_ui, set_rect, set_material
 
@@ -120,5 +120,5 @@ def test_editor_tool_annotation_is_rw():
     """Fix 23: editor() must be a plain write (the tool catalog states it as RW), not an idempotent one (it mutates editor state)."""
     from unity_mcp.server import mcp
     annotations = mcp._tool_manager._tools["editor"].annotations
-    assert annotations.readOnlyHint is False
-    assert not annotations.idempotentHint, "editor must use RW not RW_IDEM"
+    assert annotations.read_only_hint is False
+    assert not annotations.idempotent_hint, "editor must use RW not RW_IDEM"

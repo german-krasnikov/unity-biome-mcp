@@ -263,5 +263,5 @@ def test_register_stores_mcp_reference():
 
 def test_function_resource_api_canary():
     """Canary: fails if mcp SDK removes FunctionResource.from_function (private API we depend on)."""
-    from mcp.server.fastmcp.resources import FunctionResource
+    from mcp.server.mcpserver.resources import FunctionResource
     assert hasattr(FunctionResource, "from_function")

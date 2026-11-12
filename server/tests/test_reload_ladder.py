@@ -442,7 +442,7 @@ async def test_send_with_fallback_falls_to_reload_on_unity_unavailable_error():
 async def test_send_with_fallback_does_not_catch_plain_tool_error():
     """A non-transient ToolError (e.g. READ_ONLY_BLOCKED) must propagate — only
     UnityUnavailableError is transient enough to justify the reload channel."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
 
     send_main = AsyncMock(side_effect=ToolError("READ_ONLY_BLOCKED: 'force_refresh' is a mutation command"))
     send_reload = AsyncMock(return_value="reload-ok")

@@ -1,6 +1,6 @@
 """uitk_intent — NL → DSL → UXML + USS generation pipeline."""
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..sampling import sampling_service as _sampling
 from ._common import bind

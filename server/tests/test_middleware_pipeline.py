@@ -442,7 +442,7 @@ async def test_readonly_guard_runs_before_retry_cache(monkeypatch):
     monkeypatch.setenv("UNITY_MCP_REFLECT", "0")
     monkeypatch.setenv("UNITY_MCP_PREFETCH_CACHE", "0")
 
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     from unity_mcp.middleware import Middleware, wrap_send as mw_wrap_send
 
     mw = Middleware()

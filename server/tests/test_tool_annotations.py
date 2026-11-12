@@ -72,15 +72,15 @@ NON_IDEM_TOOLS = [
 def test_idempotent_tool_has_idempotentHint(mod, fn):
     ann = _get_annotation(mod, fn)
     assert ann is not None, f"{mod.__name__}.{fn}: no annotation found"
-    assert ann.idempotentHint is True, f"{mod.__name__}.{fn}: idempotentHint should be True"
-    assert ann.readOnlyHint is False, f"{mod.__name__}.{fn}: readOnlyHint should be False"
+    assert ann.idempotent_hint is True, f"{mod.__name__}.{fn}: idempotentHint should be True"
+    assert ann.read_only_hint is False, f"{mod.__name__}.{fn}: readOnlyHint should be False"
 
 
 @pytest.mark.parametrize("mod,fn", NON_IDEM_TOOLS)
 def test_non_idempotent_tool_lacks_idempotentHint(mod, fn):
     ann = _get_annotation(mod, fn)
     assert ann is not None, f"{mod.__name__}.{fn}: no annotation found"
-    assert ann.idempotentHint is not True, f"{mod.__name__}.{fn}: should NOT have idempotentHint=True"
+    assert ann.idempotent_hint is not True, f"{mod.__name__}.{fn}: should NOT have idempotentHint=True"
 
 
 def test_discover_tools_gets_session_annotation():
@@ -89,8 +89,8 @@ def test_discover_tools_gets_session_annotation():
     in dsl/tools.biome (S0 2/11)."""
     ann = _get_annotation(meta, "discover_tools")
     assert ann is not None, "discover_tools: no annotation found"
-    assert ann.idempotentHint is True, "discover_tools: idempotentHint should be True (SESSION)"
-    assert ann.readOnlyHint is False, "discover_tools: readOnlyHint should be False (SESSION overrides RO)"
+    assert ann.idempotent_hint is True, "discover_tools: idempotentHint should be True (SESSION)"
+    assert ann.read_only_hint is False, "discover_tools: readOnlyHint should be False (SESSION overrides RO)"
 
 
 def test_lint_playtest_is_read_only():
@@ -99,7 +99,7 @@ def test_lint_playtest_is_read_only():
     block -- a pure read-only static validator, no scene changes."""
     ann = _get_annotation(runtime, "lint_playtest")
     assert ann is not None, "lint_playtest: no annotation found"
-    assert ann.readOnlyHint is True, "lint_playtest: readOnlyHint should be True"
+    assert ann.read_only_hint is True, "lint_playtest: readOnlyHint should be True"
 
 
 def test_resolve_tool_schema_gets_read_only_annotation():
@@ -107,7 +107,7 @@ def test_resolve_tool_schema_gets_read_only_annotation():
     onto the catalog's derive("RO") -- no SESSION, a pure schema-registry read."""
     ann = _get_annotation(meta, "resolve_tool_schema")
     assert ann is not None, "resolve_tool_schema: no annotation found"
-    assert ann.readOnlyHint is True, "resolve_tool_schema: readOnlyHint should be True"
+    assert ann.read_only_hint is True, "resolve_tool_schema: readOnlyHint should be True"
 
 
 def test_set_llm_config_gets_idempotent_annotation():
@@ -117,15 +117,15 @@ def test_set_llm_config_gets_idempotent_annotation():
     ToolSpec.mutability == 'write' (tool_specs.py:102)."""
     ann = _get_annotation(meta, "set_llm_config")
     assert ann is not None, "set_llm_config: no annotation found"
-    assert ann.idempotentHint is True, "set_llm_config: idempotentHint should be True"
-    assert ann.readOnlyHint is False, "set_llm_config: readOnlyHint should be False"
+    assert ann.idempotent_hint is True, "set_llm_config: idempotentHint should be True"
+    assert ann.read_only_hint is False, "set_llm_config: readOnlyHint should be False"
 
 
 def test_run_tests_not_marked_read_only():
     """run_tests triggers domain reload — must NOT have readOnlyHint=True."""
     ann = _get_annotation(testing, "run_tests")
     assert ann is not None, "run_tests: no annotation found"
-    assert ann.readOnlyHint is not True, "run_tests causes domain reload — readOnlyHint must be False"
+    assert ann.read_only_hint is not True, "run_tests causes domain reload — readOnlyHint must be False"
 
 
 @pytest.mark.parametrize(
@@ -142,7 +142,7 @@ def test_run_tests_not_marked_read_only():
 def test_conditionally_or_file_mutating_tools_are_not_read_only(module, name):
     ann = _get_annotation(module, name)
     assert ann is not None
-    assert ann.readOnlyHint is not True
+    assert ann.read_only_hint is not True
 
 
 async def test_retry_safe_cmds_includes_only_readonly_or_idempotent():

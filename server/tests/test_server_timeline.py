@@ -104,7 +104,7 @@ async def test_timeline_add_sub_track_sends_params(mock_bridge):
 # Error propagation
 async def test_timeline_error_propagates(mock_bridge):
     """ToolError raised when bridge returns ok=False."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "Track not found"})
     with pytest.raises(ToolError, match="Track not found"):
         await timeline(path="/GO", action="set_clip_in", track="X", clip="Y")

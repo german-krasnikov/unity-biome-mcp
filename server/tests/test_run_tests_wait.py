@@ -6,7 +6,7 @@ import time
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 import unity_mcp.tools.testing as testing
 from helpers import REQUEST_ID, RUN_ID, make_snapshot

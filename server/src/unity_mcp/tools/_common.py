@@ -1,7 +1,7 @@
 """Shared registration helper for tools/*.py modules."""
 import os
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..decisions.guard_facts import Verdict, guard_verdict
 

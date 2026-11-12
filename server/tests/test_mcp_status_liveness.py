@@ -10,7 +10,7 @@ server/tests/test_mcp_status.py stays unedited as the raw-passthrough guard.
 import re
 from unittest.mock import AsyncMock
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp.tools.meta import _LIVENESS_STALLED
 

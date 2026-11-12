@@ -2,7 +2,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp.server import get_watches, watch
 from unity_mcp.tools.watch import WatchModule, register

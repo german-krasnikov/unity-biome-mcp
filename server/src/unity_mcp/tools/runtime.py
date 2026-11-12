@@ -2,7 +2,7 @@
 import asyncio
 import contextlib
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S
 from ..decisions import verdict_facts

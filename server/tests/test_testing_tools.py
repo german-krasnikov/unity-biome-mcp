@@ -97,7 +97,7 @@ async def test_run_tests_degrades_on_diagnose_failure(testing_mod, _patch_send, 
 
 
 async def test_run_tests_propagates_tool_error(testing_mod, _patch_send, mock_diagnose):
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     mock_diagnose.side_effect = ToolError("Unity connection dead")
     with pytest.raises(ToolError, match="Unity connection dead"):
         await testing_mod.run_tests()

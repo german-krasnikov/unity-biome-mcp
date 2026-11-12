@@ -1,7 +1,7 @@
 """Tests for run_playtest tool."""
 import pytest
 from unittest.mock import AsyncMock
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 from unity_mcp.server import run_playtest
 from unity_mcp.tools.runtime import _compress_report
 

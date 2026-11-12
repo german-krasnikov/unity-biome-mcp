@@ -38,7 +38,7 @@ class TestAutoWire:
         )
 
     async def test_auto_wire_tool_error(self, mock_send):
-        from mcp.server.fastmcp.exceptions import ToolError
+        from mcp.server.mcpserver.exceptions import ToolError
         mock_send.side_effect = ToolError("Object not found: /Missing")
         from unity_mcp.tools.auto_wire import auto_wire
         with pytest.raises(ToolError):

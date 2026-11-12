@@ -161,7 +161,7 @@ async def test_list_events_sends_all_three_args(monkeypatch):
 def test_list_events_is_registered_as_ro():
     """G4: list_events is registered with the read-only annotation (the tool catalog states it as RO)."""
     from unity_mcp.server import mcp
-    assert mcp._tool_manager._tools["list_events"].annotations.readOnlyHint is True
+    assert mcp._tool_manager._tools["list_events"].annotations.read_only_hint is True
 
 
 def test_list_events_has_toolspec():

@@ -83,7 +83,7 @@ async def test_animation_add_event_excludes_none_optional(mock_bridge):
 
 async def test_animation_event_error_propagates(mock_bridge):
     """Bridge error raises ToolError."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "Clip not found"})
     with pytest.raises(ToolError):
         await animation(action="add_event", path="/Char", clip="Missing",

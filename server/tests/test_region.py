@@ -3,7 +3,7 @@ No Unity required. All tests use mock_bridge fixture from conftest.py.
 """
 import pytest
 from unittest.mock import AsyncMock
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 from unity_mcp.tools.spatial import spatial_query, _validate_polygon
 
 

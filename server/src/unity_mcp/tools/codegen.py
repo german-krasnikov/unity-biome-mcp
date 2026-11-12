@@ -13,7 +13,7 @@ _args = None
 
 
 try:
-    from mcp.server.fastmcp import Context as _Context
+    from mcp.server.mcpserver import Context as _Context
     _has_context = True
 except ImportError:
     _Context = object

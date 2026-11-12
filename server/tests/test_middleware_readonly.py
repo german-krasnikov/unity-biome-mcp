@@ -7,7 +7,7 @@ Python-side enforcement via:
 import os
 import pytest
 from unittest.mock import AsyncMock, Mock, patch
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp.middleware import Middleware
 from unity_mcp.middleware_pipeline import wrap_send

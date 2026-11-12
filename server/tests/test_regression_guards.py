@@ -9,7 +9,7 @@ import time
 import pytest
 from unittest.mock import AsyncMock, Mock, call
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 # Importing from server.py triggers register_all → bind() in every tools module.
 # This ensures all tools' _send is set to server._send before tests run.
@@ -505,7 +505,7 @@ async def test_rg11f_stale_object_path_returns_typed_error(mock_bridge):
     Guards: stale path responses from C# are converted to a typed ToolError
     at the Python layer — no unhandled AttributeError or KeyError escapes.
     """
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
 
     mock_bridge.send = AsyncMock(return_value={
         "ok": False,

@@ -9,7 +9,7 @@ import uuid
 from pathlib import Path  # noqa: TC003 — get_type_hints() requires runtime (test_python314_compat)
 from typing import Any
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..compile_state import CompileStateProbe
 from ..generated.testrun_enums import Lifecycle, RunOutcome

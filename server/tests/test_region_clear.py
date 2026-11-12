@@ -1,6 +1,6 @@
 """TDD tests for region_clear tool (Item 40)."""
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 from unity_mcp.tools.spatial import region_clear
 
 _TRIANGLE = "0,0;10,0;5,10"

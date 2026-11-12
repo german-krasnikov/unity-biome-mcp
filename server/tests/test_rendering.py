@@ -67,7 +67,7 @@ def test_render_analyze_in_rendering_category():
 def test_render_analyze_registered_read_only():
     """Tool is registered with readOnlyHint=True (the tool catalog states it as RO)."""
     from unity_mcp.server import mcp
-    assert mcp._tool_manager._tools["render_analyze"].annotations.readOnlyHint is True
+    assert mcp._tool_manager._tools["render_analyze"].annotations.read_only_hint is True
 
 
 # ── response handling ────────────────────────────────────────────────────────
@@ -85,7 +85,7 @@ async def test_render_analyze_unknown_action(mock_bridge):
 
 
 async def test_render_analyze_error_raises_tool_error(mock_bridge):
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "Not in editor"})
     with pytest.raises(ToolError, match="Not in editor"):
         await render_analyze(action="stats")
@@ -145,7 +145,7 @@ def test_analyze_lod_culling_null_focus_not_in_args():
 def test_analyze_lod_culling_registered_readonly():
     """analyze_lod_culling must be registered with readOnlyHint=True (the tool catalog states it as RO)."""
     from unity_mcp.server import mcp
-    assert mcp._tool_manager._tools["analyze_lod_culling"].annotations.readOnlyHint is True
+    assert mcp._tool_manager._tools["analyze_lod_culling"].annotations.read_only_hint is True
 
 
 def test_analyze_lod_culling_in_rendering_category():
