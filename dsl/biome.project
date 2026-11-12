@@ -21,6 +21,8 @@ GENERATE cs-records render {dir}/protocol.biome csrecord {dir}/../unity-plugin/E
 # instead of a Python list, a C# switch and a schema that silently drift (ecdd5736 lost 2 mappings for 12 weeks).
 GENERATE event-kinds    render {dir}/events.biome pykinds  {dir}/../server/src/unity_mcp/agent_event_kinds.py
 GENERATE event-emitters render {dir}/events.biome pyemits  {dir}/../server/src/unity_mcp/agent_event_emitters.py
+GENERATE event-fields   render {dir}/events.biome pyfields {dir}/../server/src/unity_mcp/agent_event_fields.py
+GENERATE event-order    render {dir}/events.biome pyorder  {dir}/../server/src/unity_mcp/agent_event_order.py
 GENERATE event-held     render {dir}/events.biome csheld   {dir}/../unity-plugin/Editor/Chat/CLI/Generated/AgentEventParser.Held.g.cs
 GENERATE event-reset    render {dir}/events.biome csreset  {dir}/../unity-plugin/Editor/Chat/CLI/Generated/AgentEventParser.Reset.g.cs
 GENERATE event-map      render {dir}/events.biome csmap    {dir}/../unity-plugin/Editor/Chat/CLI/Generated/AgentEventParser.Map.g.cs
