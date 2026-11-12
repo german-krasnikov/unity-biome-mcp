@@ -1,8 +1,16 @@
 """P1.8 Schema/Catalog Parity Gate.
 
 Verifies that every MCP tool and every C# TCP command is consistently
-registered across tool_specs._SPECS and CommandRouter.Registration.cs.
-Pure static analysis — no Unity required.
+registered across tool_specs._SPECS and the hand-written CommandRegistry.Register*
+call sites. Pure static analysis — no Unity required.
+
+P1/Q11: tools with a HANDLER line in dsl/tools.biome get BOTH their Python ToolSpec
+(tools/generated/catalog_specs.py) and their C# registration (Generated/ToolBindings.g.cs)
+from the same `biome generate` run. Cross-checking those two outputs here would just
+re-verify the generator against itself under a different name -- test_catalog_vs_csharp.py
+and test_toolmeta_vs_golden.py already do that, against the C# literal text and a frozen
+golden file respectively. So this module scopes to the commands still registered by hand
+(CommandRouter.Registration.cs and friends), where a human can actually introduce drift.
 """
 import re
 from pathlib import Path
@@ -87,15 +95,33 @@ _PYTHON_ONLY = {
 }
 
 
+_REGISTER_CALL = re.compile(r'CommandRegistry\.Register(?:Async|Action)?\(\s*"([^"]+)"')
+_GENERATED_BINDINGS = _EDITOR / "Generated" / "ToolBindings.g.cs"
+
+
 def _extract_cs_commands() -> set[str]:
-    """Regex-scan non-Test C# files for CommandRegistry.Register* calls."""
-    pattern = re.compile(r'CommandRegistry\.Register(?:Async|Action)?\(\s*"([^"]+)"')
+    """Regex-scan hand-written (non-Test, non-Generated) C# files for CommandRegistry.Register* calls.
+
+    Generated/ToolBindings.g.cs is excluded on purpose (see module docstring): its tools are
+    HANDLER-generated, so their Python<->C# parity is already a generator-correctness question,
+    not a "did someone forget to update the other side" question.
+    """
     result = set()
     for cs in _EDITOR.rglob("*.cs"):
-        if "Tests" in cs.parts:
+        if "Tests" in cs.parts or "Generated" in cs.parts:
             continue
-        result |= set(pattern.findall(cs.read_text(encoding="utf-8")))
+        result |= set(_REGISTER_CALL.findall(cs.read_text(encoding="utf-8")))
     return result
+
+
+def _handler_generated_commands() -> set[str]:
+    """The HANDLER-tagged tools (dsl/tools.biome) registered by Generated/ToolBindings.g.cs.
+
+    Excluded from the "missing" checks below for the same reason _extract_cs_commands skips the
+    file: parity between _SPECS and this registration is guaranteed by the shared generator run,
+    not by a human keeping both sides in sync.
+    """
+    return set(_REGISTER_CALL.findall(_GENERATED_BINDINGS.read_text(encoding="utf-8")))
 
 
 def _specs() -> dict:
@@ -107,7 +133,14 @@ def _specs() -> dict:
 
 def test_cs_commands_parseable():
     cmds = _extract_cs_commands()
-    assert len(cmds) > 50, f"Expected >50 C# commands, got {len(cmds)}: {sorted(cmds)}"
+    assert len(cmds) > 30, f"Expected >30 hand-written C# commands, got {len(cmds)}: {sorted(cmds)}"
+
+
+def test_handler_generated_commands_parseable():
+    """Guards the exclusion above: a count drop here means ToolBindings.g.cs changed shape and the
+    hand-written-only scoping needs re-checking, not that 86 tools silently lost parity coverage."""
+    generated = _handler_generated_commands()
+    assert len(generated) == 86, f"Expected 86 HANDLER-generated commands, got {len(generated)}"
 
 
 def test_specs_nonempty():
@@ -126,11 +159,12 @@ def test_all_cs_commands_have_spec_or_are_protocol_only():
 
 
 def test_all_specs_have_cs_command_or_are_python_only():
-    """Every non-_INTERNAL ToolSpec has a C# command or is known Python-only."""
+    """Every non-_INTERNAL ToolSpec has a C# command, is HANDLER-generated, or is known Python-only."""
     specs = _specs()
     cs = _extract_cs_commands()
+    generated = _handler_generated_commands()
     non_internal = {k for k, v in specs.items() if v.category not in ("_INTERNAL", "DEPRECATED")}
-    missing = non_internal - _PYTHON_ONLY - cs
+    missing = non_internal - _PYTHON_ONLY - cs - generated
     assert not missing, (
         f"_SPECS tools with no C# command and not in _PYTHON_ONLY: {sorted(missing)}\n"
         "→ Register in C#, or add to _PYTHON_ONLY in this test."
@@ -138,12 +172,13 @@ def test_all_specs_have_cs_command_or_are_python_only():
 
 
 def test_tier1_tools_are_accounted_for():
-    """Every tier1 ToolSpec has a C# command or is in _PYTHON_ONLY."""
+    """Every tier1 ToolSpec has a C# command, is HANDLER-generated, or is in _PYTHON_ONLY."""
     specs = _specs()
     cs = _extract_cs_commands()
+    generated = _handler_generated_commands()
     # _INTERNAL tier1 entries would be a data error, but guard anyway
     tier1 = {k for k, v in specs.items() if v.tier1 and v.category != "_INTERNAL"}
-    missing = tier1 - cs - _PYTHON_ONLY
+    missing = tier1 - cs - _PYTHON_ONLY - generated
     assert not missing, (
         f"tier1 tools with no C# command and not Python-only: {sorted(missing)}\n"
         "→ Register in C#, or add to _PYTHON_ONLY in this test."
@@ -154,9 +189,11 @@ def test_python_only_entries_have_no_csharp_command():
     """Nothing in _PYTHON_ONLY should actually have a C# command registration.
 
     A phantom entry in _PYTHON_ONLY incorrectly documents a tool as Python-side
-    when C# already handles it, hiding schema drift.
+    when C# already handles it, hiding schema drift. Checked against hand-written AND
+    HANDLER-generated registrations: a tool that moved into dsl/tools.biome (gaining a
+    generated registration) must also be dropped from _PYTHON_ONLY here.
     """
-    cs = _extract_cs_commands()
+    cs = _extract_cs_commands() | _handler_generated_commands()
     phantoms = _PYTHON_ONLY & cs
     assert not phantoms, (
         f"_PYTHON_ONLY entries that ARE registered in C#: {sorted(phantoms)}\n"
