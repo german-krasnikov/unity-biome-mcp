@@ -1,0 +1,18 @@
+# What the chat window knows about each CLI backend, once (UI-5/Q20): five files on the C# side switched
+# on BackendKind for these columns (SessionHandoff.GetResumeCommand/GetBinaryName, SessionScanner.GetSessionDir,
+# ModelContextWindows.FallbackForBackend, MCPChatWindow.KindToId) — 23 arms total, now one typed row set.
+# sessionFormat also drives SessionScanner.Scan's choice of jsonl/codex/agy session-file reader.
+ENUM SessionFormat jsonl|codex|agy|none
+
+RECORD Backend KEY kind COUNT 5
+  kind: string
+  id: string
+  display: string
+  binary: string
+  prefKey: string
+  resume: string
+  resumeCd: bool
+  sessionDir: [string]
+  sessionFormat: SessionFormat
+  contextFallback: int
+END

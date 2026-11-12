@@ -109,6 +109,7 @@ namespace UnityMCP.Playtest.Core
         public const bool Ordered = true;
         public const bool TokensWords = true;
         public const bool CommentLine = true;
+        public const bool CaseFold = false;
 
         /// <summary>The first word of each form, once, in ordinal order.</summary>
         public static readonly IReadOnlyList<string> Keywords = new[]
@@ -190,6 +191,49 @@ namespace UnityMCP.Playtest.Core
     }
 
     /// <summary>
+    /// How the word of a form is compared with the word of a line, as sameWord and foldKey of the reader of the SURFACE in JavaScript (casefold.ts) do. A word is the same word when it is equal as written.
+    /// When the SURFACE says CASEFOLD (PlaytestGrammar.CaseFold) it is also the same when the two are of one length and at every place equal or two ASCII letters that differ only in case, and nothing else folds:
+    /// no culture and no ToUpperInvariant, so the Kelvin sign U+212A, the long s U+017F, the dotless i U+0131 and the dotted I U+0130 are no K, S or I here, as in JavaScript, and every host that reads the SURFACE
+    /// decides alike. Without CaseFold the result is the one of == and nothing is allocated.
+    /// </summary>
+    internal static class PatternWords
+    {
+        // A field and not the constant: a branch on a constant leaves code that is never reached (CS0162), and a warning is an error in the project that builds the reader.
+        private static readonly bool Folding = PlaytestGrammar.CaseFold;
+
+        /// <summary>Whether the token of a line is the word of a form.</summary>
+        public static bool Same(string word, string token) => word == token || (Folding && token != null && word.Length == token.Length && FoldedAt(word, 0, token));
+
+        /// <summary>Whether the characters of `list` from `start` on, as many as `raw` has, are the word `raw`: the words of an enum are cut out of their list without a copy, so the caller has seen to the length.</summary>
+        public static bool SameAt(string list, int start, string raw) => string.CompareOrdinal(list, start, raw, 0, raw.Length) == 0 || (Folding && FoldedAt(list, start, raw));
+
+        /// <summary>The key of a word: under CaseFold its ASCII letters in upper case, so that words that are one word have one key (the word itself, not a copy, when there is nothing to change); else the word.</summary>
+        public static string Key(string word)
+        {
+            if (!Folding) return word;
+            char[] upper = null;
+            for (var i = 0; i < word.Length; i++)
+            {
+                if (word[i] < 'a' || word[i] > 'z') continue;
+                if (upper == null) upper = word.ToCharArray();
+                upper[i] = (char)(word[i] - 32);
+            }
+            return upper == null ? word : new string(upper);
+        }
+
+        // At every place equal, or two ASCII letters: the other case of a letter differs in the bit 32 and in nothing else. `@` and the grave accent, `[` and `{` differ in it too and are no letters, so the letter is asked for.
+        private static bool FoldedAt(string text, int start, string raw)
+        {
+            for (var i = 0; i < raw.Length; i++)
+            {
+                int x = text[start + i], y = raw[i];
+                if (x != y && !(((x >= 'A' && x <= 'Z') || (x >= 'a' && x <= 'z')) && (x ^ y) == 32)) return false;
+            }
+            return true;
+        }
+    }
+
+    /// <summary>
     /// A blank-separated word of a line. Text is as written: a text in quotes keeps its quotes. Col is its 0-based column in the physical line,
     /// the indent included, in UTF-16 code units (as the reader of the SURFACE in JavaScript counts).
     /// </summary>
@@ -256,7 +300,7 @@ namespace UnityMCP.Playtest.Core
 
         /// <summary>
         /// Whether the slot takes the token. Text takes any string; Number is -?[0-9]+(\.[0-9]+)?, UInt is [0-9]+ (digits of ASCII only); Match is a regular
-        /// expression that must read the whole token, and a match that runs out of time is not a match; Enum is one of the words of Arg, as written.
+        /// expression that must read the whole token, and a match that runs out of time is not a match; Enum is one of the words of Arg, as written (PatternWords.SameAt: in any ASCII case when the SURFACE says CASEFOLD).
         /// No value (null) is taken by none. A value never throws; a slot type that this class does not know does, so that a type added to the table is not accepted in silence.
         /// </summary>
         public static bool Accepts(Element slot, string raw) => slot.Type switch
@@ -313,7 +357,7 @@ namespace UnityMCP.Playtest.Core
             {
                 var end = list.IndexOf('|', start);
                 if (end < 0) end = list.Length;
-                if (end - start == raw.Length && string.CompareOrdinal(list, start, raw, 0, raw.Length) == 0) return true;
+                if (end - start == raw.Length && PatternWords.SameAt(list, start, raw)) return true;
                 start = end + 1;
             }
             return false;
@@ -377,17 +421,17 @@ namespace UnityMCP.Playtest.Core
             return -1;
         }
 
-        // Whether the token ends the text: the first word of a group before `need`, or what must come (ahead[need]), a word or a slot that takes the token.
+        // Whether the token ends the text: the first word of a group before `need`, or what must come (ahead[need]), a word or a slot that takes the token. A word is compared by PatternWords.Same.
         private static bool Starts(IReadOnlyList<Element> ahead, int need, string token)
         {
             for (var n = 0; n < need; n++)
             {
                 var items = ahead[n].Items;
-                if (items.Count > 0 && items[0].Kind == ElementKind.Word && items[0].Text == token) return true;
+                if (items.Count > 0 && items[0].Kind == ElementKind.Word && PatternWords.Same(items[0].Text, token)) return true;
             }
             if (need == ahead.Count) return false;
             var due = ahead[need];
-            return due.Kind == ElementKind.Word ? due.Text == token : SlotCheck.Accepts(due, token);
+            return due.Kind == ElementKind.Word ? PatternWords.Same(due.Text, token) : SlotCheck.Accepts(due, token);
         }
 
         /// <summary>What follows the element before `from` in `list`: the rest of the list, then `after`, what follows the group that holds the list. The same list as `after` itself when no element of `list` is left.</summary>
@@ -455,7 +499,7 @@ namespace UnityMCP.Playtest.Core
 
     /// <summary>
     /// Matches the tokens of a line against the elements of a form as matchPattern of the reader of the SURFACE in JavaScript (pattern.ts) does with the options that READ uses. A word is
-    /// a token as written. A slot is one token that SlotCheck accepts, but a Text, which is the rest of the line or, with a word after it in its own list, the tokens before the first
+    /// a token as written (PatternWords.Same: in any ASCII case when the SURFACE says CASEFOLD). A slot is one token that SlotCheck accepts, but a Text, which is the rest of the line or, with a word after it in its own list, the tokens before the first
     /// token that is that word (at least one). An optional group is read with what follows it and left out when that fails, unless its first element is a word that is the token in hand:
     /// then it must match whole. A group of only words that matched is a flag. Every token must be used. The end of a Lazy text with no word after it is PatternLazy; for a text in a group
     /// that includes what follows the group, which the matcher carries along as `after`.
@@ -539,7 +583,7 @@ namespace UnityMCP.Playtest.Core
                 switch (el.Kind)
                 {
                     case ElementKind.Word:
-                        return ti < toks.Count && toks[ti].Text == el.Text ? Go(list, li + 1, ti + 1, acc, rest, after) : Fail(ti, null, el.Text);
+                        return ti < toks.Count && PatternWords.Same(el.Text, toks[ti].Text) ? Go(list, li + 1, ti + 1, acc, rest, after) : Fail(ti, null, el.Text);
                     case ElementKind.Slot:
                         return Slot(list, li, ti, acc, rest, after);
                     case ElementKind.Group:
@@ -562,7 +606,7 @@ namespace UnityMCP.Playtest.Core
                     if (stop != null)
                     {
                         var k = ti;
-                        while (k < toks.Count && toks[k].Text != stop) k++;
+                        while (k < toks.Count && !PatternWords.Same(stop, toks[k].Text)) k++;
                         if (trace != null) trace.Work += k - ti;
                         if (k == ti) return Fail(ti, el);
                         if (k == toks.Count) return Fail(toks.Count, null, stop);
@@ -587,7 +631,7 @@ namespace UnityMCP.Playtest.Core
                 var head = items.Count > 0 ? items[0] : null;
                 var flag = OnlyWords(items) ? head.Text : null;
                 // READ commits: a group whose first word is the token in hand must match whole; it is not left out so that the token is read some other way.
-                var committed = head != null && head.Kind == ElementKind.Word && ti < toks.Count && toks[ti].Text == head.Text;
+                var committed = head != null && head.Kind == ElementKind.Word && ti < toks.Count && PatternWords.Same(head.Text, toks[ti].Text);
                 // A LAZY text in the group ends before what follows the group, too.
                 var inside = PatternLazy.HoldsLazy(list[li]) ? PatternLazy.Ahead(list, li + 1, after) : after;
                 var taken = Go(items, 0, ti, acc, (t2, a2) => Go(list, li + 1, t2, flag == null ? a2 : new Bound(flag, default, true, a2), rest, after), inside);
@@ -715,7 +759,7 @@ namespace UnityMCP.Playtest.Core
         private static readonly Way[] NoWays = new Way[0];
         private static readonly IReadOnlyList<SlotBindings> NoItems = new SlotBindings[0];
 
-        // The ways to read a line, by its first word, made once.
+        // The ways to read a line, by its first word (its key: PatternWords.Key), made once.
         private static readonly Dictionary<string, Way[]> ByVerb = Index();
 
         private static Dictionary<string, Way[]> Index()
@@ -725,7 +769,8 @@ namespace UnityMCP.Playtest.Core
             {
                 if (form.Elements[0].Kind != ElementKind.Word)
                     throw new NotSupportedException("The form " + form.Construct + " does not start with a word: the reader finds the forms of a line by its first word.");
-                if (!lists.TryGetValue(form.Verb, out var list)) lists.Add(form.Verb, list = new List<Way>());
+                var key = PatternWords.Key(form.Verb);
+                if (!lists.TryGetValue(key, out var list)) lists.Add(key, list = new List<Way>());
                 list.Add(new Way(form, form.Elements));
             }
             var index = new Dictionary<string, Way[]>(StringComparer.Ordinal);
@@ -746,7 +791,7 @@ namespace UnityMCP.Playtest.Core
             var toks = PatternTokens.Split(line);
             i = at + 1;
             if (IsBlank(toks)) return null;
-            var ways = ByVerb.TryGetValue(toks[0].Text, out var found) ? found : NoWays;
+            var ways = ByVerb.TryGetValue(PatternWords.Key(toks[0].Text), out var found) ? found : NoWays;
             var form = Take(ways, toks, line, at, lineNos[at], diags, out var head);
             if (form == null)
             {
@@ -813,7 +858,7 @@ namespace UnityMCP.Playtest.Core
         {
             var ways = new List<Way>();
             foreach (var pattern in block.Items)
-                if (pattern.Count == 0 || pattern[0].Kind != ElementKind.Word || pattern[0].Text == word) ways.Add(new Way(block, pattern));
+                if (pattern.Count == 0 || pattern[0].Kind != ElementKind.Word || PatternWords.Same(pattern[0].Text, word)) ways.Add(new Way(block, pattern));
             return ways.ToArray();
         }
 
@@ -834,7 +879,7 @@ namespace UnityMCP.Playtest.Core
 
         private static bool IsBlank(IReadOnlyList<PatternToken> toks) => toks.Count == 0 || toks[0].Text[0] == '#';
 
-        private static bool IsEnd(IReadOnlyList<PatternToken> toks, int headIndent) => toks.Count == 1 && toks[0].Text == "END" && toks[0].Col <= headIndent;
+        private static bool IsEnd(IReadOnlyList<PatternToken> toks, int headIndent) => toks.Count == 1 && PatternWords.Same("END", toks[0].Text) && toks[0].Col <= headIndent;
 
         private static string TextOf(string line, IReadOnlyList<PatternToken> toks)
         {

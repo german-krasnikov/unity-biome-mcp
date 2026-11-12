@@ -15,7 +15,7 @@ namespace UnityMCP.Editor.Wizard
         internal static string RelativePathFor(string key)
         {
             foreach (var t in All)
-                if (t.key == key) return t.relativePath;
+                if (t.Key == key) return t.RelativePath;
             return null;
         }
     }

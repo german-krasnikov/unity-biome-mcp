@@ -1,5 +1,5 @@
 # What unity-biome-mcp generates: the tool catalog (dsl/tools.biome printed through constructs/tool.construct), the decisions (dsl/decisions), the chat turn (dsl/chat) and the playtest grammar (constructs/playtest.construct).
-TOOLCHAIN 470a1a9acc0c61a9f6771b170e89a9baf1f1948d
+TOOLCHAIN e0a01dc17b9e8b72e4c79b93d8e22af1d7bcef88
 CONSTRUCTS constructs
 
 GENERATE py-specs  render {dir}/tools.biome pyspec   {dir}/../server/src/unity_mcp/tools/generated/catalog_specs.py
@@ -34,6 +34,13 @@ GENERATE event-map      render {dir}/events.biome csmap    {dir}/../unity-plugin
 CONTRACT projectconfig FROM data/projectconfig.data-contract
 GENERATE py-projectconfig data --contract projectconfig --rows ProjectConfigTarget {dir}/data/projectconfig.core-data --target py --out {dir}/../server/src/unity_mcp/config/generated/project_config_targets.py
 GENERATE cs-projectconfig data --contract projectconfig --rows ProjectConfigTarget {dir}/data/projectconfig.core-data --target cs --cs-namespace UnityMCP.Editor.Wizard --out {dir}/../unity-plugin/Editor/Generated/ProjectConfigTargets.g.cs
+
+# The CLI backend table (dsl/data/backends.data-contract, UI-5/Q20): one typed row set instead of 23 switch arms spread
+# across SessionHandoff, SessionScanner, ModelContextWindows and MCPChatWindow. The Python side has no call site yet;
+# it is generated for cross-language parity, same as every other data contract here.
+CONTRACT backends FROM data/backends.data-contract
+GENERATE py-backends data --contract backends --rows Backend {dir}/data/backends.core-data --target py --out {dir}/../server/src/unity_mcp/generated/backends.py
+GENERATE cs-backends data --contract backends --rows Backend {dir}/data/backends.core-data --target cs --cs-namespace UnityMCP.Editor.Chat --out {dir}/../unity-plugin/Editor/Generated/Backends.g.cs
 
 # The decisions (dsl/decisions, step 7.2): the rules of what is a write, whether a playtest passed, which guard stops a call and why a
 # send is retried. A step pair per module: the generated Python (and C#) and the rows of the examples that pytest and dotnet run.

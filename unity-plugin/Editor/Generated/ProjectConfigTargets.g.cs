@@ -7,16 +7,16 @@ namespace UnityMCP.Editor.Wizard
 {
     public sealed class ProjectConfigTarget
     {
-        public readonly string key;
-        public readonly string relativePath;
-        public readonly bool isToml;
-        public readonly string? rootKey;
+        public readonly string Key;
+        public readonly string RelativePath;
+        public readonly bool IsToml;
+        public readonly string? RootKey;
         public ProjectConfigTarget(string key, string relativePath, bool isToml, string? rootKey = null)
         {
-            this.key = key;
-            this.relativePath = relativePath;
-            this.isToml = isToml;
-            this.rootKey = rootKey;
+            this.Key = key;
+            this.RelativePath = relativePath;
+            this.IsToml = isToml;
+            this.RootKey = rootKey;
         }
     }
 
