@@ -9,6 +9,11 @@ import os
 import uuid
 from dataclasses import dataclass
 
+from .decisions.generated.permission_logic import (
+    ChatPermissionInput,
+    ChatPermissionValues,
+    chat_permission,
+)
 from .middleware_types import BLAST_DANGEROUS, BLAST_RADIUS, WRITE_CMDS
 
 _log = logging.getLogger(__name__)
@@ -17,6 +22,16 @@ _log = logging.getLogger(__name__)
 _DANGEROUS_CMDS: frozenset[str] = frozenset(
     cmd for cmd, r in BLAST_RADIUS.items() if r >= BLAST_DANGEROUS
 )
+
+# chat.mode of dsl/decisions/permission.logic uses enum literals, not our wire
+# strings ("full-access" has a hyphen; None/"" means no chat token at all).
+_CHAT_MODE: dict[str, str] = {"ask": "ask", "agent": "agent", "full-access": "fullAccess"}
+
+
+def _chat_mode(mode: str | None) -> str:
+    if not mode:
+        return "external"
+    return _CHAT_MODE.get(mode, "unknown")
 
 
 @dataclass
@@ -46,28 +61,32 @@ class PermissionBroker:
 
     def decide(self, tool_cmd: str) -> PermissionDecision:
         did = str(uuid.uuid4())
-
-        if not self._mode:
-            return _allow(did, "external client: no mode restriction")
-
         mode = self._mode
+        chat_mode = _chat_mode(mode)
 
-        if mode not in ("ask", "agent", "full-access"):
+        # SV2/Q15: one rule (dsl/decisions/permission.logic), shared with C#
+        # SessionAuthorization.Check. The facts below are each side's own —
+        # that divergence (static WRITE_CMDS here vs args-aware IsMutating in
+        # C#) is INTENDED per Q15, not something this decision table hides.
+        outcome = chat_permission(ChatPermissionInput(
+            call_dangerous=tool_cmd in _DANGEROUS_CMDS,
+            call_mutating=tool_cmd in WRITE_CMDS,
+            chat_mode=chat_mode,
+        ))
+
+        if outcome == ChatPermissionValues.ALLOW:
+            if chat_mode == "external":
+                return _allow(did, "external client: no mode restriction")
+            if chat_mode == "fullAccess":
+                return _allow(did, "full-access mode")
+            if chat_mode == "agent":
+                return _allow(did, "agent mode")
+            return _allow(did, "ask mode: read-only tool")
+        if outcome == ChatPermissionValues.DENY_UNKNOWN_MODE:
             return _deny(did, f"unknown mode '{mode}': denied by default")
-
-        if mode == "full-access":
-            return _allow(did, "full-access mode")
-
-        # agent: allow writes, deny dangerous
-        if mode == "agent":
-            if tool_cmd in _DANGEROUS_CMDS:
-                return _deny(did, f"agent mode: '{tool_cmd}' is dangerous — use full-access mode")
-            return _allow(did, "agent mode")
-
-        # ask: deny writes + dangerous, allow reads
-        if tool_cmd in WRITE_CMDS or tool_cmd in _DANGEROUS_CMDS:
-            return _deny(did, f"ask mode: '{tool_cmd}' requires agent mode for mutations")
-        return _allow(did, "ask mode: read-only tool")
+        if outcome == ChatPermissionValues.DENY_DANGEROUS:
+            return _deny(did, f"agent mode: '{tool_cmd}' is dangerous — use full-access mode")
+        return _deny(did, f"ask mode: '{tool_cmd}' requires agent mode for mutations")
 
 
 # Module-level singleton — tests override via monkeypatch.setattr(mod, "_broker", ...)

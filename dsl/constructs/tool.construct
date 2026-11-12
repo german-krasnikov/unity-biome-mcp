@@ -216,6 +216,11 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
         '{name}': {blast},
     END
   END
+  TEMPLATE csblast HEADER "namespace UnityMCP.Editor\n{\n    // The BLAST radius of a command (BLAST lines of dsl/tools.biome): how disruptive a mutation is. A command absent here has radius 0.\n    internal static class ToolBlast\n    {\n        internal static int RadiusOf(string cmd)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    return 0;\n            }\n        }\n    }\n}" ESCAPE data
+    EACH BLAST
+                    case "{name}": return {blast};
+    END
+  END
   TEMPLATE pyexpect HEADER "# A literal success token (or an OR-list, pipe-separated) that confirms a\n# mutation (EXPECT rows of dsl/tools.biome): see reflect/rules_catalog.py.\n# mode: 'token' (tokens is the OR-list), 'bool_arg' (tokens is 'true_token|false_token', argname picks the branch), 'arg_echo' (tokens is the arg names whose presence each requires its own '<name>=' echo).\nEXPECT_RULES: dict[str, tuple] = {" FOOTER "}" ESCAPE data
     EACH EXPECT
         '{name}': ('{mode}', '{tokens}', {?strict:True}{!strict:False}, {?argname:'{argname}'}{!argname:None}),
@@ -385,6 +390,11 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
         '{name}': {blast},
     END
   END
+  TEMPLATE csblast ESCAPE data
+    EACH BLAST
+                    case "{name}": return {blast};
+    END
+  END
   TEMPLATE pyexpect ESCAPE data
     EACH EXPECT
         '{name}': ('{mode}', '{tokens}', {?strict:True}{!strict:False}, {?argname:'{argname}'}{!argname:None}),
@@ -479,6 +489,11 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
   TEMPLATE pyblast ESCAPE data
     EACH BLAST
         '{name}': {blast},
+    END
+  END
+  TEMPLATE csblast ESCAPE data
+    EACH BLAST
+                    case "{name}": return {blast};
     END
   END
   TEMPLATE csdeny ESCAPE data

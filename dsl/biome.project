@@ -8,6 +8,7 @@ GENERATE py-examples render {dir}/tools.biome pyexamples {dir}/../server/src/uni
 GENERATE py-tools  render {dir}/tools.biome pytools  {dir}/../server/src/unity_mcp/tools/generated/catalog_tools.py
 GENERATE py-tags  render {dir}/tools.biome pytags  {dir}/../server/src/unity_mcp/tools/generated/catalog_tags.py
 GENERATE py-blast render {dir}/tools.biome pyblast {dir}/../server/src/unity_mcp/tools/generated/catalog_blast.py
+GENERATE cs-blast render {dir}/tools.biome csblast {dir}/../unity-plugin/Editor/Generated/ToolBlast.g.cs
 GENERATE py-expect render {dir}/tools.biome pyexpect {dir}/../server/src/unity_mcp/tools/generated/catalog_expect.py
 GENERATE docs-tools render {dir}/tools.biome mdtools {dir}/../docs/tools/index.md#catalog
 
@@ -19,6 +20,8 @@ GENERATE verdict logic generate --source {dir}/decisions/verdict.logic --contrac
 GENERATE verdict-rows logic examples --source {dir}/decisions/verdict.examples --logic {dir}/decisions/verdict.logic --contract {dir}/decisions/verdict.contract --out {dir}/decisions/verdict.json
 GENERATE guards logic generate --source {dir}/decisions/guards.logic --contract {dir}/decisions/guards.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/guards_logic.py" --target "cs {dir}/../unity-plugin/Editor/Generated/Guards.g.cs AS UnityMCP.Editor.Decisions.Guards LANG 9"
 GENERATE guards-rows logic examples --source {dir}/decisions/guards.examples --logic {dir}/decisions/guards.logic --contract {dir}/decisions/guards.contract --out {dir}/decisions/guards.json
+GENERATE permission logic generate --source {dir}/decisions/permission.logic --contract {dir}/decisions/permission.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/permission_logic.py" --target "cs {dir}/../unity-plugin/Editor/Generated/Permission.g.cs AS UnityMCP.Editor.Decisions.Permission LANG 9"
+GENERATE permission-rows logic examples --source {dir}/decisions/permission.examples --logic {dir}/decisions/permission.logic --contract {dir}/decisions/permission.contract --out {dir}/decisions/permission.json
 GENERATE retry logic generate --source {dir}/decisions/retry.logic --contract {dir}/decisions/retry.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/retry_logic.py"
 GENERATE retry-rows logic examples --source {dir}/decisions/retry.examples --logic {dir}/decisions/retry.logic --contract {dir}/decisions/retry.contract --out {dir}/decisions/retry.json
 GENERATE py-reads  render {dir}/tools.biome pyreads  {dir}/../server/src/unity_mcp/tools/generated/catalog_reads.py

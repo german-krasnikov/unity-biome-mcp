@@ -1,0 +1,9 @@
+# Facts of chatPermission: may a tool call of a chat agent run? chat.mode = the mode the relay launched the agent in (external = no mode: a client that is not the chat);
+# call.mutating = the output of isMutating (the host passes it in); call.dangerous = the tool's BLAST is at the dangerous tier (catalog BLAST, host-computed).
+CONTRACT unitymcp.permission
+COVERAGE declared-scope
+MODULE permission_facts
+FACT chat.mode enum=external,ask,agent,fullAccess,unknown closed
+FACT call.mutating bool
+FACT call.dangerous bool
+INPUT chatPermission chat.mode call.mutating call.dangerous
