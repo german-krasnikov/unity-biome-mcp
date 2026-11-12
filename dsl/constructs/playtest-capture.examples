@@ -64,7 +64,7 @@ EXAMPLE ASSERT_CAPTURED reads a label, a mode and for the BY modes an operator a
   SOURCE ASSERT_FRAMES_DIFFER myClip
   SOURCE ASSERT_FRAMES_STATIC idle
 
-EXAMPLE ASSERT_CAPTURED refuses a mode the runner throws on (INTENDED I9: PlaytestState.cs:95 throws on it, AI/playtest-dsl.md:279 and :353 write one), a lower-case mode (INTENDED I4), a value for a mode that has none (INTENDED I1); ASSERT_MIN and ASSERT_MAX a missing value or an operator the runner throws on (INTENDED I9); the frame assertions a missing label and a token too many
+EXAMPLE ASSERT_CAPTURED refuses a mode the runner throws on (INTENDED I9: PlaytestState.cs:95 throws on it, AI/playtest-dsl.md:279 and :353 write one), a value for a mode that has none (INTENDED I1); a lower-case mode now reads via CASEFOLD (PT-8/Q22, closes INTENDED I4); ASSERT_MIN and ASSERT_MAX a missing value or an operator the runner throws on (INTENDED I9); the frame assertions a missing label and a token too many
   SOURCE ASSERT_CAPTURED
   SOURCE ASSERT_CAPTURED money
   SOURCE ASSERT_CAPTURED initial_pos != 100,100,0
@@ -83,7 +83,6 @@ EXAMPLE ASSERT_CAPTURED refuses a mode the runner throws on (INTENDED I9: Playte
   EXPECT diagnostic DECLARE_SYNTAX at 2:17
   EXPECT diagnostic DECLARE_SYNTAX at 3:29
   EXPECT diagnostic DECLARE_SYNTAX at 4:33
-  EXPECT diagnostic DECLARE_SYNTAX at 5:23
   EXPECT diagnostic DECLARE_SYNTAX at 6:36
   EXPECT diagnostic DECLARE_SYNTAX at 7:12
   EXPECT diagnostic DECLARE_SYNTAX at 8:19

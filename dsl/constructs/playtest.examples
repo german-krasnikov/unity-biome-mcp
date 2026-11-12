@@ -96,17 +96,13 @@ EXAMPLE LOG, SECTION and SNAPSHOT take the rest of the line as written, or nothi
   SOURCE SNAPSHOT Currency, GridPlayer.Corn, GridPlayer.Eggs
   SOURCE SNAPSHOT
 
-EXAMPLE a verb is written in upper case (INTENDED I4); a word that is no verb is an unknown keyword (PlaytestParserCorpusTests.cs:59, Runtime/PlaytestParserTests.cs:152)
+EXAMPLE CASEFOLD folds a verb's case (PT-8/Q22, closes INTENDED I4); a word that is no verb in any case is still an unknown keyword (PlaytestParserCorpusTests.cs:59, Runtime/PlaytestParserTests.cs:152)
   SOURCE wait 1
   SOURCE log hello
   SOURCE section a
   SOURCE snapshot game
   SOURCE FOOBAR_CMD arg1
   SOURCE BLAH foo
-  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 1:1
-  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 2:1
-  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 3:1
-  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 4:1
   EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 5:1
   EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 6:1
 

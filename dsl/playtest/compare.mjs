@@ -81,7 +81,7 @@ const probes = [
   ['SET /obj Comp field a==b', 'TOKENS words: == is no token of its own', 'PT_SET {"path":"/obj","component":"Comp","field":"field","value":"a==b"}'],
   ['INVOKE /Player Health TakeDamage 42 true', 'INVOKE: Args is the rest', 'PT_INVOKE {"path":"/Player","component":"Health","method":"TakeDamage","args":"42 true"}'],
   ['INVOKE "/My Object" Comp Method', 'a quoted token is one token', 'PT_INVOKE {"path":"\\"/My Object\\"","component":"Comp","method":"Method"}'],
-  ['wait 1', 'INTENDED I4: a verb is upper case', 'PT_UNKNOWN_KEYWORD@1:1'],
+  ['wait 1', 'PT-8/Q22: CASEFOLD folds a verb\'s case (closes INTENDED I4)', 'PT_WAIT {"seconds":"1"}'],
   ['SET /A B C 1 2 3', 'INTENDED I1: a token too many', 'PT_SYNTAX@1:14'],
   ['ASSERT /A|B|c TIMEOUT 5', 'INTENDED I1: the hand parser built op "" and a query that holds the tail; the line ends where the operator is due', 'PT_SYNTAX@1:23'],
   ['ASSERT /x|C|f ==', 'the value is due', 'PT_SYNTAX@1:15'],
@@ -133,7 +133,7 @@ const probes = [
   ['ASSERT_BATCH\nASSERT /[Box contains Items]/Slot|C|f == 1\nEND', 'the RULES see the lines of a block: the query is cut at contains', 'PT_BRACKET'],
   ['SWEEP_PATH /Player DWELL 0.4\n  1,0,0 > 2,0,0\nUNTIL /q|C|f >= 2 TIMEOUT 5\nASSERT /X|C|f == 1', 'CONTINUATION: the waypoints and UNTIL are the host\'s, the verb after them is read (PlaytestDslExtensionTests.cs:166)', 'PT_SWEEP_PATH {"path":"/Player","dwell":"0.4"} | PT_ASSERT {"query":"/X|C|f","op":"==","value":"1"}'],
   ['SWEEP_PATH /Player 0.4\n  1,0,0 > 2,0,0', 'CONTINUATION does not hide the error of the head (PlaytestDslExtensionTests.cs:159)', 'PT_SYNTAX@1:20'],
-  ['INVOKE_REPEAT 2 /P C M\nwait 1', 'CONTINUATION: a verb in lower case ends it, so I4 is reported on that line', 'PT_UNKNOWN_KEYWORD@2:1'],
+  ['INVOKE_REPEAT 2 /P C M\nwait 1', 'CONTINUATION: the host stops at the next verb; PT-8/Q22 CASEFOLD reads that verb\'s lower case too', 'PT_INVOKE_REPEAT {"count":"2","path":"/P","component":"C","method":"M"} | PT_WAIT {"seconds":"1"}'],
   ['COMPLETE_PURCHASE /Store/Item EXPECT\n  /Store|PlacementPurchase|IsPurchased\n  /Player|Currency|Coins > 0\nTIMEOUT 5\nLOG done', 'AI/playtest-dsl.md:387: names and TIMEOUT go on, LOG is read', 'PT_COMPLETE_PURCHASE {"path":"/Store/Item","flag:EXPECT":"true"} | PT_LOG {"message":"done"}'],
   ['INVOKE_REPEAT 3 /Player PlayerController TakeDamage 10\nEXPECT /Player|PlayerController|Health < 70 TIMEOUT 5', 'AI/playtest-dsl.md:516', 'PT_INVOKE_REPEAT {"count":"3","path":"/Player","component":"PlayerController","method":"TakeDamage","args":"10"}'],
 ];

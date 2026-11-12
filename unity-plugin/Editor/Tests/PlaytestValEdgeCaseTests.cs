@@ -114,16 +114,17 @@ LOG $a";
             StringAssert.Contains("/Root/BranchC", result[0].Message);
         }
 
-        // C9 — Unicode $name not matched by ASCII regex (left as-is)
+        // C9 — Unicode $name: the hand parser silently accepted this into a dead VAL
+        // (SigilRegex is ASCII-only, so $игрок could never be expanded anywhere) and left
+        // $игрок untouched in LOG's message. PT-8: the grammar's VAL name slot is itself
+        // ASCII-only (<name:match(\$?[A-Za-z_][A-Za-z0-9_]*)>), so this now fails fast at
+        // parse time instead of silently defining a useless alias.
         [Test]
-        public void Parse_Val_UnicodeSigil_NotMatchedByRegex_LeftAsIs()
+        public void Parse_Val_UnicodeSigilName_ThrowsAtParseTime()
         {
-            // Note: CollectVals WILL store key "игрок" but SigilRegex won't match $игрок
             var script = "VAL $игрок /Player\nLOG $игрок";
-            ParseResult result = null;
-            Assert.DoesNotThrow(() => result = PlaytestParser.Parse(script));
-            // $игрок not expanded (regex is ASCII-only)
-            StringAssert.Contains("$игрок", result[0].Message);
+            var ex = Assert.Throws<ArgumentException>(() => PlaytestParser.Parse(script));
+            StringAssert.Contains("VAL", ex.Message);
         }
 
         // C10 — VAR without @ prefix → ArgumentException mentioning @

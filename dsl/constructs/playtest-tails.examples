@@ -37,7 +37,7 @@ EXAMPLE WAIT_CAPTURED reads a label, a mode, for the BY modes an operator and a 
   SOURCE WAIT_CAPTURED gold UNCHANGED TIMEOUT 8 OVER 2
   SOURCE WAIT_CAPTURED gold UNCHANGED OVER 2 TIMEOUT 8
 
-EXAMPLE WAIT_CAPTURED refuses a missing mode (PlaytestParserTests.cs:1080), a mode that is not one of the five (the runner polls to the timeout and says nothing: PlaytestRunner.cs:443 swallows the throw of :732; INTENDED I9), a lower-case mode (INTENDED I4), a sub-value for a mode that has none (INTENDED I1) and a TIMEOUT or OVER without its number
+EXAMPLE WAIT_CAPTURED refuses a missing mode (PlaytestParserTests.cs:1080), a mode that is not one of the five (the runner polls to the timeout and says nothing: PlaytestRunner.cs:443 swallows the throw of :732; INTENDED I9), a sub-value for a mode that has none (INTENDED I1) and a TIMEOUT or OVER without its number; a lower-case mode now reads via CASEFOLD (PT-8/Q22, closes INTENDED I4)
   SOURCE WAIT_CAPTURED
   SOURCE WAIT_CAPTURED hp
   SOURCE WAIT_CAPTURED hp INCREASD
@@ -51,7 +51,6 @@ EXAMPLE WAIT_CAPTURED refuses a missing mode (PlaytestParserTests.cs:1080), a mo
   EXPECT diagnostic DECLARE_SYNTAX at 1:1
   EXPECT diagnostic DECLARE_SYNTAX at 2:15
   EXPECT diagnostic DECLARE_SYNTAX at 3:18
-  EXPECT diagnostic DECLARE_SYNTAX at 4:18
   EXPECT diagnostic DECLARE_SYNTAX at 5:28
   EXPECT diagnostic DECLARE_NUMBER at 6:36
   EXPECT diagnostic DECLARE_NUMBER at 7:33

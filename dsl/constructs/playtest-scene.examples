@@ -13,7 +13,7 @@ EXAMPLE MOVE and TELEPORT read a position as the rest of the line: x,y,z, @/GoPa
   SOURCE TELEPORT Enemy @/Player.position + (2,0,0)
   SOURCE TELEPORT TeleportTarget 5,0,3
 
-EXAMPLE MOVE and TELEPORT refuse a line without TO or without a position (PlaytestParserEdgeCaseTests.cs:16, :25, :34; EVAL2 C1 for TELEPORT), a position that is none of x,y,z, @... and $... (the hand parser throws in ParseFloats: NumericParsing.cs:17-22; INTENDED I9) and a lower-case TO (INTENDED I4)
+EXAMPLE MOVE and TELEPORT refuse a line without TO or without a position (PlaytestParserEdgeCaseTests.cs:16, :25, :34; EVAL2 C1 for TELEPORT) and a position that is none of x,y,z, @... and $... (the hand parser throws in ParseFloats: NumericParsing.cs:17-22; INTENDED I9); a lower-case TO now reads via CASEFOLD (PT-8/Q22, closes INTENDED I4)
   SOURCE MOVE
   SOURCE MOVE /Player
   SOURCE MOVE TO
@@ -28,7 +28,6 @@ EXAMPLE MOVE and TELEPORT refuse a line without TO or without a position (Playte
   EXPECT diagnostic DECLARE_SYNTAX at 2:6
   EXPECT diagnostic DECLARE_SYNTAX at 3:6
   EXPECT diagnostic DECLARE_SYNTAX at 4:14
-  EXPECT diagnostic DECLARE_SYNTAX at 5:13
   EXPECT diagnostic DECLARE_SYNTAX at 6:16
   EXPECT diagnostic DECLARE_SYNTAX at 7:9
   EXPECT diagnostic DECLARE_SYNTAX at 8:1
@@ -60,7 +59,7 @@ EXAMPLE ASSERT_NEAR reads two paths and a distance, ASSERT_CTA a state or nothin
   SOURCE ASSERT_ONE_ACTIVE /Cam_Intro /Cam_Menu
   SOURCE ASSERT_ONE_ACTIVE /Cam_Intro /Cam_Menu /Cam_Game
 
-EXAMPLE ASSERT_NEAR refuses a missing path or distance and a word for it, ASSERT_CTA a state the runner does not know (it reads it as VISIBLE; INTENDED I9) and a token too many (INTENDED I1), ASSERT_ONE_ACTIVE fewer than two paths (PlaytestParserTests.cs:474, :481)
+EXAMPLE ASSERT_NEAR refuses a missing path or distance and a word for it, ASSERT_CTA a state the runner does not know (it reads it as VISIBLE; INTENDED I9) and a token too many (INTENDED I1), ASSERT_ONE_ACTIVE fewer than two paths (PlaytestParserTests.cs:474, :481); a lower-case state now reads via CASEFOLD (PT-8/Q22, closes INTENDED I4)
   SOURCE ASSERT_NEAR
   SOURCE ASSERT_NEAR /A
   SOURCE ASSERT_NEAR /A /B
@@ -77,7 +76,6 @@ EXAMPLE ASSERT_NEAR refuses a missing path or distance and a word for it, ASSERT
   EXPECT diagnostic DECLARE_NUMBER at 4:19
   EXPECT diagnostic DECLARE_SYNTAX at 5:21
   EXPECT diagnostic DECLARE_SYNTAX at 6:12
-  EXPECT diagnostic DECLARE_SYNTAX at 7:12
   EXPECT diagnostic DECLARE_SYNTAX at 8:20
   EXPECT diagnostic DECLARE_SYNTAX at 9:1
   EXPECT diagnostic DECLARE_SYNTAX at 10:19
