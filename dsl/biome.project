@@ -80,6 +80,10 @@ GENERATE retry logic generate --source {dir}/decisions/retry.logic --contract {d
 GENERATE retry-rows logic examples --source {dir}/decisions/retry.examples --logic {dir}/decisions/retry.logic --contract {dir}/decisions/retry.contract --out {dir}/decisions/retry.json
 GENERATE busysignal logic generate --source {dir}/decisions/busysignal.logic --contract {dir}/decisions/busysignal.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/busysignal_logic.py"
 GENERATE busysignal-rows logic examples --source {dir}/decisions/busysignal.examples --logic {dir}/decisions/busysignal.logic --contract {dir}/decisions/busysignal.contract --out {dir}/decisions/busysignal.json
+GENERATE connstatus logic generate --source {dir}/decisions/connstatus.logic --contract {dir}/decisions/connstatus.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/connstatus_logic.py"
+GENERATE connstatus-rows logic examples --source {dir}/decisions/connstatus.examples --logic {dir}/decisions/connstatus.logic --contract {dir}/decisions/connstatus.contract --out {dir}/decisions/connstatus.json
+GENERATE budget logic generate --source {dir}/decisions/budget.logic --contract {dir}/decisions/budget.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/budget_logic.py"
+GENERATE budget-rows logic examples --source {dir}/decisions/budget.examples --logic {dir}/decisions/budget.logic --contract {dir}/decisions/budget.contract --out {dir}/decisions/budget.json
 GENERATE py-reads  render {dir}/tools.biome pyreads  {dir}/../server/src/unity_mcp/tools/generated/catalog_reads.py
 GENERATE cs-reads  render {dir}/tools.biome csreads  {dir}/../unity-plugin/Editor/Generated/ActionReads.g.cs
 GENERATE py-actions render {dir}/tools.biome pyactions {dir}/../server/src/unity_mcp/tools/generated/catalog_actions.py
@@ -112,3 +116,5 @@ GENERATE playtest-verbs derive {dir}/playtest/gen.mjs verbs OUT {dir}/constructs
 CONTRACT llmfeatures FROM data/llmfeatures.data-contract
 GENERATE py-llmfeatures data --contract llmfeatures --rows LlmFeature {dir}/data/llmfeatures.core-data --target py --out {dir}/../server/src/unity_mcp/generated/llm_features.py
 GENERATE cs-llmfeatures data --contract llmfeatures --rows LlmFeature {dir}/data/llmfeatures.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/LlmFeatures.g.cs
+GENERATE editorlog logic generate --source {dir}/decisions/editorlog.logic --contract {dir}/decisions/editorlog.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/editorlog_logic.py"
+GENERATE editorlog-rows logic examples --source {dir}/decisions/editorlog.examples --logic {dir}/decisions/editorlog.logic --contract {dir}/decisions/editorlog.contract --out {dir}/decisions/editorlog.json

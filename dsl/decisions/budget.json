@@ -1,0 +1,38 @@
+{
+  "generated": "from budget.examples by npm run logic -- examples; do not edit",
+  "provenance": "hand-written from BudgetRouter.should_run (budget/router.py), SpeculativeLayer._hit_rate_ok and server/tests/test_budget_router.py; not generated from the logic or from the Python code. The warmup (Q-B1) is in the rules; the host passes hitTotal 50 for a known rate, which keeps today's behavior.",
+  "hitRateOk": [
+    { "id": "warmup-ignores-a-bad-ratio", "facts": { "hitTotal": 49, "hitRatio": 0 }, "expected": true },
+    { "id": "fifty-samples-are-judged", "facts": { "hitTotal": 50, "hitRatio": 0.39 }, "expected": false },
+    { "id": "threshold-is-inclusive-ok", "facts": { "hitTotal": 50, "hitRatio": 0.4 }, "expected": true },
+    { "id": "good-ratio", "facts": { "hitTotal": 200, "hitRatio": 0.9 }, "expected": true },
+    { "id": "no-samples", "facts": { "hitTotal": 0, "hitRatio": 0 }, "expected": true }
+  ],
+  "budgetRoute": [
+    { "id": "disabled-beats-everything", "facts": { "budgetDisabled": true, "budgetPriority": "low", "budgetFeature": "watchdog", "budgetDayCapExceeded": true, "budgetSessionPct": 0.99, "hitTotal": 100, "hitRatio": 0 }, "expected": "ok_disabled" },
+    { "id": "low-hit-rate-skips-medium", "facts": { "budgetDisabled": false, "budgetPriority": "medium", "budgetFeature": "scene_brief", "budgetDayCapExceeded": false, "budgetSessionPct": 0.1, "hitTotal": 100, "hitRatio": 0.39 }, "expected": "low_hit_rate" },
+    { "id": "low-hit-rate-spares-critical", "facts": { "budgetDisabled": false, "budgetPriority": "critical", "budgetFeature": "ask", "budgetDayCapExceeded": false, "budgetSessionPct": 0.1, "hitTotal": 100, "hitRatio": 0 }, "expected": "ok" },
+    { "id": "low-hit-rate-before-day-cap", "facts": { "budgetDisabled": false, "budgetPriority": "low", "budgetFeature": "speculation", "budgetDayCapExceeded": true, "budgetSessionPct": 0.1, "hitTotal": 100, "hitRatio": 0.1 }, "expected": "low_hit_rate" },
+    { "id": "day-cap-stops-critical", "facts": { "budgetDisabled": false, "budgetPriority": "critical", "budgetFeature": "ask", "budgetDayCapExceeded": true, "budgetSessionPct": 0.1, "hitTotal": 0, "hitRatio": 0 }, "expected": "day_cap_exceeded" },
+    { "id": "critical-passes-at-95", "facts": { "budgetDisabled": false, "budgetPriority": "critical", "budgetFeature": "ask", "budgetDayCapExceeded": false, "budgetSessionPct": 0.95, "hitTotal": 0, "hitRatio": 0 }, "expected": "critical_at_95" },
+    { "id": "medium-stops-at-95", "facts": { "budgetDisabled": false, "budgetPriority": "medium", "budgetFeature": "scene_brief", "budgetDayCapExceeded": false, "budgetSessionPct": 0.95, "hitTotal": 0, "hitRatio": 0 }, "expected": "budget_95_skipped" },
+    { "id": "low-stops-at-80", "facts": { "budgetDisabled": false, "budgetPriority": "low", "budgetFeature": "summarize", "budgetDayCapExceeded": false, "budgetSessionPct": 0.8, "hitTotal": 0, "hitRatio": 0 }, "expected": "budget_80_low_skipped" },
+    { "id": "medium-passes-at-94", "facts": { "budgetDisabled": false, "budgetPriority": "medium", "budgetFeature": "scene_brief", "budgetDayCapExceeded": false, "budgetSessionPct": 0.94, "hitTotal": 0, "hitRatio": 0 }, "expected": "ok" },
+    { "id": "medium-passes-at-50", "facts": { "budgetDisabled": false, "budgetPriority": "medium", "budgetFeature": "watchdog", "budgetDayCapExceeded": false, "budgetSessionPct": 0.5, "hitTotal": 0, "hitRatio": 0 }, "expected": "ok" },
+    { "id": "watchdog-stops-at-50", "facts": { "budgetDisabled": false, "budgetPriority": "low", "budgetFeature": "watchdog", "budgetDayCapExceeded": false, "budgetSessionPct": 0.5, "hitTotal": 0, "hitRatio": 0 }, "expected": "budget_50_low_skipped" },
+    { "id": "other-low-passes-at-79", "facts": { "budgetDisabled": false, "budgetPriority": "low", "budgetFeature": "speculation", "budgetDayCapExceeded": false, "budgetSessionPct": 0.79, "hitTotal": 0, "hitRatio": 0 }, "expected": "ok" },
+    { "id": "watchdog-passes-at-49", "facts": { "budgetDisabled": false, "budgetPriority": "low", "budgetFeature": "watchdog", "budgetDayCapExceeded": false, "budgetSessionPct": 0.49, "hitTotal": 0, "hitRatio": 0 }, "expected": "ok" },
+    { "id": "hit-rate-boundary-is-ok", "facts": { "budgetDisabled": false, "budgetPriority": "low", "budgetFeature": "speculation", "budgetDayCapExceeded": false, "budgetSessionPct": 0.1, "hitTotal": 50, "hitRatio": 0.4 }, "expected": "ok" },
+    { "id": "warmup-spares-the-first-miss", "facts": { "budgetDisabled": false, "budgetPriority": "low", "budgetFeature": "speculation", "budgetDayCapExceeded": false, "budgetSessionPct": 0.1, "hitTotal": 1, "hitRatio": 0 }, "expected": "ok" }
+  ],
+  "budgetRun": [
+    { "id": "ok-runs", "facts": { "budgetDisabled": false, "budgetPriority": "medium", "budgetFeature": "scene_brief", "budgetDayCapExceeded": false, "budgetSessionPct": 0.1, "hitTotal": 0, "hitRatio": 0 }, "expected": true },
+    { "id": "disabled-runs", "facts": { "budgetDisabled": true, "budgetPriority": "low", "budgetFeature": "watchdog", "budgetDayCapExceeded": true, "budgetSessionPct": 0.99, "hitTotal": 0, "hitRatio": 0 }, "expected": true },
+    { "id": "critical-at-95-runs", "facts": { "budgetDisabled": false, "budgetPriority": "critical", "budgetFeature": "ask", "budgetDayCapExceeded": false, "budgetSessionPct": 0.95, "hitTotal": 0, "hitRatio": 0 }, "expected": true },
+    { "id": "low-hit-rate-skips", "facts": { "budgetDisabled": false, "budgetPriority": "medium", "budgetFeature": "scene_brief", "budgetDayCapExceeded": false, "budgetSessionPct": 0.1, "hitTotal": 100, "hitRatio": 0.39 }, "expected": false },
+    { "id": "day-cap-skips", "facts": { "budgetDisabled": false, "budgetPriority": "critical", "budgetFeature": "ask", "budgetDayCapExceeded": true, "budgetSessionPct": 0.1, "hitTotal": 0, "hitRatio": 0 }, "expected": false },
+    { "id": "budget-95-skips", "facts": { "budgetDisabled": false, "budgetPriority": "medium", "budgetFeature": "scene_brief", "budgetDayCapExceeded": false, "budgetSessionPct": 0.95, "hitTotal": 0, "hitRatio": 0 }, "expected": false },
+    { "id": "budget-80-skips", "facts": { "budgetDisabled": false, "budgetPriority": "low", "budgetFeature": "summarize", "budgetDayCapExceeded": false, "budgetSessionPct": 0.8, "hitTotal": 0, "hitRatio": 0 }, "expected": false },
+    { "id": "budget-50-skips", "facts": { "budgetDisabled": false, "budgetPriority": "low", "budgetFeature": "watchdog", "budgetDayCapExceeded": false, "budgetSessionPct": 0.5, "hitTotal": 0, "hitRatio": 0 }, "expected": false }
+  ]
+}

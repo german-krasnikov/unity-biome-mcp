@@ -7,6 +7,7 @@ from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass
 
 from .console_levels import PROBLEM_LEVELS
+from .decisions.budget_facts import hit_rate_ok
 
 
 @dataclass
@@ -44,10 +45,7 @@ class SpeculativeLayer:
         return None
 
     def _hit_rate_ok(self) -> bool:
-        total = self._hits + self._misses
-        if total < 50:
-            return True
-        return (self._hits / total) >= 0.4
+        return hit_rate_ok(self._hits, self._misses)
 
     async def maybe_prefetch(self, cmd: str, args: dict, result: str) -> str:
         if not self.enabled:
