@@ -87,7 +87,7 @@ namespace UnityMCP.Editor.Profiling
             if (_state == RecordState.Recording)
                 return $"error: already recording session {_activeSessionId}";
 
-            var modeStr = JsonHelper.ExtractString(args, "mode") ?? "burst";
+            var modeStr = ProfileArgs.Mode(args) ?? "burst";
             _mode = modeStr.ToLower() switch
             {
                 "manual" => RecordMode.Manual,
@@ -98,6 +98,10 @@ namespace UnityMCP.Editor.Profiling
             if (_mode == RecordMode.Triggered)
                 return "err:triggered mode not yet implemented";
 
+            // NOT ProfileArgs.Duration: that accessor returns JsonHelper.ExtractFloat's own 0f
+            // fallback on both missing AND malformed input (no DSL `DEFAULT 5.0` applied, no
+            // error signal) -- this call site needs 5f on missing and a graceful "error: invalid
+            // duration" response on malformed, so it hand-parses instead. Keep raw.
             var durStr = JsonHelper.ExtractString(args, "duration");
             _duration = 5f;
             if (durStr != null && !float.TryParse(durStr, System.Globalization.NumberStyles.Float,
@@ -134,11 +138,11 @@ namespace UnityMCP.Editor.Profiling
 
         private static string Analyze(string args)
         {
-            string sid = JsonHelper.ExtractString(args, "session");
+            string sid = ProfileArgs.Session(args);
             if (sid == null || !_sessions.TryGetValue(sid, out var session))
                 return $"error: session not found: {sid}";
 
-            string focus = JsonHelper.ExtractString(args, "focus");
+            string focus = ProfileArgs.Focus(args);
             string full = ProfileFormatter.FormatSummary(sid, session.Stats);
             if (focus == null) return full;
 
@@ -159,8 +163,8 @@ namespace UnityMCP.Editor.Profiling
 
         private static string Compare(string args)
         {
-            string sidA = JsonHelper.ExtractString(args, "compare_with");
-            string sidB = JsonHelper.ExtractString(args, "session");
+            string sidA = ProfileArgs.CompareWith(args);
+            string sidB = ProfileArgs.Session(args);
 
             if (sidA == null || !_sessions.TryGetValue(sidA, out var sessA))
                 return $"error: session not found: {sidA}";

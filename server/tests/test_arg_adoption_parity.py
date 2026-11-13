@@ -35,7 +35,7 @@ _TOOLARGS_GEN = _EDITOR / "Generated" / "ToolArgs.g.cs"
 
 # Ratchet: raw call count outside Generated/ and Tests/ measured on branch arg-adoption-2026-11.
 # Lower this when a migration PR reduces the real count; never raise it to make a test pass.
-_BASELINE_MAX_RAW_CALLS = 597
+_BASELINE_MAX_RAW_CALLS = 459
 
 _RAW_CALL_RE = re.compile(r"JsonHelper\.(?:ExtractString|ParseOpt\w+)\(")
 _BLOCK_START_RE = re.compile(r"^(?:TOOL|PYTOOL|INTERNAL)\s+(\S+)\s")

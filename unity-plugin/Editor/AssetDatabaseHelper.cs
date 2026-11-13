@@ -17,10 +17,10 @@ namespace UnityMCP.Editor
 
         static string Find(string argsJson)
         {
-            var type    = JsonHelper.ExtractString(argsJson, "type");
-            var name    = JsonHelper.ExtractString(argsJson, "name");
-            var folder  = JsonHelper.ExtractString(argsJson, "folder");
-            var labels  = JsonHelper.ExtractString(argsJson, "labels");
+            var type    = AssetArgs.Type(argsJson);
+            var name    = AssetArgs.Name(argsJson);
+            var folder  = AssetArgs.Folder(argsJson);
+            var labels  = AssetArgs.Labels(argsJson);
 
             var filter = new StringBuilder();
             if (!string.IsNullOrEmpty(type))   filter.Append("t:").Append(type);
@@ -54,7 +54,7 @@ namespace UnityMCP.Editor
 
         static string GetInfo(string argsJson)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
+            var path = AssetArgs.Path(argsJson);
             if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
 
             var mainType = AssetDatabase.GetMainAssetTypeAtPath(path);
@@ -82,8 +82,8 @@ namespace UnityMCP.Editor
 
         static string Create(string argsJson)
         {
-            var type = JsonHelper.ExtractString(argsJson, "type");
-            var path = JsonHelper.ExtractString(argsJson, "path");
+            var type = AssetArgs.Type(argsJson);
+            var path = AssetArgs.Path(argsJson);
             if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
             if (string.IsNullOrEmpty(type)) throw new System.Exception("type is required");
             ValidatePath(path);
@@ -122,7 +122,7 @@ namespace UnityMCP.Editor
                 }
                 case "ScriptableObject":
                 {
-                    var className = JsonHelper.ExtractString(argsJson, "class");
+                    var className = AssetArgs.Class(argsJson);
                     if (string.IsNullOrEmpty(className))
                         throw new System.Exception("class is required for ScriptableObject create");
                     var found = TypeCache.GetTypesDerivedFrom<ScriptableObject>()
@@ -147,8 +147,8 @@ namespace UnityMCP.Editor
 
         static string Move(string argsJson)
         {
-            var source = JsonHelper.ExtractString(argsJson, "source");
-            var dest   = JsonHelper.ExtractString(argsJson, "dest");
+            var source = AssetArgs.Source(argsJson);
+            var dest   = AssetArgs.Dest(argsJson);
             if (string.IsNullOrEmpty(source)) throw new System.Exception("source is required");
             if (string.IsNullOrEmpty(dest))   throw new System.Exception("dest is required");
             ValidatePath(source);
@@ -164,9 +164,9 @@ namespace UnityMCP.Editor
 
         static string ValidateMove(string argsJson)
         {
-            var source   = JsonHelper.ExtractString(argsJson, "source");
-            var dest     = JsonHelper.ExtractString(argsJson, "dest");
-            var pathOnly = JsonHelper.ExtractString(argsJson, "path_only") == "true";
+            var source   = AssetArgs.Source(argsJson);
+            var dest     = AssetArgs.Dest(argsJson);
+            var pathOnly = AssetArgs.PathOnly(argsJson);
             if (string.IsNullOrEmpty(source)) throw new System.Exception("source is required");
             if (string.IsNullOrEmpty(dest))
             {
@@ -187,8 +187,8 @@ namespace UnityMCP.Editor
 
         static string Duplicate(string argsJson)
         {
-            var source = JsonHelper.ExtractString(argsJson, "source");
-            var dest   = JsonHelper.ExtractString(argsJson, "dest");
+            var source = AssetArgs.Source(argsJson);
+            var dest   = AssetArgs.Dest(argsJson);
             if (string.IsNullOrEmpty(source)) throw new System.Exception("source is required");
             if (string.IsNullOrEmpty(dest))   throw new System.Exception("dest is required");
             ValidatePath(source);
@@ -201,7 +201,7 @@ namespace UnityMCP.Editor
 
         static string Delete(string argsJson)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
+            var path = AssetArgs.Path(argsJson);
             if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
             ValidatePath(path);
 
@@ -212,7 +212,10 @@ namespace UnityMCP.Editor
 
         static string GetDependencies(string argsJson)
         {
-            var path      = JsonHelper.ExtractString(argsJson, "path");
+            var path      = AssetArgs.Path(argsJson);
+            // NOT AssetArgs.Recursive: that accessor only accepts the lowercase "true" literal,
+            // but this call site also accepts "True"/"1" -- richer parsing than the generated
+            // accessor supports, keep raw.
             var recursive = JsonHelper.ExtractString(argsJson, "recursive");
             if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
 
@@ -248,9 +251,9 @@ namespace UnityMCP.Editor
 
         static string ImportSettings(string argsJson)
         {
-            var path  = JsonHelper.ExtractString(argsJson, "path");
-            var prop  = JsonHelper.ExtractString(argsJson, "prop");
-            var value = JsonHelper.ExtractString(argsJson, "value");
+            var path  = AssetArgs.Path(argsJson);
+            var prop  = AssetArgs.Prop(argsJson);
+            var value = AssetArgs.Value(argsJson);
             if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
 
             var importer = AssetImporter.GetAtPath(path);
@@ -326,7 +329,7 @@ namespace UnityMCP.Editor
 
         static string FindDependents(string argsJson)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
+            var path = AssetArgs.Path(argsJson);
             if (string.IsNullOrEmpty(path)) throw new System.ArgumentException("path is required");
             var guid = AssetDatabase.AssetPathToGUID(path);
             if (string.IsNullOrEmpty(guid)) throw new System.ArgumentException($"asset not found: {path}");
@@ -356,12 +359,15 @@ namespace UnityMCP.Editor
 
         static string ExportPackage(string argsJson)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
-            var output = JsonHelper.ExtractString(argsJson, "output");
+            var path = AssetArgs.Path(argsJson);
+            var output = AssetArgs.Output(argsJson);
             if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(output))
                 throw new System.Exception("export_package requires 'path' and 'output'");
             var dir = Path.GetDirectoryName(output);
             if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            // NOT AssetArgs.IncludeDeps: that accessor defaults false (bare `== "true"`), but
+            // DSL declares `DEFAULT True` -- generator gap (same as transfer_object's
+            // world_position_stays), keep raw.
             var includeDeps = JsonHelper.ExtractString(argsJson, "include_deps") != "false";
             var opts = ExportPackageOptions.Recurse;
             if (includeDeps) opts |= ExportPackageOptions.IncludeDependencies;
@@ -371,7 +377,7 @@ namespace UnityMCP.Editor
 
         static string ImportPackage(string argsJson)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
+            var path = AssetArgs.Path(argsJson);
             if (string.IsNullOrEmpty(path))
                 throw new System.Exception("import_package requires 'path'");
             if (!File.Exists(path))
@@ -402,7 +408,7 @@ namespace UnityMCP.Editor
 
         static string ReadText(string argsJson)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
+            var path = AssetArgs.Path(argsJson);
             if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
             ValidatePath(path);
             var abs = Path.GetFullPath(path);
@@ -421,8 +427,8 @@ namespace UnityMCP.Editor
 
         static string WriteText(string argsJson)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
-            var content = JsonHelper.ExtractString(argsJson, "content") ?? "";
+            var path = AssetArgs.Path(argsJson);
+            var content = AssetArgs.Content(argsJson) ?? "";
             if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
             ValidatePath(path);
             // P0-50: one authoritative pre-write decision, shared by raw direct
@@ -439,7 +445,7 @@ namespace UnityMCP.Editor
 
         static string Reimport(string argsJson)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
+            var path = AssetArgs.Path(argsJson);
             if (string.IsNullOrEmpty(path)) throw new System.Exception("path is required");
             ValidatePath(path);
             if (AssetDatabase.GetMainAssetTypeAtPath(path) == null)
