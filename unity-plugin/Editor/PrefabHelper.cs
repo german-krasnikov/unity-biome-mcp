@@ -11,11 +11,11 @@ namespace UnityMCP.Editor
     {
         private static string Save(string args)
         {
-            var path = JsonHelper.ExtractString(args, "path")
+            var path = PrefabArgs.Path(args)
                 ?? throw new ArgumentException("path is required");
-            var assetPath = JsonHelper.ExtractString(args, "asset_path")
+            var assetPath = PrefabArgs.AssetPath(args)
                 ?? throw new ArgumentException("asset_path is required");
-            var mode = JsonHelper.ExtractString(args, "mode") ?? "overwrite";
+            var mode = PrefabArgs.Mode(args) ?? "overwrite";
 
             var go = ComponentSerializer.FindObject(path)
                 ?? throw new ArgumentException(ErrorHelper.ObjectNotFound(path));
@@ -33,9 +33,9 @@ namespace UnityMCP.Editor
 
         private static string CreateVariant(string args)
         {
-            var basePath = JsonHelper.ExtractString(args, "base_path")
+            var basePath = PrefabArgs.BasePath(args)
                 ?? throw new ArgumentException("base_path is required");
-            var variantPath = JsonHelper.ExtractString(args, "variant_path")
+            var variantPath = PrefabArgs.VariantPath(args)
                 ?? throw new ArgumentException("variant_path is required");
 
             var basePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(basePath)
@@ -58,9 +58,9 @@ namespace UnityMCP.Editor
 
         private static string Instantiate(string args)
         {
-            var assetPath = JsonHelper.ExtractString(args, "asset_path")
+            var assetPath = PrefabArgs.AssetPath(args)
                 ?? throw new ArgumentException("asset_path is required");
-            var parentPath = JsonHelper.ExtractString(args, "parent");
+            var parentPath = PrefabArgs.Parent(args);
 
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath)
                 ?? throw new InvalidOperationException($"Prefab not found: {assetPath}");
@@ -89,7 +89,7 @@ namespace UnityMCP.Editor
 
         private static string Revert(string args)
         {
-            var scope = JsonHelper.ExtractString(args, "scope") ?? "object";
+            var scope = PrefabArgs.Scope(args) ?? "object";
             var go = RequirePrefabInstance(args);
             var root = PrefabUtility.GetNearestPrefabInstanceRoot(go) ?? go;
             if (scope == "children")
@@ -104,9 +104,9 @@ namespace UnityMCP.Editor
 
         private static string GetOverrides(string args)
         {
-            var path = JsonHelper.ExtractString(args, "path")
+            var path = PrefabArgs.Path(args)
                 ?? throw new ArgumentException("path is required");
-            var format = JsonHelper.ExtractString(args, "format") ?? "text";
+            var format = PrefabArgs.Format(args) ?? "text";
             var go = ComponentSerializer.FindObject(path)
                 ?? throw new ArgumentException(ErrorHelper.ObjectNotFound(path));
 
@@ -139,12 +139,12 @@ namespace UnityMCP.Editor
 
         private static string Unpack(string args)
         {
-            var path = JsonHelper.ExtractString(args, "path")
+            var path = PrefabArgs.Path(args)
                 ?? throw new ArgumentException("path is required");
             var go = ComponentSerializer.FindObject(path)
                 ?? throw new ArgumentException(ErrorHelper.ObjectNotFound(path));
 
-            var recursive = JsonHelper.ExtractString(args, "recursive") == "true";
+            var recursive = PrefabArgs.Recursive(args);
             var mode = recursive ? PrefabUnpackMode.Completely : PrefabUnpackMode.OutermostRoot;
             Undo.RegisterFullObjectHierarchyUndo(go, "Unpack Prefab");
             PrefabUtility.UnpackPrefabInstance(go, mode, InteractionMode.AutomatedAction);
@@ -154,7 +154,7 @@ namespace UnityMCP.Editor
 
         private static GameObject RequirePrefabInstance(string args)
         {
-            var path = JsonHelper.ExtractString(args, "path")
+            var path = PrefabArgs.Path(args)
                 ?? throw new ArgumentException("path is required");
             var go = ComponentSerializer.FindObject(path)
                 ?? throw new ArgumentException(ErrorHelper.ObjectNotFound(path));
@@ -165,15 +165,15 @@ namespace UnityMCP.Editor
 
         private static string Edit(string args)
         {
-            var assetPath  = JsonHelper.ExtractString(args, "asset_path")
+            var assetPath  = PrefabArgs.AssetPath(args)
                 ?? throw new ArgumentException("asset_path is required (e.g. Assets/Prefabs/Foo.prefab)");
-            var childPath  = JsonHelper.ExtractString(args, "child_path")
-                ?? JsonHelper.ExtractString(args, "path");
-            var component  = JsonHelper.ExtractString(args, "component");
-            var prop       = JsonHelper.ExtractString(args, "prop");
-            var value      = JsonHelper.ExtractString(args, "value");
-            var addComp    = JsonHelper.ExtractString(args, "add_component");
-            var removeComp = JsonHelper.ExtractString(args, "remove_component");
+            var childPath  = PrefabArgs.ChildPath(args)
+                ?? PrefabArgs.Path(args);
+            var component  = PrefabArgs.Component(args);
+            var prop       = PrefabArgs.Prop(args);
+            var value      = PrefabArgs.Value(args);
+            var addComp    = PrefabArgs.AddComponent(args);
+            var removeComp = PrefabArgs.RemoveComponent(args);
 
             var contents = PrefabUtility.LoadPrefabContents(assetPath);
             if (contents == null)

@@ -151,6 +151,8 @@ namespace UnityMCP.Editor
 
         private static string ExecGetDisabledToolsCommand(string args) => ExecGetDisabledTools();
 
+        // "set_tool_catalog" has no TOOL/PYTOOL/INTERNAL block in dsl/tools.biome -- no
+        // generated accessor exists to migrate to.
         private static string ExecSetToolCatalog(string args)
         {
             var json = JsonHelper.ExtractString(args, "catalog");
@@ -182,6 +184,8 @@ namespace UnityMCP.Editor
             return "play_stop triggered";
         }
 
+        // "set_client_label" has no TOOL/PYTOOL/INTERNAL block in dsl/tools.biome -- no
+        // generated accessor exists to migrate to.
         private static string ExecSetClientLabel(string args)
         {
             var label = JsonHelper.ExtractString(args, "label");
@@ -216,7 +220,7 @@ namespace UnityMCP.Editor
 
         internal static string ExecListPlaytestFiles(string args)
         {
-            var pattern = JsonHelper.ExtractString(args, "pattern") ?? "Playtests/*.playtest";
+            var pattern = ListPlaytestFilesArgs.Pattern(args) ?? "Playtests/*.playtest";
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
             var absDir = Path.GetFullPath(Path.Combine(projectRoot, Path.GetDirectoryName(pattern) ?? ""));
             if (!absDir.StartsWith(projectRoot + Path.DirectorySeparatorChar, StringComparison.Ordinal)
@@ -233,8 +237,8 @@ namespace UnityMCP.Editor
 
         internal static string ExecLintPlaytest(string args)
         {
-            var path   = JsonHelper.ExtractString(args, "path");
-            var script = JsonHelper.ExtractString(args, "script");
+            var path   = LintPlaytestArgs.Path(args);
+            var script = LintPlaytestArgs.Script(args);
             if (path != null && script != null) return "err: use path or script, not both";
             string result;
             if (path != null)        result = PlaytestLinter.LintFile(path);
@@ -247,8 +251,8 @@ namespace UnityMCP.Editor
 
         internal static string ExecLintSceneRefs(string args)
         {
-            var path    = JsonHelper.ExtractString(args, "path");
-            var snippet = JsonHelper.ExtractString(args, "snippet");
+            var path    = LintSceneRefsArgs.Path(args);
+            var snippet = LintSceneRefsArgs.Snippet(args);
             if (path != null && snippet != null) return "err: path and snippet are mutually exclusive";
             string script;
             if (path != null)
@@ -265,9 +269,9 @@ namespace UnityMCP.Editor
 
         internal static string ExecResolveSceneRefs(string args)
         {
-            var refs = JsonHelper.ExtractString(args, "refs");
+            var refs = ResolveSceneRefsArgs.Refs(args);
             if (string.IsNullOrEmpty(refs)) return "err: refs required";
-            var results = SceneRefResolver.ResolveMany(refs, JsonHelper.ExtractString(args, "fields"));
+            var results = SceneRefResolver.ResolveMany(refs, ResolveSceneRefsArgs.Fields(args));
             return SceneRefResolver.FormatResults(results);
         }
 
@@ -280,6 +284,8 @@ namespace UnityMCP.Editor
         internal static string ExecCompileStatus(string args) =>
             $"{CompileNotifier.GetStatus()}|reload={SyncHelper.SyncState}";
 
+        // "sync" has no TOOL/PYTOOL/INTERNAL block in dsl/tools.biome -- no generated accessor
+        // exists to migrate to.
         private static string ExecSync(string args) => SyncHelper.TriggerSync(
             JsonHelper.ExtractString(args, "resolve") == "true");
 
@@ -329,35 +335,40 @@ namespace UnityMCP.Editor
         }
 
         internal static string ExecSearchScene(string args) => SearchHelper.Search(
-            JsonHelper.ExtractString(args, "query"),
-            JsonHelper.ExtractString(args, "root"),
+            SearchSceneArgs.Query(args),
+            SearchSceneArgs.Root(args),
+            // NOT SearchSceneArgs.Limit: that non-nullable int accessor's JsonHelper.ExtractInt
+            // fallback is a hardcoded 0 on missing input, not this call site's 50 -- keep the
+            // hand-parsed default (same rule as the float DEFAULT mismatches elsewhere in this file).
             int.TryParse(JsonHelper.ExtractString(args, "limit") ?? "50",
                 out var sl) ? sl : 50,
-            JsonHelper.ExtractString(args, "scene"));
+            SearchSceneArgs.Scene(args));
 
+        // "search_context" has no TOOL/PYTOOL/INTERNAL block in dsl/tools.biome (hand-registered,
+        // not catalog-driven) -- no generated accessor exists to migrate to.
         private static string ExecSearchContext(string args) => SearchHelper.SearchContext(
             JsonHelper.ExtractString(args, "query") ?? "",
             int.TryParse(JsonHelper.ExtractString(args, "limit") ?? "30", out var scl) ? scl : 30,
             JsonHelper.ExtractString(args, "types"));
 
         internal static string ExecObjectDiff(string args) => ObjectDiffHelper.Diff(
-            JsonHelper.ExtractString(args, "path_a"),
-            JsonHelper.ExtractString(args, "path_b"));
+            ObjectDiffArgs.PathA(args),
+            ObjectDiffArgs.PathB(args));
 
         internal static string ExecPingObject(string args) =>
-            EditorStateHelper.PingObject(JsonHelper.ExtractString(args, "path"));
+            EditorStateHelper.PingObject(PingObjectArgs.Path(args));
 
         internal static string ExecGetSelection(string args) => EditorStateHelper.GetSelection();
 
         internal static string ExecValidateReferences(string args) => ValidateReferencesHelper.Validate(
-            JsonHelper.ExtractString(args, "path"),
+            ValidateReferencesArgs.Path(args),
             ExtractInt(args, "depth", 3),
-            JsonHelper.ExtractString(args, "ignore_optional") == "true",
-            JsonHelper.ExtractString(args, "verbose") == "true");
+            ValidateReferencesArgs.IgnoreOptional(args),
+            ValidateReferencesArgs.Verbose(args));
 
         internal static string ExecCheckpoint(string args)
         {
-            var label = JsonHelper.ExtractString(args, "label");
+            var label = CheckpointArgs.Label(args);
             if (string.IsNullOrEmpty(label) || label == "checkpoint")
                 label = $"before_{_recentCmds.Count}_{string.Join("_", _recentCmds)}";
             UndoGroupHelper.BeginGroup($"AI: {label}");
@@ -366,6 +377,8 @@ namespace UnityMCP.Editor
             return $"Checkpoint: {label}\ngroup_id={groupId}\ndomain_stamp={domainStamp}";
         }
 
+        // "checkpoint_undo_restore" has no TOOL/PYTOOL/INTERNAL block in dsl/tools.biome --
+        // no generated accessor exists to migrate to.
         private static string ExecCheckpointUndoRestore(string args)
         {
             var groupIdStr = JsonHelper.ExtractString(args, "group_id");
@@ -379,19 +392,22 @@ namespace UnityMCP.Editor
         }
 
         internal static string ExecValidateTriggers(string args) => LayoutValidator.Validate(
-            JsonHelper.ExtractString(args, "root") ?? "/",
+            ValidateTriggersArgs.Root(args) ?? "/",
+            // NOT ValidateTriggersArgs.MinDistance: same 0f-vs-custom-default mismatch as the
+            // ExtractFloat-backed accessors elsewhere in this file -- keep the hand-parsed 3f.
             float.TryParse(JsonHelper.ExtractString(args, "min_distance") ?? "3",
                 System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var md) ? md : 3f);
 
         internal static string ExecGetSpatialContext(string args) => LayoutValidator.GetSpatialContext(
-            JsonHelper.ExtractString(args, "path"),
+            GetSpatialContextArgs.Path(args),
+            // NOT GetSpatialContextArgs.Radius: same 0f-vs-custom-default (5f) mismatch.
             float.TryParse(JsonHelper.ExtractString(args, "radius") ?? "5",
                 System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out var r) ? r : 5f);
 
         internal static string ExecFingerprint(string args) => FingerprintHelper.Fingerprint(
-            JsonHelper.ExtractString(args, "path"),
+            FingerprintArgs.Path(args),
             ExtractInt(args, "depth", 3));
 
         internal static string ExecScanScene(string args) => ScanHelper.Scan();
@@ -405,48 +421,62 @@ namespace UnityMCP.Editor
         }
 
         internal static string ExecCheckColliders(string args) => ColliderChecker.Check(
-            JsonHelper.ExtractString(args, "path"));
+            CheckCollidersArgs.Path(args));
 
         internal static string ExecMaterialAudit(string args) => MaterialAuditHelper.Execute(args);
 
         internal static string ExecSceneHealth(string args) =>
-            SceneHealthAnalyzer.Analyze(JsonHelper.ExtractString(args, "focus") ?? "all");
+            SceneHealthAnalyzer.Analyze(SceneHealthArgs.Focus(args) ?? "all");
 
         internal static string ExecAnalyzeLodCulling(string args) => LodCullingAnalyzer.Analyze(
-            JsonHelper.ExtractString(args, "focus"));
+            AnalyzeLodCullingArgs.Focus(args));
 
+        // NOT GetSchemaArgs.Type: "get_schema" is not in ArgContract's enabled set, so
+        // CommandValidator.Validate never runs for it -- no required-arg gate protects this
+        // handler. GetSchemaArgs.Type calls JsonHelper.RequireString, which would throw on a
+        // missing/empty "type" where this call site today just passes null through to
+        // SchemaHelper.GetSchema. Keep raw.
         internal static string ExecGetSchema(string args) => SchemaHelper.GetSchema(
             JsonHelper.ExtractString(args, "type"));
 
+        // NOT GetChangesArgs.Clear: dsl/tools.biome declares `ARG clear bool DEFAULT True`, but
+        // the generated bool accessor always reads key == "true", which defaults to false when
+        // the key is absent -- it cannot encode a DEFAULT True. This call site's `!= "false"` is
+        // the correct true-by-default reading. Keep raw.
         internal static string ExecGetChanges(string args) => ChangeWatcher.GetChanges(
             JsonHelper.ExtractString(args, "clear") != "false");
 
         internal static string ExecResolveTestRequest(string args) => TestRunner.ResolveRequest(
-                JsonHelper.ExtractString(args, "request_id"));
+                ResolveTestRequestArgs.RequestId(args));
 
+        // NOT GetTestRunArgs.RunId: "get_test_run" is not in ArgContract's enabled set, so no
+        // required-arg gate protects this handler -- RequireString would throw where this call
+        // site today passes a possibly-null run_id through to TestRunner.GetRun. Keep raw.
         internal static string ExecGetTestRun(string args) => TestRunner.GetRun(
                 JsonHelper.ExtractString(args, "run_id"),
-                JsonHelper.ExtractString(args, "compact") == "true");
+                GetTestRunArgs.Compact(args));
 
         internal static string ExecListTestRuns(string args) => TestRunner.ListRuns(
                 ExtractInt(args, "limit", 20));
 
         internal static string ExecCancelTestRun(string args) => TestRunner.CancelRun(
-                JsonHelper.ExtractString(args, "run_id"));
+                CancelTestRunArgs.RunId(args));
 
         internal static string ExecGetTestResults(string args) => TestRunner.GetResults(
-                JsonHelper.ExtractString(args, "run_id"));
+                GetTestResultsArgs.RunId(args));
 
         internal static string ExecGetTestProgress(string args) => TestRunner.GetProgress(
-                JsonHelper.ExtractString(args, "run_id"));
+                GetTestProgressArgs.RunId(args));
 
         internal static string ExecGetTestCount(string args) => TestRunner.GetTestCount();
 
         internal static string ExecQueryState(string args) => GameStateHelper.Snapshot(
-            JsonHelper.ExtractString(args, "queries"));
+            QueryStateArgs.Queries(args));
 
         internal static string ExecGetFrameStats(string args) => ProfilerHelper.GetFrameStats();
 
+        // "get_profile_context" has no TOOL/PYTOOL/INTERNAL block in dsl/tools.biome -- no
+        // generated accessor exists to migrate to.
         private static string ExecGetProfileContext(string args)
         {
             var sid = JsonHelper.ExtractString(args, "session");
@@ -457,7 +487,7 @@ namespace UnityMCP.Editor
 
         internal static string ExecDebugAnimator(string args)
         {
-            var go = ComponentSerializer.FindObjectOrThrow(JsonHelper.ExtractString(args, "path"));
+            var go = ComponentSerializer.FindObjectOrThrow(DebugAnimatorArgs.Path(args));
             var animator = go.GetComponent<Animator>();
             if (animator == null) throw new ArgumentException("No Animator on " + go.name);
             return AnimatorHelper.GetState(animator);
@@ -465,34 +495,41 @@ namespace UnityMCP.Editor
 
         internal static string ExecDebugPhysics(string args)
         {
-            var go = ComponentSerializer.FindObjectOrThrow(JsonHelper.ExtractString(args, "path"));
+            var go = ComponentSerializer.FindObjectOrThrow(DebugPhysicsArgs.Path(args));
             float radius = JsonHelper.ExtractFloat(args, "radius");
             return PhysicsHelper.GetState(go, radius > 0f ? radius : 5f);
         }
 
         internal static string ExecGetMemory(string args) =>
-            MemoryHelper.GetSnapshot(JsonHelper.ExtractString(args, "include") ?? "all");
+            MemoryHelper.GetSnapshot(GetMemoryArgs.Include(args) ?? "all");
 
         internal static string ExecSceneDiff(string args) => SceneDiffHelper.Diff();
 
         private static string ExecBatch(string args)
         {
+            // timeout_ms has no BatchArgs accessor: "batch" is registered with a hand-written
+            // required/optional contract that deliberately omits timeout_ms (ArgContract.cs's own
+            // comment documents why "batch" is not in the enabled set), so the generated catalog
+            // never declares this field either. Keep raw.
             var timeoutStr = JsonHelper.ExtractString(args, "timeout_ms");
             int timeoutMs = 25000;
             if (timeoutStr != null) int.TryParse(timeoutStr, out timeoutMs);
-            bool atomic = JsonHelper.ExtractString(args, "atomic") == "true";
-            bool validateAliases = JsonHelper.ExtractString(args, "validate_aliases") == "true";
+            bool atomic = BatchArgs.Atomic(args);
+            bool validateAliases = BatchArgs.ValidateAliases(args);
             return BatchHelper.Execute(
+                // NOT BatchArgs.Commands: "batch" is not in ArgContract's enabled set, so no
+                // required-arg gate protects this handler -- RequireString would throw where this
+                // call site today passes a possibly-null commands string through. Keep raw.
                 JsonHelper.ExtractString(args, "commands"),
-                JsonHelper.ExtractString(args, "on_error") ?? "continue",
+                BatchArgs.OnError(args) ?? "continue",
                 timeoutMs, atomic, validateAliases);
         }
 
         internal static string ExecSpatialQuery(string args) => SpatialHelper.Execute(args);
 
         internal static string ExecExecuteCode(string args) => CodeExecutor.Execute(
-            JsonHelper.ExtractString(args, "code"),
-            JsonHelper.ExtractString(args, "undo_label") ?? "execute_code");
+            ExecuteCodeArgs.Code(args),
+            ExecuteCodeArgs.UndoLabel(args) ?? "execute_code");
 
         internal static string ExecCompilePreflight(string args)
         {
@@ -513,11 +550,13 @@ namespace UnityMCP.Editor
         }
 
         internal static string ExecInvokeMethod(string args) => RuntimeHelper.InvokeMethod(
-            JsonHelper.ExtractString(args, "path"),
-            JsonHelper.ExtractString(args, "component"),
-            JsonHelper.ExtractString(args, "method"),
-            JsonHelper.ExtractString(args, "args"));
+            InvokeMethodArgs.Path(args),
+            InvokeMethodArgs.Component(args),
+            InvokeMethodArgs.Method(args),
+            InvokeMethodArgs.Args(args));
 
+        // "set_runtime_property" has no TOOL/PYTOOL/INTERNAL block in dsl/tools.biome -- no
+        // generated accessor exists to migrate to (same gap as NavMeshHelper.cs).
         private static string ExecSetRuntimeProperty(string args) => RuntimeHelper.SetRuntimeProperty(
             JsonHelper.ExtractString(args, "path"),
             JsonHelper.ExtractString(args, "component"),
@@ -526,8 +565,8 @@ namespace UnityMCP.Editor
 
         internal static string ExecSetActive(string args)
         {
-            var path   = JsonHelper.ExtractString(args, "path");
-            var active = JsonHelper.ExtractString(args, "active") == "true";
+            var path   = SetActiveArgs.Path(args);
+            var active = SetActiveArgs.Active(args);
             var result = ObjectManager.SetActive(path, active);
             // T16: pend receipt for set_active
             CommandRouter.PendReceipt(new MutationReceipt {
@@ -540,15 +579,15 @@ namespace UnityMCP.Editor
 
         internal static string ExecWireEvent(string args)
         {
-            var path            = JsonHelper.ExtractString(args, "path");
-            var component       = JsonHelper.ExtractString(args, "component");
-            var eventName       = JsonHelper.ExtractString(args, "event");
-            var target          = JsonHelper.ExtractString(args, "target");
-            var method          = JsonHelper.ExtractString(args, "method");
-            var argType         = JsonHelper.ExtractString(args, "arg_type") ?? "void";
-            var argValue        = JsonHelper.ExtractString(args, "arg_value");
-            var targetCompType  = JsonHelper.ExtractString(args, "target_component_type");
-            var paramTypes      = JsonHelper.ExtractString(args, "parameter_types");
+            var path            = WireEventArgs.Path(args);
+            var component       = WireEventArgs.Component(args);
+            var eventName       = WireEventArgs.Event(args);
+            var target          = WireEventArgs.Target(args);
+            var method          = WireEventArgs.Method(args);
+            var argType         = WireEventArgs.ArgType(args) ?? "void";
+            var argValue        = WireEventArgs.ArgValue(args);
+            var targetCompType  = WireEventArgs.TargetComponentType(args);
+            var paramTypes      = WireEventArgs.ParameterTypes(args);
             var result = ObjectManager.WireEvent(path, component, eventName, target, method,
                 argType, argValue, targetCompType, paramTypes);
             // T16: pend receipt for wire_event
@@ -560,22 +599,29 @@ namespace UnityMCP.Editor
         }
 
         internal static string ExecUnwireEvent(string args) => ObjectManager.UnwireEvent(
-            JsonHelper.ExtractString(args, "path"),
-            JsonHelper.ExtractString(args, "component"),
-            JsonHelper.ExtractString(args, "event"),
+            UnwireEventArgs.Path(args),
+            UnwireEventArgs.Component(args),
+            UnwireEventArgs.Event(args),
+            // NOT UnwireEventArgs.Index: ObjectManager.UnwireEvent's 4th parameter is a string
+            // (it hand-parses internally); the generated accessor returns int? via ParseOptInt,
+            // a type mismatch. Keep raw.
             JsonHelper.ExtractString(args, "index"));
 
         internal static string ExecListEvents(string args) => ObjectManager.ListEvents(
-            JsonHelper.ExtractString(args, "path"),
-            JsonHelper.ExtractString(args, "component"),
-            JsonHelper.ExtractString(args, "event"));
+            ListEventsArgs.Path(args),
+            ListEventsArgs.Component(args),
+            ListEventsArgs.Event(args));
 
         // parent is optional: null/omitted unparents to scene root (ObjectManager.SetParent
         // tolerates a null newParent — this is a valid, intentional operation, not an error).
         internal static string ExecSetParent(string args)
         {
-            var path              = JsonHelper.ExtractString(args, "path");
-            var newParent         = JsonHelper.ExtractString(args, "parent");
+            var path              = SetParentArgs.Path(args);
+            var newParent         = SetParentArgs.Parent(args);
+            // NOT SetParentArgs.WorldPositionStays: dsl/tools.biome declares
+            // `ARG world_position_stays bool DEFAULT True`, but the generated bool accessor
+            // pattern always defaults to false when absent -- it cannot encode DEFAULT True.
+            // This call site's `!= "false"` is the correct true-by-default reading. Keep raw.
             var worldPositionStays = JsonHelper.ExtractString(args, "world_position_stays") != "false";
             // Capture old parent before mutation
             var go        = ComponentSerializer.FindObject(path);
@@ -592,21 +638,29 @@ namespace UnityMCP.Editor
         }
 
         internal static string ExecRenameObject(string args) => ObjectManager.RenameObject(
-            JsonHelper.ExtractString(args, "path"),
-            JsonHelper.ExtractString(args, "name"));
+            RenameObjectArgs.Path(args),
+            RenameObjectArgs.Name(args));
 
         internal static string ExecSetSiblingIndex(string args) => ObjectManager.SetSiblingIndex(
-            JsonHelper.ExtractString(args, "path"),
+            SetSiblingIndexArgs.Path(args),
+            // NOT SetSiblingIndexArgs.Index: that non-nullable int accessor's
+            // JsonHelper.ExtractInt silently falls back to 0 on malformed input, while this call
+            // site's int.Parse throws (surfaced as an error response by Process()'s catch).
+            // Keep raw to preserve the throw-on-malformed behavior.
             int.Parse(JsonHelper.ExtractString(args, "index") ?? "0"));
 
+        // NOT SetMaterialArgs.Path/.Color: "set_material" is not in ArgContract's enabled set,
+        // so no required-arg gate protects this handler -- RequireString would throw where this
+        // call site today passes possibly-null path/color through to ObjectManager.SetMaterial.
+        // Keep raw. Shader is optional either way, so it migrates safely.
         internal static string ExecSetMaterial(string args) => ObjectManager.SetMaterial(
             JsonHelper.ExtractString(args, "path"),
             JsonHelper.ExtractString(args, "color"),
-            JsonHelper.ExtractString(args, "shader"));
+            SetMaterialArgs.Shader(args));
 
         internal static string ExecBake(string args)
         {
-            var act = JsonHelper.ExtractString(args, "action") ?? "start";
+            var act = BakeArgs.Action(args) ?? "start";
             return BakeHelper.Execute(act, args);
         }
 

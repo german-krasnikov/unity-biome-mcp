@@ -82,8 +82,8 @@ namespace UnityMCP.Editor
 
         private static string Set(string argsJson)
         {
-            var prop = JsonHelper.ExtractString(argsJson, "prop");
-            var value = JsonHelper.ExtractString(argsJson, "value");
+            var prop = SceneEnvironmentArgs.Prop(argsJson);
+            var value = SceneEnvironmentArgs.Value(argsJson);
             if (string.IsNullOrEmpty(prop))
                 throw new ArgumentException("prop is required");
             if (value == null)

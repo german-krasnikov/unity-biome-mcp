@@ -10,20 +10,6 @@ namespace UnityMCP.Editor
         private static string F(float v, string fmt = "F1") =>
             v.ToString(fmt, CultureInfo.InvariantCulture);
 
-        private static float ExtractFloat(string args, string key, float def)
-        {
-            var val = JsonHelper.ExtractString(args, key);
-            return val != null && float.TryParse(val,
-                System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out var f) ? f : def;
-        }
-
-        private static int ExtractInt(string args, string key, int def)
-        {
-            var val = JsonHelper.ExtractString(args, key);
-            return val != null && int.TryParse(val, out var i) ? i : def;
-        }
-
         private static bool TryParseVec3(string s, out Vector3 v)
         {
             v = default;
@@ -252,9 +238,15 @@ namespace UnityMCP.Editor
         /// </summary>
         public static string RegionClear(string args)
         {
-            var vertices = JsonHelper.ExtractString(args, "vertices");
+            var vertices = RegionClearArgs.Vertices(args);
+            // NOT RegionClearArgs.DryRun: that accessor defaults false (bare `== "true"`), but
+            // DSL declares `DEFAULT True` -- generator gap (same family as transfer_object's
+            // world_position_stays), keep raw. Covered by RegionClear_DefaultDryRun_DoesNotDelete.
             var dryRunStr = JsonHelper.ExtractString(args, "dry_run") ?? "true";
-            var filter = JsonHelper.ExtractString(args, "filter");
+            var filter = RegionClearArgs.Filter(args);
+            // NOT RegionClearArgs.Cap: that accessor is JsonHelper.ExtractInt(args, "cap") with
+            // its own default of 0 and no clamp, but this call site defaults to 50 and clamps to
+            // [1,200] -- different default and missing clamp, keep raw.
             var capStr = JsonHelper.ExtractString(args, "cap");
 
             bool dryRun = !string.Equals(dryRunStr, "false", System.StringComparison.OrdinalIgnoreCase);
@@ -296,32 +288,28 @@ namespace UnityMCP.Editor
 
         public static string Execute(string args)
         {
-            var action = JsonHelper.ExtractString(args, "action");
+            var action = SpatialQueryArgs.Action(args);
             return action switch
             {
                 "nearest" => Nearest(
-                    JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "component") ?? ""),
+                    SpatialQueryArgs.Path(args),
+                    SpatialQueryArgs.Component(args) ?? ""),
                 "in_front_of" => InFrontOf(
-                    JsonHelper.ExtractString(args, "path"),
-                    float.TryParse(JsonHelper.ExtractString(args, "distance") ?? "1",
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture, out var d) ? d : 1f),
+                    SpatialQueryArgs.Path(args),
+                    SpatialQueryArgs.Distance(args) ?? 1f),
                 "objects_in_radius" => ObjectsInRadius(
-                    JsonHelper.ExtractString(args, "path"),
-                    float.TryParse(JsonHelper.ExtractString(args, "radius") ?? "5",
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture, out var r) ? r : 5f,
-                    JsonHelper.ExtractString(args, "center"),
-                    ExtractInt(args, "cap", 20)),
-                "bounds_info" => BoundsInfo(JsonHelper.ExtractString(args, "path")),
+                    SpatialQueryArgs.Path(args),
+                    SpatialQueryArgs.Radius(args) ?? 5f,
+                    SpatialQueryArgs.Center(args),
+                    SpatialQueryArgs.Cap(args) ?? 20),
+                "bounds_info" => BoundsInfo(SpatialQueryArgs.Path(args)),
                 "raycast" => Raycast(
-                    JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "target"),
-                    JsonHelper.ExtractString(args, "layer_mask")),
+                    SpatialQueryArgs.Path(args),
+                    SpatialQueryArgs.Target(args),
+                    SpatialQueryArgs.LayerMask(args)),
                 "spatial_map" => SpatialMap(
-                    JsonHelper.ExtractString(args, "path"),
-                    ExtractFloat(args, "cell_size", 2f)),
+                    SpatialQueryArgs.Path(args),
+                    SpatialQueryArgs.CellSize(args) ?? 2f),
                 "objects_in_polygon" => RegionTool.SceneRegionQuery.Execute(args),
                 _ => throw new System.ArgumentException(ErrorHelper.InvalidAction(action,
                     ToolActions.Names("spatial_query")))

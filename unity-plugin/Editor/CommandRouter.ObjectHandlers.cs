@@ -10,8 +10,8 @@ namespace UnityMCP.Editor
     {
         internal static string ExecInspect(string args)
         {
-            var pathsStr = JsonHelper.ExtractString(args, "paths");
-            var findType = JsonHelper.ExtractString(args, "find_type");
+            var pathsStr = InspectArgs.Paths(args);
+            var findType = InspectArgs.FindType(args);
             if (string.IsNullOrEmpty(pathsStr) && !string.IsNullOrEmpty(findType))
             {
                 var found = ObjectManager.FindObjects(null, null, null, findType);
@@ -22,8 +22,8 @@ namespace UnityMCP.Editor
             if (string.IsNullOrEmpty(pathsStr))
                 throw new ArgumentException("paths or find_type is required");
 
-            var componentsFilter = JsonHelper.ExtractString(args, "components")
-                                ?? JsonHelper.ExtractString(args, "type");
+            var componentsFilter = InspectArgs.Components(args)
+                                ?? JsonHelper.ExtractString(args, "type"); // "type" is not a declared inspect ARG
             HashSet<string> filterSet = null;
             if (!string.IsNullOrEmpty(componentsFilter))
             {
@@ -74,18 +74,18 @@ namespace UnityMCP.Editor
 
         internal static string ExecGetHierarchy(string args)
         {
-            var summary = JsonHelper.ExtractString(args, "summary") == "true";
-            var scene = JsonHelper.ExtractString(args, "scene");
+            var summary = GetHierarchyArgs.Summary(args);
+            var scene = GetHierarchyArgs.Scene(args);
             if (summary)
             {
-                var summaryRoot = JsonHelper.ExtractString(args, "root");
+                var summaryRoot = GetHierarchyArgs.Root(args);
                 return HierarchySerializer.SerializeSummary(summaryRoot, scene);
             }
             var depth = ExtractInt(args, "depth", 99);
-            var root = JsonHelper.ExtractString(args, "root");
-            var filter = JsonHelper.ExtractString(args, "filter");
-            var components = JsonHelper.ExtractString(args, "components") == "true";
-            var incremental = JsonHelper.ExtractString(args, "incremental") == "true";
+            var root = GetHierarchyArgs.Root(args);
+            var filter = GetHierarchyArgs.Filter(args);
+            var components = GetHierarchyArgs.Components(args);
+            var incremental = GetHierarchyArgs.Incremental(args);
             var raw = incremental
                 ? HierarchySerializer.SerializeIncremental(depth, root, filter, components, scene)
                 : HierarchySerializer.Serialize(depth, root, filter, components, scene);
@@ -95,8 +95,8 @@ namespace UnityMCP.Editor
 
         internal static string ExecGetComponent(string args)
         {
-            var path = JsonHelper.ExtractString(args, "path");
-            var type = JsonHelper.ExtractString(args, "type");
+            var path = GetComponentArgs.Path(args);
+            var type = GetComponentArgs.Type(args);
             if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(type))
                 throw new ArgumentException("path and type are required");
 
@@ -151,26 +151,26 @@ namespace UnityMCP.Editor
 
         internal static string ExecFindObjects(string args)
         {
-            var name = JsonHelper.ExtractString(args, "name");
-            var tag = JsonHelper.ExtractString(args, "tag");
-            var layer = JsonHelper.ExtractString(args, "layer");
-            var component = JsonHelper.ExtractString(args, "component");
+            var name = FindObjectsArgs.Name(args);
+            var tag = FindObjectsArgs.Tag(args);
+            var layer = FindObjectsArgs.Layer(args);
+            var component = FindObjectsArgs.Component(args);
             return ObjectManager.FindObjects(name, tag, layer, component);
         }
 
         internal static string ExecSetProperty(string args)
         {
-            var dryRun = JsonHelper.ExtractString(args, "dry_run") == "true";
-            var findType = JsonHelper.ExtractString(args, "find_type");
+            var dryRun = SetPropertyArgs.DryRun(args);
+            var findType = SetPropertyArgs.FindType(args);
             if (!string.IsNullOrEmpty(findType))
             {
                 var found = ObjectManager.FindObjects(null, null, null, findType);
                 if (string.IsNullOrEmpty(found)) return "none";
                 if (found.StartsWith("err:") || found == "none") return found;
                 var paths = found.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                var component = JsonHelper.ExtractString(args, "component");
-                var prop = JsonHelper.ExtractString(args, "prop");
-                var value = JsonHelper.ExtractString(args, "value");
+                var component = SetPropertyArgs.Component(args);
+                var prop = SetPropertyArgs.Prop(args);
+                var value = SetPropertyArgs.Value(args);
                 int ok = 0; int fail = 0;
                 foreach (var p in paths)
                 {
@@ -193,10 +193,10 @@ namespace UnityMCP.Editor
                 }
                 return $"{prefix} {prop}={value}: {ok} ok, {fail} failed / {paths.Length} {findType}";
             }
-            var path = JsonHelper.ExtractString(args, "path");
-            var comp = JsonHelper.ExtractString(args, "component");
-            var prp = JsonHelper.ExtractString(args, "prop");
-            var val = JsonHelper.ExtractString(args, "value");
+            var path = SetPropertyArgs.Path(args);
+            var comp = SetPropertyArgs.Component(args);
+            var prp = SetPropertyArgs.Prop(args);
+            var val = SetPropertyArgs.Value(args);
             string oldStr = null;
             if (!dryRun)
                 try { oldStr = ObjectManager.ReadPropertyValue(path, comp, prp); } catch (ArgumentException) { }
@@ -223,31 +223,33 @@ namespace UnityMCP.Editor
 
         internal static string ExecTransferObject(string args)
         {
-            var path = JsonHelper.ExtractString(args, "path");
-            var action = JsonHelper.ExtractString(args, "action");
-            var targetScene = JsonHelper.ExtractString(args, "target_scene");
-            var parent = JsonHelper.ExtractString(args, "parent");
+            var path = TransferObjectArgs.Path(args);
+            var action = TransferObjectArgs.Action(args);
+            var targetScene = TransferObjectArgs.TargetScene(args);
+            var parent = TransferObjectArgs.Parent(args);
+            // NOT TransferObjectArgs.WorldPositionStays: that accessor defaults false
+            // (bare `== "true"`), but DSL declares `DEFAULT True` -- generator gap, keep raw.
             var wps = JsonHelper.ExtractString(args, "world_position_stays") != "false";
             return ObjectManager.TransferObject(path, action, targetScene, parent, wps);
         }
 
         internal static string ExecSetPropertyDelta(string args)
         {
-            var path = JsonHelper.ExtractString(args, "path");
-            var component = JsonHelper.ExtractString(args, "component");
-            var prop = JsonHelper.ExtractString(args, "prop");
-            var delta = JsonHelper.ExtractString(args, "delta");
+            var path = SetPropertyDeltaArgs.Path(args);
+            var component = SetPropertyDeltaArgs.Component(args);
+            var prop = SetPropertyDeltaArgs.Prop(args);
+            var delta = SetPropertyDeltaArgs.Delta(args);
             return ObjectManager.SetPropertyDelta(path, component, prop, delta);
         }
 
         internal static string ExecCreateObject(string args)
         {
-            var name = JsonHelper.ExtractString(args, "name");
-            var parent = JsonHelper.ExtractString(args, "parent");
-            var components = JsonHelper.ExtractString(args, "components");
-            var primitive = JsonHelper.ExtractString(args, "primitive");
-            var prefabPath = JsonHelper.ExtractString(args, "prefab_path");
-            var scene = JsonHelper.ExtractString(args, "scene");
+            var name = CreateObjectArgs.Name(args);
+            var parent = CreateObjectArgs.Parent(args);
+            var components = CreateObjectArgs.Components(args);
+            var primitive = CreateObjectArgs.Primitive(args);
+            var prefabPath = CreateObjectArgs.PrefabPath(args);
+            var scene = CreateObjectArgs.Scene(args);
             var path = ObjectManager.CreateObject(name, parent, components, primitive, prefabPath, scene);
             // T15: pend receipt for create_object
             CommandRouter.PendReceipt(new MutationReceipt {
@@ -279,9 +281,11 @@ namespace UnityMCP.Editor
 
         internal static string ExecDeleteObject(string args)
         {
+            // NOT DeleteObjectArgs.Id: DSL declares `id` as int but FindObjectById/DeleteObjectById
+            // take the hex ($..)/legacy-decimal string id, not an int -- generator type mismatch.
             var id = JsonHelper.ExtractString(args, "id");
-            var path = JsonHelper.ExtractString(args, "path");
-            var force = JsonHelper.ExtractString(args, "force") == "true";
+            var path = DeleteObjectArgs.Path(args);
+            var force = DeleteObjectArgs.Force(args);
             GameObject go;
             if (!string.IsNullOrEmpty(id)) go = ComponentSerializer.FindObjectById(id);
             else if (!string.IsNullOrEmpty(path)) go = ComponentSerializer.FindObject(path, strict: true);
@@ -303,9 +307,9 @@ namespace UnityMCP.Editor
 
         internal static string ExecManageComponent(string args)
         {
-            var path   = JsonHelper.ExtractString(args, "path");
-            var type   = JsonHelper.ExtractString(args, "type");
-            var action = JsonHelper.ExtractString(args, "action");
+            var path   = ManageComponentArgs.Path(args);
+            var type   = ManageComponentArgs.Type(args);
+            var action = ManageComponentArgs.Action(args);
             ObjectManager.ManageComponent(path, type, action);
             // T15: pend receipt for manage_component
             CommandRouter.PendReceipt(new MutationReceipt {
@@ -324,10 +328,10 @@ namespace UnityMCP.Editor
         internal static string ExecGetConsole(string args)
         {
             var count     = ExtractInt(args, "count", -1);
-            var level     = JsonHelper.ExtractString(args, "level");
+            var level     = GetConsoleArgs.Level(args);
             var first     = ExtractInt(args, "first", 0);
-            var keyword   = JsonHelper.ExtractString(args, "keyword");
-            var countOnly = JsonHelper.ExtractString(args, "count_only") == "true";
+            var keyword   = GetConsoleArgs.Keyword(args);
+            var countOnly = GetConsoleArgs.CountOnly(args);
             var since     = ExtractFloat(args, "since", 0f);
             return ConsoleCapture.GetLogs(count, level, first, keyword, countOnly, since);
         }
@@ -335,8 +339,8 @@ namespace UnityMCP.Editor
 
         internal static string ExecAutoWire(string args)
         {
-            var path   = JsonHelper.ExtractString(args, "path");
-            var dryRun = JsonHelper.ExtractString(args, "dry_run") == "true";
+            var path   = AutoWireArgs.Path(args);
+            var dryRun = AutoWireArgs.DryRun(args);
             var go     = ComponentSerializer.FindObjectOrThrow(path);
             var (wired, skipped) = AutoWiringHelper.Scan(go);
             if (!dryRun) AutoWiringHelper.Apply(wired);
@@ -345,7 +349,7 @@ namespace UnityMCP.Editor
 
         internal static string ExecGetUnityEvents(string args)
         {
-            var pathFilter = JsonHelper.ExtractString(args, "path");
+            var pathFilter = GetUnityEventsArgs.Path(args);
             var sb = new StringBuilder();
             int found = 0;
             foreach (var go in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
@@ -390,9 +394,9 @@ namespace UnityMCP.Editor
 
         internal static string ExecRuntimeSnapshot(string args)
         {
-            var typeName  = JsonHelper.ExtractString(args, "type");
-            var nameMatch = JsonHelper.ExtractString(args, "name");
-            var component = JsonHelper.ExtractString(args, "component") ?? typeName;
+            var typeName  = RuntimeSnapshotArgs.Type(args);
+            var nameMatch = RuntimeSnapshotArgs.Name(args);
+            var component = RuntimeSnapshotArgs.Component(args) ?? typeName;
             if (string.IsNullOrEmpty(typeName))
                 throw new ArgumentException("type is required");
 

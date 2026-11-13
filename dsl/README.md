@@ -112,10 +112,13 @@ float? time = AnimationArgs.Time(args);       // ARG time ofloat
 - `LOCAL` (an argument only the Python side reads, such as the `timeout` of `batch`) has no accessor.
 - `WIRE "key"` names the accessor after the key and reads that key.
 - `DEFAULT` is never baked in. An absent key gives `null` for a string and `0` or `false` for a plain scalar; the `o`-types give `null`.
-  The handler keeps its own fallback.
+  The handler keeps its own fallback. The trap is `bool DEFAULT True`: `ApplySceneChangeArgs.Verify` and `.Save` (`apply_scene_change`) return
+  `false` for an absent key. No handler reads them yet; write the fallback by hand before one does.
+- A required `str`, `ostr` or `Any` argument (no `DEFAULT`) reads through `JsonHelper.RequireString`, which throws `ArgumentException` on an
+  empty value. `CommandValidator` already refuses an absent key before the handler runs.
 
-A migrated handler reads its arguments through these accessors. `animation` and `timeline` are migrated; the other handlers still call
-`JsonHelper.Extract*` with the key. Migrate a handler only after a characterization fixture that passes on the old code (see
+A migrated handler reads its arguments through these accessors. A handler that still calls `JsonHelper.Extract*` or `ParseOpt*` with a literal
+key is a call site to migrate; `server/tests/test_arg_adoption_parity.py` counts those raw reads and only lets the count shrink. Migrate a handler only after a characterization fixture that passes on the old code (see
 [`AI/testing.md`](../AI/testing.md)).
 
 ## Dispatch
@@ -272,6 +275,8 @@ Never edit `PlaytestReader.g.cs`. The table of verbs of `AI/playtest-dsl.md` is 
   before `ToolMeta.g.cs` existed. `KNOWN_DIVERGENT` and `KNOWN_UNCOVERED` are that census's measured, shrink-only exceptions.
 - `server/tests/test_tool_args_class_name_boundary.py` (no Node, no Unity): no class of `ToolArgs.g.cs` has the name of a type that
   `unity-plugin/Editor` declares by hand.
+- `server/tests/test_arg_adoption_parity.py` (no Node, no Unity): the raw `JsonHelper.Extract*`/`ParseOpt*` count in `unity-plugin/Editor`
+  (outside `Generated/` and `Tests/`) may not grow, and every non-`LOCAL` `ARG` has an accessor.
 - `dotnet test unity-plugin/Tests~/Decisions/UnityMCP.Decisions.Tests.csproj -c Release` (no Unity) compiles `Editor/Generated/*.g.cs`
   except `ToolBindings.g.cs` (it needs UnityEditor), plus `Editor/Wire.cs`. `ToolArgsAccessorTests` checks each accessor against the
   extraction it replaced and the accessor set against `dsl/tools.biome`; `ToolArgsPascalCaseTests` checks the names for collisions.

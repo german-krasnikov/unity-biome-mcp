@@ -81,6 +81,17 @@ namespace UnityMCP.Editor
             return json.Substring(i, endIdx - i).Trim();
         }
 
+        /// <summary>Extract a required string arg; throws ArgumentException if missing/empty.
+        /// Consolidates the `ExtractString(...) ?? throw new ArgumentException("X is required")`
+        /// pattern duplicated across command handlers.</summary>
+        internal static string RequireString(string json, string key)
+        {
+            var v = ExtractString(json, key);
+            if (string.IsNullOrEmpty(v))
+                throw new System.ArgumentException($"Required argument '{key}' is missing or empty");
+            return v;
+        }
+
         public static string ExtractObject(string json, string key)
         {
             if (string.IsNullOrEmpty(json)) return "{}";

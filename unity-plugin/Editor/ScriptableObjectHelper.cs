@@ -15,9 +15,9 @@ namespace UnityMCP.Editor
 
         private static string Create(string args)
         {
-            var typeName = JsonHelper.ExtractString(args, "type");
-            var path     = JsonHelper.ExtractString(args, "path");
-            var fields   = JsonHelper.ExtractString(args, "fields");
+            var typeName = ScriptableObjectArgs.Type(args);
+            var path     = ScriptableObjectArgs.Path(args);
+            var fields   = ScriptableObjectArgs.Fields(args);
             if (string.IsNullOrEmpty(typeName)) throw new ArgumentException("type is required");
             if (string.IsNullOrEmpty(path))     throw new ArgumentException("path is required");
 
@@ -51,8 +51,8 @@ namespace UnityMCP.Editor
 
         private static string Get(string args)
         {
-            var asset = LoadAsset(JsonHelper.ExtractString(args, "path"));
-            var fieldsFilter = JsonHelper.ExtractString(args, "fields");
+            var asset = LoadAsset(ScriptableObjectArgs.Path(args));
+            var fieldsFilter = ScriptableObjectArgs.Fields(args);
             HashSet<string> wanted = fieldsFilter != null
                 ? new HashSet<string>(fieldsFilter.Split(',').Select(f => f.Trim()))
                 : null;
@@ -73,10 +73,10 @@ namespace UnityMCP.Editor
 
         private static string Set(string args)
         {
-            var path   = JsonHelper.ExtractString(args, "path");
-            var prop   = JsonHelper.ExtractString(args, "prop");
-            var value  = JsonHelper.ExtractString(args, "value");
-            var fields = JsonHelper.ExtractString(args, "fields");
+            var path   = ScriptableObjectArgs.Path(args);
+            var prop   = ScriptableObjectArgs.Prop(args);
+            var value  = ScriptableObjectArgs.Value(args);
+            var fields = ScriptableObjectArgs.Fields(args);
 
             bool hasSingle = !string.IsNullOrEmpty(prop) && !string.IsNullOrEmpty(value);
             bool hasMulti  = !string.IsNullOrEmpty(fields);
@@ -158,7 +158,7 @@ namespace UnityMCP.Editor
 
         private static string ListTypes(string args)
         {
-            var filter = JsonHelper.ExtractString(args, "filter");
+            var filter = ScriptableObjectArgs.Filter(args);
             var types = TypeCache.GetTypesDerivedFrom<ScriptableObject>()
                 .Where(t => !t.IsAbstract && !t.IsGenericType)
                 .Where(t => string.IsNullOrEmpty(filter) || t.Name.Contains(filter))
@@ -171,7 +171,7 @@ namespace UnityMCP.Editor
 
         private static string Find(string args)
         {
-            var typeName = JsonHelper.ExtractString(args, "type");
+            var typeName = ScriptableObjectArgs.Type(args);
             if (string.IsNullOrEmpty(typeName)) throw new ArgumentException("type is required");
 
             var guids = AssetDatabase.FindAssets($"t:{typeName}");

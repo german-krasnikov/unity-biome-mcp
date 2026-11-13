@@ -281,10 +281,10 @@ namespace UnityMCP.Editor
 
         internal static void AsyncRunTests(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var mode = JsonHelper.ExtractString(argsJson, "mode");
-            var group = JsonHelper.ExtractString(argsJson, "group");
-            var filter = JsonHelper.ExtractString(argsJson, "filter");
-            var requestId = JsonHelper.ExtractString(argsJson, "request_id");
+            var mode = RunTestsArgs.Mode(argsJson);
+            var group = RunTestsArgs.Group(argsJson);
+            var filter = RunTestsArgs.Filter(argsJson);
+            var requestId = RunTestsArgs.RequestId(argsJson);
             var selection = new TestRunSelection(
                 TestRunSelectionArgs.ParseList(argsJson, "categories"),
                 TestRunSelectionArgs.ParseList(argsJson, "assemblies"),
@@ -298,11 +298,14 @@ namespace UnityMCP.Editor
 
         internal static void AsyncBuild(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var action = JsonHelper.ExtractString(argsJson, "action");
-            var target = JsonHelper.ExtractString(argsJson, "target");
-            var scenes = JsonHelper.ExtractString(argsJson, "scenes");
-            var path   = JsonHelper.ExtractString(argsJson, "path");
-            var dev    = JsonHelper.ExtractString(argsJson, "dev") == "true";
+            // "build" is in ArgContract's enabled set, so CommandValidator.Validate already
+            // rejected a missing "action" before this handler runs -- BuildArgs.Action's
+            // RequireString never actually throws here.
+            var action = BuildArgs.Action(argsJson);
+            var target = BuildArgs.Target(argsJson);
+            var scenes = BuildArgs.Scenes(argsJson);
+            var path   = BuildArgs.Path(argsJson);
+            var dev    = BuildArgs.Dev(argsJson);
             var inner  = new TaskCompletionSource<string>();
             BuildHelper.Execute(action, target, scenes, path, dev, inner);
             CompleteFromInner(id, inner.Task, tcs, "build",
@@ -311,10 +314,11 @@ namespace UnityMCP.Editor
 
         internal static void AsyncPackage(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var action  = JsonHelper.ExtractString(argsJson, "action");
-            var name    = JsonHelper.ExtractString(argsJson, "name");
-            var version = JsonHelper.ExtractString(argsJson, "version");
-            var query   = JsonHelper.ExtractString(argsJson, "query");
+            // "package" is in ArgContract's enabled set -- required "action" already validated.
+            var action  = PackageArgs.Action(argsJson);
+            var name    = PackageArgs.Name(argsJson);
+            var version = PackageArgs.Version(argsJson);
+            var query   = PackageArgs.Query(argsJson);
             var inner   = new TaskCompletionSource<string>();
             MainThreadDispatcher.Enqueue(() =>
                 PackageManagerHelper.Execute(action, name, version, query, inner));
@@ -358,13 +362,18 @@ namespace UnityMCP.Editor
 
         internal static void AsyncWaitUntil(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
-            var component = JsonHelper.ExtractString(argsJson, "component");
-            var field = JsonHelper.ExtractString(argsJson, "field");
-            var value = JsonHelper.ExtractString(argsJson, "value");
+            // "wait_until" is in ArgContract's enabled set -- required path/component/field/value
+            // already validated, so WaitUntilArgs' RequireString accessors never throw here.
+            var path = WaitUntilArgs.Path(argsJson);
+            var component = WaitUntilArgs.Component(argsJson);
+            var field = WaitUntilArgs.Field(argsJson);
+            var value = WaitUntilArgs.Value(argsJson);
+            // NOT WaitUntilArgs.Timeout: that non-nullable accessor's JsonHelper.ExtractFloat
+            // fallback is a hardcoded 0f on missing input, not the DSL's `DEFAULT 5.0` -- keep
+            // the local ExtractFloat(..., 5f) wrapper (see ProfileRecorder.cs for the same rule).
             var timeout = ExtractFloat(argsJson, "timeout", 5f);
-            var negate = JsonHelper.ExtractString(argsJson, "negate") == "true";
-            var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true";
+            var negate = WaitUntilArgs.Negate(argsJson);
+            var abortOnFail = WaitUntilArgs.AbortOnFail(argsJson);
             var inner = new TaskCompletionSource<string>();
             RuntimeHelper.WaitUntil(path, component, field, value, timeout, negate, inner, abortOnFail);
             CompleteFromInner(id, inner.Task, tcs, "wait_until",
@@ -373,8 +382,11 @@ namespace UnityMCP.Editor
 
         internal static void AsyncMoveTo(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
-            var position = JsonHelper.ExtractString(argsJson, "position");
+            // "move_to" is in ArgContract's enabled set -- required path/position already
+            // validated, so MoveToArgs' RequireString accessors never throw here.
+            var path = MoveToArgs.Path(argsJson);
+            var position = MoveToArgs.Position(argsJson);
+            // NOT MoveToArgs.Timeout -- same 0f-vs-DEFAULT-15.0 mismatch as AsyncWaitUntil above.
             var timeout = ExtractFloat(argsJson, "timeout", 15f);
             var inner = new TaskCompletionSource<string>();
             RuntimeHelper.MoveTo(path, position, timeout, inner);
@@ -384,10 +396,13 @@ namespace UnityMCP.Editor
 
         internal static void AsyncTestStep(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
-            var position = JsonHelper.ExtractString(argsJson, "position");
-            var checksBefore = JsonHelper.ExtractString(argsJson, "checks_before") ?? "";
-            var checksAfter = JsonHelper.ExtractString(argsJson, "checks_after") ?? "";
+            // "test_step" is in ArgContract's enabled set -- required path/position already
+            // validated, so TestStepArgs' RequireString accessors never throw here.
+            var path = TestStepArgs.Path(argsJson);
+            var position = TestStepArgs.Position(argsJson);
+            var checksBefore = TestStepArgs.ChecksBefore(argsJson) ?? "";
+            var checksAfter = TestStepArgs.ChecksAfter(argsJson) ?? "";
+            // NOT TestStepArgs.WaitAfter/Timeout -- same 0f-vs-DEFAULT mismatch as above.
             var waitAfter = ExtractFloat(argsJson, "wait_after", 0.5f);
             var timeout = ExtractFloat(argsJson, "timeout", 15f);
             var inner = new TaskCompletionSource<string>();
@@ -413,8 +428,13 @@ namespace UnityMCP.Editor
             TaskCompletionSource<string> tcs, out PlaytestRunRequest request)
         {
             request = default;
-            var pathArg   = JsonHelper.ExtractString(argsJson, "path");
-            var scriptArg = JsonHelper.ExtractString(argsJson, "script");
+            // Shared by both AsyncRunPlaytest (run_playtest) and AsyncStartPlaytest
+            // (start_playtest) -- RunPlaytestArgs and StartPlaytestArgs are generated as two
+            // separate classes (one per DSL tool block) but their accessor bodies are byte-
+            // identical plain JsonHelper.ExtractString/ExtractFloat reads, so using RunPlaytestArgs
+            // here for both callers extracts the same wire keys either way.
+            var pathArg   = RunPlaytestArgs.Path(argsJson);
+            var scriptArg = RunPlaytestArgs.Script(argsJson);
 
             if (pathArg != null && scriptArg != null)
             {
@@ -439,7 +459,7 @@ namespace UnityMCP.Editor
                     return false;
                 }
                 script = File.ReadAllText(fullPath, Encoding.UTF8);
-                var defs = JsonHelper.ExtractString(argsJson, "defs");
+                var defs = RunPlaytestArgs.Defs(argsJson);
                 if (defs != null) script = defs + "\n" + script;
             }
             else if (scriptArg != null)
@@ -457,7 +477,7 @@ namespace UnityMCP.Editor
             // and timing (INV-005); "# @needs editmode" opts out, but never combined with a
             // fresh reload — fresh targets a Play session, which @needs editmode has none of.
             var header = PlaytestHeaderScanner.Scan(script);
-            var fresh = JsonHelper.ExtractString(argsJson, "fresh") == "true";
+            var fresh = RunPlaytestArgs.Fresh(argsJson);
             if (!header.NeedsEditmode && !EditorApplication.isPlaying)
             {
                 tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null,
@@ -483,22 +503,23 @@ namespace UnityMCP.Editor
                 }
             }
 
+            // NOT RunPlaytestArgs.Timeout -- same 0f-vs-DEFAULT-120.0 mismatch as AsyncWaitUntil.
             var timeout = ExtractFloat(argsJson, "timeout", 120f);
             if (timeout <= 0) timeout = 120f;
             request = new PlaytestRunRequest
             {
                 Script = script,
                 Timeout = timeout,
-                AbortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true",
-                SnapshotOnFailure = JsonHelper.ExtractString(argsJson, "snapshot_on_failure") == "true",
+                AbortOnFail = RunPlaytestArgs.AbortOnFail(argsJson),
+                SnapshotOnFailure = RunPlaytestArgs.SnapshotOnFailure(argsJson),
                 Fresh = fresh,
                 Strict = pathArg != null,
                 RequiresPlayMode = !header.NeedsEditmode,
                 // B16: caller-selectable response representation; canonical JSON is always
                 // persisted regardless of this value (see PlaytestRunner.FinishRun).
-                Format = JsonHelper.ExtractString(argsJson, "format") ?? "text",
-                BeforeHook = JsonHelper.ExtractString(argsJson, "before_hook"),
-                AfterHook = JsonHelper.ExtractString(argsJson, "after_hook"),
+                Format = RunPlaytestArgs.Format(argsJson) ?? "text",
+                BeforeHook = RunPlaytestArgs.BeforeHook(argsJson),
+                AfterHook = RunPlaytestArgs.AfterHook(argsJson),
             };
             return true;
         }
@@ -562,7 +583,7 @@ namespace UnityMCP.Editor
         // the active run nor has a receipt is genuinely unknown and fails closed.
         private static void AsyncGetPlaytestRun(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var runId = JsonHelper.ExtractString(argsJson, "run_id");
+            var runId = GetPlaytestRunArgs.RunId(argsJson);
             if (string.IsNullOrEmpty(runId))
             {
                 tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: run_id required"));
@@ -623,6 +644,13 @@ namespace UnityMCP.Editor
                     "ask_user unavailable: no interaction provider registered (Chat window not open)"));
                 return;
             }
+            // ARG adoption (Step 4, Batch 8): intentionally NOT migrated to AskUserArgs.Questions.
+            // "ask_user" is not in ArgContract's enabled set, so CommandValidator.Validate never
+            // runs for it -- no required-arg gate protects this handler. AskUserArgs.Questions
+            // calls JsonHelper.RequireString, which throws on a missing/empty key; this call site
+            // instead needs the graceful `?? "[]"` fallback it already has. Swapping would turn a
+            // missing "questions" key into an unhandled exception for a command with no gate to
+            // prevent one from reaching here.
             var questionsJson = JsonHelper.ExtractString(argsJson, "questions") ?? "[]";
             // PendingAskRegistry.Ask never returns "Error:"/"err:" strings (cancelled → {"cancelled":true}),
             // but the predicate is safe and consistent with test_step/move_to.

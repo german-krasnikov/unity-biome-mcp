@@ -70,7 +70,7 @@ namespace UnityMCP.Editor
                     EditorApplication.isPlaying = false;
                     return "ok";
                 case "select":
-                    var paths = argsJson != null ? JsonHelper.ExtractString(argsJson, "paths") : null;
+                    var paths = argsJson != null ? EditorArgs.Paths(argsJson) : null;
                     if (!string.IsNullOrEmpty(paths))
                         return SelectMulti(paths);
                     if (string.IsNullOrEmpty(path))
