@@ -182,6 +182,20 @@ namespace UnityMCP.Editor.Tests
                 ex.Message);
         }
 
+        // dsl-bottlenecks-2026-11 Part 2 (leftover): EnvironmentHelper.cs's hand `ValidActions = { "get",
+        // "set" }` (EnvironmentHelper.cs:13) is byte-identical in content and order to scene_environment's new
+        // ACTION get / ACTION set lines in dsl/tools.biome -- pinned here BEFORE the swap to
+        // ToolActions.Names("scene_environment") so this literal proves no observable change after it.
+        [Test]
+        public void SceneEnvironment_UnknownAction_ErrorTextListsAllDeclaredActions()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() =>
+                CommandRouter.ExecuteCommand("scene_environment", Args()));
+            Assert.AreEqual(
+                "Unknown action '__no_such_action__'. Valid: get|set.",
+                ex.Message);
+        }
+
         // dsl-bottlenecks-2026-11 Part B1: EditorStateHelper.cs's hand valid-list omits
         // "mutation_mode", which ExecEditor (CommandRouter.MediaHandlers.cs) really dispatches via
         // its own if-chain before delegating to EditorStateHelper.Control. Swapping the hand list

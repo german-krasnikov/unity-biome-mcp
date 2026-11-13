@@ -93,8 +93,10 @@ A tool that dispatches on its `action` argument declares each action once, as an
 - `server/tests/test_action_vocabulary_parity.py` (`csharp_parity`) checks, for each tool that declares actions: the declared set equals the C# dispatch
   arms; the invalid-action list is `ToolActions.Names`; every `ARG action` example and every `READ` name is declared; each action is named in the
   description. `unity-plugin/Tests~/Decisions/ToolActionsTests.cs` checks `Names` and `IsKnown`.
-- Not declared yet: `bake` and `project_settings` (the dispatch is on `target` first), `scene_environment` (its valid list is still the hand array
-  `ValidActions` in `EnvironmentHelper.cs`), and the PYTOOLs `navmesh_query` and `watch` (`CONSTRUCT PYTOOL` has no `ACTION` item).
+- Not declared: `bake` and `project_settings` (dispatch is genuinely scoped by a second parameter, `target`, first —
+  `BakeHelper.cs`/`ProjectSettingsHelper.cs`), and the PYTOOLs `navmesh_query` and `watch` (`CONSTRUCT PYTOOL` has no
+  `ACTION` item). `scene_environment` (`EnvironmentHelper.cs`) is a flat `action` dispatch, not scoped by a second
+  parameter, and is declared like any other flat tool.
 
 ## C# arguments
 

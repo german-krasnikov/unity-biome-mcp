@@ -69,6 +69,11 @@ _ACTION_TOOLS: dict[str, tuple[tuple[str, str], ...]] = {
     "particle": (("CommandRouter.MediaHandlers.cs", "ExecParticleConsolidated"),),
     "profile": (("Profiling/ProfileRecorder.cs", "Dispatch"),),
     "references": (("CommandRouter.MediaHandlers.cs", "ExecReferencesConsolidated"),),
+    # dsl-bottlenecks-2026-11 Part 2 (leftover): EnvironmentHelper.Execute is a flat `action switch
+    # { "get" => ..., "set" => ..., _ => throw }` -- not scoped by a second parameter (07a688df's
+    # commit message claimed otherwise; bake and project_settings genuinely are, scene_environment
+    # was not).
+    "scene_environment": (("EnvironmentHelper.cs", "Execute"),),
     "spatial_query": (("SpatialHelper.cs", "Execute"),),
     "transfer_object": (("ObjectManager.Transfer.cs", "TransferObject"),),
 }
@@ -266,8 +271,8 @@ def test_catalog_actions_match_the_csharp_dispatch_arms(tool):
 _USES_GENERATED_VALID_LIST = {
     "animation", "animator", "asset", "build", "editor", "manage_component", "material",
     "material_audit", "menu", "package", "particle", "prefab", "profile", "references",
-    "render_analyze", "scene", "scriptable_object", "shader", "spatial_query", "timeline",
-    "transfer_object", "uitk_element", "uitk_file",
+    "render_analyze", "scene", "scene_environment", "scriptable_object", "shader", "spatial_query",
+    "timeline", "transfer_object", "uitk_element", "uitk_file",
 }
 
 

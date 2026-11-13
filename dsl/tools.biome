@@ -1677,6 +1677,8 @@ END
 
 TOOL scene_environment SCENE RW "Read/write scene environment: ambient light, fog, skybox, reflections."
   FORWARD
+  ACTION get
+  ACTION set
   DOC "action: get|set. set requires prop and value."
   DOC "Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,"
   DOC "ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance,"
