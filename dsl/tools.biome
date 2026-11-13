@@ -585,6 +585,7 @@ TOOL execute_code SYSTEM RW "Execute C# code in Unity Editor via Roslyn. 10-40x 
   HANDLER register "CommandRouter.ExecExecuteCode"
   DENY
   GUARD compile
+  GUARD play_ok
   FORWARD
   FLAG core
   TIMEOUT 60.0
@@ -1258,6 +1259,7 @@ END
 TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
   BODY profiling
   DOC "mode: burst (auto-stop after duration) | manual (explicit stop) | triggered (on spike)"
+  GUARD play_ok
   RUNTIME
   ACTION start
   ACTION stop
@@ -1657,6 +1659,7 @@ TOOL screenshot MEDIA RW "Capture screenshot (file path); describe= -> Haiku tex
   DOC "warn:ScreenSpaceOverlay canvas not captured in Edit Mode (bypasses camera pipeline)."
   DOC "Workarounds: switch to ScreenSpace-Camera, use Play Mode, or camera=scene_view."
   GUARD compile
+  GUARD play_ok
   WIRE special
   FLAG tier1
   FLAG direct_only
@@ -1790,6 +1793,7 @@ TOOL set_parent SCENE RW_IDEM "Reparent existing GameObject. parent=null → mov
   HANDLER register "CommandRouter.ExecSetParent"
   CARD generic
   NEXT "get_hierarchy depth=1"
+  GUARD play_ok
   FORWARD
   FLAG tier1
   VERB "Re-parenting"
@@ -2288,6 +2292,7 @@ TOOL wait_until RUNTIME RW_IDEM "[Play Mode] Poll field until it matches value (
   BODY runtime
   DOC "Python timeout = Unity timeout + 5s buffer."
   DOC "abort_on_fail=True: stops Play Mode on timeout."
+  GUARD play_ok
   FLAG direct_only
   FLAG unity_transport
   RUNTIME

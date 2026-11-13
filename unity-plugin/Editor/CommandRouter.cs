@@ -116,15 +116,7 @@ namespace UnityMCP.Editor
         // this permission separate from read/write classification.
         internal static bool IsAllowedMutationInPlayMode(string cmd, string argsJson = null)
         {
-            if (CommandRegistry.IsPlayOk(cmd))  // registration data (playOk:), step 7.2
-                return true;
-            if (cmd == "set_parent" || cmd == "execute_code" || cmd == "screenshot" ||
-                cmd == "wait_until")
-                return true;
-            // editor is playOk: (registration), every action of it, including the Source Patch intent that touches no scene data.
-            if (cmd != "profile") return false;
-            var action = JsonHelper.ExtractString(argsJson, "action");
-            return action == "start" || action == "stop";
+            return CommandRegistry.IsPlayOk(cmd);
         }
 
         public static string Process(string json)
