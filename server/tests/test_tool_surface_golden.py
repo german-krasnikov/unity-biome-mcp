@@ -15,7 +15,14 @@ GOLDEN = Path(__file__).parent / "golden" / "tool_surface.txt"
 
 # tool -> {field: reason}: a difference the owner approved. The field is a field of the golden line (title, description, schema,
 # annotations, or a ToolSpec field). Any other difference fails, and an entry whose field no longer differs is stale.
-INTENDED: dict[str, dict[str, str]] = {}
+INTENDED: dict[str, dict[str, str]] = {
+    "animation": {
+        "description": "dsl-bottlenecks-2026-11: the hand DOC line now names all 15 real actions (CommandRouter."
+                        "MediaHandlers.cs:152-166) instead of 10 -- the 5 previously-undocumented add_key/remove_key/"
+                        "remove_curve/set_keys/set_loop aliases of `edit` are now visible to the MCP client; "
+                        "`ARG action EXAMPLE` also moved from the phantom \"list\" to the real \"get\".",
+    },
+}
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:

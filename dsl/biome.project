@@ -79,6 +79,8 @@ GENERATE retry logic generate --source {dir}/decisions/retry.logic --contract {d
 GENERATE retry-rows logic examples --source {dir}/decisions/retry.examples --logic {dir}/decisions/retry.logic --contract {dir}/decisions/retry.contract --out {dir}/decisions/retry.json
 GENERATE py-reads  render {dir}/tools.biome pyreads  {dir}/../server/src/unity_mcp/tools/generated/catalog_reads.py
 GENERATE cs-reads  render {dir}/tools.biome csreads  {dir}/../unity-plugin/Editor/Generated/ActionReads.g.cs
+GENERATE py-actions render {dir}/tools.biome pyactions {dir}/../server/src/unity_mcp/tools/generated/catalog_actions.py
+GENERATE cs-actions render {dir}/tools.biome csactions {dir}/../unity-plugin/Editor/Generated/ToolActions.g.cs
 GENERATE cs-tools  render {dir}/tools.biome cstools  {dir}/../unity-plugin/Editor/Generated/ToolMeta.g.cs
 GENERATE cs-verbs  render {dir}/tools.biome csverbs {dir}/../unity-plugin/Editor/Generated/ToolVerbs.g.cs
 GENERATE cs-roster render {dir}/tools.biome csroster {dir}/../unity-plugin/Editor/Generated/ToolRoster.g.cs

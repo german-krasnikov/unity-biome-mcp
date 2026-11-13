@@ -27,13 +27,28 @@ END
 
 TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this)."
   FORWARD
-  DOC "action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path)."
+  DOC "action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes; add_key/remove_key/remove_curve/set_keys/set_loop are the same edit) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path)."
   DOC "clip=clip name, keys='t:0 v:(0,0,0); t:1 v:(0,2,0)', property=e.g. localPosition.x."
   DOC "component_type: Unity component to animate (default: Transform). Examples: Light, Camera, Rigidbody."
   DOC "binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root."
   DOC "tangent: tangent mode for keyframes: auto (default) | smooth | linear | constant."
   DOC "function_name: method name for add_event. int_param/float_param/string_param: event parameters."
-  ARG action str EXAMPLE "list"
+  ACTION get
+  ACTION create
+  ACTION edit
+  ACTION add_key
+  ACTION remove_key
+  ACTION remove_curve
+  ACTION set_keys
+  ACTION set_loop
+  ACTION set_wrap
+  ACTION set_framerate
+  ACTION preview
+  ACTION get_clip_path
+  ACTION get_events
+  ACTION add_event
+  ACTION remove_event
+  ARG action str EXAMPLE "get"
   ARG path str EXAMPLE "/Main Camera"
   ARG clip ostr DEFAULT None
   ARG clip_name ostr DEFAULT None

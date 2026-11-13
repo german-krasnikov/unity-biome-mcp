@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=ae7ae5192ef26bc47e023f639ac9ca2c0ed65b883653a301f194ebed26f4de43
+# source-sha256=16b40461ecc9b06e898b054cc35553ca287bcec1ac777667d0abcfce574b0966
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -89,7 +89,7 @@ async def animation(
     compact: bool = False,
 ) -> str:
     ("Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this)."
-     "\n    action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path)."
+     "\n    action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes; add_key/remove_key/remove_curve/set_keys/set_loop are the same edit) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path)."
      "\n    clip=clip name, keys='t:0 v:(0,0,0); t:1 v:(0,2,0)', property=e.g. localPosition.x."
      "\n    component_type: Unity component to animate (default: Transform). Examples: Light, Camera, Rigidbody."
      "\n    binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root."
