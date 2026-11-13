@@ -52,6 +52,7 @@ def _make_mw_stub(*, circuit_open=False, prefetch_hit=None):
     """Build minimal mw stub for _check_prefetch_and_circuit."""
     mw = MagicMock()
     mw._prefetch_cache = None
+    mw._scenario_uncertain = False
     mw.circuit.allow_request.return_value = not circuit_open
     mw.circuit.remaining.return_value = 4
     mw.circuit.state = object()

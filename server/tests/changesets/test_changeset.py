@@ -200,6 +200,7 @@ def _make_test_mw():
     mw = MagicMock()
     mw._alias_cache = {}        # falsy → skip alias resolution
     mw._prefetch_cache = None   # None  → skip prefetch/invalidation branches
+    mw._scenario_uncertain = False
     mw.hinter = None
     mw.schema_guard = None
     mw.watchdog = None

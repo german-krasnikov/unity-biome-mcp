@@ -1,0 +1,16 @@
+# Facts of the PrefetchCache gates in middleware_pipeline.py. prefetchServe answers the
+# cache-above-circuit read (duplicated verbatim at the pre-circuit check and inside
+# _pre_tcp_guards -- one source of truth instead of two copies that could drift).
+# prefetchFire answers whether _maybe_prefetch_background may even look up GATE_PRIORS
+# for this write (the GATE_PRIORS dispatch table itself stays native: a per-cmd predicted-read
+# builder, not a boolean ladder).
+CONTRACT unitymcp.prefetch
+COVERAGE declared-scope
+MODULE prefetch_facts
+FACT pf.cacheConfigured bool
+FACT pf.cmdCacheable bool
+FACT pf.scenarioUncertain bool
+FACT pf.cmdIsWrite bool
+FACT pf.cmdSceneNeutral bool
+INPUT prefetchServe pf.cacheConfigured pf.cmdCacheable pf.scenarioUncertain
+INPUT prefetchFire pf.cacheConfigured pf.scenarioUncertain pf.cmdIsWrite pf.cmdSceneNeutral

@@ -43,6 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`DISPATCH` generates the dispatchers of four tools (internal):** `prefab`, `scriptable_object`, `material` and `asset` (`ToolDispatch.g.cs`).
 - **Transient events are generated (internal):** `EXCLUDED_KINDS` comes from the `TRANSIENT` attribute in `dsl/events.biome` (`heartbeat`, `cost_update`), not from a Python constant.
 - **Native refactors (internal):** the response envelope header is built in one place (`JsonHelper`, exact bytes unchanged), the animator lookup-miss messages come from `ErrorHelper.NotFound` and `QuotedNotFound` (text byte-identical), and the shader graph read and write live in one helper (`ShaderGraphHelper.WithGraph`).
+- **Middleware decisions (internal, step 7.2):** `injectState`, `reflectGate`, `prefetch` (`prefetchServe`, `prefetchFire`) and `scenarionext` (`scenarioUncertainNext`, `sceneInvalidateGate`) replace the hand-written ladders in `middleware_async.py` and `middleware_pipeline.py`. `UNITY_MCP_REFLECT` is read in one place, and the prefetch cache check is shared by both read sites.
+- **Plan, ask and hint decisions (internal, step 7.2):** `planverify` (`planGate`, `lineVerdict`, `fixGate`, `fixApply`), `askroute` (`askRoute`) and `hinter` (`hintPattern`, `hintGate`, `hintAdoption`) replace the ladders in `do_intent/`, `ask/router.py` and `hinter.py`. Dead code is removed: the result-less `validate_plan` call in the executor, the two `SCENE_QUERY` regexes in `ask/router.py` and the six `_pred_*` hinter predicates.
+- **`do()` plan validation checks paths against the whole plan:** a path that a `create_object` line declares anywhere in the plan now passes the path check. Before, only the lines above the reference counted, so a plan that referenced an object before creating it was rejected with `Path not found in scene`.
 
 ### Fixed
 

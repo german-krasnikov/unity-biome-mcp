@@ -1,0 +1,12 @@
+{
+  "generated": "from reflectgate.examples by npm run logic -- examples; do not edit",
+  "provenance": "Transcribed from server/tests/test_degrade.py (Test 8) and test_reflect.py (#16, #17, #25); two rows characterized from middleware_pipeline.py's own gate conditions (no dedicated unit test at this granularity).",
+  "reflectGate": [
+    { "id": "degraded-skips", "facts": { "reflectEnvOn": true, "reflectResultDegraded": true, "reflectNoReflectFlag": false, "reflectCmdIsWrite": true, "reflectCmdIsSetProperty": true, "reflectHasPropAndValue": true }, "expected": "skip", "provenance": "test_degrade.py:168 (test_reflect_skipped_on_degraded_output)" },
+    { "id": "no-reflect-flag-skips", "facts": { "reflectEnvOn": true, "reflectResultDegraded": false, "reflectNoReflectFlag": true, "reflectCmdIsWrite": true, "reflectCmdIsSetProperty": true, "reflectHasPropAndValue": true }, "expected": "skip", "provenance": "test_reflect.py:228 (test_no_reflect_kwarg)" },
+    { "id": "reflect-fires-on-write", "facts": { "reflectEnvOn": true, "reflectResultDegraded": false, "reflectNoReflectFlag": false, "reflectCmdIsWrite": true, "reflectCmdIsSetProperty": true, "reflectHasPropAndValue": true }, "expected": "runReflect", "provenance": "test_reflect.py:331 (test_verify_snapshot_disabled_when_reflect_on)" },
+    { "id": "reflect-off-verify-snapshot-fallback", "facts": { "reflectEnvOn": false, "reflectResultDegraded": false, "reflectNoReflectFlag": false, "reflectCmdIsWrite": true, "reflectCmdIsSetProperty": true, "reflectHasPropAndValue": true }, "expected": "runVerifySnapshot", "provenance": "test_reflect.py:212 (test_env_disable)" },
+    { "id": "reflect-off-no-prop-value-skips", "facts": { "reflectEnvOn": false, "reflectResultDegraded": false, "reflectNoReflectFlag": false, "reflectCmdIsWrite": true, "reflectCmdIsSetProperty": true, "reflectHasPropAndValue": false }, "expected": "skip", "provenance": "middleware_pipeline.py:330 (_apply_state_tracking guard)" },
+    { "id": "reflect-on-read-cmd-skips", "facts": { "reflectEnvOn": true, "reflectResultDegraded": false, "reflectNoReflectFlag": false, "reflectCmdIsWrite": false, "reflectCmdIsSetProperty": false, "reflectHasPropAndValue": false }, "expected": "skip", "provenance": "middleware_pipeline.py:355 (cmd in WRITE_CMDS gate)" }
+  ]
+}

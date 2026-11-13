@@ -1,0 +1,11 @@
+PROVENANCE "Transcribed from server/tests/test_degrade.py (Test 8) and test_reflect.py (#16, #17, #25); two rows characterized from middleware_pipeline.py's own gate conditions (no dedicated unit test at this granularity)."
+
+EXAMPLES reflectGate
+  id | reflectEnvOn | reflectResultDegraded | reflectNoReflectFlag | reflectCmdIsWrite | reflectCmdIsSetProperty | reflectHasPropAndValue -> expected
+  degraded-skips | true | true | false | true | true | true -> skip  # test_degrade.py:168 (test_reflect_skipped_on_degraded_output)
+  no-reflect-flag-skips | true | false | true | true | true | true -> skip  # test_reflect.py:228 (test_no_reflect_kwarg)
+  reflect-fires-on-write | true | false | false | true | true | true -> runReflect  # test_reflect.py:331 (test_verify_snapshot_disabled_when_reflect_on)
+  reflect-off-verify-snapshot-fallback | false | false | false | true | true | true -> runVerifySnapshot  # test_reflect.py:212 (test_env_disable)
+  reflect-off-no-prop-value-skips | false | false | false | true | true | false -> skip  # middleware_pipeline.py:330 (_apply_state_tracking guard)
+  reflect-on-read-cmd-skips | true | false | false | false | false | false -> skip  # middleware_pipeline.py:355 (cmd in WRITE_CMDS gate)
+END

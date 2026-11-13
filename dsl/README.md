@@ -163,6 +163,13 @@ transcribed from the tests the project already has, each row naming its `file:li
 | `budget` | may a Haiku call run, and is the speculation hit rate good enough? (`hitRateOk`, `budgetRoute`, `budgetRun`) | Python `budget/router.py`, `speculation.py` through `decisions/budget_facts.py`; no generated C# |
 | `editorlog` | is the Editor.log failure current, which log is picked, which wedge is it? (`failureCurrency`, `logPick`, `wedgeKind`) | Python `editor_log_parser.py`, `editor_log_wedge.py`; no generated C# |
 | `terminalerror` | which error does a terminal test-run snapshot report? (`terminalError`) | Python `tools/testing.py`; no generated C# |
+| `injectstate` | is an AUTO STATE hierarchy snapshot appended to this response? (`injectState`) | Python `middleware_async.py` `maybe_inject_state`; no generated C# |
+| `reflectgate` | which check runs after a write: reflection or the verify snapshot? (`reflectGate`) | Python `middleware_pipeline.py` `_apply_state_tracking`, `_apply_reflection_and_hinter`; no generated C# |
+| `prefetch` | may a read come from PrefetchCache, and may a write fire a prefetch? (`prefetchServe`, `prefetchFire`) | Python `middleware_pipeline.py`; no generated C# |
+| `scenarionext` | does a playtest result change the scene-uncertain guard, and are scene caches invalidated? (`scenarioUncertainNext`, `sceneInvalidateGate`) | Python `middleware_pipeline.py` `_reset_write_caches`; no generated C# |
+| `planverify` | is a do() plan valid, and is one repair round asked and applied? (`planGate`, `lineVerdict`, `fixGate`, `fixApply`) | Python `do_intent/validator.py`, `do_intent/executor.py` through `decisions/planverify_facts.py`; no generated C# |
+| `askroute` | which canonical plan answers an ask() question? (`askRoute`) | Python `ask/router.py` through `decisions/askroute_facts.py`; no generated C# |
+| `hinter` | which hint does a call earn, is its gate open, and was the last hint adopted or ignored? (`hintPattern`, `hintGate`, `hintAdoption`) | Python `hinter.py`, `hinter_patterns.py` through `decisions/hinter_facts.py`; no generated C# |
 
 The decisions only decide. The facts are read by native code beside them: `decisions/verdict_facts.py` and `decisions/guard_facts.py` in Python,
 `Editor/Decisions/{MutabilityFacts,PlaytestFacts,GuardFacts}.cs` in C#, `bridge_retry.py` for the retry; the texts of the answers and the effects stay with

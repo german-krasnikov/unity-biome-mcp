@@ -1,0 +1,35 @@
+PROVENANCE "hand-written from hinter.py (ToolHinter.observe, _check_adoption) and hinter_patterns.py (the 6 _pred_* functions, _PATTERNS order); server/tests/test_hinter.py (cooldown: test_cooldown_prevents_repeated_emit; ignore/suppress: test_first_ignore_increments_counter_and_re_emits, test_second_ignore_adds_to_suppressed, test_suppressed_pattern_skips_predicate; reflect-off: test_redundant_verify_no_hint_when_reflect_off; screenshot sequence reset: test_screenshot_spam_with_intervening_write_no_hint, test_conditional_read_does_not_reset_screenshot_sequence)."
+
+EXAMPLES hintPattern
+  id | callCmd | envReflectOn | winGetComponent8 | winSameTargetWrites6 | winFindObjects4 | winScreenshotsSinceWrite8 | winRecompile6 | winGetConsole6 | winSameTargetSetProperty3 | openInspectLoop | openBatchWrites | openFindThenRead | openScreenshotSpam | openConsolePoll | openRedundantVerify -> expected
+  inspect-loop-fires          | get_component | true  | 2 | 0 | 0 | 0 | 0 | 0 | 0 | true  | true | true | true | true | true -> inspect_loop
+  one-get-component-no-fire   | get_component | true  | 1 | 0 | 0 | 0 | 0 | 0 | 0 | true  | true | true | true | true | true -> none
+  batch-writes-fires          | set_property  | true  | 0 | 2 | 0 | 0 | 0 | 0 | 0 | true  | true | true | true | true | true -> batch_writes
+  find-then-read-fires        | get_component | true  | 1 | 0 | 1 | 0 | 0 | 0 | 0 | true  | true | true | true | true | true -> find_then_read
+  inspect-loop-beats-find-then-read | get_component | true | 2 | 0 | 1 | 0 | 0 | 0 | 0 | true | true | true | true | true | true -> inspect_loop
+  closed-inspect-lets-find-then-read-fire | get_component | true | 2 | 0 | 1 | 0 | 0 | 0 | 0 | false | true | true | true | true | true -> find_then_read
+  screenshot-spam-fires       | screenshot    | true  | 0 | 0 | 0 | 2 | 0 | 0 | 0 | true  | true | true | true | true | true -> screenshot_spam
+  console-poll-fires          | get_console   | true  | 0 | 0 | 0 | 0 | 1 | 2 | 0 | true  | true | true | true | true | true -> console_poll
+  console-poll-needs-recompile | get_console  | true  | 0 | 0 | 0 | 0 | 0 | 2 | 0 | true  | true | true | true | true | true -> none
+  redundant-verify-fires      | get_component | true  | 1 | 0 | 0 | 0 | 0 | 0 | 1 | true  | true | true | true | true | true -> redundant_verify_read
+  redundant-verify-off-when-reflect-off | get_component | false | 1 | 0 | 0 | 0 | 0 | 0 | 1 | true | true | true | true | true | true -> none
+  wrong-cmd-never-fires        | get_hierarchy | true | 16 | 16 | 16 | 16 | 16 | 16 | 16 | true | true | true | true | true | true -> none
+END
+
+EXAMPLES hintGate
+  id | hintEnabled | hintSuppressed | hintCallsSinceEmit -> expected
+  disabled              | false | false | 999 -> closed
+  suppressed             | true  | true  | 999 -> closed
+  cooldown-7-closed       | true  | false | 7   -> closed
+  cooldown-8-open         | true  | false | 8   -> open
+  never-emitted-open      | true  | false | 999 -> open
+END
+
+EXAMPLES hintAdoption
+  id | adoptIsSuggested | adoptIsTrigger | adoptIgnoredBefore -> expected
+  suggested-adopted      | true  | false | 0 -> adopted
+  first-ignore            | false | true  | 0 -> ignored
+  second-ignore-suppresses | false | true  | 1 -> suppress
+  unrelated-call-pending   | false | false | 0 -> pending
+  no-suggested-cmd-is-not-adopted | false | true | 0 -> ignored
+END

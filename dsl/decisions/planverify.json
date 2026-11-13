@@ -1,0 +1,33 @@
+{
+  "generated": "from planverify.examples by npm run logic -- examples; do not edit",
+  "provenance": "hand-written from do_intent/validator.py validate_plan and do_intent/executor.py Executor.execute; test_do_intent.py (thresholds: 50-line limit at lines 130-140).",
+  "planGate": [
+    { "id": "empty-plan", "facts": { "planLines": 0, "planMaxLines": 50, "planRejected": false }, "expected": "empty" },
+    { "id": "reject-prefix", "facts": { "planLines": 3, "planMaxLines": 50, "planRejected": true }, "expected": "rejected" },
+    { "id": "empty-beats-reject", "facts": { "planLines": 0, "planMaxLines": 50, "planRejected": true }, "expected": "empty" },
+    { "id": "exactly-50-ok", "facts": { "planLines": 50, "planMaxLines": 50, "planRejected": false }, "expected": "ok" },
+    { "id": "fifty-one-too-long", "facts": { "planLines": 51, "planMaxLines": 50, "planRejected": false }, "expected": "too_long" }
+  ],
+  "lineVerdict": [
+    { "id": "unknown-command", "facts": { "lineAllowed": false, "lineMissingRequired": 0, "lineIsCreate": false, "lineHasPath": false, "linePathDeclared": false }, "expected": "forbidden" },
+    { "id": "forbidden-beats-missing", "facts": { "lineAllowed": false, "lineMissingRequired": 2, "lineIsCreate": false, "lineHasPath": true, "linePathDeclared": false }, "expected": "forbidden" },
+    { "id": "missing-required", "facts": { "lineAllowed": true, "lineMissingRequired": 1, "lineIsCreate": false, "lineHasPath": true, "linePathDeclared": true }, "expected": "missing_key" },
+    { "id": "create-object-skips-path", "facts": { "lineAllowed": true, "lineMissingRequired": 0, "lineIsCreate": true, "lineHasPath": true, "linePathDeclared": false }, "expected": "ok" },
+    { "id": "path-not-in-scene", "facts": { "lineAllowed": true, "lineMissingRequired": 0, "lineIsCreate": false, "lineHasPath": true, "linePathDeclared": false }, "expected": "unknown_path" },
+    { "id": "path-created-earlier", "facts": { "lineAllowed": true, "lineMissingRequired": 0, "lineIsCreate": false, "lineHasPath": true, "linePathDeclared": true }, "expected": "ok" },
+    { "id": "no-path-key", "facts": { "lineAllowed": true, "lineMissingRequired": 0, "lineIsCreate": false, "lineHasPath": false, "linePathDeclared": false }, "expected": "ok" }
+  ],
+  "fixGate": [
+    { "id": "not-partial", "facts": { "execPartial": false, "execHasSampling": true, "execFailedLines": 0 }, "expected": "done" },
+    { "id": "no-sampling", "facts": { "execPartial": true, "execHasSampling": false, "execFailedLines": 3 }, "expected": "done" },
+    { "id": "zero-failed-lines", "facts": { "execPartial": true, "execHasSampling": true, "execFailedLines": 0 }, "expected": "done" },
+    { "id": "one-failed", "facts": { "execPartial": true, "execHasSampling": true, "execFailedLines": 1 }, "expected": "ask_fix" },
+    { "id": "five-failed", "facts": { "execPartial": true, "execHasSampling": true, "execFailedLines": 5 }, "expected": "ask_fix" },
+    { "id": "six-failed-too-many", "facts": { "execPartial": true, "execHasSampling": true, "execFailedLines": 6 }, "expected": "done" }
+  ],
+  "fixApply": [
+    { "id": "empty-fix", "facts": { "fixEmpty": true, "fixVerdict": "ok" }, "expected": "keep_original" },
+    { "id": "invalid-fix", "facts": { "fixEmpty": false, "fixVerdict": "forbidden" }, "expected": "keep_original" },
+    { "id": "valid-fix", "facts": { "fixEmpty": false, "fixVerdict": "ok" }, "expected": "send_fix" }
+  ]
+}

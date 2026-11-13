@@ -1,0 +1,21 @@
+PROVENANCE "Transcribed from server/tests/test_scenario_trust.py and test_middleware.py's F2 scene-cache-invalidation section (lines 1229-1333)."
+
+EXAMPLES scenarioUncertainNext
+  id | scnCmdIsStartPlaytest | scnResultIsRunIdAck | scnResultIsTerminal -> expected
+  start-playtest-ack-marks-uncertain | true | true | false -> markUncertain  # test_scenario_trust.py:22 (test_start_playtest_ack_sets_uncertain)
+  start-playtest-error-keeps | true | false | false -> keep  # test_scenario_trust.py:30 (test_start_playtest_error_does_not_set_uncertain)
+  terminal-run-playtest-clears | false | false | true -> clearUncertain  # test_scenario_trust.py:41 (test_terminal_run_playtest_clears_uncertain)
+  terminal-get-playtest-run-clears | false | false | true -> clearUncertain  # test_scenario_trust.py:50 (test_terminal_get_playtest_run_clears_uncertain)
+  running-phase-keeps | false | false | false -> keep  # test_scenario_trust.py:59 (test_running_phase_preserves_uncertain)
+  force-invalidate-keeps-uncertain | false | false | false -> keep  # test_scenario_trust.py:170 (test_force_invalidate_preserves_uncertain, N0a-3)
+END
+
+EXAMPLES sceneInvalidateGate
+  id | scnResultIsTerminal | scnForceInvalidateFlag -> expected
+  terminal-ok-invalidates | true | false -> invalidate  # test_middleware.py:1229 (test_run_playtest_terminal_response_invalidates_scene_caches)
+  terminal-fail-invalidates | true | false -> invalidate  # test_middleware.py:1244 (test_run_playtest_failure_also_invalidates_scene_caches)
+  running-phase-preserved | false | false -> skip  # test_middleware.py:1258 (test_get_playtest_run_running_phase_preserves_scene_caches)
+  start-playtest-ack-preserved | false | false -> skip  # test_middleware.py:1284 (test_start_playtest_ack_preserves_scene_caches)
+  force-invalidate-mid-run | false | true -> invalidate  # test_middleware.py:1333 (test_force_scene_invalidate_flag_invalidates_without_terminal_text)
+  force-invalidate-circuit-open | false | true -> invalidate  # test_middleware.py:1394 (test_force_scene_invalidate_invalidates_even_when_circuit_open)
+END
