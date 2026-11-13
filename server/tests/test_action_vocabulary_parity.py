@@ -51,6 +51,26 @@ _ACTION_TOOLS: dict[str, tuple[tuple[str, str], ...]] = {
         ("CommandRouter.MediaHandlers.cs", "ExecUitkFile"),
         ("UIFileHelper.cs", "EditUIFile"),
     ),
+    # dsl-bottlenecks-2026-11 Part 2: the remaining flat (non-scoped-by-a-second-parameter) action-dispatched
+    # TOOLs, each mapped to its one real C# dispatch site.
+    "animator": (("CommandRouter.MediaHandlers.cs", "ExecAnimatorConsolidated"),),
+    # BuildHelper.Execute (BuildHelper.cs:15-23) only ever accepts the single action "build": `if (action !=
+    # "build")` is a negated single-literal check, not a switch/case/`action == "..."` arm -- the first tool to
+    # need that shape (see the scanner self-test below).
+    "build": (("BuildHelper.cs", "Execute"),),
+    # ExecManageComponent (CommandRouter.ObjectHandlers.cs:304-320) does not itself validate `action` (its
+    # ternary only picks response text); the real dispatch -- and its only error path -- is
+    # ObjectManager.ManageComponent's if/else-if chain (ObjectManager.cs:211-243).
+    "manage_component": (("ObjectManager.cs", "ManageComponent"),),
+    "material": (("MaterialHelper.cs", "Execute"),),
+    "material_audit": (("MaterialAuditHelper.cs", "Execute"),),
+    "menu": (("CommandRouter.MediaHandlers.cs", "ExecMenu"),),
+    "package": (("PackageManagerHelper.cs", "Execute"),),
+    "particle": (("CommandRouter.MediaHandlers.cs", "ExecParticleConsolidated"),),
+    "profile": (("Profiling/ProfileRecorder.cs", "Dispatch"),),
+    "references": (("CommandRouter.MediaHandlers.cs", "ExecReferencesConsolidated"),),
+    "spatial_query": (("SpatialHelper.cs", "Execute"),),
+    "transfer_object": (("ObjectManager.Transfer.cs", "TransferObject"),),
 }
 
 # [a-z][a-z0-9_-]* (not [a-z_]+): dsl-bottlenecks-2026-11 Part B3 widened CONSTRUCT TOOL's own ACTION name
@@ -67,6 +87,10 @@ _NAMED_INVALID_ACTION_LIST = re.compile(r'ErrorHelper\.InvalidAction\(\s*action,
 # cannot see (AssetDatabaseHelper.cs, ScriptableObjectHelper.cs, EditorStateHelper.cs all use `switch { case: }`,
 # not `action switch { => }`).
 _IF_EQUALITY_ARM = re.compile(r'\baction\s*==\s*"([a-z][a-z0-9_-]*)"')
+# dsl-bottlenecks-2026-11 Part 2: `build` (BuildHelper.cs:19) is the first tool whose entire action vocabulary
+# is a single negated check -- `if (action != "build")` bails out instead of accepting -- rather than a
+# positive `action == "..."` arm, a switch arm, or a `case` label.
+_IF_NOT_EQUALITY_ARM = re.compile(r'\baction\s*!=\s*"([a-z][a-z0-9_-]*)"')
 _CASE_LABEL = re.compile(r'case\s+"([a-z][a-z0-9_-]*)"\s*:')
 # dsl-bottlenecks-2026-11 Part A: a handler that passes the generated table straight to
 # ErrorHelper.InvalidAction instead of a hand valid-list -- the C# counterpart of this test's own
@@ -74,8 +98,50 @@ _CASE_LABEL = re.compile(r'case\s+"([a-z][a-z0-9_-]*)"\s*:')
 _TOOL_ACTIONS_NAMES_CALL = re.compile(r'ErrorHelper\.InvalidAction\(\s*action,\s*ToolActions\.Names\("([a-z_]+)"\)\)')
 
 
+def _strip_comments(text: str) -> str:
+    """`text` with every `//...` line comment and `/* ... */` block comment blanked out (same length, so brace
+    offsets are unaffected), tracking `"..."` string-literal state so a comment-start sequence that is only a
+    substring of a string literal's own content (a URL in a help string, say) is left alone -- dsl-bottlenecks-
+    2026-11, review minor 1: dispatch_arms() must not read a commented-out case/switch arm as real, and must
+    not be fooled the other way either (a string literal that merely contains comment-like or case-like text)."""
+    out, i, n, in_string = [], 0, len(text), False
+    while i < n:
+        ch = text[i]
+        if in_string:
+            if ch == "\\" and i + 1 < n:
+                out.append(text[i:i + 2])
+                i += 2
+                continue
+            if ch == '"':
+                in_string = False
+            out.append(ch)
+            i += 1
+            continue
+        if ch == '"':
+            in_string = True
+            out.append(ch)
+            i += 1
+            continue
+        if text[i:i + 2] == "//":
+            j = text.find("\n", i)
+            j = n if j == -1 else j
+            out.append(" " * (j - i))
+            i = j
+            continue
+        if text[i:i + 2] == "/*":
+            j = text.find("*/", i + 2)
+            j = n if j == -1 else j + 2
+            out.append("".join(c if c == "\n" else " " for c in text[i:j]))
+            i = j
+            continue
+        out.append(ch)
+        i += 1
+    return "".join(out)
+
+
 def _function_body(text: str, func_name: str) -> str:
-    """The brace-balanced body of `func_name`, found from its signature's opening brace."""
+    """The brace-balanced body of `func_name`, found from its signature's opening brace, with comments
+    blanked out (see `_strip_comments`) before any dispatch/valid-list scanner reads it."""
     start = text.index(f"{func_name}(")
     open_brace = text.index("{", start)
     depth, i = 0, open_brace
@@ -85,7 +151,7 @@ def _function_body(text: str, func_name: str) -> str:
         elif text[i] == "}":
             depth -= 1
             if depth == 0:
-                return text[open_brace:i + 1]
+                return _strip_comments(text[open_brace:i + 1])
         i += 1
 
 
@@ -95,7 +161,8 @@ def dispatch_arms(body: str) -> set[str]:
     `action == "..."` if-chain comparison."""
     switch_arms = {name for match in _PATTERN_BEFORE_ARROW.finditer(body) for name in _QUOTED.findall(match.group(1))}
     case_labels = set(_CASE_LABEL.findall(body))
-    return switch_arms | case_labels | set(_IF_EQUALITY_ARM.findall(body))
+    return (switch_arms | case_labels | set(_IF_EQUALITY_ARM.findall(body))
+            | set(_IF_NOT_EQUALITY_ARM.findall(body)))
 
 
 def invalid_action_list(body: str, full_text: str | None = None) -> set[str]:
@@ -148,7 +215,19 @@ def _real_invalid_action_list(tool: str) -> set[str]:
 # dsl-bottlenecks-2026-11 Part B2 fixed both entries this dict ever held: RenderAnalyzer.cs and
 # UIHelper.UIToolkit.cs now call ErrorHelper.InvalidAction(action, ToolActions.Names(cmd)) -- empty
 # until the next one.
-_NO_INVALID_ACTION_LIST_ARTIFACT: dict[str, str] = {}
+#
+# dsl-bottlenecks-2026-11 Part 2 (2026-11-13) added 6 more, none fixed here (C# slice, out of scope for this
+# DSL+Python-only pass): every one throws/returns free text with no pipe-list or array hint at all.
+_NO_INVALID_ACTION_LIST_ARTIFACT: dict[str, str] = {
+    "build": "BuildHelper.cs:21 sets inner.TrySetResult($\"err:invalid action '{action}'\") -- no hint array.",
+    "manage_component": "ObjectManager.cs:244 throws $\"Invalid action: {action}\" -- no hint array.",
+    "material_audit": "MaterialAuditHelper.cs:27 returns an inline pipe-joined string, not an "
+                       "ErrorHelper.InvalidAction(action, new[] {...}) call the scanner can resolve.",
+    "package": "PackageManagerHelper.cs:39 sets inner.TrySetResult($\"err:invalid action '{action}'\") -- no hint array.",
+    "profile": "Profiling/ProfileRecorder.cs:45 throws $\"Unknown profile action: {action}\" -- no hint array.",
+    "transfer_object": "ObjectManager.Transfer.cs:82 throws $\"Invalid action: {action}. Must be move or copy\" "
+                        "-- no hint array.",
+}
 
 # A real, dated disagreement between the C# switch and its own hand hint array -- recorded here (not fixed in C#)
 # so the test documents the bug and goes red (XPASS) if only one side is ever fixed without updating this entry.
@@ -238,8 +317,16 @@ def test_scanner_catches_a_csharp_arm_the_catalog_does_not_know():
 
 
 def test_scanner_catches_a_declared_action_the_csharp_does_not_dispatch():
-    """A catalog action not dispatched by the real C# (here: animation + a bogus action) must make the comparison fail."""
-    declared_plus_bogus = set(catalog_actions.TOOL_ACTIONS["animation"]) | {"bogus_action"}
+    """A catalog action not dispatched by the real C# (here: animation's own 15 real actions, written out
+    literally, plus a bogus one) must make the comparison fail. The expected side is a literal set, not read
+    from catalog_actions.TOOL_ACTIONS: an expectation must not be derived from the very table the test is
+    probing (dsl-bottlenecks-2026-11, owner review) -- otherwise a bug that corrupts the generated table the
+    same way it corrupts the comparison would go unnoticed."""
+    declared_plus_bogus = {
+        "get", "create", "edit", "add_key", "remove_key", "remove_curve", "set_keys", "set_loop",
+        "set_wrap", "set_framerate", "preview", "get_clip_path", "get_events", "add_event", "remove_event",
+        "bogus_action",
+    }
     assert declared_plus_bogus != dispatch_arms(_real_body("animation"))
     assert "bogus_action" in declared_plus_bogus - dispatch_arms(_real_body("animation"))
 
@@ -269,6 +356,25 @@ def test_scanner_catches_an_if_chain_arm_a_switch_cannot_see():
     see 0 arms here."""
     body = _function_body(_SCRATCH_IF_CHAIN, "ExecScratchIfChain")
     assert dispatch_arms(body) == {"state", "mutation_mode"}
+
+
+_SCRATCH_NEGATED_SINGLE_ACTION = '''
+        private static void ExecScratchSingleAction(string action)
+        {
+            if (action != "build")
+            {
+                return;
+            }
+        }
+'''
+
+
+def test_scanner_catches_a_negated_single_action_if_arm():
+    """`build` (BuildHelper.Execute, BuildHelper.cs:19) accepts exactly one action via a negated check --
+    `if (action != "build")` bails out -- not a switch arm, a `case` label, or a positive `action == "..."`
+    comparison. dsl-bottlenecks-2026-11 Part 2: the first tool needing this shape."""
+    body = _function_body(_SCRATCH_NEGATED_SINGLE_ACTION, "ExecScratchSingleAction")
+    assert dispatch_arms(body) == {"build"}
 
 
 _SCRATCH_NAMED_ARRAY = '''
@@ -323,6 +429,74 @@ def test_scanner_recognizes_a_hyphenated_action_name():
     body = _function_body(_SCRATCH_HYPHEN_SWITCH, "ExecScratchHyphen")
     assert dispatch_arms(body) == {"get", "set-attr"}
     assert invalid_action_list(body) == {"get", "set-attr"}
+
+
+_SCRATCH_LINE_COMMENTED_CASE = '''
+        private static string ExecScratchCommented(string args)
+        {
+            var action = ScratchArgs.Action(args);
+            return action switch
+            {
+                "get" => ExecGet(args),
+                // "ghost_line" => ExecGhost(args),
+                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
+                    new[] { "get" }))
+            };
+        }
+'''
+
+
+def test_scanner_ignores_a_line_commented_out_case():
+    """A `//`-commented-out switch arm must not be read as a real dispatch arm or a real valid-list entry."""
+    body = _function_body(_SCRATCH_LINE_COMMENTED_CASE, "ExecScratchCommented")
+    assert dispatch_arms(body) == {"get"}
+    assert invalid_action_list(body) == {"get"}
+
+
+_SCRATCH_BLOCK_COMMENTED_CASE = '''
+        private static string ExecScratchBlockComment(string args)
+        {
+            var action = ScratchArgs.Action(args);
+            return action switch
+            {
+                "get" => ExecGet(args),
+                /* "ghost_block" => ExecGhost(args), */
+                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
+                    new[] { "get" }))
+            };
+        }
+'''
+
+
+def test_scanner_ignores_a_block_commented_out_case():
+    """A `/* ... */`-commented-out switch arm must not be read as a real dispatch arm or a real valid-list entry."""
+    body = _function_body(_SCRATCH_BLOCK_COMMENTED_CASE, "ExecScratchBlockComment")
+    assert dispatch_arms(body) == {"get"}
+    assert invalid_action_list(body) == {"get"}
+
+
+_SCRATCH_STRING_LITERAL_TRAP = '''
+        private static string ExecScratchStringTrap(string args)
+        {
+            var action = ScratchArgs.Action(args);
+            var help = "see http://example.com/docs for the case \\"ghost_string\\": syntax, not a real action";
+            return action switch
+            {
+                "get" => ExecGet(args),
+                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
+                    new[] { "get" }))
+            };
+        }
+'''
+
+
+def test_scanner_is_not_fooled_by_a_string_literal_that_merely_contains_case_like_text():
+    """A string literal's own content (here: help text that happens to contain `//`, and a quoted phrase that
+    reads like a case label) must not be read as a comment-start or a real dispatch arm."""
+    body = _function_body(_SCRATCH_STRING_LITERAL_TRAP, "ExecScratchStringTrap")
+    assert dispatch_arms(body) == {"get"}
+    assert "ghost_string" not in dispatch_arms(body)
+    assert invalid_action_list(body) == {"get"}
 
 
 _SCRATCH_GENERATED_CALL = '''

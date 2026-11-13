@@ -1,5 +1,5 @@
 // Generated from dsl/tools.biome
-// source-sha256=ed59fa4ed145cd47e94ae4ac947fd06c13d4b457f4b1e0405ebe74d29140cecf
+// source-sha256=fb0ae2e48afd8305810f08991a9eb3150492943f27c500c18e93ef755b12c6ea
 // Edit the source, then run biome generate.
 
 namespace UnityMCP.Editor
@@ -31,6 +31,29 @@ namespace UnityMCP.Editor
                         "add_event",
                         "remove_event",
                     };
+                case "animator":
+                    return new[]
+                    {
+                        "get",
+                        "add_param",
+                        "add_state",
+                        "add_transition",
+                        "set_default",
+                        "remove",
+                        "add_blend_tree",
+                        "edit_blend_tree",
+                        "get_blend_tree",
+                        "add_layer",
+                        "remove_layer",
+                        "rename_layer",
+                        "set_layer_weight",
+                        "set_layer_blending",
+                        "set_state_speed",
+                        "update_transition",
+                        "set_avatar",
+                        "rename_state",
+                        "rename_param",
+                    };
                 case "asset":
                     return new[]
                     {
@@ -50,6 +73,11 @@ namespace UnityMCP.Editor
                         "write_text",
                         "reimport",
                     };
+                case "build":
+                    return new[]
+                    {
+                        "build",
+                    };
                 case "editor":
                     return new[]
                     {
@@ -60,6 +88,60 @@ namespace UnityMCP.Editor
                         "stop",
                         "select",
                         "project_path",
+                    };
+                case "manage_component":
+                    return new[]
+                    {
+                        "add",
+                        "remove",
+                    };
+                case "material":
+                    return new[]
+                    {
+                        "create",
+                        "get",
+                        "set",
+                        "copy",
+                        "list_properties",
+                        "list_slots",
+                        "get_errors",
+                        "list_shaders",
+                        "set_fields",
+                    };
+                case "material_audit":
+                    return new[]
+                    {
+                        "summary",
+                        "materials",
+                        "textures",
+                        "duplicates",
+                        "compression",
+                        "recommendations",
+                    };
+                case "menu":
+                    return new[]
+                    {
+                        "execute",
+                        "list",
+                    };
+                case "package":
+                    return new[]
+                    {
+                        "list",
+                        "search",
+                        "add",
+                        "remove",
+                    };
+                case "particle":
+                    return new[]
+                    {
+                        "get",
+                        "create",
+                        "set",
+                        "apply",
+                        "play",
+                        "stop",
+                        "pause",
                     };
                 case "prefab":
                     return new[]
@@ -72,6 +154,23 @@ namespace UnityMCP.Editor
                         "get_overrides",
                         "unpack",
                         "edit",
+                    };
+                case "profile":
+                    return new[]
+                    {
+                        "start",
+                        "stop",
+                        "status",
+                        "analyze",
+                        "compare",
+                        "list_sessions",
+                    };
+                case "references":
+                    return new[]
+                    {
+                        "get",
+                        "find_to",
+                        "remap",
                     };
                 case "render_analyze":
                     return new[]
@@ -128,6 +227,17 @@ namespace UnityMCP.Editor
                         "graph_set_layout",
                         "graph_auto_layout",
                     };
+                case "spatial_query":
+                    return new[]
+                    {
+                        "nearest",
+                        "in_front_of",
+                        "objects_in_radius",
+                        "bounds_info",
+                        "raycast",
+                        "spatial_map",
+                        "objects_in_polygon",
+                    };
                 case "timeline":
                     return new[]
                     {
@@ -155,6 +265,12 @@ namespace UnityMCP.Editor
                         "set_clip_in",
                         "get_bindings",
                         "preview",
+                    };
+                case "transfer_object":
+                    return new[]
+                    {
+                        "move",
+                        "copy",
                     };
                 case "uitk_element":
                     return new[]

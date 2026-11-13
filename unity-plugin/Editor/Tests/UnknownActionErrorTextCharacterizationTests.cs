@@ -248,6 +248,11 @@ namespace UnityMCP.Editor.Tests
 
         private const string UiToolkitAssetRoot = "Assets/UI Toolkit";
 
+        // Before/after diff instead of TrackOwnedAsset: Unity materializes the default UI Toolkit theme under
+        // Assets/UI Toolkit unconditionally (outside Assets/TestsTemp/) the first time a UXML/USS asset is
+        // touched, so there is no single path for TrackOwnedAsset to own in advance. Snapshotting before and
+        // after removes only entries that were absent before this test -- any pre-existing root/user asset
+        // under Assets/UI Toolkit survives.
         private void RegisterUiToolkitCleanup()
         {
             var rootAbs = AbsoluteAssetPath(UiToolkitAssetRoot);

@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=ed59fa4ed145cd47e94ae4ac947fd06c13d4b457f4b1e0405ebe74d29140cecf
+# source-sha256=fb0ae2e48afd8305810f08991a9eb3150492943f27c500c18e93ef755b12c6ea
 # Edit the source, then run biome generate.
 
 TOOL_ACTIONS: dict[str, tuple[str, ...]] = {
@@ -20,6 +20,27 @@ TOOL_ACTIONS: dict[str, tuple[str, ...]] = {
         'add_event',
         'remove_event',
     ),
+    'animator': (
+        'get',
+        'add_param',
+        'add_state',
+        'add_transition',
+        'set_default',
+        'remove',
+        'add_blend_tree',
+        'edit_blend_tree',
+        'get_blend_tree',
+        'add_layer',
+        'remove_layer',
+        'rename_layer',
+        'set_layer_weight',
+        'set_layer_blending',
+        'set_state_speed',
+        'update_transition',
+        'set_avatar',
+        'rename_state',
+        'rename_param',
+    ),
     'asset': (
         'find',
         'get_info',
@@ -37,6 +58,9 @@ TOOL_ACTIONS: dict[str, tuple[str, ...]] = {
         'write_text',
         'reimport',
     ),
+    'build': (
+        'build',
+    ),
     'editor': (
         'state',
         'mutation_mode',
@@ -45,6 +69,48 @@ TOOL_ACTIONS: dict[str, tuple[str, ...]] = {
         'stop',
         'select',
         'project_path',
+    ),
+    'manage_component': (
+        'add',
+        'remove',
+    ),
+    'material': (
+        'create',
+        'get',
+        'set',
+        'copy',
+        'list_properties',
+        'list_slots',
+        'get_errors',
+        'list_shaders',
+        'set_fields',
+    ),
+    'material_audit': (
+        'summary',
+        'materials',
+        'textures',
+        'duplicates',
+        'compression',
+        'recommendations',
+    ),
+    'menu': (
+        'execute',
+        'list',
+    ),
+    'package': (
+        'list',
+        'search',
+        'add',
+        'remove',
+    ),
+    'particle': (
+        'get',
+        'create',
+        'set',
+        'apply',
+        'play',
+        'stop',
+        'pause',
     ),
     'prefab': (
         'save',
@@ -55,6 +121,19 @@ TOOL_ACTIONS: dict[str, tuple[str, ...]] = {
         'get_overrides',
         'unpack',
         'edit',
+    ),
+    'profile': (
+        'start',
+        'stop',
+        'status',
+        'analyze',
+        'compare',
+        'list_sessions',
+    ),
+    'references': (
+        'get',
+        'find_to',
+        'remap',
     ),
     'render_analyze': (
         'stats',
@@ -103,6 +182,15 @@ TOOL_ACTIONS: dict[str, tuple[str, ...]] = {
         'graph_set_layout',
         'graph_auto_layout',
     ),
+    'spatial_query': (
+        'nearest',
+        'in_front_of',
+        'objects_in_radius',
+        'bounds_info',
+        'raycast',
+        'spatial_map',
+        'objects_in_polygon',
+    ),
     'timeline': (
         'get',
         'create',
@@ -128,6 +216,10 @@ TOOL_ACTIONS: dict[str, tuple[str, ...]] = {
         'set_clip_in',
         'get_bindings',
         'preview',
+    ),
+    'transfer_object': (
+        'move',
+        'copy',
     ),
     'uitk_element': (
         'query',

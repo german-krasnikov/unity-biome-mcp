@@ -83,6 +83,25 @@ TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator
   DOC "weight: defaultWeight for add_layer/set_layer_weight (0.0–1.0)."
   DOC "blending: Override|Additive for add_layer/set_layer_blending."
   DOC "value: speed multiplier for set_state_speed. avatar_path: asset path for set_avatar."
+  ACTION get
+  ACTION add_param
+  ACTION add_state
+  ACTION add_transition
+  ACTION set_default
+  ACTION remove
+  ACTION add_blend_tree
+  ACTION edit_blend_tree
+  ACTION get_blend_tree
+  ACTION add_layer
+  ACTION remove_layer
+  ACTION rename_layer
+  ACTION set_layer_weight
+  ACTION set_layer_blending
+  ACTION set_state_speed
+  ACTION update_transition
+  ACTION set_avatar
+  ACTION rename_state
+  ACTION rename_param
   ARG action str
   ARG path str EXAMPLE "/Main Camera"
   ARG state ostr DEFAULT None
@@ -330,6 +349,7 @@ TOOL build SYSTEM RW "Build player. action: build."
   DOC "scenes: comma-sep asset paths (default: Build Settings list)."
   DOC "path: output path (default: Builds/<target>)."
   DOC "dev: development build flag."
+  ACTION build
   ARG action str
   ARG target ostr DEFAULT None
   ARG scenes ostr DEFAULT None
@@ -1031,6 +1051,8 @@ TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No conf
   FORWARD
   FLAG core
   VERB "Editing components"
+  ACTION add
+  ACTION remove
   ARG path str EXAMPLE "/__seam_nonexistent" ROLE target "Scene path to the GameObject"
   ARG type str EXAMPLE "Rigidbody" ROLE name "Component type (short: 'Button' or full namespace: 'UnityEngine.UI.Button')"
   ARG action str EXAMPLE "add" "'add' or 'remove' — not 'enable'/'disable' (use set_property m_Enabled for that)"
@@ -1044,6 +1066,15 @@ END
 TOOL material ASSETS RW "Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared)."
   HANDLER register_action "MaterialHelper.Execute"
   FORWARD
+  ACTION create
+  ACTION get
+  ACTION set
+  ACTION copy
+  ACTION list_properties
+  ACTION list_slots
+  ACTION get_errors
+  ACTION list_shaders
+  ACTION set_fields
   ARG action str EXAMPLE "get"
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG object_path ostr DEFAULT None
@@ -1068,6 +1099,12 @@ TOOL material_audit ASSETS RO "Material/texture scene-wide audit."
   FORWARD
   DOC "action: summary|materials|textures|duplicates|compression|recommendations."
   DOC "platform: Android|iOS|Standalone|Default (for compression check)."
+  ACTION summary
+  ACTION materials
+  ACTION textures
+  ACTION duplicates
+  ACTION compression
+  ACTION recommendations
   ARG action str DEFAULT_TEXT "summary"
   ARG platform ostr DEFAULT None
 END
@@ -1083,6 +1120,8 @@ END
 TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API."
   HANDLER register "CommandRouter.ExecMenu"
   FORWARD
+  ACTION execute
+  ACTION list
   ARG action str EXAMPLE "list"
   ARG path ostr DEFAULT None "Unity Editor menu-item path to execute, or submenu prefix to list"
   READ list
@@ -1152,6 +1191,10 @@ TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmati
   DOC "search: query required."
   DOC "add: name required, version optional."
   DOC "remove: name required."
+  ACTION list
+  ACTION search
+  ACTION add
+  ACTION remove
   ARG action str
   ARG name ostr DEFAULT None "Unity Package Manager package identifier for add/remove (for example com.unity.inputsystem)"
   ARG version ostr DEFAULT None
@@ -1164,6 +1207,13 @@ END
 TOOL particle MEDIA RW "Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
   HANDLER register "CommandRouter.ExecParticleConsolidated"
   FORWARD
+  ACTION get
+  ACTION create
+  ACTION set
+  ACTION apply
+  ACTION play
+  ACTION stop
+  ACTION pause
   ARG action str
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG name ostr DEFAULT None
@@ -1244,6 +1294,12 @@ TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
   DOC "mode: burst (auto-stop after duration) | manual (explicit stop) | triggered (on spike)"
   DOC "focus: narrow analyze output to gc|rendering|physics|cpu"
   RUNTIME
+  ACTION start
+  ACTION stop
+  ACTION status
+  ACTION analyze
+  ACTION compare
+  ACTION list_sessions
   ARG action str
   ARG duration float DEFAULT 5.0
   ARG session str DEFAULT_TEXT ""
@@ -1308,6 +1364,9 @@ END
 
 TOOL references COMPONENTS RW "References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs."
   FORWARD
+  ACTION get
+  ACTION find_to
+  ACTION remap
   ARG action str EXAMPLE "get"
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG children bool DEFAULT False OMIT
@@ -1953,6 +2012,13 @@ TOOL spatial_query SCENE RO "Spatial queries. action: nearest|in_front_of|object
   DOC "objects_in_polygon: objects whose XZ pivot is inside a polygon. Provide either"
   DOC "vertices='x1,z1;x2,z2;...' (>=3 pairs) or a previously defined region_id;"
   DOC "supplied vertices are always validated. cap=max results (default 50)."
+  ACTION nearest
+  ACTION in_front_of
+  ACTION objects_in_radius
+  ACTION bounds_info
+  ACTION raycast
+  ACTION spatial_map
+  ACTION objects_in_polygon
   ARG action str
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG target ostr DEFAULT None
@@ -2087,6 +2153,8 @@ TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene
   DOC "target_scene: destination scene name. Omit = same scene (copy = duplicate)."
   DOC "parent: target parent path in destination scene."
   DOC "world_position_stays: preserve world transform (default True)."
+  ACTION move
+  ACTION copy
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG action str EXAMPLE "move"
   ARG target_scene ostr DEFAULT None

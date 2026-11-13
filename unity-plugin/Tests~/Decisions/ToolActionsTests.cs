@@ -47,8 +47,10 @@ namespace UnityMCP.Decisions.Tests
         [Test]
         public void A_tool_without_any_ACTION_line_has_no_names()
         {
-            Assert.That(ToolActions.Names("material"), Is.Empty);
-            Assert.That(ToolActions.IsKnown("material", "get"), Is.False);
+            // dsl-bottlenecks-2026-11 Part 2 declared material's own ACTION vocabulary, so it no longer fits
+            // here; get_capabilities has no `action` parameter at all and still has none.
+            Assert.That(ToolActions.Names("get_capabilities"), Is.Empty);
+            Assert.That(ToolActions.IsKnown("get_capabilities", "get"), Is.False);
         }
 
         // Independent literal expectation, smallest of the dsl-bottlenecks-2026-11 Q1 batch: 5 actions
