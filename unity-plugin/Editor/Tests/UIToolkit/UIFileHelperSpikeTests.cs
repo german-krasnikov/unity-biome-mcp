@@ -7,10 +7,12 @@
 //   C3/F6: broken UXML → at least one gate (LoadAssetAtPath or CloneTree) returns null
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Testing;
 
@@ -137,6 +139,11 @@ namespace UnityMCP.Editor.Tests
             await Task.CompletedTask;
 
             var vta = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(assetPath);
+            // CloneTree() logs this [Error] for the unregistered element type -- declare it so UTF's
+            // default "unhandled error log fails the test" gate does not fail this test for an error
+            // the test itself provoked on purpose (AI/testing.md: declare, don't ignoreFailingMessages).
+            LogAssert.Expect(LogType.Error, new Regex(
+                "Element 'UnityEngine\\.UIElements\\.NOTEXISTENT_ELEMENT_12345' is missing a UxmlElementAttribute"));
             var clone = vta?.CloneTree();
             // At least one gate must detect the invalid UXML
             var isInvalid = vta == null || clone == null || clone.childCount == 0;
