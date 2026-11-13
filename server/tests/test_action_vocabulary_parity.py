@@ -213,21 +213,12 @@ def _real_invalid_action_list(tool: str) -> set[str]:
 # Tools whose C# fallback throws free text with no `ErrorHelper.InvalidAction` call at all -- there is no
 # valid-list artifact to compare, so the test is skipped with a recorded reason instead of silently passing.
 # dsl-bottlenecks-2026-11 Part B2 fixed both entries this dict ever held: RenderAnalyzer.cs and
-# UIHelper.UIToolkit.cs now call ErrorHelper.InvalidAction(action, ToolActions.Names(cmd)) -- empty
-# until the next one.
+# UIHelper.UIToolkit.cs now call ErrorHelper.InvalidAction(action, ToolActions.Names(cmd)).
 #
-# dsl-bottlenecks-2026-11 Part 2 (2026-11-13) added 6 more, none fixed here (C# slice, out of scope for this
-# DSL+Python-only pass): every one throws/returns free text with no pipe-list or array hint at all.
-_NO_INVALID_ACTION_LIST_ARTIFACT: dict[str, str] = {
-    "build": "BuildHelper.cs:21 sets inner.TrySetResult($\"err:invalid action '{action}'\") -- no hint array.",
-    "manage_component": "ObjectManager.cs:244 throws $\"Invalid action: {action}\" -- no hint array.",
-    "material_audit": "MaterialAuditHelper.cs:27 returns an inline pipe-joined string, not an "
-                       "ErrorHelper.InvalidAction(action, new[] {...}) call the scanner can resolve.",
-    "package": "PackageManagerHelper.cs:39 sets inner.TrySetResult($\"err:invalid action '{action}'\") -- no hint array.",
-    "profile": "Profiling/ProfileRecorder.cs:45 throws $\"Unknown profile action: {action}\" -- no hint array.",
-    "transfer_object": "ObjectManager.Transfer.cs:82 throws $\"Invalid action: {action}. Must be move or copy\" "
-                        "-- no hint array.",
-}
+# dsl-bottlenecks-2026-11 Part B (slice R2) fixed the 6 entries added by Part 2 (2026-11-13): build,
+# manage_component, material_audit, package, profile, and transfer_object all now call
+# ErrorHelper.InvalidAction(action, ToolActions.Names(cmd)) too -- empty until the next one.
+_NO_INVALID_ACTION_LIST_ARTIFACT: dict[str, str] = {}
 
 # A real, dated disagreement between the C# switch and its own hand hint array -- recorded here (not fixed in C#)
 # so the test documents the bug and goes red (XPASS) if only one side is ever fixed without updating this entry.
@@ -265,10 +256,18 @@ def test_catalog_actions_match_the_csharp_dispatch_arms(tool):
 # in CommandRouter.MediaHandlers.cs (animator, menu, particle, references), MaterialHelper.cs
 # (material), and SpatialHelper.cs (spatial_query) were byte-identical in content and order to the
 # catalog's own ACTION declaration -- pure replacement, no observable error-text change.
+#
+# dsl-bottlenecks-2026-11 Part B (slice R2) added the 6 below: each previously threw/returned free
+# text with no catalog list at all (see the now-empty _NO_INVALID_ACTION_LIST_ARTIFACT above) --
+# an intended error-text change, not a pure replacement. Each kept its own delivery mechanism
+# (BuildHelper.cs/PackageManagerHelper.cs: TaskCompletionSource, "err:" prefix; MaterialAuditHelper.cs:
+# returned string, "err:" prefix; ObjectManager.cs/ObjectManager.Transfer.cs/Profiling/ProfileRecorder.cs:
+# thrown ArgumentException, no prefix).
 _USES_GENERATED_VALID_LIST = {
-    "animation", "animator", "asset", "editor", "material", "menu", "particle", "prefab",
-    "references", "render_analyze", "scene", "scriptable_object", "shader", "spatial_query",
-    "timeline", "uitk_element", "uitk_file",
+    "animation", "animator", "asset", "build", "editor", "manage_component", "material",
+    "material_audit", "menu", "package", "particle", "prefab", "profile", "references",
+    "render_analyze", "scene", "scriptable_object", "shader", "spatial_query", "timeline",
+    "transfer_object", "uitk_element", "uitk_file",
 }
 
 

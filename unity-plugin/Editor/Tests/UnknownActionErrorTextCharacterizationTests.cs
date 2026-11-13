@@ -10,6 +10,7 @@
 // byte-identical before and after the Part A swap: that is the whole point of this fixture.
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -271,6 +272,94 @@ namespace UnityMCP.Editor.Tests
                 "err: Unknown action '__no_such_action__'. Valid: read|revert|write|create_uxml|create_uss|" +
                 "set-attr|add-class|remove-class|add-element|remove-element|set-rule|remove-rule.",
                 result);
+        }
+
+        // dsl-bottlenecks-2026-11 Part B (slice R2): BuildHelper.cs's `if (action != "build")` bail-out
+        // (line 19-23) sets inner.TrySetResult($"err:invalid action '{action}'") -- no catalog list, lowercase
+        // "invalid", no Valid: suffix. Async (TaskCompletionSource) handler: calling BuildHelper.Execute
+        // directly resolves `inner` synchronously for this branch (no MainThreadDispatcher.Enqueue reached),
+        // so awaiting tcs.Task completes immediately with no polling -- `async Task` + `await`, never
+        // the banned blocking `.Result` (AI/testing.md). "err:" prefix kept, no space -- matches this
+        // file's own other err: results (line 44) and AsyncBuild's own `r.StartsWith("err:")` check.
+        [Test]
+        public async Task Build_UnknownAction_ErrorTextListsAllDeclaredActions()
+        {
+            var tcs = new TaskCompletionSource<string>();
+            BuildHelper.Execute(UnknownAction, null, null, null, false, tcs);
+            var result = await tcs.Task;
+            Assert.AreEqual("err:Unknown action '__no_such_action__'. Valid: build.", result);
+        }
+
+        // dsl-bottlenecks-2026-11 Part B (slice R2): ObjectManager.ManageComponent's else-branch
+        // (ObjectManager.cs:242-245) throws $"Invalid action: {action}" -- no catalog list. FindObjectOrThrow
+        // (ObjectManager.cs:213) resolves `path` before the action check, so a real GameObject is required.
+        [Test]
+        public void ManageComponent_UnknownAction_ErrorTextListsAllDeclaredActions()
+        {
+            var go = TrackOwnedObject(new GameObject("ManageComponentUnknownActionProbe"));
+            var ex = Assert.Throws<System.ArgumentException>(() =>
+                CommandRouter.ExecuteCommand("manage_component",
+                    "{\"action\":\"" + UnknownAction + "\",\"path\":\"/" + go.name + "\",\"type\":\"Rigidbody\"}"));
+            Assert.AreEqual("Unknown action '__no_such_action__'. Valid: add|remove.", ex.Message);
+        }
+
+        // dsl-bottlenecks-2026-11 Part B (slice R2): MaterialAuditHelper.cs's default arm (line 27) already
+        // returned "err:Unknown action '{action}'. Valid: <catalog-order pipe list>" -- byte-for-byte the
+        // catalog's own ACTION order, just hand-written and missing the trailing period that
+        // ErrorHelper.InvalidAction always appends. Returns a plain string (never throws); "err:" prefix kept,
+        // no space, matching its own prior literal.
+        [Test]
+        public void MaterialAudit_UnknownAction_ReturnedErrTextListsAllDeclaredActions()
+        {
+            var result = CommandRouter.ExecuteCommand("material_audit", Args());
+            Assert.AreEqual(
+                "err:Unknown action '__no_such_action__'. Valid: summary|materials|textures|duplicates|" +
+                "compression|recommendations.",
+                result);
+        }
+
+        // dsl-bottlenecks-2026-11 Part B (slice R2): PackageManagerHelper.cs's switch default (line 38-40)
+        // sets inner.TrySetResult($"err:invalid action '{action}'") -- same shape as BuildHelper.cs. The
+        // default arm resolves `inner` synchronously inside Execute itself (the MainThreadDispatcher.Enqueue
+        // wrapping happens one level up, in AsyncPackage, around the whole Execute call) -- `async Task` +
+        // `await tcs.Task` completes immediately, no polling, never the banned blocking `.Result`.
+        [Test]
+        public async Task Package_UnknownAction_ErrorTextListsAllDeclaredActions()
+        {
+            var tcs = new TaskCompletionSource<string>();
+            PackageManagerHelper.Execute(UnknownAction, null, null, null, tcs);
+            var result = await tcs.Task;
+            Assert.AreEqual(
+                "err:Unknown action '__no_such_action__'. Valid: list|search|add|remove.",
+                result);
+        }
+
+        // dsl-bottlenecks-2026-11 Part B (slice R2): Profiling/ProfileRecorder.cs's switch-expression default
+        // (line 45) threw $"Unknown profile action: {action}" -- its own hand wording, no catalog list, no
+        // quotes around the action. Dispatch(action, args) is reached directly via RegisterAction("profile",
+        // ...), same two-arg shape as Part A's "material"/"spatial_query" -- no object resolution first.
+        [Test]
+        public void Profile_UnknownAction_ErrorTextListsAllDeclaredActions()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() =>
+                CommandRouter.ExecuteCommand("profile", Args()));
+            Assert.AreEqual(
+                "Unknown action '__no_such_action__'. Valid: start|stop|status|analyze|compare|list_sessions.",
+                ex.Message);
+        }
+
+        // dsl-bottlenecks-2026-11 Part B (slice R2): ObjectManager.Transfer.cs's switch default
+        // (ObjectManager.Transfer.cs:81-82) threw $"Invalid action: {action}. Must be move or copy" -- its own
+        // hand wording, no catalog list. FindObjectOrThrow (line 37) resolves `sourcePath` before the action
+        // switch, so a real GameObject is required.
+        [Test]
+        public void TransferObject_UnknownAction_ErrorTextListsAllDeclaredActions()
+        {
+            var go = TrackOwnedObject(new GameObject("TransferObjectUnknownActionProbe"));
+            var ex = Assert.Throws<System.ArgumentException>(() =>
+                CommandRouter.ExecuteCommand("transfer_object",
+                    "{\"action\":\"" + UnknownAction + "\",\"path\":\"/" + go.name + "\"}"));
+            Assert.AreEqual("Unknown action '__no_such_action__'. Valid: move|copy.", ex.Message);
         }
 
         // Proves the cleanup algorithm itself keeps a pre-existing sibling untouched when the

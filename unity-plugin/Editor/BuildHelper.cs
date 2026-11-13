@@ -18,7 +18,7 @@ namespace UnityMCP.Editor
         {
             if (action != "build")
             {
-                inner.TrySetResult($"err:invalid action '{action}'");
+                inner.TrySetResult($"err:{ErrorHelper.InvalidAction(action, ToolActions.Names("build"))}");
                 return;
             }
 

@@ -42,7 +42,7 @@ namespace UnityMCP.Editor.Profiling
             "analyze" => Analyze(args),
             "compare" => Compare(args),
             "list_sessions" => ListSessions(),
-            _ => throw new ArgumentException($"Unknown profile action: {action}"),
+            _ => throw new ArgumentException(ErrorHelper.InvalidAction(action, ToolActions.Names("profile"))),
         };
 
         // Called by tests via SimulateTick() to advance the recording without Unity's update loop
