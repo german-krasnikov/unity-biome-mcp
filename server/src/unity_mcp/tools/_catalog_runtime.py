@@ -41,6 +41,34 @@ def _origin(fn):
     return fn.__module__, fn.__qualname__
 
 
+_MAX_LINE = 120  # this repo's own Python line-length convention (server/pyproject.toml: ruff `line-length = 120`) --
+                 # reused as the one concrete "docstring width used elsewhere" for the rendered description, since
+                 # no stricter width is established for prose there.
+
+
+def _render_actions(pairs):
+    """'action: a (hint)|b|c.' from the (action, hint) pairs a tool declared (dsl/tools.biome's ACTION lines):
+    the one line the MCP client reads, replacing the hand-written copy of the same list. No space around '|'
+    -- matches the hand-written convention it replaces (e.g. asset's old "action: find|get_info|...create...").
+
+    A list long enough to make one physical line exceed _MAX_LINE (120 chars, see above) folds onto further
+    lines, breaking only between whole (action, hint) entries -- never inside one, even when a hint itself
+    contains a '|' (e.g. a set_wrap hint "keys='loop'|'once'|'pingpong'|'clamp'") -- because the break point is
+    chosen over the list of already-rendered parts, never by scanning the joined text for '|'. Each folded
+    line ends in '|' to show the list continues; only the last ends in '.'."""
+    parts = [f"{act} ({hint})" if hint else act for act, hint in pairs]
+    lines, line = [], "action: " + parts[0]
+    for part in parts[1:]:
+        candidate = f"{line}|{part}"
+        if len(candidate) + 1 > _MAX_LINE:  # +1 reserves the trailing "." or "|" this line will end with
+            lines.append(f"{line}|")
+            line = part
+        else:
+            line = candidate
+    lines.append(f"{line}.")
+    return "\n".join(lines)
+
+
 class ToolSet:
     """What the catalog expects of the Python side and the functions that fulfil it. A generated wrapper is provided and registered last
     by install(); a hand-written tool is registered by its own module, where it was registered before the catalog."""
@@ -51,6 +79,7 @@ class ToolSet:
         self._registered = {}  # name -> (module, qualname) of a hand-written function that its module registered
         self._session = {}     # name -> SESSION flag, read by derive() when registering
         self._body_modules = {}  # name -> module name (unity_mcp.tools.<module>) of a BODY tool's hand-written _<name>_body
+        self._action_hints = {}  # name -> ((action, hint), ...) of a tool's declared ACTION lines
 
     def expect(self, name, effect, summary, params, session=False):
         """The catalog states a tool: its effect, the first line of its description and its parameters, (name, type[, default]) in order."""
@@ -74,6 +103,27 @@ class ToolSet:
             raise LookupError(f"{name} is not a tool of the catalog")
         self._body_modules[name] = module
 
+    def actions(self, name: str, pairs) -> None:
+        """The catalog states a tool's declared action vocabulary and per-action hints (dsl/tools.biome's
+        ACTION lines): one enumeration line appended to its client-visible description when register() or
+        install() hands it to mcp.tool() -- see _describe()."""
+        if name not in self._expected:
+            raise LookupError(f"{name} is not a tool of the catalog")
+        self._action_hints[name] = pairs
+
+    def _describe(self, name: str, fn) -> str:
+        """`fn`'s own description (its docstring, never mutated) with one appended enumeration line of the
+        actions declared for `name` -- computed fresh every call, so registering the same tool again (a
+        second mcp, a second install()) renders the same text instead of growing it.
+
+        No leading indent on the appended line: Python (3.13+) dedents a compiled docstring's own
+        continuation lines to column 0 (stripping the 4-space source convention) before `fn.__doc__` is
+        ever read here, so a line appended afterward at runtime must start flush too, or it would be the
+        only indented line in an otherwise unindented description."""
+        pairs = self._action_hints.get(name)
+        doc = fn.__doc__ or ""
+        return f"{doc}\n{_render_actions(pairs)}" if pairs else doc
+
     def signature(self, name: str) -> dict[str, frozenset[str]]:
         """Required/optional ARG names of a catalog tool (no DEFAULT/DEFAULT_TEXT -> required)."""
         _, _, params = self._expected[name]
@@ -93,8 +143,9 @@ class ToolSet:
             _, summary, params = self._expected[fn.__name__]
             _conform(fn.__name__, fn, summary, params)
         for fn in fns:
-            mcp.tool(annotations=derive(self._expected[fn.__name__][0], self._session[fn.__name__]))(fn)
-            self._registered[fn.__name__] = _origin(fn)
+            name = fn.__name__
+            mcp.tool(description=self._describe(name, fn), annotations=derive(self._expected[name][0], self._session[name]))(fn)
+            self._registered[name] = _origin(fn)
 
     def install(self, mcp):
         """Check that every tool of the catalog has a function, then register the generated wrappers: a refusal registers none."""
@@ -116,4 +167,4 @@ class ToolSet:
         for name, fn in wrappers:
             _conform(name, fn, *self._expected[name][1:])
         for name, fn in wrappers:
-            mcp.tool(annotations=derive(self._expected[name][0], self._session[name]))(fn)
+            mcp.tool(description=self._describe(name, fn), annotations=derive(self._expected[name][0], self._session[name]))(fn)

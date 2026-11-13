@@ -27,26 +27,25 @@ END
 
 TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this)."
   FORWARD
-  DOC "action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes; add_key/remove_key/remove_curve/set_keys/set_loop are the same edit) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path)."
+  DOC "add_key/remove_key/remove_curve/set_keys/set_loop are the same edit."
   DOC "clip=clip name, keys='t:0 v:(0,0,0); t:1 v:(0,2,0)', property=e.g. localPosition.x."
   DOC "component_type: Unity component to animate (default: Transform). Examples: Light, Camera, Rigidbody."
   DOC "binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root."
   DOC "tangent: tangent mode for keyframes: auto (default) | smooth | linear | constant."
-  DOC "function_name: method name for add_event. int_param/float_param/string_param: event parameters."
-  ACTION get READ
-  ACTION create
-  ACTION edit
+  ACTION get READ "list clips/keys"
+  ACTION create "new AnimationClip on object"
+  ACTION edit "add/replace keyframes"
   ACTION add_key
   ACTION remove_key
   ACTION remove_curve
   ACTION set_keys
   ACTION set_loop
-  ACTION set_wrap
-  ACTION set_framerate
-  ACTION preview
-  ACTION get_clip_path READ
+  ACTION set_wrap "keys='loop'|'once'|'pingpong'|'clamp'"
+  ACTION set_framerate "keys='30'"
+  ACTION preview "scrub to time"
+  ACTION get_clip_path READ "returns asset path"
   ACTION get_events READ
-  ACTION add_event
+  ACTION add_event "function_name: method name; int_param/float_param/string_param: event parameters"
   ACTION remove_event
   ARG action str EXAMPLE "get"
   ARG path str EXAMPLE "/Main Camera"
@@ -67,7 +66,7 @@ TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use wh
   TAG schema_keep_full
 END
 
-TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param."
+TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics)."
   HANDLER register "CommandRouter.ExecAnimatorConsolidated"
   BODY animation
   DOC "params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'."
@@ -79,7 +78,6 @@ TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator
   DOC "layer: layer index (int) for add_state/add_transition/set_default, or name/index string for CRUD ops."
   DOC "weight: defaultWeight for add_layer/set_layer_weight (0.0–1.0)."
   DOC "blending: Override|Additive for add_layer/set_layer_blending."
-  DOC "value: speed multiplier for set_state_speed. avatar_path: asset path for set_avatar."
   ACTION get READ
   ACTION add_param
   ACTION add_state
@@ -94,9 +92,9 @@ TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator
   ACTION rename_layer
   ACTION set_layer_weight
   ACTION set_layer_blending
-  ACTION set_state_speed
+  ACTION set_state_speed "value = speed multiplier"
   ACTION update_transition
-  ACTION set_avatar
+  ACTION set_avatar "avatar_path = asset path"
   ACTION rename_state
   ACTION rename_param
   ARG action str
@@ -188,23 +186,24 @@ TOOL ask_user SYSTEM RO "Show a question card in Unity chat; wait for user answe
   ARG questions str
 END
 
-TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."
+TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No confirmation required."
   BODY asset
-  ACTION find READ
+  DOC "move/validate_move: source+dest (Assets/ paths)."
+  ACTION find READ "type+name+folder+labels"
   ACTION get_info READ
-  ACTION create
-  ACTION move
-  ACTION validate_move READ
+  ACTION create "type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO)"
+  ACTION move "moves .meta correctly"
+  ACTION validate_move READ "path_only=True: syntax only, skips the folder-existence check (preflight)"
   ACTION duplicate
   ACTION delete
-  ACTION get_dependencies READ
-  ACTION find_dependents READ
+  ACTION get_dependencies READ "forward deps"
+  ACTION find_dependents READ "reverse deps (who references this asset)"
   ACTION import_settings
-  ACTION export_package
-  ACTION import_package
-  ACTION read_text
-  ACTION write_text
-  ACTION reimport
+  ACTION export_package "path+output[+include_deps=false to skip deps]"
+  ACTION import_package "path (filesystem)"
+  ACTION read_text "path"
+  ACTION write_text "path+content"
+  ACTION reimport "path"
   ARG action str EXAMPLE "find"
   ARG path ostr DEFAULT None "Action-specific project asset/package path (usually Assets/...; import_package accepts a package file path)"
   ARG type ostr DEFAULT None "Unity asset type filter or create kind (for example Material or ScriptableObject)"
@@ -327,7 +326,7 @@ PYTOOL budget_status SYSTEM RO "Returns Haiku cost: session/cap/day/skipped feat
   BODY budget_tool
 END
 
-TOOL build SYSTEM RW "Build player. action: build."
+TOOL build SYSTEM RW "Build player."
   HANDLER register_async "CommandRouter.AsyncBuild"
   DENY
   GUARD play_ok
@@ -561,20 +560,18 @@ PYTOOL doctor SYSTEM RW "Run health diagnostics. fix=True removes safe stale por
   TAG reflect_silent
 END
 
-TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode."
+TOOL editor CORE RW "Editor state/control."
   HANDLER register "CommandRouter.ExecEditor"
   BODY editor_control
-  DOC "select: path (single) or paths (comma-sep multi, e.g. \"/Player,/Enemy,/NPC\")."
-  DOC "mutation_mode: omit enable to query current intent; enable=True/False to set it."
   GUARD play_ok
   WIRE no_undo
   FLAG core
   ACTION state READ
-  ACTION mutation_mode
+  ACTION mutation_mode "omit enable to query current intent; enable=True/False to set it"
   ACTION play
   ACTION pause
   ACTION stop
-  ACTION select
+  ACTION select "path (single) or paths (comma-sep multi, e.g. \"/Player,/Enemy,/NPC\")"
   ACTION project_path READ
   ARG action str DEFAULT_TEXT "state" EXAMPLE "state"
   ARG path ostr DEFAULT None
@@ -1032,13 +1029,14 @@ PYTOOL load_session SYSTEM RO "Load previous session context beside the current 
   BODY scene
 END
 
-TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
+TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No confirmation required. type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
   HANDLER register "CommandRouter.ExecManageComponent"
   CARD component
   NEXT "get_components_list"
   FORWARD
   FLAG core
   VERB "Editing components"
+  DOC "no 'enable'/'disable' — use set_property with prop='m_Enabled' for that."
   ACTION add
   ACTION remove
   ARG path str EXAMPLE "/__seam_nonexistent" ROLE target "Scene path to the GameObject"
@@ -1051,18 +1049,18 @@ TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No conf
   BLAST 2
 END
 
-TOOL material ASSETS RW "Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared)."
+TOOL material ASSETS RW "Material asset management (for quick color change use `set_material`). get/set: path (asset) or object_path (scene). slot: material slot index (default 0)."
   HANDLER register_action "MaterialHelper.Execute"
   FORWARD
-  ACTION create
+  ACTION create "path+shader"
   ACTION get READ
-  ACTION set
-  ACTION copy
+  ACTION set "target: shared|instance|asset (default shared)"
+  ACTION copy "source+targets (comma-sep scene paths)"
   ACTION list_properties READ
-  ACTION list_slots READ
-  ACTION get_errors READ
-  ACTION list_shaders READ
-  ACTION set_fields
+  ACTION list_slots READ "object_path"
+  ACTION get_errors READ "path (shader asset)"
+  ACTION list_shaders READ "filter (optional name filter)"
+  ACTION set_fields "path+value (newline-separated prop=val)"
   ARG action str EXAMPLE "get"
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG object_path ostr DEFAULT None
@@ -1080,7 +1078,6 @@ END
 TOOL material_audit ASSETS RO "Material/texture scene-wide audit."
   HANDLER register "CommandRouter.ExecMaterialAudit"
   FORWARD
-  DOC "action: summary|materials|textures|duplicates|compression|recommendations."
   DOC "platform: Android|iOS|Standalone|Default (for compression check)."
   ACTION summary
   ACTION materials
@@ -1100,11 +1097,11 @@ PYTOOL mcp_status SYSTEM RO "Compact MCP status: scene, dirty, play/compile stat
   FLAG core
 END
 
-TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API."
+TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. Note: Edit/ menu items not supported by Unity API."
   HANDLER register "CommandRouter.ExecMenu"
   FORWARD
-  ACTION execute
-  ACTION list READ
+  ACTION execute "run menu item by path"
+  ACTION list READ "show sub-items (omit path for all roots)"
   ARG action str EXAMPLE "list"
   ARG path ostr DEFAULT None "Unity Editor menu-item path to execute, or submenu prefix to list"
   TAG reflect_noerror
@@ -1161,7 +1158,7 @@ TOOL object_diff SCENE RO "Diff two GameObjects (components, properties, childre
   ARG path_b str EXAMPLE "/__seam_nonexistent_b"
 END
 
-TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove."
+TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmation required."
   HANDLER register_async "CommandRouter.AsyncPackage"
   DENY
   GUARD play_ok
@@ -1169,14 +1166,10 @@ TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmati
   FLAG direct_only
   FLAG unity_transport
   TIMEOUT 60.0
-  DOC "list: all installed packages."
-  DOC "search: query required."
-  DOC "add: name required, version optional."
-  DOC "remove: name required."
-  ACTION list READ
-  ACTION search READ
-  ACTION add
-  ACTION remove
+  ACTION list READ "all installed packages"
+  ACTION search READ "query required"
+  ACTION add "name required, version optional"
+  ACTION remove "name required"
   ARG action str
   ARG name ostr DEFAULT None "Unity Package Manager package identifier for add/remove (for example com.unity.inputsystem)"
   ARG version ostr DEFAULT None
@@ -1184,7 +1177,7 @@ TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmati
   TAG reflect_silent
 END
 
-TOOL particle MEDIA RW "Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
+TOOL particle MEDIA RW "Particle System. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
   HANDLER register "CommandRouter.ExecParticleConsolidated"
   FORWARD
   ACTION get READ
@@ -1230,23 +1223,16 @@ TOOL ping_object SCENE RO "Highlight object in Hierarchy and Project, and select
   ARG path str EXAMPLE "/__seam_nonexistent"
 END
 
-TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate."
+TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmation required."
   FORWARD
-  DOC "edit: asset_path + component + prop + value (set property on prefab asset)."
-  DOC "edit: asset_path + add_component or remove_component (manage components)."
-  DOC "save: path (scene) + asset_path [+ mode: new|overwrite (default)]."
-  DOC "revert: scope: object (default)|children."
-  DOC "get_overrides: format: text (default)|structured."
-  DOC "create_variant: base_path + variant_path."
-  DOC "instantiate: asset_path (instantiate prefab into active scene)."
-  ACTION save
-  ACTION create_variant
-  ACTION instantiate
+  ACTION save "path (scene) + asset_path [+ mode: new|overwrite (default)]"
+  ACTION create_variant "base_path + variant_path"
+  ACTION instantiate "asset_path (instantiate prefab into active scene)"
   ACTION apply
-  ACTION revert
-  ACTION get_overrides READ
+  ACTION revert "scope: object (default)|children"
+  ACTION get_overrides READ "format: text (default)|structured"
   ACTION unpack
-  ACTION edit
+  ACTION edit "asset_path + component + prop + value (set a property); or asset_path + add_component/remove_component (manage components)"
   ARG action str EXAMPLE "save"
   ARG path ostr DEFAULT None
   ARG asset_path ostr DEFAULT None
@@ -1268,14 +1254,12 @@ END
 
 TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
   BODY profiling
-  DOC "action: start|stop|status|analyze|compare|list_sessions"
   DOC "mode: burst (auto-stop after duration) | manual (explicit stop) | triggered (on spike)"
-  DOC "focus: narrow analyze output to gc|rendering|physics|cpu"
   RUNTIME
   ACTION start
   ACTION stop
   ACTION status READ
-  ACTION analyze READ
+  ACTION analyze READ "narrow output to gc|rendering|physics|cpu"
   ACTION compare READ
   ACTION list_sessions READ
   ARG action str
@@ -1336,11 +1320,11 @@ PYTOOL reconnect_unity SYSTEM RO "Reconnect to Unity. Port 0 or omitted = auto-d
   TAG meta_cmd
 END
 
-TOOL references COMPONENTS RW "References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs."
+TOOL references COMPONENTS RW "References."
   FORWARD
-  ACTION get
-  ACTION find_to
-  ACTION remap
+  ACTION get "outgoing refs"
+  ACTION find_to "reverse search"
+  ACTION remap "remap refs"
   ARG action str EXAMPLE "get"
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG children bool DEFAULT False OMIT
@@ -1383,25 +1367,18 @@ END
 
 TOOL render_analyze MEDIA RO "Rendering analysis."
   FORWARD
-  ACTION stats
+  ACTION stats "draw calls, batches, tris, verts, set-pass from UnityStats"
   ACTION materials
   ACTION shaders
   ACTION overdraw
-  ACTION audit
-  ACTION compare
-  ACTION batching
+  ACTION audit "full rendering health check (all sections, brief)"
+  ACTION compare "diff against last baseline snapshot"
+  ACTION batching "SRP Batcher / static / dynamic / GPU instancing analysis"
   ACTION lights
   ACTION shadow_audit
   ACTION probe_audit
   ACTION light_optimize
-  ACTION frame_debug
-  DOC "action: stats|materials|shaders|lights|batching|overdraw|audit|compare"
-  DOC "        |frame_debug|shadow_audit|probe_audit|light_optimize"
-  DOC "stats: draw calls, batches, tris, verts, set-pass from UnityStats."
-  DOC "batching: SRP Batcher / static / dynamic / GPU instancing analysis."
-  DOC "audit: full rendering health check (all sections, brief)."
-  DOC "compare: diff against last baseline snapshot."
-  DOC "frame_debug: per-draw-call data via FrameDebugger reflection (pauses rendering briefly)."
+  ACTION frame_debug "per-draw-call data via FrameDebugger reflection (pauses rendering briefly)"
   DOC "detail: brief (default) | full.  path: optional subtree root."
   ARG action str
   ARG path ostr DEFAULT None
@@ -1599,13 +1576,12 @@ TOOL scan_scene VERIFY RO "Scene infrastructure scan: colliders, triggers, audio
   FORWARD
 END
 
-TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy."
+TOOL scene SCENE DEL "Scene management."
   HANDLER register "CommandRouter.ExecScene"
   BODY scene
   DOC "path: required for open/open_additive/close/set_active/save_copy. For save,"
   DOC "omit it to save to the current path; an untitled scene requires a path."
   DOC "scene: save/discard/save_copy target when multiple scenes loaded (identifies by name)."
-  DOC "save_copy: writes current dirty state to path as backup; active scene reference unchanged."
   DOC "include_unsaved: always True — save_copy always captures current in-memory state."
   GUARD play_ok
   WIRE no_undo
@@ -1619,7 +1595,7 @@ TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_addit
   ACTION close
   ACTION set_active
   ACTION list READ
-  ACTION save_copy
+  ACTION save_copy "writes current dirty state to path as backup; active scene reference unchanged"
   ARG action str EXAMPLE "list" "Operation: new|open|save|discard|open_additive|close|set_active|list|save_copy"
   ARG path ostr DEFAULT None "Asset path — required for open/save/open_additive/close/set_active"
   ARG scene ostr DEFAULT None "Scene name for save/discard when multiple scenes are loaded"
@@ -1651,8 +1627,7 @@ END
 TOOL scene_environment SCENE RW "Read/write scene environment: ambient light, fog, skybox, reflections."
   FORWARD
   ACTION get READ
-  ACTION set
-  DOC "action: get|set. set requires prop and value."
+  ACTION set "requires prop and value"
   DOC "Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,"
   DOC "ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance,"
   DOC "reflectionIntensity, reflectionBounces, subtractiveShadowColor, defaultReflectionResolution."
@@ -1728,14 +1703,14 @@ PYTOOL screenshot_compare MEDIA RW "Compare current screenshot with saved baseli
   TAG reflect_silent
 END
 
-TOOL scriptable_object ASSETS RW "ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter."
+TOOL scriptable_object ASSETS RW "ScriptableObject. get/set: path. set/create fields: \\n-separated prop=value pairs."
   HANDLER register_action "ScriptableObjectHelper.Execute"
   FORWARD
-  ACTION create
-  ACTION get READ
+  ACTION create "type+path[+fields]"
+  ACTION get READ "fields: comma-sep filter"
   ACTION set
-  ACTION list_types READ
-  ACTION find READ
+  ACTION list_types READ "filter"
+  ACTION find READ "type"
   ARG action str EXAMPLE "list_types"
   ARG path ostr DEFAULT None "Project asset path to the ScriptableObject .asset file"
   ARG type ostr DEFAULT None
@@ -1900,20 +1875,19 @@ END
 
 TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network."
   FORWARD
-  ACTION get READ
-  ACTION create
-  ACTION set
-  ACTION graph_get READ
-  ACTION graph_create
-  ACTION graph_node
-  ACTION graph_edge
+  ACTION get READ "inspect path — shader name, properties, keywords"
+  ACTION create "new shader; preset=unlit|lit|transparent or code=HLSL string"
+  ACTION set "change prop+value or keyword+enabled on existing shader"
+  ACTION graph_get READ "read Shader Graph nodes/edges"
+  ACTION graph_create "new .shadergraph"
+  ACTION graph_node "add/remove/configure a node; node_type, node_id, node_action"
+  ACTION graph_edge "connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action"
   ACTION graph_add_property
   ACTION graph_remove_property
   ACTION graph_rename_property
-  ACTION graph_get_layout
-  ACTION graph_set_layout
-  ACTION graph_auto_layout
-  DOC "action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_add_property|graph_remove_property|graph_rename_property | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional)."
+  ACTION graph_get_layout "read node positions as compact text"
+  ACTION graph_set_layout "apply positions from layout text; layout=[id] x,y WxH lines"
+  ACTION graph_auto_layout "auto-arrange nodes by data-flow; h_gap, v_gap optional"
   DOC "For material shader assignment use `material` tool instead."
   ARG action str
   ARG path str EXAMPLE "/__seam_nonexistent" "Project asset path to a .shader or .shadergraph file"
@@ -1969,25 +1943,16 @@ INTERNAL source_patch_write RW "Writes a source patch; the internal sender of as
   TAG reflect_silent
 END
 
-TOOL spatial_query SCENE RO "Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon."
+TOOL spatial_query SCENE RO "Spatial queries."
   HANDLER register "CommandRouter.ExecSpatialQuery"
   BODY spatial
-  DOC "nearest: find closest object (optionally filtered by component name)."
-  DOC "in_front_of: position in front of object at distance."
-  DOC "objects_in_radius: list all objects within radius. path is optional when center='x,y,z' is given."
-  DOC "bounds_info: detailed bounds/dimensions of object."
-  DOC "raycast: cast ray from path/pos to target, returns hits sorted by distance."
-  DOC "spatial_map: ASCII grid map of objects in XZ plane. cell_size in meters."
-  DOC "objects_in_polygon: objects whose XZ pivot is inside a polygon. Provide either"
-  DOC "vertices='x1,z1;x2,z2;...' (>=3 pairs) or a previously defined region_id;"
-  DOC "supplied vertices are always validated. cap=max results (default 50)."
-  ACTION nearest
-  ACTION in_front_of
-  ACTION objects_in_radius
-  ACTION bounds_info
-  ACTION raycast
-  ACTION spatial_map
-  ACTION objects_in_polygon
+  ACTION nearest "find closest object (optionally filtered by component name)"
+  ACTION in_front_of "position in front of object at distance"
+  ACTION objects_in_radius "list all objects within radius; path is optional when center='x,y,z' is given"
+  ACTION bounds_info "detailed bounds/dimensions of object"
+  ACTION raycast "cast ray from path/pos to target, returns hits sorted by distance"
+  ACTION spatial_map "ASCII grid map of objects in XZ plane; cell_size in meters"
+  ACTION objects_in_polygon "objects whose XZ pivot is inside a polygon; vertices='x1,z1;x2,z2;...' (>=3 pairs) or a previously defined region_id (always validated); cap=max results (default 50)"
   ARG action str
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG target ostr DEFAULT None
@@ -2068,7 +2033,7 @@ TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use f
   ACTION get READ
   ACTION create
   ACTION edit
-  ACTION add_track
+  ACTION add_track "Animation|Audio|Activation|Signal|Control|Group"
   ACTION remove_track
   ACTION add_clip
   ACTION remove_clip
@@ -2079,18 +2044,17 @@ TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use f
   ACTION lock
   ACTION unlock
   ACTION rename_track
-  ACTION reorder_track
-  ACTION duplicate_clip
+  ACTION reorder_track "index=target position"
+  ACTION duplicate_clip "offset=time shift"
   ACTION add_marker
   ACTION remove_marker
-  ACTION set_track_offset
+  ACTION set_track_offset "value=offset mode (auto|transform|scene)"
   ACTION set_duration
   ACTION add_sub_track
   ACTION set_clip_in
   ACTION get_bindings READ
   ACTION preview
-  DOC "action: get | create | edit | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview."
-  DOC "track=track name. index=target position for reorder_track. offset=time shift for duplicate_clip. value=offset mode (auto|transform|scene) for set_track_offset."
+  DOC "track=track name."
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG action str
   ARG track ostr DEFAULT None
@@ -2114,7 +2078,7 @@ TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use f
   TAG schema_keep_full
 END
 
-TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene. action: move|copy."
+TOOL transfer_object SCENE RW "Move or copy a GameObject to another loaded scene."
   HANDLER register "CommandRouter.ExecTransferObject"
   FORWARD
   DOC "target_scene: destination scene name. Omit = same scene (copy = duplicate)."
@@ -2144,8 +2108,8 @@ END
 TOOL uitk_element UITOOLKIT RW "Mutate or query a VisualElement in a UIDocument or PanelRenderer host"
   HANDLER register "CommandRouter.ExecUitkElement"
   TIMEOUT 15.0
-  ACTION query
-  ACTION get
+  ACTION query "find elements"
+  ACTION get "read value/text"
   ACTION set_style
   ACTION add_class
   ACTION remove_class
@@ -2167,18 +2131,18 @@ TOOL uitk_file UITOOLKIT RW "Read or edit a UXML or USS asset file."
   WIRE not_batch
   FLAG direct_only
   FLAG unity_transport
-  ACTION read READ
-  ACTION revert
-  ACTION write
-  ACTION create_uxml
-  ACTION create_uss
-  ACTION set-attr
+  ACTION read READ "return the file's UTF-8 text verbatim (no normalization)"
+  ACTION revert "restore file to state before last write (single-level, cleared on domain reload)"
+  ACTION write "full file replace; validates and triggers AssetDatabase.ImportAsset"
+  ACTION create_uxml "new UXML file with minimal template; content optional"
+  ACTION create_uss "new empty USS file; content optional"
+  ACTION set-attr "set attribute on UXML element by name (selector=name, attr=attr, value=val)"
   ACTION add-class
   ACTION remove-class
-  ACTION add-element
-  ACTION remove-element
-  ACTION set-rule
-  ACTION remove-rule
+  ACTION add-element "append child (parent=name, tag=ui:Label, attrs='k=v ...')"
+  ACTION remove-element "delete UXML element and children by name"
+  ACTION set-rule "set CSS property in USS rule; creates rule if selector absent"
+  ACTION remove-rule "delete USS rule block by exact selector string"
   ARG path str "Assets/ path to a .uxml or .uss project file; Library/ and Packages/ are rejected"
   ARG action Any DEFAULT_TEXT "read"
   ARG content ostr DEFAULT None

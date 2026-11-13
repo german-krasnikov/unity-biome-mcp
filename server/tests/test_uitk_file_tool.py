@@ -50,8 +50,11 @@ async def test_uitk_file_content_forwarded(mock_bridge):
 
 
 def test_uitk_file_read_doc_promises_verbatim_utf8():
-    from unity_mcp.server import uitk_file
+    """The verbatim-UTF-8 promise lives on the `read` action's own ACTION hint (dsl-bottlenecks-2026-11 Q1) and
+    reaches the client through the live registered description, not through uitk_file.__doc__ directly: the
+    hand docstring no longer repeats the per-action enumeration ToolSet._describe() now generates."""
+    import unity_mcp.server as server
 
-    doc = uitk_file.__doc__ or ""
+    doc = server.mcp._tool_manager._tools["uitk_file"].description or ""
     assert "UTF-8 text verbatim" in doc
     assert "no normalization" in doc

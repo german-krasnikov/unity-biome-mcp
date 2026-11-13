@@ -38,7 +38,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM MAXCHARS <maxchars:match([0-9]+)>
   ITEM DOC <line:string>
   ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
-  ITEM ACTION <act:match([a-z][a-z0-9_]*(-[a-z0-9_]+)*) UNIQUE> [<read:enum(READ)>]
+  ITEM ACTION <act:match([a-z][a-z0-9_]*(-[a-z0-9_]+)*) UNIQUE> [<read:enum(READ)>] [<hint:string>]
   ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [EXAMPLE <example:string>] [ROLE <role:enum(target|prop|value|name|newname)>] [<adesc:string>]
   ITEM VERB <vtext:string>
   ITEM EXPECT <mode:enum(token|bool_arg|arg_echo)> <tokens:string> [<strict:enum(STRICT)>] [ARG <argname:match([a-z][a-z0-9_]*)>]
@@ -96,6 +96,13 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
     )
     , session=True)
     ELSE
+    ))
+    END
+    IF ANY ACTION
+    tools.actions('{name}', (
+    EACH ACTION
+        ('{act}', "{?hint:{hint}}"),
+    END
     ))
     END
     IF ANY FORWARD

@@ -11,13 +11,12 @@ of (file, function) pairs, because some tools (`editor`) split their dispatch ac
 a switch in another; the scanner unions the arms/hints of every source. It grows as more tools gain ACTION lines
 in later slices.
 """
-import importlib
 import re
 from pathlib import Path
 
 import pytest
 
-from unity_mcp.tools.generated import catalog_actions, catalog_examples, catalog_tools
+from unity_mcp.tools.generated import catalog_actions, catalog_examples
 
 pytestmark = pytest.mark.csharp_parity
 
@@ -529,71 +528,22 @@ def test_scanner_detects_a_handler_that_passes_the_generated_table_to_invalid_ac
     assert not passes_tool_actions_names(hand_list_body, "get")
 
 
-# --- Every declared action must be named in the text the MCP client actually receives. ---
+# --- Every declared action is named in the text the MCP client receives -- by construction, not by a sweep. ---
 #
-# The client-visible description of a tool is `fn.__doc__` of its generated wrapper in
-# server/src/unity_mcp/tools/generated/catalog_tools.py: ToolSet.register() hands that function straight to
-# `mcp.tool()(fn)` (server/src/unity_mcp/tools/_catalog_runtime.py), and the MCP SDK reads the tool's description
-# from the function's docstring, not from the `tools.expect(...)` summary string above it. scripts/dsl_golden.py
-# confirms this: `surface_lines()` reads `tool.description` off the live registered MCP tool for the golden-surface
-# test (test_tool_surface_golden.py). `catalog_specs.py` (the ToolSpec table) carries no description field at all.
-
-_WORD_BOUNDARY_TEMPLATE = r"\b{}\b"
-
-
-def _names_whole_word(text: str, word: str) -> bool:
-    """Whether `word` appears in `text` as a whole word: surrounded by non-word characters (or the string's ends).
-
-    `_` counts as a word character (Python's `\\b`), so 'get' does not match inside 'get_events', and 'edit' does
-    not match inside 'edited'.
-    """
-    return re.search(_WORD_BOUNDARY_TEMPLATE.format(re.escape(word)), text) is not None
+# Through dsl-bottlenecks-2026-11 Q1/S1, this held only by a per-tool test sweeping the hand-written DOC prose
+# (deleted along with this comment): the catalog template could not yet generate the enumeration itself. Q1/S2
+# closed that gap -- ToolSet._describe() (_catalog_runtime.py) appends one "action: ..." line, built from the
+# same ACTION lines that feed TOOL_ACTIONS, to every tool's `mcp.tool(description=...)` -- so the property now
+# holds for any tool with ACTION lines without a test re-deriving it. What is kept is a single pin of the hook
+# itself, through both registration paths: `install()` for a generated wrapper (`particle`, no hints) and
+# `register()` for a hand-registered one (`uitk_file`, hinted) -- proof the mechanism really reaches the live
+# registry scripts/dsl_golden.py reads, not just `_describe()` in isolation.
 
 
-def test_word_boundary_matcher_rejects_substring_matches():
-    """Synthetic self-test of the matcher itself, no catalog edit: a short action name must not be satisfied by a
-    longer word that merely contains it."""
-    assert _names_whole_word("action: get (list clips)", "get")
-    assert not _names_whole_word("action: get_events only", "get")
-    assert _names_whole_word("action: get_events only", "get_events")
-    assert not _names_whole_word("already edited", "edit")
-    assert _names_whole_word("ready to edit now", "edit")
+def test_a_declared_action_appears_in_the_live_registered_description():
+    import unity_mcp.server as _server  # registers every tool, generated and hand-written, into one registry
 
-
-# tool -> (module, function) of the registered function whose __doc__ is really client-visible, for a tool the
-# catalog cannot generate a wrapper for at all (no FORWARD, no BODY) and that is instead hand-registered elsewhere.
-_DOC_SOURCE_OVERRIDE: dict[str, tuple[str, str]] = {
-    # TOOL uitk_element declares HANDLER (C# dispatch registration) but neither FORWARD nor BODY, so
-    # catalog_tools has no `uitk_element` attribute: its real wrapper -- and the docstring the MCP client reads --
-    # is hand-written in tools/uitk.py, because its action argument needs a real client-side Literal/enum type
-    # that the catalog's ARG grammar cannot express (see uitk.py's own comment on that function).
-    "uitk_element": ("unity_mcp.tools.uitk", "uitk_element"),
-    # TOOL uitk_file has neither FORWARD nor BODY either (FLAG direct_only + unity_transport, hand-registered
-    # in CommandRouter.Registration.cs): catalog_tools has no `uitk_file` attribute, so its docstring is
-    # hand-written in tools/uitk.py too.
-    "uitk_file": ("unity_mcp.tools.uitk", "uitk_file"),
-}
-
-
-def _client_visible_doc(tool: str) -> str:
-    if tool in _DOC_SOURCE_OVERRIDE:
-        module_name, func_name = _DOC_SOURCE_OVERRIDE[tool]
-        return getattr(importlib.import_module(module_name), func_name).__doc__ or ""
-    return getattr(catalog_tools, tool).__doc__ or ""
-
-
-def test_doc_source_override_is_only_used_for_a_tool_the_catalog_cannot_generate_a_wrapper_for():
-    """Synthetic self-test: the override must stay a last resort, not a way to dodge the real catalog wrapper."""
-    for tool in _DOC_SOURCE_OVERRIDE:
-        assert not hasattr(catalog_tools, tool), f"{tool} has a catalog_tools wrapper -- drop the override"
-
-
-@pytest.mark.parametrize("tool", sorted(catalog_actions.TOOL_ACTIONS))
-def test_declared_action_is_named_in_the_client_visible_description(tool):
-    """Substitute for generating the action enumeration into the description: the catalog template cannot yet
-    nest the IF/EACH needed to emit it (dsl-bottlenecks-2026-11, Core gap reported to the owner), so until that is
-    fixed, this test guards the hand-written DOC prose instead -- delete it once the enumeration is generated.
-    """
-    description = _client_visible_doc(tool)
-    missing = [action for action in catalog_actions.TOOL_ACTIONS[tool] if not _names_whole_word(description, action)]
-    assert not missing, f"{tool}: description does not name action(s) {missing} as whole words -- {description!r}"
+    for tool in ("particle", "uitk_file"):
+        description = _server.mcp._tool_manager._tools[tool].description or ""
+        for action in catalog_actions.TOOL_ACTIONS[tool]:
+            assert re.search(rf"\b{re.escape(action)}\b", description), f"{tool}: {action!r} missing from {description!r}"

@@ -38,11 +38,18 @@ _IMPL_LEAK_TOKENS = ("C#-side", "bridge.send", "TCP command", "sent over wire", 
 
 @pytest.mark.parametrize("tool_name", sorted(_CORE_TOOLS))
 def test_core_tool_has_description(tool_name):
-    """Every CORE tool must have a non-empty description (docstring len > 30)."""
+    """Every CORE tool must have a non-empty description (len > 30) -- the live client-visible one, not
+    necessarily fn.__doc__ alone: since dsl-bottlenecks-2026-11 Q1, a tool with ACTION hints gets its per-
+    action facts generated onto a trailing "action: ..." line (ToolSet._describe(), _catalog_runtime.py)
+    rather than keeping them hand-written in the docstring (e.g. `editor`'s raw __doc__ is now just its
+    one-line summary)."""
+    import unity_mcp.server as _server
+
     fn = _TOOL_FN.get(tool_name)
     assert fn is not None, f"No function found for CORE tool '{tool_name}'"
-    doc = fn.__doc__ or ""
-    assert len(doc) > 30, f"'{tool_name}' docstring too short ({len(doc)} chars): {doc!r}"
+    live = _server.mcp._tool_manager._tools.get(tool_name)
+    doc = (live.description if live is not None else None) or fn.__doc__ or ""
+    assert len(doc) > 30, f"'{tool_name}' description too short ({len(doc)} chars): {doc!r}"
 
 
 def test_get_console_cross_refs_compile_errors():

@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=a289d8e839f1aa9c56508f5b97d6ed475b9c881415eb3e2c725523f041e39a22
+# source-sha256=ef8eb2d7c3bba65c3484358fe680dbde4b719151b50f56ba6d58c13fdc3b5de4
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -68,6 +68,23 @@ tools.expect('animation', 'RW', "Animate GameObject properties via AnimationClip
     ('string_param', ostr, None),
     ('compact', bool, False),
 ))
+tools.actions('animation', (
+    ('get', "list clips/keys"),
+    ('create', "new AnimationClip on object"),
+    ('edit', "add/replace keyframes"),
+    ('add_key', ""),
+    ('remove_key', ""),
+    ('remove_curve', ""),
+    ('set_keys', ""),
+    ('set_loop', ""),
+    ('set_wrap', "keys='loop'|'once'|'pingpong'|'clamp'"),
+    ('set_framerate', "keys='30'"),
+    ('preview', "scrub to time"),
+    ('get_clip_path', "returns asset path"),
+    ('get_events', ""),
+    ('add_event', "function_name: method name; int_param/float_param/string_param: event parameters"),
+    ('remove_event', ""),
+))
 
 
 @tools.provide
@@ -89,12 +106,11 @@ async def animation(
     compact: bool = False,
 ) -> str:
     ("Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this)."
-     "\n    action: get (list clips/keys) | create (new AnimationClip on object) | edit (add/replace keyframes; add_key/remove_key/remove_curve/set_keys/set_loop are the same edit) | preview (scrub to time) | add_event | remove_event | get_events | set_wrap (keys='loop'|'once'|'pingpong'|'clamp') | set_framerate (keys='30') | get_clip_path (returns asset path)."
+     "\n    add_key/remove_key/remove_curve/set_keys/set_loop are the same edit."
      "\n    clip=clip name, keys='t:0 v:(0,0,0); t:1 v:(0,2,0)', property=e.g. localPosition.x."
      "\n    component_type: Unity component to animate (default: Transform). Examples: Light, Camera, Rigidbody."
      "\n    binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root."
      "\n    tangent: tangent mode for keyframes: auto (default) | smooth | linear | constant."
-     "\n    function_name: method name for add_event. int_param/float_param/string_param: event parameters."
     )
     return await _send('animation', _args(
         action=rt.w_str(action),
@@ -115,7 +131,7 @@ async def animation(
     ))
 
 
-tools.expect('animator', 'RW', "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param.", (
+tools.expect('animator', 'RW', "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics).", (
     ('action', str),
     ('path', str),
     ('state', ostr, None),
@@ -139,6 +155,27 @@ tools.expect('animator', 'RW', "Animator Controller — state machine. Modifies 
     ('blending', ostr, None),
     ('value', ostr, None),
     ('avatar_path', ostr, None),
+))
+tools.actions('animator', (
+    ('get', ""),
+    ('add_param', ""),
+    ('add_state', ""),
+    ('add_transition', ""),
+    ('set_default', ""),
+    ('remove', ""),
+    ('add_blend_tree', ""),
+    ('edit_blend_tree', ""),
+    ('get_blend_tree', ""),
+    ('add_layer', ""),
+    ('remove_layer', ""),
+    ('rename_layer', ""),
+    ('set_layer_weight', ""),
+    ('set_layer_blending', ""),
+    ('set_state_speed', "value = speed multiplier"),
+    ('update_transition', ""),
+    ('set_avatar', "avatar_path = asset path"),
+    ('rename_state', ""),
+    ('rename_param', ""),
 ))
 tools.expect_body('animator', 'animation')
 
@@ -169,7 +206,7 @@ async def animator(
     value: ostr = None,
     avatar_path: ostr = None,
 ) -> str:
-    ("Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics). action: get|add_param|add_state|add_transition|set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|set_avatar|rename_state|rename_param."
+    ("Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics)."
      "\n    params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'."
      "\n    conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState)."
      "\n    blend_type: 1d|2d_simple|2d_freeform|2d_cartesian|direct."
@@ -179,7 +216,6 @@ async def animator(
      "\n    layer: layer index (int) for add_state/add_transition/set_default, or name/index string for CRUD ops."
      "\n    weight: defaultWeight for add_layer/set_layer_weight (0.0–1.0)."
      "\n    blending: Override|Additive for add_layer/set_layer_blending."
-     "\n    value: speed multiplier for set_state_speed. avatar_path: asset path for set_avatar."
     )
     from .. import animation as _biome_body_mod
     return await _biome_body_mod._animator_body(
@@ -335,7 +371,7 @@ async def ask_user(
     ))
 
 
-tools.expect('asset', 'RW', "Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path.", (
+tools.expect('asset', 'RW', "Asset database. Creates, moves, or deletes assets. No confirmation required.", (
     ('action', str),
     ('path', ostr, None),
     ('type', ostr, None),
@@ -352,6 +388,23 @@ tools.expect('asset', 'RW', "Asset database. Creates, moves, or deletes assets. 
     ('content', ostr, None),
     ('class_name', ostr, None),
     ('path_only', bool, False),
+))
+tools.actions('asset', (
+    ('find', "type+name+folder+labels"),
+    ('get_info', ""),
+    ('create', "type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO)"),
+    ('move', "moves .meta correctly"),
+    ('validate_move', "path_only=True: syntax only, skips the folder-existence check (preflight)"),
+    ('duplicate', ""),
+    ('delete', ""),
+    ('get_dependencies', "forward deps"),
+    ('find_dependents', "reverse deps (who references this asset)"),
+    ('import_settings', ""),
+    ('export_package', "path+output[+include_deps=false to skip deps]"),
+    ('import_package', "path (filesystem)"),
+    ('read_text', "path"),
+    ('write_text', "path+content"),
+    ('reimport', "path"),
 ))
 tools.expect_body('asset', 'asset')
 
@@ -375,7 +428,8 @@ async def asset(
     class_name: ostr = None,
     path_only: bool = False,
 ) -> str:
-    ("Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."
+    ("Asset database. Creates, moves, or deletes assets. No confirmation required."
+     "\n    move/validate_move: source+dest (Assets/ paths)."
     )
     from .. import asset as _biome_body_mod
     return await _biome_body_mod._asset_body(
@@ -589,12 +643,15 @@ async def budget_status(
     )
 
 
-tools.expect('build', 'RW', "Build player. action: build.", (
+tools.expect('build', 'RW', "Build player.", (
     ('action', str),
     ('target', ostr, None),
     ('scenes', ostr, None),
     ('path', ostr, None),
     ('dev', bool, False),
+))
+tools.actions('build', (
+    ('build', ""),
 ))
 
 
@@ -606,7 +663,7 @@ async def build(
     path: ostr = None,
     dev: bool = False,
 ) -> str:
-    ("Build player. action: build."
+    ("Build player."
      "\n    target: StandaloneWindows64|StandaloneOSX|Android|iOS|WebGL (default: active)."
      "\n    scenes: comma-sep asset paths (default: Build Settings list)."
      "\n    path: output path (default: Builds/<target>)."
@@ -1026,11 +1083,20 @@ async def doctor(
     )
 
 
-tools.expect('editor', 'RW', "Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode.", (
+tools.expect('editor', 'RW', "Editor state/control.", (
     ('action', str, "state"),
     ('path', ostr, None),
     ('paths', ostr, None),
     ('enable', obool, None),
+))
+tools.actions('editor', (
+    ('state', ""),
+    ('mutation_mode', "omit enable to query current intent; enable=True/False to set it"),
+    ('play', ""),
+    ('pause', ""),
+    ('stop', ""),
+    ('select', "path (single) or paths (comma-sep multi, e.g. \"/Player,/Enemy,/NPC\")"),
+    ('project_path', ""),
 ))
 tools.expect_body('editor', 'editor_control')
 
@@ -1042,9 +1108,7 @@ async def editor(
     paths: ostr = None,
     enable: obool = None,
 ) -> str:
-    ("Editor state/control. action: state|play|pause|stop|select|project_path|mutation_mode."
-     "\n    select: path (single) or paths (comma-sep multi, e.g. \"/Player,/Enemy,/NPC\")."
-     "\n    mutation_mode: omit enable to query current intent; enable=True/False to set it."
+    ("Editor state/control."
     )
     from .. import editor_control as _biome_body_mod
     return await _biome_body_mod._editor_body(
@@ -1924,10 +1988,14 @@ async def load_session(
     )
 
 
-tools.expect('manage_component', 'RW', "Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button').", (
+tools.expect('manage_component', 'RW', "Add or remove a component. Mutates scene. No confirmation required. type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button').", (
     ('path', str),
     ('type', str),
     ('action', str),
+))
+tools.actions('manage_component', (
+    ('add', ""),
+    ('remove', ""),
 ))
 
 
@@ -1937,7 +2005,8 @@ async def manage_component(
     type: str,
     action: str,
 ) -> str:
-    ("Add or remove a component. Mutates scene. No confirmation required. action: 'add' or 'remove' ONLY (no 'enable'/'disable' — use set_property with prop='m_Enabled' for that). type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
+    ("Add or remove a component. Mutates scene. No confirmation required. type: short name (e.g. 'Button') or full namespace (e.g. 'UnityEngine.UI.Button')."
+     "\n    no 'enable'/'disable' — use set_property with prop='m_Enabled' for that."
     )
     return await _send('manage_component', _args(
         path=rt.w_str(path),
@@ -1946,7 +2015,7 @@ async def manage_component(
     ))
 
 
-tools.expect('material', 'RW', "Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared).", (
+tools.expect('material', 'RW', "Material asset management (for quick color change use `set_material`). get/set: path (asset) or object_path (scene). slot: material slot index (default 0).", (
     ('action', str),
     ('path', ostr, None),
     ('object_path', ostr, None),
@@ -1958,6 +2027,17 @@ tools.expect('material', 'RW', "Material asset management (for quick color chang
     ('slot', oint, None),
     ('filter', ostr, None),
     ('target', ostr, None),
+))
+tools.actions('material', (
+    ('create', "path+shader"),
+    ('get', ""),
+    ('set', "target: shared|instance|asset (default shared)"),
+    ('copy', "source+targets (comma-sep scene paths)"),
+    ('list_properties', ""),
+    ('list_slots', "object_path"),
+    ('get_errors', "path (shader asset)"),
+    ('list_shaders', "filter (optional name filter)"),
+    ('set_fields', "path+value (newline-separated prop=val)"),
 ))
 
 
@@ -1975,7 +2055,7 @@ async def material(
     filter: ostr = None,
     target: ostr = None,
 ) -> str:
-    ("Material asset management (for quick color change use `set_material`). action: create|get|set|copy|list_properties|list_slots|get_errors|list_shaders|set_fields. create: path+shader. get/set: path (asset) or object_path (scene). copy: source+targets (comma-sep scene paths). slot: material slot index (default 0). list_slots: object_path. get_errors: path (shader asset). list_shaders: filter (optional name filter). set_fields: path+value (newline-separated prop=val). set target: shared|instance|asset (default shared)."
+    ("Material asset management (for quick color change use `set_material`). get/set: path (asset) or object_path (scene). slot: material slot index (default 0)."
     )
     return await _send('material', _args(
         action=rt.w_str(action),
@@ -1996,6 +2076,14 @@ tools.expect('material_audit', 'RO', "Material/texture scene-wide audit.", (
     ('action', str, "summary"),
     ('platform', ostr, None),
 ))
+tools.actions('material_audit', (
+    ('summary', ""),
+    ('materials', ""),
+    ('textures', ""),
+    ('duplicates', ""),
+    ('compression', ""),
+    ('recommendations', ""),
+))
 
 
 @tools.provide
@@ -2004,7 +2092,6 @@ async def material_audit(
     platform: ostr = None,
 ) -> str:
     ("Material/texture scene-wide audit."
-     "\n    action: summary|materials|textures|duplicates|compression|recommendations."
      "\n    platform: Android|iOS|Standalone|Default (for compression check)."
     )
     return await _send('material_audit', _args(
@@ -2031,9 +2118,13 @@ async def mcp_status(
     )
 
 
-tools.expect('menu', 'RW', "Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API.", (
+tools.expect('menu', 'RW', "Execute or list Unity Editor menu items. Note: Edit/ menu items not supported by Unity API.", (
     ('action', str),
     ('path', ostr, None),
+))
+tools.actions('menu', (
+    ('execute', "run menu item by path"),
+    ('list', "show sub-items (omit path for all roots)"),
 ))
 
 
@@ -2042,7 +2133,7 @@ async def menu(
     action: str,
     path: ostr = None,
 ) -> str:
-    ("Execute or list Unity Editor menu items. action: execute|list. execute: run menu item by path. list: show sub-items (omit path for all roots). Note: Edit/ menu items not supported by Unity API."
+    ("Execute or list Unity Editor menu items. Note: Edit/ menu items not supported by Unity API."
     )
     return await _send('menu', _args(
         action=rt.w_str(action),
@@ -2148,11 +2239,17 @@ async def object_diff(
     ))
 
 
-tools.expect('package', 'RW', "Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove.", (
+tools.expect('package', 'RW', "Package manager. Adds or removes packages. No confirmation required.", (
     ('action', str),
     ('name', ostr, None),
     ('version', ostr, None),
     ('query', ostr, None),
+))
+tools.actions('package', (
+    ('list', "all installed packages"),
+    ('search', "query required"),
+    ('add', "name required, version optional"),
+    ('remove', "name required"),
 ))
 
 
@@ -2163,11 +2260,7 @@ async def package(
     version: ostr = None,
     query: ostr = None,
 ) -> str:
-    ("Package manager. Adds or removes packages. No confirmation required. action: list|search|add|remove."
-     "\n    list: all installed packages."
-     "\n    search: query required."
-     "\n    add: name required, version optional."
-     "\n    remove: name required."
+    ("Package manager. Adds or removes packages. No confirmation required."
     )
     return await _send('package', _args(
         action=rt.w_str(action),
@@ -2177,7 +2270,7 @@ async def package(
     ))
 
 
-tools.expect('particle', 'RW', "Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail.", (
+tools.expect('particle', 'RW', "Particle System. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail.", (
     ('action', str),
     ('path', str),
     ('name', ostr, None),
@@ -2185,6 +2278,15 @@ tools.expect('particle', 'RW', "Particle System. action: get|create|set|apply|pl
     ('prop', ostr, None),
     ('value', ostr, None),
     ('preset', ostr, None),
+))
+tools.actions('particle', (
+    ('get', ""),
+    ('create', ""),
+    ('set', ""),
+    ('apply', ""),
+    ('play', ""),
+    ('stop', ""),
+    ('pause', ""),
 ))
 
 
@@ -2198,7 +2300,7 @@ async def particle(
     value: ostr = None,
     preset: ostr = None,
 ) -> str:
-    ("Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
+    ("Particle System. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
     )
     return await _send('particle', _args(
         action=rt.w_str(action),
@@ -2254,7 +2356,7 @@ async def ping_object(
     ))
 
 
-tools.expect('prefab', 'RW', "Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate.", (
+tools.expect('prefab', 'RW', "Prefab. Creates or modifies prefab assets. No confirmation required.", (
     ('action', str),
     ('path', ostr, None),
     ('asset_path', ostr, None),
@@ -2271,6 +2373,16 @@ tools.expect('prefab', 'RW', "Prefab. Creates or modifies prefab assets. No conf
     ('format', ostr, None),
     ('parent', ostr, None),
     ('child_path', ostr, None),
+))
+tools.actions('prefab', (
+    ('save', "path (scene) + asset_path [+ mode: new|overwrite (default)]"),
+    ('create_variant', "base_path + variant_path"),
+    ('instantiate', "asset_path (instantiate prefab into active scene)"),
+    ('apply', ""),
+    ('revert', "scope: object (default)|children"),
+    ('get_overrides', "format: text (default)|structured"),
+    ('unpack', ""),
+    ('edit', "asset_path + component + prop + value (set a property); or asset_path + add_component/remove_component (manage components)"),
 ))
 
 
@@ -2293,14 +2405,7 @@ async def prefab(
     parent: ostr = None,
     child_path: ostr = None,
 ) -> str:
-    ("Prefab. Creates or modifies prefab assets. No confirmation required. action: save|create_variant|apply|revert|get_overrides|unpack|edit|instantiate."
-     "\n    edit: asset_path + component + prop + value (set property on prefab asset)."
-     "\n    edit: asset_path + add_component or remove_component (manage components)."
-     "\n    save: path (scene) + asset_path [+ mode: new|overwrite (default)]."
-     "\n    revert: scope: object (default)|children."
-     "\n    get_overrides: format: text (default)|structured."
-     "\n    create_variant: base_path + variant_path."
-     "\n    instantiate: asset_path (instantiate prefab into active scene)."
+    ("Prefab. Creates or modifies prefab assets. No confirmation required."
     )
     return await _send('prefab', _args(
         action=rt.w_str(action),
@@ -2331,6 +2436,14 @@ tools.expect('profile', 'RW', "Profile CPU/GPU/memory over time.", (
     ('mode', str, "burst"),
     ('threshold_ms', float, 33.3),
 ))
+tools.actions('profile', (
+    ('start', ""),
+    ('stop', ""),
+    ('status', ""),
+    ('analyze', "narrow output to gc|rendering|physics|cpu"),
+    ('compare', ""),
+    ('list_sessions', ""),
+))
 tools.expect_body('profile', 'profiling')
 
 
@@ -2345,9 +2458,7 @@ async def profile(
     threshold_ms: float = 33.3,
 ) -> str:
     ("Profile CPU/GPU/memory over time."
-     "\n    action: start|stop|status|analyze|compare|list_sessions"
      "\n    mode: burst (auto-stop after duration) | manual (explicit stop) | triggered (on spike)"
-     "\n    focus: narrow analyze output to gc|rendering|physics|cpu"
     )
     from .. import profiling as _biome_body_mod
     return await _biome_body_mod._profile_body(
@@ -2433,7 +2544,7 @@ tools.expect('reconnect_unity', 'RO', "Reconnect to Unity. Port 0 or omitted = a
     ('ctx', Any, None),
 )
 , session=True)
-tools.expect('references', 'RW', "References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs.", (
+tools.expect('references', 'RW', "References.", (
     ('action', str),
     ('path', str),
     ('children', bool, False),
@@ -2441,6 +2552,11 @@ tools.expect('references', 'RW', "References. action: get|find_to|remap. get: ou
     ('source', ostr, None),
     ('target', ostr, None),
     ('mappings', ostr, None),
+))
+tools.actions('references', (
+    ('get', "outgoing refs"),
+    ('find_to', "reverse search"),
+    ('remap', "remap refs"),
 ))
 
 
@@ -2454,7 +2570,7 @@ async def references(
     target: ostr = None,
     mappings: ostr = None,
 ) -> str:
-    ("References. action: get|find_to|remap. get: outgoing refs. find_to: reverse search. remap: remap refs."
+    ("References."
     )
     return await _send('references', _args(
         action=rt.w_str(action),
@@ -2541,6 +2657,20 @@ tools.expect('render_analyze', 'RO', "Rendering analysis.", (
     ('baseline_id', ostr, None),
     ('max_events', oint, None),
 ))
+tools.actions('render_analyze', (
+    ('stats', "draw calls, batches, tris, verts, set-pass from UnityStats"),
+    ('materials', ""),
+    ('shaders', ""),
+    ('overdraw', ""),
+    ('audit', "full rendering health check (all sections, brief)"),
+    ('compare', "diff against last baseline snapshot"),
+    ('batching', "SRP Batcher / static / dynamic / GPU instancing analysis"),
+    ('lights', ""),
+    ('shadow_audit', ""),
+    ('probe_audit', ""),
+    ('light_optimize', ""),
+    ('frame_debug', "per-draw-call data via FrameDebugger reflection (pauses rendering briefly)"),
+))
 
 
 @tools.provide
@@ -2552,13 +2682,6 @@ async def render_analyze(
     max_events: oint = None,
 ) -> str:
     ("Rendering analysis."
-     "\n    action: stats|materials|shaders|lights|batching|overdraw|audit|compare"
-     "\n            |frame_debug|shadow_audit|probe_audit|light_optimize"
-     "\n    stats: draw calls, batches, tris, verts, set-pass from UnityStats."
-     "\n    batching: SRP Batcher / static / dynamic / GPU instancing analysis."
-     "\n    audit: full rendering health check (all sections, brief)."
-     "\n    compare: diff against last baseline snapshot."
-     "\n    frame_debug: per-draw-call data via FrameDebugger reflection (pauses rendering briefly)."
      "\n    detail: brief (default) | full.  path: optional subtree root."
     )
     return await _send('render_analyze', _args(
@@ -2927,11 +3050,22 @@ async def scan_scene(
     ))
 
 
-tools.expect('scene', 'DEL', "Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy.", (
+tools.expect('scene', 'DEL', "Scene management.", (
     ('action', str),
     ('path', ostr, None),
     ('scene', ostr, None),
     ('include_unsaved', bool, True),
+))
+tools.actions('scene', (
+    ('new', ""),
+    ('open', ""),
+    ('save', ""),
+    ('discard', ""),
+    ('open_additive', ""),
+    ('close', ""),
+    ('set_active', ""),
+    ('list', ""),
+    ('save_copy', "writes current dirty state to path as backup; active scene reference unchanged"),
 ))
 tools.expect_body('scene', 'scene')
 
@@ -2943,11 +3077,10 @@ async def scene(
     scene: ostr = None,
     include_unsaved: bool = True,
 ) -> str:
-    ("Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy."
+    ("Scene management."
      "\n    path: required for open/open_additive/close/set_active/save_copy. For save,"
      "\n    omit it to save to the current path; an untitled scene requires a path."
      "\n    scene: save/discard/save_copy target when multiple scenes loaded (identifies by name)."
-     "\n    save_copy: writes current dirty state to path as backup; active scene reference unchanged."
      "\n    include_unsaved: always True — save_copy always captures current in-memory state."
     )
     from .. import scene as _biome_body_mod
@@ -3007,6 +3140,10 @@ tools.expect('scene_environment', 'RW', "Read/write scene environment: ambient l
     ('prop', ostr, None),
     ('value', ostr, None),
 ))
+tools.actions('scene_environment', (
+    ('get', ""),
+    ('set', "requires prop and value"),
+))
 
 
 @tools.provide
@@ -3016,7 +3153,6 @@ async def scene_environment(
     value: ostr = None,
 ) -> str:
     ("Read/write scene environment: ambient light, fog, skybox, reflections."
-     "\n    action: get|set. set requires prop and value."
      "\n    Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,"
      "\n    ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance,"
      "\n    reflectionIntensity, reflectionBounces, subtractiveShadowColor, defaultReflectionResolution."
@@ -3178,7 +3314,7 @@ async def screenshot_compare(
     )
 
 
-tools.expect('scriptable_object', 'RW', "ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter.", (
+tools.expect('scriptable_object', 'RW', "ScriptableObject. get/set: path. set/create fields: \\n-separated prop=value pairs.", (
     ('action', str),
     ('path', ostr, None),
     ('type', ostr, None),
@@ -3186,6 +3322,13 @@ tools.expect('scriptable_object', 'RW', "ScriptableObject. action: create|get|se
     ('value', ostr, None),
     ('fields', ostr, None),
     ('filter', ostr, None),
+))
+tools.actions('scriptable_object', (
+    ('create', "type+path[+fields]"),
+    ('get', "fields: comma-sep filter"),
+    ('set', ""),
+    ('list_types', "filter"),
+    ('find', "type"),
 ))
 
 
@@ -3199,7 +3342,7 @@ async def scriptable_object(
     fields: ostr = None,
     filter: ostr = None,
 ) -> str:
-    ("ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter."
+    ("ScriptableObject. get/set: path. set/create fields: \\n-separated prop=value pairs."
     )
     return await _send('scriptable_object', _args(
         action=rt.w_str(action),
@@ -3544,6 +3687,21 @@ tools.expect('shader', 'RW', "Read or write shader assets (.shader / .shadergrap
     ('h_gap', ofloat, None),
     ('v_gap', ofloat, None),
 ))
+tools.actions('shader', (
+    ('get', "inspect path — shader name, properties, keywords"),
+    ('create', "new shader; preset=unlit|lit|transparent or code=HLSL string"),
+    ('set', "change prop+value or keyword+enabled on existing shader"),
+    ('graph_get', "read Shader Graph nodes/edges"),
+    ('graph_create', "new .shadergraph"),
+    ('graph_node', "add/remove/configure a node; node_type, node_id, node_action"),
+    ('graph_edge', "connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action"),
+    ('graph_add_property', ""),
+    ('graph_remove_property', ""),
+    ('graph_rename_property', ""),
+    ('graph_get_layout', "read node positions as compact text"),
+    ('graph_set_layout', "apply positions from layout text; layout=[id] x,y WxH lines"),
+    ('graph_auto_layout', "auto-arrange nodes by data-flow; h_gap, v_gap optional"),
+))
 
 
 @tools.provide
@@ -3576,7 +3734,6 @@ async def shader(
     v_gap: ofloat = None,
 ) -> str:
     ("Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network."
-     "\n    action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_add_property|graph_remove_property|graph_rename_property | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional)."
      "\n    For material shader assignment use `material` tool instead."
     )
     return await _send('shader', _args(
@@ -3618,7 +3775,7 @@ tools.expect('snapshot', 'RO', "Capture or compare object state.", (
     ('label', str, "default"),
     ('compare', str, ""),
 ))
-tools.expect('spatial_query', 'RO', "Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon.", (
+tools.expect('spatial_query', 'RO', "Spatial queries.", (
     ('action', str),
     ('path', ostr, None),
     ('target', ostr, None),
@@ -3631,6 +3788,15 @@ tools.expect('spatial_query', 'RO', "Spatial queries. action: nearest|in_front_o
     ('vertices', ostr, None),
     ('region_id', ostr, None),
     ('cap', oint, None),
+))
+tools.actions('spatial_query', (
+    ('nearest', "find closest object (optionally filtered by component name)"),
+    ('in_front_of', "position in front of object at distance"),
+    ('objects_in_radius', "list all objects within radius; path is optional when center='x,y,z' is given"),
+    ('bounds_info', "detailed bounds/dimensions of object"),
+    ('raycast', "cast ray from path/pos to target, returns hits sorted by distance"),
+    ('spatial_map', "ASCII grid map of objects in XZ plane; cell_size in meters"),
+    ('objects_in_polygon', "objects whose XZ pivot is inside a polygon; vertices='x1,z1;x2,z2;...' (>=3 pairs) or a previously defined region_id (always validated); cap=max results (default 50)"),
 ))
 tools.expect_body('spatial_query', 'spatial')
 
@@ -3650,16 +3816,7 @@ async def spatial_query(
     region_id: ostr = None,
     cap: oint = None,
 ) -> str:
-    ("Spatial queries. action: nearest|in_front_of|objects_in_radius|bounds_info|raycast|spatial_map|objects_in_polygon."
-     "\n    nearest: find closest object (optionally filtered by component name)."
-     "\n    in_front_of: position in front of object at distance."
-     "\n    objects_in_radius: list all objects within radius. path is optional when center='x,y,z' is given."
-     "\n    bounds_info: detailed bounds/dimensions of object."
-     "\n    raycast: cast ray from path/pos to target, returns hits sorted by distance."
-     "\n    spatial_map: ASCII grid map of objects in XZ plane. cell_size in meters."
-     "\n    objects_in_polygon: objects whose XZ pivot is inside a polygon. Provide either"
-     "\n    vertices='x1,z1;x2,z2;...' (>=3 pairs) or a previously defined region_id;"
-     "\n    supplied vertices are always validated. cap=max results (default 50)."
+    ("Spatial queries."
     )
     from .. import spatial as _biome_body_mod
     return await _biome_body_mod._spatial_query_body(
@@ -3761,6 +3918,32 @@ tools.expect('timeline', 'RW', "Unity Timeline (PlayableDirector / TimelineAsset
     ('offset', ofloat, None),
     ('value', ostr, None),
 ))
+tools.actions('timeline', (
+    ('get', ""),
+    ('create', ""),
+    ('edit', ""),
+    ('add_track', "Animation|Audio|Activation|Signal|Control|Group"),
+    ('remove_track', ""),
+    ('add_clip', ""),
+    ('remove_clip', ""),
+    ('set_binding', ""),
+    ('set_timing', ""),
+    ('mute', ""),
+    ('unmute', ""),
+    ('lock', ""),
+    ('unlock', ""),
+    ('rename_track', ""),
+    ('reorder_track', "index=target position"),
+    ('duplicate_clip', "offset=time shift"),
+    ('add_marker', ""),
+    ('remove_marker', ""),
+    ('set_track_offset', "value=offset mode (auto|transform|scene)"),
+    ('set_duration', ""),
+    ('add_sub_track', ""),
+    ('set_clip_in', ""),
+    ('get_bindings', ""),
+    ('preview', ""),
+))
 
 
 @tools.provide
@@ -3786,8 +3969,7 @@ async def timeline(
     value: ostr = None,
 ) -> str:
     ("Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that)."
-     "\n    action: get | create | edit | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview."
-     "\n    track=track name. index=target position for reorder_track. offset=time shift for duplicate_clip. value=offset mode (auto|transform|scene) for set_track_offset."
+     "\n    track=track name."
     )
     return await _send('timeline', _args(
         path=rt.w_str(path),
@@ -3812,12 +3994,16 @@ async def timeline(
     ))
 
 
-tools.expect('transfer_object', 'RW', "Move or copy a GameObject to another loaded scene. action: move|copy.", (
+tools.expect('transfer_object', 'RW', "Move or copy a GameObject to another loaded scene.", (
     ('path', str),
     ('action', str),
     ('target_scene', ostr, None),
     ('parent', ostr, None),
     ('world_position_stays', bool, True),
+))
+tools.actions('transfer_object', (
+    ('move', ""),
+    ('copy', ""),
 ))
 
 
@@ -3829,7 +4015,7 @@ async def transfer_object(
     parent: ostr = None,
     world_position_stays: bool = True,
 ) -> str:
-    ("Move or copy a GameObject to another loaded scene. action: move|copy."
+    ("Move or copy a GameObject to another loaded scene."
      "\n    target_scene: destination scene name. Omit = same scene (copy = duplicate)."
      "\n    parent: target parent path in destination scene."
      "\n    world_position_stays: preserve world transform (default True)."
@@ -3881,6 +4067,16 @@ tools.expect('uitk_element', 'RW', "Mutate or query a VisualElement in a UIDocum
     ('property', ostr, None),
     ('class_name', ostr, None),
 ))
+tools.actions('uitk_element', (
+    ('query', "find elements"),
+    ('get', "read value/text"),
+    ('set_style', ""),
+    ('add_class', ""),
+    ('remove_class', ""),
+    ('get_style', ""),
+    ('enable', ""),
+    ('disable', ""),
+))
 tools.expect('uitk_file', 'RW', "Read or edit a UXML or USS asset file.", (
     ('path', str),
     ('action', Any, "read"),
@@ -3893,6 +4089,20 @@ tools.expect('uitk_file', 'RW', "Read or edit a UXML or USS asset file.", (
     ('tag', ostr, None),
     ('attrs', ostr, None),
     ('prop', ostr, None),
+))
+tools.actions('uitk_file', (
+    ('read', "return the file's UTF-8 text verbatim (no normalization)"),
+    ('revert', "restore file to state before last write (single-level, cleared on domain reload)"),
+    ('write', "full file replace; validates and triggers AssetDatabase.ImportAsset"),
+    ('create_uxml', "new UXML file with minimal template; content optional"),
+    ('create_uss', "new empty USS file; content optional"),
+    ('set-attr', "set attribute on UXML element by name (selector=name, attr=attr, value=val)"),
+    ('add-class', ""),
+    ('remove-class', ""),
+    ('add-element', "append child (parent=name, tag=ui:Label, attrs='k=v ...')"),
+    ('remove-element', "delete UXML element and children by name"),
+    ('set-rule', "set CSS property in USS rule; creates rule if selector absent"),
+    ('remove-rule', "delete USS rule block by exact selector string"),
 ))
 tools.expect('uitk_intent', 'RW', "Generate a UXML + USS file pair from a natural-language UI description.", (
     ('intent', str),

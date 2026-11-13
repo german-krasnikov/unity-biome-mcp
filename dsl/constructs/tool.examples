@@ -617,6 +617,33 @@ EXAMPLE an ACTION name may not contain a double hyphen
   SOURCE END
   EXPECT diagnostic DECLARE_SYNTAX at 2:10
 
+EXAMPLE an ACTION hint prints in parentheses after its name in the generated tools.actions() call, with or without READ; an action with no hint prints an empty one
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION get READ "list things"
+  SOURCE   ACTION set "change a thing"
+  SOURCE   ACTION reset
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pytools tools.actions('frob', (
+  EXPECT rendered.pytools ('get', "list things"),
+  EXPECT rendered.pytools ('set', "change a thing"),
+  EXPECT rendered.pytools ('reset', ""),
+  EXPECT rendered.pyreads 'frob': frozenset({
+  EXPECT rendered.pyreads 'get',
+
+EXAMPLE a tool without any ACTION prints no tools.actions() call either
+  SOURCE TOOL calm SCENE RO "Calm."
+  SOURCE END
+  EXPECT unrendered.pytools tools.actions
+
+EXAMPLE an ACTION hint must be quoted text, not a bare word
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION get unquoted
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:14
+
 EXAMPLE a tool may declare HANDLER at most once
   SOURCE TOOL dual_handler SCENE RW "Dual handler."
   SOURCE   HANDLER register "CommandRouter.ExecDualHandler"
