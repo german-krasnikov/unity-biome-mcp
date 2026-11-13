@@ -10,7 +10,6 @@ namespace UnityMCP.Editor
     internal static class AssetDatabaseHelper
     {
         const int MaxFindResults = 200;
-        static readonly string[] ValidActions = { "find", "get_info", "create", "move", "validate_move", "duplicate", "delete", "get_dependencies", "find_dependents", "import_settings", "export_package", "import_package", "read_text", "write_text", "reimport" };
 
         internal static string Execute(string action, string argsJson)
         {
@@ -31,7 +30,7 @@ namespace UnityMCP.Editor
                 case "read_text":      return ReadText(argsJson);
                 case "write_text":     return WriteText(argsJson);
                 case "reimport":       return Reimport(argsJson);
-                default:                throw new System.Exception(ErrorHelper.InvalidAction(action, ValidActions));
+                default:                throw new System.Exception(ErrorHelper.InvalidAction(action, ToolActions.Names("asset")));
             }
         }
 

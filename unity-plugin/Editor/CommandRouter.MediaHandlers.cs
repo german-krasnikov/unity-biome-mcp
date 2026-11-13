@@ -133,7 +133,7 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(args, "path"),
                     JsonHelper.ExtractString(args, "scene")),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "new", "open", "save", "discard", "open_additive", "close", "set_active", "list", "save_copy" }))
+                    ToolActions.Names("scene")))
             };
             // P-414: scene is mutating:false so undo group is never opened around saves.
             // Topology-changing sub-actions still need a mutation record for get_changes.
@@ -166,9 +166,7 @@ namespace UnityMCP.Editor
                 "remove_event" => AnimationHelper.RemoveEvent(
                     path, clip, AnimationArgs.Time(args) ?? 0f),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "create", "edit", "add_key", "remove_key", "remove_curve",
-                            "set_keys", "set_loop", "set_wrap", "set_framerate", "preview",
-                            "get_clip_path", "get_events", "add_event", "remove_event" }))
+                    ToolActions.Names("animation")))
             };
         }
 
@@ -193,11 +191,7 @@ namespace UnityMCP.Editor
                 "get_bindings" => ExecGetBindings(args),
                 "preview" => ExecPreviewTimeline(args),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "create", "edit", "add_track", "remove_track", "add_clip", "remove_clip",
-                            "set_binding", "set_timing", "mute", "unmute", "lock", "unlock", "rename_track",
-                            "reorder_track", "duplicate_clip", "add_marker", "remove_marker",
-                            "set_track_offset", "set_duration", "add_sub_track",
-                            "set_clip_in", "get_bindings", "preview" }))
+                    ToolActions.Names("timeline")))
             };
         }
 
@@ -526,9 +520,7 @@ namespace UnityMCP.Editor
                     ParseOptFloat(args, "h_gap") ?? 80f,
                     ParseOptFloat(args, "v_gap") ?? 50f),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "create", "set", "graph_get", "graph_create", "graph_node", "graph_edge",
-                            "graph_add_property", "graph_remove_property", "graph_rename_property",
-                            "graph_get_layout", "graph_set_layout", "graph_auto_layout" }))
+                    ToolActions.Names("shader")))
             };
         }
 

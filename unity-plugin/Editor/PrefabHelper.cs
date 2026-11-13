@@ -20,7 +20,7 @@ namespace UnityMCP.Editor
                 "unpack"         => Unpack(argsJson),
                 "edit"           => Edit(argsJson),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "save", "create_variant", "instantiate", "apply", "revert", "get_overrides", "unpack", "edit" }))
+                    ToolActions.Names("prefab")))
             };
         }
 

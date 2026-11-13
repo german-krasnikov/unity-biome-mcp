@@ -9,8 +9,6 @@ namespace UnityMCP.Editor
 {
     internal static class ScriptableObjectHelper
     {
-        static readonly string[] ValidActions = { "create", "get", "set", "list_types", "find" };
-
         internal static string Execute(string action, string argsJson)
         {
             switch (action)
@@ -20,7 +18,7 @@ namespace UnityMCP.Editor
                 case "set":    return Set(argsJson);
                 case "list_types": return ListTypes(argsJson);
                 case "find":   return Find(argsJson);
-                default:       throw new ArgumentException(ErrorHelper.InvalidAction(action, ValidActions));
+                default:       throw new ArgumentException(ErrorHelper.InvalidAction(action, ToolActions.Names("scriptable_object")));
             }
         }
 

@@ -63,6 +63,10 @@ _NAMED_INVALID_ACTION_LIST = re.compile(r'ErrorHelper\.InvalidAction\(\s*action,
 # not `action switch { => }`).
 _IF_EQUALITY_ARM = re.compile(r'\baction\s*==\s*"([a-z_]+)"')
 _CASE_LABEL = re.compile(r'case\s+"([a-z_]+)"\s*:')
+# dsl-bottlenecks-2026-11 Part A: a handler that passes the generated table straight to
+# ErrorHelper.InvalidAction instead of a hand valid-list -- the C# counterpart of this test's own
+# "replace the hand copy" slice.
+_TOOL_ACTIONS_NAMES_CALL = re.compile(r'ErrorHelper\.InvalidAction\(\s*action,\s*ToolActions\.Names\("([a-z_]+)"\)\)')
 
 
 def _function_body(text: str, func_name: str) -> str:
@@ -103,6 +107,12 @@ def invalid_action_list(body: str, full_text: str | None = None) -> set[str]:
         if decl:
             return set(_QUOTED.findall(decl.group(1)))
     return set()
+
+
+def passes_tool_actions_names(body: str, tool: str) -> bool:
+    """Whether `body` calls `ErrorHelper.InvalidAction(action, ToolActions.Names("<tool>"))` --
+    the generated-list replacement for a hand valid-list (dsl-bottlenecks-2026-11 Part A)."""
+    return tool in _TOOL_ACTIONS_NAMES_CALL.findall(body)
 
 
 def _real_sources(tool: str) -> list[tuple[str, str]]:
@@ -166,9 +176,22 @@ def test_catalog_actions_match_the_csharp_dispatch_arms(tool):
     assert set(catalog_actions.TOOL_ACTIONS[tool]) == _real_dispatch_arms(tool)
 
 
+# Tools whose hand valid-list (an inline `new[] {...}` literal, or a named `static readonly
+# string[] ValidActions` field) was replaced by `ToolActions.Names(cmd)` in dsl-bottlenecks-2026-11
+# Part A: one fact in one place, generated from the catalog's own ACTION declaration -- there is no
+# hand list left to re-parse and compare, so the test below asserts the call exists instead.
+_USES_GENERATED_VALID_LIST = {"animation", "asset", "prefab", "scene", "scriptable_object", "shader", "timeline"}
+
+
 @pytest.mark.parametrize("tool", _cases(skip=_NO_INVALID_ACTION_LIST_ARTIFACT,
                                          xfail=_KNOWN_INVALID_ACTION_LIST_DISAGREEMENT))
 def test_catalog_actions_match_the_csharp_invalid_action_list(tool):
+    if tool in _USES_GENERATED_VALID_LIST:
+        assert any(passes_tool_actions_names(body, tool) for _, body in _real_sources(tool)), (
+            f"{tool}: expected ErrorHelper.InvalidAction(action, ToolActions.Names(\"{tool}\")) "
+            "-- a hand valid-list must not be reintroduced"
+        )
+        return
     assert set(catalog_actions.TOOL_ACTIONS[tool]) == _real_invalid_action_list(tool)
 
 
@@ -263,12 +286,41 @@ _SCRATCH_NAMED_ARRAY = '''
 
 
 def test_scanner_resolves_a_named_valid_actions_array_not_only_an_inline_one():
-    """`asset`/`scriptable_object` pass a named `static readonly string[] ValidActions` field to
-    ErrorHelper.InvalidAction instead of an inline `new[] {...}` literal (AssetDatabaseHelper.cs:13,34;
-    ScriptableObjectHelper.cs:12,22) -- an inline-array-only scanner would see an empty set here."""
+    """`asset`/`scriptable_object` used to pass a named `static readonly string[] ValidActions`
+    field to ErrorHelper.InvalidAction instead of an inline `new[] {...}` literal, until
+    dsl-bottlenecks-2026-11 Part A replaced both with `ToolActions.Names(cmd)`. No real site
+    exercises this shape any more, but the scanner must still resolve it (not just the inline
+    shape) if a future tool reintroduces a named hand list -- an inline-array-only scanner would
+    see an empty set here."""
     body = _function_body(_SCRATCH_NAMED_ARRAY, "Execute")
     assert invalid_action_list(body) == set()  # no inline array, and no full_text to resolve the name from
     assert invalid_action_list(body, _SCRATCH_NAMED_ARRAY) == {"find", "create"}
+
+
+_SCRATCH_GENERATED_CALL = '''
+        private static string ExecScratchGenerated(string args)
+        {
+            var action = ScratchArgs.Action(args);
+            return action switch
+            {
+                "get" => ExecGet(args),
+                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
+                    ToolActions.Names("scratch")))
+            };
+        }
+'''
+
+
+def test_scanner_detects_a_handler_that_passes_the_generated_table_to_invalid_action():
+    """animation/scene/timeline/shader/asset/scriptable_object/prefab pass
+    `ToolActions.Names("<cmd>")` straight to ErrorHelper.InvalidAction (dsl-bottlenecks-2026-11
+    Part A) instead of a hand list -- `passes_tool_actions_names` must recognize that call, and
+    must not be satisfied by an unrelated hand list or the wrong tool name."""
+    generated_body = _function_body(_SCRATCH_GENERATED_CALL, "ExecScratchGenerated")
+    assert passes_tool_actions_names(generated_body, "scratch")
+    assert not passes_tool_actions_names(generated_body, "not_scratch")
+    hand_list_body = _function_body(_SCRATCH_SWITCH, "ExecScratchConsolidated")
+    assert not passes_tool_actions_names(hand_list_body, "get")
 
 
 # --- Every declared action must be named in the text the MCP client actually receives. ---
