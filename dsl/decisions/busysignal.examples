@@ -1,0 +1,17 @@
+PROVENANCE "Transcribed from the tests the project already has: every row is one of the twelve calls to has_strong_busy_signal() in server/tests/test_compile_state.py, in the order of CompileStateProbe.has_strong_busy_signal at compile_state.py:89-122 (P6: a stale+busy state consults the PID instead of falling through to the lock file; G15: a terminal wedge during a stale+busy+alive state is not busy). Expected is what each test asserts; no row is characterized-only."
+
+EXAMPLES busySignal
+  id | probeHasPort | probeStatePresent | probeStateStale | probeStateBusy | probeProcessDead | probeHasWedge | probeStartupInProgress | probeLockFileExists -> expected
+  lock-file-only | false | false | false | false | false | false | false | true -> busy  # test_compile_state.py:216
+  idle-no-signals | false | false | false | false | false | false | false | false -> notBusy  # test_compile_state.py:222
+  fresh-state-busy | true | true | false | true | false | false | false | false -> busy  # test_compile_state.py:259
+  fresh-state-not-busy | true | true | false | false | false | false | false | false -> notBusy  # test_compile_state.py:267
+  no-state-process-dead | true | false | false | false | true | false | false | false -> notBusy  # test_compile_state.py:276
+  no-state-alive-lock-fallback | true | false | false | false | false | false | false | true -> busy  # test_compile_state.py:287
+  no-state-startup-in-progress | true | false | false | false | false | false | true | false -> busy  # test_compile_state.py:334
+  stale-busy-pid-alive | true | true | true | true | false | false | false | false -> busy  # test_compile_state.py:348 (P6)
+  stale-busy-pid-dead | true | true | true | true | true | false | false | false -> notBusy  # test_compile_state.py:358 (P6)
+  stale-not-busy | true | true | true | false | false | false | false | false -> notBusy  # test_compile_state.py:366 (P6)
+  stale-busy-pid-alive-wedge | true | true | true | true | false | true | false | false -> notBusy  # test_compile_state.py:393 (G15)
+  stale-busy-pid-alive-no-wedge | true | true | true | true | false | false | false | false -> busy  # test_compile_state.py:412 (G15)
+END

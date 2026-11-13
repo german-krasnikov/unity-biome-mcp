@@ -77,6 +77,8 @@ GENERATE versionorder logic generate --source {dir}/decisions/versionorder.logic
 GENERATE versionorder-rows logic examples --source {dir}/decisions/versionorder.examples --logic {dir}/decisions/versionorder.logic --contract {dir}/decisions/versionorder.contract --out {dir}/decisions/versionorder.json
 GENERATE retry logic generate --source {dir}/decisions/retry.logic --contract {dir}/decisions/retry.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/retry_logic.py"
 GENERATE retry-rows logic examples --source {dir}/decisions/retry.examples --logic {dir}/decisions/retry.logic --contract {dir}/decisions/retry.contract --out {dir}/decisions/retry.json
+GENERATE busysignal logic generate --source {dir}/decisions/busysignal.logic --contract {dir}/decisions/busysignal.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/busysignal_logic.py"
+GENERATE busysignal-rows logic examples --source {dir}/decisions/busysignal.examples --logic {dir}/decisions/busysignal.logic --contract {dir}/decisions/busysignal.contract --out {dir}/decisions/busysignal.json
 GENERATE py-reads  render {dir}/tools.biome pyreads  {dir}/../server/src/unity_mcp/tools/generated/catalog_reads.py
 GENERATE cs-reads  render {dir}/tools.biome csreads  {dir}/../unity-plugin/Editor/Generated/ActionReads.g.cs
 GENERATE py-actions render {dir}/tools.biome pyactions {dir}/../server/src/unity_mcp/tools/generated/catalog_actions.py
