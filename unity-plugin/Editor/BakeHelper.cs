@@ -10,9 +10,9 @@ namespace UnityMCP.Editor
     {
         internal static string Execute(string action, string argsJson)
         {
-            var target = JsonHelper.ExtractString(argsJson, "target");
+            var target = BakeArgs.Target(argsJson);
             // action from JSON (if sent), fallback to caller-supplied default
-            var act = JsonHelper.ExtractString(argsJson, "action") ?? action ?? "start";
+            var act = BakeArgs.Action(argsJson) ?? action ?? "start";
 
             return target switch
             {

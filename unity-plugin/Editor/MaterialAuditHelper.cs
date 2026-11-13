@@ -14,8 +14,8 @@ namespace UnityMCP.Editor
     {
         public static string Execute(string args)
         {
-            var action   = JsonHelper.ExtractString(args, "action") ?? "summary";
-            var platform = JsonHelper.ExtractString(args, "platform") ?? "Default";
+            var action   = MaterialAuditArgs.Action(args) ?? "summary";
+            var platform = MaterialAuditArgs.Platform(args) ?? "Default";
             return action switch
             {
                 "summary"         => Summary(),

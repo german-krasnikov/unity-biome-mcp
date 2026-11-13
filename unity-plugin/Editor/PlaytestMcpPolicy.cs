@@ -68,7 +68,7 @@ namespace UnityMCP.Editor
                 return HardDenialReason;
             if (cmd == "editor")
             {
-                var action = JsonHelper.ExtractString(step.Args, "action");
+                var action = EditorArgs.Action(step.Args);
                 if (action == "play" || action == "stop" || action == "pause" || action == "unpause")
                     return "denied — Play Mode transitions are not allowed inside a playtest";
             }

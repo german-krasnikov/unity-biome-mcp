@@ -90,8 +90,8 @@ namespace UnityMCP.Editor
         // defs: project-relative path to .defs file; asset: asset path to PlaytestConfig.
         internal static string ExecSyncFromDefs(string argsJson)
         {
-            var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/game_core.defs";
-            var assetPath = JsonHelper.ExtractString(argsJson, "asset");
+            var defsPath  = SyncPlaytestAliasesFromDefsArgs.Defs(argsJson) ?? "Assets/PlaytestDefs/game_core.defs";
+            var assetPath = SyncPlaytestAliasesFromDefsArgs.Asset(argsJson);
 
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
             var absDefsPath = Path.IsPathRooted(defsPath) ? defsPath : Path.Combine(projectRoot, defsPath);
@@ -134,8 +134,8 @@ namespace UnityMCP.Editor
         // asset: asset path to PlaytestConfig; defs: project-relative output path.
         internal static string ExecExportToDefs(string argsJson)
         {
-            var assetPath = JsonHelper.ExtractString(argsJson, "asset");
-            var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/game_core.defs";
+            var assetPath = ExportPlaytestAliasesToDefsArgs.Asset(argsJson);
+            var defsPath  = ExportPlaytestAliasesToDefsArgs.Defs(argsJson) ?? "Assets/PlaytestDefs/game_core.defs";
 
             PlaytestConfig cfg = null;
             if (!string.IsNullOrEmpty(assetPath))
@@ -170,8 +170,8 @@ namespace UnityMCP.Editor
         // asset: asset path to PlaytestConfig (default: first found via FindAssets).
         internal static string ExecValidateAliases(string argsJson)
         {
-            var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/game_core.defs";
-            var assetPath = JsonHelper.ExtractString(argsJson, "asset");
+            var defsPath  = ValidatePlaytestAliasesArgs.Defs(argsJson) ?? "Assets/PlaytestDefs/game_core.defs";
+            var assetPath = ValidatePlaytestAliasesArgs.Asset(argsJson);
 
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
             var absDefsPath = Path.IsPathRooted(defsPath)

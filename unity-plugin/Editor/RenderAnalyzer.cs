@@ -18,10 +18,12 @@ namespace UnityMCP.Editor
 
         public static string Execute(string args)
         {
+            // NOTE: not migrated to RenderAnalyzeArgs.Action -- that accessor is RequireString-based
+            // (DSL has no DEFAULT for "action"), which would throw instead of this graceful fallback.
             var action     = JsonHelper.ExtractString(args, "action") ?? "stats";
-            var path       = JsonHelper.ExtractString(args, "path");
-            var detail     = JsonHelper.ExtractString(args, "detail") ?? "brief";
-            var baselineId = JsonHelper.ExtractString(args, "baseline_id");
+            var path       = RenderAnalyzeArgs.Path(args);
+            var detail     = RenderAnalyzeArgs.Detail(args) ?? "brief";
+            var baselineId = RenderAnalyzeArgs.BaselineId(args);
 
             return action switch
             {

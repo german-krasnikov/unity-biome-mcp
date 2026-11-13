@@ -20,14 +20,14 @@ namespace UnityMCP.Editor.RegionTool
         /// </summary>
         public static string Execute(string args)
         {
-            var vertices  = JsonHelper.ExtractString(args, "vertices");
-            var regionId  = JsonHelper.ExtractString(args, "region_id");
-            var component = JsonHelper.ExtractString(args, "component");
-            var capStr    = JsonHelper.ExtractString(args, "cap");
+            var vertices  = SpatialQueryArgs.Vertices(args);
+            var regionId  = SpatialQueryArgs.RegionId(args);
+            var component = SpatialQueryArgs.Component(args);
+            var capOpt    = SpatialQueryArgs.Cap(args);
 
             int cap = DefaultCap;
-            if (capStr != null && int.TryParse(capStr, out var parsedCap))
-                cap = System.Math.Min(System.Math.Max(1, parsedCap), HardMaxCap);
+            if (capOpt.HasValue)
+                cap = System.Math.Min(System.Math.Max(1, capOpt.Value), HardMaxCap);
 
             Polygon2D poly;
             string regionLabel;
