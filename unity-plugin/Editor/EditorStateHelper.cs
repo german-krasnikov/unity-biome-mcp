@@ -84,7 +84,7 @@ namespace UnityMCP.Editor
                     return System.IO.Path.GetDirectoryName(Application.dataPath);
                 default:
                     throw new System.ArgumentException(
-                        ErrorHelper.InvalidAction(action, new[] { "state", "play", "pause", "stop", "select", "project_path" }));
+                        ErrorHelper.InvalidAction(action, ToolActions.Names("editor")));
             }
         }
 

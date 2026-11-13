@@ -149,12 +149,9 @@ _NO_INVALID_ACTION_LIST_ARTIFACT: dict[str, str] = {
 
 # A real, dated disagreement between the C# switch and its own hand hint array -- recorded here (not fixed in C#)
 # so the test documents the bug and goes red (XPASS) if only one side is ever fixed without updating this entry.
-_KNOWN_INVALID_ACTION_LIST_DISAGREEMENT: dict[str, str] = {
-    "editor": "2026-11-13 dsl-bottlenecks-2026-11: EditorStateHelper.cs:87 ErrorHelper.InvalidAction hint array "
-              "omits 'mutation_mode', which ExecEditor (CommandRouter.MediaHandlers.cs:328) really dispatches. "
-              "Not fixed here (DSL/Python-only slice); the next C# slice replaces this hand array with "
-              "ToolActions.Names(\"editor\") and must remove this xfail in the same change.",
-}
+# dsl-bottlenecks-2026-11 Part B1 fixed the one editor entry this dict ever held (EditorStateHelper.cs's hand
+# array now reads ToolActions.Names("editor"), which includes "mutation_mode") -- empty until the next one.
+_KNOWN_INVALID_ACTION_LIST_DISAGREEMENT: dict[str, str] = {}
 
 
 def _cases(skip: dict[str, str] | None = None, xfail: dict[str, str] | None = None) -> list:
@@ -178,9 +175,11 @@ def test_catalog_actions_match_the_csharp_dispatch_arms(tool):
 
 # Tools whose hand valid-list (an inline `new[] {...}` literal, or a named `static readonly
 # string[] ValidActions` field) was replaced by `ToolActions.Names(cmd)` in dsl-bottlenecks-2026-11
-# Part A: one fact in one place, generated from the catalog's own ACTION declaration -- there is no
-# hand list left to re-parse and compare, so the test below asserts the call exists instead.
-_USES_GENERATED_VALID_LIST = {"animation", "asset", "prefab", "scene", "scriptable_object", "shader", "timeline"}
+# Part A/B1: one fact in one place, generated from the catalog's own ACTION declaration -- there is
+# no hand list left to re-parse and compare, so the test below asserts the call exists instead.
+_USES_GENERATED_VALID_LIST = {
+    "animation", "asset", "editor", "prefab", "scene", "scriptable_object", "shader", "timeline",
+}
 
 
 @pytest.mark.parametrize("tool", _cases(skip=_NO_INVALID_ACTION_LIST_ARTIFACT,

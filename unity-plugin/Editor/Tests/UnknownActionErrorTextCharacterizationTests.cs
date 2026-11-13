@@ -106,5 +106,21 @@ namespace UnityMCP.Editor.Tests
                 "revert|get_overrides|unpack|edit.",
                 ex.Message);
         }
+
+        // dsl-bottlenecks-2026-11 Part B1: EditorStateHelper.cs's hand valid-list omits
+        // "mutation_mode", which ExecEditor (CommandRouter.MediaHandlers.cs) really dispatches via
+        // its own if-chain before delegating to EditorStateHelper.Control. Swapping the hand list
+        // for ToolActions.Names("editor") is a behaviour change: the printed text gains
+        // "mutation_mode" (inserted right after "state", the catalog's own ACTION order).
+        [Test]
+        public void Editor_UnknownAction_ErrorTextListsAllDeclaredActionsIncludingMutationMode()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() =>
+                CommandRouter.ExecuteCommand("editor", Args()));
+            Assert.AreEqual(
+                "Unknown action '__no_such_action__'. Valid: state|mutation_mode|play|pause|stop|" +
+                "select|project_path.",
+                ex.Message);
+        }
     }
 }
