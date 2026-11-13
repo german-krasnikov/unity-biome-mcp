@@ -14,6 +14,13 @@ namespace UnityMCP.Editor
                 required: "path,component,field", optional: "condition,action,interval_ms",
                 notBatchable: true);
             // get_watches (read, available outside Play Mode too) is registered by ToolBindings (HANDLER in dsl/tools.biome)
+            // ARG adoption (Step 4, Batch 7): intentionally NOT migrated to WatchArgs.WatchId.
+            // dsl/tools.biome's PYTOOL watch declares ARG watch_id, so the generated WatchArgs
+            // class reads wire key "watch_id" -- but server/src/unity_mcp/tools/watch.py's
+            // WatchModule.watch() actually sends wire key "id" for both watch_remove and
+            // watch_reset (self._args(id=watch_id)). The real wire protocol is "id"; the
+            // generated accessor is stale relative to the hand-written Python dispatch. Swapping
+            // to WatchArgs.WatchId here would read the wrong key and break both actions.
             CommandRegistry.Register("watch_remove", args =>
             {
                 var id = JsonHelper.ExtractString(args, "id");
@@ -42,6 +49,9 @@ namespace UnityMCP.Editor
             if (string.IsNullOrEmpty(component)) throw new ArgumentException("'component' is required");
             if (string.IsNullOrEmpty(field))     throw new ArgumentException("'field' is required");
             var condition = JsonHelper.ExtractString(args, "condition") ?? "";
+            // Same wire-key mismatch as watch_remove/watch_reset above: WatchArgs.TriggerAction
+            // would read "trigger_action", but watch.py sends wire key "action" for this field
+            // (self._args(action=None if trigger_action == "log" else trigger_action, ...)).
             var action    = JsonHelper.ExtractString(args, "action") ?? "log";
             var interval  = CommandRouter.ExtractFloat(args, "interval_ms", 500f);
 
