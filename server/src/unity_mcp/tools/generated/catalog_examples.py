@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=16b40461ecc9b06e898b054cc35553ca287bcec1ac777667d0abcfce574b0966
+# source-sha256=d13cbbbc2059acaefc3c21a899c4af53c88a9385825b43428716e8730b4ecd71
 # Edit the source, then run biome generate.
 
 ARG_EXAMPLES: dict[str, dict[str, str]] = {
@@ -17,7 +17,7 @@ ARG_EXAMPLES: dict[str, dict[str, str]] = {
     'ask_user': {
     },
     'asset': {
-        'action': "list",
+        'action': "find",
     },
     'attach_uitk': {
         'path': "/__seam_nonexistent",
@@ -62,7 +62,7 @@ ARG_EXAMPLES: dict[str, dict[str, str]] = {
     'diagnose': {
     },
     'editor': {
-        'action': "status",
+        'action': "state",
     },
     'execute_code': {
     },
@@ -175,7 +175,7 @@ ARG_EXAMPLES: dict[str, dict[str, str]] = {
         'path': "/__seam_nonexistent",
     },
     'prefab': {
-        'action': "list",
+        'action': "save",
     },
     'profile': {
     },
@@ -214,7 +214,7 @@ ARG_EXAMPLES: dict[str, dict[str, str]] = {
     'scan_scene': {
     },
     'scene': {
-        'action': "get",
+        'action': "list",
     },
     'scene_diff': {
     },
@@ -226,7 +226,7 @@ ARG_EXAMPLES: dict[str, dict[str, str]] = {
     'screenshot': {
     },
     'scriptable_object': {
-        'action': "list",
+        'action': "list_types",
     },
     'search_scene': {
         'query': "__seam_nonexistent",

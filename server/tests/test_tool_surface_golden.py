@@ -22,6 +22,23 @@ INTENDED: dict[str, dict[str, str]] = {
                         "remove_curve/set_keys/set_loop aliases of `edit` are now visible to the MCP client; "
                         "`ARG action EXAMPLE` also moved from the phantom \"list\" to the real \"get\".",
     },
+    "shader": {
+        "description": "dsl-bottlenecks-2026-11: the hand DOC line now names all 13 real actions (CommandRouter."
+                        "MediaHandlers.cs:476-531) instead of 10 -- the 3 previously-undocumented "
+                        "graph_add_property/graph_remove_property/graph_rename_property blackboard-property "
+                        "actions are now visible to the MCP client.",
+    },
+    "timeline": {
+        "description": "dsl-bottlenecks-2026-11: the hand DOC line now names all 24 real actions (CommandRouter."
+                        "MediaHandlers.cs:182-200) instead of 23 -- `edit` was dispatchable directly (not just as "
+                        "the group label of add_track/remove_track/...) but was never named on its own.",
+    },
+    "scene": {
+        "schema": "dsl-bottlenecks-2026-11: the `action` parameter's own schema description (a second, "
+                   "ARG-level enumeration separate from the tool docstring) dropped `save_copy` "
+                   "(CommandRouter.MediaHandlers.cs:119-137 dispatches 9 actions, the ARG text named only 8); "
+                   "now lists all 9.",
+    },
 }
 
 

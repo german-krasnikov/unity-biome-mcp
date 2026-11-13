@@ -176,7 +176,22 @@ END
 
 TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."
   BODY asset
-  ARG action str EXAMPLE "list"
+  ACTION find
+  ACTION get_info
+  ACTION create
+  ACTION move
+  ACTION validate_move
+  ACTION duplicate
+  ACTION delete
+  ACTION get_dependencies
+  ACTION find_dependents
+  ACTION import_settings
+  ACTION export_package
+  ACTION import_package
+  ACTION read_text
+  ACTION write_text
+  ACTION reimport
+  ARG action str EXAMPLE "find"
   ARG path ostr DEFAULT None "Action-specific project asset/package path (usually Assets/...; import_package accepts a package file path)"
   ARG type ostr DEFAULT None "Unity asset type filter or create kind (for example Material or ScriptableObject)"
   ARG name ostr DEFAULT None "Asset-name search filter used by find (not a GameObject name)"
@@ -544,7 +559,14 @@ TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|
   GUARD play_ok
   WIRE no_undo
   FLAG core
-  ARG action str DEFAULT_TEXT "state" EXAMPLE "status"
+  ACTION state
+  ACTION mutation_mode
+  ACTION play
+  ACTION pause
+  ACTION stop
+  ACTION select
+  ACTION project_path
+  ARG action str DEFAULT_TEXT "state" EXAMPLE "state"
   ARG path ostr DEFAULT None
   ARG paths ostr DEFAULT None
   ARG enable obool DEFAULT None
@@ -1188,7 +1210,15 @@ TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmatio
   DOC "get_overrides: format: text (default)|structured."
   DOC "create_variant: base_path + variant_path."
   DOC "instantiate: asset_path (instantiate prefab into active scene)."
-  ARG action str EXAMPLE "list"
+  ACTION save
+  ACTION create_variant
+  ACTION instantiate
+  ACTION apply
+  ACTION revert
+  ACTION get_overrides
+  ACTION unpack
+  ACTION edit
+  ARG action str EXAMPLE "save"
   ARG path ostr DEFAULT None
   ARG asset_path ostr DEFAULT None
   ARG base_path ostr DEFAULT None
@@ -1320,6 +1350,18 @@ END
 
 TOOL render_analyze MEDIA RO "Rendering analysis."
   FORWARD
+  ACTION stats
+  ACTION materials
+  ACTION shaders
+  ACTION overdraw
+  ACTION audit
+  ACTION compare
+  ACTION batching
+  ACTION lights
+  ACTION shadow_audit
+  ACTION probe_audit
+  ACTION light_optimize
+  ACTION frame_debug
   DOC "action: stats|materials|shaders|lights|batching|overdraw|audit|compare"
   DOC "        |frame_debug|shadow_audit|probe_audit|light_optimize"
   DOC "stats: draw calls, batches, tris, verts, set-pass from UnityStats."
@@ -1536,7 +1578,16 @@ TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_addit
   WIRE no_undo
   FLAG tier1
   VERB "Managing scene"
-  ARG action str EXAMPLE "get" "Operation: new|open|save|discard|open_additive|close|set_active|list"
+  ACTION new
+  ACTION open
+  ACTION save
+  ACTION discard
+  ACTION open_additive
+  ACTION close
+  ACTION set_active
+  ACTION list
+  ACTION save_copy
+  ARG action str EXAMPLE "list" "Operation: new|open|save|discard|open_additive|close|set_active|list|save_copy"
   ARG path ostr DEFAULT None "Asset path — required for open/save/open_additive/close/set_active"
   ARG scene ostr DEFAULT None "Scene name for save/discard when multiple scenes are loaded"
   ARG include_unsaved bool DEFAULT True
@@ -1647,7 +1698,12 @@ END
 TOOL scriptable_object ASSETS RW "ScriptableObject. action: create|get|set|list_types|find. create: type+path[+fields]. get/set: path. set/create fields: \\n-separated prop=value pairs. get fields: comma-sep filter. find: type. list_types: filter."
   HANDLER register_action "ScriptableObjectHelper.Execute"
   FORWARD
-  ARG action str EXAMPLE "list"
+  ACTION create
+  ACTION get
+  ACTION set
+  ACTION list_types
+  ACTION find
+  ARG action str EXAMPLE "list_types"
   ARG path ostr DEFAULT None "Project asset path to the ScriptableObject .asset file"
   ARG type ostr DEFAULT None
   ARG prop ostr DEFAULT None
@@ -1814,7 +1870,20 @@ END
 
 TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network."
   FORWARD
-  DOC "action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional)."
+  ACTION get
+  ACTION create
+  ACTION set
+  ACTION graph_get
+  ACTION graph_create
+  ACTION graph_node
+  ACTION graph_edge
+  ACTION graph_add_property
+  ACTION graph_remove_property
+  ACTION graph_rename_property
+  ACTION graph_get_layout
+  ACTION graph_set_layout
+  ACTION graph_auto_layout
+  DOC "action: get (inspect path — shader name, properties, keywords) | create (new shader; preset=unlit|lit|transparent or code=HLSL string) | set (change prop+value or keyword+enabled on existing shader) | graph_get (read Shader Graph nodes/edges) | graph_create (new .shadergraph) | graph_node (add/remove/configure a node; node_type, node_id, node_action) | graph_edge (connect/disconnect slots; output_node/output_slot, input_node/input_slot, edge_action) | graph_add_property|graph_remove_property|graph_rename_property | graph_get_layout (read node positions as compact text) | graph_set_layout (apply positions from layout text; layout=[id] x,y WxH lines) | graph_auto_layout (auto-arrange nodes by data-flow; h_gap, v_gap optional)."
   DOC "For material shader assignment use `material` tool instead."
   ARG action str
   ARG path str EXAMPLE "/__seam_nonexistent" "Project asset path to a .shader or .shadergraph file"
@@ -1961,7 +2030,31 @@ END
 
 TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that)."
   FORWARD
-  DOC "action: get | create | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview."
+  ACTION get
+  ACTION create
+  ACTION edit
+  ACTION add_track
+  ACTION remove_track
+  ACTION add_clip
+  ACTION remove_clip
+  ACTION set_binding
+  ACTION set_timing
+  ACTION mute
+  ACTION unmute
+  ACTION lock
+  ACTION unlock
+  ACTION rename_track
+  ACTION reorder_track
+  ACTION duplicate_clip
+  ACTION add_marker
+  ACTION remove_marker
+  ACTION set_track_offset
+  ACTION set_duration
+  ACTION add_sub_track
+  ACTION set_clip_in
+  ACTION get_bindings
+  ACTION preview
+  DOC "action: get | create | edit | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview."
   DOC "track=track name. index=target position for reorder_track. offset=time shift for duplicate_clip. value=offset mode (auto|transform|scene) for set_track_offset."
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG action str
@@ -2016,6 +2109,14 @@ END
 TOOL uitk_element UITOOLKIT RW "Mutate or query a VisualElement in a UIDocument or PanelRenderer host"
   HANDLER register "CommandRouter.ExecUitkElement"
   TIMEOUT 15.0
+  ACTION query
+  ACTION get
+  ACTION set_style
+  ACTION add_class
+  ACTION remove_class
+  ACTION get_style
+  ACTION enable
+  ACTION disable
   ARG action Any EXAMPLE "get"
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG ref ostr DEFAULT None

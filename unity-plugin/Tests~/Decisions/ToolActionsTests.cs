@@ -47,8 +47,38 @@ namespace UnityMCP.Decisions.Tests
         [Test]
         public void A_tool_without_any_ACTION_line_has_no_names()
         {
-            Assert.That(ToolActions.Names("scene"), Is.Empty);
-            Assert.That(ToolActions.IsKnown("scene", "list"), Is.False);
+            Assert.That(ToolActions.Names("material"), Is.Empty);
+            Assert.That(ToolActions.IsKnown("material", "get"), Is.False);
+        }
+
+        // Independent literal expectation, smallest of the dsl-bottlenecks-2026-11 Q1 batch: 5 actions
+        // (ScriptableObjectHelper.cs:12,16-22, ScriptableObjectHelper.Execute's switch).
+        private static readonly string[] ScriptableObjectActions =
+        {
+            "create", "get", "set", "list_types", "find",
+        };
+
+        [Test]
+        public void Names_of_scriptable_object_is_the_5_actions_in_dispatch_order()
+        {
+            Assert.That(ToolActions.Names("scriptable_object"), Is.EqualTo(ScriptableObjectActions));
+        }
+
+        // Independent literal expectation, largest of the dsl-bottlenecks-2026-11 Q1 batch: 24 actions
+        // (CommandRouter.MediaHandlers.cs:175-201, ExecTimelineConsolidated's switch -- "edit" plus the 18 names
+        // OR'd into the same arm as "edit", plus set_clip_in/get_bindings/preview/get/create).
+        private static readonly string[] TimelineActions =
+        {
+            "get", "create", "edit", "add_track", "remove_track", "add_clip", "remove_clip",
+            "set_binding", "set_timing", "mute", "unmute", "lock", "unlock", "rename_track",
+            "reorder_track", "duplicate_clip", "add_marker", "remove_marker", "set_track_offset",
+            "set_duration", "add_sub_track", "set_clip_in", "get_bindings", "preview",
+        };
+
+        [Test]
+        public void Names_of_timeline_is_the_24_actions_in_dispatch_order()
+        {
+            Assert.That(ToolActions.Names("timeline"), Is.EqualTo(TimelineActions));
         }
     }
 }
