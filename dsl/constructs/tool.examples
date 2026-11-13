@@ -536,6 +536,34 @@ EXAMPLE a tool without any ACTION prints no csactions table entry and no pyactio
   EXPECT unrendered.csactions case "calm":
   EXPECT unrendered.pyactions 'calm':
 
+EXAMPLE an ACTION name may contain inner hyphens (uitk_file's surgical actions: set-attr, add-class, ...)
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION set-attr
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csactions "set-attr",
+  EXPECT rendered.pyactions 'set-attr',
+
+EXAMPLE an ACTION name may not start with a hyphen
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION -attr
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:10
+
+EXAMPLE an ACTION name may not end with a hyphen
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION attr-
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:10
+
+EXAMPLE an ACTION name may not contain a double hyphen
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION set--attr
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:10
+
 EXAMPLE a tool may declare HANDLER at most once
   SOURCE TOOL dual_handler SCENE RW "Dual handler."
   SOURCE   HANDLER register "CommandRouter.ExecDualHandler"

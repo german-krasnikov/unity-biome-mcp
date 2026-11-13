@@ -9,6 +9,9 @@
 # docstring template (pytools): that would need an IF nested inside the IF ANY FORWARD/BODY gate, which Core refuses (IF does not nest inside
 # IF, and EACH does not nest inside EACH either, so the existing EACH ARG/EACH DOC nesting rules out swapping that gate for an EACH) -- a
 # layer gap reported, not worked around (P10); the hand DOC line still states the action names for the Python docstring. READ is unchanged.
+# ACTION's name pattern admits inner hyphens (dsl-bottlenecks-2026-11, Part B3: set-attr, add-class, ... of uitk_file) because both
+# templates that consume it (pyactions, csactions) only ever print `act` as string data -- a Python string literal or a C# string
+# literal -- never as an identifier, so widening the pattern derives nothing else.
 # A template indents its entries 4 columns deeper than its EACH/END lines, so that the dedent of the template leaves 4 for them.
 SURFACE tools CODES TOOLS CONSTRUCTS TOOL, PYTOOL, INTERNAL
 
@@ -31,7 +34,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM MAXCHARS <maxchars:match([0-9]+)>
   ITEM DOC <line:string>
   ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
-  ITEM ACTION <act:match([a-z][a-z0-9_]*) UNIQUE>
+  ITEM ACTION <act:match([a-z][a-z0-9_]*(-[a-z0-9_]+)*) UNIQUE>
   ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [EXAMPLE <example:string>] [ROLE <role:enum(target|prop|value|name|newname)>] [<adesc:string>]
   ITEM VERB <vtext:string>
   ITEM EXPECT <mode:enum(token|bool_arg|arg_echo)> <tokens:string> [<strict:enum(STRICT)>] [ARG <argname:match([a-z][a-z0-9_]*)>]

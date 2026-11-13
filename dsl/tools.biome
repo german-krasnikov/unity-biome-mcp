@@ -2132,6 +2132,18 @@ TOOL uitk_file UITOOLKIT RW "Read or edit a UXML or USS asset file."
   WIRE not_batch
   FLAG direct_only
   FLAG unity_transport
+  ACTION read
+  ACTION revert
+  ACTION write
+  ACTION create_uxml
+  ACTION create_uss
+  ACTION set-attr
+  ACTION add-class
+  ACTION remove-class
+  ACTION add-element
+  ACTION remove-element
+  ACTION set-rule
+  ACTION remove-rule
   ARG path str "Assets/ path to a .uxml or .uss project file; Library/ and Packages/ are rejected"
   ARG action Any DEFAULT_TEXT "read"
   ARG content ostr DEFAULT None

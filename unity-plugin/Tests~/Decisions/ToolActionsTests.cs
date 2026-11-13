@@ -80,5 +80,14 @@ namespace UnityMCP.Decisions.Tests
         {
             Assert.That(ToolActions.Names("timeline"), Is.EqualTo(TimelineActions));
         }
+
+        // dsl-bottlenecks-2026-11 Part B3: uitk_file is the first tool whose ACTION name contains a hyphen
+        // (CONSTRUCT TOOL's pattern was widened to admit one) -- an independent literal check that the
+        // generated table returns it verbatim, not split or re-cased by anything downstream.
+        [Test]
+        public void Names_of_uitk_file_returns_a_hyphenated_action_name_verbatim()
+        {
+            Assert.That(ToolActions.Names("uitk_file"), Does.Contain("set-attr"));
+        }
     }
 }

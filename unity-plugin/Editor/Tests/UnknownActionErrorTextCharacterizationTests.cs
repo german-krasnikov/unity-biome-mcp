@@ -179,6 +179,31 @@ namespace UnityMCP.Editor.Tests
                 result);
         }
 
+        // dsl-bottlenecks-2026-11 Part B3: UIFileHelper.cs's default arm (EditUIFile:120) returned a bare
+        // interpolated string naming only the 7 surgical actions its own switch reaches, not the tool's full
+        // 12-action vocabulary (read/revert/write/create_uxml/create_uss are intercepted earlier, by
+        // ExecUitkFile's if-chain, CommandRouter.MediaHandlers.cs:296-304). UitkFile returns its error as a
+        // plain string (never throws), keeping the "err:" prefix callers/batch detect (same contract as
+        // UitkElement). EditUIFile requires the target file to exist before reaching the action switch at all
+        // (UIFileHelper.cs:104), so this test creates a real file under Assets/TestsTemp first.
+        [Test]
+        public void UitkFile_UnknownAction_ReturnedErrTextListsAllDeclaredActions()
+        {
+            const string assetPath = "Assets/TestsTemp/UitkFileUnknownActionProbe.uxml";
+            TrackOwnedAsset(assetPath);
+            var abs = AbsoluteAssetPath(assetPath);
+            Directory.CreateDirectory(Path.GetDirectoryName(abs)!);
+            File.WriteAllText(abs, "<ui:UXML xmlns:ui=\"UnityEngine.UIElements\"/>", System.Text.Encoding.UTF8);
+
+            var result = CommandRouter.ExecuteCommand("uitk_file",
+                "{\"action\":\"" + UnknownAction + "\",\"path\":\"" + assetPath + "\"}");
+
+            Assert.AreEqual(
+                "err: Unknown action '__no_such_action__'. Valid: read|revert|write|create_uxml|create_uss|" +
+                "set-attr|add-class|remove-class|add-element|remove-element|set-rule|remove-rule.",
+                result);
+        }
+
         // Proves the cleanup algorithm itself keeps a pre-existing sibling untouched when the
         // new content lands inside an already-existing Assets/UI Toolkit (the real-project shape
         // the owner's safety review asked to prove: these fixtures ship inside the plugin and can

@@ -117,7 +117,9 @@ namespace UnityMCP.Editor
                 "remove-element" => warn + UxmlRemoveElement(abs, assetPath, selector),
                 "set-rule"       => warn + UssSetRule(abs, assetPath, selector, prop, value),
                 "remove-rule"    => warn + UssRemoveRule(abs, assetPath, selector),
-                _ => $"err: unknown action '{action}'. Surgical: set-attr add-class remove-class add-element remove-element set-rule remove-rule",
+                // "err:" prefix kept: EditUIFile returns its error as a plain string (not thrown), and
+                // callers/batch rely on the prefix -- only the "Valid: ..." wording now comes from the catalog.
+                _ => $"err: {ErrorHelper.InvalidAction(action, ToolActions.Names("uitk_file"))}",
             };
         }
 

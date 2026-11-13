@@ -42,17 +42,22 @@ _ACTION_TOOLS: dict[str, tuple[tuple[str, str], ...]] = {
     # ExecUitkElement (CommandRouter.MediaHandlers.cs:273-282) is a one-line forwarder with no action logic of its
     # own; the real dispatch (an if for "query" plus a switch for the rest) lives in UIHelper.UitkElement.
     "uitk_element": (("UIHelper.UIToolkit.cs", "UitkElement"),),
+    # dsl-bottlenecks-2026-11 Part B3: ExecUitkFile (CommandRouter.MediaHandlers.cs:291-315) dispatches 5
+    # underscore-style actions itself via an if-chain, then forwards every other action string to
+    # UIFileHelper.EditUIFile, whose switch (UIFileHelper.cs:102-121) dispatches the 7 hyphenated surgical
+    # actions ("set-attr", "add-class", ...) -- now expressible since CONSTRUCT TOOL's `ITEM ACTION` pattern
+    # was widened to admit inner hyphens.
+    "uitk_file": (
+        ("CommandRouter.MediaHandlers.cs", "ExecUitkFile"),
+        ("UIFileHelper.cs", "EditUIFile"),
+    ),
 }
 
-# uitk_file is intentionally left out of _ACTION_TOOLS: ExecUitkFile (CommandRouter.MediaHandlers.cs:297-321)
-# dispatches 5 underscore-style actions itself, then forwards every other action string (whatever it is) to
-# UIFileHelper.EditUIFile, whose switch (UIFileHelper.cs:111-121) dispatches 7 more -- but those 7 are spelt with
-# hyphens ("set-attr", "add-class", ...), which CONSTRUCT TOOL's `ITEM ACTION <act:match([a-z][a-z0-9_]*)>` cannot
-# express. Declaring only the 5 that fit would misrepresent the tool's real (12-action) vocabulary -- the exact
-# "undocumented action" defect this slice exists to fix -- so the tool is skipped rather than partially declared.
-
-_PATTERN_BEFORE_ARROW = re.compile(r'((?:"[a-z_]+"\s*(?:or\s*)?)+)=>')
-_QUOTED = re.compile(r'"([a-z_]+)"')
+# [a-z][a-z0-9_-]* (not [a-z_]+): dsl-bottlenecks-2026-11 Part B3 widened CONSTRUCT TOOL's own ACTION name
+# pattern to admit inner hyphens (uitk_file's set-attr, add-class, ...) -- these scanners read the same C#
+# dispatch text that pattern now describes, so they must recognize the same shape.
+_PATTERN_BEFORE_ARROW = re.compile(r'((?:"[a-z][a-z0-9_-]*"\s*(?:or\s*)?)+)=>')
+_QUOTED = re.compile(r'"([a-z][a-z0-9_-]*)"')
 _INVALID_ACTION_LIST = re.compile(r'ErrorHelper\.InvalidAction\(\s*action,\s*new\[\]\s*\{([^}]*)\}\)')
 # A hint array passed by name instead of inline (AssetDatabaseHelper.cs, ScriptableObjectHelper.cs): resolved by
 # finding the field's own declaration in the full file text.
@@ -61,8 +66,8 @@ _NAMED_INVALID_ACTION_LIST = re.compile(r'ErrorHelper\.InvalidAction\(\s*action,
 # `uitk_element`); and a classic `case "...":` switch-STATEMENT label -- the shape the arrow-only scanner above
 # cannot see (AssetDatabaseHelper.cs, ScriptableObjectHelper.cs, EditorStateHelper.cs all use `switch { case: }`,
 # not `action switch { => }`).
-_IF_EQUALITY_ARM = re.compile(r'\baction\s*==\s*"([a-z_]+)"')
-_CASE_LABEL = re.compile(r'case\s+"([a-z_]+)"\s*:')
+_IF_EQUALITY_ARM = re.compile(r'\baction\s*==\s*"([a-z][a-z0-9_-]*)"')
+_CASE_LABEL = re.compile(r'case\s+"([a-z][a-z0-9_-]*)"\s*:')
 # dsl-bottlenecks-2026-11 Part A: a handler that passes the generated table straight to
 # ErrorHelper.InvalidAction instead of a hand valid-list -- the C# counterpart of this test's own
 # "replace the hand copy" slice.
@@ -178,7 +183,7 @@ def test_catalog_actions_match_the_csharp_dispatch_arms(tool):
 # is no hand list left to re-parse and compare, so the test below asserts the call exists instead.
 _USES_GENERATED_VALID_LIST = {
     "animation", "asset", "editor", "prefab", "render_analyze", "scene", "scriptable_object",
-    "shader", "timeline", "uitk_element",
+    "shader", "timeline", "uitk_element", "uitk_file",
 }
 
 
@@ -296,6 +301,30 @@ def test_scanner_resolves_a_named_valid_actions_array_not_only_an_inline_one():
     assert invalid_action_list(body, _SCRATCH_NAMED_ARRAY) == {"find", "create"}
 
 
+_SCRATCH_HYPHEN_SWITCH = '''
+        private static string ExecScratchHyphen(string args)
+        {
+            var action = ScratchArgs.Action(args);
+            return action switch
+            {
+                "get" => ExecGet(args),
+                "set-attr" => ExecSetAttr(args),
+                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
+                    new[] { "get", "set-attr" }))
+            };
+        }
+'''
+
+
+def test_scanner_recognizes_a_hyphenated_action_name():
+    """uitk_file's surgical actions (set-attr, add-class, ...) are the first hyphenated action names the catalog
+    declares (dsl-bottlenecks-2026-11 Part B3) -- a scanner whose character class was [a-z_]+ only (no hyphen)
+    would see 0 arms and an empty invalid-action list here."""
+    body = _function_body(_SCRATCH_HYPHEN_SWITCH, "ExecScratchHyphen")
+    assert dispatch_arms(body) == {"get", "set-attr"}
+    assert invalid_action_list(body) == {"get", "set-attr"}
+
+
 _SCRATCH_GENERATED_CALL = '''
         private static string ExecScratchGenerated(string args)
         {
@@ -361,6 +390,10 @@ _DOC_SOURCE_OVERRIDE: dict[str, tuple[str, str]] = {
     # is hand-written in tools/uitk.py, because its action argument needs a real client-side Literal/enum type
     # that the catalog's ARG grammar cannot express (see uitk.py's own comment on that function).
     "uitk_element": ("unity_mcp.tools.uitk", "uitk_element"),
+    # TOOL uitk_file has neither FORWARD nor BODY either (FLAG direct_only + unity_transport, hand-registered
+    # in CommandRouter.Registration.cs): catalog_tools has no `uitk_file` attribute, so its docstring is
+    # hand-written in tools/uitk.py too.
+    "uitk_file": ("unity_mcp.tools.uitk", "uitk_file"),
 }
 
 

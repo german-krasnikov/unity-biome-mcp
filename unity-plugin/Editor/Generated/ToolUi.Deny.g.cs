@@ -1,5 +1,5 @@
 // Generated from dsl/tools.biome
-// source-sha256=d13cbbbc2059acaefc3c21a899c4af53c88a9385825b43428716e8730b4ecd71
+// source-sha256=ed59fa4ed145cd47e94ae4ac947fd06c13d4b457f4b1e0405ebe74d29140cecf
 // Edit the source, then run biome generate.
 
 using System;
