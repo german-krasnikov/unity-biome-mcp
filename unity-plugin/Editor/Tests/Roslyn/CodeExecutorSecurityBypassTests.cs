@@ -4,6 +4,7 @@ using UnityMCP.Editor.Roslyn;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
+    [Category("Roslyn")]
     public class CodeExecutorSecurityBypassTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp] public void SetUp()

@@ -7,6 +7,7 @@ using UnityMCP.Editor.Roslyn;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
+    [Category("Roslyn")]
     public class CodeExecutorTransformTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]

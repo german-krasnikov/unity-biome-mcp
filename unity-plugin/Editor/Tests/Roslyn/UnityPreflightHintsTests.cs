@@ -6,6 +6,7 @@ using UnityMCP.Editor.Roslyn;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
+    [Category("Roslyn")]
     public class UnityPreflightHintsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── Task 8: CheckSerializedDictionary ─────────────────────────────────

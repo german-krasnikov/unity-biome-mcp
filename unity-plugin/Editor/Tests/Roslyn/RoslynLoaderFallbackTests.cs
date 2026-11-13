@@ -11,6 +11,7 @@ using static UnityMCP.Editor.Tests.RoslynLoaderTestData;
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
+    [Category("Roslyn")]
     internal sealed class RoslynLoaderFallbackTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]

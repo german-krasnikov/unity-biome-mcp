@@ -37,10 +37,19 @@ namespace UnityMCP.Editor.Roslyn
         internal static Assembly RoslynCore => _core;
         internal static Assembly RoslynCompiler => _compiler;
 
+#if UNITYMCP_DISABLE_ROSLYN
+        internal const bool IsKillSwitchActiveForTests = true;
+#else
+        internal const bool IsKillSwitchActiveForTests = false;
+#endif
+
         internal static bool EnsureRoslyn()
         {
             lock (Gate)
             {
+#if UNITYMCP_DISABLE_ROSLYN
+                return FailClosed();
+#else
                 RoslynAssemblySnapshot core, compiler;
                 var selection = SelectLoadedPair(GetLoadedSnapshots(), out core, out compiler);
                 string fallbackDirectory = null;
@@ -79,6 +88,7 @@ namespace UnityMCP.Editor.Roslyn
                 _core = core.Assembly; _compiler = compiler.Assembly;
                 _coreMvid = core.Mvid; _compilerMvid = compiler.Mvid;
                 return true;
+#endif
             }
         }
         internal static RoslynPairSelection SelectLoadedPair(
