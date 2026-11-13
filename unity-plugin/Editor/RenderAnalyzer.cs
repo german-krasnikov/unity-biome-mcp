@@ -38,7 +38,7 @@ namespace UnityMCP.Editor
                 "light_optimize" => LightOptimize(path),
                 "frame_debug"    => FrameDebugHelper.Capture(args),
                 _ => throw new InvalidOperationException(
-                    $"Unknown action '{action}'. Valid: stats|materials|shaders|lights|batching|overdraw|audit|compare|frame_debug|shadow_audit|probe_audit|light_optimize")
+                    ErrorHelper.InvalidAction(action, ToolActions.Names("render_analyze")))
             };
         }
 

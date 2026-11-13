@@ -140,12 +140,10 @@ def _real_invalid_action_list(tool: str) -> set[str]:
 
 # Tools whose C# fallback throws free text with no `ErrorHelper.InvalidAction` call at all -- there is no
 # valid-list artifact to compare, so the test is skipped with a recorded reason instead of silently passing.
-_NO_INVALID_ACTION_LIST_ARTIFACT: dict[str, str] = {
-    "render_analyze": "RenderAnalyzer.cs:40-41 throws an inline interpolated \"Unknown action ... Valid: a|b|c\" "
-                       "message, not ErrorHelper.InvalidAction(action, new[] {...}) -- no array to compare.",
-    "uitk_element": "UIHelper.UIToolkit.cs:100 throws an inline interpolated 'err: unknown action ... Valid: a b c' "
-                    "message, not ErrorHelper.InvalidAction(action, new[] {...}) -- no array to compare.",
-}
+# dsl-bottlenecks-2026-11 Part B2 fixed both entries this dict ever held: RenderAnalyzer.cs and
+# UIHelper.UIToolkit.cs now call ErrorHelper.InvalidAction(action, ToolActions.Names(cmd)) -- empty
+# until the next one.
+_NO_INVALID_ACTION_LIST_ARTIFACT: dict[str, str] = {}
 
 # A real, dated disagreement between the C# switch and its own hand hint array -- recorded here (not fixed in C#)
 # so the test documents the bug and goes red (XPASS) if only one side is ever fixed without updating this entry.
@@ -173,12 +171,14 @@ def test_catalog_actions_match_the_csharp_dispatch_arms(tool):
     assert set(catalog_actions.TOOL_ACTIONS[tool]) == _real_dispatch_arms(tool)
 
 
-# Tools whose hand valid-list (an inline `new[] {...}` literal, or a named `static readonly
-# string[] ValidActions` field) was replaced by `ToolActions.Names(cmd)` in dsl-bottlenecks-2026-11
-# Part A/B1: one fact in one place, generated from the catalog's own ACTION declaration -- there is
-# no hand list left to re-parse and compare, so the test below asserts the call exists instead.
+# Tools whose hand valid-list (an inline `new[] {...}` literal, a named `static readonly
+# string[] ValidActions` field, or -- render_analyze/uitk_element -- a bare interpolated string
+# with no array at all) was replaced by `ToolActions.Names(cmd)` in dsl-bottlenecks-2026-11
+# Part A/B1/B2: one fact in one place, generated from the catalog's own ACTION declaration -- there
+# is no hand list left to re-parse and compare, so the test below asserts the call exists instead.
 _USES_GENERATED_VALID_LIST = {
-    "animation", "asset", "editor", "prefab", "scene", "scriptable_object", "shader", "timeline",
+    "animation", "asset", "editor", "prefab", "render_analyze", "scene", "scriptable_object",
+    "shader", "timeline", "uitk_element",
 }
 
 
