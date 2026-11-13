@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using NUnit.Framework;
+using UnityMCP.Editor;
 using UnityMCP.Editor.Roslyn;
 using UnityMCP.Editor.Testing;
 using static UnityMCP.Editor.Tests.RoslynLoaderTestData;
