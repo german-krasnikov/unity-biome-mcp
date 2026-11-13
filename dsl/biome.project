@@ -98,6 +98,8 @@ GENERATE connstatus logic generate --source {dir}/decisions/connstatus.logic --c
 GENERATE connstatus-rows logic examples --source {dir}/decisions/connstatus.examples --logic {dir}/decisions/connstatus.logic --contract {dir}/decisions/connstatus.contract --out {dir}/decisions/connstatus.json
 GENERATE budget logic generate --source {dir}/decisions/budget.logic --contract {dir}/decisions/budget.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/budget_logic.py"
 GENERATE budget-rows logic examples --source {dir}/decisions/budget.examples --logic {dir}/decisions/budget.logic --contract {dir}/decisions/budget.contract --out {dir}/decisions/budget.json
+GENERATE terminalerror logic generate --source {dir}/decisions/terminalerror.logic --contract {dir}/decisions/terminalerror.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/terminalerror_logic.py"
+GENERATE terminalerror-rows logic examples --source {dir}/decisions/terminalerror.examples --logic {dir}/decisions/terminalerror.logic --contract {dir}/decisions/terminalerror.contract --out {dir}/decisions/terminalerror.json
 GENERATE py-reads  render {dir}/tools.biome pyreads  {dir}/../server/src/unity_mcp/tools/generated/catalog_reads.py
 GENERATE cs-reads  render {dir}/tools.biome csreads  {dir}/../unity-plugin/Editor/Generated/ActionReads.g.cs
 GENERATE py-actions render {dir}/tools.biome pyactions {dir}/../server/src/unity_mcp/tools/generated/catalog_actions.py
