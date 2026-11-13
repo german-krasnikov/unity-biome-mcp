@@ -1,0 +1,12 @@
+# scenarioUncertainNext: next value of Middleware._scenario_uncertain. First match wins.
+# sceneInvalidateGate: whether invalidate_scene_caches() must run. First match wins.
+# Both characterized from middleware_pipeline.py's _reset_write_caches (N0a / N0a-3).
+DECISION scenarioUncertainNext DEFAULT keep
+  ackStart     AT 10 WHEN scn.cmdIsStartPlaytest AND scn.resultIsRunIdAck -> markUncertain
+  terminalDone AT 20 WHEN scn.resultIsTerminal -> clearUncertain
+END
+
+DECISION sceneInvalidateGate DEFAULT skip
+  terminalInvalidate AT 10 WHEN scn.resultIsTerminal -> invalidate
+  forceInvalidate    AT 20 WHEN scn.forceInvalidateFlag -> invalidate
+END

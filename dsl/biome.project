@@ -100,6 +100,14 @@ GENERATE budget logic generate --source {dir}/decisions/budget.logic --contract 
 GENERATE budget-rows logic examples --source {dir}/decisions/budget.examples --logic {dir}/decisions/budget.logic --contract {dir}/decisions/budget.contract --out {dir}/decisions/budget.json
 GENERATE terminalerror logic generate --source {dir}/decisions/terminalerror.logic --contract {dir}/decisions/terminalerror.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/terminalerror_logic.py"
 GENERATE terminalerror-rows logic examples --source {dir}/decisions/terminalerror.examples --logic {dir}/decisions/terminalerror.logic --contract {dir}/decisions/terminalerror.contract --out {dir}/decisions/terminalerror.json
+GENERATE injectstate logic generate --source {dir}/decisions/injectstate.logic --contract {dir}/decisions/injectstate.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/injectstate_logic.py"
+GENERATE injectstate-rows logic examples --source {dir}/decisions/injectstate.examples --logic {dir}/decisions/injectstate.logic --contract {dir}/decisions/injectstate.contract --out {dir}/decisions/injectstate.json
+GENERATE reflectgate logic generate --source {dir}/decisions/reflectgate.logic --contract {dir}/decisions/reflectgate.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/reflectgate_logic.py"
+GENERATE reflectgate-rows logic examples --source {dir}/decisions/reflectgate.examples --logic {dir}/decisions/reflectgate.logic --contract {dir}/decisions/reflectgate.contract --out {dir}/decisions/reflectgate.json
+GENERATE prefetch logic generate --source {dir}/decisions/prefetch.logic --contract {dir}/decisions/prefetch.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/prefetch_logic.py"
+GENERATE prefetch-rows logic examples --source {dir}/decisions/prefetch.examples --logic {dir}/decisions/prefetch.logic --contract {dir}/decisions/prefetch.contract --out {dir}/decisions/prefetch.json
+GENERATE scenarionext logic generate --source {dir}/decisions/scenarionext.logic --contract {dir}/decisions/scenarionext.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/scenarionext_logic.py"
+GENERATE scenarionext-rows logic examples --source {dir}/decisions/scenarionext.examples --logic {dir}/decisions/scenarionext.logic --contract {dir}/decisions/scenarionext.contract --out {dir}/decisions/scenarionext.json
 GENERATE py-reads  render {dir}/tools.biome pyreads  {dir}/../server/src/unity_mcp/tools/generated/catalog_reads.py
 GENERATE cs-reads  render {dir}/tools.biome csreads  {dir}/../unity-plugin/Editor/Generated/ActionReads.g.cs
 GENERATE py-actions render {dir}/tools.biome pyactions {dir}/../server/src/unity_mcp/tools/generated/catalog_actions.py

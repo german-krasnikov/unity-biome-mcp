@@ -1,0 +1,11 @@
+# reflectGate: which mutation-verification path runs after a write's response arrives. First match wins.
+# Characterized from middleware_pipeline.py's _apply_state_tracking (verify_snapshot fallback) and
+# _apply_reflection_and_hinter (async reflect()). The two paths are env-exclusive by construction: when
+# UNITY_MCP_REFLECT=="0", only verifySnapshot can fire; otherwise only reflect can.
+DECISION reflectGate DEFAULT skip
+  verifySnapshotFallback AT 10 WHEN NOT reflect.envOn AND reflect.cmdIsSetProperty AND reflect.hasPropAndValue -> runVerifySnapshot
+  skipDegraded           AT 20 WHEN reflect.envOn AND reflect.resultDegraded -> skip
+  skipNoReflectFlag      AT 21 WHEN reflect.envOn AND reflect.noReflectFlag -> skip
+  skipNotWrite           AT 22 WHEN reflect.envOn AND NOT reflect.cmdIsWrite -> skip
+  runReflect             AT 30 WHEN reflect.envOn AND reflect.cmdIsWrite -> runReflect
+END
