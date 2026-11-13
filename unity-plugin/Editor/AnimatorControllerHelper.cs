@@ -94,7 +94,7 @@ namespace UnityMCP.Editor
             var sm = GetStateMachine(ctrl, layer);
 
             var targetState = FindState(sm, target);
-            if (targetState == null) throw new InvalidOperationException($"Target state not found: {target}");
+            if (targetState == null) throw new InvalidOperationException(ErrorHelper.NotFound("Target state", target));
 
             Undo.RecordObject(ctrl, "Add Transition");
             AnimatorStateTransition transition;
@@ -107,7 +107,7 @@ namespace UnityMCP.Editor
             else
             {
                 var sourceState = FindState(sm, source);
-                if (sourceState == null) throw new InvalidOperationException($"Source state not found: {source}");
+                if (sourceState == null) throw new InvalidOperationException(ErrorHelper.NotFound("Source state", source));
                 transition = sourceState.AddTransition(targetState);
             }
 
@@ -141,7 +141,7 @@ namespace UnityMCP.Editor
             var ctrl = GetOrCreateController(path);
             var sm = GetStateMachine(ctrl, layer);
             var state = FindState(sm, stateName);
-            if (state == null) throw new InvalidOperationException($"State not found: {stateName}");
+            if (state == null) throw new InvalidOperationException(ErrorHelper.NotFound("State", stateName));
 
             Undo.RecordObject(ctrl, "Set Default State");
             sm.defaultState = state;
@@ -195,7 +195,7 @@ namespace UnityMCP.Editor
             var ctrl = GetController(path);
             if (ctrl == null) throw new ArgumentException($"no AnimatorController on '{path}'");
             var state = FindStateAcrossLayers(ctrl, stateName);
-            if (state == null) throw new InvalidOperationException($"state '{stateName}' not found");
+            if (state == null) throw new InvalidOperationException(ErrorHelper.QuotedNotFound("state", stateName));
             var bt = state.motion as BlendTree;
             if (bt == null) throw new InvalidOperationException($"state '{stateName}' is not a BlendTree");
             return AnimatorControllerSerializer.SerializeBlendTree(bt);
@@ -271,7 +271,7 @@ namespace UnityMCP.Editor
             var sm = GetStateMachine(ctrl);
             var state = FindState(sm, stateName);
             if (state == null)
-                throw new InvalidOperationException($"state '{stateName}' not found");
+                throw new InvalidOperationException(ErrorHelper.QuotedNotFound("state", stateName));
 
             var bt = state.motion as BlendTree;
             if (bt == null)
@@ -349,7 +349,7 @@ namespace UnityMCP.Editor
                 var clipName = colonIdx > 0 ? trimmed.Substring(0, colonIdx).Trim() : trimmed;
                 var clip = FindClipByName(clipName);
                 if (clip == null)
-                    throw new ArgumentException($"Clip not found: '{clipName}'");
+                    throw new ArgumentException(ErrorHelper.NotFound("Clip", $"'{clipName}'"));
 
                 if (btType == BlendTreeType.Simple1D)
                 {
@@ -604,13 +604,13 @@ namespace UnityMCP.Editor
                     return;
                 }
             }
-            throw new InvalidOperationException($"Parameter not found: {name}");
+            throw new InvalidOperationException(ErrorHelper.NotFound("Parameter", name));
         }
 
         private static void RemoveState(AnimatorStateMachine sm, string name)
         {
             var state = FindState(sm, name);
-            if (state == null) throw new InvalidOperationException($"State not found: {name}");
+            if (state == null) throw new InvalidOperationException(ErrorHelper.NotFound("State", name));
             sm.RemoveState(state);
         }
 
@@ -627,11 +627,11 @@ namespace UnityMCP.Editor
                         return;
                     }
                 }
-                throw new InvalidOperationException($"AnyState transition to '{target}' not found");
+                throw new InvalidOperationException(ErrorHelper.QuotedNotFound("AnyState transition to", target));
             }
 
             var sourceState = FindState(sm, source);
-            if (sourceState == null) throw new InvalidOperationException($"Source state not found: {source}");
+            if (sourceState == null) throw new InvalidOperationException(ErrorHelper.NotFound("Source state", source));
 
             foreach (var t in sourceState.transitions)
             {
@@ -641,7 +641,7 @@ namespace UnityMCP.Editor
                     return;
                 }
             }
-            throw new InvalidOperationException($"Transition '{source} → {target}' not found");
+            throw new InvalidOperationException(ErrorHelper.QuotedNotFound("Transition", $"{source} → {target}"));
         }
 
         // --- Layer CRUD ---
@@ -726,7 +726,7 @@ namespace UnityMCP.Editor
             }
             for (int i = 0; i < ctrl.layers.Length; i++)
                 if (ctrl.layers[i].name == layer) return i;
-            throw new ArgumentException($"Layer not found: {layer}");
+            throw new ArgumentException(ErrorHelper.NotFound("Layer", layer));
         }
 
         private static AnimatorLayerBlendingMode ParseBlendingMode(string mode)
@@ -745,7 +745,7 @@ namespace UnityMCP.Editor
             var ctrl = GetController(path);
             if (ctrl == null) throw new ArgumentException($"no AnimatorController on '{path}'");
             var state = FindStateAcrossLayers(ctrl, stateName);
-            if (state == null) throw new InvalidOperationException($"State not found: {stateName}");
+            if (state == null) throw new InvalidOperationException(ErrorHelper.NotFound("State", stateName));
             Undo.RecordObject(state, "Set State Speed");
             state.speed = float.Parse(value, CultureInfo.InvariantCulture);
             SaveController(ctrl);
@@ -786,13 +786,13 @@ namespace UnityMCP.Editor
             {
                 foreach (var t in sm.anyStateTransitions)
                     if (t.destinationState?.name == target) return t;
-                throw new InvalidOperationException($"AnyState transition to '{target}' not found");
+                throw new InvalidOperationException(ErrorHelper.QuotedNotFound("AnyState transition to", target));
             }
             var sourceState = FindState(sm, source);
-            if (sourceState == null) throw new InvalidOperationException($"Source state not found: {source}");
+            if (sourceState == null) throw new InvalidOperationException(ErrorHelper.NotFound("Source state", source));
             foreach (var t in sourceState.transitions)
                 if (t.destinationState?.name == target) return t;
-            throw new InvalidOperationException($"Transition '{source} → {target}' not found");
+            throw new InvalidOperationException(ErrorHelper.QuotedNotFound("Transition", $"{source} → {target}"));
         }
 
         // --- M9: Set Avatar ---
@@ -807,7 +807,7 @@ namespace UnityMCP.Editor
             if (!string.IsNullOrEmpty(avatarPath))
             {
                 avatar = AssetDatabase.LoadAssetAtPath<Avatar>(avatarPath);
-                if (avatar == null) throw new ArgumentException($"Avatar not found: {avatarPath}");
+                if (avatar == null) throw new ArgumentException(ErrorHelper.NotFound("Avatar", avatarPath));
             }
             Undo.RecordObject(anim, "Set Avatar");
             anim.avatar = avatar;
@@ -822,7 +822,7 @@ namespace UnityMCP.Editor
             var ctrl = GetController(path);
             if (ctrl == null) throw new ArgumentException($"no AnimatorController on '{path}'");
             var state = FindStateAcrossLayers(ctrl, oldName);
-            if (state == null) throw new InvalidOperationException($"State not found: {oldName}");
+            if (state == null) throw new InvalidOperationException(ErrorHelper.NotFound("State", oldName));
             Undo.RecordObject(state, "Rename State");
             state.name = newName;
             SaveController(ctrl);
@@ -845,7 +845,7 @@ namespace UnityMCP.Editor
                     return $"param renamed: {oldName} → {newName}";
                 }
             }
-            throw new InvalidOperationException($"Parameter not found: {oldName}");
+            throw new InvalidOperationException(ErrorHelper.NotFound("Parameter", oldName));
         }
 
         private static void SaveController(AnimatorController ctrl)

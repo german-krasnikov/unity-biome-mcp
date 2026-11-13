@@ -110,5 +110,14 @@ namespace UnityMCP.Editor
 
         public static string InvalidAction(string action, string[] valid) =>
             $"Unknown action '{action}'. Valid: {string.Join("|", valid)}.";
+
+        // T3 (dsl-bottlenecks-2026-11): centralizes the "X not found: Y" wording family so a
+        // future reword touches one method body instead of every call site. Byte-identical to
+        // the inline strings it replaced (pinned in server/tests before the swap) — this is a
+        // mechanical move, not a wording change.
+        public static string NotFound(string kind, string id) => $"{kind} not found: {id}";
+
+        // Same family, different shape: "X 'Y' not found" (id is quoted, no colon).
+        public static string QuotedNotFound(string kind, string id) => $"{kind} '{id}' not found";
     }
 }
