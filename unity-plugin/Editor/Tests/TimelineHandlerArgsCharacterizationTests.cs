@@ -187,13 +187,17 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Edit_ReorderTrack_MovesTrackToIndex()
         {
+            // index=1 (not 0): 0 equals TimelineHelper's `index ?? 0` null-fallback, so a
+            // miswired TimelineArgs.Index accessor that always returns null would still
+            // produce "→ 0" and this test would never catch it. 1 only matches when the
+            // real "index" arg value is read.
             CreateAsset("Case_Reorder", "Animation:A;Audio:B;Activation:C");
 
             var result = CommandRouter.ExecuteCommand("timeline",
-                "{\"action\":\"reorder_track\",\"path\":\"" + DirectorPath + "\",\"track\":\"C\",\"index\":0}");
+                "{\"action\":\"reorder_track\",\"path\":\"" + DirectorPath + "\",\"track\":\"C\",\"index\":1}");
 
             StringAssert.Contains("reordered: C", result);
-            StringAssert.Contains("→ 0", result);
+            StringAssert.Contains("→ 1", result);
         }
 
         [Test]
