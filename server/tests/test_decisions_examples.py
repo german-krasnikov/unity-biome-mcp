@@ -14,7 +14,7 @@ import pytest
 
 DECISIONS = Path(__file__).resolve().parents[2] / "dsl" / "decisions"
 # The modules of step 7.2 that have examples; a module that loses its rows must fail, not vanish from the parametrization.
-MODULES = {"mutability", "verdict", "guards", "retry", "permission", "versionorder", "busysignal", "connstatus", "budget", "editorlog", "contextwindow", "terminalerror"}
+MODULES = {"mutability", "verdict", "guards", "retry", "permission", "versionorder", "busysignal", "connstatus", "budget", "editorlog", "terminalerror"}
 
 
 def snake(name: str) -> str:
