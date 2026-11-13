@@ -494,11 +494,19 @@ namespace UnityMCP.TestProject.SceneObject
             var go = new GameObject("ErrorTestObj");
             try
             {
-                LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("Invalid action"));
+                // dsl-bottlenecks-2026-11 40195bc4: ObjectManager.ManageComponent's unknown-action
+                // branch now routes through ErrorHelper.InvalidAction(action, ToolActions.Names(cmd)),
+                // thrown as ArgumentException and classified "VALIDATION" by ErrorClassifier before
+                // CommandRouter.Process logs and returns it (CommandRouter.cs:236-241).
+                LogAssert.Expect(LogType.Warning,
+                    new System.Text.RegularExpressions.Regex(
+                        System.Text.RegularExpressions.Regex.Escape(
+                            "Unknown action 'invalid'. Valid: add|remove.")));
                 var json = "{\"id\":\"oc16\",\"cmd\":\"manage_component\",\"args\":{\"path\":\"/ErrorTestObj\",\"type\":\"BoxCollider\",\"action\":\"invalid\"}}";
                 var result = CommandRouter.Process(json);
                 StringAssert.Contains("\"ok\":false", result);
-                StringAssert.Contains("Invalid action", result);
+                StringAssert.Contains(
+                    "\"err\":\"VALIDATION: Unknown action 'invalid'. Valid: add|remove.\"", result);
             }
             finally
             {
