@@ -1,11 +1,14 @@
 using System.IO;
 using System.Text.RegularExpressions;
 using UnityEngine;
+using UnityMCP.Editor.Wizard;
 
 namespace UnityMCP.Editor
 {
     internal static class VersionCoherenceChecker
     {
+        static readonly Protocol Proto = ProtocolRows.All[0];
+
 #if UNITY_INCLUDE_TESTS
         /// <summary>Override config path for tests. Set to null to use real path.</summary>
         internal static string _testConfigPath;
@@ -24,7 +27,7 @@ namespace UnityMCP.Editor
             try
             {
                 var json = File.ReadAllText(configPath);
-                var m = Regex.Match(json, @"@v(\d+\.\d+\.\d+)#subdirectory=server");
+                var m = Regex.Match(json, $@"@v({Proto.ServerRefPattern})#subdirectory={Proto.InstallSubdir}");
                 return m.Success ? m.Groups[1].Value : null;
             }
             catch { return null; }

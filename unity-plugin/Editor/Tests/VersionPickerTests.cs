@@ -287,5 +287,21 @@ namespace UnityMCP.Editor.Tests
             VersionCoherenceChecker._testConfigPath = "/tmp/nonexistent_unity_mcp_config_xyz.json";
             Assert.IsNull(VersionCoherenceChecker.GetServerPinnedRef());
         }
+
+        [Test]
+        public void GetServerPinnedRef_PreReleasePinnedUrl_ReturnsVersion()
+        {
+            // Regression: a hand-rolled regex (no pre-release group) silently read
+            // "...@v1.51.0-rc.1#subdirectory=server" as unpinned (returned null) instead of
+            // the generated protocol grammar's X.Y.Z(-prerelease)? (ProtocolRows.All[0].ServerRefPattern).
+            var tmp = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllText(tmp, "{\"mcpServers\":{\"unity-biome-mcp\":{\"command\":\"uvx\",\"args\":[\"--from\",\"git+https://github.com/german-krasnikov/unity-biome-mcp.git@v1.51.0-rc.1#subdirectory=server\",\"unity-biome-mcp\"]}}}");
+                VersionCoherenceChecker._testConfigPath = tmp;
+                Assert.AreEqual("1.51.0-rc.1", VersionCoherenceChecker.GetServerPinnedRef());
+            }
+            finally { File.Delete(tmp); }
+        }
     }
 }
