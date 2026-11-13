@@ -24,6 +24,10 @@ SOURCE_PATCH_ASMDEF = (
     REPO_ROOT / "unity-plugin" / "Editor" / "SourcePatch"
     / "UnityMCP.Editor.SourcePatch.asmdef"
 )
+ROSLYN_ASMDEF = (
+    REPO_ROOT / "unity-plugin" / "Editor" / "Roslyn"
+    / "UnityMCP.Editor.Roslyn.asmdef"
+)
 
 # Case-insensitive substrings identifying a concrete FSR (or similar
 # runtime-patching) provider -- SourcePatch's public asmdef must stay neutral.
@@ -53,6 +57,16 @@ def test_source_patch_neutral_asmdef_has_no_provider_references():
     assert asmdef["references"] == []
     violations = _asmdef_denylist_violations(asmdef, _PROVIDER_DENYLIST)
     assert violations == []
+
+
+def test_roslyn_asmdef_has_no_core_reference():
+    """UnityMCP.Editor.Roslyn.asmdef must have zero custom references -- Core
+    calls into Roslyn through the RoslynHost delegate seam (Task 0.1), never
+    the other way. Regression guard against re-adding a Core back-reference."""
+    asmdef = _load_asmdef(ROSLYN_ASMDEF)
+
+    assert asmdef["references"] == []
+    assert asmdef["noEngineReferences"] is False
 
 
 def _asmdef_denylist_violations(asmdef: dict, denylist: tuple[str, ...]) -> list[str]:

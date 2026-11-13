@@ -366,6 +366,7 @@ namespace UnityMCP.Editor.Roslyn
         {
             if (string.IsNullOrEmpty(name)) return false;
             if (name == "UnityMCP.Editor") return false;
+            if (name == "UnityMCP.Editor.Roslyn") return false;
             if (name.StartsWith("UnityMCP") && name.Contains(".Tests")) return false;
             if (name.StartsWith("Microsoft.CodeAnalysis")) return false;
             if (name.StartsWith("Mono.Cecil")) return false;
