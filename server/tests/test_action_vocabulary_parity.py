@@ -260,9 +260,15 @@ def test_catalog_actions_match_the_csharp_dispatch_arms(tool):
 # with no array at all) was replaced by `ToolActions.Names(cmd)` in dsl-bottlenecks-2026-11
 # Part A/B1/B2: one fact in one place, generated from the catalog's own ACTION declaration -- there
 # is no hand list left to re-parse and compare, so the test below asserts the call exists instead.
+#
+# dsl-bottlenecks-2026-11 Part A (slice R2) added the six below: their hand `new[] {...}` literals
+# in CommandRouter.MediaHandlers.cs (animator, menu, particle, references), MaterialHelper.cs
+# (material), and SpatialHelper.cs (spatial_query) were byte-identical in content and order to the
+# catalog's own ACTION declaration -- pure replacement, no observable error-text change.
 _USES_GENERATED_VALID_LIST = {
-    "animation", "asset", "editor", "prefab", "render_analyze", "scene", "scriptable_object",
-    "shader", "timeline", "uitk_element", "uitk_file",
+    "animation", "animator", "asset", "editor", "material", "menu", "particle", "prefab",
+    "references", "render_analyze", "scene", "scriptable_object", "shader", "spatial_query",
+    "timeline", "uitk_element", "uitk_file",
 }
 
 

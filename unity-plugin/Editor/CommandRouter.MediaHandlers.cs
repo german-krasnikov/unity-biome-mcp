@@ -209,7 +209,8 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(args, "source"),
                     JsonHelper.ExtractString(args, "target"),
                     JsonHelper.ExtractString(args, "mappings")),
-                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action, new[] { "get", "find_to", "remap" }))
+                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
+                    ToolActions.Names("references")))
             };
         }
 
@@ -404,10 +405,7 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(args, "param"),
                     JsonHelper.ExtractString(args, "name")),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "add_param", "add_state", "add_transition", "set_default", "remove",
-                            "add_blend_tree", "edit_blend_tree", "get_blend_tree",
-                            "add_layer", "remove_layer", "rename_layer", "set_layer_weight", "set_layer_blending",
-                            "set_state_speed", "update_transition", "set_avatar", "rename_state", "rename_param" }))
+                    ToolActions.Names("animator")))
             };
         }
 
@@ -463,7 +461,7 @@ namespace UnityMCP.Editor
                 "stop" => ParticleHelper.Stop(JsonHelper.ExtractString(args, "path")),
                 "pause" => ParticleHelper.Pause(JsonHelper.ExtractString(args, "path")),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "create", "set", "apply", "play", "stop", "pause" }))
+                    ToolActions.Names("particle")))
             };
         }
 
@@ -559,7 +557,8 @@ namespace UnityMCP.Editor
             {
                 "execute" => MenuHelper.Execute(JsonHelper.ExtractString(args, "path")),
                 "list" => MenuHelper.List(JsonHelper.ExtractString(args, "path")),
-                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action, new[] { "execute", "list" }))
+                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
+                    ToolActions.Names("menu")))
             };
         }
     }

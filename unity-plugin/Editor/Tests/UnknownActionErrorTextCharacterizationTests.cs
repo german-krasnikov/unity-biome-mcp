@@ -112,6 +112,75 @@ namespace UnityMCP.Editor.Tests
                 ex.Message);
         }
 
+        // dsl-bottlenecks-2026-11 Part A (slice R2): six more tools whose hand valid-list is
+        // byte-identical in content and order to ToolActions.Names(cmd) -- pinned here BEFORE the
+        // swap in CommandRouter.MediaHandlers.cs / MaterialHelper.cs / SpatialHelper.cs so the
+        // same literal proves no observable change after it.
+        [Test]
+        public void Animator_UnknownAction_ErrorTextListsAllDeclaredActions()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() =>
+                CommandRouter.ExecuteCommand("animator", Args()));
+            Assert.AreEqual(
+                "Unknown action '__no_such_action__'. Valid: get|add_param|add_state|add_transition|" +
+                "set_default|remove|add_blend_tree|edit_blend_tree|get_blend_tree|add_layer|remove_layer|" +
+                "rename_layer|set_layer_weight|set_layer_blending|set_state_speed|update_transition|" +
+                "set_avatar|rename_state|rename_param.",
+                ex.Message);
+        }
+
+        [Test]
+        public void Material_UnknownAction_ErrorTextListsAllDeclaredActions()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() =>
+                CommandRouter.ExecuteCommand("material", Args()));
+            Assert.AreEqual(
+                "Unknown action '__no_such_action__'. Valid: create|get|set|copy|list_properties|" +
+                "list_slots|get_errors|list_shaders|set_fields.",
+                ex.Message);
+        }
+
+        [Test]
+        public void Menu_UnknownAction_ErrorTextListsAllDeclaredActions()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() =>
+                CommandRouter.ExecuteCommand("menu", Args()));
+            Assert.AreEqual(
+                "Unknown action '__no_such_action__'. Valid: execute|list.",
+                ex.Message);
+        }
+
+        [Test]
+        public void Particle_UnknownAction_ErrorTextListsAllDeclaredActions()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() =>
+                CommandRouter.ExecuteCommand("particle", Args()));
+            Assert.AreEqual(
+                "Unknown action '__no_such_action__'. Valid: get|create|set|apply|play|stop|pause.",
+                ex.Message);
+        }
+
+        [Test]
+        public void References_UnknownAction_ErrorTextListsAllDeclaredActions()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() =>
+                CommandRouter.ExecuteCommand("references", Args()));
+            Assert.AreEqual(
+                "Unknown action '__no_such_action__'. Valid: get|find_to|remap.",
+                ex.Message);
+        }
+
+        [Test]
+        public void SpatialQuery_UnknownAction_ErrorTextListsAllDeclaredActions()
+        {
+            var ex = Assert.Throws<System.ArgumentException>(() =>
+                CommandRouter.ExecuteCommand("spatial_query", Args()));
+            Assert.AreEqual(
+                "Unknown action '__no_such_action__'. Valid: nearest|in_front_of|objects_in_radius|" +
+                "bounds_info|raycast|spatial_map|objects_in_polygon.",
+                ex.Message);
+        }
+
         // dsl-bottlenecks-2026-11 Part B1: EditorStateHelper.cs's hand valid-list omits
         // "mutation_mode", which ExecEditor (CommandRouter.MediaHandlers.cs) really dispatches via
         // its own if-chain before delegating to EditorStateHelper.Control. Swapping the hand list

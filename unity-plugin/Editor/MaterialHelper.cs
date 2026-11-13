@@ -23,7 +23,7 @@ namespace UnityMCP.Editor
                 "list_shaders" => ListShaders(argsJson),
                 "set_fields" => SetFields(argsJson),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "create", "get", "set", "copy", "list_properties", "list_slots", "get_errors", "list_shaders", "set_fields" }))
+                    ToolActions.Names("material")))
             };
         }
 
