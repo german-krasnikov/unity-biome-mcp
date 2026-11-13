@@ -119,8 +119,9 @@ namespace UnityMCP.Editor.Wizard
             "  }\n" +
             "}\n";
 
-        public const string GitInstallUrl =
-            "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server";
+        static readonly Protocol Proto = ProtocolRows.All[0];
+        static readonly string RepoBase = Proto.GitRepoBase;
+        public static readonly string GitInstallUrl = RepoBase + "#subdirectory=" + Proto.InstallSubdir;
 
         /// <summary>
         /// Returns a uvx --from URL pinned to a specific git tag.
@@ -133,28 +134,11 @@ namespace UnityMCP.Editor.Wizard
         {
             if (string.IsNullOrEmpty(@ref)) return GitInstallUrl;
             var clean = @ref.TrimStart('v');
-            // Whole-ref grammar check first — rejects any character in a
-            // "-<pre-release>" suffix that ProjectConfigToml's shared VersionPattern
-            // wouldn't accept in a TOML marker (e.g. "rc_1" or "rc/1").
-            if (!Regex.IsMatch(clean, "^" + ProjectConfigToml.VersionPattern + "$"))
+            // Generated grammar (dsl/data/protocol): X.Y.Z plus optional pre-release; \z, not $,
+            // so a trailing newline is rejected.
+            if (!Regex.IsMatch(clean, "^" + Proto.ServerRefPattern + "\\z"))
                 throw new ArgumentException($"Invalid version ref: {@ref}");
-            // VersionPattern's base component ([\d.]+) doesn't require exactly
-            // three numeric parts — that stricter X.Y.Z shape is this call site's
-            // own requirement, still enforced here.
-            var dashIdx = clean.IndexOf('-');
-            var basePart = dashIdx < 0 ? clean : clean.Substring(0, dashIdx);
-            var parts = basePart.Split('.');
-            if (parts.Length != 3 || !AllDigits(parts))
-                throw new ArgumentException($"Invalid version ref: {@ref}");
-            const string RepoBase = "git+https://github.com/german-krasnikov/unity-biome-mcp.git";
-            return $"{RepoBase}@v{clean}#subdirectory=server";
-        }
-
-        private static bool AllDigits(string[] arr)
-        {
-            foreach (var p in arr)
-                if (!int.TryParse(p, out _)) return false;
-            return true;
+            return $"{RepoBase}@v{clean}#subdirectory={Proto.InstallSubdir}";
         }
 
         internal static string Entry(int port) => Entry(port, GitInstallUrl);

@@ -347,26 +347,8 @@ def test_file_uri_uses_posix_path(tmp_path, monkeypatch):
             assert "\\" not in ref, f"Backslash in file: URI for {pkg}: {ref!r}"
 
 
-# ─── Cross-language: git URL consistency ──────────────────────────────────────
-
-def test_git_url_consistency():
-    """Python GIT_INSTALL_URL and C# GitInstallUrl must be identical."""
-    import subprocess
-    from unity_mcp.config.resolver import GIT_INSTALL_URL
-
-    repo_root = Path(__file__).parent.parent.parent
-    cs_files = [
-        repo_root / "unity-plugin" / "Editor" / "Wizard" / "WizardConfigWriter.cs",
-    ]
-
-    py_url = GIT_INSTALL_URL
-    for cs_file in cs_files:
-        content = cs_file.read_text(encoding="utf-8")
-        assert py_url in content, (
-            f"GIT_INSTALL_URL mismatch in {cs_file.name}.\n"
-            f"Python: {py_url}\n"
-            f"Not found in C# file."
-        )
+# test_git_url_consistency removed: both sides now read from
+# dsl/data/protocol.core-data (P7), making the parity test redundant.
 
 
 # ─── Bug fixes: TOML validator + generic cross-platform ──────────────────────

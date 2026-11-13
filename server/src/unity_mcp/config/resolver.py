@@ -5,6 +5,7 @@ import shutil
 import sys
 
 from unity_mcp.constants import DEFAULT_PORT
+from unity_mcp.generated.protocol import PROTOCOL_ROWS
 from unity_mcp.paths import iter_port_files as _iter_port_files_canonical
 from unity_mcp.paths import ports_dir as _ports_dir_canonical
 
@@ -43,10 +44,10 @@ def find_python() -> str:
     return sys.executable
 
 
-GIT_INSTALL_URL = "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server"
-
-_REPO_BASE = "git+https://github.com/german-krasnikov/unity-biome-mcp.git"
-_SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
+_PROTOCOL = PROTOCOL_ROWS[0]
+_REPO_BASE = _PROTOCOL.gitRepoBase
+GIT_INSTALL_URL = f"{_REPO_BASE}#subdirectory={_PROTOCOL.installSubdir}"
+_SEMVER_RE = re.compile(_PROTOCOL.serverRefPattern)
 
 
 def server_git_url(ref: str | None = None) -> str:
@@ -58,9 +59,9 @@ def server_git_url(ref: str | None = None) -> str:
     if ref is None:
         return GIT_INSTALL_URL
     clean = ref.lstrip("v")
-    if not _SEMVER_RE.match(clean):
+    if not _SEMVER_RE.fullmatch(clean):
         raise ValueError(f"Invalid version ref: {ref!r} — expected X.Y.Z")
-    return f"{_REPO_BASE}@v{clean}#subdirectory=server"
+    return f"{_REPO_BASE}@v{clean}#subdirectory={_PROTOCOL.installSubdir}"
 
 
 def find_server_command() -> list[str]:
