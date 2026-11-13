@@ -19,11 +19,11 @@ namespace UnityMCP.Editor.Tests
         private static readonly string[] MetaCommands =
         {
             "get_disabled_tools",
-            "set_tool_catalog", "set_client_label", "screenshot", "diagnose", "force_play_stop",
+            "set_tool_catalog", "set_client_label", "screenshot", "force_play_stop",
         };
 
-        // A5: "wait_until", "move_to", "test_step", "build", "package" moved to ToolBindings.g.cs
-        // (HANDLER DSL item) — RegisterAsyncCommands() alone no longer registers them.
+        // A5: every async command has a HANDLER line in dsl/tools.biome — RegisterAsyncCommands() alone registers none;
+        // ToolBindings.RegisterAll() does.
         private static readonly string[] AsyncCommands =
         {
             "run_tests", "ask_user", "run_playtest",
@@ -50,8 +50,9 @@ namespace UnityMCP.Editor.Tests
         {
             CommandRegistry.Clear();
             CommandRouter.RegisterAsyncCommands();
+            Assert.IsEmpty(CommandRegistry.GetAllCommands());
 
-            CollectionAssert.AreEquivalent(AsyncCommands, CommandRegistry.GetAllCommands());
+            ToolBindings.RegisterAll();
             foreach (var cmd in AsyncCommands)
                 Assert.IsTrue(CommandRegistry.HasAsyncHandler(cmd, out _), $"{cmd} should be async-registered");
         }
@@ -63,7 +64,7 @@ namespace UnityMCP.Editor.Tests
         public void RegisterAsyncCommands_RunPlaytest_NotFlaggedRuntime()
         {
             CommandRegistry.Clear();
-            CommandRouter.RegisterAsyncCommands();
+            ToolBindings.RegisterAll();
             Assert.IsFalse(CommandRegistry.IsRuntime("run_playtest"),
                 "run_playtest's Play-mode gate moved into AsyncRunPlaytest's header check (B05) — " +
                 "registration must not pre-block Edit-mode scripts before the header is read");

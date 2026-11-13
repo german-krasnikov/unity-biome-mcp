@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=385b6968907572e67385e5e7dc2e105b35a7e35bfd730786d74a3fea06784905
+# source-sha256=2f60948cb50a62567d529938c2e71eaebb92bc504cb0bb6c772ff0a8d21866c7
 # Edit the source, then run biome generate.
 
 BLAST_RADIUS: dict[str, int] = {

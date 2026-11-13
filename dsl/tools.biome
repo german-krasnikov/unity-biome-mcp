@@ -26,6 +26,7 @@ TOOL analyze_lod_culling MEDIA RO "LOD group coverage + occlusion culling analys
 END
 
 TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use when you need to read or author keyframe animation on a specific object (not an Animator state machine — use `animator` for that, not this)."
+  HANDLER register "CommandRouter.ExecAnimationConsolidated"
   FORWARD
   DOC "add_key/remove_key/remove_curve/set_keys/set_loop are the same edit."
   DOC "clip=clip name, keys='t:0 v:(0,0,0); t:1 v:(0,2,0)', property=e.g. localPosition.x."
@@ -173,6 +174,7 @@ PYTOOL ask SYSTEM RO "Answer a read-only question about the Unity scene (AI-rout
 END
 
 TOOL ask_user SYSTEM RO "Show a question card in Unity chat; wait for user answer (interactive UI — use `ask` for read-only AI scene questions instead)."
+  HANDLER register_async "CommandRouter.AsyncAskUser"
   GUARD always
   GUARD compile
   FORWARD
@@ -187,6 +189,7 @@ TOOL ask_user SYSTEM RO "Show a question card in Unity chat; wait for user answe
 END
 
 TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No confirmation required."
+  HANDLER register_action "AssetDatabaseHelper.Execute"
   BODY asset
   DISPATCH "AssetDatabaseHelper" EXCEPTION Exception
   DOC "move/validate_move: source+dest (Assets/ paths)."
@@ -516,6 +519,7 @@ TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. De
 END
 
 TOOL diagnose VERIFY RO "Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`."
+  HANDLER register "CommandRouter.ExecDiagnose"
   BODY diagnose
   DOC "prev_mvid: MVID from before a sync operation. When provided, enables STALE-DOMAIN"
   DOC "detection (unchanged MVID after intended recompile). Pass '' for standalone probing."
@@ -670,6 +674,7 @@ TOOL get_compile_errors CORE RO "Compilation errors with file:line:column. Not l
 END
 
 TOOL get_component CORE RO "Component properties as key-value. For MULTIPLE objects, use inspect(paths='a,b,c') instead — 1 call vs N."
+  HANDLER register "CommandRouter.ExecGetComponent"
   BODY objects
   DOC "fields: comma-separated field names to keep (e.g. 'mass,position') — projects the result to save tokens; shows requested fields even at default values. Aliases: position, rotation, scale, mass, enabled, active, name."
   DOC "full=True: bypass distillation, return raw response. compress=True: strip default values before transfer."
@@ -736,6 +741,7 @@ TOOL get_enabled_tools SYSTEM RO "List enabled tool names, comma-separated."
 END
 
 TOOL get_frame_stats RUNTIME RO "Current frame performance snapshot (fps, cpu, gpu, memory, draw calls). No session needed."
+  HANDLER register "CommandRouter.ExecGetFrameStats"
   FORWARD
   RUNTIME
   DOC "include: narrow output — e.g. 'gc' for GC stats only."
@@ -743,6 +749,7 @@ TOOL get_frame_stats RUNTIME RO "Current frame performance snapshot (fps, cpu, g
 END
 
 TOOL get_hierarchy CORE RO "Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only)."
+  HANDLER register "CommandRouter.ExecGetHierarchy"
   BODY scene
   FLAG core
   TIMEOUT 15.0
@@ -777,6 +784,7 @@ PYTOOL get_metrics RUNTIME RW "Returns telemetry snapshot. Clears counters when 
 END
 
 TOOL get_object_detail SCENE RO "Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation."
+  HANDLER register "CommandRouter.ExecGetObjectDetail"
   BODY objects
   ARG id int EXAMPLE "999999999"
   ARG full bool DEFAULT False LOCAL
@@ -789,6 +797,7 @@ END
 # wires run_playtest(timeout>120) through the async start/poll pair. Same shape as
 # source_patch_write below (RegisterAsync in C#, no Python-typed wrapper yet).
 INTERNAL get_playtest_run RO "Polls the asynchronous playtest run that start_playtest began."
+  HANDLER register_async "CommandRouter.AsyncGetPlaytestRun"
   GUARD compile
   FLAG direct_only
   FLAG unity_transport
@@ -797,6 +806,7 @@ INTERNAL get_playtest_run RO "Polls the asynchronous playtest run that start_pla
 END
 
 TOOL get_schema SYSTEM RO "Get all serialized fields of a component type with types. Use before set_property to know exact field names."
+  HANDLER register "CommandRouter.ExecGetSchema"
   FORWARD
   ARG type str EXAMPLE "Transform"
 END
@@ -842,6 +852,7 @@ TOOL get_test_results TESTS RO "Legacy result facade. Pass run_id to prevent rea
 END
 
 TOOL get_test_run TESTS RO "Return the durable JSON snapshot for one exact test run."
+  HANDLER register "CommandRouter.ExecGetTestRun"
   BODY testing
   DOC "Fails closed on terminal-invalid evidence: a snapshot claiming"
   DOC "``state == \"terminal\"`` that doesn't pass ARC-1/ARC-3 validation (an"
@@ -870,6 +881,7 @@ INTERNAL get_version RO "Version and protocol handshake; the Unity server answer
 END
 
 TOOL get_watches RUNTIME RO "Get all active watches and recent log entries."
+  HANDLER register "WatchCommandHandler.ExecGetWatchesCommand"
 END
 
 INTERNAL import_package RW "Protocol name of the asset action import_package; only its timeout is used, Unity registers no command of this name."
@@ -878,6 +890,7 @@ INTERNAL import_package RW "Protocol name of the asset action import_package; on
 END
 
 TOOL inspect CORE RO "Get components for multiple objects at once. paths: comma-separated. components: comma-separated types (default: all)."
+  HANDLER register "CommandRouter.ExecInspect"
   BODY objects
   DOC "find_type: component type to find — populates paths automatically (replaces explicit paths)."
   DOC "fields: comma-separated field names to keep across all objects — projects the result to save tokens. full=True: bypass distillation. compress=True: strip default values before transfer."
@@ -896,6 +909,7 @@ TOOL inspect CORE RO "Get components for multiple objects at once. paths: comma-
 END
 
 TOOL inspect_uitk UITOOLKIT RO "Inspect the VisualElement tree of a UIDocument or PanelRenderer panel"
+  HANDLER register "CommandRouter.ExecInspectUITK"
   BODY uitk
   DOC "(UI Toolkit only — use `get_component` for UIDocument component fields,"
   DOC "use `get_hierarchy` for the scene GameObject tree,"
@@ -1006,6 +1020,7 @@ TOOL list_events COMPONENTS RO "Read persistent listeners on a UnityEvent field.
 END
 
 INTERNAL list_playtest_files RO "Lists the files that match a glob pattern (default Playtests/*.playtest), one project-relative path per line."
+  HANDLER register "CommandRouter.ExecListPlaytestFiles"
   GUARD compile
   TIMEOUT 10.0
   ARG pattern ostr DEFAULT None
@@ -1227,6 +1242,7 @@ TOOL ping_object SCENE RO "Highlight object in Hierarchy and Project, and select
 END
 
 TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmation required."
+  HANDLER register_action "PrefabHelper.Execute"
   FORWARD
   DISPATCH "PrefabHelper"
   ACTION save "path (scene) + asset_path [+ mode: new|overwrite (default)]"
@@ -1257,6 +1273,7 @@ TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmatio
 END
 
 TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
+  HANDLER register_action "Profiling.ProfileRecorder.Dispatch"
   BODY profiling
   DOC "mode: burst (auto-stop after duration) | manual (explicit stop) | triggered (on spike)"
   GUARD play_ok
@@ -1326,6 +1343,7 @@ PYTOOL reconnect_unity SYSTEM RO "Reconnect to Unity. Port 0 or omitted = auto-d
 END
 
 TOOL references COMPONENTS RW "References."
+  HANDLER register "CommandRouter.ExecReferencesConsolidated"
   FORWARD
   ACTION get "outgoing refs"
   ACTION find_to "reverse search"
@@ -1371,6 +1389,7 @@ TOOL rename_object SCENE RW_IDEM "Rename a GameObject. Returns new scene path af
 END
 
 TOOL render_analyze MEDIA RO "Rendering analysis."
+  HANDLER register "CommandRouter.ExecRenderAnalyze"
   FORWARD
   ACTION stats "draw calls, batches, tris, verts, set-pass from UnityStats"
   ACTION materials
@@ -1425,6 +1444,7 @@ END
 # True here would reintroduce a second, stale Python-only authority (see
 # test_runtime_only_single_source).
 TOOL run_playtest TESTS RW "[Play Mode] Execute a playtest DSL script. Returns structured report (for NUnit tests, use `run_tests`)."
+  HANDLER register_async "CommandRouter.AsyncRunPlaytest"
   DENY
   BODY runtime
   DOC "Commands: MOVE TO x,y,z | WAIT n | WAIT_UNTIL query op value | ASSERT query op value |"
@@ -1500,6 +1520,7 @@ END
 # The bridge may retry run_tests only because every retry carries the same durable request_id (RW_IDEM);
 # run_tests_wait is a composite operation, not idempotent (RW).
 TOOL run_tests TESTS RW_IDEM "Dispatch Unity tests and return their durable identity immediately."
+  HANDLER register_async "CommandRouter.AsyncRunTests"
   DENY
   BODY testing
   DOC "A successful response is"
@@ -1630,6 +1651,7 @@ TOOL scene_diff SCENE RO "Compare scene with last snapshot. First call saves sna
 END
 
 TOOL scene_environment SCENE RW "Read/write scene environment: ambient light, fog, skybox, reflections."
+  HANDLER register_action "EnvironmentHelper.Execute"
   FORWARD
   ACTION get READ
   ACTION set "requires prop and value"
@@ -1780,6 +1802,7 @@ PYTOOL set_llm_config SYSTEM RW_IDEM "Override LLM profiles for sampling feature
 END
 
 TOOL set_material SCENE RW_IDEM "Set scene object material color (for full asset management use `material`). color: hex (#FF0000). shader: URP/Standard auto."
+  HANDLER register "CommandRouter.ExecSetMaterial"
   FORWARD
   ARG path str EXAMPLE "/__seam_nonexistent"
   ARG color str EXAMPLE "#FFFFFF"
@@ -1814,6 +1837,7 @@ PYTOOL set_properties SCENE RW "Set multiple properties on ONE object. For multi
 END
 
 TOOL set_property CORE RW_IDEM "Set component property (Edit Mode, SerializedObject — for Play Mode use `invoke_method` or `execute_code`)."
+  HANDLER register "CommandRouter.ExecSetProperty"
   CARD set
   NEXT "get_console level=Error"
   BODY objects
@@ -1882,6 +1906,7 @@ PYTOOL setup_objects SCENE RW "Create+configure multiple objects in one call."
 END
 
 TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network."
+  HANDLER register "CommandRouter.ExecShaderConsolidated"
   FORWARD
   ACTION get READ "inspect path — shader name, properties, keywords"
   ACTION create "new shader; preset=unlit|lit|transparent or code=HLSL string"
@@ -1943,6 +1968,7 @@ END
 # own internal sender when Source Patch mutation is armed; never a public
 # MCP tool, never batchable (see server/tests/test_source_patch_boundary.py).
 INTERNAL source_patch_write RW "Writes a source patch; the internal sender of asset.py routes it when Source Patch mutation is armed."
+  HANDLER register_async "CommandRouter.AsyncSourcePatchWrite"
   DENY
   FLAG direct_only
   FLAG unity_transport
@@ -1978,6 +2004,7 @@ END
 # E02: Wave E non-blocking playtest dispatch — internal wire command, no @mcp.tool()
 # until E04. Same shape as source_patch_write above.
 INTERNAL start_playtest RW "Starts a playtest without blocking; get_playtest_run polls it."
+  HANDLER register_async "CommandRouter.AsyncStartPlaytest"
   GUARD play_ok
   FLAG direct_only
   FLAG unity_transport
@@ -2037,6 +2064,7 @@ TOOL test_step TESTS RW "[Play Mode] Move character, snapshot state before/after
 END
 
 TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that)."
+  HANDLER register "CommandRouter.ExecTimelineConsolidated"
   FORWARD
   ACTION get READ
   ACTION create
@@ -2136,6 +2164,7 @@ TOOL uitk_element UITOOLKIT RW "Mutate or query a VisualElement in a UIDocument 
 END
 
 TOOL uitk_file UITOOLKIT RW "Read or edit a UXML or USS asset file."
+  HANDLER register "CommandRouter.ExecUitkFile"
   WIRE not_batch
   FLAG direct_only
   FLAG unity_transport
@@ -2220,6 +2249,7 @@ PYTOOL use_skill SYSTEM RW "Execute a previously saved skill. params: comma-sepa
 END
 
 TOOL validate_playtest_aliases TESTS RO "Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed."
+  HANDLER register "CommandRouter.ExecValidateAliases"
   GUARD compile
   FORWARD
   DOC "defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs)."
