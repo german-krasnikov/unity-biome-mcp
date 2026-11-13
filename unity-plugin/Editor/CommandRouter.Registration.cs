@@ -114,8 +114,24 @@ namespace UnityMCP.Editor
                 required: "path,component,field,value", optional: "");
         }
 
+        // P0-50/E02/E03: these three are declared INTERNAL (not TOOL) in dsl/tools.biome —
+        // the generator does not emit Register* calls for INTERNAL blocks, so they stay
+        // hand-registered here (commit 7527deb8 removed them along with the 29 generated
+        // ones; ToolBindings.g.cs never picked them back up, leaving them unregistered).
         internal static void RegisterAsyncCommands()
         {
+            // E02: internal wire command (not @mcp.tool() until E04) — non-blocking playtest
+            // dispatch, paired with get_playtest_run's poll. Same gates as run_playtest.
+            CommandRegistry.RegisterAsync("start_playtest", AsyncStartPlaytest, runtime: false,
+                mutating: true, playOk: true,
+                required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure,fresh,before_hook,after_hook,format");
+            // E03: internal wire command (not @mcp.tool() until E04) — compact poll for
+            // start_playtest. allowedDuringCompile mirrors get_test_run so polling survives an
+            // unrelated compile.
+            CommandRegistry.RegisterAsync("get_playtest_run", AsyncGetPlaytestRun,
+                required: "run_id", optional: "", allowedDuringCompile: true);
+            CommandRegistry.RegisterAsync("source_patch_write", AsyncSourcePatchWrite,
+                mutating: true, required: "path,content", optional: "");
         }
 
         // ============================================================

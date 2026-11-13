@@ -34,10 +34,11 @@ namespace UnityMCP.TestProject
         [Test]
         public void Register_WithContract_ValidatesRequired()
         {
-            // get_component: required "path,type" — omit "type"
-            var err = CommandValidator.Validate("get_component", "{\"path\":\"/A\"}");
+            // get_component: required "path" only — "type" has DEFAULT_TEXT "" in
+            // dsl/tools.biome (optional, defaults to ""). Omit "path" instead.
+            var err = CommandValidator.Validate("get_component", "{\"type\":\"Transform\"}");
             Assert.IsNotNull(err);
-            StringAssert.Contains("!type", err);
+            StringAssert.Contains("!path", err);
         }
 
         [Test]
@@ -142,9 +143,11 @@ namespace UnityMCP.TestProject
         [Test]
         public void Batch_MissingRequired_ShowsAutoUsage()
         {
-            var result = BatchHelper.Execute("get_component path=/A", "continue");
-            StringAssert.Contains("!type", result);
-            StringAssert.Contains("get_component path=... type=...", result);
+            // get_component: required "path" only — "type" moved to optional (DEFAULT_TEXT ""
+            // in dsl/tools.biome). Omit "path" instead to trigger the missing-required path.
+            var result = BatchHelper.Execute("get_component type=Transform", "continue");
+            StringAssert.Contains("!path", result);
+            StringAssert.Contains("get_component path=... [fields=...] [compress=...] [type=...]", result);
         }
 
         [Test]
