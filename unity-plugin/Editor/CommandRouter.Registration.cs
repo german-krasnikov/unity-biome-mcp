@@ -534,7 +534,9 @@ namespace UnityMCP.Editor
 
         internal static string ExecCompilePreflight(string args)
         {
-            var r = CompilePreflightCommand.Execute(args);
+            var r = CompilePreflightCommand.Execute(
+                CompilePreflightArgs.FilePath(args),
+                CompilePreflightArgs.NewContent(args));
             if (r.StartsWith("ERR")) throw new InvalidOperationException(r);
             return r;
         }

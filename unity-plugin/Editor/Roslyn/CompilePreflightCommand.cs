@@ -6,10 +6,10 @@ namespace UnityMCP.Editor.Roslyn
     /// <summary>compile_preflight handler — dry-compile C# source via Roslyn without writing files.</summary>
     internal static class CompilePreflightCommand
     {
-        public static string Execute(string argsJson)
+        public static string Execute(string filePath, string newContent)
         {
-            var filePath   = JsonHelper.ExtractString(argsJson, "file_path") ?? "";
-            var newContent = JsonHelper.ExtractString(argsJson, "new_content") ?? "";
+            filePath ??= "";
+            newContent ??= "";
             if (string.IsNullOrWhiteSpace(filePath))
                 return "err: file_path is required";
             if (string.IsNullOrWhiteSpace(newContent))
