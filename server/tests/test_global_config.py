@@ -3,6 +3,7 @@ import json
 import threading
 from unittest.mock import patch
 
+from unity_mcp.generated.global_config_defaults import GLOBAL_CONFIG_DEFAULTS_ROWS
 from unity_mcp.global_config import GlobalConfig
 
 # ─── load ──────────────────────────────────────────────────────────────────
@@ -11,11 +12,24 @@ def test_load_missing_file_returns_defaults(tmp_path):
     config_path = tmp_path / "global-config.json"
     with patch("unity_mcp.global_config.CONFIG_PATH", config_path):
         cfg = GlobalConfig.load()
-    assert cfg.idle_timeout_min == 30
-    assert cfg.idle_auto_suspend is True
-    assert cfg.bridge_terminate_orphan is True
-    assert cfg.bridge_orphan_grace_min == 2
+    defaults = GLOBAL_CONFIG_DEFAULTS_ROWS[0]
+    assert cfg.idle_timeout_min == defaults.idleTimeoutMin
+    assert cfg.idle_auto_suspend is defaults.idleAutoSuspend
+    assert cfg.bridge_terminate_orphan is defaults.bridgeTerminateOrphan
+    assert cfg.bridge_orphan_grace_min == defaults.bridgeOrphanGraceMin
     assert cfg._from_file is False
+
+
+def test_global_config_dataclass_defaults_match_generated_row():
+    """GlobalConfig()'s field defaults must be the generated GlobalConfigDefaults row,
+    not a re-hand-written literal -- same generator-output-check rationale as
+    test_resolver_semver_pattern_is_generated_protocol_row (test_config_module.py)."""
+    defaults = GLOBAL_CONFIG_DEFAULTS_ROWS[0]
+    cfg = GlobalConfig()
+    assert cfg.idle_timeout_min == defaults.idleTimeoutMin
+    assert cfg.idle_auto_suspend == defaults.idleAutoSuspend
+    assert cfg.bridge_terminate_orphan == defaults.bridgeTerminateOrphan
+    assert cfg.bridge_orphan_grace_min == defaults.bridgeOrphanGraceMin
 
 
 def test_load_valid_json_parses_correctly(tmp_path):

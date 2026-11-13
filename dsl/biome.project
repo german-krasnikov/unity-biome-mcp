@@ -50,6 +50,13 @@ CONTRACT protocol FROM data/protocol.data-contract
 GENERATE py-protocol data --contract protocol --rows Protocol {dir}/data/protocol.core-data --target py --out {dir}/../server/src/unity_mcp/generated/protocol.py
 GENERATE cs-protocol data --contract protocol --rows Protocol {dir}/data/protocol.core-data --target cs --cs-namespace UnityMCP.Editor.Wizard --out {dir}/../unity-plugin/Editor/Generated/Protocol.g.cs
 
+# Global persistent config defaults (dsl/data/globalconfig.data-contract, Task 0.2): one typed row
+# instead of the 4 idle/orphan defaults hand-copied 2x in global_config.py and 3x in
+# GlobalConfigSync.cs.
+CONTRACT globalconfig FROM data/globalconfig.data-contract
+GENERATE py-globalconfig data --contract globalconfig --rows GlobalConfigDefaults {dir}/data/globalconfig.core-data --target py --out {dir}/../server/src/unity_mcp/generated/global_config_defaults.py
+GENERATE cs-globalconfig data --contract globalconfig --rows GlobalConfigDefaults {dir}/data/globalconfig.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/GlobalConfigDefaults.g.cs
+
 # The MCP server's config-file key name (dsl/data/servername.data-contract, P1 #5): one constant
 # instead of merger.py's SERVER_NAME and PermissionConfig.cs's SERVER_NAME, kept in sync only by a
 # regex-scan-the-.cs-source parity guard test before this.
