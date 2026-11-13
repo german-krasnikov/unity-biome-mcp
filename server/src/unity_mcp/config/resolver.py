@@ -60,7 +60,7 @@ def server_git_url(ref: str | None = None) -> str:
         return GIT_INSTALL_URL
     clean = ref.lstrip("v")
     if not _SEMVER_RE.fullmatch(clean):
-        raise ValueError(f"Invalid version ref: {ref!r} — expected X.Y.Z")
+        raise ValueError(f"Invalid version ref: {ref!r} — expected X.Y.Z or X.Y.Z-prerelease")
     return f"{_REPO_BASE}@v{clean}#subdirectory={_PROTOCOL.installSubdir}"
 
 
