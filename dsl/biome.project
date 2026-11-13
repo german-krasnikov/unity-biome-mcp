@@ -23,6 +23,7 @@ GENERATE event-kinds    render {dir}/events.biome pykinds  {dir}/../server/src/u
 GENERATE event-emitters render {dir}/events.biome pyemits  {dir}/../server/src/unity_mcp/agent_event_emitters.py
 GENERATE event-fields   render {dir}/events.biome pyfields {dir}/../server/src/unity_mcp/agent_event_fields.py
 GENERATE event-order    render {dir}/events.biome pyorder  {dir}/../server/src/unity_mcp/agent_event_order.py
+GENERATE event-excluded render {dir}/events.biome pyexcluded {dir}/../server/src/unity_mcp/agent_event_excluded.py
 GENERATE event-held     render {dir}/events.biome csheld   {dir}/../unity-plugin/Editor/Chat/CLI/Generated/AgentEventParser.Held.g.cs
 GENERATE event-reset    render {dir}/events.biome csreset  {dir}/../unity-plugin/Editor/Chat/CLI/Generated/AgentEventParser.Reset.g.cs
 GENERATE event-map      render {dir}/events.biome csmap    {dir}/../unity-plugin/Editor/Chat/CLI/Generated/AgentEventParser.Map.g.cs

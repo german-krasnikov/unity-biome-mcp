@@ -7,6 +7,7 @@ CONSTRUCT EVENT VERSION 1 IR 1 SCOPE project
   ITEM TAKE <tname:match([a-z][a-z0-9_]*) UNIQUE> <ttype:enum(text|int|number|bool|object)>
   ITEM HOLD
   ITEM IGNORE
+  ITEM TRANSIENT
   ITEM ORDER <oclass:enum(opens|usage|closes)>
   ITEM EMITS <providers:match([a-z]+)...>
   ITEM CASE <cfield:match([a-z][a-z0-9_]*)> [<cval:string>] UI <cfactory:match([A-Z][A-Za-z]*)> [<cargs:text>]
@@ -24,6 +25,11 @@ CONSTRUCT EVENT VERSION 1 IR 1 SCOPE project
             "{fname}": ("{ftype}", "{opt|required}"),
     END
         },
+  END
+  TEMPLATE pyexcluded HEADER "EXCLUDED_KINDS: frozenset[str] = frozenset({" FOOTER "})" ESCAPE data
+    EACH TRANSIENT
+        "{name}",
+    END
   END
   TEMPLATE pyorder HEADER "ORDER_CLASS: dict[str, str] = {" FOOTER "}" ESCAPE data
     IF ANY FIELD
