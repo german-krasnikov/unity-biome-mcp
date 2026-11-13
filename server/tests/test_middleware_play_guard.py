@@ -33,6 +33,31 @@ def test_guard_blocks_when_edit_mode():
     assert "Play Mode" in result
 
 
+# ── P3 #11: guard_verdict priority owned by guards.logic, not by call order ──
+# pyReadOnly has priority 30, pyNotInPlay has priority 31 (dsl/decisions/guards.logic):
+# read-only must win whenever both conditions hold, however check_read_only and
+# check_play_mode_required happen to be called in middleware_pipeline.
+
+def test_guard_defers_to_read_only_when_both_block_conditions_hold():
+    cmd = "set_runtime_property"  # runtime-only AND a write (_RUNTIME_ONLY_CMDS + WRITE_CMDS)
+    assert cmd in _RUNTIME_ONLY_CMDS
+    mw = _make_mw(play_state_known=True, is_playing=False)  # edit mode: would trip NOT_IN_PLAY alone
+    mw.is_read_only = True  # would also trip READ_ONLY_BLOCKED alone
+
+    assert mw.check_read_only(cmd, {}) is not None, "READ_ONLY_BLOCKED must win (priority 30)"
+    assert mw.check_play_mode_required(cmd, {}) is None, (
+        "check_play_mode_required must defer to the higher-priority read-only rule, "
+        "not re-raise NOT_IN_PLAY (priority 31) for a call check_read_only already owns"
+    )
+
+    # Order independence: swapping which guard runs first must not change either answer —
+    # the priority lives in guard_verdict's rule order, not in which Python if ran first.
+    mw2 = _make_mw(play_state_known=True, is_playing=False)
+    mw2.is_read_only = True
+    assert mw2.check_play_mode_required(cmd, {}) is None
+    assert mw2.check_read_only(cmd, {}) is not None
+
+
 def test_guard_passes_non_runtime_cmd():
     mw = _make_mw(play_state_known=True, is_playing=False)
     assert mw.check_play_mode_required("get_component") is None
