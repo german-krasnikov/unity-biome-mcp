@@ -33,7 +33,7 @@ TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use wh
   DOC "binding_path: sub-object path for EditorCurveBinding (e.g. 'Head/Jaw'). Default '' = root."
   DOC "tangent: tangent mode for keyframes: auto (default) | smooth | linear | constant."
   DOC "function_name: method name for add_event. int_param/float_param/string_param: event parameters."
-  ACTION get
+  ACTION get READ
   ACTION create
   ACTION edit
   ACTION add_key
@@ -44,8 +44,8 @@ TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use wh
   ACTION set_wrap
   ACTION set_framerate
   ACTION preview
-  ACTION get_clip_path
-  ACTION get_events
+  ACTION get_clip_path READ
+  ACTION get_events READ
   ACTION add_event
   ACTION remove_event
   ARG action str EXAMPLE "get"
@@ -63,9 +63,6 @@ TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use wh
   ARG float_param ofloat DEFAULT None RAW
   ARG string_param ostr DEFAULT None
   ARG compact bool DEFAULT False OMIT
-  READ get
-  READ get_clip_path
-  READ get_events
   TAG reflect_noerror
   TAG schema_keep_full
 END
@@ -83,7 +80,7 @@ TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator
   DOC "weight: defaultWeight for add_layer/set_layer_weight (0.0–1.0)."
   DOC "blending: Override|Additive for add_layer/set_layer_blending."
   DOC "value: speed multiplier for set_state_speed. avatar_path: asset path for set_avatar."
-  ACTION get
+  ACTION get READ
   ACTION add_param
   ACTION add_state
   ACTION add_transition
@@ -91,7 +88,7 @@ TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator
   ACTION remove
   ACTION add_blend_tree
   ACTION edit_blend_tree
-  ACTION get_blend_tree
+  ACTION get_blend_tree READ
   ACTION add_layer
   ACTION remove_layer
   ACTION rename_layer
@@ -125,8 +122,6 @@ TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator
   ARG blending ostr DEFAULT None
   ARG value ostr DEFAULT None
   ARG avatar_path ostr DEFAULT None
-  READ get
-  READ get_blend_tree
   TAG reflect_noerror
   TAG schema_keep_full
 END
@@ -195,15 +190,15 @@ END
 
 TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No confirmation required. action: find|get_info|create|move|validate_move|duplicate|delete|get_dependencies|find_dependents|import_settings|export_package|import_package|read_text|write_text|reimport. find: type+name+folder+labels. create: type=Folder|Material|PhysicMaterial|AnimatorController|ScriptableObject (class= required for SO). move/validate_move: source+dest (Assets/ paths). Moves .meta correctly. validate_move path_only=True: syntax check only, skips AssetDatabase folder existence check (preflight). get_dependencies: forward deps. find_dependents: reverse deps (who references this asset). export_package: path+output[+include_deps=false to skip deps]. import_package: path (filesystem). read_text: path. write_text: path+content. reimport: path."
   BODY asset
-  ACTION find
-  ACTION get_info
+  ACTION find READ
+  ACTION get_info READ
   ACTION create
   ACTION move
-  ACTION validate_move
+  ACTION validate_move READ
   ACTION duplicate
   ACTION delete
-  ACTION get_dependencies
-  ACTION find_dependents
+  ACTION get_dependencies READ
+  ACTION find_dependents READ
   ACTION import_settings
   ACTION export_package
   ACTION import_package
@@ -226,11 +221,6 @@ TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No conf
   ARG content ostr DEFAULT None
   ARG class_name ostr DEFAULT None WIRE "class"
   ARG path_only bool DEFAULT False
-  READ find
-  READ find_dependents
-  READ get_dependencies
-  READ get_info
-  READ validate_move
   TAG reflect_noerror
 END
 
@@ -579,19 +569,17 @@ TOOL editor CORE RW "Editor state/control. action: state|play|pause|stop|select|
   GUARD play_ok
   WIRE no_undo
   FLAG core
-  ACTION state
+  ACTION state READ
   ACTION mutation_mode
   ACTION play
   ACTION pause
   ACTION stop
   ACTION select
-  ACTION project_path
+  ACTION project_path READ
   ARG action str DEFAULT_TEXT "state" EXAMPLE "state"
   ARG path ostr DEFAULT None
   ARG paths ostr DEFAULT None
   ARG enable obool DEFAULT None
-  READ project_path
-  READ state
   TAG reflect_silent
 END
 
@@ -1067,13 +1055,13 @@ TOOL material ASSETS RW "Material asset management (for quick color change use `
   HANDLER register_action "MaterialHelper.Execute"
   FORWARD
   ACTION create
-  ACTION get
+  ACTION get READ
   ACTION set
   ACTION copy
-  ACTION list_properties
-  ACTION list_slots
-  ACTION get_errors
-  ACTION list_shaders
+  ACTION list_properties READ
+  ACTION list_slots READ
+  ACTION get_errors READ
+  ACTION list_shaders READ
   ACTION set_fields
   ARG action str EXAMPLE "get"
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
@@ -1086,11 +1074,6 @@ TOOL material ASSETS RW "Material asset management (for quick color change use `
   ARG slot oint DEFAULT None RAW
   ARG filter ostr DEFAULT None
   ARG target ostr DEFAULT None
-  READ get
-  READ get_errors
-  READ list_properties
-  READ list_shaders
-  READ list_slots
   TAG reflect_noerror
 END
 
@@ -1121,10 +1104,9 @@ TOOL menu SYSTEM RW "Execute or list Unity Editor menu items. action: execute|li
   HANDLER register "CommandRouter.ExecMenu"
   FORWARD
   ACTION execute
-  ACTION list
+  ACTION list READ
   ARG action str EXAMPLE "list"
   ARG path ostr DEFAULT None "Unity Editor menu-item path to execute, or submenu prefix to list"
-  READ list
   TAG reflect_noerror
 END
 
@@ -1191,23 +1173,21 @@ TOOL package ASSETS RW "Package manager. Adds or removes packages. No confirmati
   DOC "search: query required."
   DOC "add: name required, version optional."
   DOC "remove: name required."
-  ACTION list
-  ACTION search
+  ACTION list READ
+  ACTION search READ
   ACTION add
   ACTION remove
   ARG action str
   ARG name ostr DEFAULT None "Unity Package Manager package identifier for add/remove (for example com.unity.inputsystem)"
   ARG version ostr DEFAULT None
   ARG query ostr DEFAULT None
-  READ list
-  READ search
   TAG reflect_silent
 END
 
 TOOL particle MEDIA RW "Particle System. action: get|create|set|apply|play|stop|pause. module=main|emission|shape|colorOverLifetime|sizeOverLifetime|velocityOverLifetime|noise|renderer|trails|collision|rotationOverLifetime. preset: fire|smoke|sparks|rain|snow|explosion|magic|dust|blood|trail."
   HANDLER register "CommandRouter.ExecParticleConsolidated"
   FORWARD
-  ACTION get
+  ACTION get READ
   ACTION create
   ACTION set
   ACTION apply
@@ -1221,7 +1201,6 @@ TOOL particle MEDIA RW "Particle System. action: get|create|set|apply|play|stop|
   ARG prop ostr DEFAULT None
   ARG value ostr DEFAULT None
   ARG preset ostr DEFAULT None
-  READ get
   TAG reflect_noerror
 END
 
@@ -1265,7 +1244,7 @@ TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmatio
   ACTION instantiate
   ACTION apply
   ACTION revert
-  ACTION get_overrides
+  ACTION get_overrides READ
   ACTION unpack
   ACTION edit
   ARG action str EXAMPLE "save"
@@ -1284,7 +1263,6 @@ TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmatio
   ARG format ostr DEFAULT None
   ARG parent ostr DEFAULT None
   ARG child_path ostr DEFAULT None
-  READ get_overrides
   TAG reflect_noerror
 END
 
@@ -1296,10 +1274,10 @@ TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
   RUNTIME
   ACTION start
   ACTION stop
-  ACTION status
-  ACTION analyze
-  ACTION compare
-  ACTION list_sessions
+  ACTION status READ
+  ACTION analyze READ
+  ACTION compare READ
+  ACTION list_sessions READ
   ARG action str
   ARG duration float DEFAULT 5.0
   ARG session str DEFAULT_TEXT ""
@@ -1307,10 +1285,6 @@ TOOL profile RUNTIME RW "Profile CPU/GPU/memory over time."
   ARG focus str DEFAULT_TEXT ""
   ARG mode str DEFAULT_TEXT "burst"
   ARG threshold_ms float DEFAULT 33.3
-  READ analyze
-  READ compare
-  READ list_sessions
-  READ status
   TAG reflect_silent
 END
 
@@ -1644,13 +1618,12 @@ TOOL scene SCENE DEL "Scene management. action: new|open|save|discard|open_addit
   ACTION open_additive
   ACTION close
   ACTION set_active
-  ACTION list
+  ACTION list READ
   ACTION save_copy
   ARG action str EXAMPLE "list" "Operation: new|open|save|discard|open_additive|close|set_active|list|save_copy"
   ARG path ostr DEFAULT None "Asset path — required for open/save/open_additive/close/set_active"
   ARG scene ostr DEFAULT None "Scene name for save/discard when multiple scenes are loaded"
   ARG include_unsaved bool DEFAULT True
-  READ list
   TAG reflect_noerror
   BLAST 3
 END
@@ -1677,7 +1650,7 @@ END
 
 TOOL scene_environment SCENE RW "Read/write scene environment: ambient light, fog, skybox, reflections."
   FORWARD
-  ACTION get
+  ACTION get READ
   ACTION set
   DOC "action: get|set. set requires prop and value."
   DOC "Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,"
@@ -1686,7 +1659,6 @@ TOOL scene_environment SCENE RW "Read/write scene environment: ambient light, fo
   ARG action str DEFAULT_TEXT "get" EXAMPLE "get"
   ARG prop ostr DEFAULT None
   ARG value ostr DEFAULT None
-  READ get
   TAG reflect_noerror
 END
 
@@ -1760,10 +1732,10 @@ TOOL scriptable_object ASSETS RW "ScriptableObject. action: create|get|set|list_
   HANDLER register_action "ScriptableObjectHelper.Execute"
   FORWARD
   ACTION create
-  ACTION get
+  ACTION get READ
   ACTION set
-  ACTION list_types
-  ACTION find
+  ACTION list_types READ
+  ACTION find READ
   ARG action str EXAMPLE "list_types"
   ARG path ostr DEFAULT None "Project asset path to the ScriptableObject .asset file"
   ARG type ostr DEFAULT None
@@ -1771,9 +1743,6 @@ TOOL scriptable_object ASSETS RW "ScriptableObject. action: create|get|set|list_
   ARG value ostr DEFAULT None
   ARG fields ostr DEFAULT None
   ARG filter ostr DEFAULT None
-  READ find
-  READ get
-  READ list_types
   TAG reflect_noerror
 END
 
@@ -1931,10 +1900,10 @@ END
 
 TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Creates or modifies shader assets. No confirmation required. Use when you need to inspect shader properties, create a new shader from a preset or raw HLSL, change a shader property/keyword, or build/edit a Shader Graph node network."
   FORWARD
-  ACTION get
+  ACTION get READ
   ACTION create
   ACTION set
-  ACTION graph_get
+  ACTION graph_get READ
   ACTION graph_create
   ACTION graph_node
   ACTION graph_edge
@@ -1972,8 +1941,6 @@ TOOL shader ASSETS RW "Read or write shader assets (.shader / .shadergraph). Cre
   ARG layout ostr DEFAULT None
   ARG h_gap ofloat DEFAULT None RAW
   ARG v_gap ofloat DEFAULT None RAW
-  READ get
-  READ graph_get
   TAG reflect_noerror
 END
 
@@ -2098,7 +2065,7 @@ END
 
 TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use for multi-track cinematic sequences mixing animation, audio, activation, and custom tracks — not for per-object keyframes (use `animation` for that)."
   FORWARD
-  ACTION get
+  ACTION get READ
   ACTION create
   ACTION edit
   ACTION add_track
@@ -2120,7 +2087,7 @@ TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use f
   ACTION set_duration
   ACTION add_sub_track
   ACTION set_clip_in
-  ACTION get_bindings
+  ACTION get_bindings READ
   ACTION preview
   DOC "action: get | create | edit | add_track (Animation|Audio|Activation|Signal|Control|Group) | remove_track | add_clip | remove_clip | set_binding | set_timing | mute | unmute | lock | unlock | rename_track | reorder_track | duplicate_clip | add_marker | remove_marker | set_track_offset | set_duration | add_sub_track | set_clip_in | get_bindings | preview."
   DOC "track=track name. index=target position for reorder_track. offset=time shift for duplicate_clip. value=offset mode (auto|transform|scene) for set_track_offset."
@@ -2143,8 +2110,6 @@ TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use f
   ARG index oint DEFAULT None RAW
   ARG offset ofloat DEFAULT None RAW
   ARG value ostr DEFAULT None "Action-specific Timeline value; set_track_offset accepts auto|transform|scene"
-  READ get
-  READ get_bindings
   TAG reflect_noerror
   TAG schema_keep_full
 END
@@ -2202,7 +2167,7 @@ TOOL uitk_file UITOOLKIT RW "Read or edit a UXML or USS asset file."
   WIRE not_batch
   FLAG direct_only
   FLAG unity_transport
-  ACTION read
+  ACTION read READ
   ACTION revert
   ACTION write
   ACTION create_uxml
@@ -2225,7 +2190,6 @@ TOOL uitk_file UITOOLKIT RW "Read or edit a UXML or USS asset file."
   ARG tag ostr DEFAULT None
   ARG attrs ostr DEFAULT None
   ARG prop ostr DEFAULT None
-  READ read
   TAG reflect_noerror
 END
 

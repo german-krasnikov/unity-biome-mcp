@@ -24,5 +24,8 @@ def test_middleware_adds_only_the_wire_alias_of_navmesh_query_to_the_catalog():
 
 
 def test_a_read_action_is_a_word_in_lower_case():
+    """A tool entry may legitimately be an empty frozenset now (dsl-bottlenecks-2026-11 S2): a tool that dispatches on
+    ACTION but has no READ-qualified action gets one anyway, because `IF ANY ACTION` (tool.construct) cannot filter on
+    WHERE read -- isMutating asks the same (empty) set either way, so this is inert, not a fact to assert away."""
     for name, actions in ACTION_READS.items():
-        assert actions and all(action == action.lower() and action.replace("_", "").isalnum() for action in actions), name
+        assert all(action == action.lower() and action.replace("_", "").isalnum() for action in actions), name

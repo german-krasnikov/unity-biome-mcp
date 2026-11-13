@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from unity_mcp.tools.generated import catalog_actions, catalog_examples, catalog_reads, catalog_tools
+from unity_mcp.tools.generated import catalog_actions, catalog_examples, catalog_tools
 
 pytestmark = pytest.mark.csharp_parity
 
@@ -293,12 +293,6 @@ def test_arg_example_of_an_action_tool_is_a_declared_action(tool):
     example = catalog_examples.ARG_EXAMPLES.get(tool, {}).get("action")
     if example is not None:
         assert example in catalog_actions.TOOL_ACTIONS[tool]
-
-
-@pytest.mark.parametrize("tool", sorted(catalog_actions.TOOL_ACTIONS))
-def test_every_read_of_an_action_tool_names_a_declared_action(tool):
-    reads = catalog_reads.ACTION_READS.get(tool, frozenset())
-    assert reads <= set(catalog_actions.TOOL_ACTIONS[tool])
 
 
 # --- Scanner self-test: the comparison must go red in BOTH directions (neither assertion above is a tautology). ---

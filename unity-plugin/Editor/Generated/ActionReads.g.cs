@@ -1,10 +1,10 @@
 // Generated from dsl/tools.biome
-// source-sha256=9a68cfced712b9ba09c849f1d4a2de28edab0cff7a1d4be33cfe7d26ba2ba04f
+// source-sha256=a289d8e839f1aa9c56508f5b97d6ed475b9c881415eb3e2c725523f041e39a22
 // Edit the source, then run biome generate.
 
 namespace UnityMCP.Editor
 {
-    // The actions of a command that only read (the READ lines of dsl/tools.biome): what CommandRegistry.IsMutating asks. A command that is
+    // The actions of a command that only read (the READ lines of dsl/tools.biome, or the READ qualifier of an ACTION line): what CommandRegistry.IsMutating asks. A command that is
     // not here, or an action that is not listed (or is spelt in another case), is a write.
     internal static class ActionReads
     {
@@ -16,7 +16,9 @@ namespace UnityMCP.Editor
                     switch (action)
                     {
                         case "get":
+                            return true;
                         case "get_clip_path":
+                            return true;
                         case "get_events":
                             return true;
                         default:
@@ -26,6 +28,7 @@ namespace UnityMCP.Editor
                     switch (action)
                     {
                         case "get":
+                            return true;
                         case "get_blend_tree":
                             return true;
                         default:
@@ -35,10 +38,14 @@ namespace UnityMCP.Editor
                     switch (action)
                     {
                         case "find":
-                        case "find_dependents":
-                        case "get_dependencies":
+                            return true;
                         case "get_info":
+                            return true;
                         case "validate_move":
+                            return true;
+                        case "get_dependencies":
+                            return true;
+                        case "find_dependents":
                             return true;
                         default:
                             return false;
@@ -52,12 +59,25 @@ namespace UnityMCP.Editor
                         default:
                             return false;
                     }
+                case "build":
+                    switch (action)
+                    {
+                        default:
+                            return false;
+                    }
                 case "editor":
                     switch (action)
                     {
-                        case "project_path":
                         case "state":
                             return true;
+                        case "project_path":
+                            return true;
+                        default:
+                            return false;
+                    }
+                case "manage_component":
+                    switch (action)
+                    {
                         default:
                             return false;
                     }
@@ -65,11 +85,21 @@ namespace UnityMCP.Editor
                     switch (action)
                     {
                         case "get":
-                        case "get_errors":
+                            return true;
                         case "list_properties":
-                        case "list_shaders":
+                            return true;
                         case "list_slots":
                             return true;
+                        case "get_errors":
+                            return true;
+                        case "list_shaders":
+                            return true;
+                        default:
+                            return false;
+                    }
+                case "material_audit":
+                    switch (action)
+                    {
                         default:
                             return false;
                     }
@@ -97,6 +127,7 @@ namespace UnityMCP.Editor
                     switch (action)
                     {
                         case "list":
+                            return true;
                         case "search":
                             return true;
                         default:
@@ -121,10 +152,13 @@ namespace UnityMCP.Editor
                 case "profile":
                     switch (action)
                     {
-                        case "analyze":
-                        case "compare":
-                        case "list_sessions":
                         case "status":
+                            return true;
+                        case "analyze":
+                            return true;
+                        case "compare":
+                            return true;
+                        case "list_sessions":
                             return true;
                         default:
                             return false;
@@ -134,6 +168,18 @@ namespace UnityMCP.Editor
                     {
                         case "get":
                             return true;
+                        default:
+                            return false;
+                    }
+                case "references":
+                    switch (action)
+                    {
+                        default:
+                            return false;
+                    }
+                case "render_analyze":
+                    switch (action)
+                    {
                         default:
                             return false;
                     }
@@ -156,9 +202,11 @@ namespace UnityMCP.Editor
                 case "scriptable_object":
                     switch (action)
                     {
-                        case "find":
                         case "get":
+                            return true;
                         case "list_types":
+                            return true;
+                        case "find":
                             return true;
                         default:
                             return false;
@@ -167,8 +215,15 @@ namespace UnityMCP.Editor
                     switch (action)
                     {
                         case "get":
+                            return true;
                         case "graph_get":
                             return true;
+                        default:
+                            return false;
+                    }
+                case "spatial_query":
+                    switch (action)
+                    {
                         default:
                             return false;
                     }
@@ -176,8 +231,21 @@ namespace UnityMCP.Editor
                     switch (action)
                     {
                         case "get":
+                            return true;
                         case "get_bindings":
                             return true;
+                        default:
+                            return false;
+                    }
+                case "transfer_object":
+                    switch (action)
+                    {
+                        default:
+                            return false;
+                    }
+                case "uitk_element":
+                    switch (action)
+                    {
                         default:
                             return false;
                     }

@@ -8,7 +8,11 @@
 # table, so the client-visible enumeration and the InvalidAction valid-list have one source. It is not also woven into the FORWARD/BODY
 # docstring template (pytools): that would need an IF nested inside the IF ANY FORWARD/BODY gate, which Core refuses (IF does not nest inside
 # IF, and EACH does not nest inside EACH either, so the existing EACH ARG/EACH DOC nesting rules out swapping that gate for an EACH) -- a
-# layer gap reported, not worked around (P10); the hand DOC line still states the action names for the Python docstring. READ is unchanged.
+# layer gap reported, not worked around (P10); the hand DOC line still states the action names for the Python docstring. A tool that dispatches
+# on ACTION may mark one READ directly on its ACTION line instead of a separate READ line (dsl-bottlenecks-2026-11, Q1/S2): one fewer catalog
+# edit per read-only action. `IF ANY ACTION` cannot filter on WHERE read, so a tool whose declared ACTIONs are all mutating still gets an empty
+# pyreads/csreads table entry (inert: isMutating finds nothing there either way) -- a second, smaller instance of the same layer gap. READ-only
+# tools with no ACTION item at all (bake, project_settings; the PYTOOLs navmesh_query, watch) are unaffected and keep a plain READ line.
 # ACTION's name pattern admits inner hyphens (dsl-bottlenecks-2026-11, Part B3: set-attr, add-class, ... of uitk_file) because both
 # templates that consume it (pyactions, csactions) only ever print `act` as string data -- a Python string literal or a C# string
 # literal -- never as an identifier, so widening the pattern derives nothing else.
@@ -34,7 +38,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM MAXCHARS <maxchars:match([0-9]+)>
   ITEM DOC <line:string>
   ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
-  ITEM ACTION <act:match([a-z][a-z0-9_]*(-[a-z0-9_]+)*) UNIQUE>
+  ITEM ACTION <act:match([a-z][a-z0-9_]*(-[a-z0-9_]+)*) UNIQUE> [<read:enum(READ)>]
   ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [EXAMPLE <example:string>] [ROLE <role:enum(target|prop|value|name|newname)>] [<adesc:string>]
   ITEM VERB <vtext:string>
   ITEM EXPECT <mode:enum(token|bool_arg|arg_echo)> <tokens:string> [<strict:enum(STRICT)>] [ARG <argname:match([a-z][a-z0-9_]*)>]
@@ -153,8 +157,15 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
     END
         }),
     END
+    IF ANY ACTION
+        '{name}': frozenset({
+    EACH ACTION WHERE read
+            '{act}',
+    END
+        }),
+    END
   END
-  TEMPLATE csreads HEADER "namespace UnityMCP.Editor\n{\n    // The actions of a command that only read (the READ lines of dsl/tools.biome): what CommandRegistry.IsMutating asks. A command that is\n    // not here, or an action that is not listed (or is spelt in another case), is a write.\n    internal static class ActionReads\n    {\n        internal static bool IsRead(string cmd, string action)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    return false;\n            }\n        }\n    }\n}" ESCAPE data
+  TEMPLATE csreads HEADER "namespace UnityMCP.Editor\n{\n    // The actions of a command that only read (the READ lines of dsl/tools.biome, or the READ qualifier of an ACTION line): what CommandRegistry.IsMutating asks. A command that is\n    // not here, or an action that is not listed (or is spelt in another case), is a write.\n    internal static class ActionReads\n    {\n        internal static bool IsRead(string cmd, string action)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    return false;\n            }\n        }\n    }\n}" ESCAPE data
     IF ANY READ
                     case "{name}":
                         switch (action)
@@ -163,6 +174,18 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
                             case "{action}":
     END
                                 return true;
+                            default:
+                                return false;
+                        }
+    END
+    IF ANY ACTION
+                    case "{name}":
+                        switch (action)
+                        {
+    EACH ACTION WHERE read
+                            case "{act}":
+                                return true;
+    END
                             default:
                                 return false;
                         }

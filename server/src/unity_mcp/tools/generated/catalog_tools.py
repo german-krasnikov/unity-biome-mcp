@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=9a68cfced712b9ba09c849f1d4a2de28edab0cff7a1d4be33cfe7d26ba2ba04f
+# source-sha256=a289d8e839f1aa9c56508f5b97d6ed475b9c881415eb3e2c725523f041e39a22
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt

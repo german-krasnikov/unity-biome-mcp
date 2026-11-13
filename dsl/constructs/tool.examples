@@ -268,6 +268,59 @@ EXAMPLE a READ action of a TOOL or a PYTOOL is printed for Python and for C#, a 
   EXPECT unrendered.csreads case "calm":
   EXPECT unrendered.pyspec READ
 
+EXAMPLE an ACTION may carry READ itself instead of a separate READ line, for the same tables
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION get READ
+  SOURCE   ACTION set
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pyreads 'frob': frozenset({
+  EXPECT rendered.pyreads 'get',
+  EXPECT rendered.csreads case "frob":
+  EXPECT rendered.csreads case "get":
+
+EXAMPLE an ACTION READ and a separate READ line coexist across different tools without interference
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION get READ
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  SOURCE TOOL scene SCENE RW "Scene."
+  SOURCE   ARG action str
+  SOURCE   READ list
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pyreads 'frob': frozenset({
+  EXPECT rendered.pyreads 'get',
+  EXPECT rendered.pyreads 'scene': frozenset({
+  EXPECT rendered.pyreads 'list',
+
+EXAMPLE a tool whose declared ACTIONs are all mutating still prints an empty READ table entry (no WHERE on IF ANY ACTION to suppress it -- a known, inert toolchain gap: isMutating still asks the inner table first and finds nothing, same as not being listed at all); the inner switch must stay valid C# with no case label at all (a bare statement before any case/default does not compile)
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION get
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pyreads 'frob': frozenset({
+  EXPECT rendered.csreads case "frob":
+
+EXAMPLE two ACTION READ actions on one tool each render their own case (the dotnet Decisions lane compiles the result -- this guards the shape, not just presence)
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION get READ
+  SOURCE   ACTION list READ
+  SOURCE   ACTION set
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csreads case "get":
+  EXPECT rendered.csreads return true;
+  EXPECT rendered.csreads case "list":
+
 EXAMPLE a READ action is spelt in lower case, once, and an INTERNAL has none
   SOURCE TOOL x SCENE RW "X."
   SOURCE   READ Get
