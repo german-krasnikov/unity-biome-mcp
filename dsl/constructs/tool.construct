@@ -29,6 +29,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM FORWARD
   ITEM BODY <module:match([a-z_][a-z0-9_]*)>
   ITEM HANDLER <kind:enum(register|register_async|register_action)> <method:string>
+  ITEM DISPATCH <class:string> [EXCEPTION <ex:enum(ArgumentException|Exception)>]
   ITEM FLAG <flag:enum(core|tier1|direct_only|unity_transport)>
   ITEM RUNTIME
   ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_custom|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
@@ -38,7 +39,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM MAXCHARS <maxchars:match([0-9]+)>
   ITEM DOC <line:string>
   ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
-  ITEM ACTION <act:match([a-z][a-z0-9_]*(-[a-z0-9_]+)*) UNIQUE> [<read:enum(READ)>] [<hint:string>]
+  ITEM ACTION <act:match([a-z][a-z0-9_]*(-[a-z0-9_]+)*) UNIQUE> [<read:enum(READ)>] [<hint:string>] [METHOD <method:string>]
   ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [EXAMPLE <example:string>] [ROLE <role:enum(target|prop|value|name|newname)>] [<adesc:string>]
   ITEM VERB <vtext:string>
   ITEM EXPECT <mode:enum(token|bool_arg|arg_echo)> <tokens:string> [<strict:enum(STRICT)>] [ARG <argname:match([a-z][a-z0-9_]*)>]
@@ -52,6 +53,9 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ENSURE COUNT HANDLER <= 1 ELSE "a tool may declare HANDLER at most once"
   ENSURE COUNT FORWARD == 0 OR COUNT BODY == 0 ELSE "FORWARD and BODY are mutually exclusive — FORWARD generates the whole tool, BODY generates its signature and calls a hand-written implementation"
   ENSURE COUNT BODY == 0 OR (COUNT ARG WHERE it.has_raw) == 0 ELSE "BODY tools never call _send through the generated wrapper — ARG RAW only means something for FORWARD"
+  ENSURE COUNT DISPATCH <= 1 ELSE "a tool may declare DISPATCH at most once"
+  ENSURE COUNT DISPATCH == 0 OR COUNT ACTION > 0 ELSE "a DISPATCH tool needs at least one ACTION"
+  ENSURE (COUNT ACTION WHERE it.has_method) == 0 OR COUNT DISPATCH > 0 ELSE "an ACTION's METHOD needs a DISPATCH tool"
   TEMPLATE pyspec HEADER "SPEC_KWARGS: dict[str, dict] = {" FOOTER "}" ESCAPE data
         '{name}': {
             'category': '{category}',
@@ -216,6 +220,28 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
                             "{act}",
     END
                         };
+    END
+  END
+  TEMPLATE csdispatch HEADER "namespace UnityMCP.Editor\n{" FOOTER "}" ESCAPE data
+    IF ANY DISPATCH
+    EACH DISPATCH
+    internal static partial class {class}
+    {
+        internal static string Execute(string action, string argsJson)
+        {
+            switch (action)
+            {
+    END
+    EACH ACTION
+                case "{act}": return {?method:{method}}{!method:{act:PascalCase}}(argsJson);
+    END
+    EACH DISPATCH
+                default:
+                    throw new {?ex=Exception:System.Exception}{!ex=Exception:System.ArgumentException}(ErrorHelper.InvalidAction(action, ToolActions.Names("{name}")));
+            }
+        }
+    }
+    END
     END
   END
   TEMPLATE cstools HEADER "namespace UnityMCP.Editor\n{\n    // CommandOptions for every TOOL/INTERNAL of dsl/tools.biome that this construct can state: Mutating\n    // (effect != RO), Runtime, Required/Optional (from ARG), MaxResponseChars (from MAXCHARS), and the GUARD/WIRE flags.\n    // Description, FileHandler and MutatingArgsPolicy are not data here: a caller sets one on the returned struct (a mutable\n    // struct) after Get. kind (Register/RegisterAction/RegisterAsync) is a call-site choice, not data here either.\n    internal static class ToolMeta\n    {\n        internal static CommandOptions Get(string cmd)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    throw new System.ArgumentException($\"ToolMeta.Get: no entry for '{cmd}'\");\n            }\n        }\n    }\n}" ESCAPE data

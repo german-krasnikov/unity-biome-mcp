@@ -5,25 +5,10 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    internal static class PrefabHelper
+    // Execute(action, argsJson) is generated into Generated/ToolDispatch.g.cs from the DISPATCH/ACTION
+    // lines of dsl/tools.biome's prefab TOOL block (dsl-bottlenecks-2026-11 S3).
+    internal static partial class PrefabHelper
     {
-        internal static string Execute(string action, string argsJson)
-        {
-            return action switch
-            {
-                "save"           => Save(argsJson),
-                "create_variant" => CreateVariant(argsJson),
-                "instantiate"    => Instantiate(argsJson),
-                "apply"          => Apply(argsJson),
-                "revert"         => Revert(argsJson),
-                "get_overrides"  => GetOverrides(argsJson),
-                "unpack"         => Unpack(argsJson),
-                "edit"           => Edit(argsJson),
-                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    ToolActions.Names("prefab")))
-            };
-        }
-
         private static string Save(string args)
         {
             var path = JsonHelper.ExtractString(args, "path")

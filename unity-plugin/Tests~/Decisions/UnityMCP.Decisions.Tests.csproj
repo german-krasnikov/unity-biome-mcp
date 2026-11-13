@@ -24,6 +24,10 @@
          helpers it calls (MaterialHelper, ColliderFitHelper, ...) need UnityEditor/UnityEngine, so it is the one
          generated file this pure (no-Unity) lane cannot compile; excluded rather than dragging those in. -->
     <Compile Remove="../../Editor/Generated/ToolBindings.g.cs" />
+    <!-- ToolDispatch.g.cs prints a partial class per DISPATCH tool (e.g. PrefabHelper) calling its own arm
+         methods, which need UnityEditor/UnityEngine (AssetDatabase, PrefabUtility, ...) like ToolBindings.g.cs
+         above; excluded for the same reason (dsl-bottlenecks-2026-11 S3). -->
+    <Compile Remove="../../Editor/Generated/ToolDispatch.g.cs" />
     <!-- the real files under test; the Unity-only symbols they touch are in UnityStubs.cs -->
     <Compile Include="../../Editor/CommandRegistry.cs" />
     <Compile Include="../../Editor/CommandOptions.cs" />

@@ -1225,6 +1225,7 @@ END
 
 TOOL prefab ASSETS RW "Prefab. Creates or modifies prefab assets. No confirmation required."
   FORWARD
+  DISPATCH "PrefabHelper"
   ACTION save "path (scene) + asset_path [+ mode: new|overwrite (default)]"
   ACTION create_variant "base_path + variant_path"
   ACTION instantiate "asset_path (instantiate prefab into active scene)"

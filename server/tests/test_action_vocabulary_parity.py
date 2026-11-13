@@ -10,6 +10,11 @@ when either one knows an action the other does not.
 of (file, function) pairs, because some tools (`editor`) split their dispatch across an if-chain in one method and
 a switch in another; the scanner unions the arms/hints of every source. It grows as more tools gain ACTION lines
 in later slices.
+
+A tool whose dispatcher is itself GENERATED from the catalog's ACTION/DISPATCH lines (dsl-bottlenecks-2026-11 S3:
+`prefab` so far) has no hand arm list left to scan for drift against -- the generated switch and the catalog are
+the same fact by construction, so the row is removed here rather than kept as a tautology. The toolchain's own
+construct examples (dsl/constructs/tool.examples) and the dotnet Decisions-lane compile are its proof instead.
 """
 import re
 from pathlib import Path
@@ -32,7 +37,6 @@ _ACTION_TOOLS: dict[str, tuple[tuple[str, str], ...]] = {
         ("CommandRouter.MediaHandlers.cs", "ExecEditor"),
         ("EditorStateHelper.cs", "Control"),
     ),
-    "prefab": (("PrefabHelper.cs", "Execute"),),
     "render_analyze": (("RenderAnalyzer.cs", "Execute"),),
     "scene": (("CommandRouter.MediaHandlers.cs", "ExecScene"),),
     "scriptable_object": (("ScriptableObjectHelper.cs", "Execute"),),
@@ -269,7 +273,7 @@ def test_catalog_actions_match_the_csharp_dispatch_arms(tool):
 # thrown ArgumentException, no prefix).
 _USES_GENERATED_VALID_LIST = {
     "animation", "animator", "asset", "build", "editor", "manage_component", "material",
-    "material_audit", "menu", "package", "particle", "prefab", "profile", "references",
+    "material_audit", "menu", "package", "particle", "profile", "references",
     "render_analyze", "scene", "scene_environment", "scriptable_object", "shader", "spatial_query",
     "timeline", "transfer_object", "uitk_element", "uitk_file",
 }

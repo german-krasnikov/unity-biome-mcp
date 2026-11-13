@@ -651,3 +651,69 @@ EXAMPLE a tool may declare HANDLER at most once
   SOURCE   TAG reflect_silent
   SOURCE END
   EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE DISPATCH prints a generated partial-class dispatcher, one case per ACTION, default method is PascalCase of the action, default exception is ArgumentException
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   DISPATCH "FrobHelper"
+  SOURCE   ACTION get_info
+  SOURCE   ACTION set
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csdispatch internal static partial class FrobHelper
+  EXPECT rendered.csdispatch case "get_info": return GetInfo(argsJson);
+  EXPECT rendered.csdispatch case "set": return Set(argsJson);
+  EXPECT rendered.csdispatch throw new System.ArgumentException(ErrorHelper.InvalidAction(action, ToolActions.Names("frob")));
+  EXPECT unrendered.csdispatch throw new System.Exception(
+
+EXAMPLE an ACTION's METHOD overrides the default PascalCase method name
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   DISPATCH "FrobHelper"
+  SOURCE   ACTION get_errors METHOD "GetShaderErrors"
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csdispatch case "get_errors": return GetShaderErrors(argsJson);
+  EXPECT unrendered.csdispatch GetErrors(argsJson)
+
+EXAMPLE DISPATCH EXCEPTION Exception overrides the default ArgumentException on the unknown-action arm
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   DISPATCH "FrobHelper" EXCEPTION Exception
+  SOURCE   ACTION get
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csdispatch throw new System.Exception(ErrorHelper.InvalidAction(action, ToolActions.Names("frob")));
+  EXPECT unrendered.csdispatch System.ArgumentException(ErrorHelper
+
+EXAMPLE a tool with ACTION but no DISPATCH prints no partial-class dispatcher at all
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION get
+  SOURCE END
+  EXPECT unrendered.csdispatch FrobHelper
+  EXPECT unrendered.csdispatch partial class
+
+EXAMPLE a tool may declare DISPATCH at most once
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   DISPATCH "FrobHelper"
+  SOURCE   DISPATCH "OtherHelper"
+  SOURCE   ACTION get
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE a DISPATCH tool needs at least one ACTION
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   DISPATCH "FrobHelper"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE an ACTION's METHOD needs a DISPATCH tool
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION get METHOD "Get"
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
