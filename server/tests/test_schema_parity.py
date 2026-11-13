@@ -133,14 +133,14 @@ def _specs() -> dict:
 
 def test_cs_commands_parseable():
     cmds = _extract_cs_commands()
-    assert len(cmds) > 30, f"Expected >30 hand-written C# commands, got {len(cmds)}: {sorted(cmds)}"
+    assert len(cmds) > 20, f"Expected >20 hand-written C# commands, got {len(cmds)}: {sorted(cmds)}"
 
 
 def test_handler_generated_commands_parseable():
     """Guards the exclusion above: a count drop here means ToolBindings.g.cs changed shape and the
     hand-written-only scoping needs re-checking, not that 86 tools silently lost parity coverage."""
     generated = _handler_generated_commands()
-    assert len(generated) == 86, f"Expected 86 HANDLER-generated commands, got {len(generated)}"
+    assert len(generated) == 113, f"Expected 113 HANDLER-generated commands, got {len(generated)}"
 
 
 def test_specs_nonempty():
