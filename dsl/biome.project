@@ -106,3 +106,9 @@ GENERATE chat-turn feature generate --feature {dir}/chat/chatturn.feature --uses
 GENERATE playtest-reader reader --surface playtest --target cs --cs-namespace UnityMCP.Playtest.Core --out {dir}/../unity-plugin/Runtime/Playtest/Core/Generated/PlaytestReader.g.cs
 GENERATE playtest-rows reader --surface playtest --target rows --out {dir}/playtest/reader.rows
 GENERATE playtest-verbs derive {dir}/playtest/gen.mjs verbs OUT {dir}/constructs/playtest.construct {dir}/../AI/playtest-dsl.md
+
+# The LLM sampling feature defaults (dsl/data/llmfeatures.data-contract, config step 2): one typed row set instead of
+# llm_config.py's _DEFAULTS and LlmConfig.cs's per-feature initializers (nl_composer existed only in C#).
+CONTRACT llmfeatures FROM data/llmfeatures.data-contract
+GENERATE py-llmfeatures data --contract llmfeatures --rows LlmFeature {dir}/data/llmfeatures.core-data --target py --out {dir}/../server/src/unity_mcp/generated/llm_features.py
+GENERATE cs-llmfeatures data --contract llmfeatures --rows LlmFeature {dir}/data/llmfeatures.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/LlmFeatures.g.cs

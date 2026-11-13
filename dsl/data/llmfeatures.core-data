@@ -1,0 +1,10 @@
+LLMFEATURE {feature: visual_verify model: haiku maxTurns: 2 timeoutS: 15 maxTokens: 0 backend: claude}
+LLMFEATURE {feature: screenshot_describe model: haiku maxTurns: 2 timeoutS: 20 maxTokens: 0 backend: claude}
+LLMFEATURE {feature: visual_diff model: haiku maxTurns: 2 timeoutS: 25 maxTokens: 0 backend: claude}
+LLMFEATURE {feature: summarize model: haiku maxTurns: 1 timeoutS: 15 maxTokens: 0 backend: claude}
+LLMFEATURE {feature: do_intent model: haiku maxTurns: 1 timeoutS: 15 maxTokens: 0 backend: claude}
+LLMFEATURE {feature: distiller model: haiku maxTurns: 1 timeoutS: 15 maxTokens: 500 backend: claude}
+LLMFEATURE {feature: ui_intent model: haiku maxTurns: 1 timeoutS: 15 maxTokens: 0 backend: claude}
+LLMFEATURE {feature: vfx_intent model: haiku maxTurns: 1 timeoutS: 15 maxTokens: 0 backend: claude}
+LLMFEATURE {feature: animator_intent model: haiku maxTurns: 1 timeoutS: 15 maxTokens: 0 backend: claude}
+LLMFEATURE {feature: nl_composer model: haiku maxTurns: 1 timeoutS: 10 maxTokens: 512 backend: claude}
