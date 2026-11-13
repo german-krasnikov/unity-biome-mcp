@@ -1,0 +1,4 @@
+CLIENTCONFIGPATH {key: claude-code path: "~/.claude.json"}
+CLIENTCONFIGPATH {key: claude-desktop path: "~/.config/Claude/claude_desktop_config.json" pathMac: "~/Library/Application Support/Claude/claude_desktop_config.json" pathWin: "{appdata}/Claude/claude_desktop_config.json"}
+CLIENTCONFIGPATH {key: cursor path: "~/.cursor/mcp.json"}
+CLIENTCONFIGPATH {key: windsurf path: "~/.codeium/windsurf/mcp_config.json" pathWin: "{appdata}/Codeium/windsurf/mcp_config.json"}
