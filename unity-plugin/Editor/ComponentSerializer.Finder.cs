@@ -14,6 +14,17 @@ namespace UnityMCP.Editor
             return go;
         }
 
+        /// <summary>Extract required path arg from json by key, then resolve to a live GameObject.
+        /// Consolidates the `ExtractString(...) ?? throw` + `FindObject(...) ?? throw` pair
+        /// duplicated across command handlers (e.g. PrefabHelper.cs).</summary>
+        internal static GameObject ResolvePath(string json, string key = "path")
+        {
+            var path = JsonHelper.RequireString(json, key);
+            var go = FindObject(path);
+            if (go == null) throw new System.ArgumentException(ErrorHelper.NotFound("Object", path));
+            return go;
+        }
+
         public static GameObject FindObject(string path, bool strict = false)
         {
             if (string.IsNullOrEmpty(path)) return null;
