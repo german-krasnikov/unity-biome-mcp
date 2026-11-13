@@ -27,8 +27,8 @@ namespace UnityMCP.Editor.Tests
         {
             Assume.That(RoslynLoader.EnsureRoslyn(), Is.True, "Roslyn not available — skipping");
 
-            var argsJson = "{\"file_path\":\"Assets/Test.cs\",\"new_content\":\"using UnityEngine; public class Foo : MonoBehaviour {}\"}";
-            var result   = CompilePreflightCommand.Execute(argsJson);
+            var result = CompilePreflightCommand.Execute(
+                "Assets/Test.cs", "using UnityEngine; public class Foo : MonoBehaviour {}");
 
             StringAssert.StartsWith("OK preflight (", result);
         }
@@ -40,8 +40,8 @@ namespace UnityMCP.Editor.Tests
         {
             Assume.That(RoslynLoader.EnsureRoslyn(), Is.True, "Roslyn not available — skipping");
 
-            var argsJson = "{\"file_path\":\"Assets/Test.cs\",\"new_content\":\"public class Foo { int @@@ }\"}";
-            var result   = CompilePreflightCommand.Execute(argsJson);
+            var result = CompilePreflightCommand.Execute(
+                "Assets/Test.cs", "public class Foo { int @@@ }");
 
             StringAssert.StartsWith("ERR preflight", result);
             StringAssert.Contains("CS", result);
@@ -54,8 +54,8 @@ namespace UnityMCP.Editor.Tests
         {
             Assume.That(RoslynLoader.EnsureRoslyn(), Is.True, "Roslyn not available — skipping");
 
-            var argsJson = "{\"file_path\":\"Assets/Test.cs\",\"new_content\":\"public class Foo { NonExistentType999 x; }\"}";
-            var result   = CompilePreflightCommand.Execute(argsJson);
+            var result = CompilePreflightCommand.Execute(
+                "Assets/Test.cs", "public class Foo { NonExistentType999 x; }");
 
             StringAssert.StartsWith("ERR preflight", result);
             Assert.IsTrue(result.Contains("CS0246") || result.Contains("CS0234"),
@@ -78,9 +78,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Execute_MissingArgs_ReturnsFallbackOrOK()
         {
-            // When argsJson has no new_content, Execute passes empty string to Roslyn.
-            // Either returns OK (empty string parses fine) or ROSLYN UNAVAILABLE.
-            var result = CompilePreflightCommand.Execute("{}");
+            // Missing args (both empty) — Execute must reject before touching Roslyn.
+            var result = CompilePreflightCommand.Execute("", "");
             Assert.IsTrue(
                 result.StartsWith("OK") || result.StartsWith("ERR") || result.StartsWith("[ROSLYN") || result.StartsWith("err:"),
                 $"unexpected result format: {result}");

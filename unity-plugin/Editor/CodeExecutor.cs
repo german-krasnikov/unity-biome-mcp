@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+using UnityMCP.Editor.Roslyn;
 
 namespace UnityMCP.Editor
 {
@@ -168,7 +169,7 @@ namespace UnityMCP.Editor
         }
 
         internal static void SecurityScan(string code) =>
-            SecurityScan(code, MCPSettings.GetSecurityLevel());
+            SecurityScan(code, RoslynHost.SecurityLevelProvider());
 
         internal static void SecurityScan(string code, SecurityLevel level)
         {
@@ -218,7 +219,7 @@ namespace UnityMCP.Editor
         private static Assembly Compile(string code)
         {
             if (_compilationCount >= 200)
-                Debug.LogWarning($"{BiomeLabel.Tag} execute_code: 200+ compilations — assembly leak risk in Mono. Consider restarting Unity.");
+                RoslynHost.LogWarning("execute_code: 200+ compilations — assembly leak risk in Mono. Consider restarting Unity.");
             _compilationCount++;
 
             // ParseText: find overload where first param is string (or SourceText) — use the one
@@ -389,7 +390,7 @@ namespace UnityMCP.Editor
                 .Select(d => d.ToString())
                 .ToArray();
             var errorMessage = string.Join("\n", errors);
-            Debug.LogError($"{BiomeLabel.Tag} execute_code compile error: {errorMessage}");
+            RoslynHost.LogError("execute_code compile error: " + errorMessage);
             throw new InvalidOperationException("Compile error:\n" + errorMessage);
         }
 
