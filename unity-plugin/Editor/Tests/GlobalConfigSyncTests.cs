@@ -28,20 +28,21 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void SaveToDisk_WritesValidJson()
         {
-            SetEditorPrefBool(PrefKeys.IdleAutoSuspend, true);
-            SetEditorPrefInt(PrefKeys.IdleTimeoutMin, 30);
-            SetEditorPrefBool(PrefKeys.TerminateOrphan, true);
-            SetEditorPrefInt(PrefKeys.OrphanGraceMin, 2);
+            var d = GlobalConfigDefaultsRows.All[0];
+            SetEditorPrefBool(PrefKeys.IdleAutoSuspend, d.IdleAutoSuspend);
+            SetEditorPrefInt(PrefKeys.IdleTimeoutMin, d.IdleTimeoutMin);
+            SetEditorPrefBool(PrefKeys.TerminateOrphan, d.BridgeTerminateOrphan);
+            SetEditorPrefInt(PrefKeys.OrphanGraceMin, d.BridgeOrphanGraceMin);
 
             GlobalConfigSync.SaveToDisk();
 
             var path = GlobalConfigSync.ConfigPath;
             Assert.IsTrue(File.Exists(path), "Config file should exist after save");
             var json = File.ReadAllText(path);
-            StringAssert.Contains("\"idle_timeout_min\": 30", json);
-            StringAssert.Contains("\"idle_auto_suspend\": true", json);
-            StringAssert.Contains("\"bridge_terminate_orphan\": true", json);
-            StringAssert.Contains("\"bridge_orphan_grace_min\": 2", json);
+            StringAssert.Contains($"\"idle_timeout_min\": {d.IdleTimeoutMin}", json);
+            StringAssert.Contains($"\"idle_auto_suspend\": {(d.IdleAutoSuspend ? "true" : "false")}", json);
+            StringAssert.Contains($"\"bridge_terminate_orphan\": {(d.BridgeTerminateOrphan ? "true" : "false")}", json);
+            StringAssert.Contains($"\"bridge_orphan_grace_min\": {d.BridgeOrphanGraceMin}", json);
         }
 
         [Test]
