@@ -9,11 +9,14 @@ import tempfile
 from collections.abc import Callable  # noqa: TC003
 
 from ..generated.protocol import PROTOCOL_ROWS
+from ..generated.server_identity import SERVER_IDENTITY_ROWS
 from .generated.project_config_targets import PROJECT_CONFIG_TARGET_ROWS
 
 # Our MCP server name (config key). "unity-biome-mcp" — one "mcp", and distinct from
-# the foreign bare [mcp_servers.unity] (CoplayDev) that the TOML strip removes.
-SERVER_NAME = "unity-biome-mcp"
+# the foreign bare [mcp_servers.unity] (CoplayDev) that the TOML strip removes. Generated
+# from dsl/data/servername.data-contract (P1 #5) — C#'s PermissionConfig.SERVER_NAME reads
+# the same row (ServerIdentityRows.All[0].ServerName), so the two cannot drift independently.
+SERVER_NAME = SERVER_IDENTITY_ROWS[0].serverName
 # Previous names we shipped — migrated away from (removed) on every write so a
 # rename never leaves an orphaned duplicate server behind.
 _OLD_NAMES = ("unity-mcp",)

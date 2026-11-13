@@ -1166,6 +1166,30 @@ def test_toml_version_fragment_is_generated_protocol_row():
     assert merger._TOML_VERSION_RE_FRAGMENT == r"[\d.]+(?:-[0-9A-Za-z.]+)?"
 
 
+def test_resolver_semver_pattern_is_generated_protocol_row():
+    """resolver._SEMVER_RE must be PROTOCOL_ROWS[0].serverRefPattern, not a
+    re-hand-written copy -- same generator-output-check rationale as
+    test_toml_version_fragment_is_generated_protocol_row above. install.py's
+    own _SEMVER_RE_INSTALL imports this exact compiled object (not a second
+    regex), so proving this one is wired also proves install.py's gate is."""
+    from unity_mcp.config import resolver
+    from unity_mcp.generated.protocol import PROTOCOL_ROWS
+
+    assert PROTOCOL_ROWS[0].serverRefPattern == resolver._SEMVER_RE.pattern
+    assert resolver._SEMVER_RE.pattern == r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.]+)?"
+
+
+def test_server_name_is_generated_identity_row():
+    """merger.SERVER_NAME must read dsl/data/servername.data-contract's generated row,
+    not a hand-written literal -- C#'s PermissionConfig.SERVER_NAME is generated from the
+    same row (ServerIdentityRows.All[0].ServerName), so this replaces the old regex-scan-the-
+    .cs-source parity guard (test_server_name_consistency.py) with a generator-output check."""
+    from unity_mcp.config.merger import SERVER_NAME
+    from unity_mcp.generated.server_identity import SERVER_IDENTITY_ROWS
+
+    assert SERVER_NAME == SERVER_IDENTITY_ROWS[0].serverName == "unity-biome-mcp"
+
+
 # ─── merger.py: PROJECT_CONFIG_TARGETS parity with ProjectConfigTargets.g.cs ──
 # T1/Q10: both planes are generated from dsl/data/projectconfig.data-contract, so this is now a
 # generator-output check, not a cross-source parity guard (that guard is scripts/dsl.sh check +
