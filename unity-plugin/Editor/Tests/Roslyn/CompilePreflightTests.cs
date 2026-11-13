@@ -2,7 +2,7 @@
 // Tests 2-4 require Unity Editor (Roslyn DLLs bundled). Skipped via Assume if unavailable.
 using NUnit.Framework;
 using System.Text.RegularExpressions;
-using UnityMCP.Editor;
+using UnityMCP.Editor.Roslyn;
 
 namespace UnityMCP.Editor.Tests
 {

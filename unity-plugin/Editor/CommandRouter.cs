@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
+using UnityMCP.Editor.Roslyn;
 using UnityMCP.Editor.TestRuns;
 using UnityMCP.Playtest.Core;
 

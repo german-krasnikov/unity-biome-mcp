@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEditorInternal;
 using UnityEngine;
+using UnityMCP.Editor.Roslyn;
 namespace UnityMCP.Editor
 {
     // RegisterAll() split into 4 themed bucket methods (B1, review sprint v0.70).

@@ -2,7 +2,7 @@
 using NUnit.Framework;
 using System;
 using UnityEditor;
-using UnityMCP.Editor;
+using UnityMCP.Editor.Roslyn;
 
 namespace UnityMCP.Editor.Tests
 {

@@ -4,9 +4,8 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
-using UnityMCP.Editor.Roslyn;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Editor.Roslyn
 {
     public enum SecurityLevel { Standard = 0, AllowAll = 1, Strict = 2 }
 

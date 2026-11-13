@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Editor.Roslyn
 {
     /// <summary>compile_preflight handler — dry-compile C# source via Roslyn without writing files.</summary>
     internal static class CompilePreflightCommand
@@ -21,7 +21,7 @@ namespace UnityMCP.Editor
                 var diagnostics = RoslynWorkspace.GetDiagnostics(filePath, newContent);
                 sw.Stop();
                 var result = RoslynFormat.FormatDiagnostics(diagnostics, sw.ElapsedMilliseconds);
-                var hints = Roslyn.UnityPreflightHints.Analyze(filePath, newContent);
+                var hints = UnityPreflightHints.Analyze(filePath, newContent);
                 if (!string.IsNullOrEmpty(hints))
                     result += "\n" + hints;
                 return result;

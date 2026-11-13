@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using UnityMCP.Editor.Roslyn;
 
 namespace UnityMCP.Editor.Tests
 {

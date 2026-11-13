@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
-namespace UnityMCP.Editor
+namespace UnityMCP.Editor.Roslyn
 {
     internal enum RoslynPairSelection { None, Valid, Invalid }
     internal sealed class RoslynAssemblySnapshot
