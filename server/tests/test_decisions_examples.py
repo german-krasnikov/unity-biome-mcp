@@ -17,6 +17,7 @@ DECISIONS = Path(__file__).resolve().parents[2] / "dsl" / "decisions"
 MODULES = {
     "mutability", "verdict", "guards", "retry", "permission", "versionorder", "busysignal", "connstatus",
     "budget", "editorlog", "terminalerror", "injectstate", "reflectgate", "prefetch", "scenarionext",
+    "planverify", "askroute", "hinter",
 }
 
 

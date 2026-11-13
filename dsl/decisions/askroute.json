@@ -1,0 +1,18 @@
+{
+  "generated": "from askroute.examples by npm run logic -- examples; do not edit",
+  "provenance": "hand-written from ask/router.py is_mutating and route, and ask/plans.py CANONICAL_PLANS; server/tests/test_ask.py (test_router_* oracle, especially test_router_count_active_falls_through_to_scene_query for the Q-A1 correction: ask.countActive is not a fact here).",
+  "askRoute": [
+    { "id": "mutating-beats-everything", "facts": { "askMutating": true, "askUnityNoun": true, "askBrokenRefs": true, "askSceneHealth": true, "askEditorState": false, "askCompile": false }, "expected": "mutating" },
+    { "id": "mutating-with-no-noun", "facts": { "askMutating": true, "askUnityNoun": false, "askBrokenRefs": false, "askSceneHealth": false, "askEditorState": false, "askCompile": false }, "expected": "mutating" },
+    { "id": "no-unity-noun", "facts": { "askMutating": false, "askUnityNoun": false, "askBrokenRefs": true, "askSceneHealth": false, "askEditorState": false, "askCompile": false }, "expected": "out_of_scope" },
+    { "id": "broken-refs", "facts": { "askMutating": false, "askUnityNoun": true, "askBrokenRefs": true, "askSceneHealth": false, "askEditorState": false, "askCompile": false }, "expected": "BROKEN_REFS" },
+    { "id": "broken-refs-beats-health", "facts": { "askMutating": false, "askUnityNoun": true, "askBrokenRefs": true, "askSceneHealth": true, "askEditorState": false, "askCompile": false }, "expected": "BROKEN_REFS" },
+    { "id": "scene-health", "facts": { "askMutating": false, "askUnityNoun": true, "askBrokenRefs": false, "askSceneHealth": true, "askEditorState": false, "askCompile": false }, "expected": "SCENE_HEALTH" },
+    { "id": "health-beats-editor-state", "facts": { "askMutating": false, "askUnityNoun": true, "askBrokenRefs": false, "askSceneHealth": true, "askEditorState": true, "askCompile": false }, "expected": "SCENE_HEALTH" },
+    { "id": "editor-state", "facts": { "askMutating": false, "askUnityNoun": true, "askBrokenRefs": false, "askSceneHealth": false, "askEditorState": true, "askCompile": false }, "expected": "EDITOR_STATE" },
+    { "id": "editor-state-beats-compile", "facts": { "askMutating": false, "askUnityNoun": true, "askBrokenRefs": false, "askSceneHealth": false, "askEditorState": true, "askCompile": true }, "expected": "EDITOR_STATE" },
+    { "id": "compile", "facts": { "askMutating": false, "askUnityNoun": true, "askBrokenRefs": false, "askSceneHealth": false, "askEditorState": false, "askCompile": true }, "expected": "COMPILE_ERRORS" },
+    { "id": "noun-only-falls-back", "facts": { "askMutating": false, "askUnityNoun": true, "askBrokenRefs": false, "askSceneHealth": false, "askEditorState": false, "askCompile": false }, "expected": "SCENE_QUERY" },
+    { "id": "count-active-phrasing-falls-back", "facts": { "askMutating": false, "askUnityNoun": true, "askBrokenRefs": false, "askSceneHealth": false, "askEditorState": false, "askCompile": false }, "expected": "SCENE_QUERY" }
+  ]
+}

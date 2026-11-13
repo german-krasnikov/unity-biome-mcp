@@ -1,0 +1,38 @@
+PROVENANCE "hand-written from do_intent/validator.py validate_plan and do_intent/executor.py Executor.execute; test_do_intent.py (thresholds: 50-line limit at lines 130-140)."
+
+EXAMPLES planGate
+  id | planLines | planMaxLines | planRejected -> expected
+  empty-plan                | 0  | 50 | false -> empty
+  reject-prefix              | 3  | 50 | true  -> rejected
+  empty-beats-reject         | 0  | 50 | true  -> empty
+  exactly-50-ok               | 50 | 50 | false -> ok
+  fifty-one-too-long          | 51 | 50 | false -> too_long
+END
+
+EXAMPLES lineVerdict
+  id | lineAllowed | lineMissingRequired | lineIsCreate | lineHasPath | linePathDeclared -> expected
+  unknown-command             | false | 0 | false | false | false -> forbidden
+  forbidden-beats-missing     | false | 2 | false | true  | false -> forbidden
+  missing-required            | true  | 1 | false | true  | true  -> missing_key
+  create-object-skips-path    | true  | 0 | true  | true  | false -> ok
+  path-not-in-scene           | true  | 0 | false | true  | false -> unknown_path
+  path-created-earlier        | true  | 0 | false | true  | true  -> ok
+  no-path-key                 | true  | 0 | false | false | false -> ok
+END
+
+EXAMPLES fixGate
+  id | execPartial | execHasSampling | execFailedLines -> expected
+  not-partial          | false | true  | 0 -> done
+  no-sampling           | true  | false | 3 -> done
+  zero-failed-lines     | true  | true  | 0 -> done
+  one-failed            | true  | true  | 1 -> ask_fix
+  five-failed            | true  | true  | 5 -> ask_fix
+  six-failed-too-many   | true  | true  | 6 -> done
+END
+
+EXAMPLES fixApply
+  id | fixEmpty | fixVerdict -> expected
+  empty-fix    | true  | ok             -> keep_original
+  invalid-fix  | false | forbidden      -> keep_original
+  valid-fix    | false | ok             -> send_fix
+END

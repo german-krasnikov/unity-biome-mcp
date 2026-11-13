@@ -1,0 +1,23 @@
+# Facts of the do() plan gate. plan.* = the whole plan text; line.* = one line (the host stops at the first line that is not ok, as validate_plan does today).
+# declaredPath: the path exists in the scene or was created by an earlier create_object line (the host owns the running set via declared_paths()).
+# exec.* = the batch result of Executor.execute; fix.* = the plan Haiku returned for the failed lines.
+CONTRACT unitymcp.planverify
+COVERAGE declared-scope
+MODULE planverify_facts
+FACT plan.lines number min=0 max=1000000 integer
+FACT plan.maxLines number min=1 max=1000000 integer
+FACT plan.rejected bool
+FACT line.allowed bool
+FACT line.missingRequired number min=0 max=100 integer
+FACT line.isCreate bool
+FACT line.hasPath bool
+FACT line.pathDeclared bool
+FACT exec.partial bool
+FACT exec.hasSampling bool
+FACT exec.failedLines number min=0 max=1000000 integer
+FACT fix.empty bool
+FACT fix.verdict enum=ok,empty,rejected,too_long,forbidden,missing_key,unknown_path closed
+INPUT planGate plan.lines plan.maxLines plan.rejected
+INPUT lineVerdict line.allowed line.missingRequired line.isCreate line.hasPath line.pathDeclared
+INPUT fixGate exec.partial exec.hasSampling exec.failedLines
+INPUT fixApply fix.empty fix.verdict

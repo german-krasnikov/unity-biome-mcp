@@ -1,6 +1,7 @@
 """Keyword regex router — deterministic 80% of ask() questions."""
 import re
 
+from ..decisions.askroute_facts import ask_route
 from .plans import CANONICAL_PLANS, ToolPlan
 
 # Mutating verbs that make a question a command, not a query
@@ -20,20 +21,31 @@ _UNITY_NOUNS_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Pattern → canonical plan key (order matters: SPATIAL before OBJECT)
-_PATTERNS: list[tuple[re.Pattern, str]] = [
-    (re.compile(r"\bbroken\b.*\b(refs?|references?|links?)|\b(refs?|references?|links?).*\bbroken\b", re.I), "BROKEN_REFS"),
-    (re.compile(r"\b(errors?|wrong|issues?|problems?)\b.*\b(scene|console)|\b(scene|console).*\b(errors?|issues?|problems?)\b", re.I), "SCENE_HEALTH"),
-    (re.compile(r"\bhow many\b|\bcount of\b.*\b(active|enabled|tag|comp)\b", re.I), "COUNT_ACTIVE"),
-    (re.compile(r"\bplay(ing|mode| mode)\b|\bpaused\b|\bdirty\b", re.I), "EDITOR_STATE"),
-    (re.compile(r"\bcompil(e|ation|ing)\b", re.I), "COMPILE_ERRORS"),
-    (re.compile(r"\b(positions?|locations?|coords?|coordinates?|where\s+(is|are))\b", re.I), "SCENE_QUERY"),
-    (re.compile(r"\b(what|which|where|list|show|find|get)\b.*\b(objects?|gameobjects?|transforms?|nodes?|children|parent)\b", re.I), "SCENE_QUERY"),
-]
+# Broken/scene-health/editor-state/compile regexes feed askRoute's facts (router priority is in the DECISION, not here).
+_BROKEN_REFS_RE = re.compile(r"\bbroken\b.*\b(refs?|references?|links?)|\b(refs?|references?|links?).*\bbroken\b", re.I)
+_SCENE_HEALTH_RE = re.compile(r"\b(errors?|wrong|issues?|problems?)\b.*\b(scene|console)|\b(scene|console).*\b(errors?|issues?|problems?)\b", re.I)
+_EDITOR_STATE_RE = re.compile(r"\bplay(ing|mode| mode)\b|\bpaused\b|\bdirty\b", re.I)
+_COMPILE_RE = re.compile(r"\bcompil(e|ation|ing)\b", re.I)
+
+# COUNT_ACTIVE: documented placeholder (ask/plans.py CANONICAL_PLANS["COUNT_ACTIVE"] is None, needs Haiku filter
+# extraction). Its match is a no-op on the decided route — it is deliberately NOT one of askRoute's facts.
+_COUNT_ACTIVE_RE = re.compile(r"\bhow many\b|\bcount of\b.*\b(active|enabled|tag|comp)\b", re.I)
 
 
 def is_mutating(question: str) -> bool:
     return bool(_MUTATING_RE.match(question))
+
+
+def ask_facts(question: str) -> dict:
+    """The regex facts of `question`, folded for askRoute. Each fact is one cheap regex evaluation."""
+    return {
+        "mutating": is_mutating(question),
+        "unity_noun": bool(_UNITY_NOUNS_RE.search(question)),
+        "broken_refs": bool(_BROKEN_REFS_RE.search(question)),
+        "scene_health": bool(_SCENE_HEALTH_RE.search(question)),
+        "editor_state": bool(_EDITOR_STATE_RE.search(question)),
+        "compile": bool(_COMPILE_RE.search(question)),
+    }
 
 
 def route(question: str) -> ToolPlan | None:
@@ -41,17 +53,4 @@ def route(question: str) -> ToolPlan | None:
     Return ToolPlan for question, or None if out-of-scope / no match.
     Returns None (not error) — caller decides what to do with unmatched questions.
     """
-    if is_mutating(question):
-        return None
-
-    if not _UNITY_NOUNS_RE.search(question):
-        return None
-
-    for pattern, key in _PATTERNS:
-        if pattern.search(question):
-            plan = CANONICAL_PLANS.get(key)
-            if plan is not None:
-                return plan
-
-    # Fallback: question has Unity noun but no specific pattern — generic scene query
-    return CANONICAL_PLANS.get("SCENE_QUERY")
+    return CANONICAL_PLANS.get(ask_route(**ask_facts(question)))

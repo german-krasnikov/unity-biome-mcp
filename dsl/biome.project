@@ -142,6 +142,12 @@ GENERATE py-llmfeatures data --contract llmfeatures --rows LlmFeature {dir}/data
 GENERATE cs-llmfeatures data --contract llmfeatures --rows LlmFeature {dir}/data/llmfeatures.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/LlmFeatures.g.cs
 GENERATE editorlog logic generate --source {dir}/decisions/editorlog.logic --contract {dir}/decisions/editorlog.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/editorlog_logic.py"
 GENERATE editorlog-rows logic examples --source {dir}/decisions/editorlog.examples --logic {dir}/decisions/editorlog.logic --contract {dir}/decisions/editorlog.contract --out {dir}/decisions/editorlog.json
+GENERATE planverify logic generate --source {dir}/decisions/planverify.logic --contract {dir}/decisions/planverify.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/planverify_logic.py"
+GENERATE planverify-rows logic examples --source {dir}/decisions/planverify.examples --logic {dir}/decisions/planverify.logic --contract {dir}/decisions/planverify.contract --out {dir}/decisions/planverify.json
+GENERATE askroute logic generate --source {dir}/decisions/askroute.logic --contract {dir}/decisions/askroute.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/askroute_logic.py"
+GENERATE askroute-rows logic examples --source {dir}/decisions/askroute.examples --logic {dir}/decisions/askroute.logic --contract {dir}/decisions/askroute.contract --out {dir}/decisions/askroute.json
+GENERATE hinter logic generate --source {dir}/decisions/hinter.logic --contract {dir}/decisions/hinter.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/hinter_logic.py"
+GENERATE hinter-rows logic examples --source {dir}/decisions/hinter.examples --logic {dir}/decisions/hinter.logic --contract {dir}/decisions/hinter.contract --out {dir}/decisions/hinter.json
 CONTRACT contextwindow FROM data/contextwindow.data-contract
 GENERATE py-contextwindow data --contract contextwindow --rows ContextWindowRule {dir}/data/contextwindow.core-data --target py --out {dir}/../server/src/unity_mcp/generated/context_window_rules.py
 GENERATE cs-contextwindow data --contract contextwindow --rows ContextWindowRule {dir}/data/contextwindow.core-data --target cs --cs-namespace UnityMCP.Editor.Chat --out {dir}/../unity-plugin/Editor/Chat/CLI/Generated/ContextWindowRules.g.cs
