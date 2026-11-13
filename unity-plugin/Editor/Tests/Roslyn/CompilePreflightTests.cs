@@ -3,11 +3,12 @@
 using NUnit.Framework;
 using System.Text.RegularExpressions;
 using UnityMCP.Editor.Roslyn;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    [Category("Roslyn")]
+    [Category(TestCategories.Roslyn)]
     public class CompilePreflightTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── RoslynLoader ──────────────────────────────────────────────────────

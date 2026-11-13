@@ -6,12 +6,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityMCP.Editor.Roslyn;
+using UnityMCP.Editor.Testing;
 using static UnityMCP.Editor.Tests.RoslynLoaderTestData;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    [Category("Roslyn")]
+    [Category(TestCategories.Roslyn)]
     internal sealed class RoslynLoaderFallbackTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]

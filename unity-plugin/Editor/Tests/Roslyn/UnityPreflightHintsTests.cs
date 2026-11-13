@@ -2,11 +2,12 @@
 // 10 (Analyze composite + edge cases). Analyze is internal; accessible via InternalsVisibleTo.
 using NUnit.Framework;
 using UnityMCP.Editor.Roslyn;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    [Category("Roslyn")]
+    [Category(TestCategories.Roslyn)]
     public class UnityPreflightHintsTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── Task 8: CheckSerializedDictionary ─────────────────────────────────

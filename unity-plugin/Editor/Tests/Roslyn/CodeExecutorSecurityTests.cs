@@ -1,11 +1,12 @@
 using System.Linq;
 using NUnit.Framework;
 using UnityMCP.Editor.Roslyn;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    [Category("Roslyn")]
+    [Category(TestCategories.Roslyn)]
     public class CodeExecutorSecurityTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp] public void SetUp()
