@@ -1,0 +1,10 @@
+# One row per LLM sampling feature (gap §3): llm_config.py _DEFAULTS and LlmConfig.cs fields/ToTcpPayload
+# listed the features separately; nl_composer existed only in C#.
+RECORD LlmFeature KEY feature COUNT 10
+  feature: string
+  model: string
+  maxTurns: int
+  timeoutS: int
+  maxTokens: int
+  backend: string
+END

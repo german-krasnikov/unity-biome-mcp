@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=ae7ae5192ef26bc47e023f639ac9ca2c0ed65b883653a301f194ebed26f4de43
+# source-sha256=2f60948cb50a62567d529938c2e71eaebb92bc504cb0bb6c772ff0a8d21866c7
 # Edit the source, then run biome generate.
 
 PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
@@ -316,7 +316,7 @@ PARAM_DESCRIPTIONS: dict[str, dict[str, str]] = {
     'scan_scene': {
     },
     'scene': {
-        'action': "Operation: new|open|save|discard|open_additive|close|set_active|list",
+        'action': "Operation: new|open|save|discard|open_additive|close|set_active|list|save_copy",
         'path': "Asset path — required for open/save/open_additive/close/set_active",
         'scene': "Scene name for save/discard when multiple scenes are loaded",
     },

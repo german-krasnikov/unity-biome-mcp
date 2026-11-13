@@ -36,10 +36,7 @@ namespace UnityMCP.Editor
                 mutating: true,
                 required: "", optional: "width,height,camera,path,output_path,supersample,angles,zoom,offset,fixed_size,highlight,show_colliders,angle,annotation_id,describe,raw",
                 fileHandler: BuildScreenshotResponse,
-                specialDispatch: true, allowedDuringCompile: true);
-            CommandRegistry.Register("diagnose", ExecDiagnose,
-                required: "", optional: "prev_mvid,expected_compile",  // C8: read-only multi-signal snapshot
-                alwaysAllowed: true, allowedDuringCompile: true);
+                specialDispatch: true, allowedDuringCompile: true, playOk: true);
             // T5 recovery: play+stop cycle forces domain reload without going through SecurityScan.
             // allowedDuringCompile=true so it works in compile-latch state.
             // Entering Play Mode triggers a domain reload in this project (full domain
@@ -53,20 +50,11 @@ namespace UnityMCP.Editor
                 required: "label", optional: "", alwaysAllowed: true, allowedDuringCompile: true);
         }
 
+        // Commands with a HANDLER line in dsl/tools.biome are registered by ToolBindings.RegisterAll (Generated/ToolBindings.g.cs).
+        // Only the ones the catalog cannot express stay here: no tools.biome block, screenshot (fileHandler), batch (a dispatcher,
+        // mutating: false), navmesh (UNITY_MODULE_AI only).
         internal static void RegisterReadCommands()
         {
-            // Read (non-mutating)
-            CommandRegistry.Register("get_hierarchy", ExecGetHierarchy,
-                required: "", optional: "depth,root,filter,components,summary,incremental,scene,compress,full",
-                maxResponseChars: 50000);
-            CommandRegistry.Register("list_playtest_files", ExecListPlaytestFiles,
-                required: "", optional: "pattern", allowedDuringCompile: true);
-            CommandRegistry.Register("validate_playtest_aliases", ExecValidateAliases,
-                required: "", optional: "defs,asset", allowedDuringCompile: true);
-            CommandRegistry.Register("get_component", ExecGetComponent,
-                required: "path,type", optional: "fields,compress,component,full");
-            CommandRegistry.Register("get_object_detail", ExecGetObjectDetail,
-                required: "id", optional: "full");
             CommandRegistry.Register("clear_console", ExecClearConsole,
                 required: "", optional: "", allowedDuringCompile: true);
             CommandRegistry.Register("console_clear_buffer", ExecConsoleClearBuffer,
@@ -99,20 +87,8 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("search_context", ExecSearchContext,
                 optional: "query,limit,types",
                 maxResponseChars: 30000);
-            CommandRegistry.Register("inspect", ExecInspect,
-                required: "", optional: "paths,find_type,components,fields,compress,type,full");
             CommandRegistry.Register("checkpoint_undo_restore", ExecCheckpointUndoRestore,
                 required: "group_id,domain_stamp", optional: "");
-            CommandRegistry.Register("render_analyze", ExecRenderAnalyze, required: "action", optional: "path,detail,baseline_id,max_events");
-            CommandRegistry.Register("get_schema", ExecGetSchema, required: "type", optional: "");
-            CommandRegistry.Register("get_test_run", ExecGetTestRun,
-                required: "run_id", optional: "compact", allowedDuringCompile: true);
-
-            // Runtime (Play Mode only), read-only queries
-            CommandRegistry.Register("get_frame_stats", ExecGetFrameStats, runtime: true,
-                required: "", optional: "include");
-            CommandRegistry.RegisterAction("profile", Profiling.ProfileRecorder.Dispatch, mutating: true, runtime: true,
-                required: "", optional: "mode,duration,session,focus,compare_with,threshold_ms");
             // NOTE: NOT runtime:true — sessions persist after Play Mode ends
             CommandRegistry.Register("get_profile_context", ExecGetProfileContext, required: "", optional: "session");
             // batch stays here (mutating:false) — it's a dispatcher; its DSL sub-commands are
@@ -136,59 +112,16 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("set_runtime_property", ExecSetRuntimeProperty, runtime: true,
                 mutating: true, playOk: true, noUndo: true,
                 required: "path,component,field,value", optional: "");
-            // Write (mutating)
-            CommandRegistry.Register("set_property", ExecSetProperty, mutating: true,
-                required: "", optional: "path,find_type,component,prop,value,dry_run,ref_component_type");
-            // color is optional: null/omitted leaves the material's existing color untouched
-            // (ObjectManager.SetMaterial tolerates a null color, applying only shader if given).
-            CommandRegistry.Register("set_material", ExecSetMaterial, mutating: true,
-                required: "path,color", optional: "shader");
-            // P-414: scene save must NOT create an undo group (prevents isDirty clearing in Unity 6): noUndo. scene is mutating as in
-            // Python (step 7.2) and its read is the READ line `list`; the mutating actions (new/open/discard/close) record
-            // mutation explicitly inside ExecScene
-            CommandRegistry.Register("animation", ExecAnimationConsolidated, mutating: true,
-                required: "action,path", optional: "clip,clip_name,property,keys,time,component_type,binding_path,tangent,function_name,int_param,float_param,string_param,compact");
-            CommandRegistry.Register("timeline", ExecTimelineConsolidated, mutating: true,
-                required: "action,path", optional: "track,track_type,clip,binding,start,duration,blend_in,blend_out,asset_path,director_path,tracks,time,name,clip_in,index,offset,value");
-            CommandRegistry.Register("references", ExecReferencesConsolidated, mutating: true,
-                required: "action,path", optional: "children,depth,source,target,mappings");
-            CommandRegistry.Register("inspect_uitk", ExecInspectUITK, mutating: false,
-                required: "", optional: "path,depth,selector,filter,include_internal,show_style");
-            CommandRegistry.Register("shader", ExecShaderConsolidated, mutating: true,
-                required: "action,path", optional: "target,preset,code,shader_name,prop,value,keyword,enabled,node_type,node_id,node_action,output_node,output_slot,input_node,input_slot,edge_action,name,type,default_value,reference_name,new_name,layout,h_gap,v_gap");
-            // PR-04: batch exclusion declared here by the owner, not hardcoded in CommandRegistry.IsBatchable. Which actions
-            // read is the catalog's (READ read, dsl/tools.biome); a call with no action is a write, as in Python.
-            CommandRegistry.Register("uitk_file", ExecUitkFile, mutating: true,
-                required: "path",
-                optional: "action,content,selector,attr,value,class,parent,tag,attrs,prop",
-                notBatchable: true);
-
-            // Action-based (Phase 26, mutating). Per-action params genuinely vary (e.g. asset's
-            // create/move/delete each need different fields) — flat contract is intentionally
-            // loose here (required: "action" only, everything else optional). See Issue 23 plan.
-            CommandRegistry.RegisterAction("asset", AssetDatabaseHelper.Execute, mutating: true,
-                optional: "path,type,name,folder,source,dest,prop,value,recursive,labels,output,include_deps,content,class,path_only");
-            CommandRegistry.RegisterAction("prefab", PrefabHelper.Execute, mutating: true,
-                optional: "path,asset_path,base_path,variant_path,parent,recursive,component,prop,value,add_component,remove_component,child_path,mode,scope,format");
-            CommandRegistry.RegisterAction("scene_environment", EnvironmentHelper.Execute, mutating: true,
-                optional: "prop,value");
         }
 
+        // P0-50/E02/E03: these three are declared INTERNAL (not TOOL) in dsl/tools.biome —
+        // the generator does not emit Register* calls for INTERNAL blocks, so they stay
+        // hand-registered here (commit 7527deb8 removed them along with the 29 generated
+        // ones; ToolBindings.g.cs never picked them back up, leaving them unregistered).
         internal static void RegisterAsyncCommands()
         {
-            CommandRegistry.RegisterAsync("run_tests", AsyncRunTests,
-                mutating: true, playOk: true,
-                required: "", optional: "request_id,mode,filter,group,categories,assemblies,tests");
-            CommandRegistry.RegisterAsync("ask_user", AsyncAskUser, required: "questions", optional: "",
-                alwaysAllowed: true, allowedDuringCompile: true);  // UI-only card, no assembly access
-            // B05: the Play-mode gate moved past parsing — AsyncRunPlaytest scans the script's
-            // `# @needs editmode` header itself and decides, instead of registration pre-blocking
-            // every Edit-mode call before the header is ever read.
-            CommandRegistry.RegisterAsync("run_playtest", AsyncRunPlaytest, runtime: false,
-                mutating: true, playOk: true,
-                required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure,fresh,before_hook,after_hook,format");
             // E02: internal wire command (not @mcp.tool() until E04) — non-blocking playtest
-            // dispatch, paired with get_playtest_run's poll. Same gates as run_playtest above.
+            // dispatch, paired with get_playtest_run's poll. Same gates as run_playtest.
             CommandRegistry.RegisterAsync("start_playtest", AsyncStartPlaytest, runtime: false,
                 mutating: true, playOk: true,
                 required: "", optional: "script,path,defs,timeout,abort_on_fail,snapshot_on_failure,fresh,before_hook,after_hook,format");
@@ -228,7 +161,7 @@ namespace UnityMCP.Editor
         private static string ExecScreenshotIntercepted(string args) =>
             throw new InvalidOperationException("screenshot intercepted before ExecuteCommand");
 
-        private static string ExecDiagnose(string args) => DiagnoseCommand.Execute(args);
+        internal static string ExecDiagnose(string args) => DiagnoseCommand.Execute(args);
 
         private static string ExecForcePlayStop(string args)
         {
@@ -281,7 +214,7 @@ namespace UnityMCP.Editor
 
         internal static string ExecGetAliases(string args) => GetAliasesText();
 
-        private static string ExecListPlaytestFiles(string args)
+        internal static string ExecListPlaytestFiles(string args)
         {
             var pattern = JsonHelper.ExtractString(args, "pattern") ?? "Playtests/*.playtest";
             var projectRoot = Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
@@ -463,7 +396,7 @@ namespace UnityMCP.Editor
 
         internal static string ExecScanScene(string args) => ScanHelper.Scan();
 
-        private static string ExecRenderAnalyze(string args)
+        internal static string ExecRenderAnalyze(string args)
         {
             var r = RenderAnalyzer.Execute(args);
             if (r.StartsWith("err:", System.StringComparison.OrdinalIgnoreCase))
@@ -482,7 +415,7 @@ namespace UnityMCP.Editor
         internal static string ExecAnalyzeLodCulling(string args) => LodCullingAnalyzer.Analyze(
             JsonHelper.ExtractString(args, "focus"));
 
-        private static string ExecGetSchema(string args) => SchemaHelper.GetSchema(
+        internal static string ExecGetSchema(string args) => SchemaHelper.GetSchema(
             JsonHelper.ExtractString(args, "type"));
 
         internal static string ExecGetChanges(string args) => ChangeWatcher.GetChanges(
@@ -491,7 +424,7 @@ namespace UnityMCP.Editor
         internal static string ExecResolveTestRequest(string args) => TestRunner.ResolveRequest(
                 JsonHelper.ExtractString(args, "request_id"));
 
-        private static string ExecGetTestRun(string args) => TestRunner.GetRun(
+        internal static string ExecGetTestRun(string args) => TestRunner.GetRun(
                 JsonHelper.ExtractString(args, "run_id"),
                 JsonHelper.ExtractString(args, "compact") == "true");
 
@@ -512,7 +445,7 @@ namespace UnityMCP.Editor
         internal static string ExecQueryState(string args) => GameStateHelper.Snapshot(
             JsonHelper.ExtractString(args, "queries"));
 
-        private static string ExecGetFrameStats(string args) => ProfilerHelper.GetFrameStats();
+        internal static string ExecGetFrameStats(string args) => ProfilerHelper.GetFrameStats();
 
         private static string ExecGetProfileContext(string args)
         {
@@ -666,7 +599,7 @@ namespace UnityMCP.Editor
             JsonHelper.ExtractString(args, "path"),
             int.Parse(JsonHelper.ExtractString(args, "index") ?? "0"));
 
-        private static string ExecSetMaterial(string args) => ObjectManager.SetMaterial(
+        internal static string ExecSetMaterial(string args) => ObjectManager.SetMaterial(
             JsonHelper.ExtractString(args, "path"),
             JsonHelper.ExtractString(args, "color"),
             JsonHelper.ExtractString(args, "shader"));

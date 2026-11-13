@@ -146,6 +146,60 @@ def test_opencode_config_path_platform_specific():
         assert ".config" in str(info.config_path)
 
 
+# ─── clients.py: clientconfigpath data contract (P1 #5, Subtask 3) ──────────
+
+def test_client_config_path_rows_has_the_four_rendered_clients():
+    """CLIENT_CONFIG_PATH_ROWS covers only the 4 clients AiToolCardFactory.cs
+    renders a WriteConfig card for -- vscode/codex/kimi/junie/opencode stay
+    hand-written literals in clients.py, no C# consumer to contract against."""
+    from unity_mcp.config.generated.client_config_path_rows import CLIENT_CONFIG_PATH_ROWS
+    keys = {row.key for row in CLIENT_CONFIG_PATH_ROWS}
+    assert keys == {"claude-code", "claude-desktop", "cursor", "windsurf"}
+
+
+def test_client_config_path_resolver_matches_registry_for_current_platform():
+    """clients.py's CLIENT_REGISTRY config_path for the 4 contracted clients must come
+    from the same _client_config_path() resolver that reads CLIENT_CONFIG_PATH_ROWS --
+    parity proof that the rewiring didn't fork the two away from each other."""
+    from unity_mcp.config import clients as c
+    for key in ("claude-code", "claude-desktop", "cursor", "windsurf"):
+        assert c.CLIENT_REGISTRY[key].config_path == c._client_config_path(key)
+
+
+def test_client_config_path_resolver_linux_uses_bare_path(monkeypatch, tmp_path):
+    from unity_mcp.config import clients as c
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(pathlib.Path, "home", classmethod(lambda cls: tmp_path))
+    resolved = c._client_config_path("claude-desktop")
+    assert resolved == tmp_path / ".config" / "Claude" / "claude_desktop_config.json"
+
+
+def test_client_config_path_resolver_mac_prefers_path_mac_override(monkeypatch, tmp_path):
+    from unity_mcp.config import clients as c
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(pathlib.Path, "home", classmethod(lambda cls: tmp_path))
+    resolved = c._client_config_path("claude-desktop")
+    assert resolved == tmp_path / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+
+
+def test_client_config_path_resolver_windows_substitutes_appdata(monkeypatch, tmp_path):
+    from unity_mcp.config import clients as c
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setenv("APPDATA", str(tmp_path / "roaming"))
+    resolved = c._client_config_path("windsurf")
+    assert resolved == tmp_path / "roaming" / "Codeium" / "windsurf" / "mcp_config.json"
+
+
+def test_client_config_path_resolver_windsurf_mac_falls_back_to_bare_path(monkeypatch, tmp_path):
+    """windsurf has pathWin but no pathMac override -- mac falls back to the shared `path` template,
+    same precedent as InstallDirTableTests.ResolveFor_MacWithNoOverride_FallsBackToDir."""
+    from unity_mcp.config import clients as c
+    monkeypatch.setattr(sys, "platform", "darwin")
+    monkeypatch.setattr(pathlib.Path, "home", classmethod(lambda cls: tmp_path))
+    resolved = c._client_config_path("windsurf")
+    assert resolved == tmp_path / ".codeium" / "windsurf" / "mcp_config.json"
+
+
 # ─── merger.py ──────────────────────────────────────────────────────────────
 
 def test_read_encoding_is_public_and_matches_private_alias():
@@ -1164,6 +1218,30 @@ def test_toml_version_fragment_is_generated_protocol_row():
 
     assert PROTOCOL_ROWS[0].versionRefPattern == merger._TOML_VERSION_RE_FRAGMENT
     assert merger._TOML_VERSION_RE_FRAGMENT == r"[\d.]+(?:-[0-9A-Za-z.]+)?"
+
+
+def test_resolver_semver_pattern_is_generated_protocol_row():
+    """resolver._SEMVER_RE must be PROTOCOL_ROWS[0].serverRefPattern, not a
+    re-hand-written copy -- same generator-output-check rationale as
+    test_toml_version_fragment_is_generated_protocol_row above. install.py's
+    own _SEMVER_RE_INSTALL imports this exact compiled object (not a second
+    regex), so proving this one is wired also proves install.py's gate is."""
+    from unity_mcp.config import resolver
+    from unity_mcp.generated.protocol import PROTOCOL_ROWS
+
+    assert PROTOCOL_ROWS[0].serverRefPattern == resolver._SEMVER_RE.pattern
+    assert resolver._SEMVER_RE.pattern == r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.]+)?"
+
+
+def test_server_name_is_generated_identity_row():
+    """merger.SERVER_NAME must read dsl/data/servername.data-contract's generated row,
+    not a hand-written literal -- C#'s PermissionConfig.SERVER_NAME is generated from the
+    same row (ServerIdentityRows.All[0].ServerName), so this replaces the old regex-scan-the-
+    .cs-source parity guard (test_server_name_consistency.py) with a generator-output check."""
+    from unity_mcp.config.merger import SERVER_NAME
+    from unity_mcp.generated.server_identity import SERVER_IDENTITY_ROWS
+
+    assert SERVER_NAME == SERVER_IDENTITY_ROWS[0].serverName == "unity-biome-mcp"
 
 
 # ─── merger.py: PROJECT_CONFIG_TARGETS parity with ProjectConfigTargets.g.cs ──

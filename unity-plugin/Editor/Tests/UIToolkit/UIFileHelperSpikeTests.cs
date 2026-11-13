@@ -4,13 +4,18 @@
 //   C4: UTF8Encoding(false) writes no BOM
 //   C2: in-place overwrite preserves .meta GUID
 //   D04: USS written before UXML → CloneTree succeeds
-//   C3/F6: broken UXML → at least one gate (LoadAssetAtPath or CloneTree) returns null
+//   C3/F6: on Unity 6000.0.83f1, a UXML naming an unregistered element type never fails the
+//   vta==null or CloneTree()==null gates — it logs an Error and clones one placeholder Label
+//   instead (re-probed dsl-bottlenecks-2026-11; production detection moved to an Error-log
+//   capture, see UIFileHelper.ValidateImportedUxml and UIFileHelperRollbackTests)
 using System.IO;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Testing;
 
@@ -118,11 +123,16 @@ namespace UnityMCP.Editor.Tests
             // 2. Import UXML before USS → CloneTree may return null → RED
         }
 
-        // Spike invariant 4 — C3/F6: broken UXML must fail at least one gate.
-        // Proves the two-gate strategy is needed (some broken UXML still loads as asset).
+        // Spike invariant 4 (updated for Unity 6000.0.83f1) — a UXML naming an unregistered
+        // element type does NOT fail the vta==null or CloneTree()==null gates on this Editor
+        // version: CloneTree() logs an Error and substitutes exactly one placeholder Label
+        // instead of returning null. This documents real, probed engine behaviour, so the
+        // assertion below must stay true, not a desired invariant (that invariant moved to
+        // UIFileHelperRollbackTests, which pins the production fix using an Error-log capture
+        // around CloneTree() rather than its return value — see UIFileHelper.ValidateImportedUxml).
         [Test]
-        [BiomeWorkerOnly("Phase3 spike C3/F6: broken UXML → LoadAssetAtPath or CloneTree returns null")]
-        public async Task BrokenUxml_CloneTreeOrLoadReturnsNull()
+        [BiomeWorkerOnly("Phase3 spike C3/F6, re-probed on 6000.0.83f1: CloneTree() never returns null for this content")]
+        public async Task BrokenUxml_UnregisteredElement_ClonesPlaceholderNeverNull()
         {
             var assetPath = TempDir + "/Broken.uxml";
             TrackOwnedAsset(assetPath);
@@ -137,15 +147,22 @@ namespace UnityMCP.Editor.Tests
             await Task.CompletedTask;
 
             var vta = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(assetPath);
+            // CloneTree() logs this [Error] for the unregistered element type -- declare it so UTF's
+            // default "unhandled error log fails the test" gate does not fail this test for an error
+            // the test itself provoked on purpose (AI/testing.md: declare, don't ignoreFailingMessages).
+            LogAssert.Expect(LogType.Error, new Regex(
+                "Element 'UnityEngine\\.UIElements\\.NOTEXISTENT_ELEMENT_12345' is missing a UxmlElementAttribute"));
             var clone = vta?.CloneTree();
-            // At least one gate must detect the invalid UXML
-            var isInvalid = vta == null || clone == null || clone.childCount == 0;
-            Assert.IsTrue(isInvalid,
-                "Broken UXML must fail at least one validation gate " +
-                "(vta==null, clone==null, or clone.childCount==0)");
+
+            Assert.IsNotNull(vta, "on 6000.0.83f1 the asset still imports despite the unregistered element");
+            Assert.IsNotNull(clone,
+                "on 6000.0.83f1 CloneTree() substitutes a placeholder instead of returning null");
+            Assert.AreEqual(1, clone.childCount,
+                "on 6000.0.83f1 CloneTree() substitutes exactly one placeholder Label child");
             // Double-red:
-            // 1. Change to IsFalse(isInvalid) → fails when broken UXML is detected
-            // 2. Write valid UXML instead of broken → all gates pass → isInvalid=false → RED
+            // 1. Change the 1 to any other value → fails while the probed placeholder shape holds
+            // 2. Write valid UXML instead of broken → no Error is logged, LogAssert.Expect goes
+            //    unmet → RED (this test is only true for genuinely broken content)
         }
 
         // Helpers

@@ -1,0 +1,24 @@
+# Facts of the reload-wedge detection from Editor.log. The host folds the text: rfind offsets of the reload-terminal markers, per-error file reads and the brace walk.
+# offset = position of the LAST marker in the text, -1 when absent. err.* = one CS error line judged against the file on disk.
+CONTRACT unitymcp.editorlog
+COVERAGE declared-scope
+MODULE editorlog_facts
+FACT log.failureOffset number min=-1 max=2000000000 integer
+FACT log.successOffset number min=-1 max=2000000000 integer
+FACT log.currency enum=current,stale closed
+FACT log.hasPrimary bool
+FACT log.hasPrev bool
+FACT log.primaryCurrency enum=current,stale closed
+FACT log.prevCurrency enum=current,stale closed
+FACT log.prevNewer bool
+FACT wedge.csErrors number min=0 max=1000000 integer
+FACT wedge.unparsable number min=0 max=1000000 integer
+FACT wedge.stillMissing number min=0 max=1000000 integer
+FACT err.complete bool
+FACT err.fileReadable bool
+FACT err.typeFound bool
+FACT err.memberInCode bool
+INPUT failureCurrency log.failureOffset log.successOffset
+INPUT logPick log.hasPrimary log.hasPrev log.primaryCurrency log.prevCurrency log.prevNewer
+INPUT wedgeKind log.currency wedge.csErrors wedge.unparsable wedge.stillMissing
+INPUT errorOnDisk err.complete err.fileReadable err.typeFound err.memberInCode

@@ -97,7 +97,9 @@ namespace UnityMCP.Editor
                 "get_style"    => UitkGetStyle(ve, property),
                 "enable"       => UitkSetEnabled(hostGo, ve, true),
                 "disable"      => UitkSetEnabled(hostGo, ve, false),
-                _              => $"err: unknown action \"{action}\". Valid: query get set_style add_class remove_class get_style enable disable",
+                // "err:" prefix kept: UitkElement returns its error as a plain string (not thrown),
+                // and callers/batch rely on the prefix (UIPanelHost.cs:22, BatchHelper per-line check).
+                _              => $"err: {ErrorHelper.InvalidAction(action, ToolActions.Names("uitk_element"))}",
             };
 
             // A1: Play Mode mutation warning

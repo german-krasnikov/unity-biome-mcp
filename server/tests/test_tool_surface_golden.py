@@ -15,7 +15,53 @@ GOLDEN = Path(__file__).parent / "golden" / "tool_surface.txt"
 
 # tool -> {field: reason}: a difference the owner approved. The field is a field of the golden line (title, description, schema,
 # annotations, or a ToolSpec field). Any other difference fails, and an entry whose field no longer differs is stale.
-INTENDED: dict[str, dict[str, str]] = {}
+
+# dsl-bottlenecks-2026-11 (Q1): the client-visible action enumeration is generated from dsl/tools.biome's own ACTION
+# lines (tools.actions(), ToolSet._describe() in _catalog_runtime.py) instead of hand-copied. Every per-action fact
+# the old hand prose stated now lives on that action's own ACTION hint, in "action: a (hint)|b|c." form (terser
+# wording, same facts, no space around '|' -- matches the hand convention it replaces); a fact about an ARGUMENT or
+# about several actions at once stayed in DOC. "add an action" is now a 2-edit catalog change (an ACTION line plus
+# its C# dispatch arm), not 3. For a tool that had no per-action hint at all (asset, build, ... spatial_query,
+# transfer_object), this is a pure dedup of the bare name list with every other fact untouched.
+_MIGRATED = ("dsl-bottlenecks-2026-11 (Q1): the action enumeration is generated from dsl/tools.biome's own ACTION "
+             "lines (tools.actions(), ToolSet._describe()) instead of hand-copied; every per-action fact moved onto "
+             "that action's own hint (terser, same facts, no space around '|'), a fact about an ARGUMENT or about "
+             "several actions at once stayed in DOC. 'add an action' is a 2-edit change now, not 3.")
+
+INTENDED: dict[str, dict[str, str]] = {
+    "animation": {
+        "description": "dsl-bottlenecks-2026-11 (Q1, earlier in this branch): the hand DOC line named all 15 real "
+                        "actions (CommandRouter.MediaHandlers.cs:152-166) instead of 10 -- the 5 previously-"
+                        "undocumented add_key/remove_key/remove_curve/set_keys/set_loop aliases of `edit` became "
+                        "visible to the MCP client; `ARG action EXAMPLE` moved from the phantom \"list\" to the real "
+                        "\"get\". " + _MIGRATED,
+    },
+    "shader": {
+        "description": "dsl-bottlenecks-2026-11 (Q1, earlier in this branch): the hand DOC line named all 13 real "
+                        "actions (CommandRouter.MediaHandlers.cs:476-531) instead of 10 -- the 3 previously-"
+                        "undocumented graph_add_property/graph_remove_property/graph_rename_property actions became "
+                        "visible to the MCP client. " + _MIGRATED,
+    },
+    "timeline": {
+        "description": "dsl-bottlenecks-2026-11 (Q1, earlier in this branch): the hand DOC line named all 24 real "
+                        "actions (CommandRouter.MediaHandlers.cs:182-200) instead of 23 -- `edit` was dispatchable "
+                        "directly (not just as the group label of add_track/remove_track/...) but was never named "
+                        "on its own. " + _MIGRATED,
+    },
+    "scene": {
+        "schema": "dsl-bottlenecks-2026-11: the `action` parameter's own schema description (a second, "
+                   "ARG-level enumeration separate from the tool docstring) dropped `save_copy` "
+                   "(CommandRouter.MediaHandlers.cs:119-137 dispatches 9 actions, the ARG text named only 8); "
+                   "now lists all 9.",
+        "description": _MIGRATED,
+    },
+}
+
+for _tool in ("asset", "build", "editor", "material", "material_audit", "package", "particle", "prefab",
+              "profile", "scene_environment", "scriptable_object", "spatial_query", "transfer_object",
+              "animator", "manage_component", "menu", "references", "render_analyze",
+              "uitk_element", "uitk_file"):
+    INTENDED.setdefault(_tool, {})["description"] = _MIGRATED
 
 
 def _parse(line: str) -> tuple[tuple[str, str], dict[str, str]]:

@@ -52,6 +52,33 @@ def test_server_git_url_correct_form():
     assert url == expected
 
 
+def test_server_git_url_accepts_prerelease_tag():
+    """A release-candidate ref like '1.51.0-rc.1' must be accepted, not
+    rejected by a hand-written ^\\d+\\.\\d+\\.\\d+$ regex."""
+    url = server_git_url("1.51.0-rc.1")
+    assert "@v1.51.0-rc.1" in url
+
+
+def test_server_git_url_with_v_prefix_prerelease():
+    assert server_git_url("v1.51.0-rc.1") == server_git_url("1.51.0-rc.1")
+
+
+def test_server_git_url_rejects_two_numeric_part_prerelease():
+    """A pre-release tag must not bypass the exactly-3-numeric-parts check."""
+    with pytest.raises(ValueError):
+        server_git_url("1.51-rc.1")
+
+
+def test_server_git_url_rejects_invalid_char_in_prerelease():
+    with pytest.raises(ValueError):
+        server_git_url("1.51.0-rc/1")
+
+
+def test_server_git_url_invalid_ref_message_mentions_prerelease():
+    with pytest.raises(ValueError, match="X.Y.Z-prerelease"):
+        server_git_url("not-semver")
+
+
 # ── install.py — version --list (offline) ────────────────────────────────────
 
 INSTALL_PY = Path(__file__).parents[2] / "install.py"
@@ -193,6 +220,36 @@ def test_version_set_repins_with_tagged_url(install_mod):
     from_url = entry_arg["args"][1]  # ["--from", URL, "unity-biome-mcp"]
     assert "@v0.54.1" in from_url
     assert "#subdirectory=server" in from_url
+
+
+def test_version_set_accepts_prerelease_semver(install_mod):
+    """install.py's OWN _SEMVER_RE_INSTALL gate (independent of resolver.py's)
+    must accept a pre-release ref -- before the fix this raised SystemExit
+    before ever reaching server_git_url. This is the real end-to-end bug."""
+    mock_stop = MagicMock(return_value=True)
+    mock_merge = MagicMock()
+    mock_client = MagicMock()
+    mock_client.stdout_only = False
+    mock_client.is_toml = False
+    mock_client.root_key = "mcpServers"
+    mock_client.entry_transformer = None
+    mock_client.config_path = Path("/tmp/fake.json")
+
+    args = Namespace(set_version="1.51.0-rc.1", port=0, tool=None, list=False, online=False)
+
+    with patch.object(install_mod, "_load_stop_server", return_value=mock_stop), \
+         patch("unity_mcp.config.resolver.find_port", MagicMock(return_value=9500)), \
+         patch.object(install_mod, "merge_mcp_config", mock_merge), \
+         patch.object(install_mod, "CLIENT_REGISTRY", {"claude-code": mock_client}), \
+         patch.object(install_mod, "detect_installed", return_value=["claude-code"]), \
+         patch.object(install_mod, "validate_config", return_value="Status: configured"), \
+         patch.object(install_mod, "backup", MagicMock()):
+        install_mod.cmd_version(args)  # must NOT sys.exit on the semver gate
+
+    assert mock_merge.called
+    entry_arg = mock_merge.call_args[0][1]
+    from_url = entry_arg["args"][1]
+    assert "@v1.51.0-rc.1" in from_url
 
 
 def test_version_set_single_tool_only(install_mod):
@@ -481,6 +538,14 @@ def test_version_set_rejects_invalid_semver(install_mod, capsys):
     args = Namespace(set_version="bad-version", port=0, tool=None, list=False, online=False)
     with pytest.raises(SystemExit):
         install_mod.cmd_version(args)
+
+
+def test_version_set_invalid_semver_message_mentions_prerelease(install_mod, capsys):
+    args = Namespace(set_version="bad-version", port=0, tool=None, list=False, online=False)
+    with pytest.raises(SystemExit):
+        install_mod.cmd_version(args)
+    out = capsys.readouterr().out
+    assert "X.Y.Z-prerelease" in out
 
 
 def test_force_print_plugin_url_prints_and_exits(install_mod, capsys):

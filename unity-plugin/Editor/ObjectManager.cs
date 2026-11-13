@@ -241,7 +241,7 @@ namespace UnityMCP.Editor
             }
             else
             {
-                throw new ArgumentException($"Invalid action: {action}");
+                throw new ArgumentException(ErrorHelper.InvalidAction(action, ToolActions.Names("manage_component")));
             }
         }
 

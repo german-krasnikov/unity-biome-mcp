@@ -4,6 +4,18 @@
 # pytools = what the catalog expects of the Python side and, for a FORWARD tool, the MCP wrapper itself (runtime: tools/_catalog_runtime.py),
 # mdtools = a row of the catalog table of docs/tools/index.md.
 # pyreads / csreads = the READ actions of a tool, which isMutating asks (step 7.2): ACTION_READS of the Python side, ActionReads.IsRead of the C# side.
+# ACTION / csactions = the declared action vocabulary of a tool (dsl-bottlenecks-2026-11, Q1): printed once as the C# ToolActions.Names/IsKnown
+# table, so the client-visible enumeration and the InvalidAction valid-list have one source. It is not also woven into the FORWARD/BODY
+# docstring template (pytools): that would need an IF nested inside the IF ANY FORWARD/BODY gate, which Core refuses (IF does not nest inside
+# IF, and EACH does not nest inside EACH either, so the existing EACH ARG/EACH DOC nesting rules out swapping that gate for an EACH) -- a
+# layer gap reported, not worked around (P10); the hand DOC line still states the action names for the Python docstring. A tool that dispatches
+# on ACTION may mark one READ directly on its ACTION line instead of a separate READ line (dsl-bottlenecks-2026-11, Q1/S2): one fewer catalog
+# edit per read-only action. `IF ANY ACTION` cannot filter on WHERE read, so a tool whose declared ACTIONs are all mutating still gets an empty
+# pyreads/csreads table entry (inert: isMutating finds nothing there either way) -- a second, smaller instance of the same layer gap. READ-only
+# tools with no ACTION item at all (bake, project_settings; the PYTOOLs navmesh_query, watch) are unaffected and keep a plain READ line.
+# ACTION's name pattern admits inner hyphens (dsl-bottlenecks-2026-11, Part B3: set-attr, add-class, ... of uitk_file) because both
+# templates that consume it (pyactions, csactions) only ever print `act` as string data -- a Python string literal or a C# string
+# literal -- never as an identifier, so widening the pattern derives nothing else.
 # A template indents its entries 4 columns deeper than its EACH/END lines, so that the dedent of the template leaves 4 for them.
 SURFACE tools CODES TOOLS CONSTRUCTS TOOL, PYTOOL, INTERNAL
 
@@ -17,6 +29,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM FORWARD
   ITEM BODY <module:match([a-z_][a-z0-9_]*)>
   ITEM HANDLER <kind:enum(register|register_async|register_action)> <method:string>
+  ITEM DISPATCH <class:string> [EXCEPTION <ex:enum(ArgumentException|Exception)>]
   ITEM FLAG <flag:enum(core|tier1|direct_only|unity_transport)>
   ITEM RUNTIME
   ITEM TAG <tag:enum(async_full|atomic_scene|distill_skip|do_allowed|do_forbidden|meta_cmd|playtest_scenario|read_cacheable|reflect_custom|reflect_noerror|reflect_silent|retry_safe_internal|scene_state_neutral|schema_keep_full|strip_defaults) UNIQUE>
@@ -26,6 +39,7 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ITEM MAXCHARS <maxchars:match([0-9]+)>
   ITEM DOC <line:string>
   ITEM READ <action:match([a-z][a-z0-9_]*) UNIQUE>
+  ITEM ACTION <act:match([a-z][a-z0-9_]*(-[a-z0-9_]+)*) UNIQUE> [<read:enum(READ)>] [<hint:string>] [METHOD <method:string>]
   ITEM ARG <aname:match([A-Za-z][A-Za-z0-9_]*) UNIQUE> <atype:enum(str|ostr|int|oint|float|ofloat|bool|obool|Any)> [DEFAULT <default:match([A-Za-z0-9_.+-]+)> [<omit:enum(OMIT)>]] [DEFAULT_TEXT <dtext:string> [<omit2:enum(OMIT)>]] [<raw:enum(RAW)>] [<local:enum(LOCAL)>] [WIRE <wname:string>] [EXAMPLE <example:string>] [ROLE <role:enum(target|prop|value|name|newname)>] [<adesc:string>]
   ITEM VERB <vtext:string>
   ITEM EXPECT <mode:enum(token|bool_arg|arg_echo)> <tokens:string> [<strict:enum(STRICT)>] [ARG <argname:match([a-z][a-z0-9_]*)>]
@@ -39,6 +53,9 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
   ENSURE COUNT HANDLER <= 1 ELSE "a tool may declare HANDLER at most once"
   ENSURE COUNT FORWARD == 0 OR COUNT BODY == 0 ELSE "FORWARD and BODY are mutually exclusive — FORWARD generates the whole tool, BODY generates its signature and calls a hand-written implementation"
   ENSURE COUNT BODY == 0 OR (COUNT ARG WHERE it.has_raw) == 0 ELSE "BODY tools never call _send through the generated wrapper — ARG RAW only means something for FORWARD"
+  ENSURE COUNT DISPATCH <= 1 ELSE "a tool may declare DISPATCH at most once"
+  ENSURE COUNT DISPATCH == 0 OR COUNT ACTION > 0 ELSE "a DISPATCH tool needs at least one ACTION"
+  ENSURE (COUNT ACTION WHERE it.has_method) == 0 OR COUNT DISPATCH > 0 ELSE "an ACTION's METHOD needs a DISPATCH tool"
   TEMPLATE pyspec HEADER "SPEC_KWARGS: dict[str, dict] = {" FOOTER "}" ESCAPE data
         '{name}': {
             'category': '{category}',
@@ -83,6 +100,13 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
     )
     , session=True)
     ELSE
+    ))
+    END
+    IF ANY ACTION
+    tools.actions('{name}', (
+    EACH ACTION
+        ('{act}', "{?hint:{hint}}"),
+    END
     ))
     END
     IF ANY FORWARD
@@ -144,8 +168,15 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
     END
         }),
     END
+    IF ANY ACTION
+        '{name}': frozenset({
+    EACH ACTION WHERE read
+            '{act}',
+    END
+        }),
+    END
   END
-  TEMPLATE csreads HEADER "namespace UnityMCP.Editor\n{\n    // The actions of a command that only read (the READ lines of dsl/tools.biome): what CommandRegistry.IsMutating asks. A command that is\n    // not here, or an action that is not listed (or is spelt in another case), is a write.\n    internal static class ActionReads\n    {\n        internal static bool IsRead(string cmd, string action)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    return false;\n            }\n        }\n    }\n}" ESCAPE data
+  TEMPLATE csreads HEADER "namespace UnityMCP.Editor\n{\n    // The actions of a command that only read (the READ lines of dsl/tools.biome, or the READ qualifier of an ACTION line): what CommandRegistry.IsMutating asks. A command that is\n    // not here, or an action that is not listed (or is spelt in another case), is a write.\n    internal static class ActionReads\n    {\n        internal static bool IsRead(string cmd, string action)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    return false;\n            }\n        }\n    }\n}" ESCAPE data
     IF ANY READ
                     case "{name}":
                         switch (action)
@@ -157,6 +188,60 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
                             default:
                                 return false;
                         }
+    END
+    IF ANY ACTION
+                    case "{name}":
+                        switch (action)
+                        {
+    EACH ACTION WHERE read
+                            case "{act}":
+                                return true;
+    END
+                            default:
+                                return false;
+                        }
+    END
+  END
+  TEMPLATE pyactions HEADER "TOOL_ACTIONS: dict[str, tuple[str, ...]] = {" FOOTER "}" ESCAPE data
+    IF ANY ACTION
+        '{name}': (
+    EACH ACTION
+            '{act}',
+    END
+        ),
+    END
+  END
+  TEMPLATE csactions HEADER "namespace UnityMCP.Editor\n{\n    // The declared action vocabulary of a tool (the ACTION lines of dsl/tools.biome): what the MCP client is told exists. A tool\n    // not here, or an action not listed, is undeclared -- dispatch may still accept it until its catalog entry is caught up.\n    internal static class ToolActions\n    {\n        internal static string[] Names(string cmd)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    return System.Array.Empty<string>();\n            }\n        }\n\n        internal static bool IsKnown(string cmd, string action)\n        {\n            return System.Array.IndexOf(Names(cmd), action) >= 0;\n        }\n    }\n}" ESCAPE data
+    IF ANY ACTION
+                    case "{name}":
+                        return new[]
+                        {
+    EACH ACTION
+                            "{act}",
+    END
+                        };
+    END
+  END
+  TEMPLATE csdispatch HEADER "namespace UnityMCP.Editor\n{" FOOTER "}" ESCAPE data
+    IF ANY DISPATCH
+    EACH DISPATCH
+    internal static partial class {class}
+    {
+        internal static string Execute(string action, string argsJson)
+        {
+            switch (action)
+            {
+    END
+    EACH ACTION
+                case "{act}": return {?method:{method}}{!method:{act:PascalCase}}(argsJson);
+    END
+    EACH DISPATCH
+                default:
+                    throw new {?ex=Exception:System.Exception}{!ex=Exception:System.ArgumentException}(ErrorHelper.InvalidAction(action, ToolActions.Names("{name}")));
+            }
+        }
+    }
+    END
     END
   END
   TEMPLATE cstools HEADER "namespace UnityMCP.Editor\n{\n    // CommandOptions for every TOOL/INTERNAL of dsl/tools.biome that this construct can state: Mutating\n    // (effect != RO), Runtime, Required/Optional (from ARG), MaxResponseChars (from MAXCHARS), and the GUARD/WIRE flags.\n    // Description, FileHandler and MutatingArgsPolicy are not data here: a caller sets one on the returned struct (a mutable\n    // struct) after Get. kind (Register/RegisterAction/RegisterAsync) is a call-site choice, not data here either.\n    internal static class ToolMeta\n    {\n        internal static CommandOptions Get(string cmd)\n        {\n            switch (cmd)\n            {" FOOTER "                default:\n                    throw new System.ArgumentException($\"ToolMeta.Get: no entry for '{cmd}'\");\n            }\n        }\n    }\n}" ESCAPE data
@@ -194,6 +279,15 @@ CONSTRUCT TOOL VERSION 1 IR 1 SCOPE project
     {?flag=no_undo:                        NoUndo = true,}
     END
                         };
+  END
+  TEMPLATE csargs HEADER "// identifier = PascalCase of the wire key of dsl/tools.biome; LOCAL args have no accessor.\nnamespace UnityMCP.Editor\n{" FOOTER "}" ESCAPE data
+        internal static class {name:PascalCase}Args
+        {
+        EACH ARG WHERE NOT local
+            {?atype=str:internal static string }{?atype=ostr:internal static string }{?atype=Any:internal static string }{?atype=int:internal static int }{?atype=oint:internal static int? }{?atype=float:internal static float }{?atype=ofloat:internal static float? }{?atype=bool:internal static bool }{?atype=obool:internal static bool? }{?wname:{wname:PascalCase}}{!wname:{aname:PascalCase}}{?atype=str:(string args) => JsonHelper.ExtractString(args, "}{?atype=ostr:(string args) => JsonHelper.ExtractString(args, "}{?atype=Any:(string args) => JsonHelper.ExtractString(args, "}{?atype=int:(string args) => JsonHelper.ExtractInt(args, "}{?atype=oint:(string args) => JsonHelper.ParseOptInt(args, "}{?atype=float:(string args) => JsonHelper.ExtractFloat(args, "}{?atype=ofloat:(string args) => JsonHelper.ParseOptFloat(args, "}{?atype=bool:(string args) => JsonHelper.ExtractString(args, "}{?atype=obool:(string args) => JsonHelper.ParseOptBool(args, "}{?wname:{wname}}{!wname:{aname}}{?atype=str:");}{?atype=ostr:");}{?atype=Any:");}{?atype=int:");}{?atype=oint:");}{?atype=float:");}{?atype=ofloat:");}{?atype=bool:") == "true";}{?atype=obool:");}
+        END
+        }
+
   END
   TEMPLATE mdtools HEADER "| Tool | Plane | Category | Effect |\n|---|---|---|---|" ESCAPE md
     | `{name}` | unity | {category} | {effect} |
@@ -366,6 +460,23 @@ CONSTRUCT PYTOOL VERSION 1 IR 1 SCOPE project
                         }
     END
   END
+  TEMPLATE csargs ESCAPE data
+        internal static class {name:PascalCase}Args
+        {
+        EACH ARG
+            {?atype=str:internal static string {aname:PascalCase}(string args) => JsonHelper.ExtractString(args, "{aname}");}
+            {?atype=ostr:internal static string {aname:PascalCase}(string args) => JsonHelper.ExtractString(args, "{aname}");}
+            {?atype=Any:internal static string {aname:PascalCase}(string args) => JsonHelper.ExtractString(args, "{aname}");}
+            {?atype=int:internal static int {aname:PascalCase}(string args) => JsonHelper.ExtractInt(args, "{aname}");}
+            {?atype=oint:internal static int? {aname:PascalCase}(string args) => JsonHelper.ParseOptInt(args, "{aname}");}
+            {?atype=float:internal static float {aname:PascalCase}(string args) => JsonHelper.ExtractFloat(args, "{aname}");}
+            {?atype=ofloat:internal static float? {aname:PascalCase}(string args) => JsonHelper.ParseOptFloat(args, "{aname}");}
+            {?atype=bool:internal static bool {aname:PascalCase}(string args) => JsonHelper.ExtractString(args, "{aname}") == "true";}
+            {?atype=obool:internal static bool? {aname:PascalCase}(string args) => JsonHelper.ParseOptBool(args, "{aname}");}
+        END
+        }
+
+  END
   TEMPLATE mdtools ESCAPE md
     | `{name}` | python | {category} | {effect} |
   END
@@ -480,6 +591,15 @@ CONSTRUCT INTERNAL VERSION 1 IR 1 SCOPE project
     {?flag=no_undo:                        NoUndo = true,}
     END
                         };
+  END
+  TEMPLATE csargs ESCAPE data
+        internal static class {name:PascalCase}Args
+        {
+        EACH ARG WHERE NOT local
+            {?atype=str:internal static string }{?atype=ostr:internal static string }{?atype=Any:internal static string }{?atype=int:internal static int }{?atype=oint:internal static int? }{?atype=float:internal static float }{?atype=ofloat:internal static float? }{?atype=bool:internal static bool }{?atype=obool:internal static bool? }{?wname:{wname:PascalCase}}{!wname:{aname:PascalCase}}{?atype=str:(string args) => JsonHelper.ExtractString(args, "}{?atype=ostr:(string args) => JsonHelper.ExtractString(args, "}{?atype=Any:(string args) => JsonHelper.ExtractString(args, "}{?atype=int:(string args) => JsonHelper.ExtractInt(args, "}{?atype=oint:(string args) => JsonHelper.ParseOptInt(args, "}{?atype=float:(string args) => JsonHelper.ExtractFloat(args, "}{?atype=ofloat:(string args) => JsonHelper.ParseOptFloat(args, "}{?atype=bool:(string args) => JsonHelper.ExtractString(args, "}{?atype=obool:(string args) => JsonHelper.ParseOptBool(args, "}{?wname:{wname}}{!wname:{aname}}{?atype=str:");}{?atype=ostr:");}{?atype=Any:");}{?atype=int:");}{?atype=oint:");}{?atype=float:");}{?atype=ofloat:");}{?atype=bool:") == "true";}{?atype=obool:");}
+        END
+        }
+
   END
   TEMPLATE pytags ESCAPE data
     EACH TAG

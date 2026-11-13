@@ -7,26 +7,11 @@ using UnityEngine.Rendering;
 
 namespace UnityMCP.Editor
 {
-    internal static class MaterialHelper
+    // Execute(action, argsJson) is generated into Generated/ToolDispatch.g.cs from the DISPATCH/ACTION
+    // lines of dsl/tools.biome's material TOOL block (dsl-bottlenecks-2026-11 S3; get_errors uses
+    // ACTION's METHOD override since its real method is GetShaderErrors, not GetErrors).
+    internal static partial class MaterialHelper
     {
-        internal static string Execute(string action, string argsJson)
-        {
-            return action switch
-            {
-                "create" => Create(argsJson),
-                "get" => Get(argsJson),
-                "set" => Set(argsJson),
-                "copy" => Copy(argsJson),
-                "list_properties" => ListProperties(argsJson),
-                "list_slots" => ListSlots(argsJson),
-                "get_errors" => GetShaderErrors(argsJson),
-                "list_shaders" => ListShaders(argsJson),
-                "set_fields" => SetFields(argsJson),
-                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "create", "get", "set", "copy", "list_properties", "list_slots", "get_errors", "list_shaders", "set_fields" }))
-            };
-        }
-
         private static string Create(string args)
         {
             var path = JsonHelper.ExtractString(args, "path")

@@ -116,15 +116,7 @@ namespace UnityMCP.Editor
         // this permission separate from read/write classification.
         internal static bool IsAllowedMutationInPlayMode(string cmd, string argsJson = null)
         {
-            if (CommandRegistry.IsPlayOk(cmd))  // registration data (playOk:), step 7.2
-                return true;
-            if (cmd == "set_parent" || cmd == "execute_code" || cmd == "screenshot" ||
-                cmd == "wait_until")
-                return true;
-            // editor is playOk: (registration), every action of it, including the Source Patch intent that touches no scene data.
-            if (cmd != "profile") return false;
-            var action = JsonHelper.ExtractString(argsJson, "action");
-            return action == "start" || action == "stop";
+            return CommandRegistry.IsPlayOk(cmd);
         }
 
         public static string Process(string json)
@@ -287,7 +279,7 @@ namespace UnityMCP.Editor
             }
         }
 
-        private static void AsyncRunTests(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncRunTests(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             var mode = JsonHelper.ExtractString(argsJson, "mode");
             var group = JsonHelper.ExtractString(argsJson, "group");
@@ -511,7 +503,7 @@ namespace UnityMCP.Editor
             return true;
         }
 
-        private static void AsyncRunPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncRunPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             if (!TryBuildPlaytestRunRequest(id, argsJson, tcs, out var req)) return;
 
@@ -619,7 +611,7 @@ namespace UnityMCP.Editor
         private static bool IsPlaytestSuccess(string report, string format) =>
             Decisions.Verdict.Policy.Passes(Decisions.PlaytestFacts.Read(report, format));
 
-        private static void AsyncAskUser(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncAskUser(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             // Finding 2 (PR-05 05.2): fail fast, BEFORE creating a PendingAskRegistry entry —
             // nobody can ever answer a question with no subscriber, so don't make the caller

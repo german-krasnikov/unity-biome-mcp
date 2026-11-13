@@ -22,6 +22,21 @@ case "${1:-}" in
         "${PYTHON:-python3}" scripts/dsl_content_lock.py generate
         ;;
     check)
+        pin_count="$(grep -c '^TOOLCHAIN ' dsl/biome.project || true)"
+        if [ "$pin_count" -ne 1 ]; then
+            echo "error: TOOLCHAIN_PIN_MISSING dsl/biome.project must have exactly one '^TOOLCHAIN ' line, found $pin_count" >&2
+            exit 1
+        fi
+        pin="$(grep '^TOOLCHAIN ' dsl/biome.project)"
+        pin="${pin#TOOLCHAIN }"
+        if ! toolchain_head="$(git -C "$BIOME_DSL_ROOT" rev-parse HEAD 2>/dev/null)"; then
+            echo "error: TOOLCHAIN_ROOT_NOT_GIT $BIOME_DSL_ROOT is not a git checkout (BIOME_DSL_ROOT must be a biome-dsl checkout at the TOOLCHAIN commit)" >&2
+            exit 1
+        fi
+        if [ "$pin" != "$toolchain_head" ]; then
+            echo "error: TOOLCHAIN_PIN_MISMATCH dsl/biome.project pins $pin, $BIOME_DSL_ROOT is at $toolchain_head (re-pin: biome generate --pin)" >&2
+            exit 1
+        fi
         node "$biome" generate --project dsl --check
         node "$biome" verify --construct-examples dsl/constructs/tool.examples
         node "$biome" verify --construct-examples dsl/constructs/record.examples

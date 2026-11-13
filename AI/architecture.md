@@ -86,8 +86,13 @@ No single handwritten roster is authoritative. Keep these sources aligned:
 | Session category visibility | `server/src/unity_mcp/tools/gating.py` |
 | Deferred schema behavior | `server/src/unity_mcp/tools/schema_registry.py` and `server_filtering.py` |
 | Unity handler and validation metadata | `unity-plugin/Editor/CommandRegistry.cs` registration sites |
+| C# argument reads of a catalog tool | `dsl/tools.biome` `ARG` lines, printed to `unity-plugin/Editor/Generated/ToolArgs.g.cs` (`{Tool}Args.{Key}(args)`; `LOCAL` args have none, `WIRE` names the accessor by its key, `DEFAULT` is not applied). Migrated handlers read through it; see `dsl/README.md` |
+| Declared actions of an `action`-dispatched tool, and the unknown-action error | `dsl/tools.biome` `ACTION` lines, printed to `server/src/unity_mcp/tools/generated/catalog_actions.py` (`TOOL_ACTIONS`) and `unity-plugin/Editor/Generated/ToolActions.g.cs` (`ToolActions.Names`, `IsKnown`); the handler reports an unknown action through `ErrorHelper.InvalidAction` with that list. See `dsl/README.md` (Actions) |
 | Argument-dependent read/write behavior | The decision `isMutating` (`dsl/decisions/mutability.logic`), read by `middleware_types.is_write` and `CommandRegistry.IsMutating(cmd, argsJson)`; the read actions of a tool are the `READ` lines of `dsl/tools.biome`. Python is the authority |
 | Which guard stops a call, and in which order | The decision `guardVerdict` (`dsl/decisions/guards.logic`), read by `CommandRouter.CheckGuards`, the per-line guards of `BatchHelper` and the Python read-only, Play Mode and direct-only gates |
+| Play Mode allowance of a command | `GUARD play_ok` in `dsl/tools.biome`, read by `CommandRegistry.IsPlayOk` (`CommandRouter.IsAllowedMutationInPlayMode` delegates to it) |
+| Command registration of a catalog tool | `HANDLER` lines in `dsl/tools.biome`, printed to `unity-plugin/Editor/Generated/ToolBindings.g.cs`; a command without a `HANDLER` is registered by hand in `CommandRouter.Registration.cs` |
+| Shared rules and typed rows (decisions, data contracts) | `dsl/decisions/` and `dsl/data/`; the decisions and their wiring are listed in `dsl/README.md` (Decisions) |
 | Exhaustive generated public parameters | `docs/tools-schema/` |
 
 Tool visibility is a discoverability control, not an authorization boundary.

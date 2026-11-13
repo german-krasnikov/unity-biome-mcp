@@ -1,1 +1,1 @@
-PROTOCOL {versionRefPattern: "[\d.]+(?:-[0-9A-Za-z.]+)?"}
+PROTOCOL {versionRefPattern: "[\d.]+(?:-[0-9A-Za-z.]+)?" serverRefPattern: "[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.]+)?" gitRepoBase: "git+https://github.com/german-krasnikov/unity-biome-mcp.git" installSubdir: server}

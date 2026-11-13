@@ -5,9 +5,11 @@ import sys
 from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass, field
 
+from unity_mcp.config.generated.client_config_path_rows import CLIENT_CONFIG_PATH_ROWS
 from unity_mcp.config.generated.install_dir_rows import INSTALL_DIR_ROWS
 
 _INSTALL_DIR_BY_KEY = {row.key: row for row in INSTALL_DIR_ROWS}
+_CLIENT_CONFIG_PATH_BY_KEY = {row.key: row for row in CLIENT_CONFIG_PATH_ROWS}
 
 
 @dataclass
@@ -29,20 +31,17 @@ class ClientInfo:
     install_dir: pathlib.Path | None = None
 
 
-def _claude_desktop_path() -> pathlib.Path:
-    if sys.platform == "darwin":
-        return pathlib.Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
+def _client_config_path(key: str) -> pathlib.Path:
+    """Resolve the ClientConfigPath row for `key` (dsl/data/clientconfigpath.data-contract) on this
+    platform. "~" and "{appdata}" are substituted the same way _install_dir() substitutes them for
+    the installdir rows, and the same way ClientConfigPathTable.cs's native C# reader substitutes
+    them for the identical generated rows (P1 #5)."""
+    row = _CLIENT_CONFIG_PATH_BY_KEY[key]
     if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA", pathlib.Path.home() / "AppData" / "Roaming")
-        return pathlib.Path(appdata) / "Claude" / "claude_desktop_config.json"
-    return pathlib.Path.home() / ".config" / "Claude" / "claude_desktop_config.json"
-
-
-def _windsurf_path() -> pathlib.Path:
-    if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA", pathlib.Path.home() / "AppData" / "Roaming")
-        return pathlib.Path(appdata) / "Codeium" / "windsurf" / "mcp_config.json"
-    return pathlib.Path.home() / ".codeium" / "windsurf" / "mcp_config.json"
+        appdata = os.environ.get("APPDATA", str(pathlib.Path.home() / "AppData" / "Roaming"))
+        return pathlib.Path((row.pathWin or row.path).replace("{appdata}", appdata))
+    template = row.pathMac if sys.platform == "darwin" and row.pathMac else row.path
+    return pathlib.Path(template.replace("~", str(pathlib.Path.home())))
 
 
 def _vscode_path() -> pathlib.Path:
@@ -103,25 +102,25 @@ def _vscode_transform(entry: dict) -> dict:
 CLIENT_REGISTRY: dict[str, ClientInfo] = {
     "claude-desktop": ClientInfo(
         name="Claude Desktop",
-        config_path=_claude_desktop_path(),
+        config_path=_client_config_path("claude-desktop"),
         scope="global",
         install_dir=_install_dir("claude-desktop"),
     ),
     "claude-code": ClientInfo(
         name="Claude Code",
-        config_path=pathlib.Path.home() / ".claude.json",
+        config_path=_client_config_path("claude-code"),
         scope="global",
         install_dir=_install_dir("claude-code"),
     ),
     "cursor": ClientInfo(
         name="Cursor",
-        config_path=pathlib.Path.home() / ".cursor" / "mcp.json",
+        config_path=_client_config_path("cursor"),
         scope="global",
         install_dir=_install_dir("cursor"),
     ),
     "windsurf": ClientInfo(
         name="Windsurf",
-        config_path=_windsurf_path(),
+        config_path=_client_config_path("windsurf"),
         scope="global",
         install_dir=_install_dir("windsurf"),
     ),

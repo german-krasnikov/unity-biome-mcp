@@ -36,9 +36,14 @@ def test_an_optional_type_encodes_like_its_base():
 class _Mcp:
     def __init__(self):
         self.registered = []
+        self.descriptions = {}
 
-    def tool(self, annotations):
-        return lambda fn: self.registered.append((fn.__name__, annotations)) or fn
+    def tool(self, annotations, description=None):
+        def decorate(fn):
+            self.registered.append((fn.__name__, annotations))
+            self.descriptions[fn.__name__] = description
+            return fn
+        return decorate
 
 
 def _function(signature="path: str, name: str", doc="Rename a thing. More.", name="rename"):
@@ -238,6 +243,102 @@ def test_install_ignores_var_positional_and_var_keyword_in_body(monkeypatch):
     _fake_tools_module(monkeypatch, "fakemod_varargs", _x_body=_x_body)
     tools.install(mcp)
     assert [name for name, _ in mcp.registered] == ["x"]
+
+
+#  --- tools.actions(): the client-visible description gains one enumeration line of the declared ACTIONs
+#  (dsl/tools.biome's ACTION lines), with each action's hint in parentheses when it has one. Computed fresh
+#  from the function's own (never mutated) docstring every time register()/install() hands it to mcp.tool(),
+#  so it does not grow on a second registration -- a second mcp, a second install() (dsl-bottlenecks-2026-11
+#  Q1/S2). ---
+
+
+def test_actions_unknown_name_raises():
+    tools = rt.ToolSet()
+    with pytest.raises(LookupError, match="nope"):
+        tools.actions("nope", (("get", ""),))
+
+
+def test_a_tool_with_no_declared_actions_has_its_description_unchanged():
+    tools, mcp = rt.ToolSet(), _Mcp()
+    tools.expect("rename", "RW", "Rename a thing.", (("path", str), ("name", str)))
+    tools.register(mcp, _function())
+    assert mcp.descriptions["rename"] == "Rename a thing. More."
+
+
+def test_a_declared_action_with_no_hint_is_named_bare():
+    tools, mcp = rt.ToolSet(), _Mcp()
+    tools.expect("rename", "RW", "Rename a thing.", (("path", str), ("name", str)))
+    tools.actions("rename", (("get", ""), ("set", "")))
+    tools.register(mcp, _function())
+    assert mcp.descriptions["rename"] == "Rename a thing. More.\naction: get|set."
+
+
+def test_a_declared_action_with_a_hint_carries_it_in_parentheses():
+    tools, mcp = rt.ToolSet(), _Mcp()
+    tools.expect("rename", "RW", "Rename a thing.", (("path", str), ("name", str)))
+    tools.actions("rename", (("get", "list things"), ("set", "")))
+    tools.register(mcp, _function())
+    assert mcp.descriptions["rename"] == "Rename a thing. More.\naction: get (list things)|set."
+
+
+def test_actions_wrap_rule_is_pinned_to_120_and_breaks_only_between_whole_entries():
+    """The wrap rule stated in _render_actions' own docstring: fold only past _MAX_LINE (120, this repo's own
+    ruff line-length), only between whole (action, hint) entries -- never inside one, even when a hint itself
+    contains a '|' -- each folded line ending in '|', only the last ending in '.'."""
+    assert rt._MAX_LINE == 120
+    long_hint = "x" * 40
+    pairs = tuple((f"action_{i:02d}", long_hint if i == 3 else "") for i in range(10))
+    rendered = rt._render_actions(pairs)
+    lines = rendered.split("\n")
+    assert len(lines) > 1, "this pairs list must actually be long enough to exercise wrapping"
+    assert all(len(line) <= rt._MAX_LINE for line in lines)
+    assert all(line.endswith("|") for line in lines[:-1])
+    assert lines[-1].endswith(".") and not lines[-1].endswith("|.")
+    for act, hint in pairs:                                   # no entry is split across the fold
+        part = f"{act} ({hint})" if hint else act
+        assert part in rendered
+
+
+def test_actions_do_not_fold_on_a_pipe_that_is_inside_a_hint():
+    pairs = (("set_wrap", "keys='loop'|'once'|'pingpong'|'clamp'"),)
+    assert rt._render_actions(pairs) == "action: set_wrap (keys='loop'|'once'|'pingpong'|'clamp')."
+
+
+def test_actions_appends_through_install_too():
+    tools, mcp = rt.ToolSet(), _Mcp()
+    tools.expect("rename", "RW", "Rename a thing.", (("path", str), ("name", str)))
+    tools.actions("rename", (("get", ""),))
+    tools.provide(_function())
+    tools.install(mcp)
+    assert mcp.descriptions["rename"] == "Rename a thing. More.\naction: get."
+
+
+def test_actions_render_is_idempotent_across_repeated_registration():
+    """Registering the same catalog again (a second mcp) must not grow the description: the enumeration
+    line is computed fresh from the function's own docstring each time, never appended into it."""
+    tools = rt.ToolSet()
+    tools.expect("rename", "RW", "Rename a thing.", (("path", str), ("name", str)))
+    tools.actions("rename", (("get", ""),))
+    fn = _function()
+    first, second = _Mcp(), _Mcp()
+    tools.register(first, fn)
+    tools.register(second, fn)
+    expected = "Rename a thing. More.\naction: get."
+    assert fn.__doc__ == "Rename a thing. More."  # the function's own docstring is never mutated
+    assert first.descriptions["rename"] == expected
+    assert second.descriptions["rename"] == expected
+
+
+def test_install_is_idempotent_across_repeated_install():
+    tools = rt.ToolSet()
+    tools.expect("rename", "RW", "Rename a thing.", (("path", str), ("name", str)))
+    tools.actions("rename", (("get", ""),))
+    tools.provide(_function())
+    first, second = _Mcp(), _Mcp()
+    tools.install(first)
+    tools.install(second)
+    expected = "Rename a thing. More.\naction: get."
+    assert first.descriptions["rename"] == expected == second.descriptions["rename"]
 
 
 def test_the_hand_written_sync_unity_is_checked_against_the_catalog_when_its_module_registers_it():

@@ -33,6 +33,13 @@ from unity_mcp.bridge_socket import (
 )
 from unity_mcp.compile_state import CompileStateProbe
 from unity_mcp.crash_log import CrashLogger
+from unity_mcp.decisions.generated.connstatus_logic import (
+    ConnStatusInput,
+    ConnStatusValues,
+    TransportStatusInput,
+    conn_status,
+    transport_status,
+)
 from unity_mcp.lockfile import is_pid_alive
 from unity_mcp.metrics import METRICS
 
@@ -118,6 +125,16 @@ class BridgeState(enum.Enum):
     FAILED = "failed"  # startup grace expired
     DORMANT = "dormant"   # intentional TCP close, heartbeat stopped, process alive
     WAKING  = "waking"    # reconnect triggered by incoming request from DORMANT
+
+
+_STATE_FACT = {
+    BridgeState.DISCONNECTED: "disconnected",
+    BridgeState.CONNECTED: "connected",
+    BridgeState.DOMAIN_RELOADING: "domainReloading",
+    BridgeState.FAILED: "failed",
+    BridgeState.DORMANT: "dormant",
+    BridgeState.WAKING: "waking",
+}
 
 
 class DeliveryState(enum.Enum):
@@ -1060,33 +1077,19 @@ class UnityBridge(HeartbeatMixin):
     def connected(self) -> bool:
         return self._writer is not None and not self._writer.is_closing()
 
+    def _conn_facts(self) -> dict:
+        return {"conn_state": _STATE_FACT[self._state], "conn_writer_live": self.connected}
+
     @property
     def status(self) -> str:
-        """Semantic connection status for user-facing display."""
-        if self._state == BridgeState.DORMANT:
-            return "dormant"
-        if self._state == BridgeState.WAKING:
-            return "waking"
-        if self._writer is not None and not self._writer.is_closing():
-            return "connected"
-        if self._state == BridgeState.FAILED:
-            return "disconnected"
-        if self._state == BridgeState.DOMAIN_RELOADING:
-            return "domain-reloading"
-        return "reconnecting"
+        """Semantic connection status for user-facing display (DECISION connStatus)."""
+        verdict = conn_status(ConnStatusInput(**self._conn_facts()))
+        return "domain-reloading" if verdict == ConnStatusValues.DOMAIN_RELOADING else verdict
 
     @property
     def transport_status(self) -> str:
-        """TCP transport layer status — independent of stdio health."""
-        if self._state == BridgeState.DORMANT:
-            return "tcp:dormant"
-        if self._state == BridgeState.WAKING:
-            return "tcp:waking"
-        if self._writer is not None and not self._writer.is_closing():
-            return "tcp:connected"
-        if self._state == BridgeState.FAILED:
-            return "tcp:failed"
-        return "tcp:reconnecting"
+        """TCP transport layer status — independent of stdio health (DECISION transportStatus)."""
+        return "tcp:" + transport_status(TransportStatusInput(**self._conn_facts()))
 
     @property
     def last_contact_age_s(self) -> float | None:

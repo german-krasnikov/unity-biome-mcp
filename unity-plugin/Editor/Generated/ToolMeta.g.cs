@@ -1,5 +1,5 @@
 // Generated from dsl/tools.biome
-// source-sha256=ae7ae5192ef26bc47e023f639ac9ca2c0ed65b883653a301f194ebed26f4de43
+// source-sha256=2f60948cb50a62567d529938c2e71eaebb92bc504cb0bb6c772ff0a8d21866c7
 // Edit the source, then run biome generate.
 
 namespace UnityMCP.Editor
@@ -369,6 +369,7 @@ namespace UnityMCP.Editor
                             "undo_label",
                         }),
                        AllowedDuringCompile = true,
+                       PlayOk = true,
                     };
                 case "export_package":
                     return new CommandOptions
@@ -983,6 +984,7 @@ namespace UnityMCP.Editor
                             "focus",
                             "mode",
                         }),
+                       PlayOk = true,
                     };
                 case "project_settings":
                     return new CommandOptions
@@ -1226,6 +1228,7 @@ namespace UnityMCP.Editor
                             "annotation_id",
                         }),
                        AllowedDuringCompile = true,
+                       PlayOk = true,
                        SpecialDispatch = true,
                     };
                 case "scriptable_object":
@@ -1305,6 +1308,7 @@ namespace UnityMCP.Editor
                             "parent",
                             "world_position_stays",
                         }),
+                       PlayOk = true,
                     };
                 case "set_property":
                     return new CommandOptions
@@ -1634,6 +1638,7 @@ namespace UnityMCP.Editor
                             "negate",
                             "abort_on_fail",
                         }),
+                       PlayOk = true,
                     };
                 case "wire_event":
                     return new CommandOptions

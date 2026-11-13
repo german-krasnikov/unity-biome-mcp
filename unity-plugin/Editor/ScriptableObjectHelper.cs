@@ -7,23 +7,10 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    internal static class ScriptableObjectHelper
+    // Execute(action, argsJson) is generated into Generated/ToolDispatch.g.cs from the DISPATCH/ACTION
+    // lines of dsl/tools.biome's scriptable_object TOOL block (dsl-bottlenecks-2026-11 S3).
+    internal static partial class ScriptableObjectHelper
     {
-        static readonly string[] ValidActions = { "create", "get", "set", "list_types", "find" };
-
-        internal static string Execute(string action, string argsJson)
-        {
-            switch (action)
-            {
-                case "create": return Create(argsJson);
-                case "get":    return Get(argsJson);
-                case "set":    return Set(argsJson);
-                case "list_types": return ListTypes(argsJson);
-                case "find":   return Find(argsJson);
-                default:       throw new ArgumentException(ErrorHelper.InvalidAction(action, ValidActions));
-            }
-        }
-
         // ── create ────────────────────────────────────────────────────────────
 
         private static string Create(string args)

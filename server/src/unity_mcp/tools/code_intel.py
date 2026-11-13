@@ -16,10 +16,10 @@ from typing import Any
 from unity_mcp.utils import parse_pipe_fields
 
 from ._common import bind
-from .generated.wire_records import parse_sync_status as _parse_sync_status_record
 
 # Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
 from .generated.catalog_tools import await_compile, compile_preflight, serialized_field_rename_audit  # noqa: F401
+from .generated.wire_records import parse_sync_status as _parse_sync_status_record
 
 _send = None
 

@@ -1,0 +1,12 @@
+# busySignal: is Unity busy (compiling/reloading/starting)? First match wins.
+# Characterized from CompileStateProbe.has_strong_busy_signal, whose branch order broke 3 times (P6/G15/B).
+DECISION busySignal DEFAULT notBusy
+  freshBusy AT 10 WHEN probe.hasPort AND probe.statePresent AND NOT probe.stateStale AND probe.stateBusy -> busy
+  staleBusyDead AT 20 WHEN probe.hasPort AND probe.statePresent AND probe.stateStale AND probe.stateBusy AND probe.processDead -> notBusy
+  staleBusyWedge AT 21 WHEN probe.hasPort AND probe.statePresent AND probe.stateStale AND probe.stateBusy AND probe.hasWedge -> notBusy
+  staleBusyAlive AT 22 WHEN probe.hasPort AND probe.statePresent AND probe.stateStale AND probe.stateBusy -> busy
+  stateNotBusy AT 30 WHEN probe.hasPort AND probe.statePresent -> notBusy
+  noStateDead AT 40 WHEN probe.hasPort AND NOT probe.statePresent AND probe.processDead -> notBusy
+  noStateStartup AT 41 WHEN probe.hasPort AND NOT probe.statePresent AND probe.startupInProgress -> busy
+  lockFile AT 50 WHEN probe.lockFileExists -> busy
+END

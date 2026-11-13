@@ -1,5 +1,5 @@
 # What unity-biome-mcp generates: the tool catalog (dsl/tools.biome printed through constructs/tool.construct), the decisions (dsl/decisions), the chat turn (dsl/chat) and the playtest grammar (constructs/playtest.construct).
-TOOLCHAIN 094e3edee3b7b4c8c9afed3ab3d95a27aceb1b57
+TOOLCHAIN 05b2afe8f6bf75cb6196bc850965ce652ed2be3f
 CONSTRUCTS constructs
 
 GENERATE py-specs  render {dir}/tools.biome pyspec   {dir}/../server/src/unity_mcp/tools/generated/catalog_specs.py
@@ -23,6 +23,7 @@ GENERATE event-kinds    render {dir}/events.biome pykinds  {dir}/../server/src/u
 GENERATE event-emitters render {dir}/events.biome pyemits  {dir}/../server/src/unity_mcp/agent_event_emitters.py
 GENERATE event-fields   render {dir}/events.biome pyfields {dir}/../server/src/unity_mcp/agent_event_fields.py
 GENERATE event-order    render {dir}/events.biome pyorder  {dir}/../server/src/unity_mcp/agent_event_order.py
+GENERATE event-excluded render {dir}/events.biome pyexcluded {dir}/../server/src/unity_mcp/agent_event_excluded.py
 GENERATE event-held     render {dir}/events.biome csheld   {dir}/../unity-plugin/Editor/Chat/CLI/Generated/AgentEventParser.Held.g.cs
 GENERATE event-reset    render {dir}/events.biome csreset  {dir}/../unity-plugin/Editor/Chat/CLI/Generated/AgentEventParser.Reset.g.cs
 GENERATE event-map      render {dir}/events.biome csmap    {dir}/../unity-plugin/Editor/Chat/CLI/Generated/AgentEventParser.Map.g.cs
@@ -48,6 +49,20 @@ GENERATE cs-installdir data --contract installdir --rows InstallDir {dir}/data/i
 CONTRACT protocol FROM data/protocol.data-contract
 GENERATE py-protocol data --contract protocol --rows Protocol {dir}/data/protocol.core-data --target py --out {dir}/../server/src/unity_mcp/generated/protocol.py
 GENERATE cs-protocol data --contract protocol --rows Protocol {dir}/data/protocol.core-data --target cs --cs-namespace UnityMCP.Editor.Wizard --out {dir}/../unity-plugin/Editor/Generated/Protocol.g.cs
+
+# The MCP server's config-file key name (dsl/data/servername.data-contract, P1 #5): one constant
+# instead of merger.py's SERVER_NAME and PermissionConfig.cs's SERVER_NAME, kept in sync only by a
+# regex-scan-the-.cs-source parity guard test before this.
+CONTRACT servername FROM data/servername.data-contract
+GENERATE py-servername data --contract servername --rows ServerIdentity {dir}/data/servername.core-data --target py --out {dir}/../server/src/unity_mcp/generated/server_identity.py
+GENERATE cs-servername data --contract servername --rows ServerIdentity {dir}/data/servername.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/ServerIdentity.g.cs
+
+# Global per-client MCP config-file path (dsl/data/clientconfigpath.data-contract, P1 #5): one typed
+# row set instead of clients.py's _claude_desktop_path/_windsurf_path functions (plus inline literals)
+# and AiToolCardFactory.cs's ClaudeCodePath/ClaudeDesktopPath/CursorPath/WindsurfPath.
+CONTRACT clientconfigpath FROM data/clientconfigpath.data-contract
+GENERATE py-clientconfigpath data --contract clientconfigpath --rows ClientConfigPath {dir}/data/clientconfigpath.core-data --target py --out {dir}/../server/src/unity_mcp/config/generated/client_config_path_rows.py
+GENERATE cs-clientconfigpath data --contract clientconfigpath --rows ClientConfigPath {dir}/data/clientconfigpath.core-data --target cs --cs-namespace UnityMCP.Editor.Wizard --out {dir}/../unity-plugin/Editor/Generated/ClientConfigPath.g.cs
 
 # The CLI backend table (dsl/data/backends.data-contract, UI-5/Q20): one typed row set instead of 23 switch arms spread
 # across SessionHandoff, SessionScanner, ModelContextWindows and MCPChatWindow. The Python side has no call site yet;
@@ -77,8 +92,19 @@ GENERATE versionorder logic generate --source {dir}/decisions/versionorder.logic
 GENERATE versionorder-rows logic examples --source {dir}/decisions/versionorder.examples --logic {dir}/decisions/versionorder.logic --contract {dir}/decisions/versionorder.contract --out {dir}/decisions/versionorder.json
 GENERATE retry logic generate --source {dir}/decisions/retry.logic --contract {dir}/decisions/retry.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/retry_logic.py"
 GENERATE retry-rows logic examples --source {dir}/decisions/retry.examples --logic {dir}/decisions/retry.logic --contract {dir}/decisions/retry.contract --out {dir}/decisions/retry.json
+GENERATE busysignal logic generate --source {dir}/decisions/busysignal.logic --contract {dir}/decisions/busysignal.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/busysignal_logic.py"
+GENERATE busysignal-rows logic examples --source {dir}/decisions/busysignal.examples --logic {dir}/decisions/busysignal.logic --contract {dir}/decisions/busysignal.contract --out {dir}/decisions/busysignal.json
+GENERATE connstatus logic generate --source {dir}/decisions/connstatus.logic --contract {dir}/decisions/connstatus.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/connstatus_logic.py"
+GENERATE connstatus-rows logic examples --source {dir}/decisions/connstatus.examples --logic {dir}/decisions/connstatus.logic --contract {dir}/decisions/connstatus.contract --out {dir}/decisions/connstatus.json
+GENERATE budget logic generate --source {dir}/decisions/budget.logic --contract {dir}/decisions/budget.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/budget_logic.py"
+GENERATE budget-rows logic examples --source {dir}/decisions/budget.examples --logic {dir}/decisions/budget.logic --contract {dir}/decisions/budget.contract --out {dir}/decisions/budget.json
+GENERATE terminalerror logic generate --source {dir}/decisions/terminalerror.logic --contract {dir}/decisions/terminalerror.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/terminalerror_logic.py"
+GENERATE terminalerror-rows logic examples --source {dir}/decisions/terminalerror.examples --logic {dir}/decisions/terminalerror.logic --contract {dir}/decisions/terminalerror.contract --out {dir}/decisions/terminalerror.json
 GENERATE py-reads  render {dir}/tools.biome pyreads  {dir}/../server/src/unity_mcp/tools/generated/catalog_reads.py
 GENERATE cs-reads  render {dir}/tools.biome csreads  {dir}/../unity-plugin/Editor/Generated/ActionReads.g.cs
+GENERATE py-actions render {dir}/tools.biome pyactions {dir}/../server/src/unity_mcp/tools/generated/catalog_actions.py
+GENERATE cs-actions render {dir}/tools.biome csactions {dir}/../unity-plugin/Editor/Generated/ToolActions.g.cs
+GENERATE cs-dispatch render {dir}/tools.biome csdispatch {dir}/../unity-plugin/Editor/Generated/ToolDispatch.g.cs
 GENERATE cs-tools  render {dir}/tools.biome cstools  {dir}/../unity-plugin/Editor/Generated/ToolMeta.g.cs
 GENERATE cs-verbs  render {dir}/tools.biome csverbs {dir}/../unity-plugin/Editor/Generated/ToolVerbs.g.cs
 GENERATE cs-roster render {dir}/tools.biome csroster {dir}/../unity-plugin/Editor/Generated/ToolRoster.g.cs
@@ -88,6 +114,7 @@ GENERATE cs-next  render {dir}/tools.biome csnext {dir}/../unity-plugin/Editor/G
 GENERATE cs-deny  render {dir}/tools.biome csdeny {dir}/../unity-plugin/Editor/Generated/ToolUi.Deny.g.cs
 GENERATE cs-role  render {dir}/tools.biome csrole {dir}/../unity-plugin/Editor/Generated/ToolUi.Roles.g.cs
 GENERATE cs-bindings render {dir}/tools.biome csbindings {dir}/../unity-plugin/Editor/Generated/ToolBindings.g.cs
+GENERATE cs-args  render {dir}/tools.biome csargs {dir}/../unity-plugin/Editor/Generated/ToolArgs.g.cs
 
 # The chat turn (dsl/chat, step 7.3): the one ordered list of what ends a turn of the chat window, whichever way it ends. chat-policy prints the two guards
 # (the decisions of the FEATURE), chat-turn the reducer into the CLI assembly of the chat (UnityMCP.Editor.Chat.CLI, namespace UnityMCP.Editor.Chat.Turn, C# 9)
@@ -99,3 +126,14 @@ GENERATE chat-turn feature generate --feature {dir}/chat/chatturn.feature --uses
 GENERATE playtest-reader reader --surface playtest --target cs --cs-namespace UnityMCP.Playtest.Core --out {dir}/../unity-plugin/Runtime/Playtest/Core/Generated/PlaytestReader.g.cs
 GENERATE playtest-rows reader --surface playtest --target rows --out {dir}/playtest/reader.rows
 GENERATE playtest-verbs derive {dir}/playtest/gen.mjs verbs OUT {dir}/constructs/playtest.construct {dir}/../AI/playtest-dsl.md
+
+# The LLM sampling feature defaults (dsl/data/llmfeatures.data-contract, config step 2): one typed row set instead of
+# llm_config.py's _DEFAULTS and LlmConfig.cs's per-feature initializers (nl_composer existed only in C#).
+CONTRACT llmfeatures FROM data/llmfeatures.data-contract
+GENERATE py-llmfeatures data --contract llmfeatures --rows LlmFeature {dir}/data/llmfeatures.core-data --target py --out {dir}/../server/src/unity_mcp/generated/llm_features.py
+GENERATE cs-llmfeatures data --contract llmfeatures --rows LlmFeature {dir}/data/llmfeatures.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/LlmFeatures.g.cs
+GENERATE editorlog logic generate --source {dir}/decisions/editorlog.logic --contract {dir}/decisions/editorlog.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/editorlog_logic.py"
+GENERATE editorlog-rows logic examples --source {dir}/decisions/editorlog.examples --logic {dir}/decisions/editorlog.logic --contract {dir}/decisions/editorlog.contract --out {dir}/decisions/editorlog.json
+CONTRACT contextwindow FROM data/contextwindow.data-contract
+GENERATE py-contextwindow data --contract contextwindow --rows ContextWindowRule {dir}/data/contextwindow.core-data --target py --out {dir}/../server/src/unity_mcp/generated/context_window_rules.py
+GENERATE cs-contextwindow data --contract contextwindow --rows ContextWindowRule {dir}/data/contextwindow.core-data --target cs --cs-namespace UnityMCP.Editor.Chat --out {dir}/../unity-plugin/Editor/Chat/CLI/Generated/ContextWindowRules.g.cs

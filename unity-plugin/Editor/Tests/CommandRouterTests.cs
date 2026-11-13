@@ -148,7 +148,10 @@ namespace UnityMCP.Editor.Tests
 
         [TestCase("profile", "{\"action\":\"start\"}", ExpectedResult = true)]
         [TestCase("profile", "{\"action\":\"stop\"}", ExpectedResult = true)]
-        [TestCase("profile", "{\"action\":\"future\"}", ExpectedResult = false)]
+        // b95216bd: profile gained the play_ok registration FLAG, which is a per-command
+        // (not per-action) grant — all profile actions, including read-only ones that were
+        // blocked by omission before, are now allowed in Play Mode.
+        [TestCase("profile", "{\"action\":\"future\"}", ExpectedResult = true)]
         [TestCase("wait_until", "{\"abort_on_fail\":\"true\"}", ExpectedResult = true)]
         [TestCase("execute_code", "{}", ExpectedResult = true)]
         [TestCase("screenshot", "{}", ExpectedResult = true)]

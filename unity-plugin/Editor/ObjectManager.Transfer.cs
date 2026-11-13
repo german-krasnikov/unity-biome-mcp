@@ -79,7 +79,7 @@ namespace UnityMCP.Editor
                     return $"Copied {sourcePath} → {ComponentSerializer.GetPath(clone)}";
 
                 default:
-                    throw new ArgumentException($"Invalid action: {action}. Must be move or copy");
+                    throw new ArgumentException(ErrorHelper.InvalidAction(action, ToolActions.Names("transfer_object")));
             }
         }
     }

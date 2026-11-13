@@ -8,7 +8,7 @@ namespace UnityMCP.Editor
     // Object/read command handlers (split from CommandRouter.cs for <200-line focus).
     public static partial class CommandRouter
     {
-        private static string ExecInspect(string args)
+        internal static string ExecInspect(string args)
         {
             var pathsStr = JsonHelper.ExtractString(args, "paths");
             var findType = JsonHelper.ExtractString(args, "find_type");
@@ -72,7 +72,7 @@ namespace UnityMCP.Editor
         }
 
 
-        private static string ExecGetHierarchy(string args)
+        internal static string ExecGetHierarchy(string args)
         {
             var summary = JsonHelper.ExtractString(args, "summary") == "true";
             var scene = JsonHelper.ExtractString(args, "scene");
@@ -93,7 +93,7 @@ namespace UnityMCP.Editor
         }
 
 
-        private static string ExecGetComponent(string args)
+        internal static string ExecGetComponent(string args)
         {
             var path = JsonHelper.ExtractString(args, "path");
             var type = JsonHelper.ExtractString(args, "type");
@@ -139,7 +139,7 @@ namespace UnityMCP.Editor
             return result;
         }
 
-        private static string ExecGetObjectDetail(string args)
+        internal static string ExecGetObjectDetail(string args)
         {
             var id = JsonHelper.ExtractString(args, "id");
             if (string.IsNullOrEmpty(id))
@@ -158,7 +158,7 @@ namespace UnityMCP.Editor
             return ObjectManager.FindObjects(name, tag, layer, component);
         }
 
-        private static string ExecSetProperty(string args)
+        internal static string ExecSetProperty(string args)
         {
             var dryRun = JsonHelper.ExtractString(args, "dry_run") == "true";
             var findType = JsonHelper.ExtractString(args, "find_type");

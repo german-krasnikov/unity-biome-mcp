@@ -1,5 +1,5 @@
 // Generated from dsl/events.biome
-// source-sha256=685c2d7e869ad4a31b6eb2dc7abab7af837e908ef756cf7864ce84a2f3682b61
+// source-sha256=7bbcda5cee8f82a31af5ab53ea89e690fff3cc4819c3b1a0421cef4523ed6227
 // Edit the source, then run biome generate.
 
 using UnityMCP.Editor.Chat.Payload;

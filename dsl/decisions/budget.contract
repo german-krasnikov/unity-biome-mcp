@@ -1,0 +1,18 @@
+# Facts of the Haiku budget gate (BudgetRouter.should_run) and of the speculation hit-rate gate (SpeculativeLayer._hit_rate_ok).
+# The host folds: tracker.session_pct(), tracker.day_cap_exceeded(), get_feature(feature).priority, hits/(hits+misses). The thresholds are the rules.
+CONTRACT unitymcp.budget
+COVERAGE declared-scope
+MODULE budget_facts
+FACT budget.disabled bool
+FACT budget.priority enum=critical,medium,low closed
+FACT budget.feature string
+FACT budget.dayCapExceeded bool
+FACT budget.sessionPct number min=0 max=1000
+FACT hit.total number min=0 max=100000000 integer
+FACT hit.ratio number min=0 max=1
+LINK budget.hitOk hitRateOk
+LINK budget.route budgetRoute
+INPUT hitRateOk hit.total hit.ratio
+INPUT budgetRoute budget.disabled budget.priority budget.feature budget.dayCapExceeded budget.sessionPct hit.total hit.ratio
+INPUT budgetRun budget.disabled budget.priority budget.feature budget.dayCapExceeded budget.sessionPct hit.total hit.ratio
+

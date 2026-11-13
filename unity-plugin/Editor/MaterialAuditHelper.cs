@@ -24,7 +24,7 @@ namespace UnityMCP.Editor
                 "duplicates"      => Duplicates(),
                 "compression"     => Compression(platform),
                 "recommendations" => Recommendations(),
-                _ => $"err:Unknown action '{action}'. Valid: summary|materials|textures|duplicates|compression|recommendations"
+                _ => $"err:{ErrorHelper.InvalidAction(action, ToolActions.Names("material_audit"))}"
             };
         }
 

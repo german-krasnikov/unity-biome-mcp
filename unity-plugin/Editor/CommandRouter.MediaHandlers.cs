@@ -6,121 +6,109 @@ namespace UnityMCP.Editor
     // scene/ui/editor/menu/references) split from CommandRouter.cs for <200-line focus.
     public static partial class CommandRouter
     {
-        private static float? ParseOptFloat(string args, string key)
-        {
-            var s = JsonHelper.ExtractString(args, key);
-            return s != null ? float.Parse(s, System.Globalization.CultureInfo.InvariantCulture) : (float?)null;
-        }
-
-        private static bool? ParseOptBool(string args, string key)
-        {
-            var s = JsonHelper.ExtractString(args, key);
-            return s != null ? s == "true" : (bool?)null;
-        }
-
-        private static int? ParseOptInt(string args, string key)
-        {
-            var s = JsonHelper.ExtractString(args, key);
-            return s != null ? int.Parse(s, System.Globalization.CultureInfo.InvariantCulture) : (int?)null;
-        }
+        // Bodies live in JsonHelper (ParseOptFloat/ParseOptBool/ParseOptInt) — moved there for
+        // unity-plugin/Editor/Generated/ToolArgs.g.cs to reach without a CommandRouter dependency.
+        private static float? ParseOptFloat(string args, string key) => JsonHelper.ParseOptFloat(args, key);
+        private static bool? ParseOptBool(string args, string key) => JsonHelper.ParseOptBool(args, key);
+        private static int? ParseOptInt(string args, string key) => JsonHelper.ParseOptInt(args, key);
 
         private static string ExecGetAnimation(string args)
         {
             return AnimationSerializer.Serialize(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip"),
-                ParseOptFloat(args, "time"),
-                JsonHelper.ExtractString(args, "compact") == "true");
+                AnimationArgs.Path(args),
+                AnimationArgs.Clip(args),
+                AnimationArgs.Time(args),
+                AnimationArgs.Compact(args));
         }
 
         private static string ExecCreateAnimation(string args)
         {
             return AnimationHelper.CreateClip(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip_name") ?? JsonHelper.ExtractString(args, "clip"),
-                JsonHelper.ExtractString(args, "property") ?? "localPosition",
-                JsonHelper.ExtractString(args, "keys") ?? "",
-                JsonHelper.ExtractString(args, "component_type"),
-                JsonHelper.ExtractString(args, "binding_path"),
-                JsonHelper.ExtractString(args, "tangent"));
+                AnimationArgs.Path(args),
+                AnimationArgs.ClipName(args) ?? AnimationArgs.Clip(args),
+                AnimationArgs.Property(args) ?? "localPosition",
+                AnimationArgs.Keys(args) ?? "",
+                AnimationArgs.ComponentType(args),
+                AnimationArgs.BindingPath(args),
+                AnimationArgs.Tangent(args));
         }
 
         private static string ExecEditAnimation(string args)
         {
             return AnimationHelper.EditClip(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip"),
-                JsonHelper.ExtractString(args, "action"),
-                JsonHelper.ExtractString(args, "property"),
-                JsonHelper.ExtractString(args, "keys"),
-                JsonHelper.ExtractString(args, "component_type"),
-                JsonHelper.ExtractString(args, "binding_path"),
-                JsonHelper.ExtractString(args, "tangent"));
+                AnimationArgs.Path(args),
+                AnimationArgs.Clip(args),
+                AnimationArgs.Action(args),
+                AnimationArgs.Property(args),
+                AnimationArgs.Keys(args),
+                AnimationArgs.ComponentType(args),
+                AnimationArgs.BindingPath(args),
+                AnimationArgs.Tangent(args));
         }
 
         private static string ExecPreviewAnimation(string args)
         {
             return AnimationHelper.Preview(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip"),
-                JsonHelper.ExtractString(args, "action") ?? "sample",
-                ParseOptFloat(args, "time") ?? 0f);
+                AnimationArgs.Path(args),
+                AnimationArgs.Clip(args),
+                AnimationArgs.Action(args) ?? "sample",
+                AnimationArgs.Time(args) ?? 0f);
         }
 
         private static string ExecGetTimeline(string args)
         {
             return TimelineSerializer.Serialize(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "track"));
+                TimelineArgs.Path(args),
+                TimelineArgs.Track(args));
         }
 
         private static string ExecCreateTimeline(string args)
         {
             return TimelineHelper.CreateTimeline(
-                JsonHelper.ExtractString(args, "asset_path"),
-                JsonHelper.ExtractString(args, "director_path") ?? JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "tracks"));
+                TimelineArgs.AssetPath(args),
+                TimelineArgs.DirectorPath(args) ?? TimelineArgs.Path(args),
+                TimelineArgs.Tracks(args));
         }
 
         private static string ExecEditTimeline(string args)
         {
             return TimelineHelper.Edit(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "action"),
-                JsonHelper.ExtractString(args, "track"),
-                JsonHelper.ExtractString(args, "track_type"),
-                JsonHelper.ExtractString(args, "clip"),
-                JsonHelper.ExtractString(args, "binding"),
-                ParseOptFloat(args, "start"),
-                ParseOptFloat(args, "duration"),
-                ParseOptFloat(args, "blend_in"),
-                ParseOptFloat(args, "blend_out"),
-                JsonHelper.ExtractString(args, "name"),
-                ParseOptInt(args, "index"),
-                ParseOptFloat(args, "offset"),
-                JsonHelper.ExtractString(args, "value"));
+                TimelineArgs.Path(args),
+                TimelineArgs.Action(args),
+                TimelineArgs.Track(args),
+                TimelineArgs.TrackType(args),
+                TimelineArgs.Clip(args),
+                TimelineArgs.Binding(args),
+                TimelineArgs.Start(args),
+                TimelineArgs.Duration(args),
+                TimelineArgs.BlendIn(args),
+                TimelineArgs.BlendOut(args),
+                TimelineArgs.Name(args),
+                TimelineArgs.Index(args),
+                TimelineArgs.Offset(args),
+                TimelineArgs.Value(args));
         }
 
         private static string ExecSetClipIn(string args)
         {
             return TimelineHelper.SetClipIn(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "track"),
-                JsonHelper.ExtractString(args, "clip"),
-                ParseOptFloat(args, "clip_in") ?? 0f);
+                TimelineArgs.Path(args),
+                TimelineArgs.Track(args),
+                TimelineArgs.Clip(args),
+                TimelineArgs.ClipIn(args) ?? 0f);
         }
 
         private static string ExecGetBindings(string args)
         {
-            return TimelineHelper.GetBindings(JsonHelper.ExtractString(args, "path"));
+            return TimelineHelper.GetBindings(TimelineArgs.Path(args));
         }
 
         private static string ExecPreviewTimeline(string args)
         {
             return TimelineHelper.Preview(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "action") ?? "sample",
-                ParseOptFloat(args, "time") ?? 0f);
+                TimelineArgs.Path(args),
+                TimelineArgs.Action(args) ?? "sample",
+                TimelineArgs.Time(args) ?? 0f);
         }
 
         // --- Consolidated command handlers ---
@@ -145,7 +133,7 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(args, "path"),
                     JsonHelper.ExtractString(args, "scene")),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "new", "open", "save", "discard", "open_additive", "close", "set_active", "list", "save_copy" }))
+                    ToolActions.Names("scene")))
             };
             // P-414: scene is mutating:false so undo group is never opened around saves.
             // Topology-changing sub-actions still need a mutation record for get_changes.
@@ -154,11 +142,11 @@ namespace UnityMCP.Editor
             return result;
         }
 
-        private static string ExecAnimationConsolidated(string args)
+        internal static string ExecAnimationConsolidated(string args)
         {
-            var action = JsonHelper.ExtractString(args, "action");
-            var path = JsonHelper.ExtractString(args, "path");
-            var clip = JsonHelper.ExtractString(args, "clip");
+            var action = AnimationArgs.Action(args);
+            var path = AnimationArgs.Path(args);
+            var clip = AnimationArgs.Clip(args);
             return action switch
             {
                 "get" => ExecGetAnimation(args),
@@ -170,23 +158,21 @@ namespace UnityMCP.Editor
                 "get_events" => AnimationHelper.GetEvents(path, clip),
                 "add_event" => AnimationHelper.AddEvent(
                     path, clip,
-                    ParseOptFloat(args, "time") ?? 0f,
-                    JsonHelper.ExtractString(args, "function_name"),
-                    ParseOptInt(args, "int_param"),
-                    ParseOptFloat(args, "float_param"),
-                    JsonHelper.ExtractString(args, "string_param")),
+                    AnimationArgs.Time(args) ?? 0f,
+                    AnimationArgs.FunctionName(args),
+                    AnimationArgs.IntParam(args),
+                    AnimationArgs.FloatParam(args),
+                    AnimationArgs.StringParam(args)),
                 "remove_event" => AnimationHelper.RemoveEvent(
-                    path, clip, ParseOptFloat(args, "time") ?? 0f),
+                    path, clip, AnimationArgs.Time(args) ?? 0f),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "create", "edit", "add_key", "remove_key", "remove_curve",
-                            "set_keys", "set_loop", "set_wrap", "set_framerate", "preview",
-                            "get_clip_path", "get_events", "add_event", "remove_event" }))
+                    ToolActions.Names("animation")))
             };
         }
 
-        private static string ExecTimelineConsolidated(string args)
+        internal static string ExecTimelineConsolidated(string args)
         {
-            var action = JsonHelper.ExtractString(args, "action");
+            var action = TimelineArgs.Action(args);
             // Read-only actions allowed in Play Mode; mutating actions are not.
             if (action != "get" && action != "get_bindings" && action != "preview"
                 && UnityEditor.EditorApplication.isPlaying)
@@ -205,15 +191,11 @@ namespace UnityMCP.Editor
                 "get_bindings" => ExecGetBindings(args),
                 "preview" => ExecPreviewTimeline(args),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "create", "edit", "add_track", "remove_track", "add_clip", "remove_clip",
-                            "set_binding", "set_timing", "mute", "unmute", "lock", "unlock", "rename_track",
-                            "reorder_track", "duplicate_clip", "add_marker", "remove_marker",
-                            "set_track_offset", "set_duration", "add_sub_track",
-                            "set_clip_in", "get_bindings", "preview" }))
+                    ToolActions.Names("timeline")))
             };
         }
 
-        private static string ExecReferencesConsolidated(string args)
+        internal static string ExecReferencesConsolidated(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
             return action switch
@@ -227,7 +209,8 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(args, "source"),
                     JsonHelper.ExtractString(args, "target"),
                     JsonHelper.ExtractString(args, "mappings")),
-                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action, new[] { "get", "find_to", "remap" }))
+                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
+                    ToolActions.Names("references")))
             };
         }
 
@@ -272,7 +255,7 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "pos3"));  // G8: anchoredPosition3D
         }
 
-        private static string ExecInspectUITK(string args) =>
+        internal static string ExecInspectUITK(string args) =>
             UIHelper.InspectUITK(
                 JsonHelper.ExtractString(args, "path"),
                 ParseOptInt(args, "depth") ?? 4,
@@ -306,7 +289,7 @@ namespace UnityMCP.Editor
         }
 
         // Session 12: uitk_file — UXML/USS CRUD with two-gate validation
-        private static string ExecUitkFile(string args)
+        internal static string ExecUitkFile(string args)
         {
             var assetPath = JsonHelper.ExtractString(args, "path");
             var action    = JsonHelper.ExtractString(args, "action") ?? "read";
@@ -422,10 +405,7 @@ namespace UnityMCP.Editor
                     JsonHelper.ExtractString(args, "param"),
                     JsonHelper.ExtractString(args, "name")),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "add_param", "add_state", "add_transition", "set_default", "remove",
-                            "add_blend_tree", "edit_blend_tree", "get_blend_tree",
-                            "add_layer", "remove_layer", "rename_layer", "set_layer_weight", "set_layer_blending",
-                            "set_state_speed", "update_transition", "set_avatar", "rename_state", "rename_param" }))
+                    ToolActions.Names("animator")))
             };
         }
 
@@ -481,11 +461,11 @@ namespace UnityMCP.Editor
                 "stop" => ParticleHelper.Stop(JsonHelper.ExtractString(args, "path")),
                 "pause" => ParticleHelper.Pause(JsonHelper.ExtractString(args, "path")),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "create", "set", "apply", "play", "stop", "pause" }))
+                    ToolActions.Names("particle")))
             };
         }
 
-        private static string ExecShaderConsolidated(string args)
+        internal static string ExecShaderConsolidated(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
             return action switch
@@ -538,9 +518,7 @@ namespace UnityMCP.Editor
                     ParseOptFloat(args, "h_gap") ?? 80f,
                     ParseOptFloat(args, "v_gap") ?? 50f),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "create", "set", "graph_get", "graph_create", "graph_node", "graph_edge",
-                            "graph_add_property", "graph_remove_property", "graph_rename_property",
-                            "graph_get_layout", "graph_set_layout", "graph_auto_layout" }))
+                    ToolActions.Names("shader")))
             };
         }
 
@@ -579,7 +557,8 @@ namespace UnityMCP.Editor
             {
                 "execute" => MenuHelper.Execute(JsonHelper.ExtractString(args, "path")),
                 "list" => MenuHelper.List(JsonHelper.ExtractString(args, "path")),
-                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action, new[] { "execute", "list" }))
+                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
+                    ToolActions.Names("menu")))
             };
         }
     }

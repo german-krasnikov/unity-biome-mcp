@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=ae7ae5192ef26bc47e023f639ac9ca2c0ed65b883653a301f194ebed26f4de43
+# source-sha256=2f60948cb50a62567d529938c2e71eaebb92bc504cb0bb6c772ff0a8d21866c7
 # Edit the source, then run biome generate.
 
 ARG_EXAMPLES: dict[str, dict[str, str]] = {
@@ -8,7 +8,7 @@ ARG_EXAMPLES: dict[str, dict[str, str]] = {
     'analyze_lod_culling': {
     },
     'animation': {
-        'action': "list",
+        'action': "get",
         'path': "/Main Camera",
     },
     'animator': {
@@ -17,7 +17,7 @@ ARG_EXAMPLES: dict[str, dict[str, str]] = {
     'ask_user': {
     },
     'asset': {
-        'action': "list",
+        'action': "find",
     },
     'attach_uitk': {
         'path': "/__seam_nonexistent",
@@ -62,7 +62,7 @@ ARG_EXAMPLES: dict[str, dict[str, str]] = {
     'diagnose': {
     },
     'editor': {
-        'action': "status",
+        'action': "state",
     },
     'execute_code': {
     },
@@ -175,7 +175,7 @@ ARG_EXAMPLES: dict[str, dict[str, str]] = {
         'path': "/__seam_nonexistent",
     },
     'prefab': {
-        'action': "list",
+        'action': "save",
     },
     'profile': {
     },
@@ -214,7 +214,7 @@ ARG_EXAMPLES: dict[str, dict[str, str]] = {
     'scan_scene': {
     },
     'scene': {
-        'action': "get",
+        'action': "list",
     },
     'scene_diff': {
     },
@@ -226,7 +226,7 @@ ARG_EXAMPLES: dict[str, dict[str, str]] = {
     'screenshot': {
     },
     'scriptable_object': {
-        'action': "list",
+        'action': "list_types",
     },
     'search_scene': {
         'query': "__seam_nonexistent",

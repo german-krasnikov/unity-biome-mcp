@@ -162,7 +162,7 @@ async def _pre_tcp_guards(
     if retry_warn:
         return retry_warn
 
-    pm_block = mw.check_play_mode_required(cmd)
+    pm_block = mw.check_play_mode_required(cmd, args)
     if pm_block:
         return pm_block
 

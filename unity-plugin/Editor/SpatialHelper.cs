@@ -324,8 +324,7 @@ namespace UnityMCP.Editor
                     ExtractFloat(args, "cell_size", 2f)),
                 "objects_in_polygon" => RegionTool.SceneRegionQuery.Execute(args),
                 _ => throw new System.ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "nearest", "in_front_of", "objects_in_radius", "bounds_info",
-                            "raycast", "spatial_map", "objects_in_polygon" }))
+                    ToolActions.Names("spatial_query")))
             };
         }
     }

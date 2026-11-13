@@ -116,6 +116,7 @@ EVENT cost_update "Usage of the turn; held until turn_completed."
   FIELD input_tokens int
   FIELD output_tokens int
   HOLD
+  TRANSIENT
   EMITS claude,codex,kimi,opencode
   ORDER usage
 END
@@ -127,5 +128,6 @@ EVENT capabilities_changed "The backend's state changed."
 END
 EVENT heartbeat "Keepalive."
   UI Heartbeat
+  TRANSIENT
   EMITS claude,codex
 END

@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=ae7ae5192ef26bc47e023f639ac9ca2c0ed65b883653a301f194ebed26f4de43
+# source-sha256=2f60948cb50a62567d529938c2e71eaebb92bc504cb0bb6c772ff0a8d21866c7
 # Edit the source, then run biome generate.
 
 ACTION_READS: dict[str, frozenset[str]] = {
@@ -14,25 +14,31 @@ ACTION_READS: dict[str, frozenset[str]] = {
     }),
     'asset': frozenset({
         'find',
-        'find_dependents',
-        'get_dependencies',
         'get_info',
         'validate_move',
+        'get_dependencies',
+        'find_dependents',
     }),
     'bake': frozenset({
         'settings',
         'status',
     }),
+    'build': frozenset({
+    }),
     'editor': frozenset({
-        'project_path',
         'state',
+        'project_path',
+    }),
+    'manage_component': frozenset({
     }),
     'material': frozenset({
         'get',
-        'get_errors',
         'list_properties',
-        'list_shaders',
         'list_slots',
+        'get_errors',
+        'list_shaders',
+    }),
+    'material_audit': frozenset({
     }),
     'menu': frozenset({
         'list',
@@ -55,13 +61,17 @@ ACTION_READS: dict[str, frozenset[str]] = {
         'get_overrides',
     }),
     'profile': frozenset({
+        'status',
         'analyze',
         'compare',
         'list_sessions',
-        'status',
     }),
     'project_settings': frozenset({
         'get',
+    }),
+    'references': frozenset({
+    }),
+    'render_analyze': frozenset({
     }),
     'scene': frozenset({
         'list',
@@ -70,17 +80,23 @@ ACTION_READS: dict[str, frozenset[str]] = {
         'get',
     }),
     'scriptable_object': frozenset({
-        'find',
         'get',
         'list_types',
+        'find',
     }),
     'shader': frozenset({
         'get',
         'graph_get',
     }),
+    'spatial_query': frozenset({
+    }),
     'timeline': frozenset({
         'get',
         'get_bindings',
+    }),
+    'transfer_object': frozenset({
+    }),
+    'uitk_element': frozenset({
     }),
     'uitk_file': frozenset({
         'read',

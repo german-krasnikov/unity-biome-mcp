@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 
 from unity_mcp.constants import SESSION_TIMEOUT as _DISCONNECT_WINDOW_S
+from unity_mcp.decisions.generated.busysignal_logic import BusySignalInput, BusySignalValues, busy_signal
 from unity_mcp.lockfile import is_pid_alive, read_pid_from_port_file, read_project_path_from_port_file
 from unity_mcp.unity_state import read_state_for_port
 
@@ -93,33 +94,59 @@ class CompileStateProbe:
         A 120s+ legit reload produces a stale state but the process is alive;
         the old code returned False (lock-file fallback only), causing
         'Unity dead/not responding' on a live compiling process.
+
+        The branch order is the DECISION busySignal of dsl/decisions/busysignal.logic
+        (generated into decisions/generated/busysignal_logic.py), extracted because this
+        ladder broke 3 times in production (P6/G15/B) from branch-order mistakes.
         """
-        if self._port is not None:
+        return busy_signal(self._gather_busy_facts()) == BusySignalValues.BUSY
+
+    def _gather_busy_facts(self) -> BusySignalInput:
+        """Facts for the busySignal DECISION, computed as lazily as the original ladder.
+
+        Each expensive probe (is_process_dead, the wedge detector, is_startup_in_progress,
+        the lock-file stat) runs at most once, only on the path that used to reach it.
+        """
+        has_port = self._port is not None
+        state_present = state_stale = state_busy = False
+        process_dead = has_wedge = startup_in_progress = lock_file_exists = False
+
+        if has_port:
             state = read_state_for_port(self._port)
             if state is not None:
-                # Fresh busy state → definitely busy.
-                if not state.is_stale and state.is_busy:
-                    return True
-                # Stale busy state (>120s legit reload) → consult PID + wedge detector.
-                # PID dead → not compiling. PID alive + terminal wedge → also not busy
-                # (G15: detect_wedge confirms reload failed, don't keep retrying).
-                if state.is_stale and state.is_busy:
-                    if self.is_process_dead():
-                        return False
-                    try:
-                        from unity_mcp.editor_log import detect_wedge
-                        if detect_wedge() is not None:
-                            return False  # terminal reload failure → not busy, stop retrying
-                    except Exception:
-                        pass
-                    return True
-                # State present but not busy → not busy (fresh=clean or stale=not-busy).
-                return False
-            if self.is_process_dead():
-                return False
-            if self.is_startup_in_progress():
-                return True
-        return self._lock_file_exists()
+                state_present, state_stale, state_busy = True, state.is_stale, state.is_busy
+                if state_stale and state_busy:
+                    process_dead = self.is_process_dead()
+                    if not process_dead:
+                        has_wedge = self._detect_wedge_present()
+            elif self.is_process_dead():
+                process_dead = True
+            elif self.is_startup_in_progress():
+                startup_in_progress = True
+            else:
+                lock_file_exists = self._lock_file_exists()
+        else:
+            lock_file_exists = self._lock_file_exists()
+
+        return BusySignalInput(
+            probe_has_port=has_port,
+            probe_state_present=state_present,
+            probe_state_stale=state_stale,
+            probe_state_busy=state_busy,
+            probe_process_dead=process_dead,
+            probe_has_wedge=has_wedge,
+            probe_startup_in_progress=startup_in_progress,
+            probe_lock_file_exists=lock_file_exists,
+        )
+
+    @staticmethod
+    def _detect_wedge_present() -> bool:
+        """True when the Editor.log shows a terminal reload failure (G15)."""
+        try:
+            from unity_mcp.editor_log import detect_wedge
+            return detect_wedge() is not None
+        except Exception:
+            return False
 
     def estimated_remaining_s(self) -> float:
         if self._last_known_duration and self._compile_elapsed is not None:

@@ -13,8 +13,7 @@ namespace UnityMCP.Editor
             CommandRegistry.Register("watch_add", ExecWatchAdd, runtime: true,
                 required: "path,component,field", optional: "condition,action,interval_ms",
                 notBatchable: true);
-            // read/management: available outside Play Mode too
-            CommandRegistry.Register("get_watches", _ => ExecGetWatches(), ToolMeta.Get("get_watches"));
+            // get_watches (read, available outside Play Mode too) is registered by ToolBindings (HANDLER in dsl/tools.biome)
             CommandRegistry.Register("watch_remove", args =>
             {
                 var id = JsonHelper.ExtractString(args, "id");
@@ -50,6 +49,8 @@ namespace UnityMCP.Editor
             if (id == null) throw new System.Exception("MaxWatches (20) reached — remove some first");
             return id;
         }
+
+        internal static string ExecGetWatchesCommand(string args) => ExecGetWatches();
 
         private static string ExecGetWatches()
         {

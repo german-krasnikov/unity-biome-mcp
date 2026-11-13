@@ -33,7 +33,7 @@ debug_physics kind=Register mutating=0 runtime=1 special=0 filehandler=0 always=
 delete_object kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=force,id,path
 diagnose kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=1 compile=1 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=
 editor kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=1 noundo=1 policy=0 max=0 required= optional=action,enable,path,paths
-execute_code kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=1 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=code optional=undo_label
+execute_code kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=1 notbatch=0 playok=1 noundo=0 policy=0 max=0 required=code optional=undo_label
 export_playtest_aliases_to_defs kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=1 noundo=1 policy=0 max=0 required= optional=asset,defs
 find_objects kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=component,layer,name,tag
 fingerprint kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=depth,path
@@ -86,7 +86,7 @@ particle kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 com
 ping kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=1 compile=1 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=
 ping_object kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=path optional=
 prefab kind=RegisterAction mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action optional=add_component,asset_path,base_path,child_path,component,format,mode,parent,path,prop,recursive,remove_component,scope,value,variant_path
-profile kind=RegisterAction mutating=1 runtime=1 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action optional=compare_with,duration,focus,mode,session
+profile kind=RegisterAction mutating=1 runtime=1 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=1 noundo=0 policy=0 max=0 required=action optional=compare_with,duration,focus,mode,session
 project_settings kind=RegisterAction mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action,target optional=build_target,index,prop,value
 query_state kind=Register mutating=0 runtime=1 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=queries optional=
 recompile kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=1 noundo=1 policy=0 max=0 required= optional=
@@ -104,7 +104,7 @@ scene kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compil
 scene_diff kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=
 scene_environment kind=RegisterAction mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action optional=prop,value
 scene_health kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=focus
-screenshot kind=Register mutating=1 runtime=0 special=1 filehandler=1 always=0 compile=1 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=angle,angles,annotation_id,camera,fixed_size,height,highlight,offset,output_path,path,show_colliders,supersample,width,zoom
+screenshot kind=Register mutating=1 runtime=0 special=1 filehandler=1 always=0 compile=1 notbatch=0 playok=1 noundo=0 policy=0 max=0 required= optional=angle,angles,annotation_id,camera,fixed_size,height,highlight,offset,output_path,path,show_colliders,supersample,width,zoom
 scriptable_object kind=RegisterAction mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action optional=fields,filter,path,prop,type,value
 search_context kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=30000 required= optional=limit,query,types
 search_scene kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=30000 required=query optional=limit,root,scene
@@ -112,7 +112,7 @@ serialized_field_rename_audit kind=Register mutating=0 runtime=0 special=0 fileh
 set_active kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=active,path optional=
 set_client_label kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=1 compile=1 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=label optional=
 set_material kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=path optional=color,shader
-set_parent kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=path optional=parent,world_position_stays
+set_parent kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=1 noundo=0 policy=0 max=0 required=path optional=parent,world_position_stays
 set_property kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=component,dry_run,find_type,path,prop,value
 set_property_delta kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=component,delta,path,prop optional=
 set_rect kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=path optional=anchor,offset_max,offset_min,pivot,pos,pos3,size
@@ -136,7 +136,7 @@ unwire_event kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0
 validate_playtest_aliases kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=1 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=defs optional=asset
 validate_references kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=path optional=depth,ignore_optional,verbose
 validate_triggers kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=min_distance,root
-wait_until kind=RegisterAsync mutating=1 runtime=1 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=component,field,path,value optional=abort_on_fail,negate,timeout
+wait_until kind=RegisterAsync mutating=1 runtime=1 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=1 noundo=0 policy=0 max=0 required=component,field,path,value optional=abort_on_fail,negate,timeout
 warm_type_cache kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=
 watch_add kind=Register mutating=0 runtime=1 special=0 filehandler=0 always=0 compile=0 notbatch=1 playok=0 noundo=0 policy=0 max=0 required=component,field,path optional=action,condition,interval_ms
 watch_clear kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=

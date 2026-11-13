@@ -20,12 +20,24 @@
   <ItemGroup>
     <!-- Relative to this file's own directory (unity-plugin/Tests~/Decisions/). -->
     <Compile Include="../../Editor/Generated/*.g.cs" />
+    <!-- ToolBindings.g.cs binds CommandRegistry.Register(name, CommandRouter.ExecXxx, ...): CommandRouter.cs and the
+         helpers it calls (MaterialHelper, ColliderFitHelper, ...) need UnityEditor/UnityEngine, so it is the one
+         generated file this pure (no-Unity) lane cannot compile; excluded rather than dragging those in. -->
+    <Compile Remove="../../Editor/Generated/ToolBindings.g.cs" />
+    <!-- ToolDispatch.g.cs prints a partial class per DISPATCH tool (e.g. PrefabHelper) calling its own arm
+         methods, which need UnityEditor/UnityEngine (AssetDatabase, PrefabUtility, ...) like ToolBindings.g.cs
+         above; excluded for the same reason (dsl-bottlenecks-2026-11 S3). -->
+    <Compile Remove="../../Editor/Generated/ToolDispatch.g.cs" />
     <!-- the real files under test; the Unity-only symbols they touch are in UnityStubs.cs -->
     <Compile Include="../../Editor/CommandRegistry.cs" />
     <Compile Include="../../Editor/CommandOptions.cs" />
     <Compile Include="../../Editor/JsonHelper.cs" />
+    <!-- Wire.cs: the pure wire-encoding helpers WireRecords.g.cs calls (w_int/w_float1/w_bool/...); no UnityEngine/UnityEditor dependency. -->
+    <Compile Include="../../Editor/Wire.cs" />
     <Compile Include="../../Editor/Decisions/*.cs" />
     <None Include="../../../dsl/decisions/*.json" Link="rows/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- the tool catalog source (dsl/tools.biome): ToolArgsAccessorTests derives its expected (tool, arg) set from this, never a hand list -->
+    <None Include="../../../dsl/tools.biome" Link="tools.biome" CopyToOutputDirectory="PreserveNewest" />
     <!-- the read actions of the commands as ACTION_READS stated them before the catalog printed them (the oracle of test_action_reads_golden.py) -->
     <None Include="../../../server/tests/golden/decisions/action_reads.txt" Link="rows/action_reads.txt" CopyToOutputDirectory="PreserveNewest" />
     <!-- the wire calls of the is_write golden of the hand-written Python function (test_is_write_golden.py), with the registry state they were answered under -->

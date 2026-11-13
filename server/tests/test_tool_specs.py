@@ -162,14 +162,15 @@ def test_runtime_only_single_source():
     from unity_mcp.middleware_types import _RUNTIME_ONLY_CMDS
 
     project_root = Path(__file__).parents[2]
-    cs_path = project_root / "unity-plugin/Editor/CommandRouter.Registration.cs"
-    assert cs_path.exists(), f"C# source not found: {cs_path}"
-    cs_source = cs_path.read_text(encoding="utf-8")
-
-    assert 'CommandRegistry.RegisterAsync("run_playtest", AsyncRunPlaytest, runtime: false,' in cs_source, (
-        "C# registration must keep runtime: false — the gate moved past parsing into "
-        "AsyncRunPlaytest's header check (B05); reverting here re-blocks every "
-        "Edit-mode run_playtest before its header is ever read"
+    meta_path = project_root / "unity-plugin/Editor/Generated/ToolMeta.g.cs"
+    assert meta_path.exists(), f"Generated meta not found: {meta_path}"
+    meta_source = meta_path.read_text(encoding="utf-8")
+    rp_idx = meta_source.index('"run_playtest"')
+    rp_block = meta_source[rp_idx:meta_source.index("}", rp_idx + 200) + 1]
+    assert "Runtime = true" not in rp_block, (
+        "run_playtest must NOT have Runtime=true in ToolMeta.g.cs — the gate moved past "
+        "parsing into AsyncRunPlaytest's header check (B05); setting Runtime=true here "
+        "would re-block every Edit-mode run_playtest before its header is ever read"
     )
     assert _SPECS["run_playtest"].runtime_only is False, (
         "tool_specs.py must not flag run_playtest runtime_only=True — that would "
