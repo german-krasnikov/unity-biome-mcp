@@ -108,6 +108,9 @@ Rules:
 - Unity command failures use a stable `err:`/`error:` form or a failed response
   envelope; Python-only validation raises `ToolError` or returns an equally
   explicit error contract.
+- An unknown `action` is reported as `Unknown action '<x>'. Valid: a|b|c.`, built by
+  `ErrorHelper.InvalidAction` from the tool's declared actions (`ToolActions.Names`).
+  Never write a hand valid-list; see [`dsl/README.md`](../dsl/README.md#actions).
 - Machine-readable sentinels use stable keys and delimiters. Durable operations
   retain all identities (`request_id`, `run_id`, `utf_guid`) rather than asking
   callers to infer the latest run.
@@ -229,7 +232,7 @@ distillation.
 - [ ] Existing Python, ToolSpec, Unity, docs, and ClientSkills surfaces were searched.
 - [ ] The public signature uses established names or documents a tested mapping.
 - [ ] Optional values and booleans are encoded deliberately.
-- [ ] A closed action enum validates invalid input.
+- [ ] A closed action enum validates invalid input against its declared `ACTION` lines.
 - [ ] Errors, sentinels, partial states, and timeout semantics are unambiguous.
 - [ ] `ToolSpec` category, mutability, timeout, runtime, and direct-only flags match behavior.
 - [ ] Visibility or full-schema promotion is justified.

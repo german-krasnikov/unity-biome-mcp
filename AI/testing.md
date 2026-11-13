@@ -116,6 +116,14 @@ windows or previews, call `Undo.ClearAll()`, or delete unregistered assets.
 Editor-window tests use `CreateOwnedEditorWindow<T>()`, not `GetWindow<T>()`,
 `GetWindowWithRect<T>()`, or a production `ShowWindow()` entry point.
 
+Exception: Unity can create assets that a test cannot name in advance. The
+default UI Toolkit theme appears under `Assets/UI Toolkit/`, outside
+`Assets/TestsTemp/`, the first time a UXML or USS asset is touched. A fixture
+that touches it snapshots the directories and files under that root before the
+test and registers a cleanup that removes only the entries absent from the
+snapshot. It never deletes a pre-existing directory or asset. Example:
+`UnknownActionErrorTextCharacterizationTests`, `RegisterUiToolkitCleanup`.
+
 ## Asynchronous Tests
 
 Write new asynchronous tests as `[Test] async Task` and await every task before
@@ -325,6 +333,13 @@ Before a C# handler reads its arguments through `ToolArgs.g.cs`, add an EditMode
 same fixture passes unchanged after the swap. Examples: `AnimationHandlerArgsCharacterizationTests` and
 `TimelineHandlerArgsCharacterizationTests` in `unity-plugin/Editor/Tests/`.
 
+The same pattern pins an error text. Assert the full message, not a substring, and
+run the fixture on the old text before the change. An intended change of the text
+is a separate change; its commit message states the old and the new text. Example:
+`UnknownActionErrorTextCharacterizationTests` (the unknown-action text of 21 of the
+23 action-dispatched tools; `build` and `package` are not pinned there; see
+[`dsl/README.md`](../dsl/README.md#actions)).
+
 ## Pure Dotnet Lane for Parser Core
 
 The engine-free `UnityMCP.Playtest.Core` assembly (v1.53.0+) can be tested outside Unity using dotnet:
@@ -462,7 +477,7 @@ e.g. `test_sync_compile_guard.py::test_sync_compile_guard_text_matches_csharp_co
 `test_editor_control_tools.py::test_noop_recovery_result_matches_csharp_constant`,
 `test_reload_module_boundary.py`, `test_source_patch_reload_control_boundary.py`,
 the C#-parity test in `test_tool_specs.py`, `test_timing_invariants.py`,
-the C#-source-scan tests in `test_mvid_tracking.py`, and the C#-scanning tests
+the C#-source-scan tests in `test_mvid_tracking.py`, `test_action_vocabulary_parity.py` (the action dispatch arms and error lists), and the C#-scanning tests
 in `test_playtest_async.py`. These run in CI, but a developer working only the
 C# side and running `run_unity_tests.py EditMode` would not naturally trigger
 them, so drift can land unnoticed until the next full Python CI pass. After
