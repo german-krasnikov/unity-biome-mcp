@@ -168,7 +168,7 @@ namespace UnityMCP.Editor
         // Compare alias .defs file vs PlaytestConfig.asset.
         // defs: project-relative path to .defs file (default: Assets/PlaytestDefs/game_core.defs).
         // asset: asset path to PlaytestConfig (default: first found via FindAssets).
-        private static string ExecValidateAliases(string argsJson)
+        internal static string ExecValidateAliases(string argsJson)
         {
             var defsPath  = JsonHelper.ExtractString(argsJson, "defs") ?? "Assets/PlaytestDefs/game_core.defs";
             var assetPath = JsonHelper.ExtractString(argsJson, "asset");

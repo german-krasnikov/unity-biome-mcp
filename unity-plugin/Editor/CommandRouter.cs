@@ -279,7 +279,7 @@ namespace UnityMCP.Editor
             }
         }
 
-        private static void AsyncRunTests(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncRunTests(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             var mode = JsonHelper.ExtractString(argsJson, "mode");
             var group = JsonHelper.ExtractString(argsJson, "group");
@@ -503,7 +503,7 @@ namespace UnityMCP.Editor
             return true;
         }
 
-        private static void AsyncRunPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncRunPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             if (!TryBuildPlaytestRunRequest(id, argsJson, tcs, out var req)) return;
 
@@ -611,7 +611,7 @@ namespace UnityMCP.Editor
         private static bool IsPlaytestSuccess(string report, string format) =>
             Decisions.Verdict.Policy.Passes(Decisions.PlaytestFacts.Read(report, format));
 
-        private static void AsyncAskUser(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncAskUser(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             // Finding 2 (PR-05 05.2): fail fast, BEFORE creating a PendingAskRegistry entry —
             // nobody can ever answer a question with no subscriber, so don't make the caller

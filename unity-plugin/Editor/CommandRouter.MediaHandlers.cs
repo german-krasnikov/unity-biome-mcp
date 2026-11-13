@@ -142,7 +142,7 @@ namespace UnityMCP.Editor
             return result;
         }
 
-        private static string ExecAnimationConsolidated(string args)
+        internal static string ExecAnimationConsolidated(string args)
         {
             var action = AnimationArgs.Action(args);
             var path = AnimationArgs.Path(args);
@@ -170,7 +170,7 @@ namespace UnityMCP.Editor
             };
         }
 
-        private static string ExecTimelineConsolidated(string args)
+        internal static string ExecTimelineConsolidated(string args)
         {
             var action = TimelineArgs.Action(args);
             // Read-only actions allowed in Play Mode; mutating actions are not.
@@ -195,7 +195,7 @@ namespace UnityMCP.Editor
             };
         }
 
-        private static string ExecReferencesConsolidated(string args)
+        internal static string ExecReferencesConsolidated(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
             return action switch
@@ -255,7 +255,7 @@ namespace UnityMCP.Editor
                 JsonHelper.ExtractString(args, "pos3"));  // G8: anchoredPosition3D
         }
 
-        private static string ExecInspectUITK(string args) =>
+        internal static string ExecInspectUITK(string args) =>
             UIHelper.InspectUITK(
                 JsonHelper.ExtractString(args, "path"),
                 ParseOptInt(args, "depth") ?? 4,
@@ -289,7 +289,7 @@ namespace UnityMCP.Editor
         }
 
         // Session 12: uitk_file — UXML/USS CRUD with two-gate validation
-        private static string ExecUitkFile(string args)
+        internal static string ExecUitkFile(string args)
         {
             var assetPath = JsonHelper.ExtractString(args, "path");
             var action    = JsonHelper.ExtractString(args, "action") ?? "read";
@@ -465,7 +465,7 @@ namespace UnityMCP.Editor
             };
         }
 
-        private static string ExecShaderConsolidated(string args)
+        internal static string ExecShaderConsolidated(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
             return action switch
