@@ -1,5 +1,5 @@
 // Generated from dsl/tools.biome
-// source-sha256=fdb456e124945afeb73e1ecd54f2c1f941271dd9b786628523f0e60d600d24dd
+// source-sha256=2b396b1899b52109550c683f1c777dd579821281a73540e25c0b80129d44287a
 // Edit the source, then run biome generate.
 
 namespace UnityMCP.Editor.Chat

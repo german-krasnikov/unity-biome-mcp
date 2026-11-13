@@ -7,32 +7,13 @@ using UnityEngine;
 
 namespace UnityMCP.Editor
 {
-    internal static class AssetDatabaseHelper
+    // Execute(action, argsJson) is generated into Generated/ToolDispatch.g.cs from the DISPATCH/ACTION
+    // lines of dsl/tools.biome's asset TOOL block (dsl-bottlenecks-2026-11 S3). DISPATCH EXCEPTION
+    // Exception preserves the one odd-one-out: asset's default arm throws plain System.Exception,
+    // not ArgumentException like the other DISPATCH tools (product observation, left unchanged).
+    internal static partial class AssetDatabaseHelper
     {
         const int MaxFindResults = 200;
-
-        internal static string Execute(string action, string argsJson)
-        {
-            switch (action)
-            {
-                case "find":            return Find(argsJson);
-                case "get_info":        return GetInfo(argsJson);
-                case "create":          return Create(argsJson);
-                case "move":            return Move(argsJson);
-                case "validate_move":   return ValidateMove(argsJson);
-                case "duplicate":       return Duplicate(argsJson);
-                case "delete":          return Delete(argsJson);
-                case "get_dependencies":return GetDependencies(argsJson);
-                case "find_dependents": return FindDependents(argsJson);
-                case "import_settings": return ImportSettings(argsJson);
-                case "export_package": return ExportPackage(argsJson);
-                case "import_package": return ImportPackage(argsJson);
-                case "read_text":      return ReadText(argsJson);
-                case "write_text":     return WriteText(argsJson);
-                case "reimport":       return Reimport(argsJson);
-                default:                throw new System.Exception(ErrorHelper.InvalidAction(action, ToolActions.Names("asset")));
-            }
-        }
 
         static string Find(string argsJson)
         {

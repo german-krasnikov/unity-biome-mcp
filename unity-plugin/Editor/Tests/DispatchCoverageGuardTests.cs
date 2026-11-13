@@ -42,5 +42,17 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Prefab_EveryDeclaredAction_DispatchesToItsOwnMethod() =>
             AssertEveryActionDispatches("prefab");
+
+        [Test]
+        public void ScriptableObject_EveryDeclaredAction_DispatchesToItsOwnMethod() =>
+            AssertEveryActionDispatches("scriptable_object");
+
+        [Test]
+        public void Material_EveryDeclaredAction_DispatchesToItsOwnMethod() =>
+            AssertEveryActionDispatches("material");
+
+        [Test]
+        public void Asset_EveryDeclaredAction_DispatchesToItsOwnMethod() =>
+            AssertEveryActionDispatches("asset");
     }
 }

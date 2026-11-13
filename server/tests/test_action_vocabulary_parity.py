@@ -12,9 +12,10 @@ a switch in another; the scanner unions the arms/hints of every source. It grows
 in later slices.
 
 A tool whose dispatcher is itself GENERATED from the catalog's ACTION/DISPATCH lines (dsl-bottlenecks-2026-11 S3:
-`prefab` so far) has no hand arm list left to scan for drift against -- the generated switch and the catalog are
-the same fact by construction, so the row is removed here rather than kept as a tautology. The toolchain's own
-construct examples (dsl/constructs/tool.examples) and the dotnet Decisions-lane compile are its proof instead.
+`prefab`, `scriptable_object`, `material`, `asset`) has no hand arm list left to scan for drift against -- the
+generated switch and the catalog are the same fact by construction, so the row is removed here rather than kept
+as a tautology. The toolchain's own construct examples (dsl/constructs/tool.examples) and the dotnet
+Decisions-lane compile are its proof instead.
 """
 import re
 from pathlib import Path
@@ -30,7 +31,6 @@ _EDITOR = Path(__file__).resolve().parents[2] / "unity-plugin" / "Editor"
 # tool name -> ((file relative to unity-plugin/Editor, C# dispatcher method name), ...)
 _ACTION_TOOLS: dict[str, tuple[tuple[str, str], ...]] = {
     "animation": (("CommandRouter.MediaHandlers.cs", "ExecAnimationConsolidated"),),
-    "asset": (("AssetDatabaseHelper.cs", "Execute"),),
     "editor": (
         # ExecEditor (CommandRouter.MediaHandlers.cs:323-331) handles state/mutation_mode itself via an if-chain
         # and delegates everything else to EditorStateHelper.Control's switch (EditorStateHelper.cs:57-89).
@@ -39,7 +39,6 @@ _ACTION_TOOLS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "render_analyze": (("RenderAnalyzer.cs", "Execute"),),
     "scene": (("CommandRouter.MediaHandlers.cs", "ExecScene"),),
-    "scriptable_object": (("ScriptableObjectHelper.cs", "Execute"),),
     "shader": (("CommandRouter.MediaHandlers.cs", "ExecShaderConsolidated"),),
     "timeline": (("CommandRouter.MediaHandlers.cs", "ExecTimelineConsolidated"),),
     # ExecUitkElement (CommandRouter.MediaHandlers.cs:273-282) is a one-line forwarder with no action logic of its
@@ -65,7 +64,6 @@ _ACTION_TOOLS: dict[str, tuple[tuple[str, str], ...]] = {
     # ternary only picks response text); the real dispatch -- and its only error path -- is
     # ObjectManager.ManageComponent's if/else-if chain (ObjectManager.cs:211-243).
     "manage_component": (("ObjectManager.cs", "ManageComponent"),),
-    "material": (("MaterialHelper.cs", "Execute"),),
     "material_audit": (("MaterialAuditHelper.cs", "Execute"),),
     "menu": (("CommandRouter.MediaHandlers.cs", "ExecMenu"),),
     "package": (("PackageManagerHelper.cs", "Execute"),),
@@ -87,8 +85,10 @@ _ACTION_TOOLS: dict[str, tuple[tuple[str, str], ...]] = {
 _PATTERN_BEFORE_ARROW = re.compile(r'((?:"[a-z][a-z0-9_-]*"\s*(?:or\s*)?)+)=>')
 _QUOTED = re.compile(r'"([a-z][a-z0-9_-]*)"')
 _INVALID_ACTION_LIST = re.compile(r'ErrorHelper\.InvalidAction\(\s*action,\s*new\[\]\s*\{([^}]*)\}\)')
-# A hint array passed by name instead of inline (AssetDatabaseHelper.cs, ScriptableObjectHelper.cs): resolved by
-# finding the field's own declaration in the full file text.
+# A hint array passed by name instead of inline: resolved by finding the field's own declaration in the full
+# file text. Its former examples (AssetDatabaseHelper.cs, ScriptableObjectHelper.cs) are now DISPATCH-generated
+# and out of `_ACTION_TOOLS` (dsl-bottlenecks-2026-11 S3); this path is unexercised by any current tool, kept
+# for the next hand file that passes a named valid-list instead of `ToolActions.Names(cmd)`.
 _NAMED_INVALID_ACTION_LIST = re.compile(r'ErrorHelper\.InvalidAction\(\s*action,\s*(\w+)\)')
 # A plain `if (action == "...")` dispatch arm -- the shape a switch-EXPRESSION scanner cannot see (`editor`,
 # `uitk_element`); and a classic `case "...":` switch-STATEMENT label -- the shape the arrow-only scanner above
@@ -272,9 +272,9 @@ def test_catalog_actions_match_the_csharp_dispatch_arms(tool):
 # returned string, "err:" prefix; ObjectManager.cs/ObjectManager.Transfer.cs/Profiling/ProfileRecorder.cs:
 # thrown ArgumentException, no prefix).
 _USES_GENERATED_VALID_LIST = {
-    "animation", "animator", "asset", "build", "editor", "manage_component", "material",
+    "animation", "animator", "build", "editor", "manage_component",
     "material_audit", "menu", "package", "particle", "profile", "references",
-    "render_analyze", "scene", "scene_environment", "scriptable_object", "shader", "spatial_query",
+    "render_analyze", "scene", "scene_environment", "shader", "spatial_query",
     "timeline", "transfer_object", "uitk_element", "uitk_file",
 }
 

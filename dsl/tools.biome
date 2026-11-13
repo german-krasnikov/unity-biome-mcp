@@ -188,6 +188,7 @@ END
 
 TOOL asset ASSETS RW "Asset database. Creates, moves, or deletes assets. No confirmation required."
   BODY asset
+  DISPATCH "AssetDatabaseHelper" EXCEPTION Exception
   DOC "move/validate_move: source+dest (Assets/ paths)."
   ACTION find READ "type+name+folder+labels"
   ACTION get_info READ
@@ -1052,13 +1053,14 @@ END
 TOOL material ASSETS RW "Material asset management (for quick color change use `set_material`). get/set: path (asset) or object_path (scene). slot: material slot index (default 0)."
   HANDLER register_action "MaterialHelper.Execute"
   FORWARD
+  DISPATCH "MaterialHelper"
   ACTION create "path+shader"
   ACTION get READ
   ACTION set "target: shared|instance|asset (default shared)"
   ACTION copy "source+targets (comma-sep scene paths)"
   ACTION list_properties READ
   ACTION list_slots READ "object_path"
-  ACTION get_errors READ "path (shader asset)"
+  ACTION get_errors READ "path (shader asset)" METHOD "GetShaderErrors"
   ACTION list_shaders READ "filter (optional name filter)"
   ACTION set_fields "path+value (newline-separated prop=val)"
   ARG action str EXAMPLE "get"
@@ -1707,6 +1709,7 @@ END
 TOOL scriptable_object ASSETS RW "ScriptableObject. get/set: path. set/create fields: \\n-separated prop=value pairs."
   HANDLER register_action "ScriptableObjectHelper.Execute"
   FORWARD
+  DISPATCH "ScriptableObjectHelper"
   ACTION create "type+path[+fields]"
   ACTION get READ "fields: comma-sep filter"
   ACTION set
