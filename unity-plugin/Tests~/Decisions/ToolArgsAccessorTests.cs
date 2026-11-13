@@ -31,14 +31,36 @@ namespace UnityMCP.Decisions.Tests
                 "{}", "{\"component\":null}", "{\"component\":\"Transform\"}", "{\"component\":\"Box\\\"Collider\"}");
         }
 
-        // ostr: animation's "path" (ARG path ostr).
+        // ostr, optional (has DEFAULT): animation's "clip" (ARG clip ostr DEFAULT None).
         [Test]
         public void Ostr_accessor_matches_ExtractString_oracle()
         {
             AssertMatchesOracle(
-                j => JsonHelper.ExtractString(j, "path"),
+                j => JsonHelper.ExtractString(j, "clip"),
+                j => AnimationArgs.Clip(j),
+                "{}", "{\"clip\":null}", "{\"clip\":\"Run\"}");
+        }
+
+        // str, required (no DEFAULT/DEFAULT_TEXT): animation's "path" (ARG path str) reads through
+        // JsonHelper.RequireString, not ExtractString -- the required/optional split of TEMPLATE
+        // csargs (dsl/constructs/tool.construct). CommandRegistry's own Required-arg gate already
+        // rejects a request missing "path" before the handler runs; this throw only matters to a
+        // caller that invokes the accessor directly, same as RequireString itself (JsonHelper.cs).
+        [Test]
+        public void RequiredStr_accessor_throws_like_RequireString_oracle_when_missing_or_empty()
+        {
+            Assert.Throws<ArgumentException>(() => AnimationArgs.Path("{}"));
+            Assert.Throws<ArgumentException>(() => AnimationArgs.Path("{\"path\":null}"));
+            Assert.Throws<ArgumentException>(() => AnimationArgs.Path("{\"path\":\"\"}"));
+        }
+
+        [Test]
+        public void RequiredStr_accessor_matches_RequireString_oracle_when_present()
+        {
+            AssertMatchesOracle(
+                j => JsonHelper.RequireString(j, "path"),
                 j => AnimationArgs.Path(j),
-                "{}", "{\"path\":null}", "{\"path\":\"/Player\"}");
+                "{\"path\":\"/Player\"}", "{\"path\":\"Box\\\"Collider\"}");
         }
 
         // Any: set_property's "value" (ARG value Any) -- confirmed by every current C# caller using ExtractString.
