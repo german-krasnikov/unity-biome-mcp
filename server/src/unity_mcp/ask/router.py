@@ -27,9 +27,6 @@ _SCENE_HEALTH_RE = re.compile(r"\b(errors?|wrong|issues?|problems?)\b.*\b(scene|
 _EDITOR_STATE_RE = re.compile(r"\bplay(ing|mode| mode)\b|\bpaused\b|\bdirty\b", re.I)
 _COMPILE_RE = re.compile(r"\bcompil(e|ation|ing)\b", re.I)
 
-# COUNT_ACTIVE: documented placeholder (ask/plans.py CANONICAL_PLANS["COUNT_ACTIVE"] is None, needs Haiku filter
-# extraction). Its match is a no-op on the decided route — it is deliberately NOT one of askRoute's facts.
-_COUNT_ACTIVE_RE = re.compile(r"\bhow many\b|\bcount of\b.*\b(active|enabled|tag|comp)\b", re.I)
 
 
 def is_mutating(question: str) -> bool:
