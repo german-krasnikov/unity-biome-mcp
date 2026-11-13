@@ -396,6 +396,7 @@ dotnet test unity-plugin/Tests~/MutationAdapterContract/AdapterContract.Tests.cs
 - Compiles the C# printed from `dsl/` (`Editor/Generated/*.g.cs`, except `ToolBindings.g.cs`, which needs UnityEditor) with the real `CommandRegistry.cs`, `CommandOptions.cs`, `JsonHelper.cs`, `Wire.cs` and `Editor/Decisions/*.cs` at LangVersion 9 with warnings as errors (`UnityStubs.cs` stands for the few Unity symbols they touch)
 - `ToolArgsAccessorTests` and `ToolArgsPascalCaseTests` check the typed accessors of `ToolArgs.g.cs` against the catalog (see [dsl/README.md](../dsl/README.md#c-arguments))
 - `RowsTests` runs the machine rows of the examples (`dsl/decisions/<module>.json`) through the generated policies; `MutabilityWireTests`, `GuardsOracleTests` and `PlaytestOracleTests` compare the registry, the guard facts and `PlaytestFacts` with the old hand-written code (`Oracle/`) or the golden of the Python side (`server/tests/golden/decisions`)
+- Python tier 0 is `server/tests/test_decisions_examples.py`: the rows of every decision module run through its generated Python. The C# lane above runs only the modules printed to C#
 - Does not run `CommandRouter` or `BatchHelper` (they need Unity): their guards and texts are covered by the EditMode tests only
 
 Run with:

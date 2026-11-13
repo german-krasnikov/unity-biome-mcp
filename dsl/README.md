@@ -118,13 +118,36 @@ A migrated handler reads its arguments through these accessors. `animation` and 
 `JsonHelper.Extract*` with the key. Migrate a handler only after a characterization fixture that passes on the old code (see
 [`AI/testing.md`](../AI/testing.md)).
 
+## Dispatch
+
+A TOOL block that routes its `action` to one helper class declares `DISPATCH "<Class>"` once, with at least one `ACTION`. `EXCEPTION` sets the
+exception type (`ArgumentException` or `Exception`). `generate` prints the dispatcher into `unity-plugin/Editor/Generated/ToolDispatch.g.cs`.
+Generated for `prefab`, `scriptable_object`, `material` and `asset`.
+
+## Data contracts
+
+`dsl/data/` holds typed rows shared by both planes: `<name>.data-contract` states the columns and `<name>.core-data` holds the rows.
+`generate` prints each contract to Python and C#.
+
+| Contract | Rows | Printed to |
+|---|---|---|
+| `backends` | `Backend` | `server/src/unity_mcp/generated/backends.py`, `Editor/Generated/Backends.g.cs` (no Python call site yet) |
+| `clientconfigpath` | `ClientConfigPath` | `server/src/unity_mcp/config/generated/client_config_path_rows.py`, `Editor/Generated/ClientConfigPath.g.cs` |
+| `contextwindow` | `ContextWindowRule` | `server/src/unity_mcp/generated/context_window_rules.py`, `Editor/Chat/CLI/Generated/ContextWindowRules.g.cs` |
+| `installdir` | `InstallDir` | `server/src/unity_mcp/config/generated/install_dir_rows.py`, `Editor/Generated/InstallDir.g.cs` |
+| `llmfeatures` | `LlmFeature` | `server/src/unity_mcp/generated/llm_features.py`, `Editor/Generated/LlmFeatures.g.cs` |
+| `projectconfig` | `ProjectConfigTarget` | `server/src/unity_mcp/config/generated/project_config_targets.py`, `Editor/Generated/ProjectConfigTargets.g.cs` |
+| `protocol` | `Protocol` | `server/src/unity_mcp/generated/protocol.py`, `Editor/Generated/Protocol.g.cs` |
+| `servername` | `ServerIdentity` | `server/src/unity_mcp/generated/server_identity.py`, `Editor/Generated/ServerIdentity.g.cs` |
+| `testrun` | `TerminalOutcome` | `server/src/unity_mcp/generated/testrun_enums.py`, `Editor/Generated/TestRunEnums.g.cs` |
+
 ## Decisions
 
 `dsl/decisions/` holds the rules that the Python server and the Unity plugin both need, as Logic DECISIONs (step 7.2 of the biome-dsl migration;
 the design is `Plans/STEP_7_2_LOGIC_DECISIONS_DESIGN.md` of that repository). A module answers one question and is three files:
 `<m>.logic` (the rules: the first match wins, the lowest `AT`), `<m>.contract` (the typed facts the rules read) and `<m>.examples` (what must hold,
 transcribed from the tests the project already has, each row naming its `file:line`; a row that restates the code is not allowed, and the few
-`characterized-*` rows state the order the code has today where no test pins it, marked as such and not endorsed). `scripts/dsl.sh generate` prints the Python (`server/src/unity_mcp/decisions/generated/<m>_logic.py`), the C# (`unity-plugin/Editor/Generated/<M>.g.cs`, C# 9, with its
+`characterized-*` rows state the order the code has today where no test pins it, marked as such and not endorsed). `scripts/dsl.sh generate` prints the Python (`server/src/unity_mcp/decisions/generated/<m>_logic.py`), the C# for a module with a C# target (`unity-plugin/Editor/Generated/<M>.g.cs`, C# 9, with its
 `.meta`) and the machine rows of the examples (`dsl/decisions/<m>.json`, which pytest and dotnet run).
 
 | Module | The question | Wired at |
@@ -133,6 +156,13 @@ transcribed from the tests the project already has, each row naming its `file:li
 | `verdict` | did the playtest pass? (`passes`, `outcome`, `fileState`, `suiteInner`, `suiteOuter`) | Python `tools/runtime._is_playtest_pass`, `_classify_outcome`, `suite_verdict`; C# `CommandRouter.IsPlaytestSuccess` |
 | `guards` | which guard stops a call? (`guardVerdict`, sites `top`, `batch`, `py`) | C# `CommandRouter.CheckGuards`, `BatchHelper.Execute`; Python read-only, play-mode, direct_only and batch gates |
 | `retry` | why does a failed send retry or stop? (`retryGate`, then `retryReason` when it says `observe`) | Python `bridge_retry.RetryPolicy.decide` (no C#) |
+| `permission` | is a chat action allowed? (`chatPermission`, from `chat.mode`) | Python `permission_broker.py`; C# `SessionAuthorization.cs` through `Editor/Decisions/PermissionFacts.cs` |
+| `versionorder` | is one version newer than another? (`isNewer`) | Python `_update_check.py`; C# `Updates/UpdateChecker.cs`, `ChangelogReader.cs`, `ReleaseDiff.cs` through `Editor/Decisions/VersionFacts.cs` |
+| `busysignal` | is the editor busy (compiling, reloading, wedged)? (`busySignal`) | Python `compile_state.py`; no generated C# |
+| `connstatus` | what does the bridge state mean for the connection? (`connStatus`, `transportStatus`) | Python `bridge.py`; no generated C# |
+| `budget` | may a Haiku call run, and is the speculation hit rate good enough? (`hitRateOk`, `budgetRoute`, `budgetRun`) | Python `budget/router.py`, `speculation.py` through `decisions/budget_facts.py`; no generated C# |
+| `editorlog` | is the Editor.log failure current, which log is picked, which wedge is it? (`failureCurrency`, `logPick`, `wedgeKind`) | Python `editor_log_parser.py`, `editor_log_wedge.py`; no generated C# |
+| `terminalerror` | which error does a terminal test-run snapshot report? (`terminalError`) | Python `tools/testing.py`; no generated C# |
 
 The decisions only decide. The facts are read by native code beside them: `decisions/verdict_facts.py` and `decisions/guard_facts.py` in Python,
 `Editor/Decisions/{MutabilityFacts,PlaytestFacts,GuardFacts}.cs` in C#, `bridge_retry.py` for the retry; the texts of the answers and the effects stay with
