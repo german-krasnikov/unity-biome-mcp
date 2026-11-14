@@ -15,7 +15,7 @@ from unity_mcp.phantom_cleaner import cleanup_stale_port_files
 # ---------------------------------------------------------------------------
 # Paths to C# source files (Group C)
 # ---------------------------------------------------------------------------
-_PROJECT = Path(__file__).parents[2]
+_PROJECT = Path(__file__).parents[3]
 _PLUGIN = _PROJECT / "unity-plugin"
 _RELOAD = _PROJECT / "unity-plugin-reload"
 
@@ -332,7 +332,7 @@ def _load_check_unity():
     """Load check_unity.py as module (it lives in scripts/, not in package)."""
     spec = importlib.util.spec_from_file_location(
         "check_unity",
-        Path(__file__).parents[1] / "scripts/check_unity.py",
+        Path(__file__).parents[2] / "scripts/check_unity.py",
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

@@ -6,7 +6,7 @@ their documented values. A failure here means one side drifted.
 import inspect
 import pathlib
 
-_SERVER_ROOT = pathlib.Path(__file__).parent.parent / "src" / "unity_mcp"
+_SERVER_ROOT = pathlib.Path(__file__).parent.parent.parent / "src" / "unity_mcp"
 
 
 def _src(rel: str) -> str:

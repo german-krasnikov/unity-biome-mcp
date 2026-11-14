@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, Mock, patch
 def test_server_filtering_importable_in_isolation():
     """server_filtering must import without circular ImportError (PY2.arch.1)."""
     venv_python = sys.executable
-    src = str(Path(__file__).parent.parent / "src")
+    src = str(Path(__file__).parent.parent.parent / "src")
     env = {**os.environ, "PYTHONPATH": src}
     result = subprocess.run(
         [venv_python, "-c", "import unity_mcp.server_filtering"],

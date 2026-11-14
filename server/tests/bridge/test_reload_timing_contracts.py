@@ -11,9 +11,9 @@ from pathlib import Path
 import unity_mcp.bridge as _bridge
 from unity_mcp.bridge_heartbeat import BACKOFF_MAX_S, BACKOFF_MIN_S, HARD_DEADLINE_S
 
-_PROJECT = Path(__file__).parents[2]
+_PROJECT = Path(__file__).parents[3]
 _PLUGIN  = _PROJECT / "unity-plugin"
-_BH      = Path(__file__).parents[1] / "src/unity_mcp"
+_BH      = Path(__file__).parents[2] / "src/unity_mcp"
 
 
 # ===========================================================================

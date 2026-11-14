@@ -169,7 +169,7 @@ async def test_sync_unity_guard_hit_stays_compiling_past_deadline_times_out(monk
 # ── Parity: Python constant pinned to the C# compile-guard literal ─────────
 
 _COMMAND_ROUTER_CS_PATH = (
-    pathlib.Path(__file__).parents[2] / "unity-plugin/Editor/CommandRouter.cs"
+    pathlib.Path(__file__).parents[3] / "unity-plugin/Editor/CommandRouter.cs"
 )
 # Anchored to CheckGuards' answer for the `compiling` verdict of guardVerdict
 # (dsl/decisions/guards.logic decides when it applies) specifically -- not the
