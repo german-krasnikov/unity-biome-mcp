@@ -1,12 +1,9 @@
 import hashlib
 import time
-from typing import TYPE_CHECKING
 
+from .llm_gateway import ILlmGateway  # noqa: TC001 — used in runtime annotation
 from .metrics import METRICS
 from .sampling import SamplingService
-
-if TYPE_CHECKING:
-    from .llm_gateway import ILlmGateway
 from .sampling_postproc import normalize
 from .visual_diff_pixel import DIFF_PROMPTS, DiffMode, PixelDiff, _format_pixel, _pixel_diff
 

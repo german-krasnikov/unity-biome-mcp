@@ -1,16 +1,12 @@
-from typing import TYPE_CHECKING
-
 from biome_mcp.degrade import degrade, wrap_degraded
 
+from ..llm_gateway import ILlmGateway  # noqa: TC001 — used in runtime annotation
 from ..metrics import METRICS
 from ..sampling import SamplingService
 from ..sampling_postproc import is_refusal as _is_refusal  # noqa: F401 — re-export
 from ..sampling_postproc import normalize  # noqa: F401 — re-export
 from .cache import FingerprintCache
 from .prompts import resolve, resolve_som
-
-if TYPE_CHECKING:
-    from ..llm_gateway import ILlmGateway
 
 _cache_singleton = FingerprintCache()
 

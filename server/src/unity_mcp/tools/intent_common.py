@@ -1,15 +1,11 @@
 """Shared DSL utilities for Tier B intent tools."""
 
 from collections.abc import Callable  # noqa: TC003
-from typing import TYPE_CHECKING
-
 from mcp.server.mcpserver.exceptions import ToolError
 
+from ..llm_gateway import ILlmGateway  # noqa: TC001 — used in runtime annotation
 from ..sampling_postproc import strip_fences  # backward-compat re-export
 from ..utils import parse_kv  # consolidated — was local copy
-
-if TYPE_CHECKING:
-    from ..llm_gateway import ILlmGateway
 
 __all__ = ["strip_fences", "parse_kv", "parse_indent_tree", "sanitize_intent", "build_batch_line", "run_intent_pipeline"]
 
