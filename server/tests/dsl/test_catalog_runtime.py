@@ -383,7 +383,7 @@ def test_the_hand_written_sync_unity_is_checked_against_the_catalog_when_its_mod
         # the real sync_unity is a bound method (SyncModule.sync_unity, not a bare module-level
         # function) -- register()'s two-owners check compares __module__/__qualname__ against what
         # is already registered, so the stand-in needs the same class-qualified origin.
-        namespace = {"__name__": "unity_mcp.tools.sync_module"}
+        namespace = {"__name__": "unity_mcp.reload.sync_module"}
         exec(f'class SyncModule:\n    async def sync_unity(self, {signature}) -> str:\n        """{doc}"""', namespace)
         bound = namespace["SyncModule"]().sync_unity
         with pytest.raises(TypeError, match=message):

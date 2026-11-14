@@ -17,7 +17,7 @@ def _src(rel: str) -> str:
 
 def test_reload_guard_key_in_python():
     """reload_ladder.py must contain the SessionState key used by ReloadGuard."""
-    source = _src("tools/reload_ladder.py")
+    source = _src("reload/reload_ladder.py")
     assert "MCP_ReloadGuardLocked" in source
 
 

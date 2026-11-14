@@ -27,7 +27,6 @@ from . import (
     screenshot,
     skills,
     spatial,
-    sync_module,
     testing,
     tool_specs,
     transaction,
@@ -45,6 +44,13 @@ from .metrics_tool import register as register_metrics
 
 def register_all(mcp, send, args, *, get_slot, get_middleware=None,
                   stdio_alive=None, refresh_tools_cache=None, push_catalog=None):
+    # Lazy: unity_mcp.reload.reload_ladder needs unity_mcp.tools._annotations/
+    # diagnose/tool_specs, so importing reload.sync_module at this module's own
+    # top level (before unity_mcp.tools finishes loading) would re-enter
+    # reload.reload_ladder while it is still mid-load. By the time register_all
+    # is actually called, unity_mcp.tools is already fully imported, so this
+    # import is safe here.
+    from ..reload import sync_module
     for mod in [scene, objects, asset, animation, runtime, watch, code_intel,
                 batch, codegen, skills, spatial, uitk, sync_module, diagnose,
                 debug_tool, snapshot_tool, profiling,

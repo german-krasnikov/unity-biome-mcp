@@ -605,7 +605,7 @@ async def lifespan(app):
                 await _refresh_resources(active)
             _last_refresh_ts: float = 0.0
 
-            from .tools.sync_module import _reset_bump_used as _sync_reset_bump
+            from .reload.sync_module import _reset_bump_used as _sync_reset_bump
 
             def _on_reconnect():
                 nonlocal _last_refresh_ts

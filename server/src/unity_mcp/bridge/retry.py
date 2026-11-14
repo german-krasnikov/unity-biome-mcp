@@ -18,8 +18,8 @@ from ..decisions.generated.retry_logic import (
     retry_gate,
     retry_reason,
 )
-from .compile_state import CompileStateProbe  # noqa: TC001
-from .reload_state import DomainReloadTracker  # noqa: TC001
+from ..reload.compile_state import CompileStateProbe  # noqa: TC001
+from ..reload.reload_state import DomainReloadTracker  # noqa: TC001
 
 # Exponential retry backoff for domain_reload/busy/connection_refused reasons:
 # BASE**(attempt+1) capped at CAP_S (2/4/8s in production). Named so

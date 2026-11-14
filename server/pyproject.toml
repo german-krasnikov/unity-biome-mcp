@@ -176,8 +176,27 @@ allow_indirect_imports = true
 [[tool.importlinter.contracts]]
 name = "diagnose/reload_ladder stay algorithm+evidence only (no import of the sync facade)"
 type = "forbidden"
-source_modules = ["unity_mcp.tools.diagnose", "unity_mcp.tools.reload_ladder"]
-forbidden_modules = ["unity_mcp.tools.sync"]
+source_modules = ["unity_mcp.tools.diagnose", "unity_mcp.reload.reload_ladder"]
+forbidden_modules = ["unity_mcp.reload.sync", "unity_mcp.tools.sync"]
+
+[[tool.importlinter.contracts]]
+name = "reload package does not import tools or server"
+type = "forbidden"
+source_modules = ["unity_mcp.reload"]
+forbidden_modules = ["unity_mcp.server", "unity_mcp.tools"]
+# Reviewed point exceptions (existing coupling this contract did not introduce):
+# sync/reload_ladder need diagnose's parse/verdict helpers and the generated
+# catalog/wire-record schemas, which still live in tools/ -- moving diagnose.py,
+# _annotations.py, tool_specs.py and the generated/ schemas into reload/ too is a
+# separate, larger extraction, out of Phase 3.1's scope (see CHANGELOG/commit).
+ignore_imports = [
+    "unity_mcp.reload.sync -> unity_mcp.tools.diagnose",
+    "unity_mcp.reload.sync_module -> unity_mcp.tools.generated.catalog_tools",
+    "unity_mcp.reload.sync_algorithm -> unity_mcp.tools.generated.wire_records",
+    "unity_mcp.reload.reload_ladder -> unity_mcp.tools._annotations",
+    "unity_mcp.reload.reload_ladder -> unity_mcp.tools.diagnose",
+    "unity_mcp.reload.reload_ladder -> unity_mcp.tools.tool_specs",
+]
 
 # The decisions printed from dsl/decisions (step 7.2) are pure functions of typed facts: a leaf that imports the standard library
 # and itself. "unity_mcp.*" is every module and package under unity_mcp; the contract skips the pair (decisions, decisions), so the
