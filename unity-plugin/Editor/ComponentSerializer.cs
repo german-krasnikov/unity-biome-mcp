@@ -138,7 +138,7 @@ namespace UnityMCP.Editor
             switch (prop.propertyType)
             {
                 case SerializedPropertyType.Integer:   return prop.intValue.ToString();
-                case SerializedPropertyType.Float:     return prop.floatValue.ToString("G4", CultureInfo.InvariantCulture);
+                case SerializedPropertyType.Float:     return SerializerText.FormatFloat(prop.floatValue, "G4");
                 case SerializedPropertyType.Boolean:   return prop.boolValue ? "true" : "false";
                 case SerializedPropertyType.String:    return prop.stringValue;
                 case SerializedPropertyType.Enum:
@@ -147,13 +147,13 @@ namespace UnityMCP.Editor
                         : prop.intValue.ToString();
                 case SerializedPropertyType.Vector2:
                     var v2 = prop.vector2Value;
-                    return $"({v2.x.ToString("G4", CultureInfo.InvariantCulture)}, {v2.y.ToString("G4", CultureInfo.InvariantCulture)})";
+                    return $"({SerializerText.FormatFloat(v2.x, "G4")}, {SerializerText.FormatFloat(v2.y, "G4")})";
                 case SerializedPropertyType.Vector3:
                     var v3 = prop.vector3Value;
-                    return $"({v3.x.ToString("G4", CultureInfo.InvariantCulture)}, {v3.y.ToString("G4", CultureInfo.InvariantCulture)}, {v3.z.ToString("G4", CultureInfo.InvariantCulture)})";
+                    return $"({SerializerText.FormatFloat(v3.x, "G4")}, {SerializerText.FormatFloat(v3.y, "G4")}, {SerializerText.FormatFloat(v3.z, "G4")})";
                 case SerializedPropertyType.Vector4:
                     var v4 = prop.vector4Value;
-                    return $"({v4.x.ToString("G4", CultureInfo.InvariantCulture)}, {v4.y.ToString("G4", CultureInfo.InvariantCulture)}, {v4.z.ToString("G4", CultureInfo.InvariantCulture)}, {v4.w.ToString("G4", CultureInfo.InvariantCulture)})";
+                    return $"({SerializerText.FormatFloat(v4.x, "G4")}, {SerializerText.FormatFloat(v4.y, "G4")}, {SerializerText.FormatFloat(v4.z, "G4")}, {SerializerText.FormatFloat(v4.w, "G4")})";
                 case SerializedPropertyType.Vector2Int:
                     var v2i = prop.vector2IntValue;
                     return $"({v2i.x}, {v2i.y})";
@@ -164,7 +164,7 @@ namespace UnityMCP.Editor
                     return $"#{ColorUtility.ToHtmlStringRGBA(prop.colorValue)}";
                 case SerializedPropertyType.Quaternion:
                     var euler = prop.quaternionValue.eulerAngles;
-                    return $"({euler.x.ToString("G4", CultureInfo.InvariantCulture)}, {euler.y.ToString("G4", CultureInfo.InvariantCulture)}, {euler.z.ToString("G4", CultureInfo.InvariantCulture)})";
+                    return $"({SerializerText.FormatFloat(euler.x, "G4")}, {SerializerText.FormatFloat(euler.y, "G4")}, {SerializerText.FormatFloat(euler.z, "G4")})";
                 case SerializedPropertyType.ObjectReference:
                     if (prop.objectReferenceValue == null) return "null";
                     if (prop.objectReferenceValue is GameObject refGo)
@@ -213,12 +213,12 @@ namespace UnityMCP.Editor
                 case SerializedPropertyType.Rect:
                 {
                     var r = prop.rectValue;
-                    return $"({r.x.ToString("G4", CultureInfo.InvariantCulture)}, {r.y.ToString("G4", CultureInfo.InvariantCulture)}, {r.width.ToString("G4", CultureInfo.InvariantCulture)}, {r.height.ToString("G4", CultureInfo.InvariantCulture)})";
+                    return $"({SerializerText.FormatFloat(r.x, "G4")}, {SerializerText.FormatFloat(r.y, "G4")}, {SerializerText.FormatFloat(r.width, "G4")}, {SerializerText.FormatFloat(r.height, "G4")})";
                 }
                 case SerializedPropertyType.Bounds:
                 {
                     var b = prop.boundsValue;
-                    return $"({b.center.x.ToString("G4", CultureInfo.InvariantCulture)}, {b.center.y.ToString("G4", CultureInfo.InvariantCulture)}, {b.center.z.ToString("G4", CultureInfo.InvariantCulture)}, {b.size.x.ToString("G4", CultureInfo.InvariantCulture)}, {b.size.y.ToString("G4", CultureInfo.InvariantCulture)}, {b.size.z.ToString("G4", CultureInfo.InvariantCulture)})";
+                    return $"({SerializerText.FormatFloat(b.center.x, "G4")}, {SerializerText.FormatFloat(b.center.y, "G4")}, {SerializerText.FormatFloat(b.center.z, "G4")}, {SerializerText.FormatFloat(b.size.x, "G4")}, {SerializerText.FormatFloat(b.size.y, "G4")}, {SerializerText.FormatFloat(b.size.z, "G4")})";
                 }
                 case SerializedPropertyType.RectInt:
                 {
@@ -259,7 +259,7 @@ namespace UnityMCP.Editor
                 {
                     case 1: sb.Append("void"); break;
                     case 3: sb.Append("int=").Append(args?.FindPropertyRelative("m_IntArgument")?.intValue ?? 0); break;
-                    case 4: sb.Append("float=").Append((args?.FindPropertyRelative("m_FloatArgument")?.floatValue ?? 0f).ToString("G4", CultureInfo.InvariantCulture)); break;
+                    case 4: sb.Append("float=").Append(SerializerText.FormatFloat(args?.FindPropertyRelative("m_FloatArgument")?.floatValue ?? 0f, "G4")); break;
                     case 5: sb.Append("string=").Append(args?.FindPropertyRelative("m_StringArgument")?.stringValue ?? ""); break;
                     case 6: sb.Append("bool=").Append(args?.FindPropertyRelative("m_BoolArgument")?.boolValue == true ? "True" : "False"); break;
                     case 2:
