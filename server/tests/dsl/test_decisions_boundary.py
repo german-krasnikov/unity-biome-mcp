@@ -6,15 +6,33 @@ to a synthetic package, and the synthetic package breaks it in the two ways a de
 of the package, and a chain through a module of its own generated folder.
 """
 import json
+import logging
 import tomllib
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 from importlinter.cli import lint_imports_command
 
 CONFIG = Path(__file__).resolve().parent.parent.parent / "pyproject.toml"
 NAME = "decisions stay a leaf (nothing of unity_mcp outside the package)"
 ROOT = "leafpkg"  # not "mypkg": test_import_boundaries.py has fixtures of that name
+
+
+@pytest.fixture(autouse=True)
+def _restore_disabled_loggers():
+    """lint_imports_command's own _configure_logging() calls
+    logging.config.dictConfig() with the implicit disable_existing_loggers=True
+    default, which permanently disables every already-created logger not named
+    importlinter/grimp/_rustgrimp (unity_mcp's own loggers included) for the
+    rest of the process -- starving any later test's caplog assertions with no
+    error. Every test in this module invokes that CLI, so restore every
+    logger's .disabled flag afterward. Mirrors boundary/test_import_boundaries.py's
+    identical fixture."""
+    yield
+    for logger in logging.root.manager.loggerDict.values():
+        if isinstance(logger, logging.Logger):
+            logger.disabled = False
 
 
 def _real_contract() -> dict:
