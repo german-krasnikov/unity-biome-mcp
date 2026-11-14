@@ -177,11 +177,26 @@ namespace UnityMCP.Editor
         internal static bool IsReallyCompiling => _isCompiling;
 
         private static double _lastWatchdogCheck;
+        private static double _lastPortSweep;
+        // Mirrors Python PORT_SWEEP_INTERVAL_S (phantom_cleaner.py) — not
+        // auto-synced across languages; update both definition sites together.
+        private const double PortSweepIntervalSeconds = 30.0;
 
         // Pure helper — no Unity API calls, fully unit-testable.
         // Mirrors ReloadPlugin.ShouldStartReloadServer pattern.
         internal static bool ShouldStartServer(bool isBatchMode)
             => !isBatchMode || Environment.GetEnvironmentVariable("UNITY_MCP_ENABLE_BATCHMODE") == "1";
+
+        // Pure helper — no Unity API calls, fully unit-testable.
+        // Root cause fix: CleanStalePeerPortFiles() previously only ran once
+        // (static ctor, which re-fires on cold-start + every domain reload).
+        // An Editor left open for days with no reload/no connected Python
+        // client (so bridge_heartbeat's own sweep never fires either) never
+        // re-swept — stale port files from past sessions accumulated
+        // indefinitely. WatchdogTick's existing EditorApplication.update
+        // callback gives us a periodic hook for a coarser, independent sweep.
+        internal static bool ShouldSweepPorts(double now, double lastSweep, double intervalSeconds)
+            => now - lastSweep >= intervalSeconds;
 
         internal static string ResolveBootstrapScenePath(string projectRoot, string scenePath)
         {
@@ -257,6 +272,11 @@ namespace UnityMCP.Editor
             if (_shuttingDown) return;
             if (EditorApplication.timeSinceStartup - _lastWatchdogCheck < 5.0) return;
             _lastWatchdogCheck = EditorApplication.timeSinceStartup;
+            if (ShouldSweepPorts(EditorApplication.timeSinceStartup, _lastPortSweep, PortSweepIntervalSeconds))
+            {
+                _lastPortSweep = EditorApplication.timeSinceStartup;
+                PortFileManager.CleanStalePeerPortFiles();
+            }
             if (!IsRunning && !IsReallyCompiling)
                 StartAsync();
         }
