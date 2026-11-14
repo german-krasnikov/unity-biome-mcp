@@ -28,7 +28,7 @@ import pytest
 
 pytestmark = pytest.mark.csharp_parity
 
-_ROOT = Path(__file__).resolve().parents[2]
+_ROOT = Path(__file__).resolve().parents[3]
 _EDITOR = _ROOT / "unity-plugin" / "Editor"
 _TOOLS_BIOME = _ROOT / "dsl" / "tools.biome"
 _TOOLARGS_GEN = _EDITOR / "Generated" / "ToolArgs.g.cs"

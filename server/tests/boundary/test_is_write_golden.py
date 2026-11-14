@@ -15,7 +15,7 @@ from unity_mcp.middleware_types import is_write
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-GOLDEN = Path(__file__).parent / "golden" / "decisions" / "is_write.txt"
+GOLDEN = Path(__file__).parent.parent / "golden" / "decisions" / "is_write.txt"
 
 # (cmd, repr(args), unknown_is_write) of a golden row -> (the answer it has now, the reason): a difference the owner approved.
 # Any other difference fails, and an entry whose row no longer differs is stale.

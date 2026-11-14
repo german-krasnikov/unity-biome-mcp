@@ -13,7 +13,7 @@ from unity_mcp.compressor import _FIELD_ALIASES
 
 pytestmark = pytest.mark.csharp_parity
 
-_FIELD_PROJECTOR_CS = Path(__file__).resolve().parents[2] / "unity-plugin" / "Editor" / "FieldProjector.cs"
+_FIELD_PROJECTOR_CS = Path(__file__).resolve().parents[3] / "unity-plugin" / "Editor" / "FieldProjector.cs"
 _ENTRY_RE = re.compile(r'\{\s*"([^"]+)"\s*,\s*"([^"]+)"\s*\}')
 
 

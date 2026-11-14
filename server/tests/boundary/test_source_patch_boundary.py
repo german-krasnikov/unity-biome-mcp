@@ -16,7 +16,7 @@ import json
 import re
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 PLUGIN_ROOT = REPO_ROOT / "unity-plugin"
 
 # Real assembly/package name fragments, not human-readable feature names —

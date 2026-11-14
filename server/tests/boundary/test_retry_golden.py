@@ -17,7 +17,7 @@ from decisions_golden import retry_answer
 from unity_mcp import bridge_retry
 from unity_mcp.decisions.generated import retry_logic
 
-GOLDEN = Path(__file__).parent / "golden" / "decisions" / "retry.txt"
+GOLDEN = Path(__file__).parent.parent / "golden" / "decisions" / "retry.txt"
 _KEY = 7  # the first seven fields of a row are the call, the rest is the answer
 
 # repr(the key of a row) -> (the answer it has now, the reason): a difference the owner approved.

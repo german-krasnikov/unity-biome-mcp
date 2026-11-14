@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-SYNC_SCRIPT = Path(__file__).parents[2] / "scripts" / "sync_versions.py"
+SYNC_SCRIPT = Path(__file__).parents[3] / "scripts" / "sync_versions.py"
 
 
 def run_sync(version: str, root: Path) -> subprocess.CompletedProcess:

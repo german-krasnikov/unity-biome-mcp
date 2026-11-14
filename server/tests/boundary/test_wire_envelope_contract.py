@@ -15,7 +15,7 @@ import re
 from pathlib import Path
 
 _RESPONSE_CS = (
-    Path(__file__).parents[2] / "unity-plugin" / "Editor" / "Primitives" / "JsonHelper.Response.cs"
+    Path(__file__).parents[3] / "unity-plugin" / "Editor" / "Primitives" / "JsonHelper.Response.cs"
 ).read_text(encoding="utf-8")
 
 # Builders that must assemble the envelope by calling the shared header
@@ -70,7 +70,7 @@ def test_canonical_envelope_field_names_present():
 # ── Ratchet: the header must not be hand-rolled ANYWHERE outside the shared
 # helper, not just inside JsonHelper.Response.cs. A 7th variant could still
 # appear in some other file and drift undetected by the tests above.
-_EDITOR_DIR = Path(__file__).parents[2] / "unity-plugin" / "Editor"
+_EDITOR_DIR = Path(__file__).parents[3] / "unity-plugin" / "Editor"
 _EXCLUDED_DIR_NAMES = {"Tests", "Generated"}
 _EXEMPT_FILENAME = "JsonHelper.Response.cs"
 

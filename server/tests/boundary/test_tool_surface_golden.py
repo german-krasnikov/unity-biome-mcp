@@ -11,7 +11,7 @@ from dsl_golden import env, only_forwards, sample_calls, surface_lines, wire_dig
 from unity_mcp.server import _args as _args_of_server
 from unity_mcp.tools.tool_specs import _SPECS
 
-GOLDEN = Path(__file__).parent / "golden" / "tool_surface.txt"
+GOLDEN = Path(__file__).parent.parent / "golden" / "tool_surface.txt"
 
 # tool -> {field: reason}: a difference the owner approved. The field is a field of the golden line (title, description, schema,
 # annotations, or a ToolSpec field). Any other difference fails, and an entry whose field no longer differs is stale.

@@ -18,8 +18,8 @@ from decisions_golden import answer
 from unity_mcp.suite_verdict import _classify_state, _parse_counts, compute_suite_verdict, format_layered_verdict
 from unity_mcp.tools.runtime import _classify_outcome, _is_playtest_pass
 
-GOLDEN = Path(__file__).parent / "golden" / "decisions" / "verdict.txt"
-CORPUS = Path(__file__).parent / "golden" / "decisions" / "verdict_reports.txt"
+GOLDEN = Path(__file__).parent.parent / "golden" / "decisions" / "verdict.txt"
+CORPUS = Path(__file__).parent.parent / "golden" / "decisions" / "verdict_reports.txt"
 COLUMNS = ("passes", "outcome", "counts", "state")
 
 

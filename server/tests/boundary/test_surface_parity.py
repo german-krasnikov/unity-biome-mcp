@@ -55,7 +55,7 @@ def test_batchable_tcp_tools_not_direct_only():
 
 def test_direct_only_unity_wrappers_match_csharp_non_batchable_surface():
     """Async/special/file-effect C# commands must stay direct-only in Python."""
-    plugin_editor = Path(__file__).parents[2] / "unity-plugin" / "Editor"
+    plugin_editor = Path(__file__).parents[3] / "unity-plugin" / "Editor"
     registration = (plugin_editor / "CommandRouter.Registration.cs").read_text(encoding="utf-8")
     # A5: commands whose metadata is fully described by the DSL catalog (dsl/tools.biome
     # HANDLER item) are registered from here instead of CommandRouter.Registration.cs.

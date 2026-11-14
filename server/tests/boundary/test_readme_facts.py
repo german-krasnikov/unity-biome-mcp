@@ -6,7 +6,7 @@ import sys
 import pytest
 
 # scripts/ is at repo_root/scripts, not on sys.path by default
-REPO_ROOT = pathlib.Path(__file__).parent.parent.parent
+REPO_ROOT = pathlib.Path(__file__).parent.parent.parent.parent
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 
 sys.path.insert(0, str(SCRIPTS_DIR))

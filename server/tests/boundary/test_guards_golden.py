@@ -11,7 +11,7 @@ from pathlib import Path
 
 from decisions_golden import guard_answer
 
-GOLDEN = Path(__file__).parent / "golden" / "decisions" / "guards.txt"
+GOLDEN = Path(__file__).parent.parent / "golden" / "decisions" / "guards.txt"
 
 # repr(the key of a row) -> (the answer it has now, the reason): a difference the owner approved.
 # Any other difference fails, and an entry whose row no longer differs is stale.

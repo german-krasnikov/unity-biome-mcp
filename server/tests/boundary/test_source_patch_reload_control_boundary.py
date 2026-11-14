@@ -13,7 +13,7 @@ import pytest
 
 pytestmark = pytest.mark.csharp_parity
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # SourcePatch's own control-plane files - everything that touches
 # SourcePatchHost.CurrentState or the Disabling receipt. Deliberately

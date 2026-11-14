@@ -22,7 +22,7 @@ import pytest
 
 pytestmark = pytest.mark.csharp_parity
 
-_ROOT = Path(__file__).resolve().parents[2]
+_ROOT = Path(__file__).resolve().parents[3]
 _GENERATED = _ROOT / "unity-plugin" / "Editor" / "Generated" / "ToolArgs.g.cs"
 _EDITOR = _ROOT / "unity-plugin" / "Editor"
 

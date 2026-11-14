@@ -40,8 +40,8 @@ def diff_registrations(golden: list[str], live: list[str], intended: dict[str, d
                  for name, fields in sorted(intended.items()) for field in fields if (name, field) not in allowed]
     return problems
 
-_GOLDEN = Path(__file__).parent / "golden" / "registration.txt"
-_TOOLMETA = Path(__file__).resolve().parents[2] / "unity-plugin" / "Editor" / "Generated" / "ToolMeta.g.cs"
+_GOLDEN = Path(__file__).parent.parent / "golden" / "registration.txt"
+_TOOLMETA = Path(__file__).resolve().parents[3] / "unity-plugin" / "Editor" / "Generated" / "ToolMeta.g.cs"
 
 # The 11 of golden's 14 fields ToolMeta can state, in golden's own relative order (kind/filehandler/policy dropped).
 _FIELDS = ["mutating", "runtime", "special", "always", "compile", "notbatch", "playok", "noundo", "max", "required",

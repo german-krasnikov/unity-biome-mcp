@@ -20,7 +20,7 @@ import re
 import sys
 
 _TICKET_PREFIX = re.compile(r"^\s*(ARC-\d|DEV-\d|C1[- ]|QUALITY-|B[23]-|R\d-\d|P\d+[: ])")
-_REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+_REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent.parent
 _TEST_DIRS = (_REPO_ROOT / "server" / "tests", _REPO_ROOT / "install" / "tests")
 _PRODUCTION_DIRS = (_REPO_ROOT / "server" / "src" / "unity_mcp",)
 _PRODUCTION_GLOB_DIRS = ((_REPO_ROOT / "install", "*.py"), (_REPO_ROOT / "scripts", "*.py"))

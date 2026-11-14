@@ -7,7 +7,7 @@ and not to the other fails here instead of passing unnoticed. Step 7.5 H4 replac
 import re
 from pathlib import Path
 
-_CORE = Path(__file__).resolve().parents[2] / "unity-plugin" / "Runtime" / "Playtest" / "Core"
+_CORE = Path(__file__).resolve().parents[3] / "unity-plugin" / "Runtime" / "Playtest" / "Core"
 # text to text phases of the parser, which run before a line is read: the grammar has no construct for them (design class E)
 _ONLY_IN_THE_HAND_LIST = {"CALL", "COMMENT", "END_COMMENT", "END_FOR", "END_MACRO", "FOR", "MACRO"}
 # PT-1/Q23 closed the gap: EXPECT_FAIL and MCP are now in the hand list too, so a VAL

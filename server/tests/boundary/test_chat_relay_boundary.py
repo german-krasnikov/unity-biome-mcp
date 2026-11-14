@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-_SRC = Path(__file__).resolve().parents[1] / "src" / "unity_mcp"
+_SRC = Path(__file__).resolve().parents[2] / "src" / "unity_mcp"
 
 _CHAT_ONLY_MODULES = frozenset({
     "chat_relay", "cli_session", "relay_buffer", "agent_event",

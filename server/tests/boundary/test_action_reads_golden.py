@@ -11,7 +11,7 @@ from pathlib import Path
 
 from unity_mcp.middleware_types import ACTION_READS
 
-GOLDEN = Path(__file__).parent / "golden" / "decisions" / "action_reads.txt"
+GOLDEN = Path(__file__).parent.parent / "golden" / "decisions" / "action_reads.txt"
 
 # (command, action) -> the reason: a read action the owner added to / took from the commands since the golden. Anything else fails.
 ADDED: dict[tuple[str, str], str] = {}

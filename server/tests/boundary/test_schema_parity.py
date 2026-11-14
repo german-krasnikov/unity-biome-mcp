@@ -15,7 +15,7 @@ golden file respectively. So this module scopes to the commands still registered
 import re
 from pathlib import Path
 
-_REPO = Path(__file__).resolve().parents[2]
+_REPO = Path(__file__).resolve().parents[3]
 _EDITOR = _REPO / "unity-plugin" / "Editor"
 
 # C# commands that are protocol/internal — no ToolSpec needed.

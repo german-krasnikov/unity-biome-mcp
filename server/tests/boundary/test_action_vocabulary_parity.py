@@ -26,7 +26,7 @@ from unity_mcp.tools.generated import catalog_actions, catalog_examples
 
 pytestmark = pytest.mark.csharp_parity
 
-_EDITOR = Path(__file__).resolve().parents[2] / "unity-plugin" / "Editor"
+_EDITOR = Path(__file__).resolve().parents[3] / "unity-plugin" / "Editor"
 
 # tool name -> ((file relative to unity-plugin/Editor, C# dispatcher method name), ...)
 _ACTION_TOOLS: dict[str, tuple[tuple[str, str], ...]] = {

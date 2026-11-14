@@ -15,7 +15,7 @@ import pytest
 
 pytestmark = pytest.mark.csharp_parity
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # Reload's algorithm/evidence owner files (see Plans/PR-04R.md inventory table).
 # CommandRouter.Registration.cs is intentionally excluded: host registration

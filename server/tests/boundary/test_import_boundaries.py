@@ -14,7 +14,7 @@ from pathlib import Path
 from click.testing import CliRunner
 from importlinter.cli import lint_imports_command
 
-CONFIG = Path(__file__).resolve().parent.parent / "pyproject.toml"
+CONFIG = Path(__file__).resolve().parent.parent.parent / "pyproject.toml"
 
 
 def _write_mypkg_fixture(root: Path, bad_contents: str) -> Path:
