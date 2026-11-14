@@ -12,7 +12,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-_EDITOR = Path(__file__).resolve().parents[2] / "unity-plugin" / "Editor"
+_EDITOR = Path(__file__).resolve().parents[3] / "unity-plugin" / "Editor"
 _CS_REGISTER = re.compile(r'CommandRegistry\.Register(?:Async|Action)?\(\s*"([^"]+)"')
 
 
