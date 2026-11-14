@@ -30,11 +30,11 @@
       "scenarios": [
         {
           "id": "bridge-framing-roundtrip",
-          "pytest_node_id": "server/tests/test_bridge_socket_framing.py::test_frame_read_write_roundtrip"
+          "pytest_node_id": "server/tests/bridge/test_bridge_socket_framing.py::test_frame_read_write_roundtrip"
         },
         {
           "id": "retry-safety-non-idempotent-timeout",
-          "pytest_node_id": "server/tests/test_bridge_retry_policy.py::test_sent_unsafe_source_patch_is_never_resent[timeout]"
+          "pytest_node_id": "server/tests/bridge/test_bridge_retry_policy.py::test_sent_unsafe_source_patch_is_never_resent[timeout]"
         }
       ],
       "max_age_seconds": 86400
@@ -63,11 +63,11 @@
       "scenarios": [
         {
           "id": "bridge-framing-roundtrip",
-          "pytest_node_id": "server/tests/test_bridge_socket_framing.py::test_frame_read_write_roundtrip"
+          "pytest_node_id": "server/tests/bridge/test_bridge_socket_framing.py::test_frame_read_write_roundtrip"
         },
         {
           "id": "retry-safety-non-idempotent-timeout",
-          "pytest_node_id": "server/tests/test_bridge_retry_policy.py::test_sent_unsafe_source_patch_is_never_resent[timeout]"
+          "pytest_node_id": "server/tests/bridge/test_bridge_retry_policy.py::test_sent_unsafe_source_patch_is_never_resent[timeout]"
         }
       ],
       "max_age_seconds": 86400

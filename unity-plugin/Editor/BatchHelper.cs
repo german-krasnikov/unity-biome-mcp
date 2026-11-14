@@ -9,10 +9,11 @@ namespace UnityMCP.Editor
 {
     internal static class BatchHelper
     {
-        // Depth counter, not a bool: a nested `batch` command must not reset the flag
-        // (and fire Physics.Sync) while the outer batch is still running. Sync once, at depth 0.
-        private static int _batchDepth;
-        internal static bool InBatch => _batchDepth > 0;
+        // Depth counter lives in BatchState (Primitives leaf, Phase 5 A1) so Core.Scene
+        // can read InBatch without referencing this Editor-monolith class. A nested
+        // `batch` command must not reset the flag (and fire Physics.Sync) while the
+        // outer batch is still running -- sync once, at depth 0.
+        internal static bool InBatch => BatchState.InBatch;
         // Tracks mutation count across all sub-commands in the batch tree.
         // Reset by the outermost (depth==1) entry; accumulated by any depth.
         private static int _batchRootMutationCount;
@@ -69,10 +70,10 @@ namespace UnityMCP.Editor
             bool stopped = false;
             int okCount = 0, errCount = 0, timeoutCount = 0, skipCount = 0;
 
-            _batchDepth++;
+            int depth = BatchState.Enter();
             // Outermost call (depth==1) always opens a named group so sub-command
             // mutations land inside a bounded window. Atomic root gets its own label.
-            bool isRoot = _batchDepth == 1;
+            bool isRoot = depth == 1;
             bool isAtomicRoot = atomic && isRoot;
             int gid = -1;
             if (isRoot)
@@ -206,7 +207,7 @@ namespace UnityMCP.Editor
                     UndoGroupStack.Push(gid, _batchRootMutationCount);
 
                 // Only the outermost batch flushes physics — once, after all nested ops settle.
-                if (--_batchDepth == 0 && !IsPlayMode())
+                if (BatchState.Exit() == 0 && !IsPlayMode())
                 {
                     Physics.SyncTransforms();
                     Physics2D.SyncTransforms();

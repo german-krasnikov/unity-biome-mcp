@@ -50,13 +50,13 @@ def _relative(path: pathlib.Path) -> str:
 _ALLOWED_VERSION_SHIM_FILES = frozenset(
     {
         "unity-plugin/Editor/Chat/CLI/SceneHeaderContextMenu.cs",
-        "unity-plugin/Editor/ObjectIdCompat.cs",
+        "unity-plugin/Editor/Primitives/ObjectIdCompat.cs",
         "unity-plugin/Editor/Tests/ObjectIdCompatTests.cs",
         "unity-plugin/Editor/Tests/UIToolkit/AttachUITKTests.cs",
         "unity-plugin/Editor/Tests/UIToolkit/UIPanelHostTests.cs",
         "unity-plugin/Editor/UIPanelHost.cs",
         "unity-plugin/Editor/Tests/InputNormalizerAudioLightAliasTests.cs",
-        "unity-plugin/Editor/Tests/TestRunnerTests.cs",
+        "unity-plugin/Editor/Tests/TestRuns/TestRunnerTests.cs",
     }
 )
 

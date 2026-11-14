@@ -11,7 +11,7 @@ stays hand-typed — it is category-level metadata, not a per-tool attribute.
 
 P-12440 Phase 1 surface: 13 CORE + 20 TIER1-only = 33 always-visible.
 """
-from .tool_specs import _SPECS
+from .tool_specs import _SPECS, GD_CATEGORIES, gd_tools_enabled
 
 # ---------------------------------------------------------------------------
 # Themed category keys — includes categories with zero tools today (CONNECTION,
@@ -26,6 +26,12 @@ _THEMED_CATEGORY_KEYS: tuple[str, ...] = (
     "UGUI",
 )
 
+# Phase 5 Part B: the 6 GD-themed categories to drop from every collection below when
+# UNITY_MCP_GD_TOOLS=0, read at this module's own import time -- the installer-side
+# exclusion (_catalog_runtime.ToolSet.install(exclude_categories=...)) is the other,
+# independent import-time consumer of the same tool_specs.GD_CATEGORIES/gd_tools_enabled().
+_EXCLUDED_CATEGORIES: frozenset[str] = GD_CATEGORIES if not gd_tools_enabled() else frozenset()
+
 # ---------------------------------------------------------------------------
 # Derived from _SPECS (M8) — was 4 hand-typed literals, now generated once.
 # ---------------------------------------------------------------------------
@@ -37,19 +43,20 @@ _CORE_TOOLS: frozenset[str] = frozenset(
 _THEMED_CATEGORIES: dict[str, list[str]] = {key: [] for key in _THEMED_CATEGORY_KEYS}
 for _name in sorted(_SPECS):
     _spec = _SPECS[_name]
-    if _spec.category not in ("CORE", "_INTERNAL", "DEPRECATED"):
+    if _spec.category not in ("CORE", "_INTERNAL", "DEPRECATED") and _spec.category not in _EXCLUDED_CATEGORIES:
         _THEMED_CATEGORIES[_spec.category].append(_name)
 del _name, _spec
 
 # TIER1: always visible (CORE + themed tools individually promoted to tier1).
-TIER1: set[str] = {name for name, spec in _SPECS.items() if spec.core or spec.tier1}
+TIER1: set[str] = {name for name, spec in _SPECS.items()
+                   if (spec.core or spec.tier1) and spec.category not in _EXCLUDED_CATEGORIES}
 
 # All known tool names across all tiers (everything except _INTERNAL protocol
 # commands). DEPRECATED stubs are included so filter_by_tier can gate them —
 # they're not TIER1 and not session-enabled, so is_visible() returns False and
 # they are hidden in ListTools but remain callable by name (MCP091-011).
 _ALL_KNOWN: set[str] = {name for name, spec in _SPECS.items()
-                        if spec.category != "_INTERNAL"}
+                        if spec.category != "_INTERNAL" and spec.category not in _EXCLUDED_CATEGORIES}
 
 # Immutable snapshot of _ALL_KNOWN at import time. _ALL_KNOWN grows as plugins
 # register their own tools (register_tools() below); _BUILTIN_NAMES never does.

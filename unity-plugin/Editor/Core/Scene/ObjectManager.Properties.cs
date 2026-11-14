@@ -99,7 +99,7 @@ namespace UnityMCP.Editor
             if (!EditorApplication.isPlaying && comp.gameObject.scene.IsValid())
                 EditorSceneManager.MarkSceneDirty(comp.gameObject.scene);
             ApplyNativePhysicsProperty(comp, prop, value);
-            if (comp is Transform && !EditorApplication.isPlaying && !BatchHelper.InBatch)
+            if (comp is Transform && !EditorApplication.isPlaying && !BatchState.InBatch)
             {
                 Physics.SyncTransforms();
                 Physics2D.SyncTransforms();
@@ -166,7 +166,7 @@ namespace UnityMCP.Editor
             so.ApplyModifiedProperties();
             if (!EditorApplication.isPlaying && comp.gameObject.scene.IsValid())
                 EditorSceneManager.MarkSceneDirty(comp.gameObject.scene);
-            if (comp is Transform && !EditorApplication.isPlaying && !BatchHelper.InBatch)
+            if (comp is Transform && !EditorApplication.isPlaying && !BatchState.InBatch)
             {
                 Physics.SyncTransforms();
                 Physics2D.SyncTransforms();
