@@ -1,5 +1,5 @@
 // Generated from dsl/data/testrun.data-contract, dsl/data/testrun.core-data
-// source-sha256=beb4218ac3b7e10cf98fb1ad2136e2d904046a4e3d5aad2969b27760aa13ff5f
+// source-sha256=31d30200cae9a76f1caa5ada846e683a23cdd94b9b0abe9014f7c66fd73c4112
 // Edit the source, then run biome generate.
 
 #nullable enable
@@ -89,6 +89,53 @@ namespace UnityMCP.Editor.TestRuns
             NoTestProgress,
             EditorUnresponsive,
             SuspectedStall,
+        };
+    }
+
+    public enum EventType
+    {
+        RunStarted,
+        ManifestSealed,
+        TestStarted,
+        TestFinished,
+        RunFinished,
+        InfrastructureError,
+        DispatchFailed,
+        CancelRequested,
+        Abandoned,
+        Cancelled,
+        DomainReloading,
+        RunFinalized,
+    }
+
+    public static class EventTypeValues
+    {
+        public const string RunStarted = "run_started";
+        public const string ManifestSealed = "manifest_sealed";
+        public const string TestStarted = "test_started";
+        public const string TestFinished = "test_finished";
+        public const string RunFinished = "run_finished";
+        public const string InfrastructureError = "infrastructure_error";
+        public const string DispatchFailed = "dispatch_failed";
+        public const string CancelRequested = "cancel_requested";
+        public const string Abandoned = "abandoned";
+        public const string Cancelled = "cancelled";
+        public const string DomainReloading = "domain_reloading";
+        public const string RunFinalized = "run_finalized";
+        public static readonly string[] Names =
+        {
+            RunStarted,
+            ManifestSealed,
+            TestStarted,
+            TestFinished,
+            RunFinished,
+            InfrastructureError,
+            DispatchFailed,
+            CancelRequested,
+            Abandoned,
+            Cancelled,
+            DomainReloading,
+            RunFinalized,
         };
     }
 

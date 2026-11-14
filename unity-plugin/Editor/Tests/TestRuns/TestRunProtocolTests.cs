@@ -53,6 +53,7 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(RunOutcomeValues.DispatchFailed, TestRunProtocol.RunOutcome.DispatchFailed);
             Assert.AreEqual(LeafOutcomeValues.Inconclusive, TestRunProtocol.LeafOutcome.Inconclusive);
             Assert.AreEqual(HealthValues.SuspectedStall, TestRunProtocol.Health.SuspectedStall);
+            Assert.AreEqual(EventTypeValues.RunFinalized, TestRunProtocol.EventType.RunFinalized);
         }
 
         [Test]
