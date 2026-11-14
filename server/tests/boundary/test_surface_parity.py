@@ -47,10 +47,16 @@ def test_specific_tools_are_direct_only():
 
 
 def test_batchable_tcp_tools_not_direct_only():
-    batchable_tools = {"get_hierarchy", "set_property", "create_object", "batch",
-                       "get_component", "get_console"}
+    # Catalog-derived: all TCP-transport tools without direct_only=True must stay batchable.
+    # Replaces a 6-name hardcoded set with a full catalog query so new batchable TCP tools
+    # are covered automatically without editing this file.
+    batchable_tools = {name for name, spec in _SPECS.items()
+                       if spec.unity_transport and not spec.direct_only}
     for name in batchable_tools:
-        assert name not in _DIRECT_ONLY, f"'{name}' should NOT be direct_only"
+        assert name not in _DIRECT_ONLY, (
+            f"'{name}' has unity_transport=True but is in _DIRECT_ONLY — "
+            "set direct_only=True in _SPECS if intentional"
+        )
 
 
 def test_direct_only_unity_wrappers_match_csharp_non_batchable_surface():
