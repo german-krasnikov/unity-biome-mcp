@@ -142,12 +142,20 @@ namespace UnityMCP.Editor
             return scope;
         }
 
+        // Task 1.3: thin adapter — SyncHelper is a static class and cannot implement
+        // IReloadLifecycleSink itself. OnAfterReload() body is unchanged.
+        private sealed class ReloadSink : IReloadLifecycleSink
+        {
+            public void OnAfterReload() => SyncHelper.OnAfterReload();
+        }
+        private static readonly ReloadSink _reloadSink = new ReloadSink();
+
         static SyncHelper()
         {
             CompilationPipeline.compilationStarted          += _ => OnCompileStarted();
             CompilationPipeline.compilationFinished         += _ => OnCompileFinished();
             CompilationPipeline.assemblyCompilationFinished += OnAsmCompilationFinished;
-            AssemblyReloadEvents.afterAssemblyReload        += OnAfterReload;
+            ReloadLifecycleCoordinator.Register(_reloadSink);
 
             // Bootstrap: seed stamp on first load — afterAssemblyReload does not fire on Unity startup.
             if (string.IsNullOrEmpty(SessionState.GetString(StampKey, "")))
