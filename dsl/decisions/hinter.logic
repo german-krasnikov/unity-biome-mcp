@@ -1,0 +1,23 @@
+# hintPattern: which hint a call earns, or none (hinter.py:65-77). One hint per call, order = hinter_patterns.py._PATTERNS order (lowest AT wins). A pattern whose gate is closed is skipped, not blocking — hence open.* gates every rule.
+DECISION hintPattern DEFAULT none
+  inspectLoop AT 10 WHEN open.inspectLoop AND call.cmd == "get_component" AND win.getComponent8 >= 2 -> inspect_loop
+  batchWrites AT 20 WHEN open.batchWrites AND call.cmd == "set_property" AND win.sameTargetWrites6 >= 2 -> batch_writes
+  findThenRead AT 30 WHEN open.findThenRead AND call.cmd == "get_component" AND win.findObjects4 >= 1 -> find_then_read
+  screenshotSpam AT 40 WHEN open.screenshotSpam AND call.cmd == "screenshot" AND win.screenshotsSinceWrite8 >= 2 -> screenshot_spam
+  consolePoll AT 50 WHEN open.consolePoll AND call.cmd == "get_console" AND win.recompile6 >= 1 AND win.getConsole6 >= 2 -> console_poll
+  redundantVerify AT 60 WHEN open.redundantVerify AND call.cmd == "get_component" AND env.reflectOn AND win.sameTargetSetProperty3 >= 1 -> redundant_verify_read
+END
+
+# hintGate: may this pattern speak now (hinter.py:66-70). Cooldown = 8 calls between emits of one pattern (ToolHinter._COOLDOWN).
+DECISION hintGate DEFAULT open
+  disabled AT 10 WHEN NOT hint.enabled -> closed
+  suppressed AT 20 WHEN hint.suppressed -> closed
+  cooldown AT 30 WHEN hint.callsSinceEmit < 8 -> closed
+END
+
+# hintAdoption: what the call after a hint means (hinter.py:28-53). suppress = ignored the second time (counter was already >=1 before this call). pending = unrelated call, keep waiting.
+DECISION hintAdoption DEFAULT pending
+  adopted AT 10 WHEN adopt.isSuggested -> adopted
+  suppress AT 20 WHEN adopt.isTrigger AND adopt.ignoredBefore >= 1 -> suppress
+  ignored AT 21 WHEN adopt.isTrigger -> ignored
+END

@@ -126,7 +126,7 @@ def _resolve_one(val: str, key: str, cache: dict[str, str]) -> str:
 
 # --- Post-call hooks (registered at import time) ---
 
-from .middleware_hooks import register_post  # noqa: E402
+from biome_mcp.hooks import register_post  # noqa: E402
 
 
 @register_post("get_hierarchy")

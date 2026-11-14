@@ -1,0 +1,17 @@
+# Facts of MiddlewareAsyncMixin.maybe_inject_state's periodic-hierarchy-injection ladder
+# (Feature 4, middleware_async.py): whether to append a fresh "--- AUTO STATE ---" hierarchy
+# snapshot to a write's response. cmdPresent mirrors the original "cmd and not is_write(...)"
+# short-circuit: an empty cmd (direct-call convenience in tests) bypasses the not-write skip.
+CONTRACT unitymcp.injectstate
+COVERAGE declared-scope
+MODULE injectstate_facts
+FACT state.autoStateOff bool
+FACT state.cmdIsScreenshot bool
+FACT state.cmdIsPlaytestScenario bool
+FACT state.cmdPresent bool
+FACT state.cmdIsWrite bool
+FACT state.cmdIsBatch bool
+FACT state.batchReadonly bool
+FACT state.dueByCount bool
+FACT state.gapOk bool
+INPUT injectState state.autoStateOff state.cmdIsScreenshot state.cmdIsPlaytestScenario state.cmdPresent state.cmdIsWrite state.cmdIsBatch state.batchReadonly state.dueByCount state.gapOk

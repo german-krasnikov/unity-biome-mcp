@@ -290,12 +290,16 @@ namespace UnityMCP.Editor.Tests
             StringAssert.Contains("@", ex.Message);
         }
 
+        // PT-8/Q22: the grammar-generated reader rejects this with its own PT_SYNTAX text
+        // ("VAR: the line ends early"), not the hand parser's old "Example: VAR $hp ..." wording
+        // — still throws ArgumentException, text is intentionally different.
         [Test]
-        public void Parse_Var_TooFewTokens_ErrorContainsExample()
+        public void Parse_Var_TooFewTokens_ThrowsWithLineEndsEarlyMessage()
         {
             var ex = Assert.Throws<ArgumentException>(
                 () => PlaytestParser.Parse("VAR $hp"));
-            StringAssert.Contains("Example", ex.Message);
+            StringAssert.Contains("VAR", ex.Message);
+            StringAssert.Contains("the line ends early", ex.Message);
         }
 
         // ── Wave 6.1: ExpandStep field coverage ──────────────────────────────────

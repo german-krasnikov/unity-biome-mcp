@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Globalization;
 using System.Text;
 using UnityEditor;
 using UnityEngine;
@@ -54,7 +53,7 @@ namespace UnityMCP.Editor
                 var bindings = AnimationUtility.GetCurveBindings(clip);
                 var settings = AnimationUtility.GetAnimationClipSettings(clip);
                 sb.Append(clip.name);
-                sb.Append(" | ").Append(clip.length.ToString("F1", CultureInfo.InvariantCulture)).Append("s");
+                sb.Append(" | ").Append(SerializerText.FormatFloat(clip.length, "F1")).Append("s");
                 sb.Append(" | ").Append(bindings.Length).Append(" curves");
                 if (settings.loopTime) sb.Append(" | loop");
                 sb.AppendLine();
@@ -74,7 +73,7 @@ namespace UnityMCP.Editor
 
             // Header
             sb.Append("clip: ").Append(clip.name)
-              .Append(" | ").Append(clip.length.ToString("F1", CultureInfo.InvariantCulture)).Append("s");
+              .Append(" | ").Append(SerializerText.FormatFloat(clip.length, "F1")).Append("s");
             if (settings.loopTime) sb.Append(" | loop");
             sb.Append(" | ").Append(floatB.Length).Append(" curves");
             if (ptrB.Length > 0) sb.Append(' ').Append(ptrB.Length).Append(" refs");
@@ -161,7 +160,7 @@ namespace UnityMCP.Editor
                 for (int i = 0; i < limit; i++)
                 {
                     sb.Append("  ")
-                      .Append(keys[i].time.ToString("F3", CultureInfo.InvariantCulture))
+                      .Append(SerializerText.FormatFloat(keys[i].time, "F3"))
                       .Append(": ")
                       .AppendLine(keys[i].value != null ? keys[i].value.name : "null");
                 }
@@ -175,7 +174,7 @@ namespace UnityMCP.Editor
         {
             var sb = new StringBuilder();
             sb.Append("sample: ").Append(clip.name).Append(" @ ");
-            sb.Append(time.ToString("F2", CultureInfo.InvariantCulture)).AppendLine("s");
+            sb.Append(SerializerText.FormatFloat(time, "F2")).AppendLine("s");
             sb.AppendLine("---");
 
             bool wasActive = AnimationMode.InAnimationMode();
@@ -192,7 +191,7 @@ namespace UnityMCP.Editor
                     var curve = AnimationUtility.GetEditorCurve(clip, binding);
                     float val = curve.Evaluate(time);
                     sb.Append(binding.propertyName).Append(": ");
-                    sb.AppendLine(val.ToString("G4", CultureInfo.InvariantCulture));
+                    sb.AppendLine(SerializerText.FormatFloat(val, "G4"));
                 }
             }
             finally { if (!wasActive) AnimationMode.StopAnimationMode(); }
@@ -276,9 +275,9 @@ namespace UnityMCP.Editor
             for (int i = 0; i < limit; i++)
             {
                 sb.Append("  ")
-                  .Append(keys[i].time.ToString("F3", CultureInfo.InvariantCulture))
+                  .Append(SerializerText.FormatFloat(keys[i].time, "F3"))
                   .Append(": ")
-                  .AppendLine(keys[i].value.ToString("G4", CultureInfo.InvariantCulture));
+                  .AppendLine(SerializerText.FormatFloat(keys[i].value, "G4"));
             }
             if (keys.Length > 50) sb.AppendLine($"  ...+{keys.Length - 50} more");
         }

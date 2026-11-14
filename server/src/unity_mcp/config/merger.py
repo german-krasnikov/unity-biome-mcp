@@ -8,9 +8,15 @@ import shutil
 import tempfile
 from collections.abc import Callable  # noqa: TC003
 
+from ..generated.protocol import PROTOCOL_ROWS
+from ..generated.server_identity import SERVER_IDENTITY_ROWS
+from .generated.project_config_targets import PROJECT_CONFIG_TARGET_ROWS
+
 # Our MCP server name (config key). "unity-biome-mcp" — one "mcp", and distinct from
-# the foreign bare [mcp_servers.unity] (CoplayDev) that the TOML strip removes.
-SERVER_NAME = "unity-biome-mcp"
+# the foreign bare [mcp_servers.unity] (CoplayDev) that the TOML strip removes. Generated
+# from dsl/data/servername.data-contract (P1 #5) — C#'s PermissionConfig.SERVER_NAME reads
+# the same row (ServerIdentityRows.All[0].ServerName), so the two cannot drift independently.
+SERVER_NAME = SERVER_IDENTITY_ROWS[0].serverName
 # Previous names we shipped — migrated away from (removed) on every write so a
 # rename never leaves an orphaned duplicate server behind.
 _OLD_NAMES = ("unity-mcp",)
@@ -22,18 +28,12 @@ _OLD_NAMES = ("unity-mcp",)
 PROJECT_CONFIG_FILENAME = ".mcp.json"
 
 # Every project-scoped client config unity-plugin/Editor/Wizard/ProjectConfigWriter
-# can pin, mirroring ProjectConfigTargets.All (C#) — (rel_path, root_key, is_toml).
-# root_key is "" for TOML (C#'s null — no JSON root section). Parity with the C#
-# source is enforced by test_config_module.py's
-# test_project_config_targets_matches_csharp_source (both a content and an order
-# guard) so the two lists cannot silently drift.
-PROJECT_CONFIG_TARGETS: tuple[tuple[str, str, bool], ...] = (
-    (PROJECT_CONFIG_FILENAME, "mcpServers", False),
-    (".cursor/mcp.json", "mcpServers", False),
-    (".vscode/mcp.json", "servers", False),
-    (".windsurf/mcp.json", "mcpServers", False),
-    (".codex/config.toml", "", True),
-    (".junie/mcp/mcp.json", "mcpServers", False),
+# can pin — (rel_path, root_key, is_toml). root_key is "" for TOML (no JSON root
+# section). Both planes (this tuple and C#'s ProjectConfigTargetRows.All) now
+# derive from the same dsl/data/projectconfig.data-contract (T1/Q10), so they
+# cannot drift independently of it — see scripts/dsl.sh check.
+PROJECT_CONFIG_TARGETS: tuple[tuple[str, str, bool], ...] = tuple(
+    (row.relativePath, row.rootKey or "", row.isToml) for row in PROJECT_CONFIG_TARGET_ROWS
 )
 
 # C1-FIX-01 (windows-platform CRITICAL): every config READ in this module uses
@@ -66,10 +66,9 @@ _UNITY_MCP_SECTION_RE = re.compile(
 # Version fragment for the marker comment: base semver (X.Y.Z) plus an
 # optional dot-separated pre-release tag (e.g. "-rc.1"), per semver's
 # pre-release grammar. Single source used by both regexes below so a widening
-# can't drift between them. Mirrors C#'s VersionPattern constant
-# (ProjectConfigToml.cs) -- parity enforced by
-# test_config_module.py::test_toml_version_fragment_matches_csharp_source.
-_TOML_VERSION_RE_FRAGMENT = r"[\d.]+(?:-[0-9A-Za-z.]+)?"
+# can't drift between them. Generated from dsl/data/protocol.data-contract
+# (T1 rest step 3), the same source as C#'s ProtocolRows (ProjectConfigToml.cs).
+_TOML_VERSION_RE_FRAGMENT = PROTOCOL_ROWS[0].versionRefPattern
 
 _TOML_MARKER_RE = re.compile(
     rf"^# unity-(?:biome-mcp|mcp) generated v{_TOML_VERSION_RE_FRAGMENT}(?: pinned)?\n"

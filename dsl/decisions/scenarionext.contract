@@ -1,0 +1,21 @@
+# Facts of the N0a playtest-scenario-trust ladder in middleware_pipeline.py's _reset_write_caches.
+# scenarioUncertainNext answers what Middleware._scenario_uncertain becomes after this response.
+# sceneInvalidateGate answers whether invalidate_scene_caches() must run. Deliberately two decisions,
+# not one: N0a-3's give-up path (forceInvalidateFlag) must invalidate caches WITHOUT clearing the
+# uncertain guard (Unity's actual stop is unproven), which falls out for free when the two concerns
+# are kept separate instead of forced into one combined ladder.
+#
+# Out of scope (assessed, not forced into this DECISION): the belt-and-suspenders duplicate at the
+# top of wrapped() (a single boolean, not a ladder), the except-clause invalidate on a wire exception
+# during a PLAYTEST_SCENARIO_CMDS command (control-flow coupled, no result to build facts from), and
+# track_editor_state's edit-mode-off clear in middleware_reads.py (a different concern -- play-state
+# tracking, not playtest-ack/terminal tracking -- that happens to touch the same field).
+CONTRACT unitymcp.scenarionext
+COVERAGE declared-scope
+MODULE scenarionext_facts
+FACT scn.cmdIsStartPlaytest bool
+FACT scn.resultIsRunIdAck bool
+FACT scn.resultIsTerminal bool
+FACT scn.forceInvalidateFlag bool
+INPUT scenarioUncertainNext scn.cmdIsStartPlaytest scn.resultIsRunIdAck scn.resultIsTerminal
+INPUT sceneInvalidateGate scn.resultIsTerminal scn.forceInvalidateFlag

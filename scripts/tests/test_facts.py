@@ -96,6 +96,22 @@ class TestFactCollectors:
         )
         assert rf.count_mcp_tools(tmp_path) == 1
 
+    def test_counts_the_spec_kwargs_of_an_owner_module_in_a_subpackage(self, tmp_path: pathlib.Path) -> None:
+        """The tool catalog prints its SPEC_KWARGS into tools/generated/, which tool_specs.py merges like the other owners."""
+        (tmp_path / "tools" / "generated").mkdir(parents=True)
+        (tmp_path / "tools" / "tool_specs.py").write_text(
+            "_SPECS: dict = {'own': dict(category='CORE')}\n"
+            "from .generated.catalog_specs import SPEC_KWARGS as _K\n"
+            "for _name, _kwargs in _K.items():\n"
+            "    _SPECS[_name] = dict(**_kwargs)\n",
+            encoding="utf-8",
+        )
+        (tmp_path / "tools" / "generated" / "catalog_specs.py").write_text(
+            "SPEC_KWARGS: dict[str, dict] = {\n    'a': {'category': 'SCENE'},\n    'b': {'category': '_INTERNAL'},\n}\n",
+            encoding="utf-8",
+        )
+        assert rf.count_mcp_tools(tmp_path) == 2
+
     def test_tool_parse_errors_fail_closed(self, tmp_path: pathlib.Path) -> None:
         (tmp_path / "broken.py").write_text("def broken(:\n", encoding="utf-8")
         with pytest.raises(SyntaxError):

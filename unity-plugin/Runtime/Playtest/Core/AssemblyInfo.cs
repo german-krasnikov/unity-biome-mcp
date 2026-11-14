@@ -21,3 +21,6 @@ using System.Runtime.CompilerServices;
 // is a 5th consumer beyond the Editor assemblies above — same class of gap D04's own evidence
 // found for CommandRouter.cs's pre-existing InternalsVisibleTo("UnityMCP.TestProject").
 [assembly: InternalsVisibleTo("UnityMCP.TestProject")]
+// Phase 5.3: UnityMCP.Editor.Playtest.asmdef extraction — PlaytestRunner*.cs, PlaytestVarRegistry,
+// PlaytestDslExporter, VisualStep.cs reference ShallowClone, SigilRegex, ResolveQuery (internal).
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Playtest")]

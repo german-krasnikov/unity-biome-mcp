@@ -1,0 +1,30 @@
+# Facts of ToolHinter (hinter.py, hinter_patterns.py). win.* are folds of the last calls (deque of Call, maxlen 16): host counts, the thresholds are the rules.
+# win.screenshotsSinceWrite8 counts screenshots in the last 8 calls after the latest non-screenshot write (a screenshot does not reset the sequence — hinter_patterns.py:76-94).
+# open.* = hintGate of each pattern, evaluated before its predicate (not suppressed, not in cooldown) — hinter.py:66-70.
+CONTRACT unitymcp.hinter
+COVERAGE declared-scope
+MODULE hinter_facts
+FACT call.cmd string
+FACT env.reflectOn bool
+FACT win.getComponent8 number min=0 max=16 integer
+FACT win.sameTargetWrites6 number min=0 max=16 integer
+FACT win.findObjects4 number min=0 max=16 integer
+FACT win.screenshotsSinceWrite8 number min=0 max=16 integer
+FACT win.recompile6 number min=0 max=16 integer
+FACT win.getConsole6 number min=0 max=16 integer
+FACT win.sameTargetSetProperty3 number min=0 max=16 integer
+FACT open.inspectLoop bool
+FACT open.batchWrites bool
+FACT open.findThenRead bool
+FACT open.screenshotSpam bool
+FACT open.consolePoll bool
+FACT open.redundantVerify bool
+FACT hint.enabled bool
+FACT hint.suppressed bool
+FACT hint.callsSinceEmit number min=-1000000000 max=1000000000 integer
+FACT adopt.isSuggested bool
+FACT adopt.isTrigger bool
+FACT adopt.ignoredBefore number min=0 max=1000 integer
+INPUT hintPattern call.cmd env.reflectOn win.getComponent8 win.sameTargetWrites6 win.findObjects4 win.screenshotsSinceWrite8 win.recompile6 win.getConsole6 win.sameTargetSetProperty3 open.inspectLoop open.batchWrites open.findThenRead open.screenshotSpam open.consolePoll open.redundantVerify
+INPUT hintGate hint.enabled hint.suppressed hint.callsSinceEmit
+INPUT hintAdoption adopt.isSuggested adopt.isTrigger adopt.ignoredBefore

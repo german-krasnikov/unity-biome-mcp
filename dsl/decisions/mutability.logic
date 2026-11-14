@@ -1,0 +1,13 @@
+# isMutating: is this wire call a write? Python middleware_types.is_write is the authority (owner 2026-10-29); the first match wins (lowest AT).
+# The host folds the tool registry into call.base and the catalog's read actions into call.actionRead; the rules are the exceptions and their order.
+DECISION isMutating DEFAULT true
+  readBase AT 10 WHEN call.base == read -> false
+  unknownWrites AT 11 WHEN call.base == unknown AND call.unknownIsWrite -> true
+  unknownReads AT 12 WHEN call.base == unknown -> false
+  doctorIdle AT 20 WHEN call.cmd == "doctor" AND args.fix != on -> false
+  metricsKept AT 21 WHEN call.cmd == "get_metrics" AND args.reset != on -> false
+  waitPolls AT 22 WHEN call.cmd == "wait_until" AND args.abortOnFail != on -> false
+  changesKept AT 23 WHEN call.cmd == "get_changes" AND args.clear == off -> false
+  modeQuery AT 24 WHEN call.cmd == "editor" AND args.action == "mutation_mode" AND NOT args.hasEnable -> false
+  actionIsRead AT 30 WHEN call.actionRead -> false
+END

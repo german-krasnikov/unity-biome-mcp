@@ -1,17 +1,16 @@
-"""Whitelist of allowed commands and their signatures for do() tool."""
+"""Whitelist of allowed commands and their signatures for do() tool.
 
-ALLOWED: dict[str, dict] = {
-    "create_object":    {"required": {"name"}, "optional": {"primitive", "parent"}},
-    "set_property":     {"required": {"path", "component", "prop", "value"}, "optional": {"dry_run"}},
-    "manage_component": {"required": {"path", "type", "action"}, "optional": set()},
-    "set_active":       {"required": {"path", "active"}, "optional": set()},
-    "set_material":     {"required": {"path"}, "optional": {"color", "shader"}},
-    "wire_event":       {"required": {"path", "component", "event", "target", "method"}, "optional": {"arg_type", "arg_value"}},
-}
+ALLOWED is derived from the catalog (dsl/tools.biome ARG lines, via
+ToolSet.signature) for every do_allowed-tagged tool — no second
+hand-written source of truth for argument requiredness (owner D5/Q5,
+SV3-DESIGN.md §3.6).
+"""
+from ..tools.generated.catalog_tools import tools
+from ..tools.tags import tagged
 
-FORBIDDEN: set[str] = {
-    "delete_object", "execute_code", "recompile",
-}
+ALLOWED: dict[str, dict] = {name: tools.signature(name) for name in sorted(tagged("do_allowed"))}
+
+FORBIDDEN: set[str] = set(tagged("do_forbidden"))
 
 
 def build_glossary() -> str:

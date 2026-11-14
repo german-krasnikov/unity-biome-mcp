@@ -1,6 +1,6 @@
 """Screenshot capture + optional Haiku description (B2: split from scene.py)."""
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import screenshot, tools  # noqa: F401
 
 _send = None
 _args = None
@@ -15,7 +15,7 @@ def _get_describer_safe():
         return None
 
 
-async def screenshot(width: int = 640, height: int = 480, camera: str | None = None,
+async def _screenshot_body(width: int = 640, height: int = 480, camera: str | None = None,
                      path: str | None = None, output_path: str | None = None,
                      describe: str | None = None,
                      raw: bool = False, zoom: float | None = None,
@@ -65,4 +65,3 @@ async def screenshot(width: int = 640, height: int = 480, camera: str | None = N
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(screenshot)

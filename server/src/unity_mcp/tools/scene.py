@@ -5,12 +5,26 @@ import re
 import shutil
 import time
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
-from ._annotations import DEL as _DEL
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._common import _guard_read_only, bind
+
+# The tool catalog (dsl/tools.biome) generates the wrappers named here (server.py and the tests import them from this module);
+# `tools` registers the others.
+from .generated.catalog_tools import (  # noqa: F401
+    fingerprint,
+    get_changes,
+    get_hierarchy,
+    load_session,
+    save_session,
+    scene,
+    scene_diff,
+    scene_environment,
+    screenshot_baseline,
+    screenshot_compare,
+    search_scene,
+    tools,
+)
 
 _OBJECT_REF = r'(?:&[0-9A-Za-z]+|#[^\s]+|\$[0-9A-Fa-f]+)'
 _RE_SLOT = re.compile(rf'slot_\d+\s+\[\]\s+{_OBJECT_REF}')
@@ -126,10 +140,10 @@ def compress_hierarchy(text: str) -> str:
     return '\n'.join(result)
 
 
-async def get_hierarchy(depth: int = 2, root: str | None = None, filter: str | None = None,
+async def _get_hierarchy_body(depth: int = 2, root: str | None = None, filter: str | None = None,
                         components: bool = False, compress: bool = False,
                         summary: bool = False, incremental: bool = False, full: bool = False,
-                        scene: str | None = None) -> str:
+                        scene: str | None = None) -> str:  # noqa: F811 -- param name must match the catalog ARG the generated wrapper calls by keyword
     """Scene hierarchy as text tree. For finding specific object by name/type use search_scene. Max 3000 nodes. Use filter/depth to narrow. Set components=true to see component types. Set compress=true to group repeated slots/points/meshes. Set summary=true for compact root-only counts (60-100 tokens). Set incremental=true to get NO_CHANGE if scene unchanged since last call. full=True: bypass distillation. scene: filter to a single scene by name (multi-scene only)."""
     no_distill = {"_no_distill": True} if full else {}
     if summary:
@@ -146,7 +160,7 @@ async def get_hierarchy(depth: int = 2, root: str | None = None, filter: str | N
     return result
 
 
-async def scene(action: str, path: str | None = None, scene: str | None = None,
+async def _scene_body(action: str, path: str | None = None, scene: str | None = None,  # noqa: F811 -- param name must match the catalog ARG the generated wrapper calls by keyword
                 include_unsaved: bool = True) -> str:
     """Scene management. action: new|open|save|discard|open_additive|close|set_active|list|save_copy.
     path: required for open/open_additive/close/set_active/save_copy. For save,
@@ -155,38 +169,6 @@ async def scene(action: str, path: str | None = None, scene: str | None = None,
     save_copy: writes current dirty state to path as backup; active scene reference unchanged.
     include_unsaved: always True — save_copy always captures current in-memory state."""
     return await _send("scene", _args(action=action, path=path, scene=scene))
-
-
-async def search_scene(query: str, root: str | None = None, limit: int = 50,
-                       scene: str | None = None) -> str:
-    """Search scene objects. Syntax: name text, t:Component, tag=Tag, layer=N, active=bool. Combine with spaces.
-    root: scope search to subtree (path or None for whole scene).
-    limit: max results (default 50; 0=unlimited).
-    scene: filter to a single scene by name (multi-scene only)."""
-    return await _send("search_scene", _args(
-        query=query, root=root,
-        limit=str(limit) if limit != 50 else None,
-        scene=scene))
-
-
-async def fingerprint(path: str | None = None, depth: int = 3) -> str:
-    """Scene state hash. Returns fp:XXXXXXXX. If unchanged, skip re-reading. ~5 tokens."""
-    return await _send("fingerprint", _args(path=path, depth=depth))
-
-
-async def scene_environment(action: str = "get", prop: str | None = None,
-                            value: str | None = None) -> str:
-    """Read/write scene environment: ambient light, fog, skybox, reflections.
-    action: get|set. set requires prop and value.
-    Props: ambientMode, ambientLight, ambientIntensity, ambientSkyColor, ambientEquatorColor,
-    ambientGroundColor, fog, fogColor, fogMode, fogDensity, fogStartDistance, fogEndDistance,
-    reflectionIntensity, reflectionBounces, subtractiveShadowColor, defaultReflectionResolution."""
-    return await _send("scene_environment", _args(action=action, prop=prop, value=value))
-
-
-async def scene_diff() -> str:
-    """Compare scene with last snapshot. First call saves snapshot. Returns diff: added/removed lines."""
-    return await _send("scene_diff", {})
 
 
 def _extract_saved_path(result: str) -> str:
@@ -202,7 +184,7 @@ def _safe_baseline_name(name: str) -> str:
     return name
 
 
-async def save_session() -> str:
+async def _save_session_body() -> str:
     """Save current scene state to .claude/session-context.json for cold-start recovery."""
     _guard_read_only("save_session")
     hierarchy = await _send("get_hierarchy", {"summary": "true"})
@@ -216,7 +198,7 @@ async def save_session() -> str:
     return f"Session saved to {path}"
 
 
-async def load_session() -> str:
+async def _load_session_body() -> str:
     """Load previous session context beside the current hierarchy."""
     path = _session_context_path()
     async with _path_lock(path):
@@ -233,7 +215,7 @@ async def load_session() -> str:
     return f"Previous ({label}):\n{hier.strip()}\n\nCurrent:\n{current}"
 
 
-async def screenshot_baseline(name: str = "default", width: int = 640, height: int = 480,
+async def _screenshot_baseline_body(name: str = "default", width: int = 640, height: int = 480,
                                camera: str | None = None) -> str:
     """Save screenshot as baseline for visual regression. name: file-safe identifier."""
     name = _safe_baseline_name(name)
@@ -248,13 +230,7 @@ async def screenshot_baseline(name: str = "default", width: int = 640, height: i
     return f"Baseline saved: {baseline_path}"
 
 
-async def get_changes(clear: bool = True) -> str:
-    """Get Unity editor changes since last call. Tracks: hierarchy changes, undo/redo,
-    play mode, scene open/save, selection. Returns chronological event list or NO_CHANGES."""
-    return await _send("get_changes", _args(clear="true" if clear else "false"))
-
-
-async def screenshot_compare(name: str = "default", width: int = 640, height: int = 480,
+async def _screenshot_compare_body(name: str = "default", width: int = 640, height: int = 480,
                               camera: str | None = None, mode: str = "auto",
                               question: str | None = None) -> str:
     """Compare current screenshot with saved baseline.
@@ -275,14 +251,3 @@ async def screenshot_compare(name: str = "default", width: int = 640, height: in
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(get_hierarchy)
-    mcp.tool(annotations=_DEL)(scene)
-    mcp.tool(annotations=_RO)(search_scene)
-    mcp.tool(annotations=_RO)(fingerprint)
-    mcp.tool(annotations=_RO)(scene_diff)
-    mcp.tool(annotations=_RW)(scene_environment)
-    mcp.tool(annotations=_RW)(save_session)
-    mcp.tool(annotations=_RO)(load_session)
-    mcp.tool(annotations=_RW)(screenshot_baseline)
-    mcp.tool(annotations=_RW)(screenshot_compare)
-    mcp.tool(annotations=_RW)(get_changes)

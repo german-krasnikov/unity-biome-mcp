@@ -6,6 +6,8 @@ verdicts so cleanup failures don't mask passing test results.
 import re
 from dataclasses import dataclass
 
+from .decisions import verdict_facts
+
 
 @dataclass
 class FileVerdict:
@@ -44,13 +46,8 @@ def _parse_counts(raw: str) -> tuple[int, int]:
 
 
 def _classify_state(passed: int, expected: int, raw: str) -> str:
-    if expected == 0:
-        return "no_verdict"
-    if passed == expected:
-        return "pass"
-    if "ERROR" in raw:
-        return "error"
-    return "fail"
+    """pass, fail, error or no_verdict of one file: the DECISION fileState of dsl/decisions/verdict.logic."""
+    return verdict_facts.file_state(passed, expected, raw)
 
 
 def compute_suite_verdict(results: list) -> SuiteVerdict:
@@ -84,16 +81,11 @@ def compute_suite_verdict(results: list) -> SuiteVerdict:
 
 
 def format_layered_verdict(verdict: SuiteVerdict) -> str:
-    """Format: SUITE_RESULT|INNER_STATE|OUTER_STATE|aggregate:X/Y."""
+    """Format: SUITE_RESULT|INNER_STATE|OUTER_STATE|aggregate:X/Y.
+
+    The two labels are the DECISIONs suiteInner and suiteOuter of dsl/decisions/verdict.logic: NO_VERDICT when no file has a verdict,
+    INNER_FAIL when one failed or errored, else INNER_PASS; OUTER_FAIL when a lifecycle row (startup, cleanup) failed.
+    """
     agg = verdict.aggregate
-    inner_states = {fv.state for fv in verdict.inner_verdicts}
-
-    if not inner_states or inner_states == {"no_verdict"}:
-        inner_label = "NO_VERDICT"
-    elif "fail" in inner_states or "error" in inner_states:
-        inner_label = "INNER_FAIL"
-    else:
-        inner_label = "INNER_PASS"
-
-    outer_label = "OUTER_FAIL" if verdict.outer_verdict == "fail" else "OUTER_PASS"
+    inner_label, outer_label = verdict_facts.suite_labels([fv.state for fv in verdict.inner_verdicts], verdict.outer_verdict == "fail")
     return f"SUITE_RESULT|{inner_label}|{outer_label}|aggregate:{agg.total_passed}/{agg.total_expected}"

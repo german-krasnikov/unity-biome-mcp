@@ -3,12 +3,12 @@
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityMCP.Editor.Chat.Turn;
 
 namespace UnityMCP.Editor.Chat
 {
     public partial class MCPChatWindow
     {
-        private ChatActivityState _activity = new ChatActivityState();
         private VisualElement _flowBar;
         private VisualElement _flowFill;
         private VisualElement _flowAura;
@@ -62,18 +62,19 @@ namespace UnityMCP.Editor.Chat
             return _flowBar;
         }
 
-        private void OnActivityChanged()
+        // The redraw of the chat-turn FEATURE: runs for every change of phase or asks (and once at mount, before the GUI exists).
+        private void OnActivityChanged(ChatTurnViewModel view)
         {
             if (_flowBar == null) return; // defense-in-depth: guard against pre-CreateGUI calls
-            bool active = !_askPending && _activity.Phase != ActivityPhase.Idle;
+            bool active = view.Asks == 0 && view.Phase != ChatTurnPhase.Idle;
             if (active)
             {
-                switch (_activity.Phase)
+                switch (view.Phase)
                 {
-                    case ActivityPhase.Sending:
+                    case ChatTurnPhase.Sending:
                         SetFlowBarActive(true);
                         break;
-                    case ActivityPhase.Receiving:
+                    case ChatTurnPhase.Receiving:
                         SetFlowBarActive(false);
                         break;
                 }

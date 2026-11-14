@@ -2,6 +2,8 @@
 import os
 from dataclasses import dataclass
 
+from unity_mcp.generated.llm_features import LLM_FEATURE_ROWS
+
 __all__ = ["LlmProfile", "get_profile", "set_profile", "apply_config", "reset", "parse_tcp_config"]
 
 
@@ -21,15 +23,8 @@ class LlmProfile:
 
 
 _DEFAULTS: dict[str, LlmProfile] = {
-    "visual_verify":       LlmProfile("haiku", max_turns=2, timeout=15.0),
-    "screenshot_describe": LlmProfile("haiku", max_turns=2, timeout=20.0),
-    "visual_diff":         LlmProfile("haiku", max_turns=2, timeout=25.0),
-    "do_intent":           LlmProfile("haiku", max_turns=1, timeout=15.0),
-    "ui_intent":           LlmProfile("haiku", max_turns=1, timeout=15.0),
-    "vfx_intent":          LlmProfile("haiku", max_turns=1, timeout=15.0),
-    "animator_intent":     LlmProfile("haiku", max_turns=1, timeout=15.0),
-    "summarize":           LlmProfile("haiku", max_turns=1, timeout=15.0),
-    "distiller":           LlmProfile("haiku", max_turns=1, timeout=15.0, max_tokens=500),
+    r.feature: LlmProfile(r.model, r.maxTurns, float(r.timeoutS), r.maxTokens or None, r.backend)
+    for r in LLM_FEATURE_ROWS
 }
 
 _overrides: dict[str, LlmProfile] = {}

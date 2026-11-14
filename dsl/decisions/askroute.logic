@@ -1,0 +1,9 @@
+# askRoute: which canonical plan answers a question (router.py:39-57). First match wins (lowest AT). mutating = a command, not a query. out_of_scope = no Unity noun. DEFAULT SCENE_QUERY covers the generic-noun fallback AND the two dead trailing regexes of the hand code (positions/where-is, what/which...objects) that decided nothing — they are gone from the facts.
+DECISION askRoute DEFAULT SCENE_QUERY
+  mutating AT 10 WHEN ask.mutating -> mutating
+  noNoun AT 20 WHEN NOT ask.unityNoun -> out_of_scope
+  brokenRefs AT 30 WHEN ask.brokenRefs -> BROKEN_REFS
+  sceneHealth AT 40 WHEN ask.sceneHealth -> SCENE_HEALTH
+  editorState AT 50 WHEN ask.editorState -> EDITOR_STATE
+  compile AT 60 WHEN ask.compile -> COMPILE_ERRORS
+END

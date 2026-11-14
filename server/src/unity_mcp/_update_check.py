@@ -1,10 +1,12 @@
 import json
 import logging
+import re
 import time
 import urllib.request
 
 from unity_mcp import __version__
 from unity_mcp.config.resolver import GIT_INSTALL_URL
+from unity_mcp.decisions.generated.versionorder_logic import IsNewerInput, is_newer
 from unity_mcp.paths import unity_mcp_dir
 
 CACHE_FILE = unity_mcp_dir() / "update_cache.json"
@@ -35,14 +37,29 @@ def check_for_update() -> str | None:
     return latest if _is_newer(latest, __version__) else None
 
 
+_VERSION_RE = re.compile(r"(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.]+))?$")
+
+
+def _parse_version(v: str) -> tuple[bool, tuple[int, int, int], bool]:
+    """(parsed ok, (major, minor, patch), has a pre-release suffix) of a semver-ish string."""
+    m = _VERSION_RE.fullmatch(v)
+    if not m:
+        return False, (0, 0, 0), False
+    return True, (int(m.group(1)), int(m.group(2)), int(m.group(3))), m.group(4) is not None
+
+
 def _is_newer(remote: str, local: str) -> bool:
-    """Return True if remote semver > local. Strips pre-release suffixes (e.g. '0.0.0-dev')."""
-    try:
-        r = tuple(int(x) for x in remote.split("-")[0].split("."))
-        l = tuple(int(x) for x in local.split("-")[0].split("."))
-        return r > l
-    except Exception:
-        return False
+    """Return True if remote is newer than local, per the shared DECISION isNewer
+    (dsl/decisions/versionorder.logic, UI-1/Q16): semver 2.0 §11 plus the policy
+    that a stable user never sees a pre-release banner, while a pre-release user
+    sees any strictly newer release and the release of their own line."""
+    r_ok, r_triple, r_pre = _parse_version(remote)
+    l_ok, l_triple, l_pre = _parse_version(local)
+    parsed = r_ok and l_ok
+    triple = "greater" if r_triple > l_triple else "less" if r_triple < l_triple else "equal"
+    return is_newer(IsNewerInput(
+        ver_cand_pre=r_pre, ver_cur_pre=l_pre, ver_parsed=parsed, ver_triple=triple,
+    ))
 
 
 def _read_cache() -> dict | None:

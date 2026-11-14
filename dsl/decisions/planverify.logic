@@ -1,0 +1,27 @@
+# planGate: whole-plan checks, in the order of validate_plan (validator.py:16-24). Haiku's REJECT: prefix is its own refusal, not a defect of the plan.
+DECISION planGate DEFAULT ok
+  empty AT 10 WHEN plan.lines == 0 -> empty
+  rejected AT 20 WHEN plan.rejected -> rejected
+  tooLong AT 30 WHEN plan.lines > plan.maxLines -> too_long
+END
+
+# lineVerdict: one plan line against the catalog (validator.py:32-46) and the scene. create_object is exempt from the path check — it declares a path, it does not reference one.
+DECISION lineVerdict DEFAULT ok
+  forbidden AT 10 WHEN NOT line.allowed -> forbidden
+  missingKey AT 20 WHEN line.missingRequired > 0 -> missing_key
+  unknownPath AT 30 WHEN NOT line.isCreate AND line.hasPath AND NOT line.pathDeclared -> unknown_path
+END
+
+# fixGate: is one repair round asked of Haiku (executor.py:39-41). Only a partial batch with a sampling service and 1..5 failed lines.
+DECISION fixGate DEFAULT ask_fix
+  complete AT 10 WHEN NOT exec.partial -> done
+  noSampling AT 20 WHEN NOT exec.hasSampling -> done
+  noFailedLines AT 30 WHEN exec.failedLines == 0 -> done
+  tooMany AT 40 WHEN exec.failedLines > 5 -> done
+END
+
+# fixApply: the repaired plan is sent only when it is non-empty and valid (executor.py:49,61-63); otherwise the original batch result stays.
+DECISION fixApply DEFAULT send_fix
+  nothing AT 10 WHEN fix.empty -> keep_original
+  invalid AT 20 WHEN fix.verdict != ok -> keep_original
+END

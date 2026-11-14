@@ -122,7 +122,7 @@ def init_corroboration(port: int | None = None) -> None:
     port: Unity TCP port used to look up project path from port file (RC-3).
     """
     global _cor_project_path, _cor_log_path, _cor_source_files
-    from .compile_state import CompileStateProbe  # lazy import — avoid circular at module load
+    from .reload.compile_state import CompileStateProbe  # lazy import — avoid circular at module load
     _cor_project_path = CompileStateProbe.autodetect_project_path(port=port)
     _cor_log_path = get_editor_log_path()
     # RC-4: use scoped file list (excludes Chat/Tests asmdefs) — not the wide rglob dir list

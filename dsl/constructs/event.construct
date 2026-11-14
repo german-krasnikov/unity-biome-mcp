@@ -1,0 +1,108 @@
+# The vocabulary of the agent events as a project construct. One source -> Python kinds/emitters, C# parser.
+SURFACE events CODES EVENTS CONSTRUCTS EVENT
+
+CONSTRUCT EVENT VERSION 1 IR 1 SCOPE project
+  HEAD EVENT <name:match([a-z][a-z0-9_]*) UNIQUE> <summary:string>
+  ITEM FIELD <fname:match([a-z][a-z0-9_]*) UNIQUE> <ftype:enum(text|int|number|bool|object)> [<opt:enum(optional)>] [OR <alt:match([a-z][a-z0-9_]*)>]
+  ITEM TAKE <tname:match([a-z][a-z0-9_]*) UNIQUE> <ttype:enum(text|int|number|bool|object)>
+  ITEM HOLD
+  ITEM IGNORE
+  ITEM TRANSIENT
+  ITEM ORDER <oclass:enum(opens|usage|closes)>
+  ITEM EMITS <providers:match([a-z]+)...>
+  ITEM CASE <cfield:match([a-z][a-z0-9_]*)> [<cval:string>] UI <cfactory:match([A-Z][A-Za-z]*)> [<cargs:text>]
+  ITEM UI <ufactory:match([A-Z][A-Za-z]*)> [<uargs:text>]
+  EXAMPLES event.examples
+  DECLARE
+  TEMPLATE pykinds HEADER "ALL_KINDS: tuple[str, ...] = (" FOOTER ")" ESCAPE data
+    IF ANY FIELD
+    END
+        "{name}",
+  END
+  TEMPLATE pyfields HEADER "PAYLOAD_FIELDS: dict[str, dict[str, tuple[str, str]]] = {" FOOTER "}" ESCAPE data
+        "{name}": {
+    EACH FIELD
+            "{fname}": ("{ftype}", "{opt|required}"),
+    END
+        },
+  END
+  TEMPLATE pyexcluded HEADER "EXCLUDED_KINDS: frozenset[str] = frozenset({" FOOTER "})" ESCAPE data
+    EACH TRANSIENT
+        "{name}",
+    END
+  END
+  TEMPLATE pyorder HEADER "ORDER_CLASS: dict[str, str] = {" FOOTER "}" ESCAPE data
+    IF ANY FIELD
+    END
+    EACH ORDER
+        "{name}": "{oclass}",
+    END
+  END
+  TEMPLATE pyemits HEADER "EMITTERS: dict[str, tuple[str, ...]] = {" FOOTER "}" ESCAPE data
+        "{name}": (
+    EACH EMITS
+    EACH providers
+            "{providers}",
+    END
+    END
+        ),
+  END
+  TEMPLATE csheld HEADER "namespace UnityMCP.Editor.Chat\n{\n    internal sealed partial class AgentEventParser\n    {" FOOTER "    }\n}" ESCAPE data
+    IF ANY HOLD
+    EACH FIELD
+            private {?ftype=text:string}{?ftype=int:int}{?ftype=number:float}{?ftype=bool:bool}{?ftype=object:string} _held_{fname};
+    END
+    END
+  END
+  TEMPLATE csreset HEADER "namespace UnityMCP.Editor.Chat\n{\n    internal sealed partial class AgentEventParser\n    {\n        private void ResetHeld()\n        {" FOOTER "        }\n    }\n}" ESCAPE data
+    IF ANY HOLD
+    EACH FIELD
+            _held_{fname} = default;
+    END
+    END
+  END
+  TEMPLATE csmap HEADER "using UnityMCP.Editor.Chat.Payload;\n\nnamespace UnityMCP.Editor.Chat\n{\n    internal sealed partial class AgentEventParser\n    {\n        private ChatEvent? MapKind(string kind, string payload, string sid)\n        {\n            switch (kind)\n            {" FOOTER "                default:\n                    return null;\n            }\n        }\n    }\n}" ESCAPE data
+                case "{name}":
+                {
+    EACH FIELD
+                    var {fname} = {?ftype=text:EventPayload.S}{?ftype=int:EventPayload.I}{?ftype=number:EventPayload.F}{?ftype=bool:EventPayload.B}{?ftype=object:EventPayload.O}(payload, "{fname}"{?alt:, {alt}});
+    END
+    EACH TAKE
+                    var {tname} = _held_{tname};
+    END
+    IF ANY HOLD
+    EACH FIELD
+                    _held_{fname} = {fname};
+    END
+                    return null;
+    END
+    EACH CASE
+                    {?cval:if ({cfield} == "{cval}") return ChatEvent.{cfactory}({cargs|});}{!cval:if ({cfield}) return ChatEvent.{cfactory}({cargs|});}
+    END
+    EACH UI
+                    var ev = ChatEvent.{ufactory}({uargs|});
+    IF ANY TAKE
+                    ResetHeld();
+    END
+                    return ev;
+    END
+    EACH IGNORE
+                    return null;
+    END
+                }
+  END
+  TEMPLATE jsonschema HEADER "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"title\": \"AgentEvent\",\n  \"type\": \"object\",\n  \"required\": [\"kind\"],\n  \"properties\": {\n    \"schema_version\": {\"type\": \"integer\"},\n    \"event_id\": {\"type\": \"string\"},\n    \"conversation_id\": {\"type\": \"string\"},\n    \"session_id\": {\"type\": \"string\"},\n    \"turn_id\": {\"type\": \"integer\"},\n    \"sequence\": {\"type\": \"integer\"},\n    \"timestamp\": {\"type\": \"string\"},\n    \"kind\": {\"type\": \"string\"},\n    \"payload\": {\"type\": \"object\"},\n    \"meta\": {\"type\": [\"object\", \"null\"]}\n  },\n  \"allOf\": [" FOOTER "    {}\n  ]\n}" ESCAPE data
+    {
+      "if": {"properties": {"kind": {"const": "{name}"}}, "required": ["kind"]},
+      "then": {"properties": {"payload": {"required": [
+    EACH FIELD JOIN ","
+        {!opt:"{fname}"}
+    END
+      ], "properties": {
+    EACH FIELD JOIN ","
+        "{fname}": {"type": "{?ftype=text:string}{?ftype=int:integer}{?ftype=number:number}{?ftype=bool:boolean}{?ftype=object:object}"}
+    END
+      }}}}
+    },
+  END
+END

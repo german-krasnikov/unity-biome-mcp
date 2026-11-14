@@ -1,0 +1,30 @@
+EXAMPLE an event prints its kind, its fields, the ChatEvent it becomes and what holds and takes the usage
+  SOURCE EVENT assistant_delta "A token."
+  SOURCE   FIELD text text
+  SOURCE   FIELD note text optional
+  SOURCE   UI TextDelta text
+  SOURCE   EMITS claude,codex
+  SOURCE END
+  SOURCE EVENT cost_update "Usage."
+  SOURCE   FIELD cost_usd number
+  SOURCE   HOLD
+  SOURCE   ORDER usage
+  SOURCE END
+  EXPECT rendered.pykinds "assistant_delta",
+  EXPECT rendered.pyfields "note": ("text", "optional"),
+  EXPECT rendered.pyorder "cost_update": "usage",
+  EXPECT rendered.csmap case "assistant_delta":
+  EXPECT rendered.csmap var ev = ChatEvent.TextDelta(text);
+  EXPECT rendered.csmap _held_cost_usd = cost_usd;
+  EXPECT rendered.csheld private float _held_cost_usd;
+
+EXAMPLE an unknown type, a field twice and a ChatEvent factory that is no name
+  SOURCE EVENT x "X."
+  SOURCE   FIELD a string
+  SOURCE   FIELD b int
+  SOURCE   FIELD b int
+  SOURCE   UI textDelta a
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:11
+  EXPECT diagnostic DECLARE_DUPLICATE at 4:9
+  EXPECT diagnostic DECLARE_SYNTAX at 5:6

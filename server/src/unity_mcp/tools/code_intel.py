@@ -17,21 +17,25 @@ from unity_mcp.utils import parse_pipe_fields
 
 from ._common import bind
 
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import await_compile, compile_preflight, serialized_field_rename_audit  # noqa: F401
+from .generated.wire_records import parse_sync_status as _parse_sync_status_record
+
 _send = None
 
 _STILL_BUSY_STATES = frozenset({"compiling", "reloading"})
 
 
-async def compile_preflight(file_path: str, new_content: str) -> str:
+async def _compile_preflight_body(file_path: str, new_content: str) -> str:
     """Validate C# WITHOUT writing/recompiling (Roslyn). Use before writing .cs — catches typos in ~200ms vs 30s recompile.
     file_path: Assets-relative. new_content: full file. Returns OK preflight (ms) / ERR preflight + diagnostics / [ROSLYN UNAVAILABLE]."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     if not file_path or not file_path.strip():
         raise ToolError("compile_preflight: file_path is required (Assets-relative path)")
     if not new_content or not new_content.strip():
         raise ToolError("compile_preflight: new_content is required (full file content)")
     args: dict[str, Any] = {"file_path": file_path, "new_content": new_content}
-    return await _send("compile_preflight", args, timeout=15.0)
+    return await _send("compile_preflight", args)
 
 
 def _parse_status(status: str) -> tuple[str, float]:
@@ -52,7 +56,14 @@ def _parse_sync_status(status: str) -> tuple[int, str, str, str]:
     """Parse 'epoch=N|state=S[|dur=X][|stamp=G:T][|err=...]' → (epoch, state, extra, stamp).
 
     P4: adds stamp field to the return tuple so callers can compare MVIDs.
+    Backed by the generated, typed sync_status parser (dsl/protocol.biome, SV1/Q8); a
+    line it rejects (not a clean sync_status record) falls back to the old tolerant
+    dict lookup so no caller's behavior on malformed input changes.
     """
+    record = _parse_sync_status_record(status)
+    if record is not None:
+        extra = record.err if record.err is not None else ("" if record.dur is None else str(record.dur))
+        return record.epoch, record.state, extra, record.stamp or ""
     try:
         parts = parse_pipe_fields(status)
         epoch = int(parts.get("epoch", "0"))
@@ -120,7 +131,7 @@ async def _await_compile_generation(timeout: float, expected_generation: int) ->
         await asyncio.sleep(1)
 
 
-async def await_compile(timeout: float = 60.0, expected_generation: int | None = None) -> str:
+async def _await_compile_body(timeout: float = 60.0, expected_generation: int | None = None) -> str:
     """Block until Unity finishes compiling + reloading, then return compile errors.
     Use after writing .cs files instead of sleep. Returns errors or 'compile clean (Xs)'.
     Handles domain reload disconnects transparently. timeout=0 → immediate check, no loop.
@@ -251,29 +262,7 @@ async def await_compile(timeout: float = 60.0, expected_generation: int | None =
         await asyncio.sleep(1)
 
 
-async def serialized_field_rename_audit(
-    type: str,
-    old_field: str,
-    new_field: str,
-    include: str = "prefabs,scenes,scriptable_objects",
-) -> str:
-    """Audit [SerializeField] rename safety.
-    type: fully-qualified or simple component type name (e.g. 'MyNamespace.PlayerStats').
-    old_field: field name as it exists in serialized assets.
-    new_field: renamed field name in current C# source.
-    include: comma-separated scan targets (prefabs,scenes,scriptable_objects).
-    Returns: has_formerly_serialized_as, stale_assets, safe_to_remove_attribute, recommended_actions."""
-    args: dict[str, Any] = {"type": type, "old_field": old_field, "new_field": new_field}
-    if include != "prefabs,scenes,scriptable_objects":
-        args["include"] = include
-    return await _send("serialized_field_rename_audit", args)
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
-    from ._annotations import RO as _RO
-    mcp.tool(annotations=_RO)(compile_preflight)
-    mcp.tool(annotations=_RO)(await_compile)
-    mcp.tool(annotations=_RO)(serialized_field_rename_audit)

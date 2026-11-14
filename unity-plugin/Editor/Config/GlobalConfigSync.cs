@@ -10,6 +10,8 @@ namespace UnityMCP.Editor
 {
     internal static class GlobalConfigSync
     {
+        static readonly GlobalConfigDefaults D = GlobalConfigDefaultsRows.All[0];
+
         // Test seam: set to a temp path in tests; null = production path.
         internal static string ConfigPathOverride;
 
@@ -66,10 +68,10 @@ namespace UnityMCP.Editor
 
         private static string BuildJson()
         {
-            var idleAutoSuspend   = EditorPrefs.GetBool(PrefKeys.IdleAutoSuspend, true);
-            var idleTimeoutMin    = EditorPrefs.GetInt(PrefKeys.IdleTimeoutMin, 30);
-            var terminateOrphan   = EditorPrefs.GetBool(PrefKeys.TerminateOrphan, true);
-            var orphanGraceMin    = EditorPrefs.GetInt(PrefKeys.OrphanGraceMin, 2);
+            var idleAutoSuspend   = EditorPrefs.GetBool(PrefKeys.IdleAutoSuspend, D.IdleAutoSuspend);
+            var idleTimeoutMin    = EditorPrefs.GetInt(PrefKeys.IdleTimeoutMin, D.IdleTimeoutMin);
+            var terminateOrphan   = EditorPrefs.GetBool(PrefKeys.TerminateOrphan, D.BridgeTerminateOrphan);
+            var orphanGraceMin    = EditorPrefs.GetInt(PrefKeys.OrphanGraceMin, D.BridgeOrphanGraceMin);
 
             return $"{{\n" +
                    $"  \"idle_timeout_min\": {idleTimeoutMin},\n" +
@@ -82,21 +84,21 @@ namespace UnityMCP.Editor
         private static void ApplyJson(string json)
         {
             EditorPrefs.SetInt(PrefKeys.IdleTimeoutMin,
-                ExtractInt(json, "idle_timeout_min", 30));
+                ExtractInt(json, "idle_timeout_min", D.IdleTimeoutMin));
             EditorPrefs.SetBool(PrefKeys.IdleAutoSuspend,
-                ExtractBool(json, "idle_auto_suspend", true));
+                ExtractBool(json, "idle_auto_suspend", D.IdleAutoSuspend));
             EditorPrefs.SetBool(PrefKeys.TerminateOrphan,
-                ExtractBool(json, "bridge_terminate_orphan", true));
+                ExtractBool(json, "bridge_terminate_orphan", D.BridgeTerminateOrphan));
             EditorPrefs.SetInt(PrefKeys.OrphanGraceMin,
-                ExtractInt(json, "bridge_orphan_grace_min", 2));
+                ExtractInt(json, "bridge_orphan_grace_min", D.BridgeOrphanGraceMin));
         }
 
         private static void WriteDefaults()
         {
-            EditorPrefs.SetInt(PrefKeys.IdleTimeoutMin, 30);
-            EditorPrefs.SetBool(PrefKeys.IdleAutoSuspend, true);
-            EditorPrefs.SetBool(PrefKeys.TerminateOrphan, true);
-            EditorPrefs.SetInt(PrefKeys.OrphanGraceMin, 2);
+            EditorPrefs.SetInt(PrefKeys.IdleTimeoutMin, D.IdleTimeoutMin);
+            EditorPrefs.SetBool(PrefKeys.IdleAutoSuspend, D.IdleAutoSuspend);
+            EditorPrefs.SetBool(PrefKeys.TerminateOrphan, D.BridgeTerminateOrphan);
+            EditorPrefs.SetInt(PrefKeys.OrphanGraceMin, D.BridgeOrphanGraceMin);
         }
 
         private static string BoolLit(bool v) => v ? "true" : "false";

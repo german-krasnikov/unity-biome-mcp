@@ -1,0 +1,134 @@
+PROVENANCE "Transcribed from the tests the project already has, never from the code under test: Python server/tests/test_pr04_policy_vectors.py, test_middleware_read_cmds.py, test_middleware_readonly.py; C# unity-plugin/Editor/Tests/CommandRouterTests.cs where it agrees with Python. A C# assertion that says the opposite of the Python test for the same call is not a row: the owner decided on 2026-10-29 that Python is the authority, and that C# test changes with the requirement."
+
+EXAMPLES isMutating
+  id | callBase | callCmd | callUnknownIsWrite | callActionRead | argsAction | argsHasEnable | argsFix | argsReset | argsAbortOnFail | argsClear -> expected
+  r000-inspect | read | "inspect" | false | false | "" | false | absent | absent | absent | absent -> false  # test_pr04_policy_vectors.py:27 test_pr04_policy_vectors.py:28
+  r001-set_property | write | "set_property" | false | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:154 test_pr04_policy_vectors.py:29
+  r002-editor | write | "editor" | false | false | "" | false | absent | absent | absent | absent -> true  # test_pr04_policy_vectors.py:31 (C# CommandRouterTests.cs:142 asserted false: superseded)
+  r003-editor | write | "editor" | false | true | "state" | false | absent | absent | absent | absent -> false  # CommandRouterTests.cs:141 test_pr04_policy_vectors.py:32
+  r004-editor | write | "editor" | false | true | "project_path" | false | absent | absent | absent | absent -> false  # test_pr04_policy_vectors.py:33
+  r005-editor | write | "editor" | false | false | "play" | false | absent | absent | absent | absent -> true  # test_pr04_policy_vectors.py:150 test_pr04_policy_vectors.py:34 (C# CommandRouterTests.cs:140 asserted false: superseded)
+  r006-run_playtest | write | "run_playtest" | false | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:261 test_pr04_policy_vectors.py:35
+  r007-uitk_file | write | "uitk_file" | false | true | "read" | false | absent | absent | absent | absent -> false  # CommandRouterTests.cs:100 test_middleware_read_cmds.py:175
+  r008-uitk_file | write | "uitk_file" | false | false | "write" | false | absent | absent | absent | absent -> true  # CommandRouterTests.cs:102 test_middleware_read_cmds.py:179
+  r009-uitk_file | write | "uitk_file" | false | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:181 test_pr04_policy_vectors.py:39 (C# CommandRouterTests.cs:99 asserted false: superseded)
+  r010-delete_object | write | "delete_object" | false | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:157
+  r011-create_object | write | "create_object" | false | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:160
+  r012-get_hierarchy | read | "get_hierarchy" | false | false | "" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:165
+  r013-get_component | read | "get_component" | false | false | "" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:168
+  r014-nonexistent_cmd | unknown | "nonexistent_cmd" | false | false | "" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:171
+  r015-uitk_file | write | "uitk_file" | false | false | "future_action" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:180
+  r016-navmesh | write | "navmesh" | false | true | "sample" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:186
+  r017-navmesh | write | "navmesh" | false | true | "path" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:186
+  r018-navmesh | write | "navmesh" | false | true | "raycast" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:186
+  r019-navmesh | write | "navmesh" | false | true | "status" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:186
+  r020-navmesh | write | "navmesh" | false | true | "get_settings" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:186
+  r021-navmesh_query | write | "navmesh_query" | false | true | "sample" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:186
+  r022-navmesh_query | write | "navmesh_query" | false | true | "path" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:186
+  r023-navmesh_query | write | "navmesh_query" | false | true | "raycast" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:186
+  r024-navmesh_query | write | "navmesh_query" | false | true | "status" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:186
+  r025-navmesh_query | write | "navmesh_query" | false | true | "get_settings" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:186
+  r026-navmesh | write | "navmesh" | false | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:196
+  r027-navmesh | write | "navmesh" | false | false | "bake" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:197
+  r028-navmesh | write | "navmesh" | false | false | "clear" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:198
+  r029-navmesh | write | "navmesh" | false | false | "set_settings" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:199
+  r030-navmesh | write | "navmesh" | false | false | "future_action" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:200
+  r031-navmesh | write | "navmesh" | false | false | "STATUS" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:201
+  r032-navmesh_query | write | "navmesh_query" | false | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:196
+  r033-navmesh_query | write | "navmesh_query" | false | false | "bake" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:197
+  r034-navmesh_query | write | "navmesh_query" | false | false | "clear" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:198
+  r035-navmesh_query | write | "navmesh_query" | false | false | "set_settings" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:199
+  r036-navmesh_query | write | "navmesh_query" | false | false | "future_action" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:200
+  r037-navmesh_query | write | "navmesh_query" | false | false | "STATUS" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:201
+  r038-wait_until | write | "wait_until" | false | false | "" | false | absent | absent | absent | absent -> false  # CommandRouterTests.cs:109 test_middleware_read_cmds.py:211
+  r039-wait_until | write | "wait_until" | false | false | "" | false | absent | absent | off | absent -> false  # CommandRouterTests.cs:110 test_middleware_read_cmds.py:212
+  r040-wait_until | write | "wait_until" | false | false | "" | false | absent | absent | on | absent -> true  # CommandRouterTests.cs:111 CommandRouterTests.cs:112
+  r041-get_metrics | write | "get_metrics" | false | false | "" | false | absent | off | absent | absent -> false  # test_middleware_read_cmds.py:226
+  r042-get_metrics | write | "get_metrics" | false | false | "" | false | absent | on | absent | absent -> true  # test_middleware_read_cmds.py:226
+  r043-get_changes | write | "get_changes" | false | false | "" | false | absent | absent | absent | off -> false  # CommandRouterTests.cs:117 test_middleware_read_cmds.py:227
+  r044-get_changes | write | "get_changes" | false | false | "" | false | absent | absent | absent | on -> true  # CommandRouterTests.cs:118 CommandRouterTests.cs:119
+  r045-get_changes | write | "get_changes" | false | false | "" | false | absent | absent | absent | absent -> true  # CommandRouterTests.cs:116 test_middleware_read_cmds.py:236
+  r046-asset | write | "asset" | false | false | "export_package" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:241 test_middleware_read_cmds.py:335
+  r047-profile | write | "profile" | false | true | "status" | false | absent | absent | absent | absent -> false  # CommandRouterTests.cs:123 test_middleware_read_cmds.py:244
+  r048-profile | write | "profile" | false | true | "analyze" | false | absent | absent | absent | absent -> false  # CommandRouterTests.cs:124 test_middleware_read_cmds.py:244
+  r049-profile | write | "profile" | false | true | "compare" | false | absent | absent | absent | absent -> false  # CommandRouterTests.cs:125 test_middleware_read_cmds.py:244
+  r050-profile | write | "profile" | false | true | "list_sessions" | false | absent | absent | absent | absent -> false  # CommandRouterTests.cs:126 test_middleware_read_cmds.py:244
+  r051-profile | write | "profile" | false | false | "" | false | absent | absent | absent | absent -> true  # CommandRouterTests.cs:130 test_middleware_read_cmds.py:249
+  r052-profile | write | "profile" | false | false | "start" | false | absent | absent | absent | absent -> true  # CommandRouterTests.cs:127 test_middleware_read_cmds.py:249
+  r053-profile | write | "profile" | false | false | "stop" | false | absent | absent | absent | absent -> true  # CommandRouterTests.cs:128 test_middleware_read_cmds.py:249
+  r054-profile | write | "profile" | false | false | "future" | false | absent | absent | absent | absent -> true  # CommandRouterTests.cs:129 test_middleware_read_cmds.py:249
+  r055-doctor | write | "doctor" | false | false | "" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:255
+  r056-doctor | write | "doctor" | false | false | "" | false | off | absent | absent | absent -> false  # test_middleware_read_cmds.py:256
+  r057-doctor | write | "doctor" | false | false | "" | false | on | absent | absent | absent -> true  # test_middleware_read_cmds.py:257
+  r058-test_step | write | "test_step" | false | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:261
+  r059-run_playtest_suite | write | "run_playtest_suite" | false | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:261
+  r060-screenshot_baseline | write | "screenshot_baseline" | false | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:261
+  r061-verify_after_change | write | "verify_after_change" | false | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:262
+  r062-animation | write | "animation" | false | true | "get" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:270
+  r063-animation | write | "animation" | false | true | "get_events" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:273
+  r064-animation | write | "animation" | false | true | "get_clip_path" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:276
+  r065-animation | write | "animation" | false | false | "create" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:279
+  r066-animation | write | "animation" | false | false | "edit" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:282
+  r067-animation | write | "animation" | false | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:285 test_middleware_read_cmds.py:288
+  r068-timeline | write | "timeline" | false | true | "get" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:293
+  r069-timeline | write | "timeline" | false | true | "get_bindings" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:296
+  r070-timeline | write | "timeline" | false | false | "add_track" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:299
+  r071-animator | write | "animator" | false | true | "get" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:304
+  r072-animator | write | "animator" | false | true | "get_blend_tree" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:307
+  r073-animator | write | "animator" | false | false | "add_state" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:310
+  r074-particle | write | "particle" | false | true | "get" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:315
+  r075-particle | write | "particle" | false | false | "play" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:318
+  r076-asset | write | "asset" | false | true | "find" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:323
+  r077-asset | write | "asset" | false | true | "validate_move" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:326
+  r078-asset | write | "asset" | false | true | "get_dependencies" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:329
+  r079-asset | write | "asset" | false | true | "find_dependents" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:332
+  r080-asset | write | "asset" | false | false | "delete" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:338
+  r081-asset | write | "asset" | false | false | "move" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:341
+  r082-scene | write | "scene" | false | true | "list" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:346
+  r083-scene | write | "scene" | false | false | "open" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:349
+  r084-project_settings | write | "project_settings" | false | true | "get" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:352
+  r085-project_settings | write | "project_settings" | false | false | "set" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:355
+  r086-material | write | "material" | false | true | "list_shaders" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:358
+  r087-material | write | "material" | false | false | "set" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:361
+  r088-shader | write | "shader" | false | true | "get" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:364
+  r089-shader | write | "shader" | false | true | "graph_get" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:367
+  r090-shader | write | "shader" | false | false | "create" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:370
+  r091-prefab | write | "prefab" | false | true | "get_overrides" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:373
+  r092-prefab | write | "prefab" | false | false | "save" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:376
+  r093-scriptable_object | write | "scriptable_object" | false | true | "find" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:379
+  r094-scriptable_object | write | "scriptable_object" | false | true | "list_types" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:382
+  r095-scriptable_object | write | "scriptable_object" | false | false | "create" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:385
+  r096-menu | write | "menu" | false | true | "list" | false | absent | absent | absent | absent -> false  # test_middleware_read_cmds.py:388
+  r097-menu | write | "menu" | false | false | "execute" | false | absent | absent | absent | absent -> true  # test_middleware_read_cmds.py:391
+  r098-editor | write | "editor" | false | false | "mutation_mode" | false | absent | absent | absent | absent -> false  # CommandRouterTests.cs:137 test_middleware_read_cmds.py:474
+  r099-editor | write | "editor" | false | false | "mutation_mode" | true | absent | absent | absent | absent -> true  # CommandRouterTests.cs:138 CommandRouterTests.cs:139
+  r100-set_property | write | "set_property" | true | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_readonly.py:24 test_pr04_policy_vectors.py:49
+  r101-get_hierarchy | read | "get_hierarchy" | true | false | "" | false | absent | absent | absent | absent -> false  # test_middleware_readonly.py:33
+  r102-create_object | write | "create_object" | true | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_readonly.py:48
+  r103-delete_object | write | "delete_object" | true | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_readonly.py:56
+  r104-batch | write | "batch" | true | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_readonly.py:64
+  r105-execute_code | write | "execute_code" | true | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_readonly.py:72
+  r106-scene_environment | write | "scene_environment" | true | true | "get" | false | absent | absent | absent | absent -> false  # test_middleware_readonly.py:199
+  r107-bake | write | "bake" | true | true | "status" | false | absent | absent | absent | absent -> false  # test_middleware_readonly.py:200
+  r108-bake | write | "bake" | true | true | "settings" | false | absent | absent | absent | absent -> false  # test_middleware_readonly.py:201
+  r109-package | write | "package" | true | true | "list" | false | absent | absent | absent | absent -> false  # test_middleware_readonly.py:202
+  r110-package | write | "package" | true | true | "search" | false | absent | absent | absent | absent -> false  # test_middleware_readonly.py:203
+  r111-scene_environment | write | "scene_environment" | true | false | "set" | false | absent | absent | absent | absent -> true  # test_middleware_readonly.py:211
+  r112-start_playtest | write | "start_playtest" | true | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_readonly.py:341
+  r113-source_patch_write | write | "source_patch_write" | true | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_readonly.py:349
+  r114-get_playtest_run | read | "get_playtest_run" | true | false | "" | false | absent | absent | absent | absent -> false  # test_middleware_readonly.py:358
+  r115-get_status | read | "get_status" | true | false | "" | false | absent | absent | absent | absent -> false  # test_middleware_readonly.py:367
+  r116-sync_status | read | "sync_status" | true | false | "" | false | absent | absent | absent | absent -> false  # test_middleware_readonly.py:368 test_pr04_policy_vectors.py:216
+  r117-totally_unregistered_xyz | unknown | "totally_unregistered_xyz" | true | false | "" | false | absent | absent | absent | absent -> true  # test_middleware_readonly.py:377
+  r118-compile_status | read | "compile_status" | true | false | "" | false | absent | absent | absent | absent -> false  # test_middleware_readonly.py:396 test_middleware_readonly.py:402
+  r119-inspect | read | "inspect" | true | false | "" | false | absent | absent | absent | absent -> false  # test_pr04_policy_vectors.py:48
+  r120-editor | write | "editor" | true | true | "state" | false | absent | absent | absent | absent -> false  # test_pr04_policy_vectors.py:50
+  r121-editor | write | "editor" | true | false | "play" | false | absent | absent | absent | absent -> true  # test_pr04_policy_vectors.py:51
+  r122-run_playtest | write | "run_playtest" | true | false | "" | false | absent | absent | absent | absent -> true  # test_pr04_policy_vectors.py:52
+  r123-uitk_file | write | "uitk_file" | true | true | "read" | false | absent | absent | absent | absent -> false  # test_pr04_policy_vectors.py:53
+  r124-uitk_file | write | "uitk_file" | true | false | "write" | false | absent | absent | absent | absent -> true  # test_pr04_policy_vectors.py:54
+  r125-uitk_file | write | "uitk_file" | false | false | "READ" | false | absent | absent | absent | absent -> true  # CommandRouterTests.cs:101
+  r126-uitk_file | write | "uitk_file" | false | false | "create_uxml" | false | absent | absent | absent | absent -> true  # CommandRouterTests.cs:103
+  r127-uitk_file | write | "uitk_file" | false | false | "revert" | false | absent | absent | absent | absent -> true  # CommandRouterTests.cs:104
+  r128-uitk_file | write | "uitk_file" | false | false | "unknown" | false | absent | absent | absent | absent -> true  # CommandRouterTests.cs:105
+END

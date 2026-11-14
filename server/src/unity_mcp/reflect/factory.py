@@ -22,17 +22,50 @@ def _make_no_error_fn(cmd: str) -> ReflectFn:
     return _rule
 
 
-def make_ok_rule(cmd: str, ok_tokens: tuple[str, ...]) -> None:
+def make_ok_rule(cmd: str, ok_tokens: tuple[str, ...], *, strict: bool = False) -> None:
     """Register rule that checks one of ok_tokens in response (case-insensitive).
-    Fail-open when response contains an error token.
+
+    Fail-open (skip on an error token) unless strict=True, in which case an
+    error response is just another response that lacks the expected token —
+    SV5 catalog EXPECT rows (e.g. wire_event, delete_object) where an error
+    means the mutation itself failed, not merely "can't verify".
     """
     def _rule(args: dict, response: str, send_fn) -> Mismatch | None:  # S7503: sync
-        if _has_error(response):
+        if not strict and _has_error(response):
             return None
         low = response.lower()
         if any(t.lower() in low for t in ok_tokens):
             return None
         return Mismatch(f"{cmd}: expected one of {ok_tokens!r} in response")
+    register_rule(cmd)(_rule)
+
+
+def make_bool_token_rule(cmd: str, argname: str, true_token: str, false_token: str) -> None:
+    """Register a rule whose expected token depends on a bool arg (e.g.
+    region_clear: dry_run=true expects "DRY", else "DELETED"). No fail-open —
+    an error response simply lacks the expected token like any other miss.
+    """
+    def _rule(args: dict, response: str, send_fn) -> Mismatch | None:  # S7503: sync
+        is_true = str(args.get(argname, "false")).lower() == "true"
+        token = true_token if is_true else false_token
+        if token not in response:
+            return Mismatch(f"{cmd}: expected '{token}' in response")
+        return None
+    register_rule(cmd)(_rule)
+
+
+def make_arg_echo_rule(cmd: str, argnames: tuple[str, ...], *, strict: bool = False) -> None:
+    """Register a rule where each supplied arg must echo back as "<name>="
+    in the response (e.g. set_material: shader given -> "shader=" expected).
+    An arg that was not supplied is not checked. Fail-open by default.
+    """
+    def _rule(args: dict, response: str, send_fn) -> Mismatch | None:  # S7503: sync
+        if not strict and _has_error(response):
+            return None
+        for name in argnames:
+            if args.get(name) and f"{name}=" not in response:
+                return Mismatch(f"{cmd}: expected '{name}=' token in response")
+        return None
     register_rule(cmd)(_rule)
 
 

@@ -521,6 +521,14 @@ namespace UnityMCP.Editor
 
         static TaskCompletionSource<string> _moveTcs;
         static TaskCompletionSource<string> _mcpTcs;
+
+        // Phase 5.1 (boundary-hardening): injectable seam over CommandRouter — decouples the MCP
+        // step's dispatch (PlaytestRunner.Steps.cs) from the static CommandRouter. Production
+        // default is CommandRouterDispatcher.Instance (zero behavior change); tests substitute a
+        // fake to prove the step routes through the interface. Mirrors
+        // ClientConnectionHandler.Dispatcher (Phase 2.3).
+        internal static ICommandDispatcher Dispatcher = CommandRouterDispatcher.Instance;
+
         static IPlaytestSimulator _activeSimulator;
         static bool _isRunning;
         // CAPTURE_FRAMES state

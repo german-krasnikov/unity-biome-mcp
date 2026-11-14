@@ -13,5 +13,6 @@ namespace UnityMCP.Editor.Testing
         public const string WorkerOnly = "WorkerOnly";
         public const string Slow = "Slow";
         public const string MutationLive = "MutationLive";
+        public const string Roslyn = "Roslyn";
     }
 }

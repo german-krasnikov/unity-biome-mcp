@@ -1,8 +1,9 @@
 // Parser for object mutation tool argsJson.
-// Pure C# — no UnityEngine deps (noEngineReferences: true).
-// Supports: set_property, set_property_delta, set_active, create_object,
-//   delete_object, manage_component, set_parent, rename_object,
-//   wire_event, batch, apply_scene_change.
+// Pure C# — no UnityEngine deps (noEngineReferences: true; UnityMCP.Editor.Chat.Parsers
+// references nothing, so it cannot see the generated ToolUi.CardOf in UnityMCP.Editor).
+// The caller (MutationDiffCard, in UnityMCP.Editor.Chat.View — which does reference
+// UnityMCP.Editor) resolves the tool name to a MutationKind via ToolUi.CardOf before
+// calling Parse; this parser only extracts fields from argsJson.
 
 namespace UnityMCP.Editor.Chat.Parsers
 {
@@ -20,10 +21,8 @@ namespace UnityMCP.Editor.Chat.Parsers
 
     internal static class ObjectMutationParser
     {
-        internal static MutationArgs Parse(string toolName, string argsJson)
+        internal static MutationArgs Parse(MutationKind kind, string argsJson)
         {
-            var kind = ToolToKind(toolName);
-
             if (string.IsNullOrEmpty(argsJson))
                 return new MutationArgs { Kind = kind };
 
@@ -42,28 +41,6 @@ namespace UnityMCP.Editor.Chat.Parsers
                 NewName  = ReadStringField(argsJson, "new_name"),
                 IsValid  = true,
             };
-        }
-
-        // ── toolName → MutationKind ──────────────────────────────────────────
-        private static MutationKind ToolToKind(string toolName)
-        {
-            switch (toolName)
-            {
-                case "set_property":
-                case "set_property_delta":
-                case "set_active":
-                    return MutationKind.SetProperty;
-                case "create_object":
-                    return MutationKind.CreateObject;
-                case "delete_object":
-                    return MutationKind.DeleteObject;
-                case "rename_object":
-                    return MutationKind.RenameObject;
-                case "manage_component":
-                    return MutationKind.ManageComponent;
-                default:
-                    return MutationKind.Unknown;
-            }
         }
 
         private static string ReadStringField(string json, string key) =>

@@ -58,9 +58,13 @@ def load_tool_specs_from_text(text: str) -> frozenset[str]:
 
 
 def load_tool_specs(repo_root: Path) -> frozenset[str]:
+    """Tool + internal-command names: tool_specs.py's hand-written _SPECS literal
+    (its override escape hatch for a tool the catalog does not own yet -- usually
+    empty, SV6) plus the generated tool catalog's SPEC_KWARGS (dsl/tools.biome ->
+    tools/generated/*.py), the registry every tool_specs.py entry now merges from."""
     tools_dir = repo_root / "server/src/unity_mcp/tools"
     names = set(load_tool_specs_from_text((tools_dir / "tool_specs.py").read_text(encoding="utf-8")))
-    for path in sorted(tools_dir.glob("*.py")):
+    for path in sorted(tools_dir.glob("generated/*.py")):
         names.update(load_tool_specs_from_text(path.read_text(encoding="utf-8")))
     return frozenset(names)
 
@@ -165,7 +169,7 @@ def check_missing_frontmatter(files: list[SkillFile | AgentFile]) -> list[Findin
 
 _FALSE_POSITIVE_TOOLS = frozenset({
     "send", "wrap_send", "frame_read", "frame_write", "args", "bridge_send",
-    "tool_specs", "open_connection", "configure_await", "bridge_result",
+    "tool_specs", "open_connection", "configure_await",
     "read_text", "parse_frontmatter", "run_skills", "check_unity", "tool_name",
     "skill_name", "plugin_api", "middleware_py",
 })

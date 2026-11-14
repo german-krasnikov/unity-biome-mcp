@@ -1,0 +1,6 @@
+SURFACE plugins
+# Production IMCPPlugin registrants. Not a generation source — parity enforced
+# by test_plugin_contract_parity.py, not codegen. Revisit if a second plugin appears.
+# PLUGIN <Name> PREFIX <CommandPrefix> ASSEMBLY <AssemblyName>
+
+PLUGIN Chat PREFIX chat ASSEMBLY UnityMCP.Editor.Chat.View

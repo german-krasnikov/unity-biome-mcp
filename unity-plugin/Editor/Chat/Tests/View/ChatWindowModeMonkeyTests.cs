@@ -7,6 +7,7 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Chat.Turn;
 using UnityMCP.Editor.Testing;
 using Object = UnityEngine.Object;
 
@@ -18,8 +19,6 @@ namespace UnityMCP.Editor.Chat.Tests
     {
         private static readonly FieldInfo  s_agent = typeof(MCPChatWindow).GetField("_agentMode",  BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly FieldInfo  s_back  = typeof(MCPChatWindow).GetField("_backend",    BindingFlags.NonPublic | BindingFlags.Instance);
-        private static readonly FieldInfo  s_act   = typeof(MCPChatWindow).GetField("_activity",   BindingFlags.NonPublic | BindingFlags.Instance);
-        private static readonly FieldInfo  s_ask   = typeof(MCPChatWindow).GetField("_askPending", BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly MethodInfo s_set   = typeof(MCPChatWindow).GetMethod("SetMode",    BindingFlags.NonPublic | BindingFlags.Instance);
 
         private sealed class FakeBackend : IChatBackend
@@ -117,7 +116,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetMode_WhileIdle_ActivityStaysIdle()
         {
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
-            try { Set(w, true); Assert.AreEqual(ActivityPhase.Idle, ((ChatActivityState)s_act.GetValue(w)).Phase); }
+            try { Set(w, true); Assert.AreEqual(ChatTurnPhase.Idle, w._turn.Phase); }
             finally { Object.DestroyImmediate(w); }
         }
 
@@ -127,10 +126,10 @@ namespace UnityMCP.Editor.Chat.Tests
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
             {
-                var a = (ChatActivityState)s_act.GetValue(w);
-                a.Send(); a.FirstToken();
+                var a = w._turn;
+                a.Dispatch(ChatTurnIntent.Send()); a.Dispatch(ChatTurnIntent.FirstToken());
                 Set(w, true);
-                Assert.AreEqual(ActivityPhase.Receiving, a.Phase);
+                Assert.AreEqual(ChatTurnPhase.Receiving, a.Phase);
             }
             finally { Object.DestroyImmediate(w); }
         }
@@ -159,7 +158,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void SetMode_ToAgent_AskPendingUnchanged()
         {
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
-            try { s_ask.SetValue(w, true); Set(w, true); Assert.IsTrue((bool)s_ask.GetValue(w)); }
+            try { w._turn.Dispatch(ChatTurnIntent.Send()); w._turn.Dispatch(ChatTurnIntent.AskRaised()); Set(w, true); Assert.IsTrue(w._turn.Asking); }
             finally { Object.DestroyImmediate(w); }
         }
 

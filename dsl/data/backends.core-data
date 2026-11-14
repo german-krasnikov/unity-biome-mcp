@@ -1,0 +1,5 @@
+BACKEND {kind: Claude id: claude display: "Claude" binary: claude prefKey: UnityMCP_Chat_ClaudePath resume: "claude --resume {id}" resumeCd: true sessionDir: [".claude" "projects" "{cwd}"] sessionFormat: jsonl contextFallback: 200000}
+BACKEND {kind: Codex id: codex display: "Codex" binary: codex prefKey: UnityMCP_Chat_Path_codex resume: "codex resume {id}" resumeCd: false sessionDir: [".codex" "sessions"] sessionFormat: codex contextFallback: 1000000}
+BACKEND {kind: Antigravity id: antigravity display: "Antigravity" binary: agy prefKey: UnityMCP_Chat_Path_agy resume: "agy --conversation {id}" resumeCd: false sessionDir: [".gemini" "antigravity-cli" "conversations"] sessionFormat: agy contextFallback: 1000000}
+BACKEND {kind: Kimi id: kimi display: "Kimi" binary: kimi prefKey: UnityMCP_Chat_Path_kimi resume: "kimi -S {id}" resumeCd: false sessionDir: [".kimi-code" "sessions"] sessionFormat: jsonl contextFallback: 128000}
+BACKEND {kind: OpenCode id: opencode display: "OpenCode" binary: opencode prefKey: UnityMCP_Chat_Path_opencode resume: "opencode -s {id}" resumeCd: false sessionDir: [] sessionFormat: none contextFallback: 0}

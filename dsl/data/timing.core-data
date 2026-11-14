@@ -1,0 +1,1 @@
+TIMING {startupGraceS: 90.0 domainReloadExpiryS: 90.0 backoffMinS: 5.0 backoffMaxS: 60.0 reloadBackoffS: 1.0 orphanCheckIntervalS: 1.0 busyTickS: 5.0 idleTickS: 2.0 probeGraceS: 30.0}

@@ -34,14 +34,12 @@ namespace UnityMCP.Editor.Chat
 
             var entries = new List<SessionEntry>();
 
-            if (kind == BackendKind.Claude)
-                ScanJsonlDir(dir, kind, entries);
-            else if (kind == BackendKind.Codex)
-                ScanCodexDir(dir, kind, entries);
-            else if (kind == BackendKind.Kimi)
-                ScanJsonlDir(dir, kind, entries);
-            else if (kind == BackendKind.Antigravity)
-                ScanAgyDir(dir, kind, entries);
+            switch (BackendTable.Get(kind)?.SessionFormat)
+            {
+                case SessionFormat.Jsonl: ScanJsonlDir(dir, kind, entries); break;
+                case SessionFormat.Codex: ScanCodexDir(dir, kind, entries); break;
+                case SessionFormat.Agy:   ScanAgyDir(dir, kind, entries); break;
+            }
 
             entries.Sort((a, b) => string.CompareOrdinal(b.Date, a.Date));
 
@@ -54,20 +52,14 @@ namespace UnityMCP.Editor.Chat
         /// <summary>Returns the session directory for the given backend, or null if unsupported.</summary>
         internal static string GetSessionDir(BackendKind kind)
         {
-            var home = HomeDir();
-            switch (kind)
-            {
-                case BackendKind.Claude:
-                    return Path.Combine(home, ".claude", "projects", EncodeCwd(ProjectDir()));
-                case BackendKind.Codex:
-                    return Path.Combine(home, ".codex", "sessions");
-                case BackendKind.Kimi:
-                    return Path.Combine(home, ".kimi-code", "sessions");
-                case BackendKind.Antigravity:
-                    return Path.Combine(home, ".gemini", "antigravity-cli", "conversations");
-                default:
-                    return null; // OpenCode uses SQLite — not supported
-            }
+            var row = BackendTable.Get(kind);
+            if (row == null || row.SessionDir.Length == 0) return null; // OpenCode uses SQLite — not supported
+
+            var parts = new string[row.SessionDir.Length + 1];
+            parts[0] = HomeDir();
+            for (int i = 0; i < row.SessionDir.Length; i++)
+                parts[i + 1] = row.SessionDir[i] == "{cwd}" ? EncodeCwd(ProjectDir()) : row.SessionDir[i];
+            return Path.Combine(parts);
         }
 
         // Claude CWD encoding: replace each '/' with '-'.

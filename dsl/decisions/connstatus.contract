@@ -1,0 +1,7 @@
+CONTRACT unitymcp.connstatus
+COVERAGE declared-scope
+MODULE connstatus_facts
+FACT conn.state enum=disconnected,connected,domainReloading,failed,dormant,waking closed
+FACT conn.writerLive bool
+INPUT connStatus conn.state conn.writerLive
+INPUT transportStatus conn.state conn.writerLive

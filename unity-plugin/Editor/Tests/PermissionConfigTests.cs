@@ -173,6 +173,16 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void SERVER_NAME_IsGeneratedServerIdentityRow()
+        {
+            // Generator-output check (P1 #5): SERVER_NAME must read the same
+            // dsl/data/servername.data-contract row that server/src/unity_mcp/config/
+            // merger.py's SERVER_NAME reads, not a hand-written literal that merely
+            // happens to agree with it today.
+            Assert.AreEqual(ServerIdentityRows.All[0].ServerName, PermissionConfig.SERVER_NAME);
+        }
+
+        [Test]
         public void DefaultCtor_UsesDefaultPrefix_SharingStorageWithExplicitDefaultPrefix()
         {
             // Fails if parameterless ctor drifts to a different prefix (e.g. "..._v2")

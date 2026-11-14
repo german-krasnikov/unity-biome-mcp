@@ -122,6 +122,16 @@ OTHER_DICT = {
     assert "my_tool" not in result
 
 
+def test_load_tool_specs_reads_the_generated_catalog(tmp_path):
+    """The tool catalog (dsl/tools.biome) prints its SPEC_KWARGS into tools/generated/, below the flat tools/*.py scan."""
+    tools = tmp_path / "server" / "src" / "unity_mcp" / "tools"
+    (tools / "generated").mkdir(parents=True)
+    (tools / "tool_specs.py").write_text("_SPECS = {\n    'old_tool': ToolSpec(category='CORE'),\n}\n", encoding="utf-8")
+    (tools / "generated" / "catalog_specs.py").write_text(
+        "SPEC_KWARGS = {\n    'my_tool': {'category': 'SCENE'},\n}\n", encoding="utf-8")
+    assert csf.load_tool_specs(tmp_path) == {"old_tool", "my_tool"}
+
+
 # ---------------------------------------------------------------------------
 # 2. parse_frontmatter
 # ---------------------------------------------------------------------------

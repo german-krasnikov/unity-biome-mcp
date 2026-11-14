@@ -1,3 +1,4 @@
+using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
 
@@ -36,13 +37,24 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(cats.ContainsKey("CORE"));
         }
 
+        // B1: GetCatalogCategories() is generated from ToolRoster.g.cs (dsl/tools.biome).
+        // This is a drift guard — it would have caught the pre-DSL hand-written
+        // _defaultCatalog silently missing 33 real tool names.
         [Test]
-        public void DefaultCatalog_DoesNotContain_DirectOnlyTools()
+        public void GetCatalogCategories_ExactlyMatchesGeneratedToolRoster()
         {
             var cats = MCPSettings.GetCatalogCategories();
-            CollectionAssert.DoesNotContain(cats["UGUI"], "ui_intent");
-            CollectionAssert.DoesNotContain(cats["MEDIA"], "vfx_intent");
-            CollectionAssert.DoesNotContain(cats["UITOOLKIT"], "uitk_intent");
+            var expected = ToolRoster.Rows
+                .GroupBy(row => row.Category)
+                .ToDictionary(g => g.Key, g => g.Select(row => row.Name).ToArray());
+
+            Assert.AreEqual(expected.Count, cats.Count, "category count mismatch");
+            foreach (var kv in expected)
+            {
+                Assert.IsTrue(cats.ContainsKey(kv.Key), $"missing category {kv.Key}");
+                CollectionAssert.AreEquivalent(kv.Value, cats[kv.Key],
+                    $"category {kv.Key} does not match ToolRoster.Rows");
+            }
         }
     }
 }

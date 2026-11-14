@@ -112,7 +112,7 @@ namespace UnityMCP.TestProject.Visual
         {
             ProcessOwned("{\"id\":\"u5a\",\"cmd\":\"create_ui\",\"args\":{\"type\":\"Canvas\",\"name\":\"TextCanvas\"}}");
 
-            var json = "{\"id\":\"u5b\",\"cmd\":\"create_ui\",\"args\":{\"type\":\"Text\",\"name\":\"Label\",\"parent\":\"/TextCanvas\",\"text\":\"Hello\",\"fontSize\":\"24\",\"color\":\"#FF0000\"}}";
+            var json = "{\"id\":\"u5b\",\"cmd\":\"create_ui\",\"args\":{\"type\":\"Text\",\"name\":\"Label\",\"parent\":\"/TextCanvas\",\"text\":\"Hello\",\"font_size\":\"24\",\"color\":\"#FF0000\"}}";
             var result = ProcessOwned(json);
             StringAssert.Contains("\"ok\":true", result);
 

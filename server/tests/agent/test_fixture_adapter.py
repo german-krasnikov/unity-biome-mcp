@@ -34,8 +34,10 @@ async def test_fixture_adapter_normal_turn_first_kind():
 
 
 async def test_fixture_adapter_normal_turn_last_kind():
+    # cost_update (usage) must precede turn_completed (closes) — it HOLDs the
+    # fields turn_completed TAKEs (E2, Q9) — so turn_completed is last.
     evts = await _events("normal-turn.jsonl")
-    assert evts[-1].kind == "cost_update"
+    assert evts[-1].kind == "turn_completed"
 
 
 async def test_fixture_adapter_multi_tool_two_tool_starts():

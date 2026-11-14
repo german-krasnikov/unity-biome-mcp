@@ -137,10 +137,23 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual(1, s.Queries.Length);
         }
 
+        // PT-8/Q22: INTENDED I3 — the plan's E-2 measurement's one "stricter" result out of
+        // 309 base scripts, registered in dsl/playtest/compare.mjs's KNOWN map against this
+        // exact line. The grammar's PT_WAIT_UNTIL pattern takes TIMEOUT only after every
+        // AND/OR term (AI/playtest-dsl.md: the chain, then TIMEOUT, then ABORT); TIMEOUT
+        // before OR, which the hand parser's inline tail scan tolerated, is no longer
+        // accepted.
         [Test]
-        public void WaitUntil_OR_WithTimeoutFirst()
+        public void WaitUntil_OR_WithTimeoutFirst_NowRejected()
         {
-            var steps = PlaytestParser.Parse("WAIT_UNTIL q1 == v1 TIMEOUT 5 OR q2 == v2");
+            Assert.Throws<ArgumentException>(() =>
+                PlaytestParser.Parse("WAIT_UNTIL q1 == v1 TIMEOUT 5 OR q2 == v2"));
+        }
+
+        [Test]
+        public void WaitUntil_OR_WithTimeoutAfter_Parsed()
+        {
+            var steps = PlaytestParser.Parse("WAIT_UNTIL q1 == v1 OR q2 == v2 TIMEOUT 5");
             var s = steps[0];
             Assert.AreEqual(5f, s.Timeout, 0.001f);
             Assert.IsTrue(s.IsOr);

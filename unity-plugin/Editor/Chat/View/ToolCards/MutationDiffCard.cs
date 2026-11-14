@@ -1,4 +1,4 @@
-// T-4.2: IToolCardRenderer for the 11 object mutation tools + batch.
+// T-4.2: IToolCardRenderer for every tool with a CARD line in dsl/tools.biome (ToolUi.CardOf, generated).
 //
 // Idempotency: CSS class "mutation-rendered" prevents double-render.
 // Two-pass: first OnUpdate renders entries with "?" was-placeholders;
@@ -14,19 +14,12 @@ namespace UnityMCP.Editor.Chat
     [InitializeOnLoad]
     internal sealed class MutationDiffCard : ToolCardBase
     {
-        private static readonly string[] ToolNames =
-        {
-            "set_property", "set_property_delta", "set_active",
-            "create_object", "delete_object", "manage_component",
-            "set_parent", "rename_object", "wire_event",
-            "batch", "apply_scene_change"
-        };
-
         static MutationDiffCard()
         {
             var inst = new MutationDiffCard();
-            foreach (var name in ToolNames)
-                ToolCardRendererRegistry.Register(name, inst);
+            foreach (var (_, name) in ToolRoster.Rows)
+                if (ToolUi.CardOf(name) != null)
+                    ToolCardRendererRegistry.Register(name, inst);
         }
 
         internal MutationDiffCard() : base("mutation-rendered") { }
@@ -34,11 +27,24 @@ namespace UnityMCP.Editor.Chat
         protected override bool TryBuildContent(VisualElement chip, ToolCallRecord rec)
         {
             if (string.IsNullOrEmpty(rec.ArgsJson)) return false; // T1.1
-            var args = ObjectMutationParser.Parse(rec.Name, rec.ArgsJson);
+            var args = ObjectMutationParser.Parse(CardToKind(ToolUi.CardOf(rec.Name)), rec.ArgsJson);
             if (!args.IsValid) return false;
             RenderEntry(chip, rec.Name, args);
             return true;
         }
+
+        // card (CARD lines of dsl/tools.biome, ToolUi.CardOf) → MutationKind. Lives here, not in
+        // ObjectMutationParser, because UnityMCP.Editor.Chat.Parsers (noEngineReferences: true,
+        // references: []) cannot see the generated ToolUi class in UnityMCP.Editor.
+        private static MutationKind CardToKind(string card) => card switch
+        {
+            "set" => MutationKind.SetProperty,
+            "create" => MutationKind.CreateObject,
+            "delete" => MutationKind.DeleteObject,
+            "rename" => MutationKind.RenameObject,
+            "component" => MutationKind.ManageComponent,
+            _ => MutationKind.Unknown,
+        };
 
         // Second call brings ResultText — update was-value labels in-place.
         // RefreshWasValues uses text-mutation idempotency (lbl.text == "?"), not a marker.

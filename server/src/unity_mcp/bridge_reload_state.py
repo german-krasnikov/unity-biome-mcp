@@ -1,36 +1,9 @@
-"""Domain reload state tracker — shared between bridge and heartbeat."""
-import time
-from dataclasses import dataclass, field
+"""Moved to unity_mcp.bridge.reload_state. This file keeps the old import path
+alive as the SAME module object (not a copy), so `patch("unity_mcp.bridge_reload_state.X")`
+and `from unity_mcp.bridge_reload_state import X` both still observe/mutate the real
+module. Delete once every caller imports unity_mcp.bridge.reload_state directly."""
+import sys
 
-# Domain reload can take up to 60-90s on slow machines.
-# Must be >= STARTUP_GRACE_S (90s) so Python doesn't flood a dead socket
-# before Unity finishes compiling (would push bridge to FAILED state).
-DOMAIN_RELOAD_EXPIRY_S: float = 90.0
+from .bridge import reload_state as _impl
 
-
-@dataclass
-class DomainReloadTracker:
-    _active: bool = field(default=False, init=False)
-    _since: float | None = field(default=None, init=False)
-
-    def mark(self) -> None:
-        self._active = True
-        self._since = time.monotonic()
-
-    def clear(self) -> None:
-        self._active = False
-        self._since = None
-
-    def is_active(self) -> bool:
-        if not self._active or self._since is None:
-            return False
-        if time.monotonic() - self._since > DOMAIN_RELOAD_EXPIRY_S:
-            self._active = False
-            self._since = None
-            return False
-        return True
-
-    def elapsed(self) -> float:
-        if self._since is None:
-            return 0.0
-        return time.monotonic() - self._since
+sys.modules[__name__] = _impl

@@ -1,0 +1,21 @@
+# guardVerdict: why a wire command is stopped before it runs, or ok. First match wins (lowest AT); each site keeps its own order, as the hand code does.
+DECISION guardVerdict DEFAULT ok
+  topNotReady AT 10 WHEN guard.site == top AND NOT guard.ready -> initializing
+  topPythonOnly AT 11 WHEN guard.site == top AND guard.pythonOnly -> pythonOnly
+  topAuth AT 12 WHEN guard.site == top AND guard.authDenied -> authDenied
+  topCompiling AT 13 WHEN guard.site == top AND guard.compiling AND NOT guard.allowedDuringCompile -> compiling
+  topPlayBlocked AT 14 WHEN guard.site == top AND guard.playMode AND guard.mutating AND NOT guard.allowedInPlay -> playBlocked
+  topNotInPlay AT 15 WHEN guard.site == top AND NOT guard.playMode AND guard.runtime -> notInPlay
+  topReadOnly AT 16 WHEN guard.site == top AND guard.readOnly AND guard.mutating -> readOnlyBlocked
+  topDisabled AT 17 WHEN guard.site == top AND NOT guard.alwaysAllowed AND NOT guard.toolEnabled -> disabled
+  batchAsyncOnly AT 20 WHEN guard.site == batch AND NOT guard.batchable -> asyncOnly
+  batchPlayBlocked AT 21 WHEN guard.site == batch AND guard.playMode AND guard.mutating AND NOT guard.allowedInPlay -> playBlocked
+  batchNotInPlay AT 22 WHEN guard.site == batch AND NOT guard.playMode AND guard.runtime -> notInPlay
+  batchCompiling AT 23 WHEN guard.site == batch AND guard.compiling AND guard.mutating AND NOT guard.allowedDuringCompile -> compiling
+  batchReadOnly AT 24 WHEN guard.site == batch AND guard.readOnly AND guard.mutating -> readOnlyBlocked
+  batchDisabled AT 25 WHEN guard.site == batch AND NOT guard.alwaysAllowed AND NOT guard.toolEnabled -> disabled
+  batchNotReady AT 26 WHEN guard.site == batch AND NOT guard.ready -> initializing
+  pyReadOnly AT 30 WHEN guard.site == py AND guard.readOnly AND guard.mutating -> readOnlyBlocked
+  pyNotInPlay AT 31 WHEN guard.site == py AND guard.playKnown AND NOT guard.playMode AND guard.runtime -> notInPlay
+  pyPythonOnly AT 32 WHEN guard.site == py AND guard.pythonOnly -> pythonOnly
+END

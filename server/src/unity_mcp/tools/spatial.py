@@ -1,40 +1,27 @@
 """Spatial / scene-analysis queries: layout, context, scan, raycast, colliders."""
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._common import bind
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import (  # noqa: F401
+    analyze_lod_culling,
+    autofit_collider,
+    check_colliders,
+    get_spatial_context,
+    navmesh_query,
+    region_clear,
+    scan_scene,
+    spatial_query,
+    tools,
+    validate_triggers,
+)
 
 _send = None
 _args = None
 
 
-async def validate_triggers(root: str = "/", min_distance: float = 3.0) -> str:
-    """Check 3D trigger/collider overlaps. Warns if triggers closer than min_distance meters."""
-    return await _send("validate_triggers", _args(root=root, min_distance=str(min_distance)))
-
-
-async def get_spatial_context(path: str, radius: float = 5.0) -> str:
-    """Collider info + approach vectors + nearby objects within radius. Raycast in Play Mode only."""
-    return await _send("get_spatial_context", _args(path=path, radius=str(radius)))
-
-
-async def scan_scene() -> str:
-    """Scene infrastructure scan: colliders, triggers, audio, lights, rigidbody, canvas, nav. Coverage stats."""
-    return await _send("scan_scene", {})
-
-
-async def check_colliders(path: str | None = None) -> str:
-    """Check collider issues: triggers without Rigidbody, negative scale, micro colliders. Scans whole scene if no path given."""
-    return await _send("check_colliders", _args(path=path))
-
-
-async def autofit_collider(path: str, type: str = "box") -> str:
-    """Auto-fit collider to mesh/renderer bounds. type: box|sphere|capsule."""
-    return await _send("autofit_collider", _args(path=path, type=type))
-
-
 def _validate_polygon(vertices: str | None) -> None:
     """Fast-fail validation for polygon CSV. Raises ToolError on bad input."""
-    from mcp.server.fastmcp.exceptions import ToolError
+    from mcp.server.mcpserver.exceptions import ToolError
     if not vertices:
         raise ToolError("vertices required for objects_in_polygon")
     pairs = vertices.split(";")
@@ -54,7 +41,7 @@ def _validate_polygon(vertices: str | None) -> None:
             raise ToolError(f"vertex {i}: coordinates out of range (max 100000)")
 
 
-async def spatial_query(action: str, path: str | None = None, target: str | None = None,
+async def _spatial_query_body(action: str, path: str | None = None, target: str | None = None,
                         distance: float | None = None, radius: float | None = None,
                         component: str | None = None, cell_size: float | None = None,
                         layer_mask: str | None = None,
@@ -74,7 +61,7 @@ async def spatial_query(action: str, path: str | None = None, target: str | None
     supplied vertices are always validated. cap=max results (default 50)."""
     if action == "objects_in_polygon":
         if vertices is None and not region_id:
-            from mcp.server.fastmcp.exceptions import ToolError
+            from mcp.server.mcpserver.exceptions import ToolError
             raise ToolError("vertices or region_id required for objects_in_polygon")
         if vertices is not None:
             _validate_polygon(vertices)
@@ -91,7 +78,7 @@ async def spatial_query(action: str, path: str | None = None, target: str | None
         cap=str(cap) if cap is not None else None))
 
 
-async def region_clear(vertices: str, dry_run: bool = True,
+async def _region_clear_body(vertices: str, dry_run: bool = True,
                        filter: str | None = None, cap: int = 50) -> str:
     """Delete (or preview) all objects whose XZ pivot is inside the polygon region. Deletes scene objects when dry_run=False. No confirmation required.
 
@@ -108,7 +95,7 @@ async def region_clear(vertices: str, dry_run: bool = True,
         cap=str(cap)))
 
 
-async def navmesh_query(action: str, center: str | None = None,
+async def _navmesh_query_body(action: str, center: str | None = None,
                         from_pos: str | None = None, to: str | None = None,
                         max_distance: float = 5.0, area_mask: int = -1,
                         agentRadius: float | None = None,
@@ -139,20 +126,5 @@ async def navmesh_query(action: str, center: str | None = None,
     return result
 
 
-async def analyze_lod_culling(focus: str | None = None) -> str:
-    """LOD group coverage + occlusion culling analysis.
-    focus: lod|culling|occlusion|null=all."""
-    return await _send("analyze_lod_culling", _args(focus=focus))
-
-
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(validate_triggers)
-    mcp.tool(annotations=_RO)(get_spatial_context)
-    mcp.tool(annotations=_RO)(scan_scene)
-    mcp.tool(annotations=_RO)(check_colliders)
-    mcp.tool(annotations=_RW)(autofit_collider)
-    mcp.tool(annotations=_RO)(spatial_query)
-    mcp.tool(annotations=_RW)(region_clear)
-    mcp.tool(annotations=_RW)(navmesh_query)
-    mcp.tool(annotations=_RO)(analyze_lod_culling)

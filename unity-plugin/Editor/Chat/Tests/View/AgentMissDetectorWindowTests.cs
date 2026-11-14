@@ -7,6 +7,7 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityMCP.Editor.Chat.Turn;
 using Object = UnityEngine.Object;
 
 namespace UnityMCP.Editor.Chat.Tests
@@ -46,6 +47,7 @@ namespace UnityMCP.Editor.Chat.Tests
             {
                 s_transcript.SetValue(w, transcript);
                 s_pendingAgent.SetValue(w, "junior-dev"); // @junior-dev mentioned
+                w._turn.Dispatch(ChatTurnIntent.Send());  // TurnDone ends the turn that is open; with none open it is inert
 
                 FireTool(w, "Read",  "t1"); // first tool — NOT a delegation
                 FireTool(w, "Agent", "t2"); // second tool — delegation
@@ -68,6 +70,7 @@ namespace UnityMCP.Editor.Chat.Tests
             {
                 s_transcript.SetValue(w, transcript);
                 s_pendingAgent.SetValue(w, "junior-dev");
+                w._turn.Dispatch(ChatTurnIntent.Send());
 
                 FireTool(w, "Read", "t1"); // no Agent follows
                 FireTurnDone(w);
@@ -89,6 +92,7 @@ namespace UnityMCP.Editor.Chat.Tests
             {
                 s_transcript.SetValue(w, transcript);
                 s_pendingAgent.SetValue(w, "senior-dev");
+                w._turn.Dispatch(ChatTurnIntent.Send());
 
                 FireTool(w, "Bash", "t1");
                 FireTool(w, "Task", "t2");

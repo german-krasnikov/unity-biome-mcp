@@ -46,6 +46,12 @@ unity-plugin/Tests~/MutationAdapterContract/adapter-cache/
 unity-plugin/Tests~/MutationAdapterContract/bin/
 unity-plugin/Tests~/MutationAdapterContract/obj/
 unity-plugin/Tests~/MutationAdapterContract/resolved-adapter-pin.json
+unity-plugin/Tests~/Decisions/bin/
+unity-plugin/Tests~/Decisions/obj/
+unity-plugin/Tests~/ChatTurn/bin/
+unity-plugin/Tests~/ChatTurn/obj/
+unity-plugin/Tests~/PlaytestGrammar/bin/
+unity-plugin/Tests~/PlaytestGrammar/obj/
 
 # macOS
 .DS_Store

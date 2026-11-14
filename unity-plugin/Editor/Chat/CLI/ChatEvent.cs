@@ -24,8 +24,6 @@ namespace UnityMCP.Editor.Chat
         ToolProgress,
         /// <summary>Rate limit warning.</summary>
         RateLimit,
-        /// <summary>Session state change.</summary>
-        SessionState,
         /// <summary>Keepalive ping — resets inactivity watchdog without rendering anything.</summary>
         Heartbeat,
         /// <summary>
@@ -60,7 +58,7 @@ namespace UnityMCP.Editor.Chat
         public string        RequestId    { get; }  // PermissionPrompt/AskUser: request_id for control_response
         public string        ToolInput    { get; }  // PermissionPrompt: tool arguments JSON
         public float         Percentage   { get; }  // ToolProgress: 0-100
-        public string        State        { get; }  // SessionState: new state string
+        public string        State        { get; }  // CapabilitiesChanged: new state string
         public string        RawJson      { get; }  // AskUser: raw questions JSON for UI rendering
 
         private ChatEvent(ChatEventKind kind, string text = null, string argsJson = null,
@@ -121,9 +119,6 @@ namespace UnityMCP.Editor.Chat
 
         public static ChatEvent RateLimit(string message) =>
             new ChatEvent(ChatEventKind.RateLimit, text: message);
-
-        public static ChatEvent SessionState(string state) =>
-            new ChatEvent(ChatEventKind.SessionState, state: state);
 
         public static ChatEvent Heartbeat() =>
             new ChatEvent(ChatEventKind.Heartbeat);

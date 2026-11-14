@@ -1,0 +1,13 @@
+PROVENANCE "Transcribed from server/tests/test_middleware.py's Feature-4 periodic-state-injection tests and test_middleware_distill_integration.py's X3.cross.4 (UNITY_MCP_AUTO_STATE=0 guard)."
+
+EXAMPLES injectState
+  id | stateAutoStateOff | stateCmdIsScreenshot | stateCmdIsPlaytestScenario | stateCmdPresent | stateCmdIsWrite | stateCmdIsBatch | stateBatchReadonly | stateDueByCount | stateGapOk -> expected
+  auto-state-off-skips | true | false | false | true | true | false | false | true | true -> skip  # test_middleware_distill_integration.py:106 (X3.cross.4)
+  screenshot-skips | false | true | false | true | false | false | false | true | true -> skip  # test_middleware.py:215 (test_auto_state_skips_read_cmds)
+  playtest-scenario-skips | false | false | true | true | true | false | false | true | true -> skip  # test_middleware.py:261 (test_auto_state_not_injected_into_run_playtest_json_receipt)
+  read-cmd-skips | false | false | false | true | false | false | false | true | true -> skip  # test_middleware.py:216 (get_component/get_compile_errors)
+  readonly-batch-skips | false | false | false | true | false | true | true | true | true -> skip  # test_middleware.py:237 (test_auto_state_skips_readonly_batch)
+  due-write-fires | false | false | false | true | true | false | false | true | true -> inject  # test_middleware.py:226 (test_auto_state_fires_on_write_cmds)
+  gap-not-exceeded-skips | false | false | false | true | true | false | false | true | false -> skip  # test_middleware.py:126 (test_auto_state_staleness_gate, first assertion window)
+  not-due-skips | false | false | false | true | true | false | false | false | true -> skip  # middleware_async.py:40 (call_count % 10 != 0)
+END

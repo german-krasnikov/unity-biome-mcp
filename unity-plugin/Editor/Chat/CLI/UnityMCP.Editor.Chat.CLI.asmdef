@@ -1,7 +1,7 @@
 {
     "name": "UnityMCP.Editor.Chat.CLI",
     "rootNamespace": "UnityMCP.Editor.Chat",
-    "references": ["UnityMCP.Editor", "UnityMCP.Editor.Wizard", "UnityMCP.Editor.Chat.Parsers"],
+    "references": ["UnityMCP.Editor", "UnityMCP.Editor.Primitives", "UnityMCP.Editor.Wizard", "UnityMCP.Editor.Chat.Parsers", "UnityMCP.Editor.Core.Scene", "UnityMCP.Editor.Playtest"],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],
     "allowUnsafeCode": false,

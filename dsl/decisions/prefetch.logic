@@ -1,0 +1,18 @@
+# prefetchServe: may this read be served from PrefetchCache without a TCP round trip? First match wins.
+# prefetchFire: may a write even look up a predicted background read? First match wins.
+# Both characterized from middleware_pipeline.py (ARC-5 T2 / N0a-2): the scenario-uncertain guard
+# fences stale-cache serving and speculative prefetch while a dispatched playtest may still be mutating.
+DECISION prefetchServe DEFAULT skip
+  notConfigured AT 10 WHEN NOT pf.cacheConfigured -> skip
+  notCacheable AT 20 WHEN NOT pf.cmdCacheable -> skip
+  uncertain AT 30 WHEN pf.scenarioUncertain -> skip
+  eligible AT 40 WHEN pf.cacheConfigured AND pf.cmdCacheable AND NOT pf.scenarioUncertain -> serve
+END
+
+DECISION prefetchFire DEFAULT skip
+  uncertain AT 10 WHEN pf.scenarioUncertain -> skip
+  notWrite AT 20 WHEN NOT pf.cmdIsWrite -> skip
+  sceneNeutral AT 21 WHEN pf.cmdSceneNeutral -> skip
+  notConfigured AT 30 WHEN NOT pf.cacheConfigured -> skip
+  eligible AT 40 WHEN NOT pf.scenarioUncertain AND pf.cmdIsWrite AND NOT pf.cmdSceneNeutral AND pf.cacheConfigured -> fire
+END

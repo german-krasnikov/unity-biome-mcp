@@ -751,7 +751,7 @@ namespace UnityMCP.Editor
 
                         var envelope = BuildMcpEnvelope(runId, stepIdx, step.Method, step.Args);
                         _mcpTcs = new TaskCompletionSource<string>();
-                        CommandRouter.ProcessAsync(envelope, _mcpTcs);
+                        Dispatcher.ProcessAsync(envelope, _mcpTcs);
                         phase = Phase.WaitingMcp;
                     }
                     catch (Exception e)

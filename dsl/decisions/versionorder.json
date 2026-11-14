@@ -1,0 +1,17 @@
+{
+  "generated": "from versionorder.examples by npm run logic -- examples; do not edit",
+  "provenance": "basic triples transcribed from the tests the project already has: test_update_check.py (Python), ChangelogReaderTests.cs (C#). The pre-release rows have no existing test (UpdateChecker/ChangelogReader/ReleaseDiff all fail to parse a '-rc' suffix and return false; _update_check strips it and ignores the policy question) -- they are semver 2.0 §11 plus the Q16 product policy (a stable user never sees any pre-release banner; a pre-release user sees the release of their own line, and any strictly newer release, but not a sibling pre-release).",
+  "isNewer": [
+    { "id": "v01-unparsed", "facts": { "verParsed": false, "verTriple": "equal", "verCandPre": false, "verCurPre": false }, "expected": false, "provenance": "characterized: UpdateChecker.cs:179 ChangelogReader.cs:80 ReleaseDiff.cs:53 _update_check.py:41 all return false on an unparsable string" },
+    { "id": "v02-greater", "facts": { "verParsed": true, "verTriple": "greater", "verCandPre": false, "verCurPre": false }, "expected": true, "provenance": "test_update_check.py:12 test_update_check.py:24 test_update_check.py:28 ChangelogReaderTests.cs:51" },
+    { "id": "v03-equal", "facts": { "verParsed": true, "verTriple": "equal", "verCandPre": false, "verCurPre": false }, "expected": false, "provenance": "test_update_check.py:16 ChangelogReaderTests.cs:52" },
+    { "id": "v04-less", "facts": { "verParsed": true, "verTriple": "less", "verCandPre": false, "verCurPre": false }, "expected": false, "provenance": "test_update_check.py:20 ChangelogReaderTests.cs:53" },
+    { "id": "v05-rc-over-stable-greater", "facts": { "verParsed": true, "verTriple": "greater", "verCandPre": true, "verCurPre": false }, "expected": false, "provenance": "characterized: a stable user never sees a pre-release banner, even for a numerically newer triple (semver 2.0 §11 + Q16; closes EVAL3_UNITY_MCP_UI.md F4)" },
+    { "id": "v06-rc-over-stable-equal", "facts": { "verParsed": true, "verTriple": "equal", "verCandPre": true, "verCurPre": false }, "expected": false, "provenance": "characterized: same rule, equal triple" },
+    { "id": "v07-rc-over-stable-less", "facts": { "verParsed": true, "verTriple": "less", "verCandPre": true, "verCurPre": false }, "expected": false, "provenance": "characterized: same rule, lesser triple" },
+    { "id": "v08-stable-over-rc-greater", "facts": { "verParsed": true, "verTriple": "greater", "verCandPre": false, "verCurPre": true }, "expected": true, "provenance": "characterized: a pre-release user sees a newer stable release (closes EVAL3_UNITY_MCP_UI.md F4: 1.51.0-rc.1 -> 1.52.0)" },
+    { "id": "v09-release-over-its-rc", "facts": { "verParsed": true, "verTriple": "equal", "verCandPre": false, "verCurPre": true }, "expected": true, "provenance": "characterized: a pre-release user sees the release of their own line (1.52.0-rc.1 -> 1.52.0)" },
+    { "id": "v10-rc-over-sibling-rc", "facts": { "verParsed": true, "verTriple": "equal", "verCandPre": true, "verCurPre": true }, "expected": false, "provenance": "characterized: a pre-release user does not see a sibling pre-release of the same triple" },
+    { "id": "v11-rc-user-past-triple", "facts": { "verParsed": true, "verTriple": "less", "verCandPre": false, "verCurPre": true }, "expected": false, "provenance": "characterized: a pre-release user already past this triple sees no banner for an older stable release" }
+  ]
+}

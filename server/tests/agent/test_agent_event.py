@@ -296,3 +296,49 @@ def test_provider_capabilities_unknown_provider():
     probe = {"has_resume": False, "has_modes": [], "binary_version": None}
     caps = ProviderCapabilities.from_probe("unknown-future-provider", probe)
     assert caps.events == _ALL_KIND_LIST
+
+
+# ── 21. Fixtures satisfy generated required payload fields (E2, Q9) ─────────
+# PAYLOAD_FIELDS comes from dsl/events.biome FIELD items — the same vocabulary
+# production readers (history/manager.py, AgentEventReader.cs) key into.
+
+def test_all_fixtures_satisfy_payload_fields():
+    from unity_mcp.agent_event_fields import PAYLOAD_FIELDS
+    errors = []
+    for fname in FIXTURE_FILES:
+        for i, raw in enumerate(_load_fixture(fname)):
+            kind = raw.get("kind")
+            payload = raw.get("payload") or {}
+            missing = [
+                field
+                for field, (_, req) in PAYLOAD_FIELDS.get(kind, {}).items()
+                if req == "required" and field not in payload
+            ]
+            if missing:
+                errors.append(f"{fname} line {i + 1}: kind={kind} missing required {missing}")
+    if errors:
+        pytest.fail("\n".join(errors))
+
+
+# ── 22. Usage-class events precede closes-class events (E2, Q9) ─────────────
+# ORDER_CLASS comes from dsl/events.biome ORDER items. cost_update (usage) HOLDs
+# fields that turn_completed (closes) TAKEs — a usage event stranded after the
+# last closes event in a fixture would never be consumed by the C# parser.
+
+def test_usage_events_precede_closes_events():
+    from unity_mcp.agent_event_order import ORDER_CLASS
+    errors = []
+    for fname in FIXTURE_FILES:
+        events = _load_fixture(fname)
+        closes_indices = [i for i, e in enumerate(events) if ORDER_CLASS.get(e["kind"]) == "closes"]
+        if not closes_indices:
+            continue
+        last_closes = max(closes_indices)
+        for i, e in enumerate(events):
+            if ORDER_CLASS.get(e["kind"]) == "usage" and i > last_closes:
+                errors.append(
+                    f"{fname} line {i + 1}: usage kind={e['kind']} stranded after "
+                    f"last closes event at line {last_closes + 1}"
+                )
+    if errors:
+        pytest.fail("\n".join(errors))

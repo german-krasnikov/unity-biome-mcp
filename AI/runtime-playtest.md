@@ -90,6 +90,8 @@ On both sync (direct `_send`) and async (start/poll) routes:
 
 The classification is performed by `_classify_outcome(result, format)` and is symmetric across both routes.
 
+Whether a report passes, its outcome and the layered suite verdict are the generated decisions `passes`, `outcome`, `fileState`, `suiteInner` and `suiteOuter` (`dsl/decisions/verdict.logic`). `decisions/verdict_facts.py` reads a report for the Python plane (`_is_playtest_pass`, `_classify_outcome`, `suite_verdict`); `Editor/Decisions/PlaytestFacts.cs` reads it for the Unity plane (`CommandRouter.IsPlaytestSuccess`). The two planes read the same report differently (a header on any line and failure marker words in Python; the header at the very start in Unity): the rules are shared, the difference lives in the extractors and is an open owner question (Q-V1).
+
 ## Cache Trust Guard During Playtest Scenarios (N0a)
 
 When an async playtest is dispatched (`start_playtest` ack received), `Middleware._scenario_uncertain` is set to `True`. This guard bypasses both PrefetchCache lookup sites and suppresses background prefetch speculation while the playtest is in flight.

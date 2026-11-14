@@ -12,6 +12,7 @@ CLAUDE_CMD = os.environ.get("UNITY_MCP_CLAUDE_CMD", "claude")
 import contextlib
 
 from .llm_config import get_profile  # noqa: E402
+from .llm_gateway import ILlmGateway  # noqa: E402
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ async def _record_async(feature: str, has_image: bool = None) -> None:
     await _budget_tracker.record_async(feature, meta.est_in, meta.est_out, image)
 
 
-class SamplingService:
+class SamplingService(ILlmGateway):
     """Claude CLI calls for server-side verification."""
 
     _semaphore: asyncio.Semaphore | None = None

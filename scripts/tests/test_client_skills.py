@@ -100,7 +100,7 @@ def _owner_module_spec_kwargs(tools_dir: pathlib.Path, module_name: str) -> dict
     _SPECS at import time from an owner module's own SPEC_KWARGS dict literal
     (e.g. tools/watch.py) instead of hand-typing them. Read that module's own
     literal directly so this test's cross-check still sees those tool names."""
-    mod_file = tools_dir / f"{module_name}.py"
+    mod_file = tools_dir.joinpath(*module_name.split(".")).with_suffix(".py")  # "generated.catalog_specs": the tool catalog
     tree = ast.parse(mod_file.read_text(encoding="utf-8"))
     for node in tree.body:
         if (

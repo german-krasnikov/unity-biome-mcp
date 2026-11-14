@@ -1,0 +1,457 @@
+# Frozen oracle of the hand-written PlaytestParser, taken at 86eca971 (master) before any playtest construct existed (step 7.5 O0).
+# It holds the inputs of the parser and what the tests of the project say about them, not the steps the parser built.
+# Do not regenerate this file to remove a difference: an intended difference of the new reader is an INTENDED entry with its reason.
+# scripts/playtest_oracle.py prints it again from that commit: python scripts/playtest_oracle.py | diff - dsl/playtest/oracle.rows
+# A row is `<kind> <file>:<line> <field> <text>` (1-based line; for a call, the line of `PlaytestParser.Parse(`); an empty text ends the row.
+# A text is escaped: \\ \n \r \t \xNN \uNNNN, and a last space is \x20.
+# line   <VERB> <rest>           a command line of a git-tracked .playtest file, `<VERB> <rest>` (comments and blank lines are not rows)
+# accept <StepTypes or -> <text> a test passes the literal <text> to PlaytestParser.Parse outside Assert.Throws; StepTypes (comma-separated) are those it asserts after the call
+# reject <Exception> <text>      the call is inside Assert.Throws<Exception>: the test expects it to throw
+# A call is a row only when its first argument is one plain "..." literal (not a variable, concatenation, interpolation or @"..."); other arguments are not recorded.
+# 25 files, 156 commands (138 steps without INCLUDE VAL VAR SETUP TEARDOWN), 19 verbs: ASSERT 49 INVOKE 33 WAIT_UNTIL 15 INCLUDE 11 ASSERT_CONSOLE_CLEAN 9 LOG 8 TIMESCALE 8 SET 5 VAL 4 MCP 4 WAIT 2 VAR 1 CLICK 1 FILL 1 FOCUS 1 SETUP 1 TEARDOWN 1 SNAPSHOT 1 SECTION 1
+# 289 calls (248 accept, 41 reject, 126 of the accepts with StepTypes), 273 different literals
+line scripts/fixtures/build_readiness/sample.playtest:2 INVOKE @OWNED_PATH@ BuildReadinessCanaryProbe Sample
+line scripts/fixtures/build_readiness/sample.playtest:3 ASSERT @OWNED_PATH@|BuildReadinessCanaryProbe|Observed == @EXPECTED@
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/A_shared_setup.playtest:3 INCLUDE common.defs
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/A_shared_setup.playtest:4 INVOKE /Fixture/State FixtureState ResetState
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/A_shared_setup.playtest:5 ASSERT $state == 100
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/A_shared_setup.playtest:6 INVOKE /Fixture/State FixtureState Increment
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/A_shared_setup.playtest:7 ASSERT $state == 101
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/B_shared_continue.playtest:3 INCLUDE common.defs
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/B_shared_continue.playtest:4 ASSERT $state == 101
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/B_shared_continue.playtest:5 INVOKE /Fixture/State FixtureState Increment
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/B_shared_continue.playtest:6 ASSERT $state == 102
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/C_shared_finish.playtest:2 INCLUDE common.defs
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/C_shared_finish.playtest:3 ASSERT $state == 102
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/C_shared_finish.playtest:4 INVOKE /Fixture/State FixtureState CompleteAfterSeconds 0.1
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/C_shared_finish.playtest:5 WAIT_UNTIL $completed == True TIMEOUT 5
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/C_shared_finish.playtest:6 ASSERT $completed == True
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/DSL_types.playtest:1 INCLUDE common.defs
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/DSL_types.playtest:2 VAR $runtime_progress @/Fixture/Async|FixtureAsyncState|Progress
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/DSL_types.playtest:3 INVOKE /Fixture/Async FixtureAsyncState StartOperation 0.5
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/DSL_types.playtest:4 WAIT_UNTIL $runtime_progress >= 0.5 TIMEOUT 5
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/DSL_types.playtest:5 INVOKE /Fixture/State FixtureState ResetState
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/DSL_types.playtest:6 ASSERT $state == 100
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/DSL_types.playtest:7 ASSERT $boot_ready
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/DSL_types.playtest:8 ASSERT /Fixture/Active/A|activeSelf
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/DSL_types.playtest:9 ASSERT /Fixture/Active/B|activeSelf == False
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/F_independent_fail.playtest:2 INCLUDE common.defs
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/F_independent_fail.playtest:4 INVOKE /Fixture/State FixtureState ResetState
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/F_independent_fail.playtest:5 ASSERT $state == 999
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I1_independent_pass.playtest:2 INCLUDE common.defs
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I1_independent_pass.playtest:3 INVOKE /Fixture/State FixtureState ResetState
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I1_independent_pass.playtest:4 ASSERT $state == 100
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I1_independent_pass.playtest:5 INVOKE /Fixture/State FixtureState Increment
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I1_independent_pass.playtest:6 ASSERT $state == 101
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I1_independent_pass.playtest:7 ASSERT $counter == 1
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I2_independent_pass.playtest:2 INCLUDE common.defs
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I2_independent_pass.playtest:3 INVOKE /Fixture/State FixtureState ResetState
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I2_independent_pass.playtest:4 INVOKE /Fixture/State FixtureState Record hello,world,42
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I2_independent_pass.playtest:5 ASSERT $last_first == hello
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I2_independent_pass.playtest:6 ASSERT $last_second == world
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I2_independent_pass.playtest:7 ASSERT $last_int == 42
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I3_independent_pass.playtest:1 INCLUDE common.defs
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I3_independent_pass.playtest:2 INVOKE /Fixture/Async FixtureAsyncState Reset
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I3_independent_pass.playtest:3 INVOKE /Fixture/Async FixtureAsyncState StartOperation 0.5
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I3_independent_pass.playtest:4 WAIT_UNTIL $async_running == False TIMEOUT 5
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/I3_independent_pass.playtest:5 ASSERT $async_progress == 1
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/INVOKE_arguments.playtest:2 INCLUDE common.defs
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/INVOKE_arguments.playtest:3 INVOKE /Fixture/State FixtureState ResetState
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/INVOKE_arguments.playtest:4 INVOKE /Fixture/State FixtureState Record "hello world","second arg",42
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/INVOKE_arguments.playtest:5 ASSERT $last_first == hello world
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/INVOKE_arguments.playtest:6 ASSERT $last_second == second arg
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/INVOKE_arguments.playtest:7 ASSERT $last_int == 42
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/L_long_pass.playtest:2 INCLUDE common.defs
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/L_long_pass.playtest:3 INVOKE /Fixture/State FixtureState ResetState
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/L_long_pass.playtest:4 WAIT 15
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/L_long_pass.playtest:5 ASSERT $state == 100
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/MOVEMENT_profiles.playtest:2 INCLUDE common.defs
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/MOVEMENT_profiles.playtest:4 INVOKE /Fixture/Actor FixtureMoveAdapter Teleport 1.0,2.0,3.0
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/MOVEMENT_profiles.playtest:5 ASSERT $last_first == Teleport
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/MOVEMENT_profiles.playtest:7 INVOKE /Fixture/Actor FixtureMoveAdapter MoveAsync 5.0,0.0,0.0
+line unity-test-project/Assets/MCPFeedbackFixture/PlayTests/MOVEMENT_profiles.playtest:8 ASSERT $last_first == MoveAsync
+line unity-test-project/Assets/Playtests/UIToolkit/uitk-click.playtest:4 VAL $hud /HUD|UIDocument
+line unity-test-project/Assets/Playtests/UIToolkit/uitk-click.playtest:5 CLICK $hud|submitBtn
+line unity-test-project/Assets/Playtests/UIToolkit/uitk-click.playtest:6 ASSERT_CONSOLE_CLEAN
+line unity-test-project/Assets/Playtests/UIToolkit/uitk-fill-edit.playtest:2 VAL $ui /TestUI|UIDocument
+line unity-test-project/Assets/Playtests/UIToolkit/uitk-fill-edit.playtest:3 FILL $ui|emailInput user@test.com
+line unity-test-project/Assets/Playtests/UIToolkit/uitk-fill-edit.playtest:4 ASSERT $ui|emailInput|value == user@test.com
+line unity-test-project/Assets/Playtests/UIToolkit/uitk-fill-edit.playtest:5 FOCUS $ui|emailInput
+line unity-test-project/Assets/Playtests/UIToolkit/uitk-read.playtest:3 VAL $hud /HUD|UIDocument
+line unity-test-project/Assets/Playtests/UIToolkit/uitk-read.playtest:4 ASSERT $hud|health-label|text == "75 HP"
+line unity-test-project/Assets/Playtests/UIToolkit/uitk-wait.playtest:3 VAL $hud /HUD|UIDocument
+line unity-test-project/Assets/Playtests/UIToolkit/uitk-wait.playtest:4 WAIT_UNTIL $hud|score|value > 10 TIMEOUT 5
+line unity-test-project/Assets/Playtests/biome_smoke.playtest:6 SETUP
+line unity-test-project/Assets/Playtests/biome_smoke.playtest:7 MCP create_object name=pt_$RUN_ID primitive=Cube
+line unity-test-project/Assets/Playtests/biome_smoke.playtest:8 MCP get_hierarchy depth=2 INTO $tree
+line unity-test-project/Assets/Playtests/biome_smoke.playtest:9 ASSERT $tree contains pt_$RUN_ID
+line unity-test-project/Assets/Playtests/biome_smoke.playtest:10 ASSERT /pt_$RUN_ID|activeSelf
+line unity-test-project/Assets/Playtests/biome_smoke.playtest:11 MCP set_property path=/pt_$RUN_ID component=Transform prop=position value=1,2,3
+line unity-test-project/Assets/Playtests/biome_smoke.playtest:12 ASSERT /pt_$RUN_ID|Transform|localPosition.x == 1
+line unity-test-project/Assets/Playtests/biome_smoke.playtest:13 ASSERT /pt_$RUN_ID|Transform|localPosition.y == 2
+line unity-test-project/Assets/Playtests/biome_smoke.playtest:14 ASSERT /pt_$RUN_ID|Transform|localPosition.z == 3
+line unity-test-project/Assets/Playtests/biome_smoke.playtest:15 TEARDOWN
+line unity-test-project/Assets/Playtests/biome_smoke.playtest:16 MCP delete_object path=/pt_$RUN_ID
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_bounds.playtest:2 LOG Player PlayTest CI bounds
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_bounds.playtest:3 TIMESCALE 10
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_bounds.playtest:4 INVOKE /GridPlayer GridPlayer ResetState
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_bounds.playtest:5 SET /GridPlayer GridPlayer MoveSpeed 50
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_bounds.playtest:6 INVOKE /GridPlayer GridPlayer MoveTo 0 9
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_bounds.playtest:7 WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_bounds.playtest:8 ASSERT /GridPlayer|GridPlayer|PosZ == 9
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_bounds.playtest:9 INVOKE /GridPlayer GridPlayer Move north
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_bounds.playtest:10 WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_bounds.playtest:11 ASSERT /GridPlayer|GridPlayer|PosZ == 9
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_bounds.playtest:12 TIMESCALE 1
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_bounds.playtest:13 ASSERT_CONSOLE_CLEAN
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_expected_failure.playtest:2 LOG Player PlayTest CI expected failure started
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_expected_failure.playtest:3 INVOKE /GridPlayer GridPlayer ResetState
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_expected_failure.playtest:4 ASSERT /GridPlayer|GridPlayer|PosZ == 999
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_expected_failure.playtest:5 WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == True TIMEOUT 0.1
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_expected_failure.playtest:6 ASSERT_CONSOLE_CLEAN
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_graphics_smoke.playtest:2 LOG Player PlayTest optional graphics smoke started
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_graphics_smoke.playtest:3 WAIT_UNTIL /Main Camera|activeInHierarchy == True TIMEOUT 5
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_graphics_smoke.playtest:4 ASSERT /Main Camera|Camera|enabled == True
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_graphics_smoke.playtest:5 ASSERT_CONSOLE_CLEAN
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:2 LOG Player PlayTest CI multi-move sequence
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:3 TIMESCALE 10
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:4 INVOKE /GridPlayer GridPlayer ResetState
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:5 SET /GridPlayer GridPlayer MoveSpeed 50
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:6 INVOKE /GridPlayer GridPlayer Move east
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:7 WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:8 INVOKE /GridPlayer GridPlayer Move east
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:9 WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:10 INVOKE /GridPlayer GridPlayer Move north
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:11 WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:12 ASSERT /GridPlayer|GridPlayer|PosX == 2
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:13 ASSERT /GridPlayer|GridPlayer|PosZ == 1
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:14 ASSERT /GridPlayer|GridPlayer|MoveCount == 3
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:15 TIMESCALE 1
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_multi_move.playtest:16 ASSERT_CONSOLE_CLEAN
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_preflight_reject.playtest:5 LOG this line must never produce a passed receipt entry
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_preflight_reject.playtest:6 SET /GridPlayer GridPlayer MoveSpeed 999
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_preflight_reject.playtest:7 WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False AND /GridPlayer|GridPlayer|IsMoving == True TIMEOUT 1
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_preflight_reject.playtest:8 ASSERT_CONSOLE_CLEAN
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:2 LOG Player PlayTest CI ResetState restores all fields
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:3 TIMESCALE 10
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:4 INVOKE /GridPlayer GridPlayer ResetState
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:5 SET /GridPlayer GridPlayer MoveSpeed 50
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:6 INVOKE /GridPlayer GridPlayer Move north
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:7 WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:8 INVOKE /GridPlayer GridPlayer Move east
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:9 WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:10 INVOKE /GridPlayer GridPlayer ResetState
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:11 ASSERT /GridPlayer|GridPlayer|PosX == 0
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:12 ASSERT /GridPlayer|GridPlayer|PosZ == 0
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:13 ASSERT /GridPlayer|GridPlayer|Score == 0
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:14 ASSERT /GridPlayer|GridPlayer|MoveCount == 0
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:15 ASSERT /GridPlayer|GridPlayer|IsMoving == False
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:16 TIMESCALE 1
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_reset.playtest:17 ASSERT_CONSOLE_CLEAN
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:2 LOG Player PlayTest CI GridDemo smoke started
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:3 TIMESCALE 10
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:4 INVOKE /GridPlayer GridPlayer ResetState
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:5 SET /GridPlayer GridPlayer MoveSpeed 50
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:6 ASSERT /GridPlayer|GridPlayer|StateText contains pos=0,0
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:7 INVOKE /GridPlayer GridPlayer Move north
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:8 WAIT_UNTIL /GridPlayer|GridPlayer|IsMoving == False TIMEOUT 3
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:9 ASSERT /GridPlayer|GridPlayer|PosZ == 1
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:10 ASSERT /GridPlayer|GridPlayer|MoveCount >= 1
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:11 ASSERT /GridPlayer|GridPlayer|StateText contains pos=0,1
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:12 ASSERT /GridPlayer|GridPlayer|BoardText contains P
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:13 SNAPSHOT /GridPlayer|GridPlayer|StateText,/GridPlayer|GridPlayer|BoardText
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:14 TIMESCALE 1
+line unity-test-project/Assets/StreamingAssets/Playtests/player_ci_smoke.playtest:15 ASSERT_CONSOLE_CLEAN
+line unity-test-project/Playtests/ci_smoke.playtest:1 SECTION "ci smoke"
+line unity-test-project/Playtests/ci_smoke.playtest:2 LOG PlayTest CI smoke started
+line unity-test-project/Playtests/ci_smoke.playtest:3 WAIT 0.1
+line unity-test-project/Playtests/ci_smoke.playtest:4 ASSERT_CONSOLE_CLEAN
+accept unity-plugin/Editor/Tests/ClickStepTests.cs:35 Click CLICK /Canvas/Button
+accept unity-plugin/Editor/Tests/ClickStepTests.cs:44 Click CLICK /Canvas/Button WAIT 0.5
+accept unity-plugin/Editor/Tests/ClickStepTests.cs:53 Click TAP /Canvas/Button
+accept unity-plugin/Editor/Tests/PlaytestAliasModularityTests.cs:38 - INCLUDE myfile.defs\nLOG $x
+accept unity-plugin/Editor/Tests/PlaytestAliasModularityTests.cs:47 Wait,Log WAIT 1\nLOG ok
+reject unity-plugin/Editor/Tests/PlaytestAliasStressTests.cs:77 ArgumentException INCLUDE inc1.defs\nLOG $leaf
+accept unity-plugin/Editor/Tests/PlaytestCaptureStringTests.cs:16 AssertChanged CAPTURE $hp /Player|Health|hp\nASSERT_CHANGED $hp
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:59 Move MOVE_PATH 1,0,0 > 5,0,0 > 10,0,3
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:70 - MOVE_PATH 1,0,0 > 5,0,0 TIMEOUT 8
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:81 Section SECTION "Movement Phase"
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:90 Assert DESC "check health"\nASSERT /X|C|f == 1
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:101 - ASSERT /X|C|f == 1 AS "health is full"
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:111 Move,Wait,Move,Wait,Move,Wait,WaitUntil SWEEP_PATH /Player DWELL 0.4\n  1,0,0 > 2,0,0 > 3,0,0\nUNTIL /q|C|f >= 2 TIMEOUT 5
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:132 Move,Move,WaitUntil SWEEP_PATH /Player DWELL 0\n  1,0,0 > 2,0,0\nUNTIL /q|C|f == 1 TIMEOUT 3
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:144 Move,Wait,Move,Wait,WaitUntil SWEEP_PATH /Player DWELL 0.2\n  1,0,0 > 2,0,0
+reject unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:159 ArgumentException SWEEP_PATH /Player 0.4
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:166 Assert SWEEP_PATH /Player DWELL 0.2\n  1,0,0 > 2,0,0\nASSERT /X|C|f == 1
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:176 WaitCaptured WAIT_CAPTURED myLabel INCREASED TIMEOUT 12
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:187 WaitCaptured WAIT_CAPTURED cashBefore INCREASED_BY >= 1 TIMEOUT 6
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:199 WaitCaptured WAIT_CAPTURED items UNCHANGED OVER 1
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:209 WaitCaptured WAIT_CAPTURED cash DECREASED TIMEOUT 4
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:222 Assert ASSERT $worker_cart_active
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:233 Assert ASSERT !$door_open
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:244 AssertBatch ASSERT ($a,$b,$c)
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:258 AssertBatch ASSERT !($a,$b)
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:268 Assert ASSERT $count >= 4
+reject unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:279 ArgumentException ASSERT someNonSigilToken
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:287 Invoke,WaitUntil COMPLETE_PURCHASE $buy_item_pipe EXPECT\n  $a,$b,$c\nTIMEOUT 2
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:309 Invoke,WaitUntil COMPLETE_PURCHASE $buy_gate EXPECT\n  $buy_gate_completed\nTIMEOUT 2
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:321 Invoke INVOKE_REPEAT 6 $gate ClearingZoneCounter OnBoardDestroyed
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:336 Invoke,Invoke,Invoke,WaitUntil INVOKE_REPEAT 3 $gate ClearingZoneCounter OnBoardDestroyed\nEXPECT $gate_remaining == 0 TIMEOUT 2
+accept unity-plugin/Editor/Tests/PlaytestDslExtensionTests.cs:352 - INVOKE_REPEAT 0 $gate ClearingZoneCounter OnBoardDestroyed
+accept unity-plugin/Editor/Tests/PlaytestForLoopTests.cs:17 - FOR $i IN 0..3\nWAIT $i\nEND_FOR
+accept unity-plugin/Editor/Tests/PlaytestForLoopTests.cs:29 - FOR $i IN 0..2\nINVOKE /Block_$i Comp Method\nEND_FOR
+accept unity-plugin/Editor/Tests/PlaytestForLoopTests.cs:40 - FOR $i IN 5..5\nWAIT 1\nEND_FOR
+reject unity-plugin/Editor/Tests/PlaytestForLoopTests.cs:50 ArgumentException FOR $i IN 0..3\nWAIT 1
+accept unity-plugin/Editor/Tests/PlaytestForLoopTests.cs:94 - FOR $i IN 0..2\nWAIT 1\nEND_FOR
+reject unity-plugin/Editor/Tests/PlaytestForLoopTests.cs:106 ArgumentException FOR $i IN 0..100001\nWAIT 1\nEND_FOR
+accept unity-plugin/Editor/Tests/PlaytestForLoopTests.cs:115 - FOR $i IN 5..0\nWAIT 1\nEND_FOR
+accept unity-plugin/Editor/Tests/PlaytestFrameCaptureTests.cs:20 CaptureFrames CAPTURE_FRAMES 4 INTERVAL 0.25
+accept unity-plugin/Editor/Tests/PlaytestFrameCaptureTests.cs:33 CaptureFrames CAPTURE_FRAMES 3 INTERVAL 0.5 CAMERA Main MODE list LABEL run1
+reject unity-plugin/Editor/Tests/PlaytestFrameCaptureTests.cs:48 ArgumentException CAPTURE_FRAMES 4
+reject unity-plugin/Editor/Tests/PlaytestFrameCaptureTests.cs:56 ArgumentException CAPTURE_FRAMES 1 INTERVAL 0.1
+accept unity-plugin/Editor/Tests/PlaytestFrameCaptureTests.cs:63 AssertFramesDiffer CAPTURE_FRAMES 2 INTERVAL 0.1\nASSERT_FRAMES_DIFFER run1
+accept unity-plugin/Editor/Tests/PlaytestFrameCaptureTests.cs:72 AssertFramesStatic CAPTURE_FRAMES 2 INTERVAL 0.1\nASSERT_FRAMES_STATIC run1
+reject unity-plugin/Editor/Tests/PlaytestParserCorpusTests.cs:59 ArgumentException FOOBAR_CMD arg1
+reject unity-plugin/Editor/Tests/PlaytestParserCorpusTests.cs:66 ArgumentException INCLUDE ../../etc/passwd
+reject unity-plugin/Editor/Tests/PlaytestParserCorpusTests.cs:79 ArgumentException INCLUDE .
+accept unity-plugin/Editor/Tests/PlaytestParserCorpusTests.cs:120 - MOVE TO 1,0,0
+accept unity-plugin/Editor/Tests/PlaytestParserCorpusTests.cs:154 Mcp MCP get_hierarchy depth=2
+accept unity-plugin/Editor/Tests/PlaytestParserCorpusTests.cs:167 - MCP fake_cmd flag=TRUE count=3 ratio=2.5 label=hello
+accept unity-plugin/Editor/Tests/PlaytestParserCorpusTests.cs:176 - MCP fake_cmd n=null arr=[1,2,"x"] obj={"x":1}
+accept unity-plugin/Editor/Tests/PlaytestParserCorpusTests.cs:185 - MCP fake_cmd label="hello world"
+accept unity-plugin/Editor/Tests/PlaytestParserCorpusTests.cs:194 - VAL $RUN_ID abc12345\nMCP create_object name=pt_$RUN_ID
+accept unity-plugin/Editor/Tests/PlaytestParserCorpusTests.cs:203 - MCP get_hierarchy depth=2 INTO $tree
+reject unity-plugin/Editor/Tests/PlaytestParserCorpusTests.cs:214 ArgumentException MCP fake_cmd obj={"x":}
+reject unity-plugin/Editor/Tests/PlaytestParserCorpusTests.cs:229 ArgumentException TOTALLY_UNKNOWN_CMD 1
+reject unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:16 ArgumentException MOVE /Player
+reject unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:25 ArgumentException MOVE TO
+reject unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:34 ArgumentException MOVE /Player TO
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:41 Move MOVE TO 1,2,3
+reject unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:80 ArgumentException ASSERT_BATCH\nASSERT /X|C|f == 1
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:87 AssertBatch ASSERT_BATCH\nASSERT /X|C|f == 1\nEND
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:98 - WAIT_UNTIL /P|C|f == ok ABORT
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:106 - WAIT_UNTIL /P|C|state == ok AND /Q|C|mode == ABORT
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:114 - WAIT_UNTIL /P|C|state == ok AND /Q|C|mode == run ABORT
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:123 - ASSERT /[MECHANICS/ZONE TEMPLATE]/Child|Comp|field == value
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:133 - ASSERT /My Object/Child|Health|hp == 100
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:143 - WAIT_UNTIL /My Object|AI|active == True TIMEOUT 5
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:154 - ASSERT /Player|Health|isAlive
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:164 - ASSERT /My Player|Health|isAlive == True
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:174 AssertBatch ASSERT_BATCH\nASSERT /My Object|C|f == 1\nEND
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:184 - WAIT_UNTIL /My Object|C|f == 1 AND /Other Space|C|g == 2 TIMEOUT 5
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:207 - ASSERT /x|C|state == hello world
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:217 - SETUP\nLOG s\nSETUP_END\nLOG m
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:223 - TEARDOWN\nLOG t\nTEARDOWN_END\nLOG m
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:229 - SETUP\nLOG s\nSETUP_END\nLOG main
+accept unity-plugin/Editor/Tests/PlaytestParserEdgeCaseTests.cs:237 - TEARDOWN\nLOG t\nTEARDOWN_END\nLOG main
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:195 Assert ASSERT /Player|Health|hp == 100
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:207 Wait WAIT 2.5
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:216 - # this is a comment\nASSERT /X|C|f == 1
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:225 - # @needs editmode\nASSERT_CONSOLE_CLEAN
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:230 - ASSERT_CONSOLE_CLEAN
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:238 -
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:254 AssertConsoleClean ASSERT_CONSOLE_CLEAN
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:262 WaitUntil WAIT_UNTIL /P|C|f == 1
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:276 WaitUntil WAIT_UNTIL $door_open
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:287 WaitUntil WAIT_UNTIL !$door_open
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:298 WaitUntil WAIT_UNTIL /Player|Health|value > 0 TIMEOUT 5
+reject unity-plugin/Editor/Tests/PlaytestParserTests.cs:310 ArgumentException WAIT_UNTIL /Player|Health|ready
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:318 - ASSERT $health == 100
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:326 - VAL $health /Player|Health|value\nASSERT $health == 100
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:335 - VAL $health /Player|Health|value\nASSERT $healt == 100
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:344 - VAL $health /Player|Health|value\nASSERT $xyz == 1
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:354 - ASSERT $health == 100
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:365 - ASSERT $typo == 1
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:374 - ASSERT $typo == 1
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:382 - VAL $hp /Player|Health|value\nASSERT $hp == 100
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:390 - ASSERT $a == 1\nASSERT $b == 2
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:400 - SET_DEFAULT_TIMEOUT 3\nWAIT_UNTIL /Player|Health|hp > 0
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:407 - ASSERT /Player|Health|hp == 100
+reject unity-plugin/Editor/Tests/PlaytestParserTests.cs:414 ArgumentException SET_DEFAULT_TIMEOUT
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:420 - WAIT_UNTIL /Enemy|Health|hp == 0 TIMEOUT 7
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:428 - WAIT_UNTIL /Enemy|Health|hp == 0
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:437 Assert ASSERT /Player|Health|hp > 0 TIMEOUT 5
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:446 Assert ASSERT /Player|Health|hp > 0
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:454 - ASSERT /Enemy|Health|hp == 0 TIMEOUT 3 AS enemy dead
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:465 AssertOneActive ASSERT_ONE_ACTIVE /Cam_Intro /Cam_Menu /Cam_Game
+reject unity-plugin/Editor/Tests/PlaytestParserTests.cs:474 ArgumentException ASSERT_ONE_ACTIVE /Cam_Intro
+reject unity-plugin/Editor/Tests/PlaytestParserTests.cs:481 ArgumentException ASSERT_ONE_ACTIVE
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:487 - ASSERT /Obj|Comp|f == 1 AS my_label TIMEOUT 3
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:498 Invoke INVOKE /Player Health TakeDamage 42 true
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:509 Invoke INVOKE_REPEAT 2 /Player Health TakeDamage 42 true
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:522 - INVOKE /Obj Comp Method arg1
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:531 - INVOKE /Obj Comp Method arg1 arg2 arg3
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:540 - INVOKE /Obj Comp Method
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:575 Teleport TELEPORT /obj 1,2,3
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:588 Teleport TELEPORT /obj @/Ref.position
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:600 Snapshot SNAPSHOT game
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:609 Snapshot SNAPSHOT /cam,/minimap
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:619 SetActive SET_ACTIVE /obj true
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:629 SetActive SET_ACTIVE /obj false
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:639 Set SET /obj Comp field 42
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:651 Log LOG hello world
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:660 TimeScale TIMESCALE 0.5
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:669 AssertNear ASSERT_NEAR /A /B 0.5
+reject unity-plugin/Editor/Tests/PlaytestParserTests.cs:680 ArgumentException UNKNOWN_COMMAND
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:686 AssertConsoleClean ASSERT_CONSOLE_CLEAN IGNORE pat1,pat2
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:700 Fill FILL /panel|UIDocument|input hello
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:710 Fill FILL /field hello world
+reject unity-plugin/Editor/Tests/PlaytestParserTests.cs:718 ArgumentException FILL
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:724 Focus FOCUS /panel|UIDocument|input
+reject unity-plugin/Editor/Tests/PlaytestParserTests.cs:733 ArgumentException FOCUS
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:755 Move MOVE TO @/Ref.position
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:767 - TELEPORT /hero @/SpawnPoint.position
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:823 CaptureMin CAPTURE_MIN $speed /Player|Rb|speed
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:835 CaptureMin CAPTURE_MIN $minFps /Stats|Fps|v OVER 3.5
+reject unity-plugin/Editor/Tests/PlaytestParserTests.cs:845 ArgumentException CAPTURE_MIN $speed
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:853 CaptureMax CAPTURE_MAX $topScore /Game|Score|total
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:863 CaptureMax CAPTURE_MAX $maxHp /Player|Health|hp OVER 5
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:874 AssertMin ASSERT_MIN $speed >= 30
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:887 AssertMax ASSERT_MAX $topScore <= 9999
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:900 WaitStable WAIT_STABLE /Player|H|hp DELTA 0.5 OVER 2
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:911 WaitStable WAIT_STABLE /Obj|C|f DELTA 1 OVER 3 TIMEOUT 10
+reject unity-plugin/Editor/Tests/PlaytestParserTests.cs:921 ArgumentException WAIT_STABLE /Obj|C|f DELTA 1
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:929 AssertChanged ASSERT_CHANGED $hp
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:940 AssertConserved ASSERT_CONSERVED SUM /A|C|f + /B|C|f OVER 5
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:950 AssertConserved ASSERT_CONSERVED SUM /A|C|f + /B|C|f == 100 OVER 5
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:961 Invariant INVARIANT /Enemy|H|hp > 0
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:974 Capture CAPTURE hp /Player|Health|current
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:986 CaptureFrames CAPTURE_FRAMES 5 INTERVAL 0.5
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:996 CaptureFrames CAPTURE_FRAMES 3 INTERVAL 0.1 CAMERA scene
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:1005 CaptureFrames CAPTURE_FRAMES 4 INTERVAL 0.2 LABEL myClip
+reject unity-plugin/Editor/Tests/PlaytestParserTests.cs:1015 ArgumentException CAPTURE_FRAMES 1 INTERVAL 0.5
+reject unity-plugin/Editor/Tests/PlaytestParserTests.cs:1022 ArgumentException CAPTURE_FRAMES 5 CAMERA game
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:1030 AssertFramesDiffer ASSERT_FRAMES_DIFFER myClip
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:1041 AssertFramesStatic ASSERT_FRAMES_STATIC myClip
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:1052 WaitCaptured WAIT_CAPTURED hp INCREASED
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:1062 WaitCaptured WAIT_CAPTURED hp DECREASED TIMEOUT 5
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:1071 WaitCaptured WAIT_CAPTURED hp UNCHANGED OVER 2
+reject unity-plugin/Editor/Tests/PlaytestParserTests.cs:1080 ArgumentException WAIT_CAPTURED hp
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:1086 WaitCaptured WAIT_CAPTURED score INCREASED_BY >= 10
+accept unity-plugin/Editor/Tests/PlaytestParserTests.cs:1110 Log,Log INCLUDE player_defs_that_do_not_exist.defs
+accept unity-plugin/Editor/Tests/PlaytestPathPrefixTests.cs:78 Wait PATH_PREFIX /L\nWAIT 1
+accept unity-plugin/Editor/Tests/PlaytestPositionResolverTests.cs:136 - MOVE TO 1,2,3
+accept unity-plugin/Editor/Tests/PlaytestPositionResolverTests.cs:149 - MOVE TO @/P.position
+accept unity-plugin/Editor/Tests/PlaytestPositionResolverTests.cs:162 - TELEPORT /Player @/Spawn.position
+accept unity-plugin/Editor/Tests/PlaytestPositionResolverTests.cs:172 - MOVE_PATH 0,0,0 > @/A.position > 5,0,5
+accept unity-plugin/Editor/Tests/PlaytestProvenanceTests.cs:19 - ASSERT /A|B|C == 1
+accept unity-plugin/Editor/Tests/PlaytestProvenanceTests.cs:30 - LOG first\nLOG second\nLOG third
+accept unity-plugin/Editor/Tests/PlaytestProvenanceTests.cs:42 - SECTION Zone\nLOG hello
+accept unity-plugin/Editor/Tests/PlaytestProvenanceTests.cs:52 - SECTION Zone phase
+accept unity-plugin/Editor/Tests/PlaytestProvenanceTests.cs:62 - LOG before\nSECTION Phase1\nLOG after
+accept unity-plugin/Editor/Tests/PlaytestProvenanceTests.cs:86 - LOG direct
+accept unity-plugin/Editor/Tests/PlaytestRunnerTests.cs:307 - WAIT_UNTIL /P|H|v > 0 TIMEOUT 5 ABORT
+accept unity-plugin/Editor/Tests/PlaytestRunnerTests.cs:725 SetActive SET_ACTIVE /Player true
+accept unity-plugin/Editor/Tests/PlaytestRunnerTests.cs:735 SetActive SET_ACTIVE /Enemy false
+accept unity-plugin/Editor/Tests/PlaytestRunnerTests.cs:745 - ASSERT /X|C|f == 1
+reject unity-plugin/Editor/Tests/PlaytestValEdgeCaseTests.cs:64 ArgumentException VAL $name
+reject unity-plugin/Editor/Tests/PlaytestValEdgeCaseTests.cs:134 ArgumentException VAR $hp /Player|Health|hp
+reject unity-plugin/Editor/Tests/PlaytestValEdgeCaseTests.cs:144 ArgumentException INCLUDE missing.defs\nLOG ok
+accept unity-plugin/Editor/Tests/PlaytestValEdgeCaseTests.cs:155 Log INCLUDE empty.defs\nLOG ok
+reject unity-plugin/Editor/Tests/PlaytestVarTests.cs:106 ArgumentException INCLUDE a.defs\nLOG ok
+reject unity-plugin/Editor/Tests/PlaytestVarTests.cs:115 ArgumentException INCLUDE missing.defs\nLOG ok
+reject unity-plugin/Editor/Tests/PlaytestVarTests.cs:251 ArgumentException INCLUDE ../../etc/passwd\nLOG ok
+reject unity-plugin/Editor/Tests/PlaytestVarTests.cs:260 ArgumentException INCLUDE /etc/passwd\nLOG ok
+accept unity-plugin/Editor/Tests/PlaytestVarTests.cs:269 Log LOG ok
+accept unity-plugin/Editor/Tests/PlaytestVarTests.cs:279 - ASSERT /P|H|h == 0
+reject unity-plugin/Editor/Tests/PlaytestVarTests.cs:289 ArgumentException VAR $hp /Player|Health|hp
+reject unity-plugin/Editor/Tests/PlaytestVarTests.cs:297 ArgumentException VAR $hp
+accept unity-plugin/Editor/Tests/UIToolkit/PlaytestUIToolkitTests.cs:64 Click CLICK /HUD|UIDocument|submitBtn
+accept unity-plugin/Editor/Tests/UIToolkit/PlaytestUIToolkitTests.cs:92 - CLICK /Player
+accept unity-plugin/Editor/Tests/UIToolkit/PlaytestUIToolkitTests.cs:104 Fill FILL /HUD|UIDocument|emailInput hello@x.com
+accept unity-plugin/Editor/Tests/UIToolkit/PlaytestUIToolkitTests.cs:115 Focus FOCUS /HUD|UIDocument|submitBtn
+accept unity-plugin/Editor/Tests/UIToolkit/PlaytestUIToolkitTests.cs:126 Fill FILL /Player/Input hello
+accept unity-plugin/Editor/Tests/UIToolkit/PlaytestUIToolkitTests.cs:163 - CLICK /HUD|PanelRenderer|btn
+accept unity-plugin/Editor/Tests/WaitConditionTests.cs:92 - WAIT_UNTIL q == v
+accept unity-plugin/Editor/Tests/WaitConditionTests.cs:99 - WAIT_UNTIL q1 == v1 AND q2 >= v2
+accept unity-plugin/Editor/Tests/WaitConditionTests.cs:111 - WAIT_UNTIL q1 == v1 OR q2 == v2
+accept unity-plugin/Editor/Tests/WaitConditionTests.cs:120 - WAIT_UNTIL q1 == v1 AND q2 == v2 AND q3 == v3
+reject unity-plugin/Editor/Tests/WaitConditionTests.cs:128 ArgumentException WAIT_UNTIL q1 == v1 AND q2 == v2 OR q3 == v3
+accept unity-plugin/Editor/Tests/WaitConditionTests.cs:134 - WAIT_UNTIL q1 == v1 AND q2 == v2 TIMEOUT 10
+accept unity-plugin/Editor/Tests/WaitConditionTests.cs:143 - WAIT_UNTIL q1 == v1 TIMEOUT 5 OR q2 == v2
+accept unity-plugin/Editor/Tests/WaitConditionTests.cs:159 - WAIT_UNTIL /P|H|v > 0 TIMEOUT 5 ABORT
+accept unity-plugin/Editor/Tests/WaitConditionTests.cs:166 - WAIT_UNTIL /P|H|v > 0 TIMEOUT 5
+accept unity-plugin/Editor/Tests/WaitConditionTests.cs:173 - ABORT_ON_FAIL\nWAIT_UNTIL /P|H|v > 0
+accept unity-plugin/Editor/Tests/WaitConditionTests.cs:179 - WAIT_UNTIL /P|H|v > 0
+accept unity-plugin/Editor/Tests/WaitConditionTests.cs:185 WaitUntil ABORT_ON_FAIL\nWAIT_UNTIL /P|H|v > 0 TIMEOUT 5
+accept unity-plugin/Editor/Tests/WaitConditionTests.cs:193 - WAIT_UNTIL /P|H|v > 0 TIMEOUT 7 ABORT
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:22 - # @needs editmode\nTIMESCALE 0.5\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:36 - # @needs editmode\nLOG hi\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:75 - LOG body-marker\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:85 - EXPECT_FAIL\nLOG this-step-succeeds\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:113 - ASSERT /A|Comp|flag == True TIMEOUT 2\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:127 - WAIT_UNTIL /A|Comp|flag == True TIMEOUT 2\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:137 - # just a comment\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:148 Move MOVE /Enemy TO 1,2,3\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:205 - ABORT_ON_FAIL\nLOG hi\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:216 - SET_DEFAULT_TIMEOUT 0.01\nLOG hi\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:227 - VAR $hp @/Player|Health|currentHp\nLOG hi\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:238 - WAIT_UNTIL /A|Comp|flag == True TIMEOUT 0.01 ABORT\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:249 - ASSERT_CONSOLE_CLEAN IGNORE "benign warning"\n
+accept unity-plugin/Tests~/Pure/PlayerProfilePreflightTests.cs:263 - SET /A Comp before 1\nABORT_ON_FAIL\nSET /A Comp after 1\n
+accept unity-test-project/Assets/Tests/Editor/PlayerPlaytestQueryTests.cs:82 - INVOKE /Combiner CombinerBehaviour Combine [hello there] world
+accept unity-test-project/Assets/Tests/Editor/PlayerPlaytestQueryTests.cs:111 - INVOKE /BoundsChecked BoundsCheckedBehaviour Move north
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:73 - ASSERT HP == 100
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:85 - ASSERT HP == 50
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:98 - ASSERT Money > 200
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:109 - ASSERT Alive == True
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:119 - ASSERT Name contains Test
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:129 - ASSERT FakeAlias == 0
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:144 - INVOKE TestPlayer TestPlayableAPI AddMoney 100
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:156 - INVOKE TestPlayer TestPlayableAPI TakeDamage 30
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:167 - INVOKE TestPlayer TestPlayableAPI AddMoney 500\nASSERT Money >= 500
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:182 - SET TestPlayer TestPlayableAPI health 50
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:193 - SET TestPlayer TestPlayableAPI money 999\nASSERT Money == 999
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:212 - SNAPSHOT TestPlayer|TestPlayableAPI|health, TestPlayer|TestPlayableAPI|money
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:226 - LOG Test checkpoint reached
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:240 - ASSERT_CONSOLE_CLEAN
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:303 - ASSERT Cargo == 42
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:316 - TIMESCALE 5
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:332 - TELEPORT TeleportTarget 5,0,3
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:351 - ASSERT_NEAR NearA NearB 2.0
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:368 - ASSERT_NEAR FarA FarB 2.0
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:480 - ASSERT_CTA VISIBLE
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:497 - ASSERT_CTA VISIBLE
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestIntegrationTests.cs:512 - SIMULATE unknown_sim DURATION 5
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserMultilineCommentTests.cs:15 AssertConsoleClean COMMENT\nLOG hidden\nEND_COMMENT\nASSERT_CONSOLE_CLEAN
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserMultilineCommentTests.cs:25 AssertConsoleClean COMMENT Test case: door damage\nLOG hidden\nEND_COMMENT\nASSERT_CONSOLE_CLEAN
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserMultilineCommentTests.cs:35 - COMMENT\nASSERT /Player|Health|hp == $missingVal\nEND_COMMENT\nASSERT_CONSOLE_CLEAN
+reject unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserMultilineCommentTests.cs:58 ArgumentException COMMENT\nLOG hidden\nASSERT_CONSOLE_CLEAN
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserMultilineCommentTests.cs:66 AssertConsoleClean ASSERT_CONSOLE_CLEAN\nEND_COMMENT
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserMultilineCommentTests.cs:75 AssertConsoleClean INCLUDE defs.playtest\nASSERT_CONSOLE_CLEAN
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:18 -
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:19 -    \n  \n
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:26 - # comment\n\n# another
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:33 Move MOVE /GridPlayer TO 1,2,3
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:45 Move MOVE TO 1,2,3
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:56 Wait WAIT 2.5
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:64 WaitUntil WAIT_UNTIL Currency == 200 TIMEOUT 10
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:76 - WAIT_UNTIL Currency == 200
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:83 Assert ASSERT Currency > 100
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:94 AssertConsoleClean ASSERT_CONSOLE_CLEAN
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:101 Snapshot SNAPSHOT Currency, GridPlayer.Corn, GridPlayer.Eggs
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:111 Invoke INVOKE /Player Health TakeDamage 50
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:124 Set SET /Player Health hp 100
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:136 Log LOG Test started
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:144 TimeScale TIMESCALE 3.0
+reject unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:152 ArgumentException BLAH foo
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:237 Assert VAL $money /Money|TestPlayableAPI|money\nASSERT $money >= 100
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:246 - VAL $hp /Player|Health|hp\nVAL $gold /Shop|Currency|gold\nASSERT $hp > 0\nASSERT $gold == 0
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:258 Teleport TELEPORT /GridPlayer 5,0,3
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:296 AssertNear ASSERT_NEAR /A /B 2.0
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:309 AssertConsoleClean ASSERT_CONSOLE_CLEAN IGNORE "DOTween warning", "shader"
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:321 AssertConsoleClean ASSERT_CONSOLE_CLEAN
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:332 Capture CAPTURE money /Money|CurrencyComp|Value
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:342 AssertCaptured ASSERT_CAPTURED money INCREASED
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:353 AssertCaptured ASSERT_CAPTURED money INCREASED_BY >= 50
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:365 Invariant INVARIANT /Money|CurrencyComp|Value >= 0
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:376 AssertConserved ASSERT_CONSERVED SUM item_a + item_b == CONSTANT OVER 3.0
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:391 Simulate SIMULATE random_walk DURATION 60
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:401 Simulate SIMULATE random_walk DURATION 60 TIMESCALE 2 TARGET "/Player" FREQUENCY 5
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:416 Monitor MONITOR economy
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:425 Monitor MONITOR STOP
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:436 TraceFlow TRACE_FLOW FROM /A TO /B FIELD Count TIMEOUT 10
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:451 AssertCta ASSERT_CTA VISIBLE
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:460 AssertCta ASSERT_CTA CLICKABLE
+reject unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:472 ArgumentException FOR $i IN -2147483648..2147483647\nWAIT 1\nEND_FOR
+accept unity-test-project/Assets/Tests/Editor/Runtime/PlaytestParserTests.cs:480 - FOR $i IN 0..1\nASSERT /$items|Comp|field == val\nEND_FOR

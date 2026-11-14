@@ -14,8 +14,8 @@ namespace UnityMCP.Editor
     {
         public static string Execute(string args)
         {
-            var action   = JsonHelper.ExtractString(args, "action") ?? "summary";
-            var platform = JsonHelper.ExtractString(args, "platform") ?? "Default";
+            var action   = MaterialAuditArgs.Action(args) ?? "summary";
+            var platform = MaterialAuditArgs.Platform(args) ?? "Default";
             return action switch
             {
                 "summary"         => Summary(),
@@ -24,7 +24,7 @@ namespace UnityMCP.Editor
                 "duplicates"      => Duplicates(),
                 "compression"     => Compression(platform),
                 "recommendations" => Recommendations(),
-                _ => $"err:Unknown action '{action}'. Valid: summary|materials|textures|duplicates|compression|recommendations"
+                _ => $"err:{ErrorHelper.InvalidAction(action, ToolActions.Names("material_audit"))}"
             };
         }
 

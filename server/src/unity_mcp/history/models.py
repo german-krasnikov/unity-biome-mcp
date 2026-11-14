@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-EXCLUDED_KINDS: frozenset[str] = frozenset({"heartbeat", "cost_update"})
+from unity_mcp.agent_event_excluded import EXCLUDED_KINDS
 
 
 @dataclass(frozen=True)

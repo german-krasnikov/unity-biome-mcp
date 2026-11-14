@@ -1,0 +1,33 @@
+PROVENANCE "Table from bridge.py status/transport_status (1055-1090) + test_bridge_status_transitions.py, characterized. The two vocabularies differ on failed and domainReloading without a writer by owner decision."
+
+EXAMPLES connStatus
+  id | connState | connWriterLive -> expected
+  disconnected-live | disconnected | true -> connected
+  disconnected-nowriter | disconnected | false -> reconnecting
+  connected-live | connected | true -> connected
+  connected-nowriter | connected | false -> reconnecting
+  domainReloading-live | domainReloading | true -> connected
+  domainReloading-nowriter | domainReloading | false -> domainReloading
+  failed-live | failed | true -> connected
+  failed-nowriter | failed | false -> disconnected
+  dormant-live | dormant | true -> dormant
+  dormant-nowriter | dormant | false -> dormant
+  waking-live | waking | true -> waking
+  waking-nowriter | waking | false -> waking
+END
+
+EXAMPLES transportStatus
+  id | connState | connWriterLive -> expected
+  disconnected-live | disconnected | true -> connected
+  disconnected-nowriter | disconnected | false -> reconnecting
+  connected-live | connected | true -> connected
+  connected-nowriter | connected | false -> reconnecting
+  domainReloading-live | domainReloading | true -> connected
+  domainReloading-nowriter | domainReloading | false -> reconnecting
+  failed-live | failed | true -> connected
+  failed-nowriter | failed | false -> failed
+  dormant-live | dormant | true -> dormant
+  dormant-nowriter | dormant | false -> dormant
+  waking-live | waking | true -> waking
+  waking-nowriter | waking | false -> waking
+END

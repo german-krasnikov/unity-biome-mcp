@@ -50,7 +50,7 @@ namespace UnityMCP.Editor
         {
             var model   = string.IsNullOrEmpty(c.Model)   ? "haiku"  : c.Model;
             var backend = string.IsNullOrEmpty(c.Backend) ? "claude" : c.Backend;
-            sb.AppendLine($"{key}:{model},{c.MaxTurns},{c.Timeout},{c.MaxTokens},{backend}");
+            sb.AppendLine(System.FormattableString.Invariant($"{key}:{model},{c.MaxTurns},{c.Timeout},{c.MaxTokens},{backend}"));
         }
     }
 }

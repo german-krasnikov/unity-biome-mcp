@@ -1,0 +1,206 @@
+/* Alias Manager Window — UIElements styles */
+
+/* ─── Toolbar ─── */
+.alias-toolbar {
+    flex-direction: row;
+    padding: 4px;
+    align-items: center;
+}
+
+.alias-token-label {
+    -unity-text-align: middle-left;
+    padding-left: 8px;
+    font-size: 11px;
+    color: var(--unity-colors-label-text-focus);
+}
+
+/* ─── Drop Zone ─── */
+.alias-drop-zone {
+    min-height: 60px;
+    border-width: 2px;
+    border-color: var(--unity-colors-default-border);
+    border-radius: 4px;
+    -unity-text-align: middle-center;
+    margin: 4px;
+    font-size: 11px;
+    color: var(--unity-colors-label-text);
+    transition-property: border-color, background-color;
+    transition-duration: 0.15s, 0.15s;
+}
+
+.alias-drop-zone--hover {
+    border-color: #4c9be8;
+    background-color: rgba(76, 155, 232, 0.10);
+}
+
+.unity-theme-env-light .alias-drop-zone--hover,
+:root[data-theme="light"] .alias-drop-zone--hover {
+    border-color: #1a6bbf;
+    background-color: rgba(26, 107, 191, 0.10);
+}
+
+/* Light theme drop zone */
+.unity-theme-env-light .alias-drop-zone,
+:root[data-theme="light"] .alias-drop-zone {
+    background-color: rgba(180, 180, 180, 0.15);
+}
+
+/* ─── Card ─── */
+.alias-card {
+    border-width: 1px;
+    border-color: var(--unity-colors-default-border);
+    border-radius: 4px;
+    margin: 3px 4px;
+    padding: 4px 6px;
+    transition-property: border-color, background-color;
+    transition-duration: 0.15s, 0.15s;
+}
+
+.alias-card:hover {
+    border-color: #4c9be8;
+}
+
+.unity-theme-env-light .alias-card:hover,
+:root[data-theme="light"] .alias-card:hover {
+    border-color: #1a6bbf;
+}
+
+/* New-row highlight (removed after 800ms via schedule) */
+.alias-card--new {
+    border-color: #6fdc8c;
+    background-color: rgba(111, 220, 140, 0.08);
+}
+
+.unity-theme-env-light .alias-card--new,
+:root[data-theme="light"] .alias-card--new {
+    border-color: #1a7340;
+    background-color: rgba(26, 115, 64, 0.08);
+}
+
+/* ─── Card rows ─── */
+.alias-card-row1 {
+    flex-direction: row;
+    margin-top: 2px;
+    margin-bottom: 4px;
+    align-items: center;
+}
+
+.alias-card-row2 {
+    flex-direction: row;
+    margin-top: 2px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.alias-card-actions {
+    flex-direction: row;
+    flex-grow: 1;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* ─── Field widths ─── */
+.alias-name-field {
+    flex-grow: 2;
+    min-width: 100px;
+}
+
+.alias-path-field {
+    flex-grow: 3;
+    min-width: 120px;
+}
+
+.alias-comp-field {
+    flex-grow: 2;
+    min-width: 140px;
+}
+
+.alias-field-field {
+    flex-grow: 1;
+    min-width: 100px;
+}
+
+/* ─── Card type left-border accent ─── */
+.alias-card { border-left-width: 3px; border-left-color: #555555; }
+.alias-card--val-path  { border-left-color: #4589ff; }
+.alias-card--val-const { border-left-color: #f1c21b; }
+.alias-card--var       { border-left-color: #be95ff; }
+
+.unity-theme-env-light .alias-card--val-path,
+:root[data-theme="light"] .alias-card--val-path  { border-left-color: #0043ce; }
+.unity-theme-env-light .alias-card--val-const,
+:root[data-theme="light"] .alias-card--val-const { border-left-color: #b28600; }
+.unity-theme-env-light .alias-card--var,
+:root[data-theme="light"] .alias-card--var       { border-left-color: #6929c4; }
+
+/* ─── Type selector dropdown ─── */
+.alias-type-field { width: 90px; flex-shrink: 0; margin-right: 4px; }
+.alias-type-field > .unity-base-popup-field__label { display: none; }
+
+/* ─── Validation dot ─── */
+.alias-status-dot { width: 8px; height: 8px; border-radius: 4px; flex-shrink: 0; margin: 0 4px; align-self: center; }
+.alias-status-dot--valid   { background-color: #6fdc8c; }
+.alias-status-dot--partial { background-color: #f1c21b; }
+.alias-status-dot--empty   { background-color: #555555; }
+
+/* ─── ValConst wide field ─── */
+.alias-const-value-field { flex-grow: 1; min-width: 140px; }
+
+/* ─── Row2 container ─── */
+.alias-card-row2-wrap { flex-direction: column; }
+
+/* ─── DnD highlight on path TextField ─── */
+.step-dnd-highlight { border-width: 1px; border-color: #4589ff; }
+
+/* ─── Action buttons ─── */
+.alias-copy-btn {
+    padding: 0 6px;
+    font-size: 10px;
+}
+
+/* ─── Delete button ─── */
+.alias-delete-btn {
+    transition-property: color, background-color;
+    transition-duration: 0.15s, 0.15s;
+}
+
+.alias-delete-btn:hover {
+    color: #e94560;
+    background-color: rgba(233, 69, 96, 0.12);
+}
+
+/* ─── Preview foldout ─── */
+.alias-preview-foldout {
+    padding: 2px 4px;
+}
+
+.alias-preview-label {
+    white-space: normal;
+    font-size: 11px;
+    color: #6fdc8c;
+    padding: 4px 6px;
+}
+
+.unity-theme-env-light .alias-preview-label,
+:root[data-theme="light"] .alias-preview-label {
+    color: #1a7340;
+}
+
+/* ─── Root ─── */
+.alias-root {
+    padding: 8px;
+}
+
+/* ─── Scroll view ─── */
+.alias-scroll-view {
+    flex-grow: 1;
+}
+
+/* ─── Empty state ─── */
+.alias-empty-state {
+    -unity-text-align: middle-center;
+    padding: 20px 16px;
+    font-size: 11px;
+    color: var(--unity-colors-label-text-focus);
+    white-space: normal;
+}

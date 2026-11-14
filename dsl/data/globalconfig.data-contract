@@ -1,0 +1,10 @@
+# Global persistent config defaults (idle/orphan settings): one typed row instead of the
+# defaults duplicated 2x in global_config.py (dataclass field default + load() fallback)
+# and 3x in GlobalConfigSync.cs (BuildJson EditorPrefs fallback, ApplyJson Extract*
+# fallback, WriteDefaults literal) — global_config.py <-> GlobalConfigSync.cs.
+RECORD GlobalConfigDefaults COUNT 1
+  idleTimeoutMin: int
+  idleAutoSuspend: bool
+  bridgeTerminateOrphan: bool
+  bridgeOrphanGraceMin: int
+END

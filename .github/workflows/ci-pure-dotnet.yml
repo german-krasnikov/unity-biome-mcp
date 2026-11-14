@@ -16,6 +16,15 @@ on:
       - "scripts/gauntlet/provider_ref.py"
       - "scripts/source_patch_provider_pin.json"
       - "unity-plugin/Tests~/**"
+      - "unity-plugin/Editor/Generated/**"
+      - "unity-plugin/Editor/Decisions/**"
+      - "unity-plugin/Editor/CommandRegistry.cs"
+      - "unity-plugin/Editor/CommandOptions.cs"
+      - "unity-plugin/Editor/JsonHelper.cs"
+      - "dsl/**"
+      - "unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/**"
+      - "unity-plugin/Editor/Chat/CLI/ChatTurnDriver.cs"
+      - "server/tests/golden/decisions/**"
       - ".github/workflows/ci-pure-dotnet.yml"
   pull_request:
     branches: [master]
@@ -32,6 +41,15 @@ on:
       - "scripts/gauntlet/provider_ref.py"
       - "scripts/source_patch_provider_pin.json"
       - "unity-plugin/Tests~/**"
+      - "unity-plugin/Editor/Generated/**"
+      - "unity-plugin/Editor/Decisions/**"
+      - "unity-plugin/Editor/CommandRegistry.cs"
+      - "unity-plugin/Editor/CommandOptions.cs"
+      - "unity-plugin/Editor/JsonHelper.cs"
+      - "dsl/**"
+      - "unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/**"
+      - "unity-plugin/Editor/Chat/CLI/ChatTurnDriver.cs"
+      - "server/tests/golden/decisions/**"
       - ".github/workflows/ci-pure-dotnet.yml"
   workflow_dispatch:
 
@@ -119,3 +137,48 @@ jobs:
 
       - name: Seam-drift negative control
         run: python -m pytest scripts/tests/test_adapter_contract_seam_drift.py -v
+
+  decisions:
+    name: Pure dotnet test (Decisions)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
+        with:
+          dotnet-version: "6.0.x"
+
+      - name: dotnet test
+        working-directory: unity-plugin/Tests~/Decisions
+        run: dotnet test UnityMCP.Decisions.Tests.csproj -c Release
+
+  chat-turn:
+    name: Pure dotnet test (ChatTurn)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
+        with:
+          dotnet-version: "6.0.x"
+
+      - name: dotnet test
+        working-directory: unity-plugin/Tests~/ChatTurn
+        run: dotnet test ChatTurn.Tests.csproj -c Release
+
+  playtest-grammar:
+    name: Pure dotnet test (PlaytestGrammar)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
+        with:
+          dotnet-version: "6.0.x"
+
+      - name: dotnet test
+        working-directory: unity-plugin/Tests~/PlaytestGrammar
+        run: dotnet test UnityMCP.Playtest.Grammar.Tests.csproj -c Release

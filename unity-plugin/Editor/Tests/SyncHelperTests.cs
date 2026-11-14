@@ -954,6 +954,33 @@ namespace UnityMCP.Editor.Tests
                 "an injected 'not compiling' predicate must allow the grace-window self-heal, " +
                 "identical to the default MCPServer.IsReallyCompiling path");
         }
+
+        // ── Task 1.3: SyncHelper routes after-reload through ReloadLifecycleCoordinator ──
+
+        [Test]
+        public void StaticCtor_RoutesAfterReloadThroughCoordinator()
+        {
+            var src = ReadRequiredPackageSource(typeof(SyncHelper), "Editor/SyncHelper.cs");
+            var start = src.IndexOf("static SyncHelper()");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "static SyncHelper() ctor not found");
+            var end = src.IndexOf("internal static Func<bool, string> ReloadBlockReason", start);
+            Assert.That(end, Is.GreaterThan(start),
+                "ReloadBlockReason declaration not found after the static ctor");
+            var body = src.Substring(start, end - start);
+
+            Assert.That(body, Does.Not.Contain("AssemblyReloadEvents.afterAssemblyReload        += OnAfterReload"),
+                "SyncHelper must not subscribe AssemblyReloadEvents directly — " +
+                "ReloadLifecycleCoordinator owns the one subscription pair");
+            Assert.That(body, Does.Contain("ReloadLifecycleCoordinator.Register(_reloadSink)"),
+                "SyncHelper must register its reload sink with ReloadLifecycleCoordinator");
+
+            // OnAfterReload() body itself must be byte-for-byte unchanged by this refactor.
+            Assert.That(src, Does.Contain(
+                "private static void OnAfterReload()\n" +
+                "        {\n" +
+                "            // RC-1 fix: capture build fingerprint = MVID:mtime."),
+                "OnAfterReload's existing body must not change — only its subscription site moves");
+        }
     }
 
     // ── MockSyncOps ──────────────────────────────────────────────────────────

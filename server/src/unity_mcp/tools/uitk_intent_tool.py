@@ -1,10 +1,10 @@
 """uitk_intent — NL → DSL → UXML + USS generation pipeline."""
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..sampling import sampling_service as _sampling
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import tools, uitk_intent  # noqa: F401
 from .intent_common import parse_indent_tree, parse_kv, sanitize_intent, strip_fences
 
 _send = None
@@ -425,7 +425,7 @@ async def _uitk_run_step(
         processed_files.append(file_path)
 
 
-async def uitk_intent(
+async def _uitk_intent_body(
     intent: str,
     name: str,
     path: str = "Assets/UI",
@@ -498,4 +498,3 @@ async def uitk_intent(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(uitk_intent)

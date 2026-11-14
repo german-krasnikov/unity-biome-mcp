@@ -24,6 +24,7 @@ rg --files unity-plugin/ClientSkills
 | `unity-plugin-reload/` | Independent Unity reload-recovery package. |
 | `unity-test-project/` | Writable Unity integration-test project and fixtures. |
 | `unity-test-project-ro/` | Read-only worker test project. |
+| `dsl/` | Tool catalog (`tools.biome` states the facts of the catalog's tools once, a biome-dsl construct prints them), `decisions/` (the rules the Python server and the Unity plugin share, as Logic DECISIONs that print Python, C# and example rows) and `chat/` (how a turn of the chat window ends: a FEATURE that prints the C# reducer and its example tests). See `dsl/README.md`. |
 | `install/` | Installer/configuration implementation and tests. |
 | `scripts/` | Repository validation, release, evidence, and generation tools. |
 | `protocol/` | Versioned cross-process protocol schemas. |
@@ -50,7 +51,10 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/src/unity_mcp/server.py` | FastMCP composition root, lifespan, built-in registration, resources, and plugin loading. |
 | `server/src/unity_mcp/tools/` | Typed MCP wrappers and Python-side orchestration. |
 | `server/src/unity_mcp/tools/__init__.py` | Built-in tool-module registration. |
-| `server/src/unity_mcp/tools/tool_specs.py` | Tool metadata source for category, mutability, timeout, visibility, runtime, and direct-only behavior. |
+| `server/src/unity_mcp/tools/tool_specs.py` | `ToolSpec` and the merge of the tool metadata (category, mutability, timeout, visibility, runtime, direct-only): generated from `dsl/tools.biome`, provided by the watch and sync modules, written by hand for six tools whose annotation and ToolSpec disagree. |
+| `server/src/unity_mcp/tools/generated/` | Generated from `dsl/tools.biome`, never edited by hand: ToolSpec kwargs, schema descriptions, the MCP wrappers of the catalog's tools, and the declared actions of an `action`-dispatched tool (`catalog_actions.py`). |
+| `server/src/unity_mcp/decisions/` | The decisions printed from `dsl/decisions` (`generated/`, never edited by hand) and the native readers of their facts (`verdict_facts.py`, `guard_facts.py`). A leaf: it imports nothing else of `unity_mcp` (import-linter). |
+| `server/src/unity_mcp/tools/_catalog_runtime.py` | Mechanical runtime of the generated wrappers: wire encoders and the `ToolSet` that checks a function against the catalog and registers it. |
 | `server/src/unity_mcp/tools/sync_spec.py` | SyncModule ToolSpec metadata and owned wire-command mapping (N1b): decouples `tool_specs.py` from importing `sync.py` to prevent circular dependencies. |
 | `server/src/unity_mcp/tools/sync_algorithm.py` | Reload algorithm facade with replaceable swappable interface (N2): narrow `IReloadAlgorithm` abstraction and `Bind` composition seam beneath the public sync surface. |
 | `server/src/unity_mcp/tools/sync_module.py` | Second self-owned Python module pilot (N1b): owns public `sync_unity` MCP tool with instance-scoped send/state, delegating the poll/recovery algorithm to `sync.py`'s legacy implementations. |
@@ -91,7 +95,7 @@ The installable package lives under `server/src/unity_mcp/`.
 | `scripts/coverage_hotspots.py` | Coverage hotspot detection: parses OpenCover XML, computes top-20 changed methods by coverage/complexity/churn, outputs to `docs/quality/` on CI (includes `--repo-root` flag for relative path mapping). |
 | `scripts/tests/test_unity_test_source_hygiene.py` | Hygiene guard: validates Unity C# test structure (fixture bases, ownership registration, async patterns, disposable-worker marking) to prevent false-green tests and coverage gaps. |
 
-Do not maintain a tool roster in this file. Derive it from `tool_specs.py` and
+Do not maintain a tool roster in this file. Derive it from `dsl/tools.biome` and
 the registration/parity tests. Public parameter documentation is generated into
 `docs/tools-schema/`.
 
@@ -108,6 +112,9 @@ by runtime boundary:
 | `unity-plugin/Editor/CommandRouter.cs` and `CommandRouter.*.cs` | Guarded command dispatch and domain registrations. |
 | `unity-plugin/Editor/CommandRegistry.cs` | Command handlers and their mutability, runtime, validation, dispatch, and trust metadata. |
 | `unity-plugin/Editor/CommandOptions.cs` | Internal structured registration options behind the public bool overloads. |
+| `unity-plugin/Editor/Generated/` | Printed from `dsl/`, never edited by hand: the decisions (`Mutability.g.cs`, `Verdict.g.cs`, `Guards.g.cs`, C# 9, depend on nothing but the BCL) `ActionReads.g.cs` (the read actions of the catalog's tools), `ToolActions.g.cs` (the declared actions of each `action`-dispatched tool: `Names`, `IsKnown`) and `ToolArgs.g.cs` (one `{Tool}Args` accessor class per catalog tool, the argument reads of migrated handlers). |
+| `unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/` | Printed from `dsl/chat/chatturn.feature`, never edited by hand: the reducer of the exits of a chat turn (C# 9, the BCL only) with its `.biome-files` manifest. `Chat/CLI/ChatTurnDriver.cs` is its door and `Chat/View/MCPChatWindow.TurnPorts.cs` holds the bodies of its 16 effects. |
+| `unity-plugin/Editor/Decisions/` | The native readers of the facts of those decisions (`MutabilityFacts.cs`, `PlaytestFacts.cs`, `GuardFacts.cs`); they decide nothing. `CommandRegistry`, `CommandRouter` and `BatchHelper` call the decisions through them. |
 | `unity-plugin/Editor/PluginRegistry.cs` and `IMCPPlugin.cs` | C# plugin discovery and registration contract. |
 | `unity-plugin/Editor/SyncHelper.cs` | Epoch-based compile/reload state machine used by `sync_unity`. |
 | `unity-plugin/Editor/ObjectIdCompat.cs` | Platform compat bridge for Unity 6.0–6.3 (instance-ID) and 6.4+ (EntityId) object identity APIs. |
@@ -164,7 +171,7 @@ See [`reload-reference.md`](reload-reference.md).
 
 | Change | Update or verify |
 |---|---|
-| Public MCP signature or metadata | Python wrapper, `tool_specs.py`, schema/parity tests, then generated schema through its generator. |
+| Public MCP signature or metadata | `dsl/tools.biome` and `scripts/dsl.sh generate`, the hand-written wrapper if the tool is not `FORWARD`, schema/parity tests, then generated schema through its generator. |
 | Unity command contract | `CommandRegistry` registration, handler, validation and guard tests, then the owning `AI/` domain reference. |
 | Read/write or runtime classification | `ToolSpec`, conditional rules in `middleware_types.py`, C# registry metadata, and cross-language parity tests. |
 | TCP lifecycle | Bridge/server code, Unity listener code, and [`tcp-bridge.md`](tcp-bridge.md). |

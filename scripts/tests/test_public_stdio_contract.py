@@ -8,7 +8,6 @@ import sys
 import time
 from collections.abc import AsyncIterator  # noqa: TC003
 from contextlib import asynccontextmanager
-from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -82,7 +81,7 @@ async def _public_session(
             async with stdio_client(parameters, errlog=error_stream) as (read, write), ClientSession(
                 read,
                 write,
-                read_timeout_seconds=timedelta(seconds=10),
+                read_timeout_seconds=10.0,
                 client_info=types.Implementation(name="contract-gauntlet", version="1"),
             ) as session:
                 initialized = await session.initialize()
@@ -127,10 +126,10 @@ async def test_public_stdio_identity_schema_and_read_round_trip(
         hierarchy = next(tool for tool in tools.tools if tool.name == "get_hierarchy")
         result = await session.call_tool("get_hierarchy", {"depth": 1})
 
-        assert initialized.serverInfo.version == __version__
+        assert initialized.server_info.version == __version__
         assert len(names) == len(set(names))
-        assert hierarchy.inputSchema.get("additionalProperties") is False
-        assert result.isError is False
+        assert hierarchy.input_schema.get("additionalProperties") is False
+        assert result.is_error is False
         assert "Synthetic" in result.content[0].text
     assert scripted_peer.unexpected_commands == []
 
@@ -143,7 +142,7 @@ async def test_public_stdio_unknown_argument_is_rejected_before_tcp_dispatch(
         before = scripted_peer.count("get_hierarchy")
         result = await session.call_tool("get_hierarchy", {"bogus": 1})
 
-        assert result.isError is True
+        assert result.is_error is True
         assert scripted_peer.count("get_hierarchy") == before
 
 
@@ -155,7 +154,7 @@ async def test_public_stdio_missing_required_argument_is_rejected_before_tcp(
         before = scripted_peer.count("scene")
         result = await session.call_tool("scene", {})
 
-        assert result.isError is True
+        assert result.is_error is True
         assert scripted_peer.count("scene") == before
 
 
@@ -171,7 +170,7 @@ async def test_public_stdio_preserves_unity_error_envelope(
     async with _public_session(tmp_path, scripted_peer) as (session, _):
         result = await session.call_tool("get_hierarchy", {"depth": 1})
 
-        assert result.isError is True
+        assert result.is_error is True
         assert "synthetic hierarchy failure" in result.content[0].text
 
 
@@ -186,7 +185,7 @@ async def test_public_stdio_rejects_foreign_project_identity(
     async with _public_session(tmp_path, scripted_peer) as (session, _):
         result = await session.call_tool("get_hierarchy", {"depth": 1})
 
-        assert result.isError is True
+        assert result.is_error is True
         assert "unity_unavailable" in result.content[0].text.lower()
     assert scripted_peer.count("get_hierarchy") == 0
 

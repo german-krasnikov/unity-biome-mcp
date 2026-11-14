@@ -1,0 +1,13 @@
+# Per-client "is this client installed" directory (ARC-0b, T1 rest step 2): one typed row set
+# instead of two hand-written, platform-branching copies -- server/src/unity_mcp/config/clients.py's
+# three _*_install_dir() functions and unity-plugin/Editor/Wizard/BackendDescriptor.cs's ConfigDir
+# #if blocks. dir is the directory used on Linux, and on Mac/Windows when no override is given;
+# dirMac/dirWin override it for their platform. "{appdata}" in dirWin stands for
+# Environment.SpecialFolder.ApplicationData / $APPDATA, substituted natively at the call site,
+# same as "~" is substituted for $HOME.
+RECORD InstallDir KEY key COUNT 6
+  key: string
+  dir: string
+  dirMac: string OPTIONAL
+  dirWin: string OPTIONAL
+END

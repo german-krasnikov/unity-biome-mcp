@@ -99,7 +99,11 @@ Current invariants:
 - `RetryPolicy` permits retries only for commands classified retry-safe. Busy or
   connection-refused attempts use bounded 2/4/8-second delays; an ordinary
   transient failure receives one grace retry. `SESSION_TIMEOUT` bounds the
-  complete request lifecycle.
+  complete request lifecycle. A frame the writer has accepted (SENT) is never
+  resent for a command that is not retry-safe. Why a failed send retries or
+  stops is the generated decisions `retryGate` and `retryReason`
+  (`dsl/decisions/retry.logic`); `bridge_retry.py` reads the facts and keeps the
+  delays.
 - Connected bridges ping every 15 seconds with a 5-second ping timeout. The
   connection lock serializes ping and request write/read cycles. Protocol
   mismatch or a dead socket closes immediately; repeated timeouts from a live
