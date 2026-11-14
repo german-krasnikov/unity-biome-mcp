@@ -35,12 +35,17 @@ _TOOLARGS_GEN = _EDITOR / "Generated" / "ToolArgs.g.cs"
 
 # Ratchet: raw call count outside Generated/ and Tests/ measured on branch arg-adoption-2026-11.
 # Lower this when a migration PR reduces the real count; never raise it to make a test pass.
-_BASELINE_MAX_RAW_CALLS = 189
+# Task 3.2 migrated CommandRouter.ScreenshotHandlers.cs's 17 calls to ScreenshotArgs (189 -> 170);
+# the rest of CommandRouter*.cs's raw calls are documented exceptions (envelope keys, receipt
+# JSON, generic default-parsing helpers, generator type/default mismatches) with no accessor to
+# migrate to.
+_BASELINE_MAX_RAW_CALLS = 170
 
 # Narrower ratchet (Task 3.1A): the 5 CommandRouter*.cs files are the current front of ARG
 # adoption migration. The file-wide ratchet above has slack (e.g. a decrease elsewhere could mask
 # a regression here), so this pins the CommandRouter subset directly. Measured on the same branch.
-_COMMAND_ROUTER_BASELINE_MAX_RAW_CALLS = 86
+# Task 3.2: 86 -> 69 (ScreenshotHandlers.cs fully migrated to ScreenshotArgs).
+_COMMAND_ROUTER_BASELINE_MAX_RAW_CALLS = 69
 
 _RAW_CALL_RE = re.compile(r"JsonHelper\.(?:ExtractString|ParseOpt\w+)\(")
 _BLOCK_START_RE = re.compile(r"^(?:TOOL|PYTOOL|INTERNAL)\s+(\S+)\s")
