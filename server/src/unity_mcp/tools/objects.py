@@ -94,17 +94,6 @@ async def _set_property_body(path: str | None = None, component: str = "", prop:
     return await _send("set_property", args)
 
 
-async def _delete_object_body(id: int | None = None, path: str | None = None, force: bool = False) -> str:
-    """Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."""
-    if id is None and not path:
-        raise ValueError("delete_object: id or path required")
-    args = {}
-    if id is not None: args["id"] = id
-    if path: args["path"] = path
-    if force: args["force"] = "true"
-    return await _send("delete_object", args)
-
-
 async def _get_object_detail_body(id: int, full: bool = False) -> str:
     """Get ALL components with ALL values. Heavy. Use get_component for single component. full=True: bypass distillation."""
     args: dict = {"id": id}

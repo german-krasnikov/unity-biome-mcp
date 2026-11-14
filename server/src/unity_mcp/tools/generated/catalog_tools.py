@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=22d5b56170705618537a6cda2e383e185768772939d760f99df4e8e641e19e58
+# source-sha256=c232024f9b8a86f2efa3a4cd269813172482f66b9e96b82e3bac0e6bca44a5d0
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -177,7 +177,6 @@ tools.actions('animator', (
     ('rename_state', ""),
     ('rename_param', ""),
 ))
-tools.expect_body('animator', 'animation')
 
 
 @tools.provide
@@ -217,32 +216,31 @@ async def animator(
      "\n    weight: defaultWeight for add_layer/set_layer_weight (0.0–1.0)."
      "\n    blending: Override|Additive for add_layer/set_layer_blending."
     )
-    from .. import animation as _biome_body_mod
-    return await _biome_body_mod._animator_body(
-        action=action,
-        path=path,
-        state=state,
-        states=states,
-        params=params,
-        source=source,
-        target=target,
-        conditions=conditions,
-        duration=duration,
-        exit_time=exit_time,
-        has_exit_time=has_exit_time,
-        type=type,
-        name=name,
-        blend_type=blend_type,
-        param=param,
-        param_y=param_y,
-        children=children,
-        edit_action=edit_action,
-        layer=layer,
-        weight=weight,
-        blending=blending,
-        value=value,
-        avatar_path=avatar_path,
-    )
+    return await _send('animator', _args(
+        action=rt.w_str(action),
+        path=rt.w_str(path),
+        state=rt.w_ostr(state),
+        states=rt.w_ostr(states),
+        params=rt.w_ostr(params),
+        source=rt.w_ostr(source),
+        target=rt.w_ostr(target),
+        conditions=rt.w_ostr(conditions),
+        duration=rt.w_ofloat(duration),
+        exit_time=rt.w_ofloat(exit_time),
+        has_exit_time=rt.w_obool(has_exit_time),
+        type=rt.w_ostr(type),
+        name=rt.w_ostr(name),
+        blend_type=rt.w_ostr(blend_type),
+        param=rt.w_ostr(param),
+        param_y=rt.w_ostr(param_y),
+        children=rt.w_ostr(children),
+        edit_action=rt.w_ostr(edit_action),
+        layer=rt.w_Any(layer),
+        weight=rt.w_ofloat(weight),
+        blending=rt.w_ostr(blending),
+        value=rt.w_ostr(value),
+        avatar_path=rt.w_ostr(avatar_path),
+    ))
 
 
 tools.expect('animator_intent', 'RW', "Convert NL intent to Unity Animator Controller setup via DSL.", (
@@ -986,7 +984,6 @@ tools.expect('delete_object', 'DEL', "Delete GameObject by instance ID or scene 
     ('path', ostr, None),
     ('force', bool, False),
 ))
-tools.expect_body('delete_object', 'objects')
 
 
 @tools.provide
@@ -997,12 +994,11 @@ async def delete_object(
 ) -> str:
     ("Delete GameObject by instance ID or scene path. Deletes scene objects. No confirmation required. Provide one. force=True to delete non-empty containers."
     )
-    from .. import objects as _biome_body_mod
-    return await _biome_body_mod._delete_object_body(
-        id=id,
-        path=path,
-        force=force,
-    )
+    return await _send('delete_object', _args(
+        id=rt.w_oint(id),
+        path=rt.w_ostr(path),
+        force=rt.w_bool(force, False),
+    ))
 
 
 tools.expect('diagnose', 'RO', "Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`.", (

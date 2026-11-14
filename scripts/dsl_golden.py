@@ -57,7 +57,8 @@ _CALLS = {"_send", "_args", "str", "int", "float", "bool", "max", "min", "len", 
 _METHODS = {"get", "items", "lower", "strip", "split", "join", "startswith", "endswith", "replace"}
 _UNSAFE = (ast.Import, ast.ImportFrom, ast.Global, ast.Nonlocal, ast.Try, ast.With, ast.AsyncWith, ast.Lambda)
 _SAMPLES = {str: ["a", ""], str | None: [None, "a", ""], int: [0, 7, -1], int | None: [None, 0, 7], float: [0.0, 2.5],
-            float | None: [None, 0.0, 2.5], bool: [True, False], bool | None: [None, True, False]}
+            float | None: [None, 0.0, 2.5], bool: [True, False], bool | None: [None, True, False],
+            typing.Any: [None, 0, "a"]}  # Any-typed params (e.g. animator layer: int|str|None in practice)
 
 
 def only_forwards(fn) -> bool:

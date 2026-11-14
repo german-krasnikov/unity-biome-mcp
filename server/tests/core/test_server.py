@@ -159,7 +159,7 @@ async def test_delete_object_accepts_id(mock_bridge, bridge_response):
     """delete_object(id=123) sends only id key, no path."""
     bridge_response(data="Deleted #123")
     await delete_object(id=123)
-    mock_bridge.send.assert_called_once_with("delete_object", {"id": 123}, timeout=30.0)
+    mock_bridge.send.assert_called_once_with("delete_object", {"id": "123"}, timeout=30.0)
 
 
 def test_delete_object_signature_supports_both():
@@ -172,11 +172,12 @@ def test_delete_object_signature_supports_both():
     assert sig.parameters["path"].default is None
 
 
-async def test_delete_object_neither_arg_raises(mock_bridge):
-    """delete_object() with no args raises ValueError and does NOT call bridge."""
-    with pytest.raises(ValueError, match="id or path required"):
+async def test_delete_object_neither_arg_calls_bridge(mock_bridge):
+    """delete_object() with no args calls bridge with empty args; C# validates."""
+    mock_bridge.send = AsyncMock(return_value={"ok": False, "err": "id or path required"})
+    with pytest.raises(ToolError, match="id or path required"):
         await delete_object()
-    mock_bridge.send.assert_not_called()
+    mock_bridge.send.assert_called_once_with("delete_object", {}, timeout=30.0)
 
 
 async def test_recompile_calls_bridge(mock_bridge):
@@ -563,7 +564,7 @@ async def test_animator_add_transition(mock_bridge):
     mock_bridge.send.assert_called_once_with("animator", {
         "action": "add_transition", "path": "/Player",
         "source": "Idle", "target": "Walk",
-        "conditions": "Speed>0.1", "duration": 0.15
+        "conditions": "Speed>0.1", "duration": "0.15"  # FORWARD: rt.w_ofloat serializes to string
     }, timeout=30.0)
     assert "Walk" in result
 
@@ -576,7 +577,7 @@ async def test_animator_add_transition_anystate(mock_bridge):
     mock_bridge.send.assert_called_once_with("animator", {
         "action": "add_transition", "path": "/Player",
         "source": "*", "target": "Jump",
-        "conditions": "Jump; IsGrounded", "duration": 0.1
+        "conditions": "Jump; IsGrounded", "duration": "0.1"  # FORWARD: rt.w_ofloat serializes to string
     }, timeout=30.0)
     assert "Jump" in result
 
@@ -589,8 +590,8 @@ async def test_animator_add_transition_with_exit_time(mock_bridge):
     mock_bridge.send.assert_called_once_with("animator", {
         "action": "add_transition", "path": "/Player",
         "source": "Jump", "target": "Idle",
-        "conditions": "IsGrounded", "exit_time": 0.9,
-        "has_exit_time": "true", "duration": 0.15
+        "conditions": "IsGrounded", "duration": "0.15",  # FORWARD: rt.w_ofloat serializes to string
+        "exit_time": "0.9", "has_exit_time": "true",     # FORWARD: rt.w_ofloat and rt.w_obool
     }, timeout=30.0)
     assert "exit" in result
 

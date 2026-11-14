@@ -341,6 +341,7 @@ spec wire_event category=COMPONENTS core=False tier1=False timeout_s=30.0 mutabi
 wire alias_status calls=1 digest=add92d114cc736fe
 wire analyze_lod_culling calls=3 digest=5c1b24b9797a97ee
 wire animation calls=68 digest=5c4fe6a4d68b7636
+wire animator calls=85 digest=9a0e0d0bcfdbab06
 wire ask_user calls=2 digest=049ae863c82af73f
 wire attach_uitk calls=31 digest=79b16327791e3e0c
 wire auto_wire calls=4 digest=1b68a50d9c442c1f
@@ -354,6 +355,7 @@ wire create_object calls=52 digest=1e6a7f6312d6d15f
 wire create_ui calls=66 digest=314d597bb9629e6d
 wire debug_animator calls=2 digest=e3640c3499629267
 wire debug_physics calls=6 digest=3a05c1f31aba1973
+wire delete_object calls=18 digest=280832d8f873710a
 wire execute_code calls=6 digest=cca508b0f3127bf9
 wire export_playtest_aliases_to_defs calls=9 digest=17e61b72b451c402
 wire find_objects calls=37 digest=9a566f729ea6b457

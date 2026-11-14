@@ -69,7 +69,7 @@ END
 
 TOOL animator MEDIA RW "Animator Controller — state machine. Modifies animator assets. No confirmation required. (use `animation` for keyframe clips, `timeline` for cinematics)."
   HANDLER register "CommandRouter.ExecAnimatorConsolidated"
-  BODY animation
+  FORWARD
   DOC "params='Speed:float:0; Jump:trigger'. states='Idle:Idle.anim; Walk'."
   DOC "conditions='Speed>0.1; IsGrounded'. source/target=state names (*=AnyState)."
   DOC "blend_type: 1d|2d_simple|2d_freeform|2d_cartesian|direct."
@@ -505,12 +505,12 @@ TOOL delete_object SCENE DEL "Delete GameObject by instance ID or scene path. De
   HANDLER register "CommandRouter.ExecDeleteObject"
   CARD delete
   NEXT "get_hierarchy depth=1"
-  BODY objects
+  FORWARD
   FLAG tier1
   VERB "Deleting"
   ARG id oint DEFAULT None "Instance ID of the GameObject to delete (from get_hierarchy)"
   ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent" ROLE target "Scene path of the GameObject to delete"
-  ARG force bool DEFAULT False "True to delete non-empty container objects without error"
+  ARG force bool DEFAULT False OMIT "True to delete non-empty container objects without error"
   TAG atomic_scene
   TAG distill_skip
   TAG do_forbidden

@@ -25,6 +25,7 @@ w_str = _encoder(lambda value: value)
 w_int = w_float = _encoder(str)
 w_bool = _encoder(lambda value: "true" if value else "false")
 w_ostr, w_oint, w_ofloat, w_obool = w_str, w_int, w_float, w_bool
+w_Any = w_str  # pass-through for Any-typed params; C# ExtractString handles both strings and JSON primitives
 
 
 def _conform(name, fn, summary, params):

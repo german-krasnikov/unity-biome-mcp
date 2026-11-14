@@ -32,7 +32,7 @@ async def test_animator_add_layer_sends_all_params(mock_bridge):
     args = mock_bridge.send.call_args[0][1]
     assert args["action"] == "add_layer"
     assert args["name"] == "Upperbody"
-    assert args["weight"] == 1.0
+    assert args["weight"] == "1.0"  # FORWARD: rt.w_ofloat serializes to string
     assert args["blending"] == "Override"
 
 
@@ -56,7 +56,7 @@ async def test_animator_set_layer_weight(mock_bridge):
     args = mock_bridge.send.call_args[0][1]
     assert args["action"] == "set_layer_weight"
     assert args["layer"] == "Upperbody"
-    assert args["weight"] == 0.5
+    assert args["weight"] == "0.5"  # FORWARD: rt.w_ofloat serializes to string
 
 
 # L1: set_layer_blending
@@ -117,7 +117,7 @@ async def test_animator_update_transition(mock_bridge):
     assert args["action"] == "update_transition"
     assert args["source"] == "Idle"
     assert args["target"] == "Walk"
-    assert args["duration"] == 0.3
+    assert args["duration"] == "0.3"  # FORWARD: rt.w_ofloat serializes to string
 
 
 # M9: set_avatar
