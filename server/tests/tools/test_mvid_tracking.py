@@ -11,7 +11,7 @@ import unity_mcp.tools.diagnose as _d
 # ---------------------------------------------------------------------------
 # Paths (same anchor as test_reload_stability.py:L22-23)
 # ---------------------------------------------------------------------------
-_PROJECT = Path(__file__).parents[2]
+_PROJECT = Path(__file__).parents[3]
 _PLUGIN = _PROJECT / "unity-plugin"
 
 
