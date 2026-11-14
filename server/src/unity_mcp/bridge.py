@@ -23,6 +23,7 @@ from unity_mcp.bridge_cassette import record as _record_cassette
 from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, RELOAD_BACKOFF_S, HeartbeatMixin
 from unity_mcp.bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
 from unity_mcp.bridge_retry import RetryPolicy
+from unity_mcp.generated.timing_constants import TIMING_ROWS
 from unity_mcp.bridge_socket import (
     _TCP_KEEPALIVE_DARWIN,
     _TCP_KEEPINTVL_DARWIN,
@@ -109,10 +110,12 @@ def check_protocol_version(python_proto: int, unity_proto: int) -> None:
             "Run: pip install --upgrade unity-biome-mcp"
         )
 
+_TIMING = TIMING_ROWS[0]
+
 CONNECT_TIMEOUT = float(os.environ.get("UNITY_MCP_CONNECT_TIMEOUT", "5.0"))
 MAX_RETRIES = int(os.environ.get("UNITY_MCP_MAX_RETRIES", "3"))
 MIN_RECONNECT_INTERVAL = float(os.environ.get("UNITY_MCP_MIN_RECONNECT_INTERVAL", "5.0"))
-STARTUP_GRACE_S = float(os.environ.get("UNITY_MCP_STARTUP_GRACE", "90.0"))
+STARTUP_GRACE_S = float(os.environ.get("UNITY_MCP_STARTUP_GRACE", str(_TIMING.startupGraceS)))
 # Fallback when Unity's CLIENT_CAPACITY_BUSY hello omits retry_after_seconds.
 # Reuses bridge_heartbeat's backoff floor instead of a second hardcoded 5.0.
 _CAPACITY_RETRY_AFTER_DEFAULT_S = BACKOFF_MIN_S
