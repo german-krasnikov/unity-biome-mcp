@@ -34,7 +34,7 @@ namespace UnityMCP.Editor.Tests
         // menu actions, and panels reachable only behind an open window or a click.
         private static readonly HashSet<string> Allowlist = new HashSet<string>(System.StringComparer.Ordinal)
         {
-            "PlaytestLaunchWindow.cs",
+            "Playtest/PlaytestLaunchWindow.cs", // Phase 5.3: moved to Playtest/ subfolder
             "MCPActions.cs",
             "MCPStatusBarWidget.cs",
             "MCPServer.cs", // static ctor defers StartAsync — SynchronizationContext dead in static ctor

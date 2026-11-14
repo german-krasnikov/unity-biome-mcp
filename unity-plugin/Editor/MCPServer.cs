@@ -217,6 +217,23 @@ namespace UnityMCP.Editor
             // this value; set here too so the dependency is visible at the call site (mirrors
             // the ShuttingDownProvider wiring above) and tests can override it independently.
             ClientConnectionHandler.Dispatcher = CommandRouterDispatcher.Instance;
+            // Phase 5.3: wire PlaytestRunner seams — Playtest asmdef cannot reference
+            // CommandRouterDispatcher or ScreenshotCapture directly (they live in the monolith).
+            PlaytestRunner.Dispatcher = CommandRouterDispatcher.Instance;
+            PlaytestRunner.CaptureScreenshot = n => ScreenshotCapture.CaptureToFile(cameraName: n);
+            PlaytestRunner.GetConsoleLogs = (n, lvl) => ConsoleCapture.GetLogs(n, lvl);
+            PlaytestRunner.WritePng = (data, prefix) => FileOutputHelper.WritePng(data, prefix: prefix);
+            PlaytestRunner.CreateSimulator = SimulatorRegistry.Create;
+            PlaytestRunner.UISimulateClick = UIElementHelper.SimulateClick;
+            PlaytestRunner.UIFillText = UIElementHelper.FillText;
+            PlaytestRunner.UIFocusElement = UIElementHelper.FocusElement;
+            PlaytestRunner.UIReadValue = UIElementHelper.ReadValue;
+            PlaytestRunner.GetConsoleErrorsSince = ConsoleCapture.GetErrorsSince;
+            PlaytestMcpPolicy.IsRuntimeCommand = CommandRegistry.IsRuntime;
+            PlaytestMcpPolicy.PlaytestDenied = ToolUi.PlaytestDenied;
+            PlaytestMcpPolicy.GetEditorAction = EditorArgs.Action;
+            PlaytestAliasWindow.LoadStyleSheet = MCPEditorUtils.LoadStyleSheet;
+            RuntimeHelper.GetConsoleLogs = (n, lvl) => ConsoleCapture.GetLogs(n, lvl);
 
             if (!ShouldStartServer(Application.isBatchMode)) return;
 

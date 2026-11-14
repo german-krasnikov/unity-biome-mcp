@@ -31,3 +31,6 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("UnityMCP.TestProject")]
 // PortResolver.cs (Phase 2.4: UnityMCP.Editor.Transport.asmdef) calls AtomicFile.Swap directly.
 [assembly: InternalsVisibleTo("UnityMCP.Editor.Transport")]
+// PlaytestRunner.Mcp.cs calls JsonHelper.EscapeJson (internal) for MCP step serialisation
+// (Phase 5.3: UnityMCP.Editor.Playtest.asmdef extraction).
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Playtest")]

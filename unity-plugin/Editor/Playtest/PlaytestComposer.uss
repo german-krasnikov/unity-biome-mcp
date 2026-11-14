@@ -1,0 +1,180 @@
+.composer-root {
+    flex-direction: column;
+    padding: 4px;
+}
+
+.composer-toolbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    flex-shrink: 0;
+    align-items: center;
+    border-bottom-width: 1px;
+    border-bottom-color: #3c3c3c;
+    min-height: 26px;
+    margin-bottom: 4px;
+}
+
+.composer-toolbar-btn {
+    height: 20px;
+    padding: 0 6px;
+    margin: 2px 1px;
+}
+
+.composer-to-row {
+    flex-direction: row;
+    align-items: center;
+    margin-left: 8px;
+}
+
+.step-row {
+    flex-direction: column;
+    border-radius: 4px;
+    border-left-width: 3px;
+    border-left-color: #555555;
+    margin: 2px 0;
+    padding: 2px 4px;
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.step-header {
+    flex-direction: row;
+    align-items: center;
+    height: 22px;
+}
+
+.step-type-field {
+    width: 120px;
+    margin-right: 4px;
+}
+
+.step-desc-field {
+    flex-grow: 1;
+}
+
+.step-panel {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 2px 0;
+    align-items: center;
+}
+
+.step-eyedropper {
+    width: 20px;
+    min-width: 20px;
+    padding: 0;
+}
+
+.step-dnd-highlight {
+    border-width: 1px;
+    border-color: #4589ff;
+}
+
+.step-type--assert   { border-left-color: #6fdc8c; }
+.step-type--waituntil { border-left-color: #6fdc8c; }
+.step-type--wait     { border-left-color: #4589ff; }
+.step-type--move     { border-left-color: #f1c21b; }
+.step-type--invoke   { border-left-color: #be95ff; }
+.step-type--section  { border-left-color: #c6c6c6; }
+.step-type--log      { border-left-color: #ffcc00; }
+.step-type--timescale { border-left-color: #ffcc00; }
+.step-type--monitor  { border-left-color: #4589ff; }
+
+.composer-section-label {
+    flex-shrink: 0;
+    font-size: 10px;
+    -unity-font-style: bold;
+    margin-top: 4px;
+    margin-bottom: 2px;
+}
+
+.composer-dsl-preview {
+    font-size: 10px;
+    white-space: normal;
+    max-height: 90px;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 4px;
+    margin-top: 2px;
+}
+
+.composer-results {
+    color: #6fdc8c;
+    font-size: 10px;
+    max-height: 60px;
+    overflow: hidden;
+    white-space: normal;
+}
+
+.step-small-field   { width: 50px; }
+.step-op-field      { width: 40px; }
+.step-path-field    { flex: 0 0 25%; min-width: 60px; }
+.step-query-field   { flex: 0 0 40%; min-width: 60px; }
+.step-grow-field    { flex-grow: 1; }
+
+.step-error { border-color: #e94560; border-width: 1px; }
+
+
+.nl-input-row {
+    flex-direction: row;
+    padding: 2px 4px;
+    align-items: center;
+}
+.nl-input-field { flex-grow: 1; margin-right: 4px; }
+.nl-preview-panel {
+    padding: 4px;
+    margin: 2px 4px;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 3px;
+}
+.nl-preview {
+    font-size: 11px;
+    white-space: pre-wrap;
+    -unity-font-style: normal;
+    color: #6fdc8c;
+    padding: 4px;
+}
+.nl-preview--error { color: #e94560; }
+
+/* NlCommandWindow */
+.nl-window-root {
+    flex-direction: column;
+    padding: 8px;
+}
+
+.nl-window-input {
+    flex-grow: 1;
+    min-height: 72px;
+    white-space: normal;
+    margin-bottom: 4px;
+}
+
+.nl-window-parse-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.nl-window-preview {
+    flex-grow: 1;
+    min-height: 80px;
+    background-color: rgba(0, 0, 0, 0.1);
+    padding: 4px;
+    margin-bottom: 4px;
+}
+
+.nl-window-btn-row {
+    flex-direction: row;
+    justify-content: flex-end;
+}
+
+.nl-preview-line--valid {
+    color: #6fdc8c;
+    font-size: 11px;
+    white-space: normal;
+}
+
+.nl-preview-line--invalid {
+    color: #e94560;
+    font-size: 11px;
+    white-space: normal;
+}
