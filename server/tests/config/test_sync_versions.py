@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "sync_versions.py"
-REPO_ROOT = Path(__file__).resolve().parents[2]
+SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "sync_versions.py"
+REPO_ROOT = Path(__file__).resolve().parents[3]
 VERSION_ARTIFACTS = (
     "pyproject.toml",
     "uv.lock",

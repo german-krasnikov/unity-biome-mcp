@@ -26,7 +26,7 @@ from unity_mcp.server_filtering import read_unity_port
 # ---------------------------------------------------------------------------
 # Paths (Group C style — source verification without Unity)
 # ---------------------------------------------------------------------------
-_PROJECT = Path(__file__).parents[2]
+_PROJECT = Path(__file__).parents[3]
 _PLUGIN = _PROJECT / "unity-plugin"
 _SERVER = _PROJECT / "server"
 
