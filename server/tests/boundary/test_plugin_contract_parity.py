@@ -17,7 +17,7 @@ _EDITOR_DIR = _REPO_ROOT / "unity-plugin" / "Editor"
 _PLUGIN_LINE = re.compile(
     r"^PLUGIN\s+(?P<name>\S+)\s+PREFIX\s+(?P<prefix>\S+)\s+ASSEMBLY\s+(?P<assembly>\S+)\s*$"
 )
-_IMCPPLUGIN_CLASS = re.compile(r"class\s+\w+\s*:\s*IMCPPlugin\b")
+_IMCPPLUGIN_CLASS = re.compile(r"class\s+\w+\s*:[^{]*\bIMCPPlugin\b")
 _NAME_PROPERTY = re.compile(r'public\s+string\s+Name\s*=>\s*"([^"]*)"')
 _PREFIX_PROPERTY = re.compile(r'public\s+string\s+CommandPrefix\s*=>\s*"([^"]*)"')
 
@@ -61,7 +61,8 @@ def test_plugins_biome_is_not_empty():
 
 def test_plugins_biome_declares_chat_contract():
     """Pins the one documented plugin's exact contract so a silent DSL edit is caught."""
-    chat = next(p for p in _DECLARED if p.name == "Chat")
+    chat = next((p for p in _DECLARED if p.name == "Chat"), None)
+    assert chat is not None, "plugins.biome no longer declares a PLUGIN named Chat"
     assert chat.prefix == "chat"
     assert chat.assembly == "UnityMCP.Editor.Chat.View"
 
@@ -78,7 +79,7 @@ def test_declared_plugin_assembly_has_asmdef(plugin: DeclaredPlugin):
 @pytest.mark.parametrize("plugin", _DECLARED, ids=lambda p: p.name)
 def test_declared_plugin_has_imcpplugin_registrant(plugin: DeclaredPlugin):
     asmdef = _find_asmdef(plugin.assembly)
-    assert asmdef is not None
+    assert asmdef is not None, f"no unique {plugin.assembly}.asmdef found for PLUGIN {plugin.name}"
     registrant = _find_plugin_registrant(asmdef.parent)
     assert registrant is not None, (
         f"No single IMCPPlugin implementation found under {asmdef.parent} for PLUGIN {plugin.name}"
@@ -88,7 +89,11 @@ def test_declared_plugin_has_imcpplugin_registrant(plugin: DeclaredPlugin):
 @pytest.mark.parametrize("plugin", _DECLARED, ids=lambda p: p.name)
 def test_declared_prefix_matches_csharp_command_prefix(plugin: DeclaredPlugin):
     asmdef = _find_asmdef(plugin.assembly)
+    assert asmdef is not None, f"no unique {plugin.assembly}.asmdef found for PLUGIN {plugin.name}"
     registrant = _find_plugin_registrant(asmdef.parent)
+    assert registrant is not None, (
+        f"No single IMCPPlugin implementation found under {asmdef.parent} for PLUGIN {plugin.name}"
+    )
     source = registrant.read_text("utf-8")
     match = _PREFIX_PROPERTY.search(source)
     assert match, f'{registrant} has no `CommandPrefix => "..."` property'
@@ -101,7 +106,11 @@ def test_declared_prefix_matches_csharp_command_prefix(plugin: DeclaredPlugin):
 @pytest.mark.parametrize("plugin", _DECLARED, ids=lambda p: p.name)
 def test_declared_name_matches_csharp_plugin_name(plugin: DeclaredPlugin):
     asmdef = _find_asmdef(plugin.assembly)
+    assert asmdef is not None, f"no unique {plugin.assembly}.asmdef found for PLUGIN {plugin.name}"
     registrant = _find_plugin_registrant(asmdef.parent)
+    assert registrant is not None, (
+        f"No single IMCPPlugin implementation found under {asmdef.parent} for PLUGIN {plugin.name}"
+    )
     source = registrant.read_text("utf-8")
     match = _NAME_PROPERTY.search(source)
     assert match, f'{registrant} has no `Name => "..."` property'
