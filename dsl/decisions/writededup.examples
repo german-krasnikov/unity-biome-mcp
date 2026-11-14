@@ -1,0 +1,13 @@
+PROVENANCE "Transcribed from server/tests/middleware/test_middleware.py tests for check_retry (lines 14-36) and test_middleware_read_cmds.py:462-467."
+
+EXAMPLES writeDedupWarn
+  id | dedupIsWrite | dedupIsScreenshot | dedupWithinTtl | dedupSameGeneration -> expected
+  read-cmd | false | false | false | false -> ok  # test_middleware.py:14 get_hierarchy → not a write
+  different-args | false | false | false | false -> ok  # test_middleware.py:19 different cmds → ok
+  screenshot-repeat | true | true | true | true -> ok  # screenshot always ok (observe later frame)
+  ttl-expired | true | false | false | false -> ok  # outside TTL window → ok
+  new-generation | true | false | true | false -> ok  # new generation → ok
+  first-write | true | false | false | false -> ok  # test_middleware.py:25 first occurrence
+  duplicate-write | true | false | true | true -> warn  # test_middleware.py:25 identical write in TTL window
+  scene-read-action | false | false | false | false -> ok  # test_middleware_read_cmds.py:462 scene list (read action)
+END

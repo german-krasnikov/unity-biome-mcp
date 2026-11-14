@@ -1,0 +1,10 @@
+# Facts of the confidence band classifier and verify gate (middleware_reads.update_confidence, middleware_async.maybe_verify_visual).
+# The host owns the update arithmetic (decay 0.08 on write, boost 0.15 on read, clamped 0..1) and passes the already-updated value.
+# conf.isWrite is accepted for documentation / INPUT coverage; the DECISION itself only inspects updatedValue.
+CONTRACT unitymcp.confidence
+COVERAGE declared-scope
+MODULE confidence_facts
+FACT conf.isWrite bool
+FACT conf.updatedValue number min=0 max=1
+INPUT confidenceBand conf.isWrite conf.updatedValue
+INPUT shouldVerify conf.updatedValue

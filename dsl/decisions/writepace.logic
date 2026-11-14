@@ -1,0 +1,8 @@
+# writePace: should a consecutive-write nudge be appended (middleware_guards.py:202-213, transition()).
+# The host classifies changesSceneState (is_write AND NOT in SCENE_STATE_NEUTRAL_WRITES AND not batch-readonly)
+# and maintains consecutiveWrites (reset to 0 on reads/neutrals, incremented on mutations before this check).
+# First match wins (lowest AT).
+DECISION writePace DEFAULT none
+  notMutation AT 10 WHEN NOT pace.changesSceneState -> none
+  nudge AT 20 WHEN pace.consecutiveWrites >= 3 -> nudge
+END

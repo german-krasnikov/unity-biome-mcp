@@ -4,6 +4,7 @@ import json
 import os
 from collections.abc import Awaitable, Callable  # noqa: TC003
 
+from .decisions.generated.confidence_logic import ShouldVerifyInput, ShouldVerifyValues, should_verify
 from .tools.tags import tagged
 
 _FULL_SUPPORTED: frozenset[str] = tagged("async_full")
@@ -56,7 +57,7 @@ class MiddlewareAsyncMixin:
             return result
         if not is_write(cmd, args):
             return result
-        if self.confidence >= 0.5:
+        if should_verify(ShouldVerifyInput(conf_updated_value=self.confidence)) == ShouldVerifyValues.SKIP:
             return result
         prompt = f"Verify that '{cmd}' succeeded. Args: {args}. Result: {result[:200]}"
         verdict = await self.sampling.verify_visual(prompt)

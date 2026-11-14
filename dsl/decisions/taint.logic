@@ -1,0 +1,12 @@
+# taintWarn: should a taint warning be issued for an unread reference value (middleware_guards.py:70-81, check_taint()).
+# A taint warning fires only when all conditions are true: set_property, prop ends with "Reference",
+# value is not null/empty, not a special ref (#/& prefixes), and value was never read (not in _clean_paths).
+# First match wins (lowest AT); early exits short-circuit when taint is inapplicable.
+DECISION taintWarn DEFAULT ok
+  notSetProperty AT 10 WHEN NOT taint.isSetProperty -> ok
+  notRefProp AT 20 WHEN NOT taint.propEndsWithReference -> ok
+  nullValue AT 30 WHEN taint.valueIsNull -> ok
+  specialValue AT 31 WHEN taint.valueIsSpecial -> ok
+  cleanValue AT 40 WHEN taint.valueIsClean -> ok
+  unreadRef AT 50 WHEN taint.isSetProperty AND taint.propEndsWithReference -> warn
+END

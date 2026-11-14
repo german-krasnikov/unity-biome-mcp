@@ -1,0 +1,9 @@
+PROVENANCE "Characterized from middleware_guards.check_starvation at middleware_guards.py:175-179. No dedicated test exists yet; rows cover all four bool combinations."
+
+EXAMPLES starvationWarn
+  id | starvWindowFull | starvAllSame -> expected
+  window-not-full-not-same | false | false -> ok  # less than 5 calls, no warning
+  window-not-full-same | false | true -> ok  # impossible in practice but contract is clear: need full window
+  window-full-not-same | true | false -> ok  # 5 different results, no starvation
+  window-full-all-same | true | true -> warn  # 5 identical results → starvation
+END

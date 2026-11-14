@@ -162,6 +162,21 @@ GENERATE askroute logic generate --source {dir}/decisions/askroute.logic --contr
 GENERATE askroute-rows logic examples --source {dir}/decisions/askroute.examples --logic {dir}/decisions/askroute.logic --contract {dir}/decisions/askroute.contract --out {dir}/decisions/askroute.json
 GENERATE hinter logic generate --source {dir}/decisions/hinter.logic --contract {dir}/decisions/hinter.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/hinter_logic.py"
 GENERATE hinter-rows logic examples --source {dir}/decisions/hinter.examples --logic {dir}/decisions/hinter.logic --contract {dir}/decisions/hinter.contract --out {dir}/decisions/hinter.json
+# Wave 2A: middleware DECISION modules (confidence, writepace, starvation, taint, mutationpace, consolehint, writededup)
+GENERATE confidence logic generate --source {dir}/decisions/confidence.logic --contract {dir}/decisions/confidence.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/confidence_logic.py"
+GENERATE confidence-rows logic examples --source {dir}/decisions/confidence.examples --logic {dir}/decisions/confidence.logic --contract {dir}/decisions/confidence.contract --out {dir}/decisions/confidence.json
+GENERATE writepace logic generate --source {dir}/decisions/writepace.logic --contract {dir}/decisions/writepace.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/writepace_logic.py"
+GENERATE writepace-rows logic examples --source {dir}/decisions/writepace.examples --logic {dir}/decisions/writepace.logic --contract {dir}/decisions/writepace.contract --out {dir}/decisions/writepace.json
+GENERATE starvation logic generate --source {dir}/decisions/starvation.logic --contract {dir}/decisions/starvation.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/starvation_logic.py"
+GENERATE starvation-rows logic examples --source {dir}/decisions/starvation.examples --logic {dir}/decisions/starvation.logic --contract {dir}/decisions/starvation.contract --out {dir}/decisions/starvation.json
+GENERATE taint logic generate --source {dir}/decisions/taint.logic --contract {dir}/decisions/taint.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/taint_logic.py"
+GENERATE taint-rows logic examples --source {dir}/decisions/taint.examples --logic {dir}/decisions/taint.logic --contract {dir}/decisions/taint.contract --out {dir}/decisions/taint.json
+GENERATE mutationpace logic generate --source {dir}/decisions/mutationpace.logic --contract {dir}/decisions/mutationpace.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/mutationpace_logic.py"
+GENERATE mutationpace-rows logic examples --source {dir}/decisions/mutationpace.examples --logic {dir}/decisions/mutationpace.logic --contract {dir}/decisions/mutationpace.contract --out {dir}/decisions/mutationpace.json
+GENERATE consolehint logic generate --source {dir}/decisions/consolehint.logic --contract {dir}/decisions/consolehint.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/consolehint_logic.py"
+GENERATE consolehint-rows logic examples --source {dir}/decisions/consolehint.examples --logic {dir}/decisions/consolehint.logic --contract {dir}/decisions/consolehint.contract --out {dir}/decisions/consolehint.json
+GENERATE writededup logic generate --source {dir}/decisions/writededup.logic --contract {dir}/decisions/writededup.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/writededup_logic.py"
+GENERATE writededup-rows logic examples --source {dir}/decisions/writededup.examples --logic {dir}/decisions/writededup.logic --contract {dir}/decisions/writededup.contract --out {dir}/decisions/writededup.json
 CONTRACT contextwindow FROM data/contextwindow.data-contract
 GENERATE py-contextwindow data --contract contextwindow --rows ContextWindowRule {dir}/data/contextwindow.core-data --target py --out {dir}/../server/src/unity_mcp/generated/context_window_rules.py
 GENERATE cs-contextwindow data --contract contextwindow --rows ContextWindowRule {dir}/data/contextwindow.core-data --target cs --cs-namespace UnityMCP.Editor.Chat --out {dir}/../unity-plugin/Editor/Chat/CLI/Generated/ContextWindowRules.g.cs

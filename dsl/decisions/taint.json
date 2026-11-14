@@ -1,0 +1,13 @@
+{
+  "generated": "from taint.examples by npm run logic -- examples; do not edit",
+  "provenance": "Transcribed from server/tests/middleware/test_middleware.py tests for check_taint (lines 84-108).",
+  "taintWarn": [
+    { "id": "not-set-property", "facts": { "taintIsSetProperty": false, "taintPropEndsWithReference": false, "taintValueIsNull": false, "taintValueIsSpecial": false, "taintValueIsClean": false }, "expected": "ok", "provenance": "test_middleware.py: non-set_property cmd → ok" },
+    { "id": "non-ref-prop", "facts": { "taintIsSetProperty": true, "taintPropEndsWithReference": false, "taintValueIsNull": false, "taintValueIsSpecial": false, "taintValueIsClean": false }, "expected": "ok", "provenance": "test_middleware.py:95 prop=speed, not a reference" },
+    { "id": "hash-ref", "facts": { "taintIsSetProperty": true, "taintPropEndsWithReference": true, "taintValueIsNull": false, "taintValueIsSpecial": true, "taintValueIsClean": false }, "expected": "ok", "provenance": "test_middleware.py:100 value=\"#abc123\" (special)" },
+    { "id": "ampersand-ref", "facts": { "taintIsSetProperty": true, "taintPropEndsWithReference": true, "taintValueIsNull": false, "taintValueIsSpecial": true, "taintValueIsClean": false }, "expected": "ok", "provenance": "test_middleware.py:105 value=\"&abc123\" (special)" },
+    { "id": "null-value", "facts": { "taintIsSetProperty": true, "taintPropEndsWithReference": true, "taintValueIsNull": true, "taintValueIsSpecial": false, "taintValueIsClean": false }, "expected": "ok", "provenance": "value is empty/null" },
+    { "id": "verified-ref", "facts": { "taintIsSetProperty": true, "taintPropEndsWithReference": true, "taintValueIsNull": false, "taintValueIsSpecial": false, "taintValueIsClean": true }, "expected": "ok", "provenance": "test_middleware.py:89 value was read → clean" },
+    { "id": "unread-ref", "facts": { "taintIsSetProperty": true, "taintPropEndsWithReference": true, "taintValueIsNull": false, "taintValueIsSpecial": false, "taintValueIsClean": false }, "expected": "warn", "provenance": "test_middleware.py:84 unread reference → taint" }
+  ]
+}

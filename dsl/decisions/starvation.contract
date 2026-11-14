@@ -1,0 +1,8 @@
+# Facts of the starvation monitor (middleware_guards.check_starvation).
+# windowFull = len(window) == 5 (the host's deque is capped at 5); allSame = len(set(window)) == 1.
+CONTRACT unitymcp.starvation
+COVERAGE declared-scope
+MODULE starvation_facts
+FACT starv.windowFull bool
+FACT starv.allSame bool
+INPUT starvationWarn starv.windowFull starv.allSame

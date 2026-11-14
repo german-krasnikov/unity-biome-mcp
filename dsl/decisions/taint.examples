@@ -1,0 +1,12 @@
+PROVENANCE "Transcribed from server/tests/middleware/test_middleware.py tests for check_taint (lines 84-108)."
+
+EXAMPLES taintWarn
+  id | taintIsSetProperty | taintPropEndsWithReference | taintValueIsNull | taintValueIsSpecial | taintValueIsClean -> expected
+  not-set-property | false | false | false | false | false -> ok  # test_middleware.py: non-set_property cmd → ok
+  non-ref-prop | true | false | false | false | false -> ok  # test_middleware.py:95 prop=speed, not a reference
+  hash-ref | true | true | false | true | false -> ok  # test_middleware.py:100 value="#abc123" (special)
+  ampersand-ref | true | true | false | true | false -> ok  # test_middleware.py:105 value="&abc123" (special)
+  null-value | true | true | true | false | false -> ok  # value is empty/null
+  verified-ref | true | true | false | false | true -> ok  # test_middleware.py:89 value was read → clean
+  unread-ref | true | true | false | false | false -> warn  # test_middleware.py:84 unread reference → taint
+END

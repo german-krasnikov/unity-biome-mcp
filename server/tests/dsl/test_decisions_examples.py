@@ -18,6 +18,8 @@ MODULES = {
     "mutability", "verdict", "guards", "retry", "permission", "versionorder", "busysignal", "connstatus",
     "budget", "editorlog", "terminalerror", "injectstate", "reflectgate", "prefetch", "scenarionext",
     "planverify", "askroute", "hinter",
+    # Wave 2A: middleware DECISION modules
+    "confidence", "writepace", "starvation", "taint", "mutationpace", "consolehint", "writededup",
 }
 
 

@@ -1,0 +1,14 @@
+{
+  "generated": "from writededup.examples by npm run logic -- examples; do not edit",
+  "provenance": "Transcribed from server/tests/middleware/test_middleware.py tests for check_retry (lines 14-36) and test_middleware_read_cmds.py:462-467.",
+  "writeDedupWarn": [
+    { "id": "read-cmd", "facts": { "dedupIsWrite": false, "dedupIsScreenshot": false, "dedupWithinTtl": false, "dedupSameGeneration": false }, "expected": "ok", "provenance": "test_middleware.py:14 get_hierarchy → not a write" },
+    { "id": "different-args", "facts": { "dedupIsWrite": false, "dedupIsScreenshot": false, "dedupWithinTtl": false, "dedupSameGeneration": false }, "expected": "ok", "provenance": "test_middleware.py:19 different cmds → ok" },
+    { "id": "screenshot-repeat", "facts": { "dedupIsWrite": true, "dedupIsScreenshot": true, "dedupWithinTtl": true, "dedupSameGeneration": true }, "expected": "ok", "provenance": "screenshot always ok (observe later frame)" },
+    { "id": "ttl-expired", "facts": { "dedupIsWrite": true, "dedupIsScreenshot": false, "dedupWithinTtl": false, "dedupSameGeneration": false }, "expected": "ok", "provenance": "outside TTL window → ok" },
+    { "id": "new-generation", "facts": { "dedupIsWrite": true, "dedupIsScreenshot": false, "dedupWithinTtl": true, "dedupSameGeneration": false }, "expected": "ok", "provenance": "new generation → ok" },
+    { "id": "first-write", "facts": { "dedupIsWrite": true, "dedupIsScreenshot": false, "dedupWithinTtl": false, "dedupSameGeneration": false }, "expected": "ok", "provenance": "test_middleware.py:25 first occurrence" },
+    { "id": "duplicate-write", "facts": { "dedupIsWrite": true, "dedupIsScreenshot": false, "dedupWithinTtl": true, "dedupSameGeneration": true }, "expected": "warn", "provenance": "test_middleware.py:25 identical write in TTL window" },
+    { "id": "scene-read-action", "facts": { "dedupIsWrite": false, "dedupIsScreenshot": false, "dedupWithinTtl": false, "dedupSameGeneration": false }, "expected": "ok", "provenance": "test_middleware_read_cmds.py:462 scene list (read action)" }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "generated": "from mutationpace.examples by npm run logic -- examples; do not edit",
+  "provenance": "Characterized from middleware_guards.check_verification_needed at middleware_guards.py:131-138 and test_middleware_read_cmds.py:447-451.",
+  "mutationPace": [
+    { "id": "read-cmd", "facts": { "mupaceIsWrite": false, "mupaceIsNeutral": false, "mupaceIsBatchReadonly": false, "mupaceAtCheckpoint": false }, "expected": "none", "provenance": "test_middleware_read_cmds.py:447 animation get → not a write" },
+    { "id": "neutral-write", "facts": { "mupaceIsWrite": true, "mupaceIsNeutral": true, "mupaceIsBatchReadonly": false, "mupaceAtCheckpoint": false }, "expected": "none", "provenance": "neutral write (VERIFICATION_NUDGE_NEUTRAL_WRITES)" },
+    { "id": "batch-readonly", "facts": { "mupaceIsWrite": true, "mupaceIsNeutral": false, "mupaceIsBatchReadonly": true, "mupaceAtCheckpoint": false }, "expected": "none", "provenance": "batch with only reads" },
+    { "id": "write-not-at-checkpoint", "facts": { "mupaceIsWrite": true, "mupaceIsNeutral": false, "mupaceIsBatchReadonly": false, "mupaceAtCheckpoint": false }, "expected": "none", "provenance": "1st..9th write, no nudge" },
+    { "id": "write-at-checkpoint", "facts": { "mupaceIsWrite": true, "mupaceIsNeutral": false, "mupaceIsBatchReadonly": false, "mupaceAtCheckpoint": true }, "expected": "nudge", "provenance": "every 10th write triggers nudge" }
+  ]
+}

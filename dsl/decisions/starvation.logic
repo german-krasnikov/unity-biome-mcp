@@ -1,0 +1,6 @@
+# starvationWarn: should a starvation warning be appended (middleware_guards.py:175-179, check_starvation()).
+# The host maintains a rolling window of the last 5 response hashes and passes allSame and windowFull.
+# windowFull = window has exactly 5 entries; allSame = all 5 hashes are identical.
+DECISION starvationWarn DEFAULT ok
+  warn AT 10 WHEN starv.windowFull AND starv.allSame -> warn
+END

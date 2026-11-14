@@ -1,0 +1,9 @@
+# mutationPace: should a periodic verification nudge be appended (middleware_guards.py:132-137, check_verification_needed()).
+# The host increments mutation_count only for real writes (not neutral, not batch-readonly) and passes atCheckpoint.
+# atCheckpoint = mutation_count > 0 AND mutation_count % 10 == 0 (after increment).
+DECISION mutationPace DEFAULT none
+  neutral AT 10 WHEN mupace.isNeutral -> none
+  batchReadonly AT 11 WHEN mupace.isBatchReadonly -> none
+  notWrite AT 12 WHEN NOT mupace.isWrite -> none
+  checkpoint AT 20 WHEN mupace.atCheckpoint -> nudge
+END

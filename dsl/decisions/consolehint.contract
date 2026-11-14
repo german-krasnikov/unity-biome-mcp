@@ -1,0 +1,11 @@
+# Facts of the console error hint classifier (middleware_reads.categorize_console_errors).
+# hasNullRef: "NullReferenceException" in result.
+# hasMissingComponent: "MissingComponentException" in result.
+# hasFormatError: "FormatException" in result OR "Input string was not in a correct format" in result.
+CONTRACT unitymcp.consolehint
+COVERAGE declared-scope
+MODULE consolehint_facts
+FACT con.hasNullRef bool
+FACT con.hasMissingComponent bool
+FACT con.hasFormatError bool
+INPUT consoleHint con.hasNullRef con.hasMissingComponent con.hasFormatError

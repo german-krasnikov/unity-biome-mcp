@@ -1,0 +1,10 @@
+PROVENANCE "Characterized from middleware_guards.check_verification_needed at middleware_guards.py:131-138 and test_middleware_read_cmds.py:447-451."
+
+EXAMPLES mutationPace
+  id | mupaceIsWrite | mupaceIsNeutral | mupaceIsBatchReadonly | mupaceAtCheckpoint -> expected
+  read-cmd | false | false | false | false -> none  # test_middleware_read_cmds.py:447 animation get → not a write
+  neutral-write | true | true | false | false -> none  # neutral write (VERIFICATION_NUDGE_NEUTRAL_WRITES)
+  batch-readonly | true | false | true | false -> none  # batch with only reads
+  write-not-at-checkpoint | true | false | false | false -> none  # 1st..9th write, no nudge
+  write-at-checkpoint | true | false | false | true -> nudge  # every 10th write triggers nudge
+END
