@@ -1,0 +1,20 @@
+# Facts for the sync error observation gate (_get_errors, sync.py:44-75).
+# sync.state: compile_status stripped to its first pipe-segment (idle | idle-failed | compiling | …).
+# sync.hasCsErrors: True when 'error CS' appears in the corroborated errors string.
+# sync.hasErrors: True when the corroborated errors string is non-empty.
+# sync.isWarnOnly: True when errors contain '[warn:' but NOT 'error CS'.
+# sync.diagnosticIssue: True when _verdict starts with FAIL:/BUILD-FAILED-WEDGE, or reload_failed,
+#   or compile/sync are actively busy (iscompiling, cn_active, is_really_compiling, reload in progress).
+# sync.hasStaleDlls: True when any parsed DLL token has status == 'stale'.
+# Outputs: errors/failedNoDetails/unknown/unknownState → non-empty blocking verdicts;
+#          verdict → delegated from _verdict(); failStaleDll → FAIL:stale-dll; clean → '' (ok).
+CONTRACT unitymcp.syncerrors
+COVERAGE declared-scope
+MODULE syncerrors_facts
+FACT sync.state enum=idle,idleFailed,other open
+FACT sync.hasCsErrors bool
+FACT sync.hasErrors bool
+FACT sync.isWarnOnly bool
+FACT sync.diagnosticIssue bool
+FACT sync.hasStaleDlls bool
+INPUT syncErrors sync.state sync.hasCsErrors sync.hasErrors sync.isWarnOnly sync.diagnosticIssue sync.hasStaleDlls

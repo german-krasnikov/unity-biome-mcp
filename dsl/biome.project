@@ -177,6 +177,15 @@ GENERATE consolehint logic generate --source {dir}/decisions/consolehint.logic -
 GENERATE consolehint-rows logic examples --source {dir}/decisions/consolehint.examples --logic {dir}/decisions/consolehint.logic --contract {dir}/decisions/consolehint.contract --out {dir}/decisions/consolehint.json
 GENERATE writededup logic generate --source {dir}/decisions/writededup.logic --contract {dir}/decisions/writededup.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/writededup_logic.py"
 GENERATE writededup-rows logic examples --source {dir}/decisions/writededup.examples --logic {dir}/decisions/writededup.logic --contract {dir}/decisions/writededup.contract --out {dir}/decisions/writededup.json
+
+# Wave 2B: reload/sync DECISION modules
+GENERATE reloadtier logic generate --source {dir}/decisions/reloadtier.logic --contract {dir}/decisions/reloadtier.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/reloadtier_logic.py"
+GENERATE reloadtier-rows logic examples --source {dir}/decisions/reloadtier.examples --logic {dir}/decisions/reloadtier.logic --contract {dir}/decisions/reloadtier.contract --out {dir}/decisions/reloadtier.json
+GENERATE syncerrors logic generate --source {dir}/decisions/syncerrors.logic --contract {dir}/decisions/syncerrors.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/syncerrors_logic.py"
+GENERATE syncerrors-rows logic examples --source {dir}/decisions/syncerrors.examples --logic {dir}/decisions/syncerrors.logic --contract {dir}/decisions/syncerrors.contract --out {dir}/decisions/syncerrors.json
+GENERATE sourcepatchblock logic generate --source {dir}/decisions/sourcepatchblock.logic --contract {dir}/decisions/sourcepatchblock.contract --target "py {dir}/../server/src/unity_mcp/decisions/generated/sourcepatchblock_logic.py"
+GENERATE sourcepatchblock-rows logic examples --source {dir}/decisions/sourcepatchblock.examples --logic {dir}/decisions/sourcepatchblock.logic --contract {dir}/decisions/sourcepatchblock.contract --out {dir}/decisions/sourcepatchblock.json
+
 CONTRACT contextwindow FROM data/contextwindow.data-contract
 GENERATE py-contextwindow data --contract contextwindow --rows ContextWindowRule {dir}/data/contextwindow.core-data --target py --out {dir}/../server/src/unity_mcp/generated/context_window_rules.py
 GENERATE cs-contextwindow data --contract contextwindow --rows ContextWindowRule {dir}/data/contextwindow.core-data --target cs --cs-namespace UnityMCP.Editor.Chat --out {dir}/../unity-plugin/Editor/Chat/CLI/Generated/ContextWindowRules.g.cs

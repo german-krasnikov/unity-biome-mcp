@@ -1,0 +1,12 @@
+# reloadRoute: which tier path the ladder takes after T1/T2, given the guard/process/runner/consent state.
+# Characterized from _run_ladder (reload_ladder.py:291-316) and _handle_guard_wedge (reload_ladder.py:212-227).
+# Same shape as busysignal: branch precedence broke 3 times historically (guard check must dominate main_dead).
+# T1/T2 always run unconditionally; this decision governs the T2.5+ fork.
+# First match wins.
+DECISION reloadRoute DEFAULT manualRequired
+  guardBlockedNoConsent AT 10 WHEN tier.guardWedged AND NOT tier.consentGiven -> guardBlocked
+  guardWithConsent AT 11 WHEN tier.guardWedged AND tier.consentGiven -> t5Guard
+  mainAliveT3 AT 20 WHEN NOT tier.mainDead -> t3Ahead
+  runnerT4 AT 30 WHEN tier.runnerActive -> t4Ahead
+  consentT5 AT 40 WHEN tier.consentGiven -> t5Ahead
+END

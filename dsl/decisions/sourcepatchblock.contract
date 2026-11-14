@@ -1,0 +1,22 @@
+# Facts for the source-patch reload block decision (SourcePatchStateMachine.ReloadBlockReason, SourcePatchState.cs:62-73).
+# C# stays native — this module is Python-side only.
+# patch.state: current SourcePatchState enum value (Off | Unavailable | OnReady | Busy | Disabling | Recovery).
+# patch.patchesMayBeActive: coordinator.PatchesMayBeActive — released lease does not undo a detour.
+# patch.leaseHeld: coordinator.HasHeldLease — an active AutoRefresh import lease is outstanding.
+# patch.explicitOwnedDisable: caller holds an explicit, owned disable receipt.
+# patch.matchingDisableReceipt: the disable receipt matches the current coordinator instance.
+# patch.stateIsOff: patch.state == Off (computed by host before calling).
+# patch.stateIsUnavailable: patch.state == Unavailable (computed by host before calling).
+# Outputs: allow → reload allowed (C# null, Python None/empty); disableNotOwned → literal "source_patch_disable_not_owned";
+#          blocked → "source_patch_{state}_explicit_disable_required" (host must interpolate state name).
+CONTRACT unitymcp.sourcepatchblock
+COVERAGE declared-scope
+MODULE sourcepatchblock_facts
+FACT patch.state enum=Off,Unavailable,OnReady,Busy,Disabling,Recovery closed
+FACT patch.patchesMayBeActive bool
+FACT patch.leaseHeld bool
+FACT patch.explicitOwnedDisable bool
+FACT patch.matchingDisableReceipt bool
+FACT patch.stateIsOff bool
+FACT patch.stateIsUnavailable bool
+INPUT sourcePatchBlock patch.state patch.patchesMayBeActive patch.leaseHeld patch.explicitOwnedDisable patch.matchingDisableReceipt patch.stateIsOff patch.stateIsUnavailable

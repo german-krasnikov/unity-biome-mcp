@@ -1,0 +1,15 @@
+PROVENANCE "Transcribed from tests in server/tests/bridge/test_reload_ladder.py. Each row is one test scenario; expected is what that test asserts the ladder does at the tier-routing branch."
+
+EXAMPLES reloadRoute
+  id | tierGuardWedged | tierMainDead | tierRunnerActive | tierConsentGiven -> expected
+  guard-no-consent | true | false | false | false -> guardBlocked
+  guard-with-consent | true | false | false | true -> t5Guard
+  guard-dead-no-consent | true | true | false | false -> guardBlocked
+  guard-dead-with-consent | true | true | false | true -> t5Guard
+  main-alive-no-guard | false | false | false | false -> t3Ahead
+  main-alive-runner-no-guard | false | false | true | false -> t3Ahead
+  main-dead-runner | false | true | true | false -> t4Ahead
+  main-dead-consent-only | false | true | false | true -> t5Ahead
+  main-dead-no-runner-no-consent | false | true | false | false -> manualRequired
+  no-paths | false | true | false | false -> manualRequired
+END

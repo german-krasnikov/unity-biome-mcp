@@ -1,0 +1,14 @@
+# syncErrors: verdict from the sync error-observation gate (_get_errors, sync.py:44-75).
+# 7-branch first-match ladder; idle-failed and warn-only state must dominate the generic error check.
+# "errors" = pass through the actual error text; "verdict" = pass through from _verdict().
+# "clean" = empty string return (no blocking condition found).
+DECISION syncErrors DEFAULT unknown
+  idleFailedErrors AT 10 WHEN sync.state == idleFailed AND sync.hasCsErrors -> errors
+  idleFailedNoErrors AT 11 WHEN sync.state == idleFailed -> failedNoDetails
+  warnOnly AT 20 WHEN sync.hasErrors AND sync.isWarnOnly -> unknown
+  hasErrors AT 21 WHEN sync.hasErrors -> errors
+  notIdle AT 30 WHEN sync.state != idle -> unknownState
+  diagnosticIssue AT 40 WHEN sync.diagnosticIssue -> verdict
+  staleDlls AT 50 WHEN sync.hasStaleDlls -> failStaleDll
+  idle AT 60 WHEN sync.state == idle -> clean
+END

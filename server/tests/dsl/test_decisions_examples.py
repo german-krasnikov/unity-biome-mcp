@@ -20,6 +20,8 @@ MODULES = {
     "planverify", "askroute", "hinter",
     # Wave 2A: middleware DECISION modules
     "confidence", "writepace", "starvation", "taint", "mutationpace", "consolehint", "writededup",
+    # Wave 2B: reload/sync DECISION modules
+    "reloadtier", "syncerrors", "sourcepatchblock",
 }
 
 
