@@ -3,6 +3,7 @@
     "rootNamespace": "UnityMCP.Editor.Tests",
     "references": [
         "UnityMCP.Editor",
+        "UnityMCP.Editor.Primitives",
         "UnityMCP.Editor.TestSupport",
         "UnityMCP.Editor.SourcePatch",
         "UnityMCP.Playtest.Core",

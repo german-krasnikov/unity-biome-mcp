@@ -90,7 +90,7 @@ GENERATE cs-backends data --contract backends --rows Backend {dir}/data/backends
 # testing.py's _RUN_STATES/_TERMINAL_OUTCOMES literal sets.
 CONTRACT testrun FROM data/testrun.data-contract
 GENERATE py-testrun data --contract testrun --rows TerminalOutcome {dir}/data/testrun.core-data --target py --out {dir}/../server/src/unity_mcp/generated/testrun_enums.py
-GENERATE cs-testrun data --contract testrun --rows TerminalOutcome {dir}/data/testrun.core-data --target cs --cs-namespace UnityMCP.Editor.TestRuns --out {dir}/../unity-plugin/Editor/Generated/TestRunEnums.g.cs
+GENERATE cs-testrun data --contract testrun --rows TerminalOutcome {dir}/data/testrun.core-data --target cs --cs-namespace UnityMCP.Editor.TestRuns --out {dir}/../unity-plugin/Editor/TestRuns/TestRunEnums.g.cs
 
 # The decisions (dsl/decisions, step 7.2): the rules of what is a write, whether a playtest passed, which guard stops a call and why a
 # send is retried. A step pair per module: the generated Python (and C#) and the rows of the examples that pytest and dotnet run.

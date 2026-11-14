@@ -208,6 +208,11 @@ namespace UnityMCP.Editor
 
         static MCPServer()
         {
+            // Wire the seam unconditionally -- MainThreadDispatcher has no compile-time
+            // reference to MCPServer (Phase 4 Task A), so MCPServer provides its own
+            // shutdown flag via this delegate instead.
+            MainThreadDispatcher.ShuttingDownProvider = () => _shuttingDown;
+
             if (!ShouldStartServer(Application.isBatchMode)) return;
 
             RegisterLifecycleCallbacks();
@@ -577,9 +582,10 @@ namespace UnityMCP.Editor
             var portVal  = ServerPort;
             var bindFail = _lastWrittenState == "bind_failed" ? "true" : "false";
             var fallback = _portFallback ? "true" : "false";
-            return $"{{\"id\":\"{msgId}\",\"ok\":true,\"data\":\"{state}\"," +
-                   $"\"compile\":{compile},\"port\":{portVal}," +
-                   $"\"bind_failed\":{bindFail},\"port_fallback\":{fallback}}}";
+            return JsonHelper.FormatResponseExtra(msgId, true,
+                $"\"data\":\"{state}\"," +
+                $"\"compile\":{compile},\"port\":{portVal}," +
+                $"\"bind_failed\":{bindFail},\"port_fallback\":{fallback}");
         }
 
         // T19: stable project identity — main-thread-only (PlayerSettings + Application APIs).

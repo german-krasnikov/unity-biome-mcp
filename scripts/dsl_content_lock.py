@@ -1,9 +1,9 @@
 """Tier 0 content lock of what dsl/ generates, without Node: dsl/content-lock.json states the sha256 of every DSL source and of every file printed from it.
 
     python scripts/dsl_content_lock.py generate   write the lock from the files on disk (scripts/dsl.sh generate runs it after biome generate)
-    python scripts/dsl_content_lock.py check      exit 1 when a locked file is not as the lock states (server/tests/test_dsl_content_lock.py runs the same check)
+    python scripts/dsl_content_lock.py check      exit 1 when a locked file is not as the lock states (server/tests/dsl/test_dsl_content_lock.py runs the same check)
 
-The banner of a generated file states the digest of its source and nothing of its body (server/tests/test_dsl_fresh.py), so a hand edit that keeps the banner, a
+The banner of a generated file states the digest of its source and nothing of its body (server/tests/dsl/test_dsl_fresh.py), so a hand edit that keeps the banner, a
 changed contract or examples file and the machine rows dsl/decisions/*.json (no banner) were found only by `scripts/dsl.sh check`, which needs Node. The lock finds them.
 It cannot find a lock that was refreshed by hand around a stale file: that the files are what the compiler prints is still `scripts/dsl.sh check`.
 """

@@ -1,5 +1,5 @@
 # Generated from dsl/data/testrun.data-contract, dsl/data/testrun.core-data
-# source-sha256=beb4218ac3b7e10cf98fb1ad2136e2d904046a4e3d5aad2969b27760aa13ff5f
+# source-sha256=31d30200cae9a76f1caa5ada846e683a23cdd94b9b0abe9014f7c66fd73c4112
 # Edit the source, then run biome generate.
 
 from dataclasses import dataclass
@@ -38,6 +38,21 @@ class Health(StrEnum):
     NO_TEST_PROGRESS = "no_test_progress"
     EDITOR_UNRESPONSIVE = "editor_unresponsive"
     SUSPECTED_STALL = "suspected_stall"
+
+
+class EventType(StrEnum):
+    RUN_STARTED = "run_started"
+    MANIFEST_SEALED = "manifest_sealed"
+    TEST_STARTED = "test_started"
+    TEST_FINISHED = "test_finished"
+    RUN_FINISHED = "run_finished"
+    INFRASTRUCTURE_ERROR = "infrastructure_error"
+    DISPATCH_FAILED = "dispatch_failed"
+    CANCEL_REQUESTED = "cancel_requested"
+    ABANDONED = "abandoned"
+    CANCELLED = "cancelled"
+    DOMAIN_RELOADING = "domain_reloading"
+    RUN_FINALIZED = "run_finalized"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

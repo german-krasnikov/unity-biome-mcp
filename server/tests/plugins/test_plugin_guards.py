@@ -7,7 +7,7 @@ Plans/N1a-plugin-registration-owner.md section 2.3 for the design and
 tests/plugins/test_plugin_atomicity.py / test_plugin_ownership.py for the
 matching positive (guard-intact) assertions.
 """
-from test_plugins import _DictMcp
+from ..core.test_plugins import _DictMcp
 
 from tests.plugins.conftest import _mk_module
 from unity_mcp.plugins import _atomic, _owner

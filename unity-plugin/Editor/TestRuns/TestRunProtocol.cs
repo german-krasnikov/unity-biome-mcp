@@ -74,18 +74,18 @@ namespace UnityMCP.Editor.TestRuns
 
         public static class EventType
         {
-            public const string RunStarted = "run_started";
-            public const string ManifestSealed = "manifest_sealed";
-            public const string TestStarted = "test_started";
-            public const string TestFinished = "test_finished";
-            public const string RunFinished = "run_finished";
-            public const string InfrastructureError = "infrastructure_error";
-            public const string DispatchFailed = "dispatch_failed";
-            public const string CancelRequested = "cancel_requested";
-            public const string Abandoned = "abandoned";
-            public const string Cancelled = "cancelled";
-            public const string DomainReloading = "domain_reloading";
-            public const string RunFinalized = "run_finalized";
+            public const string RunStarted = EventTypeValues.RunStarted;
+            public const string ManifestSealed = EventTypeValues.ManifestSealed;
+            public const string TestStarted = EventTypeValues.TestStarted;
+            public const string TestFinished = EventTypeValues.TestFinished;
+            public const string RunFinished = EventTypeValues.RunFinished;
+            public const string InfrastructureError = EventTypeValues.InfrastructureError;
+            public const string DispatchFailed = EventTypeValues.DispatchFailed;
+            public const string CancelRequested = EventTypeValues.CancelRequested;
+            public const string Abandoned = EventTypeValues.Abandoned;
+            public const string Cancelled = EventTypeValues.Cancelled;
+            public const string DomainReloading = EventTypeValues.DomainReloading;
+            public const string RunFinalized = EventTypeValues.RunFinalized;
         }
 
         public static class IssueSeverity
