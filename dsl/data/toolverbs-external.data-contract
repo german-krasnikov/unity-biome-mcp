@@ -1,0 +1,8 @@
+# External tool verbs for ToolVerbMap (Wave 2C-3): Claude Code built-in tools
+# that have no MCP prefix and are not in the dsl/tools.biome catalog.
+# Previously hardcoded in ToolVerbMap.cs._externalMap dict (15 entries).
+# The catalog verbs (mcp__* tools, dsl/tools.biome VERB items) live in ToolVerbs.g.cs.
+RECORD ExternalToolVerb KEY tool COUNT 15
+  tool: string
+  verb: string
+END

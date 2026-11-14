@@ -7,28 +7,11 @@ namespace UnityMCP.Editor.Chat
 {
     public static class ToolVerbMap
     {
-        // Catalog tools (dsl/tools.biome VERB items) resolve through the generated lookup below;
-        // this map stays only for tools outside the catalog's "чужой словарь" (built-in Claude Code tools).
+        // External tool verbs (dsl/data/toolverbs-external.core-data, Wave 2C-3):
+        // built-in Claude Code tools (no MCP prefix) → human verb.
+        // Previously hardcoded here; now generated from ExternalToolVerbRows.
         private static readonly Dictionary<string, string> _externalMap =
-            new Dictionary<string, string>
-            {
-                // Built-in Claude Code tools (no MCP prefix; Agent confirmed from session transcripts)
-                { "Agent",       "Agent" },
-                { "Task",        "Agent" },         // insurance: older SDK may emit Task
-                { "TodoWrite",   "Updated tasks" },  // kept in case it appears in other SDK builds
-                { "TaskCreate",  "Creating task" },  // confirmed: Claude Code task panel (192 sessions)
-                { "TaskUpdate",  "Updating task" },  // confirmed: status ∈ in_progress|completed
-                { "Edit",       "Editing file" },
-                { "Write",      "Writing file" },
-                { "MultiEdit",  "Editing files" },
-                { "Bash",       "Running command" },
-                { "Read",       "Reading file" },
-                { "LS",         "Listing files" },
-                { "Glob",       "Searching files" },
-                { "Grep",       "Searching" },
-                { "WebFetch",   "Fetching" },
-                { "WebSearch",  "Searching web" },
-            };
+            ExternalToolVerbRows.All.ToDictionary(r => r.Tool, r => r.Verb);
 
         // Catalog verbs (ToolVerbs.g.cs, generated from dsl/tools.biome VERB items) keyed by bare wire name.
         private static readonly Dictionary<string, string> _verbLookup =

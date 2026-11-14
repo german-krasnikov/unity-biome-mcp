@@ -85,6 +85,20 @@ CONTRACT backends FROM data/backends.data-contract
 GENERATE py-backends data --contract backends --rows Backend {dir}/data/backends.core-data --target py --out {dir}/../server/src/unity_mcp/generated/backends.py
 GENERATE cs-backends data --contract backends --rows Backend {dir}/data/backends.core-data --target cs --cs-namespace UnityMCP.Editor.Chat --out {dir}/../unity-plugin/Editor/Generated/Backends.g.cs
 
+# External tool verb map (dsl/data/toolverbs-external.data-contract, Wave 2C-3): one typed row set instead of
+# the 15-entry hardcoded dict in ToolVerbMap.cs._externalMap. These are built-in Claude Code tools with no MCP prefix;
+# catalog verbs (mcp__* tools, dsl/tools.biome VERB items) remain in ToolVerbs.g.cs.
+CONTRACT toolverbs-external FROM data/toolverbs-external.data-contract
+GENERATE py-toolverbs-external data --contract toolverbs-external --rows ExternalToolVerb {dir}/data/toolverbs-external.core-data --target py --out {dir}/../server/src/unity_mcp/generated/external_tool_verbs.py
+GENERATE cs-toolverbs-external data --contract toolverbs-external --rows ExternalToolVerb {dir}/data/toolverbs-external.core-data --target cs --cs-namespace UnityMCP.Editor.Chat --out {dir}/../unity-plugin/Editor/Generated/ExternalToolVerbs.g.cs
+
+# Built-in chip kind data (dsl/data/chipkinds.data-contract, Wave 2C-1): one typed row set instead of
+# key/hexColor/defaultDepth/priority scattered across 16 provider files. The 18 built-in chip kinds
+# registered by ChipKindRegistry.EnsureBuiltIns() are now the single source of truth.
+CONTRACT chipkinds FROM data/chipkinds.data-contract
+GENERATE py-chipkinds data --contract chipkinds --rows ChipKind {dir}/data/chipkinds.core-data --target py --out {dir}/../server/src/unity_mcp/generated/chip_kinds.py
+GENERATE cs-chipkinds data --contract chipkinds --rows ChipKind {dir}/data/chipkinds.core-data --target cs --cs-namespace UnityMCP.Editor.Chat --out {dir}/../unity-plugin/Editor/Generated/ChipKinds.g.cs
+
 # The test-run protocol vocabulary (dsl/data/testrun.data-contract, PT-9): one ENUM per word set instead of
 # TestRunProtocol.cs's hand-written Lifecycle/RunOutcome/LeafOutcome/Health string-const classes and
 # testing.py's _RUN_STATES/_TERMINAL_OUTCOMES literal sets.

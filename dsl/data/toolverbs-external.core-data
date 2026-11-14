@@ -1,0 +1,15 @@
+EXTERNALTOOLVERB {tool: "Agent" verb: "Agent"}
+EXTERNALTOOLVERB {tool: "Task" verb: "Agent"}
+EXTERNALTOOLVERB {tool: "TodoWrite" verb: "Updated tasks"}
+EXTERNALTOOLVERB {tool: "TaskCreate" verb: "Creating task"}
+EXTERNALTOOLVERB {tool: "TaskUpdate" verb: "Updating task"}
+EXTERNALTOOLVERB {tool: "Edit" verb: "Editing file"}
+EXTERNALTOOLVERB {tool: "Write" verb: "Writing file"}
+EXTERNALTOOLVERB {tool: "MultiEdit" verb: "Editing files"}
+EXTERNALTOOLVERB {tool: "Bash" verb: "Running command"}
+EXTERNALTOOLVERB {tool: "Read" verb: "Reading file"}
+EXTERNALTOOLVERB {tool: "LS" verb: "Listing files"}
+EXTERNALTOOLVERB {tool: "Glob" verb: "Searching files"}
+EXTERNALTOOLVERB {tool: "Grep" verb: "Searching"}
+EXTERNALTOOLVERB {tool: "WebFetch" verb: "Fetching"}
+EXTERNALTOOLVERB {tool: "WebSearch" verb: "Searching web"}

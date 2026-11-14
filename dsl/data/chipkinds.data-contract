@@ -1,0 +1,14 @@
+# Built-in chip kind data (Wave 2C-1): key string, display color, context depth,
+# and sort priority for each of the 18 built-in chip kinds registered by
+# ChipKindRegistry.EnsureBuiltIns(). Previously scattered across 16 provider
+# files (HierarchyChipProvider.cs, BuiltInChipProviders.cs, etc.).
+# key: the wire-protocol key (matches ChipKindKeys constants).
+# hexColor: CSS hex color for chip pill UI.
+# defaultDepth: "path" | "summary" | "full" — context depth default.
+# priority: ChipKindRegistry sort order (lower = higher precedence).
+RECORD ChipKind KEY key COUNT 18
+  key: string
+  hexColor: string
+  defaultDepth: string
+  priority: int
+END
