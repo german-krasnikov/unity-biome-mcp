@@ -21,6 +21,12 @@ namespace UnityMCP.Editor
         private static readonly ConcurrentQueue<Action> _queue = new ConcurrentQueue<Action>();
         private static int _draining;
 
+        // Seam (Phase 4 Task A): replaces a direct MCPServer._shuttingDown read so this
+        // file has no compile-time dependency on MCPServer — a prerequisite for moving
+        // MainThreadDispatcher into its own leaf asmdef (UnityMCP.Editor.Primitives).
+        // MCPServer wires this once, in its own static init.
+        internal static Func<bool> ShuttingDownProvider = () => false;
+
         static MainThreadDispatcher()
         {
             // cctor runs once per domain; domain reload re-runs it.
@@ -38,7 +44,7 @@ namespace UnityMCP.Editor
 
         internal static void Drain()
         {
-            Drain(_queue, MCPServer._shuttingDown);
+            Drain(_queue, ShuttingDownProvider());
         }
 
         internal static void Drain(ConcurrentQueue<Action> queue, bool shuttingDown = false)

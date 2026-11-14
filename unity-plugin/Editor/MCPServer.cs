@@ -208,6 +208,11 @@ namespace UnityMCP.Editor
 
         static MCPServer()
         {
+            // Wire the seam unconditionally -- MainThreadDispatcher has no compile-time
+            // reference to MCPServer (Phase 4 Task A), so MCPServer provides its own
+            // shutdown flag via this delegate instead.
+            MainThreadDispatcher.ShuttingDownProvider = () => _shuttingDown;
+
             if (!ShouldStartServer(Application.isBatchMode)) return;
 
             RegisterLifecycleCallbacks();
