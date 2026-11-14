@@ -5,10 +5,7 @@ import time as _time
 from .decisions.generated.confidence_logic import (
     ConfidenceBandInput,
     ConfidenceBandValues,
-    ShouldVerifyInput,
-    ShouldVerifyValues,
     confidence_band,
-    should_verify,
 )
 from .decisions.generated.consolehint_logic import (
     ConsoleHintInput,

@@ -2,8 +2,6 @@
 
 from dataclasses import dataclass
 
-from unity_mcp.agent_event_excluded import EXCLUDED_KINDS
-
 
 @dataclass(frozen=True)
 class ConversationHeader:

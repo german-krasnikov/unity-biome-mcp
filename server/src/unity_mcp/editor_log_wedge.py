@@ -14,14 +14,12 @@ from .decisions.generated.editorlog_logic import (
     log_pick,
     wedge_kind,
 )
-
 from .editor_log_parser import (
     classify_failure_currency,
     get_editor_log_path,
     get_editor_prev_log_path,
     parse_build_failure,
 )
-
 
 # Wire values of the wedgeKind verdicts (the logic uses camelCase).
 _WEDGE_WIRE = {"buildFailedWedge": "build-failed-wedge", "staleCache": "stale-cache"}

@@ -7,8 +7,8 @@ from .decisions.generated.starvation_logic import StarvationWarnInput, Starvatio
 from .decisions.generated.taint_logic import TaintWarnInput, TaintWarnValues, taint_warn
 from .decisions.generated.writededup_logic import WriteDedupWarnInput, WriteDedupWarnValues, write_dedup_warn
 from .decisions.generated.writepace_logic import WritePaceInput, WritePaceValues, write_pace
-from .generated.timing_constants import TIMING_ROWS as _TR
 from .decisions.guard_facts import Verdict, guard_verdict
+from .generated.timing_constants import TIMING_ROWS as _TR
 from .middleware_types import (
     _RUNTIME_ONLY_CMDS,
     ACTION_READS,

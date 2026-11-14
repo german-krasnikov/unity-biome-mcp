@@ -10,11 +10,10 @@ from unity_mcp import editor_log
 from unity_mcp.constants import SESSION_TIMEOUT as _DEFAULT_TIMEOUT
 from unity_mcp.constants import SYNC_COMPILE_GUARD_TEXT
 from unity_mcp.errors import recovery_barrier
+from unity_mcp.generated.timing_constants import TIMING_ROWS as _TR
 from unity_mcp.lockfile import read_reload_port
 from unity_mcp.tools.diagnose import _parse_diagnose, _parse_dlls, _verdict
 from unity_mcp.utils import parse_pipe_fields
-
-from unity_mcp.generated.timing_constants import TIMING_ROWS as _TR
 
 from .reload_ladder import _send_with_fallback, make_reload_send, reject_blocked
 from .reload_ladder import run_ladder as _run_ladder
