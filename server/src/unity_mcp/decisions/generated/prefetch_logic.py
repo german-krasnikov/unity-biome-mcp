@@ -1,5 +1,5 @@
 # Generated from dsl/decisions/prefetch.logic
-# source-sha256=6854ee350feda6bd0f19ac7b25b64a16f8dc76b8eef3b10004986b3c61d80434
+# source-sha256=672d461fcb56521f39f1cb031bdb238cfd5ed3155866567b278cd7b7c9b30f4f
 # Edit the source, then run biome generate.
 
 from __future__ import annotations

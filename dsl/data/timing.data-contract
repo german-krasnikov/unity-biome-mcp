@@ -13,13 +13,13 @@
 # probeGraceS (C1 #11): a failed tcp_probe must persist this long (clearing Unity's
 #   worst-case same-port bind-retry window, ~12.6s) before a port file is swept.
 RECORD Timing COUNT 1
-  startupGraceS: float
-  domainReloadExpiryS: float
-  backoffMinS: float
-  backoffMaxS: float
-  reloadBackoffS: float
-  orphanCheckIntervalS: float
-  busyTickS: float
-  idleTickS: float
-  probeGraceS: float
+  startupGraceS: number
+  domainReloadExpiryS: number
+  backoffMinS: number
+  backoffMaxS: number
+  reloadBackoffS: number
+  orphanCheckIntervalS: number
+  busyTickS: number
+  idleTickS: number
+  probeGraceS: number
 END

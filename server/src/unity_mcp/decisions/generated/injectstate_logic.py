@@ -1,5 +1,5 @@
 # Generated from dsl/decisions/injectstate.logic
-# source-sha256=e4ff9be5da011ac77ebc5bbc0943dbcf576efd55481018c9a50e4acb7a1fde76
+# source-sha256=01ece249355a29fe7c404c86fb8e84626d94379aeb8977d37019e943984ca10f
 # Edit the source, then run biome generate.
 
 from __future__ import annotations

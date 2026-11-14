@@ -1,5 +1,5 @@
 # Generated from dsl/decisions/scenarionext.logic
-# source-sha256=ddd1a4513e28de9208ea09ce17ff7bb7303a60fa1e0cda6e24ec83563fed856c
+# source-sha256=42265491d830966c2a22561a203f5482c08c151e606acb32c63454fb3404bd7b
 # Edit the source, then run biome generate.
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
 # Generated from dsl/data/timing.data-contract, dsl/data/timing.core-data
-# source-sha256=653b5c70d84e13cd544b89453472abb9231214a1f3eb47da38800a6e245c5d15
+# source-sha256=bd4d0b1e81c0176b3c5f637f0d5cb6777ff739585a2f7e557db8045ed3c8a8ef
 # Edit the source, then run biome generate.
 
 from dataclasses import dataclass
