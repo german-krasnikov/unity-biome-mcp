@@ -219,6 +219,14 @@ namespace UnityMCP.Editor
             EditorApplication.delayCall += () => StartAsync();
         }
 
+        // Task 1.3: thin adapter — MCPServer is a static class and cannot implement
+        // IReloadLifecycleSink itself. OnBeforeReload() body is unchanged.
+        private sealed class ReloadSink : IReloadLifecycleSink
+        {
+            public void OnBeforeReload() => MCPServer.OnBeforeReload();
+        }
+        private static readonly ReloadSink _reloadSink = new ReloadSink();
+
         internal static void RegisterLifecycleCallbacks()
         {
             if (_lifecycleCallbacksRegistered) return;
@@ -226,7 +234,7 @@ namespace UnityMCP.Editor
             // Register WatchdogTick FIRST — so it survives even if PortFileManager throws below.
             EditorApplication.update += WatchdogTick;
             EditorApplication.quitting += OnQuit;
-            AssemblyReloadEvents.beforeAssemblyReload += OnBeforeReload;
+            ReloadLifecycleCoordinator.Register(_reloadSink);
             CompilationPipeline.compilationStarted += _ => OnCompilationStarted();
             CompilationPipeline.compilationFinished += _ => OnCompilationFinished();
             EditorSceneManager.sceneOpened += (_, _) => InvalidateSceneCaches();
