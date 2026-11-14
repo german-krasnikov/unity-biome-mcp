@@ -153,6 +153,35 @@ namespace UnityMCP.Editor.Tests
                 "SessionState calls inside InvokeRelay(\"EnsureRunning\") are main-thread-only");
         }
 
+        // Task 3.1 (sub-task 2.2): Stop() call sites migrated from the InvokeRelay("Stop")
+        // reflection bridge to the typed ChatHostBridge.Current?.StopRelay() seam.
+        // EnsureRunning (RestartRelay only) is out of scope for IChatHostBridge and must
+        // keep using InvokeRelay — this guards against a future "cleanup" deleting it.
+        [Test]
+        public void InvokeRelay_NoLongerCalledWithStop()
+        {
+            var src = ReadRequiredPackageSource(typeof(MCPActions), "Editor/MCPActions.cs");
+            StringAssert.DoesNotContain("InvokeRelay(\"Stop\")", src,
+                "All Stop call sites must route through ChatHostBridge.Current?.StopRelay()");
+            var stopCallCount = CountOccurrences(src, "ChatHostBridge.Current?.StopRelay();");
+            Assert.AreEqual(6, stopCallCount,
+                "Expected 6 StopRelay call sites: RestartRelay, KillCurrent, KillByPort, " +
+                "TerminateByPid, StopAllOnPort, KillAll");
+            StringAssert.Contains("InvokeRelay(\"EnsureRunning\")", src,
+                "EnsureRunning has no IChatHostBridge equivalent — must keep using InvokeRelay");
+        }
+
+        private static int CountOccurrences(string haystack, string needle)
+        {
+            int count = 0, index = 0;
+            while ((index = haystack.IndexOf(needle, index, System.StringComparison.Ordinal)) >= 0)
+            {
+                count++;
+                index += needle.Length;
+            }
+            return count;
+        }
+
         // ── T2: TerminateByPid / CountBridgesOnPort / StopAllOnPort ──────────────
 
         [Test]

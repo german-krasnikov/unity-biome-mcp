@@ -22,8 +22,13 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Current_DefaultsToNull()
+        public void Current_CanBeSetToNull()
         {
+            // Not a global-default assertion: once Chat.View's ChatHostBridgeImpl registers
+            // via [InitializeOnLoad] (sub-task 2.2), Current is non-null for the rest of the
+            // process. What every call site relies on is that null is still a valid, safely
+            // null-checkable state.
+            ChatHostBridge.Current = null;
             Assert.IsNull(ChatHostBridge.Current);
         }
 
