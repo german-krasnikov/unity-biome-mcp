@@ -577,9 +577,10 @@ namespace UnityMCP.Editor
             var portVal  = ServerPort;
             var bindFail = _lastWrittenState == "bind_failed" ? "true" : "false";
             var fallback = _portFallback ? "true" : "false";
-            return $"{{\"id\":\"{msgId}\",\"ok\":true,\"data\":\"{state}\"," +
-                   $"\"compile\":{compile},\"port\":{portVal}," +
-                   $"\"bind_failed\":{bindFail},\"port_fallback\":{fallback}}}";
+            return JsonHelper.FormatResponseExtra(msgId, true,
+                $"\"data\":\"{state}\"," +
+                $"\"compile\":{compile},\"port\":{portVal}," +
+                $"\"bind_failed\":{bindFail},\"port_fallback\":{fallback}");
         }
 
         // T19: stable project identity — main-thread-only (PlayerSettings + Application APIs).

@@ -48,6 +48,19 @@ namespace UnityMCP.Editor
             return sb.ToString();
         }
 
+        // Boundary hardening Phase 4.2: for callers whose extra fields don't fit
+        // FormatResponse/FormatFileResponse/FormatBusyResponse's fixed shapes
+        // (e.g. client_hello's helloVersion+version+projectPath+projectId, or
+        // status's compile+port+bind_failed+port_fallback). extraFieldsJson is
+        // raw already-valid JSON key:value pairs (no leading/trailing comma).
+        internal static string FormatResponseExtra(string id, bool ok, string extraFieldsJson)
+        {
+            var sb = AppendEnvelopeHeader(id, ok);
+            if (!string.IsNullOrEmpty(extraFieldsJson)) sb.Append(",").Append(extraFieldsJson);
+            sb.Append("}");
+            return sb.ToString();
+        }
+
         // T15: inject receipt before closing brace — backward-compat (old Python ignores key).
         internal static string FormatResponseWithReceipt(
             string id, bool ok, string data, string error, string receiptJson)
