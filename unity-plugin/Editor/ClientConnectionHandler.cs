@@ -20,6 +20,13 @@ namespace UnityMCP.Editor
         // Rate-limit window for the unrecognized-desync warning path (ARC-15 T2).
         private const int DesyncWarnWindowSeconds = 30;
 
+        // Phase 2.3 (boundary-hardening): injectable seam over CommandRouter — decouples this
+        // transport-layer class from the static command dispatcher. Production default is
+        // CommandRouterDispatcher.Instance (zero behavior change); tests substitute a fake to
+        // prove the two call sites below route through the interface. Mirrors the
+        // ShellHelper.RunOverride / CommandRouter.IsCompiling test-seam pattern used elsewhere.
+        internal static ICommandDispatcher Dispatcher = CommandRouterDispatcher.Instance;
+
         internal static async Task RunAcceptLoop(TcpListener listener, ClientSlot slot, string label,
             CancellationTokenSource masterCts, CancellationToken token)
         {
@@ -377,7 +384,7 @@ namespace UnityMCP.Editor
                         }
                         if (cmdName == "get_enabled_tools")
                         {
-                            var tools = CommandRouter.ExecGetEnabledToolsCached();
+                            var tools = Dispatcher.ExecGetEnabledToolsCached();
                             await SendAsync(stream, JsonHelper.FormatResponse(msgId, true, tools, null), clientToken).ConfigureAwait(false);
                             continue;
                         }
@@ -403,7 +410,7 @@ namespace UnityMCP.Editor
                             if (needsInvalidate) { RefManager.Invalidate(); refInvalidated = true; }
                             try
                             {
-                                CommandRouter.ProcessAsync(json, tcs, slotChatMode);
+                                Dispatcher.ProcessAsync(json, tcs, slotChatMode);
                             }
                             catch (Exception e)
                             {

@@ -212,6 +212,11 @@ namespace UnityMCP.Editor
             // reference to MCPServer (Phase 4 Task A), so MCPServer provides its own
             // shutdown flag via this delegate instead.
             MainThreadDispatcher.ShuttingDownProvider = () => _shuttingDown;
+            // Phase 2.3 (boundary-hardening): explicit production wiring of the
+            // ClientConnectionHandler → ICommandDispatcher seam. Field already defaults to
+            // this value; set here too so the dependency is visible at the call site (mirrors
+            // the ShuttingDownProvider wiring above) and tests can override it independently.
+            ClientConnectionHandler.Dispatcher = CommandRouterDispatcher.Instance;
 
             if (!ShouldStartServer(Application.isBatchMode)) return;
 
