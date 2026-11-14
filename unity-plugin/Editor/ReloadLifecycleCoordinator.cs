@@ -51,15 +51,23 @@ namespace UnityMCP.Editor
         internal static void SimulateAfterReloadForTests()  => RunAfterReload();
 
         /// <summary>
-        /// Snapshots the registered-sink list for a test scope and restores it on
-        /// Dispose. Never touches _subscribed — the real AssemblyReloadEvents
-        /// subscription is made at most once per process and must never be torn
-        /// down or re-added by tests (same lifetime contract as
+        /// Clears the registered-sink list for a test scope and restores the exact
+        /// prior list (including the real MCPServer/SyncHelper sinks) on Dispose.
+        /// Required, not optional: once production code registers real sinks,
+        /// SimulateBeforeReloadForTests()/SimulateAfterReloadForTests() dispatch to
+        /// every registered sink — a fake-sink test that does not isolate first
+        /// would also invoke the real MCPServer.OnBeforeReload()/SyncHelper.
+        /// OnAfterReload() for real, which tears down the live TCP listener
+        /// (TeardownCore unsubscribes WatchdogTick too, so nothing self-heals it).
+        /// Never touches _subscribed — the real AssemblyReloadEvents subscription
+        /// is made at most once per process and must never be torn down or
+        /// re-added by tests (same lifetime contract as
         /// MCPServer._lifecycleCallbacksRegistered).
         /// </summary>
-        internal static IDisposable PreserveStateForTests()
+        internal static IDisposable IsolateForTests()
         {
             var snapshot = new List<IReloadLifecycleSink>(_sinks);
+            _sinks.Clear();
             return new RestoreScope(snapshot);
         }
 

@@ -3,6 +3,12 @@
 // against fake IReloadLifecycleSink instances only — never against real
 // MCPServer/SyncHelper statics (those get structural source-text guards
 // instead, since invoking them for real would tear down the live listener).
+// Every test below MUST call IsolateForTests() first: by the time this
+// fixture runs, the real MCPServer/SyncHelper sinks are already registered,
+// and SimulateBeforeReloadForTests()/SimulateAfterReloadForTests() dispatch
+// to every registered sink — not isolating would also run the real
+// production reload handlers for real (see ReloadLifecycleCoordinator.
+// IsolateForTests doc comment).
 using System;
 using System.Collections.Generic;
 using NUnit.Framework;
@@ -42,7 +48,7 @@ namespace UnityMCP.Editor.Tests
             var high = new FakeSink("high", priority: 10, order);
             var low = new FakeSink("low", priority: 0, order);
 
-            using (ReloadLifecycleCoordinator.PreserveStateForTests())
+            using (ReloadLifecycleCoordinator.IsolateForTests())
             {
                 ReloadLifecycleCoordinator.Register(high);
                 ReloadLifecycleCoordinator.Register(low);
@@ -59,7 +65,7 @@ namespace UnityMCP.Editor.Tests
             var order = new List<string>();
             var sink = new FakeSink("sink", 0, order);
 
-            using (ReloadLifecycleCoordinator.PreserveStateForTests())
+            using (ReloadLifecycleCoordinator.IsolateForTests())
             {
                 ReloadLifecycleCoordinator.Register(sink);
                 ReloadLifecycleCoordinator.Register(sink);
@@ -77,7 +83,7 @@ namespace UnityMCP.Editor.Tests
             var throwing = new FakeSink("throwing", 0, order) { ThrowOnBeforeReload = true };
             var trailing = new FakeSink("trailing", 10, order);
 
-            using (ReloadLifecycleCoordinator.PreserveStateForTests())
+            using (ReloadLifecycleCoordinator.IsolateForTests())
             {
                 ReloadLifecycleCoordinator.Register(throwing);
                 ReloadLifecycleCoordinator.Register(trailing);
@@ -94,20 +100,23 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void PreserveStateForTests_RestoresSinksAfterDispose()
+        public void IsolateForTests_RestoresSinksAfterDispose()
         {
             var baseline = new List<IReloadLifecycleSink>(ReloadLifecycleCoordinator.SinksForTest);
             var order = new List<string>();
             var temp = new FakeSink("temp", 0, order);
 
-            using (ReloadLifecycleCoordinator.PreserveStateForTests())
+            using (ReloadLifecycleCoordinator.IsolateForTests())
             {
+                CollectionAssert.IsEmpty(ReloadLifecycleCoordinator.SinksForTest,
+                    "IsolateForTests must clear real sinks for the scope's duration");
                 ReloadLifecycleCoordinator.Register(temp);
-                CollectionAssert.Contains(ReloadLifecycleCoordinator.SinksForTest, temp);
+                CollectionAssert.AreEqual(new IReloadLifecycleSink[] { temp },
+                    ReloadLifecycleCoordinator.SinksForTest);
             }
 
             CollectionAssert.AreEqual(baseline, ReloadLifecycleCoordinator.SinksForTest,
-                "Disposing the preserve scope must restore the exact pre-scope sink list");
+                "Disposing the isolation scope must restore the exact pre-scope sink list");
         }
     }
 }
