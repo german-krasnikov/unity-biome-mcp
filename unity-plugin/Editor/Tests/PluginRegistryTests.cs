@@ -58,6 +58,10 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            // Now that a real production plugin (ChatPlugin) registers via [InitializeOnLoad],
+            // a bare Clear() with no restore would permanently wipe it for the rest of the
+            // EditMode session the first time this fixture runs. Preserve/restore instead.
+            RegisterCleanup(PluginRegistry.PreserveStateForTests().Dispose);
             PluginRegistry.Clear();
         }
 
