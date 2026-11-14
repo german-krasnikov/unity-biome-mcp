@@ -98,7 +98,7 @@ def test_live_bridge_factory_pins_project_and_dynamic_discovery(
 
 def test_live_test_modules_do_not_read_static_main_port():
     """Main-port ownership and reload rediscovery belong to live conftest."""
-    live_tests = Path(__file__).parent / "live"
+    live_tests = Path(__file__).parent.parent / "live"
     offenders = []
     for path in sorted(live_tests.glob("test_*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -146,7 +146,7 @@ def test_live_test_modules_do_not_read_static_main_port():
 
 def test_non_paid_live_tests_cannot_skip_missing_runtime_contracts():
     """Only explicitly marked paid CLI coverage may be unavailable by design."""
-    live_tests = Path(__file__).parent / "live"
+    live_tests = Path(__file__).parent.parent / "live"
     offenders = []
     for path in sorted(live_tests.glob("test_*.py")):
         source = path.read_text(encoding="utf-8")
@@ -172,7 +172,7 @@ def test_non_paid_live_tests_cannot_skip_missing_runtime_contracts():
 
 
 def test_reconnect_recovery_is_project_pinned_and_fail_closed():
-    path = Path(__file__).parent / "live" / "test_reconnect.py"
+    path = Path(__file__).parent.parent / "live" / "test_reconnect.py"
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(path))
     functions = {
@@ -192,7 +192,7 @@ def test_reconnect_recovery_is_project_pinned_and_fail_closed():
 
 
 def test_chat_live_module_has_verified_window_owner_scope():
-    path = Path(__file__).parent / "live" / "test_chat_ui_monkey.py"
+    path = Path(__file__).parent.parent / "live" / "test_chat_ui_monkey.py"
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(path))
     owner = next(

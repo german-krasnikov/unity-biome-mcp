@@ -13,7 +13,7 @@ read/write boilerplate reappears outside the single shared `WithGraph` helper.
 from pathlib import Path
 
 _MUTATIONS_CS = (
-    Path(__file__).parents[2]
+    Path(__file__).parents[3]
     / "unity-plugin"
     / "Editor"
     / "ShaderGraphHelper.Mutations.cs"

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-_PLUGIN = Path(__file__).resolve().parents[2] / "unity-plugin"
+_PLUGIN = Path(__file__).resolve().parents[3] / "unity-plugin"
 _ROOTS = (_PLUGIN / "Editor" / "Generated", _PLUGIN / "Runtime" / "Playtest" / "Core" / "Generated")
 _GUID = re.compile(r"^guid: ([0-9a-f]{32})$", re.MULTILINE)
 

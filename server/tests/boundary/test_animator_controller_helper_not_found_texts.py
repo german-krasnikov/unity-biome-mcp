@@ -18,12 +18,12 @@ and the two new ErrorHelper methods exist with the expected body.
 from pathlib import Path
 
 _CS_PATH = (
-    Path(__file__).parents[2] / "unity-plugin" / "Editor" / "AnimatorControllerHelper.cs"
+    Path(__file__).parents[3] / "unity-plugin" / "Editor" / "AnimatorControllerHelper.cs"
 )
 _CS_SOURCE = _CS_PATH.read_text(encoding="utf-8")
 
 _ERROR_HELPER_PATH = (
-    Path(__file__).parents[2] / "unity-plugin" / "Editor" / "ErrorHelper.cs"
+    Path(__file__).parents[3] / "unity-plugin" / "Editor" / "ErrorHelper.cs"
 )
 _ERROR_HELPER_SOURCE = _ERROR_HELPER_PATH.read_text(encoding="utf-8")
 

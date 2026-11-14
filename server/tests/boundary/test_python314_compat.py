@@ -4,9 +4,9 @@ import sys
 import typing
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-SRC_ROOT = Path(__file__).resolve().parent.parent / "src" / "unity_mcp"
-TEST_ROOT = Path(__file__).resolve().parent
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+SRC_ROOT = Path(__file__).resolve().parent.parent.parent / "src" / "unity_mcp"
+TEST_ROOT = Path(__file__).resolve().parent.parent
 INSTALL_ROOT = _REPO_ROOT / "install"
 SCRIPTS_ROOT = _REPO_ROOT / "scripts"
 _SELF = Path(__file__).resolve()
@@ -80,7 +80,7 @@ class TestPython314Compliance:
         assert not v, f"Files using Optional[] instead of X | None: {v}"
 
     def test_pyproject_requires_python(self):
-        pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+        pyproject = Path(__file__).resolve().parent.parent.parent / "pyproject.toml"
         text = pyproject.read_text(encoding="utf-8")
         assert 'requires-python = ">=3.14"' in text, "requires-python must be >=3.14"
 

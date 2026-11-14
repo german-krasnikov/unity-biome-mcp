@@ -679,7 +679,7 @@ async def test_generic_owned_asset_delete_handles_files_and_directories(monkeypa
 
 
 def test_live_conftest_has_mandatory_owner_and_never_saves_user_scenes():
-    source = (Path(__file__).parent / "live" / "conftest.py").read_text(
+    source = (Path(__file__).parent.parent / "live" / "conftest.py").read_text(
         encoding="utf-8"
     )
 
@@ -771,7 +771,7 @@ def test_live_lease_accepts_idempotent_transport_retries():
 
 
 def test_multiscene_live_tests_use_canonical_transient_id_expression():
-    live_dir = Path(__file__).parent / "live"
+    live_dir = Path(__file__).parent.parent / "live"
     for filename in ("test_multiscene_live.py", "test_multiscene_stress_live.py"):
         source = (live_dir / filename).read_text(encoding="utf-8")
         assert "_transient_id_expression" in source
