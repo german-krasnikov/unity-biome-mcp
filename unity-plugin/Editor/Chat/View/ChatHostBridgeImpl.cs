@@ -11,9 +11,8 @@ namespace UnityMCP.Editor.Chat
     {
         static ChatHostBridgeImpl() => ChatHostBridge.Current = new ChatHostBridgeImpl();
 
-        // Wired in sub-task 2.3 (ChatSettingsHook migration).
-        public void BuildSettingsUI(VisualElement root) { }
-        public bool IsBinaryAvailable() => false;
+        public void BuildSettingsUI(VisualElement root) => ChatConnectionSection.Build(root);
+        public bool IsBinaryAvailable() => ChatBinaryResolver.Resolve(false) != null;
 
         public void StopRelay() => RelaySpawner.Stop();
 
