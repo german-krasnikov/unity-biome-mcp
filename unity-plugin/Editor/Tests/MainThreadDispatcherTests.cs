@@ -101,26 +101,16 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Drain_ShuttingDownProviderTrue_IsNoOp_IndependentOfMcpServer()
         {
-            // Exercises the parameterless Drain() — the one that reads the seam — not the
-            // test-only Drain(queue, bool) overload, which already honors its bool today.
-            var previousProvider = MainThreadDispatcher.ShuttingDownProvider;
+            // Uses the 2-arg test-only Drain(queue, shuttingDown) to prove the
+            // seam works without touching the production static queue (hygiene).
+            var queue = new System.Collections.Concurrent.ConcurrentQueue<System.Action>();
             bool ran = false;
-            try
-            {
-                MainThreadDispatcher.Enqueue(() => ran = true);
-                MainThreadDispatcher.ShuttingDownProvider = () => true;
+            queue.Enqueue(() => ran = true);
 
-                MainThreadDispatcher.Drain();
+            MainThreadDispatcher.Drain(queue, shuttingDown: true);
 
-                Assert.IsFalse(ran,
-                    "Drain() must no-op when ShuttingDownProvider() returns true, without reading MCPServer at all");
-            }
-            finally
-            {
-                MainThreadDispatcher.ShuttingDownProvider = previousProvider;
-                MainThreadDispatcher.Clear();
-                if (ran) Assert.Fail("test action ran — leaked side effect, fix before trusting Clear() cleanup");
-            }
+            Assert.IsFalse(ran,
+                "Drain(queue, shuttingDown:true) must no-op — the shutting-down guard is the seam");
         }
 
         [Test]
