@@ -21,7 +21,6 @@ from collections.abc import Callable  # noqa: TC003
 
 from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, RELOAD_BACKOFF_S, HeartbeatMixin
 from unity_mcp.bridge_retry import RetryPolicy
-from unity_mcp.compile_state import CompileStateProbe
 from unity_mcp.decisions.generated.connstatus_logic import (
     ConnStatusInput,
     ConnStatusValues,
@@ -33,6 +32,7 @@ from unity_mcp.generated.timing_constants import TIMING_ROWS
 from unity_mcp.metrics import METRICS
 
 from .cassette import record as _record_cassette
+from .compile_state import CompileStateProbe
 from .crash_log import CrashLogger
 from .lockfile import is_pid_alive
 from .reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker

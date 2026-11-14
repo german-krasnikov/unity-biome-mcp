@@ -10,9 +10,9 @@ import time
 from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass
 
+from unity_mcp.bridge.compile_state import CompileStateProbe  # noqa: TC001
 from unity_mcp.bridge.reload_state import DomainReloadTracker  # noqa: TC001
 
-from .compile_state import CompileStateProbe  # noqa: TC001
 from .decisions.generated.retry_logic import (
     RetryGateInput,
     RetryGateValues,
