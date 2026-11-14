@@ -5,15 +5,17 @@
 // change versus calling CommandRouter's static methods directly.
 using System.Threading.Tasks;
 using NUnit.Framework;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
-    public class CommandRouterDispatcherTests : SceneTestBase
+    public class CommandRouterDispatcherTests : UnityMcpTestBase
     {
         [Test]
         public void ExecGetEnabledToolsCached_ThroughInterface_DelegatesToCommandRouter()
         {
+            // Both sides call the same static method — ceiling of testing a static adapter
             ICommandDispatcher dispatcher = CommandRouterDispatcher.Instance;
             Assert.AreEqual(CommandRouter.ExecGetEnabledToolsCached(), dispatcher.ExecGetEnabledToolsCached());
         }
@@ -28,19 +30,23 @@ namespace UnityMCP.Editor.Tests
             try
             {
                 ICommandDispatcher dispatcher = CommandRouterDispatcher.Instance;
-                const string envelope = "{\"id\":\"disp1\",\"cmd\":\"ping\",\"args\":{}}";
 
                 var directTcs = new TaskCompletionSource<string>();
-                CommandRouter.ProcessAsync(envelope, directTcs);
+                CommandRouter.ProcessAsync("{\"id\":\"disp1-direct\",\"cmd\":\"ping\",\"args\":{}}", directTcs);
                 var direct = await directTcs.Task;
 
                 // 2-arg call through the interface — proves the interface's default chatMode=""
                 // matches PlaytestRunner.Steps.cs:754's call shape (no explicit chatMode passed).
                 var viaInterfaceTcs = new TaskCompletionSource<string>();
-                dispatcher.ProcessAsync(envelope, viaInterfaceTcs);
+                dispatcher.ProcessAsync("{\"id\":\"disp1-iface\",\"cmd\":\"ping\",\"args\":{}}", viaInterfaceTcs);
                 var viaInterface = await viaInterfaceTcs.Task;
 
-                Assert.AreEqual(direct, viaInterface);
+                // Requests use distinct ids (disp1-direct / disp1-iface) so this isn't comparing
+                // a call against itself; strip the id substring before comparing the rest of the
+                // response so the assertion proves ProcessAsync's behavior matches.
+                Assert.AreEqual(
+                    direct.Replace("disp1-direct", "ID"),
+                    viaInterface.Replace("disp1-iface", "ID"));
             }
             finally
             {
