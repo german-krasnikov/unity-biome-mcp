@@ -7,14 +7,31 @@ dependency graph, plus a synthetic fixture that proves the mechanism catches a
 forbidden import regardless of whether the real repo happens to be clean.
 """
 import json
+import logging
 import os
 import sys
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 from importlinter.cli import lint_imports_command
 
 CONFIG = Path(__file__).resolve().parent.parent.parent / "pyproject.toml"
+
+
+@pytest.fixture(autouse=True)
+def _restore_disabled_loggers():
+    """lint_imports_command's own _configure_logging() calls
+    logging.config.dictConfig() with the implicit disable_existing_loggers=True
+    default, which permanently disables every already-created logger not named
+    importlinter/grimp/_rustgrimp (unity_mcp's own loggers included) for the
+    rest of the process -- starving any later test's caplog assertions with no
+    error. Every test in this module invokes that CLI, so restore every
+    logger's .disabled flag afterward."""
+    yield
+    for logger in logging.root.manager.loggerDict.values():
+        if isinstance(logger, logging.Logger):
+            logger.disabled = False
 
 
 def _write_mypkg_fixture(root: Path, bad_contents: str) -> Path:
