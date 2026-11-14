@@ -5,6 +5,8 @@ wrapper functions regardless of whether install() ever registers them with FastM
 (dsl/README.md; the risk this guards is that exclusion was assumed to happen at codegen
 time, not at the registration-pass layer).
 """
+import os
+import subprocess
 import sys
 
 import pytest
@@ -66,13 +68,21 @@ def test_register_all_boots_clean_with_gd_tools_disabled(monkeypatch):
 
 
 @pytest.mark.parametrize("module_name", ["scene", "objects", "asset", "uitk", "animation"])
-def test_reexport_modules_import_clean_with_gd_tools_disabled(monkeypatch, module_name):
+def test_reexport_modules_import_clean_with_gd_tools_disabled(module_name):
     """scene.py/objects.py/asset.py/uitk.py/animation.py do `from .generated.catalog_tools
     import (...)` -- plain attribute imports of functions catalog_tools.py always defines
     (tools.expect/@tools.provide run unconditionally at module import time), regardless of
     whether install() later calls mcp.tool() on them. Exclusion happens at the registration
-    pass, not at import, so these imports must never fail under UNITY_MCP_GD_TOOLS=0."""
-    monkeypatch.setenv("UNITY_MCP_GD_TOOLS", "0")
-    monkeypatch.delitem(sys.modules, f"unity_mcp.tools.{module_name}", raising=False)
-    import importlib
-    importlib.import_module(f"unity_mcp.tools.{module_name}")
+    pass, not at import, so these imports must never fail under UNITY_MCP_GD_TOOLS=0.
+
+    A real subprocess, not an in-process sys.modules delete+reimport: deleting and
+    reimporting a submodule also rebinds it as an attribute on the already-imported
+    `unity_mcp.tools` package object (an import-machinery side effect pytest's monkeypatch
+    does not track or undo), which orphans every other module's reference to the original,
+    already-register()'d instance for the rest of the test session."""
+    env = {**os.environ, "UNITY_MCP_GD_TOOLS": "0"}
+    result = subprocess.run(
+        [sys.executable, "-c", f"import unity_mcp.tools.{module_name}"],
+        env=env, capture_output=True, text=True, timeout=30,
+    )
+    assert result.returncode == 0, result.stderr

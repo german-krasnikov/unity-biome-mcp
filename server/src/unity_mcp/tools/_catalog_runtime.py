@@ -42,6 +42,13 @@ def _origin(fn):
     return fn.__module__, fn.__qualname__
 
 
+def _env_excluded_categories() -> frozenset[str]:
+    """The categories UNITY_MCP_GD_TOOLS=0 excludes right now (Phase 5 Part B) -- read fresh
+    every call, not cached, so toggling the env var takes effect on the next register()/
+    install() rather than at this module's own import time."""
+    return tool_specs.GD_CATEGORIES if not tool_specs.gd_tools_enabled() else frozenset()
+
+
 _MAX_LINE = 120  # this repo's own Python line-length convention (server/pyproject.toml: ruff `line-length = 120`) --
                  # reused as the one concrete "docstring width used elsewhere" for the rendered description, since
                  # no stricter width is established for prose there.
@@ -135,7 +142,11 @@ class ToolSet:
 
     def register(self, mcp, *fns):
         """A module registers its hand-written tools: each function is checked against the catalog, then all are registered with the
-        MCP annotation of their effect (a refusal registers none). Registering the same function again, for another mcp, is fine."""
+        MCP annotation of their effect (a refusal registers none). Registering the same function again, for another mcp, is fine.
+        A function whose catalog category UNITY_MCP_GD_TOOLS=0 excludes (Phase 5 Part B) is silently skipped, never validated or
+        registered -- the ~20 hand-written-tool modules that call register() need no exclude_categories param of their own; the
+        env var is the single source every caller implicitly honors."""
+        fns = [fn for fn in fns if not self._is_excluded(fn.__name__)]
         for fn in fns:
             if fn.__name__ not in self._expected:
                 raise LookupError(f"{fn.__name__} is not a tool of the catalog")
@@ -148,14 +159,23 @@ class ToolSet:
             mcp.tool(description=self._describe(name, fn), annotations=derive(self._expected[name][0], self._session[name]))(fn)
             self._registered[name] = _origin(fn)
 
+    def _is_excluded(self, name: str, extra: frozenset[str] = frozenset()) -> bool:
+        """True when name's catalog category is excluded -- by UNITY_MCP_GD_TOOLS=0 (always
+        checked) or by `extra` (install()'s explicit exclude_categories, for pure unit tests
+        that don't want to touch the env var). A name install()/register() has never heard of
+        (not in tool_specs._SPECS) is never excluded, since its category is unknown."""
+        spec = tool_specs._SPECS.get(name)
+        if spec is None:
+            return False
+        return spec.category in _env_excluded_categories() or spec.category in extra
+
     def install(self, mcp, *, exclude_categories: frozenset[str] = frozenset()):
         """Check that every tool of the catalog has a function, then register the generated wrappers: a refusal registers none.
-        exclude_categories (Phase 5 Part B, the GD-tools-off switch: UNITY_MCP_GD_TOOLS=0) skips a whole category -- from the
-        missing-function check and from registration -- instead of raising; a tool install() has never heard of (not in
-        tool_specs._SPECS) is never treated as excluded, since its category is unknown."""
+        exclude_categories (Phase 5 Part B, the GD-tools-off switch: UNITY_MCP_GD_TOOLS=0, which is always also honored even
+        without this param -- see _is_excluded) skips a whole category -- from the missing-function check and from registration
+        -- instead of raising; a tool install() has never heard of (not in tool_specs._SPECS) is never treated as excluded."""
         def _excluded(name: str) -> bool:
-            spec = tool_specs._SPECS.get(name)
-            return spec is not None and spec.category in exclude_categories
+            return self._is_excluded(name, exclude_categories)
 
         done = self._provided.keys() | self._registered.keys()
         missing = {name for name in self._expected.keys() - done if not _excluded(name)}
