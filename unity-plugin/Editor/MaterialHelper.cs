@@ -57,7 +57,7 @@ namespace UnityMCP.Editor
 
         private static string Get(string args)
         {
-            var slot = JsonHelper.ExtractInt(args, "slot");
+            var slot = MaterialArgs.Slot(args) ?? 0;
             var mat = ResolveMaterial(args, slot);
             var sb = new StringBuilder();
             sb.AppendLine($"Shader: {mat.shader.name}");
@@ -92,7 +92,7 @@ namespace UnityMCP.Editor
         private static string Set(string args)
         {
             var target = MaterialArgs.Target(args) ?? "shared";
-            var slot = JsonHelper.ExtractInt(args, "slot");
+            var slot = MaterialArgs.Slot(args) ?? 0;
             Material mat;
             if (target == "instance")
             {
@@ -174,7 +174,7 @@ namespace UnityMCP.Editor
                 ?? throw new ArgumentException("source is required");
             var targets = MaterialArgs.Targets(args)
                 ?? throw new ArgumentException("targets is required");
-            var slot = JsonHelper.ExtractInt(args, "slot");
+            var slot = MaterialArgs.Slot(args) ?? 0;
 
             Material mat;
             if (sourcePath.StartsWith("Assets/", StringComparison.Ordinal) || sourcePath.StartsWith("Packages/", StringComparison.Ordinal))
@@ -222,7 +222,7 @@ namespace UnityMCP.Editor
 
         private static string ListProperties(string args)
         {
-            var slot = JsonHelper.ExtractInt(args, "slot");
+            var slot = MaterialArgs.Slot(args) ?? 0;
             var mat = ResolveMaterial(args, slot);
             var sb = new StringBuilder();
             int count = mat.shader.GetPropertyCount();
@@ -284,7 +284,7 @@ namespace UnityMCP.Editor
 
         private static string SetFields(string args)
         {
-            var slot = JsonHelper.ExtractInt(args, "slot");
+            var slot = MaterialArgs.Slot(args) ?? 0;
             var mat = ResolveMaterial(args, slot);
             var fieldsStr = MaterialArgs.Value(args)
                 ?? throw new ArgumentException("value (newline-separated prop=val) is required");
