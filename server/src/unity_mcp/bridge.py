@@ -23,7 +23,6 @@ from unity_mcp.bridge_cassette import record as _record_cassette
 from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, RELOAD_BACKOFF_S, HeartbeatMixin
 from unity_mcp.bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
 from unity_mcp.bridge_retry import RetryPolicy
-from unity_mcp.generated.timing_constants import TIMING_ROWS
 from unity_mcp.bridge_socket import (
     _TCP_KEEPALIVE_DARWIN,
     _TCP_KEEPINTVL_DARWIN,
@@ -41,6 +40,7 @@ from unity_mcp.decisions.generated.connstatus_logic import (
     conn_status,
     transport_status,
 )
+from unity_mcp.generated.timing_constants import TIMING_ROWS
 from unity_mcp.lockfile import is_pid_alive
 from unity_mcp.metrics import METRICS
 

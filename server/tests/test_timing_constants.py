@@ -18,22 +18,22 @@ import unity_mcp.bridge as _bridge
 import unity_mcp.bridge_heartbeat as _bridge_heartbeat
 import unity_mcp.bridge_reload_state as _bridge_reload_state
 import unity_mcp.phantom_cleaner as _phantom_cleaner
-from unity_mcp.generated.timing_constants import Timing, TIMING_ROWS
+from unity_mcp.generated.timing_constants import TIMING_ROWS, Timing
 
-# Captured at import time (module-level `from ... import`, not a live module
-# attribute read): the autouse _fast_clock fixture (see tests/_fast_clock.py)
-# monkeypatches unity_mcp.bridge_heartbeat's BACKOFF_MIN_S/RELOAD_BACKOFF_S/
-# BUSY_TICK_S/IDLE_TICK_S attributes to 0.0 for every test unless marked
-# @pytest.mark.real_clock. A live `_bridge_heartbeat.BACKOFF_MIN_S` read
-# inside a test body would see the patched value, not the real default.
-from unity_mcp.bridge_heartbeat import (  # noqa: E402
-    BACKOFF_MAX_S as _REAL_BACKOFF_MAX_S,
-    BACKOFF_MIN_S as _REAL_BACKOFF_MIN_S,
-    BUSY_TICK_S as _REAL_BUSY_TICK_S,
-    IDLE_TICK_S as _REAL_IDLE_TICK_S,
-    ORPHAN_CHECK_INTERVAL_S as _REAL_ORPHAN_CHECK_INTERVAL_S,
-    RELOAD_BACKOFF_S as _REAL_RELOAD_BACKOFF_S,
-)
+# Captured at module-import time (plain attribute read, done once here —
+# not inside a test body): the autouse _fast_clock fixture (see
+# tests/_fast_clock.py) monkeypatches unity_mcp.bridge_heartbeat's
+# BACKOFF_MIN_S/RELOAD_BACKOFF_S/BUSY_TICK_S/IDLE_TICK_S attributes to 0.0
+# for every test unless marked @pytest.mark.real_clock. A live
+# `_bridge_heartbeat.BACKOFF_MIN_S` read from inside a test body would see
+# the patched value, not the real default — reading it here, before any
+# fixture has run, avoids that.
+_REAL_BACKOFF_MIN_S = _bridge_heartbeat.BACKOFF_MIN_S
+_REAL_BACKOFF_MAX_S = _bridge_heartbeat.BACKOFF_MAX_S
+_REAL_RELOAD_BACKOFF_S = _bridge_heartbeat.RELOAD_BACKOFF_S
+_REAL_ORPHAN_CHECK_INTERVAL_S = _bridge_heartbeat.ORPHAN_CHECK_INTERVAL_S
+_REAL_BUSY_TICK_S = _bridge_heartbeat.BUSY_TICK_S
+_REAL_IDLE_TICK_S = _bridge_heartbeat.IDLE_TICK_S
 
 _EXPECTED = Timing(
     startupGraceS=90.0,
