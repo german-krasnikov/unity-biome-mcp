@@ -13,6 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..constants import DEFAULT_PORT, SESSION_TIMEOUT
+from ..generated.protocol import PROTOCOL_ROWS as _P
+
+_MAX_FRAME_BYTES: int = _P[0].maxFrameBytes
 
 logger = logging.getLogger(__name__)
 
@@ -420,7 +423,7 @@ class UnityBridge(HeartbeatMixin):
             {"id": msg_id, "cmd": cmd, "args": args, "op_id": operation_id},
             ensure_ascii=False,
         ).encode("utf-8")
-        if len(payload) > 10_000_000:
+        if len(payload) > _MAX_FRAME_BYTES:
             raise ConnectionError(f"Outbound payload too large: {len(payload)} bytes (max 10MB)")
         session_deadline = time.monotonic() + SESSION_TIMEOUT
         future: asyncio.Future = asyncio.get_running_loop().create_future()
@@ -653,7 +656,7 @@ class UnityBridge(HeartbeatMixin):
     async def _read_response(self) -> dict:
         header = await self._reader.readexactly(4)
         length = struct.unpack("!I", header)[0]
-        if length == 0 or length > 10_000_000:
+        if length == 0 or length > _MAX_FRAME_BYTES:
             raise ConnectionError(
                 f"Protocol desync: length prefix {length} (0x{length:08X}) — reconnecting"
             )

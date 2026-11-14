@@ -5,7 +5,9 @@ Pure stateful transformer. Never raises. Unknown input → empty list.
 import json
 from dataclasses import dataclass, field
 
-_MAX_TOOL_RESULT_LEN = 2000
+from .generated.protocol import PROTOCOL_ROWS as _P
+
+_MAX_TOOL_RESULT_LEN: int = _P[0].maxToolResultLen
 
 
 @dataclass

@@ -1,7 +1,9 @@
-"""Shared constants for unity_mcp. Zero imports from unity_mcp modules."""
+"""Shared constants for unity_mcp. Zero imports from unity_mcp modules except generated."""
 import os
 
-DEFAULT_PORT: int = 9500
+from .generated.protocol import PROTOCOL_ROWS as _P
+
+DEFAULT_PORT: int = _P[0].defaultPort
 
 # Single source for the ~120s "how long can a legit Unity domain reload/compile
 # take before we stop trusting/waiting" window. Every module that used to

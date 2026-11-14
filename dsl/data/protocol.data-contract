@@ -2,9 +2,19 @@
 # kept in sync only by a parity guard test -- server/src/unity_mcp/config/merger.py's
 # _TOML_VERSION_RE_FRAGMENT and unity-plugin/Editor/Wizard/ProjectConfigToml.cs's VersionPattern,
 # both matching a base semver (X.Y.Z) plus an optional dot-separated pre-release tag (e.g. "-rc.1").
+# Wave 1A-1: five protocol constants extracted from hardcoded literals.
+# defaultPort: TCP listen port (constants.py, PortFileManager.cs, AiConfigScreen.cs, ConfigureScreen.cs).
+# maxFrameBytes: max TCP frame size accepted by the bridge (bridge/__init__.py, ClientConnectionHandler.cs, cli_session.py).
+# maxToolResultLen: max chars kept from a tool result in stream_transform.py.
+# minPythonMajor / minPythonMinor: minimum required Python version (_preflight.py).
 RECORD Protocol COUNT 1
   versionRefPattern: string
   serverRefPattern: string
   gitRepoBase: string
   installSubdir: string
+  defaultPort: int
+  maxFrameBytes: int
+  maxToolResultLen: int
+  minPythonMajor: int
+  minPythonMinor: int
 END
