@@ -3,9 +3,7 @@ import contextlib
 import json
 import logging
 import os
-import socket
 import sys
-import time
 from pathlib import Path
 
 from .constants import DEFAULT_PORT
@@ -213,28 +211,6 @@ def release_lock(fd: int) -> None:
         raise close_error
 
 
-def cleanup_stale_locks(port: int, lock_dir: Path = None) -> int:
-    """Delete lockfiles for dead PIDs. Returns count cleaned."""
-    if lock_dir is None:
-        lock_dir = unity_mcp_dir()
-    lock_dir = Path(lock_dir)
-    if not lock_dir.exists():
-        return 0
-    cleaned = 0
-    for f in lock_dir.glob(f"server-{port}-*.lock"):
-        try:
-            pid = int(f.stem.rsplit("-", 1)[1])
-        except (ValueError, IndexError):
-            continue
-        if not is_pid_alive(pid):
-            try:
-                f.unlink()
-                cleaned += 1
-            except OSError:
-                pass
-    return cleaned
-
-
 def _canonical_project_path(value: str | Path) -> str:
     """Return a comparison-safe project path without requiring it to exist."""
     return os.path.normcase(os.path.realpath(os.path.abspath(os.fspath(value))))
@@ -316,97 +292,6 @@ def read_port_for_pid(
     return None
 
 
-# Cadence for the idle-heartbeat stale-port sweep (bridge_heartbeat throttles
-# _maybe_sweep_stale_ports to at most once per this interval), and therefore
-# the minimum real-world spacing between two tcp_probe=True calls from that
-# caller. Defined here rather than in bridge_heartbeat.py (which imports
-# cleanup_stale_port_files from this module) so PROBE_GRACE_S below can
-# derive from it without an import cycle.
-PORT_SWEEP_INTERVAL_S: float = 30.0
-
-# C1 #11: a single failed tcp_probe must NOT delete a live-PID port file.
-# Unity's own same-port bind-retry loop can leave the port briefly unbound
-# while retrying after a bind conflict. Worst case (MCPServer.cs, Windows):
-# 6 same-port attempts, linear backoff PortResolver.BackoffDelayMs(i) =
-# 600ms * (i + 1) for i in 0..5:
-#   sum_{i=0}^{5} 600*(i+1) = 600*(1+2+3+4+5+6) = 600*21 = 12600ms = 12.6s
-# PROBE_GRACE_S must clear that window with margin. Reusing the sweep cadence
-# means "failure persisted" reads as "still failing on the NEXT sweep, ~30s
-# later" instead of inventing a second magic number.
-PROBE_GRACE_S: float = PORT_SWEEP_INTERVAL_S  # 30.0s >> 12.6s worst case
-
-# port-file-path (str) -> monotonic time of its first consecutive probe
-# failure. Module-level because cleanup_stale_port_files is invoked
-# repeatedly (once per idle heartbeat tick) against the same files, so the
-# grace window must survive across calls.
-_tcp_probe_fail_since: dict[str, float] = {}
-
-
-def _tcp_probe(port: int, timeout: float = 0.2) -> bool:
-    """Return True if TCP port accepts connections."""
-    try:
-        with socket.create_connection(("127.0.0.1", port), timeout=timeout):
-            return True
-    except OSError:
-        return False
-
-
-def cleanup_stale_port_files(tcp_probe: bool = False, now_fn=time.monotonic) -> int:
-    """Delete port files for dead PIDs. Returns count cleaned.
-
-    tcp_probe=True: also removes files where PID is alive but port is not
-    listening (catches AssetImportWorker processes that hold a PID but lost
-    the TCP server). A live-PID file is only deleted once its probe failure
-    has PERSISTED for at least PROBE_GRACE_S: a single failed probe can be a
-    sibling project's Unity mid-domain-reload or mid-bind-retry rather than a
-    truly dead server (see PROBE_GRACE_S for the bind-retry-window
-    derivation). A dead PID is still removed immediately, no grace applied.
-    A single one-shot call (e.g. the startup sweep in server.py:~524) can
-    therefore never delete a live PID's file on its own -- only a repeating
-    caller, such as the idle heartbeat, persists across enough calls to
-    outlast PROBE_GRACE_S and remove it.
-    now_fn: injectable monotonic clock (default time.monotonic) so grace-period
-    tests can advance time deterministically instead of monkeypatching the
-    global time module.
-    """
-    ports_dir = _ports_dir()
-    if not ports_dir.exists():
-        return 0
-    if tcp_probe:
-        # Entries for files removed by another path (or a previous sweep)
-        # must not accumulate forever.
-        for key in [k for k in _tcp_probe_fail_since if not Path(k).exists()]:
-            _tcp_probe_fail_since.pop(key, None)
-    now = now_fn()
-    cleaned = 0
-    for pattern in ("*.port", "*.chat-port", "*.reload-port"):
-        for f in ports_dir.glob(pattern):
-            key = str(f)
-            try:
-                pid = int(f.stem)
-                if not is_pid_alive(pid):
-                    f.unlink()
-                    cleaned += 1
-                    _tcp_probe_fail_since.pop(key, None)
-                    continue
-                if tcp_probe:
-                    lines = _read_port_file_lines(f, max_lines=1)
-                    if not lines:
-                        continue
-                    port = int(lines[0])
-                    if _tcp_probe(port):
-                        _tcp_probe_fail_since.pop(key, None)
-                        continue
-                    first_fail = _tcp_probe_fail_since.setdefault(key, now)
-                    if now - first_fail >= PROBE_GRACE_S:
-                        f.unlink()
-                        cleaned += 1
-                        _tcp_probe_fail_since.pop(key, None)
-            except (ValueError, OSError):
-                pass
-    return cleaned
-
-
 def read_reload_port() -> int | None:
     """Discover reload mini-server port from ~/.unity-biome-mcp/ports/{pid}.reload-port."""
     ports_dir = _ports_dir()
@@ -470,3 +355,27 @@ def read_project_path_from_port_file(port: int) -> Path | None:
         except (ValueError, IndexError, OSError):
             continue
     return None
+
+
+# Back-compat re-export: phantom_cleaner.py now owns stale-file cleanup (this
+# module keeps lock acquisition + discovery reads). Existing callers
+# (server.py, bridge_heartbeat.py) import these names from here unchanged.
+# Lazy (module __getattr__, PEP 562) rather than an eager `from .phantom_cleaner
+# import ...`: phantom_cleaner.py itself imports is_pid_alive/_read_port_file_lines
+# from this module, so an eager shim here is a genuine bidirectional circular
+# import that fails depending on which module loads first. Resolving on first
+# attribute access defers past both modules' init, in either order. Returns
+# the real function object (getattr), so identity checks against
+# phantom_cleaner's own names still hold. Thin shim, not a long-lived
+# abstraction — flag for removal once callers migrate.
+_PHANTOM_CLEANER_REEXPORTS = frozenset((
+    "cleanup_stale_locks", "cleanup_stale_port_files",
+    "PORT_SWEEP_INTERVAL_S", "PROBE_GRACE_S",
+))
+
+
+def __getattr__(name: str):
+    if name in _PHANTOM_CLEANER_REEXPORTS:
+        from . import phantom_cleaner
+        return getattr(phantom_cleaner, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

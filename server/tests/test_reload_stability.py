@@ -9,10 +9,8 @@ from unittest.mock import MagicMock, patch
 
 from unity_mcp.bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
 from unity_mcp.compile_state import _DISCONNECT_WINDOW_S, CompileStateProbe
-from unity_mcp.lockfile import (
-    cleanup_stale_port_files,
-    read_pid_from_port_file,
-)
+from unity_mcp.lockfile import read_pid_from_port_file
+from unity_mcp.phantom_cleaner import cleanup_stale_port_files
 
 # ---------------------------------------------------------------------------
 # Paths to C# source files (Group C)
@@ -75,8 +73,8 @@ def test_cleanup_removes_10_dead_port_files(tmp_path):
     ports_dir.mkdir()
     for pid in range(99990, 100000):
         (ports_dir / f"{pid}.port").write_text("9500\n/some/path\n", encoding="utf-8")
-    with patch("unity_mcp.lockfile._ports_dir", return_value=ports_dir), \
-         patch("unity_mcp.lockfile.is_pid_alive", return_value=False):
+    with patch("unity_mcp.phantom_cleaner._ports_dir", return_value=ports_dir), \
+         patch("unity_mcp.phantom_cleaner.is_pid_alive", return_value=False):
         assert cleanup_stale_port_files() == 10
     assert list(ports_dir.iterdir()) == []
 
@@ -93,8 +91,8 @@ def test_cleanup_keeps_alive_removes_dead(tmp_path):
     def is_alive(pid):
         return pid in (444, 555)
 
-    with patch("unity_mcp.lockfile._ports_dir", return_value=ports_dir), \
-         patch("unity_mcp.lockfile.is_pid_alive", side_effect=is_alive):
+    with patch("unity_mcp.phantom_cleaner._ports_dir", return_value=ports_dir), \
+         patch("unity_mcp.phantom_cleaner.is_pid_alive", side_effect=is_alive):
         assert cleanup_stale_port_files() == 3
     remaining = {f.name for f in ports_dir.iterdir()}
     assert remaining == {"444.port", "555.port"}
@@ -107,8 +105,8 @@ def test_cleanup_handles_all_port_patterns(tmp_path):
     (ports_dir / "11111.port").write_text("9500\n", encoding="utf-8")
     (ports_dir / "22222.chat-port").write_text("9510\n", encoding="utf-8")
     (ports_dir / "33333.reload-port").write_text("9600\n", encoding="utf-8")
-    with patch("unity_mcp.lockfile._ports_dir", return_value=ports_dir), \
-         patch("unity_mcp.lockfile.is_pid_alive", return_value=False):
+    with patch("unity_mcp.phantom_cleaner._ports_dir", return_value=ports_dir), \
+         patch("unity_mcp.phantom_cleaner.is_pid_alive", return_value=False):
         assert cleanup_stale_port_files() == 3
     assert list(ports_dir.iterdir()) == []
 
@@ -230,13 +228,13 @@ def test_cleanup_empty_ports_dir(tmp_path):
     """Empty ports dir → returns 0, no crash."""
     ports_dir = tmp_path / "ports"
     ports_dir.mkdir()
-    with patch("unity_mcp.lockfile._ports_dir", return_value=ports_dir):
+    with patch("unity_mcp.phantom_cleaner._ports_dir", return_value=ports_dir):
         assert cleanup_stale_port_files() == 0
 
 
 def test_cleanup_nonexistent_dir(tmp_path):
     """Missing ports dir → returns 0, no crash."""
-    with patch("unity_mcp.lockfile._ports_dir", return_value=tmp_path / "missing"):
+    with patch("unity_mcp.phantom_cleaner._ports_dir", return_value=tmp_path / "missing"):
         assert cleanup_stale_port_files() == 0
 
 
@@ -291,8 +289,8 @@ def test_cleanup_concurrent_unlink_no_crash(tmp_path):
     def flaky_unlink(self, *args, **kwargs):
         raise FileNotFoundError("already gone")
 
-    with patch("unity_mcp.lockfile._ports_dir", return_value=ports_dir), \
-         patch("unity_mcp.lockfile.is_pid_alive", return_value=False), \
+    with patch("unity_mcp.phantom_cleaner._ports_dir", return_value=ports_dir), \
+         patch("unity_mcp.phantom_cleaner.is_pid_alive", return_value=False), \
          patch.object(Path, "unlink", flaky_unlink):
         cleaned = cleanup_stale_port_files()
     assert cleaned == 0  # unlink failed → not counted
