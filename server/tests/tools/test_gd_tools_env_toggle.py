@@ -83,6 +83,6 @@ def test_reexport_modules_import_clean_with_gd_tools_disabled(module_name):
     env = {**os.environ, "UNITY_MCP_GD_TOOLS": "0"}
     result = subprocess.run(
         [sys.executable, "-c", f"import unity_mcp.tools.{module_name}"],
-        env=env, capture_output=True, text=True, timeout=30,
+        env=env, capture_output=True, text=True, encoding="utf-8", timeout=30,
     )
     assert result.returncode == 0, result.stderr
