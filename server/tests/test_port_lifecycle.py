@@ -53,7 +53,7 @@ def test_python_cleanup_stale_port_files_covers_reload_port():
 
     Python compensates for the C# gap documented in TC-5.
     """
-    src = (_SERVER / "src/unity_mcp/phantom_cleaner.py").read_text(encoding="utf-8")
+    src = (_SERVER / "src/unity_mcp/bridge/phantom_cleaner.py").read_text(encoding="utf-8")
     assert '"*.reload-port"' in src, "Python cleanup must include *.reload-port pattern"
 
 
