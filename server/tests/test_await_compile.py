@@ -503,10 +503,10 @@ def test_no_prose_surrender_in_retargeted_test_files():
         r'^\s*assert\s+.*(?:still compiling|backgrounded|Click the Unity window)',
     )
 
-    repo_root = pathlib.Path(__file__).parent
+    tests_root = pathlib.Path(__file__).resolve().parent.parent
     retargeted_files = [
-        repo_root / "test_await_compile.py",
-        repo_root / "test_sync.py",
+        tests_root / "tools" / "test_await_compile.py",
+        tests_root / "bridge" / "test_sync.py",
     ]
 
     violations = []
