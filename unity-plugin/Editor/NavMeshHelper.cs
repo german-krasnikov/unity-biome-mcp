@@ -12,7 +12,7 @@ namespace UnityMCP.Editor
 
         public static string Execute(string args)
         {
-            var action = JsonHelper.ExtractString(args, "action");
+            var action = NavmeshQueryArgs.Action(args);
             switch (action)
             {
                 case "sample":       return SamplePosition(args);
@@ -79,10 +79,10 @@ namespace UnityMCP.Editor
             var surfaces = Object.FindObjectsByType<Unity.AI.Navigation.NavMeshSurface>(FindObjectsSortMode.None);
             if (surfaces.Length > 0)
             {
-                float agentRadius = JsonHelper.ExtractFloat(args, "agentRadius");
-                float agentHeight = JsonHelper.ExtractFloat(args, "agentHeight");
-                float agentClimb  = JsonHelper.ExtractFloat(args, "agentClimb");
-                float agentSlope  = JsonHelper.ExtractFloat(args, "agentSlope");
+                float agentRadius = NavmeshQueryArgs.AgentRadius(args) ?? 0f;
+                float agentHeight = NavmeshQueryArgs.AgentHeight(args) ?? 0f;
+                float agentClimb  = NavmeshQueryArgs.AgentClimb(args)  ?? 0f;
+                float agentSlope  = NavmeshQueryArgs.AgentSlope(args)  ?? 0f;
                 foreach (var s in surfaces)
                 {
                     if (agentRadius > 0) s.agentRadius = agentRadius;
@@ -99,10 +99,10 @@ namespace UnityMCP.Editor
 
         private static string SamplePosition(string args)
         {
-            var center   = ValueParser.ParseVector3(JsonHelper.ExtractString(args, "center"));
-            var maxDist  = JsonHelper.ExtractFloat(args, "max_distance");
+            var center   = ValueParser.ParseVector3(NavmeshQueryArgs.Center(args));
+            var maxDist  = NavmeshQueryArgs.MaxDistance(args);
             if (maxDist == 0f) maxDist = 5f;
-            var areaMask = (int)JsonHelper.ExtractFloat(args, "area_mask");
+            var areaMask = NavmeshQueryArgs.AreaMask(args);
             if (areaMask == 0) areaMask = -1;
 
             if (NavMesh.SamplePosition(center, out var hit, maxDist, areaMask))
@@ -113,8 +113,8 @@ namespace UnityMCP.Editor
         private static string CalculatePath(string args)
         {
             var from     = ValueParser.ParseVector3(JsonHelper.ExtractString(args, "from"));
-            var to       = ValueParser.ParseVector3(JsonHelper.ExtractString(args, "to"));
-            var areaMask = (int)JsonHelper.ExtractFloat(args, "area_mask");
+            var to       = ValueParser.ParseVector3(NavmeshQueryArgs.To(args));
+            var areaMask = NavmeshQueryArgs.AreaMask(args);
             if (areaMask == 0) areaMask = -1;
 
             var path = new NavMeshPath();
@@ -131,8 +131,8 @@ namespace UnityMCP.Editor
         private static string DoRaycast(string args)
         {
             var from     = ValueParser.ParseVector3(JsonHelper.ExtractString(args, "from"));
-            var to       = ValueParser.ParseVector3(JsonHelper.ExtractString(args, "to"));
-            var areaMask = (int)JsonHelper.ExtractFloat(args, "area_mask");
+            var to       = ValueParser.ParseVector3(NavmeshQueryArgs.To(args));
+            var areaMask = NavmeshQueryArgs.AreaMask(args);
             if (areaMask == 0) areaMask = -1;
 
             if (NavMesh.Raycast(from, to, out var hit, areaMask))
