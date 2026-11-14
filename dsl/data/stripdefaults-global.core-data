@@ -1,0 +1,19 @@
+STRIPDEFAULT {value: "0"}
+STRIPDEFAULT {value: "0.0"}
+STRIPDEFAULT {value: "false"}
+STRIPDEFAULT {value: "null"}
+STRIPDEFAULT {value: "None"}
+STRIPDEFAULT {value: "\"\""}
+STRIPDEFAULT {value: "(0, 0, 0)"}
+STRIPDEFAULT {value: "(0.0, 0.0, 0.0)"}
+STRIPDEFAULT {value: "(0, 0, 0, 1)"}
+STRIPDEFAULT {value: "(0.0, 0.0, 0.0, 1.0)"}
+STRIPDEFAULT {value: "(1, 1, 1)"}
+STRIPDEFAULT {value: "(1.0, 1.0, 1.0)"}
+STRIPDEFAULT {value: "[]"}
+STRIPDEFAULT {value: "#00000000"}
+STRIPDEFAULT {value: "Untagged"}
+STRIPDEFAULT {value: "Default"}
+STRIPDEFAULT {value: "(0, 0)"}
+STRIPDEFAULT {value: "(0, 0, 0, 0)"}
+STRIPDEFAULT {value: "#FFFFFFFF"}

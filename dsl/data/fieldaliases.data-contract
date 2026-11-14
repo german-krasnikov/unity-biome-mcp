@@ -1,0 +1,7 @@
+# Field alias mapping (Wave 1D): the 12 short name → canonical key pairs that
+# compressor.py:3-9 and FieldProjector.cs:12-18 hand-duplicate. One RECORD here
+# replaces both copies; `short` and `canonical` name the data-contract fields.
+RECORD FieldAlias COUNT 12
+  alias: string
+  canonical: string
+END

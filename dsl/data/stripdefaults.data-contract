@@ -1,0 +1,11 @@
+# Strip-default values (Wave 1D): the global default set and field-specific default
+# pairs that compressor.py:11-29 and DefaultStripper.cs:11-29 hand-duplicate.
+# StripDefault: a value that is stripped unconditionally when it appears in any field.
+# FieldSpecificDefault: a value that is stripped only for a named canonical field key.
+RECORD StripDefault COUNT 19
+  value: string
+END
+RECORD FieldSpecificDefault COUNT 5
+  fieldKey: string
+  value: string
+END

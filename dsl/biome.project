@@ -180,3 +180,15 @@ GENERATE py-blastpolicy data --contract blastpolicy --rows BlastPolicy {dir}/dat
 # middleware.py and metrics.py. Python-only for now; C# side pending.
 CONTRACT limits FROM data/limits.data-contract
 GENERATE py-limits data --contract limits --rows Limits {dir}/data/limits.core-data --target py --out {dir}/../server/src/unity_mcp/generated/limits_constants.py
+
+# Field alias mapping (Wave 1D): the 12 short name → canonical key pairs that
+# compressor.py and FieldProjector.cs hand-duplicate. One RECORD here replaces both.
+CONTRACT fieldaliases FROM data/fieldaliases.data-contract
+GENERATE py-fieldaliases data --contract fieldaliases --rows FieldAlias {dir}/data/fieldaliases.core-data --target py --out {dir}/../server/src/unity_mcp/generated/field_aliases.py
+GENERATE cs-fieldaliases data --contract fieldaliases --rows FieldAlias {dir}/data/fieldaliases.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/FieldAliases.g.cs
+
+# Strip-default values (Wave 1D): global default set and field-specific default pairs
+# that compressor.py and DefaultStripper.cs hand-duplicate.
+CONTRACT stripdefaults FROM data/stripdefaults.data-contract
+GENERATE py-stripdefaults data --contract stripdefaults --rows StripDefault {dir}/data/stripdefaults-global.core-data --target py --out {dir}/../server/src/unity_mcp/generated/strip_defaults.py
+GENERATE cs-stripdefaults data --contract stripdefaults --rows StripDefault {dir}/data/stripdefaults-global.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/StripDefaults.g.cs
