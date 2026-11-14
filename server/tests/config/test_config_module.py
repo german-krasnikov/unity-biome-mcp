@@ -1249,7 +1249,7 @@ def test_server_name_is_generated_identity_row():
 # generator-output check, not a cross-source parity guard (that guard is scripts/dsl.sh check +
 # dsl/content-lock.json, which fails if either generated file drifts from the contract/rows).
 
-_PROJECT = pathlib.Path(__file__).parents[2]
+_PROJECT = pathlib.Path(__file__).parents[3]
 _PROJECT_CONFIG_TARGETS_CS_PATH = (
     _PROJECT / "unity-plugin/Editor/Generated/ProjectConfigTargets.g.cs"
 )

@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from unity_mcp.paths import iter_port_files
 
-_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 _SRC_ROOT = _REPO_ROOT / "server" / "src" / "unity_mcp"
 
 _FILES_TO_CHECK = [

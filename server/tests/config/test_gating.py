@@ -185,7 +185,7 @@ def test_runtime_tools_in_tier1():
 def test_batch_allows_invoke_method():
     """invoke_method is sync — BatchHelper delegates to CommandRegistry.IsBatchable()."""
     from pathlib import Path
-    path = str(Path(__file__).parents[2] / "unity-plugin" / "Editor" / "BatchHelper.cs")
+    path = str(Path(__file__).parents[3] / "unity-plugin" / "Editor" / "BatchHelper.cs")
     src = open(path, encoding="utf-8").read()
     assert "IsBatchable" in src, "BatchHelper must use CommandRegistry.IsBatchable()"
     assert 'cmd == "invoke_method"' not in src, "invoke_method must not be hardcoded in blocklist"

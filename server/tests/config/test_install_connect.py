@@ -78,7 +78,7 @@ def test_connect_creates_backup(tmp_path):
 
 def test_connect_adds_reload_to_existing_editor_project(tmp_path):
     """Item 26: editor present, reload missing → both added, returns 0."""
-    editor_path = (Path(__file__).parent.parent.parent / "unity-plugin").resolve()
+    editor_path = (Path(__file__).parent.parent.parent.parent / "unity-plugin").resolve()
     _make_manifest(tmp_path, extra_deps={
         "com.unity-biome-mcp.editor": f"file:{editor_path.as_posix()}"
     })
@@ -92,8 +92,8 @@ def test_connect_adds_reload_to_existing_editor_project(tmp_path):
 
 def test_connect_skips_when_both_present(tmp_path):
     """Item 26: both packages present → return 0 with ok message, no backup needed."""
-    editor_path = (Path(__file__).parent.parent.parent / "unity-plugin").resolve()
-    reload_path = (Path(__file__).parent.parent.parent / "unity-plugin-reload").resolve()
+    editor_path = (Path(__file__).parent.parent.parent.parent / "unity-plugin").resolve()
+    reload_path = (Path(__file__).parent.parent.parent.parent / "unity-plugin-reload").resolve()
     _make_manifest(tmp_path, extra_deps={
         "com.unity-biome-mcp.editor": f"file:{editor_path.as_posix()}",
         "com.unity-biome-mcp.reload": f"file:{reload_path.as_posix()}",

@@ -81,7 +81,7 @@ def test_server_git_url_invalid_ref_message_mentions_prerelease():
 
 # ── install.py — version --list (offline) ────────────────────────────────────
 
-INSTALL_PY = Path(__file__).parents[2] / "install.py"
+INSTALL_PY = Path(__file__).parents[3] / "install.py"
 
 # We import install.py helpers by running a small loader
 def _import_install():
@@ -572,7 +572,7 @@ def test_force_print_plugin_url_requires_set(install_mod):
 
 # ── sync_versions.py — new patchers ──────────────────────────────────────────
 
-SYNC_SCRIPT = Path(__file__).parents[2] / "scripts" / "sync_versions.py"
+SYNC_SCRIPT = Path(__file__).parents[3] / "scripts" / "sync_versions.py"
 
 
 def run_sync(version: str, root: Path) -> subprocess.CompletedProcess:

@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 # Load script as module without package imports
-_SCRIPT = Path(__file__).parent.parent.parent / "server" / "scripts" / "check_unity.py"
+_SCRIPT = Path(__file__).parent.parent.parent.parent / "server" / "scripts" / "check_unity.py"
 spec = importlib.util.spec_from_file_location("check_unity", _SCRIPT)
 cu = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(cu)
@@ -24,7 +24,7 @@ sys.modules["check_unity"] = cu
 sys.path.insert(0, str(_SCRIPT.parent))
 import check_unity_probe as cp  # noqa: E402
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = Path(__file__).parent.parent / "fixtures"
 
 
 def _log(name: str) -> str:
