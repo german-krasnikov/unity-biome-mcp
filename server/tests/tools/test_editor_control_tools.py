@@ -247,7 +247,7 @@ async def test_mutation_mode_false_literal_result_still_updates_cache(ec_mod, _p
 # ── Parity: Python NOOP_RECOVERY_RESULT pinned to the C# constant ───────────
 
 _SOURCE_PATCH_MODE_POLICY_CS_PATH = (
-    pathlib.Path(__file__).parents[2] / "unity-plugin/Editor/SourcePatchModePolicy.cs"
+    pathlib.Path(__file__).parents[3] / "unity-plugin/Editor/SourcePatchModePolicy.cs"
 )
 _CS_NOOP_RECOVERY_RE = re.compile(r'const string NoOpRecoveryResult = "([^"]+)"')
 
