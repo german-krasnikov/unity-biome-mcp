@@ -69,13 +69,15 @@ namespace UnityMCP.Editor.Tests
         // dsl/tools.biome — registered manually in CommandRouter.Registration.cs.
         private static System.Collections.Generic.IEnumerable<string> DeriveExpectedAlwaysAllowed()
         {
+            var result = new List<string>();
             foreach (var cmd in CommandRegistry.GetAllCommands())
             {
-                try { if (ToolMeta.Get(cmd).AlwaysAllowed) yield return cmd; }
+                try { if (ToolMeta.Get(cmd).AlwaysAllowed) result.Add(cmd); }
                 catch (System.ArgumentException) { }
             }
-            yield return "get_disabled_tools";
-            yield return "set_tool_catalog";
+            result.Add("get_disabled_tools");
+            result.Add("set_tool_catalog");
+            return result;
         }
 
         [Test]
