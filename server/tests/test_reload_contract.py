@@ -50,12 +50,12 @@ def test_wire_protocol_length_prefix_be():
 def test_state_file_names():
     """going_away, reloading, ready must appear in server source (protocol contract)."""
     # going_away: domain-reload event sent by Unity over TCP
-    bridge_src = _src("bridge.py")
+    bridge_src = _src("bridge/__init__.py")
     assert "going_away" in bridge_src
 
     # reloading, ready: state file values written by MCPServer.WriteStateFile
-    # Python side reads these in unity_state.py and tools
-    unity_state_src = _src("unity_state.py")
+    # Python side reads these in bridge/unity_state.py and tools
+    unity_state_src = _src("bridge/unity_state.py")
     assert "reloading" in unity_state_src
 
     errors_src = _src("errors.py")

@@ -12,9 +12,9 @@ _SRC_ROOT = _REPO_ROOT / "server" / "src" / "unity_mcp"
 _FILES_TO_CHECK = [
     _SRC_ROOT / "lockfile.py",
     _SRC_ROOT / "server_lifespan.py",
-    _SRC_ROOT / "unity_state.py",
+    _SRC_ROOT / "bridge" / "unity_state.py",
     _SRC_ROOT / "_update_check.py",
-    _SRC_ROOT / "crash_log.py",
+    _SRC_ROOT / "bridge" / "crash_log.py",
     _SRC_ROOT / "doctor.py",
     _SRC_ROOT / "budget" / "cost_tracker.py",
     _REPO_ROOT / "install" / "commands.py",

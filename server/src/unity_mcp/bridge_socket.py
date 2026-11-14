@@ -1,14 +1,9 @@
-from biome_mcp.transport.framing import (  # noqa: F401 (re-export)
-    _TCP_KEEPALIVE_DARWIN,
-    _TCP_KEEPCNT_DARWIN,
-    _TCP_KEEPINTVL_DARWIN,
-    MAX_FRAME_BYTES,
-    _apply_socket_options,
-    frame_read,
-    frame_read_with_timeout,
-    frame_write,
-)
+"""Moved to unity_mcp.bridge.socket_io. This file keeps the old import path
+alive as the SAME module object (not a copy), so `patch("unity_mcp.bridge_socket.X")`
+and `from unity_mcp.bridge_socket import X` both still observe/mutate the real
+module. Delete once every caller imports unity_mcp.bridge.socket_io directly."""
+import sys
 
+from .bridge import socket_io as _impl
 
-class DomainReloadError(ConnectionError):
-    """Unity signaled domain reload via going_away frame."""
+sys.modules[__name__] = _impl

@@ -19,7 +19,7 @@ from helpers import make_idle_probe
 from unity_mcp.bridge import BridgeState, UnityBridge
 
 _ROOT = Path(__file__).resolve().parents[2]
-_BRIDGE_PY = _ROOT / "server" / "src" / "unity_mcp" / "bridge.py"
+_BRIDGE_PY = _ROOT / "server" / "src" / "unity_mcp" / "bridge" / "__init__.py"
 _ASSIGN_RE = re.compile(r"^\s*self\._state\s*=(?!=)")  # exclude `==`
 _INIT_LINE_RE = re.compile(r"self\._state:\s*BridgeState\s*=\s*BridgeState\.DISCONNECTED")
 

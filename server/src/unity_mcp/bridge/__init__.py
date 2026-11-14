@@ -12,27 +12,16 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import DEFAULT_PORT, SESSION_TIMEOUT
+from ..constants import DEFAULT_PORT, SESSION_TIMEOUT
 
 logger = logging.getLogger(__name__)
 
 import contextlib  # noqa: E402
 from collections.abc import Callable  # noqa: TC003
 
-from unity_mcp.bridge_cassette import record as _record_cassette
 from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, RELOAD_BACKOFF_S, HeartbeatMixin
-from unity_mcp.bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
 from unity_mcp.bridge_retry import RetryPolicy
-from unity_mcp.bridge_socket import (
-    _TCP_KEEPALIVE_DARWIN,
-    _TCP_KEEPINTVL_DARWIN,
-    DomainReloadError,
-    _apply_socket_options,
-    frame_read_with_timeout,
-    frame_write,
-)
 from unity_mcp.compile_state import CompileStateProbe
-from unity_mcp.crash_log import CrashLogger
 from unity_mcp.decisions.generated.connstatus_logic import (
     ConnStatusInput,
     ConnStatusValues,
@@ -43,6 +32,18 @@ from unity_mcp.decisions.generated.connstatus_logic import (
 from unity_mcp.generated.timing_constants import TIMING_ROWS
 from unity_mcp.lockfile import is_pid_alive
 from unity_mcp.metrics import METRICS
+
+from .cassette import record as _record_cassette
+from .crash_log import CrashLogger
+from .reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
+from .socket_io import (
+    _TCP_KEEPALIVE_DARWIN,
+    _TCP_KEEPINTVL_DARWIN,
+    DomainReloadError,
+    _apply_socket_options,
+    frame_read_with_timeout,
+    frame_write,
+)
 
 # Re-export so existing `from .bridge import DomainReloadError` keeps working
 __all__ = [
@@ -655,7 +656,7 @@ class UnityBridge(HeartbeatMixin):
                         await asyncio.sleep(delay + jitter)
                     continue
                 if reason == "unsafe_sent":
-                    from .errors import UncertainDeliveryError
+                    from ..errors import UncertainDeliveryError
                     raise UncertainDeliveryError(
                         cmd=cmd,
                         op_id=op_id,
@@ -761,7 +762,7 @@ class UnityBridge(HeartbeatMixin):
 
     def _capture_or_check_identity(self, project_id: str, project_path: str) -> None:
         """Capture editor identity on first handshake; raise on mismatch (MCP-SESS-024)."""
-        from .errors import SessionIdentityMismatch
+        from ..errors import SessionIdentityMismatch
         new = EditorIdentity(project_id=project_id, project_path=project_path)
         if self._editor_identity is None:
             self._editor_identity = new
@@ -798,7 +799,7 @@ class UnityBridge(HeartbeatMixin):
             raise DomainReloadError(f"Unity going_away during {reload_context}")
 
         if hello.get("error") == "CLIENT_CAPACITY_BUSY":
-            from .errors import CapacityBusyError
+            from ..errors import CapacityBusyError
             raise CapacityBusyError(
                 f"Unity at capacity: {hello.get('active', '?')}/{hello.get('capacity', '?')} clients",
                 retry_after_seconds=float(
@@ -943,7 +944,7 @@ class UnityBridge(HeartbeatMixin):
         (legacy get_version fallback, which may have no identity yet)."""
         if not info.plugin:
             return
-        from .server_updater import _updater
+        from ..server_updater import _updater
         identity = self._editor_identity
         project_path = (
             identity.project_path if identity and identity.project_path
