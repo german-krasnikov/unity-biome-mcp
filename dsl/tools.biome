@@ -1312,7 +1312,7 @@ END
 
 TOOL query_state RUNTIME RO "[Play Mode] Snapshot multiple game values in one call."
   HANDLER register "CommandRouter.ExecQueryState"
-  BODY runtime
+  FORWARD
   DOC "queries: comma-separated 'path|component|field_or_method' triplets."
   DOC "Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')"
   RUNTIME
