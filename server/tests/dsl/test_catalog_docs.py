@@ -5,7 +5,7 @@ from pathlib import Path
 from unity_mcp.tools.generated import catalog_specs
 from unity_mcp.tools.tool_specs import _SPECS
 
-_INDEX = Path(__file__).resolve().parents[2] / "docs" / "tools" / "index.md"
+_INDEX = Path(__file__).resolve().parents[3] / "docs" / "tools" / "index.md"
 
 
 def test_the_catalog_table_of_the_tools_reference_lists_the_catalog_tools():

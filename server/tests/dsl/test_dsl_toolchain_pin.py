@@ -7,7 +7,7 @@ exists in the toolchain checkout -- that is scripts/dsl.sh check's job (needs No
 import re
 from pathlib import Path
 
-DSL = Path(__file__).resolve().parents[2] / "dsl"
+DSL = Path(__file__).resolve().parents[3] / "dsl"
 TOOLCHAIN_SHA_LENGTH = 40
 _TOOLCHAIN_LINE = re.compile(rf"^TOOLCHAIN [0-9a-f]{{{TOOLCHAIN_SHA_LENGTH}}}$")
 

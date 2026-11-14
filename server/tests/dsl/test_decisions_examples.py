@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-DECISIONS = Path(__file__).resolve().parents[2] / "dsl" / "decisions"
+DECISIONS = Path(__file__).resolve().parents[3] / "dsl" / "decisions"
 # The modules of step 7.2 that have examples; a module that loses its rows must fail, not vanish from the parametrization.
 MODULES = {
     "mutability", "verdict", "guards", "retry", "permission", "versionorder", "busysignal", "connstatus",

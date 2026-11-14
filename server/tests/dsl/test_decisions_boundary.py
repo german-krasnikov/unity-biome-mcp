@@ -12,7 +12,7 @@ from pathlib import Path
 from click.testing import CliRunner
 from importlinter.cli import lint_imports_command
 
-CONFIG = Path(__file__).resolve().parent.parent / "pyproject.toml"
+CONFIG = Path(__file__).resolve().parent.parent.parent / "pyproject.toml"
 NAME = "decisions stay a leaf (nothing of unity_mcp outside the package)"
 ROOT = "leafpkg"  # not "mypkg": test_import_boundaries.py has fixtures of that name
 

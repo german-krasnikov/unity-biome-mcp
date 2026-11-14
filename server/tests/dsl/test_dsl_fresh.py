@@ -10,7 +10,7 @@ import hashlib
 import re
 from pathlib import Path
 
-DSL = Path(__file__).resolve().parents[2] / "dsl"
+DSL = Path(__file__).resolve().parents[3] / "dsl"
 # GENERATE <name> render {dir}/<source> <target> {dir}/<out>: a whole file starts with the banner, a region (out#region) does not
 _RENDER = re.compile(r"^GENERATE\s+\S+\s+render\s+\{dir\}/(\S+)\s+\S+\s+\{dir\}/([^\s#]+)$", re.MULTILINE)
 # GENERATE <name> logic generate --source {dir}/<m>.logic --contract ... --target "<lang> {dir}/<out> [AS <name>] [LANG <v>]"...

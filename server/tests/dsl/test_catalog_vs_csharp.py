@@ -16,7 +16,7 @@ from unity_mcp.tools.generated import catalog_specs
 
 pytestmark = pytest.mark.csharp_parity
 
-_EDITOR = Path(__file__).resolve().parents[2] / "unity-plugin" / "Editor"
+_EDITOR = Path(__file__).resolve().parents[3] / "unity-plugin" / "Editor"
 _CALL = re.compile(r'CommandRegistry\.(Register|RegisterAsync|RegisterAction)\(\s*"([^"]+)"')
 
 
