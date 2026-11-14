@@ -30,11 +30,11 @@ from unity_mcp.decisions.generated.connstatus_logic import (
     transport_status,
 )
 from unity_mcp.generated.timing_constants import TIMING_ROWS
-from unity_mcp.lockfile import is_pid_alive
 from unity_mcp.metrics import METRICS
 
 from .cassette import record as _record_cassette
 from .crash_log import CrashLogger
+from .lockfile import is_pid_alive
 from .reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
 from .socket_io import (
     _TCP_KEEPALIVE_DARWIN,

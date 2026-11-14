@@ -6,9 +6,9 @@ import random
 import threading
 import time
 
+from unity_mcp.bridge.lockfile import PORT_SWEEP_INTERVAL_S, cleanup_stale_port_files
 from unity_mcp.bridge.socket_io import DomainReloadError, frame_write
 from unity_mcp.generated.timing_constants import TIMING_ROWS
-from unity_mcp.lockfile import PORT_SWEEP_INTERVAL_S, cleanup_stale_port_files
 
 logger = logging.getLogger(__name__)
 

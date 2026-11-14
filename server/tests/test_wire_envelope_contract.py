@@ -15,7 +15,7 @@ import re
 from pathlib import Path
 
 _RESPONSE_CS = (
-    Path(__file__).parents[2] / "unity-plugin" / "Editor" / "JsonHelper.Response.cs"
+    Path(__file__).parents[2] / "unity-plugin" / "Editor" / "Primitives" / "JsonHelper.Response.cs"
 ).read_text(encoding="utf-8")
 
 # Builders that must assemble the envelope by calling the shared header

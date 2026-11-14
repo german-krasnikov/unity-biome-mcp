@@ -10,7 +10,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _SRC_ROOT = _REPO_ROOT / "server" / "src" / "unity_mcp"
 
 _FILES_TO_CHECK = [
-    _SRC_ROOT / "lockfile.py",
+    _SRC_ROOT / "bridge" / "lockfile.py",
     _SRC_ROOT / "server_lifespan.py",
     _SRC_ROOT / "bridge" / "unity_state.py",
     _SRC_ROOT / "_update_check.py",

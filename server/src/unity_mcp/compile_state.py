@@ -8,10 +8,10 @@ import os
 import time
 from pathlib import Path
 
+from unity_mcp.bridge.lockfile import is_pid_alive, read_pid_from_port_file, read_project_path_from_port_file
 from unity_mcp.bridge.unity_state import read_state_for_port
 from unity_mcp.constants import SESSION_TIMEOUT as _DISCONNECT_WINDOW_S
 from unity_mcp.decisions.generated.busysignal_logic import BusySignalInput, BusySignalValues, busy_signal
-from unity_mcp.lockfile import is_pid_alive, read_pid_from_port_file, read_project_path_from_port_file
 
 _DEFAULT_REMAINING_S = 5.0  # TODO(FM-26 G16w): derive from real diagnose state, not a fabricated 5.0s default
 _MAX_REMAINING_S = 60.0
