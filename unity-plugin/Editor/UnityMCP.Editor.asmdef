@@ -1,7 +1,7 @@
 {
     "name": "UnityMCP.Editor",
     "rootNamespace": "UnityMCP.Editor",
-    "references": ["UnityEditor.TestRunner", "UnityEngine.TestRunner", "Unity.Timeline", "Unity.Timeline.Editor", "UnityMCP.Editor.SourcePatch", "UnityMCP.Playtest.Core", "UnityMCP.Editor.Roslyn"],
+    "references": ["UnityEditor.TestRunner", "UnityEngine.TestRunner", "Unity.Timeline", "Unity.Timeline.Editor", "UnityMCP.Editor.SourcePatch", "UnityMCP.Playtest.Core", "UnityMCP.Editor.Roslyn", "UnityMCP.Editor.Primitives"],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
