@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=2f60948cb50a62567d529938c2e71eaebb92bc504cb0bb6c772ff0a8d21866c7
+# source-sha256=22d5b56170705618537a6cda2e383e185768772939d760f99df4e8e641e19e58
 # Edit the source, then run biome generate.
 
 from .. import _catalog_runtime as rt
@@ -2509,7 +2509,6 @@ async def project_settings(
 tools.expect('query_state', 'RO', "[Play Mode] Snapshot multiple game values in one call.", (
     ('queries', str),
 ))
-tools.expect_body('query_state', 'runtime')
 
 
 @tools.provide
@@ -2520,10 +2519,9 @@ async def query_state(
      "\n    queries: comma-separated 'path|component|field_or_method' triplets."
      "\n    Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')"
     )
-    from .. import runtime as _biome_body_mod
-    return await _biome_body_mod._query_state_body(
-        queries=queries,
-    )
+    return await _send('query_state', _args(
+        queries=rt.w_str(queries),
+    ))
 
 
 tools.expect('recompile', 'RW', "Trigger Unity to reimport C# scripts. Returns immediately; use await_compile to block until done.", (

@@ -111,27 +111,6 @@ def filter_tools(tools: list, disabled: set | None) -> list:
     return result
 
 
-
-def cleanup_stale_port_files() -> int:
-    """Delete *.reload-port files whose PID is no longer alive. Returns count cleaned."""
-    ports_dir = _ports_dir()
-    if not ports_dir.exists():
-        return 0
-    cleaned = 0
-    for f in ports_dir.glob("*.reload-port"):
-        try:
-            pid = int(f.stem)
-        except ValueError:
-            continue
-        if not _is_pid_alive(pid):
-            try:
-                f.unlink()
-                cleaned += 1
-            except OSError:
-                pass
-    return cleaned
-
-
 def _tcp_probe(port: int, timeout: float = 0.2) -> bool:
     """Return True if TCP port accepts connections."""
     try:

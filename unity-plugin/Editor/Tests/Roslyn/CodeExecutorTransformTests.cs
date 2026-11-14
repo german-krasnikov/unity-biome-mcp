@@ -2,11 +2,13 @@
 using NUnit.Framework;
 using System;
 using UnityEditor;
-using UnityMCP.Editor;
+using UnityMCP.Editor.Roslyn;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
+    [Category(TestCategories.Roslyn)]
     public class CodeExecutorTransformTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [Test]

@@ -11,17 +11,11 @@ using UnityMCP.Editor;
 
 namespace UnityMCP.Editor.Chat
 {
-    [InitializeOnLoad]
     internal static class ChatBinaryResolver
     {
-        // Wires ChatSettingsHook.IsChatBinaryAvailableProvider to this resolver, without
-        // giving Core a compile-time dependency on Chat.CLI. Re-runs on every domain reload
-        // (PR-05 05.1, Finding 1 — replaces a dead Type.GetType reflection lookup).
-        static ChatBinaryResolver()
-        {
-            ChatSettingsHook.IsChatBinaryAvailableProvider = () => Resolve(false) != null;
-        }
-
+        // Binary availability is now surfaced through ChatHostBridge.Current.IsBinaryAvailable()
+        // (ChatHostBridgeImpl, Task 3.1 sub-task 2.3) instead of a dedicated [InitializeOnLoad]
+        // provider wire — one registration point instead of two.
         internal const string PrefKey          = "UnityMCP_Chat_ClaudePath";
         internal const string CodexPrefKey    = "UnityMCP_Chat_Path_codex";
         internal const string GeminiPrefKey   = "UnityMCP_Chat_Path_gemini";

@@ -58,6 +58,46 @@ def test_guard_defers_to_read_only_when_both_block_conditions_hold():
     assert mw2.check_read_only(cmd, {}) is not None
 
 
+# ── P3 #11: _py_guard_facts is the single shared fact computation ───────────
+# check_read_only and check_play_mode_required both delegate to this helper
+# instead of each recomputing read_only/mutating — that is the mechanism that
+# makes the fact set identical regardless of which guard runs first. No test
+# pinned the helper itself before; a future edit that makes either caller
+# bypass it (recomputing its own partial facts again) would not necessarily
+# break check_read_only/check_play_mode_required's own tests but would reopen
+# P3 #11, and this test exists to catch that.
+
+def test_py_guard_facts_mutating_true_only_when_read_only_and_write():
+    mw = _make_mw()
+    mw.is_read_only = True
+    assert mw._py_guard_facts("set_property", {}) == {"read_only": True, "mutating": True}
+    assert mw._py_guard_facts("get_hierarchy", {}) == {"read_only": True, "mutating": False}
+
+
+def test_py_guard_facts_mutating_always_false_when_writable():
+    """A writable endpoint never classifies a call as mutating — is_write is not even asked,
+    so a command nobody knows (fail-closed default) still reports mutating=False here."""
+    mw = _make_mw()
+    mw.is_read_only = False
+    assert mw._py_guard_facts("set_property", {}) == {"read_only": False, "mutating": False}
+    assert mw._py_guard_facts("totally_unregistered_xyz", {}) == {"read_only": False, "mutating": False}
+
+
+def test_check_read_only_and_check_play_mode_required_both_call_shared_helper():
+    """White-box guard against reopening P3 #11: both methods must source their
+    site-py facts from _py_guard_facts, not from a reimplemented, independent
+    read_only/mutating computation of their own. A verdict-only test would stay
+    green even if a future edit duplicated the computation again, as long as
+    the duplicate happened to agree with guards.logic's priority by accident."""
+    import inspect
+
+    from unity_mcp.middleware_guards import MiddlewareGuardsMixin
+
+    for method_name in ("check_read_only", "check_play_mode_required"):
+        source = inspect.getsource(getattr(MiddlewareGuardsMixin, method_name))
+        assert "_py_guard_facts(" in source, f"{method_name} must call the shared _py_guard_facts helper"
+
+
 def test_guard_passes_non_runtime_cmd():
     mw = _make_mw(play_state_known=True, is_playing=False)
     assert mw.check_play_mode_required("get_component") is None

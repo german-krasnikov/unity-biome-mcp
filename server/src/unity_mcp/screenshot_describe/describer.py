@@ -1,5 +1,6 @@
 from biome_mcp.degrade import degrade, wrap_degraded
 
+from ..llm_gateway import ILlmGateway  # noqa: TC001 — used in runtime annotation
 from ..metrics import METRICS
 from ..sampling import SamplingService
 from ..sampling_postproc import is_refusal as _is_refusal  # noqa: F401 — re-export
@@ -11,7 +12,7 @@ _cache_singleton = FingerprintCache()
 
 
 class ScreenshotDescriber:
-    def __init__(self, sampling: SamplingService, cache: FingerprintCache):
+    def __init__(self, sampling: ILlmGateway, cache: FingerprintCache):
         self._sampling = sampling
         self._cache = cache
 

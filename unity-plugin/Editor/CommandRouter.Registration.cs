@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEditorInternal;
 using UnityEngine;
+using UnityMCP.Editor.Roslyn;
 namespace UnityMCP.Editor
 {
     // RegisterAll() split into 4 themed bucket methods (B1, review sprint v0.70).
@@ -533,7 +534,9 @@ namespace UnityMCP.Editor
 
         internal static string ExecCompilePreflight(string args)
         {
-            var r = CompilePreflightCommand.Execute(args);
+            var r = CompilePreflightCommand.Execute(
+                CompilePreflightArgs.FilePath(args),
+                CompilePreflightArgs.NewContent(args));
             if (r.StartsWith("ERR")) throw new InvalidOperationException(r);
             return r;
         }

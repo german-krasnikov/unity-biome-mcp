@@ -383,6 +383,7 @@ wire particle calls=51 digest=b16762246e11e36e
 wire ping_object calls=2 digest=57d1027a2c9c544d
 wire prefab calls=71 digest=111efa5cfe725489
 wire project_settings calls=50 digest=1dbfae82da617289
+wire query_state calls=2 digest=a50a385702ae9b68
 wire recompile calls=1 digest=6532b09d2420c23a
 wire references calls=52 digest=788d384473a0e825
 wire rename_object calls=4 digest=1c04484384f0db93

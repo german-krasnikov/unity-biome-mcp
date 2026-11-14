@@ -4,8 +4,8 @@
 # UNITY_MCP_REFLECT=="0", only verifySnapshot can fire; otherwise only reflect can.
 DECISION reflectGate DEFAULT skip
   verifySnapshotFallback AT 10 WHEN NOT reflect.envOn AND reflect.cmdIsSetProperty AND reflect.hasPropAndValue -> runVerifySnapshot
-  skipDegraded           AT 20 WHEN reflect.envOn AND reflect.resultDegraded -> skip
-  skipNoReflectFlag      AT 21 WHEN reflect.envOn AND reflect.noReflectFlag -> skip
-  skipNotWrite           AT 22 WHEN reflect.envOn AND NOT reflect.cmdIsWrite -> skip
-  runReflect             AT 30 WHEN reflect.envOn AND reflect.cmdIsWrite -> runReflect
+  skipDegraded AT 20 WHEN reflect.envOn AND reflect.resultDegraded -> skip
+  skipNoReflectFlag AT 21 WHEN reflect.envOn AND reflect.noReflectFlag -> skip
+  skipNotWrite AT 22 WHEN reflect.envOn AND NOT reflect.cmdIsWrite -> skip
+  runReflect AT 30 WHEN reflect.envOn AND reflect.cmdIsWrite -> runReflect
 END

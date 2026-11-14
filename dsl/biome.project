@@ -1,5 +1,5 @@
 # What unity-biome-mcp generates: the tool catalog (dsl/tools.biome printed through constructs/tool.construct), the decisions (dsl/decisions), the chat turn (dsl/chat) and the playtest grammar (constructs/playtest.construct).
-TOOLCHAIN 05b2afe8f6bf75cb6196bc850965ce652ed2be3f
+TOOLCHAIN 51e6137ba6f0ce6db3056ddc9df1620edc4ac8a1
 CONSTRUCTS constructs
 
 GENERATE py-specs  render {dir}/tools.biome pyspec   {dir}/../server/src/unity_mcp/tools/generated/catalog_specs.py
@@ -49,6 +49,20 @@ GENERATE cs-installdir data --contract installdir --rows InstallDir {dir}/data/i
 CONTRACT protocol FROM data/protocol.data-contract
 GENERATE py-protocol data --contract protocol --rows Protocol {dir}/data/protocol.core-data --target py --out {dir}/../server/src/unity_mcp/generated/protocol.py
 GENERATE cs-protocol data --contract protocol --rows Protocol {dir}/data/protocol.core-data --target cs --cs-namespace UnityMCP.Editor.Wizard --out {dir}/../unity-plugin/Editor/Generated/Protocol.g.cs
+
+# Global persistent config defaults (dsl/data/globalconfig.data-contract, Task 0.2): one typed row
+# instead of the 4 idle/orphan defaults hand-copied 2x in global_config.py and 3x in
+# GlobalConfigSync.cs.
+CONTRACT globalconfig FROM data/globalconfig.data-contract
+GENERATE py-globalconfig data --contract globalconfig --rows GlobalConfigDefaults {dir}/data/globalconfig.core-data --target py --out {dir}/../server/src/unity_mcp/generated/global_config_defaults.py
+GENERATE cs-globalconfig data --contract globalconfig --rows GlobalConfigDefaults {dir}/data/globalconfig.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/GlobalConfigDefaults.g.cs
+
+# Bridge/heartbeat timing constants (dsl/data/timing.data-contract, Task 1.4): one typed
+# row instead of 9 bare-float constants hand-duplicated across bridge.py,
+# bridge_heartbeat.py, bridge_reload_state.py and phantom_cleaner.py.
+CONTRACT timing FROM data/timing.data-contract
+GENERATE py-timing data --contract timing --rows Timing {dir}/data/timing.core-data --target py --out {dir}/../server/src/unity_mcp/generated/timing_constants.py
+GENERATE cs-timing data --contract timing --rows Timing {dir}/data/timing.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/TimingConstants.g.cs
 
 # The MCP server's config-file key name (dsl/data/servername.data-contract, P1 #5): one constant
 # instead of merger.py's SERVER_NAME and PermissionConfig.cs's SERVER_NAME, kept in sync only by a

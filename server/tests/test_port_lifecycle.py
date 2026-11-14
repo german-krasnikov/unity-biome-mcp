@@ -18,10 +18,8 @@ from unittest.mock import patch
 
 import pytest
 
-from unity_mcp.lockfile import (
-    cleanup_stale_port_files,
-    read_reload_port,
-)
+from unity_mcp.lockfile import read_reload_port
+from unity_mcp.phantom_cleaner import cleanup_stale_port_files
 from unity_mcp.server_filtering import read_unity_port
 
 
@@ -51,11 +49,11 @@ def test_csharp_port_manager_cleans_reload_port_files():
 
 
 def test_python_cleanup_stale_port_files_covers_reload_port():
-    """lockfile.py cleanup_stale_port_files handles *.reload-port pattern.
+    """phantom_cleaner.py cleanup_stale_port_files handles *.reload-port pattern.
 
     Python compensates for the C# gap documented in TC-5.
     """
-    src = (_SERVER / "src/unity_mcp/lockfile.py").read_text(encoding="utf-8")
+    src = (_SERVER / "src/unity_mcp/phantom_cleaner.py").read_text(encoding="utf-8")
     assert '"*.reload-port"' in src, "Python cleanup must include *.reload-port pattern"
 
 
@@ -84,15 +82,15 @@ def test_cleanup_tcp_probe_removes_pid_alive_tcp_dead(tmp_path):
     """tcp_probe=True: PID alive but port not listening → file removed only
     once the failure persists across a full sweep interval (C1 #11) — the
     first failed probe must be tolerated (Unity's own bind-retry loop)."""
-    from unity_mcp.lockfile import PROBE_GRACE_S
+    from unity_mcp.phantom_cleaner import PROBE_GRACE_S
     ports_dir = tmp_path / "ports"
     ports_dir.mkdir()
     (ports_dir / "44444.port").write_text("9700\n/proj\n", encoding="utf-8")
     clock = [500.0]
 
-    with patch("unity_mcp.lockfile._ports_dir", return_value=ports_dir), \
-         patch("unity_mcp.lockfile.is_pid_alive", return_value=True), \
-         patch("unity_mcp.lockfile._tcp_probe", return_value=False):
+    with patch("unity_mcp.phantom_cleaner._ports_dir", return_value=ports_dir), \
+         patch("unity_mcp.phantom_cleaner.is_pid_alive", return_value=True), \
+         patch("unity_mcp.phantom_cleaner._tcp_probe", return_value=False):
         first = cleanup_stale_port_files(tcp_probe=True, now_fn=lambda: clock[0])
         assert first == 0
         assert (ports_dir / "44444.port").exists()
@@ -114,8 +112,8 @@ def test_cleanup_no_tcp_probe_keeps_pid_alive_tcp_dead(tmp_path):
     ports_dir.mkdir()
     (ports_dir / "44444.port").write_text("9700\n/proj\n", encoding="utf-8")
 
-    with patch("unity_mcp.lockfile._ports_dir", return_value=ports_dir), \
-         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+    with patch("unity_mcp.phantom_cleaner._ports_dir", return_value=ports_dir), \
+         patch("unity_mcp.phantom_cleaner.is_pid_alive", return_value=True):
         count = cleanup_stale_port_files(tcp_probe=False)
 
     assert count == 0
@@ -235,8 +233,8 @@ def test_cleanup_all_patterns_mixed_live_dead(tmp_path):
     def is_alive(pid):
         return pid == 22222
 
-    with patch("unity_mcp.lockfile._ports_dir", return_value=ports_dir), \
-         patch("unity_mcp.lockfile.is_pid_alive", side_effect=is_alive):
+    with patch("unity_mcp.phantom_cleaner._ports_dir", return_value=ports_dir), \
+         patch("unity_mcp.phantom_cleaner.is_pid_alive", side_effect=is_alive):
         count = cleanup_stale_port_files()
 
     assert count == 3, "Three dead-PID files must be removed"

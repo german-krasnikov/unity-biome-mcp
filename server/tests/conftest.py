@@ -117,9 +117,10 @@ def _tool_binding_restore():
 
 @pytest.fixture(autouse=True)
 def _reset_tcp_probe_grace():
-    """Clear lockfile._tcp_probe_fail_since so one test's port-probe grace-window
-    state (keyed by port-file path) never leaks into the next test's sweep."""
-    from unity_mcp.lockfile import _tcp_probe_fail_since
+    """Clear phantom_cleaner._tcp_probe_fail_since so one test's port-probe
+    grace-window state (keyed by port-file path) never leaks into the next
+    test's sweep."""
+    from unity_mcp.phantom_cleaner import _tcp_probe_fail_since
     _tcp_probe_fail_since.clear()
     yield
     _tcp_probe_fail_since.clear()

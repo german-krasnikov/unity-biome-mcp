@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
+using UnityMCP.Editor.Roslyn;
 using UnityMCP.Editor.TestRuns;
 using UnityMCP.Playtest.Core;
 
@@ -124,6 +125,11 @@ namespace UnityMCP.Editor
             SceneContext.InvalidateCache();
             try
             {
+                // id/cmd/op_id/retry_op_id are the outer TCP envelope's own keys (the {id,cmd,args}
+                // wrapper), not a tool ARG declared in dsl/tools.biome -- no {Tool}Args class
+                // exists for them (or could, since they are not scoped to any one tool). Keep raw
+                // everywhere they are read from `json`, here and in Process/ProcessAsync's catch
+                // blocks and in ProcessAsync below.
                 var id = JsonHelper.ExtractString(json, "id");
                 var cmd = JsonHelper.ExtractString(json, "cmd");
                 LastCommandName = cmd ?? "";
@@ -616,6 +622,8 @@ namespace UnityMCP.Editor
                 return;
             }
 
+            // "run_id"/"text_report" here read the on-disk playtest receipt JSON, not this
+            // command's own args -- there is no {Tool}Args accessor for a receipt file's fields.
             var json = File.ReadAllText(receiptPath, Encoding.UTF8);
             if (JsonHelper.ExtractString(json, "run_id") != runId)
             {
@@ -717,6 +725,12 @@ namespace UnityMCP.Editor
 
         internal static bool IsAllowedDuringCompile(string cmd) => CommandRegistry.IsAllowedDuringCompile(cmd);
 
+        // ExtractInt/ExtractFloat/ExtractVector3 (this method and the two below) ARE the
+        // generic caller-supplied-default parsing layer -- the same role JsonHelper.ParseOpt*
+        // plays for the generated {Tool}Args accessors, just with a non-null fallback instead of
+        // returning null. Reused across many call sites with per-call-site defaults (e.g.
+        // ExecSearchScene's limit=50 vs ExecSearchContext's limit=30); binding any one of them to
+        // a single tool's accessor would remove the shared default-parsing behavior. Keep raw.
         private static int ExtractInt(string json, string key, int defaultVal)
         {
             var val = JsonHelper.ExtractString(json, key);

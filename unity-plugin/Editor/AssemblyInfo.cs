@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("UnityMCP.Editor.Chat.CLI")]
 [assembly: InternalsVisibleTo("UnityMCP.Editor.Chat.View")]
 [assembly: InternalsVisibleTo("UnityMCP.Editor.Tests")]
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Tests.Roslyn")]
 [assembly: InternalsVisibleTo("UnityMCP.Editor.TestSupport")]
 [assembly: InternalsVisibleTo("UnityMCP.TestProject")]
 // B22: PlayMode carrier for the 3 Play-bound MCPFeedbackFixture .playtest files

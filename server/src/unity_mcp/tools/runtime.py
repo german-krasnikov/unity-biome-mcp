@@ -86,13 +86,6 @@ async def _move_to_body(path: str, position: str, timeout: float = 15.0) -> str:
         timeout=timeout + _TCP_POLL_BUFFER)
 
 
-async def _query_state_body(queries: str) -> str:
-    """[Play Mode] Snapshot multiple game values in one call.
-    queries: comma-separated 'path|component|field_or_method' triplets.
-    Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')"""
-    return await _send("query_state", _args(queries=queries))
-
-
 async def _test_step_body(path: str, position: str,
                     checks_before: str = "", checks_after: str = "",
                     wait_after: float = 0.5, timeout: float = 15.0) -> str:

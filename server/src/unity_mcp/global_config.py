@@ -8,15 +8,19 @@ import os
 import pathlib
 from dataclasses import dataclass, field
 
+from unity_mcp.generated.global_config_defaults import GLOBAL_CONFIG_DEFAULTS_ROWS
+
 CONFIG_PATH: pathlib.Path = pathlib.Path.home() / ".unity-biome-mcp" / "global-config.json"
+
+_D = GLOBAL_CONFIG_DEFAULTS_ROWS[0]
 
 
 @dataclass
 class GlobalConfig:
-    idle_timeout_min: int = 30           # minutes before idle suspension/exit
-    idle_auto_suspend: bool = True       # suspend bridge instead of hard exit when idle
-    bridge_terminate_orphan: bool = True # exit when parent process dies
-    bridge_orphan_grace_min: int = 2     # minutes to wait after orphan detected
+    idle_timeout_min: int = _D.idleTimeoutMin               # minutes before idle suspension/exit
+    idle_auto_suspend: bool = _D.idleAutoSuspend             # suspend bridge instead of hard exit when idle
+    bridge_terminate_orphan: bool = _D.bridgeTerminateOrphan # exit when parent process dies
+    bridge_orphan_grace_min: int = _D.bridgeOrphanGraceMin   # minutes to wait after orphan detected
     _from_file: bool = field(default=False, repr=False)
 
     @classmethod
@@ -25,10 +29,10 @@ class GlobalConfig:
         try:
             data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
             return cls(
-                idle_timeout_min=int(data.get("idle_timeout_min", 30)),
-                idle_auto_suspend=bool(data.get("idle_auto_suspend", True)),
-                bridge_terminate_orphan=bool(data.get("bridge_terminate_orphan", True)),
-                bridge_orphan_grace_min=int(data.get("bridge_orphan_grace_min", 2)),
+                idle_timeout_min=int(data.get("idle_timeout_min", _D.idleTimeoutMin)),
+                idle_auto_suspend=bool(data.get("idle_auto_suspend", _D.idleAutoSuspend)),
+                bridge_terminate_orphan=bool(data.get("bridge_terminate_orphan", _D.bridgeTerminateOrphan)),
+                bridge_orphan_grace_min=int(data.get("bridge_orphan_grace_min", _D.bridgeOrphanGraceMin)),
                 _from_file=True,
             )
         except Exception:
@@ -57,7 +61,7 @@ class GlobalConfig:
                 pass
         if self._from_file:
             return self.idle_timeout_min * 60, "config"
-        return 30 * 60, "default"
+        return _D.idleTimeoutMin * 60, "default"
 
     def effective_auto_suspend(self) -> tuple[bool, str]:
         env = os.environ.get("UNITY_MCP_AUTO_SUSPEND")
@@ -65,7 +69,7 @@ class GlobalConfig:
             return env not in ("0", "false", "False"), "env"
         if self._from_file:
             return self.idle_auto_suspend, "config"
-        return True, "default"
+        return _D.idleAutoSuspend, "default"
 
     def effective_terminate_orphan(self) -> tuple[bool, str]:
         env = os.environ.get("UNITY_MCP_TERMINATE_ORPHAN")
@@ -73,7 +77,7 @@ class GlobalConfig:
             return env not in ("0", "false", "False"), "env"
         if self._from_file:
             return self.bridge_terminate_orphan, "config"
-        return True, "default"
+        return _D.bridgeTerminateOrphan, "default"
 
     def effective_orphan_grace_s(self) -> tuple[int, str]:
         env = os.environ.get("UNITY_MCP_ORPHAN_GRACE_MIN")
@@ -84,4 +88,4 @@ class GlobalConfig:
                 pass
         if self._from_file:
             return self.bridge_orphan_grace_min * 60, "config"
-        return 2 * 60, "default"
+        return _D.bridgeOrphanGraceMin * 60, "default"

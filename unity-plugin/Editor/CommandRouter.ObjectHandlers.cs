@@ -119,6 +119,11 @@ namespace UnityMCP.Editor
             return ApplyFieldsCompress(args, result);
         }
 
+        // NOT a single {Tool}Args.Fields/.Compress: this helper is shared by ExecInspect,
+        // ExecGetHierarchy, ExecGetComponent and ExecRuntimeSnapshot -- four separately
+        // generated accessor classes with byte-identical "fields"/"compress" bodies. Binding
+        // to any one of them (e.g. InspectArgs) would read correctly at runtime but mislabel
+        // the other three callers' args as belonging to "inspect". Keep raw.
         private static string ApplyFieldsCompress(string args, string result)
         {
             var fields = JsonHelper.ExtractString(args, "fields");
@@ -131,6 +136,9 @@ namespace UnityMCP.Editor
 
         internal static string ExecGetComponentsList(string args)
         {
+            // NOT GetComponentsListArgs.Id: that accessor returns int via JsonHelper.ExtractInt,
+            // but ComponentSerializer.ListComponentsById takes the hex ($..)/legacy-decimal
+            // string id, not an int -- same generator type mismatch as DeleteObjectArgs.Id below.
             var id = JsonHelper.ExtractString(args, "id");
             if (string.IsNullOrEmpty(id))
                 throw new ArgumentException("id is required");
@@ -141,6 +149,8 @@ namespace UnityMCP.Editor
 
         internal static string ExecGetObjectDetail(string args)
         {
+            // NOT GetObjectDetailArgs.Id: same int-vs-hex/legacy-decimal-string mismatch as
+            // ExecGetComponentsList above -- ComponentSerializer.SerializeAll takes the string id.
             var id = JsonHelper.ExtractString(args, "id");
             if (string.IsNullOrEmpty(id))
                 throw new ArgumentException("id is required ('$3E8' hex or '#123' legacy decimal, or scene path like '/Parent/Object')");

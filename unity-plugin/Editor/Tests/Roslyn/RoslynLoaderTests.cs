@@ -4,11 +4,15 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using NUnit.Framework;
+using UnityMCP.Editor;
+using UnityMCP.Editor.Roslyn;
+using UnityMCP.Editor.Testing;
 using static UnityMCP.Editor.Tests.RoslynLoaderTestData;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
+    [Category(TestCategories.Roslyn)]
     internal sealed class RoslynLoaderTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
@@ -227,6 +231,41 @@ namespace UnityMCP.Editor.Tests
             Assert.That(RoslynLoader.RoslynCompiler, Is.Null);
         }
 
+        // ── Task 0.1: kill-switch canary + failure-containment regression ──────
+
+        [Test]
+        public void KillSwitch_FieldMirrorsScriptingDefine()
+        {
+            // Mirrors whichever ambient define is active -- GREEN either way.
+            // Exists to catch the field and the #if drifting apart, not to
+            // prove the switch disables Roslyn (that needs a second compile
+            // pass with UNITYMCP_DISABLE_ROSLYN set -- manual verification).
+#if UNITYMCP_DISABLE_ROSLYN
+            Assert.IsTrue(RoslynLoader.IsKillSwitchActiveForTests);
+#else
+            Assert.IsFalse(RoslynLoader.IsKillSwitchActiveForTests);
+#endif
+        }
+
+        [Test]
+        public void EnsureRoslyn_FailClosed_DoesNotAffectUnrelatedCommandDispatch()
+        {
+            // Snapshots forced empty (not just Fallback) so this is deterministic
+            // regardless of whether an earlier test already loaded real Roslyn
+            // assemblies into this AppDomain.
+            RoslynLoader.TestOpsOverride = new RoslynLoader.TestOps
+            {
+                Snapshots = () => Array.Empty<RoslynAssemblySnapshot>(),
+                Fallback = () => null,
+            };
+            Assert.IsFalse(RoslynLoader.EnsureRoslyn());
+
+            // Any non-Roslyn CommandRegistry-dispatched command must still succeed --
+            // the asmdef split must not have wired EnsureRoslyn() failure into the
+            // general dispatch path.
+            var result = CommandRegistry.Execute("get_console", "{}");
+            Assert.That(result, Does.Not.Contain("ROSLYN"));
+        }
     }
 
     internal static class RoslynLoaderTestData

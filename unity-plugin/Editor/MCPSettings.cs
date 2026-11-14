@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+using UnityMCP.Editor.Roslyn;
 
 namespace UnityMCP.Editor
 {

@@ -35,7 +35,17 @@ _TOOLARGS_GEN = _EDITOR / "Generated" / "ToolArgs.g.cs"
 
 # Ratchet: raw call count outside Generated/ and Tests/ measured on branch arg-adoption-2026-11.
 # Lower this when a migration PR reduces the real count; never raise it to make a test pass.
-_BASELINE_MAX_RAW_CALLS = 189
+# Task 3.2 migrated CommandRouter.ScreenshotHandlers.cs's 17 calls to ScreenshotArgs (189 -> 170);
+# the rest of CommandRouter*.cs's raw calls are documented exceptions (envelope keys, receipt
+# JSON, generic default-parsing helpers, generator type/default mismatches) with no accessor to
+# migrate to.
+_BASELINE_MAX_RAW_CALLS = 170
+
+# Narrower ratchet (Task 3.1A): the 5 CommandRouter*.cs files are the current front of ARG
+# adoption migration. The file-wide ratchet above has slack (e.g. a decrease elsewhere could mask
+# a regression here), so this pins the CommandRouter subset directly. Measured on the same branch.
+# Task 3.2: 86 -> 69 (ScreenshotHandlers.cs fully migrated to ScreenshotArgs).
+_COMMAND_ROUTER_BASELINE_MAX_RAW_CALLS = 69
 
 _RAW_CALL_RE = re.compile(r"JsonHelper\.(?:ExtractString|ParseOpt\w+)\(")
 _BLOCK_START_RE = re.compile(r"^(?:TOOL|PYTOOL|INTERNAL)\s+(\S+)\s")
@@ -72,6 +82,18 @@ def test_raw_extract_string_calls_do_not_exceed_ratchet_baseline():
         f"raw JsonHelper.ExtractString/ParseOpt* calls grew to {total}, above the ratchet "
         f"baseline of {_BASELINE_MAX_RAW_CALLS}. Use the typed ToolArgs.g.cs accessor for new "
         "call sites instead of adding more raw calls."
+    )
+
+
+def test_command_router_raw_calls_do_not_exceed_ratchet_baseline():
+    counts = _raw_calls_by_file()
+    router_counts = {p: n for p, n in counts.items() if p.name.startswith("CommandRouter")}
+    assert router_counts, "no CommandRouter*.cs files scanned: this test would pass without checking anything"
+    total = sum(router_counts.values())
+    assert total <= _COMMAND_ROUTER_BASELINE_MAX_RAW_CALLS, (
+        f"raw JsonHelper.ExtractString/ParseOpt* calls in CommandRouter*.cs grew to {total}, above "
+        f"the ratchet baseline of {_COMMAND_ROUTER_BASELINE_MAX_RAW_CALLS}. Use the typed "
+        "ToolArgs.g.cs accessor for new call sites instead of adding more raw calls."
     )
 
 

@@ -50,5 +50,32 @@ namespace UnityMCP.Editor.Tests
             Assert.That(src, Does.Not.Contain("update -= MainThreadDispatcher.Drain"),
                 "MCPServer must not unsubscribe MainThreadDispatcher.Drain — it never subscribed it");
         }
+
+        // ── Task 1.3: MCPServer routes before-reload through ReloadLifecycleCoordinator ──
+
+        [Test]
+        public void RegisterLifecycleCallbacks_RoutesBeforeReloadThroughCoordinator()
+        {
+            var src = ReadRequiredPackageSource(typeof(MCPServer), "Editor/MCPServer.cs");
+            var start = src.IndexOf("internal static void RegisterLifecycleCallbacks()");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "RegisterLifecycleCallbacks method not found");
+            var end = src.IndexOf("private static void OnCompilationStarted", start);
+            Assert.That(end, Is.GreaterThan(start), "OnCompilationStarted not found after RegisterLifecycleCallbacks");
+            var body = src.Substring(start, end - start);
+
+            Assert.That(body, Does.Not.Contain("AssemblyReloadEvents.beforeAssemblyReload += OnBeforeReload"),
+                "MCPServer must not subscribe AssemblyReloadEvents directly — ReloadLifecycleCoordinator " +
+                "owns the one subscription pair");
+            Assert.That(body, Does.Contain("ReloadLifecycleCoordinator.Register(_reloadSink)"),
+                "MCPServer must register its reload sink with ReloadLifecycleCoordinator");
+
+            // OnBeforeReload() body itself must be byte-for-byte unchanged by this refactor.
+            Assert.That(src, Does.Contain(
+                "private static void OnBeforeReload()\n" +
+                "        {\n" +
+                "            _shuttingDown = true;\n" +
+                "            WriteStateFile(\"reloading\");"),
+                "OnBeforeReload's existing body must not change — only its subscription site moves");
+        }
     }
 }

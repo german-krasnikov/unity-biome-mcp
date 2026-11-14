@@ -1,8 +1,11 @@
 using NUnit.Framework;
+using UnityMCP.Editor.Roslyn;
+using UnityMCP.Editor.Testing;
 
 namespace UnityMCP.Editor.Tests
 {
     [TestFixture]
+    [Category(TestCategories.Roslyn)]
     public class CodeExecutorSecurityBypassTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp] public void SetUp()

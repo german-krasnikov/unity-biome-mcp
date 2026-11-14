@@ -1,6 +1,7 @@
 import hashlib
 import time
 
+from .llm_gateway import ILlmGateway  # noqa: TC001 — used in runtime annotation
 from .metrics import METRICS
 from .sampling import SamplingService
 from .sampling_postproc import normalize
@@ -91,7 +92,7 @@ def _build_legend_for_diff(
 async def visual_diff(before: str, after: str, *, mode: str = "auto",
                       question: str | None = None,
                       pixel_threshold: float = 1.0,
-                      sampling: SamplingService | None = None,
+                      sampling: ILlmGateway | None = None,
                       mark: bool = False,
                       rects: list | None = None,
                       rects_after: list | None = None) -> str:

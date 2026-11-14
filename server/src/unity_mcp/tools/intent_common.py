@@ -4,6 +4,7 @@ from collections.abc import Callable  # noqa: TC003
 
 from mcp.server.mcpserver.exceptions import ToolError
 
+from ..llm_gateway import ILlmGateway  # noqa: TC001 — used in runtime annotation
 from ..sampling_postproc import strip_fences  # backward-compat re-export
 from ..utils import parse_kv  # consolidated — was local copy
 
@@ -46,7 +47,7 @@ def build_batch_line(cmd: str, **kwargs) -> str:
 
 async def run_intent_pipeline(
     send: Callable,
-    sampling,
+    sampling: ILlmGateway,
     prompt: str,
     feature: str,
     parse_fn: Callable,

@@ -177,11 +177,26 @@ namespace UnityMCP.Editor
         internal static bool IsReallyCompiling => _isCompiling;
 
         private static double _lastWatchdogCheck;
+        private static double _lastPortSweep;
+        // Mirrors Python PORT_SWEEP_INTERVAL_S (phantom_cleaner.py) — not
+        // auto-synced across languages; update both definition sites together.
+        private const double PortSweepIntervalSeconds = 30.0;
 
         // Pure helper — no Unity API calls, fully unit-testable.
         // Mirrors ReloadPlugin.ShouldStartReloadServer pattern.
         internal static bool ShouldStartServer(bool isBatchMode)
             => !isBatchMode || Environment.GetEnvironmentVariable("UNITY_MCP_ENABLE_BATCHMODE") == "1";
+
+        // Pure helper — no Unity API calls, fully unit-testable.
+        // Root cause fix: CleanStalePeerPortFiles() previously only ran once
+        // (static ctor, which re-fires on cold-start + every domain reload).
+        // An Editor left open for days with no reload/no connected Python
+        // client (so bridge_heartbeat's own sweep never fires either) never
+        // re-swept — stale port files from past sessions accumulated
+        // indefinitely. WatchdogTick's existing EditorApplication.update
+        // callback gives us a periodic hook for a coarser, independent sweep.
+        internal static bool ShouldSweepPorts(double now, double lastSweep, double intervalSeconds)
+            => now - lastSweep >= intervalSeconds;
 
         internal static string ResolveBootstrapScenePath(string projectRoot, string scenePath)
         {
@@ -204,6 +219,14 @@ namespace UnityMCP.Editor
             EditorApplication.delayCall += () => StartAsync();
         }
 
+        // Task 1.3: thin adapter — MCPServer is a static class and cannot implement
+        // IReloadLifecycleSink itself. OnBeforeReload() body is unchanged.
+        private sealed class ReloadSink : IReloadLifecycleSink
+        {
+            public void OnBeforeReload() => MCPServer.OnBeforeReload();
+        }
+        private static readonly ReloadSink _reloadSink = new ReloadSink();
+
         internal static void RegisterLifecycleCallbacks()
         {
             if (_lifecycleCallbacksRegistered) return;
@@ -211,7 +234,7 @@ namespace UnityMCP.Editor
             // Register WatchdogTick FIRST — so it survives even if PortFileManager throws below.
             EditorApplication.update += WatchdogTick;
             EditorApplication.quitting += OnQuit;
-            AssemblyReloadEvents.beforeAssemblyReload += OnBeforeReload;
+            ReloadLifecycleCoordinator.Register(_reloadSink);
             CompilationPipeline.compilationStarted += _ => OnCompilationStarted();
             CompilationPipeline.compilationFinished += _ => OnCompilationFinished();
             EditorSceneManager.sceneOpened += (_, _) => InvalidateSceneCaches();
@@ -257,6 +280,11 @@ namespace UnityMCP.Editor
             if (_shuttingDown) return;
             if (EditorApplication.timeSinceStartup - _lastWatchdogCheck < 5.0) return;
             _lastWatchdogCheck = EditorApplication.timeSinceStartup;
+            if (ShouldSweepPorts(EditorApplication.timeSinceStartup, _lastPortSweep, PortSweepIntervalSeconds))
+            {
+                _lastPortSweep = EditorApplication.timeSinceStartup;
+                PortFileManager.CleanStalePeerPortFiles();
+            }
             if (!IsRunning && !IsReallyCompiling)
                 StartAsync();
         }

@@ -474,47 +474,6 @@ async def test_push_catalog_sends_when_unlocked():
 
 
 # ---------------------------------------------------------------------------
-# cleanup_stale_port_files — stale reload-port files (Bug #3 bonus)
-# ---------------------------------------------------------------------------
-
-def test_stale_reload_port_cleanup_removes_dead_pid(tmp_path):
-    """Dead-PID *.reload-port files are deleted by cleanup_stale_port_files()."""
-    from unity_mcp.server_filtering import cleanup_stale_port_files
-    from pathlib import Path
-    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    dead_pid = 99999999
-    (ports_dir / f"{dead_pid}.reload-port").write_text("9600", encoding="utf-8")
-    with patch.object(Path, "home", return_value=tmp_path):
-        cleaned = cleanup_stale_port_files()
-    assert cleaned == 1
-    assert not (ports_dir / f"{dead_pid}.reload-port").exists()
-
-
-def test_stale_reload_port_cleanup_preserves_alive_pid(tmp_path):
-    """Alive-PID *.reload-port files are NOT deleted."""
-    from unity_mcp.server_filtering import cleanup_stale_port_files
-    from pathlib import Path
-    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    alive_pid = os.getpid()
-    f = ports_dir / f"{alive_pid}.reload-port"
-    f.write_text("9600", encoding="utf-8")
-    with patch.object(Path, "home", return_value=tmp_path):
-        cleaned = cleanup_stale_port_files()
-    assert cleaned == 0
-    assert f.exists()
-
-
-def test_stale_reload_port_cleanup_no_dir():
-    """Missing ports dir returns 0 without error."""
-    from unity_mcp.server_filtering import cleanup_stale_port_files
-    from pathlib import Path
-    with patch.object(Path, "home", return_value=Path("/nonexistent_xyz_abc")):
-        assert cleanup_stale_port_files() == 0
-
-
-# ---------------------------------------------------------------------------
 # Task 3: Plugin subcategory — per-tool disabled semantics
 # ---------------------------------------------------------------------------
 
