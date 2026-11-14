@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-ROOT = Path(__file__).resolve().parents[2]
+ROOT = Path(__file__).resolve().parents[3]
 PKG = ROOT / "unity-plugin" / "package.json"
 PYPROJECT = ROOT / "server" / "pyproject.toml"
 

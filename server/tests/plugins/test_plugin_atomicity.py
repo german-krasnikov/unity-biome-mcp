@@ -4,7 +4,7 @@ A plugin's register() call must never leave a partial registration behind —
 neither its own tools nor a duplicate-name collision with another plugin.
 See Plans/PR-03.md for the full architecture.
 """
-from test_plugins import _DictMcp
+from ..core.test_plugins import _DictMcp
 
 from tests.plugins.conftest import _mk_module
 from unity_mcp.plugins import _atomic
