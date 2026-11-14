@@ -450,6 +450,7 @@ TOOL create_object CORE RW "Create new GameObject. components: comma-separated t
   TAG do_allowed
   TAG reflect_custom
   BLAST 2
+  EXPECT token "Created"
 END
 
 TOOL create_ui UGUI RW "Create UI element with smart defaults. type: Canvas|Panel|Button|Text|Image|Toggle|Slider|InputField|ScrollView. Auto-creates Canvas if needed. render_mode: SSO (ScreenSpaceOverlay, default)|SSC (ScreenSpaceCamera)|WorldSpace. font_min/font_max: enable TMP autoSizing for Text type."
@@ -1064,6 +1065,7 @@ TOOL manage_component CORE RW "Add or remove a component. Mutates scene. No conf
   TAG do_allowed
   TAG reflect_custom
   BLAST 2
+  EXPECT token "Added|Removed"
 END
 
 TOOL material ASSETS RW "Material asset management (for quick color change use `set_material`). get/set: path (asset) or object_path (scene). slot: material slot index (default 0)."
@@ -1792,6 +1794,7 @@ TOOL set_active SCENE RW_IDEM "Set GameObject active/inactive."
   TAG do_allowed
   TAG reflect_custom
   BLAST 1
+  EXPECT token "active="
 END
 
 PYTOOL set_llm_config SYSTEM RW_IDEM "Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line)."

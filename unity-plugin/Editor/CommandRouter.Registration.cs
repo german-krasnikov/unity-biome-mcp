@@ -363,7 +363,7 @@ namespace UnityMCP.Editor
 
         internal static string ExecValidateReferences(string args) => ValidateReferencesHelper.Validate(
             ValidateReferencesArgs.Path(args),
-            ExtractInt(args, "depth", 3),
+            ValidateReferencesArgs.Depth(args),
             ValidateReferencesArgs.IgnoreOptional(args),
             ValidateReferencesArgs.Verbose(args));
 
@@ -409,7 +409,7 @@ namespace UnityMCP.Editor
 
         internal static string ExecFingerprint(string args) => FingerprintHelper.Fingerprint(
             FingerprintArgs.Path(args),
-            ExtractInt(args, "depth", 3));
+            FingerprintArgs.Depth(args));
 
         internal static string ExecScanScene(string args) => ScanHelper.Scan();
 
@@ -458,7 +458,7 @@ namespace UnityMCP.Editor
                 GetTestRunArgs.Compact(args));
 
         internal static string ExecListTestRuns(string args) => TestRunner.ListRuns(
-                ExtractInt(args, "limit", 20));
+                ListTestRunsArgs.Limit(args));
 
         internal static string ExecCancelTestRun(string args) => TestRunner.CancelRun(
                 CancelTestRunArgs.RunId(args));
@@ -548,7 +548,7 @@ namespace UnityMCP.Editor
 
         internal static string ExecUndoLast(string args)
         {
-            var turns = ExtractInt(args, "turns", 1);
+            var turns = UndoLastArgs.Turns(args);
             return UndoGroupStack.RevertLast(turns);
         }
 

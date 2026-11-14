@@ -15,7 +15,12 @@ class ChipKind:
 
 CHIP_KIND_ROWS: tuple[ChipKind, ...] = (
     ChipKind(key="agent", hexColor="#9b59b6", defaultDepth="path", priority=5),
-    ChipKind(key="annotated_screenshot", hexColor="#e74c3c", defaultDepth="summary", priority=40),
+    ChipKind(
+        key="annotated_screenshot",
+        hexColor="#e74c3c",
+        defaultDepth="summary",
+        priority=40,
+    ),
     ChipKind(key="image", hexColor="#f472b6", defaultDepth="path", priority=50),
     ChipKind(key="profile", hexColor="#f0a030", defaultDepth="full", priority=75),
     ChipKind(key="hierarchy", hexColor="#4a9eff", defaultDepth="path", priority=100),

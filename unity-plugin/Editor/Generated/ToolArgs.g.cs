@@ -1,5 +1,5 @@
 // Generated from dsl/tools.biome
-// source-sha256=c232024f9b8a86f2efa3a4cd269813172482f66b9e96b82e3bac0e6bca44a5d0
+// source-sha256=ceda658678bcf6d0e51cee24f59915840315ea8fd41b3728932a69750fcfa2f0
 // Edit the source, then run biome generate.
 
 // identifier = PascalCase of the wire key of dsl/tools.biome; LOCAL args have no accessor.
@@ -291,7 +291,7 @@ internal static class FindObjectsArgs
 internal static class FingerprintArgs
 {
     internal static string Path(string args) => JsonHelper.ExtractString(args, "path");
-    internal static int Depth(string args) => JsonHelper.ExtractInt(args, "depth");
+    internal static int Depth(string args) => JsonHelper.ExtractInt(args, "depth", 3);
 }
 internal static class GetAliasesArgs
 {
@@ -322,9 +322,9 @@ internal static class GetComponentsListArgs
 }
 internal static class GetConsoleArgs
 {
-    internal static int Count(string args) => JsonHelper.ExtractInt(args, "count");
+    internal static int Count(string args) => JsonHelper.ExtractInt(args, "count", 10);
     internal static string Level(string args) => JsonHelper.ExtractString(args, "level");
-    internal static int First(string args) => JsonHelper.ExtractInt(args, "first");
+    internal static int First(string args) => JsonHelper.ExtractInt(args, "first", 0);
     internal static string Keyword(string args) => JsonHelper.ExtractString(args, "keyword");
     internal static bool CountOnly(string args) => JsonHelper.ExtractString(args, "count_only") == "true";
     internal static float? Since(string args) => JsonHelper.ParseOptFloat(args, "since");
@@ -346,7 +346,7 @@ internal static class GetFrameStatsArgs
 }
 internal static class GetHierarchyArgs
 {
-    internal static int Depth(string args) => JsonHelper.ExtractInt(args, "depth");
+    internal static int Depth(string args) => JsonHelper.ExtractInt(args, "depth", 2);
     internal static string Root(string args) => JsonHelper.ExtractString(args, "root");
     internal static string Filter(string args) => JsonHelper.ExtractString(args, "filter");
     internal static bool Components(string args) => JsonHelper.ExtractString(args, "components") == "true";
@@ -485,7 +485,7 @@ internal static class ListTemplatesArgs
 }
 internal static class ListTestRunsArgs
 {
-    internal static int Limit(string args) => JsonHelper.ExtractInt(args, "limit");
+    internal static int Limit(string args) => JsonHelper.ExtractInt(args, "limit", 20);
 }
 internal static class LoadSessionArgs
 {
@@ -632,7 +632,7 @@ internal static class ReferencesArgs
     internal static string Action(string args) => JsonHelper.RequireString(args, "action");
     internal static string Path(string args) => JsonHelper.RequireString(args, "path");
     internal static bool Children(string args) => JsonHelper.ExtractString(args, "children") == "true";
-    internal static int Depth(string args) => JsonHelper.ExtractInt(args, "depth");
+    internal static int Depth(string args) => JsonHelper.ExtractInt(args, "depth", 1);
     internal static string Source(string args) => JsonHelper.ExtractString(args, "source");
     internal static string Target(string args) => JsonHelper.ExtractString(args, "target");
     internal static string Mappings(string args) => JsonHelper.ExtractString(args, "mappings");
@@ -642,7 +642,7 @@ internal static class RegionClearArgs
     internal static string Vertices(string args) => JsonHelper.RequireString(args, "vertices");
     internal static bool DryRun(string args) => JsonHelper.ExtractString(args, "dry_run") == "true";
     internal static string Filter(string args) => JsonHelper.ExtractString(args, "filter");
-    internal static int Cap(string args) => JsonHelper.ExtractInt(args, "cap");
+    internal static int Cap(string args) => JsonHelper.ExtractInt(args, "cap", 50);
 }
 internal static class ReleaseSmokeArgs
 {
@@ -768,8 +768,8 @@ internal static class SceneHealthArgs
 }
 internal static class ScreenshotArgs
 {
-    internal static int Width(string args) => JsonHelper.ExtractInt(args, "width");
-    internal static int Height(string args) => JsonHelper.ExtractInt(args, "height");
+    internal static int Width(string args) => JsonHelper.ExtractInt(args, "width", 640);
+    internal static int Height(string args) => JsonHelper.ExtractInt(args, "height", 480);
     internal static string Camera(string args) => JsonHelper.ExtractString(args, "camera");
     internal static string Path(string args) => JsonHelper.ExtractString(args, "path");
     internal static string OutputPath(string args) => JsonHelper.ExtractString(args, "output_path");
@@ -813,7 +813,7 @@ internal static class SearchSceneArgs
 {
     internal static string Query(string args) => JsonHelper.RequireString(args, "query");
     internal static string Root(string args) => JsonHelper.ExtractString(args, "root");
-    internal static int Limit(string args) => JsonHelper.ExtractInt(args, "limit");
+    internal static int Limit(string args) => JsonHelper.ExtractInt(args, "limit", 50);
     internal static string Scene(string args) => JsonHelper.ExtractString(args, "scene");
 }
 internal static class SerializedFieldRenameAuditArgs
@@ -1051,7 +1051,7 @@ internal static class UitkIntentArgs
 }
 internal static class UndoLastArgs
 {
-    internal static int Turns(string args) => JsonHelper.ExtractInt(args, "turns");
+    internal static int Turns(string args) => JsonHelper.ExtractInt(args, "turns", 1);
 }
 internal static class UnwireEventArgs
 {
@@ -1073,7 +1073,7 @@ internal static class ValidatePlaytestAliasesArgs
 internal static class ValidateReferencesArgs
 {
     internal static string Path(string args) => JsonHelper.RequireString(args, "path");
-    internal static int Depth(string args) => JsonHelper.ExtractInt(args, "depth");
+    internal static int Depth(string args) => JsonHelper.ExtractInt(args, "depth", 3);
     internal static bool Verbose(string args) => JsonHelper.ExtractString(args, "verbose") == "true";
     internal static bool IgnoreOptional(string args) => JsonHelper.ExtractString(args, "ignore_optional") == "true";
 }

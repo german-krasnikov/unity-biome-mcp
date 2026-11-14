@@ -1,4 +1,4 @@
-# Generated from dsl/data/toolverbs-external.data-contract, dsl/data/toolverbs-external.core-data
+# Generated from dsl/data/toolverbs-external.data-contract
 # source-sha256=d8a07b08541a092cc4a85c700649071b0f810a75a67fcce86b8d3b39b4585479
 # Edit the source, then run biome generate.
 

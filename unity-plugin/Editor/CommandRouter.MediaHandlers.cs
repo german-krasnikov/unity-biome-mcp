@@ -207,7 +207,7 @@ namespace UnityMCP.Editor
                 "get" => ReferenceHelper.GetReferences(
                     JsonHelper.ExtractString(args, "path"),
                     ReferencesArgs.Children(args),
-                    ExtractInt(args, "depth", 1)),
+                    ReferencesArgs.Depth(args)),
                 "find_to" => ReferenceHelper.FindReferencesTo(JsonHelper.ExtractString(args, "path")),
                 "remap" => RemapReferencesHelper.RemapReferences(
                     ReferencesArgs.Source(args),

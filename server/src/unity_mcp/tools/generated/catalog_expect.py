@@ -1,5 +1,5 @@
 # Generated from dsl/tools.biome
-# source-sha256=c232024f9b8a86f2efa3a4cd269813172482f66b9e96b82e3bac0e6bca44a5d0
+# source-sha256=ceda658678bcf6d0e51cee24f59915840315ea8fd41b3728932a69750fcfa2f0
 # Edit the source, then run biome generate.
 
 # A literal success token (or an OR-list, pipe-separated) that confirms a
@@ -8,10 +8,13 @@
 EXPECT_RULES: dict[str, tuple] = {
     'auto_wire': ('token', 'Wired:', False, None),
     'autofit_collider': ('token', 'fitted', False, None),
+    'create_object': ('token', 'Created', False, None),
     'create_ui': ('token', 'Created', False, None),
     'delete_object': ('token', 'deleted', True, None),
+    'manage_component': ('token', 'Added|Removed', False, None),
     'recompile': ('token', 'ok', False, None),
     'region_clear': ('bool_arg', 'DRY|DELETED', False, 'dry_run'),
+    'set_active': ('token', 'active=', False, None),
     'set_material': ('arg_echo', 'shader|color', False, None),
     'transfer_object': ('token', 'Moved|→', False, None),
     'undo_last': ('token', 'reverted|nothing', False, None),
