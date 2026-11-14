@@ -3,6 +3,7 @@
     "rootNamespace": "UnityMCP.Editor.Testing",
     "references": [
         "UnityMCP.Editor",
+        "UnityMCP.Editor.Core.Scene",
         "UnityMCP.Editor.Primitives",
         "UnityMCP.Editor.TestRuns",
         "UnityMCP.Editor.Chat.CLI",

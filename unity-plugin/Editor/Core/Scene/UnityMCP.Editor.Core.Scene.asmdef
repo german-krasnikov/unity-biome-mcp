@@ -1,0 +1,14 @@
+{
+    "name": "UnityMCP.Editor.Core.Scene",
+    "rootNamespace": "UnityMCP.Editor",
+    "references": ["UnityMCP.Editor.Primitives", "UnityMCP.Playtest.Core"],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

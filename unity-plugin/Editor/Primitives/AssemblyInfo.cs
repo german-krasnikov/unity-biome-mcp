@@ -13,6 +13,10 @@ using System.Runtime.CompilerServices;
 // TestRunObserver.cs/TestRunService.cs/TestRunStore.cs call MainThreadDispatcher.Enqueue
 // and AtomicFile.Swap directly (Phase 4 Task C: UnityMCP.Editor.TestRuns.asmdef).
 [assembly: InternalsVisibleTo("UnityMCP.Editor.TestRuns")]
+// ObjectManager.Properties.cs/.Transfer.cs/.cs call BatchState.InBatch/ToolActions.Names,
+// ComponentSerializer.Finder.cs calls JsonHelper.RequireString/StaleCacheException,
+// RefManager.cs/TransientObjectId.cs call ObjectIdCompat (Phase 5 A3: UnityMCP.Editor.Core.Scene.asmdef).
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Core.Scene")]
 // JsonHelper.cs/JsonHelper.Response.cs/BiomeLabel.cs joined this asmdef alongside
 // MainThreadDispatcher/AtomicFile (same zero-dependency, repo-wide-cross-cutting
 // shape; TestRunProtocol.cs's need for the DSL-generated *Values enums forced the
@@ -20,6 +24,7 @@ using System.Runtime.CompilerServices;
 // from several other assemblies once TestRuns left UnityMCP.Editor). AskUserCard.cs
 // calls JsonHelper.EscapeJson (internal) directly.
 [assembly: InternalsVisibleTo("UnityMCP.Editor.Chat.View")]
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Chat.Tests.View")]
 // unity-test-project's consumer test assembly (ValueParserTests.cs, MaterialShaderTests.cs,
 // GuardsTests.cs, CodeExecutorTests.cs, PluginIntegrationTests.cs, ...) calls JsonHelper's
 // and BiomeLabel's internal members directly, same as the Roslyn asmdef's grant.
