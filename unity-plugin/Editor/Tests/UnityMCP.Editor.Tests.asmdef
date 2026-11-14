@@ -6,6 +6,7 @@
         "UnityMCP.Editor.Core.Scene",
         "UnityMCP.Editor.Primitives",
         "UnityMCP.Editor.TestSupport",
+        "UnityMCP.Editor.Transport",
         "UnityMCP.Editor.SourcePatch",
         "UnityMCP.Playtest.Core",
         "UnityMCP.Runtime.TestHelpers",

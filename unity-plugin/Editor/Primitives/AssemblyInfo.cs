@@ -29,3 +29,5 @@ using System.Runtime.CompilerServices;
 // GuardsTests.cs, CodeExecutorTests.cs, PluginIntegrationTests.cs, ...) calls JsonHelper's
 // and BiomeLabel's internal members directly, same as the Roslyn asmdef's grant.
 [assembly: InternalsVisibleTo("UnityMCP.TestProject")]
+// PortResolver.cs (Phase 2.4: UnityMCP.Editor.Transport.asmdef) calls AtomicFile.Swap directly.
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Transport")]
