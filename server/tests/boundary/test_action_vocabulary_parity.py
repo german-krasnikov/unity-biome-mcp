@@ -63,7 +63,7 @@ _ACTION_TOOLS: dict[str, tuple[tuple[str, str], ...]] = {
     # ExecManageComponent (CommandRouter.ObjectHandlers.cs:304-320) does not itself validate `action` (its
     # ternary only picks response text); the real dispatch -- and its only error path -- is
     # ObjectManager.ManageComponent's if/else-if chain (ObjectManager.cs:211-243).
-    "manage_component": (("ObjectManager.cs", "ManageComponent"),),
+    "manage_component": (("Core/Scene/ObjectManager.cs", "ManageComponent"),),
     "material_audit": (("MaterialAuditHelper.cs", "Execute"),),
     "menu": (("CommandRouter.MediaHandlers.cs", "ExecMenu"),),
     "package": (("PackageManagerHelper.cs", "Execute"),),
@@ -76,7 +76,7 @@ _ACTION_TOOLS: dict[str, tuple[tuple[str, str], ...]] = {
     # was not).
     "scene_environment": (("EnvironmentHelper.cs", "Execute"),),
     "spatial_query": (("SpatialHelper.cs", "Execute"),),
-    "transfer_object": (("ObjectManager.Transfer.cs", "TransferObject"),),
+    "transfer_object": (("Core/Scene/ObjectManager.Transfer.cs", "TransferObject"),),
 }
 
 # [a-z][a-z0-9_-]* (not [a-z_]+): dsl-bottlenecks-2026-11 Part B3 widened CONSTRUCT TOOL's own ACTION name

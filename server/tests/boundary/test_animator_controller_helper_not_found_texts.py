@@ -7,7 +7,7 @@ AnimatorControllerHelper.cs had 19 raw `throw new ArgumentException(...)` /
 "not found" unity-plugin/Editor/AnimatorControllerHelper.cs, captured before any
 text was touched). This file pins that exact wording and proves the migration
 onto two typed `ErrorHelper.NotFound(kind, id)` / `ErrorHelper.QuotedNotFound(kind,
-id)` methods (unity-plugin/Editor/ErrorHelper.cs) is a mechanical move — same
+id)` methods (unity-plugin/Editor/Core/Scene/ErrorHelper.cs, Phase 5 A3) is a mechanical move — same
 text, same call shape, now written once per wording-shape instead of 19 times.
 
 No Unity/dotnet needed (same shape as test_relay_frame_contract.py): a Python
@@ -23,7 +23,7 @@ _CS_PATH = (
 _CS_SOURCE = _CS_PATH.read_text(encoding="utf-8")
 
 _ERROR_HELPER_PATH = (
-    Path(__file__).parents[3] / "unity-plugin" / "Editor" / "ErrorHelper.cs"
+    Path(__file__).parents[3] / "unity-plugin" / "Editor" / "Core" / "Scene" / "ErrorHelper.cs"
 )
 _ERROR_HELPER_SOURCE = _ERROR_HELPER_PATH.read_text(encoding="utf-8")
 
