@@ -36,6 +36,10 @@ PRIMITIVES_ASMDEF = (
     REPO_ROOT / "unity-plugin" / "Editor" / "Primitives"
     / "UnityMCP.Editor.Primitives.asmdef"
 )
+CORE_SCENE_ASMDEF = (
+    REPO_ROOT / "unity-plugin" / "Editor" / "Core" / "Scene"
+    / "UnityMCP.Editor.Core.Scene.asmdef"
+)
 
 # Case-insensitive substrings identifying a concrete FSR (or similar
 # runtime-patching) provider -- SourcePatch's public asmdef must stay neutral.
@@ -102,6 +106,19 @@ def test_primitives_asmdef_has_no_references():
     asmdef = _load_asmdef(PRIMITIVES_ASMDEF)
 
     assert asmdef["references"] == []
+    assert asmdef["noEngineReferences"] is False
+
+
+def test_core_scene_asmdef_has_expected_references():
+    """UnityMCP.Editor.Core.Scene.asmdef must depend only on Primitives
+    (for BatchState/ToolActions/JsonHelper/ErrorClassifier/ObjectIdCompat)
+    and Playtest.Core (for PlaytestConfig types). Never back on
+    UnityMCP.Editor itself — that would re-create the monolith cycle."""
+    asmdef = _load_asmdef(CORE_SCENE_ASMDEF)
+
+    assert asmdef["references"] == [
+        "UnityMCP.Editor.Primitives", "UnityMCP.Playtest.Core",
+    ]
     assert asmdef["noEngineReferences"] is False
 
 
