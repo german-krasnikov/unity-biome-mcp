@@ -9,7 +9,7 @@ Plans/Reload/V2/tcp-churn-heartbeat-fix-2026-07.md.
 from pathlib import Path
 
 import unity_mcp.bridge as _bridge
-from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, BACKOFF_MAX_S, HARD_DEADLINE_S
+from unity_mcp.bridge_heartbeat import BACKOFF_MAX_S, BACKOFF_MIN_S, HARD_DEADLINE_S
 
 _PROJECT = Path(__file__).parents[2]
 _PLUGIN  = _PROJECT / "unity-plugin"
@@ -71,5 +71,5 @@ def test_testrunner_has_no_age_based_terminal_transition():
 
 def test_ping_stall_threshold_is_6():
     """Stall close fires at 6 failures × 15s interval = 90s tolerance (RC3 fix)."""
-    src = (_BH / "bridge_heartbeat.py").read_text(encoding="utf-8")
+    src = (_BH / "bridge" / "heartbeat.py").read_text(encoding="utf-8")
     assert "_ping_stall_failures >= 6" in src

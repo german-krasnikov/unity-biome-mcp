@@ -19,8 +19,6 @@ logger = logging.getLogger(__name__)
 import contextlib  # noqa: E402
 from collections.abc import Callable  # noqa: TC003
 
-from unity_mcp.bridge_heartbeat import BACKOFF_MIN_S, RELOAD_BACKOFF_S, HeartbeatMixin
-from unity_mcp.bridge_retry import RetryPolicy
 from unity_mcp.decisions.generated.connstatus_logic import (
     ConnStatusInput,
     ConnStatusValues,
@@ -34,8 +32,10 @@ from unity_mcp.metrics import METRICS
 from .cassette import record as _record_cassette
 from .compile_state import CompileStateProbe
 from .crash_log import CrashLogger
+from .heartbeat import BACKOFF_MIN_S, RELOAD_BACKOFF_S, HeartbeatMixin
 from .lockfile import is_pid_alive
 from .reload_state import DOMAIN_RELOAD_EXPIRY_S, DomainReloadTracker
+from .retry import RetryPolicy
 from .socket_io import (
     _TCP_KEEPALIVE_DARWIN,
     _TCP_KEEPINTVL_DARWIN,
