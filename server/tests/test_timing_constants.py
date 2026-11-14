@@ -20,6 +20,21 @@ import unity_mcp.bridge_reload_state as _bridge_reload_state
 import unity_mcp.phantom_cleaner as _phantom_cleaner
 from unity_mcp.generated.timing_constants import Timing, TIMING_ROWS
 
+# Captured at import time (module-level `from ... import`, not a live module
+# attribute read): the autouse _fast_clock fixture (see tests/_fast_clock.py)
+# monkeypatches unity_mcp.bridge_heartbeat's BACKOFF_MIN_S/RELOAD_BACKOFF_S/
+# BUSY_TICK_S/IDLE_TICK_S attributes to 0.0 for every test unless marked
+# @pytest.mark.real_clock. A live `_bridge_heartbeat.BACKOFF_MIN_S` read
+# inside a test body would see the patched value, not the real default.
+from unity_mcp.bridge_heartbeat import (  # noqa: E402
+    BACKOFF_MAX_S as _REAL_BACKOFF_MAX_S,
+    BACKOFF_MIN_S as _REAL_BACKOFF_MIN_S,
+    BUSY_TICK_S as _REAL_BUSY_TICK_S,
+    IDLE_TICK_S as _REAL_IDLE_TICK_S,
+    ORPHAN_CHECK_INTERVAL_S as _REAL_ORPHAN_CHECK_INTERVAL_S,
+    RELOAD_BACKOFF_S as _REAL_RELOAD_BACKOFF_S,
+)
+
 _EXPECTED = Timing(
     startupGraceS=90.0,
     domainReloadExpiryS=90.0,
@@ -55,12 +70,12 @@ def test_bridge_heartbeat_constants_are_sourced_from_generated_timing():
         ("IDLE_TICK_S", "idleTickS"),
     ]:
         assert f"{name}: float = _TIMING.{field}" in src, f"{name} not sourced from _TIMING.{field}"
-    assert _bridge_heartbeat.BACKOFF_MIN_S == 5.0
-    assert _bridge_heartbeat.BACKOFF_MAX_S == 60.0
-    assert _bridge_heartbeat.RELOAD_BACKOFF_S == 1.0
-    assert _bridge_heartbeat.ORPHAN_CHECK_INTERVAL_S == 1.0
-    assert _bridge_heartbeat.BUSY_TICK_S == 5.0
-    assert _bridge_heartbeat.IDLE_TICK_S == 2.0
+    assert _REAL_BACKOFF_MIN_S == 5.0
+    assert _REAL_BACKOFF_MAX_S == 60.0
+    assert _REAL_RELOAD_BACKOFF_S == 1.0
+    assert _REAL_ORPHAN_CHECK_INTERVAL_S == 1.0
+    assert _REAL_BUSY_TICK_S == 5.0
+    assert _REAL_IDLE_TICK_S == 2.0
 
 
 def test_bridge_reload_state_constant_is_sourced_from_generated_timing():

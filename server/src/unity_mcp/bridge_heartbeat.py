@@ -7,16 +7,19 @@ import threading
 import time
 
 from unity_mcp.bridge_socket import DomainReloadError, frame_write
+from unity_mcp.generated.timing_constants import TIMING_ROWS
 from unity_mcp.lockfile import PORT_SWEEP_INTERVAL_S, cleanup_stale_port_files
 
 logger = logging.getLogger(__name__)
 
+_TIMING = TIMING_ROWS[0]
+
 # Exponential backoff bounds for reconnect attempts.
-BACKOFF_MIN_S: float = 5.0
-BACKOFF_MAX_S: float = 60.0
+BACKOFF_MIN_S: float = _TIMING.backoffMinS
+BACKOFF_MAX_S: float = _TIMING.backoffMaxS
 # Fast reconnect backoff for expected domain reloads (PlayMode enter/exit).
 # Keep separate from BACKOFF_MIN_S so unexpected disconnects still back off at 5s.
-RELOAD_BACKOFF_S: float = 1.0
+RELOAD_BACKOFF_S: float = _TIMING.reloadBackoffS
 # ARC-7 T1: minimum interval between stale-port sweeps from the idle heartbeat
 # branch. Mirrors the reconnect-callback debounce precedent (server.py ~591).
 # PORT_SWEEP_INTERVAL_S itself lives in lockfile.py (imported above) — it also
@@ -26,12 +29,12 @@ RELOAD_BACKOFF_S: float = 1.0
 # True` never suspends — a busy-loop that starves every other coroutine
 # (including in-flight MCP request handling) until the parent-death grace
 # period expires or the process is reparented back.
-ORPHAN_CHECK_INTERVAL_S: float = 1.0
+ORPHAN_CHECK_INTERVAL_S: float = _TIMING.orphanCheckIntervalS
 # _tick_disconnected per-branch sleep durations (C1 #11 follow-up: name the
 # literals that used to be bare `wait = 5.0` / `wait = 2.0`). Behavior
 # unchanged — same values, now named.
-BUSY_TICK_S: float = 5.0  # Unity compiling/reloading — poll gently while it works
-IDLE_TICK_S: float = 2.0  # fully idle — also the cadence gate for _maybe_sweep_stale_ports
+BUSY_TICK_S: float = _TIMING.busyTickS  # Unity compiling/reloading — poll gently while it works
+IDLE_TICK_S: float = _TIMING.idleTickS  # fully idle — also the cadence gate for _maybe_sweep_stale_ports
 
 _hard_exit_scheduled: bool = False
 
