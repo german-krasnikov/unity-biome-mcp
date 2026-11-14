@@ -11,7 +11,7 @@ stays hand-typed — it is category-level metadata, not a per-tool attribute.
 
 P-12440 Phase 1 surface: 13 CORE + 20 TIER1-only = 33 always-visible.
 """
-from .tool_specs import GD_CATEGORIES, _SPECS, gd_tools_enabled
+from .tool_specs import _SPECS, GD_CATEGORIES, gd_tools_enabled
 
 # ---------------------------------------------------------------------------
 # Themed category keys — includes categories with zero tools today (CONNECTION,

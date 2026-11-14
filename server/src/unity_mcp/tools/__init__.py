@@ -29,6 +29,7 @@ from . import (
     spatial,
     sync_module,
     testing,
+    tool_specs,
     transaction,
     ui_intent_tool,
     uitk,
@@ -37,7 +38,6 @@ from . import (
     vfx_intent_tool,
     watch,
 )
-from . import tool_specs
 from ._common import bind
 from .generated import catalog_tools
 from .metrics_tool import register as register_metrics
