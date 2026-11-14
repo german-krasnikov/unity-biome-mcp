@@ -1,23 +1,28 @@
 """Constants and CircuitBreaker for Unity Biome MCP middleware."""
-import time
+from biome_mcp.circuit_breaker import CircuitBreaker  # noqa: F401 (re-export)
 
+from .decisions.generated.mutability_logic import IsMutatingInput, is_mutating
 from .tools._annotations import _INTERNAL_RETRY_SAFE_CMDS as _KNOWN_SAFE_READS
+from .tools.generated.catalog_blast import BLAST_RADIUS as _GENERATED_BLAST_RADIUS
+from .tools.generated.catalog_reads import ACTION_READS as _CATALOG_ACTION_READS
 from .tools.playtest_async import _RUNNING_PHASE_PREFIX as _PLAYTEST_RUNNING_PREFIX
+from .tools.tags import tagged
 from .tools.tool_specs import _SPECS as _TOOL_SPECS
 
 # get_status/sync_status: pure-read wire commands with no ToolSpec entry
 # (audited in tools/_annotations.py). Reused here, not duplicated, so the
 # read-only gate and the retry-safety allowlist can never drift apart.
 
-_STRIP_CMDS: frozenset = frozenset({"get_component", "inspect", "get_object_detail"})
+_STRIP_CMDS: frozenset = tagged("strip_defaults")
 
-BLAST_RADIUS = {
-    "get_hierarchy": 0, "get_component": 0, "inspect": 0, "screenshot": 0,
-    "query_state": 0, "get_object_detail": 0, "find_objects": 0,
-    "set_property": 1, "set_active": 1, "set_material": 1, "set_runtime_property": 1,
-    "create_object": 2, "manage_component": 2, "wire_event": 2,
-    "delete_object": 4, "execute_code": 5, "scene": 3, "batch": 3,
-}
+# Threshold at which a write is flagged HIGH BLAST RADIUS (check_blast_radius,
+# watchdog); DANGEROUS_BLAST is denied outright in agent mode (permission_broker).
+BLAST_HIGH, BLAST_DANGEROUS = 3, 4
+
+# set_runtime_property: Python MCP tool removed, C# handler remains (see
+# _RUNTIME_ONLY_CMDS.add("set_runtime_property") below) — no catalog block,
+# so it stays a native exception to the generated table (SV3-DESIGN.md §0).
+BLAST_RADIUS = {**_GENERATED_BLAST_RADIUS, "set_runtime_property": 1}
 
 # Derived from _SPECS — tool_specs.py is now the single source of truth.
 # Kept as mutable set for:
@@ -53,12 +58,7 @@ WRITE_CMDS.add("navmesh")
 # run_playtest / run_playtest_suite execute in Play Mode; Edit Mode scene state
 # is unchanged, so they must not count against the consecutive-write guard
 # (MCP-GUARD-007).
-SCENE_STATE_NEUTRAL_WRITES: frozenset[str] = frozenset({
-    "screenshot",
-    "run_playtest",
-    "run_playtest_suite",
-    "start_playtest",           # same Play-mode-neutral scene-state axis as run_playtest
-})
+SCENE_STATE_NEUTRAL_WRITES: frozenset[str] = tagged("scene_state_neutral")
 
 # check_verification_needed's advisory every-10th-mutation nudge must count an
 # Edit-mode run_playtest as a real scene-state write: C03 wired `MCP
@@ -74,78 +74,50 @@ VERIFICATION_NUDGE_NEUTRAL_WRITES: frozenset[str] = (
     SCENE_STATE_NEUTRAL_WRITES - frozenset({"run_playtest", "start_playtest"})
 )
 
-# editor actions that are reads; all others (play/stop/pause/step/select) are writes
-_EDITOR_READ_ACTIONS: frozenset[str] = frozenset({"state", "project_path"})
+# Per-cmd frozenset of action values that are reads: the READ lines of dsl/tools.biome, printed into tools/generated/catalog_reads.py
+# (and, for the C# side, into Editor/Generated/ActionReads.g.cs). Conservative: absent/unknown action -> write.
+# The editor's reads are state and project_path; play/stop/pause/step/select and the rest are writes.
+# navmesh is the wire command that the tool navmesh_query sends (the raw transport alias stays fail-closed as a write-capable command).
+ACTION_READS: dict[str, frozenset[str]] = {**_CATALOG_ACTION_READS, "navmesh": _CATALOG_ACTION_READS["navmesh_query"]}
 
-# Per-cmd frozenset of action values that are reads.
-# Conservative: absent/unknown action → write.
-# "editor" included to absorb the _is_batch_readonly special-case.
-ACTION_READS: dict[str, frozenset[str]] = {
-    "animation":         frozenset({"get", "get_events", "get_clip_path"}),
-    "timeline":          frozenset({"get", "get_bindings"}),
-    "animator":          frozenset({"get", "get_blend_tree"}),
-    "particle":          frozenset({"get"}),
-    "shader":            frozenset({"get", "graph_get"}),
-    "material":          frozenset({"get", "list_properties", "list_slots", "get_errors", "list_shaders"}),
-    "prefab":            frozenset({"get_overrides"}),
-    "scriptable_object": frozenset({"get", "list_types", "find"}),
-    "asset":             frozenset({"find", "get_info", "validate_move", "get_dependencies",
-                                    "find_dependents"}),
-    "scene":             frozenset({"list"}),
-    "project_settings":  frozenset({"get"}),
-    "menu":              frozenset({"list"}),
-    "editor":            _EDITOR_READ_ACTIONS,  # same object — no duplication
-    "bake":              frozenset({"status", "settings"}),
-    "package":           frozenset({"list", "search"}),
-    "scene_environment": frozenset({"get"}),
-    "uitk_file":         frozenset({"read"}),
-    "navmesh":           frozenset({"sample", "path", "raycast", "status", "get_settings"}),
-    "navmesh_query":     frozenset({"sample", "path", "raycast", "status", "get_settings"}),
-    "profile":           frozenset({"status", "analyze", "compare", "list_sessions"}),
-}
+
+def _switch(args: dict, key: str) -> str:
+    """absent, off (the literal false: False or "false") or on (any other value) of a switch argument."""
+    if key not in args:
+        return "absent"
+    return "off" if args[key] in (False, "false") else "on"
 
 
 def is_write(cmd: str, args: dict | None = None, *, unknown_is_write: bool = False) -> bool:
     """Return True iff cmd+args represents a mutation.
 
-    For action-parameterised commands in WRITE_CMDS, check args["action"].
-    Unknown/absent action → True (conservative).
-    Commands not in WRITE_CMDS are never writes (returns False) UNLESS cmd is
-    also absent from READ_CMDS, in which case the unknown_is_write kwarg
-    decides: False (default, unchanged) is what every existing advisory
-    caller gets — check_retry/check_verification_needed/transition/
-    log_mutation treat an unrecognized cmd as a non-write; the worst case is
-    a missed nudge. Read-only AUTHORIZATION callers (check_read_only in
-    middleware_guards.py and server.py) pass True: a wire command absent
-    from _SPECS must fail closed, not silently pass through, in read-only
-    mode.
+    The rule is the DECISION isMutating of dsl/decisions/mutability.logic (printed into
+    decisions/generated/mutability_logic.py); this function reads its facts from the registries and the arguments:
+    call.base (read, write or unknown: the live sets, which plugin_api.register_read_cmds/register_write_cmds and
+    server._warm_cmd_flags change), call.actionRead (args["action"] is one of ACTION_READS[cmd]), and the literals of the
+    switch arguments (doctor fix, get_metrics reset, wait_until abort_on_fail, get_changes clear, editor enable).
+
+    A command that is in neither WRITE_CMDS nor READ_CMDS is unknown: the unknown_is_write kwarg decides. False (the
+    default) is what every advisory caller gets -- check_retry/check_verification_needed/transition/log_mutation treat an
+    unrecognized cmd as a non-write; the worst case is a missed nudge. Read-only AUTHORIZATION callers (check_read_only in
+    middleware_guards.py and server.py) pass True: a wire command absent from _SPECS must fail closed, not silently pass
+    through, in read-only mode. Unknown/absent action of an action-parameterised write command -> True (conservative).
     """
-    if cmd in _KNOWN_SAFE_READS:
-        return False
-    if cmd not in WRITE_CMDS:
-        return False if cmd in READ_CMDS else unknown_is_write
-    # doctor is observational by default, but fix=True deletes stale local
-    # discovery files. Treat unknown truthy values conservatively as writes.
-    if cmd == "doctor":
-        return bool((args or {}).get("fix", False))
-    if cmd == "wait_until":
-        # Missing/false is observational. Any other value is conservative: the
-        # Unity handler may stop Play Mode after a timeout.
-        return (args or {}).get("abort_on_fail", False) not in (False, "false")
-    if cmd == "editor" and (args or {}).get("action") == "mutation_mode":
-        # P0-70: a query (no "enable") is a read; a set (enable present,
-        # including an explicit False) is a write.
-        return "enable" in (args or {})
-    if cmd == "get_metrics":
-        # Python-local counter consumption; malformed values fail closed.
-        return (args or {}).get("reset", False) not in (False, "false")
-    if cmd == "get_changes":
-        # Unity defaults clear=True. Only an explicit false is non-consuming.
-        return (args or {}).get("clear", True) not in (False, "false")
-    reads = ACTION_READS.get(cmd)
-    if reads is None:
-        return True  # plain write cmd, no action map
-    return (args or {}).get("action", "") not in reads
+    args = args or {}
+    action = args.get("action", "")
+    return is_mutating(IsMutatingInput(
+        call_base="read" if cmd in _KNOWN_SAFE_READS else "write" if cmd in WRITE_CMDS else "read" if cmd in READ_CMDS else "unknown",
+        call_cmd=str(cmd),
+        call_unknown_is_write=unknown_is_write,
+        call_action_read=action in ACTION_READS.get(cmd, ()),
+        args_action=str(action),
+        args_has_enable="enable" in args,
+        # doctor is observational by default, but fix=True deletes stale local discovery files: any truthy value is a write.
+        args_fix="absent" if "fix" not in args else "on" if args["fix"] else "off",
+        args_reset=_switch(args, "reset"),
+        args_abort_on_fail=_switch(args, "abort_on_fail"),
+        args_clear=_switch(args, "clear"),
+    ))
 
 
 # Commands whose OWN send exception is treated as an uncertain scenario
@@ -153,9 +125,7 @@ def is_write(cmd: str, args: dict | None = None, *, unknown_is_write: bool = Fal
 # SCENE_STATE_NEUTRAL_WRITES: that frozenset answers "does this count as a
 # blind write for the advisory guard" (transition()); this answers "can this
 # command's outcome make scene-derived caches stale."
-PLAYTEST_SCENARIO_CMDS: frozenset[str] = frozenset(
-    {"start_playtest", "run_playtest", "run_playtest_suite", "get_playtest_run"}
-)
+PLAYTEST_SCENARIO_CMDS: frozenset[str] = tagged("playtest_scenario")
 
 
 def is_scenario_terminal(cmd: str, result: str) -> bool:
@@ -180,61 +150,4 @@ def is_scenario_terminal(cmd: str, result: str) -> bool:
 # of whether any GATE_PRIORS entry currently targets it. get_compile_errors
 # is intentionally excluded for exactly this reason (see prefetch_cache.py's
 # GATE_PRIORS comment for the paired write-side fix).
-_READ_CACHEABLE = frozenset({
-    "get_component", "get_hierarchy", "get_components_list", "inspect",
-})
-
-
-class CircuitBreaker:
-    CLOSED, OPEN, HALF_OPEN = 0, 1, 2
-
-    def __init__(self, threshold: int = 3, cooldown: float = 15.0, is_ready_fn=None):
-        self.state = self.CLOSED
-        self.failures = 0
-        self.threshold = threshold
-        self.cooldown = cooldown
-        self.opened_at = 0.0
-        self._probe_in_flight: bool = False
-        self._is_ready_fn = is_ready_fn
-
-    def record_success(self) -> None:
-        self.failures = 0
-        self.state = self.CLOSED
-        self._probe_in_flight = False
-
-    def release_probe(self) -> None:
-        self._probe_in_flight = False
-
-    def record_failure(self) -> None:
-        self.failures += 1
-        if self.failures >= self.threshold:
-            self.state = self.OPEN
-            self.opened_at = time.monotonic()
-
-    def allow_request(self) -> bool:
-        if self.state == self.CLOSED:
-            return True
-        if self.state == self.OPEN:
-            # Check external readiness signal (e.g. compile state) before time-based cooldown
-            if self._is_ready_fn is not None:
-                try:
-                    if self._is_ready_fn():
-                        self.state = self.HALF_OPEN
-                        self._probe_in_flight = True
-                        return True
-                except Exception:
-                    pass
-            if time.monotonic() - self.opened_at > self.cooldown:
-                self.state = self.HALF_OPEN
-                self._probe_in_flight = True
-                return True
-            return False
-        # HALF_OPEN: allow all concurrent requests so no request is falsely
-        # reported as "Circuit OPEN" while a probe is in flight (P-092).
-        return True
-
-    def get_status(self) -> str:
-        return ["CLOSED", "OPEN", "HALF_OPEN"][self.state]
-
-    def remaining(self) -> float:
-        return max(0.0, self.cooldown - (time.monotonic() - self.opened_at))
+_READ_CACHEABLE = tagged("read_cacheable")

@@ -12,7 +12,7 @@ link developer documentation to an installed `.claude/` copy.
 | Concern | Canonical source |
 |---|---|
 | Public Python signature and description | `server/src/unity_mcp/tools/*.py` |
-| Category, visibility, timeout, mutability, runtime and batch surface | `server/src/unity_mcp/tools/tool_specs.py` |
+| Category, visibility, timeout, mutability, runtime and batch surface | `dsl/tools.biome` (see `dsl/README.md`); `server/src/unity_mcp/tools/tool_specs.py` for the few tools it does not own |
 | Canonical category membership | derived by `tools/gating.py` from `ToolSpec` |
 | Deferred schema registry | `tools/schema_registry.py` and `server_filtering.py` |
 | Unity command and argument behavior | `unity-plugin/Editor/CommandRouter*.cs` and helpers |
@@ -36,7 +36,7 @@ Before adding a tool, search both surfaces:
 
 ```bash
 rg 'async def .*keyword' server/src/unity_mcp/tools
-rg "'[^']*keyword[^']*': ToolSpec" server/src/unity_mcp/tools/tool_specs.py
+rg -i 'keyword' dsl/tools.biome
 rg 'Register\("[^\"]*keyword' unity-plugin/Editor
 ```
 
@@ -108,6 +108,9 @@ Rules:
 - Unity command failures use a stable `err:`/`error:` form or a failed response
   envelope; Python-only validation raises `ToolError` or returns an equally
   explicit error contract.
+- An unknown `action` is reported as `Unknown action '<x>'. Valid: a|b|c.`, built by
+  `ErrorHelper.InvalidAction` from the tool's declared actions (`ToolActions.Names`).
+  Never write a hand valid-list; see [`dsl/README.md`](../dsl/README.md#actions).
 - Machine-readable sentinels use stable keys and delimiters. Durable operations
   retain all identities (`request_id`, `run_id`, `utf_guid`) rather than asking
   callers to infer the latest run.
@@ -229,7 +232,7 @@ distillation.
 - [ ] Existing Python, ToolSpec, Unity, docs, and ClientSkills surfaces were searched.
 - [ ] The public signature uses established names or documents a tested mapping.
 - [ ] Optional values and booleans are encoded deliberately.
-- [ ] A closed action enum validates invalid input.
+- [ ] A closed action enum validates invalid input against its declared `ACTION` lines.
 - [ ] Errors, sentinels, partial states, and timeout semantics are unambiguous.
 - [ ] `ToolSpec` category, mutability, timeout, runtime, and direct-only flags match behavior.
 - [ ] Visibility or full-schema promotion is justified.

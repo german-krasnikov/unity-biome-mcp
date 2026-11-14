@@ -101,8 +101,9 @@ namespace UnityMCP.TestProject.Command
         {
             CommandRegistry.InitDefaults();
             // batch is no longer mutating (Phase 31b: per-command guards)
-            // scene is no longer mutating (P-414: undo group around save clears isDirty in Unity 6;
-            //   mutating actions — new/open/discard/close — record mutation explicitly inside ExecScene)
+            // scene is NOT asserted here even though it IS mutating again post-A5 (dsl/tools.biome
+            // declares it SCENE DEL) — this list only covers commands that were never otherwise
+            // flagged; see InitDefaults_RegistersReadCommandsAsNonMutating for scene's own coverage.
             foreach (var cmd in new[] { "create_object", "delete_object", "set_property", "set_active",
                 "wire_event", "manage_component", "set_material",
                 "create_ui", "set_rect", "animator", "particle", "shader", "menu",
@@ -116,11 +117,16 @@ namespace UnityMCP.TestProject.Command
         public void InitDefaults_RegistersReadCommandsAsNonMutating()
         {
             CommandRegistry.InitDefaults();
+            // A5: "checkpoint" (SYSTEM RW), "timeline" (MEDIA RW) and "scene" (SCENE DEL) are
+            // all declared mutating in dsl/tools.biome and generate Mutating=true in
+            // ToolMeta.g.cs — removed from this non-mutating set, same pattern as the prior
+            // recompile/editor DSL-catalog alignment (32bb6cfe). "scene"'s old P-414 comment
+            // ("per-action mutation; registry flag is false") no longer matches: the DSL
+            // catalog is now the source of truth for the registry-level flag.
             foreach (var cmd in new[] { "ping", "get_version", "get_hierarchy", "get_component",
                 "get_components_list", "get_object_detail", "find_objects", "get_console",
-                "recompile", "search_scene", "get_enabled_tools", "editor", "inspect",
-                "validate_references", "checkpoint", "timeline",
-                "scene" /* P-414: per-action mutation; registry flag is false */ })
+                "search_scene", "get_enabled_tools", "inspect",
+                "validate_references" })
             {
                 Assert.IsFalse(CommandRegistry.IsMutating(cmd), $"{cmd} should NOT be mutating");
             }

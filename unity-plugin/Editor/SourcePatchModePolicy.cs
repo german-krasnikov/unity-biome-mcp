@@ -77,9 +77,9 @@ namespace UnityMCP.Editor
                     "state=OnReady: no armed coordinator — inconsistent state, entering Recovery");
             }
 
-            var path = JsonHelper.ExtractString(argsJson, "path");
+            var path = SourcePatchWriteArgs.Path(argsJson);
             SourcePatchPathGuard.Validate(path, CurrentProjectPath()); // ROI Fix 1: pre-effect boundary check
-            var content = JsonHelper.ExtractString(argsJson, "content") ?? "";
+            var content = SourcePatchWriteArgs.Content(argsJson) ?? "";
             var newBytes = System.Text.Encoding.UTF8.GetBytes(content);
             var beforeBytes = File.ReadAllBytes(Path.GetFullPath(path));
 

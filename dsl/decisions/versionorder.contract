@@ -1,0 +1,9 @@
+# Facts of "is this release newer than the one I run": the host folds the strings (parse X.Y.Z[-pre], compare the triples); the policy for pre-releases is the decision.
+CONTRACT unitymcp.versionorder
+COVERAGE declared-scope
+MODULE version_facts
+FACT ver.parsed bool
+FACT ver.triple enum=less,equal,greater closed
+FACT ver.candPre bool
+FACT ver.curPre bool
+INPUT isNewer ver.parsed ver.triple ver.candPre ver.curPre

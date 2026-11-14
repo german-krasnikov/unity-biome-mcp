@@ -1,0 +1,17 @@
+# connStatus: user-facing connection status (connection_slot). First match wins.
+# transportStatus: TCP layer (tools/connection.py). Differs from connStatus on purpose (owner decision): failed stays failed, domainReloading without a writer is reconnecting.
+# Verdict words are identifiers: the host prefixes "tcp:" to transportStatus and renders domainReloading as "domain-reloading".
+DECISION connStatus DEFAULT reconnecting
+  dormant AT 10 WHEN conn.state == dormant -> dormant
+  waking AT 20 WHEN conn.state == waking -> waking
+  live AT 30 WHEN conn.writerLive -> connected
+  failed AT 40 WHEN conn.state == failed -> disconnected
+  reload AT 50 WHEN conn.state == domainReloading -> domainReloading
+END
+
+DECISION transportStatus DEFAULT reconnecting
+  dormant AT 10 WHEN conn.state == dormant -> dormant
+  waking AT 20 WHEN conn.state == waking -> waking
+  live AT 30 WHEN conn.writerLive -> connected
+  failed AT 40 WHEN conn.state == failed -> failed
+END

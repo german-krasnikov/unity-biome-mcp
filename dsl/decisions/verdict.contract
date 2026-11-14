@@ -1,0 +1,40 @@
+# Facts of the playtest verdict family. The host reads a report (text or JSON ledger) into these typed facts; every threshold, marker word and ordering below is the rule.
+# plane = the hand implementation judged today: server (Python _is_playtest_pass/_classify_outcome/suite_verdict) or editor (C# CommandRouter.IsPlaytestSuccess).
+# Each plane has its own extractor that mirrors its own parser: Python finds the PLAYTEST header on any line (warnings are prepended before the report is read, MCP-GUARD-007) and reports first|later;
+# C# accepts it only at the very start (first) with a count token ended by a space, and looks for no failure markers. Those parse differences live in the two extractors, not in rows; the owner has not chosen between the planes (Q-V1).
+CONTRACT unitymcp.verdict
+COVERAGE declared-scope
+MODULE verdict_facts
+FACT report.plane enum=server,editor closed
+FACT report.format enum=json,text closed
+FACT report.blank bool
+FACT report.zeroOfZero bool
+FACT ledger.readable bool
+FACT ledger.teardownOk bool
+FACT ledger.hasFailed bool
+FACT ledger.failed number integer
+FACT ledger.steps number min=0 max=1000000 integer
+FACT ledger.stepsNotOk number min=0 max=1000000 integer
+FACT ledger.failedMatchesSteps bool
+FACT text.header enum=none,first,later closed
+FACT text.passed number min=0 max=1000000 integer
+FACT text.total number min=0 max=1000000 integer
+FACT text.hasFail bool
+FACT text.hasError bool
+FACT text.hasConsoleErr bool
+FACT text.hasBlocked bool
+FACT text.hasTimeout bool
+FACT text.hasAborted bool
+FACT file.passed number min=0 max=1000000 integer
+FACT file.expected number min=0 max=1000000 integer
+FACT file.errorText bool
+FACT suite.anyFail bool
+FACT suite.anyError bool
+FACT suite.allNoVerdict bool
+FACT suite.outerFailed bool
+LINK policy.passes passes
+INPUT passes report.plane report.format report.blank ledger.teardownOk ledger.hasFailed ledger.failed ledger.steps ledger.stepsNotOk text.header text.passed text.total text.hasFail text.hasError text.hasConsoleErr text.hasBlocked text.hasTimeout text.hasAborted
+INPUT outcome report.plane report.format report.blank report.zeroOfZero ledger.readable ledger.teardownOk ledger.hasFailed ledger.failed ledger.steps ledger.stepsNotOk ledger.failedMatchesSteps text.header text.passed text.total text.hasFail text.hasError text.hasConsoleErr text.hasBlocked text.hasTimeout text.hasAborted
+INPUT fileState file.passed file.expected file.errorText
+INPUT suiteInner suite.anyFail suite.anyError suite.allNoVerdict
+INPUT suiteOuter suite.outerFailed

@@ -6,9 +6,9 @@ import os
 from collections.abc import Awaitable, Callable  # noqa: TC003
 
 from .console_levels import PROBLEM_LEVELS
+from .tools.tags import tagged
 
-META_CMDS = {"list_connections", "reconnect_unity",
-             "discover_tools", "get_enabled_tools", "ping"}
+META_CMDS = tagged("meta_cmd")
 
 
 class SceneBrief:

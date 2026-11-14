@@ -1,17 +1,18 @@
 """UI Toolkit tools: inspect_uitk, lint_uitk, uitk_element, attach_uitk, uitk_file."""
 from typing import Literal
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._common import bind
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import attach_uitk, inspect_uitk, lint_uitk, tools  # noqa: F401
 
 _send = None
 _args = None
 
 
-async def inspect_uitk(
+async def _inspect_uitk_body(
     path: str | None = None,
     depth: int | None = None,
     selector: str | None = None,
@@ -37,7 +38,7 @@ async def inspect_uitk(
     ))
 
 
-async def lint_uitk(
+async def _lint_uitk_body(
     path: str | None = None,
     fix: bool | None = None,
 ) -> str:
@@ -55,6 +56,10 @@ async def lint_uitk(
 
 
 async def uitk_element(
+    # Literal (not catalog Any) is load-bearing: FastMCP turns it into a JSON-schema enum,
+    # which is the only client-side validation this action string gets. The catalog's ARG
+    # grammar has no Literal/enum type, so BODY (which types every ARG from the catalog)
+    # would silently widen this to Any and drop that enum — stays hand-written (SV8).
     action: Literal["query", "get", "set_style", "add_class", "remove_class", "get_style", "enable", "disable"],
     path: str | None = None,
     ref: str | None = None,
@@ -68,7 +73,6 @@ async def uitk_element(
     (use inspect_uitk to find elements first, then pass ~N ref for zero-token addressing;
     use set_property for serialized component fields on the UIDocument GameObject;
     use create_ui for uGUI Canvas elements).
-    action: query (find elements) | get (read value/text) | set_style | add_class | remove_class | get_style | enable | disable.
     Element addressing priority: ref (~N from inspect_uitk) → name → selector (CSS class/type).
     path: scene path to UIDocument or PanelRenderer GameObject (e.g. /HUD).
     ref: ~N refid from inspect_uitk (highest priority, stale after re-inspect or domain reload).
@@ -85,28 +89,9 @@ async def uitk_element(
     ))
 
 
-async def attach_uitk(
-    path: str,
-    uxml: str | None = None,
-    panel_settings: str | None = None,
-    sort_order: int | None = None,
-) -> str:
-    """Attach UIDocument (or PanelRenderer on Unity 6.4+) to a GameObject (use for UI Toolkit runtime panels).
-    Side effect: mutates the scene by adding one Undo-recorded UIDocument after validating
-    every supplied asset; it does not create UXML or PanelSettings assets.
-    path: scene path to the target GameObject.
-    uxml: Assets/ path to .uxml VisualTreeAsset (optional; component added without VTA if omitted).
-    panel_settings: optional Assets/ path to a PanelSettings asset; omitted leaves the field unset.
-    sort_order: UIDocument.sortingOrder (default 0; ignored on Unity 6.4+ PanelRenderer).
-    err: if UIDocument or PanelRenderer already present — remove it first or use inspect_uitk/uitk_element.
-    """
-    return await _send("attach_uitk", _args(
-        path=path, uxml=uxml, panel_settings=panel_settings, sort_order=sort_order,
-    ))
-
-
 async def uitk_file(
     path: str,
+    # Literal (not catalog Any) is load-bearing here too — see uitk_element's comment above.
     action: Literal[
         "read", "write", "create_uxml", "create_uss",
         "set-attr", "add-class", "remove-class",
@@ -129,17 +114,7 @@ async def uitk_file(
     (UI Toolkit only — use `asset` for other Unity asset types,
     use `inspect_uitk` to inspect the live VisualElement tree at runtime,
     use `attach_uitk` to wire a UIDocument to a GameObject).
-    action=read: return the file's UTF-8 text verbatim (no normalization).
-    action=write: full file replace; validates and triggers AssetDatabase.ImportAsset.
-    action=create_uxml: new UXML file with minimal template; content optional.
-    action=create_uss: new empty USS file; content optional.
-    action=set-attr: set attribute on UXML element by name (selector=name, attr=attr, value=val).
     action=add-class|remove-class: manage USS class on UXML element by name.
-    action=add-element: append child (parent=name, tag=ui:Label, attrs='k=v ...').
-    action=remove-element: delete UXML element and children by name.
-    action=set-rule: set CSS property in USS rule; creates rule if selector absent.
-    action=remove-rule: delete USS rule block by exact selector string.
-    action=revert: restore file to state before last write (single-level, cleared on domain reload).
     path: Assets/ path to .uxml or .uss file. Library/ and Packages/ are rejected.
     """
     if not path.endswith((".uxml", ".uss")):
@@ -153,8 +128,5 @@ async def uitk_file(
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(inspect_uitk)
-    mcp.tool(annotations=_RO)(lint_uitk)
-    mcp.tool(annotations=_RW)(uitk_element)
-    mcp.tool(annotations=_RW)(attach_uitk)
-    mcp.tool(annotations=_RW)(uitk_file)
+    tools.register(mcp, uitk_element)
+    tools.register(mcp, uitk_file)

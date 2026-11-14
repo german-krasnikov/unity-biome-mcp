@@ -1,4 +1,4 @@
-"""N1b: pure ToolSpec-metadata + ownership data for sync_unity.
+"""N1b: pure ownership data for sync_unity's wire mapping.
 
 Split out of sync_module.py so tool_specs.py (imported by reload_ladder.py
 for _SPECS) can read this data WITHOUT transitively importing
@@ -8,12 +8,12 @@ the sync facade)" (server/pyproject.toml [tool.importlinter]):
 reload_ladder -> tool_specs must never reach sync.py. sync_module.py (the
 SyncModule class + delegation, which DOES import tools/sync.py) re-exports
 these same names -- single source of truth, two import paths.
-"""
 
-# Explicit public -> wire mapping the sync module owns (N1b checkbox 2).
-SPEC_KWARGS: dict[str, dict] = {
-    'sync_unity': {'category': 'SYSTEM', 'tier1': True, 'direct_only': True},
-}
+sync_unity's ToolSpec kwargs used to live here too (SPEC_KWARGS), merged by
+tool_specs.py's own pilot loop; since S0 9/11 they are owned by the tool
+catalog (dsl/tools.biome) instead, merged by tool_specs.py's generic catalog
+loop like every other cataloged tool.
+"""
 
 OWNED_WIRE_COMMANDS: dict[str, tuple[str, ...]] = {
     'sync_unity': ('sync', 'sync_status'),

@@ -4,7 +4,7 @@ import math
 import time
 from collections.abc import Awaitable, Callable  # noqa: TC003
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp import editor_log
 from unity_mcp.constants import SESSION_TIMEOUT as _DEFAULT_TIMEOUT

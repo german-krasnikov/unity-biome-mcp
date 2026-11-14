@@ -11,7 +11,7 @@ namespace UnityMCP.Editor.Chat
         {
             var result = new List<BackendSpec> { new BackendSpec("Claude", null, true, BackendKind.Claude) };
             // Dedup: block agent .md files from colliding with reserved names.
-            var seen   = new HashSet<string>(StringComparer.Ordinal) { "Claude", "Codex", "Antigravity", "Kimi", "OpenCode" };
+            var seen   = new HashSet<string>(BackendKindValues.Names, StringComparer.Ordinal);
 
             foreach (var dir in agentDirs)
                 AddFromDir(dir, result, seen);

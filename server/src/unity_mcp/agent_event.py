@@ -2,38 +2,22 @@
 
 import uuid
 from datetime import UTC, datetime
-from typing import Any, Literal, get_args
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-_ALL_KINDS = Literal[
-    "session_started", "session_resumed", "session_ended",
-    "turn_started", "turn_completed",
-    "assistant_delta", "thought_delta",
-    "tool_call_started", "tool_call_completed", "tool_call_failed",
-    "permission_requested", "permission_resolved",
-    "file_change_detected",
-    "plan_step_started", "plan_step_completed",
-    "error", "warning",
-    "cost_update",
-    "capabilities_changed",
-    "heartbeat",
-]
+from .agent_event_emitters import EMITTERS
+from .agent_event_kinds import ALL_KINDS
 
 # All known event kind strings — exported for test assertions and default fallback.
-_ALL_KIND_LIST: list[str] = list(get_args(_ALL_KINDS))
+# Generated from dsl/events.biome (E1, Q9) — single source for kinds/emitters.
+_ALL_KIND_LIST: list[str] = list(ALL_KINDS)
 
-# Per-provider subset of _ALL_KIND_LIST. Unknown providers get the full list.
+# Per-provider subset of _ALL_KIND_LIST, derived from EMITTERS (kind -> providers).
+# Unknown providers get the full list.
 _PROVIDER_EVENT_KINDS: dict[str, list[str]] = {
-    "claude": _ALL_KIND_LIST,
-    "codex": [k for k in _ALL_KIND_LIST if k not in {"thought_delta", "session_resumed"}],
-    "kimi": ["session_started", "assistant_delta", "turn_completed", "cost_update"],
-    "agy": ["session_started", "assistant_delta", "turn_started", "turn_completed"],
-    "opencode": [
-        "session_started", "assistant_delta",
-        "tool_call_started", "tool_call_completed", "tool_call_failed",
-        "turn_completed", "cost_update",
-    ],
+    provider: [k for k in _ALL_KIND_LIST if provider in EMITTERS.get(k, ())]
+    for provider in sorted({p for providers in EMITTERS.values() for p in providers})
 }
 
 
@@ -50,7 +34,7 @@ class AgentEvent(BaseModel):
     timestamp:       str             = Field(
         default_factory=lambda: datetime.now(UTC).isoformat()
     )
-    kind:            str             = ""  # one of _ALL_KINDS, or unknown future kind
+    kind:            str             = ""  # one of ALL_KINDS, or unknown future kind
     payload:         dict[str, Any]  = Field(default_factory=dict)
     meta:            dict[str, Any] | None = None
 

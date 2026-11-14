@@ -129,6 +129,71 @@ step or automatic console failure, so remaining TEARDOWN steps are skipped.
 
 ## Step Types (Alphabetical)
 
+The grammar of each verb, printed from `dsl/constructs/playtest.construct` by `scripts/dsl.sh generate` (the table is never edited by hand). `<name>` is one token, `<name...>` the text up to the next word of the line, `<name:A|B>` one of the words, `[...]` is optional. `MACRO`, `CALL`, `FOR` and `COMMENT` are phases of the parser that run before a line is read, so they are not in it.
+
+<!-- biome:begin verbs -->
+| Verb | Syntax |
+|---|---|
+| ABORT_ON_FAIL | `ABORT_ON_FAIL` |
+| ASSERT | `ASSERT <query...> <op> <value...> [TIMEOUT <timeout>] [AS <label...> [TIMEOUT <timeout2>]]` |
+| ASSERT | `ASSERT <flag>` |
+| ASSERT_BATCH | `ASSERT_BATCH`, then lines `ASSERT <query...> <op> <value...>`, then `END` |
+| ASSERT_CAPTURED | `ASSERT_CAPTURED <label> <mode:INCREASED\|DECREASED\|UNCHANGED\|INCREASED_BY\|DECREASED_BY> [<subop> <value>]` |
+| ASSERT_CHANGED | `ASSERT_CHANGED <label>` |
+| ASSERT_CONSERVED | `ASSERT_CONSERVED [SUM] <terms...> [== <expected>] OVER <over>` |
+| ASSERT_CONSOLE_CLEAN | `ASSERT_CONSOLE_CLEAN [IGNORE <patterns...>]` |
+| ASSERT_CTA | `ASSERT_CTA [<state:VISIBLE\|CLICKABLE>]` |
+| ASSERT_FRAMES_DIFFER | `ASSERT_FRAMES_DIFFER <label>` |
+| ASSERT_FRAMES_STATIC | `ASSERT_FRAMES_STATIC <label>` |
+| ASSERT_MAX | `ASSERT_MAX <name> <op> <value>` |
+| ASSERT_MIN | `ASSERT_MIN <name> <op> <value>` |
+| ASSERT_NEAR | `ASSERT_NEAR <path1> <path2> <threshold>` |
+| ASSERT_ONE_ACTIVE | `ASSERT_ONE_ACTIVE <path1> <path2> [<more...>]` |
+| CAPTURE | `CAPTURE <label> <query...>` |
+| CAPTURE_FRAMES | `CAPTURE_FRAMES <count> INTERVAL <interval> [CAMERA <camera>] [MODE <mode:strip\|list\|Strip\|List\|STRIP\|LIST>] [LABEL <label>]` |
+| CAPTURE_MAX | `CAPTURE_MAX <name> <query> [OVER <over>]` |
+| CAPTURE_MIN | `CAPTURE_MIN <name> <query> [OVER <over>]` |
+| CLICK | `CLICK <path> [WAIT <wait>]` |
+| COMPLETE_PURCHASE | `COMPLETE_PURCHASE <path> [EXPECT]` |
+| DESC | `DESC [<label...>]` |
+| EXPECT_FAIL | `EXPECT_FAIL` |
+| FILL | `FILL <path> [<value...>]` |
+| FOCUS | `FOCUS <path>` |
+| INCLUDE | `INCLUDE <file...>` |
+| INVARIANT | `INVARIANT <query...> <op> <value...>` |
+| INVOKE | `INVOKE <path> <component> <method> [<args...>]` |
+| INVOKE_REPEAT | `INVOKE_REPEAT <count> <path> <component> <method> [<args...>]` |
+| LOG | `LOG [<message...>]` |
+| MCP | `MCP <command> [<args...>] INTO <var>` |
+| MCP | `MCP <command> [<args...>]` |
+| MONITOR | `MONITOR [<query>]` |
+| MOVE | `MOVE [<path>] TO <to> [<offset...>]` |
+| MOVE_PATH | `MOVE_PATH <path...> [TIMEOUT <timeout>]` |
+| PATH_PREFIX | `PATH_PREFIX <prefix...>` |
+| SECTION | `SECTION [<name...>]` |
+| SET | `SET <path> <component> <field> <value>` |
+| SETUP | `SETUP` |
+| SETUP_END | `SETUP_END` |
+| SET_ACTIVE | `SET_ACTIVE <path> <active:true\|false\|True\|False\|TRUE\|FALSE\|1\|0>` |
+| SET_DEFAULT_TIMEOUT | `SET_DEFAULT_TIMEOUT <seconds>` |
+| SIMULATE | `SIMULATE <name> [DURATION <duration>] [TIMESCALE <timescale>] [TARGET <target>] [FREQUENCY <frequency>]` |
+| SNAPSHOT | `SNAPSHOT [<queries...>]` |
+| SWEEP_PATH | `SWEEP_PATH <path> DWELL <dwell>` |
+| TAP | `TAP <path> [WAIT <wait>]` |
+| TEARDOWN | `TEARDOWN` |
+| TEARDOWN_END | `TEARDOWN_END` |
+| TELEPORT | `TELEPORT <path> <to> [<offset...>]` |
+| TIMESCALE | `TIMESCALE <scale>` |
+| TRACE_FLOW | `TRACE_FLOW FROM <from> TO <to> FIELD <field> [TIMEOUT <timeout>]` |
+| VAL | `VAL <name> <value...>` |
+| VAR | `VAR <name> <query>` |
+| WAIT | `WAIT <seconds>` |
+| WAIT_CAPTURED | `WAIT_CAPTURED <label> <mode:INCREASED\|DECREASED\|UNCHANGED\|INCREASED_BY\|DECREASED_BY> [<subop> <value>] [TIMEOUT <timeout>] [OVER <over> [TIMEOUT <timeout2>]]` |
+| WAIT_STABLE | `WAIT_STABLE <query> DELTA <delta> OVER <over> [TIMEOUT <timeout>]` |
+| WAIT_UNTIL | `WAIT_UNTIL <q1...> <op1> <v1...> [AND <q2...> <op2> <v2...>] [AND <q3...> <op3> <v3...>] [OR <q4...> <op4> <v4...>] [OR <q5...> <op5> <v5...>] [TIMEOUT <timeout>] [ABORT]` |
+| WAIT_UNTIL | `WAIT_UNTIL <flag>` |
+<!-- biome:end verbs -->
+
 ### ALIAS (removed — use VAL)
 
 **ALIAS was removed from the parser in v0.92.x.** The keyword is no longer recognized; scripts using ALIAS will have the line treated as an unknown command. `PlaytestLinter` emits **ERROR** (not just WARN) when ALIAS is detected. Migrate to `VAL $name value`.

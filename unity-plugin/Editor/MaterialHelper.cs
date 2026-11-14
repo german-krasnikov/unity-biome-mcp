@@ -7,31 +7,16 @@ using UnityEngine.Rendering;
 
 namespace UnityMCP.Editor
 {
-    internal static class MaterialHelper
+    // Execute(action, argsJson) is generated into Generated/ToolDispatch.g.cs from the DISPATCH/ACTION
+    // lines of dsl/tools.biome's material TOOL block (dsl-bottlenecks-2026-11 S3; get_errors uses
+    // ACTION's METHOD override since its real method is GetShaderErrors, not GetErrors).
+    internal static partial class MaterialHelper
     {
-        internal static string Execute(string action, string argsJson)
-        {
-            return action switch
-            {
-                "create" => Create(argsJson),
-                "get" => Get(argsJson),
-                "set" => Set(argsJson),
-                "copy" => Copy(argsJson),
-                "list_properties" => ListProperties(argsJson),
-                "list_slots" => ListSlots(argsJson),
-                "get_errors" => GetShaderErrors(argsJson),
-                "list_shaders" => ListShaders(argsJson),
-                "set_fields" => SetFields(argsJson),
-                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "create", "get", "set", "copy", "list_properties", "list_slots", "get_errors", "list_shaders", "set_fields" }))
-            };
-        }
-
         private static string Create(string args)
         {
-            var path = JsonHelper.ExtractString(args, "path")
+            var path = MaterialArgs.Path(args)
                 ?? throw new ArgumentException("path is required");
-            var shaderName = JsonHelper.ExtractString(args, "shader") ?? "Standard";
+            var shaderName = MaterialArgs.Shader(args) ?? "Standard";
 
             AssetHelper.EnsureDirectory(path);
             var shader = Shader.Find(shaderName)
@@ -46,8 +31,8 @@ namespace UnityMCP.Editor
 
         private static Material ResolveMaterial(string args, int slot = 0)
         {
-            var path = JsonHelper.ExtractString(args, "path");
-            var objectPath = JsonHelper.ExtractString(args, "object_path");
+            var path = MaterialArgs.Path(args);
+            var objectPath = MaterialArgs.ObjectPath(args);
 
             if (path != null)
             {
@@ -106,7 +91,7 @@ namespace UnityMCP.Editor
 
         private static string Set(string args)
         {
-            var target = JsonHelper.ExtractString(args, "target") ?? "shared";
+            var target = MaterialArgs.Target(args) ?? "shared";
             var slot = JsonHelper.ExtractInt(args, "slot");
             Material mat;
             if (target == "instance")
@@ -117,9 +102,9 @@ namespace UnityMCP.Editor
             {
                 mat = ResolveMaterial(args, slot);
             }
-            var prop = JsonHelper.ExtractString(args, "prop")
+            var prop = MaterialArgs.Prop(args)
                 ?? throw new ArgumentException("prop is required");
-            var value = JsonHelper.ExtractString(args, "value")
+            var value = MaterialArgs.Value(args)
                 ?? throw new ArgumentException("value is required");
 
             // Special case: renderQueue
@@ -163,7 +148,7 @@ namespace UnityMCP.Editor
 
         private static Material ResolveRendererInstanceMaterial(string args, int slot)
         {
-            var objectPath = JsonHelper.ExtractString(args, "object_path")
+            var objectPath = MaterialArgs.ObjectPath(args)
                 ?? throw new ArgumentException("object_path is required for target=instance");
             var go = ComponentSerializer.FindObject(objectPath)
                 ?? throw new InvalidOperationException(ErrorHelper.ObjectNotFound(objectPath));
@@ -185,9 +170,9 @@ namespace UnityMCP.Editor
 
         private static string Copy(string args)
         {
-            var sourcePath = JsonHelper.ExtractString(args, "source")
+            var sourcePath = MaterialArgs.Source(args)
                 ?? throw new ArgumentException("source is required");
-            var targets = JsonHelper.ExtractString(args, "targets")
+            var targets = MaterialArgs.Targets(args)
                 ?? throw new ArgumentException("targets is required");
             var slot = JsonHelper.ExtractInt(args, "slot");
 
@@ -252,7 +237,7 @@ namespace UnityMCP.Editor
 
         private static string ListSlots(string args)
         {
-            var objectPath = JsonHelper.ExtractString(args, "object_path")
+            var objectPath = MaterialArgs.ObjectPath(args)
                 ?? throw new ArgumentException("object_path is required");
             var go = ComponentSerializer.FindObject(objectPath);
             if (go == null) throw new InvalidOperationException(ErrorHelper.ObjectNotFound(objectPath));
@@ -270,7 +255,7 @@ namespace UnityMCP.Editor
         }
         private static string GetShaderErrors(string args)
         {
-            var path = JsonHelper.ExtractString(args, "path")
+            var path = MaterialArgs.Path(args)
                 ?? throw new ArgumentException("path (shader asset path) is required");
             var shader = AssetDatabase.LoadAssetAtPath<Shader>(path);
             if (shader == null) throw new InvalidOperationException($"Shader not found: {path}");
@@ -285,7 +270,7 @@ namespace UnityMCP.Editor
 
         private static string ListShaders(string args)
         {
-            var filter = JsonHelper.ExtractString(args, "filter") ?? "";
+            var filter = MaterialArgs.Filter(args) ?? "";
             var sb = new StringBuilder();
             var guids = AssetDatabase.FindAssets("t:Shader" + (filter.Length > 0 ? " " + filter : ""));
             foreach (var g in guids)
@@ -301,7 +286,7 @@ namespace UnityMCP.Editor
         {
             var slot = JsonHelper.ExtractInt(args, "slot");
             var mat = ResolveMaterial(args, slot);
-            var fieldsStr = JsonHelper.ExtractString(args, "value")
+            var fieldsStr = MaterialArgs.Value(args)
                 ?? throw new ArgumentException("value (newline-separated prop=val) is required");
             Undo.RecordObject(mat, "Set Material Fields");
             int count = 0;

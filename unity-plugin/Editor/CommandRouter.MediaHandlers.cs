@@ -6,143 +6,134 @@ namespace UnityMCP.Editor
     // scene/ui/editor/menu/references) split from CommandRouter.cs for <200-line focus.
     public static partial class CommandRouter
     {
-        private static float? ParseOptFloat(string args, string key)
-        {
-            var s = JsonHelper.ExtractString(args, key);
-            return s != null ? float.Parse(s, System.Globalization.CultureInfo.InvariantCulture) : (float?)null;
-        }
-
-        private static bool? ParseOptBool(string args, string key)
-        {
-            var s = JsonHelper.ExtractString(args, key);
-            return s != null ? s == "true" : (bool?)null;
-        }
-
-        private static int? ParseOptInt(string args, string key)
-        {
-            var s = JsonHelper.ExtractString(args, key);
-            return s != null ? int.Parse(s, System.Globalization.CultureInfo.InvariantCulture) : (int?)null;
-        }
+        // ARG adoption (Step 4, Batch 10e): the local ParseOptFloat/ParseOptBool/ParseOptInt
+        // wrappers that used to live here were deleted once every call site in this file
+        // migrated to the generated {Tool}Args accessor (which calls JsonHelper.ParseOpt*
+        // directly) -- confirmed via a repo-wide grep that nothing outside JsonHelper.cs and
+        // Generated/ still calls them unprefixed.
 
         private static string ExecGetAnimation(string args)
         {
             return AnimationSerializer.Serialize(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip"),
-                ParseOptFloat(args, "time"),
-                JsonHelper.ExtractString(args, "compact") == "true");
+                AnimationArgs.Path(args),
+                AnimationArgs.Clip(args),
+                AnimationArgs.Time(args),
+                AnimationArgs.Compact(args));
         }
 
         private static string ExecCreateAnimation(string args)
         {
             return AnimationHelper.CreateClip(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip_name") ?? JsonHelper.ExtractString(args, "clip"),
-                JsonHelper.ExtractString(args, "property") ?? "localPosition",
-                JsonHelper.ExtractString(args, "keys") ?? "",
-                JsonHelper.ExtractString(args, "component_type"),
-                JsonHelper.ExtractString(args, "binding_path"),
-                JsonHelper.ExtractString(args, "tangent"));
+                AnimationArgs.Path(args),
+                AnimationArgs.ClipName(args) ?? AnimationArgs.Clip(args),
+                AnimationArgs.Property(args) ?? "localPosition",
+                AnimationArgs.Keys(args) ?? "",
+                AnimationArgs.ComponentType(args),
+                AnimationArgs.BindingPath(args),
+                AnimationArgs.Tangent(args));
         }
 
         private static string ExecEditAnimation(string args)
         {
             return AnimationHelper.EditClip(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip"),
-                JsonHelper.ExtractString(args, "action"),
-                JsonHelper.ExtractString(args, "property"),
-                JsonHelper.ExtractString(args, "keys"),
-                JsonHelper.ExtractString(args, "component_type"),
-                JsonHelper.ExtractString(args, "binding_path"),
-                JsonHelper.ExtractString(args, "tangent"));
+                AnimationArgs.Path(args),
+                AnimationArgs.Clip(args),
+                AnimationArgs.Action(args),
+                AnimationArgs.Property(args),
+                AnimationArgs.Keys(args),
+                AnimationArgs.ComponentType(args),
+                AnimationArgs.BindingPath(args),
+                AnimationArgs.Tangent(args));
         }
 
         private static string ExecPreviewAnimation(string args)
         {
             return AnimationHelper.Preview(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "clip"),
-                JsonHelper.ExtractString(args, "action") ?? "sample",
-                ParseOptFloat(args, "time") ?? 0f);
+                AnimationArgs.Path(args),
+                AnimationArgs.Clip(args),
+                AnimationArgs.Action(args) ?? "sample",
+                AnimationArgs.Time(args) ?? 0f);
         }
 
         private static string ExecGetTimeline(string args)
         {
             return TimelineSerializer.Serialize(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "track"));
+                TimelineArgs.Path(args),
+                TimelineArgs.Track(args));
         }
 
         private static string ExecCreateTimeline(string args)
         {
             return TimelineHelper.CreateTimeline(
-                JsonHelper.ExtractString(args, "asset_path"),
-                JsonHelper.ExtractString(args, "director_path") ?? JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "tracks"));
+                TimelineArgs.AssetPath(args),
+                TimelineArgs.DirectorPath(args) ?? TimelineArgs.Path(args),
+                TimelineArgs.Tracks(args));
         }
 
         private static string ExecEditTimeline(string args)
         {
             return TimelineHelper.Edit(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "action"),
-                JsonHelper.ExtractString(args, "track"),
-                JsonHelper.ExtractString(args, "track_type"),
-                JsonHelper.ExtractString(args, "clip"),
-                JsonHelper.ExtractString(args, "binding"),
-                ParseOptFloat(args, "start"),
-                ParseOptFloat(args, "duration"),
-                ParseOptFloat(args, "blend_in"),
-                ParseOptFloat(args, "blend_out"),
-                JsonHelper.ExtractString(args, "name"),
-                ParseOptInt(args, "index"),
-                ParseOptFloat(args, "offset"),
-                JsonHelper.ExtractString(args, "value"));
+                TimelineArgs.Path(args),
+                TimelineArgs.Action(args),
+                TimelineArgs.Track(args),
+                TimelineArgs.TrackType(args),
+                TimelineArgs.Clip(args),
+                TimelineArgs.Binding(args),
+                TimelineArgs.Start(args),
+                TimelineArgs.Duration(args),
+                TimelineArgs.BlendIn(args),
+                TimelineArgs.BlendOut(args),
+                TimelineArgs.Name(args),
+                TimelineArgs.Index(args),
+                TimelineArgs.Offset(args),
+                TimelineArgs.Value(args));
         }
 
         private static string ExecSetClipIn(string args)
         {
             return TimelineHelper.SetClipIn(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "track"),
-                JsonHelper.ExtractString(args, "clip"),
-                ParseOptFloat(args, "clip_in") ?? 0f);
+                TimelineArgs.Path(args),
+                TimelineArgs.Track(args),
+                TimelineArgs.Clip(args),
+                TimelineArgs.ClipIn(args) ?? 0f);
         }
 
         private static string ExecGetBindings(string args)
         {
-            return TimelineHelper.GetBindings(JsonHelper.ExtractString(args, "path"));
+            return TimelineHelper.GetBindings(TimelineArgs.Path(args));
         }
 
         private static string ExecPreviewTimeline(string args)
         {
             return TimelineHelper.Preview(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "action") ?? "sample",
-                ParseOptFloat(args, "time") ?? 0f);
+                TimelineArgs.Path(args),
+                TimelineArgs.Action(args) ?? "sample",
+                TimelineArgs.Time(args) ?? 0f);
         }
 
         // --- Consolidated command handlers ---
 
-        private static string ExecScene(string args)
+        // P-414: scene save must NOT create an undo group (prevents isDirty clearing in Unity 6): noUndo. scene is mutating as in
+        // Python (step 7.2) and its read is the READ line `list`; the mutating actions (new/open/discard/close) record
+        // mutation explicitly inside ExecScene
+        internal static string ExecScene(string args)
         {
-            var action = JsonHelper.ExtractString(args, "action");
+            var action = SceneArgs.Action(args);
             var result = action switch
             {
                 "new" => SceneHelper.NewScene(),
-                "open" => SceneHelper.OpenScene(JsonHelper.ExtractString(args, "path")),
-                "save" => SceneHelper.SaveScene(JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "scene")),
-                "discard" => SceneHelper.DiscardChanges(JsonHelper.ExtractString(args, "scene")),
-                "open_additive" => SceneHelper.OpenAdditive(JsonHelper.ExtractString(args, "path")),
-                "close" => SceneHelper.CloseScene(JsonHelper.ExtractString(args, "path")),
-                "set_active" => SceneHelper.SetActiveScene(JsonHelper.ExtractString(args, "path")),
+                "open" => SceneHelper.OpenScene(SceneArgs.Path(args)),
+                "save" => SceneHelper.SaveScene(SceneArgs.Path(args), SceneArgs.Scene(args)),
+                "discard" => SceneHelper.DiscardChanges(SceneArgs.Scene(args)),
+                "open_additive" => SceneHelper.OpenAdditive(SceneArgs.Path(args)),
+                "close" => SceneHelper.CloseScene(SceneArgs.Path(args)),
+                "set_active" => SceneHelper.SetActiveScene(SceneArgs.Path(args)),
                 "list" => SceneHelper.ListScenes(),
                 "save_copy" => SceneHelper.SaveCopy(
-                    JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "scene")),
+                    SceneArgs.Path(args),
+                    SceneArgs.Scene(args)),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "new", "open", "save", "discard", "open_additive", "close", "set_active", "list", "save_copy" }))
+                    ToolActions.Names("scene")))
             };
             // P-414: scene is mutating:false so undo group is never opened around saves.
             // Topology-changing sub-actions still need a mutation record for get_changes.
@@ -151,11 +142,11 @@ namespace UnityMCP.Editor
             return result;
         }
 
-        private static string ExecAnimationConsolidated(string args)
+        internal static string ExecAnimationConsolidated(string args)
         {
-            var action = JsonHelper.ExtractString(args, "action");
-            var path = JsonHelper.ExtractString(args, "path");
-            var clip = JsonHelper.ExtractString(args, "clip");
+            var action = AnimationArgs.Action(args);
+            var path = AnimationArgs.Path(args);
+            var clip = AnimationArgs.Clip(args);
             return action switch
             {
                 "get" => ExecGetAnimation(args),
@@ -167,23 +158,21 @@ namespace UnityMCP.Editor
                 "get_events" => AnimationHelper.GetEvents(path, clip),
                 "add_event" => AnimationHelper.AddEvent(
                     path, clip,
-                    ParseOptFloat(args, "time") ?? 0f,
-                    JsonHelper.ExtractString(args, "function_name"),
-                    ParseOptInt(args, "int_param"),
-                    ParseOptFloat(args, "float_param"),
-                    JsonHelper.ExtractString(args, "string_param")),
+                    AnimationArgs.Time(args) ?? 0f,
+                    AnimationArgs.FunctionName(args),
+                    AnimationArgs.IntParam(args),
+                    AnimationArgs.FloatParam(args),
+                    AnimationArgs.StringParam(args)),
                 "remove_event" => AnimationHelper.RemoveEvent(
-                    path, clip, ParseOptFloat(args, "time") ?? 0f),
+                    path, clip, AnimationArgs.Time(args) ?? 0f),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "create", "edit", "add_key", "remove_key", "remove_curve",
-                            "set_keys", "set_loop", "set_wrap", "set_framerate", "preview",
-                            "get_clip_path", "get_events", "add_event", "remove_event" }))
+                    ToolActions.Names("animation")))
             };
         }
 
-        private static string ExecTimelineConsolidated(string args)
+        internal static string ExecTimelineConsolidated(string args)
         {
-            var action = JsonHelper.ExtractString(args, "action");
+            var action = TimelineArgs.Action(args);
             // Read-only actions allowed in Play Mode; mutating actions are not.
             if (action != "get" && action != "get_bindings" && action != "preview"
                 && UnityEditor.EditorApplication.isPlaying)
@@ -202,111 +191,121 @@ namespace UnityMCP.Editor
                 "get_bindings" => ExecGetBindings(args),
                 "preview" => ExecPreviewTimeline(args),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "create", "edit", "add_track", "remove_track", "add_clip", "remove_clip",
-                            "set_binding", "set_timing", "mute", "unmute", "lock", "unlock", "rename_track",
-                            "reorder_track", "duplicate_clip", "add_marker", "remove_marker",
-                            "set_track_offset", "set_duration", "add_sub_track",
-                            "set_clip_in", "get_bindings", "preview" }))
+                    ToolActions.Names("timeline")))
             };
         }
 
-        private static string ExecReferencesConsolidated(string args)
+        // NOT ReferencesArgs.Action/.Path: "references" is not in ArgContract's enabled set, so
+        // no required-arg gate protects this handler. Both accessors call JsonHelper.RequireString,
+        // which would throw where this call site today lets a null action/path fall through to
+        // the switch's own graceful ErrorHelper.InvalidAction message. Keep both raw.
+        internal static string ExecReferencesConsolidated(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
             return action switch
             {
                 "get" => ReferenceHelper.GetReferences(
                     JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "children") == "true",
+                    ReferencesArgs.Children(args),
                     ExtractInt(args, "depth", 1)),
                 "find_to" => ReferenceHelper.FindReferencesTo(JsonHelper.ExtractString(args, "path")),
                 "remap" => RemapReferencesHelper.RemapReferences(
-                    JsonHelper.ExtractString(args, "source"),
-                    JsonHelper.ExtractString(args, "target"),
-                    JsonHelper.ExtractString(args, "mappings")),
-                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action, new[] { "get", "find_to", "remap" }))
+                    ReferencesArgs.Source(args),
+                    ReferencesArgs.Target(args),
+                    ReferencesArgs.Mappings(args)),
+                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
+                    ToolActions.Names("references")))
             };
         }
 
-        private static string ExecCreateUI(string args)
+        internal static string ExecCreateUI(string args)
         {
             return UIHelper.CreateUI(
-                JsonHelper.ExtractString(args, "type"),
-                JsonHelper.ExtractString(args, "name"),
-                JsonHelper.ExtractString(args, "parent"),
-                JsonHelper.ExtractString(args, "anchor"),
-                JsonHelper.ExtractString(args, "pos"),
-                JsonHelper.ExtractString(args, "size"),
-                JsonHelper.ExtractString(args, "pivot"),
-                JsonHelper.ExtractString(args, "color"),
-                JsonHelper.ExtractString(args, "text"),
-                JsonHelper.ExtractString(args, "font_size"),
-                JsonHelper.ExtractString(args, "render_mode"),
-                JsonHelper.ExtractString(args, "font_min"),   // G9: TMP autoSize min
-                JsonHelper.ExtractString(args, "font_max"));  // G9: TMP autoSize max
+                CreateUiArgs.Type(args),
+                CreateUiArgs.Name(args),
+                CreateUiArgs.Parent(args),
+                CreateUiArgs.Anchor(args),
+                CreateUiArgs.Pos(args),
+                CreateUiArgs.Size(args),
+                CreateUiArgs.Pivot(args),
+                CreateUiArgs.Color(args),
+                CreateUiArgs.Text(args),
+                CreateUiArgs.FontSize(args),
+                CreateUiArgs.RenderMode(args),
+                CreateUiArgs.FontMin(args),   // G9: TMP autoSize min
+                CreateUiArgs.FontMax(args));  // G9: TMP autoSize max
         }
 
         // G2: Lint uGUI — check EventSystem presence and GraphicRaycaster on Canvas.
-        private static string ExecLintUGUI(string args) =>
-            UILinter.LintUGUI(JsonHelper.ExtractString(args, "root"));
+        internal static string ExecLintUGUI(string args) =>
+            UILinter.LintUGUI(LintUguiArgs.Root(args));
 
         // S4: Lint UITK — structural checks for .uxml/.uss files (A1–A6).
-        private static string ExecLintUITK(string args) =>
+        internal static string ExecLintUITK(string args) =>
             UILinter.LintUITK(
-                JsonHelper.ExtractString(args, "path"),
+                LintUitkArgs.Path(args),
+                // NOT LintUitkArgs.Fix: that accessor returns bool? (JsonHelper.ParseOptBool,
+                // which throws on a malformed "fix" value); this call site's `== "true"` never
+                // throws and defaults to false on anything but the literal string "true". Keep raw.
                 JsonHelper.ExtractString(args, "fix") == "true");
 
-        private static string ExecSetRect(string args)
+        internal static string ExecSetRect(string args)
         {
             return UIHelper.SetRect(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "anchor"),
-                JsonHelper.ExtractString(args, "pos"),
-                JsonHelper.ExtractString(args, "size"),
-                JsonHelper.ExtractString(args, "pivot"),
-                JsonHelper.ExtractString(args, "offset_min"),
-                JsonHelper.ExtractString(args, "offset_max"),
-                JsonHelper.ExtractString(args, "pos3"));  // G8: anchoredPosition3D
+                SetRectArgs.Path(args),
+                SetRectArgs.Anchor(args),
+                SetRectArgs.Pos(args),
+                SetRectArgs.Size(args),
+                SetRectArgs.Pivot(args),
+                SetRectArgs.OffsetMin(args),
+                SetRectArgs.OffsetMax(args),
+                SetRectArgs.Pos3(args));  // G8: anchoredPosition3D
         }
 
-        private static string ExecInspectUITK(string args) =>
+        internal static string ExecInspectUITK(string args) =>
             UIHelper.InspectUITK(
-                JsonHelper.ExtractString(args, "path"),
-                ParseOptInt(args, "depth") ?? 4,
-                JsonHelper.ExtractString(args, "selector"),
-                JsonHelper.ExtractString(args, "filter"),
-                ParseOptBool(args, "include_internal") ?? false,
-                ParseOptBool(args, "show_style") ?? false);
+                InspectUitkArgs.Path(args),
+                InspectUitkArgs.Depth(args) ?? 4,
+                InspectUitkArgs.Selector(args),
+                InspectUitkArgs.Filter(args),
+                InspectUitkArgs.IncludeInternal(args) ?? false,
+                InspectUitkArgs.ShowStyle(args) ?? false);
 
         // Phase 2: uitk_element — read/mutate a VisualElement
-        private static string ExecUitkElement(string args) =>
+        internal static string ExecUitkElement(string args) =>
             UIHelper.UitkElement(
-                JsonHelper.ExtractString(args, "action"),
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "ref"),
-                JsonHelper.ExtractString(args, "selector"),
-                JsonHelper.ExtractString(args, "name"),
-                JsonHelper.ExtractString(args, "value"),
-                JsonHelper.ExtractString(args, "property"),
-                JsonHelper.ExtractString(args, "class_name"));
+                UitkElementArgs.Action(args),
+                UitkElementArgs.Path(args),
+                UitkElementArgs.Ref(args),
+                UitkElementArgs.Selector(args),
+                UitkElementArgs.Name(args),
+                UitkElementArgs.Value(args),
+                UitkElementArgs.Property(args),
+                UitkElementArgs.ClassName(args));
 
         // Session 9: attach UIDocument component to a GameObject
-        private static string ExecAttachUITK(string args)
+        internal static string ExecAttachUITK(string args)
         {
+            // NOT AttachUitkArgs.SortOrder: that accessor returns int? via JsonHelper.ParseOptInt,
+            // which throws on a malformed "sort_order" value; this call site's int.TryParse never
+            // throws and silently falls back to 0. Keep raw.
             var sortingOrderStr = JsonHelper.ExtractString(args, "sort_order");
             int sortingOrder = sortingOrderStr != null && int.TryParse(sortingOrderStr, out int so) ? so : 0;
             return UIHelper.AttachUITK(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "uxml"),
-                JsonHelper.ExtractString(args, "panel_settings"),
+                AttachUitkArgs.Path(args),
+                AttachUitkArgs.Uxml(args),
+                AttachUitkArgs.PanelSettings(args),
                 sortingOrder);
         }
 
         // Session 12: uitk_file — UXML/USS CRUD with two-gate validation
-        private static string ExecUitkFile(string args)
+        internal static string ExecUitkFile(string args)
         {
+            // NOT UitkFileArgs.Path: "uitk_file" is not in ArgContract's enabled set, so no
+            // required-arg gate protects this handler -- RequireString would throw where this
+            // call site today passes a possibly-null path through to UIFileHelper.*. Keep raw.
             var assetPath = JsonHelper.ExtractString(args, "path");
-            var action    = JsonHelper.ExtractString(args, "action") ?? "read";
+            var action    = UitkFileArgs.Action(args) ?? "read";
 
             if (action == "read")
                 return UIFileHelper.ReadUIFile(assetPath);
@@ -316,150 +315,141 @@ namespace UnityMCP.Editor
 
             if (action == "write" || action == "create_uxml" || action == "create_uss")
                 return UIFileHelper.WriteUIFile(assetPath, action,
-                    JsonHelper.ExtractString(args, "content"));
+                    UitkFileArgs.Content(args));
 
             return UIFileHelper.EditUIFile(assetPath, action,
-                selector: JsonHelper.ExtractString(args, "selector"),
-                attr:     JsonHelper.ExtractString(args, "attr"),
-                value:    JsonHelper.ExtractString(args, "value"),
-                cssClass: JsonHelper.ExtractString(args, "class"),
-                parent:   JsonHelper.ExtractString(args, "parent"),
-                tag:      JsonHelper.ExtractString(args, "tag"),
-                attrs:    JsonHelper.ExtractString(args, "attrs"),
-                prop:     JsonHelper.ExtractString(args, "prop"));
+                selector: UitkFileArgs.Selector(args),
+                attr:     UitkFileArgs.Attr(args),
+                value:    UitkFileArgs.Value(args),
+                cssClass: UitkFileArgs.Class(args),
+                parent:   UitkFileArgs.Parent(args),
+                tag:      UitkFileArgs.Tag(args),
+                attrs:    UitkFileArgs.Attrs(args),
+                prop:     UitkFileArgs.Prop(args));
         }
 
-        // PR-04: owner-declared mutation policy, replacing the CommandRegistry.IsMutating
-        // central name-switch branch for uitk_file. Behavior unchanged: ExecUitkFile defaults
-        // a missing action to read; every other action writes, reverts, or is conservatively
-        // treated as a possible external file mutation.
-        private static bool IsUitkFileMutating(string argsJson)
+        internal static string ExecEditor(string args)
         {
-            var action = JsonHelper.ExtractString(argsJson, "action") ?? "read";
-            return !action.Equals("read", StringComparison.Ordinal);
-        }
-
-        private static string ExecEditor(string args)
-        {
-            var action = JsonHelper.ExtractString(args, "action") ?? "state";
+            var action = EditorArgs.Action(args) ?? "state";
             if (action == "state")
                 return EditorStateHelper.GetState();
             if (action == "mutation_mode")
-                return SourcePatchModePolicy.SetMutationIntent(ParseOptBool(args, "enable"));
-            return EditorStateHelper.Control(action, JsonHelper.ExtractString(args, "path"), args);
+                return SourcePatchModePolicy.SetMutationIntent(EditorArgs.Enable(args));
+            return EditorStateHelper.Control(action, EditorArgs.Path(args), args);
         }
 
-        private static string ExecAnimatorConsolidated(string args)
+        internal static string ExecAnimatorConsolidated(string args)
         {
-            var action = JsonHelper.ExtractString(args, "action");
-            var layerStr = JsonHelper.ExtractString(args, "layer");
+            var action = AnimatorArgs.Action(args);
+            var layerStr = AnimatorArgs.Layer(args);
             int layer = layerStr != null && int.TryParse(layerStr, out int li) ? li : 0;
             return action switch
             {
                 "get" => AnimatorControllerSerializer.Serialize(
-                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "state")),
+                    AnimatorArgs.Path(args), AnimatorArgs.State(args)),
                 "add_param" => AnimatorControllerHelper.AddParameters(
-                    JsonHelper.ExtractString(args, "path"), AnimatorParamSpec(args)),
+                    AnimatorArgs.Path(args), AnimatorParamSpec(args)),
                 "add_state" => AnimatorControllerHelper.AddStates(
-                    JsonHelper.ExtractString(args, "path"), AnimatorStatesSpec(args), layer),
+                    AnimatorArgs.Path(args), AnimatorStatesSpec(args), layer),
                 "add_transition" => ExecAddTransition(args, layer),
                 "set_default" => AnimatorControllerHelper.SetDefault(
-                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "state"), layer),
+                    AnimatorArgs.Path(args), AnimatorArgs.State(args), layer),
                 "remove" => AnimatorControllerHelper.Remove(
-                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "type"),
-                    JsonHelper.ExtractString(args, "name"), JsonHelper.ExtractString(args, "source"),
-                    JsonHelper.ExtractString(args, "target")),
+                    AnimatorArgs.Path(args), AnimatorArgs.Type(args),
+                    AnimatorArgs.Name(args), AnimatorArgs.Source(args),
+                    AnimatorArgs.Target(args)),
                 "add_blend_tree" => AnimatorControllerHelper.AddBlendTree(
-                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "state"),
-                    JsonHelper.ExtractString(args, "blend_type"),
-                    JsonHelper.ExtractString(args, "param"),
-                    JsonHelper.ExtractString(args, "param_y"),
-                    JsonHelper.ExtractString(args, "children")),
+                    AnimatorArgs.Path(args), AnimatorArgs.State(args),
+                    AnimatorArgs.BlendType(args),
+                    AnimatorArgs.Param(args),
+                    AnimatorArgs.ParamY(args),
+                    AnimatorArgs.Children(args)),
                 "edit_blend_tree" => AnimatorControllerHelper.EditBlendTree(
-                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "state"),
-                    JsonHelper.ExtractString(args, "edit_action"),
-                    JsonHelper.ExtractString(args, "children"),
-                    JsonHelper.ExtractString(args, "param"),
-                    JsonHelper.ExtractString(args, "param_y"),
-                    JsonHelper.ExtractString(args, "blend_type")),
+                    AnimatorArgs.Path(args), AnimatorArgs.State(args),
+                    AnimatorArgs.EditAction(args),
+                    AnimatorArgs.Children(args),
+                    AnimatorArgs.Param(args),
+                    AnimatorArgs.ParamY(args),
+                    AnimatorArgs.BlendType(args)),
                 "get_blend_tree" => AnimatorControllerHelper.GetBlendTreeDetail(
-                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "state")),
+                    AnimatorArgs.Path(args), AnimatorArgs.State(args)),
                 "add_layer" => AnimatorControllerHelper.AddLayer(
-                    JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "name"),
-                    ParseOptFloat(args, "weight") ?? 0f,
-                    JsonHelper.ExtractString(args, "blending") ?? "Override"),
+                    AnimatorArgs.Path(args),
+                    AnimatorArgs.Name(args),
+                    AnimatorArgs.Weight(args) ?? 0f,
+                    AnimatorArgs.Blending(args) ?? "Override"),
                 "remove_layer" => AnimatorControllerHelper.RemoveLayer(
-                    JsonHelper.ExtractString(args, "path"),
+                    AnimatorArgs.Path(args),
                     layerStr ?? "0"),
                 "rename_layer" => AnimatorControllerHelper.RenameLayer(
-                    JsonHelper.ExtractString(args, "path"),
+                    AnimatorArgs.Path(args),
                     layerStr ?? "0",
-                    JsonHelper.ExtractString(args, "name")),
+                    AnimatorArgs.Name(args)),
                 "set_layer_weight" => AnimatorControllerHelper.SetLayerWeight(
-                    JsonHelper.ExtractString(args, "path"),
+                    AnimatorArgs.Path(args),
                     layerStr ?? "0",
-                    ParseOptFloat(args, "weight") ?? 1f),
+                    // Same field, different per-call-site default (0f for add_layer above,
+                    // 1f here for set_layer_weight) -- AnimatorArgs.Weight has no baked default
+                    // of its own (nullable), so each call site's own `?? X` is unaffected by the
+                    // other's.
+                    AnimatorArgs.Weight(args) ?? 1f),
                 "set_layer_blending" => AnimatorControllerHelper.SetLayerBlending(
-                    JsonHelper.ExtractString(args, "path"),
+                    AnimatorArgs.Path(args),
                     layerStr ?? "0",
-                    JsonHelper.ExtractString(args, "blending") ?? "Override"),
+                    AnimatorArgs.Blending(args) ?? "Override"),
                 "set_state_speed" => AnimatorControllerHelper.SetStateSpeed(
-                    JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "state"),
-                    JsonHelper.ExtractString(args, "value")),
+                    AnimatorArgs.Path(args),
+                    AnimatorArgs.State(args),
+                    AnimatorArgs.Value(args)),
                 "update_transition" => AnimatorControllerHelper.UpdateTransition(
-                    JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "source"),
-                    JsonHelper.ExtractString(args, "target"),
-                    ParseOptFloat(args, "duration"),
-                    ParseOptFloat(args, "exit_time"),
-                    ParseOptBool(args, "has_exit_time"),
-                    JsonHelper.ExtractString(args, "conditions"),
+                    AnimatorArgs.Path(args),
+                    AnimatorArgs.Source(args),
+                    AnimatorArgs.Target(args),
+                    AnimatorArgs.Duration(args),
+                    AnimatorArgs.ExitTime(args),
+                    AnimatorArgs.HasExitTime(args),
+                    AnimatorArgs.Conditions(args),
                     layer),
                 "set_avatar" => AnimatorControllerHelper.SetAvatar(
-                    JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "avatar_path")),
+                    AnimatorArgs.Path(args),
+                    AnimatorArgs.AvatarPath(args)),
                 "rename_state" => AnimatorControllerHelper.RenameState(
-                    JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "state"),
-                    JsonHelper.ExtractString(args, "name")),
+                    AnimatorArgs.Path(args),
+                    AnimatorArgs.State(args),
+                    AnimatorArgs.Name(args)),
                 "rename_param" => AnimatorControllerHelper.RenameParameter(
-                    JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "param"),
-                    JsonHelper.ExtractString(args, "name")),
+                    AnimatorArgs.Path(args),
+                    AnimatorArgs.Param(args),
+                    AnimatorArgs.Name(args)),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "add_param", "add_state", "add_transition", "set_default", "remove",
-                            "add_blend_tree", "edit_blend_tree", "get_blend_tree",
-                            "add_layer", "remove_layer", "rename_layer", "set_layer_weight", "set_layer_blending",
-                            "set_state_speed", "update_transition", "set_avatar", "rename_state", "rename_param" }))
+                    ToolActions.Names("animator")))
             };
         }
 
         private static string AnimatorParamSpec(string args)
         {
-            var spec = JsonHelper.ExtractString(args, "params");
+            var spec = AnimatorArgs.Params(args);
             if (!string.IsNullOrEmpty(spec)) return spec;
 
-            var name = JsonHelper.ExtractString(args, "name");
+            var name = AnimatorArgs.Name(args);
             if (string.IsNullOrEmpty(name)) return spec;
 
-            var type = JsonHelper.ExtractString(args, "type") ?? "float";
-            var value = JsonHelper.ExtractString(args, "value");
+            var type = AnimatorArgs.Type(args) ?? "float";
+            var value = AnimatorArgs.Value(args);
             return value == null ? $"{name}:{type}" : $"{name}:{type}:{value}";
         }
 
         private static string AnimatorStatesSpec(string args)
         {
-            var spec = JsonHelper.ExtractString(args, "states");
+            var spec = AnimatorArgs.States(args);
             if (!string.IsNullOrEmpty(spec)) return spec;
-            return JsonHelper.ExtractString(args, "state");
+            return AnimatorArgs.State(args);
         }
 
         private static string ExecCreateParticle(string args)
         {
-            var parentPath = JsonHelper.ExtractString(args, "path");
-            var name = JsonHelper.ExtractString(args, "name");
+            var parentPath = ParticleArgs.Path(args);
+            var name = ParticleArgs.Name(args);
             if (string.IsNullOrEmpty(name) && !string.IsNullOrEmpty(parentPath)
                 && ComponentSerializer.FindObject(parentPath) == null)
             {
@@ -468,125 +458,125 @@ namespace UnityMCP.Editor
                 if (string.IsNullOrEmpty(parentPath) || parentPath == "/" || parentPath == "\\")
                     parentPath = null;
             }
-            return ParticleHelper.Create(parentPath, name, JsonHelper.ExtractString(args, "preset"));
+            return ParticleHelper.Create(parentPath, name, ParticleArgs.Preset(args));
         }
 
-        private static string ExecParticleConsolidated(string args)
+        internal static string ExecParticleConsolidated(string args)
         {
-            var action = JsonHelper.ExtractString(args, "action");
+            var action = ParticleArgs.Action(args);
             return action switch
             {
                 "get" => ParticleSerializer.Serialize(
-                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "module")),
+                    ParticleArgs.Path(args), ParticleArgs.Module(args)),
                 "create" => ExecCreateParticle(args),
                 "set" => ParticleHelper.SetProperty(
-                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "module"),
-                    JsonHelper.ExtractString(args, "prop"), JsonHelper.ExtractString(args, "value")),
+                    ParticleArgs.Path(args), ParticleArgs.Module(args),
+                    ParticleArgs.Prop(args), ParticleArgs.Value(args)),
                 "apply" => ParticleHelper.ApplyPreset(
-                    JsonHelper.ExtractString(args, "path"), JsonHelper.ExtractString(args, "preset")),
-                "play" => ParticleHelper.Play(JsonHelper.ExtractString(args, "path")),
-                "stop" => ParticleHelper.Stop(JsonHelper.ExtractString(args, "path")),
-                "pause" => ParticleHelper.Pause(JsonHelper.ExtractString(args, "path")),
+                    ParticleArgs.Path(args), ParticleArgs.Preset(args)),
+                "play" => ParticleHelper.Play(ParticleArgs.Path(args)),
+                "stop" => ParticleHelper.Stop(ParticleArgs.Path(args)),
+                "pause" => ParticleHelper.Pause(ParticleArgs.Path(args)),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "create", "set", "apply", "play", "stop", "pause" }))
+                    ToolActions.Names("particle")))
             };
         }
 
-        private static string ExecShaderConsolidated(string args)
+        // NOT ShaderArgs.Action/.Path throughout this handler and ExecShaderSet below: "shader"
+        // is not in ArgContract's enabled set, so no required-arg gate protects this handler --
+        // both accessors call JsonHelper.RequireString, which would throw where action/path are
+        // today read as plain (possibly-null) strings. Keep both raw on every arm.
+        internal static string ExecShaderConsolidated(string args)
         {
             var action = JsonHelper.ExtractString(args, "action");
             return action switch
             {
                 "get" => ShaderSerializer.Serialize(
                     JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "target")),
+                    ShaderArgs.Target(args)),
                 "create" => ShaderHelper.Create(
                     JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "preset"),
-                    JsonHelper.ExtractString(args, "code"),
-                    JsonHelper.ExtractString(args, "shader_name")),
+                    ShaderArgs.Preset(args),
+                    ShaderArgs.Code(args),
+                    ShaderArgs.ShaderName(args)),
                 "set" => ExecShaderSet(args),
                 "graph_get" => ShaderGraphHelper.Get(JsonHelper.ExtractString(args, "path")),
                 "graph_create" => ShaderGraphHelper.Create(
                     JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "preset")),
+                    ShaderArgs.Preset(args)),
                 "graph_node" => ShaderGraphHelper.ManageNode(
                     JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "node_type"),
-                    JsonHelper.ExtractString(args, "node_id"),
-                    JsonHelper.ExtractString(args, "node_action") ?? "add"),
+                    ShaderArgs.NodeType(args),
+                    ShaderArgs.NodeId(args),
+                    ShaderArgs.NodeAction(args) ?? "add"),
                 "graph_edge" => ShaderGraphHelper.ManageEdge(
                     JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "output_node"),
+                    ShaderArgs.OutputNode(args),
                     ExtractInt(args, "output_slot", 0),
-                    JsonHelper.ExtractString(args, "input_node"),
+                    ShaderArgs.InputNode(args),
                     ExtractInt(args, "input_slot", 0),
-                    JsonHelper.ExtractString(args, "edge_action") ?? "add"),
+                    ShaderArgs.EdgeAction(args) ?? "add"),
                 "graph_add_property" => ShaderGraphHelper.AddProperty(
                     JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "name"),
-                    JsonHelper.ExtractString(args, "type"),
-                    JsonHelper.ExtractString(args, "default_value"),
-                    JsonHelper.ExtractString(args, "reference_name")),
+                    ShaderArgs.Name(args),
+                    ShaderArgs.Type(args),
+                    ShaderArgs.DefaultValue(args),
+                    ShaderArgs.ReferenceName(args)),
                 "graph_remove_property" => ShaderGraphHelper.RemoveProperty(
                     JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "name")),
+                    ShaderArgs.Name(args)),
                 "graph_rename_property" => ShaderGraphHelper.RenameProperty(
                     JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "name"),
-                    JsonHelper.ExtractString(args, "new_name")),
+                    ShaderArgs.Name(args),
+                    ShaderArgs.NewName(args)),
                 "graph_get_layout" => ShaderGraphHelper.GetLayout(
                     JsonHelper.ExtractString(args, "path")),
                 "graph_set_layout" => ShaderGraphHelper.SetLayout(
                     JsonHelper.ExtractString(args, "path"),
-                    JsonHelper.ExtractString(args, "layout")),
+                    ShaderArgs.Layout(args)),
                 "graph_auto_layout" => ShaderGraphHelper.AutoLayout(
                     JsonHelper.ExtractString(args, "path"),
-                    ParseOptFloat(args, "h_gap") ?? 80f,
-                    ParseOptFloat(args, "v_gap") ?? 50f),
+                    ShaderArgs.HGap(args) ?? 80f,
+                    ShaderArgs.VGap(args) ?? 50f),
                 _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
-                    new[] { "get", "create", "set", "graph_get", "graph_create", "graph_node", "graph_edge",
-                            "graph_add_property", "graph_remove_property", "graph_rename_property",
-                            "graph_get_layout", "graph_set_layout", "graph_auto_layout" }))
+                    ToolActions.Names("shader")))
             };
         }
 
         private static string ExecShaderSet(string args)
         {
-            var kw = JsonHelper.ExtractString(args, "keyword");
+            var kw = ShaderArgs.Keyword(args);
             if (kw != null)
                 return ShaderHelper.SetKeyword(
                     JsonHelper.ExtractString(args, "path"), kw,
-                    JsonHelper.ExtractString(args, "enabled") ?? "true");
+                    ShaderArgs.Enabled(args) ?? "true");
             return ShaderHelper.SetProperty(
                 JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "prop"),
-                JsonHelper.ExtractString(args, "value"));
+                ShaderArgs.Prop(args),
+                ShaderArgs.Value(args));
         }
 
         private static string ExecAddTransition(string args, int layer = 0)
         {
-            var hasExitTimeStr = JsonHelper.ExtractString(args, "has_exit_time");
-            bool? hasExitTime = hasExitTimeStr != null ? hasExitTimeStr == "true" : (bool?)null;
-
             return AnimatorControllerHelper.AddTransition(
-                JsonHelper.ExtractString(args, "path"),
-                JsonHelper.ExtractString(args, "source"),
-                JsonHelper.ExtractString(args, "target"),
-                JsonHelper.ExtractString(args, "conditions"),
-                ParseOptFloat(args, "duration"),
-                ParseOptFloat(args, "exit_time"),
-                hasExitTime, layer);
+                AnimatorArgs.Path(args),
+                AnimatorArgs.Source(args),
+                AnimatorArgs.Target(args),
+                AnimatorArgs.Conditions(args),
+                AnimatorArgs.Duration(args),
+                AnimatorArgs.ExitTime(args),
+                AnimatorArgs.HasExitTime(args), layer);
         }
 
-        private static string ExecMenu(string args)
+        internal static string ExecMenu(string args)
         {
-            var action = JsonHelper.ExtractString(args, "action");
+            var action = MenuArgs.Action(args);
             return action switch
             {
-                "execute" => MenuHelper.Execute(JsonHelper.ExtractString(args, "path")),
-                "list" => MenuHelper.List(JsonHelper.ExtractString(args, "path")),
-                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action, new[] { "execute", "list" }))
+                "execute" => MenuHelper.Execute(MenuArgs.Path(args)),
+                "list" => MenuHelper.List(MenuArgs.Path(args)),
+                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
+                    ToolActions.Names("menu")))
             };
         }
     }

@@ -1,0 +1,12 @@
+CONTRACT unitymcp.busysignal
+COVERAGE declared-scope
+MODULE busysignal_facts
+FACT probe.hasPort bool
+FACT probe.statePresent bool
+FACT probe.stateStale bool
+FACT probe.stateBusy bool
+FACT probe.processDead bool
+FACT probe.hasWedge bool
+FACT probe.startupInProgress bool
+FACT probe.lockFileExists bool
+INPUT busySignal probe.hasPort probe.statePresent probe.stateStale probe.stateBusy probe.processDead probe.hasWedge probe.startupInProgress probe.lockFileExists

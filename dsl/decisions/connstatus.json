@@ -1,0 +1,32 @@
+{
+  "generated": "from connstatus.examples by npm run logic -- examples; do not edit",
+  "provenance": "Table from bridge.py status/transport_status (1055-1090) + test_bridge_status_transitions.py, characterized. The two vocabularies differ on failed and domainReloading without a writer by owner decision.",
+  "connStatus": [
+    { "id": "disconnected-live", "facts": { "connState": "disconnected", "connWriterLive": true }, "expected": "connected" },
+    { "id": "disconnected-nowriter", "facts": { "connState": "disconnected", "connWriterLive": false }, "expected": "reconnecting" },
+    { "id": "connected-live", "facts": { "connState": "connected", "connWriterLive": true }, "expected": "connected" },
+    { "id": "connected-nowriter", "facts": { "connState": "connected", "connWriterLive": false }, "expected": "reconnecting" },
+    { "id": "domainReloading-live", "facts": { "connState": "domainReloading", "connWriterLive": true }, "expected": "connected" },
+    { "id": "domainReloading-nowriter", "facts": { "connState": "domainReloading", "connWriterLive": false }, "expected": "domainReloading" },
+    { "id": "failed-live", "facts": { "connState": "failed", "connWriterLive": true }, "expected": "connected" },
+    { "id": "failed-nowriter", "facts": { "connState": "failed", "connWriterLive": false }, "expected": "disconnected" },
+    { "id": "dormant-live", "facts": { "connState": "dormant", "connWriterLive": true }, "expected": "dormant" },
+    { "id": "dormant-nowriter", "facts": { "connState": "dormant", "connWriterLive": false }, "expected": "dormant" },
+    { "id": "waking-live", "facts": { "connState": "waking", "connWriterLive": true }, "expected": "waking" },
+    { "id": "waking-nowriter", "facts": { "connState": "waking", "connWriterLive": false }, "expected": "waking" }
+  ],
+  "transportStatus": [
+    { "id": "disconnected-live", "facts": { "connState": "disconnected", "connWriterLive": true }, "expected": "connected" },
+    { "id": "disconnected-nowriter", "facts": { "connState": "disconnected", "connWriterLive": false }, "expected": "reconnecting" },
+    { "id": "connected-live", "facts": { "connState": "connected", "connWriterLive": true }, "expected": "connected" },
+    { "id": "connected-nowriter", "facts": { "connState": "connected", "connWriterLive": false }, "expected": "reconnecting" },
+    { "id": "domainReloading-live", "facts": { "connState": "domainReloading", "connWriterLive": true }, "expected": "connected" },
+    { "id": "domainReloading-nowriter", "facts": { "connState": "domainReloading", "connWriterLive": false }, "expected": "reconnecting" },
+    { "id": "failed-live", "facts": { "connState": "failed", "connWriterLive": true }, "expected": "connected" },
+    { "id": "failed-nowriter", "facts": { "connState": "failed", "connWriterLive": false }, "expected": "failed" },
+    { "id": "dormant-live", "facts": { "connState": "dormant", "connWriterLive": true }, "expected": "dormant" },
+    { "id": "dormant-nowriter", "facts": { "connState": "dormant", "connWriterLive": false }, "expected": "dormant" },
+    { "id": "waking-live", "facts": { "connState": "waking", "connWriterLive": true }, "expected": "waking" },
+    { "id": "waking-nowriter", "facts": { "connState": "waking", "connWriterLive": false }, "expected": "waking" }
+  ]
+}

@@ -1,0 +1,16 @@
+PROVENANCE "basic triples transcribed from the tests the project already has: test_update_check.py (Python), ChangelogReaderTests.cs (C#). The pre-release rows have no existing test (UpdateChecker/ChangelogReader/ReleaseDiff all fail to parse a '-rc' suffix and return false; _update_check strips it and ignores the policy question) -- they are semver 2.0 §11 plus the Q16 product policy (a stable user never sees any pre-release banner; a pre-release user sees the release of their own line, and any strictly newer release, but not a sibling pre-release)."
+
+EXAMPLES isNewer
+  id | verParsed | verTriple | verCandPre | verCurPre -> expected
+  v01-unparsed | false | equal | false | false -> false  # characterized: UpdateChecker.cs:179 ChangelogReader.cs:80 ReleaseDiff.cs:53 _update_check.py:41 all return false on an unparsable string
+  v02-greater | true | greater | false | false -> true  # test_update_check.py:12 test_update_check.py:24 test_update_check.py:28 ChangelogReaderTests.cs:51
+  v03-equal | true | equal | false | false -> false  # test_update_check.py:16 ChangelogReaderTests.cs:52
+  v04-less | true | less | false | false -> false  # test_update_check.py:20 ChangelogReaderTests.cs:53
+  v05-rc-over-stable-greater | true | greater | true | false -> false  # characterized: a stable user never sees a pre-release banner, even for a numerically newer triple (semver 2.0 §11 + Q16; closes EVAL3_UNITY_MCP_UI.md F4)
+  v06-rc-over-stable-equal | true | equal | true | false -> false  # characterized: same rule, equal triple
+  v07-rc-over-stable-less | true | less | true | false -> false  # characterized: same rule, lesser triple
+  v08-stable-over-rc-greater | true | greater | false | true -> true  # characterized: a pre-release user sees a newer stable release (closes EVAL3_UNITY_MCP_UI.md F4: 1.51.0-rc.1 -> 1.52.0)
+  v09-release-over-its-rc | true | equal | false | true -> true  # characterized: a pre-release user sees the release of their own line (1.52.0-rc.1 -> 1.52.0)
+  v10-rc-over-sibling-rc | true | equal | true | true -> false  # characterized: a pre-release user does not see a sibling pre-release of the same triple
+  v11-rc-user-past-triple | true | less | false | true -> false  # characterized: a pre-release user already past this triple sees no banner for an older stable release
+END

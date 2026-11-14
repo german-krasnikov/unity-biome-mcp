@@ -14,6 +14,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CELL_SCRIPT = REPO_ROOT / "scripts" / "run_fsr_qualification_cell.py"
 REGISTRATION_CS = REPO_ROOT / "unity-plugin" / "Editor" / "CommandRouter.Registration.cs"
+# A5: commands whose metadata is fully described by the DSL catalog (dsl/tools.biome
+# HANDLER item) are registered from here instead of CommandRouter.Registration.cs.
+TOOL_BINDINGS_CS = REPO_ROOT / "unity-plugin" / "Editor" / "Generated" / "ToolBindings.g.cs"
 
 CALL_PATTERN = re.compile(r'durable\.call\(\s*port,\s*"([a-zA-Z_]+)"')
 REGISTER_PATTERN = re.compile(r'CommandRegistry\.(?:Register|RegisterAction|RegisterAsync)\(\s*"([a-zA-Z_]+)"')
@@ -25,8 +28,10 @@ def _wire_commands_used_by_cell_script() -> set[str]:
 
 
 def _registered_wire_commands() -> set[str]:
-    text = REGISTRATION_CS.read_text(encoding="utf-8")
-    return set(REGISTER_PATTERN.findall(text))
+    commands: set[str] = set()
+    for source in (REGISTRATION_CS, TOOL_BINDINGS_CS):
+        commands |= set(REGISTER_PATTERN.findall(source.read_text(encoding="utf-8")))
+    return commands
 
 
 def test_cell_script_calls_at_least_one_wire_command():

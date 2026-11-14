@@ -1,0 +1,11 @@
+# injectState: whether to append an "AUTO STATE" hierarchy snapshot to this response. First match wins.
+# Characterized from MiddlewareAsyncMixin.maybe_inject_state (middleware_async.py), whose 5 early-return
+# skip checks are transcribed here in their original order so a future edit can't silently reorder them.
+DECISION injectState DEFAULT skip
+  autoStateOff AT 10 WHEN state.autoStateOff -> skip
+  screenshotCmd AT 20 WHEN state.cmdIsScreenshot -> skip
+  playtestScenario AT 30 WHEN state.cmdIsPlaytestScenario -> skip
+  nonWriteCmd AT 40 WHEN state.cmdPresent AND NOT state.cmdIsWrite -> skip
+  readonlyBatch AT 50 WHEN state.cmdIsBatch AND state.batchReadonly -> skip
+  periodicDue AT 60 WHEN state.dueByCount AND state.gapOk -> inject
+END

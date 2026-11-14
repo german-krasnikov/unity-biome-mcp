@@ -56,13 +56,7 @@ namespace UnityMCP.Editor.Chat
             return FallbackForBackend(backend);
         }
 
-        private static int FallbackForBackend(BackendKind backend) => backend switch
-        {
-            BackendKind.Claude      => 200_000,
-            BackendKind.Codex       => 1_000_000,
-            BackendKind.Kimi        => 128_000,
-            BackendKind.Antigravity => 1_000_000,
-            _                       => 0,
-        };
+        private static int FallbackForBackend(BackendKind backend) =>
+            BackendTable.Get(backend)?.ContextFallback ?? 0;
     }
 }

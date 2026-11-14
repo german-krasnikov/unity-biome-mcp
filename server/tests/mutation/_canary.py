@@ -18,11 +18,11 @@ import types
 import uuid
 from pathlib import Path  # noqa: TC003 -- used in runtime-evaluated annotations, not type-checking only
 
+from biome_mcp.models.result import CommandResult, CommandStatus
 from gauntlet.fsr_qualification_fixture import mono_meta
 from gauntlet.readiness_canary import FIXTURES, target_body
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
-from unity_mcp.bridge_result import unwrap_bridge_result
 from unity_mcp.timeout_categories import get_timeout
 from unity_mcp.tools.sync import _parse_status
 
@@ -162,10 +162,10 @@ def make_raw_send(bridge):
     Mirrors server/tests/live/conftest.py::sdk_runtime's _send_raw_like."""
     async def _send_raw_like(cmd, args, timeout=0):
         result = await bridge.send(cmd, args, timeout=timeout or get_timeout(cmd))
-        text, ok = unwrap_bridge_result(result)
-        if not ok:
-            raise ToolError(text)
-        return text
+        cr = CommandResult.from_raw(result)
+        if cr.status != CommandStatus.OK:
+            raise ToolError(result.get("err", "Unknown error"))
+        return cr.data
     return _send_raw_like
 
 

@@ -32,6 +32,9 @@ namespace UnityMCP.Editor
             // PR-04: owner-declared mutation/batch policy (see CommandOptions.cs).
             public Func<string, bool> MutatingArgsPolicy;
             public bool NotBatchable;
+            // Step 7.2 (M3.0): see CommandOptions.
+            public bool PlayOk;
+            public bool NoUndo;
             // N1a T7: registration data, not a prefix guess. null = host/built-in;
             // non-null = the registering plugin's IMCPPlugin.Name.
             public string Owner;
@@ -39,10 +42,6 @@ namespace UnityMCP.Editor
 
         // All mutations happen on Unity main thread (dispatched by MCPServer).
         private static readonly Dictionary<string, Entry> _commands = new Dictionary<string, Entry>();
-        private static readonly HashSet<string> _navMeshReadActions = new HashSet<string>
-        {
-            "sample", "path", "raycast", "status", "get_settings"
-        };
 
         // True after RegisterAll() completes. volatile: written once on main thread (RegisterAll),
         // read on TCP background thread. Reset by Clear() on each domain reload.
@@ -130,6 +129,8 @@ namespace UnityMCP.Editor
                 MaxResponseChars = options.MaxResponseChars,
                 MutatingArgsPolicy = options.MutatingArgsPolicy,
                 NotBatchable = options.NotBatchable,
+                PlayOk = options.PlayOk,
+                NoUndo = options.NoUndo,
                 Owner = CallerPluginName
             };
         }
@@ -139,7 +140,8 @@ namespace UnityMCP.Editor
             bool alwaysAllowed = false, bool allowedDuringCompile = false,
             Func<string, string, string> fileHandler = null, string description = null,
             int maxResponseChars = 0,
-            Func<string, bool> mutatingArgsPolicy = null, bool notBatchable = false) =>
+            Func<string, bool> mutatingArgsPolicy = null, bool notBatchable = false,
+            bool playOk = false, bool noUndo = false) =>
             Register(cmd, handler, new CommandOptions
             {
                 Mutating = mutating,
@@ -153,7 +155,9 @@ namespace UnityMCP.Editor
                 Description = description,
                 MaxResponseChars = maxResponseChars,
                 MutatingArgsPolicy = mutatingArgsPolicy,
-                NotBatchable = notBatchable
+                NotBatchable = notBatchable,
+                PlayOk = playOk,
+                NoUndo = noUndo
             });
 
         // action is always required (enforced by the wrapper below) — callers only
@@ -183,13 +187,15 @@ namespace UnityMCP.Editor
                 Optional = Split(options.Optional),
                 Description = options.Description,
                 MaxResponseChars = options.MaxResponseChars,
+                PlayOk = options.PlayOk,
+                NoUndo = options.NoUndo,
                 Owner = CallerPluginName
             };
         }
 
         public static void RegisterAction(string cmd, Func<string, string, string> handler, bool mutating = false, bool runtime = false,
             string required = null, string optional = null, bool alwaysAllowed = false, bool allowedDuringCompile = false,
-            string description = null, int maxResponseChars = 0) =>
+            string description = null, int maxResponseChars = 0, bool playOk = false, bool noUndo = false) =>
             RegisterAction(cmd, handler, new CommandOptions
             {
                 Mutating = mutating,
@@ -199,7 +205,9 @@ namespace UnityMCP.Editor
                 AlwaysAllowed = alwaysAllowed,
                 AllowedDuringCompile = allowedDuringCompile,
                 Description = description,
-                MaxResponseChars = maxResponseChars
+                MaxResponseChars = maxResponseChars,
+                PlayOk = playOk,
+                NoUndo = noUndo
             });
 
         // handler signature: (id, argsJson, tcs)
@@ -220,6 +228,8 @@ namespace UnityMCP.Editor
                 Optional = Split(options.Optional),
                 Description = options.Description,
                 MaxResponseChars = options.MaxResponseChars,
+                PlayOk = options.PlayOk,
+                NoUndo = options.NoUndo,
                 Owner = CallerPluginName
             };
         }
@@ -227,7 +237,7 @@ namespace UnityMCP.Editor
         public static void RegisterAsync(string cmd, Action<string, string, TaskCompletionSource<string>> handler,
             bool mutating = false, bool runtime = false, string required = null, string optional = null,
             bool alwaysAllowed = false, bool allowedDuringCompile = false, string description = null,
-            int maxResponseChars = 0) =>
+            int maxResponseChars = 0, bool playOk = false, bool noUndo = false) =>
             RegisterAsync(cmd, handler, new CommandOptions
             {
                 Mutating = mutating,
@@ -237,66 +247,34 @@ namespace UnityMCP.Editor
                 AlwaysAllowed = alwaysAllowed,
                 AllowedDuringCompile = allowedDuringCompile,
                 Description = description,
-                MaxResponseChars = maxResponseChars
+                MaxResponseChars = maxResponseChars,
+                PlayOk = playOk,
+                NoUndo = noUndo
             });
 
         public static bool IsRegistered(string cmd) => _commands.ContainsKey(cmd);
         internal static bool IsMutating(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.Mutating;
 
         /// <summary>
-        /// Returns the effective mutability for one invocation. Most commands use their
-        /// registration-level classification; mixed read/write commands narrow it from args.
-        /// Unknown or unrecognised actions remain conservatively mutating.
+        /// Returns the effective mutability for one invocation: the decision isMutating (dsl/decisions/mutability.logic; Python's
+        /// middleware_types.is_write is the authority, owner 2026-10-29) over the registration's base (registered mutating or not, or not
+        /// registered) and the arguments (Decisions/MutabilityFacts.cs). A command whose action is not one of its read actions, or that has
+        /// none, is a write. An owner-declared MutatingArgsPolicy (PR-04, plugins) classifies its own command instead.
         /// </summary>
         internal static bool IsMutating(string cmd, string argsJson)
         {
-            // PR-04: owner-declared policy takes precedence over every cascade below —
-            // lets a command's own registration site classify itself without editing this
-            // method. See CommandRouter.MediaHandlers.cs's IsUitkFileMutating for the first
-            // real user (uitk_file, migrated off the hardcoded branch that used to live here).
-            if (_commands.TryGetValue(cmd, out var policyEntry) && policyEntry.MutatingArgsPolicy != null)
-                return policyEntry.MutatingArgsPolicy(argsJson);
-            if (cmd == "editor")
-            {
-                // "editor" is base-registered non-mutating (play/stop/select/state/
-                // project_path don't corrupt scene data — see CommandRouter.
-                // IsMutatingCommand). mutation_mode is the one action with real
-                // state-changing effect (P0-70): a query (no "enable") is a read;
-                // a set (enable present) is a write, regardless of the base flag.
-                var editorAction = JsonHelper.ExtractString(argsJson, "action") ?? "state";
-                return editorAction == "mutation_mode" &&
-                    JsonHelper.ExtractString(argsJson, "enable") != null;
-            }
-            if (!IsMutating(cmd)) return false;
-            if (cmd == "navmesh")
-            {
-                // Missing/unknown/case-mismatched actions stay conservatively mutating.
-                var navMeshAction = JsonHelper.ExtractString(argsJson, "action");
-                return navMeshAction == null || !_navMeshReadActions.Contains(navMeshAction);
-            }
-            if (cmd == "wait_until")
-            {
-                // Missing/false only polls. Any other value may stop Play Mode.
-                var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail");
-                return abortOnFail != null && !abortOnFail.Equals("false", StringComparison.Ordinal);
-            }
-            if (cmd == "get_changes")
-            {
-                // ChangeWatcher defaults clear=true; only explicit false preserves its buffer.
-                var clear = JsonHelper.ExtractString(argsJson, "clear");
-                return clear == null || !clear.Equals("false", StringComparison.Ordinal);
-            }
-            if (cmd == "profile")
-            {
-                var profileAction = JsonHelper.ExtractString(argsJson, "action");
-                return profileAction == null ||
-                    (profileAction != "status" && profileAction != "analyze" &&
-                     profileAction != "compare" && profileAction != "list_sessions");
-            }
-            return true;
+            var registered = _commands.TryGetValue(cmd, out var entry);
+            if (registered && entry.MutatingArgsPolicy != null)
+                return entry.MutatingArgsPolicy(argsJson);
+            var callBase = !registered ? "unknown" : entry.Mutating ? "write" : "read";
+            return Decisions.Mutability.Policy.IsMutating(Decisions.MutabilityFacts.Read(cmd, argsJson, callBase));
         }
 
         internal static bool IsRuntime(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.Runtime;
+        // Step 7.2 (M3.0): registration data, see CommandOptions. IsPlayOk lets a mutating command through the Play Mode guard
+        // (CommandRouter.IsAllowedMutationInPlayMode); IsNoUndo keeps its calls out of the Undo history and the change watcher.
+        internal static bool IsPlayOk(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.PlayOk;
+        internal static bool IsNoUndo(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.NoUndo;
         // Guard-list flags (DRY audit issues-23-29 Cat.1) — single source of truth, travels
         // with the registration. CommandRouter.IsAlwaysAllowed/IsAllowedDuringCompile delegate here.
         internal static bool IsAlwaysAllowed(string cmd) => _commands.TryGetValue(cmd, out var entry) && entry.AlwaysAllowed;

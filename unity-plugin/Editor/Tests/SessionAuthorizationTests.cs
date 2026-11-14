@@ -133,5 +133,13 @@ namespace UnityMCP.Editor.Tests
         {
             Assert.IsNull(SessionAuthorization.Check("full-access", "delete_object"));
         }
+
+        // SV2/Q15: dangerous (BLAST >= dangerous tier) must deny in agent mode too, not just ask mode.
+        // Before this, agent mode allowed every mutation unconditionally — the defense-in-depth gap Q15 closes.
+        [Test]
+        public void Check_AgentMode_BlocksDangerousCommand()
+        {
+            StringAssert.Contains("dangerous", SessionAuthorization.Check("agent", "execute_code"));
+        }
     }
 }

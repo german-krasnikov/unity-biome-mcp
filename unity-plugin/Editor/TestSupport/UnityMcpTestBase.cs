@@ -46,6 +46,7 @@ namespace UnityMCP.Editor.Testing
         private IDisposable _inlinePreviewBuilderIsolation;
         private IDisposable _mixedParagraphRendererIsolation;
         private IDisposable _chatSettingsHookIsolation;
+        private IDisposable _chatHostBridgeIsolation;
         private IDisposable _updateCheckerIsolation;
         private IDisposable _relayIsolation;
         private IDisposable _relaySpawnIsolation;
@@ -115,6 +116,7 @@ namespace UnityMCP.Editor.Testing
                     MixedParagraphRenderer.PreserveStateForTests();
                 _chatSettingsHookIsolation =
                     ChatSettingsHook.PreserveConnectionEventForTests();
+                _chatHostBridgeIsolation = ChatHostBridge.PreserveForTests();
                 _updateCheckerIsolation = UpdateChecker.BeginTestIsolation();
                 _relaySpawnIsolation = RelaySpawnState.BeginTestIsolation();
                 _relayIsolation = RelaySpawner.BeginTestIsolation();
@@ -239,6 +241,10 @@ namespace UnityMCP.Editor.Testing
                 "chat settings event restoration",
                 errors);
             RunCleanup(
+                () => _chatHostBridgeIsolation?.Dispose(),
+                "chat host bridge restoration",
+                errors);
+            RunCleanup(
                 () => _mixedParagraphRendererIsolation?.Dispose(),
                 "mixed paragraph preview context restoration",
                 errors);
@@ -322,6 +328,7 @@ namespace UnityMCP.Editor.Testing
             _inlinePreviewBuilderIsolation = null;
             _mixedParagraphRendererIsolation = null;
             _chatSettingsHookIsolation = null;
+            _chatHostBridgeIsolation = null;
             _updateCheckerIsolation = null;
             _relayIsolation = null;
             _relaySpawnIsolation = null;

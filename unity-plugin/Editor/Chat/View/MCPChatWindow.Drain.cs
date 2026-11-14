@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityMCP.Editor.Chat.Turn;
 
 namespace UnityMCP.Editor.Chat
 {
@@ -36,7 +37,7 @@ namespace UnityMCP.Editor.Chat
                 chipOffsets = System.Array.Empty<int>();
             }
 
-            var isIdle = _activity.Phase == ActivityPhase.Idle;
+            var isIdle = !_turn.Active;
 
             // Nothing to save: idle with no chips and no input text.
             var inputText = isIdle
@@ -53,7 +54,7 @@ namespace UnityMCP.Editor.Chat
                 chipPaths,
                 _agentMode,
                 _selectedAgent,
-                _activity.Phase.ToString(),
+                _turn.Phase.ToString(),
                 undoGroupId:      isIdle ? -1 : _undoTracker.InflightGroupId,
                 savedAtUtc:       DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
                 backendKind:      _selectedKind,
@@ -120,6 +121,7 @@ namespace UnityMCP.Editor.Chat
                 return;
             }
 
+            if (!_turn.CanSend) return;   // a turn is open: replacing its backend and sending again would run two
             CreateBackendWithSession(p.SessionId);
 
             var displayText = p.PendingText;
@@ -135,17 +137,13 @@ namespace UnityMCP.Editor.Chat
                 var sentText = string.IsNullOrEmpty(snap)
                     ? resendBody
                     : snap + "\n" + resendBody;
-                // FIX B: lock reload for the resumed turn, symmetric with DispatchTurn.
-                ReloadGuard.OnTurnStarted();
                 // #12: close pre-reload undo group BEFORE opening the resumed one;
-                // ordering is critical — CloseNamedGroup must precede OnTurnStart.
+                // ordering is critical — CloseNamedGroup must precede the undoStart port.
                 if (p.UndoGroupId >= 0)
                     UndoGroupHelper.CloseNamedGroup(p.UndoGroupId);
-                // F6: resumed turns also need an undo group so OnTurnEnd/OnTurnFailed
-                // can commit them to the restore stack (MAJOR 1 fix).
-                _undoTracker.OnTurnStart(displayText.Length > 40
-                    ? displayText.Substring(0, 40)
-                    : displayText);
+                // FIX B + F6: the resumed turn locks reload and opens an undo group, symmetric with DispatchTurn (ports lockReload, undoStart).
+                _undoLabel = displayText.Length > 40 ? displayText.Substring(0, 40) : displayText;
+                _turn.Dispatch(ChatTurnIntent.Send());
                 // Cache the FULL sent text (with snapshot) so a re-reload can persist it.
                 _sentTextCache.Set(sentText);
                 // task#10: keep the llm cache symmetric — a re-reload persists the same full payload.
@@ -161,7 +159,6 @@ namespace UnityMCP.Editor.Chat
                 // block) from PendingLlmPayload, matching the fresh-send payload exactly.
                 _backend.SendTurn(UserTurnBuilder.Build(sentText));
                 _lastEventTime = EditorApplication.timeSinceStartup; // watchdog reset
-                if (_activity.Send()) OnActivityChanged();
             }
         }
 
@@ -229,34 +226,18 @@ namespace UnityMCP.Editor.Chat
             {
                 // Dead-process guard: buffer is empty, so no result line is coming.
                 // Only fires if the process truly died (crash/kill) without emitting a result.
-                // Phase-first: cheap field read before the nullable backend deref.
-                if (_activity.Phase != ActivityPhase.Idle && _backend != null && !_backend.IsRunning)
+                // Turn-first: cheap check before the nullable backend deref.
+                if (_turn.Active && _backend != null && !_backend.IsRunning)
                 {
-                    // #2 fix: release the reload lock; without this the lock was held until the 120s watchdog.
-                    ReloadGuard.OnTurnFinished();
-                    ResetTurnFlags(); // P0-2: dead-process guard must also clear stale flags
-                    // F6: dead process — treat as failed turn.
-                    _undoTracker.OnTurnFailed();
-                    // M2: surface that the process exited unexpectedly.
-                    _transcript?.AppendOrExtendAssistant("\n[Process exited]");
-                    _transcript?.FinalizeAssistant();
-                    if (_activity.Fail()) OnActivityChanged();
+                    _turn.Dispatch(ChatTurnIntent.DeadProcess());   // #2, F6, M2: the protocol releases the lock, closes the undo group and notes the exit
                     return;
                 }
                 // Inactivity watchdog: process alive but no events for too long after turn started.
                 // Fires when a backend silently stalls after a tool error (no turn/completed emitted).
-                if (_activity.Phase != ActivityPhase.Idle && _backend != null && _backend.IsRunning
+                if (_turn.Active && _backend != null && _backend.IsRunning
                     && _lastEventTime > 0
                     && EditorApplication.timeSinceStartup - _lastEventTime > InactivityTimeoutSec)
-                {
-                    ReloadGuard.OnTurnFinished();
-                    ResetTurnFlags();
-                    _undoTracker.OnTurnFailed();
-                    var hint = !string.IsNullOrEmpty(_lastToolName) ? $" (last tool: {_lastToolName})" : "";
-                    _transcript?.AppendOrExtendAssistant($"\n[Timed out: no response for {(int)InactivityTimeoutSec}s{hint}]");
-                    _transcript?.FinalizeAssistant();
-                    if (_activity.Fail()) OnActivityChanged();
-                }
+                    _turn.Dispatch(ChatTurnIntent.Timeout());
                 return;
             }
             _lastEventTime = EditorApplication.timeSinceStartup;
@@ -280,7 +261,7 @@ namespace UnityMCP.Editor.Chat
         // Only builds the message and dispatches the turn; cap chip is shown at TurnDone.
         private void InjectCompileErrors(string errors)
         {
-            if (!_activity.CanSend) return;
+            if (!_turn.CanSend) return;
             var msg = $"Compile errors after your edit:\n{errors}\nFix them.";
             DispatchTurn(UserTurnBuilder.Build(msg), msg);
         }

@@ -4,9 +4,9 @@ import json
 import os
 from collections.abc import Awaitable, Callable  # noqa: TC003
 
-_FULL_SUPPORTED: frozenset[str] = frozenset({
-    "get_hierarchy", "get_component", "inspect", "get_object_detail",
-})
+from .tools.tags import tagged
+
+_FULL_SUPPORTED: frozenset[str] = tagged("async_full")
 
 
 class MiddlewareAsyncMixin:
@@ -21,29 +21,31 @@ class MiddlewareAsyncMixin:
         cmd: str = "",
         args: dict | None = None,
     ) -> str:
+        from .decisions.generated.injectstate_logic import InjectStateInput, InjectStateValues, inject_state
         from .middleware_guards import _is_batch_readonly
         from .middleware_types import PLAYTEST_SCENARIO_CMDS, is_write
-        if os.environ.get("UNITY_MCP_AUTO_STATE", "1") == "0":
+        decision = inject_state(InjectStateInput(
+            state_auto_state_off=os.environ.get("UNITY_MCP_AUTO_STATE", "1") == "0",
+            state_cmd_is_screenshot=cmd == "screenshot",
+            # A playtest's canonical receipt (json or text) is parsed downstream
+            # (runtime._classify_outcome) -- appended AUTO STATE text corrupts a
+            # passing receipt into an unparseable/misclassified one (P1).
+            state_cmd_is_playtest_scenario=cmd in PLAYTEST_SCENARIO_CMDS,
+            state_cmd_present=bool(cmd),
+            state_cmd_is_write=is_write(cmd, args),
+            state_cmd_is_batch=cmd == "batch",
+            state_batch_readonly=bool(args) and _is_batch_readonly((args or {}).get("commands", "")),
+            state_due_by_count=self.call_count % 10 == 0,
+            state_gap_ok=(self.call_count - self._last_hierarchy_call) > 5,
+        ))
+        if decision != InjectStateValues.INJECT:
             return result
-        # A capture writes a PNG but does not make the hierarchy stale.
-        if cmd == "screenshot":
-            return result
-        # A playtest's canonical receipt (json or text) is parsed downstream
-        # (runtime._classify_outcome) -- appended AUTO STATE text corrupts a
-        # passing receipt into an unparseable/misclassified one (P1).
-        if cmd in PLAYTEST_SCENARIO_CMDS:
-            return result
-        if cmd and not is_write(cmd, args):
-            return result
-        if cmd == "batch" and args and _is_batch_readonly(args.get("commands", "")):
-            return result
-        if self.call_count % 10 == 0 and (self.call_count - self._last_hierarchy_call) > 5:
-            try:
-                hierarchy = await send_fn("get_hierarchy", {"summary": "true"})
-                self._last_hierarchy_call = self.call_count
-                return result + f"\n--- AUTO STATE (call #{self.call_count}) ---\n{hierarchy}"
-            except Exception:
-                pass
+        try:
+            hierarchy = await send_fn("get_hierarchy", {"summary": "true"})
+            self._last_hierarchy_call = self.call_count
+            return result + f"\n--- AUTO STATE (call #{self.call_count}) ---\n{hierarchy}"
+        except Exception:
+            pass
         return result
 
     # ── Feature: Visual Verification via MCP Sampling ────────────────────────────

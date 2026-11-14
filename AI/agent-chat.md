@@ -177,14 +177,15 @@ side effects are outside this guarantee.
 1. **`_lastEventTime`** — timestamp of the most recent drained event
 2. **`InactivityTimeoutSec`** property — applies the saved timeout with a
    300-second minimum for Codex and a 30-second minimum for other backends
-3. **DrainAndRender() watchdog check** — If no events for longer than timeout while backend is running, emit failure card with context hint, finalize turn, call `OnTurnFailed()` (resets undo group, unlocks reload)
+3. **DrainAndRender() watchdog check** — If no events for longer than timeout while backend is running, dispatch the exit `timeout` of the chat turn (see Chat turn exit protocol): the note with the context hint, finalize, unlock reload, close the undo group
 4. **Resets:** `_lastEventTime` updated on every OnSend (turn start) and every event drain
 
 **Timeout context hint:** The failure message includes the last tool name,
 tracked through `_lastToolName` in `MCPChatWindow.EventHandlers.cs` when a
 `ToolStart` event arrives. This identifies the operation that was in flight.
+The `timeout` exit writes the note before it resets the per-turn scratch (the `resetTurn` port is the last effect of every exit), so the hint is printed.
 
-**Dead-Process Guard (v0.36.0)** — If backend process unexpectedly exits mid-turn (detected via `OnProcessDead()`), appends `[Process exited]` to transcript and finalizes. Surfaces unexpected connection loss (vs. timeout) as distinct error. Also clears turn flags to unlock reload guard.
+**Dead-Process Guard (v0.36.0)** — If the backend is not running while a turn is open (checked in `DrainAndRender` when no event is buffered), the window dispatches the exit `dead`: `[Process exited]` is appended to the transcript, which is then finalized. Surfaces unexpected connection loss (vs. timeout) as distinct error. Like every exit it releases the reload lock and closes the undo group.
 
 **Why:** Event silence is not treated as an immediate process death. Relay heartbeat events reset the watchdog without rendering anything, while the configurable inactivity timeout handles a genuinely stalled turn.
 
@@ -357,6 +358,29 @@ When a turn is in-flight, prevents domain reload from interrupting by calling `E
 
 Result: Domain reload queued during a turn waits until the turn finishes, so the chat session survives intact.
 
+Every way out of a turn releases the lock, not only the answer: the lock is the port `lockReload` of `send` and `unlockReload` of the first effect of every exit (below). The depth counter and the watchdog stay as a safety net.
+
+### Chat turn exit protocol (dsl/chat, step 7.3)
+
+A turn ends in eight ways, and the list of what must happen when it does is **one** source, `dsl/chat/chatturn.feature`: STATE `phase` (idle, sending, receiving), `exit` (none, done, error, dead, timeout, cancel, abort, reset, disable) and `asks` (0..8); 16 PORTs (the effects) and 15 `ON ... BECOMES` lines whose order is the order of the effects, the same for every exit. The reducer is printed into `Editor/Chat/CLI/Generated/ChatTurn/` (C# 9, never edited by hand); `ChatTurnDriver` is its one door (a queue, so a dispatch made by an effect waits for the exit that is running); `MCPChatWindow.TurnPorts.cs` holds the bodies of the 16 ports.
+
+| Exit | Detected by | Intent | Extra effects |
+|---|---|---|---|
+| `done` | `TurnDone` event | `TurnDone` | sync assets, refresh resolver, usage and auto-fix chips, Restore button, Approve button |
+| `error` | `Error` event while a turn is open | `Fail` | error chip, Restore button |
+| `dead` | `DrainAndRender`: the backend is not running | `DeadProcess` | `[Process exited]` note |
+| `timeout` | `DrainAndRender`: no event for `InactivityTimeoutSec` | `Timeout` | timeout note with the last tool |
+| `cancel` | Stop button, Esc | `Cancel` | restart the backend |
+| `abort` | switch of backend or model (3 paths of `Selector`) | `Abort` | none: the caller owns the switch |
+| `reset` | New Session / resume a CLI session | `ResetSession` | none: the rest of `ResetSession` erases the window |
+| `disable` | `OnDisable` | `Disable` | none |
+
+The order, for every exit: **resources** (unlock the reload, cancel the asks the turn raised, close the undo group), then the **transcript** (sync, resolver, notes, finalize, error chip, usage, Restore, Approve), then the **backend** (cancel only), the **per-turn scratch last** (`resetTurn`; the timeout note and the Approve button read it). An exit is a rising edge of `phase`, so a second exit finds no turn open and does nothing: a late `TurnDone` adds no second Restore button, and `send` over an open turn is refused (`DispatchTurn`, `TryResumePendingTurn`, an Approve click). An `Error` event with no turn open is not an exit: it is still shown as a chip.
+
+`asks` counts the open questions of the turn (the `AskUser` events and the MCP `ask_user` calls); every exit sets it to 0 and the `cancelAsks` port cancels the `ask_user` calls the turn raised in `PendingAskRegistry` (`_turnAskIds`), so the next turn shows Stop and the caller is released at once. `OnDisable` still cancels every ask of the window.
+
+To change what an exit does: edit `chatturn.examples` (the requirement; a change of it is its own commit, with the reason) and `chatturn.feature` (a new effect is a PORT line, an `ON` line at its place and a body in `TurnPorts.cs`), `scripts/dsl.sh generate`, then `scripts/dsl.sh check` and `dotnet test unity-plugin/Tests~/ChatTurn/ChatTurn.Tests.csproj -c Release`; the bodies and the wiring are covered by the EditMode tests `ChatTurnPortsTests` and `ChatTurnWiringTests`. See `dsl/README.md`.
+
 ### Pending Turn State (PendingTurnState.cs)
 
 Serializes in-flight turn state to `Library/MCP_ChatPendingTurn.txt` (plain-text pipe-delimited, base64-encoded payload). On `afterAssemblyReload`, the window restores the pending state and starts `RelayBackend` with the persisted session ID.
@@ -400,6 +424,8 @@ unity-plugin/Editor/Chat/
 │   ├── ChatBinaryResolver.cs         # Binary PATH resolution
 │   ├── ModelPresets.cs               # Per-backend model dropdown presets
 │   ├── PendingTurnState.cs           # Domain-reload: persist in-flight turn state
+│   ├── ChatTurnDriver.cs             # The one door of the chat-turn FEATURE (dsl/chat): a queue around the generated reducer
+│   ├── Generated/ChatTurn/           # Printed from dsl/chat/chatturn.feature (C# 9, never edited by hand)
 │   ├── EditorStateSnapshot.cs        # Inject context block (scene, compile, errors)
 │   ├── ChipContextResolver.cs        # Resolve object chips to plain text at 3 depths
 │   ├── InlineChipModel.cs, InlineChipData.cs, ChipKindRegistry.cs  # Chip system
@@ -408,6 +434,7 @@ unity-plugin/Editor/Chat/
 │   └── UnityMCP.Editor.Chat.CLI.asmdef
 ├── View/                             # UI rendering
 │   ├── MCPChatWindow.cs + focused partials (Drain, FlowBar, Send, Selector, Chips, etc.)
+│   ├── MCPChatWindow.TurnPorts.cs    # The 16 effects of the chat-turn FEATURE (ports) and the boxes they read
 │   ├── MCPChatWindow.uss             # UIToolkit styling
 │   ├── Annotation/                   # Screenshot annotation overlay
 │   ├── Markdown/                     # Markdown rendering + Mermaid

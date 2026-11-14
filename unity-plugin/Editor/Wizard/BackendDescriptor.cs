@@ -10,7 +10,6 @@ namespace UnityMCP.Editor.Wizard
         public string Description;
         public InstallMechanism Mechanism;
         public string BinaryName; // for PATH check via which/where
-        public string ConfigDir;  // for dir existence check (~ expanded at runtime)
         public bool AutoProjectConfig; // true when ProjectConfigWriter auto-generates a per-project file for this backend
         public string Instructions;    // populated only for ManualInstructions entries
 
@@ -21,7 +20,7 @@ namespace UnityMCP.Editor.Wizard
                 Key = "claude-code", DisplayName = "Claude Code", Icon = "◆",
                 Description = "Anthropic's CLI — writes ~/.claude.json",
                 Mechanism = InstallMechanism.PythonConfig,
-                BinaryName = "claude", ConfigDir = "~/.claude",
+                BinaryName = "claude",
                 AutoProjectConfig = true
             },
             new BackendDescriptor
@@ -29,20 +28,13 @@ namespace UnityMCP.Editor.Wizard
                 Key = "claude-desktop", DisplayName = "Claude Desktop", Icon = "◆",
                 Description = "Desktop app — writes mcpServers config",
                 Mechanism = InstallMechanism.PythonConfig,
-#if UNITY_EDITOR_WIN
-                ConfigDir = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "Claude")
-#elif UNITY_EDITOR_OSX
-                ConfigDir = "~/Library/Application Support/Claude"
-#else
-                ConfigDir = "~/.config/Claude"
-#endif
             },
             new BackendDescriptor
             {
                 Key = "cursor", DisplayName = "Cursor", Icon = "▶",
                 Description = "AI-first editor — writes ~/.cursor/mcp.json",
                 Mechanism = InstallMechanism.PythonConfig,
-                BinaryName = "cursor", ConfigDir = "~/.cursor",
+                BinaryName = "cursor",
                 AutoProjectConfig = true
             },
             new BackendDescriptor
@@ -51,11 +43,6 @@ namespace UnityMCP.Editor.Wizard
                 Description = "Codeium's editor — writes mcp_config.json",
                 Mechanism = InstallMechanism.PythonConfig,
                 BinaryName = "windsurf",
-#if UNITY_EDITOR_WIN
-                ConfigDir = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "Codeium", "windsurf"),
-#else
-                ConfigDir = "~/.codeium",
-#endif
                 AutoProjectConfig = true
             },
             new BackendDescriptor
@@ -64,13 +51,6 @@ namespace UnityMCP.Editor.Wizard
                 Description = "Visual Studio Code with Copilot MCP",
                 Mechanism = InstallMechanism.PythonConfig,
                 BinaryName = "code",
-#if UNITY_EDITOR_WIN
-                ConfigDir = System.IO.Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData), "Code"),
-#elif UNITY_EDITOR_OSX
-                ConfigDir = "~/Library/Application Support/Code",
-#else
-                ConfigDir = "~/.config/Code",
-#endif
                 AutoProjectConfig = true
             },
             new BackendDescriptor
@@ -78,7 +58,7 @@ namespace UnityMCP.Editor.Wizard
                 Key = "codex", DisplayName = "Codex", Icon = "◉",
                 Description = "OpenAI Codex CLI — writes MCP config file",
                 Mechanism = InstallMechanism.PythonConfig,
-                BinaryName = "codex", ConfigDir = "~/.codex",
+                BinaryName = "codex",
                 AutoProjectConfig = true
             },
             new BackendDescriptor

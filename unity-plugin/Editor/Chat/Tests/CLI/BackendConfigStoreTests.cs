@@ -35,13 +35,8 @@ namespace UnityMCP.Editor.Chat.Tests
             Assert.IsNotNull(store);
             Assert.IsNotNull(store.Claude);
             Assert.IsNotNull(store.Codex);
-            Assert.AreEqual("plan",              store.Claude.PermissionMode);
             Assert.AreEqual("",                  store.Claude.Model);
-            Assert.AreEqual("",                  store.Claude.ExtraArgs);
-            Assert.AreEqual("danger-full-access", store.Codex.PermissionMode);
-            Assert.AreEqual(30,                  store.Codex.StartupTimeoutSec);
             Assert.AreEqual("",                  store.Codex.Model);
-            Assert.AreEqual("",                  store.Codex.ExtraArgs);
         }
 
         [Test]
@@ -49,19 +44,15 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var original = new BackendConfigStore
             {
-                Claude = new ClaudeBackendConfig { Model = "claude-opus-4", PermissionMode = "acceptEdits", ExtraArgs = "--debug" },
-                Codex  = new CodexBackendConfig  { Model = "o3", StartupTimeoutSec = 60, ExtraArgs = "--verbose" }
+                Claude = new ClaudeBackendConfig { Model = "claude-opus-4" },
+                Codex  = new CodexBackendConfig  { Model = "o3" }
             };
 
             original.Save(_tempPath);
             var loaded = BackendConfigStore.Load(_tempPath);
 
             Assert.AreEqual("claude-opus-4",  loaded.Claude.Model);
-            Assert.AreEqual("acceptEdits",     loaded.Claude.PermissionMode);
-            Assert.AreEqual("--debug",         loaded.Claude.ExtraArgs);
             Assert.AreEqual("o3",              loaded.Codex.Model);
-            Assert.AreEqual(60,                loaded.Codex.StartupTimeoutSec);
-            Assert.AreEqual("--verbose",       loaded.Codex.ExtraArgs);
         }
 
         // ── ChipConfig defaults (H15: HierarchyDepth is now "path") ──────────
@@ -327,14 +318,12 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var store = new BackendConfigStore
             {
-                Claude = new ClaudeBackendConfig { Model = "a", PermissionMode = "plan", ExtraArgs = "-x" },
+                Claude = new ClaudeBackendConfig { Model = "a" },
                 Codex  = new CodexBackendConfig  { Model = "codex" },
                 InactivityTimeoutSec = 300,
             };
             var result = store.WithModel(BackendKind.Claude, "opus");
             Assert.AreEqual("opus",  result.Claude.Model);
-            Assert.AreEqual("plan",  result.Claude.PermissionMode);
-            Assert.AreEqual("-x",    result.Claude.ExtraArgs);
             Assert.AreSame(store.Codex, result.Codex);           // other backends untouched
             Assert.AreEqual(300,     result.InactivityTimeoutSec);
         }
@@ -344,13 +333,11 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var store = new BackendConfigStore
             {
-                Codex = new CodexBackendConfig { Model = "old", PermissionMode = "danger-full-access", StartupTimeoutSec = 45, ExtraArgs = "" },
+                Codex = new CodexBackendConfig { Model = "old" },
                 InactivityTimeoutSec = 99,
             };
             var result = store.WithModel(BackendKind.Codex, "o3");
             Assert.AreEqual("o3",                result.Codex.Model);
-            Assert.AreEqual("danger-full-access", result.Codex.PermissionMode);
-            Assert.AreEqual(45,                  result.Codex.StartupTimeoutSec);
             Assert.AreSame(store.Claude,         result.Claude);
             Assert.AreEqual(99,                  result.InactivityTimeoutSec);
         }
@@ -360,12 +347,10 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var store = new BackendConfigStore
             {
-                Antigravity = new AntigravityBackendConfig { Model = "old", ApprovalMode = "yolo", Sandbox = true, ExtraArgs = "" },
+                Antigravity = new AntigravityBackendConfig { Model = "old" },
             };
             var result = store.WithModel(BackendKind.Antigravity, "new-agy");
             Assert.AreEqual("new-agy", result.Antigravity.Model);
-            Assert.AreEqual("yolo",    result.Antigravity.ApprovalMode);
-            Assert.AreEqual(true,      result.Antigravity.Sandbox);
         }
 
         [Test]
@@ -373,11 +358,10 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var store = new BackendConfigStore
             {
-                Kimi = new KimiBackendConfig { Model = "old", ApprovalMode = "plan", ExtraArgs = "" },
+                Kimi = new KimiBackendConfig { Model = "old" },
             };
             var result = store.WithModel(BackendKind.Kimi, "kimi-k3");
             Assert.AreEqual("kimi-k3", result.Kimi.Model);
-            Assert.AreEqual("plan",    result.Kimi.ApprovalMode);
         }
 
         [Test]
@@ -385,11 +369,10 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var store = new BackendConfigStore
             {
-                OpenCode = new OpenCodeBackendConfig { Model = "old", SkipPermissions = true, ExtraArgs = "" },
+                OpenCode = new OpenCodeBackendConfig { Model = "old" },
             };
             var result = store.WithModel(BackendKind.OpenCode, "anthropic/claude-opus-4");
             Assert.AreEqual("anthropic/claude-opus-4", result.OpenCode.Model);
-            Assert.AreEqual(true,                      result.OpenCode.SkipPermissions);
         }
 
         [Test]

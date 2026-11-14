@@ -6,6 +6,7 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Chat.Turn;
 using UnityMCP.Editor.Testing;
 using Object = UnityEngine.Object;
 
@@ -17,7 +18,6 @@ namespace UnityMCP.Editor.Chat.Tests
     {
         private static readonly FieldInfo s_inp   = typeof(MCPChatWindow).GetField("_inputTokens",    BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly FieldInfo s_out   = typeof(MCPChatWindow).GetField("_outputTokens",   BindingFlags.NonPublic | BindingFlags.Instance);
-        private static readonly FieldInfo s_act   = typeof(MCPChatWindow).GetField("_activity",       BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly FieldInfo s_list  = typeof(MCPChatWindow).GetField("_sessionAllowlist", BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly MethodInfo s_fire = typeof(MCPChatWindow).GetMethod("HandleEvent",    BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -39,9 +39,11 @@ namespace UnityMCP.Editor.Chat.Tests
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
             {
-                Fire(w, ChatEvent.TurnDone("s1", 0.001f, 100, 50));
-                Fire(w, ChatEvent.TurnDone("s1", 0.002f, 300, 150));
-                Fire(w, ChatEvent.TurnDone("s1", 0.003f, 200, 80));
+                foreach (var (cost, inTokens, outTokens) in new[] { (0.001f, 100, 50), (0.002f, 300, 150), (0.003f, 200, 80) })
+                {
+                    w._turn.Dispatch(ChatTurnIntent.Send());   // a TurnDone ends the turn that is open; with none open it is inert
+                    Fire(w, ChatEvent.TurnDone("s1", cost, inTokens, outTokens));
+                }
                 Assert.AreEqual(200, (int)s_inp.GetValue(w));
                 Assert.AreEqual(80,  (int)s_out.GetValue(w));
             }
@@ -132,10 +134,10 @@ namespace UnityMCP.Editor.Chat.Tests
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
             {
-                var a = (ChatActivityState)s_act.GetValue(w);
-                a.Send(); a.FirstToken();
+                var a = w._turn;
+                a.Dispatch(ChatTurnIntent.Send()); a.Dispatch(ChatTurnIntent.FirstToken());
                 Fire(w, ChatEvent.TurnDone("s1", 0.001f, 100, 50));
-                Assert.AreEqual(ActivityPhase.Idle, a.Phase);
+                Assert.AreEqual(ChatTurnPhase.Idle, a.Phase);
             }
             finally { Object.DestroyImmediate(w); }
         }

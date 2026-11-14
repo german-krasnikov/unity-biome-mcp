@@ -13,7 +13,6 @@ import sysconfig
 import time
 from collections.abc import AsyncIterator  # noqa: TC003
 from contextlib import asynccontextmanager
-from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -239,7 +238,7 @@ async def _installed_session(
             async with stdio_client(parameters, errlog=error_stream) as (read, write), ClientSession(
                 read,
                 write,
-                read_timeout_seconds=timedelta(seconds=10),
+                read_timeout_seconds=10.0,
                 client_info=types.Implementation(name="installed-runtime", version="1"),
             ) as session:
                 yield session, await session.initialize()
@@ -267,8 +266,8 @@ async def test_installed_entrypoint_serves_public_stdio(
         tools = await session.list_tools()
         result = await session.call_tool("get_hierarchy", {"depth": 1})
 
-    assert initialized.serverInfo.version == PRODUCT_VERSION
+    assert initialized.server_info.version == PRODUCT_VERSION
     assert any(tool.name == "get_hierarchy" for tool in tools.tools)
-    assert result.isError is False
+    assert result.is_error is False
     assert "Synthetic" in result.content[0].text
     assert scripted_peer.unexpected_commands == []

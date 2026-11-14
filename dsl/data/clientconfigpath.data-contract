@@ -1,0 +1,9 @@
+# Global per-client MCP config-file path (P1 #5): one typed row set instead of the two
+# hand-written, platform-branching copies — clients.py and AiToolCardFactory.cs. Same
+# "~"/"{appdata}" substitution as installdir.data-contract.
+RECORD ClientConfigPath KEY key COUNT 4
+  key: string
+  path: string
+  pathMac: string OPTIONAL
+  pathWin: string OPTIONAL
+END

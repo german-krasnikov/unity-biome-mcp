@@ -2,8 +2,8 @@
 import json
 import sys
 
-from ._annotations import RO as _RO
 from ._common import bind
+from .generated.catalog_tools import permission_prompt, tools  # noqa: F401
 
 _send = None
 # Lazily initialized on first call to break circular import
@@ -22,7 +22,7 @@ def _get_broker():
     return _default
 
 
-async def permission_prompt(tool_name: str, input: dict, tool_use_id: str):
+async def _permission_prompt_body(tool_name: str, input: dict, tool_use_id: str):
     """Handle Claude permission prompts via MCP.
 
     Registered as --permission-prompt-tool so Claude routes all permission
@@ -31,7 +31,7 @@ async def permission_prompt(tool_name: str, input: dict, tool_use_id: str):
     if tool_name == "AskUserQuestion":
         try:
             questions = input.get("questions", [])
-            answers_raw = await _send("ask_user", {"questions": json.dumps(questions)}, timeout=300.0)
+            answers_raw = await _send("ask_user", {"questions": json.dumps(questions)})
             answers = json.loads(answers_raw)
             return json.dumps({
                 "behavior": "allow",
@@ -51,4 +51,3 @@ async def permission_prompt(tool_name: str, input: dict, tool_use_id: str):
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(permission_prompt)

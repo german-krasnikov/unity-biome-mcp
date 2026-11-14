@@ -82,11 +82,17 @@ No single handwritten roster is authoritative. Keep these sources aligned:
 | Contract | Source |
 |---|---|
 | Public Python signature and docstring | Owning module under `server/src/unity_mcp/tools/` |
-| Category, visibility tier, timeout, mutability, runtime and direct-only metadata | `server/src/unity_mcp/tools/tool_specs.py` |
+| Category, visibility tier, timeout, mutability, runtime and direct-only metadata | `dsl/tools.biome`, generated into `server/src/unity_mcp/tools/generated/` and merged by `tools/tool_specs.py` |
 | Session category visibility | `server/src/unity_mcp/tools/gating.py` |
 | Deferred schema behavior | `server/src/unity_mcp/tools/schema_registry.py` and `server_filtering.py` |
 | Unity handler and validation metadata | `unity-plugin/Editor/CommandRegistry.cs` registration sites |
-| Argument-dependent read/write behavior | `middleware_types.py` and `CommandRegistry.IsMutating(cmd, argsJson)` |
+| C# argument reads of a catalog tool | `dsl/tools.biome` `ARG` lines, printed to `unity-plugin/Editor/Generated/ToolArgs.g.cs` (`{Tool}Args.{Key}(args)`; `LOCAL` args have none, `WIRE` names the accessor by its key, `DEFAULT` is not applied; a required `str`/`ostr`/`Any` ARG throws through `JsonHelper.RequireString` on an empty value). Migrated handlers read through it; see `dsl/README.md` |
+| Declared actions of an `action`-dispatched tool, and the unknown-action error | `dsl/tools.biome` `ACTION` lines, printed to `server/src/unity_mcp/tools/generated/catalog_actions.py` (`TOOL_ACTIONS`) and `unity-plugin/Editor/Generated/ToolActions.g.cs` (`ToolActions.Names`, `IsKnown`); the handler reports an unknown action through `ErrorHelper.InvalidAction` with that list. See `dsl/README.md` (Actions) |
+| Argument-dependent read/write behavior | The decision `isMutating` (`dsl/decisions/mutability.logic`), read by `middleware_types.is_write` and `CommandRegistry.IsMutating(cmd, argsJson)`; the read actions of a tool are the `READ` lines of `dsl/tools.biome`. Python is the authority |
+| Which guard stops a call, and in which order | The decision `guardVerdict` (`dsl/decisions/guards.logic`), read by `CommandRouter.CheckGuards`, the per-line guards of `BatchHelper` and the Python read-only, Play Mode and direct-only gates |
+| Play Mode allowance of a command | `GUARD play_ok` in `dsl/tools.biome`, read by `CommandRegistry.IsPlayOk` (`CommandRouter.IsAllowedMutationInPlayMode` delegates to it) |
+| Command registration of a catalog tool | `HANDLER` lines in `dsl/tools.biome`, printed to `unity-plugin/Editor/Generated/ToolBindings.g.cs`; a command without a `HANDLER` is registered by hand in `CommandRouter.Registration.cs` |
+| Shared rules and typed rows (decisions, data contracts) | `dsl/decisions/` and `dsl/data/`; the decisions and their wiring are listed in `dsl/README.md` (Decisions) |
 | Exhaustive generated public parameters | `docs/tools-schema/` |
 
 Tool visibility is a discoverability control, not an authorization boundary.
@@ -110,6 +116,8 @@ public static void Register(
     bool specialDispatch = false,
     bool alwaysAllowed = false,
     bool allowedDuringCompile = false,
+    bool playOk = false,
+    bool noUndo = false,
     Func<string, string, string> fileHandler = null,
     string description = null,
     int maxResponseChars = 0);
@@ -123,6 +131,8 @@ public static void RegisterAction(
     string optional = null,
     bool alwaysAllowed = false,
     bool allowedDuringCompile = false,
+    bool playOk = false,
+    bool noUndo = false,
     string description = null,
     int maxResponseChars = 0);
 
@@ -135,6 +145,8 @@ public static void RegisterAsync(
     string optional = null,
     bool alwaysAllowed = false,
     bool allowedDuringCompile = false,
+    bool playOk = false,
+    bool noUndo = false,
     string description = null,
     int maxResponseChars = 0);
 ```
@@ -145,8 +157,16 @@ Registration rules:
 - `required` and `optional` are comma-separated parameter names. `null` for both
   marks a free-form contract; an empty string represents no parameters.
 - `RegisterAction` adds `action` to the required contract automatically.
-- `mutating` and `runtime` feed routing guards. Mixed read/write commands must
-  also implement conservative argument-aware classification on both sides.
+- `mutating` is the registered base of the write classification and `runtime`
+  feeds the Play Mode guard. Whether a given call is a write is the decision
+  `isMutating`, which starts from `mutating` and then reads the `action` and the
+  switch arguments of the call, as Python's `is_write` does: a command whose
+  actions differ needs its read actions in the catalog (`READ` lines), not a
+  second table in C#.
+- `playOk` lets a mutating command run in Play Mode (it stays a write for
+  read-only workers); `noUndo` opens no Undo group for a mutating command whose
+  effect is no Undo-recorded scene change. Neither is a trust flag: they are
+  kept when a third-party plugin registers a command.
 - `specialDispatch`, asynchronous handlers, file handlers, and externally owned
   file effects are not ordinary batch operations.
 - `alwaysAllowed` and `allowedDuringCompile` are core trust flags. They are
@@ -166,7 +186,10 @@ The layers are complementary:
   mutating commands. Configure both boundaries when both must be read-only.
 - Unity checks registry readiness, Python-only misuse, chat session mode,
   compilation state, Play Mode rules, runtime requirements, read-only state, and
-  per-tool settings before execution.
+  per-tool settings before execution. Which of them stops a call, and the order
+  (the top-level guards and the per-line guards of `batch` differ), is the
+  decision `guardVerdict`; the code states the facts and says what each verdict
+  tells the caller.
 - Conditional commands fail closed when an action or flag is absent, malformed,
   or not in a known read subset, except where the command contract explicitly
   defines a read default.
@@ -184,8 +207,8 @@ record Undo state; it cannot reverse arbitrary external effects.
 ## Mutation, Undo, and Batch
 
 For normal mutating C# commands, `CommandRouter` opens and closes a named Unity
-Undo group and records mutation evidence. This is a best-effort Unity-state
-boundary, not a general transaction manager.
+Undo group and records mutation evidence, unless the registration says `noUndo`.
+This is a best-effort Unity-state boundary, not a general transaction manager.
 
 `batch` executes compatible command lines sequentially. Python rejects or
 filters direct-only lines according to `on_error`; Unity validates and dispatches
@@ -347,7 +370,8 @@ SPEC_KWARGS: dict[str, dict] = {
 }
 ```
 
-Remaining 166+ tool specs are centralized in tool_specs.py. Migration deferred.
+Every other tool spec is generated from the tool catalog (`dsl/tools.biome`, see `dsl/README.md`) and merged by `tool_specs.py`; six
+tools whose MCP annotation and ToolSpec disagree are still written in its `_SPECS` literal until the owner decides.
 
 **Plugin Registration Owner (N1a):** A plugin declaring a reserved builtin name, a name
 colliding with a host tool, or a name it does not own (declared via `register_read_cmds`/
@@ -367,7 +391,7 @@ C# `CommandRegistry.Entry` gains `MutatingArgsPolicy` delegate (for argument-awa
 read/write classification) and `NotBatchable` bool; hardcoded name-switches migrate
 to registration sites. Target invariant (not yet enforced): adding a command should
 require only the module's registration. Currently, new commands also need a
-ToolSpec entry in tool_specs.py (or a pilot module's sync_spec.py) and may need gating entries.
+block in `dsl/tools.biome` (or a pilot module's `SPEC_KWARGS`) and may need gating entries.
 36 policy-vector tests validate parity across 5 representative commands.
 
 ## Reload Module Isolation (PR-04R & N2)

@@ -14,9 +14,10 @@ classifiers = [
 ]
 requires-python = ">=3.14"
 dependencies = [
-    "mcp>=1.28.0,<2",
+    "mcp>=2.3.0,<3",
     "pydantic>=2.0",
     "Pillow>=10.0",
+    "biome-mcp[mcp] @ git+https://github.com/german-krasnikov/biome-mcp.git",
 ]
 
 [project.urls]
@@ -93,6 +94,9 @@ ignore = ["E501", "E402", "E701", "E741"]
 [tool.ruff.lint.isort]
 known-first-party = ["unity_mcp"]
 
+# [tool.uv.sources]
+# biome-mcp = { path = "../../biome-mcp" }  # uncomment for local dev
+
 [tool.importlinter]
 root_package = "unity_mcp"
 
@@ -106,14 +110,18 @@ forbidden_modules = ["unity_mcp.server"]
 name = "transport/session layer stays independent of server and tools"
 type = "forbidden"
 source_modules = [
-    "unity_mcp.bridge",
-    "unity_mcp.bridge_socket",
-    "unity_mcp.bridge_heartbeat",
-    "unity_mcp.bridge_retry",
-    "unity_mcp.bridge_result",
-    "unity_mcp.bridge_cassette",
-    "unity_mcp.bridge_reload_state",
-    "unity_mcp.connection_slot",
+    "unity_mcp.bridge",              # package — covers every submodule now
+    "unity_mcp.bridge_socket",       # back-compat shim
+    "unity_mcp.bridge_heartbeat",    # back-compat shim
+    "unity_mcp.bridge_retry",        # back-compat shim
+    "unity_mcp.bridge_cassette",     # back-compat shim
+    "unity_mcp.bridge_reload_state", # back-compat shim
+    "unity_mcp.connection_slot",     # back-compat shim
+    "unity_mcp.lockfile",            # back-compat shim
+    "unity_mcp.phantom_cleaner",     # back-compat shim
+    "unity_mcp.compile_state",       # back-compat shim
+    "unity_mcp.unity_state",         # back-compat shim
+    "unity_mcp.crash_log",           # back-compat shim
 ]
 forbidden_modules = ["unity_mcp.server", "unity_mcp.tools"]
 
@@ -156,9 +164,24 @@ type = "forbidden"
 source_modules = ["unity_mcp.tools.diagnose", "unity_mcp.tools.reload_ladder"]
 forbidden_modules = ["unity_mcp.tools.sync"]
 
+# The decisions printed from dsl/decisions (step 7.2) are pure functions of typed facts: a leaf that imports the standard library
+# and itself. "unity_mcp.*" is every module and package under unity_mcp; the contract skips the pair (decisions, decisions), so the
+# package may import its own modules, and any other import of unity_mcp, direct or through a chain, breaks it. Its negative control
+# is tests/test_decisions_boundary.py.
+[[tool.importlinter.contracts]]
+name = "decisions stay a leaf (nothing of unity_mcp outside the package)"
+type = "forbidden"
+source_modules = ["unity_mcp.decisions"]
+forbidden_modules = ["unity_mcp.*"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+# biome-mcp is pinned to a git URL (no PyPI release yet); hatchling refuses
+# direct references in [project.dependencies] unless this is explicitly opted in.
+allow-direct-references = true
 
 [dependency-groups]
 # Self-reference onto [project.optional-dependencies].dev, not an independent

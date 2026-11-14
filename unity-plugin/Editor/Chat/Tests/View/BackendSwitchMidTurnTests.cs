@@ -1,7 +1,7 @@
 // TDD — T3.1 call-site verification: each of the three backend-switch paths must
-// invoke AbortCurrentTurnIfActive(), not just that the helper itself works.
-// Removing any one of the three AbortCurrentTurnIfActive() calls makes its test
-// red; the helper-existence tests in CancelTurnTests stay green.
+// dispatch the exit `abort` of the chat turn (dsl/chat/chatturn.feature). What the exit does is
+// chatturn.examples (abort_leaves_the_backend_to_the_caller); these tests are the triggers.
+// Removing any one of the three Abort dispatches makes its test red.
 using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
@@ -9,6 +9,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Chat.Turn;
 using Object = UnityEngine.Object;
 
 namespace UnityMCP.Editor.Chat.Tests
@@ -16,13 +17,8 @@ namespace UnityMCP.Editor.Chat.Tests
     [TestFixture]
     public class BackendSwitchMidTurnTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
-        private static readonly FieldInfo s_activity = typeof(MCPChatWindow)
-            .GetField("_activity", BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly FieldInfo s_backends = typeof(MCPChatWindow)
             .GetField("_backends", BindingFlags.NonPublic | BindingFlags.Instance);
-
-        private static ChatActivityState GetActivity(MCPChatWindow w)
-            => (ChatActivityState)s_activity.GetValue(w);
 
         private static void Invoke(MCPChatWindow w, string method, params object[] args)
         {
@@ -42,7 +38,7 @@ namespace UnityMCP.Editor.Chat.Tests
 
         // ── Path 1: OnAgentDropdownChanged ────────────────────────────────────
         // Proves that switching the agent dropdown mid-turn triggers the abort.
-        // Red: remove AbortCurrentTurnIfActive() from OnAgentDropdownChanged → phase stays Sending.
+        // Red: remove the Abort dispatch from OnAgentDropdownChanged → phase stays Sending.
 
         [Test]
         public void OnAgentDropdownChanged_WhenSending_ResetsActivityToIdle()
@@ -57,24 +53,23 @@ namespace UnityMCP.Editor.Chat.Tests
                     new BackendSpec("Codex",  null, true, BackendKind.Codex),
                 });
 
-                var activity = GetActivity(window);
-                activity.Send();
-                Assert.AreEqual(ActivityPhase.Sending, activity.Phase, "precondition");
+                window._turn.Dispatch(ChatTurnIntent.Send());
+                Assert.AreEqual(ChatTurnPhase.Sending, window._turn.Phase, "precondition");
 
                 // Directly invoke the extracted callback (no UIElements panel required)
                 using var evt = ChangeEvent<string>.GetPooled("Claude", "Codex");
                 Invoke(window, "OnAgentDropdownChanged", evt);
 
-                Assert.AreEqual(ActivityPhase.Idle, activity.Phase,
+                Assert.AreEqual(ChatTurnPhase.Idle, window._turn.Phase,
                     "agent-dropdown switch must abort the in-flight turn immediately — " +
-                    "AbortCurrentTurnIfActive() call missing from OnAgentDropdownChanged");
+                    "Abort dispatch missing from OnAgentDropdownChanged");
             }
             finally { Object.DestroyImmediate(window); }
         }
 
         // ── Path 2: OnModelDropdownChanged ───────────────────────────────────
         // Proves that switching the model dropdown mid-turn triggers the abort.
-        // Red: remove AbortCurrentTurnIfActive() from OnModelDropdownChanged → phase stays Sending.
+        // Red: remove the Abort dispatch from OnModelDropdownChanged → phase stays Sending.
 
         [Test]
         public void OnModelDropdownChanged_WhenSending_ResetsActivityToIdle()
@@ -85,25 +80,24 @@ namespace UnityMCP.Editor.Chat.Tests
                 // BuildModelSelector initialises _customModelField (accessed in OnModelDropdownChanged)
                 Invoke(window, "BuildModelSelector");
 
-                var activity = GetActivity(window);
-                activity.Send();
-                Assert.AreEqual(ActivityPhase.Sending, activity.Phase, "precondition");
+                window._turn.Dispatch(ChatTurnIntent.Send());
+                Assert.AreEqual(ChatTurnPhase.Sending, window._turn.Phase, "precondition");
 
                 // Pick any non-default, non-custom preset — guaranteed to take the abort branch
                 var targetLabel = MCPChatWindow.ModelPresets[1].label;
                 using var evt = ChangeEvent<string>.GetPooled("Default", targetLabel);
                 Invoke(window, "OnModelDropdownChanged", evt);
 
-                Assert.AreEqual(ActivityPhase.Idle, activity.Phase,
+                Assert.AreEqual(ChatTurnPhase.Idle, window._turn.Phase,
                     "model-dropdown switch must abort the in-flight turn immediately — " +
-                    "AbortCurrentTurnIfActive() call missing from OnModelDropdownChanged");
+                    "Abort dispatch missing from OnModelDropdownChanged");
             }
             finally { Object.DestroyImmediate(window); }
         }
 
         // ── Path 3: ApplyCustomModel ─────────────────────────────────────────
         // Proves that applying a custom-model string mid-turn triggers the abort.
-        // Red: remove AbortCurrentTurnIfActive() from ApplyCustomModel → phase stays Sending.
+        // Red: remove the Abort dispatch from ApplyCustomModel → phase stays Sending.
 
         [Test]
         public void ApplyCustomModel_WhenSending_ResetsActivityToIdle()
@@ -111,15 +105,14 @@ namespace UnityMCP.Editor.Chat.Tests
             var window = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
             {
-                var activity = GetActivity(window);
-                activity.Send();
-                Assert.AreEqual(ActivityPhase.Sending, activity.Phase, "precondition");
+                window._turn.Dispatch(ChatTurnIntent.Send());
+                Assert.AreEqual(ChatTurnPhase.Sending, window._turn.Phase, "precondition");
 
                 Invoke(window, "ApplyCustomModel");
 
-                Assert.AreEqual(ActivityPhase.Idle, activity.Phase,
+                Assert.AreEqual(ChatTurnPhase.Idle, window._turn.Phase,
                     "custom-model apply must abort the in-flight turn immediately — " +
-                    "AbortCurrentTurnIfActive() call missing from ApplyCustomModel");
+                    "Abort dispatch missing from ApplyCustomModel");
             }
             finally { Object.DestroyImmediate(window); }
         }

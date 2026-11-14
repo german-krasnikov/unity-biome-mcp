@@ -212,11 +212,11 @@ namespace UnityMCP.Editor
         // helloVersion:2 is the Python discriminant: present → fast-path (1 RTT), absent → 3-RTT fallback.
         // T19: projectId added (cloudProjectId or sha256[:12]) — stable across path moves.
         internal static string BuildClientHelloResponse(string msgId, string ver, string projPath) =>
-            $"{{\"id\":\"{JsonHelper.EscapeJson(msgId)}\",\"ok\":true," +
-            $"\"data\":\"pong\",\"helloVersion\":2," +
-            $"\"version\":\"{JsonHelper.EscapeJson(ver)}\"," +
-            $"\"projectPath\":\"{JsonHelper.EscapeJson(projPath)}\"," +
-            $"\"projectId\":\"{JsonHelper.EscapeJson(MCPServer._cachedProjectId)}\"}}";
+            JsonHelper.FormatResponseExtra(msgId, true,
+                "\"data\":\"pong\",\"helloVersion\":2," +
+                $"\"version\":\"{JsonHelper.EscapeJson(ver)}\"," +
+                $"\"projectPath\":\"{JsonHelper.EscapeJson(projPath)}\"," +
+                $"\"projectId\":\"{JsonHelper.EscapeJson(MCPServer._cachedProjectId)}\"");
 
         // MCP-CAP-025: typed rejection sent to clients that arrive when all slots are full.
         // Python discriminant: error == "CLIENT_CAPACITY_BUSY" → raises CapacityBusyError → retried.
@@ -422,8 +422,8 @@ namespace UnityMCP.Editor
                             if (MCPServer._shuttingDown || clientToken.IsCancellationRequested)
                                 tcs.TrySetCanceled();
                             else
-                                tcs.TrySetResult(
-                                    $"{{\"id\":\"{JsonHelper.EscapeJson(msgId)}\",\"ok\":false,\"err\":\"Command '{JsonHelper.EscapeJson(cmdName)}' timed out after {timeoutSec}s (Unity main thread blocked). Retry.\",\"retry\":2000}}");
+                                tcs.TrySetResult(JsonHelper.FormatBusyResponse(msgId,
+                                    $"Command '{cmdName}' timed out after {timeoutSec}s (Unity main thread blocked). Retry.", 2000));
                         });
                         var result = await tcs.Task.ConfigureAwait(false);
                         slot.EndCommand(index, generation);

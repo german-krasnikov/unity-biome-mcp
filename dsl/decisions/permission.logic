@@ -1,0 +1,8 @@
+# chatPermission: Python permission_broker.PermissionBroker.decide and C# SessionAuthorization.Check were two copies of this ladder (the first match wins, the lowest AT).
+DECISION chatPermission DEFAULT allow
+  external AT 10 WHEN chat.mode == external -> allow
+  unknownMode AT 11 WHEN chat.mode == unknown -> denyUnknownMode
+  fullAccess AT 12 WHEN chat.mode == fullAccess -> allow
+  agentDangerous AT 20 WHEN chat.mode == agent AND call.dangerous -> denyDangerous
+  askBlocked AT 30 WHEN chat.mode == ask AND (call.mutating OR call.dangerous) -> denyAsk
+END

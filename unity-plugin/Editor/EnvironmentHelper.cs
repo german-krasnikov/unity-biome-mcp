@@ -10,8 +10,6 @@ namespace UnityMCP.Editor
 {
     internal static class EnvironmentHelper
     {
-        private static readonly string[] ValidActions = { "get", "set" };
-
         // Known writable properties and their types.
         private static readonly string[] WritableProps =
         {
@@ -28,7 +26,8 @@ namespace UnityMCP.Editor
             {
                 "get" => Get(),
                 "set" => Set(argsJson),
-                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action, ValidActions))
+                _ => throw new ArgumentException(ErrorHelper.InvalidAction(action,
+                    ToolActions.Names("scene_environment")))
             };
         }
 
@@ -83,8 +82,8 @@ namespace UnityMCP.Editor
 
         private static string Set(string argsJson)
         {
-            var prop = JsonHelper.ExtractString(argsJson, "prop");
-            var value = JsonHelper.ExtractString(argsJson, "value");
+            var prop = SceneEnvironmentArgs.Prop(argsJson);
+            var value = SceneEnvironmentArgs.Value(argsJson);
             if (string.IsNullOrEmpty(prop))
                 throw new ArgumentException("prop is required");
             if (value == null)

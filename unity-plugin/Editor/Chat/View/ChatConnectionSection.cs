@@ -1,18 +1,12 @@
-// Subscribes to ChatSettingsHook.OnBuildConnection and fills the Chat settings nav page
-// with connection content (binary, auth, backends, chips) — no outer Foldout wrapper.
-using UnityEditor;
+// Fills the Chat settings nav page with connection content (binary, auth, backends,
+// chips) — no outer Foldout wrapper. Called directly by ChatHostBridgeImpl.BuildSettingsUI;
+// no longer self-registering since ChatHostBridgeImpl owns the [InitializeOnLoad] seam.
 using UnityEngine.UIElements;
 
 namespace UnityMCP.Editor.Chat
 {
-    [InitializeOnLoad]
     internal static class ChatConnectionSection
     {
-        static ChatConnectionSection()
-        {
-            ChatSettingsHook.OnBuildConnection += Build;
-        }
-
-        private static void Build(VisualElement root) => ChatSettingsSection.BuildContent(root);
+        internal static void Build(VisualElement root) => ChatSettingsSection.BuildContent(root);
     }
 }

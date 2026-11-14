@@ -1,0 +1,16 @@
+# Facts of the retry verdict (bridge_retry.RetryPolicy.decide and the SENT boundary of bridge._send_with_retry). The host folds are mechanical: isinstance, a clock compare, the probe reads.
+# retryGate reads only the cheap facts. retryReason is asked only when retryGate says observe, and reads the probes: probeBusy is CompileStateProbe.has_strong_busy_signal (state file, pid, a TCP connect, Editor.log).
+CONTRACT unitymcp.retry
+COVERAGE declared-scope
+MODULE retry_facts
+FACT retry.errorKind enum=identityMismatch,capacityBusy,domainReload,connectionRefused,other closed
+FACT retry.attempt number min=0 max=1000000 integer
+FACT retry.maxRetries number min=0 max=1000000 integer
+FACT retry.deadlinePassed bool
+FACT retry.deliverySent bool
+FACT retry.retrySafe bool
+FACT retry.reloadActive bool
+FACT retry.probeBusy bool
+FACT retry.processDead bool
+INPUT retryGate retry.errorKind retry.attempt retry.maxRetries retry.deadlinePassed retry.deliverySent retry.retrySafe retry.reloadActive
+INPUT retryReason retry.errorKind retry.attempt retry.probeBusy retry.processDead

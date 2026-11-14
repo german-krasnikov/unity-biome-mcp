@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEditor.Compilation;
 using UnityEngine;
+using UnityMCP.Editor.Roslyn;
 using UnityMCP.Editor.TestRuns;
 using UnityMCP.Playtest.Core;
 
@@ -53,23 +54,9 @@ namespace UnityMCP.Editor
 
         // Tools handled entirely by the Python MCP server — no C# handler exists.
         // Direct TCP callers that send these commands get an actionable error instead of
-        // an opaque InvalidOperationException("Command not registered").
-        internal static readonly HashSet<string> _PythonOnlyTools = new HashSet<string>
-        {
-            "animator_intent", "apply_scene_change", "apply_template", "ask",
-            "auto_fix", "await_compile", "brief_build", "budget_status",
-            "checkpoint_create", "checkpoint_restore", "configure_objects",
-            "console_mark", "debug", "discover_tools", "do", "doctor",
-            "get_changeset", "get_console_since", "get_metrics", "lint_playtest_suite",
-            "list_connections", "list_skills", "list_templates", "load_session",
-            "mcp_status", "navmesh_query", "permission_prompt", "reconnect_unity",
-            "release_smoke", "resolve_tool_schema", "run_playtest_suite",
-            "run_tests_wait", "save_session", "save_skill", "save_template",
-            "scene_change_plan", "screenshot_baseline", "screenshot_compare",
-            "set_llm_config", "set_properties", "setup_objects", "smart_build",
-            "snapshot", "sync_unity", "ui_intent", "uitk_intent", "use_skill", "verify_after_change",
-            "vfx_intent", "watch",
-        };
+        // an opaque InvalidOperationException("Command not registered"). Source of truth is
+        // the generated PythonOnlyTools.Names (PYTOOL lines of dsl/tools.biome).
+        internal static readonly HashSet<string> _PythonOnlyTools = PythonOnlyTools.Names;
 
         // Feature 3: recent command history for smart checkpoint naming
         internal static readonly Queue<string> _recentCmds = new Queue<string>();
@@ -80,48 +67,49 @@ namespace UnityMCP.Editor
             if (_recentCmds.Count > 3) _recentCmds.Dequeue();
         }
 
-        // Feature 2: suggest next tool for mutating commands
-        internal static string SuggestNext(string cmd) => cmd switch
-        {
-            "set_property" => "get_console level=Error",
-            "create_object" => "get_hierarchy depth=1",
-            "wire_event" => "validate_references",
-            "unwire_event" => "get_component",
-            "manage_component" => "get_components_list",
-            "delete_object" => "get_hierarchy depth=1",
-            "set_parent" => "get_hierarchy depth=1",
-            "batch" => "get_console level=Error",
-            _ => null
-        };
+        // Feature 2: suggest next tool for mutating commands (NEXT lines of dsl/tools.biome, ToolUi.NextAfter)
+        internal static string SuggestNext(string cmd) => ToolUi.NextAfter(cmd);
 
         // Returns error response string if a guard blocks the command, null otherwise.
+        // Which guard stops a call, and in which order, is the decision guardVerdict (site top) of dsl/decisions/guards.logic; GuardFacts
+        // states the world to it. What each verdict says to the caller is here. A verdict that has no answer here fails closed.
         private static string CheckGuards(string id, string cmd, string argsJson, string chatMode = "")
         {
-            if (!CommandRegistry.Ready)
-                return JsonHelper.FormatBusyResponse(id, "Server initializing. Retry in 2s.", 2000);
-            if (_PythonOnlyTools.Contains(cmd))
-                return JsonHelper.FormatResponse(id, false, null,
-                    $"'{cmd}' is a Python-only tool — use the MCP server (not direct TCP) to call it");
             var authError = SessionAuthorization.Check(chatMode, cmd, argsJson);
-            if (authError != null)
-                return JsonHelper.FormatResponse(id, false, null, authError);
-            if (IsCompiling() && !IsAllowedDuringCompile(cmd))
-                return JsonHelper.FormatBusyResponse(id, "Unity is compiling. Retry in 5s.", 5000);
-            if (IsPlayMode() && IsMutatingCommand(cmd, argsJson)
-                && !IsAllowedMutationInPlayMode(cmd, argsJson))
-                return JsonHelper.FormatResponse(id, false, null,
-                    "Play mode active — changes will be lost. Stop play mode first.");
-            if (!IsPlayMode() && CommandRegistry.IsRuntime(cmd))
-                return JsonHelper.FormatResponse(id, false, null, "Not in Play Mode. Use editor(action='play') first.");
-            if (IsReadOnly() && IsMutatingCommand(cmd, argsJson))
-                return JsonHelper.FormatResponse(id, false, null,
-                    $"READ_ONLY_BLOCKED: '{cmd}' is a mutating command — this worker is read-only");
-            if (!IsAlwaysAllowed(cmd) && !IsToolEnabledFn(cmd))
-                return JsonHelper.FormatResponse(id, false, null, $"Tool '{cmd}' is disabled in settings");
-            return null;
+            var verdict = Decisions.Guards.Policy.GuardVerdict(Decisions.GuardFacts.Top(
+                ready: CommandRegistry.Ready, pythonOnly: _PythonOnlyTools.Contains(cmd), authDenied: authError != null,
+                compiling: IsCompiling(), allowedDuringCompile: IsAllowedDuringCompile(cmd), playMode: IsPlayMode(),
+                mutating: IsMutatingCommand(cmd, argsJson), allowedInPlay: IsAllowedMutationInPlayMode(cmd, argsJson),
+                runtime: CommandRegistry.IsRuntime(cmd), readOnly: IsReadOnly(), alwaysAllowed: IsAlwaysAllowed(cmd),
+                toolEnabled: IsToolEnabledFn(cmd)));
+            switch (verdict)
+            {
+                case Decisions.Guards.Policy.GuardVerdictValues.Ok:
+                    return null;
+                case Decisions.Guards.Policy.GuardVerdictValues.Initializing:
+                    return JsonHelper.FormatBusyResponse(id, "Server initializing. Retry in 2s.", 2000);
+                case Decisions.Guards.Policy.GuardVerdictValues.PythonOnly:
+                    return JsonHelper.FormatResponse(id, false, null,
+                        $"'{cmd}' is a Python-only tool — use the MCP server (not direct TCP) to call it");
+                case Decisions.Guards.Policy.GuardVerdictValues.AuthDenied:
+                    return JsonHelper.FormatResponse(id, false, null, authError);
+                case Decisions.Guards.Policy.GuardVerdictValues.Compiling:
+                    return JsonHelper.FormatBusyResponse(id, "Unity is compiling. Retry in 5s.", 5000);
+                case Decisions.Guards.Policy.GuardVerdictValues.PlayBlocked:
+                    return JsonHelper.FormatResponse(id, false, null,
+                        "Play mode active — changes will be lost. Stop play mode first.");
+                case Decisions.Guards.Policy.GuardVerdictValues.NotInPlay:
+                    return JsonHelper.FormatResponse(id, false, null, "Not in Play Mode. Use editor(action='play') first.");
+                case Decisions.Guards.Policy.GuardVerdictValues.ReadOnlyBlocked:
+                    return JsonHelper.FormatResponse(id, false, null,
+                        $"READ_ONLY_BLOCKED: '{cmd}' is a mutating command — this worker is read-only");
+                case Decisions.Guards.Policy.GuardVerdictValues.Disabled:
+                    return JsonHelper.FormatResponse(id, false, null, $"Tool '{cmd}' is disabled in settings");
+                default:
+                    throw new InvalidOperationException($"guardVerdict gave '{verdict}' for the top site: CheckGuards has no answer for it");
+            }
         }
 
-        // editor excluded: play/stop/select don't corrupt scene data
         private static bool IsMutatingCommand(string cmd, string argsJson) =>
             CommandRegistry.IsMutating(cmd, argsJson);
 
@@ -129,16 +117,7 @@ namespace UnityMCP.Editor
         // this permission separate from read/write classification.
         internal static bool IsAllowedMutationInPlayMode(string cmd, string argsJson = null)
         {
-            if (cmd == "set_parent" || cmd == "execute_code" || cmd == "screenshot" ||
-                cmd == "wait_until")
-                return true;
-            if (cmd == "editor")
-                // Toggling Source Patch intent touches no scene data — never
-                // blocked by "changes will be lost, stop play mode first".
-                return JsonHelper.ExtractString(argsJson, "action") == "mutation_mode";
-            if (cmd != "profile") return false;
-            var action = JsonHelper.ExtractString(argsJson, "action");
-            return action == "start" || action == "stop";
+            return CommandRegistry.IsPlayOk(cmd);
         }
 
         public static string Process(string json)
@@ -146,6 +125,11 @@ namespace UnityMCP.Editor
             SceneContext.InvalidateCache();
             try
             {
+                // id/cmd/op_id/retry_op_id are the outer TCP envelope's own keys (the {id,cmd,args}
+                // wrapper), not a tool ARG declared in dsl/tools.biome -- no {Tool}Args class
+                // exists for them (or could, since they are not scoped to any one tool). Keep raw
+                // everywhere they are read from `json`, here and in Process/ProcessAsync's catch
+                // blocks and in ProcessAsync below.
                 var id = JsonHelper.ExtractString(json, "id");
                 var cmd = JsonHelper.ExtractString(json, "cmd");
                 LastCommandName = cmd ?? "";
@@ -173,10 +157,15 @@ namespace UnityMCP.Editor
                 var guard = CheckGuards(id, cmd, argsJson);
                 if (guard != null) return guard;
 
-                bool mutating = IsMutatingCommand(cmd, argsJson);
+                var contractErr = ArgContract.Check(cmd, argsJson);
+                if (contractErr != null) return JsonHelper.FormatResponse(id, false, null, contractErr);
+
+                // undo: a mutating call opens an Undo group and is recorded, unless its registration says noUndo:
+                // (a mutating command whose effect is no Undo-recorded scene change, step 7.2 M3.0).
+                bool undo = IsMutatingCommand(cmd, argsJson) && !CommandRegistry.IsNoUndo(cmd);
                 int groupId = -1;
 
-                if (mutating)
+                if (undo)
                     groupId = UndoGroupHelper.OpenNamedGroup($"MCP: {cmd}");
                 else
                     UndoGroupHelper.SetCommandFallback(cmd);
@@ -184,7 +173,7 @@ namespace UnityMCP.Editor
                 if (CommandRegistry.TryGetFileHandler(cmd, out var fileHandler))
                 {
                     var result = fileHandler(id, argsJson);
-                    if (mutating)
+                    if (undo)
                         UndoGroupHelper.CloseNamedGroup(groupId);
                     else
                         UndoGroupHelper.EndGroup();
@@ -208,11 +197,11 @@ namespace UnityMCP.Editor
                 }
                 catch
                 {
-                    if (mutating) UndoGroupHelper.CloseNamedGroup(groupId);
+                    if (undo) UndoGroupHelper.CloseNamedGroup(groupId);
                     throw;
                 }
 
-                if (mutating)
+                if (undo)
                 {
                     UndoGroupHelper.CloseNamedGroup(groupId);
                     UndoGroupStack.Push(groupId, mutations: 1);
@@ -271,6 +260,8 @@ namespace UnityMCP.Editor
                     argsJson = AliasExpander.ExpandJson(argsJson);  // expand $sigils in args
                     var guard = CheckGuards(id, cmd, argsJson, chatMode);
                     if (guard != null) { tcs.TrySetResult(guard); return; }
+                    var contractErr = ArgContract.Check(cmd, argsJson);
+                    if (contractErr != null) { tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, contractErr)); return; }
                     UndoGroupHelper.SetCommandFallback(cmd);
                     asyncHandler(id, argsJson, tcs);
                     return;
@@ -294,12 +285,12 @@ namespace UnityMCP.Editor
             }
         }
 
-        private static void AsyncRunTests(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncRunTests(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var mode = JsonHelper.ExtractString(argsJson, "mode");
-            var group = JsonHelper.ExtractString(argsJson, "group");
-            var filter = JsonHelper.ExtractString(argsJson, "filter");
-            var requestId = JsonHelper.ExtractString(argsJson, "request_id");
+            var mode = RunTestsArgs.Mode(argsJson);
+            var group = RunTestsArgs.Group(argsJson);
+            var filter = RunTestsArgs.Filter(argsJson);
+            var requestId = RunTestsArgs.RequestId(argsJson);
             var selection = new TestRunSelection(
                 TestRunSelectionArgs.ParseList(argsJson, "categories"),
                 TestRunSelectionArgs.ParseList(argsJson, "assemblies"),
@@ -311,25 +302,29 @@ namespace UnityMCP.Editor
             }, group, filter, requestId, selection);
         }
 
-        private static void AsyncBuild(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncBuild(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var action = JsonHelper.ExtractString(argsJson, "action");
-            var target = JsonHelper.ExtractString(argsJson, "target");
-            var scenes = JsonHelper.ExtractString(argsJson, "scenes");
-            var path   = JsonHelper.ExtractString(argsJson, "path");
-            var dev    = JsonHelper.ExtractString(argsJson, "dev") == "true";
+            // "build" is in ArgContract's enabled set, so CommandValidator.Validate already
+            // rejected a missing "action" before this handler runs -- BuildArgs.Action's
+            // RequireString never actually throws here.
+            var action = BuildArgs.Action(argsJson);
+            var target = BuildArgs.Target(argsJson);
+            var scenes = BuildArgs.Scenes(argsJson);
+            var path   = BuildArgs.Path(argsJson);
+            var dev    = BuildArgs.Dev(argsJson);
             var inner  = new TaskCompletionSource<string>();
             BuildHelper.Execute(action, target, scenes, path, dev, inner);
             CompleteFromInner(id, inner.Task, tcs, "build",
                 r => !r.StartsWith("err:"));
         }
 
-        private static void AsyncPackage(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncPackage(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var action  = JsonHelper.ExtractString(argsJson, "action");
-            var name    = JsonHelper.ExtractString(argsJson, "name");
-            var version = JsonHelper.ExtractString(argsJson, "version");
-            var query   = JsonHelper.ExtractString(argsJson, "query");
+            // "package" is in ArgContract's enabled set -- required "action" already validated.
+            var action  = PackageArgs.Action(argsJson);
+            var name    = PackageArgs.Name(argsJson);
+            var version = PackageArgs.Version(argsJson);
+            var query   = PackageArgs.Query(argsJson);
             var inner   = new TaskCompletionSource<string>();
             MainThreadDispatcher.Enqueue(() =>
                 PackageManagerHelper.Execute(action, name, version, query, inner));
@@ -371,25 +366,33 @@ namespace UnityMCP.Editor
             });
         }
 
-        private static void AsyncWaitUntil(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncWaitUntil(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
-            var component = JsonHelper.ExtractString(argsJson, "component");
-            var field = JsonHelper.ExtractString(argsJson, "field");
-            var value = JsonHelper.ExtractString(argsJson, "value");
+            // "wait_until" is in ArgContract's enabled set -- required path/component/field/value
+            // already validated, so WaitUntilArgs' RequireString accessors never throw here.
+            var path = WaitUntilArgs.Path(argsJson);
+            var component = WaitUntilArgs.Component(argsJson);
+            var field = WaitUntilArgs.Field(argsJson);
+            var value = WaitUntilArgs.Value(argsJson);
+            // NOT WaitUntilArgs.Timeout: that non-nullable accessor's JsonHelper.ExtractFloat
+            // fallback is a hardcoded 0f on missing input, not the DSL's `DEFAULT 5.0` -- keep
+            // the local ExtractFloat(..., 5f) wrapper (see ProfileRecorder.cs for the same rule).
             var timeout = ExtractFloat(argsJson, "timeout", 5f);
-            var negate = JsonHelper.ExtractString(argsJson, "negate") == "true";
-            var abortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true";
+            var negate = WaitUntilArgs.Negate(argsJson);
+            var abortOnFail = WaitUntilArgs.AbortOnFail(argsJson);
             var inner = new TaskCompletionSource<string>();
             RuntimeHelper.WaitUntil(path, component, field, value, timeout, negate, inner, abortOnFail);
             CompleteFromInner(id, inner.Task, tcs, "wait_until",
                 r => !r.StartsWith("wait_until") && !r.StartsWith("err:"));
         }
 
-        private static void AsyncMoveTo(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncMoveTo(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
-            var position = JsonHelper.ExtractString(argsJson, "position");
+            // "move_to" is in ArgContract's enabled set -- required path/position already
+            // validated, so MoveToArgs' RequireString accessors never throw here.
+            var path = MoveToArgs.Path(argsJson);
+            var position = MoveToArgs.Position(argsJson);
+            // NOT MoveToArgs.Timeout -- same 0f-vs-DEFAULT-15.0 mismatch as AsyncWaitUntil above.
             var timeout = ExtractFloat(argsJson, "timeout", 15f);
             var inner = new TaskCompletionSource<string>();
             RuntimeHelper.MoveTo(path, position, timeout, inner);
@@ -397,12 +400,15 @@ namespace UnityMCP.Editor
                 r => !r.StartsWith("Error:") && !r.StartsWith("err:"));
         }
 
-        private static void AsyncTestStep(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncTestStep(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
-            var position = JsonHelper.ExtractString(argsJson, "position");
-            var checksBefore = JsonHelper.ExtractString(argsJson, "checks_before") ?? "";
-            var checksAfter = JsonHelper.ExtractString(argsJson, "checks_after") ?? "";
+            // "test_step" is in ArgContract's enabled set -- required path/position already
+            // validated, so TestStepArgs' RequireString accessors never throw here.
+            var path = TestStepArgs.Path(argsJson);
+            var position = TestStepArgs.Position(argsJson);
+            var checksBefore = TestStepArgs.ChecksBefore(argsJson) ?? "";
+            var checksAfter = TestStepArgs.ChecksAfter(argsJson) ?? "";
+            // NOT TestStepArgs.WaitAfter/Timeout -- same 0f-vs-DEFAULT mismatch as above.
             var waitAfter = ExtractFloat(argsJson, "wait_after", 0.5f);
             var timeout = ExtractFloat(argsJson, "timeout", 15f);
             var inner = new TaskCompletionSource<string>();
@@ -428,8 +434,13 @@ namespace UnityMCP.Editor
             TaskCompletionSource<string> tcs, out PlaytestRunRequest request)
         {
             request = default;
-            var pathArg   = JsonHelper.ExtractString(argsJson, "path");
-            var scriptArg = JsonHelper.ExtractString(argsJson, "script");
+            // Shared by both AsyncRunPlaytest (run_playtest) and AsyncStartPlaytest
+            // (start_playtest) -- RunPlaytestArgs and StartPlaytestArgs are generated as two
+            // separate classes (one per DSL tool block) but their accessor bodies are byte-
+            // identical plain JsonHelper.ExtractString/ExtractFloat reads, so using RunPlaytestArgs
+            // here for both callers extracts the same wire keys either way.
+            var pathArg   = RunPlaytestArgs.Path(argsJson);
+            var scriptArg = RunPlaytestArgs.Script(argsJson);
 
             if (pathArg != null && scriptArg != null)
             {
@@ -454,7 +465,7 @@ namespace UnityMCP.Editor
                     return false;
                 }
                 script = File.ReadAllText(fullPath, Encoding.UTF8);
-                var defs = JsonHelper.ExtractString(argsJson, "defs");
+                var defs = RunPlaytestArgs.Defs(argsJson);
                 if (defs != null) script = defs + "\n" + script;
             }
             else if (scriptArg != null)
@@ -472,7 +483,7 @@ namespace UnityMCP.Editor
             // and timing (INV-005); "# @needs editmode" opts out, but never combined with a
             // fresh reload — fresh targets a Play session, which @needs editmode has none of.
             var header = PlaytestHeaderScanner.Scan(script);
-            var fresh = JsonHelper.ExtractString(argsJson, "fresh") == "true";
+            var fresh = RunPlaytestArgs.Fresh(argsJson);
             if (!header.NeedsEditmode && !EditorApplication.isPlaying)
             {
                 tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null,
@@ -498,27 +509,28 @@ namespace UnityMCP.Editor
                 }
             }
 
+            // NOT RunPlaytestArgs.Timeout -- same 0f-vs-DEFAULT-120.0 mismatch as AsyncWaitUntil.
             var timeout = ExtractFloat(argsJson, "timeout", 120f);
             if (timeout <= 0) timeout = 120f;
             request = new PlaytestRunRequest
             {
                 Script = script,
                 Timeout = timeout,
-                AbortOnFail = JsonHelper.ExtractString(argsJson, "abort_on_fail") == "true",
-                SnapshotOnFailure = JsonHelper.ExtractString(argsJson, "snapshot_on_failure") == "true",
+                AbortOnFail = RunPlaytestArgs.AbortOnFail(argsJson),
+                SnapshotOnFailure = RunPlaytestArgs.SnapshotOnFailure(argsJson),
                 Fresh = fresh,
                 Strict = pathArg != null,
                 RequiresPlayMode = !header.NeedsEditmode,
                 // B16: caller-selectable response representation; canonical JSON is always
                 // persisted regardless of this value (see PlaytestRunner.FinishRun).
-                Format = JsonHelper.ExtractString(argsJson, "format") ?? "text",
-                BeforeHook = JsonHelper.ExtractString(argsJson, "before_hook"),
-                AfterHook = JsonHelper.ExtractString(argsJson, "after_hook"),
+                Format = RunPlaytestArgs.Format(argsJson) ?? "text",
+                BeforeHook = RunPlaytestArgs.BeforeHook(argsJson),
+                AfterHook = RunPlaytestArgs.AfterHook(argsJson),
             };
             return true;
         }
 
-        private static void AsyncRunPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncRunPlaytest(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             if (!TryBuildPlaytestRunRequest(id, argsJson, tcs, out var req)) return;
 
@@ -577,7 +589,7 @@ namespace UnityMCP.Editor
         // the active run nor has a receipt is genuinely unknown and fails closed.
         private static void AsyncGetPlaytestRun(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
-            var runId = JsonHelper.ExtractString(argsJson, "run_id");
+            var runId = GetPlaytestRunArgs.RunId(argsJson);
             if (string.IsNullOrEmpty(runId))
             {
                 tcs.TrySetResult(JsonHelper.FormatResponse(id, false, null, "err: run_id required"));
@@ -610,6 +622,8 @@ namespace UnityMCP.Editor
                 return;
             }
 
+            // "run_id"/"text_report" here read the on-disk playtest receipt JSON, not this
+            // command's own args -- there is no {Tool}Args accessor for a receipt file's fields.
             var json = File.ReadAllText(receiptPath, Encoding.UTF8);
             if (JsonHelper.ExtractString(json, "run_id") != runId)
             {
@@ -619,75 +633,14 @@ namespace UnityMCP.Editor
             tcs.TrySetResult(BuildResponse(id, JsonHelper.ExtractString(json, "text_report")));
         }
 
-        // B17: the caller (AsyncRunPlaytest, above) already knows which representation it
-        // requested — format is passed explicitly (R-07 explicit-over-implicit) rather than
-        // re-derived here. The `{`-sniff below survives only as a fallback for a legacy/unknown
-        // format argument; it is never reached from the one production call site, which always
-        // resolves format to "text" or "json" before calling in (line ~493).
-        private static bool IsPlaytestSuccess(string report, string format)
-        {
-            if (string.IsNullOrEmpty(report)) return false;
-            if (format == "json") return IsPlaytestSuccessFromLedger(report);
-            if (format == "text") return IsPlaytestSuccessFromText(report);
-            return report.TrimStart().StartsWith("{", StringComparison.Ordinal)
-                ? IsPlaytestSuccessFromLedger(report)
-                : IsPlaytestSuccessFromText(report);
-        }
+        // B17: the caller (AsyncRunPlaytest, above) already knows which representation it requested -- format is passed explicitly
+        // (R-07 explicit-over-implicit). A format that is neither "text" nor "json" falls back to a `{`-sniff; the one production call
+        // site never passes one. Whether a report passes is the decision passes of dsl/decisions/verdict.logic; what this plane reads
+        // out of the report (the PLAYTEST: header at the very start, the ledger of B16, F7's fail-closed cases) is Decisions/PlaytestFacts.cs.
+        private static bool IsPlaytestSuccess(string report, string format) =>
+            Decisions.Verdict.Policy.Passes(Decisions.PlaytestFacts.Read(report, format));
 
-        // B16's canonical JSON receipt: "outer":{"teardown_ok":...} plus one
-        // {"ok":true/false,...} entry per step (PlaytestStepReceipt.ToJson). A step's `ok` is the
-        // ledger fact — never re-derived from scanning report text (that was the B17 bug: a
-        // step's source_file containing " OK" made the legacy substring check say "pass").
-        private static bool IsPlaytestSuccessFromLedger(string report)
-        {
-            var outer = JsonHelper.ExtractObject(report, "outer");
-            if (JsonHelper.ExtractString(outer, "teardown_ok") != "true") return false;
-            // F7: aggregate cross-check — a receipt whose own `failed` count disagrees with
-            // its per-step ok:true entries is definitionally suspect. Missing key defaults to
-            // -1 (fail-closed): production always emits `failed` (BuildJsonReport), so this
-            // only rejects a malformed/hand-crafted receipt.
-            if (JsonHelper.ExtractInt(report, "failed", -1) != 0) return false;
-
-            var stepsArray = JsonHelper.ExtractArray(report, "steps");
-            var pos = 0;
-            string stepJson;
-            var stepCount = 0;
-            while ((stepJson = JsonHelper.ExtractNextArrayObject(stepsArray, ref pos)) != null)
-            {
-                stepCount++;
-                if (JsonHelper.ExtractString(stepJson, "ok") != "true") return false;
-            }
-            return stepCount > 0; // F7: an empty ledger is not a pass
-        }
-
-        // INV-005 / v1 §41: the legacy text scan. Untouched by B17 — deleting it is gated on
-        // Player/Wave-D parity, not this item.
-        private static bool IsPlaytestSuccessFromText(string report)
-        {
-            if (string.IsNullOrEmpty(report)) return false;
-            // F7: fail-closed on an abort marker before either shortcut below — BuildReport
-            // never emits "ABORTED" in the same report as the " OK" one-liner, so this can only
-            // remove a false positive, never flip an already-correct pass to a false negative.
-            if (report.Contains("ABORTED")) return false;
-            if (!report.StartsWith("PLAYTEST:", StringComparison.Ordinal)) return false;
-
-            var firstLineEnd = report.IndexOf('\n');
-            var firstLine = firstLineEnd >= 0 ? report.Substring(0, firstLineEnd) : report;
-            var countStart = "PLAYTEST:".Length;
-            while (countStart < firstLine.Length && char.IsWhiteSpace(firstLine[countStart]))
-                countStart++;
-            var countEnd = firstLine.IndexOf(' ', countStart);
-            if (countEnd < 0) return false;
-
-            var counts = firstLine.Substring(countStart, countEnd - countStart).Split('/');
-            if (counts.Length != 2) return false;
-            return int.TryParse(counts[0], out var passed)
-                && int.TryParse(counts[1], out var total)
-                && total > 0
-                && passed == total;
-        }
-
-        private static void AsyncAskUser(string id, string argsJson, TaskCompletionSource<string> tcs)
+        internal static void AsyncAskUser(string id, string argsJson, TaskCompletionSource<string> tcs)
         {
             // Finding 2 (PR-05 05.2): fail fast, BEFORE creating a PendingAskRegistry entry —
             // nobody can ever answer a question with no subscriber, so don't make the caller
@@ -699,6 +652,13 @@ namespace UnityMCP.Editor
                     "ask_user unavailable: no interaction provider registered (Chat window not open)"));
                 return;
             }
+            // ARG adoption (Step 4, Batch 8): intentionally NOT migrated to AskUserArgs.Questions.
+            // "ask_user" is not in ArgContract's enabled set, so CommandValidator.Validate never
+            // runs for it -- no required-arg gate protects this handler. AskUserArgs.Questions
+            // calls JsonHelper.RequireString, which throws on a missing/empty key; this call site
+            // instead needs the graceful `?? "[]"` fallback it already has. Swapping would turn a
+            // missing "questions" key into an unhandled exception for a command with no gate to
+            // prevent one from reaching here.
             var questionsJson = JsonHelper.ExtractString(argsJson, "questions") ?? "[]";
             // PendingAskRegistry.Ask never returns "Error:"/"err:" strings (cancelled → {"cancelled":true}),
             // but the predicate is safe and consistent with test_step/move_to.
@@ -718,6 +678,7 @@ namespace UnityMCP.Editor
         internal static void RegisterAll()
         {
             CommandRegistry.Clear();
+            ToolBindings.RegisterAll();
             RegisterMetaCommands();
             RegisterReadCommands();
             RegisterMutatingCommands();
@@ -764,6 +725,12 @@ namespace UnityMCP.Editor
 
         internal static bool IsAllowedDuringCompile(string cmd) => CommandRegistry.IsAllowedDuringCompile(cmd);
 
+        // ExtractInt/ExtractFloat/ExtractVector3 (this method and the two below) ARE the
+        // generic caller-supplied-default parsing layer -- the same role JsonHelper.ParseOpt*
+        // plays for the generated {Tool}Args accessors, just with a non-null fallback instead of
+        // returning null. Reused across many call sites with per-call-site defaults (e.g.
+        // ExecSearchScene's limit=50 vs ExecSearchContext's limit=30); binding any one of them to
+        // a single tool's accessor would remove the shared default-parsing behavior. Keep raw.
         private static int ExtractInt(string json, string key, int defaultVal)
         {
             var val = JsonHelper.ExtractString(json, key);

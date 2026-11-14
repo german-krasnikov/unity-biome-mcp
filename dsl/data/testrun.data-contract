@@ -1,0 +1,14 @@
+# Test-run protocol vocabulary (PT-9): the words TestRunProtocol.cs's Lifecycle/RunOutcome/LeafOutcome/Health
+# string-const classes and testing.py's _RUN_STATES/_TERMINAL_OUTCOMES duplicate by hand. One ENUM per word
+# set, printed to both languages by `data --target cs|py`. TerminalOutcome records which RunOutcome values are
+# failures (isFailure), giving the required RECORD real protocol content instead of filler.
+ENUM Lifecycle prepared|dispatched|running|finalizing|terminal
+ENUM RunOutcome passed|failed|cancelled|incomplete|invalid|dispatch_failed
+ENUM LeafOutcome passed|failed|skipped|inconclusive|cancelled|invalid
+ENUM Health healthy|reloading|no_test_progress|editor_unresponsive|suspected_stall
+ENUM EventType run_started|manifest_sealed|test_started|test_finished|run_finished|infrastructure_error|dispatch_failed|cancel_requested|abandoned|cancelled|domain_reloading|run_finalized
+
+RECORD TerminalOutcome KEY outcome COUNT 6
+  outcome: string
+  isFailure: bool
+END

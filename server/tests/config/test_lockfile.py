@@ -1,0 +1,517 @@
+"""TDD tests for lockfile.py — per-PID presence files, no SIGTERM."""
+import os
+import sys
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+if sys.platform == "win32":
+    pytest.skip(
+        "lockfile tests use fcntl (POSIX-only); Windows lockfile uses msvcrt",
+        allow_module_level=True,
+    )
+
+import fcntl  # noqa: E402 — must be after the win32 guard
+
+from unity_mcp.lockfile import (
+    acquire_lock, release_lock, read_pid_from_port_file, read_port_for_pid,
+    is_pid_alive, _lock_nb, _unlock,
+)
+
+
+# ---------------------------------------------------------------------------
+# Core: per-PID file creation and release
+# ---------------------------------------------------------------------------
+
+def test_acquire_creates_per_pid_file(tmp_path):
+    """Filename must include PID: server-{port}-{pid}.lock"""
+    fd = acquire_lock(lock_dir=tmp_path, port=9500)
+    expected = tmp_path / f"server-9500-{os.getpid()}.lock"
+    assert expected.exists()
+    assert int(expected.read_text(encoding="utf-8").splitlines()[0]) == os.getpid()
+    release_lock(fd)
+
+
+def test_release_unlinks_presence_file(tmp_path):
+    """After release_lock, the per-PID file is deleted."""
+    fd = acquire_lock(lock_dir=tmp_path, port=9500)
+    lock_file = tmp_path / f"server-9500-{os.getpid()}.lock"
+    assert lock_file.exists()
+    release_lock(fd)
+    assert not lock_file.exists()
+
+
+def test_two_sessions_same_port_both_succeed(tmp_path):
+    """Two acquires with different mock PIDs don't conflict."""
+    pid1, pid2 = 11111, 22222
+    with patch("os.getpid", return_value=pid1):
+        fd1 = acquire_lock(lock_dir=tmp_path, port=9500)
+    with patch("os.getpid", return_value=pid2):
+        fd2 = acquire_lock(lock_dir=tmp_path, port=9500)
+
+    assert (tmp_path / f"server-9500-{pid1}.lock").exists()
+    assert (tmp_path / f"server-9500-{pid2}.lock").exists()
+
+    release_lock(fd1)
+    release_lock(fd2)
+
+
+def test_acquire_same_pid_twice_raises(tmp_path):
+    """Same PID can't acquire same port twice (flock LOCK_EX | LOCK_NB)."""
+    fd = acquire_lock(lock_dir=tmp_path, port=9500)
+    try:
+        with pytest.raises((RuntimeError, BlockingIOError, OSError)):
+            acquire_lock(lock_dir=tmp_path, port=9500)
+    finally:
+        release_lock(fd)
+
+
+def test_acquire_does_not_kill(tmp_path):
+    """acquire_lock never calls os.kill (no SIGTERM behavior)."""
+    with patch("os.kill") as mock_kill:
+        fd = acquire_lock(lock_dir=tmp_path, port=9500)
+        release_lock(fd)
+    # os.kill(pid, 0) from is_pid_alive is OK but signal.SIGTERM (15) must not be sent
+    for call_args in mock_kill.call_args_list:
+        sig = call_args[0][1] if len(call_args[0]) > 1 else call_args[1].get("sig")
+        assert sig != 15, f"SIGTERM was sent: {call_args}"
+
+
+def test_acquire_after_release(tmp_path):
+    """Can re-acquire the lock for the same PID after releasing."""
+    fd1 = acquire_lock(lock_dir=tmp_path, port=9500)
+    release_lock(fd1)
+    fd2 = acquire_lock(lock_dir=tmp_path, port=9500)
+    lock_file = tmp_path / f"server-9500-{os.getpid()}.lock"
+    assert int(lock_file.read_text(encoding="utf-8").splitlines()[0]) == os.getpid()
+    release_lock(fd2)
+
+
+def test_different_ports_dont_conflict(tmp_path):
+    """Two locks on different ports coexist."""
+    pid1, pid2 = 11111, 22222
+    with patch("os.getpid", return_value=pid1):
+        fd1 = acquire_lock(lock_dir=tmp_path, port=9500)
+    with patch("os.getpid", return_value=pid2):
+        fd2 = acquire_lock(lock_dir=tmp_path, port=9501)
+    assert (tmp_path / f"server-9500-{pid1}.lock").exists()
+    assert (tmp_path / f"server-9501-{pid2}.lock").exists()
+    release_lock(fd1)
+    release_lock(fd2)
+
+
+def test_lockfile_o_cloexec(tmp_path):
+    """O_CLOEXEC must be set on the lock file descriptor."""
+    fd = acquire_lock(lock_dir=tmp_path, port=9500)
+    try:
+        flags = fcntl.fcntl(fd, fcntl.F_GETFD)
+        assert flags & fcntl.FD_CLOEXEC, "O_CLOEXEC not set"
+    finally:
+        release_lock(fd)
+
+
+def test_release_lock_unlocks_fd(tmp_path):
+    """release_lock calls flock(LOCK_UN) and closes fd."""
+    fd = acquire_lock(lock_dir=tmp_path, port=9500)
+    with patch("fcntl.flock") as mock_flock, patch("os.close") as mock_close:
+        release_lock(fd)
+        mock_flock.assert_called_once_with(fd, fcntl.LOCK_UN)
+        mock_close.assert_called_once_with(fd)
+
+
+# ---------------------------------------------------------------------------
+# Cross-platform abstraction
+# ---------------------------------------------------------------------------
+
+def test_is_pid_alive_for_own_process():
+    assert is_pid_alive(os.getpid()) is True
+
+
+def test_is_pid_alive_for_dead_pid():
+    assert is_pid_alive(99999999) is False
+
+
+def test_is_pid_alive_for_none():
+    assert is_pid_alive(None) is False
+
+
+def test_is_pid_alive_permission_error_returns_true():
+    with patch("os.kill", side_effect=PermissionError("operation not permitted")):
+        assert is_pid_alive(12345) is True
+
+
+def test_is_pid_alive_win32_alive():
+    """Win32 path: OpenProcess non-zero handle → alive."""
+    import ctypes
+    import sys
+    from unittest.mock import MagicMock
+    mock_k = MagicMock()
+    mock_k.OpenProcess.return_value = 1  # non-zero = valid handle
+    with patch.object(sys, "platform", "win32"), \
+         patch.object(ctypes, "windll", MagicMock(kernel32=mock_k), create=True):
+        assert is_pid_alive(1234) is True
+    mock_k.CloseHandle.assert_called_once_with(1)
+
+
+def test_is_pid_alive_win32_dead():
+    """Win32 path: OpenProcess returns 0 → process not found."""
+    import ctypes
+    import sys
+    from unittest.mock import MagicMock
+    mock_k = MagicMock()
+    mock_k.OpenProcess.return_value = 0  # zero = not found
+    with patch.object(sys, "platform", "win32"), \
+         patch.object(ctypes, "windll", MagicMock(kernel32=mock_k), create=True):
+        assert is_pid_alive(99999) is False
+
+
+# ---------------------------------------------------------------------------
+# _read_pid_from_fd
+# ---------------------------------------------------------------------------
+
+def test_read_pid_from_fd_returns_none_for_corrupt_content(tmp_path):
+    from unity_mcp.lockfile import _read_pid_from_fd
+    f = tmp_path / "corrupt.lock"
+    f.write_bytes(b"not-a-pid\n")
+    fd = os.open(str(f), os.O_RDWR)
+    try:
+        assert _read_pid_from_fd(fd) is None
+    finally:
+        os.close(fd)
+
+
+# ---------------------------------------------------------------------------
+# read_pid_from_port_file
+# ---------------------------------------------------------------------------
+
+def test_read_pid_from_port_file(tmp_path):
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid = 12345
+    (ports_dir / f"{pid}.port").write_text("9500\n/path/to/project\nMyProject", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_pid_from_port_file(9500) == pid
+
+
+def test_read_pid_returns_none_for_missing():
+    assert read_pid_from_port_file(9999) is None
+
+
+def test_read_pid_from_port_file_corrupt_json(tmp_path):
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    (ports_dir / "12345.port").write_text("not-a-port\n/path/to/project", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path):
+        assert read_pid_from_port_file(9500) is None
+
+
+def test_read_pid_from_port_file_non_integer_stem(tmp_path):
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    (ports_dir / "abc.port").write_text("9500\n/path/to/project", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path):
+        assert read_pid_from_port_file(9500) is None
+
+
+def test_read_pid_from_port_file_cyrillic_path_does_not_crash(tmp_path):
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    (ports_dir / "99999.port").write_bytes("9500\n/Users/Иван/МойПроект\nМойПроект\n".encode("utf-8"))
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_pid_from_port_file(9500) == 99999
+
+
+def test_read_pid_from_port_file_ignores_blank_project_path(tmp_path):
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    expected_project = tmp_path / "ExpectedProject"
+    expected_project.mkdir()
+
+    # C# format with empty ProjectPath line must never be treated as a match for project-aware lookup.
+    (ports_dir / "1111.port").write_text(
+        "9600\n\nExpectedProject\n",
+        encoding="utf-8",
+    )
+    # Keep a valid alternative so caller-side port fallback still has a deterministic target.
+    (ports_dir / "2222.port").write_text(
+        "9601\n/some/other/project\nOtherProject\n",
+        encoding="utf-8",
+    )
+
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True), \
+         patch("os.getcwd", return_value=str(expected_project)):
+        assert read_pid_from_port_file(9600, project_path=expected_project) is None
+
+
+# ---------------------------------------------------------------------------
+# read_port_for_pid
+# ---------------------------------------------------------------------------
+
+def test_read_port_for_pid_returns_current_port(tmp_path):
+    """pid->port mirror of read_pid_from_port_file: reads {pid}.port by filename."""
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid = 12345
+    (ports_dir / f"{pid}.port").write_text(
+        "9501\n/path/to/project\nProj", encoding="utf-8"
+    )
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_port_for_pid(pid) == 9501
+
+
+def test_read_port_for_pid_matches_by_pid_not_any_port(tmp_path):
+    """Keyed by the pid's own filename — a stale port on another pid's file
+    must never leak into this pid's result."""
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid, other_pid = 12345, 67890
+    (ports_dir / f"{pid}.port").write_text(
+        "9501\n/path/to/project\nProj", encoding="utf-8"
+    )
+    (ports_dir / f"{other_pid}.port").write_text(
+        "9500\n/path/to/other\nOther", encoding="utf-8"
+    )
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_port_for_pid(pid) == 9501
+
+
+def test_read_port_for_pid_dead_pid_returns_none(tmp_path):
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid = 12345
+    (ports_dir / f"{pid}.port").write_text(
+        "9501\n/path/to/project\nProj", encoding="utf-8"
+    )
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=False):
+        assert read_port_for_pid(pid) is None
+
+
+def test_read_port_for_pid_no_file_returns_none(tmp_path):
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_port_for_pid(12345) is None
+
+
+def test_read_port_for_pid_project_path_mismatch_returns_none(tmp_path):
+    """Mirrors test_read_pid_from_port_file_ignores_blank_project_path: when
+    project_path is supplied, a blank/mismatched line 2 must never match."""
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    expected_project = tmp_path / "ExpectedProject"
+    expected_project.mkdir()
+    pid = 12345
+    (ports_dir / f"{pid}.port").write_text("9501\n\nProj\n", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_port_for_pid(pid, project_path=expected_project) is None
+
+
+# ---------------------------------------------------------------------------
+# read_project_path_from_port_file
+# ---------------------------------------------------------------------------
+
+def test_read_project_path_from_port_file_returns_path(tmp_path):
+    from unity_mcp.lockfile import read_project_path_from_port_file
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    project_dir = tmp_path / "MyProject"
+    project_dir.mkdir()
+    (ports_dir / "12345.port").write_text(f"9500\n{project_dir}\nMyProject\n", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
+        assert read_project_path_from_port_file(9500) == project_dir
+
+
+def test_read_project_path_dead_pid_skipped(tmp_path):
+    from unity_mcp.lockfile import read_project_path_from_port_file
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    project_dir = tmp_path / "MyProject"
+    project_dir.mkdir()
+    (ports_dir / "99999.port").write_text(f"9500\n{project_dir}\nMyProject\n", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=False):
+        assert read_project_path_from_port_file(9500) is None
+
+
+def test_read_project_path_from_port_file_wrong_port(tmp_path):
+    from unity_mcp.lockfile import read_project_path_from_port_file
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    project_dir = tmp_path / "MyProject"
+    project_dir.mkdir()
+    (ports_dir / "12345.port").write_text(f"9501\n{project_dir}\nMyProject\n", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path):
+        assert read_project_path_from_port_file(9500) is None
+
+
+# ---------------------------------------------------------------------------
+# read_reload_port
+# ---------------------------------------------------------------------------
+
+def test_read_reload_port_returns_none_when_no_dir():
+    from unity_mcp.lockfile import read_reload_port
+    with patch.object(Path, "home", return_value=Path("/nonexistent_dir_xyz")):
+        assert read_reload_port() is None
+
+
+def test_read_reload_port_returns_port_for_alive_pid(tmp_path):
+    from unity_mcp.lockfile import read_reload_port
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid = os.getpid()
+    (ports_dir / f"{pid}.reload-port").write_text("9600", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path):
+        assert read_reload_port() == 9600
+
+
+def test_read_reload_port_skips_dead_pid(tmp_path):
+    from unity_mcp.lockfile import read_reload_port
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    (ports_dir / "99999999.reload-port").write_text("9600", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path):
+        assert read_reload_port() is None
+
+
+def test_read_reload_port_skips_corrupt_file(tmp_path):
+    from unity_mcp.lockfile import read_reload_port
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid = os.getpid()
+    (ports_dir / f"{pid}.reload-port").write_text("not-a-port", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path):
+        assert read_reload_port() is None
+
+
+def test_read_reload_port_cwd_disambiguation(tmp_path):
+    from unity_mcp.lockfile import read_reload_port
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid = os.getpid()
+    proj_a = str(tmp_path / "ProjectA")
+    (ports_dir / f"{pid}.reload-port").write_text(f"9601\n{proj_a}\nProjectA", encoding="utf-8")
+    with patch("os.getcwd", return_value=proj_a), \
+         patch.object(Path, "home", return_value=tmp_path):
+        assert read_reload_port() == 9601
+
+
+def test_read_reload_port_multiline_backward_compat(tmp_path):
+    from unity_mcp.lockfile import read_reload_port
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    pid = os.getpid()
+    (ports_dir / f"{pid}.reload-port").write_text(
+        "9605\n/some/project/path\nMyProject", encoding="utf-8"
+    )
+    with patch.object(Path, "home", return_value=tmp_path):
+        assert read_reload_port() == 9605
+
+
+# ---------------------------------------------------------------------------
+# SD-3: read_pid_from_port_file PID liveness
+# (cleanup_stale_locks / cleanup_stale_port_files tests moved to
+# test_phantom_cleaner.py along with the code — see that module.)
+# ---------------------------------------------------------------------------
+
+def test_read_pid_from_port_file_skips_dead_pid(tmp_path):
+    """Dead PID port file skipped → returns None."""
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    (ports_dir / "99999.port").write_text("9500\n/path/to/project\n", encoding="utf-8")
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("unity_mcp.lockfile.is_pid_alive", return_value=False):
+        assert read_pid_from_port_file(9500) is None
+
+
+# ---------------------------------------------------------------------------
+# Back-compat shim pin: lockfile.cleanup_stale_port_files must be the exact
+# same object phantom_cleaner.py defines (identity, not a copy) — pins the
+# re-export as intentional, not drift.
+# ---------------------------------------------------------------------------
+
+def test_cleanup_stale_port_files_reexported():
+    import unity_mcp.lockfile as lockfile_mod
+    import unity_mcp.phantom_cleaner as phantom_cleaner_mod
+    assert lockfile_mod.cleanup_stale_port_files is phantom_cleaner_mod.cleanup_stale_port_files
+
+
+# ---------------------------------------------------------------------------
+# T5: write_lock_metadata / read_lock_metadata
+# ---------------------------------------------------------------------------
+
+def test_write_lock_metadata_appends_json_on_line2(tmp_path):
+    """write_lock_metadata writes JSON on line 2 of the lockfile after the PID."""
+    from unity_mcp.lockfile import write_lock_metadata, read_lock_metadata
+    fd = acquire_lock(lock_dir=tmp_path, port=9500)
+    try:
+        meta = {"v": 2, "lockToken": "tok123", "sessionId": "sess456"}
+        write_lock_metadata(fd, meta)
+        result = read_lock_metadata(fd)
+        assert result == meta
+    finally:
+        release_lock(fd)
+
+
+def test_read_lock_metadata_returns_none_when_absent(tmp_path):
+    """read_lock_metadata returns None when line 2 has no JSON (raw file)."""
+    from unity_mcp.lockfile import read_lock_metadata
+    f = tmp_path / "bare.lock"
+    f.write_text("12345\n", encoding="utf-8")
+    fd = os.open(str(f), os.O_RDWR)
+    try:
+        assert read_lock_metadata(fd) is None
+    finally:
+        os.close(fd)
+
+
+def test_acquire_lock_with_metadata_writes_json(tmp_path):
+    """acquire_lock with metadata kwarg immediately writes JSON to line 2."""
+    from unity_mcp.lockfile import read_lock_metadata
+    meta = {"v": 2, "role": "mcp", "cwd": "/some/path"}
+    fd = acquire_lock(lock_dir=tmp_path, port=9500, metadata=meta)
+    try:
+        result = read_lock_metadata(fd)
+        assert result == meta
+    finally:
+        release_lock(fd)
+
+
+# ---------------------------------------------------------------------------
+# PPID metadata in lockfile
+# ---------------------------------------------------------------------------
+
+def test_acquire_lock_writes_ppid(tmp_path):
+    """acquire_lock always writes ppid on line 2 so eviction can read it."""
+    from unity_mcp.lockfile import _read_ppid_from_lock_path
+    fd = acquire_lock(lock_dir=tmp_path, port=9500)
+    lock_path = tmp_path / f"server-9500-{os.getpid()}.lock"
+    try:
+        assert _read_ppid_from_lock_path(lock_path) == os.getppid()
+    finally:
+        release_lock(fd)
+
+
+def test_read_ppid_missing_returns_none(tmp_path):
+    """_read_ppid_from_lock_path returns None when line 2 has no JSON."""
+    from unity_mcp.lockfile import _read_ppid_from_lock_path
+    f = tmp_path / "server-9500-11111.lock"
+    f.write_text("11111\n", encoding="utf-8")
+    assert _read_ppid_from_lock_path(f) is None
+
+
+def test_read_ppid_corrupt_returns_none(tmp_path):
+    """_read_ppid_from_lock_path returns None when line 2 is not valid JSON."""
+    from unity_mcp.lockfile import _read_ppid_from_lock_path
+    f = tmp_path / "server-9500-11111.lock"
+    f.write_text("11111\nnot-valid-json\n", encoding="utf-8")
+    assert _read_ppid_from_lock_path(f) is None

@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "unity-plugin/**"
+      - "dsl/**"
       - ".github/workflows/unity-compat.yml"
   workflow_dispatch:
 

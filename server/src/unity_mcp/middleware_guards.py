@@ -2,9 +2,11 @@
 import json
 import time
 
+from .decisions.guard_facts import Verdict, guard_verdict
 from .middleware_types import (
     _RUNTIME_ONLY_CMDS,
     ACTION_READS,
+    BLAST_HIGH,
     BLAST_RADIUS,
     READ_CMDS,
     SCENE_STATE_NEUTRAL_WRITES,
@@ -119,7 +121,7 @@ class MiddlewareGuardsMixin:
             radius = max(write_radii) if write_radii else 1
         else:
             radius = BLAST_RADIUS.get(cmd, 1)
-        if radius >= 3:
+        if radius >= BLAST_HIGH:
             return f"⚠ HIGH BLAST RADIUS ({radius}): '{cmd}' affects multiple objects. Consider checkpoint first."
         return None
 
@@ -136,23 +138,34 @@ class MiddlewareGuardsMixin:
 
     # ── Feature: Play Mode Required Guard ────────────────────────────────────
 
-    def check_play_mode_required(self, cmd: str) -> str | None:
-        """Block runtime-only commands when editor is confirmed in edit mode."""
-        if not self._play_state_known:
-            return None  # state unknown — don't block
-        if self.is_playing:
-            return None  # playing — all good
-        if cmd in _RUNTIME_ONLY_CMDS:
-            return f"err: '{cmd}' requires Play Mode. Use editor(action='play') first."
-        return None
+    def check_play_mode_required(self, cmd: str, args: dict | None = None) -> str | None:
+        """Block runtime-only commands when editor is confirmed in edit mode (the DECISION guardVerdict, site py).
+
+        An unknown play state does not block; neither does a playing editor. Gives guard_verdict every site-py fact
+        this Middleware owns (not just the play ones): pyReadOnly outranks pyNotInPlay in guards.logic (priority 30
+        vs 31), and that must hold regardless of whether this call or check_read_only's runs first — the priority
+        lives in the DECISION, not in middleware_pipeline's call order."""
+        verdict = guard_verdict("py", **self._py_guard_facts(cmd, args), play_known=self._play_state_known,
+                                 play_mode=self.is_playing, runtime=cmd in _RUNTIME_ONLY_CMDS)
+        return f"err: '{cmd}' requires Play Mode. Use editor(action='play') first." if verdict == Verdict.NOT_IN_PLAY else None
 
     # ── Feature: Read-Only Endpoint Guard (P-324) ────────────────────────────
 
+    def _py_guard_facts(self, cmd: str, args: dict | None = None) -> dict:
+        """The read-only facts of site py: read_only and mutating.
+
+        is_write asks the registry as an authorization caller does: a command nobody knows is a write (fail
+        closed). It is asked only of an endpoint that is read-only, as before: a writable one never looks at the
+        call. Shared by check_read_only and check_play_mode_required so both ever see the same read-only facts,
+        whichever one guard_verdict is asked by first."""
+        mutating = self.is_read_only and is_write(cmd, args or {}, unknown_is_write=True)
+        return {"read_only": self.is_read_only, "mutating": mutating}
+
     def check_read_only(self, cmd: str, args: dict) -> str | None:
-        """Block mutation commands when the endpoint is in read-only mode."""
-        if not self.is_read_only:
-            return None
-        if is_write(cmd, args, unknown_is_write=True):
+        """Block mutation commands when the endpoint is in read-only mode (the DECISION guardVerdict, site py)."""
+        verdict = guard_verdict("py", **self._py_guard_facts(cmd, args), play_known=self._play_state_known,
+                                 play_mode=self.is_playing, runtime=cmd in _RUNTIME_ONLY_CMDS)
+        if verdict == Verdict.READ_ONLY_BLOCKED:
             return f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
         return None
 

@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from unity_mcp.editor_log import WedgeReport  # noqa: TC001
 
 from ._common import bind
+from .generated.catalog_tools import diagnose  # noqa: F401
 
 _send = None
 
@@ -283,7 +284,7 @@ def _verdict(
     return "UNKNOWN"  # 16. fallthrough
 
 
-async def diagnose(prev_mvid: str = "", expected_compile: bool = True) -> str:
+async def _diagnose_body(prev_mvid: str = "", expected_compile: bool = True) -> str:
     """Read Unity compile/reload fact-signals atomically; returns typed verdict. For scene symptom analysis, use `debug`. For runtime component state, use `debug_animator` or `debug_physics`.
 
     prev_mvid: MVID from before a sync operation. When provided, enables STALE-DOMAIN
@@ -318,5 +319,3 @@ async def diagnose(prev_mvid: str = "", expected_compile: bool = True) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    from ._annotations import RO as _RO
-    mcp.tool(annotations=_RO)(diagnose)

@@ -38,7 +38,7 @@ try:
         is_entry_pinned, is_toml_pinned, unpin_entry, pin_toml_entry, unpin_toml_entry,
     )
     from unity_mcp.config.backup import backup
-    from unity_mcp.config.resolver import build_server_entry, GIT_INSTALL_URL
+    from unity_mcp.config.resolver import build_server_entry, GIT_INSTALL_URL, _SEMVER_RE as _SEMVER_RE_INSTALL
     from unity_mcp.config.validator import validate_config, REPORT_NOT_CONFIGURED, REPORT_NOT_FOUND
 except ImportError:
     CLIENT_REGISTRY = {}  # type: ignore[assignment]
@@ -55,6 +55,7 @@ except ImportError:
     backup = None  # type: ignore[assignment]
     build_server_entry = lambda port=0: {}  # type: ignore[assignment]
     GIT_INSTALL_URL = "git+https://github.com/german-krasnikov/unity-biome-mcp.git#subdirectory=server"
+    _SEMVER_RE_INSTALL = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.]+)?")  # type: ignore[assignment]
     validate_config = lambda key: "not configured"  # type: ignore[assignment]
     REPORT_NOT_CONFIGURED = "not configured"  # type: ignore[assignment]
     REPORT_NOT_FOUND = "not found"  # type: ignore[assignment]
@@ -269,11 +270,18 @@ def cmd_configure(args: argparse.Namespace) -> None:
 
 
 def _load_stop_server():
-    """Import stop_server from unity_mcp. Returns None if not installed yet."""
+    """Import stop_server from biome_mcp. Returns None if not installed yet."""
     try:
         _add_server_to_path()
-        from unity_mcp.server_control import stop_server
-        return stop_server
+        from biome_mcp.server_control import stop_server
+
+        from unity_mcp.paths import unity_mcp_dir
+
+        def _stop(port, **kwargs):
+            kwargs.setdefault("lock_dir", unity_mcp_dir())
+            return stop_server(port, **kwargs)
+
+        return _stop
     except ImportError:
         return None
 
@@ -305,7 +313,6 @@ def _project_config_path(project: Path, tool_key: str) -> Path:
 _CHANGELOG_HEADING = re.compile(
     r'^## \[v?([\d.]+)(?:[^\]]+)?\]\s*(?:[—-]\s*([\d-]+))?', re.MULTILINE
 )
-_SEMVER_RE_INSTALL = re.compile(r"^\d+\.\d+\.\d+$")
 _CHANGELOG_PATH = REPO_ROOT / "CHANGELOG.md"
 
 
@@ -386,8 +393,8 @@ def cmd_version(args: argparse.Namespace) -> None:
         ui.fail("Specify --list, --set X.Y.Z, or --unpin")
         sys.exit(1)
 
-    if not _SEMVER_RE_INSTALL.match(set_version):
-        ui.fail(f"Invalid semver: {set_version!r} — expected X.Y.Z")
+    if not _SEMVER_RE_INSTALL.fullmatch(set_version):
+        ui.fail(f"Invalid semver: {set_version!r} — expected X.Y.Z or X.Y.Z-prerelease")
         sys.exit(1)
 
     if getattr(args, "force_print_plugin_url", False):

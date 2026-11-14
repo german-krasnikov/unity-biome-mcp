@@ -9,6 +9,7 @@ using NUnit.Framework;
 using UnityEditor;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Chat.Turn;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
@@ -18,7 +19,6 @@ namespace UnityMCP.Editor.Chat.Tests
         // ── Reflection seams ──────────────────────────────────────────────────
 
         static readonly FieldInfo  s_back  = typeof(MCPChatWindow).GetField("_backend",   BindingFlags.NonPublic | BindingFlags.Instance);
-        static readonly FieldInfo  s_act   = typeof(MCPChatWindow).GetField("_activity",  BindingFlags.NonPublic | BindingFlags.Instance);
         static readonly FieldInfo  s_chip  = typeof(MCPChatWindow).GetField("_chipField", BindingFlags.NonPublic | BindingFlags.Instance);
         static readonly MethodInfo s_drain  = typeof(MCPChatWindow).GetMethod("DrainAndRender",   BindingFlags.NonPublic | BindingFlags.Instance);
         static readonly MethodInfo s_send   = typeof(MCPChatWindow).GetMethod("OnSend",           BindingFlags.NonPublic | BindingFlags.Instance);
@@ -47,9 +47,9 @@ namespace UnityMCP.Editor.Chat.Tests
 
         void DrainAndRender()     => s_drain.Invoke(W, null);
         void CancelTurn()         => s_cancel.Invoke(W, null);
-        void ArmSending()         => ((ChatActivityState)s_act.GetValue(W)).Send();
-        void ResetToIdle()        => ((ChatActivityState)s_act.GetValue(W)).Done();
-        ActivityPhase GetPhase()  => ((ChatActivityState)s_act.GetValue(W)).Phase;
+        void ArmSending()         => W._turn.Dispatch(ChatTurnIntent.Send());
+        void ResetToIdle()        => W._turn.Dispatch(ChatTurnIntent.Abort());   // the exit without the backend restart or the transcript tail
+        ChatTurnPhase GetPhase()  => W._turn.Phase;
         void RestoreRealBackend() => s_creat?.Invoke(W, null);
         string BackendSessionId() => ((IChatBackend)s_back.GetValue(W))?.SessionId;
 
@@ -141,7 +141,7 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             _fake.Enqueue(ChatEvent.TurnDone("sid", 0f, 0, 0));
             DrainAndRender();
-            Assert.AreEqual(ActivityPhase.Idle, GetPhase());
+            Assert.AreEqual(ChatTurnPhase.Idle, GetPhase());
         }
 
         [Test]
@@ -161,7 +161,7 @@ namespace UnityMCP.Editor.Chat.Tests
             _fake.Enqueue(ChatEvent.TextDelta(" part2"));
             _fake.Enqueue(ChatEvent.TurnDone("sid", 0.02f, 200, 100));
             DrainAndRender();
-            Assert.AreEqual(ActivityPhase.Idle, GetPhase());
+            Assert.AreEqual(ChatTurnPhase.Idle, GetPhase());
             var lbl = TokenLabel();
             if (lbl != null) StringAssert.Contains("200", lbl.text);
             var labels = Scroll().Query<Label>().ToList();
@@ -175,7 +175,7 @@ namespace UnityMCP.Editor.Chat.Tests
             // Activity is Sending (ArmSending in SetUp). CancelTurn stops backend + resets phase.
             CancelTurn();
             Assert.IsFalse(_fake.IsRunning, "Backend.Stop() must be called by CancelTurn");
-            Assert.AreEqual(ActivityPhase.Idle, GetPhase(), "Phase must return to Idle after cancel");
+            Assert.AreEqual(ChatTurnPhase.Idle, GetPhase(), "Phase must return to Idle after cancel");
         }
 
         [Test]
@@ -184,7 +184,7 @@ namespace UnityMCP.Editor.Chat.Tests
             // PermissionPrompt is non-terminal — phase must stay non-Idle after drain.
             _fake.Enqueue(ChatEvent.PermissionPrompt("req-1", "bash", "{\"cmd\":\"ls\"}"));
             Assert.DoesNotThrow(() => DrainAndRender());
-            Assert.AreNotEqual(ActivityPhase.Idle, GetPhase(),
+            Assert.AreNotEqual(ChatTurnPhase.Idle, GetPhase(),
                 "PermissionPrompt must not terminate the turn");
         }
 
@@ -205,7 +205,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var labels = Scroll().Query<Label>().ToList();
             Assert.IsTrue(labels.Exists(l => l.text.Contains("Hello from relay")),
                 "Expected 'Hello from relay' in transcript");
-            Assert.AreEqual(ActivityPhase.Idle, GetPhase());
+            Assert.AreEqual(ChatTurnPhase.Idle, GetPhase());
         }
 
         [Test]
@@ -220,7 +220,7 @@ namespace UnityMCP.Editor.Chat.Tests
                 () => Scroll().Query<Label>().ToList().Exists(l => l.text.Contains("Relay error")),
                 DrainAndRender,
                 "Relay error was not rendered");
-            Assert.AreEqual(ActivityPhase.Idle, GetPhase());
+            Assert.AreEqual(ChatTurnPhase.Idle, GetPhase());
             var labels = Scroll().Query<Label>().ToList();
             Assert.IsTrue(labels.Exists(l => l.text.Contains("Relay error")));
         }
@@ -236,7 +236,7 @@ namespace UnityMCP.Editor.Chat.Tests
             await WaitUntilAsync(() => BackendSessionId() == "sess-abc", DrainAndRender,
                 "SessionInit was not drained");
             // SessionInit is non-terminal — no TurnDone yet → window stays active
-            Assert.AreNotEqual(ActivityPhase.Idle, GetPhase(),
+            Assert.AreNotEqual(ChatTurnPhase.Idle, GetPhase(),
                 "SessionInit alone must not return activity to Idle");
         }
     }

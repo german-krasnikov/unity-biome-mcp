@@ -8,7 +8,7 @@ import uuid
 from collections.abc import Awaitable, Callable  # noqa: TC003
 from pathlib import Path  # noqa: TC003
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from unity_mcp.bridge_socket import frame_read, frame_write
 from unity_mcp.constants import SESSION_TIMEOUT

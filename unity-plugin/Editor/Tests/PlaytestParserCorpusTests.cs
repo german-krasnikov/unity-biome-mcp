@@ -52,12 +52,15 @@ namespace UnityMCP.Editor.Tests
         // B12 — negative parser corpus: freeze the exact error text of the three
         // existing parse-time rejection paths so a future refactor can't silently
         // change or drop them.
+        // PT-8/Q22: the grammar-generated reader's own text is "unknown keyword FOOBAR_CMD"
+        // (PT_UNKNOWN_KEYWORD), not the hand parser's old "Unknown command: FOOBAR_CMD" — this
+        // is the new frozen text, deliberately changed by the flip.
 
         [Test]
         public void Parse_UnknownCommand_ThrowsWithCommandName()
         {
             var ex = Assert.Throws<System.ArgumentException>(() => PlaytestParser.Parse("FOOBAR_CMD arg1"));
-            StringAssert.Contains("Unknown command: FOOBAR_CMD", ex.Message);
+            StringAssert.Contains("unknown keyword FOOBAR_CMD", ex.Message);
         }
 
         [Test]
@@ -223,11 +226,12 @@ namespace UnityMCP.Editor.Tests
             Assert.Throws<System.ArgumentException>(() => PlaytestParser.Parse(script));
         }
 
+        // PT-8/Q22: same new frozen text as Parse_UnknownCommand_ThrowsWithCommandName above.
         [Test]
         public void Parse_UnknownTopLevelKeyword_StillThrows()
         {
             var ex = Assert.Throws<System.ArgumentException>(() => PlaytestParser.Parse("TOTALLY_UNKNOWN_CMD 1"));
-            StringAssert.Contains("Unknown command: TOTALLY_UNKNOWN_CMD", ex.Message);
+            StringAssert.Contains("unknown keyword TOTALLY_UNKNOWN_CMD", ex.Message);
         }
 
         [Test]

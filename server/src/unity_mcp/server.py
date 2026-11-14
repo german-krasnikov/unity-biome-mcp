@@ -136,40 +136,28 @@ def _schedule_dormant(idle: float, timeout: float) -> None:
 
 from contextlib import asynccontextmanager, suppress
 
-from mcp.server.fastmcp import FastMCP
-from mcp.server.fastmcp.exceptions import ToolError
+from biome_mcp.mcp.compose import CompactMCP, inject_descriptions, inject_extras
+from biome_mcp.models.result import CommandResult, CommandStatus
+from mcp.server.mcpserver.exceptions import ToolError
 
 from . import __version__
-from .tools._schema_postprocessor import postprocess_schema
+from .tools._param_descriptions import _COMMON, PARAM_DESCRIPTIONS, PARAM_SCHEMA_EXTRAS
 
 
-class _UnstructuredMCP(FastMCP):
-    def add_tool(self, fn, name=None, title=None, description=None,
-                 annotations=None, icons=None, meta=None,
-                 structured_output=None) -> None:
-        tool_name = name or fn.__name__
-        if not title:
-            title = tool_name.replace("_", " ").title()
-        super().add_tool(fn, name=tool_name, title=title, description=description,
-                         annotations=annotations, icons=icons, meta=meta,
-                         structured_output=False)
-        tool = self._tool_manager._tools.get(tool_name)
-        if tool is not None:
-            postprocess_schema(tool_name, tool.parameters)
+def _force_additional_properties_false(tool_name: str, schema: dict) -> None:
+    """additionalProperties=False for every tool with a declared properties object,
+    including an empty one ({}) for a zero-param tool.
 
-    async def call_tool(self, name: str, arguments: dict):
-        """Reject arguments that the published tool schema forbids."""
-        tool = self._tool_manager.get_tool(name)
-        if tool is not None and tool.parameters.get("additionalProperties") is False:
-            properties = tool.parameters.get("properties", {})
-            unknown = sorted(set(arguments) - set(properties))
-            if unknown:
-                joined = ", ".join(unknown)
-                raise ToolError(f"unknown argument(s) for tool {name}: {joined}")
-        return await super().call_tool(name, arguments)
+    biome-mcp's forbid_extra_properties skips an empty dict (a truthiness check), which
+    would silently disable CompactMCP's reject_unknown_args guard for zero-param tools --
+    the pre-migration postprocess_schema set it unconditionally whenever properties was
+    present (even empty), so this keeps that exact contract instead.
+    """
+    if schema.get("properties") is not None:
+        schema.setdefault("additionalProperties", False)
 
-from .bridge_result import unwrap_bridge_result
 from .connection_slot import ConnectionSlot
+from .decisions.guard_facts import Verdict, guard_verdict
 from .errors import UnityUnavailableError
 from .lockfile import acquire_lock, cleanup_stale_locks, release_lock, write_lock_metadata
 from .middleware import Middleware, wrap_send
@@ -395,11 +383,13 @@ def _stdio_alive() -> bool:
 
 
 def _check_read_only(cmd: str, args: dict) -> None:
-    """Raise ToolError when the server is in read-only mode and cmd is a write."""
-    if os.environ.get("UNITY_MCP_READ_ONLY", "0") != "1":
-        return
-    from .middleware_types import is_write
-    if is_write(cmd, args, unknown_is_write=True):
+    """Raise ToolError when the server is in read-only mode and cmd is a write (the DECISION guardVerdict, site py)."""
+    read_only = os.environ.get("UNITY_MCP_READ_ONLY", "0") == "1"
+    mutating = False
+    if read_only:  # a writable server never looks at the call
+        from .middleware_types import is_write
+        mutating = is_write(cmd, args, unknown_is_write=True)
+    if guard_verdict("py", read_only=read_only, mutating=mutating) == Verdict.READ_ONLY_BLOCKED:
         raise ToolError(
             f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
         )
@@ -435,7 +425,7 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
         raise ToolError("Server not initialized. Restart MCP server (/mcp).")
     from .tools.tool_specs import _SPECS
     spec = _SPECS.get(cmd)
-    if spec is not None and spec.direct_only and not spec.unity_transport:
+    if guard_verdict("py", python_only=bool(spec is not None and spec.direct_only and not spec.unity_transport)) == Verdict.PYTHON_ONLY:
         raise ToolError(
             f"'{cmd}' is a Python-only control-plane tool and cannot be sent to Unity. "
             "Call it as a typed MCP tool."
@@ -465,9 +455,15 @@ async def _send_raw(cmd: str, args: dict, timeout: float = 0) -> str:
         raise UnityUnavailableError(f"Unity connection lost: {e}. Retry or /mcp to reconnect.") from e
     except Exception as e:
         raise ToolError(f"Unexpected error: {type(e).__name__}: {e}") from e
-    text, ok = unwrap_bridge_result(result)
-    if not ok:
-        raise ToolError(text)
+    cr = CommandResult.from_raw(result)
+    if cr.status != CommandStatus.OK:
+        raise ToolError(result.get("err", "Unknown error"))
+    data = cr.data
+    if "file" in result:
+        file_msg = f"Data saved to: {result['file']}"
+        text = f"{data}\n{file_msg}" if data else file_msg
+    else:
+        text = data
     # ARC-9 T3: surface a same-pid port rebind on the next safe-to-prefix
     # response. Peek first (non-destructive) so an unsafe response (JSON,
     # a pipe-delimited protocol record) leaves the notice queued for a later
@@ -518,8 +514,10 @@ async def lifespan(app):
     _sigterm_state["loop"] = asyncio.get_running_loop()
     _sigterm_state["task"] = asyncio.current_task()
     unity_port = await _discover_port_with_retry()
-    from .server_control import evict_duplicate_servers as _evict
-    await asyncio.get_running_loop().run_in_executor(None, _evict)
+    from biome_mcp.server_control import evict_duplicate_servers as _evict
+
+    from .paths import unity_mcp_dir
+    await asyncio.get_running_loop().run_in_executor(None, _evict, unity_mcp_dir())
     cleanup_stale_locks(port=unity_port)
     from .lockfile import cleanup_stale_port_files as _cleanup_ports
     _cleanup_ports(tcp_probe=True)
@@ -644,16 +642,28 @@ async def lifespan(app):
         if _middleware and _middleware.watchdog:
             with suppress(Exception):
                 await _middleware.watchdog.cancel()
+        for task in _reconnect_bg_tasks:
+            task.cancel()
+        _reconnect_bg_tasks.clear()
         if slot:
             await slot.close()
         if lock_fd is not None:
             release_lock(lock_fd)
 
 
-mcp = _UnstructuredMCP("UnityMCP", lifespan=lifespan)
-# FastMCP otherwise defaults initialize.serverInfo.version to the MCP SDK
+mcp = CompactMCP(
+    "UnityMCP",
+    schema_hooks=[
+        _force_additional_properties_false,
+        inject_descriptions(PARAM_DESCRIPTIONS, _COMMON),
+        inject_extras(PARAM_SCHEMA_EXTRAS),
+    ],
+    reject_unknown_args=True,
+    lifespan=lifespan,
+)
+# MCPServer otherwise defaults initialize.serverInfo.version to the MCP SDK
 # version. Product identity must describe the launched package bytes instead.
-mcp._mcp_server.version = __version__
+mcp._lowlevel_server.version = __version__
 
 register_all(mcp, _send, _args, get_slot=lambda: slot,
              get_middleware=lambda: _middleware,

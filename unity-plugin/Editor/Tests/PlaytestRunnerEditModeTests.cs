@@ -455,7 +455,7 @@ namespace UnityMCP.Editor.Tests
             // all, so denial for them is pure defense-in-depth, not registry policing.
             var hardDenylist = new[]
             {
-                "execute_code", "create_script", "sync_unity", "await_compile",
+                "execute_code", "source_patch_write", "sync_unity", "await_compile",
                 "smart_build", "run_tests", "run_playtest", "package", "build",
             };
             foreach (var name in hardDenylist)
@@ -476,10 +476,10 @@ namespace UnityMCP.Editor.Tests
                 string.Join(",", deniedButUnregistered));
 
             CollectionAssert.AreEquivalent(
-                new[] { "execute_code", "run_tests", "run_playtest", "package", "build" },
+                new[] { "execute_code", "run_tests", "run_playtest", "package", "build", "source_patch_write" },
                 deniedAndRegistered);
             CollectionAssert.AreEquivalent(
-                new[] { "create_script", "sync_unity", "await_compile", "smart_build" },
+                new[] { "sync_unity", "await_compile", "smart_build" },
                 deniedButUnregistered);
         }
 
@@ -529,8 +529,8 @@ namespace UnityMCP.Editor.Tests
         }
 
         // ── F7 Step 3: global-timeout abort after a passing step must fail the outer
-        // TCP envelope, not just the text report body (CommandRouter.IsPlaytestSuccessFromText
-        // now rejects on sight when the report contains "ABORTED") ─────────────────
+        // TCP envelope, not just the text report body (CommandRouter.IsPlaytestSuccess
+        // now rejects on sight a text report that contains "ABORTED") ─────────────────
 
         [Test]
         public async Task AsyncRunPlaytest_GlobalTimeoutAfterPassingStep_EnvelopeReportsFailure()

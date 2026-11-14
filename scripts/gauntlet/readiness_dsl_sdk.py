@@ -43,19 +43,27 @@ def qualify_receipt(data: dict, *, expect_failure: bool) -> None:
 async def sdk_session(send):
     """Memory transport still performs MCP initialization, schema and tool dispatch."""
     from mcp import ClientSession
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
     from mcp.shared.memory import create_client_server_memory_streams
 
     from unity_mcp.tools import editor_control, objects, runtime
+    from unity_mcp.tools.generated import catalog_tools
 
-    app = FastMCP("owned-readiness-dsl-qualification", log_level="ERROR")
+    app = MCPServer("owned-readiness-dsl-qualification", log_level="ERROR")
     def args(**kwargs):
         return {key: value for key, value in kwargs.items() if value is not None}
     for module in (editor_control, objects, runtime):
         module.register(app, send, args)
+    # editor/get_object_detail/run_playtest moved to BODY (SV8): their MCP registration
+    # now lives in the catalog's generated wrapper, not editor_control/objects/runtime's
+    # own register(). tools.install(app) is not an option here (it demands every catalog
+    # tool, including ones this limited harness never provides) -- add just the wrappers
+    # this phase actually calls.
+    for wrapper in (catalog_tools.editor, catalog_tools.get_object_detail, catalog_tools.run_playtest):
+        app.add_tool(wrapper)
     async with create_client_server_memory_streams() as (client, server):
-        task = asyncio.create_task(app._mcp_server.run(
-            *server, app._mcp_server.create_initialization_options()))
+        task = asyncio.create_task(app._lowlevel_server.run(
+            *server, app._lowlevel_server.create_initialization_options()))
         try:
             async with ClientSession(*client) as session:
                 await session.initialize()
@@ -72,7 +80,7 @@ def _stamp():
 
 def decode_tool_response(name, response, *, expect_failure=False):
     text = "\n".join(block.text for block in response.content if block.type == "text")
-    if response.isError:
+    if response.is_error:
         prefix = "Error executing tool run_playtest: "
         if name == "run_playtest" and expect_failure and text.startswith(prefix):
             raw = text[len(prefix):]
@@ -132,10 +140,10 @@ async def run_phase(session, project: Path, instance_id: int, owned_name: str,
 
 
 async def main_async(options):
-    from mcp.server.fastmcp.exceptions import ToolError
+    from biome_mcp.models.result import CommandResult, CommandStatus
+    from mcp.server.mcpserver.exceptions import ToolError
 
     from unity_mcp.bridge import UnityBridge
-    from unity_mcp.bridge_result import unwrap_bridge_result
     from unity_mcp.compile_state import CompileStateProbe
 
     project = options.project.resolve(strict=True)
@@ -144,10 +152,11 @@ async def main_async(options):
                          expected_project_path=project)
 
     async def send(command, args, timeout=0):
-        text, ok = unwrap_bridge_result(await bridge.send(command, args, timeout=min(timeout or 30, 30)))
-        if not ok:
-            raise ToolError(text)
-        return text
+        raw = await bridge.send(command, args, timeout=min(timeout or 30, 30))
+        cr = CommandResult.from_raw(raw)
+        if cr.status != CommandStatus.OK:
+            raise ToolError(raw.get("err", "Unknown error"))
+        return cr.data
 
     try:
         async with asyncio.timeout(90):

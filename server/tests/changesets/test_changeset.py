@@ -200,6 +200,7 @@ def _make_test_mw():
     mw = MagicMock()
     mw._alias_cache = {}        # falsy → skip alias resolution
     mw._prefetch_cache = None   # None  → skip prefetch/invalidation branches
+    mw._scenario_uncertain = False
     mw.hinter = None
     mw.schema_guard = None
     mw.watchdog = None
@@ -273,12 +274,10 @@ async def test_middleware_no_receipt_no_coordinator_call():
 # ── Backward compat ───────────────────────────────────────────────────────────
 
 def test_old_unwrap_ignores_receipt_field():
-    from unity_mcp.bridge_result import unwrap_bridge_result
-    data, ok = unwrap_bridge_result(
-        {"ok": True, "data": "x", "receipt": {"path": "/P"}}
-    )
-    assert data == "x"
-    assert ok is True
+    from biome_mcp.models.result import CommandResult, CommandStatus
+    cr = CommandResult.from_raw({"ok": True, "data": "x", "receipt": {"path": "/P"}})
+    assert cr.data == "x"
+    assert cr.status == CommandStatus.OK
 
 
 # ── paths ─────────────────────────────────────────────────────────────────────

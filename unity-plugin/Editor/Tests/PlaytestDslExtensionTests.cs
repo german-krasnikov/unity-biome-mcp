@@ -152,12 +152,16 @@ namespace UnityMCP.Editor.Tests
             Assert.IsFalse(steps.Exists(s => s.Type == StepType.WaitUntil));
         }
 
+        // PT-8/Q22: the grammar-generated reader rejects this with its own PT_SYNTAX text
+        // ("SWEEP_PATH: unexpected \"0.4\""), not the hand parser's old "requires DWELL <seconds>"
+        // wording — still throws ArgumentException, text is intentionally different.
         [Test]
         public void Parse_SweepPath_MissingDwell_Throws()
         {
             var ex = Assert.Throws<System.ArgumentException>(
                 () => PlaytestParser.Parse("SWEEP_PATH /Player 0.4"));
-            StringAssert.Contains("DWELL", ex.Message);
+            StringAssert.Contains("SWEEP_PATH", ex.Message);
+            StringAssert.Contains("unexpected", ex.Message);
         }
 
         [Test]

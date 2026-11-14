@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
@@ -48,11 +47,8 @@ namespace UnityMCP.Editor
             return sections;
         }
 
-        static bool IsNewer(string candidate, string fromVersion)
-        {
-            if (!Version.TryParse(candidate, out var a)) return false;
-            if (!Version.TryParse(fromVersion, out var b)) return false;
-            return a > b;
-        }
+        // UI-1/Q16: the one DECISION isNewer (dsl/decisions/versionorder.logic), shared with UpdateChecker and
+        // ChangelogReader and with server/src/unity_mcp/_update_check.py.
+        static bool IsNewer(string candidate, string fromVersion) => Decisions.VersionFacts.IsNewer(candidate, fromVersion);
     }
 }

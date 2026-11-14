@@ -4,12 +4,29 @@ import os
 import time
 from typing import Any, NamedTuple
 
-from mcp.server.fastmcp.exceptions import ToolError
+from biome_mcp.hooks import register_post, run_post_hooks
+from biome_mcp.models.result import CommandResult, CommandStatus
+from mcp.server.mcpserver.exceptions import ToolError
 
 from . import middleware_alias as _alias_hooks  # noqa: F401 — trigger hook registration
-from .bridge_result import unwrap_bridge_result
 from .compressor import strip_defaults
-from .middleware_hooks import register_post, run_post_hooks
+from .decisions.generated.prefetch_logic import (
+    PrefetchFireInput,
+    PrefetchFireValues,
+    PrefetchServeInput,
+    PrefetchServeValues,
+    prefetch_fire,
+    prefetch_serve,
+)
+from .decisions.generated.reflectgate_logic import ReflectGateInput, ReflectGateValues, reflect_gate
+from .decisions.generated.scenarionext_logic import (
+    ScenarioUncertainNextInput,
+    ScenarioUncertainNextValues,
+    SceneInvalidateGateInput,
+    SceneInvalidateGateValues,
+    scenario_uncertain_next,
+    scene_invalidate_gate,
+)
 from .middleware_types import (
     _READ_CACHEABLE,
     _STRIP_CMDS,
@@ -78,12 +95,22 @@ def _check_find_objects_cache(cmd: str, args: dict, mw: Any) -> str | None:
     return None
 
 
+def _prefetch_serve_decision(cmd: str, mw: Any) -> str:
+    """Facts for the prefetchServe DECISION, shared by both cache-above-circuit
+    read sites (ARC-5 T2) so they can never drift apart."""
+    return prefetch_serve(PrefetchServeInput(
+        pf_cache_configured=mw._prefetch_cache is not None,
+        pf_cmd_cacheable=cmd in _READ_CACHEABLE,
+        pf_scenario_uncertain=mw._scenario_uncertain,
+    ))
+
+
 def _check_prefetch_and_circuit(cmd: str, args: dict, mw: Any) -> str | None:
     """F05 cache-above-circuit read + circuit breaker check.
 
     Returns an early-exit string, or None to continue the pipeline.
     """
-    if mw._prefetch_cache is not None and cmd in _READ_CACHEABLE and not mw._scenario_uncertain:
+    if _prefetch_serve_decision(cmd, mw) == PrefetchServeValues.SERVE:
         pre_cached = mw._prefetch_cache.get(cmd, args)
         if pre_cached is not None:
             return _serve_cached_prefetch(pre_cached, mw)
@@ -162,7 +189,7 @@ async def _pre_tcp_guards(
     if retry_warn:
         return retry_warn
 
-    pm_block = mw.check_play_mode_required(cmd)
+    pm_block = mw.check_play_mode_required(cmd, args)
     if pm_block:
         return pm_block
 
@@ -190,7 +217,7 @@ async def _pre_tcp_guards(
     args, resolve_marker = resolved
 
     # PrefetchCache: serve cached reads before TCP round-trip
-    if mw._prefetch_cache is not None and cmd in _READ_CACHEABLE and not mw._scenario_uncertain:
+    if _prefetch_serve_decision(cmd, mw) == PrefetchServeValues.SERVE:
         pre_cached = mw._prefetch_cache.get(cmd, args)
         if pre_cached is not None:
             return _serve_cached_prefetch(pre_cached, mw)
@@ -242,8 +269,15 @@ async def _execute_cmd(
             _c = get_coordinator()
             if _c is not None:
                 _c.append(cmd, _receipt)
-        result, ok = unwrap_bridge_result(result)
-        protocol_err = not ok
+        cr = CommandResult.from_raw(result)
+        protocol_err = cr.status != CommandStatus.OK
+        if protocol_err:
+            result = result.get("err", "Unknown error")
+        elif "file" in result:
+            file_msg = f"Data saved to: {result['file']}"
+            result = f"{cr.data}\n{file_msg}" if cr.data else file_msg
+        else:
+            result = cr.data
 
     # F08: strip defaults unconditionally for component reads
     if cmd in _STRIP_CMDS and not no_strip:
@@ -258,11 +292,14 @@ async def _execute_cmd(
 
 def _maybe_prefetch_background(cmd: str, args: dict, mw: Any, send_fn) -> None:
     """On write: invalidate prefetch path + fire background prefetch task."""
-    if mw._scenario_uncertain:  # N0a-2: suppress speculative prefetch while uncertain
-        return
-    if cmd not in WRITE_CMDS or cmd in SCENE_STATE_NEUTRAL_WRITES:
-        return
-    if mw._prefetch_cache is None:
+    decision = prefetch_fire(PrefetchFireInput(
+        pf_cache_configured=mw._prefetch_cache is not None,
+        # N0a-2: suppress speculative prefetch while uncertain
+        pf_scenario_uncertain=mw._scenario_uncertain,
+        pf_cmd_is_write=cmd in WRITE_CMDS,
+        pf_cmd_scene_neutral=cmd in SCENE_STATE_NEUTRAL_WRITES,
+    ))
+    if decision != PrefetchFireValues.FIRE:
         return
     path = args.get("path", "")
     if path:
@@ -293,23 +330,45 @@ def _reset_write_caches(cmd: str, args: dict, result: str, mw: Any, flags: dict)
             mw._negative_path_cache.clear()
     # N0a: a valid start_playtest ack means a playtest is now in flight and
     # may mutate the scene at any point until terminal evidence arrives.
-    if cmd == "start_playtest" and result.strip().startswith("run_id="):
-        mw._scenario_uncertain = True
     # L02c: _force_scene_invalidate is now also handled unconditionally at the top
     # of wrapped() (before any early-exit can skip it) -- this check only fires on
     # the already-covered success path, so it's a harmless belt-and-suspenders
     # double-invalidate (invalidate_scene_caches() is idempotent).
-    if is_scenario_terminal(cmd, result):
+    terminal = is_scenario_terminal(cmd, result)
+    next_uncertain = scenario_uncertain_next(ScenarioUncertainNextInput(
+        scn_cmd_is_start_playtest=cmd == "start_playtest",
+        scn_result_is_run_id_ack=result.strip().startswith("run_id="),
+        scn_result_is_terminal=terminal,
+    ))
+    if next_uncertain == ScenarioUncertainNextValues.MARK_UNCERTAIN:
+        mw._scenario_uncertain = True
+    elif next_uncertain == ScenarioUncertainNextValues.CLEAR_UNCERTAIN:
         mw._scenario_uncertain = False
-        mw.invalidate_scene_caches()
-    elif flags.get("_force_scene_invalidate"):
-        # N0a-3: give-up path clears caches but cannot prove Unity actually
-        # stopped the playtest -- the guard must survive it.
+    # N0a-3: give-up path clears caches but cannot prove Unity actually
+    # stopped the playtest -- the guard must survive it (see scenarioUncertainNext above).
+    invalidate_decision = scene_invalidate_gate(SceneInvalidateGateInput(
+        scn_result_is_terminal=terminal,
+        scn_force_invalidate_flag=bool(flags.get("_force_scene_invalidate")),
+    ))
+    if invalidate_decision == SceneInvalidateGateValues.INVALIDATE:
         mw.invalidate_scene_caches()
     if cmd == "manage_component" and not result.startswith("err"):
         mc_path = args.get("path", "")
         if mc_path:
             mw.invalidate_component_cache(mc_path)
+
+
+def _reflect_gate_decision(cmd: str, args: dict, result: str, *, no_reflect: bool = False) -> str:
+    """Facts for the reflectGate DECISION, shared by both UNITY_MCP_REFLECT call
+    sites so the env default is read from one place instead of two."""
+    return reflect_gate(ReflectGateInput(
+        reflect_env_on=os.environ.get("UNITY_MCP_REFLECT", "1") != "0",
+        reflect_result_degraded=result.startswith("[DEGRADED:"),
+        reflect_no_reflect_flag=no_reflect,
+        reflect_cmd_is_write=cmd in WRITE_CMDS,
+        reflect_cmd_is_set_property=cmd == "set_property",
+        reflect_has_prop_and_value=bool(args.get("prop")) and bool(args.get("value")),
+    ))
 
 
 def _apply_state_tracking(
@@ -320,10 +379,7 @@ def _apply_state_tracking(
         result = mw._maybe_diff_hierarchy(result)
     mw._seed_preimage(cmd, args, result)
     mw.track_editor_state(cmd, result, args=args)
-    if (
-        cmd == "set_property" and args.get("prop") and args.get("value")
-        and os.environ.get("UNITY_MCP_REFLECT", "1") == "0"
-    ):
+    if _reflect_gate_decision(cmd, args, result) == ReflectGateValues.RUN_VERIFY_SNAPSHOT:
         result = mw.verify_snapshot(result, prop=args["prop"], value=args["value"])
     return result
 
@@ -342,10 +398,7 @@ async def _apply_reflection_and_hinter(
     cmd: str, args: dict, result: str, mw: Any, send_fn, no_reflect: bool,
 ) -> str:
     """Asymmetric reflection + ToolHinter hint append."""
-    _reflect_on = os.environ.get("UNITY_MCP_REFLECT", "1") != "0"
-    if result.startswith("[DEGRADED:"):
-        _reflect_on = False
-    if cmd in WRITE_CMDS and _reflect_on and not no_reflect:
+    if _reflect_gate_decision(cmd, args, result, no_reflect=no_reflect) == ReflectGateValues.RUN_REFLECT:
         from .reflect import reflect
         mismatch = await reflect(cmd, args, result, send_fn)
         if mismatch is not None:

@@ -4,9 +4,8 @@ import contextlib
 import uuid
 from datetime import UTC, datetime
 
-from ._annotations import DEL as _DEL
-from ._annotations import RW as _RW
 from ._common import bind
+from .generated.catalog_tools import checkpoint_create, checkpoint_restore, tools  # noqa: F401
 
 _send = None
 _args = None
@@ -52,7 +51,7 @@ def _parse_domain_stamp(diag: str) -> str:
     return ""
 
 
-async def checkpoint_create(paths: str = "") -> str:
+async def _checkpoint_create_body(paths: str = "") -> str:
     """Create a durable checkpoint before an agent turn.
     paths: comma-separated file paths to snapshot. Empty = open dirty scenes."""
     from ..changeset_store import get_fingerprint
@@ -96,7 +95,7 @@ async def checkpoint_create(paths: str = "") -> str:
     )
 
 
-async def checkpoint_restore(checkpoint_id: str, force: bool = False) -> str:
+async def _checkpoint_restore_body(checkpoint_id: str, force: bool = False) -> str:
     """Restore files to their pre-turn state.
     Tries Unity Undo first when domain stamp matches; falls back to file restore.
     MVP: after_refs always empty — no ChangeSet-based conflict detection yet."""
@@ -138,5 +137,3 @@ async def checkpoint_restore(checkpoint_id: str, force: bool = False) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(checkpoint_create)
-    mcp.tool(annotations=_DEL)(checkpoint_restore)

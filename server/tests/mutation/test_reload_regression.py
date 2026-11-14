@@ -12,7 +12,7 @@ import re
 import pytest
 from gauntlet.readiness_canary import OwnedFileEdit, render_dsl, target_body
 from gauntlet.readiness_dsl_sdk import qualify_receipt
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from tests.mutation._canary import broken_target_body
 

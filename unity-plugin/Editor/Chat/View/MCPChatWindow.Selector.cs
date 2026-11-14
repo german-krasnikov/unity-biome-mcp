@@ -4,6 +4,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityMCP.Editor.Chat.Turn;
 
 namespace UnityMCP.Editor.Chat
 {
@@ -101,7 +102,7 @@ namespace UnityMCP.Editor.Chat
             _selectedAgent = spec.AgentName;
             _selectedModel = ""; // reset before CreateBackend so stale model doesn't leak to new backend
             EditorPrefs.SetString(DropdownPrefKey, StableIdFor(spec)); // Issue 28: persist stable id, not DisplayName
-            AbortCurrentTurnIfActive(); // T3.1: abort turn before switching backend
+            _turn.Dispatch(ChatTurnIntent.Abort()); // T3.1: abort turn before switching backend
             _backend?.Stop();
             ResetTokenCounters();
             CreateBackend();
@@ -217,7 +218,7 @@ namespace UnityMCP.Editor.Chat
 
             if (_customModelField != null) _customModelField.style.display = DisplayStyle.None;
             _selectedModel = p.modelId;
-            AbortCurrentTurnIfActive(); // T3.1: abort turn before switching model
+            _turn.Dispatch(ChatTurnIntent.Abort()); // T3.1: abort turn before switching model
             _backend?.Stop();
             ResetTokenCounters();
             CreateBackend();
@@ -228,25 +229,10 @@ namespace UnityMCP.Editor.Chat
             var val = _customModelField?.value ?? "";
             EditorPrefs.SetString(ModelPrefKeyFor(_selectedKind) + ".custom", val);
             _selectedModel = val;
-            AbortCurrentTurnIfActive(); // T3.1: abort turn before switching custom model
+            _turn.Dispatch(ChatTurnIntent.Abort()); // T3.1: abort turn before switching custom model
             _backend?.Stop();
             ResetTokenCounters();
             CreateBackend();
-        }
-
-        // T3.1: abort the current turn without restarting the backend.
-        // Called before _backend?.Stop() + CreateBackend() in all three switch paths
-        // (agent dropdown, model dropdown, custom model). Unlike CancelTurn(), this
-        // helper does NOT call Stop/CreateBackend — the caller owns the backend switch.
-        private void AbortCurrentTurnIfActive()
-        {
-            if (_activity.Phase == ActivityPhase.Idle) return;
-            _transcript?.FinalizeAssistant();
-            ReloadGuard.OnTurnFinished();
-            ResetTurnFlags();
-            _undoTracker.OnTurnFailed();
-            _activity.Fail();
-            OnActivityChanged();
         }
 
         private void RebuildModelDropdown()

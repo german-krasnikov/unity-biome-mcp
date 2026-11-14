@@ -1,0 +1,365 @@
+# The grammar of a .playtest script as a project construct (Plans/STEP_7_5_PLAYTEST_GRAMMAR_DESIGN.md of biome-dsl): a line is a use of one PT_* construct.
+# Here are the verb, the number and the types of its slots and the code of a refusal (PT_*); what a step does stays in PlaytestParser and the runners.
+# `text` takes the rest of the line as written. One token is a quoted text, or a run without blanks that leaves no `[` open: a path with a blank is written in quotes.
+# The names are PT_*: a name like WAIT would shadow a construct of core (CONSTRUCT_SHADOW).
+# A `text LAZY` ends before the first word that starts what follows it (an operator, TIMEOUT, AS, AND, OR, INTO); its first token is always the text, and a quoted word starts nothing.
+# One token after ASSERT is a flag (a $sigil, a path, a group of names), after WAIT_UNTIL a $sigil. PT_MCP_INTO comes before PT_MCP: ORDERED takes the first construct that reads the line.
+# What the grammar cannot say stays in the builder and in check.mjs: AND with OR, a fourth term of a chain, a name cut at an operator word inside [..] (compare.mjs `rule`), the JSON of an MCP argument (ParseMcpStep).
+# A position (MOVE, TELEPORT) is one token, x,y,z or @path or $val; the offset after it is text, and the builder reads the token (SetPosition) as the hand parser does, which drops the offset (AI/playtest-dsl.md:640).
+# A mode or state is an enum where the runner throws on a word it does not know (ASSERT_CAPTURED, WAIT_CAPTURED), reads it as another (ASSERT_CTA: VISIBLE; CAPTURE_FRAMES MODE: list) or polls on to the timeout (PlaytestRunner.cs:443).
+# WAIT_CAPTURED takes TIMEOUT and OVER in either order (AI/playtest-dsl.md:955), so its second TIMEOUT is timeout2; the tails of CAPTURE_FRAMES, SIMULATE, TRACE_FLOW and WAIT_STABLE keep the order of the docs (INTENDED I2).
+# MOVE_PATH and ASSERT_CONSERVED keep their list as a LAZY text (the builder splits it at > and at +). SWEEP_PATH, COMPLETE_PURCHASE and INVOKE_REPEAT are read by their first line: the lines that go on (waypoints, UNTIL, EXPECT, TIMEOUT) are the host's (compare.mjs CONTINUATION).
+# CASEFOLD (PT-8, Q22): the words of the forms, the END of a block and the words of an enum are read in any ASCII case — ASSERT/assert, END/end, strip/STRIP all read alike. Nothing else folds: a path, a text and a $sigil stay exact.
+SURFACE playtest CODES PT CONSTRUCTS PT_INCLUDE, PT_PATH_PREFIX, PT_VAL, PT_VAR, PT_SETUP, PT_SETUP_END, PT_TEARDOWN, PT_TEARDOWN_END, PT_SECTION, PT_LOG, PT_WAIT, PT_TIMESCALE, PT_SET_DEFAULT_TIMEOUT, PT_INVOKE, PT_SET, PT_SET_ACTIVE, PT_SNAPSHOT, PT_CLICK, PT_FILL, PT_FOCUS, PT_ASSERT_CONSOLE_CLEAN, PT_ASSERT, PT_ASSERT_FLAG, PT_WAIT_UNTIL, PT_WAIT_UNTIL_FLAG, PT_INVARIANT, PT_MCP_INTO, PT_MCP, PT_MOVE, PT_TELEPORT, PT_TAP, PT_ASSERT_NEAR, PT_ASSERT_CTA, PT_ASSERT_ONE_ACTIVE, PT_DESC, PT_ABORT_ON_FAIL, PT_EXPECT_FAIL, PT_MONITOR, PT_CAPTURE, PT_CAPTURE_MIN, PT_CAPTURE_MAX, PT_ASSERT_CHANGED, PT_ASSERT_CAPTURED, PT_ASSERT_MIN, PT_ASSERT_MAX, PT_ASSERT_FRAMES_DIFFER, PT_ASSERT_FRAMES_STATIC, PT_CAPTURE_FRAMES, PT_WAIT_CAPTURED, PT_WAIT_STABLE, PT_ASSERT_CONSERVED, PT_SIMULATE, PT_TRACE_FLOW, PT_MOVE_PATH, PT_ASSERT_BATCH, PT_SWEEP_PATH, PT_COMPLETE_PURCHASE, PT_INVOKE_REPEAT ORDERED TOKENS words COMMENT line CASEFOLD
+
+CONSTRUCT PT_INCLUDE VERSION 1 IR 1 SCOPE project
+  PATTERN INCLUDE <file:text>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_PATH_PREFIX VERSION 1 IR 1 SCOPE project
+  PATTERN PATH_PREFIX <prefix:text>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_VAL VERSION 1 IR 1 SCOPE project
+  PATTERN VAL <name:match(\$?[A-Za-z_][A-Za-z0-9_]*)> <value:text>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_VAR VERSION 1 IR 1 SCOPE project
+  PATTERN VAR <name:match(\$?[A-Za-z_][A-Za-z0-9_]*)> <query:match(@\S*\|\S*\|\S*)>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SETUP VERSION 1 IR 1 SCOPE project
+  PATTERN SETUP
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SETUP_END VERSION 1 IR 1 SCOPE project
+  PATTERN SETUP_END
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_TEARDOWN VERSION 1 IR 1 SCOPE project
+  PATTERN TEARDOWN
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_TEARDOWN_END VERSION 1 IR 1 SCOPE project
+  PATTERN TEARDOWN_END
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SECTION VERSION 1 IR 1 SCOPE project
+  PATTERN SECTION [<name:text>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_LOG VERSION 1 IR 1 SCOPE project
+  PATTERN LOG [<message:text>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_WAIT VERSION 1 IR 1 SCOPE project
+  PATTERN WAIT <seconds:number CODE NUMBER>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_TIMESCALE VERSION 1 IR 1 SCOPE project
+  PATTERN TIMESCALE <scale:number CODE NUMBER>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SET_DEFAULT_TIMEOUT VERSION 1 IR 1 SCOPE project
+  PATTERN SET_DEFAULT_TIMEOUT <seconds:number CODE NUMBER>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_INVOKE VERSION 1 IR 1 SCOPE project
+  PATTERN INVOKE <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <component:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <method:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [<args:text>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SET VERSION 1 IR 1 SCOPE project
+  PATTERN SET <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <component:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <field:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <value:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SET_ACTIVE VERSION 1 IR 1 SCOPE project
+  PATTERN SET_ACTIVE <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <active:enum(true|false|True|False|TRUE|FALSE|1|0)>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SNAPSHOT VERSION 1 IR 1 SCOPE project
+  PATTERN SNAPSHOT [<queries:text>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_CLICK VERSION 1 IR 1 SCOPE project
+  PATTERN CLICK <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [WAIT <wait:number CODE NUMBER>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_FILL VERSION 1 IR 1 SCOPE project
+  PATTERN FILL <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [<value:text>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_FOCUS VERSION 1 IR 1 SCOPE project
+  PATTERN FOCUS <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_CONSOLE_CLEAN VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT_CONSOLE_CLEAN [IGNORE <patterns:text>]
+  EXAMPLES playtest.examples
+  DECLARE
+END
+
+# AS may be followed by TIMEOUT (PlaytestParserTests.cs:487): the label stops there. A slot name is declared once, so that TIMEOUT is timeout2.
+CONSTRUCT PT_ASSERT VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT <query:text LAZY> <op:match([<>]=?|==|!=|contains)> <value:text LAZY> [TIMEOUT <timeout:number CODE NUMBER>] [AS <label:text LAZY> [TIMEOUT <timeout2:number CODE NUMBER>]]
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_FLAG VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT <flag:match(!?(?:\$\S*|[/#]\S*|\(\S+\)))>
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+# Up to three AND terms (q1, q2, q3) or three OR terms (q1, q4, q5). All four groups are there so that every LAZY value stops at AND and OR.
+CONSTRUCT PT_WAIT_UNTIL VERSION 1 IR 1 SCOPE project
+  PATTERN WAIT_UNTIL <q1:text LAZY> <op1:match([<>]=?|==|!=|contains)> <v1:text LAZY> [AND <q2:text LAZY> <op2:match([<>]=?|==|!=|contains)> <v2:text LAZY>] [AND <q3:text LAZY> <op3:match([<>]=?|==|!=|contains)> <v3:text LAZY>] [OR <q4:text LAZY> <op4:match([<>]=?|==|!=|contains)> <v4:text LAZY>] [OR <q5:text LAZY> <op5:match([<>]=?|==|!=|contains)> <v5:text LAZY>] [TIMEOUT <timeout:number CODE NUMBER>] [ABORT]
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+CONSTRUCT PT_WAIT_UNTIL_FLAG VERSION 1 IR 1 SCOPE project
+  PATTERN WAIT_UNTIL <flag:match(!?\$\S*)>
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+CONSTRUCT PT_INVARIANT VERSION 1 IR 1 SCOPE project
+  PATTERN INVARIANT <query:text LAZY> <op:match([<>]=?|==|!=|contains)> <value:text>
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+CONSTRUCT PT_MCP_INTO VERSION 1 IR 1 SCOPE project
+  PATTERN MCP <command:match(\S+)> [<args:text LAZY>] INTO <var:match(\$[A-Za-z_]\w*)>
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+CONSTRUCT PT_MCP VERSION 1 IR 1 SCOPE project
+  PATTERN MCP <command:match(\S+)> [<args:text>]
+  EXAMPLES playtest-lazy.examples
+  DECLARE
+END
+
+CONSTRUCT PT_MOVE VERSION 1 IR 1 SCOPE project
+  PATTERN MOVE [<path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>] TO <to:match(@\S+|\$\S+|"[^"]*"|\(?[-+0-9.eE]+,[-+0-9.eE]+,[-+0-9.eE]+\)?)> [<offset:text>]
+  EXAMPLES playtest-scene.examples
+  DECLARE
+END
+
+CONSTRUCT PT_TELEPORT VERSION 1 IR 1 SCOPE project
+  PATTERN TELEPORT <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <to:match(@\S+|\$\S+|"[^"]*"|\(?[-+0-9.eE]+,[-+0-9.eE]+,[-+0-9.eE]+\)?)> [<offset:text>]
+  EXAMPLES playtest-scene.examples
+  DECLARE
+END
+
+CONSTRUCT PT_TAP VERSION 1 IR 1 SCOPE project
+  PATTERN TAP <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [WAIT <wait:number CODE NUMBER>]
+  EXAMPLES playtest-scene.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_NEAR VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT_NEAR <path1:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <path2:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <threshold:number CODE NUMBER>
+  EXAMPLES playtest-scene.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_CTA VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT_CTA [<state:enum(VISIBLE|CLICKABLE)>]
+  EXAMPLES playtest-scene.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_ONE_ACTIVE VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT_ONE_ACTIVE <path1:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <path2:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [<more:text>]
+  EXAMPLES playtest-scene.examples
+  DECLARE
+END
+
+CONSTRUCT PT_DESC VERSION 1 IR 1 SCOPE project
+  PATTERN DESC [<label:text>]
+  EXAMPLES playtest-control.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ABORT_ON_FAIL VERSION 1 IR 1 SCOPE project
+  PATTERN ABORT_ON_FAIL
+  EXAMPLES playtest-control.examples
+  DECLARE
+END
+
+CONSTRUCT PT_EXPECT_FAIL VERSION 1 IR 1 SCOPE project
+  PATTERN EXPECT_FAIL
+  EXAMPLES playtest-control.examples
+  DECLARE
+END
+
+CONSTRUCT PT_MONITOR VERSION 1 IR 1 SCOPE project
+  PATTERN MONITOR [<query:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>]
+  EXAMPLES playtest-control.examples
+  DECLARE
+END
+
+CONSTRUCT PT_CAPTURE VERSION 1 IR 1 SCOPE project
+  PATTERN CAPTURE <label:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <query:text>
+  EXAMPLES playtest-capture.examples
+  DECLARE
+END
+
+CONSTRUCT PT_CAPTURE_MIN VERSION 1 IR 1 SCOPE project
+  PATTERN CAPTURE_MIN <name:match(\$?[A-Za-z_][A-Za-z0-9_]*)> <query:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [OVER <over:number CODE NUMBER>]
+  EXAMPLES playtest-capture.examples
+  DECLARE
+END
+
+CONSTRUCT PT_CAPTURE_MAX VERSION 1 IR 1 SCOPE project
+  PATTERN CAPTURE_MAX <name:match(\$?[A-Za-z_][A-Za-z0-9_]*)> <query:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [OVER <over:number CODE NUMBER>]
+  EXAMPLES playtest-capture.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_CHANGED VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT_CHANGED <label:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>
+  EXAMPLES playtest-capture.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_CAPTURED VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT_CAPTURED <label:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <mode:enum(INCREASED|DECREASED|UNCHANGED|INCREASED_BY|DECREASED_BY)> [<subop:match([<>]=?|==|!=|contains)> <value:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>]
+  EXAMPLES playtest-capture.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_MIN VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT_MIN <name:match(\$?[A-Za-z_][A-Za-z0-9_]*)> <op:match([<>]=?|==|!=|contains)> <value:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>
+  EXAMPLES playtest-capture.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_MAX VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT_MAX <name:match(\$?[A-Za-z_][A-Za-z0-9_]*)> <op:match([<>]=?|==|!=|contains)> <value:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>
+  EXAMPLES playtest-capture.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_FRAMES_DIFFER VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT_FRAMES_DIFFER <label:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>
+  EXAMPLES playtest-capture.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_FRAMES_STATIC VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT_FRAMES_STATIC <label:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>
+  EXAMPLES playtest-capture.examples
+  DECLARE
+END
+
+CONSTRUCT PT_CAPTURE_FRAMES VERSION 1 IR 1 SCOPE project
+  PATTERN CAPTURE_FRAMES <count:match([2-9]|[1-9][0-9]+) CODE COUNT> INTERVAL <interval:number CODE NUMBER> [CAMERA <camera:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>] [MODE <mode:enum(strip|list|Strip|List|STRIP|LIST)>] [LABEL <label:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>]
+  EXAMPLES playtest-tails.examples
+  DECLARE
+END
+
+CONSTRUCT PT_WAIT_CAPTURED VERSION 1 IR 1 SCOPE project
+  PATTERN WAIT_CAPTURED <label:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <mode:enum(INCREASED|DECREASED|UNCHANGED|INCREASED_BY|DECREASED_BY)> [<subop:match([<>]=?|==|!=|contains)> <value:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>] [TIMEOUT <timeout:number CODE NUMBER>] [OVER <over:number CODE NUMBER> [TIMEOUT <timeout2:number CODE NUMBER>]]
+  EXAMPLES playtest-tails.examples
+  DECLARE
+END
+
+CONSTRUCT PT_WAIT_STABLE VERSION 1 IR 1 SCOPE project
+  PATTERN WAIT_STABLE <query:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> DELTA <delta:number CODE NUMBER> OVER <over:number CODE NUMBER> [TIMEOUT <timeout:number CODE NUMBER>]
+  EXAMPLES playtest-tails.examples
+  DECLARE
+END
+
+CONSTRUCT PT_ASSERT_CONSERVED VERSION 1 IR 1 SCOPE project
+  PATTERN ASSERT_CONSERVED [SUM] <terms:text LAZY> [== <expected:match(CONSTANT|-?\d+(?:\.\d+)?)>] OVER <over:number CODE NUMBER>
+  EXAMPLES playtest-tails.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SIMULATE VERSION 1 IR 1 SCOPE project
+  PATTERN SIMULATE <name:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [DURATION <duration:number CODE NUMBER>] [TIMESCALE <timescale:number CODE NUMBER>] [TARGET <target:match("[^"]*"|(?!.*\[[^\]]*$)\S+)>] [FREQUENCY <frequency:number CODE NUMBER>]
+  EXAMPLES playtest-tails.examples
+  DECLARE
+END
+
+CONSTRUCT PT_TRACE_FLOW VERSION 1 IR 1 SCOPE project
+  PATTERN TRACE_FLOW FROM <from:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> TO <to:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> FIELD <field:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [TIMEOUT <timeout:number CODE NUMBER>]
+  EXAMPLES playtest-tails.examples
+  DECLARE
+END
+
+CONSTRUCT PT_MOVE_PATH VERSION 1 IR 1 SCOPE project
+  PATTERN MOVE_PATH <path:text LAZY> [TIMEOUT <timeout:number CODE NUMBER>]
+  EXAMPLES playtest-tails.examples
+  DECLARE
+END
+
+# A block: ASSERT lines up to END; the value of a line is the rest of it (INTENDED I1) and a line that is no complete ASSERT is refused (INTENDED I6). END must not be indented deeper than the head (core readBlock).
+CONSTRUCT PT_ASSERT_BATCH VERSION 1 IR 1 SCOPE project
+  HEAD ASSERT_BATCH
+  ITEM ASSERT <query:text LAZY> <op:match([<>]=?|==|!=|contains)> <value:text LAZY>
+  EXAMPLES playtest-blocks.examples
+  DECLARE
+END
+
+CONSTRUCT PT_SWEEP_PATH VERSION 1 IR 1 SCOPE project
+  PATTERN SWEEP_PATH <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> DWELL <dwell:number CODE NUMBER>
+  EXAMPLES playtest-blocks.examples
+  DECLARE
+END
+
+CONSTRUCT PT_COMPLETE_PURCHASE VERSION 1 IR 1 SCOPE project
+  PATTERN COMPLETE_PURCHASE <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [EXPECT]
+  EXAMPLES playtest-blocks.examples
+  DECLARE
+END
+
+CONSTRUCT PT_INVOKE_REPEAT VERSION 1 IR 1 SCOPE project
+  PATTERN INVOKE_REPEAT <count:uint CODE COUNT> <path:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <component:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> <method:match("[^"]*"|(?!.*\[[^\]]*$)\S+)> [<args:text>]
+  EXAMPLES playtest-blocks.examples
+  DECLARE
+END

@@ -1,9 +1,28 @@
 from mcp.types import ToolAnnotations
 
+from .tags import tagged
+
 RO = ToolAnnotations(readOnlyHint=True)
 RW = ToolAnnotations(readOnlyHint=False)
 RW_IDEM = ToolAnnotations(readOnlyHint=False, idempotentHint=True)
 DEL = ToolAnnotations(readOnlyHint=False, destructiveHint=True)
+
+
+def derive(effect: str, session: bool = False) -> ToolAnnotations:
+    """DERIVED MCP annotation from catalog `effect` + `SESSION` (owner D2, 2026-11-08).
+    readOnlyHint = effect RO and not SESSION; idempotentHint = effect RW_IDEM or SESSION
+    (set only when True, left unset otherwise); destructiveHint = effect DEL (same).
+    mutability (guards) stays effect-only — see ToolSpec.session. Bit-for-bit identical to
+    the RO/RW/RW_IDEM/DEL constants above when session=False: those only ever set
+    idempotentHint/destructiveHint when True, never explicit False (ToolAnnotations' SDK
+    default is None, not False — setting it unconditionally would change every tool's
+    wire annotation, not just the ones that opt into SESSION)."""
+    kwargs: dict[str, bool] = {"readOnlyHint": effect == "RO" and not session}
+    if effect == "RW_IDEM" or session:
+        kwargs["idempotentHint"] = True
+    if effect == "DEL":
+        kwargs["destructiveHint"] = True
+    return ToolAnnotations(**kwargs)
 
 # Internal wire commands with no MCP tool annotation (mcp.list_tools() never
 # sees them -- they aren't registered via mcp.tool()) but proven safe to
@@ -23,7 +42,7 @@ DEL = ToolAnnotations(readOnlyHint=False, destructiveHint=True)
 #                  true, zero mutation. await_compile (code_intel.py) polls it
 #                  directly; without this it fails closed under
 #                  UNITY_MCP_READ_ONLY=1 even though it is pure diagnostics.
-_INTERNAL_RETRY_SAFE_CMDS = frozenset({"get_status", "sync_status", "compile_status"})
+_INTERNAL_RETRY_SAFE_CMDS = tagged("retry_safe_internal") | frozenset({"sync_status"})  # sync_status has no catalog block yet
 
 
 async def retry_safe_cmds(mcp) -> frozenset[str]:
@@ -38,6 +57,6 @@ async def retry_safe_cmds(mcp) -> frozenset[str]:
     mcp_safe = frozenset(
         t.name for t in await mcp.list_tools()
         if t.annotations is not None
-        and (t.annotations.readOnlyHint or t.annotations.idempotentHint)
+        and (t.annotations.read_only_hint or t.annotations.idempotent_hint)
     )
     return mcp_safe | _INTERNAL_RETRY_SAFE_CMDS

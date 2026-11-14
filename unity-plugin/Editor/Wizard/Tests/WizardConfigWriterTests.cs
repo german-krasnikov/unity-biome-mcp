@@ -130,12 +130,12 @@ namespace UnityMCP.Editor.Tests
         }
 
         // C1 r6 #1: the atomic swap itself moved into the shared AtomicFile.Swap helper
-        // (Editor/AtomicFile.cs) so PortResolver's port-file writers can reuse it too —
-        // WriteAtomic now delegates instead of inlining File.Replace/Move itself.
+        // (Editor/Primitives/AtomicFile.cs) so PortResolver's port-file writers can reuse
+        // it too — WriteAtomic now delegates instead of inlining File.Replace/Move itself.
         [Test]
         public void WriteAtomic_UsesFileReplace_NotDeleteThenMove()
         {
-            var src = ReadRequiredPackageSource(typeof(WizardConfigWriter), "Editor/AtomicFile.cs");
+            var src = ReadRequiredPackageSource(typeof(WizardConfigWriter), "Editor/Primitives/AtomicFile.cs");
             Assert.That(src, Does.Contain("File.Replace(tmp, path"),
                 "AtomicFile.Swap must swap via File.Replace \u2014 a Windows sharing violation between delete and move can permanently lose the original (C1 r5 #2)");
             Assert.That(src, Does.Not.Contain("File.Delete(path)"),
@@ -170,7 +170,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void WriteAtomic_TempCleanupNeverMasksTheOriginalException()
         {
-            var src = ReadRequiredPackageSource(typeof(WizardConfigWriter), "Editor/AtomicFile.cs");
+            var src = ReadRequiredPackageSource(typeof(WizardConfigWriter), "Editor/Primitives/AtomicFile.cs");
             Assert.That(Regex.IsMatch(src,
                     @"finally\s*\{\s*try\s*\{\s*if\s*\(File\.Exists\(tmp\)\)\s*File\.Delete\(tmp\);\s*\}\s*catch"),
                 "AtomicFile.Swap's finally must wrap File.Delete(tmp) in its own try/catch " +

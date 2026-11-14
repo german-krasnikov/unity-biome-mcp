@@ -1,12 +1,14 @@
 """Shared registration helper for tools/*.py modules."""
 import os
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
+
+from ..decisions.guard_facts import Verdict, guard_verdict
 
 
 def _guard_read_only(tool_name: str) -> None:
-    """Raise ToolError if UNITY_MCP_READ_ONLY=1 (for direct_only file-writing tools)."""
-    if os.environ.get("UNITY_MCP_READ_ONLY", "0") == "1":
+    """Raise ToolError if UNITY_MCP_READ_ONLY=1 (for direct_only file-writing tools: a call of theirs is always a write)."""
+    if guard_verdict("py", read_only=os.environ.get("UNITY_MCP_READ_ONLY", "0") == "1", mutating=True) == Verdict.READ_ONLY_BLOCKED:
         raise ToolError(f"READ_ONLY_BLOCKED: '{tool_name}' file write disabled in read-only mode")
 
 

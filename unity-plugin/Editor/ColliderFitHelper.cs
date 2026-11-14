@@ -7,8 +7,8 @@ namespace UnityMCP.Editor
     {
         internal static string Execute(string argsJson)
         {
-            var path = JsonHelper.ExtractString(argsJson, "path");
-            var type = JsonHelper.ExtractString(argsJson, "type") ?? "box";
+            var path = AutofitColliderArgs.Path(argsJson);
+            var type = AutofitColliderArgs.Type(argsJson) ?? "box";
             var go = ComponentSerializer.FindObjectOrThrow(path);
 
             var bounds = GetLocalBounds(go);

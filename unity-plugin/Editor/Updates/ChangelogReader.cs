@@ -75,11 +75,8 @@ namespace UnityMCP.Editor
             return entries;
         }
 
-        static bool IsNewerThan(string candidate, string current)
-        {
-            if (!Version.TryParse(candidate, out var a)) return false;
-            if (!Version.TryParse(current,   out var b)) return false;
-            return a > b;
-        }
+        // UI-1/Q16: the one DECISION isNewer (dsl/decisions/versionorder.logic), shared with UpdateChecker and
+        // ReleaseDiff and with server/src/unity_mcp/_update_check.py.
+        static bool IsNewerThan(string candidate, string current) => Decisions.VersionFacts.IsNewer(candidate, current);
     }
 }

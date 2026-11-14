@@ -9,6 +9,8 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .decisions.generated.editorlog_logic import FailureCurrencyInput, failure_currency
+
 # Matches: Assets/Foo.cs(12,5): error CS0117: message
 _RE_ERROR = re.compile(r"^(.*?)\((\d+),(\d+)\):\s+(error CS\d+:.*)")
 _STRONG_BROKEN = "All compiler errors have to be fixed"
@@ -173,6 +175,7 @@ class BuildFailure:
     failed_dlls: list[str] = field(default_factory=list)
     cs_errors: list[str] = field(default_factory=list)
     block_offset: int = -1            # offset of the LAST reload-terminal event
+    success_offset: int = -1          # offset of the LAST Mono-success marker
 
 
 def parse_build_failure(text: str) -> BuildFailure:
@@ -203,6 +206,7 @@ def parse_build_failure(text: str) -> BuildFailure:
         if pos > last:
             last = pos
     bf.block_offset = last
+    bf.success_offset = text.rfind(_MONO_SUCCESS)
 
     return bf
 
@@ -212,40 +216,12 @@ def parse_build_failure(text: str) -> BuildFailure:
 # ---------------------------------------------------------------------------
 
 def classify_failure_currency(text: str, build_failure: BuildFailure) -> str:
-    """Return 'current' if the last reload-terminal is a failure with no Mono-success after it.
+    """'current' if the last reload-terminal is a failure with no Mono-success after it (A3; G28, G33), else 'stale'.
 
-    A3 currency rule:
-    - CURRENT iff last reload-TERMINAL is a FAILURE and no Mono-success follows it.
-    - Build-START anchors (## Script Compilation Error) ONLY scope WHICH block.
-    - Inert post-wedge [ScriptCompilation] Requested + 0.000s lines = proof of wedge, NOT new build-START.
-
-    G28: multi-block — only the block after the last Mono-success matters.
-    G33: reload started but no Mono-success terminal → CURRENT.
+    The rule is dsl/decisions/editorlog.logic (failureCurrency); the offsets are folded by parse_build_failure.
+    `text` is unused: the offsets already come from the CRLF-normalised text.
     """
-    # CRLF → LF
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-
-    # Find last reload-terminal failure position
-    last_failure = -1
-    for marker in (_RELOAD_ABORTED, _RELOAD_FAILED):
-        pos = text.rfind(marker)
-        if pos > last_failure:
-            last_failure = pos
-
-    if last_failure == -1:
-        # No failure terminal at all
-        return "stale"
-
-    # Find last Mono-success position.
-    # Inert post-wedge "[ScriptCompilation] Requested + script compilation time: 0.000s"
-    # lines contain no Mono-success, so the rfind below naturally stays after the failure
-    # terminal — no explicit branch needed (A3: they are proof of wedge, not new build-START).
-    last_success = text.rfind(_MONO_SUCCESS)
-
-    # CURRENT iff failure is after (or there is no) success
-    if last_success == -1 or last_failure > last_success:
-        return "current"
-    return "stale"
+    return failure_currency(FailureCurrencyInput(build_failure.block_offset, build_failure.success_offset))
 
 
 # ---------------------------------------------------------------------------

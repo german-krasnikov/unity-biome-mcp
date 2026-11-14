@@ -7,174 +7,13 @@ using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Chat.Turn;
 using UnityMCP.Editor.Testing;
 using UnityEditor;
 using Object = UnityEngine.Object;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
-    // ── 1. ChatActivityState exhaustive (16) ─────────────────────────────────
-
-    [TestFixture]
-    [Category(TestCategories.Stress)]
-    public class ActivityStateMonkeyTests : UnityMCP.Editor.Testing.UnityMcpTestBase
-    {
-        [Test]
-        public void Initial_Phase_IsIdle()
-        {
-            var s = new ChatActivityState();
-            Assert.AreEqual(ActivityPhase.Idle, s.Phase);
-        }
-
-        [Test]
-        public void Send_FromIdle_ReturnsTrueAndSending()
-        {
-            var s = new ChatActivityState();
-            bool result = s.Send();
-            Assert.IsTrue(result);
-            Assert.AreEqual(ActivityPhase.Sending, s.Phase);
-        }
-
-        [Test]
-        public void Send_FromSending_ReturnsFalse_IdempotentState()
-        {
-            var s = new ChatActivityState();
-            s.Send();
-            bool result = s.Send();
-            Assert.IsFalse(result);
-            Assert.AreEqual(ActivityPhase.Sending, s.Phase);
-        }
-
-        [Test]
-        public void Send_FromReceiving_ReturnsFalse_IdempotentState()
-        {
-            var s = new ChatActivityState();
-            s.Send();
-            s.FirstToken();
-            bool result = s.Send();
-            Assert.IsFalse(result);
-            Assert.AreEqual(ActivityPhase.Receiving, s.Phase);
-        }
-
-        [Test]
-        public void FirstToken_FromIdle_IsNoOp_ReturnsFalse()
-        {
-            var s = new ChatActivityState();
-            bool result = s.FirstToken();
-            Assert.IsFalse(result);
-            Assert.AreEqual(ActivityPhase.Idle, s.Phase);
-        }
-
-        [Test]
-        public void FirstToken_FromSending_ToReceiving()
-        {
-            var s = new ChatActivityState();
-            s.Send();
-            bool result = s.FirstToken();
-            Assert.IsTrue(result);
-            Assert.AreEqual(ActivityPhase.Receiving, s.Phase);
-        }
-
-        [Test]
-        public void FirstToken_FromReceiving_ReturnsFalse()
-        {
-            var s = new ChatActivityState();
-            s.Send();
-            s.FirstToken();
-            bool result = s.FirstToken();
-            Assert.IsFalse(result);
-            Assert.AreEqual(ActivityPhase.Receiving, s.Phase);
-        }
-
-        [Test]
-        public void Done_FromIdle_ReturnsFalse()
-        {
-            var s = new ChatActivityState();
-            bool result = s.Done();
-            Assert.IsFalse(result);
-        }
-
-        [Test]
-        public void Done_FromSending_ToIdle()
-        {
-            var s = new ChatActivityState();
-            s.Send();
-            bool result = s.Done();
-            Assert.IsTrue(result);
-            Assert.AreEqual(ActivityPhase.Idle, s.Phase);
-        }
-
-        [Test]
-        public void Done_FromReceiving_ToIdle()
-        {
-            var s = new ChatActivityState();
-            s.Send();
-            s.FirstToken();
-            bool result = s.Done();
-            Assert.IsTrue(result);
-            Assert.AreEqual(ActivityPhase.Idle, s.Phase);
-        }
-
-        [Test]
-        public void Fail_IsAlias_ForDone()
-        {
-            var s = new ChatActivityState();
-            s.Send();
-            bool result = s.Fail();
-            Assert.IsTrue(result);
-            Assert.AreEqual(ActivityPhase.Idle, s.Phase);
-        }
-
-        [Test]
-        public void CanSend_TrueOnlyWhenIdle()
-        {
-            var s = new ChatActivityState();
-            Assert.IsTrue(s.CanSend);
-        }
-
-        [Test]
-        public void CanSend_FalseWhenSending()
-        {
-            var s = new ChatActivityState();
-            s.Send();
-            Assert.IsFalse(s.CanSend);
-        }
-
-        [Test]
-        public void CanSend_FalseWhenReceiving()
-        {
-            var s = new ChatActivityState();
-            s.Send();
-            s.FirstToken();
-            Assert.IsFalse(s.CanSend);
-        }
-
-        [Test]
-        public void FullCycle_Idle_Send_FirstToken_Done_BackToIdle()
-        {
-            var s = new ChatActivityState();
-            Assert.AreEqual(ActivityPhase.Idle, s.Phase);
-            s.Send();
-            Assert.AreEqual(ActivityPhase.Sending, s.Phase);
-            s.FirstToken();
-            Assert.AreEqual(ActivityPhase.Receiving, s.Phase);
-            s.Done();
-            Assert.AreEqual(ActivityPhase.Idle, s.Phase);
-        }
-
-        [Test]
-        public void RapidSendDoneCycles_50times_AlwaysEndsIdle()
-        {
-            var s = new ChatActivityState();
-            for (int i = 0; i < 50; i++)
-            {
-                s.Send();
-                s.Done();
-            }
-            Assert.AreEqual(ActivityPhase.Idle, s.Phase);
-        }
-    }
-
     // ── 2. SessionAllowlist exhaustive (12) ──────────────────────────────────
 
     [TestFixture]
@@ -386,19 +225,10 @@ namespace UnityMCP.Editor.Chat.Tests
         }
 
         [Test]
-        public void CloneWithModel_NewInstance_PreservesPermissionMode()
-        {
-            var src = new BackendConfigStore();
-            src.Claude.PermissionMode = "acceptEdits";
-            var result = src.WithModel(BackendKind.Claude, "new-model");
-            Assert.AreEqual("acceptEdits", result.Claude.PermissionMode);
-        }
-
-        [Test]
         public void CloneWithModel_NewInstance_PreservesCodexConfig()
         {
             var src = new BackendConfigStore();
-            src.Codex.StartupTimeoutSec = 99;
+            src.Codex.Model = "o3";
             var result = src.WithModel(BackendKind.Claude, "new-model");
             Assert.AreSame(src.Codex, result.Codex);
         }
@@ -627,11 +457,7 @@ namespace UnityMCP.Editor.Chat.Tests
         public void InitialState_AskPendingIsFalse()
         {
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
-            try
-            {
-                var field = typeof(MCPChatWindow).GetField("_askPending", BindingFlags.NonPublic | BindingFlags.Instance);
-                Assert.IsFalse((bool)field.GetValue(w));
-            }
+            try { Assert.IsFalse(w._turn.Asking); }
             finally { Object.DestroyImmediate(w); }
         }
 
@@ -737,10 +563,6 @@ namespace UnityMCP.Editor.Chat.Tests
     {
         private static readonly MethodInfo s_handleEvent = typeof(MCPChatWindow)
             .GetMethod("HandleEvent", BindingFlags.NonPublic | BindingFlags.Instance);
-        private static readonly FieldInfo s_activity = typeof(MCPChatWindow)
-            .GetField("_activity", BindingFlags.NonPublic | BindingFlags.Instance);
-        private static readonly FieldInfo s_askPending = typeof(MCPChatWindow)
-            .GetField("_askPending", BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly FieldInfo s_inputTokens = typeof(MCPChatWindow)
             .GetField("_inputTokens", BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly FieldInfo s_outputTokens = typeof(MCPChatWindow)
@@ -749,8 +571,8 @@ namespace UnityMCP.Editor.Chat.Tests
         private static void Fire(MCPChatWindow w, ChatEvent ev) =>
             s_handleEvent.Invoke(w, new object[] { ev });
 
-        private static ChatActivityState GetActivity(MCPChatWindow w) =>
-            (ChatActivityState)s_activity.GetValue(w);
+        // A TurnDone ends the turn that is open (a late one is inert, step 7.3): the tests that look at its effects open one first.
+        private static void OpenTurn(MCPChatWindow w) => w._turn.Dispatch(ChatTurnIntent.Send());
 
         [Test]
         public void HandleEvent_TextDelta_EmptyString_DoesNotCrash()
@@ -783,9 +605,9 @@ namespace UnityMCP.Editor.Chat.Tests
             try
             {
                 // Put activity into Sending state first
-                GetActivity(w).Send();
+                OpenTurn(w);
                 Fire(w, ChatEvent.TextDelta("hello"));
-                Assert.AreEqual(ActivityPhase.Receiving, GetActivity(w).Phase);
+                Assert.AreEqual(ChatTurnPhase.Receiving, w._turn.Phase);
             }
             finally { Object.DestroyImmediate(w); }
         }
@@ -804,6 +626,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
             {
+                OpenTurn(w);
                 Fire(w, ChatEvent.TurnDone("s1", 0.01f, 500, 200));
                 Assert.AreEqual(500, (int)s_inputTokens.GetValue(w));
             }
@@ -816,6 +639,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
             {
+                OpenTurn(w);
                 Fire(w, ChatEvent.TurnDone("s1", 0.01f, 500, 200));
                 Assert.AreEqual(200, (int)s_outputTokens.GetValue(w));
             }
@@ -828,9 +652,11 @@ namespace UnityMCP.Editor.Chat.Tests
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
             {
-                s_askPending.SetValue(w, true);
+                OpenTurn(w);
+                w._turn.Dispatch(ChatTurnIntent.AskRaised());
+                Assert.IsTrue(w._turn.Asking, "precondition");
                 Fire(w, ChatEvent.TurnDone("s1", 0f, 0, 0));
-                Assert.IsFalse((bool)s_askPending.GetValue(w));
+                Assert.IsFalse(w._turn.Asking);
             }
             finally { Object.DestroyImmediate(w); }
         }
@@ -841,6 +667,7 @@ namespace UnityMCP.Editor.Chat.Tests
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try
             {
+                OpenTurn(w);
                 w._turnHasToolCalls = true;
                 Fire(w, ChatEvent.TurnDone("s1", 0f, 0, 0));
                 Assert.IsFalse(w._turnHasToolCalls);
@@ -861,14 +688,6 @@ namespace UnityMCP.Editor.Chat.Tests
         {
             var w = ScriptableObject.CreateInstance<MCPChatWindow>();
             try { Assert.DoesNotThrow(() => Fire(w, ChatEvent.RateLimit("slow down"))); }
-            finally { Object.DestroyImmediate(w); }
-        }
-
-        [Test]
-        public void HandleEvent_SessionState_IsNoOp_DoesNotCrash()
-        {
-            var w = ScriptableObject.CreateInstance<MCPChatWindow>();
-            try { Assert.DoesNotThrow(() => Fire(w, ChatEvent.SessionState("ready"))); }
             finally { Object.DestroyImmediate(w); }
         }
 
