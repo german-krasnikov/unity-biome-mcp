@@ -37,6 +37,11 @@ _TOOLARGS_GEN = _EDITOR / "Generated" / "ToolArgs.g.cs"
 # Lower this when a migration PR reduces the real count; never raise it to make a test pass.
 _BASELINE_MAX_RAW_CALLS = 189
 
+# Narrower ratchet (Task 3.1A): the 5 CommandRouter*.cs files are the current front of ARG
+# adoption migration. The file-wide ratchet above has slack (e.g. a decrease elsewhere could mask
+# a regression here), so this pins the CommandRouter subset directly. Measured on the same branch.
+_COMMAND_ROUTER_BASELINE_MAX_RAW_CALLS = 86
+
 _RAW_CALL_RE = re.compile(r"JsonHelper\.(?:ExtractString|ParseOpt\w+)\(")
 _BLOCK_START_RE = re.compile(r"^(?:TOOL|PYTOOL|INTERNAL)\s+(\S+)\s")
 _ARG_LINE_RE = re.compile(r"^\s*ARG\s+(\S+)\s")
@@ -72,6 +77,18 @@ def test_raw_extract_string_calls_do_not_exceed_ratchet_baseline():
         f"raw JsonHelper.ExtractString/ParseOpt* calls grew to {total}, above the ratchet "
         f"baseline of {_BASELINE_MAX_RAW_CALLS}. Use the typed ToolArgs.g.cs accessor for new "
         "call sites instead of adding more raw calls."
+    )
+
+
+def test_command_router_raw_calls_do_not_exceed_ratchet_baseline():
+    counts = _raw_calls_by_file()
+    router_counts = {p: n for p, n in counts.items() if p.name.startswith("CommandRouter")}
+    assert router_counts, "no CommandRouter*.cs files scanned: this test would pass without checking anything"
+    total = sum(router_counts.values())
+    assert total <= _COMMAND_ROUTER_BASELINE_MAX_RAW_CALLS, (
+        f"raw JsonHelper.ExtractString/ParseOpt* calls in CommandRouter*.cs grew to {total}, above "
+        f"the ratchet baseline of {_COMMAND_ROUTER_BASELINE_MAX_RAW_CALLS}. Use the typed "
+        "ToolArgs.g.cs accessor for new call sites instead of adding more raw calls."
     )
 
 
