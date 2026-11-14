@@ -14,9 +14,9 @@ import re
 from pathlib import Path
 
 import pytest
+from helpers import make_idle_probe
 
 from unity_mcp.bridge import BridgeState, UnityBridge
-from helpers import make_idle_probe
 
 _ROOT = Path(__file__).resolve().parents[2]
 _BRIDGE_PY = _ROOT / "server" / "src" / "unity_mcp" / "bridge.py"
@@ -27,7 +27,7 @@ _INIT_LINE_RE = re.compile(r"self\._state:\s*BridgeState\s*=\s*BridgeState\.DISC
 def test_only_transition_and_init_write_self_state():
     """Ratchet: every `self._state = ...` line in bridge.py must be either the
     __init__ construction line or inside the _transition() method body."""
-    lines = _BRIDGE_PY.read_text().splitlines()
+    lines = _BRIDGE_PY.read_text(encoding="utf-8").splitlines()
 
     def_start = None
     for i, line in enumerate(lines):

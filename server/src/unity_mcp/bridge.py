@@ -136,6 +136,19 @@ _STATE_FACT = {
     BridgeState.WAKING: "waking",
 }
 
+# BridgeState FSM whitelist (see UnityBridge._transition()). Reverse-engineered
+# from the guards (or absence of guards) already in this file -- zero behavior
+# change from the pre-refactor raw `self._state = ...` sites.
+# Reachable from ANY current state -- matches today's unconditional assignments.
+_UNGUARDED_TARGETS: frozenset[BridgeState] = frozenset({
+    BridgeState.FAILED, BridgeState.DOMAIN_RELOADING, BridgeState.CONNECTED,
+})
+# Reachable only along the edge the source code already guards with `if`.
+_GUARDED_EDGES: frozenset[tuple[BridgeState, BridgeState]] = frozenset({
+    (BridgeState.CONNECTED, BridgeState.DORMANT),  # suspend(), precondition
+    (BridgeState.DORMANT, BridgeState.WAKING),     # _send_with_retry(), precondition
+})
+
 
 class DeliveryState(enum.Enum):
     """Tracks per-attempt write/read lifecycle for idempotent retry (P-322)."""
@@ -313,6 +326,25 @@ class UnityBridge(HeartbeatMixin):
         # MCP-TRANS-008: persistent command ledger (survives reconnect)
         self._ledger: CommandLedger = CommandLedger()
 
+    def _transition(self, new_state: BridgeState) -> None:
+        """The only place that writes self._state (ratcheted by
+        test_bridge_state_transition_ratchet.py). Also syncs DomainReloadTracker
+        for the two states where it is BridgeState's own sub-state (DOMAIN_RELOADING
+        marks it, CONNECTED clears it) -- SRP note: retry-policy backoff tuning and
+        compile-probe signaling stay at call sites, not here."""
+        old = self._state
+        if new_state not in _UNGUARDED_TARGETS:
+            assert (old, new_state) in _GUARDED_EDGES, (
+                f"illegal BridgeState transition {old.value} -> {new_state.value}"
+            )
+        self._state = new_state
+        if new_state is BridgeState.DOMAIN_RELOADING:
+            self._reload.mark()
+        elif new_state is BridgeState.CONNECTED:
+            self._reload.clear()
+        if old is not new_state:
+            logger.debug("BridgeState %s -> %s", old.value, new_state.value)
+
     @property
     def _startup_grace_expired(self) -> bool:
         return self._state == BridgeState.FAILED
@@ -320,7 +352,7 @@ class UnityBridge(HeartbeatMixin):
     @_startup_grace_expired.setter
     def _startup_grace_expired(self, value: bool) -> None:
         if value:
-            self._state = BridgeState.FAILED
+            self._transition(BridgeState.FAILED)
 
     @property
     def session_id(self) -> str:
@@ -437,9 +469,8 @@ class UnityBridge(HeartbeatMixin):
         was accepted by the writer (see decide()).
         """
         if isinstance(error, DomainReloadError):
-            self._state = BridgeState.DOMAIN_RELOADING
+            self._transition(BridgeState.DOMAIN_RELOADING)
             self._reconnect_backoff = RELOAD_BACKOFF_S  # fast reconnect for expected reloads
-            self._reload.mark()
             self._probe.mark_recompile_issued()
         return self._retry_policy.decide(error, attempt, session_deadline, cmd=cmd, delivery_sent=delivery_sent)
 
@@ -550,7 +581,7 @@ class UnityBridge(HeartbeatMixin):
                 async with self._lock:
                     if not self.connected:
                         if self._state == BridgeState.DORMANT:
-                            self._state = BridgeState.WAKING
+                            self._transition(BridgeState.WAKING)
                         self._last_reconnect_at = time.monotonic()
                         await self._reconnect(fire_callbacks=False)
                         METRICS.inc("reconnect.send_path")
@@ -674,8 +705,7 @@ class UnityBridge(HeartbeatMixin):
                 return result
 
             delivery = DeliveryState.DELIVERED  # P-322: response received
-            self._reload.clear()
-            self._state = BridgeState.CONNECTED
+            self._transition(BridgeState.CONNECTED)
             if self._first_failure_ts is not None:
                 outage = time.monotonic() - self._first_failure_ts
                 METRICS.observe("recompile.duration_ms", outage * 1000)
@@ -973,8 +1003,7 @@ class UnityBridge(HeartbeatMixin):
         self._first_failure_ts = None
         self._reconnect_started_at = None
         self._hard_deadline_started_at = None
-        self._state = BridgeState.CONNECTED
-        self._reload.clear()
+        self._transition(BridgeState.CONNECTED)
         self._reload_gate.set()
         self._ping_stall_failures = 0
         self._last_reconnect_at = time.monotonic()
@@ -1145,7 +1174,7 @@ class UnityBridge(HeartbeatMixin):
                 return False
             if not self._send_queue.empty():
                 return False
-            self._state = BridgeState.DORMANT
+            self._transition(BridgeState.DORMANT)
 
         self.stop_heartbeat()
         w, self._writer = self._writer, None
