@@ -14,8 +14,8 @@ import pytest
 
 from unity_mcp.chat_relay import ChatRelay
 
-from . import relay_helpers as _relay_helpers_mod
-from .relay_helpers import relay_server, tcp_cmd  # noqa: F401  (relay_server is a fixture)
+from .. import relay_helpers as _relay_helpers_mod
+from ..relay_helpers import relay_server, tcp_cmd  # noqa: F401  (relay_server is a fixture)
 
 _CONCURRENT_BINDS = 20
 

@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = Path(__file__).parent.parent / "fixtures"
 WEDGE_LOG = FIXTURES / "fm26_reload_wedge.log"
 CLEAN_LOG = FIXTURES / "fm26_reload_clean.log"
 

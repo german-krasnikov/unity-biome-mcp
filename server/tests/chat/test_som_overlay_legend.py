@@ -30,7 +30,7 @@ def test_assign_indices_stable_across_processes():
         # Print as stable text: "idx:path idx:path ..."
         print(" ".join(f"{i}:{r['path']}" for i, r in result))
     """)
-    src_dir = os.path.join(os.path.dirname(__file__), "..", "src")
+    src_dir = os.path.join(os.path.dirname(__file__), "..", "..", "src")
     src_dir = os.path.abspath(src_dir)
 
     env1 = {**os.environ, "PYTHONHASHSEED": "0"}

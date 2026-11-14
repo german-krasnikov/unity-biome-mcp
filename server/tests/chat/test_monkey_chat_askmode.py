@@ -29,7 +29,7 @@ import pytest
 
 from unity_mcp.backend_def import BACKENDS, ClaudeDef, CodexDef, KimiDef, AgyDef, OpenCodeDef
 from unity_mcp.chat_relay import ChatRelay, CliSession, SessionMeta, MAX_BUF
-from .relay_helpers import make_proc, mock_sess, fresh_relay  # noqa: F401
+from ..relay_helpers import make_proc, mock_sess, fresh_relay  # noqa: F401
 
 pytestmark = pytest.mark.monkey
 

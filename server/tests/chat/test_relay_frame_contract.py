@@ -23,7 +23,7 @@ from pathlib import Path
 from unity_mcp.relay_buffer import FRAME_SEP, RelayBuffer
 
 _RELAY_CHAT_PROCESS_CS = (
-    Path(__file__).parents[2] / "unity-plugin" / "Editor" / "Chat" / "CLI"
+    Path(__file__).parents[3] / "unity-plugin" / "Editor" / "Chat" / "CLI"
     / "RelayChatProcess.cs"
 ).read_text(encoding="utf-8")
 

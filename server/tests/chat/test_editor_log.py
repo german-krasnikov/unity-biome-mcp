@@ -8,7 +8,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch
 
-FIXTURES = Path(__file__).parent / "fixtures"
+FIXTURES = Path(__file__).parent.parent / "fixtures"
 
 
 # ---------------------------------------------------------------------------

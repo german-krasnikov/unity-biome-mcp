@@ -103,7 +103,7 @@ async def test_json_lines_validate_against_schema():
     jsonschema = pytest.importorskip("jsonschema")
 
     schema_path = (
-        Path(__file__).resolve().parents[3]
+        Path(__file__).resolve().parents[4]
         / "protocol" / "chat-relay" / "v2" / "agent-event.schema.json"
     )
     if not schema_path.exists():

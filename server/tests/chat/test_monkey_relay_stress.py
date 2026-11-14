@@ -28,7 +28,7 @@ from unity_mcp.chat_relay import (
     MAX_BUF, KILL_WAIT,
 )
 from unity_mcp import mcp_config_writer
-from .relay_helpers import make_proc, mock_sess, fresh_relay, tcp_cmd, relay_server  # noqa: F401
+from ..relay_helpers import make_proc, mock_sess, fresh_relay, tcp_cmd, relay_server  # noqa: F401
 
 pytestmark = pytest.mark.monkey
 

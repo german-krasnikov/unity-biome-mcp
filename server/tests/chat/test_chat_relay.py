@@ -27,7 +27,7 @@ from unity_mcp.backend_def import (
     OUTPUT_FORMAT_STREAM_JSON, OUTPUT_FORMAT_PLAIN_TEXT,
     OUTPUT_FORMAT_CODEX_JSON, OUTPUT_FORMAT_OPENCODE_JSON, OUTPUT_FORMAT_KIMI_JSON,
 )
-from .relay_helpers import _find_free_port
+from ..relay_helpers import _find_free_port
 
 
 # ─── Entrypoint contract ───────────────────────────────────────────────────
@@ -44,7 +44,7 @@ def test_main_version_exits_without_starting_relay(capsys):
 
 def test_module_version_process_exits_without_advertising_port():
     """Process-level guard for the exact probe used by RelayWarmup.cs."""
-    src_dir = str(Path(__file__).resolve().parents[1] / "src")
+    src_dir = str(Path(__file__).resolve().parents[2] / "src")
     env = {**os.environ, "PYTHONPATH": src_dir}
     result = subprocess.run(
         [sys.executable, "-m", "unity_mcp.chat_relay", "--version"],

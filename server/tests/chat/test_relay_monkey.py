@@ -16,7 +16,7 @@ from unity_mcp.chat_relay import ChatRelay, MAX_FRAME
 
 pytestmark = pytest.mark.monkey
 
-_SERVER_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_SERVER_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _SRC_DIR = os.path.join(_SERVER_DIR, "src")
 
 
