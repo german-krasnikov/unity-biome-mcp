@@ -20,18 +20,18 @@ namespace UnityMCP.Editor
     {
         public static readonly FieldAlias[] All =
         {
-            new FieldAlias(alias: "position",      canonical: "m_localposition"),
+            new FieldAlias(alias: "position", canonical: "m_localposition"),
             new FieldAlias(alias: "localposition", canonical: "m_localposition"),
-            new FieldAlias(alias: "rotation",      canonical: "m_localrotation"),
+            new FieldAlias(alias: "rotation", canonical: "m_localrotation"),
             new FieldAlias(alias: "localrotation", canonical: "m_localrotation"),
-            new FieldAlias(alias: "scale",         canonical: "m_localscale"),
-            new FieldAlias(alias: "localscale",    canonical: "m_localscale"),
-            new FieldAlias(alias: "mass",          canonical: "m_mass"),
-            new FieldAlias(alias: "enabled",       canonical: "m_enabled"),
-            new FieldAlias(alias: "active",        canonical: "m_isactive"),
-            new FieldAlias(alias: "name",          canonical: "m_name"),
-            new FieldAlias(alias: "tag",           canonical: "m_tagstring"),
-            new FieldAlias(alias: "layer",         canonical: "m_layer"),
+            new FieldAlias(alias: "scale", canonical: "m_localscale"),
+            new FieldAlias(alias: "localscale", canonical: "m_localscale"),
+            new FieldAlias(alias: "mass", canonical: "m_mass"),
+            new FieldAlias(alias: "enabled", canonical: "m_enabled"),
+            new FieldAlias(alias: "active", canonical: "m_isactive"),
+            new FieldAlias(alias: "name", canonical: "m_name"),
+            new FieldAlias(alias: "tag", canonical: "m_tagstring"),
+            new FieldAlias(alias: "layer", canonical: "m_layer"),
         };
     }
 }

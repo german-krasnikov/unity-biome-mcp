@@ -1,4 +1,4 @@
-// Generated from dsl/data/stripdefaults.data-contract, dsl/data/stripdefaults-global.core-data, dsl/data/stripdefaults-field.core-data
+// Generated from dsl/data/stripdefaults.data-contract
 // source-sha256=920760e5585ddfaf65ae65a822fd7b7ad79cde58880b8b0dff40d2caa4bc33d0
 // Edit the source, then run biome generate.
 
@@ -8,7 +8,10 @@ namespace UnityMCP.Editor
     public sealed class StripDefault
     {
         public readonly string Value;
-        public StripDefault(string value) { this.Value = value; }
+        public StripDefault(string value)
+        {
+            this.Value = value;
+        }
     }
 
     public sealed class FieldSpecificDefault
@@ -52,9 +55,9 @@ namespace UnityMCP.Editor
     {
         public static readonly FieldSpecificDefault[] All =
         {
-            new FieldSpecificDefault(fieldKey: "m_mass",     value: "1"),
-            new FieldSpecificDefault(fieldKey: "m_mass",     value: "1.0"),
-            new FieldSpecificDefault(fieldKey: "m_layer",    value: "0"),
+            new FieldSpecificDefault(fieldKey: "m_mass", value: "1"),
+            new FieldSpecificDefault(fieldKey: "m_mass", value: "1.0"),
+            new FieldSpecificDefault(fieldKey: "m_layer", value: "0"),
             new FieldSpecificDefault(fieldKey: "m_isstatic", value: "false"),
             new FieldSpecificDefault(fieldKey: "m_isstatic", value: "False"),
         };

@@ -190,5 +190,10 @@ GENERATE cs-fieldaliases data --contract fieldaliases --rows FieldAlias {dir}/da
 # Strip-default values (Wave 1D): global default set and field-specific default pairs
 # that compressor.py and DefaultStripper.cs hand-duplicate.
 CONTRACT stripdefaults FROM data/stripdefaults.data-contract
-GENERATE py-stripdefaults data --contract stripdefaults --rows StripDefault {dir}/data/stripdefaults-global.core-data --target py --out {dir}/../server/src/unity_mcp/generated/strip_defaults.py
-GENERATE cs-stripdefaults data --contract stripdefaults --rows StripDefault {dir}/data/stripdefaults-global.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/StripDefaults.g.cs
+GENERATE py-stripdefaults data --contract stripdefaults --rows StripDefault {dir}/data/stripdefaults-global.core-data --rows FieldSpecificDefault {dir}/data/stripdefaults-field.core-data --target py --out {dir}/../server/src/unity_mcp/generated/strip_defaults.py
+GENERATE cs-stripdefaults data --contract stripdefaults --rows StripDefault {dir}/data/stripdefaults-global.core-data --rows FieldSpecificDefault {dir}/data/stripdefaults-field.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/StripDefaults.g.cs
+
+# Sync state vocabulary (Wave 1E-3): the state strings SyncHelper.cs writes and
+# sync_algorithm.py / sync.py read back. One ENUM replaces bare string literals.
+CONTRACT syncstate FROM data/syncstate.data-contract
+GENERATE py-syncstate data --contract syncstate --rows SyncStateOrigin {dir}/data/syncstate.core-data --target py --out {dir}/../server/src/unity_mcp/generated/sync_state.py

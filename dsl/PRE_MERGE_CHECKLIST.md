@@ -104,6 +104,7 @@ From `server/` the venv comes from `uv sync --locked --extra dev` (Python 3.14).
       (it was taken at an earlier pin): re-run this item before ticking it.
 - [ ] CI does not run `dsl.sh check` (it needs the private biome-dsl). It runs the Node-free tier 0 in the server lane: `test_dsl_fresh.py`, `test_dsl_content_lock.py`, `test_decisions_examples.py`,
       the goldens. The pin guard tests need no Node either: `server/tests/test_dsl_toolchain_pin.py`, and `scripts/tests/test_dsl_sh_toolchain_pin_guard.py`, which the `scripts/tests` step of `ci-python.yml` runs. A change under `dsl/` triggers `unity-tests`, `unity-compat`, `ci-conformance`, `ci-pure-dotnet` and `ci-python` (push; its pull request is unfiltered on purpose) as well.
+- [ ] `biome generate playtest-reader --check` (with `BIOME_DSL_ROOT` set) to verify the playtest DSL reader is current with `constructs/playtest.construct`.
 
 ## 6. Lint
 

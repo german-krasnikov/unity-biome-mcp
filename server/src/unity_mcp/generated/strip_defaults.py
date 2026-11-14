@@ -1,4 +1,4 @@
-# Generated from dsl/data/stripdefaults.data-contract, dsl/data/stripdefaults-global.core-data, dsl/data/stripdefaults-field.core-data
+# Generated from dsl/data/stripdefaults.data-contract
 # source-sha256=920760e5585ddfaf65ae65a822fd7b7ad79cde58880b8b0dff40d2caa4bc33d0
 # Edit the source, then run biome generate.
 
@@ -22,7 +22,7 @@ STRIP_DEFAULT_ROWS: tuple[StripDefault, ...] = (
     StripDefault(value="false"),
     StripDefault(value="null"),
     StripDefault(value="None"),
-    StripDefault(value='""'),
+    StripDefault(value="\"\""),
     StripDefault(value="(0, 0, 0)"),
     StripDefault(value="(0.0, 0.0, 0.0)"),
     StripDefault(value="(0, 0, 0, 1)"),
@@ -37,6 +37,7 @@ STRIP_DEFAULT_ROWS: tuple[StripDefault, ...] = (
     StripDefault(value="(0, 0, 0, 0)"),
     StripDefault(value="#FFFFFFFF"),
 )
+
 
 FIELD_SPECIFIC_DEFAULT_ROWS: tuple[FieldSpecificDefault, ...] = (
     FieldSpecificDefault(fieldKey="m_mass", value="1"),

@@ -18,6 +18,7 @@ from collections.abc import Awaitable, Callable  # noqa: TC003
 from dataclasses import dataclass
 from pathlib import Path
 
+from unity_mcp.generated.sync_state import SyncState
 from unity_mcp.tools.generated.wire_records import parse_sync_status as _parse_sync_status_record
 from unity_mcp.utils import parse_pipe_fields
 
@@ -88,9 +89,9 @@ def _status_issue(status: str, expected_epoch: int | None) -> str:
         return 'UNKNOWN: malformed sync status'
     if expected_epoch is not None and epoch != expected_epoch:
         return 'UNKNOWN: sync epoch changed during recovery'
-    if state == 'failed' or error:
+    if state == SyncState.FAILED or error:
         return f"compile failed: {error or 'details unavailable'}"
-    if state not in ('ready', 'idle', 'compiling', 'reloading'):
+    if state not in (SyncState.READY, SyncState.IDLE, SyncState.COMPILING, SyncState.RELOADING):
         return 'UNKNOWN: missing or unknown sync state'
     return ''
 
