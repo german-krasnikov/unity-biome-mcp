@@ -1,6 +1,7 @@
 """Shared DSL utilities for Tier B intent tools."""
 
 from collections.abc import Callable  # noqa: TC003
+
 from mcp.server.mcpserver.exceptions import ToolError
 
 from ..llm_gateway import ILlmGateway  # noqa: TC001 — used in runtime annotation
