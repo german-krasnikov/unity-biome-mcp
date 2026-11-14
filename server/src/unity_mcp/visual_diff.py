@@ -1,8 +1,12 @@
 import hashlib
 import time
+from typing import TYPE_CHECKING
 
 from .metrics import METRICS
 from .sampling import SamplingService
+
+if TYPE_CHECKING:
+    from .llm_gateway import ILlmGateway
 from .sampling_postproc import normalize
 from .visual_diff_pixel import DIFF_PROMPTS, DiffMode, PixelDiff, _format_pixel, _pixel_diff
 
@@ -91,7 +95,7 @@ def _build_legend_for_diff(
 async def visual_diff(before: str, after: str, *, mode: str = "auto",
                       question: str | None = None,
                       pixel_threshold: float = 1.0,
-                      sampling: SamplingService | None = None,
+                      sampling: ILlmGateway | None = None,
                       mark: bool = False,
                       rects: list | None = None,
                       rects_after: list | None = None) -> str:

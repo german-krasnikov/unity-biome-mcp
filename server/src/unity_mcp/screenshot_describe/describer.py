@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from biome_mcp.degrade import degrade, wrap_degraded
 
 from ..metrics import METRICS
@@ -7,11 +9,14 @@ from ..sampling_postproc import normalize  # noqa: F401 — re-export
 from .cache import FingerprintCache
 from .prompts import resolve, resolve_som
 
+if TYPE_CHECKING:
+    from ..llm_gateway import ILlmGateway
+
 _cache_singleton = FingerprintCache()
 
 
 class ScreenshotDescriber:
-    def __init__(self, sampling: SamplingService, cache: FingerprintCache):
+    def __init__(self, sampling: ILlmGateway, cache: FingerprintCache):
         self._sampling = sampling
         self._cache = cache
 
