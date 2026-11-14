@@ -512,9 +512,9 @@ namespace UnityMCP.Editor
                 "graph_edge" => ShaderGraphHelper.ManageEdge(
                     JsonHelper.ExtractString(args, "path"),
                     ShaderArgs.OutputNode(args),
-                    ExtractInt(args, "output_slot", 0),
+                    ShaderArgs.OutputSlot(args) ?? 0,
                     ShaderArgs.InputNode(args),
-                    ExtractInt(args, "input_slot", 0),
+                    ShaderArgs.InputSlot(args) ?? 0,
                     ShaderArgs.EdgeAction(args) ?? "add"),
                 "graph_add_property" => ShaderGraphHelper.AddProperty(
                     JsonHelper.ExtractString(args, "path"),
