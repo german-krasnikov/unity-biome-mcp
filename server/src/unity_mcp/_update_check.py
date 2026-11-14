@@ -7,10 +7,11 @@ import urllib.request
 from unity_mcp import __version__
 from unity_mcp.config.resolver import GIT_INSTALL_URL
 from unity_mcp.decisions.generated.versionorder_logic import IsNewerInput, is_newer
+from unity_mcp.generated.timing_constants import TIMING_ROWS as _TR
 from unity_mcp.paths import unity_mcp_dir
 
 CACHE_FILE = unity_mcp_dir() / "update_cache.json"
-CACHE_TTL = 86400  # 24 hours
+CACHE_TTL = int(_TR[0].updateCacheTtlS)  # 24 hours
 GITHUB_URL = "https://api.github.com/repos/german-krasnikov/unity-biome-mcp/releases/latest"
 TIMEOUT = 3
 

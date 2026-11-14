@@ -67,7 +67,7 @@ class ProtocolDesyncError(ConnectionError):
 
 # P7: hard deadline = 5× STARTUP_GRACE_S. Latches even while busy so a truly
 # stuck reconnect loop eventually gives up without waiting for PID death.
-HARD_DEADLINE_S: float = 450.0
+HARD_DEADLINE_S: float = _TIMING.hardDeadlineS
 
 
 class HeartbeatMixin:

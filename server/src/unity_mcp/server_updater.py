@@ -17,12 +17,14 @@ from unity_mcp.config.merger import (
     is_toml_pinned,
 )
 from unity_mcp.config.resolver import GIT_INSTALL_URL
+from unity_mcp.generated.timing_constants import TIMING_ROWS as _TR
 
 logger = logging.getLogger("unity_mcp")
 
+_TIMING = _TR[0]
 # Subprocess timeout for `uvx --reinstall` (below), and the reinstall-failure
 # cooldown window (C1 r2 #9) — same scale by design, one source for both.
-_REINSTALL_TIMEOUT_S = 300.0
+_REINSTALL_TIMEOUT_S = _TIMING.reinstallTimeoutS
 _REINSTALL_COOLDOWN_S = _REINSTALL_TIMEOUT_S
 
 

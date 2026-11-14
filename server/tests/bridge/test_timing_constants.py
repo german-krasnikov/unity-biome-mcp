@@ -45,6 +45,20 @@ _EXPECTED = Timing(
     busyTickS=5.0,
     idleTickS=2.0,
     probeGraceS=30.0,
+    # Wave 1A-2 additions
+    hardDeadlineS=450.0,
+    reinstallTimeoutS=300.0,
+    updateCacheTtlS=86400.0,
+    defaultCommandTimeoutS=30.0,
+    playModeCacheTtlS=5.0,
+    loginPathRetryTtlS=30.0,
+    focusHintAfterS=15.0,
+    aliveCheckTtlS=30.0,
+    retryDedupTtlS=5.0,
+    reloadTier1PollS=40.0,
+    reloadTier4PollS=45.0,
+    reloadPollIntervalS=1.0,
+    reloadTier2SleepS=8.0,
 )
 
 

@@ -2,6 +2,7 @@
 import json
 import time
 
+from .generated.timing_constants import TIMING_ROWS as _TR
 from .decisions.guard_facts import Verdict, guard_verdict
 from .middleware_types import (
     _RUNTIME_ONLY_CMDS,
@@ -194,7 +195,7 @@ class MiddlewareGuardsMixin:
         return f"(repeated {count + 1}x) {result}"
 
     def check_alive(self) -> bool:
-        return (time.time() - self._last_success) < 30.0
+        return (time.time() - self._last_success) < _TR[0].aliveCheckTtlS
 
     # ── Feature 12: Workflow Phase FSM ───────────────────────────────────────
 

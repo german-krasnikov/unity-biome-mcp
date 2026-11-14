@@ -14,6 +14,8 @@ from unity_mcp.lockfile import read_reload_port
 from unity_mcp.tools.diagnose import _parse_diagnose, _parse_dlls, _verdict
 from unity_mcp.utils import parse_pipe_fields
 
+from unity_mcp.generated.timing_constants import TIMING_ROWS as _TR
+
 from .reload_ladder import _send_with_fallback, make_reload_send, reject_blocked
 from .reload_ladder import run_ladder as _run_ladder
 from .sync_algorithm import (  # noqa: F401 -- re-exported for existing importers
@@ -29,7 +31,7 @@ from .sync_algorithm import (  # noqa: F401 -- re-exported for existing importer
 
 _send = None
 _POLL_INTERVAL = 1.0
-_FOCUS_HINT_AFTER = 15.0
+_FOCUS_HINT_AFTER = _TR[0].focusHintAfterS
 _RECOVERY_TIMEOUT = 30.0
 _RECOVERY_POLL = 1.0
 _bump_used = False

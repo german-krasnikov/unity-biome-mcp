@@ -15,6 +15,10 @@ import os
 from dataclasses import dataclass
 from typing import Literal
 
+from unity_mcp.generated.timing_constants import TIMING_ROWS as _TR
+
+DEFAULT_TIMEOUT: float = _TR[0].defaultCommandTimeoutS
+
 
 @dataclass(frozen=True)
 class ToolSpec:
@@ -38,7 +42,7 @@ class ToolSpec:
     category: str
     core: bool = False
     tier1: bool = False
-    timeout_s: float = 30.0
+    timeout_s: float = DEFAULT_TIMEOUT
     mutability: Literal['read', 'write'] = 'write'
     runtime_only: bool = False
     direct_only: bool = False
@@ -56,8 +60,6 @@ class ToolSpec:
             return "python"
         return "unity"
 
-
-DEFAULT_TIMEOUT: float = 30.0
 
 # Phase 5 Part B: the 6 GD-themed categories UNITY_MCP_GD_TOOLS=0 excludes. Defined once
 # here (the single source of truth for tool metadata) so _catalog_runtime.ToolSet.install()

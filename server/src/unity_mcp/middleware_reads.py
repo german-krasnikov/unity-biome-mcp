@@ -2,6 +2,7 @@
 
 import time as _time
 
+from .generated.timing_constants import TIMING_ROWS as _TR
 from .middleware_types import is_write
 from .tools.editor_state import (
     is_paused as _is_paused,
@@ -13,7 +14,7 @@ from .tools.editor_state import (
     parse_editor_field as _parse_editor_field,
 )
 
-_NON_EDITOR_PLAY_TTL = 5.0  # seconds
+_NON_EDITOR_PLAY_TTL = _TR[0].playModeCacheTtlS  # seconds
 
 
 class MiddlewareReadsMixin:

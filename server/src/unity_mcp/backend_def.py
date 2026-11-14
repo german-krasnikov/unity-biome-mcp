@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 from . import mcp_config_writer
 from .config.merger import SERVER_NAME
+from .generated.timing_constants import TIMING_ROWS as _TR
 
 if sys.platform == "win32":
     import winreg
@@ -113,7 +114,7 @@ def _which_windows_registry(binary: str) -> str | None:
 
 _LOGIN_PATH_CACHE: str | None = None
 _LOGIN_PATH_CACHE_TS: float = 0.0
-_LOGIN_PATH_RETRY_TTL = 30.0  # seconds — bounds re-spawn frequency while shell stays broken
+_LOGIN_PATH_RETRY_TTL = _TR[0].loginPathRetryTtlS  # seconds — bounds re-spawn frequency while shell stays broken
 
 
 async def _run_login_shell(command: str, timeout: float = 3.0) -> str:

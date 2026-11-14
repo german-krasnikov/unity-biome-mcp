@@ -12,6 +12,19 @@
 #   while Unity is busy/idle.
 # probeGraceS (C1 #11): a failed tcp_probe must persist this long (clearing Unity's
 #   worst-case same-port bind-retry window, ~12.6s) before a port file is swept.
+# Wave 1A-2: additional timing/TTL constants previously hardcoded across Python files.
+# hardDeadlineS: absolute reconnect hard-deadline (bridge/heartbeat.py).
+# reinstallTimeoutS: subprocess timeout for reinstall operations (server_updater.py).
+# updateCacheTtlS: how long the update-check response is cached (24h, _update_check.py).
+# defaultCommandTimeoutS: per-command TCP timeout default (tool_specs.py).
+# playModeCacheTtlS: play-mode guard cache TTL (middleware_reads.py).
+# loginPathRetryTtlS: re-spawn rate-limit for broken login-shell detection (backend_def.py).
+# focusHintAfterS: stall duration before emitting an editor-focus hint (reload/sync.py).
+# aliveCheckTtlS: recency window for the alive-check guard (middleware_guards.py).
+# retryDedupTtlS: identical-command dedup window (middleware.py; env-overridable).
+# reloadTier1PollS / reloadTier4PollS: per-tier total poll budget (reload_ladder.py).
+# reloadPollIntervalS: sleep between MVID-delta probes (reload_ladder.py).
+# reloadTier2SleepS: delay before tier-2 source-reload attempt (reload_ladder.py).
 RECORD Timing COUNT 1
   startupGraceS: number
   domainReloadExpiryS: number
@@ -22,4 +35,17 @@ RECORD Timing COUNT 1
   busyTickS: number
   idleTickS: number
   probeGraceS: number
+  hardDeadlineS: number
+  reinstallTimeoutS: number
+  updateCacheTtlS: number
+  defaultCommandTimeoutS: number
+  playModeCacheTtlS: number
+  loginPathRetryTtlS: number
+  focusHintAfterS: number
+  aliveCheckTtlS: number
+  retryDedupTtlS: number
+  reloadTier1PollS: number
+  reloadTier4PollS: number
+  reloadPollIntervalS: number
+  reloadTier2SleepS: number
 END

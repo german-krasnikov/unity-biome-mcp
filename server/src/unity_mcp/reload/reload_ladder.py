@@ -13,16 +13,17 @@ from mcp.server.mcpserver.exceptions import ToolError
 from unity_mcp.bridge_socket import frame_read, frame_write
 from unity_mcp.constants import SESSION_TIMEOUT
 from unity_mcp.errors import UncertainDeliveryError, recovery_barrier
+from unity_mcp.generated.timing_constants import TIMING_ROWS as _TR
 from unity_mcp.tools._annotations import _INTERNAL_RETRY_SAFE_CMDS
 from unity_mcp.tools.diagnose import _DiagnoseFields, _parse_diagnose, _verdict
 from unity_mcp.tools.tool_specs import _SPECS
 
 log = logging.getLogger("unity_mcp.reload_ladder")
 
-_T1_POLL_S: float = 40.0
-_T4_POLL_S: float = 45.0
-_POLL_INTERVAL_S: float = 1.0
-_T2_SLEEP_S: float = 8.0
+_T1_POLL_S: float = _TR[0].reloadTier1PollS
+_T4_POLL_S: float = _TR[0].reloadTier4PollS
+_POLL_INTERVAL_S: float = _TR[0].reloadPollIntervalS
+_T2_SLEEP_S: float = _TR[0].reloadTier2SleepS
 _T1_MAX_POLLS: int | None = None
 _T4_MAX_POLLS: int | None = None
 _BROKEN_DOMAIN = "_BROKEN_DOMAIN_"  # M2: delta but new domain is broken

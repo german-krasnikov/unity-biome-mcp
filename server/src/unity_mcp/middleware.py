@@ -8,6 +8,7 @@ import os
 import time
 from collections import OrderedDict, deque
 
+from .generated.timing_constants import TIMING_ROWS as _TR
 from .middleware_async import MiddlewareAsyncMixin
 from .middleware_guards import MiddlewareGuardsMixin
 from .middleware_paths import PathResolverMixin
@@ -38,7 +39,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self._retry_cache: OrderedDict = OrderedDict()  # h -> (timestamp, retry_gen)
         self._retry_generation: int = 0
         self._scene_generation: int = 0
-        self._RETRY_TTL = float(os.environ.get("UNITY_MCP_RETRY_TTL", "5.0"))
+        self._RETRY_TTL = float(os.environ.get("UNITY_MCP_RETRY_TTL", str(_TR[0].retryDedupTtlS)))
         self._RETRY_MAX = 32
         self.confidence: float = 1.0
         self.sampling: SamplingService | None = None  # type: ignore[name-defined]  # noqa: F821
