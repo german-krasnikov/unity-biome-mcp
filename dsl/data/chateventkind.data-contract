@@ -1,0 +1,11 @@
+# Chat event kind vocabulary (Wave 3A): the 17 ChatEventKind enum values, generated
+# from this data contract instead of hand-maintained in ChatEvent.cs:1-44.
+# 15 values correspond to UI factory names declared in events.biome; 2 (tool_args_complete,
+# auto_reply) are internal protocol signals that do not appear on the wire.
+ENUM ChatEventKind text_delta|tool_start|tool_result|tool_args_complete|turn_done|session_init|error|permission_prompt|ask_user|tool_progress|rate_limit|heartbeat|auto_reply|thinking|plan_update|file_change|capabilities_changed
+
+# Sentinel record — required by the data contract format.
+# Provides a machine-readable note on which values are internal vs wire-protocol.
+RECORD KindNote COUNT 1
+  note: string
+END

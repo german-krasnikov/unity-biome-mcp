@@ -231,6 +231,17 @@ CONTRACT stripdefaults FROM data/stripdefaults.data-contract
 GENERATE py-stripdefaults data --contract stripdefaults --rows StripDefault {dir}/data/stripdefaults-global.core-data --rows FieldSpecificDefault {dir}/data/stripdefaults-field.core-data --target py --out {dir}/../server/src/unity_mcp/generated/strip_defaults.py
 GENERATE cs-stripdefaults data --contract stripdefaults --rows StripDefault {dir}/data/stripdefaults-global.core-data --rows FieldSpecificDefault {dir}/data/stripdefaults-field.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/StripDefaults.g.cs
 
+# Chat event kind enum (Wave 3A): the 17 ChatEventKind C# enum values generated from one
+# data contract instead of hand-maintained in ChatEvent.cs. 15 values map to UI factory
+# names in events.biome; 2 (tool_args_complete, auto_reply) are internal protocol signals.
+CONTRACT chateventkind FROM data/chateventkind.data-contract
+GENERATE cs-chateventkind data --contract chateventkind --rows KindNote {dir}/data/chateventkind.core-data --target cs --cs-namespace UnityMCP.Editor.Chat --out {dir}/../unity-plugin/Editor/Chat/CLI/Generated/ChatEventKind.g.cs
+
+# Error response format (Wave 3B): the "err: <message>" prefix that 121 C# sites return
+# and Python checks with startswith("err:"). One ERR_PREFIX constant replaces bare literals.
+CONTRACT errorformat FROM data/errorformat.data-contract
+GENERATE py-errorformat data --contract errorformat --rows ErrorFormat {dir}/data/errorformat.core-data --target py --out {dir}/../server/src/unity_mcp/generated/error_format.py
+
 # Sync state vocabulary (Wave 1E-3): the state strings SyncHelper.cs writes and
 # sync_algorithm.py / sync.py read back. One ENUM replaces bare string literals.
 CONTRACT syncstate FROM data/syncstate.data-contract
