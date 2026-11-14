@@ -262,18 +262,22 @@ namespace UnityMCP.TestProject.Server
         [Test]
         public void ProcessMainThreadQueue_ChecksShuttingDown()
         {
-            // Source-level check: MainThreadDispatcher.Drain must check _shuttingDown.
-            // Extracted from MCPServer.ProcessMainThreadQueue during the Phase 2 structural
-            // split (ROI reliability sprint, M1) — the queue-drain loop now lives here.
+            // Source-level check: MainThreadDispatcher.Drain must consult the shutdown
+            // seam. Extracted from MCPServer.ProcessMainThreadQueue during the Phase 2
+            // structural split (ROI reliability sprint, M1) — the queue-drain loop now
+            // lives here. Phase 4 Task A replaced the direct MCPServer._shuttingDown read
+            // with the ShuttingDownProvider delegate seam (so MainThreadDispatcher has no
+            // compile-time dependency on MCPServer, a prerequisite for the Task B
+            // UnityMCP.Editor.Primitives asmdef extraction) — assert the new shape.
             var source = File.ReadAllText(
                 Path.Combine(UnityEngine.Application.dataPath,
-                    "../Packages/com.unity-biome-mcp.editor/Editor/MainThreadDispatcher.cs"));
+                    "../Packages/com.unity-biome-mcp.editor/Editor/Primitives/MainThreadDispatcher.cs"));
             var idx = source.IndexOf("internal static void Drain()");
             Assert.Greater(idx, 0, "Drain must exist");
             var endIdx = source.IndexOf("internal static void Clear()", idx);
             var body = source.Substring(idx, endIdx - idx);
-            Assert.IsTrue(body.Contains("_shuttingDown"),
-                "Drain must check _shuttingDown");
+            Assert.IsTrue(body.Contains("ShuttingDownProvider"),
+                "Drain must check the ShuttingDownProvider seam");
         }
 
         [Test]
