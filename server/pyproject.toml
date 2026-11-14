@@ -159,6 +159,21 @@ source_modules = ["unity_mcp.plugin_api"]
 forbidden_modules = ["unity_mcp.server"]
 
 [[tool.importlinter.contracts]]
+name = "built-in plugins use the public plugin_api facade, not server internals"
+type = "forbidden"
+source_modules = ["unity_mcp.plugins"]
+forbidden_modules = ["unity_mcp.server", "unity_mcp.middleware_pipeline", "unity_mcp.bridge"]
+# Direct-import check only: the package's private loader infra (_atomic.py,
+# _owner.py -- both "_"-prefixed, so excluded from plugin discovery by
+# load_plugins()) legitimately reaches unity_mcp.bridge and
+# unity_mcp.middleware_pipeline *transitively* (via tools.batch and
+# middleware) to snapshot/restore the tool registry. That is the plugin
+# system itself, not a built-in plugin. A future built-in plugin module
+# (no "_" prefix) importing unity_mcp.server/middleware_pipeline/bridge
+# directly still breaks this contract.
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
 name = "diagnose/reload_ladder stay algorithm+evidence only (no import of the sync facade)"
 type = "forbidden"
 source_modules = ["unity_mcp.tools.diagnose", "unity_mcp.tools.reload_ladder"]
