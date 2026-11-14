@@ -380,10 +380,19 @@ namespace UnityMCP.TestProject.Server
         [Test]
         public void TestRunner_HasDurableReloadObserverRegistration()
         {
-            var registration = typeof(UnityMCP.Editor.TestRunner).Assembly.GetType(
-                "UnityMCP.Editor.TestRuns.TestRunObserverRegistration", false);
+            // Phase 4 Task C moved TestRunObserverRegistration into its own
+            // UnityMCP.Editor.TestRuns.asmdef, a different assembly from TestRunner's
+            // (UnityMCP.Editor) -- search every loaded assembly instead of assuming it
+            // lives alongside TestRunner.
+            Type registration = null;
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                registration = assembly.GetType(
+                    "UnityMCP.Editor.TestRuns.TestRunObserverRegistration", false);
+                if (registration != null) break;
+            }
             Assert.IsNotNull(registration,
-                "The durable observer registration must exist in the Editor assembly");
+                "The durable observer registration must exist in some loaded assembly");
             var attributes = registration.GetCustomAttributes(
                 typeof(InitializeOnLoadAttribute), false);
             Assert.AreEqual(1, attributes.Length,
