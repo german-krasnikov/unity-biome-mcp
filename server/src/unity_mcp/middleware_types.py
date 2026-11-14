@@ -2,6 +2,7 @@
 from biome_mcp.circuit_breaker import CircuitBreaker  # noqa: F401 (re-export)
 
 from .decisions.generated.mutability_logic import IsMutatingInput, is_mutating
+from .generated.blast_policy import BLAST_POLICY_ROWS as _BP
 from .tools._annotations import _INTERNAL_RETRY_SAFE_CMDS as _KNOWN_SAFE_READS
 from .tools.generated.catalog_blast import BLAST_RADIUS as _GENERATED_BLAST_RADIUS
 from .tools.generated.catalog_reads import ACTION_READS as _CATALOG_ACTION_READS
@@ -17,7 +18,8 @@ _STRIP_CMDS: frozenset = tagged("strip_defaults")
 
 # Threshold at which a write is flagged HIGH BLAST RADIUS (check_blast_radius,
 # watchdog); DANGEROUS_BLAST is denied outright in agent mode (permission_broker).
-BLAST_HIGH, BLAST_DANGEROUS = 3, 4
+BLAST_HIGH = _BP[0].blastHigh
+BLAST_DANGEROUS = _BP[0].blastDangerous
 
 # set_runtime_property: Python MCP tool removed, C# handler remains (see
 # _RUNTIME_ONLY_CMDS.add("set_runtime_property") below) — no catalog block,

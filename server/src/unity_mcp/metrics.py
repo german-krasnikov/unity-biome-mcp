@@ -22,6 +22,7 @@ from biome_mcp.metrics import MetricsCollector
 from biome_mcp.metrics import counted as _biome_counted
 from biome_mcp.metrics import timed as _biome_timed
 
+from .generated.limits_constants import LIMITS_ROWS as _LR
 from .metrics_report import _p95
 from .metrics_report import format_report as _format_report
 
@@ -32,7 +33,7 @@ __all__ = [
 
 # Hard cap on unique counter/observation keys, shared by inc()/observe() below,
 # to prevent unbounded growth on hostile/dynamic cmds.
-_MAX_KEYS = 512
+_MAX_KEYS = _LR[0].maxMetricsKeys
 
 
 def _env_float(name: str, default: float) -> float:

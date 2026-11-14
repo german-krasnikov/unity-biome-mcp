@@ -1,0 +1,10 @@
+# TCP transport capacity constants (Wave 1A-3): connection slot size and
+# bind-retry attempt budgets previously hardcoded in ClientSlot.cs and MCPServer.cs.
+# maxClients: max simultaneous client connections per port (ClientSlot.cs:51).
+# mainBindMaxAttempts: bind retries for the main MCP listener (MCPServer.cs:352).
+# chatBindMaxAttempts: bind retries for the chat listener (MCPServer.cs:410).
+RECORD Transport COUNT 1
+  maxClients: int
+  mainBindMaxAttempts: int
+  chatBindMaxAttempts: int
+END

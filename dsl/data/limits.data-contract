@@ -1,0 +1,16 @@
+# Middleware and metrics capacity limits (Wave 1A-5): upper bounds on caches,
+# dedup queues and counter registries previously hardcoded in middleware.py and metrics.py.
+# retryMax: max retry-dedup cache entries (middleware.py:42).
+# maxPaths: max clean-path cache entries (middleware.py:52).
+# maxWrites: max last-write tracking entries (middleware.py:63).
+# maxComponents: max component cache entries (middleware.py:77).
+# maxDistillCache: max distill cache entries (middleware.py:91).
+# maxMetricsKeys: max unique counter/observation keys in MetricsRegistry (metrics.py:35).
+RECORD Limits COUNT 1
+  retryMax: int
+  maxPaths: int
+  maxWrites: int
+  maxComponents: int
+  maxDistillCache: int
+  maxMetricsKeys: int
+END

@@ -165,3 +165,18 @@ GENERATE hinter-rows logic examples --source {dir}/decisions/hinter.examples --l
 CONTRACT contextwindow FROM data/contextwindow.data-contract
 GENERATE py-contextwindow data --contract contextwindow --rows ContextWindowRule {dir}/data/contextwindow.core-data --target py --out {dir}/../server/src/unity_mcp/generated/context_window_rules.py
 GENERATE cs-contextwindow data --contract contextwindow --rows ContextWindowRule {dir}/data/contextwindow.core-data --target cs --cs-namespace UnityMCP.Editor.Chat --out {dir}/../unity-plugin/Editor/Chat/CLI/Generated/ContextWindowRules.g.cs
+
+# TCP transport capacity constants (Wave 1A-3): connection slot size and bind-retry
+# budgets in ClientSlot.cs and MCPServer.cs. C#-only for now; Python side pending.
+CONTRACT transport FROM data/transport.data-contract
+GENERATE cs-transport data --contract transport --rows Transport {dir}/data/transport.core-data --target cs --cs-namespace UnityMCP.Editor --out {dir}/../unity-plugin/Editor/Generated/TransportConstants.g.cs
+
+# Blast-radius policy thresholds (Wave 1A-4): BLAST_HIGH/BLAST_DANGEROUS from
+# middleware_types.py. Python-only for now; C# side pending.
+CONTRACT blastpolicy FROM data/blastpolicy.data-contract
+GENERATE py-blastpolicy data --contract blastpolicy --rows BlastPolicy {dir}/data/blastpolicy.core-data --target py --out {dir}/../server/src/unity_mcp/generated/blast_policy.py
+
+# Middleware and metrics capacity limits (Wave 1A-5): cache/dedup sizes from
+# middleware.py and metrics.py. Python-only for now; C# side pending.
+CONTRACT limits FROM data/limits.data-contract
+GENERATE py-limits data --contract limits --rows Limits {dir}/data/limits.core-data --target py --out {dir}/../server/src/unity_mcp/generated/limits_constants.py

@@ -1,0 +1,1 @@
+TRANSPORT {maxClients: 8 mainBindMaxAttempts: 6 chatBindMaxAttempts: 3}
