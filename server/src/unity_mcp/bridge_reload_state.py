@@ -2,10 +2,14 @@
 import time
 from dataclasses import dataclass, field
 
+from unity_mcp.generated.timing_constants import TIMING_ROWS
+
+_TIMING = TIMING_ROWS[0]
+
 # Domain reload can take up to 60-90s on slow machines.
 # Must be >= STARTUP_GRACE_S (90s) so Python doesn't flood a dead socket
 # before Unity finishes compiling (would push bridge to FAILED state).
-DOMAIN_RELOAD_EXPIRY_S: float = 90.0
+DOMAIN_RELOAD_EXPIRY_S: float = _TIMING.domainReloadExpiryS
 
 
 @dataclass
