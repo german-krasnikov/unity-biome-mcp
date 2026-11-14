@@ -16,9 +16,13 @@ import socket
 import time
 from pathlib import Path
 
+from unity_mcp.generated.timing_constants import TIMING_ROWS
+
 from .lockfile import _read_port_file_lines, is_pid_alive
 from .paths import ports_dir as _ports_dir
 from .paths import unity_mcp_dir
+
+_TIMING = TIMING_ROWS[0]
 
 
 def cleanup_stale_locks(port: int, lock_dir: Path = None) -> int:
@@ -56,10 +60,11 @@ PORT_SWEEP_INTERVAL_S: float = 30.0
 # 6 same-port attempts, linear backoff PortResolver.BackoffDelayMs(i) =
 # 600ms * (i + 1) for i in 0..5:
 #   sum_{i=0}^{5} 600*(i+1) = 600*(1+2+3+4+5+6) = 600*21 = 12600ms = 12.6s
-# PROBE_GRACE_S must clear that window with margin. Reusing the sweep cadence
-# means "failure persisted" reads as "still failing on the NEXT sweep, ~30s
-# later" instead of inventing a second magic number.
-PROBE_GRACE_S: float = PORT_SWEEP_INTERVAL_S  # 30.0s >> 12.6s worst case
+# PROBE_GRACE_S must clear that window with margin. Sourced from the generated
+# Timing row (Task 1.4) rather than a second hand literal; test_timing_constants.py
+# pins PROBE_GRACE_S == PORT_SWEEP_INTERVAL_S so "failure persisted" still reads
+# as "still failing on the NEXT sweep, ~30s later".
+PROBE_GRACE_S: float = _TIMING.probeGraceS  # 30.0s >> 12.6s worst case
 
 # port-file-path (str) -> monotonic time of its first consecutive probe
 # failure. Module-level because cleanup_stale_port_files is invoked
