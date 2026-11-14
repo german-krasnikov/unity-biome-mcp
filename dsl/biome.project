@@ -125,7 +125,7 @@ GENERATE scenarionext-rows logic examples --source {dir}/decisions/scenarionext.
 GENERATE py-reads  render {dir}/tools.biome pyreads  {dir}/../server/src/unity_mcp/tools/generated/catalog_reads.py
 GENERATE cs-reads  render {dir}/tools.biome csreads  {dir}/../unity-plugin/Editor/Generated/ActionReads.g.cs
 GENERATE py-actions render {dir}/tools.biome pyactions {dir}/../server/src/unity_mcp/tools/generated/catalog_actions.py
-GENERATE cs-actions render {dir}/tools.biome csactions {dir}/../unity-plugin/Editor/Generated/ToolActions.g.cs
+GENERATE cs-actions render {dir}/tools.biome csactions {dir}/../unity-plugin/Editor/Primitives/ToolActions.g.cs
 GENERATE cs-dispatch render {dir}/tools.biome csdispatch {dir}/../unity-plugin/Editor/Generated/ToolDispatch.g.cs
 GENERATE cs-tools  render {dir}/tools.biome cstools  {dir}/../unity-plugin/Editor/Generated/ToolMeta.g.cs
 GENERATE cs-verbs  render {dir}/tools.biome csverbs {dir}/../unity-plugin/Editor/Generated/ToolVerbs.g.cs
