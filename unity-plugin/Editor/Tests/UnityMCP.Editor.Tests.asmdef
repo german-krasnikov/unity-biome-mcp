@@ -4,6 +4,7 @@
     "references": [
         "UnityMCP.Editor",
         "UnityMCP.Editor.Primitives",
+        "UnityMCP.Editor.TestRuns",
         "UnityMCP.Editor.TestSupport",
         "UnityMCP.Editor.SourcePatch",
         "UnityMCP.Playtest.Core",

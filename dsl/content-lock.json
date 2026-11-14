@@ -197,7 +197,6 @@
     "unity-plugin/Editor/Generated/Protocol.g.cs": "67259f8cb77c00cf657570ec5cbc145fbfbc8ef818a5cdd8a46d4e17cd539401",
     "unity-plugin/Editor/Generated/PythonOnlyTools.g.cs": "c6f524d98a4fa8d0e65020a635bbe0f86d8e2e78fe85cefb3c515d22dd4c0632",
     "unity-plugin/Editor/Generated/ServerIdentity.g.cs": "86dace9dcdd42ba9d16988a4f03bdc7d74f14f79befd7070a5802795577ea8ca",
-    "unity-plugin/Editor/Generated/TestRunEnums.g.cs": "cd5a307fea387a4f7b195678ad0c773308b3ece8766ec5136063e134e50e9c97",
     "unity-plugin/Editor/Generated/TimingConstants.g.cs": "8f73031e8d5aaba6a9336354aec0bfa22e72e5d68310d6cf5f0621ed1142e601",
     "unity-plugin/Editor/Generated/ToolActions.g.cs": "f0720388783b2554e6736bc7890f6c180708a42a376845986e58e288cc47c0d4",
     "unity-plugin/Editor/Generated/ToolArgs.g.cs": "45442e862e1355c25adc863350fdbb06d51c8662cd72d59a8646362a9a63d29f",
@@ -214,6 +213,7 @@
     "unity-plugin/Editor/Generated/Verdict.g.cs": "ca7b255677fc54b463679574100f1bfc631d0214bec2ac72380af14dd3400f4f",
     "unity-plugin/Editor/Generated/VersionOrder.g.cs": "7bf62f075546b878fb5190c627bbfeef93ccd2a258d077798202b029a7a12e0e",
     "unity-plugin/Editor/Generated/WireRecords.g.cs": "c6627bc2c574d2510d43d86768b2d7ba3f2bc517d441558b32b1340ac0dc3400",
+    "unity-plugin/Editor/TestRuns/TestRunEnums.g.cs": "cd5a307fea387a4f7b195678ad0c773308b3ece8766ec5136063e134e50e9c97",
     "unity-plugin/Runtime/Playtest/Core/Generated/PlaytestReader.g.cs": "f4f53239c5d558a41826906d2ccb48dc18ec7c96186192e1ca934b83c778ede8",
     "unity-plugin/Tests~/ChatTurn/Generated/.biome-files": "0986c3523de7699420ae57e4a2f40acab3f4c90eed82eb4943f859565285e4ff",
     "unity-plugin/Tests~/ChatTurn/Generated/ChatTurn.Examples.cs": "c1269f39549f0d73c900e022e092423a4a850351a951f21db940f255f0312f41"
