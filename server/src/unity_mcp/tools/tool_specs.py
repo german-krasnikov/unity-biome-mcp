@@ -11,6 +11,7 @@ generates tools/generated/catalog_specs.py, merged below into _SPECS (S0, commit
 No tool's ToolSpec is written by hand in this module any more -- the last three holdouts
 (set_llm_config, sync_unity, watch/get_watches) each moved into dsl/tools.biome in turn.
 """
+import os
 from dataclasses import dataclass
 from typing import Literal
 
@@ -57,6 +58,21 @@ class ToolSpec:
 
 
 DEFAULT_TIMEOUT: float = 30.0
+
+# Phase 5 Part B: the 6 GD-themed categories UNITY_MCP_GD_TOOLS=0 excludes. Defined once
+# here (the single source of truth for tool metadata) so _catalog_runtime.ToolSet.install()
+# and gating.py's _THEMED_CATEGORIES/_ALL_KNOWN/TIER1 derivation -- two independent
+# import-time consumers -- read the same category set and the same env var, and can never
+# drift against each other the way two hand-typed copies could.
+GD_CATEGORIES: frozenset[str] = frozenset({"SCENE", "COMPONENTS", "ASSETS", "MEDIA", "UITOOLKIT", "UGUI"})
+
+
+def gd_tools_enabled() -> bool:
+    """False when UNITY_MCP_GD_TOOLS=0 -- same env-gate shape as UNITY_MCP_MIDDLEWARE/
+    UNITY_MCP_HINTS (server_lifespan.py): read once per caller, not cached, so tests can
+    monkeypatch the env var freely."""
+    return os.environ.get("UNITY_MCP_GD_TOOLS", "1") != "0"
+
 
 # Populated solely by the catalog merge loop below -- no tool is written by
 # hand in this literal, and no module owns a ToolSpec pilot any more (S0 10/11).

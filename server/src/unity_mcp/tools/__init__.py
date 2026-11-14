@@ -37,6 +37,8 @@ from . import (
     vfx_intent_tool,
     watch,
 )
+from . import tool_specs
+from ._common import bind
 from .generated import catalog_tools
 from .metrics_tool import register as register_metrics
 
@@ -66,4 +68,13 @@ def register_all(mcp, send, args, *, get_slot, get_middleware=None,
     changeset_tool.register(mcp, send, args)
     checkpoint_tool.register(mcp, send, args)
     brief_tool.register(mcp, send, args)
-    catalog_tools.register(mcp, send, args)  # last: it checks the functions that the modules above provided
+    # last: it checks the functions that the modules above provided. catalog_tools.register()
+    # is the generated, fixed-signature wrapper (bind + tools.install(mcp), no exclude hook --
+    # the DSL generator has no category-scoped output mode, Phase 5 Part B, task-p5 Finding 3)
+    # so UNITY_MCP_GD_TOOLS=0 bypasses it and calls its own two steps directly instead, passing
+    # exclude_categories to the same ToolSet singleton. The default path below is unchanged.
+    if tool_specs.gd_tools_enabled():
+        catalog_tools.register(mcp, send, args)
+    else:
+        bind(vars(catalog_tools), send, args)
+        catalog_tools.tools.install(mcp, exclude_categories=tool_specs.GD_CATEGORIES)
