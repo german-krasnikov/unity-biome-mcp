@@ -110,13 +110,18 @@ forbidden_modules = ["unity_mcp.server"]
 name = "transport/session layer stays independent of server and tools"
 type = "forbidden"
 source_modules = [
-    "unity_mcp.bridge",
-    "unity_mcp.bridge_socket",
-    "unity_mcp.bridge_heartbeat",
-    "unity_mcp.bridge_retry",
-    "unity_mcp.bridge_cassette",
-    "unity_mcp.bridge_reload_state",
-    "unity_mcp.connection_slot",
+    "unity_mcp.bridge",              # package — covers every submodule now
+    "unity_mcp.bridge_socket",       # back-compat shim
+    "unity_mcp.bridge_heartbeat",    # back-compat shim
+    "unity_mcp.bridge_retry",        # back-compat shim
+    "unity_mcp.bridge_cassette",     # back-compat shim
+    "unity_mcp.bridge_reload_state", # back-compat shim
+    "unity_mcp.connection_slot",     # back-compat shim
+    "unity_mcp.lockfile",            # back-compat shim
+    "unity_mcp.phantom_cleaner",     # back-compat shim
+    "unity_mcp.compile_state",       # back-compat shim
+    "unity_mcp.unity_state",         # back-compat shim
+    "unity_mcp.crash_log",           # back-compat shim
 ]
 forbidden_modules = ["unity_mcp.server", "unity_mcp.tools"]
 
