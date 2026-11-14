@@ -161,7 +161,7 @@ def test_runtime_only_single_source():
     from unity_mcp.tools.tool_specs import _SPECS
     from unity_mcp.middleware_types import _RUNTIME_ONLY_CMDS
 
-    project_root = Path(__file__).parents[2]
+    project_root = Path(__file__).parents[3]
     meta_path = project_root / "unity-plugin/Editor/Generated/ToolMeta.g.cs"
     assert meta_path.exists(), f"Generated meta not found: {meta_path}"
     meta_source = meta_path.read_text(encoding="utf-8")
