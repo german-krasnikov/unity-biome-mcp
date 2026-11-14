@@ -14,7 +14,7 @@ import pytest
 
 from unity_mcp.tools import playtest_async
 
-_PROJECT = Path(__file__).parents[2]
+_PROJECT = Path(__file__).parents[3]
 _MCP_SERVER_CS = _PROJECT / "unity-plugin/Editor/MCPServer.cs"
 
 
