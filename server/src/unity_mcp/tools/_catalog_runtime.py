@@ -6,6 +6,7 @@ import importlib
 import inspect
 from typing import Any
 
+from . import tool_specs
 from ._annotations import derive
 
 ANY = Any  # a parameter the catalog types Any (Context, Literal, dict, ...) is checked by name and default, not by annotation
@@ -147,13 +148,23 @@ class ToolSet:
             mcp.tool(description=self._describe(name, fn), annotations=derive(self._expected[name][0], self._session[name]))(fn)
             self._registered[name] = _origin(fn)
 
-    def install(self, mcp):
-        """Check that every tool of the catalog has a function, then register the generated wrappers: a refusal registers none."""
+    def install(self, mcp, *, exclude_categories: frozenset[str] = frozenset()):
+        """Check that every tool of the catalog has a function, then register the generated wrappers: a refusal registers none.
+        exclude_categories (Phase 5 Part B, the GD-tools-off switch: UNITY_MCP_GD_TOOLS=0) skips a whole category -- from the
+        missing-function check and from registration -- instead of raising; a tool install() has never heard of (not in
+        tool_specs._SPECS) is never treated as excluded, since its category is unknown."""
+        def _excluded(name: str) -> bool:
+            spec = tool_specs._SPECS.get(name)
+            return spec is not None and spec.category in exclude_categories
+
         done = self._provided.keys() | self._registered.keys()
-        missing, unknown = self._expected.keys() - done, self._provided.keys() - self._expected.keys()
+        missing = {name for name in self._expected.keys() - done if not _excluded(name)}
+        unknown = self._provided.keys() - self._expected.keys()
         if missing or unknown:
             raise LookupError(f"catalog tools without a function: {sorted(missing)}; functions without a catalog tool: {sorted(unknown)}")
         for name, module_name in self._body_modules.items():
+            if _excluded(name):
+                continue
             mod = importlib.import_module(f".{module_name}", "unity_mcp.tools")
             fn = getattr(mod, f"_{name}_body", None)
             if fn is None:
@@ -163,7 +174,7 @@ class ToolSet:
                             if p.kind not in (inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD))
             if got != want:
                 raise TypeError(f"catalog drift: {module_name}._{name}_body{sorted(got)} must accept keyword(s) {sorted(want)}")
-        wrappers = [(name, self._provided[name]) for name in self._expected if name in self._provided]
+        wrappers = [(name, self._provided[name]) for name in self._expected if name in self._provided and not _excluded(name)]
         for name, fn in wrappers:
             _conform(name, fn, *self._expected[name][1:])
         for name, fn in wrappers:

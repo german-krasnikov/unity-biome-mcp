@@ -6,6 +6,7 @@ import pytest
 from mcp.types import ToolAnnotations
 
 from unity_mcp.tools import _catalog_runtime as rt
+from unity_mcp.tools import tool_specs
 from unity_mcp.tools.generated import catalog_tools
 
 ostr = str | None
@@ -150,6 +151,26 @@ def test_install_counts_the_tools_that_modules_registered_and_does_not_register_
     tools.register(mcp, _function())
     tools.install(mcp)
     assert [name for name, _ in mcp.registered] == ["rename", "other"]
+
+
+def test_install_excludes_categories_from_both_the_missing_check_and_registration(monkeypatch):
+    """Phase 5 Part B (GD tools off switch): exclude_categories lets install() skip a whole
+    category instead of raising LookupError on a catalog tool with no function (the previous
+    test proves that is today's unconditional behavior) -- and it must also skip a tool that
+    *does* have a function, so an excluded category never reaches mcp.tool(). A non-excluded
+    category still registers normally."""
+    tools, mcp = rt.ToolSet(), _Mcp()
+    monkeypatch.setitem(tool_specs._SPECS, "scene_missing", tool_specs.ToolSpec(category="SCENE"))
+    monkeypatch.setitem(tool_specs._SPECS, "scene_provided", tool_specs.ToolSpec(category="SCENE"))
+    tools.expect("scene_missing", "RW", "Scene missing.", (("path", str),))   # no function -- would raise without the exclude
+    tools.expect("scene_provided", "RW", "Scene provided.", (("path", str),))
+    tools.provide(_function("path: str", "Scene provided.", name="scene_provided"))
+    tools.expect("other", "RO", "Other.", (("x", int),))
+    tools.provide(_function("x: int", "Other.", name="other"))
+
+    tools.install(mcp, exclude_categories=frozenset({"SCENE"}))
+
+    assert [name for name, _ in mcp.registered] == ["other"]
 
 
 def test_a_function_that_states_what_the_catalog_states_is_registered():
