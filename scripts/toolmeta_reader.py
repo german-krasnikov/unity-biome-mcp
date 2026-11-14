@@ -1,5 +1,5 @@
 """Parses unity-plugin/Editor/Generated/ToolMeta.g.cs's generated switch into the CommandOptions fields it
-states. Used by server/tests/test_catalog_vs_csharp.py -- needed starting A2 (Plans/DSL/A2-DESIGN.md Sec 1),
+states. Used by server/tests/dsl/test_catalog_vs_csharp.py -- needed starting A2 (Plans/DSL/A2-DESIGN.md Sec 1),
 for when a call site stops stating its flags as named parameters and states `ToolMeta.Get(cmd)` instead; the
 old per-call-site regexes find nothing in that shape.
 """

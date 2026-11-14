@@ -6,7 +6,7 @@ import json
 
 import pytest
 from dsl_content_lock import LOCK, REGIONS, digest, discover, generate, locked, stale
-from test_dsl_fresh import DSL, feature_steps, grammar_steps, logic_steps, render_steps
+from .test_dsl_fresh import DSL, feature_steps, grammar_steps, logic_steps, render_steps
 
 ROOT = DSL.parent
 BANNER = f"// Generated from dsl/a.logic\n// source-sha256={'0' * 64}\n// Edit the source, then run biome generate.\n\n"
