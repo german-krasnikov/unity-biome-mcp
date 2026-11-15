@@ -441,7 +441,7 @@ Test organization is data-driven via two canonical JSON files:
 2. Every lane filter field references a known taxonomy dimension
 3. Every `.playtest` `@needs` value has a matching taxonomy-map dimension
 
-**Python test-lane directory convention:** ~446 root-level `server/tests/test_*.py` files are NOT migrated to per-lane subdirectories (unlike per-lane pytest markers). Each test file carries its own marker set. The lane filter configuration generates pytest `-m` expressions that CI lanes use to select tests at runtime.
+**Python test-lane directory convention:** Python tests live in topic subdirectories under `server/tests/` (for example `bridge/`, `tools/`, `live/`, `wire/`, `mutation/`); no test file sits at the `server/tests/` root. Each test file carries its own marker set. The lane filter configuration generates pytest `-m` expressions that CI lanes use to select tests at runtime.
 
 ## Why No C# .suite Driver
 

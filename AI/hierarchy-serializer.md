@@ -123,9 +123,9 @@ Primary files:
 - `server/src/unity_mcp/tools/scene.py`
 - `unity-plugin/Editor/CommandRouter.ObjectHandlers.cs`
 - `unity-plugin/Editor/HierarchySerializer.cs`
-- `unity-plugin/Editor/RefManager.cs`
+- `unity-plugin/Editor/Core/Scene/RefManager.cs`
 - `unity-plugin/Editor/SceneContext.cs`
-- `unity-plugin/Editor/ComponentSerializer.Finder.cs` (`ScenePathParser`)
+- `unity-plugin/Editor/Core/Scene/ComponentSerializer.Finder.cs` (`ScenePathParser`)
 
 ## Alias Separation
 

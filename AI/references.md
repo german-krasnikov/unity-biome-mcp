@@ -71,7 +71,7 @@ set_property ObjectReference inputs:
 - Python: `server/src/unity_mcp/tools/batch.py` (`references`, `validate_references`)
 - C#: `unity-plugin/Editor/ReferenceHelper.cs` and `RemapReferencesHelper.cs`
 - C# Router: `unity-plugin/Editor/CommandRouter.MediaHandlers.cs` (`ExecReferencesConsolidated`)
-- C# ObjectManager: `unity-plugin/Editor/ObjectManager.cs` (set_property enhanced)
+- C# ObjectManager: `unity-plugin/Editor/Core/Scene/ObjectManager.cs` (set_property enhanced)
 - C# ComponentSerializer: `unity-plugin/Editor/ComponentSerializer.cs` (ObjectReference output)
 - Tests Python: `server/tests/tools/test_server_references.py`
 - Tests C#: `unity-plugin/Editor/Tests/ReferenceHelperTests.cs` and `ValidateReferencesHelperTests.cs`

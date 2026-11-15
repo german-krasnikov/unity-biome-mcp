@@ -189,11 +189,11 @@ recovery without duplicating the generated parameter reference.
 
 ```bash
 pip install nox                    # once
-nox -s preflight                   # lint + tests + readme/version checks
+nox -s preflight                   # lint + tests + readme/version/skills checks
 nox -s docs_build                  # mkdocs build --strict
 nox -s readme_update               # regenerate README stats, badges, SVGs
 nox -s changelog_sync              # mirror CHANGELOG → unity-plugin/
-nox -s dotnet                      # all pure .NET test projects
+nox -s dotnet                      # six pure .NET test projects (MutationAdapterContract runs in CI only)
 nox -l                             # list all sessions
 ```
 

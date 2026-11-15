@@ -147,7 +147,7 @@ inspect paths=/Player,/Enemy components=Rigidbody compress=true
 - Auto-batch: `server/src/unity_mcp/tools/autobatch.py` (setup_objects, set_properties, configure_objects)
 - C# executor: `unity-plugin/Editor/BatchHelper.cs` (Execute, ParseLines, ParseLine, ParseKeyValuePairs, ParseValue, BuildJsonObject; uses JsonHelper.EscapeJson, JsonHelper.UnescapeJsonString)
 - Validation layer: `unity-plugin/Editor/CommandValidator.cs` (Validate, AutoUsage, ExtractKeys — pure functions over CommandRegistry contract)
-- String matching: `unity-plugin/Editor/StringDistance.cs` (Levenshtein, ClosestMatch)
+- String matching: `unity-plugin/Runtime/Playtest/Core/StringDistance.cs` (Levenshtein, ClosestMatch)
 - Command registry: `unity-plugin/Editor/CommandRegistry.cs` (Register/RegisterAction — declares required/optional params via CSV, contract source of truth)
 - Command dispatch: `unity-plugin/Editor/CommandRouter.cs` (batch case, timeout_ms support)
 - Python tests: `server/tests/tools/test_batch.py`, `server/tests/middleware/test_batch_conflict.py`, `server/tests/tools/test_batch_timeout.py`, `server/tests/tools/test_autobatch.py`

@@ -90,7 +90,7 @@ Affected tools: `animation`, `particle`, `timeline`.
 
 ## 6. BODY wrapper lazy imports break mocks on Windows
 
-`catalog_tools.py` BODY wrappers do `from .. import X as _biome_body_mod` at call time. On Windows, this lazy import can resolve to a different module object than what `monkeypatch` patched.
+`tools/generated/catalog_tools.py` BODY wrappers do `from .. import X as _biome_body_mod` at call time. On Windows, this lazy import can resolve to a different module object than what `monkeypatch` patched.
 
 **Fix:** test the inner function directly (e.g. `_fetch_test_run_json`) instead of the BODY wrapper.
 

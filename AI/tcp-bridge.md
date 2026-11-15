@@ -340,9 +340,10 @@ _heartbeat_loop():
 
 ## Tests
 
-Python coverage is split by responsibility under `server/tests/test_bridge*.py`,
-with focused lifecycle coverage in `test_connection_slot.py`, `test_heartbeat.py`,
-`test_lockfile.py`, and `test_parent_death.py`. Unity-side framing, connection,
+Python coverage is split by responsibility under `server/tests/bridge/test_bridge*.py`,
+with focused lifecycle coverage in `server/tests/bridge/test_connection_slot.py`,
+`server/tests/bridge/test_heartbeat.py`, `server/tests/config/test_lockfile.py`, and
+`server/tests/bridge/test_parent_death.py`. Unity-side framing, connection,
 and startup behavior is covered by `unity-plugin/Editor/Tests/ClientConnectionHandlerTests.cs`,
 `MCPServerSplitTests.cs`, and `MCPServerStartGuardTests.cs`.
 
