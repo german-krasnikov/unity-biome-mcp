@@ -19,7 +19,7 @@ biome="$BIOME_DSL_ROOT/implementations/typescript/packages/biome/src/bin.mjs"
 case "${1:-}" in
     generate)
         node "$biome" generate --project dsl
-        "${PYTHON:-python3}" scripts/dev/dsl_content_lock.py generate
+        "${PYTHON:-python3}" scripts/dsl_content_lock.py generate
         ;;
     check)
         pin_count="$(grep -c '^TOOLCHAIN ' dsl/biome.project || true)"
@@ -45,7 +45,7 @@ case "${1:-}" in
         node dsl/playtest/compare.mjs
         node --test dsl/playtest/*.test.mjs
         node dsl/playtest/check.mjs
-        "${PYTHON:-python3}" scripts/dev/dsl_content_lock.py check
+        "${PYTHON:-python3}" scripts/dsl_content_lock.py check
         ;;
     *)
         echo "usage: scripts/dsl.sh generate | check" >&2
