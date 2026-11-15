@@ -117,7 +117,9 @@ namespace UnityMCP.Editor
                 "remove-element" => warn + UxmlRemoveElement(abs, assetPath, selector),
                 "set-rule"       => warn + UssSetRule(abs, assetPath, selector, prop, value),
                 "remove-rule"    => warn + UssRemoveRule(abs, assetPath, selector),
-                _ => $"err: unknown action '{action}'. Surgical: set-attr add-class remove-class add-element remove-element set-rule remove-rule",
+                // "err:" prefix kept: EditUIFile returns its error as a plain string (not thrown), and
+                // callers/batch rely on the prefix -- only the "Valid: ..." wording now comes from the catalog.
+                _ => $"err: {ErrorHelper.InvalidAction(action, ToolActions.Names("uitk_file"))}",
             };
         }
 
@@ -197,7 +199,30 @@ namespace UnityMCP.Editor
             loadVisualTreeAsset ??= path => AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(path);
             var vta = loadVisualTreeAsset(assetPath);
             if (vta == null) { AutoRevert(absPath, assetPath, createdThisCall); return "err: UXML import failed (asset null) — auto-reverted. Check get_console for [UXML Import Error]."; }
-            if (vta.CloneTree() == null) { AutoRevert(absPath, assetPath, createdThisCall); return "err: UXML import failed (CloneTree null) — auto-reverted. Check get_console for [UXML Import Error]."; }
+
+            // On Unity versions where CloneTree() does not return null for a UXML naming an
+            // unregistered element type (e.g. 6000.0.83f1), it still logs an Error through
+            // Debug.LogError while building a placeholder in its place. Capturing that log,
+            // scoped tightly to this one call, detects the failure on every supported Unity
+            // version without a #if branch: CloneTree returning null (older behaviour) and
+            // CloneTree logging an error (newer behaviour) are both treated as import failure.
+            string cloneLoggedError = null;
+            void OnCloneLog(string condition, string stackTrace, LogType type)
+            {
+                if (cloneLoggedError == null && (type == LogType.Error || type == LogType.Exception))
+                    cloneLoggedError = condition;
+            }
+            Application.logMessageReceived += OnCloneLog;
+            VisualElement clone;
+            try { clone = vta.CloneTree(); }
+            finally { Application.logMessageReceived -= OnCloneLog; }
+
+            if (clone == null || cloneLoggedError != null)
+            {
+                AutoRevert(absPath, assetPath, createdThisCall);
+                return "err: UXML import failed (CloneTree null or logged an error) — " +
+                    "auto-reverted. Check get_console for [UXML Import Error].";
+            }
             return null;
         }
 

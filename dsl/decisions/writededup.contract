@@ -1,0 +1,13 @@
+# Facts of the write-dedup watchdog (middleware_guards.check_retry).
+# isWrite: is_write(cmd, args) — from registry + catalog.
+# isScreenshot: cmd == "screenshot" (screenshots may repeat to observe a later frame).
+# withinTtl: now - stored_ts < _RETRY_TTL (default 30s).
+# sameGeneration: stored_gen == self._retry_generation.
+CONTRACT unitymcp.writededup
+COVERAGE declared-scope
+MODULE writededup_facts
+FACT dedup.isWrite bool
+FACT dedup.isScreenshot bool
+FACT dedup.withinTtl bool
+FACT dedup.sameGeneration bool
+INPUT writeDedupWarn dedup.isWrite dedup.isScreenshot dedup.withinTtl dedup.sameGeneration

@@ -1,0 +1,17 @@
+PROVENANCE "hand-written from ask/router.py is_mutating and route, and ask/plans.py CANONICAL_PLANS; server/tests/test_ask.py (test_router_* oracle, especially test_router_count_active_falls_through_to_scene_query for the Q-A1 correction: ask.countActive is not a fact here)."
+
+EXAMPLES askRoute
+  id | askMutating | askUnityNoun | askBrokenRefs | askSceneHealth | askEditorState | askCompile -> expected
+  mutating-beats-everything   | true  | true  | true  | true  | false | false -> mutating
+  mutating-with-no-noun       | true  | false | false | false | false | false -> mutating
+  no-unity-noun                | false | false | true  | false | false | false -> out_of_scope
+  broken-refs                  | false | true  | true  | false | false | false -> BROKEN_REFS
+  broken-refs-beats-health     | false | true  | true  | true  | false | false -> BROKEN_REFS
+  scene-health                 | false | true  | false | true  | false | false -> SCENE_HEALTH
+  health-beats-editor-state    | false | true  | false | true  | true  | false -> SCENE_HEALTH
+  editor-state                 | false | true  | false | false | true  | false -> EDITOR_STATE
+  editor-state-beats-compile   | false | true  | false | false | true  | true  -> EDITOR_STATE
+  compile                      | false | true  | false | false | false | true  -> COMPILE_ERRORS
+  noun-only-falls-back         | false | true  | false | false | false | false -> SCENE_QUERY
+  count-active-phrasing-falls-back | false | true | false | false | false | false -> SCENE_QUERY
+END

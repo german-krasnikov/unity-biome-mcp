@@ -35,9 +35,6 @@ namespace UnityMCP.Editor.Chat.Tests
         [Test] public void Feed_ToolProgress_ReturnsNull()
             => Assert.IsNull(_acc.Feed(ChatEvent.ToolProgress(50f)));
 
-        [Test] public void Feed_SessionState_ReturnsNull()
-            => Assert.IsNull(_acc.Feed(ChatEvent.SessionState("active")));
-
         [Test] public void Feed_AutoReply_ReturnsNull()
             => Assert.IsNull(_acc.Feed(ChatEvent.AutoReply("{\"ok\":true}")));
 

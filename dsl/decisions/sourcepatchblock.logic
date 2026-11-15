@@ -1,0 +1,14 @@
+# sourcePatchBlock: should a reload be blocked due to active source-patch state?
+# Characterized from SourcePatchStateMachine.ReloadBlockReason (SourcePatchState.cs:62-73).
+# C# stays native; this DSL + Python generated are the Python-side mirror.
+# Output "blocked" = "source_patch_{state}_explicit_disable_required" (host interpolates state).
+# Output "disableNotOwned" = "source_patch_disable_not_owned" (literal string).
+# Output "allow" = no block (reload allowed; maps to null return in C# / '' in Python).
+# First match wins; explicit-disable check must run before generic patch/lease/state check.
+DECISION sourcePatchBlock DEFAULT allow
+  disableOwned AT 10 WHEN patch.explicitOwnedDisable AND patch.state == Disabling AND patch.matchingDisableReceipt AND NOT patch.leaseHeld -> allow
+  disableNotOwned AT 11 WHEN patch.explicitOwnedDisable -> disableNotOwned
+  patchesActive AT 20 WHEN patch.patchesMayBeActive -> blocked
+  leaseHeld AT 21 WHEN patch.leaseHeld -> blocked
+  stateActive AT 22 WHEN NOT patch.stateIsOff AND NOT patch.stateIsUnavailable -> blocked
+END

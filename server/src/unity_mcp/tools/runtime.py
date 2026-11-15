@@ -1,20 +1,36 @@
 """Runtime Play Mode tools — blocked outside Play Mode by Unity guard."""
 import asyncio
 import contextlib
-import json
-import re
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..bridge_reload_state import DOMAIN_RELOAD_EXPIRY_S
+from ..decisions import verdict_facts
 from ..errors import SessionIdentityMismatch, UncertainDeliveryError, recovery_barrier
 from ..sampling import sampling_service as _sampling
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
-from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
 from .editor_state import parse_editor_field as _editor_field
 from .editor_state import parse_world_ready as _parse_world_ready
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import (  # noqa: F401
+    export_playtest_aliases_to_defs,
+    invoke_method,
+    lint_playtest,
+    lint_playtest_suite,
+    lint_scene_refs,
+    move_to,
+    query_state,
+    resolve_scene_refs,
+    run_playtest,
+    run_playtest_suite,
+    runtime_snapshot,
+    sync_playtest_aliases_from_defs,
+    test_step,
+    tools,
+    validate_playtest_aliases,
+    wait_until,
+)
 from .playtest_async import _RUN_PLAYTEST_SYNC_CEILING_S
 from .playtest_async import run_via_start_poll as _run_via_start_poll
 
@@ -47,15 +63,7 @@ _CLEANUP_RELOAD_WAIT_S = 15.0
 _NO_RECEIPT_MSG = "run_playtest produced no terminal receipt"
 
 
-async def invoke_method(path: str, component: str, method: str, args: str = "") -> str:
-    """[Play Mode] Call public method on a component via reflection.
-    args: comma-separated values matching method parameters.
-    Example: invoke_method('/Player', 'PlayerController', 'MoveTo', '10,0,5')"""
-    return await _send("invoke_method", _args(
-        path=path, component=component, method=method, args=args or None))
-
-
-async def wait_until(path: str, component: str, field: str, value: str,
+async def _wait_until_body(path: str, component: str, field: str, value: str,
                      timeout: float = 5.0, negate: bool = False,
                      abort_on_fail: bool = False) -> str:
     """[Play Mode] Poll field until it matches value (or timeout).
@@ -69,7 +77,7 @@ async def wait_until(path: str, component: str, field: str, value: str,
         timeout=timeout + _TCP_POLL_BUFFER)
 
 
-async def move_to(path: str, position: str, timeout: float = 15.0) -> str:
+async def _move_to_body(path: str, position: str, timeout: float = 15.0) -> str:
     """[Play Mode] Move character to position and wait for arrival.
     path: scene path to GO with movement component.
     position: x,y,z (e.g. '5,0,-3'). Returns 'arrived' or 'blocked'."""
@@ -78,14 +86,7 @@ async def move_to(path: str, position: str, timeout: float = 15.0) -> str:
         timeout=timeout + _TCP_POLL_BUFFER)
 
 
-async def query_state(queries: str) -> str:
-    """[Play Mode] Snapshot multiple game values in one call.
-    queries: comma-separated 'path|component|field_or_method' triplets.
-    Example: query_state('/GridPlayer|GridPlayer|Score,/GridPlayer|GridPlayer|PosX')"""
-    return await _send("query_state", _args(queries=queries), timeout=10.0)
-
-
-async def test_step(path: str, position: str,
+async def _test_step_body(path: str, position: str,
                     checks_before: str = "", checks_after: str = "",
                     wait_after: float = 0.5, timeout: float = 15.0) -> str:
     """[Play Mode] Move character, snapshot state before/after, check console.
@@ -173,7 +174,7 @@ async def _enter_fresh_play() -> None:
     )
 
 
-async def run_playtest(script: str | None = None, timeout: float = _RUN_PLAYTEST_SYNC_CEILING_S,
+async def _run_playtest_body(script: str | None = None, timeout: float = _RUN_PLAYTEST_SYNC_CEILING_S,
                        abort_on_fail: bool = False,
                        defs: str | None = None,
                        path: str | None = None,
@@ -448,80 +449,25 @@ async def _transition_play_state(
 def _is_playtest_pass(result: str, format: str | None = None) -> bool:
     """Require a non-empty, complete PLAYTEST ratio and no failure signals.
 
-    B17: format is passed explicitly by the one production caller (R-07,
-    explicit over implicit) — mirrors CommandRouter.IsPlaytestSuccess. The
-    ``{``-sniff below is only a fallback for a missing/unknown format
-    (legacy callers, including this module's own pre-B17 test suite).
+    B17: format is passed explicitly by the one production caller (R-07, explicit over implicit) -- mirrors
+    CommandRouter.IsPlaytestSuccess. A missing/unknown format is sniffed (``{`` opens a ledger): legacy callers, including this
+    module's own pre-B17 test suite. The rule is the DECISION passes of dsl/decisions/verdict.logic (a text report is read on
+    every line, so prepended middleware warnings do not mask a genuine PLAYTEST: X/Y line, MCP-GUARD-007; a JSON ledger by
+    outer.teardown_ok, the aggregate `failed` and one {"ok": ...} per step, never by scanning the report text, the B17 bug);
+    decisions/verdict_facts.py reads the report into its facts.
     """
-    if not result:
-        return False
-    if format == "json":
-        return _is_playtest_pass_from_ledger(result)
-    if format == "text":
-        return _is_playtest_pass_from_text(result)
-    return (
-        _is_playtest_pass_from_ledger(result)
-        if result.lstrip().startswith("{")
-        else _is_playtest_pass_from_text(result)
-    )
-
-
-def _is_playtest_pass_from_ledger(result: str) -> bool:
-    """B16's canonical JSON receipt: outer.teardown_ok plus one {"ok": ...} entry
-    per step. A step's `ok` is the ledger fact — never re-derived from scanning
-    report text (the B17 bug: a step's source_file containing " OK" made the
-    legacy substring check say "pass")."""
-    try:
-        receipt = json.loads(result)
-    except ValueError:
-        return False
-    if receipt.get("outer", {}).get("teardown_ok") is not True:
-        return False
-    if receipt.get("failed", 1) != 0:  # F7 — aggregate cross-check
-        return False
-    steps = receipt.get("steps", [])
-    if not steps:  # F7 — an empty (or missing) ledger is not a pass
-        return False
-    return all(step.get("ok") is True for step in steps)
-
-
-def _is_playtest_pass_from_text(result: str) -> bool:
-    """Scans all lines so that prepended middleware warnings (e.g. ⚡ consecutive
-    write guard) do not mask a genuine PLAYTEST: X/Y line (MCP-GUARD-007)."""
-    for line in (result.splitlines() if result else []):
-        match = re.match(r"PLAYTEST:\s*(\d+)\s*/\s*(\d+)\b", line)
-        if match:
-            passed, total = int(match.group(1)), int(match.group(2))
-            if total <= 0 or passed != total:
-                return False
-            return not re.search(r"\b(?:FAIL|ERROR|CONSOLE_ERR|BLOCKED|TIMEOUT|ABORTED)\b", result)
-    return False
+    return verdict_facts.is_pass(result, format)
 
 
 def _classify_outcome(result: str, format: str | None = None) -> str:
-    """Classify a playtest result into pass/fail/error.
+    """Classify a playtest result into pass/fail/error (the DECISION outcome of dsl/decisions/verdict.logic).
 
     pass:  playtest ran, all assertions passed, teardown ok
     fail:  playtest ran, one or more assertions genuinely failed
     error: playtest could not run, or the receipt is uninterpretable
            (empty, 0/0, malformed JSON, or a receipt that disagrees with itself)
     """
-    if _is_playtest_pass(result, format):
-        return "pass"
-    if not result or "0/0" in result:
-        return "error"
-    if format == "json":
-        try:
-            receipt = json.loads(result)
-        except ValueError:
-            return "error"
-        steps = receipt.get("steps")
-        if not steps:
-            return "error"
-        failed_steps = sum(1 for step in steps if not step.get("ok"))
-        if receipt.get("failed", failed_steps) != failed_steps:
-            return "error"
-    return "fail"
+    return verdict_facts.classify(result, format)
 
 
 async def _setup_auto_play(restart_between: bool) -> tuple[bool, list]:
@@ -578,7 +524,7 @@ def _filter_files_by_tag(file_list: list[str], tag: str) -> tuple[list[str], str
     _resolve_file_list reports an empty match — as an empty_reason, not a silent
     0/0 success."""
     try:
-        import playtest_header
+        from unity_mcp import playtest_header
     except ImportError as exc:
         return [], f"tag filtering unavailable: {exc}"
     import pathlib as _pathlib
@@ -655,7 +601,7 @@ async def _suite_body(
     return None
 
 
-async def run_playtest_suite(
+async def _run_playtest_suite_body(
     pattern: str | None = None,
     suite_path: str | None = None,
     timeout_per_test: float = 120.0,
@@ -800,7 +746,7 @@ def _format_suite_report(results, total_elapsed, play_stopped=True, timed_out=Fa
     return "\n".join(lines)
 
 
-async def lint_playtest(
+async def _lint_playtest_body(
     path: str | None = None,
     script: str | None = None,
 ) -> str:
@@ -815,39 +761,7 @@ async def lint_playtest(
     return await _send("lint_playtest", _args(path=path, script=script), timeout=60.0)
 
 
-async def validate_playtest_aliases(
-    defs: str = "Assets/PlaytestDefs/farm_core.defs",
-    asset: str = "Assets/Configs/PlaytestConfig.asset",
-) -> str:
-    """Compare alias .defs text file vs PlaytestConfig.asset. Reports missing/extra/changed.
-    defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs).
-    asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).
-    Returns 'ok: N aliases in sync' when identical, or a diff report."""
-    return await _send("validate_playtest_aliases", _args(defs=defs, asset=asset))
-
-
-async def sync_playtest_aliases_from_defs(
-    defs: str = "Assets/PlaytestDefs/farm_core.defs",
-    asset: str = "Assets/Configs/PlaytestConfig.asset",
-) -> str:
-    """Overwrite PlaytestConfig.asset aliases from a .defs text file.
-    defs: project-relative path to .defs file (default: Assets/PlaytestDefs/farm_core.defs).
-    asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).
-    Invalidates AliasExpander cache after sync. Not allowed in Play Mode."""
-    return await _send("sync_playtest_aliases_from_defs", _args(defs=defs, asset=asset))
-
-
-async def export_playtest_aliases_to_defs(
-    asset: str = "Assets/Configs/PlaytestConfig.asset",
-    defs: str = "Assets/PlaytestDefs/farm_core.defs",
-) -> str:
-    """Export PlaytestConfig.asset aliases to a readable .defs text file.
-    asset: asset path to PlaytestConfig (default: Assets/Configs/PlaytestConfig.asset).
-    defs: project-relative output path (default: Assets/PlaytestDefs/farm_core.defs)."""
-    return await _send("export_playtest_aliases_to_defs", _args(asset=asset, defs=defs))
-
-
-async def lint_playtest_suite(pattern: str | None = None,
+async def _lint_playtest_suite_body(pattern: str | None = None,
                               suite_path: str | None = None) -> str:
     """Read-only preflight check across multiple .playtest files.
     pattern: glob pattern (e.g. 'Playtests/*.playtest') or comma-separated list.
@@ -880,15 +794,7 @@ async def lint_playtest_suite(pattern: str | None = None,
     return f"LINT: {ok_count}/{len(results)} clean\n" + "\n".join(results)
 
 
-async def resolve_scene_refs(refs: str, fields: str | None = None) -> str:
-    """Read-only scene reference resolver.
-    refs: comma-separated list of $alias, /path, or t:Type tokens.
-    fields: optional comma-separated field names to check existence on matched component.
-    Returns one tab-aligned line per ref: OK|MISS|AMB + path + details."""
-    return await _send("resolve_scene_refs", _args(refs=refs, fields=fields), timeout=15.0)
-
-
-async def lint_scene_refs(path: str | None = None, snippet: str | None = None) -> str:
+async def _lint_scene_refs_body(path: str | None = None, snippet: str | None = None) -> str:
     """Read-only linter for scene references in DSL scripts or batch commands.
     path: project-relative path to .playtest file.
     snippet: inline DSL or batch commands to lint (mutually exclusive with path).
@@ -898,35 +804,8 @@ async def lint_scene_refs(path: str | None = None, snippet: str | None = None) -
         raise ValueError("path and snippet are mutually exclusive")
     if not path and not snippet:
         raise ValueError("path or snippet required")
-    return await _send("lint_scene_refs", _args(path=path, snippet=snippet), timeout=30.0)
-
-
-async def runtime_snapshot(type: str, name: str | None = None,
-                           component: str | None = None, compress: bool = False) -> str:
-    """Snapshot all runtime objects of a given component type. Returns per-object field dump.
-    type: component type name (e.g. 'Rigidbody', 'EnemyController').
-    name: optional name substring filter.
-    component: component type to serialize (defaults to type).
-    compress: strip default-value fields to reduce response size."""
-    return await _send("runtime_snapshot", _args(
-        type=type, name=name, component=component,
-        compress="true" if compress else None))
+    return await _send("lint_scene_refs", _args(path=path, snippet=snippet))
 
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RO)(resolve_scene_refs)
-    mcp.tool(annotations=_RO)(lint_scene_refs)
-    mcp.tool(annotations=_RW)(invoke_method)
-    mcp.tool(annotations=_RW_IDEM)(wait_until)
-    mcp.tool(annotations=_RW)(move_to)
-    mcp.tool(annotations=_RO)(query_state)
-    mcp.tool(annotations=_RW)(test_step)
-    mcp.tool(annotations=_RW)(run_playtest)
-    mcp.tool(annotations=_RW)(run_playtest_suite)
-    mcp.tool(annotations=_RW_IDEM)(lint_playtest)
-    mcp.tool(annotations=_RO)(lint_playtest_suite)
-    mcp.tool(annotations=_RO)(validate_playtest_aliases)
-    mcp.tool(annotations=_RW)(sync_playtest_aliases_from_defs)
-    mcp.tool(annotations=_RW)(export_playtest_aliases_to_defs)
-    mcp.tool(annotations=_RO)(runtime_snapshot)

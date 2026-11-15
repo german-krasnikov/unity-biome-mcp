@@ -1,0 +1,23 @@
+# Facts of the guard set that stands between a wire command and its execution. site = which of the three hand-written copies is judged:
+# top = C# CommandRouter.CheckGuards, batch = the per-line guards of C# BatchHelper.Execute, py = Python middleware (check_read_only, check_play_mode_required) + server._send_raw.
+# mutating is the output of isMutating (mutability.logic) for the same call: the host passes it in (site py asks with unknown_is_write=true, top and batch with false). allowedInPlay is the host's allow-list
+# (IsAllowedMutationInPlayMode plus the playOk registration flag of M3). A py caller fills the facts it does not own with the neutral value (readOnly=false, playKnown=false, pythonOnly=false) and acts on the verdicts it owns.
+CONTRACT unitymcp.guards
+COVERAGE declared-scope
+MODULE guard_facts
+FACT guard.site enum=top,batch,py closed
+FACT guard.ready bool
+FACT guard.batchable bool
+FACT guard.pythonOnly bool
+FACT guard.authDenied bool
+FACT guard.compiling bool
+FACT guard.allowedDuringCompile bool
+FACT guard.playMode bool
+FACT guard.playKnown bool
+FACT guard.mutating bool
+FACT guard.allowedInPlay bool
+FACT guard.runtime bool
+FACT guard.readOnly bool
+FACT guard.alwaysAllowed bool
+FACT guard.toolEnabled bool
+INPUT guardVerdict guard.site guard.ready guard.batchable guard.pythonOnly guard.authDenied guard.compiling guard.allowedDuringCompile guard.playMode guard.playKnown guard.mutating guard.allowedInPlay guard.runtime guard.readOnly guard.alwaysAllowed guard.toolEnabled

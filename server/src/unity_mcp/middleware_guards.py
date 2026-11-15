@@ -2,9 +2,17 @@
 import json
 import time
 
+from .decisions.generated.mutationpace_logic import MutationPaceInput, MutationPaceValues, mutation_pace
+from .decisions.generated.starvation_logic import StarvationWarnInput, StarvationWarnValues, starvation_warn
+from .decisions.generated.taint_logic import TaintWarnInput, TaintWarnValues, taint_warn
+from .decisions.generated.writededup_logic import WriteDedupWarnInput, WriteDedupWarnValues, write_dedup_warn
+from .decisions.generated.writepace_logic import WritePaceInput, WritePaceValues, write_pace
+from .decisions.guard_facts import Verdict, guard_verdict
+from .generated.timing_constants import TIMING_ROWS as _TR
 from .middleware_types import (
     _RUNTIME_ONLY_CMDS,
     ACTION_READS,
+    BLAST_HIGH,
     BLAST_RADIUS,
     READ_CMDS,
     SCENE_STATE_NEUTRAL_WRITES,
@@ -43,18 +51,27 @@ class MiddlewareGuardsMixin:
         # Captures are filesystem writes for authorization, but identical
         # arguments can intentionally observe a later frame and must remain
         # repeatable.
-        if cmd == "screenshot":
-            return None
-        if not is_write(cmd, args):
+        is_write_cmd = is_write(cmd, args)
+        is_screenshot = cmd == "screenshot"
+        if not is_write_cmd or is_screenshot:
             return None
         h = hash((cmd, json.dumps(args, sort_keys=True)))
         now = time.monotonic()
         entry = self._retry_cache.get(h)
+        within_ttl, same_generation = False, False
         if entry is not None:
             ts, gen = entry
-            if now - ts < self._RETRY_TTL and gen == self._retry_generation:
-                return (f"⚠ RETRY (within {self._RETRY_TTL:.1f}s): identical {cmd}. "
-                        "Re-read state before retrying.")
+            within_ttl = now - ts < self._RETRY_TTL
+            same_generation = gen == self._retry_generation
+        verdict = write_dedup_warn(WriteDedupWarnInput(
+            dedup_is_write=True,
+            dedup_is_screenshot=False,
+            dedup_within_ttl=within_ttl,
+            dedup_same_generation=same_generation,
+        ))
+        if verdict == WriteDedupWarnValues.WARN:
+            return (f"⚠ RETRY (within {self._RETRY_TTL:.1f}s): identical {cmd}. "
+                    "Re-read state before retrying.")
         self._retry_generation += 1
         self._retry_cache[h] = (now, self._retry_generation)
         self._retry_cache.move_to_end(h)
@@ -65,15 +82,16 @@ class MiddlewareGuardsMixin:
     # ── Feature 3: Taint Tracking ─────────────────────────────────────────
 
     def check_taint(self, cmd: str, args: dict) -> str | None:
-        if cmd != "set_property":
-            return None
         prop = args.get("prop", "")
-        if not prop.endswith("Reference"):
-            return None
         value = args.get("value", "")
-        if not value or value == "null" or value.startswith("#") or value.startswith("&"):
-            return None
-        if value not in self._clean_paths:
+        verdict = taint_warn(TaintWarnInput(
+            taint_is_set_property=cmd == "set_property",
+            taint_prop_ends_with_reference=bool(prop and prop.endswith("Reference")),
+            taint_value_is_null=not value or value == "null",
+            taint_value_is_special=bool(value and (value.startswith("#") or value.startswith("&"))),
+            taint_value_is_clean=value in self._clean_paths,
+        ))
+        if verdict == TaintWarnValues.WARN:
             return f"⚠ TAINT WARNING: '{value}' was never read. Consider get_hierarchy first."
         return None
 
@@ -119,40 +137,58 @@ class MiddlewareGuardsMixin:
             radius = max(write_radii) if write_radii else 1
         else:
             radius = BLAST_RADIUS.get(cmd, 1)
-        if radius >= 3:
+        if radius >= BLAST_HIGH:
             return f"⚠ HIGH BLAST RADIUS ({radius}): '{cmd}' affects multiple objects. Consider checkpoint first."
         return None
 
     # ── Feature N: Incremental Verification ──────────────────────────────────
 
     def check_verification_needed(self, cmd: str, args: dict | None = None) -> str | None:
-        if cmd == "batch" and args and _is_batch_readonly(args.get("commands", "")):
-            return None
-        if is_write(cmd, args) and cmd not in VERIFICATION_NUDGE_NEUTRAL_WRITES:
+        is_write_cmd = is_write(cmd, args)
+        is_neutral = cmd in VERIFICATION_NUDGE_NEUTRAL_WRITES
+        is_batch_ro = cmd == "batch" and bool(args) and _is_batch_readonly((args or {}).get("commands", ""))
+        if is_write_cmd and not is_neutral and not is_batch_ro:
             self._mutation_count += 1
-            if self._mutation_count % 10 == 0:
-                return f"⚡ VERIFICATION CHECKPOINT ({self._mutation_count} mutations): verify state is consistent with goal before continuing."
+        verdict = mutation_pace(MutationPaceInput(
+            mupace_is_write=is_write_cmd,
+            mupace_is_neutral=is_neutral,
+            mupace_is_batch_readonly=is_batch_ro,
+            mupace_at_checkpoint=self._mutation_count > 0 and self._mutation_count % 10 == 0,
+        ))
+        if verdict == MutationPaceValues.NUDGE:
+            return f"⚡ VERIFICATION CHECKPOINT ({self._mutation_count} mutations): verify state is consistent with goal before continuing."
         return None
 
     # ── Feature: Play Mode Required Guard ────────────────────────────────────
 
-    def check_play_mode_required(self, cmd: str) -> str | None:
-        """Block runtime-only commands when editor is confirmed in edit mode."""
-        if not self._play_state_known:
-            return None  # state unknown — don't block
-        if self.is_playing:
-            return None  # playing — all good
-        if cmd in _RUNTIME_ONLY_CMDS:
-            return f"err: '{cmd}' requires Play Mode. Use editor(action='play') first."
-        return None
+    def check_play_mode_required(self, cmd: str, args: dict | None = None) -> str | None:
+        """Block runtime-only commands when editor is confirmed in edit mode (the DECISION guardVerdict, site py).
+
+        An unknown play state does not block; neither does a playing editor. Gives guard_verdict every site-py fact
+        this Middleware owns (not just the play ones): pyReadOnly outranks pyNotInPlay in guards.logic (priority 30
+        vs 31), and that must hold regardless of whether this call or check_read_only's runs first — the priority
+        lives in the DECISION, not in middleware_pipeline's call order."""
+        verdict = guard_verdict("py", **self._py_guard_facts(cmd, args), play_known=self._play_state_known,
+                                 play_mode=self.is_playing, runtime=cmd in _RUNTIME_ONLY_CMDS)
+        return f"err: '{cmd}' requires Play Mode. Use editor(action='play') first." if verdict == Verdict.NOT_IN_PLAY else None
 
     # ── Feature: Read-Only Endpoint Guard (P-324) ────────────────────────────
 
+    def _py_guard_facts(self, cmd: str, args: dict | None = None) -> dict:
+        """The read-only facts of site py: read_only and mutating.
+
+        is_write asks the registry as an authorization caller does: a command nobody knows is a write (fail
+        closed). It is asked only of an endpoint that is read-only, as before: a writable one never looks at the
+        call. Shared by check_read_only and check_play_mode_required so both ever see the same read-only facts,
+        whichever one guard_verdict is asked by first."""
+        mutating = self.is_read_only and is_write(cmd, args or {}, unknown_is_write=True)
+        return {"read_only": self.is_read_only, "mutating": mutating}
+
     def check_read_only(self, cmd: str, args: dict) -> str | None:
-        """Block mutation commands when the endpoint is in read-only mode."""
-        if not self.is_read_only:
-            return None
-        if is_write(cmd, args, unknown_is_write=True):
+        """Block mutation commands when the endpoint is in read-only mode (the DECISION guardVerdict, site py)."""
+        verdict = guard_verdict("py", **self._py_guard_facts(cmd, args), play_known=self._play_state_known,
+                                 play_mode=self.is_playing, runtime=cmd in _RUNTIME_ONLY_CMDS)
+        if verdict == Verdict.READ_ONLY_BLOCKED:
             return f"READ_ONLY_BLOCKED: '{cmd}' is a mutation command; endpoint is read-only"
         return None
 
@@ -161,7 +197,11 @@ class MiddlewareGuardsMixin:
     def check_starvation(self, result: str) -> str:
         h = hash(result[:200])
         self._response_hashes.append(h)
-        if len(self._response_hashes) == 5 and len(set(self._response_hashes)) == 1:
+        verdict = starvation_warn(StarvationWarnInput(
+            starv_window_full=len(self._response_hashes) == 5,
+            starv_all_same=len(set(self._response_hashes)) == 1,
+        ))
+        if verdict == StarvationWarnValues.WARN:
             result += "\n⚠ STARVATION: last 5 calls returned same result. Try different approach or re-read state."
         return result
 
@@ -181,21 +221,25 @@ class MiddlewareGuardsMixin:
         return f"(repeated {count + 1}x) {result}"
 
     def check_alive(self) -> bool:
-        return (time.time() - self._last_success) < 30.0
+        return (time.time() - self._last_success) < _TR[0].aliveCheckTtlS
 
     # ── Feature 12: Workflow Phase FSM ───────────────────────────────────────
 
     def transition(self, cmd: str, args: dict | None = None) -> str | None:
         changes_scene_state = (
-            is_write(cmd, args) and cmd not in SCENE_STATE_NEUTRAL_WRITES
+            is_write(cmd, args)
+            and cmd not in SCENE_STATE_NEUTRAL_WRITES
+            and not (cmd == "batch" and args and _is_batch_readonly((args or {}).get("commands", "")))
         )
-        if not changes_scene_state or (
-            cmd == "batch" and args and _is_batch_readonly(args.get("commands", ""))
-        ):
+        if not changes_scene_state:
             self._consecutive_writes = 0
-            return None
-        self._consecutive_writes += 1
-        if self._consecutive_writes >= 3:
+        else:
+            self._consecutive_writes += 1
+        verdict = write_pace(WritePaceInput(
+            pace_changes_scene_state=changes_scene_state,
+            pace_consecutive_writes=self._consecutive_writes,
+        ))
+        if verdict == WritePaceValues.NUDGE:
             return f"⚡ {self._consecutive_writes} consecutive writes without reading. Consider verifying state."
         return None
 

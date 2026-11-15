@@ -437,7 +437,9 @@ namespace UnityMCP.Playtest.Core
         }
 
         // Deferred position: @-expression stored as RawPosition; literal parsed into Position
-        static void SetPosition(PlaytestStep step, string token)
+        // internal (not file-private): StepBuilder.cs (PT_MOVE/PT_TELEPORT handlers) calls this
+        // directly now that it lives in this same assembly (PT-8 flip) — no proxy needed.
+        internal static void SetPosition(PlaytestStep step, string token)
         {
             if (token.StartsWith("@"))
                 step.RawPosition = token;
@@ -520,34 +522,6 @@ namespace UnityMCP.Playtest.Core
             }
             if (sb.Length > 0) tokens.Add(sb.ToString());
             return tokens.ToArray();
-        }
-
-        // keywords that end the value in ASSERT/WAIT_UNTIL/INVARIANT
-        private static readonly HashSet<string> _Ops = new HashSet<string>(
-            StringComparer.OrdinalIgnoreCase)
-            { "==", "!=", ">=", "<=", ">", "<", "contains" };
-        private static readonly HashSet<string> _StopKeywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "TIMEOUT", "AS", "AND", "OR", "ABORT" };
-
-        // Returns (query, op, value, nextIdx-after-value).
-        // nextIdx is the index of the first stop-keyword (or tokens.Length if none).
-        // op == "" when no operator token is found (bool shorthand).
-        private static (string q, string op, string v, int next) ParseQOV(string[] tokens, int start)
-        {
-            for (int i = start + 1; i < tokens.Length; i++)
-            {
-                if (!_Ops.Contains(tokens[i])) continue;
-                var q = string.Join(" ", tokens, start, i - start);
-                // Value is at least 1 token; stop-keywords checked from i+2 onward
-                // so `ASSERT /x == TIMEOUT` correctly yields value="TIMEOUT"
-                int vEnd = i + 2;
-                while (vEnd < tokens.Length && !_StopKeywords.Contains(tokens[vEnd].ToUpperInvariant()))
-                    vEnd++;
-                var v = vEnd > i + 1 ? string.Join(" ", tokens, i + 1, vEnd - i - 1) : "";
-                return (q, tokens[i], v, vEnd);
-            }
-            // No operator found — bool shorthand (path only)
-            return (string.Join(" ", tokens, start, tokens.Length - start), "", "", tokens.Length);
         }
 
         public static bool Compare(string actual, string op, string expected)

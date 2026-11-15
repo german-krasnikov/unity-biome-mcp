@@ -123,9 +123,9 @@ Primary files:
 - `server/src/unity_mcp/tools/scene.py`
 - `unity-plugin/Editor/CommandRouter.ObjectHandlers.cs`
 - `unity-plugin/Editor/HierarchySerializer.cs`
-- `unity-plugin/Editor/RefManager.cs`
+- `unity-plugin/Editor/Core/Scene/RefManager.cs`
 - `unity-plugin/Editor/SceneContext.cs`
-- `unity-plugin/Editor/ComponentSerializer.Finder.cs` (`ScenePathParser`)
+- `unity-plugin/Editor/Core/Scene/ComponentSerializer.Finder.cs` (`ScenePathParser`)
 
 ## Alias Separation
 
@@ -196,7 +196,7 @@ Focused coverage lives in:
 - `unity-plugin/Editor/Tests/MultiSceneHierarchyTests.cs`
 - `unity-plugin/Editor/Tests/RefManagerTests.cs`
 - component serializer/finder fixtures under `unity-plugin/Editor/Tests/`
-- `server/tests/test_compress_hierarchy.py`
+- `server/tests/tools/test_compress_hierarchy.py`
 - scene wrapper and middleware tests under `server/tests/`
 
 Follow the fixture and durable-run requirements in `AI/testing.md`.

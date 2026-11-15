@@ -3,29 +3,17 @@ import re
 
 from ..console_levels import PROBLEM_LEVELS
 from ..metrics import METRICS
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._common import bind
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import execute_code, get_schema, tools  # noqa: F401
 
 _send = None
 _args = None
 
 
-async def execute_code(code: str, undo_label: str = "execute_code") -> str:
-    """Execute C# code in Unity Editor via Roslyn. 10-40x faster than recompile.
-    Security uses a configurable source-pattern scan; the default AllowAll level skips it. Execution is not sandboxed.
-    Bare statements are auto-wrapped in a static class — no boilerplate needed.
-    Example: \"var go = new GameObject(\\\"Test\\\"); return go.name;\""""
-    return await _send("execute_code", _args(code=code, undo_label=undo_label))
-
-
-async def get_schema(type: str) -> str:
-    """Get all serialized fields of a component type with types. Use before set_property to know exact field names."""
-    return await _send("get_schema", {"type": type})
-
-
 try:
-    from mcp.server.fastmcp import Context as _Context
+    from mcp.server.mcpserver import Context as _Context
     _has_context = True
 except ImportError:
     _Context = object
@@ -33,6 +21,10 @@ except ImportError:
 
 
 async def auto_fix(ctx: _Context) -> str:
+    # ctx's annotation must stay a real Context (not catalog Any) -- FastMCP's
+    # find_context_parameter() only recognizes an exact Context (or "Context | None")
+    # type hint to auto-inject the session object; BODY would type it Any from the
+    # catalog's ARG and silently stop Context injection (stays hand-written, SV8).
     """Analyze recent Unity errors and ask MCP client sampling for a fix suggestion.
     This read-only tool does not edit files or apply the suggested change."""
     from .. import editor_log
@@ -60,6 +52,7 @@ async def auto_fix(ctx: _Context) -> str:
 
 
 async def smart_build(description: str, ctx: _Context) -> str:
+    # See auto_fix's comment above -- ctx must keep its real Context annotation.
     """Build scene objects from natural language description using MCP sampling + execute_code."""
     try:
         response = await ctx.session.create_message(
@@ -87,7 +80,5 @@ def register(mcp, send, args):
     bind(globals(), send, args)
     from .. import editor_log
     editor_log.init_corroboration()
-    mcp.tool(annotations=_RW)(execute_code)
-    mcp.tool(annotations=_RO)(get_schema)
-    mcp.tool(annotations=_RO)(auto_fix)
-    mcp.tool(annotations=_RW)(smart_build)
+    tools.register(mcp, auto_fix)
+    tools.register(mcp, smart_build)

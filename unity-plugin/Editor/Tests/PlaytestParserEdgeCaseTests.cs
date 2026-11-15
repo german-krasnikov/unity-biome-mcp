@@ -7,14 +7,19 @@ namespace UnityMCP.Editor.Tests
     public class PlaytestParserEdgeCaseTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         // ── CS4.arch.5: MOVE TO missing position ────────────────────────────
+        // PT-8 (THE FLIP, Q3): the grammar-generated reader rejects these with its own
+        // "<KEYWORD>: the line ends early" PT_SYNTAX text, not the hand parser's old
+        // "MOVE syntax: MOVE [path] TO x,y,z" message — an intentional text change, not
+        // a behavior change (all three still throw ArgumentException at parse time).
 
         [Test]
-        public void Parse_MoveWithoutToKeyword_ThrowsWithMoveSyntaxMessage()
+        public void Parse_MoveWithoutToKeyword_ThrowsWithLineEndsEarlyMessage()
         {
-            // "MOVE /Player" has no TO keyword: toIdx == -1
+            // "MOVE /Player" has no TO keyword
             var ex = Assert.Throws<System.ArgumentException>(
                 () => PlaytestParser.Parse("MOVE /Player"));
-            StringAssert.Contains("MOVE syntax", ex.Message);
+            StringAssert.Contains("MOVE", ex.Message);
+            StringAssert.Contains("the line ends early", ex.Message);
         }
 
         [Test]
@@ -23,7 +28,8 @@ namespace UnityMCP.Editor.Tests
             // "MOVE TO" — TO is last token, no position follows
             var ex = Assert.Throws<System.ArgumentException>(
                 () => PlaytestParser.Parse("MOVE TO"));
-            StringAssert.Contains("MOVE syntax", ex.Message);
+            StringAssert.Contains("MOVE", ex.Message);
+            StringAssert.Contains("the line ends early", ex.Message);
         }
 
         [Test]
@@ -32,7 +38,8 @@ namespace UnityMCP.Editor.Tests
             // "MOVE /Player TO" — position token missing
             var ex = Assert.Throws<System.ArgumentException>(
                 () => PlaytestParser.Parse("MOVE /Player TO"));
-            StringAssert.Contains("MOVE syntax", ex.Message);
+            StringAssert.Contains("MOVE", ex.Message);
+            StringAssert.Contains("the line ends early", ex.Message);
         }
 
         [Test]

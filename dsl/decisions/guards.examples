@@ -1,0 +1,53 @@
+PROVENANCE "characterized-* rows state the order of the guards in the C# code before step 7.2 G2 (CommandRouter.CheckGuards and BatchHelper.Execute at 3af1882b), which no test of the project pins: each has two guards true at once and expects the one the code reaches first; they are not endorsed, and a change of that order is a change of the requirement. The others: one row per guard test the project already has; expected is what the test asserts (a Process_* test that asserts a message is mapped to the guard that emits it). C#: CommandRouterTests.cs, CommandRouterReadOnlyTests.cs, BatchHelperReadOnlyTests.cs, BatchRejectionTests.cs; Python: test_middleware_play_guard.py, test_middleware_readonly.py, test_direct_only_gate.py. No Unity run: these are the tests as written."
+
+EXAMPLES guardVerdict
+  id | guardSite | guardReady | guardBatchable | guardPythonOnly | guardAuthDenied | guardCompiling | guardAllowedDuringCompile | guardPlayMode | guardPlayKnown | guardMutating | guardAllowedInPlay | guardRuntime | guardReadOnly | guardAlwaysAllowed | guardToolEnabled -> expected
+  g00 | top | true | true | false | false | true | false | false | true | true | false | false | false | false | true -> compiling  # CommandRouterTests.cs:207
+  g01 | top | true | true | false | false | true | true | false | true | false | false | false | false | true | true -> ok  # CommandRouterTests.cs:218
+  g02 | top | true | true | false | false | false | false | true | true | true | false | false | false | false | true -> playBlocked  # CommandRouterTests.cs:342
+  g03 | top | true | true | false | false | false | false | true | true | true | true | false | false | false | true -> ok  # CommandRouterTests.cs:355 CommandRouterTests.cs:367
+  g04 | top | true | true | false | false | false | false | false | true | false | false | true | false | false | true -> notInPlay  # CommandRouterTests.cs:437
+  g05 | top | true | true | false | false | false | false | false | true | false | false | false | false | false | false -> disabled  # CommandRouterTests.cs:525
+  g06 | top | false | true | false | false | false | false | false | true | false | false | false | false | true | true -> initializing  # CommandRouterTests.cs:994
+  g07 | top | true | true | true | false | false | false | false | true | false | false | false | false | false | true -> pythonOnly  # CommandRouterTests.cs:1030
+  g08 | top | true | true | false | false | false | false | false | true | false | false | false | false | false | true -> ok  # CommandRouterTests.cs:1039
+  g09 | batch | true | true | false | false | true | false | false | true | true | false | false | false | false | true -> compiling  # CommandRouterTests.cs:232
+  g10 | batch | true | true | false | false | true | true | false | true | false | false | false | false | false | true -> ok  # CommandRouterTests.cs:243
+  g11 | batch | true | true | false | false | false | false | true | true | true | true | false | false | false | true -> ok  # CommandRouterTests.cs:402
+  g12 | batch | true | true | false | false | false | false | true | true | true | true | false | true | false | true -> readOnlyBlocked  # CommandRouterTests.cs:420
+  g13 | batch | true | true | false | false | false | false | false | true | true | false | false | true | false | true -> readOnlyBlocked  # BatchHelperReadOnlyTests.cs:30
+  g14 | batch | true | true | false | false | false | false | false | true | false | false | false | true | false | true -> ok  # BatchHelperReadOnlyTests.cs:38
+  g15 | batch | true | true | false | false | false | false | false | true | true | false | false | false | false | true -> ok  # BatchHelperReadOnlyTests.cs:47
+  g16 | batch | true | false | false | false | false | false | false | true | false | false | false | true | false | true -> asyncOnly  # BatchHelperReadOnlyTests.cs:66
+  g17 | py | true | true | false | false | false | false | false | false | false | false | true | false | false | true -> ok  # test_middleware_play_guard.py:19
+  g18 | py | true | true | false | false | false | false | true | true | false | false | true | false | false | true -> ok  # test_middleware_play_guard.py:24
+  g19 | py | true | true | false | false | false | false | false | true | false | false | true | false | false | true -> notInPlay  # test_middleware_play_guard.py:29
+  g20 | py | true | true | false | false | false | false | false | true | false | false | false | false | false | true -> ok  # test_middleware_play_guard.py:37 test_middleware_play_guard.py:43 test_middleware_play_guard.py:56
+  g21 | top | true | true | false | false | false | false | false | true | true | false | false | true | false | true -> readOnlyBlocked  # CommandRouterReadOnlyTests.cs:31
+  g22 | top | true | true | false | false | false | false | false | true | false | false | false | true | true | true -> ok  # CommandRouterReadOnlyTests.cs:40
+  g23 | top | true | true | false | false | false | false | false | true | true | false | false | false | false | true -> ok  # CommandRouterReadOnlyTests.cs:49
+  g24 | batch | true | false | false | false | false | false | false | true | false | false | false | false | false | true -> asyncOnly  # BatchRejectionTests.cs:27 BatchRejectionTests.cs:38
+  g25 | batch | true | true | false | false | false | false | false | true | false | false | true | false | false | true -> notInPlay  # BatchRejectionTests.cs:48
+  g26 | batch | false | true | false | false | false | false | false | true | false | false | false | false | false | true -> initializing  # BatchRejectionTests.cs:81
+  g27 | py | true | true | true | false | false | false | false | true | false | false | false | false | false | true -> pythonOnly  # test_direct_only_gate.py:21
+  g28 | py | true | true | false | false | false | false | false | true | false | false | false | false | false | true -> ok  # test_direct_only_gate.py:31 test_direct_only_gate.py:40
+  g29 | py | true | true | false | false | false | false | false | true | true | false | false | true | false | true -> readOnlyBlocked  # test_middleware_readonly.py:19
+  g30 | py | true | true | false | false | false | false | false | true | false | false | false | true | false | true -> ok  # test_middleware_readonly.py:28
+  g31 | py | true | true | false | false | false | false | false | true | true | false | false | false | false | true -> ok  # test_middleware_readonly.py:36
+  characterized-top-not-ready-before-python-only | top | false | true | true | false | false | false | false | true | false | false | false | false | false | true -> initializing
+  characterized-top-python-only-before-auth | top | true | true | true | true | false | false | false | true | false | false | false | false | false | true -> pythonOnly
+  characterized-top-auth-alone | top | true | true | false | true | false | false | false | true | false | false | false | false | false | true -> authDenied
+  characterized-top-auth-before-compiling | top | true | true | false | true | true | false | false | true | false | false | false | false | false | true -> authDenied
+  characterized-top-compiling-before-play-blocked | top | true | true | false | false | true | false | true | true | true | false | false | false | false | true -> compiling
+  characterized-top-compiling-ignores-mutating | top | true | true | false | false | true | false | false | true | false | false | false | false | false | true -> compiling
+  characterized-top-play-blocked-before-read-only | top | true | true | false | false | false | false | true | true | true | false | false | true | false | true -> playBlocked
+  characterized-top-not-in-play-before-read-only | top | true | true | false | false | false | false | false | true | true | false | true | true | false | true -> notInPlay
+  characterized-top-read-only-before-disabled | top | true | true | false | false | false | false | false | true | true | false | false | true | false | false -> readOnlyBlocked
+  characterized-batch-async-only-before-play-blocked | batch | true | false | false | false | false | false | true | true | true | false | false | false | false | true -> asyncOnly
+  characterized-batch-play-blocked-alone | batch | true | true | false | false | false | false | true | true | true | false | false | false | false | true -> playBlocked
+  characterized-batch-not-in-play-before-compiling | batch | true | true | false | false | true | false | false | true | true | false | true | false | false | true -> notInPlay
+  characterized-batch-compiling-only-mutating | batch | true | true | false | false | true | false | false | true | false | false | false | false | false | true -> ok
+  characterized-batch-compiling-before-read-only | batch | true | true | false | false | true | false | false | true | true | false | false | true | false | true -> compiling
+  characterized-batch-read-only-before-disabled | batch | true | true | false | false | false | false | false | true | true | false | false | true | false | false -> readOnlyBlocked
+  characterized-batch-disabled-before-not-ready | batch | false | true | false | false | false | false | false | true | false | false | false | false | false | false -> disabled
+END

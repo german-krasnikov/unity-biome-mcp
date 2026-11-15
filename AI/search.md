@@ -51,7 +51,7 @@ One match per line:
 - Python tool: `server/src/unity_mcp/tools/scene.py` (1 tool)
 - C# helper: `unity-plugin/Editor/SearchHelper.cs`
 - C# registration: `unity-plugin/Editor/CommandRouter.Registration.cs`
-- Python tests: `server/tests/test_search.py` and `test_search_scoped.py`
+- Python tests: `server/tests/tools/test_search.py` and `test_search_scoped.py`
 - C# tests: `unity-plugin/Editor/Tests/SearchHelperFilterTests.cs` and `SearchHelperScopedTests.cs`
 
 ## MCP Tool
@@ -102,8 +102,8 @@ search_scene(query="t:Light", scene="Forest")
 
 ## Tests
 
-- `server/tests/test_search.py` covers the base wrapper/query contract.
-- `server/tests/test_search_scoped.py` covers root, limit, and scene scoping.
+- `server/tests/tools/test_search.py` covers the base wrapper/query contract.
+- `server/tests/tools/test_search_scoped.py` covers root, limit, and scene scoping.
 - `unity-plugin/Editor/Tests/SearchHelperFilterTests.cs` and
   `SearchHelperScopedTests.cs` cover C# filtering and traversal.
 - Use [`AI/testing.md`](testing.md) for current commands and acceptance policy.

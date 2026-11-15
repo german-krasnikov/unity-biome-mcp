@@ -3,14 +3,11 @@ from . import (
     animation,
     animator_intent_tool,
     ask_tool,
-    ask_user_tool,
     asset,
-    auto_wire,
     autobatch,
     batch,
     brief_tool,
     budget_tool,
-    build,
     changeset_tool,
     checkpoint_tool,
     code_intel,
@@ -19,25 +16,20 @@ from . import (
     console,
     debug_tool,
     diagnose,
-    diagnostics,
     do_tool,
     editor_control,
     meta,
     objects,
-    packages,
     permission_prompt_tool,
     profiling,
-    rendering,
     runtime,
     scene,
-    scene_health,
     screenshot,
     skills,
     spatial,
-    sync_module,
     testing,
+    tool_specs,
     transaction,
-    ui,
     ui_intent_tool,
     uitk,
     uitk_intent_tool,
@@ -45,14 +37,23 @@ from . import (
     vfx_intent_tool,
     watch,
 )
+from ._common import bind
+from .generated import catalog_tools
 from .metrics_tool import register as register_metrics
 
 
 def register_all(mcp, send, args, *, get_slot, get_middleware=None,
                   stdio_alive=None, refresh_tools_cache=None, push_catalog=None):
+    # Lazy: unity_mcp.reload.reload_ladder needs unity_mcp.tools._annotations/
+    # diagnose/tool_specs, so importing reload.sync_module at this module's own
+    # top level (before unity_mcp.tools finishes loading) would re-enter
+    # reload.reload_ladder while it is still mid-load. By the time register_all
+    # is actually called, unity_mcp.tools is already fully imported, so this
+    # import is safe here.
+    from ..reload import sync_module
     for mod in [scene, objects, asset, animation, runtime, watch, code_intel,
-                batch, codegen, skills, spatial, ui, uitk, sync_module, diagnose,
-                debug_tool, diagnostics, snapshot_tool, profiling, rendering, scene_health, auto_wire, build, packages,
+                batch, codegen, skills, spatial, uitk, sync_module, diagnose,
+                debug_tool, snapshot_tool, profiling,
                 console, screenshot, editor_control, verify, transaction]:
         mod.register(mcp, send, args)
     testing.register(mcp, send, args, get_slot=get_slot)
@@ -65,7 +66,6 @@ def register_all(mcp, send, args, *, get_slot, get_middleware=None,
     autobatch.register(mcp, send, args)
     do_tool.register(mcp, send, args)
     ask_tool.register(mcp, send, args)
-    ask_user_tool.register(mcp, send, args)
     permission_prompt_tool.register(mcp, send, args)
     for mod in [animator_intent_tool, vfx_intent_tool, ui_intent_tool, uitk_intent_tool]:
         mod.register(mcp, send, args)
@@ -74,3 +74,13 @@ def register_all(mcp, send, args, *, get_slot, get_middleware=None,
     changeset_tool.register(mcp, send, args)
     checkpoint_tool.register(mcp, send, args)
     brief_tool.register(mcp, send, args)
+    # last: it checks the functions that the modules above provided. catalog_tools.register()
+    # is the generated, fixed-signature wrapper (bind + tools.install(mcp), no exclude hook --
+    # the DSL generator has no category-scoped output mode, Phase 5 Part B, task-p5 Finding 3)
+    # so UNITY_MCP_GD_TOOLS=0 bypasses it and calls its own two steps directly instead, passing
+    # exclude_categories to the same ToolSet singleton. The default path below is unchanged.
+    if tool_specs.gd_tools_enabled():
+        catalog_tools.register(mcp, send, args)
+    else:
+        bind(vars(catalog_tools), send, args)
+        catalog_tools.tools.install(mcp, exclude_categories=tool_specs.GD_CATEGORIES)

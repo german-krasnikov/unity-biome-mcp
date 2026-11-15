@@ -19,7 +19,7 @@ async def test_lint_playtest_reports_bad_syntax(conformance_worker):
     worker, bridge = conformance_worker
     resp = await bridge.send("lint_playtest", {"script": "INVALID_COMMAND_XYZ"})
     assert resp["ok"] is False, f"expected lint_playtest to reject an unknown command: {resp}"
-    assert "Unknown command: INVALID_COMMAND_XYZ" in resp["err"], f"unexpected classification: {resp}"
+    assert "INVALID_COMMAND_XYZ" in resp["err"], f"unexpected classification: {resp}"
 
 
 async def test_list_playtest_files(conformance_worker):

@@ -114,16 +114,17 @@ LOG $a";
             StringAssert.Contains("/Root/BranchC", result[0].Message);
         }
 
-        // C9 — Unicode $name not matched by ASCII regex (left as-is)
+        // C9 — Unicode $name: the hand parser silently accepted this into a dead VAL
+        // (SigilRegex is ASCII-only, so $игрок could never be expanded anywhere) and left
+        // $игрок untouched in LOG's message. PT-8: the grammar's VAL name slot is itself
+        // ASCII-only (<name:match(\$?[A-Za-z_][A-Za-z0-9_]*)>), so this now fails fast at
+        // parse time instead of silently defining a useless alias.
         [Test]
-        public void Parse_Val_UnicodeSigil_NotMatchedByRegex_LeftAsIs()
+        public void Parse_Val_UnicodeSigilName_ThrowsAtParseTime()
         {
-            // Note: CollectVals WILL store key "игрок" but SigilRegex won't match $игрок
             var script = "VAL $игрок /Player\nLOG $игрок";
-            ParseResult result = null;
-            Assert.DoesNotThrow(() => result = PlaytestParser.Parse(script));
-            // $игрок not expanded (regex is ASCII-only)
-            StringAssert.Contains("$игрок", result[0].Message);
+            var ex = Assert.Throws<ArgumentException>(() => PlaytestParser.Parse(script));
+            StringAssert.Contains("VAL", ex.Message);
         }
 
         // C10 — VAR without @ prefix → ArgumentException mentioning @
@@ -204,6 +205,37 @@ LOG $a";
             var script = "VAL $player /Player\nASSERT $player|H|hp > 0";
             var result = PlaytestParser.Parse(script);
             Assert.IsTrue(result.Warnings == null || result.Warnings.Count == 0);
+        }
+
+        // C18 — PT-1/Q23: ordinary path VAL still works (guard must not over-block)
+        [Test]
+        public void Parse_Val_NormalPathValue_Works()
+        {
+            var script = "VAL $path /Player\nASSERT $path|Health|hp == 100";
+            ParseResult result = null;
+            Assert.DoesNotThrow(() => result = PlaytestParser.Parse(script));
+            Assert.AreEqual(1, result.Count);
+            StringAssert.Contains("/Player", result[0].Query);
+        }
+
+        // C19 — PT-1/Q23: VAL value starting with "MCP" must be rejected — otherwise a
+        // VAL alias can inject an arbitrary MCP command invocation wherever it's expanded.
+        [Test]
+        public void Parse_Val_ValueStartsWithMcp_ThrowsArgumentException()
+        {
+            var script = "VAL $cmd MCP set_property\nASSERT /X|C|f == 1";
+            var ex = Assert.Throws<ArgumentException>(() => PlaytestParser.Parse(script));
+            StringAssert.Contains("DSL keyword", ex.Message);
+        }
+
+        // C20 — PT-1/Q23: VAL value starting with "EXPECT_FAIL" must be rejected — same
+        // injection-guard gap as C19, named explicitly in Q23.
+        [Test]
+        public void Parse_Val_ValueStartsWithExpectFail_ThrowsArgumentException()
+        {
+            var script = "VAL $flag EXPECT_FAIL\nASSERT /X|C|f == 1";
+            var ex = Assert.Throws<ArgumentException>(() => PlaytestParser.Parse(script));
+            StringAssert.Contains("DSL keyword", ex.Message);
         }
     }
 }

@@ -175,7 +175,11 @@ namespace UnityMCP.Playtest.Core
             "SET_ACTIVE",
             "SETUP", "SETUP_END", "TEARDOWN", "TEARDOWN_END",
             "WAIT_STABLE", "CAPTURE_MIN", "CAPTURE_MAX", "ASSERT_MIN", "ASSERT_MAX",
-            "FILL", "FOCUS"
+            "FILL", "FOCUS",
+            // PT-1/Q23: close the VAL injection guard gap — a VAL value starting with
+            // "MCP" would otherwise expand into a live MCP command invocation wherever
+            // the alias is substituted; "EXPECT_FAIL" is the same gap named in Q23.
+            "MCP", "EXPECT_FAIL"
         };
 
         public static ParseResult Parse(string script, IncludeResolver resolver = null, bool strict = false)
@@ -260,9 +264,16 @@ namespace UnityMCP.Playtest.Core
             var vals = CollectVals(lines, collisionWarnings);
             if (vals.Count > 0)
                 lines = lines.Select(l => {
-                    // For VAR declarations, preserve the $name token; only expand the @-query
+                    // For VAR/VAL declarations, preserve the $name token; only expand the tail
+                    // (the @-query for VAR, the value for VAL). Without this, a VAL whose own
+                    // name is also a key in `vals` (e.g. "VAL $state /A|B|C") self-expands its
+                    // name token into its own value on this pass — invisible to the old hand
+                    // parser (which discarded a VAL line's tokens past "VAL" unconditionally),
+                    // but a real PT_SYNTAX rejection once the reader validates the name slot
+                    // (PT-8 flip).
                     var t = l.TrimStart();
-                    if (t.StartsWith("VAR ", StringComparison.OrdinalIgnoreCase))
+                    if (t.StartsWith("VAR ", StringComparison.OrdinalIgnoreCase) ||
+                        t.StartsWith("VAL ", StringComparison.OrdinalIgnoreCase))
                     {
                         var tk = t.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
                         if (tk.Length >= 3) return tk[0] + " " + tk[1] + " " + ExpandSigils(tk[2], vals);
@@ -270,7 +281,9 @@ namespace UnityMCP.Playtest.Core
                     return ExpandSigils(l, vals);
                 }).ToArray();
 
-            BuildSteps(lines, expandedSourced,
+            // PT-8 (THE FLIP): the DSL-generated reader + StepBuilder is now the only step
+            // constructor — the hand-written BuildSteps (PlaytestParser.Internals.cs) is deleted.
+            StepBuilder.Build(lines, expandedSourced.ToArray(),
                 out var steps, out var setupSteps, out var teardownSteps,
                 out var varDefs, out var hasGlobalAbort, out var defaultTimeout);
 

@@ -1,0 +1,41 @@
+PROVENANCE "hand-written from BudgetRouter.should_run (budget/router.py), SpeculativeLayer._hit_rate_ok and server/tests/test_budget_router.py; not generated from the logic or from the Python code. The warmup (Q-B1) is in the rules; the host passes hitTotal 50 for a known rate, which keeps today's behavior."
+EXAMPLES hitRateOk
+  id                         | hitTotal | hitRatio -> expected
+  warmup-ignores-a-bad-ratio | 49       | 0.00     -> true
+  fifty-samples-are-judged   | 50       | 0.39     -> false
+  threshold-is-inclusive-ok  | 50       | 0.40     -> true
+  good-ratio                 | 200      | 0.90     -> true
+  no-samples                 | 0        | 0.00     -> true
+END
+
+EXAMPLES budgetRoute
+  id                              | budgetDisabled | budgetPriority | budgetFeature | budgetDayCapExceeded | budgetSessionPct | hitTotal | hitRatio -> expected
+  disabled-beats-everything       | true  | low      | watchdog    | true  | 0.99 | 100 | 0.00 -> ok_disabled
+  low-hit-rate-skips-medium       | false | medium   | scene_brief | false | 0.10 | 100 | 0.39 -> low_hit_rate
+  low-hit-rate-spares-critical    | false | critical | ask         | false | 0.10 | 100 | 0.00 -> ok
+  low-hit-rate-before-day-cap     | false | low      | speculation | true  | 0.10 | 100 | 0.10 -> low_hit_rate
+  day-cap-stops-critical          | false | critical | ask         | true  | 0.10 | 0   | 0.00 -> day_cap_exceeded
+  critical-passes-at-95           | false | critical | ask         | false | 0.95 | 0   | 0.00 -> critical_at_95
+  medium-stops-at-95              | false | medium   | scene_brief | false | 0.95 | 0   | 0.00 -> budget_95_skipped
+  low-stops-at-80                 | false | low      | summarize   | false | 0.80 | 0   | 0.00 -> budget_80_low_skipped
+  medium-passes-at-94             | false | medium   | scene_brief | false | 0.94 | 0   | 0.00 -> ok
+  medium-passes-at-50             | false | medium   | watchdog    | false | 0.50 | 0   | 0.00 -> ok
+  watchdog-stops-at-50            | false | low      | watchdog    | false | 0.50 | 0   | 0.00 -> budget_50_low_skipped
+  other-low-passes-at-79          | false | low      | speculation | false | 0.79 | 0   | 0.00 -> ok
+  watchdog-passes-at-49           | false | low      | watchdog    | false | 0.49 | 0   | 0.00 -> ok
+  hit-rate-boundary-is-ok         | false | low      | speculation | false | 0.10 | 50  | 0.40 -> ok
+  # the rules judge nothing below 50 samples (Q-B1); today's host passes hitTotal 50 for a known rate, so speculation is still skipped after the first miss
+  warmup-spares-the-first-miss    | false | low      | speculation | false | 0.10 | 1   | 0.00 -> ok
+END
+
+EXAMPLES budgetRun
+  id                  | budgetDisabled | budgetPriority | budgetFeature | budgetDayCapExceeded | budgetSessionPct | hitTotal | hitRatio -> expected
+  ok-runs             | false | medium   | scene_brief | false | 0.10 | 0   | 0.00 -> true
+  disabled-runs       | true  | low      | watchdog    | true  | 0.99 | 0   | 0.00 -> true
+  critical-at-95-runs | false | critical | ask         | false | 0.95 | 0   | 0.00 -> true
+  low-hit-rate-skips  | false | medium   | scene_brief | false | 0.10 | 100 | 0.39 -> false
+  day-cap-skips       | false | critical | ask         | true  | 0.10 | 0   | 0.00 -> false
+  budget-95-skips     | false | medium   | scene_brief | false | 0.95 | 0   | 0.00 -> false
+  budget-80-skips     | false | low      | summarize   | false | 0.80 | 0   | 0.00 -> false
+  budget-50-skips     | false | low      | watchdog    | false | 0.50 | 0   | 0.00 -> false
+END

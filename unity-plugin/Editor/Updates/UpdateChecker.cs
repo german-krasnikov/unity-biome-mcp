@@ -174,12 +174,9 @@ namespace UnityMCP.Editor
                 context.AvailableVersion = version;
         }
 
-        static bool IsNewer(string candidate, string current)
-        {
-            if (!System.Version.TryParse(candidate, out var a)) return false;
-            if (!System.Version.TryParse(current,   out var b)) return false;
-            return a > b;
-        }
+        // UI-1/Q16: the one DECISION isNewer (dsl/decisions/versionorder.logic), shared with ChangelogReader and
+        // ReleaseDiff and with server/src/unity_mcp/_update_check.py.
+        static bool IsNewer(string candidate, string current) => Decisions.VersionFacts.IsNewer(candidate, current);
 
         internal static string GetCurrentVersion()
         {

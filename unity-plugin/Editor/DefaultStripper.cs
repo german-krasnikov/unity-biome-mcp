@@ -6,27 +6,34 @@ namespace UnityMCP.Editor
     // Port of server/src/unity_mcp/compressor.py strip_defaults().
     // Removes lines whose value is a known Unity default to save tokens.
     // Always preserves blank, headers, separators, err: lines.
+    // Default data sourced from dsl/data/stripdefaults*.core-data via StripDefaultRows
+    // and FieldSpecificDefaultRows.
     internal static class DefaultStripper
     {
-        private static readonly HashSet<string> Defaults = new HashSet<string>
-        {
-            "0", "0.0", "false", "null", "None", "\"\"",
-            "(0, 0, 0)", "(0.0, 0.0, 0.0)",
-            "(0, 0, 0, 1)", "(0.0, 0.0, 0.0, 1.0)",
-            "(1, 1, 1)", "(1.0, 1.0, 1.0)",
-            "[]", "#00000000", "Untagged", "Default",
-            "(0, 0)", "(0, 0, 0, 0)", "#FFFFFFFF",
-        };
-
+        private static readonly HashSet<string> Defaults = BuildDefaults();
         // Field-specific defaults: "1"/"1.0" only stripped for known fields to avoid
         // false positives (e.g. user health = 1 should not be stripped).
-        private static readonly Dictionary<string, HashSet<string>> FieldDefaults =
-            new Dictionary<string, HashSet<string>>
+        private static readonly Dictionary<string, HashSet<string>> FieldDefaults = BuildFieldDefaults();
+
+        private static HashSet<string> BuildDefaults()
         {
-            { "m_mass",     new HashSet<string> { "1", "1.0" } },
-            { "m_layer",    new HashSet<string> { "0" } },
-            { "m_isstatic", new HashSet<string> { "false", "False" } },
-        };
+            var set = new HashSet<string>(StripDefaultRows.All.Length);
+            foreach (var row in StripDefaultRows.All)
+                set.Add(row.Value);
+            return set;
+        }
+
+        private static Dictionary<string, HashSet<string>> BuildFieldDefaults()
+        {
+            var d = new Dictionary<string, HashSet<string>>();
+            foreach (var row in FieldSpecificDefaultRows.All)
+            {
+                if (!d.TryGetValue(row.FieldKey, out var set))
+                    d[row.FieldKey] = set = new HashSet<string>();
+                set.Add(row.Value);
+            }
+            return d;
+        }
 
         public static string Strip(string text)
         {

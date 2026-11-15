@@ -1,0 +1,11 @@
+# Facts of the ask() keyword router (router.py:35-57). Each fact is one regex evaluated over the question; the host evaluates all of them (cheap), the rule order is the priority. ask.countActive is deliberately absent — its match is a no-op on the decided route (CANONICAL_PLANS["COUNT_ACTIVE"] is None; see ask/plans.py:27), confirmed by test_ask.py:test_router_count_active_falls_through_to_scene_query.
+CONTRACT unitymcp.askroute
+COVERAGE declared-scope
+MODULE askroute_facts
+FACT ask.mutating bool
+FACT ask.unityNoun bool
+FACT ask.brokenRefs bool
+FACT ask.sceneHealth bool
+FACT ask.editorState bool
+FACT ask.compile bool
+INPUT askRoute ask.mutating ask.unityNoun ask.brokenRefs ask.sceneHealth ask.editorState ask.compile

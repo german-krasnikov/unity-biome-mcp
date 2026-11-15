@@ -11,6 +11,7 @@ are acceptable — they prove the handler exists.
 import pytest
 
 from tests.seams.invariants import parse_batch_result
+from unity_mcp.tools.generated.catalog_examples import ARG_EXAMPLES
 from unity_mcp.tools.tool_specs import _SPECS
 
 pytestmark = [pytest.mark.live, pytest.mark.conformance, pytest.mark.asyncio(loop_scope="session")]
@@ -20,81 +21,15 @@ pytestmark = [pytest.mark.live, pytest.mark.conformance, pytest.mark.asyncio(loo
 # Preference: use nonexistent paths so write tools fail at the object-lookup level
 # rather than with a parse/routing error. The test only checks absence of
 # "Unknown command", not whether the command succeeds.
+#
+# Sourced from the catalog's ARG EXAMPLE values (dsl/tools.biome, SV6) instead of a
+# hand-maintained literal: a tool's minimal-args string is its EXAMPLE-bearing ARGs
+# joined as "key=val key2=val2"; a tool with none (safe defaults, or no args at all)
+# gets the empty string via .get(name, "") below.
 _MINIMAL_ARGS: dict[str, str] = {
-    # Tools needing run/request IDs
-    "cancel_test_run": "run_id=__seam_nonexistent",
-    "get_test_progress": "run_id=__seam_nonexistent",
-    "get_test_results": "run_id=__seam_nonexistent",
-    "get_test_run": "run_id=__seam_nonexistent",
-    "resolve_test_request": "request_id=__seam_nonexistent",
-    # Tools needing action enum
-    "asset": "action=list",
-    "editor": "action=status",
-    "prefab": "action=list",
-    "scene": "action=get",
-    "scene_environment": "action=get",
-    "scriptable_object": "action=list",
-    "checkpoint": "action=list",
-    "animation": "path=/Main Camera action=list",
-    "animator": "path=/Main Camera",
-    # Tools needing cmd/query
-    "get_schema": "cmd=get_status",
-    "search_scene": "query=__seam_nonexistent",
-    # Tools needing script
-    "lint_playtest": "script=ASSERT_CONSOLE_CLEAN",
-    # Tools needing from/to
-    "serialized_field_rename_audit": "from=OldField to=NewField",
-    # Tools needing specific path args (nonexistent — returns object-not-found, not Unknown)
-    "auto_wire": "path=/__seam_nonexistent",
-    "autofit_collider": "path=/__seam_nonexistent",
-    "bake": "path=/__seam_nonexistent",
-    "check_colliders": "path=/__seam_nonexistent",
-    "create_object": "name=__seam_surface_probe",
-    "create_ui": "type=Button parent=/__seam_nonexistent",
-    "delete_object": "path=/__seam_nonexistent",
-    "export_playtest_aliases_to_defs": "path=/__seam_nonexistent.defs",
-    "find_objects": "name=__seam_surface_nonexistent",
-    "get_component": "path=/__seam_nonexistent type=Transform",
-    "get_components_list": "path=/__seam_nonexistent",
-    "get_hierarchy": "depth=1",
-    "get_object_detail": "path=/__seam_nonexistent",
-    "get_spatial_context": "path=/__seam_nonexistent",
-    "get_unity_events": "path=/__seam_nonexistent",
-    "inspect": "paths=/Main Camera",
-    "list_events": "path=/__seam_nonexistent",
-    "manage_component": "path=/__seam_nonexistent type=Rigidbody action=add",
-    "material": "path=/__seam_nonexistent action=get",
-    "material_audit": "path=/__seam_nonexistent",
-    "menu": "name=File/Save",
-    "object_diff": "path=/__seam_nonexistent",
-    "particle": "path=/__seam_nonexistent",
-    "ping_object": "path=/__seam_nonexistent",
-    "project_settings": "path=ProjectSettings/TagManager",
-    "references": "action=get path=/__seam_nonexistent",
-    "region_clear": "region=__seam_nonexistent",
-    "rename_object": "path=/__seam_nonexistent name=__seam_renamed",
-    "scene_diff": "path=/__seam_nonexistent",
-    "set_active": "path=/__seam_nonexistent active=false",
-    "set_material": "path=/__seam_nonexistent material=Default-Material",
-    "set_parent": "path=/__seam_nonexistent parent=/",
-    "set_property": "path=/__seam_nonexistent component=Transform prop=m_LocalPosition value=0,0,0",
-    "set_property_delta": "path=/__seam_nonexistent component=Transform prop=m_LocalPosition.x delta=1",
-    "set_rect": "path=/__seam_nonexistent",
-    "set_sibling_index": "path=/__seam_nonexistent index=0",
-    "shader": "path=/__seam_nonexistent",
-    "spatial_query": "path=/__seam_nonexistent",
-    "sync_playtest_aliases_from_defs": "path=/__seam_nonexistent.defs",
-    "timeline": "path=/__seam_nonexistent",
-    "transfer_object": "path=/__seam_nonexistent to=/__seam_target",
-    "undo_last": "",
-    "unwire_event": "path=/__seam_nonexistent event=onClick",
-    "validate_references": "path=/__seam_nonexistent",
-    "validate_triggers": "path=/__seam_nonexistent",
-    "wire_event": "path=/__seam_nonexistent event=onClick target=/__seam_tgt method=SetActive",
-    "inspect_uitk": "path=/__seam_nonexistent",
-    "uitk_element": "path=/__seam_nonexistent action=get",
-    "attach_uitk": "path=/__seam_nonexistent",
-    "batch": "commands=get_status",
+    name: " ".join(f"{k}={v}" for k, v in args.items())
+    for name, args in ARG_EXAMPLES.items()
+    if args
 }
 
 

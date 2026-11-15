@@ -22,7 +22,7 @@ await get_capabilities()
 
 For a repository checkout:
 
-- `server/src/unity_mcp/tools/tool_specs.py` is the per-tool metadata source.
+- `dsl/tools.biome` is the per-tool metadata source; `server/src/unity_mcp/tools/tool_specs.py` merges what it generates.
 - `server/src/unity_mcp/tools/gating.py` derives categories and visibility.
 - `server/src/unity_mcp/server.py` composes module registration.
 - `unity-plugin/Editor/CommandRouter.Registration.cs` and related partials

@@ -80,9 +80,7 @@ namespace UnityMCP.Editor
             if (_reflectionFailed)
                 return "ERR:FrameDebugger reflection unavailable in this Unity version — use action=stats for aggregate data";
 
-            var maxEventsStr = JsonHelper.ExtractString(args, "max_events");
-            int maxEvents = 200;
-            if (maxEventsStr != null) int.TryParse(maxEventsStr, out maxEvents);
+            int maxEvents = RenderAnalyzeArgs.MaxEvents(args) ?? 200;
             if (maxEvents <= 0) maxEvents = 200;
 
             bool wasEnabled = false;

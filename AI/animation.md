@@ -56,7 +56,7 @@ Edit operations are top-level `action` values: `add_key`, `remove_key`,
 - Serializer: `unity-plugin/Editor/AnimationSerializer.cs`
 - Helper: `unity-plugin/Editor/AnimationHelper.cs`
 - Commands: `unity-plugin/Editor/CommandRouter.MediaHandlers.cs`
-- Python tests: `server/tests/test_server_animation.py`
+- Python tests: `server/tests/tools/test_server_animation.py`
 - C# tests: `unity-plugin/Editor/Tests/SerializerTests.cs`
 
 ## MCP Tools
@@ -179,7 +179,7 @@ animation(
 
 ## Tests
 
-- `server/tests/test_server_animation.py` verifies wrapper arguments and actions.
+- `server/tests/tools/test_server_animation.py` verifies wrapper arguments and actions.
 - `unity-plugin/Editor/Tests/SerializerTests.cs` covers clip serialization and
   helper behavior.
 - Use [`AI/testing.md`](testing.md) for current commands and acceptance policy.

@@ -110,6 +110,11 @@ nav:
     - plugins/index.md
     - Plugin API Reference: plugins/api-reference.md
 
+not_in_nav: |
+  wiki.md
+  unity-assistant-2.17-analysis.md
+  plugins/ui-toolkit-best-practices.md
+
 plugins:
   - search
   - minify:

@@ -1,0 +1,13 @@
+PROVENANCE "one row per test the project already has: test_permission_broker.py (Python) and SessionAuthorizationTests.cs (C#); expected is what the test asserts."
+
+EXAMPLES chatPermission
+  id | chatMode | callMutating | callDangerous -> expected
+  p1 | external | true | false -> allow  # test_permission_broker.py:11 SessionAuthorizationTests.cs:15
+  p2 | ask | true | false -> denyAsk  # test_permission_broker.py:15 SessionAuthorizationTests.cs:27
+  p3 | ask | false | false -> allow  # test_permission_broker.py:19 SessionAuthorizationTests.cs:33
+  p4 | agent | true | false -> allow  # test_permission_broker.py:23 SessionAuthorizationTests.cs:128
+  p5 | fullAccess | true | true -> allow  # test_permission_broker.py:27 SessionAuthorizationTests.cs:134
+  p6 | unknown | false | false -> denyUnknownMode  # SessionAuthorization.cs:20 (no test: characterized)
+  p7 | agent | true | true -> denyDangerous  # permission_broker.py:61 SessionAuthorizationTests.cs:142 (C# did not check dangerous in agent mode until SV2/Q15: new test Check_AgentMode_BlocksDangerousCommand)
+  p8 | ask | false | true -> denyAsk  # permission_broker.py:67
+END

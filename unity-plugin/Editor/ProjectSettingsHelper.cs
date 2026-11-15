@@ -12,16 +12,16 @@ namespace UnityMCP.Editor
     {
         internal static string Execute(string action, string argsJson)
         {
-            var target = JsonHelper.ExtractString(argsJson, "target");
-            var prop = JsonHelper.ExtractString(argsJson, "prop");
-            var value = JsonHelper.ExtractString(argsJson, "value");
-            var indexStr = JsonHelper.ExtractString(argsJson, "index");
+            var target = ProjectSettingsArgs.Target(argsJson);
+            var prop = ProjectSettingsArgs.Prop(argsJson);
+            var value = ProjectSettingsArgs.Value(argsJson);
+            var index = ProjectSettingsArgs.Index(argsJson);
 
             return target switch
             {
                 "tags"           => action == "get" ? GetTags()           : (prop == "remove" ? RemoveTag(value) : AddTag(value ?? prop)),
                 "layers"         => action == "get" ? GetLayers()         : SetLayer(
-                    indexStr != null ? int.Parse(indexStr) : throw new System.Exception("'index' is required for layers set"), value),
+                    index ?? throw new System.Exception("'index' is required for layers set"), value),
                 "sorting_layers" => action == "get" ? GetSortingLayers() : throw new System.Exception("sorting_layers is read-only"),
                 "quality"        => action == "get" ? GetQuality()        : SetQuality(prop, value),
                 "physics"        => action == "get" ? GetPhysics()        : SetPhysics(prop, value),
@@ -191,7 +191,7 @@ namespace UnityMCP.Editor
         {
             if (prop == "ScriptingBackend")
             {
-                var buildTargetStr = JsonHelper.ExtractString(argsJson, "build_target") ?? "Standalone";
+                var buildTargetStr = ProjectSettingsArgs.BuildTarget(argsJson) ?? "Standalone";
                 if (!System.Enum.TryParse(buildTargetStr, ignoreCase: true, out BuildTargetGroup group))
                     throw new System.Exception($"Invalid build_target '{buildTargetStr}'. Valid: {string.Join(", ", System.Enum.GetNames(typeof(BuildTargetGroup)))}");
                 if (!System.Enum.TryParse(value, ignoreCase: true, out ScriptingImplementation backend))

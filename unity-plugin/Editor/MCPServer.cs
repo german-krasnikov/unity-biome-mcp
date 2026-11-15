@@ -177,11 +177,26 @@ namespace UnityMCP.Editor
         internal static bool IsReallyCompiling => _isCompiling;
 
         private static double _lastWatchdogCheck;
+        private static double _lastPortSweep;
+        // Mirrors Python PORT_SWEEP_INTERVAL_S (phantom_cleaner.py) — not
+        // auto-synced across languages; update both definition sites together.
+        private const double PortSweepIntervalSeconds = 30.0;
 
         // Pure helper — no Unity API calls, fully unit-testable.
         // Mirrors ReloadPlugin.ShouldStartReloadServer pattern.
         internal static bool ShouldStartServer(bool isBatchMode)
             => !isBatchMode || Environment.GetEnvironmentVariable("UNITY_MCP_ENABLE_BATCHMODE") == "1";
+
+        // Pure helper — no Unity API calls, fully unit-testable.
+        // Root cause fix: CleanStalePeerPortFiles() previously only ran once
+        // (static ctor, which re-fires on cold-start + every domain reload).
+        // An Editor left open for days with no reload/no connected Python
+        // client (so bridge_heartbeat's own sweep never fires either) never
+        // re-swept — stale port files from past sessions accumulated
+        // indefinitely. WatchdogTick's existing EditorApplication.update
+        // callback gives us a periodic hook for a coarser, independent sweep.
+        internal static bool ShouldSweepPorts(double now, double lastSweep, double intervalSeconds)
+            => now - lastSweep >= intervalSeconds;
 
         internal static string ResolveBootstrapScenePath(string projectRoot, string scenePath)
         {
@@ -193,6 +208,33 @@ namespace UnityMCP.Editor
 
         static MCPServer()
         {
+            // Wire the seam unconditionally -- MainThreadDispatcher has no compile-time
+            // reference to MCPServer (Phase 4 Task A), so MCPServer provides its own
+            // shutdown flag via this delegate instead.
+            MainThreadDispatcher.ShuttingDownProvider = () => _shuttingDown;
+            // Phase 2.3 (boundary-hardening): explicit production wiring of the
+            // ClientConnectionHandler → ICommandDispatcher seam. Field already defaults to
+            // this value; set here too so the dependency is visible at the call site (mirrors
+            // the ShuttingDownProvider wiring above) and tests can override it independently.
+            ClientConnectionHandler.Dispatcher = CommandRouterDispatcher.Instance;
+            // Phase 5.3: wire PlaytestRunner seams — Playtest asmdef cannot reference
+            // CommandRouterDispatcher or ScreenshotCapture directly (they live in the monolith).
+            PlaytestRunner.Dispatcher = CommandRouterDispatcher.Instance;
+            PlaytestRunner.CaptureScreenshot = n => ScreenshotCapture.CaptureToFile(cameraName: n);
+            PlaytestRunner.GetConsoleLogs = (n, lvl) => ConsoleCapture.GetLogs(n, lvl);
+            PlaytestRunner.WritePng = (data, prefix) => FileOutputHelper.WritePng(data, prefix: prefix);
+            PlaytestRunner.CreateSimulator = SimulatorRegistry.Create;
+            PlaytestRunner.UISimulateClick = UIElementHelper.SimulateClick;
+            PlaytestRunner.UIFillText = UIElementHelper.FillText;
+            PlaytestRunner.UIFocusElement = UIElementHelper.FocusElement;
+            PlaytestRunner.UIReadValue = UIElementHelper.ReadValue;
+            PlaytestRunner.GetConsoleErrorsSince = ConsoleCapture.GetErrorsSince;
+            PlaytestMcpPolicy.IsRuntimeCommand = CommandRegistry.IsRuntime;
+            PlaytestMcpPolicy.PlaytestDenied = ToolUi.PlaytestDenied;
+            PlaytestMcpPolicy.GetEditorAction = EditorArgs.Action;
+            PlaytestAliasWindow.LoadStyleSheet = MCPEditorUtils.LoadStyleSheet;
+            RuntimeHelper.GetConsoleLogs = (n, lvl) => ConsoleCapture.GetLogs(n, lvl);
+
             if (!ShouldStartServer(Application.isBatchMode)) return;
 
             RegisterLifecycleCallbacks();
@@ -204,6 +246,14 @@ namespace UnityMCP.Editor
             EditorApplication.delayCall += () => StartAsync();
         }
 
+        // Task 1.3: thin adapter — MCPServer is a static class and cannot implement
+        // IReloadLifecycleSink itself. OnBeforeReload() body is unchanged.
+        private sealed class ReloadSink : IReloadLifecycleSink
+        {
+            public void OnBeforeReload() => MCPServer.OnBeforeReload();
+        }
+        private static readonly ReloadSink _reloadSink = new ReloadSink();
+
         internal static void RegisterLifecycleCallbacks()
         {
             if (_lifecycleCallbacksRegistered) return;
@@ -211,7 +261,7 @@ namespace UnityMCP.Editor
             // Register WatchdogTick FIRST — so it survives even if PortFileManager throws below.
             EditorApplication.update += WatchdogTick;
             EditorApplication.quitting += OnQuit;
-            AssemblyReloadEvents.beforeAssemblyReload += OnBeforeReload;
+            ReloadLifecycleCoordinator.Register(_reloadSink);
             CompilationPipeline.compilationStarted += _ => OnCompilationStarted();
             CompilationPipeline.compilationFinished += _ => OnCompilationFinished();
             EditorSceneManager.sceneOpened += (_, _) => InvalidateSceneCaches();
@@ -257,6 +307,11 @@ namespace UnityMCP.Editor
             if (_shuttingDown) return;
             if (EditorApplication.timeSinceStartup - _lastWatchdogCheck < 5.0) return;
             _lastWatchdogCheck = EditorApplication.timeSinceStartup;
+            if (ShouldSweepPorts(EditorApplication.timeSinceStartup, _lastPortSweep, PortSweepIntervalSeconds))
+            {
+                _lastPortSweep = EditorApplication.timeSinceStartup;
+                PortFileManager.CleanStalePeerPortFiles();
+            }
             if (!IsRunning && !IsReallyCompiling)
                 StartAsync();
         }
@@ -532,7 +587,7 @@ namespace UnityMCP.Editor
         // ── Tier 4b: status response format ──────────────────────────────────
 
         // synced by sync_versions.py — do not edit manually
-        internal static string PluginVersion => "2.1.0";
+        internal static string PluginVersion => "3.0.0";
 
         internal static string BuildVersionString(string stamp, string pluginVersion)
         {
@@ -549,9 +604,10 @@ namespace UnityMCP.Editor
             var portVal  = ServerPort;
             var bindFail = _lastWrittenState == "bind_failed" ? "true" : "false";
             var fallback = _portFallback ? "true" : "false";
-            return $"{{\"id\":\"{msgId}\",\"ok\":true,\"data\":\"{state}\"," +
-                   $"\"compile\":{compile},\"port\":{portVal}," +
-                   $"\"bind_failed\":{bindFail},\"port_fallback\":{fallback}}}";
+            return JsonHelper.FormatResponseExtra(msgId, true,
+                $"\"data\":\"{state}\"," +
+                $"\"compile\":{compile},\"port\":{portVal}," +
+                $"\"bind_failed\":{bindFail},\"port_fallback\":{fallback}");
         }
 
         // T19: stable project identity — main-thread-only (PlayerSettings + Application APIs).

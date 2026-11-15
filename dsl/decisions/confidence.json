@@ -1,0 +1,20 @@
+{
+  "generated": "from confidence.examples by npm run logic -- examples; do not edit",
+  "provenance": "Transcribed from tests the project already has: server/tests/middleware/test_middleware.py tests for update_confidence and maybe_verify_visual. updatedValue is the post-arithmetic value the host computes; isWrite documents the direction.",
+  "confidenceBand": [
+    { "id": "read-high", "facts": { "confIsWrite": false, "confUpdatedValue": 1 }, "expected": "ok", "provenance": "test_middleware.py:41 fresh mw, read keeps confidence at 1.0, no suffix" },
+    { "id": "read-boost-crosses-threshold", "facts": { "confIsWrite": false, "confUpdatedValue": 0.55 }, "expected": "ok", "provenance": "test_middleware.py:47 0.4+0.15=0.55, no suffix" },
+    { "id": "write-drops-to-warn", "facts": { "confIsWrite": true, "confUpdatedValue": 0.12 }, "expected": "low", "provenance": "test_middleware.py:47 0.2-0.08=0.12 < 0.3 → LOW CONFIDENCE (also < 0.5 so suffix present)" },
+    { "id": "write-low-warning", "facts": { "confIsWrite": true, "confUpdatedValue": 0.07 }, "expected": "low", "provenance": "test_middleware.py:76 0.15-0.08=0.07 < 0.3" },
+    { "id": "read-stays-warn", "facts": { "confIsWrite": false, "confUpdatedValue": 0.45 }, "expected": "warn", "provenance": "representative: 0.3 <= 0.45 < 0.5 → warn band" },
+    { "id": "write-at-zero", "facts": { "confIsWrite": true, "confUpdatedValue": 0 }, "expected": "low", "provenance": "clamped to 0: low" },
+    { "id": "read-at-exactly-half", "facts": { "confIsWrite": false, "confUpdatedValue": 0.5 }, "expected": "ok", "provenance": "exactly 0.5 → ok" },
+    { "id": "write-to-exactly-low", "facts": { "confIsWrite": true, "confUpdatedValue": 0.3 }, "expected": "warn", "provenance": "exactly 0.3 → warn (not low)" }
+  ],
+  "shouldVerify": [
+    { "id": "high-skip", "facts": { "confUpdatedValue": 1 }, "expected": "skip", "provenance": "test_middleware_async: confidence >= 0.5 → skip" },
+    { "id": "at-threshold-skip", "facts": { "confUpdatedValue": 0.5 }, "expected": "skip", "provenance": "exactly 0.5 → skip" },
+    { "id": "below-threshold-verify", "facts": { "confUpdatedValue": 0.49 }, "expected": "verify", "provenance": "< 0.5 → verify" },
+    { "id": "zero-verify", "facts": { "confUpdatedValue": 0 }, "expected": "verify", "provenance": "floor → verify" }
+  ]
+}

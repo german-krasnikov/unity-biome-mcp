@@ -86,9 +86,11 @@ namespace UnityMCP.TestProject.Command
         [Test]
         public void MissingRequired_ReportsAll()
         {
-            var err = CommandValidator.Validate("get_component", "{\"path\":\"/A\"}");
+            // get_component: required "path" only — "type" has DEFAULT_TEXT "" in
+            // dsl/tools.biome (optional, defaults to ""); only omitting "path" is missing-required.
+            var err = CommandValidator.Validate("get_component", "{\"type\":\"Transform\"}");
             Assert.IsNotNull(err);
-            StringAssert.Contains("!type", err);
+            StringAssert.Contains("!path", err);
         }
 
         [Test]
@@ -222,9 +224,11 @@ namespace UnityMCP.TestProject.Command
         [Test]
         public void Batch_ValidationError_MissingRequired()
         {
-            var result = BatchHelper.Execute("get_component path=/A", "continue");
+            // get_component: "type" is optional (DEFAULT_TEXT "" in dsl/tools.biome) — only
+            // "path" is required, so omit that instead.
+            var result = BatchHelper.Execute("get_component type=Transform", "continue");
             StringAssert.Contains("[0] err:", result);
-            StringAssert.Contains("!type", result);
+            StringAssert.Contains("!path", result);
         }
 
         [Test]

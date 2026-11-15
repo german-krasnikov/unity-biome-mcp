@@ -1,0 +1,16 @@
+{
+  "generated": "from reloadtier.examples by npm run logic -- examples; do not edit",
+  "provenance": "Transcribed from tests in server/tests/bridge/test_reload_ladder.py. Each row is one test scenario; expected is what that test asserts the ladder does at the tier-routing branch.",
+  "reloadRoute": [
+    { "id": "guard-no-consent", "facts": { "tierGuardWedged": true, "tierMainDead": false, "tierRunnerActive": false, "tierConsentGiven": false }, "expected": "guardBlocked" },
+    { "id": "guard-with-consent", "facts": { "tierGuardWedged": true, "tierMainDead": false, "tierRunnerActive": false, "tierConsentGiven": true }, "expected": "t5Guard" },
+    { "id": "guard-dead-no-consent", "facts": { "tierGuardWedged": true, "tierMainDead": true, "tierRunnerActive": false, "tierConsentGiven": false }, "expected": "guardBlocked" },
+    { "id": "guard-dead-with-consent", "facts": { "tierGuardWedged": true, "tierMainDead": true, "tierRunnerActive": false, "tierConsentGiven": true }, "expected": "t5Guard" },
+    { "id": "main-alive-no-guard", "facts": { "tierGuardWedged": false, "tierMainDead": false, "tierRunnerActive": false, "tierConsentGiven": false }, "expected": "t3Ahead" },
+    { "id": "main-alive-runner-no-guard", "facts": { "tierGuardWedged": false, "tierMainDead": false, "tierRunnerActive": true, "tierConsentGiven": false }, "expected": "t3Ahead" },
+    { "id": "main-dead-runner", "facts": { "tierGuardWedged": false, "tierMainDead": true, "tierRunnerActive": true, "tierConsentGiven": false }, "expected": "t4Ahead" },
+    { "id": "main-dead-consent-only", "facts": { "tierGuardWedged": false, "tierMainDead": true, "tierRunnerActive": false, "tierConsentGiven": true }, "expected": "t5Ahead" },
+    { "id": "main-dead-no-runner-no-consent", "facts": { "tierGuardWedged": false, "tierMainDead": true, "tierRunnerActive": false, "tierConsentGiven": false }, "expected": "manualRequired" },
+    { "id": "no-paths", "facts": { "tierGuardWedged": false, "tierMainDead": true, "tierRunnerActive": false, "tierConsentGiven": false }, "expected": "manualRequired" }
+  ]
+}

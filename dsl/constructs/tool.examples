@@ -1,0 +1,719 @@
+EXAMPLE a TOOL prints the fields of its ToolSpec and the descriptions of its arguments
+  SOURCE TOOL search_scene SCENE RO "Search."
+  SOURCE   FLAG tier1
+  SOURCE   TIMEOUT 15.0
+  SOURCE   MAXCHARS 30000
+  SOURCE   ARG query str "Syntax"
+  SOURCE   ARG limit int DEFAULT 50
+  SOURCE END
+  EXPECT rendered.pyspec 'search_scene': {
+  EXPECT rendered.pyspec 'category': 'SCENE',
+  EXPECT rendered.pyspec 'effect': 'RO',
+  EXPECT rendered.pyspec 'tier1': True,
+  EXPECT rendered.pyspec 'timeout_s': 15.0,
+  EXPECT rendered.pyspec 'max_chars': 30000,
+  EXPECT unrendered.pyspec direct_only
+  EXPECT rendered.pyparams 'query': "Syntax",
+  EXPECT unrendered.pyparams limit
+
+EXAMPLE EXAMPLE on an ARG prints its illustrative value, one without prints nothing
+  SOURCE TOOL search_scene SCENE RO "Search."
+  SOURCE   ARG query str EXAMPLE "Player"
+  SOURCE   ARG limit int DEFAULT 50
+  SOURCE END
+  EXPECT rendered.pyexamples 'search_scene': {
+  EXPECT rendered.pyexamples 'query': "Player",
+  EXPECT unrendered.pyexamples limit
+
+EXAMPLE a FORWARD tool prints its expectation and its wrapper, which leaves out an OMIT argument that equals its default
+  SOURCE TOOL search_scene SCENE RO "Search."
+  SOURCE   FORWARD
+  SOURCE   DOC "root: scope \"here\"."
+  SOURCE   DOC "limit: max."
+  SOURCE   ARG query str
+  SOURCE   ARG root ostr DEFAULT None
+  SOURCE   ARG limit int DEFAULT 50 OMIT
+  SOURCE   ARG count int DEFAULT 5
+  SOURCE END
+  EXPECT rendered.pytools tools.expect('search_scene', 'RO', "Search.", (
+  EXPECT rendered.pytools ('root', ostr, None),
+  EXPECT rendered.pytools ('limit', int, 50),
+  EXPECT rendered.pytools @tools.provide
+  EXPECT rendered.pytools async def search_scene(
+  EXPECT rendered.pytools root: ostr = None,
+  EXPECT rendered.pytools ("Search."
+  EXPECT rendered.pytools "\n    root: scope \"here\"."
+  EXPECT rendered.pytools "\n    limit: max."
+  EXPECT rendered.pytools query=rt.w_str(query),
+  EXPECT rendered.pytools root=rt.w_ostr(root),
+  EXPECT rendered.pytools limit=rt.w_int(limit, 50),
+  EXPECT rendered.pytools count=rt.w_int(count),
+
+EXAMPLE a BODY tool prints its expectation and a wrapper that calls the hand module instead of _send
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   BODY objects
+  SOURCE   DOC "a: the thing."
+  SOURCE   ARG a str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pytools tools.expect_body('frob', 'objects')
+  EXPECT rendered.pytools @tools.provide
+  EXPECT rendered.pytools async def frob(
+  EXPECT rendered.pytools ("Frob."
+  EXPECT rendered.pytools "\n    a: the thing."
+  EXPECT rendered.pytools from .. import objects as _biome_body_mod
+  EXPECT rendered.pytools return await _biome_body_mod._frob_body(
+  EXPECT rendered.pytools a=a,
+  EXPECT unrendered.pytools _send(
+
+EXAMPLE a PYTOOL with BODY prints its expectation, a wrapper that calls the hand module, and its DOC lines
+  SOURCE PYTOOL gizmo SYSTEM RW "Gizmo."
+  SOURCE   BODY gizmo_tool
+  SOURCE   DOC "a: the thing."
+  SOURCE   ARG a str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pytools tools.expect_body('gizmo', 'gizmo_tool')
+  EXPECT rendered.pytools @tools.provide
+  EXPECT rendered.pytools async def gizmo(
+  EXPECT rendered.pytools ("Gizmo."
+  EXPECT rendered.pytools "\n    a: the thing."
+  EXPECT rendered.pytools from .. import gizmo_tool as _biome_body_mod
+  EXPECT rendered.pytools return await _biome_body_mod._gizmo_body(
+  EXPECT rendered.pytools a=a,
+  EXPECT unrendered.pytools _send(
+
+EXAMPLE a PYTOOL is direct_only, escapes its descriptions, and prints only an expectation like a TOOL that is not FORWARD
+  SOURCE PYTOOL use_skill SYSTEM RW "Use."
+  SOURCE   ARG name str "say \"hi\" \\ bye"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  SOURCE TOOL x SCENE RW "X."
+  SOURCE   ARG a str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pyspec 'use_skill': {
+  EXPECT rendered.pyspec 'direct_only': True,
+  EXPECT unrendered.pyspec tier1
+  EXPECT unrendered.pyspec timeout_s
+  EXPECT unrendered.pyspec max_chars
+  EXPECT rendered.pyparams 'name': "say \"hi\" \\ bye",
+  EXPECT rendered.pytools tools.expect('use_skill', 'RW', "Use.", (
+  EXPECT rendered.pytools tools.expect('x', 'RW', "X.", (
+  EXPECT unrendered.pytools async def
+
+EXAMPLE the table of the docs has a row per tool: its plane, category and effect
+  SOURCE TOOL x SCENE RW_IDEM "X."
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  SOURCE PYTOOL y SYSTEM RO "Y."
+  SOURCE END
+  EXPECT rendered.mdtools | `x` | unity | SCENE | RW_IDEM |
+  EXPECT rendered.mdtools | `y` | python | SYSTEM | RO |
+
+EXAMPLE a name or an argument twice
+  SOURCE TOOL x SCENE RO "X."
+  SOURCE   ARG a str
+  SOURCE   ARG a int
+  SOURCE END
+  SOURCE TOOL x SCENE RW "X."
+  SOURCE END
+  EXPECT diagnostic DECLARE_DUPLICATE at 3:7
+  EXPECT diagnostic DECLARE_DUPLICATE at 5:6
+
+EXAMPLE an effect, a category or a type outside the lists, no summary, OMIT without a default
+  SOURCE TOOL x SCENE WRITE "X."
+  SOURCE END
+  SOURCE TOOL y SCENES RO "Y."
+  SOURCE END
+  SOURCE TOOL z SCENE RO "Z."
+  SOURCE   ARG a integer
+  SOURCE   ARG b int OMIT
+  SOURCE END
+  SOURCE TOOL w SCENE RO
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 1:14
+  EXPECT diagnostic DECLARE_SYNTAX at 3:8
+  EXPECT diagnostic DECLARE_SYNTAX at 6:9
+  EXPECT diagnostic DECLARE_SYNTAX at 7:13
+  EXPECT diagnostic DECLARE_SYNTAX at 9:14
+
+EXAMPLE a PYTOOL is direct_only already and has no Unity-side words: unity_transport, MAXCHARS
+  SOURCE PYTOOL x SYSTEM RO "X."
+  SOURCE   FLAG unity_transport
+  SOURCE   FLAG direct_only
+  SOURCE   MAXCHARS 5
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:8
+  EXPECT diagnostic DECLARE_SYNTAX at 3:8
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 4:3
+
+EXAMPLE an argument has a text default, is sent raw, is left out when it equals its default, and may be written in camelCase
+  SOURCE TOOL show SCENE RO "Show."
+  SOURCE   FORWARD
+  SOURCE   ARG mode str DEFAULT_TEXT "all" OMIT
+  SOURCE   ARG label str DEFAULT_TEXT "say \"hi\"" "A label"
+  SOURCE   ARG depth int DEFAULT 2 RAW
+  SOURCE   ARG both int DEFAULT 5 OMIT RAW
+  SOURCE   ARG index int RAW
+  SOURCE   ARG agentRadius float DEFAULT 0.5
+  SOURCE END
+  EXPECT rendered.pytools ('mode', str, "all"),
+  EXPECT rendered.pytools ('label', str, "say \"hi\""),
+  EXPECT rendered.pytools ('agentRadius', float, 0.5),
+  EXPECT rendered.pytools mode: str = "all",
+  EXPECT rendered.pytools depth: int = 2,
+  EXPECT rendered.pytools mode=rt.w_str(mode, "all"),
+  EXPECT rendered.pytools label=rt.w_str(label),
+  EXPECT rendered.pytools depth=rt.w_int(depth, raw=True),
+  EXPECT rendered.pytools both=rt.w_int(both, 5, raw=True),
+  EXPECT rendered.pytools index=rt.w_int(index, raw=True),
+  EXPECT rendered.pytools agentRadius=rt.w_float(agentRadius),
+  EXPECT rendered.pyparams 'label': "A label",
+
+EXAMPLE a parameter typed Any and a text default are only expected, for a TOOL and for a PYTOOL
+  SOURCE TOOL run_it TESTS RW "Run."
+  SOURCE   ARG ctx Any DEFAULT None
+  SOURCE   ARG mode str DEFAULT_TEXT "x y" "A mode"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  SOURCE PYTOOL py_one SYSTEM RO "Py."
+  SOURCE   ARG value Any
+  SOURCE   ARG note str DEFAULT_TEXT ""
+  SOURCE END
+  EXPECT rendered.pytools ('ctx', Any, None),
+  EXPECT rendered.pytools ('mode', str, "x y"),
+  EXPECT rendered.pytools ('value', Any),
+  EXPECT rendered.pytools ('note', str, ""),
+  EXPECT rendered.pyparams 'mode': "A mode",
+  EXPECT unrendered.pytools async def
+
+EXAMPLE RUNTIME gives runtime_only to a TOOL
+  SOURCE TOOL run_it TESTS RW "Run."
+  SOURCE   RUNTIME
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pyspec 'runtime_only': True,
+
+EXAMPLE RUNTIME gives runtime_only to a PYTOOL
+  SOURCE PYTOOL py_one SYSTEM RO "Py."
+  SOURCE   RUNTIME
+  SOURCE END
+  EXPECT rendered.pyspec 'runtime_only': True,
+
+EXAMPLE a block without RUNTIME is not runtime_only
+  SOURCE TOOL calm SCENE RO "Calm."
+  SOURCE END
+  SOURCE PYTOOL py_one SYSTEM RO "Py."
+  SOURCE END
+  EXPECT unrendered.pyspec runtime_only
+
+EXAMPLE INTERNAL is a wire command that has a ToolSpec and nothing else
+  SOURCE INTERNAL ping RO "Liveness probe."
+  SOURCE   TIMEOUT 5.0
+  SOURCE END
+  SOURCE INTERNAL put_it RW "Import."
+  SOURCE   FLAG direct_only
+  SOURCE   FLAG unity_transport
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pyspec 'ping': {
+  EXPECT rendered.pyspec 'category': '_INTERNAL',
+  EXPECT rendered.pyspec 'effect': 'RW',
+  EXPECT rendered.pyspec 'timeout_s': 5.0,
+  EXPECT rendered.pyspec 'unity_transport': True,
+  EXPECT unrendered.pytools ping
+  EXPECT unrendered.pyparams put_it
+  EXPECT unrendered.mdtools ping
+
+EXAMPLE INTERNAL has no effect other than RO and RW, no flag but direct_only and unity_transport, and no RUNTIME
+  SOURCE INTERNAL x WRITE "X."
+  SOURCE END
+  SOURCE INTERNAL y RO "Y."
+  SOURCE   FLAG core
+  SOURCE END
+  SOURCE INTERNAL z RO "Z."
+  SOURCE   RUNTIME
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 1:12
+  EXPECT diagnostic DECLARE_SYNTAX at 4:8
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 7:3
+
+EXAMPLE a READ action of a TOOL or a PYTOOL is printed for Python and for C#, a tool without one is not
+  SOURCE TOOL scene SCENE RW "Scene."
+  SOURCE   ARG action str
+  SOURCE   READ list
+  SOURCE   READ get_info
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  SOURCE PYTOOL navmesh_query SCENE RW "NavMesh."
+  SOURCE   ARG action str
+  SOURCE   READ status
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  SOURCE TOOL calm SCENE RO "Calm."
+  SOURCE   ARG a str
+  SOURCE END
+  EXPECT rendered.pyreads 'scene': frozenset({
+  EXPECT rendered.pyreads 'list',
+  EXPECT rendered.pyreads 'get_info',
+  EXPECT rendered.pyreads 'navmesh_query': frozenset({
+  EXPECT rendered.pyreads 'status',
+  EXPECT unrendered.pyreads 'calm'
+  EXPECT rendered.csreads case "scene":
+  EXPECT rendered.csreads case "list":
+  EXPECT rendered.csreads case "get_info":
+  EXPECT rendered.csreads case "navmesh_query":
+  EXPECT rendered.csreads case "status":
+  EXPECT unrendered.csreads case "calm":
+  EXPECT unrendered.pyspec READ
+
+EXAMPLE an ACTION may carry READ itself instead of a separate READ line, for the same tables
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION get READ
+  SOURCE   ACTION set
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pyreads 'frob': frozenset({
+  EXPECT rendered.pyreads 'get',
+  EXPECT rendered.csreads case "frob":
+  EXPECT rendered.csreads case "get":
+
+EXAMPLE an ACTION READ and a separate READ line coexist across different tools without interference
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION get READ
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  SOURCE TOOL scene SCENE RW "Scene."
+  SOURCE   ARG action str
+  SOURCE   READ list
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pyreads 'frob': frozenset({
+  EXPECT rendered.pyreads 'get',
+  EXPECT rendered.pyreads 'scene': frozenset({
+  EXPECT rendered.pyreads 'list',
+
+EXAMPLE a tool whose declared ACTIONs are all mutating still prints an empty READ table entry (no WHERE on IF ANY ACTION to suppress it -- a known, inert toolchain gap: isMutating still asks the inner table first and finds nothing, same as not being listed at all); the inner switch must stay valid C# with no case label at all (a bare statement before any case/default does not compile)
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION get
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pyreads 'frob': frozenset({
+  EXPECT rendered.csreads case "frob":
+
+EXAMPLE two ACTION READ actions on one tool each render their own case (the dotnet Decisions lane compiles the result -- this guards the shape, not just presence)
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION get READ
+  SOURCE   ACTION list READ
+  SOURCE   ACTION set
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csreads case "get":
+  EXPECT rendered.csreads return true;
+  EXPECT rendered.csreads case "list":
+
+EXAMPLE a READ action is spelt in lower case, once, and an INTERNAL has none
+  SOURCE TOOL x SCENE RW "X."
+  SOURCE   READ Get
+  SOURCE   READ list
+  SOURCE   READ list
+  SOURCE END
+  SOURCE INTERNAL y RO "Y."
+  SOURCE   READ get
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:8
+  EXPECT diagnostic DECLARE_DUPLICATE at 4:8
+  EXPECT diagnostic DECLARE_UNKNOWN_KEYWORD at 7:3
+
+EXAMPLE cstools sorts ARGs into Required/Optional and reads Mutating from effect
+  SOURCE TOOL frobnicate SCENE RW "Frob."
+  SOURCE   ARG target str
+  SOURCE   ARG amount int DEFAULT 5
+  SOURCE   ARG label str DEFAULT_TEXT "x"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.cstools case "frobnicate":
+  EXPECT rendered.cstools Mutating = true,
+  EXPECT rendered.cstools Required = string.Join(",", new string[] {
+  EXPECT rendered.cstools "target",
+  EXPECT rendered.cstools }),
+  EXPECT rendered.cstools Optional = string.Join(",", new string[] {
+  EXPECT rendered.cstools "amount",
+  EXPECT rendered.cstools "label",
+  EXPECT rendered.cstools }),
+
+EXAMPLE cstools prints Mutating false and the empty-array form for a RO TOOL with no ARGs, and omits RUNTIME/MAXCHARS/GUARD/WIRE fields it does not declare
+  SOURCE TOOL calm SCENE RO "Calm."
+  SOURCE END
+  EXPECT rendered.cstools case "calm":
+  EXPECT rendered.cstools Mutating = false,
+  EXPECT rendered.cstools Required = string.Join(",", new string[] {
+  EXPECT rendered.cstools }),
+  EXPECT rendered.cstools Optional = string.Join(",", new string[] {
+  EXPECT rendered.cstools }),
+  EXPECT unrendered.cstools Runtime = true,
+  EXPECT unrendered.cstools MaxResponseChars
+  EXPECT unrendered.cstools AlwaysAllowed
+  EXPECT unrendered.cstools AllowedDuringCompile
+  EXPECT unrendered.cstools PlayOk
+  EXPECT unrendered.cstools SpecialDispatch
+  EXPECT unrendered.cstools NotBatchable
+  EXPECT unrendered.cstools NoUndo
+
+EXAMPLE cstools prints RUNTIME, MAXCHARS and every GUARD/WIRE flag when a TOOL declares them
+  SOURCE TOOL loaded_up TESTS RW "Loaded."
+  SOURCE   RUNTIME
+  SOURCE   MAXCHARS 20000
+  SOURCE   GUARD always
+  SOURCE   GUARD compile
+  SOURCE   GUARD play_ok
+  SOURCE   WIRE special
+  SOURCE   WIRE not_batch
+  SOURCE   WIRE no_undo
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.cstools case "loaded_up":
+  EXPECT rendered.cstools Runtime = true,
+  EXPECT rendered.cstools MaxResponseChars = 20000,
+  EXPECT rendered.cstools AlwaysAllowed = true,
+  EXPECT rendered.cstools AllowedDuringCompile = true,
+  EXPECT rendered.cstools PlayOk = true,
+  EXPECT rendered.cstools SpecialDispatch = true,
+  EXPECT rendered.cstools NotBatchable = true,
+  EXPECT rendered.cstools NoUndo = true,
+
+EXAMPLE cstools prints the empty-array form for an INTERNAL with no ARG and never renders a PYTOOL
+  SOURCE INTERNAL stop_it RO "Stop."
+  SOURCE   GUARD play_ok
+  SOURCE   WIRE no_undo
+  SOURCE END
+  SOURCE PYTOOL py_side SYSTEM RO "Py."
+  SOURCE END
+  EXPECT rendered.cstools case "stop_it":
+  EXPECT rendered.cstools Required = string.Join(",", new string[] {
+  EXPECT rendered.cstools }),
+  EXPECT rendered.cstools Optional = string.Join(",", new string[] {
+  EXPECT rendered.cstools }),
+  EXPECT rendered.cstools PlayOk = true,
+  EXPECT rendered.cstools NoUndo = true,
+  EXPECT unrendered.cstools py_side
+
+EXAMPLE cstools sorts an INTERNAL's ARGs into Required/Optional like a TOOL's
+  SOURCE INTERNAL fetch_it RW "Fetch."
+  SOURCE   ARG path str
+  SOURCE   ARG limit int DEFAULT 10
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.cstools case "fetch_it":
+  EXPECT rendered.cstools Required = string.Join(",", new string[] {
+  EXPECT rendered.cstools "path",
+  EXPECT rendered.cstools }),
+  EXPECT rendered.cstools Optional = string.Join(",", new string[] {
+  EXPECT rendered.cstools "limit",
+  EXPECT rendered.cstools }),
+
+EXAMPLE cstools excludes a LOCAL ARG from both Required and Optional
+  SOURCE TOOL frobnicate SCENE RW "Frob."
+  SOURCE   ARG target str
+  SOURCE   ARG amount int DEFAULT 5
+  SOURCE   ARG hidden str LOCAL
+  SOURCE   ARG cached int DEFAULT 1 LOCAL
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.cstools case "frobnicate":
+  EXPECT rendered.cstools Required = string.Join(",", new string[] {
+  EXPECT rendered.cstools "target",
+  EXPECT rendered.cstools }),
+  EXPECT rendered.cstools Optional = string.Join(",", new string[] {
+  EXPECT rendered.cstools "amount",
+  EXPECT rendered.cstools }),
+  EXPECT unrendered.cstools hidden
+  EXPECT unrendered.cstools cached
+
+EXAMPLE cstools emits WIRE's name instead of the ARG's own name in Required/Optional
+  SOURCE TOOL relabel SCENE RW "Relabel."
+  SOURCE   ARG old_name str WIRE "new_name"
+  SOURCE   ARG old_opt str DEFAULT_TEXT "x" WIRE "new_opt"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.cstools case "relabel":
+  EXPECT rendered.cstools Required = string.Join(",", new string[] {
+  EXPECT rendered.cstools "new_name",
+  EXPECT rendered.cstools }),
+  EXPECT rendered.cstools Optional = string.Join(",", new string[] {
+  EXPECT rendered.cstools "new_opt",
+  EXPECT rendered.cstools }),
+  EXPECT unrendered.cstools old_name
+  EXPECT unrendered.cstools old_opt
+
+EXAMPLE ARG LOCAL and WIRE exclude each other
+  SOURCE TOOL conflicted SCENE RW "Conflicted."
+  SOURCE   ARG dual str LOCAL WIRE "x"
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE FORWARD and BODY exclude each other
+  SOURCE TOOL dual_body SCENE RW "Dual."
+  SOURCE   FORWARD
+  SOURCE   BODY objects
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE BODY and ARG RAW exclude each other
+  SOURCE TOOL dual_body SCENE RW "Dual."
+  SOURCE   BODY objects
+  SOURCE   ARG a int RAW
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE a tool may declare BODY at most once
+  SOURCE TOOL dual_body SCENE RW "Dual."
+  SOURCE   BODY objects
+  SOURCE   BODY asset
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE EXPECT token prints the OR-list and the strict flag, for a TOOL and a PYTOOL
+  SOURCE TOOL kick SCENE RW "Kick."
+  SOURCE   EXPECT token "Wired|Connected"
+  SOURCE END
+  SOURCE PYTOOL nudge SYSTEM RW "Nudge."
+  SOURCE   EXPECT token "ok" STRICT
+  SOURCE END
+  EXPECT rendered.pyexpect 'kick': ('token', 'Wired|Connected', False, None),
+  EXPECT rendered.pyexpect 'nudge': ('token', 'ok', True, None),
+
+EXAMPLE EXPECT bool_arg prints its ARG and no strict flag
+  SOURCE TOOL sweep SCENE RW "Sweep."
+  SOURCE   ARG preview bool DEFAULT False
+  SOURCE   EXPECT bool_arg "DRY|DELETED" ARG preview
+  SOURCE END
+  EXPECT rendered.pyexpect 'sweep': ('bool_arg', 'DRY|DELETED', False, 'preview'),
+
+EXAMPLE EXPECT arg_echo prints its arg names as tokens
+  SOURCE TOOL tint SCENE RW "Tint."
+  SOURCE   ARG hue ostr DEFAULT None
+  SOURCE   EXPECT arg_echo "hue"
+  SOURCE END
+  EXPECT rendered.pyexpect 'tint': ('arg_echo', 'hue', False, None),
+
+EXAMPLE a write tool with no TAG and no EXPECT fails the reflect-decision ENSURE
+  SOURCE TOOL silent_write SCENE RW "Silent write."
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE a write tool is fine with only a reflect TAG and no EXPECT
+  SOURCE TOOL tagged_write SCENE RW "Tagged write."
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pyspec 'tagged_write': {
+
+EXAMPLE EXPECT bool_arg without ARG fails its own ENSURE
+  SOURCE TOOL half_baked SCENE RW "Half baked."
+  SOURCE   EXPECT bool_arg "DRY|DELETED"
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE a write INTERNAL with no reflect TAG fails the same ENSURE
+  SOURCE INTERNAL raw_write RW "Raw write."
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE a TOOL with HANDLER register prints a CommandRegistry.Register call for ToolBindings.g.cs
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   HANDLER register "CommandRouter.ExecFrob"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csbindings CommandRegistry.Register("frob", CommandRouter.ExecFrob, ToolMeta.Get("frob"));
+
+EXAMPLE a TOOL with HANDLER register_async prints a CommandRegistry.RegisterAsync call
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   HANDLER register_async "CommandRouter.AsyncFrob"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csbindings CommandRegistry.RegisterAsync("frob", CommandRouter.AsyncFrob, ToolMeta.Get("frob"));
+
+EXAMPLE a TOOL with HANDLER register_action prints a CommandRegistry.RegisterAction call, method unprefixed
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   HANDLER register_action "FrobHelper.Execute"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csbindings CommandRegistry.RegisterAction("frob", FrobHelper.Execute, ToolMeta.Get("frob"));
+
+EXAMPLE an INTERNAL with HANDLER register prints into the same ToolBindings.g.cs, no extra HEADER/FOOTER
+  SOURCE INTERNAL raw_write RW "Raw write."
+  SOURCE   HANDLER register "CommandRouter.ExecRawWrite"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csbindings CommandRegistry.Register("raw_write", CommandRouter.ExecRawWrite, ToolMeta.Get("raw_write"));
+
+EXAMPLE ACTION declares a tool's action vocabulary, printed as the C# table in dispatch order
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION get
+  SOURCE   ACTION set
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csactions case "frob":
+  EXPECT rendered.csactions "get",
+  EXPECT rendered.csactions "set",
+  EXPECT rendered.pyactions 'frob': (
+  EXPECT rendered.pyactions 'get',
+  EXPECT rendered.pyactions 'set',
+
+EXAMPLE an action name twice, or spelt with upper case, is rejected
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION get
+  SOURCE   ACTION get
+  SOURCE   ACTION Set
+  SOURCE END
+  EXPECT diagnostic DECLARE_DUPLICATE at 3:10
+  EXPECT diagnostic DECLARE_SYNTAX at 4:10
+
+EXAMPLE a tool without any ACTION prints no csactions table entry and no pyactions table entry
+  SOURCE TOOL calm SCENE RO "Calm."
+  SOURCE END
+  EXPECT unrendered.csactions case "calm":
+  EXPECT unrendered.pyactions 'calm':
+
+EXAMPLE an ACTION name may contain inner hyphens (uitk_file's surgical actions: set-attr, add-class, ...)
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION set-attr
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csactions "set-attr",
+  EXPECT rendered.pyactions 'set-attr',
+
+EXAMPLE an ACTION name may not start with a hyphen
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION -attr
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:10
+
+EXAMPLE an ACTION name may not end with a hyphen
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION attr-
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:10
+
+EXAMPLE an ACTION name may not contain a double hyphen
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION set--attr
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:10
+
+EXAMPLE an ACTION hint prints in parentheses after its name in the generated tools.actions() call, with or without READ; an action with no hint prints an empty one
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   ACTION get READ "list things"
+  SOURCE   ACTION set "change a thing"
+  SOURCE   ACTION reset
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.pytools tools.actions('frob', (
+  EXPECT rendered.pytools ('get', "list things"),
+  EXPECT rendered.pytools ('set', "change a thing"),
+  EXPECT rendered.pytools ('reset', ""),
+  EXPECT rendered.pyreads 'frob': frozenset({
+  EXPECT rendered.pyreads 'get',
+
+EXAMPLE a tool without any ACTION prints no tools.actions() call either
+  SOURCE TOOL calm SCENE RO "Calm."
+  SOURCE END
+  EXPECT unrendered.pytools tools.actions
+
+EXAMPLE an ACTION hint must be quoted text, not a bare word
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION get unquoted
+  SOURCE END
+  EXPECT diagnostic DECLARE_SYNTAX at 2:14
+
+EXAMPLE a tool may declare HANDLER at most once
+  SOURCE TOOL dual_handler SCENE RW "Dual handler."
+  SOURCE   HANDLER register "CommandRouter.ExecDualHandler"
+  SOURCE   HANDLER register_async "CommandRouter.AsyncDualHandler"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE DISPATCH prints a generated partial-class dispatcher, one case per ACTION, default method is PascalCase of the action, default exception is ArgumentException
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   DISPATCH "FrobHelper"
+  SOURCE   ACTION get_info
+  SOURCE   ACTION set
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csdispatch internal static partial class FrobHelper
+  EXPECT rendered.csdispatch case "get_info": return GetInfo(argsJson);
+  EXPECT rendered.csdispatch case "set": return Set(argsJson);
+  EXPECT rendered.csdispatch throw new System.ArgumentException(ErrorHelper.InvalidAction(action, ToolActions.Names("frob")));
+  EXPECT unrendered.csdispatch throw new System.Exception(
+
+EXAMPLE an ACTION's METHOD overrides the default PascalCase method name
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   DISPATCH "FrobHelper"
+  SOURCE   ACTION get_errors METHOD "GetShaderErrors"
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csdispatch case "get_errors": return GetShaderErrors(argsJson);
+  EXPECT unrendered.csdispatch GetErrors(argsJson)
+
+EXAMPLE DISPATCH EXCEPTION Exception overrides the default ArgumentException on the unknown-action arm
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   FORWARD
+  SOURCE   DISPATCH "FrobHelper" EXCEPTION Exception
+  SOURCE   ACTION get
+  SOURCE   ARG action str
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT rendered.csdispatch throw new System.Exception(ErrorHelper.InvalidAction(action, ToolActions.Names("frob")));
+  EXPECT unrendered.csdispatch System.ArgumentException(ErrorHelper
+
+EXAMPLE a tool with ACTION but no DISPATCH prints no partial-class dispatcher at all
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION get
+  SOURCE END
+  EXPECT unrendered.csdispatch FrobHelper
+  EXPECT unrendered.csdispatch partial class
+
+EXAMPLE a tool may declare DISPATCH at most once
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   DISPATCH "FrobHelper"
+  SOURCE   DISPATCH "OtherHelper"
+  SOURCE   ACTION get
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE a DISPATCH tool needs at least one ACTION
+  SOURCE TOOL frob SCENE RW "Frob."
+  SOURCE   DISPATCH "FrobHelper"
+  SOURCE   TAG reflect_silent
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1
+
+EXAMPLE an ACTION's METHOD needs a DISPATCH tool
+  SOURCE TOOL frob SCENE RO "Frob."
+  SOURCE   ACTION get METHOD "Get"
+  SOURCE END
+  EXPECT diagnostic CONSTRUCT_ENSURE at 1:1

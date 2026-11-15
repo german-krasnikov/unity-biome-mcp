@@ -12,58 +12,46 @@ namespace UnityMCP.Editor.Chat
     [Serializable]
     internal sealed class ClaudeBackendConfig
     {
-        public string PermissionMode = "plan";   // "plan" | "acceptEdits"
         public string Model          = "";        // empty = default
-        public string ExtraArgs      = "";        // whitespace-split appended to argv
 
         internal ClaudeBackendConfig WithModel(string m) =>
-            Model == m ? this : new ClaudeBackendConfig { PermissionMode = PermissionMode, Model = m, ExtraArgs = ExtraArgs };
+            Model == m ? this : new ClaudeBackendConfig { Model = m };
     }
 
     [Serializable]
     internal sealed class CodexBackendConfig
     {
         public string Model             = "";
-        public string PermissionMode    = "danger-full-access";
-        public int    StartupTimeoutSec = 30;
-        public string ExtraArgs         = "";
 
         internal CodexBackendConfig WithModel(string m) =>
-            Model == m ? this : new CodexBackendConfig { Model = m, PermissionMode = PermissionMode, StartupTimeoutSec = StartupTimeoutSec, ExtraArgs = ExtraArgs };
+            Model == m ? this : new CodexBackendConfig { Model = m };
     }
 
     [Serializable]
     internal sealed class AntigravityBackendConfig
     {
         public string Model        = ""; // empty = agy default
-        public string ApprovalMode = ""; // "" | "yolo" (mapped to --dangerously-skip-permissions)
-        public bool   Sandbox      = false;
-        public string ExtraArgs    = "";
 
         internal AntigravityBackendConfig WithModel(string m) =>
-            Model == m ? this : new AntigravityBackendConfig { Model = m, ApprovalMode = ApprovalMode, Sandbox = Sandbox, ExtraArgs = ExtraArgs };
+            Model == m ? this : new AntigravityBackendConfig { Model = m };
     }
 
     [Serializable]
     internal sealed class KimiBackendConfig
     {
         public string Model        = ""; // empty = use kimi's config.toml default
-        public string ApprovalMode = "";           // "" | "yolo" | "plan"
-        public string ExtraArgs    = "";
 
         internal KimiBackendConfig WithModel(string m) =>
-            Model == m ? this : new KimiBackendConfig { Model = m, ApprovalMode = ApprovalMode, ExtraArgs = ExtraArgs };
+            Model == m ? this : new KimiBackendConfig { Model = m };
     }
 
     [Serializable]
     internal sealed class OpenCodeBackendConfig
     {
         public string Model            = "";    // "anthropic/claude-sonnet-4" or empty = opencode default
-        public bool   SkipPermissions  = true;  // --dangerously-skip-permissions
-        public string ExtraArgs        = "";
 
         internal OpenCodeBackendConfig WithModel(string m) =>
-            Model == m ? this : new OpenCodeBackendConfig { Model = m, SkipPermissions = SkipPermissions, ExtraArgs = ExtraArgs };
+            Model == m ? this : new OpenCodeBackendConfig { Model = m };
     }
 
     /// <summary>Per-kind user overrides. Null fields = use provider default.</summary>

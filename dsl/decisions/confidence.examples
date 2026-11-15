@@ -1,0 +1,21 @@
+PROVENANCE "Transcribed from tests the project already has: server/tests/middleware/test_middleware.py tests for update_confidence and maybe_verify_visual. updatedValue is the post-arithmetic value the host computes; isWrite documents the direction."
+
+EXAMPLES confidenceBand
+  id | confIsWrite | confUpdatedValue -> expected
+  read-high | false | 1.0 -> ok  # test_middleware.py:41 fresh mw, read keeps confidence at 1.0, no suffix
+  read-boost-crosses-threshold | false | 0.55 -> ok  # test_middleware.py:47 0.4+0.15=0.55, no suffix
+  write-drops-to-warn | true | 0.12 -> low  # test_middleware.py:47 0.2-0.08=0.12 < 0.3 → LOW CONFIDENCE (also < 0.5 so suffix present)
+  write-low-warning | true | 0.07 -> low  # test_middleware.py:76 0.15-0.08=0.07 < 0.3
+  read-stays-warn | false | 0.45 -> warn  # representative: 0.3 <= 0.45 < 0.5 → warn band
+  write-at-zero | true | 0.0 -> low  # clamped to 0: low
+  read-at-exactly-half | false | 0.5 -> ok  # exactly 0.5 → ok
+  write-to-exactly-low | true | 0.3 -> warn  # exactly 0.3 → warn (not low)
+END
+
+EXAMPLES shouldVerify
+  id | confUpdatedValue -> expected
+  high-skip | 1.0 -> skip  # test_middleware_async: confidence >= 0.5 → skip
+  at-threshold-skip | 0.5 -> skip  # exactly 0.5 → skip
+  below-threshold-verify | 0.49 -> verify  # < 0.5 → verify
+  zero-verify | 0.0 -> verify  # floor → verify
+END

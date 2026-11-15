@@ -1,0 +1,15 @@
+# Facts for the reload tier routing decision (reload_ladder.py _run_ladder / _handle_guard_wedge).
+# guard_wedged is the result of _t2_5_guard_check (bool or None; None counts as not-wedged).
+# main_dead is set when the main Unity process cannot respond (diagnose fell back to reload channel).
+# runner_active is True when an osascript_runner is supplied (macOS Accessibility path, T4).
+# consent_given maps to play_stop_consent: caller authorised Play/Stop cycle (T5).
+# Outputs: guardBlocked → GUARD-WEDGED stop; t5Guard → skip T3/T4 jump to T5; t3Ahead → run T3;
+#          t4Ahead → run T4 (main dead, runner present); t5Ahead → run T5; manualRequired → no path.
+CONTRACT unitymcp.reloadtier
+COVERAGE declared-scope
+MODULE reloadtier_facts
+FACT tier.guardWedged bool
+FACT tier.mainDead bool
+FACT tier.runnerActive bool
+FACT tier.consentGiven bool
+INPUT reloadRoute tier.guardWedged tier.mainDead tier.runnerActive tier.consentGiven

@@ -14,6 +14,10 @@ namespace UnityMCP.Editor.Tests
             WatchRegistry.Clear();
             CommandRegistry.Clear();
             WatchCommandHandler.RegisterAll();
+            // A5: get_watches moved out of WatchCommandHandler.RegisterAll() into the generated
+            // ToolBindings.g.cs (HANDLER DSL item, commit 7527deb8) — register it too so
+            // WatchAdd_ThenGetWatches_ContainsEntry below can still call it.
+            ToolBindings.RegisterAll();
         }
 
         [TearDown]

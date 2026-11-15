@@ -1,0 +1,9 @@
+# The MCP server's config-file key name (P1 #5): one constant instead of
+# server/src/unity_mcp/config/merger.py's SERVER_NAME and unity-plugin/Editor/PermissionConfig.cs's
+# SERVER_NAME, today kept in sync only by server/tests/test_server_name_consistency.py's regex-text
+# scan of the .cs source. MCP_BLANKET ("mcp__" + serverName) and MCP_TOOL_PREFIX (MCP_BLANKET + "__")
+# stay hand-derived by concatenation in each language (backend_def.py, PermissionConfig.cs) -- that
+# one-line derivation rule does not drift; only the literal name did.
+RECORD ServerIdentity COUNT 1
+  serverName: string
+END

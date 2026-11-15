@@ -56,7 +56,7 @@ for the exact current inventory.
 4. When enabled, `middleware_pipeline.py` applies pre-call guards and
    normalization, dispatches through the bridge, and applies post-call evidence,
    cache, and response transforms.
-5. `bridge.py` frames the command and correlates the response. Connection and
+5. `bridge/` frames the command and correlates the response. Connection and
    reload state survive transient disconnects according to the bridge contract.
 
 ### Unity side
@@ -82,11 +82,17 @@ No single handwritten roster is authoritative. Keep these sources aligned:
 | Contract | Source |
 |---|---|
 | Public Python signature and docstring | Owning module under `server/src/unity_mcp/tools/` |
-| Category, visibility tier, timeout, mutability, runtime and direct-only metadata | `server/src/unity_mcp/tools/tool_specs.py` |
+| Category, visibility tier, timeout, mutability, runtime and direct-only metadata | `dsl/tools.biome`, generated into `server/src/unity_mcp/tools/generated/` and merged by `tools/tool_specs.py` |
 | Session category visibility | `server/src/unity_mcp/tools/gating.py` |
 | Deferred schema behavior | `server/src/unity_mcp/tools/schema_registry.py` and `server_filtering.py` |
 | Unity handler and validation metadata | `unity-plugin/Editor/CommandRegistry.cs` registration sites |
-| Argument-dependent read/write behavior | `middleware_types.py` and `CommandRegistry.IsMutating(cmd, argsJson)` |
+| C# argument reads of a catalog tool | `dsl/tools.biome` `ARG` lines, printed to `unity-plugin/Editor/Generated/ToolArgs.g.cs` (`{Tool}Args.{Key}(args)`; `LOCAL` args have none, `WIRE` names the accessor by its key, `DEFAULT` is not applied; a required `str`/`ostr`/`Any` ARG throws through `JsonHelper.RequireString` on an empty value). Migrated handlers read through it; see `dsl/README.md` |
+| Declared actions of an `action`-dispatched tool, and the unknown-action error | `dsl/tools.biome` `ACTION` lines, printed to `server/src/unity_mcp/tools/generated/catalog_actions.py` (`TOOL_ACTIONS`) and `unity-plugin/Editor/Primitives/ToolActions.g.cs` (`ToolActions.Names`, `IsKnown`); the handler reports an unknown action through `ErrorHelper.InvalidAction` with that list. See `dsl/README.md` (Actions) |
+| Argument-dependent read/write behavior | The decision `isMutating` (`dsl/decisions/mutability.logic`), read by `middleware_types.is_write` and `CommandRegistry.IsMutating(cmd, argsJson)`; the read actions of a tool are the `READ` lines of `dsl/tools.biome`. Python is the authority |
+| Which guard stops a call, and in which order | The decision `guardVerdict` (`dsl/decisions/guards.logic`), read by `CommandRouter.CheckGuards`, the per-line guards of `BatchHelper` and the Python read-only, Play Mode and direct-only gates |
+| Play Mode allowance of a command | `GUARD play_ok` in `dsl/tools.biome`, read by `CommandRegistry.IsPlayOk` (`CommandRouter.IsAllowedMutationInPlayMode` delegates to it) |
+| Command registration of a catalog tool | `HANDLER` lines in `dsl/tools.biome`, printed to `unity-plugin/Editor/Generated/ToolBindings.g.cs`; a command without a `HANDLER` is registered by hand in `CommandRouter.Registration.cs` |
+| Shared rules and typed rows (decisions, data contracts) | `dsl/decisions/` and `dsl/data/`; the decisions and their wiring are listed in `dsl/README.md` (Decisions) |
 | Exhaustive generated public parameters | `docs/tools-schema/` |
 
 Tool visibility is a discoverability control, not an authorization boundary.
@@ -110,6 +116,8 @@ public static void Register(
     bool specialDispatch = false,
     bool alwaysAllowed = false,
     bool allowedDuringCompile = false,
+    bool playOk = false,
+    bool noUndo = false,
     Func<string, string, string> fileHandler = null,
     string description = null,
     int maxResponseChars = 0);
@@ -123,6 +131,8 @@ public static void RegisterAction(
     string optional = null,
     bool alwaysAllowed = false,
     bool allowedDuringCompile = false,
+    bool playOk = false,
+    bool noUndo = false,
     string description = null,
     int maxResponseChars = 0);
 
@@ -135,6 +145,8 @@ public static void RegisterAsync(
     string optional = null,
     bool alwaysAllowed = false,
     bool allowedDuringCompile = false,
+    bool playOk = false,
+    bool noUndo = false,
     string description = null,
     int maxResponseChars = 0);
 ```
@@ -145,8 +157,16 @@ Registration rules:
 - `required` and `optional` are comma-separated parameter names. `null` for both
   marks a free-form contract; an empty string represents no parameters.
 - `RegisterAction` adds `action` to the required contract automatically.
-- `mutating` and `runtime` feed routing guards. Mixed read/write commands must
-  also implement conservative argument-aware classification on both sides.
+- `mutating` is the registered base of the write classification and `runtime`
+  feeds the Play Mode guard. Whether a given call is a write is the decision
+  `isMutating`, which starts from `mutating` and then reads the `action` and the
+  switch arguments of the call, as Python's `is_write` does: a command whose
+  actions differ needs its read actions in the catalog (`READ` lines), not a
+  second table in C#.
+- `playOk` lets a mutating command run in Play Mode (it stays a write for
+  read-only workers); `noUndo` opens no Undo group for a mutating command whose
+  effect is no Undo-recorded scene change. Neither is a trust flag: they are
+  kept when a third-party plugin registers a command.
 - `specialDispatch`, asynchronous handlers, file handlers, and externally owned
   file effects are not ordinary batch operations.
 - `alwaysAllowed` and `allowedDuringCompile` are core trust flags. They are
@@ -166,7 +186,10 @@ The layers are complementary:
   mutating commands. Configure both boundaries when both must be read-only.
 - Unity checks registry readiness, Python-only misuse, chat session mode,
   compilation state, Play Mode rules, runtime requirements, read-only state, and
-  per-tool settings before execution.
+  per-tool settings before execution. Which of them stops a call, and the order
+  (the top-level guards and the per-line guards of `batch` differ), is the
+  decision `guardVerdict`; the code states the facts and says what each verdict
+  tells the caller.
 - Conditional commands fail closed when an action or flag is absent, malformed,
   or not in a known read subset, except where the command contract explicitly
   defines a read default.
@@ -184,8 +207,8 @@ record Undo state; it cannot reverse arbitrary external effects.
 ## Mutation, Undo, and Batch
 
 For normal mutating C# commands, `CommandRouter` opens and closes a named Unity
-Undo group and records mutation evidence. This is a best-effort Unity-state
-boundary, not a general transaction manager.
+Undo group and records mutation evidence, unless the registration says `noUndo`.
+This is a best-effort Unity-state boundary, not a general transaction manager.
 
 `batch` executes compatible command lines sequentially. Python rejects or
 filters direct-only lines according to `on_error`; Unity validates and dispatches
@@ -224,7 +247,7 @@ messages for chat; categorization is machine-readable for routing and retry logi
 ## Compile and Reload
 
 Agents call the public `sync_unity` wrapper after external code or package
-changes. `tools/sync.py` triggers the C# `sync` command, tracks its epoch, waits
+changes. `reload/sync.py` (imported through the `tools/sync.py` shim) triggers the C# `sync` command, tracks its epoch, waits
 for `SyncHelper` to report the matching ready or failed state, tolerates the
 expected domain-reload disconnect, corroborates errors, and invokes bounded
 internal recovery only when needed.
@@ -238,7 +261,7 @@ project or Editor state. See [`reload-reference.md`](reload-reference.md).
 
 **Version tracking:** `BiomeVersion.cs` is the single source of truth for version
 constants — Plugin (semantic version matching `package.json`) and Protocol (numeric
-version matching `server/src/unity_mcp/bridge.py PROTOCOL_VERSION`). `mcp_status`
+version matching `server/src/unity_mcp/bridge/__init__.py PROTOCOL_VERSION`). `mcp_status`
 exposes both plus `python_version` for cross-language version diagnostics and
 pre-release compatibility checks.
 
@@ -328,26 +351,16 @@ depends on the main Editor assembly, never the reverse.
 
 ## Modular Command Registration (PR-04 & N1a–N1b)
 
-Two pilot modules own their command metadata and wire-mapping:
+Two pilot modules own their Python wrappers and keep instance-scoped send and argument state:
 
-1. **watch.py** (WatchModule): owns `watch` and `get_watches` tool specs via `SPEC_KWARGS`.
-2. **sync_module.py** (SyncModule): owns `sync_unity` tool spec via `sync_spec.py`, delegating
-   the poll/recovery algorithm to `sync.py`. Instance-scoped `_send` state prevents
+1. **watch.py** (WatchModule): owns the `watch` and `get_watches` wrappers.
+2. **reload/sync_module.py** (SyncModule): owns the `sync_unity` wrapper and its
+   `reload/sync_spec.py` wire mapping, delegating the poll/recovery algorithm to `reload/sync.py`. Instance-scoped `_send` state prevents
    cross-contamination when two independently-configured SDK hosts or interleaved async
    calls share one event loop.
 
-Both define a plain-dict `SPEC_KWARGS`, merged into `_SPECS` at import time:
-
-```python
-# Pilot modules (watch.py and sync_module.py via sync_spec.py)
-SPEC_KWARGS: dict[str, dict] = {
-    'watch': {'category': 'RUNTIME', 'direct_only': True},
-    'get_watches': {'category': 'RUNTIME', 'mutability': 'read'},
-    'sync_unity': {'category': 'EDITOR', 'mutability': 'write', 'runtime': False},
-}
-```
-
-Remaining 166+ tool specs are centralized in tool_specs.py. Migration deferred.
+Their ToolSpec metadata is declared in the tool catalog (`dsl/tools.biome`). Every ToolSpec
+is generated from that catalog and merged by `tool_specs.py`; the `_SPECS` literal there is empty.
 
 **Plugin Registration Owner (N1a):** A plugin declaring a reserved builtin name, a name
 colliding with a host tool, or a name it does not own (declared via `register_read_cmds`/
@@ -367,8 +380,9 @@ C# `CommandRegistry.Entry` gains `MutatingArgsPolicy` delegate (for argument-awa
 read/write classification) and `NotBatchable` bool; hardcoded name-switches migrate
 to registration sites. Target invariant (not yet enforced): adding a command should
 require only the module's registration. Currently, new commands also need a
-ToolSpec entry in tool_specs.py (or a pilot module's sync_spec.py) and may need gating entries.
-36 policy-vector tests validate parity across 5 representative commands.
+block in `dsl/tools.biome` and may need gating entries.
+Policy-vector tests (`server/tests/boundary/test_pr04_policy_vectors.py` and the `Pr04_*` tests in
+`unity-plugin/Editor/Tests/CommandRouterTests.cs`) validate parity for five representative commands.
 
 ## Reload Module Isolation (PR-04R & N2)
 
@@ -390,6 +404,8 @@ The Reload module's algorithm is swappable via composition seams and a narrow fa
   from the module instance's own send state. Python-only module globals (`_send`, `_bump_used`)
   stay reserved for sync.py's legacy module-level adapter.
 - Import-linter forbids diagnose/reload_ladder from importing sync.py
+- The algorithm modules live in the `unity_mcp.reload` package; the `tools/` sync modules are
+  shims that resolve to them (see [`structure.md`](structure.md))
 - Source-scan confirms Reload-owner files have no Chat/SourcePatch/Scenario refs
 
 Invariant: Reload algorithm can be swapped (e.g., for a custom reconciler) via composition
@@ -404,8 +420,8 @@ When Chat.CLI/Chat.View is absent or disabled:
 - `ask_user` returns immediately with no 300-second hang
 - `search_context` throws `ProviderUnavailableException` (classified UNAVAILABLE,
   logged as warning not error)
-- Chat-dependent test files separated into Chat.Tests.CLI (136 files) and
-  Chat.Tests.View (150 files) assemblies; base asmdef no longer references Chat
+- Chat-dependent test files live in the `UnityMCP.Editor.Chat.Tests.CLI` and
+  `UnityMCP.Editor.Chat.Tests.View` assemblies; the base asmdef no longer references Chat
 
 Invariant: Chat Off/absent leaves MCP tools fully operational. No stale process,
 no pending-ask leak, no false-positive error log.
@@ -427,9 +443,18 @@ Provider and algorithm swaps happen via composition without core changes.
 
 Dependency boundaries are enforced by Import Linter contracts:
 
-- **Forbidden:** tools→server, tools→middleware, bridge→session, plugin_api→server
-- **Static checks:** Playtest.Core (`noEngineReferences`), SourcePatch (no
-  provider refs)
+- **Python (import-linter, `server/pyproject.toml`):** eight forbidden-import contracts. Tools
+  do not import the composition root or the middleware policy layer. The transport/session layer
+  stays independent of `server` and `tools`. The public plugin API stays independent of the
+  composition root, and built-in plugins use only that facade. `diagnose` and `reload_ladder` do
+  not import the sync facade. The `reload` package does not import the server or tools, except the
+  reviewed exceptions. The `decisions` package imports nothing else from `unity_mcp`.
+- **Unity (assembly references):** `Primitives` references nothing. `Transport`, `Core.Scene`,
+  `Playtest`, `Roslyn`, `SourcePatch` and `TestRuns` sit below the main `UnityMCP.Editor` assembly,
+  which references them. The main assembly does not reference Chat or Wizard; those and the test
+  assemblies sit above it. `ClientConnectionHandler` and `PlaytestRunner` reach the router through
+  `ICommandDispatcher` (Primitives), which `CommandRouterDispatcher` implements.
+- **Static checks:** Playtest.Core (`noEngineReferences`), SourcePatch (no provider refs)
 - **CI gate:** CI validates architectural integrity on every build; violations
   are caught mechanically, not by review
 

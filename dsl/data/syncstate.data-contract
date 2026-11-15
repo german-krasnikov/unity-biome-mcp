@@ -1,0 +1,16 @@
+# Sync state vocabulary (Wave 1E-3): the state strings that SyncHelper.cs writes via
+# SessionState and sync_algorithm.py / sync.py read back. One ENUM replaces the
+# bare string literals scattered across both files.
+# idle: no compile in progress (default state).
+# compiling: AssetDatabase refresh or RequestScriptCompilation triggered.
+# ready: compile + assembly reload succeeded.
+# failed: compile finished with errors.
+# reloading: domain reload in progress (Python-side classification).
+ENUM SyncState idle|compiling|ready|failed|reloading
+
+# Sentinel record — required by the data contract format.
+# origin: canonical source file that writes this state (C# or Python).
+RECORD SyncStateOrigin COUNT 2
+  state: SyncState
+  origin: string
+END

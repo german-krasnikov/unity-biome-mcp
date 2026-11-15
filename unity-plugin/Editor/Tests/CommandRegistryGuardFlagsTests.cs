@@ -62,19 +62,29 @@ namespace UnityMCP.Editor.Tests
         public void IsAllowedDuringCompile_UnregisteredCommand_ReturnsFalse()
             => Assert.IsFalse(CommandRegistry.IsAllowedDuringCompile("totally_unknown_cmd_xyz"));
 
-        // Regression guard: every name previously hardcoded in CommandRouter.IsAlwaysAllowed's
-        // OR-chain must still resolve true post-migration to registry flags.
-        private static readonly string[] ExpectedAlwaysAllowed =
+        // Derived from ToolMeta.g.cs (generated from dsl/tools.biome GUARD always) +
+        // manually registered commands not in the catalog. New GUARD always entries in
+        // dsl/tools.biome auto-appear here without editing this test file.
+        // "get_disabled_tools" and "set_tool_catalog" have no TOOL/INTERNAL block in
+        // dsl/tools.biome — registered manually in CommandRouter.Registration.cs.
+        private static System.Collections.Generic.IEnumerable<string> DeriveExpectedAlwaysAllowed()
         {
-            "ping", "get_enabled_tools", "get_disabled_tools", "set_tool_catalog", "diagnose", "ask_user",
-            "cancel_test_run",
-        };
+            var result = new List<string>();
+            foreach (var cmd in CommandRegistry.GetAllCommands())
+            {
+                try { if (ToolMeta.Get(cmd).AlwaysAllowed) result.Add(cmd); }
+                catch (System.ArgumentException) { }
+            }
+            result.Add("get_disabled_tools");
+            result.Add("set_tool_catalog");
+            return result;
+        }
 
         [Test]
         public void IsAlwaysAllowed_AllPreviouslyHardcodedNames_StillTrue()
         {
             var failures = new List<string>();
-            foreach (var cmd in ExpectedAlwaysAllowed)
+            foreach (var cmd in DeriveExpectedAlwaysAllowed())
                 if (!CommandRegistry.IsAlwaysAllowed(cmd)) failures.Add(cmd);
             Assert.IsEmpty(failures, "Regression: dropped alwaysAllowed flag for: " + string.Join(", ", failures));
         }

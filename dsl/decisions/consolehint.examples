@@ -1,0 +1,12 @@
+PROVENANCE "Characterized from middleware_reads.categorize_console_errors at middleware_reads.py:109-116. No dedicated test exists yet; rows cover all branches."
+
+EXAMPLES consoleHint
+  id | conHasNullRef | conHasMissingComponent | conHasFormatError -> expected
+  no-error | false | false | false -> none  # clean result
+  null-ref | true | false | false -> null_ref  # NullReferenceException in result
+  missing-comp | false | true | false -> missing_component  # MissingComponentException
+  format-err | false | false | true -> format_error  # FormatException or format string
+  null-ref-wins-over-missing | true | true | false -> null_ref  # first match (AT 10 < AT 20)
+  null-ref-wins-over-format | true | false | true -> null_ref  # first match
+  missing-wins-over-format | false | true | true -> missing_component  # AT 20 < AT 30
+END

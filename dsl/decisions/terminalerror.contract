@@ -1,0 +1,26 @@
+CONTRACT unitymcp.terminalerror
+COVERAGE declared-scope
+MODULE terminalerror_facts
+FACT terminal.lifecycleOk bool
+FACT terminal.intentMatches bool
+FACT terminal.healthNoProgress bool
+FACT terminal.healthUnresponsive bool
+FACT terminal.isTerminalFlag bool
+FACT terminal.executionFinished bool
+FACT terminal.cleanupComplete bool
+FACT terminal.runStartedObserved bool
+FACT terminal.manifestComplete bool
+FACT terminal.runFinishedObserved bool
+FACT terminal.buildCoherent bool
+FACT terminal.outcomeValid bool
+FACT terminal.utfGuidPresent bool
+FACT terminal.utfXmlScopeValid bool
+FACT terminal.hasExpected bool
+FACT terminal.expectedCountCase enum=ok,invalidType,zero,negative,invariantBroken closed
+FACT terminal.filterHasMetachar bool
+FACT terminal.statusCountsValid bool
+FACT terminal.statusTotal number min=0 max=2000000000 integer
+FACT terminal.expectedCountValue number min=0 max=2000000000 integer
+FACT terminal.issuesValid bool
+FACT terminal.hasInfrastructureError bool
+INPUT terminalError terminal.lifecycleOk terminal.intentMatches terminal.healthNoProgress terminal.healthUnresponsive terminal.isTerminalFlag terminal.executionFinished terminal.cleanupComplete terminal.runStartedObserved terminal.manifestComplete terminal.runFinishedObserved terminal.buildCoherent terminal.outcomeValid terminal.utfGuidPresent terminal.utfXmlScopeValid terminal.hasExpected terminal.expectedCountCase terminal.filterHasMetachar terminal.statusCountsValid terminal.statusTotal terminal.expectedCountValue terminal.issuesValid terminal.hasInfrastructureError

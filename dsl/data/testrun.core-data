@@ -1,0 +1,6 @@
+TERMINALOUTCOME {outcome: passed isFailure: false}
+TERMINALOUTCOME {outcome: failed isFailure: true}
+TERMINALOUTCOME {outcome: cancelled isFailure: true}
+TERMINALOUTCOME {outcome: incomplete isFailure: true}
+TERMINALOUTCOME {outcome: invalid isFailure: true}
+TERMINALOUTCOME {outcome: dispatch_failed isFailure: true}

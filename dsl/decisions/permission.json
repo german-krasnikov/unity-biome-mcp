@@ -1,0 +1,14 @@
+{
+  "generated": "from permission.examples by npm run logic -- examples; do not edit",
+  "provenance": "one row per test the project already has: test_permission_broker.py (Python) and SessionAuthorizationTests.cs (C#); expected is what the test asserts.",
+  "chatPermission": [
+    { "id": "p1", "facts": { "chatMode": "external", "callMutating": true, "callDangerous": false }, "expected": "allow", "provenance": "test_permission_broker.py:11 SessionAuthorizationTests.cs:15" },
+    { "id": "p2", "facts": { "chatMode": "ask", "callMutating": true, "callDangerous": false }, "expected": "denyAsk", "provenance": "test_permission_broker.py:15 SessionAuthorizationTests.cs:27" },
+    { "id": "p3", "facts": { "chatMode": "ask", "callMutating": false, "callDangerous": false }, "expected": "allow", "provenance": "test_permission_broker.py:19 SessionAuthorizationTests.cs:33" },
+    { "id": "p4", "facts": { "chatMode": "agent", "callMutating": true, "callDangerous": false }, "expected": "allow", "provenance": "test_permission_broker.py:23 SessionAuthorizationTests.cs:128" },
+    { "id": "p5", "facts": { "chatMode": "fullAccess", "callMutating": true, "callDangerous": true }, "expected": "allow", "provenance": "test_permission_broker.py:27 SessionAuthorizationTests.cs:134" },
+    { "id": "p6", "facts": { "chatMode": "unknown", "callMutating": false, "callDangerous": false }, "expected": "denyUnknownMode", "provenance": "SessionAuthorization.cs:20 (no test: characterized)" },
+    { "id": "p7", "facts": { "chatMode": "agent", "callMutating": true, "callDangerous": true }, "expected": "denyDangerous", "provenance": "permission_broker.py:61 SessionAuthorizationTests.cs:142 (C# did not check dangerous in agent mode until SV2/Q15: new test Check_AgentMode_BlocksDangerousCommand)" },
+    { "id": "p8", "facts": { "chatMode": "ask", "callMutating": false, "callDangerous": true }, "expected": "denyAsk", "provenance": "permission_broker.py:67" }
+  ]
+}

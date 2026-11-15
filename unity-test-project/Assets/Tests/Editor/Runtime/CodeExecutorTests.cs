@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.TestTools;
 using UnityMCP.Editor;
+using UnityMCP.Editor.Roslyn;
 
 namespace UnityMCP.TestProject.Runtime
 {

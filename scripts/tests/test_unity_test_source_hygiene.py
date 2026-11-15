@@ -50,13 +50,13 @@ def _relative(path: pathlib.Path) -> str:
 _ALLOWED_VERSION_SHIM_FILES = frozenset(
     {
         "unity-plugin/Editor/Chat/CLI/SceneHeaderContextMenu.cs",
-        "unity-plugin/Editor/ObjectIdCompat.cs",
+        "unity-plugin/Editor/Primitives/ObjectIdCompat.cs",
         "unity-plugin/Editor/Tests/ObjectIdCompatTests.cs",
         "unity-plugin/Editor/Tests/UIToolkit/AttachUITKTests.cs",
         "unity-plugin/Editor/Tests/UIToolkit/UIPanelHostTests.cs",
         "unity-plugin/Editor/UIPanelHost.cs",
         "unity-plugin/Editor/Tests/InputNormalizerAudioLightAliasTests.cs",
-        "unity-plugin/Editor/Tests/TestRunnerTests.cs",
+        "unity-plugin/Editor/Tests/TestRuns/TestRunnerTests.cs",
     }
 )
 
@@ -578,7 +578,7 @@ def test_scene_region_tests_use_transactional_state_isolation() -> None:
 def test_client_slot_liveness_never_probes_handler_owned_socket_readiness() -> None:
     """Poll/Available races the handler read and can reset a live connection."""
     source = (
-        REPO_ROOT / "unity-plugin" / "Editor" / "ClientSlot.cs"
+        REPO_ROOT / "unity-plugin" / "Editor" / "Transport" / "ClientSlot.cs"
     ).read_text(encoding="utf-8")
 
     assert ".Poll(" not in source

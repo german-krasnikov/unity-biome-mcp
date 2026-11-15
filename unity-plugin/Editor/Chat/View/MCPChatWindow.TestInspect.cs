@@ -11,7 +11,7 @@ namespace UnityMCP.Editor.Chat
         public string TestInputValue         => _input?.value ?? "null";
         public string TestBackendTypeName    => _backend?.GetType().Name ?? "null";
         public bool   TestBackendIsRunning   => _backend?.IsRunning ?? false;
-        public string TestActivityPhase      => _activity?.Phase.ToString() ?? "null";
+        public string TestActivityPhase      => _turn?.Phase.ToString() ?? "null";
         public string TestAskBtnState        =>
             _askBtn?.ClassListContains("mode-toggle-btn--active") == true ? "active" : "inactive";
         public string TestTranscriptTypeName => _transcript?.GetType().Name ?? "null";

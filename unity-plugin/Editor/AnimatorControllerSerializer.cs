@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text;
 using UnityEditor;
 using UnityEditor.Animations;
@@ -43,7 +42,7 @@ namespace UnityMCP.Editor
                     switch (p.type)
                     {
                         case AnimatorControllerParameterType.Float:
-                            sb.Append("float = ").Append(p.defaultFloat.ToString("G4", CultureInfo.InvariantCulture));
+                            sb.Append("float = ").Append(SerializerText.FormatFloat(p.defaultFloat, "G4"));
                             break;
                         case AnimatorControllerParameterType.Int:
                             sb.Append("int = ").Append(p.defaultInt);
@@ -66,7 +65,7 @@ namespace UnityMCP.Editor
                 if (sm.states.Length == 0) continue;
                 sb.AppendLine("---");
                 sb.Append("states [").Append(layer.name);
-                sb.Append(" w:").Append(layer.defaultWeight.ToString("G4", CultureInfo.InvariantCulture));
+                sb.Append(" w:").Append(SerializerText.FormatFloat(layer.defaultWeight, "G4"));
                 sb.Append(" blend:").Append(layer.blendingMode.ToString());
                 if (layer.avatarMask != null)
                     sb.Append(" mask:").Append(layer.avatarMask.name);
@@ -85,7 +84,7 @@ namespace UnityMCP.Editor
                     if (st.speedParameterActive && !string.IsNullOrEmpty(st.speedParameter))
                         sb.Append(" | speed:").Append(st.speedParameter);
                     else
-                        sb.Append(" | ").Append(st.speed.ToString("G4", CultureInfo.InvariantCulture)).Append("x");
+                        sb.Append(" | ").Append(SerializerText.FormatFloat(st.speed, "G4")).Append("x");
                     if (!string.IsNullOrEmpty(st.tag))
                         sb.Append(" | tag:").Append(st.tag);
                     if (!st.writeDefaultValues)
@@ -120,7 +119,7 @@ namespace UnityMCP.Editor
                 sb.Append(" | [BT:").Append(detailBt.blendType).Append(']');
             else if (state.motion != null)
                 sb.Append(" | ").Append(state.motion.name);
-            sb.Append(" | speed:").Append(state.speed.ToString("G4", CultureInfo.InvariantCulture));
+            sb.Append(" | speed:").Append(SerializerText.FormatFloat(state.speed, "G4"));
             if (!string.IsNullOrEmpty(state.tag)) sb.Append(" | tag:").Append(state.tag);
             sb.AppendLine();
 
@@ -141,8 +140,8 @@ namespace UnityMCP.Editor
                     sb.Append("  → ").Append(t.destinationState?.name ?? "Exit");
                     AppendConditions(sb, t.conditions);
                     if (t.hasExitTime)
-                        sb.Append(" | exit:").Append(t.exitTime.ToString("G4", CultureInfo.InvariantCulture));
-                    sb.Append(" | ").Append(t.duration.ToString("G4", CultureInfo.InvariantCulture)).Append("s");
+                        sb.Append(" | exit:").Append(SerializerText.FormatFloat(t.exitTime, "G4"));
+                    sb.Append(" | ").Append(SerializerText.FormatFloat(t.duration, "G4")).Append("s");
                     sb.AppendLine();
                 }
             }
@@ -163,8 +162,8 @@ namespace UnityMCP.Editor
                     sb.Append("  ").Append(cs.state.name).Append(" → ").Append(t.destinationState?.name ?? "Exit");
                     AppendConditions(sb, t.conditions);
                     if (t.hasExitTime)
-                        sb.Append(" | exit:").Append(t.exitTime.ToString("G4", CultureInfo.InvariantCulture));
-                    sb.Append(" | ").Append(t.duration.ToString("G4", CultureInfo.InvariantCulture)).Append("s");
+                        sb.Append(" | exit:").Append(SerializerText.FormatFloat(t.exitTime, "G4"));
+                    sb.Append(" | ").Append(SerializerText.FormatFloat(t.duration, "G4")).Append("s");
                     sb.AppendLine();
                 }
             }
@@ -176,8 +175,8 @@ namespace UnityMCP.Editor
                 sb.Append("  [Any] → ").Append(t.destinationState?.name ?? "Exit");
                 AppendConditions(sb, t.conditions);
                 if (t.hasExitTime)
-                    sb.Append(" | exit:").Append(t.exitTime.ToString("G4", CultureInfo.InvariantCulture));
-                sb.Append(" | ").Append(t.duration.ToString("G4", CultureInfo.InvariantCulture)).Append("s");
+                    sb.Append(" | exit:").Append(SerializerText.FormatFloat(t.exitTime, "G4"));
+                sb.Append(" | ").Append(SerializerText.FormatFloat(t.duration, "G4")).Append("s");
                 sb.AppendLine();
             }
         }
@@ -203,9 +202,9 @@ namespace UnityMCP.Editor
                 var c = bt.children[i];
                 var motionName = c.motion != null ? c.motion.name : "null";
                 if (bt.blendType == BlendTreeType.Simple1D)
-                    sb.AppendLine($"  [{i}] {motionName} threshold:{c.threshold.ToString("G4", CultureInfo.InvariantCulture)}");
+                    sb.AppendLine($"  [{i}] {motionName} threshold:{SerializerText.FormatFloat(c.threshold, "G4")}");
                 else
-                    sb.AppendLine($"  [{i}] {motionName} pos:({c.position.x.ToString("G4", CultureInfo.InvariantCulture)},{c.position.y.ToString("G4", CultureInfo.InvariantCulture)})");
+                    sb.AppendLine($"  [{i}] {motionName} pos:({SerializerText.FormatFloat(c.position.x, "G4")},{SerializerText.FormatFloat(c.position.y, "G4")})");
             }
             return sb.ToString().TrimEnd();
         }
@@ -221,16 +220,16 @@ namespace UnityMCP.Editor
                 switch (c.mode)
                 {
                     case AnimatorConditionMode.Greater:
-                        sb.Append(c.parameter).Append(">").Append(c.threshold.ToString("G4", CultureInfo.InvariantCulture));
+                        sb.Append(c.parameter).Append(">").Append(SerializerText.FormatFloat(c.threshold, "G4"));
                         break;
                     case AnimatorConditionMode.Less:
-                        sb.Append(c.parameter).Append("<").Append(c.threshold.ToString("G4", CultureInfo.InvariantCulture));
+                        sb.Append(c.parameter).Append("<").Append(SerializerText.FormatFloat(c.threshold, "G4"));
                         break;
                     case AnimatorConditionMode.Equals:
-                        sb.Append(c.parameter).Append("=").Append(c.threshold.ToString("G4", CultureInfo.InvariantCulture));
+                        sb.Append(c.parameter).Append("=").Append(SerializerText.FormatFloat(c.threshold, "G4"));
                         break;
                     case AnimatorConditionMode.NotEqual:
-                        sb.Append(c.parameter).Append("!=").Append(c.threshold.ToString("G4", CultureInfo.InvariantCulture));
+                        sb.Append(c.parameter).Append("!=").Append(SerializerText.FormatFloat(c.threshold, "G4"));
                         break;
                     case AnimatorConditionMode.If:
                         sb.Append(c.parameter);

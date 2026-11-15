@@ -99,6 +99,21 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
+        public void Drain_ShuttingDownProviderTrue_IsNoOp_IndependentOfMcpServer()
+        {
+            // Uses the 2-arg test-only Drain(queue, shuttingDown) to prove the
+            // seam works without touching the production static queue (hygiene).
+            var queue = new System.Collections.Concurrent.ConcurrentQueue<System.Action>();
+            bool ran = false;
+            queue.Enqueue(() => ran = true);
+
+            MainThreadDispatcher.Drain(queue, shuttingDown: true);
+
+            Assert.IsFalse(ran,
+                "Drain(queue, shuttingDown:true) must no-op — the shutting-down guard is the seam");
+        }
+
+        [Test]
         public void MainThreadDispatcher_IsHookedToEditorUpdate_IndependentlyOfMcpServer()
         {
             var hooked = (EditorApplication.update?.GetInvocationList() ?? System.Array.Empty<System.Delegate>())

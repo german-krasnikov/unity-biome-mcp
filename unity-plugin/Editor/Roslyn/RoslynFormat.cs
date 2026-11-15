@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Editor.Roslyn
 {
     /// <summary>Plain-text formatter for Roslyn diagnostics. Output matches server/tests/fixtures/roslyn_responses.txt.</summary>
     internal static class RoslynFormat

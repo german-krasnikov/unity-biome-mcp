@@ -1,50 +1,5 @@
 namespace UnityMCP.Editor.Chat
 {
-    public enum ChatEventKind
-    {
-        /// <summary>Streamed text token from assistant.</summary>
-        TextDelta,
-        /// <summary>Tool invocation started (name known, args may still be partial).</summary>
-        ToolStart,
-        /// <summary>Tool invocation result (success or failure).</summary>
-        ToolResult,
-        /// <summary>content_block_stop for a tool_use block — args assembly complete.</summary>
-        ToolArgsComplete,
-        /// <summary>Turn fully complete — carries cost + usage.</summary>
-        TurnDone,
-        /// <summary>Session established (system/init). Non-terminal: activity animation must keep running.</summary>
-        SessionInit,
-        /// <summary>Error from parser, process, or API.</summary>
-        Error,
-        /// <summary>Tool permission request from CLI (sdk_control_request subtype=permission).</summary>
-        PermissionPrompt,
-        /// <summary>Interactive question from AskUserQuestion tool (sdk_control_request subtype=elicitation).</summary>
-        AskUser,
-        /// <summary>Tool execution progress update.</summary>
-        ToolProgress,
-        /// <summary>Rate limit warning.</summary>
-        RateLimit,
-        /// <summary>Session state change.</summary>
-        SessionState,
-        /// <summary>Keepalive ping — resets inactivity watchdog without rendering anything.</summary>
-        Heartbeat,
-        /// <summary>
-        /// Auto-reply JSON to write back to CLI stdin (e.g. mcpServer/elicitation/request).
-        /// NOT forwarded to UI — transparent to output consumers.
-        /// Text holds the raw JSON-RPC 2.0 response string.
-        /// </summary>
-        AutoReply,
-        /// <summary>Extended thinking block from the model. Text holds the full reasoning text.
-        /// Ephemeral — displayed as a collapsed Foldout, not saved to reload state.</summary>
-        Thinking,
-        /// <summary>Plan step started or completed (v2 protocol only). Text = stepKind, ArgsJson = description.</summary>
-        PlanUpdate,
-        /// <summary>File change detected by the agent (v2 protocol only). Text = path.</summary>
-        FileChange,
-        /// <summary>Provider capabilities changed (v2 protocol only). State = new state string.</summary>
-        CapabilitiesChanged,
-    }
-
     /// <summary>Immutable event emitted by RelayEventParser.</summary>
     public readonly struct ChatEvent
     {
@@ -60,7 +15,7 @@ namespace UnityMCP.Editor.Chat
         public string        RequestId    { get; }  // PermissionPrompt/AskUser: request_id for control_response
         public string        ToolInput    { get; }  // PermissionPrompt: tool arguments JSON
         public float         Percentage   { get; }  // ToolProgress: 0-100
-        public string        State        { get; }  // SessionState: new state string
+        public string        State        { get; }  // CapabilitiesChanged: new state string
         public string        RawJson      { get; }  // AskUser: raw questions JSON for UI rendering
 
         private ChatEvent(ChatEventKind kind, string text = null, string argsJson = null,
@@ -121,9 +76,6 @@ namespace UnityMCP.Editor.Chat
 
         public static ChatEvent RateLimit(string message) =>
             new ChatEvent(ChatEventKind.RateLimit, text: message);
-
-        public static ChatEvent SessionState(string state) =>
-            new ChatEvent(ChatEventKind.SessionState, state: state);
 
         public static ChatEvent Heartbeat() =>
             new ChatEvent(ChatEventKind.Heartbeat);

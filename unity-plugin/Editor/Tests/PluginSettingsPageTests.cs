@@ -11,10 +11,13 @@ namespace UnityMCP.Editor.Tests
     public class PluginSettingsPageTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
         [SetUp]
-        public void SetUp() => PluginRegistry.Clear();
-
-        [TearDown]
-        public void TearDown() => PluginRegistry.Clear();
+        public void SetUp()
+        {
+            // See PluginRegistryTests.SetUp: a real production plugin now registers via
+            // [InitializeOnLoad]; preserve/restore instead of a bare destructive Clear().
+            RegisterCleanup(PluginRegistry.PreserveStateForTests().Dispose);
+            PluginRegistry.Clear();
+        }
 
         [Test]
         public void NoPlugins_PageShowsEmptyMessage()

@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 import pytest
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from tests.mutation._canary import build_mutation_sdk, make_bridge, make_raw_send, sdk_args
 from tests.mutation._proxy import LostAckProxy

@@ -1,0 +1,42 @@
+# Verdict family of run_playtest / run_playtest_suite. First match wins (lowest AT).
+# passes: is this report a pass? (Python _is_playtest_pass, C# IsPlaytestSuccess). Rows that test report.plane are rules of one hand implementation only.
+DECISION passes DEFAULT false
+  blank AT 10 WHEN report.blank -> false
+  textAborted AT 11 WHEN report.format == text AND text.hasAborted -> false
+  textNoHeader AT 20 WHEN report.format == text AND text.header == none -> false
+  textNoAssertions AT 21 WHEN report.format == text AND text.total == 0 -> false
+  textPartial AT 22 WHEN report.format == text AND text.passed != text.total -> false
+  textFailureMarker AT 23 WHEN report.format == text AND report.plane == server AND (text.hasFail OR text.hasError OR text.hasConsoleErr OR text.hasBlocked OR text.hasTimeout) -> false
+  textPass AT 24 WHEN report.format == text -> true
+  ledgerTeardown AT 30 WHEN NOT ledger.teardownOk -> false
+  ledgerAggregate AT 31 WHEN NOT ledger.hasFailed OR ledger.failed != 0 -> false
+  ledgerEmpty AT 32 WHEN ledger.steps == 0 -> false
+  ledgerBadStep AT 33 WHEN ledger.stepsNotOk > 0 -> false
+  ledgerPass AT 34 WHEN report.format == json -> true
+END
+
+# outcome: pass | fail | error (Python _classify_outcome). error = nothing to judge or a receipt that disagrees with itself.
+DECISION outcome DEFAULT fail
+  pass AT 10 WHEN policy.passes -> pass
+  nothing AT 20 WHEN report.blank OR report.zeroOfZero -> error
+  unreadable AT 30 WHEN report.format == json AND NOT ledger.readable -> error
+  noSteps AT 31 WHEN report.format == json AND ledger.steps == 0 -> error
+  contradicts AT 32 WHEN report.format == json AND NOT ledger.failedMatchesSteps -> error
+END
+
+# fileState: the per-file state of the layered suite verdict (suite_verdict._classify_state).
+DECISION fileState DEFAULT fail
+  noVerdict AT 10 WHEN file.expected == 0 -> no_verdict
+  passed AT 20 WHEN file.passed == file.expected -> pass
+  errored AT 30 WHEN file.errorText -> error
+END
+
+# the two labels of SUITE_RESULT|<inner>|<outer>|aggregate (suite_verdict.format_layered_verdict).
+DECISION suiteInner DEFAULT INNER_PASS
+  noVerdict AT 10 WHEN suite.allNoVerdict -> NO_VERDICT
+  failed AT 20 WHEN suite.anyFail OR suite.anyError -> INNER_FAIL
+END
+
+DECISION suiteOuter DEFAULT OUTER_PASS
+  failed AT 10 WHEN suite.outerFailed -> OUTER_FAIL
+END

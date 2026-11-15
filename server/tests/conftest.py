@@ -101,20 +101,26 @@ def _reset_login_path_cache():
 
 
 @pytest.fixture(autouse=True)
-def _reset_diagnose_send():
-    """Prevent diagnose._send from leaking between tests (set by server.register())."""
+def _tool_binding_restore():
+    """Snapshot/restore every tools/*.py register()-bound DI global (_send, _args,
+    and module-specific extras like _get_slot) around each test. Generic replacement
+    for the former _reset_diagnose_send -- covers all bindable modules, not just
+    diagnose, and needs no edit when a module is added or split (see
+    Plans/DSL/SV7-DESIGN.md)."""
+    from _tool_binding import bindable_tool_modules, restore_bindings, snapshot_bindings
     import unity_mcp.tools.diagnose as _diag
-    original = _diag._send
+    snap = snapshot_bindings(bindable_tool_modules())
     _diag._send = None
     yield
-    _diag._send = original
+    restore_bindings(snap)
 
 
 @pytest.fixture(autouse=True)
 def _reset_tcp_probe_grace():
-    """Clear lockfile._tcp_probe_fail_since so one test's port-probe grace-window
-    state (keyed by port-file path) never leaks into the next test's sweep."""
-    from unity_mcp.lockfile import _tcp_probe_fail_since
+    """Clear phantom_cleaner._tcp_probe_fail_since so one test's port-probe
+    grace-window state (keyed by port-file path) never leaks into the next
+    test's sweep."""
+    from unity_mcp.phantom_cleaner import _tcp_probe_fail_since
     _tcp_probe_fail_since.clear()
     yield
     _tcp_probe_fail_since.clear()

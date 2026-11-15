@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "catalog_version": "1.0.1",
+  "catalog_version": "1.0.2",
   "scope": "builtin",
   "owner": null,
   "contracts": [
@@ -56,9 +56,9 @@
       ],
       "retry": "reconcile",
       "arguments": {
+        "action": "list",
         "path": "/Main",
-        "Camera": "",
-        "action": "list"
+        "Camera": ""
       },
       "preconditions": {
         "connected": true
@@ -154,9 +154,7 @@
         "filesystem"
       ],
       "retry": "reconcile",
-      "arguments": {
-        "path": "/__seam_nonexistent"
-      },
+      "arguments": {},
       "preconditions": {
         "connected": true
       },
@@ -218,9 +216,7 @@
         "observer_state"
       ],
       "retry": "reconcile",
-      "arguments": {
-        "action": "list"
-      },
+      "arguments": {},
       "preconditions": {
         "connected": true
       },
@@ -341,9 +337,7 @@
         "observer_state"
       ],
       "retry": "reconcile",
-      "arguments": {
-        "path": "/__seam_nonexistent.defs"
-      },
+      "arguments": {},
       "preconditions": {
         "connected": true
       },
@@ -447,7 +441,7 @@
       ],
       "retry": "blind_safe",
       "arguments": {
-        "path": "/__seam_nonexistent"
+        "id": "999999999"
       },
       "preconditions": {
         "connected": true
@@ -521,7 +515,7 @@
       ],
       "retry": "blind_safe",
       "arguments": {
-        "path": "/__seam_nonexistent"
+        "id": "999999999"
       },
       "preconditions": {
         "connected": true
@@ -537,7 +531,7 @@
       ],
       "retry": "blind_safe",
       "arguments": {
-        "cmd": "get_status"
+        "type": "Transform"
       },
       "preconditions": {
         "connected": true
@@ -814,8 +808,8 @@
       ],
       "retry": "reconcile",
       "arguments": {
-        "path": "/__seam_nonexistent",
-        "action": "get"
+        "action": "get",
+        "path": "/__seam_nonexistent"
       },
       "preconditions": {
         "connected": true
@@ -830,9 +824,7 @@
         "pure_read"
       ],
       "retry": "blind_safe",
-      "arguments": {
-        "path": "/__seam_nonexistent"
-      },
+      "arguments": {},
       "preconditions": {
         "connected": true
       },
@@ -847,7 +839,7 @@
       ],
       "retry": "reconcile",
       "arguments": {
-        "name": "File/Save"
+        "action": "list"
       },
       "preconditions": {
         "connected": true
@@ -863,7 +855,8 @@
       ],
       "retry": "blind_safe",
       "arguments": {
-        "path": "/__seam_nonexistent"
+        "path_a": "/__seam_nonexistent_a",
+        "path_b": "/__seam_nonexistent_b"
       },
       "preconditions": {
         "connected": true
@@ -927,7 +920,8 @@
       ],
       "retry": "reconcile",
       "arguments": {
-        "path": "ProjectSettings/TagManager"
+        "action": "get",
+        "target": "tags"
       },
       "preconditions": {
         "connected": true
@@ -974,7 +968,10 @@
       ],
       "retry": "reconcile",
       "arguments": {
-        "region": "__seam_nonexistent"
+        "vertices": "0,0",
+        "1,0": "",
+        "1,1": "",
+        "0,1": ""
       },
       "preconditions": {
         "connected": true
@@ -1094,9 +1091,7 @@
         "pure_read"
       ],
       "retry": "blind_safe",
-      "arguments": {
-        "path": "/__seam_nonexistent"
-      },
+      "arguments": {},
       "preconditions": {
         "connected": true
       },
@@ -1173,8 +1168,9 @@
       ],
       "retry": "blind_safe",
       "arguments": {
-        "from": "OldField",
-        "to": "NewField"
+        "type": "MyNamespace.PlayerStats",
+        "old_field": "oldFieldName",
+        "new_field": "newFieldName"
       },
       "preconditions": {
         "connected": true
@@ -1208,7 +1204,7 @@
       "retry": "reconcile",
       "arguments": {
         "path": "/__seam_nonexistent",
-        "material": "Default-Material"
+        "color": "#FFFFFF"
       },
       "preconditions": {
         "connected": true
@@ -1343,9 +1339,7 @@
         "observer_state"
       ],
       "retry": "reconcile",
-      "arguments": {
-        "path": "/__seam_nonexistent.defs"
-      },
+      "arguments": {},
       "preconditions": {
         "connected": true
       },
@@ -1377,7 +1371,7 @@
       "retry": "reconcile",
       "arguments": {
         "path": "/__seam_nonexistent",
-        "to": "/__seam_target"
+        "action": "move"
       },
       "preconditions": {
         "connected": true
@@ -1393,8 +1387,8 @@
       ],
       "retry": "reconcile",
       "arguments": {
-        "path": "/__seam_nonexistent",
-        "action": "get"
+        "action": "get",
+        "path": "/__seam_nonexistent"
       },
       "preconditions": {
         "connected": true
@@ -1470,9 +1464,7 @@
         "pure_read"
       ],
       "retry": "blind_safe",
-      "arguments": {
-        "path": "/__seam_nonexistent"
-      },
+      "arguments": {},
       "preconditions": {
         "connected": true
       },

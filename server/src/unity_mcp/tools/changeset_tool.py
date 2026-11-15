@@ -1,7 +1,8 @@
 """T16: get_changeset MCP tool — returns current ChangeSet as token-efficient text."""
+from .generated.catalog_tools import get_changeset  # noqa: F401
 
 
-async def get_changeset() -> str:
+async def _get_changeset_body() -> str:
     """Return the current ChangeSet: accumulated mutations this session.
     Use after any mutation sequence to review what changed."""
     from ..changeset_coordinator import get_coordinator
@@ -33,5 +34,4 @@ async def get_changeset() -> str:
 
 
 def register(mcp, send, args):
-    from ._annotations import RO as _RO
-    mcp.tool(annotations=_RO)(get_changeset)
+    pass

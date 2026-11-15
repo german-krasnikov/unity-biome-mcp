@@ -1,0 +1,13 @@
+{
+  "generated": "from consolehint.examples by npm run logic -- examples; do not edit",
+  "provenance": "Characterized from middleware_reads.categorize_console_errors at middleware_reads.py:109-116. No dedicated test exists yet; rows cover all branches.",
+  "consoleHint": [
+    { "id": "no-error", "facts": { "conHasNullRef": false, "conHasMissingComponent": false, "conHasFormatError": false }, "expected": "none", "provenance": "clean result" },
+    { "id": "null-ref", "facts": { "conHasNullRef": true, "conHasMissingComponent": false, "conHasFormatError": false }, "expected": "null_ref", "provenance": "NullReferenceException in result" },
+    { "id": "missing-comp", "facts": { "conHasNullRef": false, "conHasMissingComponent": true, "conHasFormatError": false }, "expected": "missing_component", "provenance": "MissingComponentException" },
+    { "id": "format-err", "facts": { "conHasNullRef": false, "conHasMissingComponent": false, "conHasFormatError": true }, "expected": "format_error", "provenance": "FormatException or format string" },
+    { "id": "null-ref-wins-over-missing", "facts": { "conHasNullRef": true, "conHasMissingComponent": true, "conHasFormatError": false }, "expected": "null_ref", "provenance": "first match (AT 10 < AT 20)" },
+    { "id": "null-ref-wins-over-format", "facts": { "conHasNullRef": true, "conHasMissingComponent": false, "conHasFormatError": true }, "expected": "null_ref", "provenance": "first match" },
+    { "id": "missing-wins-over-format", "facts": { "conHasNullRef": false, "conHasMissingComponent": true, "conHasFormatError": true }, "expected": "missing_component", "provenance": "AT 20 < AT 30" }
+  ]
+}

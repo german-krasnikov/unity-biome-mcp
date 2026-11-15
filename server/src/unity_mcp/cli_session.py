@@ -4,9 +4,11 @@ import contextlib
 import os
 from dataclasses import dataclass, field
 
+from .generated.protocol import PROTOCOL_ROWS as _P
+
 KILL_WAIT = 2.0        # seconds between SIGTERM and SIGKILL
 PPID_POLL = 5.0        # orphan watchdog interval
-MAX_FRAME = 10_000_000  # 10 MB
+MAX_FRAME: int = _P[0].maxFrameBytes  # 10 MB
 
 
 @dataclass

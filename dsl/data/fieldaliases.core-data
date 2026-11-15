@@ -1,0 +1,12 @@
+FIELDALIAS {alias: position canonical: m_localposition}
+FIELDALIAS {alias: localposition canonical: m_localposition}
+FIELDALIAS {alias: rotation canonical: m_localrotation}
+FIELDALIAS {alias: localrotation canonical: m_localrotation}
+FIELDALIAS {alias: scale canonical: m_localscale}
+FIELDALIAS {alias: localscale canonical: m_localscale}
+FIELDALIAS {alias: mass canonical: m_mass}
+FIELDALIAS {alias: enabled canonical: m_enabled}
+FIELDALIAS {alias: active canonical: m_isactive}
+FIELDALIAS {alias: name canonical: m_name}
+FIELDALIAS {alias: tag canonical: m_tagstring}
+FIELDALIAS {alias: layer canonical: m_layer}

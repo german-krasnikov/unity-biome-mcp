@@ -9,10 +9,11 @@ namespace UnityMCP.Editor
 {
     internal static class BatchHelper
     {
-        // Depth counter, not a bool: a nested `batch` command must not reset the flag
-        // (and fire Physics.Sync) while the outer batch is still running. Sync once, at depth 0.
-        private static int _batchDepth;
-        internal static bool InBatch => _batchDepth > 0;
+        // Depth counter lives in BatchState (Primitives leaf, Phase 5 A1) so Core.Scene
+        // can read InBatch without referencing this Editor-monolith class. A nested
+        // `batch` command must not reset the flag (and fire Physics.Sync) while the
+        // outer batch is still running -- sync once, at depth 0.
+        internal static bool InBatch => BatchState.InBatch;
         // Tracks mutation count across all sub-commands in the batch tree.
         // Reset by the outermost (depth==1) entry; accumulated by any depth.
         private static int _batchRootMutationCount;
@@ -31,6 +32,30 @@ namespace UnityMCP.Editor
             @"(?:[A-Z][A-Z0-9_-]*[ \t]+)+ERROR[ \t]*:)",
             RegexOptions.Compiled | RegexOptions.Multiline);
 
+        // What a line says when a guard stops it: the verdicts of guardVerdict at the batch site. A verdict that has no text fails loudly.
+        private static string GuardText(string verdict, string cmd)
+        {
+            switch (verdict)
+            {
+                case Decisions.Guards.Policy.GuardVerdictValues.AsyncOnly:
+                    return $"err: '{cmd}' is async-only; call it as a typed MCP tool instead of batch";
+                case Decisions.Guards.Policy.GuardVerdictValues.PlayBlocked:
+                    return $"BLOCKED: '{cmd}' is mutating, skipped in Play Mode";
+                case Decisions.Guards.Policy.GuardVerdictValues.NotInPlay:
+                    return $"BLOCKED: '{cmd}' is runtime-only, skipped outside Play Mode";
+                case Decisions.Guards.Policy.GuardVerdictValues.Compiling:
+                    return $"BLOCKED: '{cmd}' skipped during compilation";
+                case Decisions.Guards.Policy.GuardVerdictValues.ReadOnlyBlocked:
+                    return $"err: READ_ONLY_BLOCKED: '{cmd}' is a mutating command — this worker is read-only";
+                case Decisions.Guards.Policy.GuardVerdictValues.Disabled:
+                    return $"err: Tool '{cmd}' disabled";
+                case Decisions.Guards.Policy.GuardVerdictValues.Initializing:
+                    return "err: registry not ready — retry after domain reload";
+                default:
+                    throw new InvalidOperationException($"guardVerdict gave '{verdict}' for the batch site: GuardText has no text for it");
+            }
+        }
+
         public static string Execute(string commandsText, string onError,
             int timeoutMs = 25000, bool atomic = false, bool validateAliases = false,
             Func<long> elapsedMilliseconds = null)
@@ -45,10 +70,10 @@ namespace UnityMCP.Editor
             bool stopped = false;
             int okCount = 0, errCount = 0, timeoutCount = 0, skipCount = 0;
 
-            _batchDepth++;
+            int depth = BatchState.Enter();
             // Outermost call (depth==1) always opens a named group so sub-command
             // mutations land inside a bounded window. Atomic root gets its own label.
-            bool isRoot = _batchDepth == 1;
+            bool isRoot = depth == 1;
             bool isAtomicRoot = atomic && isRoot;
             int gid = -1;
             if (isRoot)
@@ -99,54 +124,20 @@ namespace UnityMCP.Editor
 
                 var (cmd, argsJson) = commands[i];
 
-                // Async-only commands cannot run inside batch (structural check — also
-                // catches ask_user, which the old hardcoded name list here used to miss).
-                if (!CommandRegistry.IsBatchable(cmd))
+                // The guards of a line, in the order of the code: async-only (a structural check, also catches ask_user), Play Mode,
+                // runtime-only, the compile guard (mutating commands only), read-only, tool enabled, and the registry guard (during a
+                // domain reload Clear() empties _commands before RegisterAll() completes: reject early, so callers get a clear retry
+                // message). Which one stops a line is the decision guardVerdict (site batch) of dsl/decisions/guards.logic; GuardFacts
+                // states the world to it, and the text of each answer is GuardText.
+                var verdict = Decisions.Guards.Policy.GuardVerdict(Decisions.GuardFacts.Batch(
+                    ready: CommandRegistry.Ready, batchable: CommandRegistry.IsBatchable(cmd), compiling: IsCompiling(),
+                    allowedDuringCompile: CommandRouter.IsAllowedDuringCompile(cmd), playMode: IsPlayMode(),
+                    mutating: CommandRegistry.IsMutating(cmd, argsJson), allowedInPlay: CommandRouter.IsAllowedMutationInPlayMode(cmd, argsJson),
+                    runtime: CommandRegistry.IsRuntime(cmd), readOnly: CommandRouter.IsReadOnly(),
+                    alwaysAllowed: CommandRouter.IsAlwaysAllowed(cmd), toolEnabled: MCPSettings.IsToolEnabled(cmd)));
+                if (verdict != Decisions.Guards.Policy.GuardVerdictValues.Ok)
                 {
-                    sb.AppendLine($"[{i}] err: '{cmd}' is async-only; call it as a typed MCP tool instead of batch");
-                    if (AtomicFail(i)) break; else continue;
-                }
-
-                // Play Mode guards
-                if (IsPlayMode() && CommandRegistry.IsMutating(cmd, argsJson)
-                    && !CommandRouter.IsAllowedMutationInPlayMode(cmd, argsJson))
-                {
-                    sb.AppendLine($"[{i}] BLOCKED: '{cmd}' is mutating, skipped in Play Mode");
-                    if (AtomicFail(i)) break; else continue;
-                }
-                if (!IsPlayMode() && CommandRegistry.IsRuntime(cmd))
-                {
-                    sb.AppendLine($"[{i}] BLOCKED: '{cmd}' is runtime-only, skipped outside Play Mode");
-                    if (AtomicFail(i)) break; else continue;
-                }
-
-                // Compile guard
-                if (IsCompiling() && CommandRegistry.IsMutating(cmd, argsJson)
-                    && !CommandRouter.IsAllowedDuringCompile(cmd))
-                {
-                    sb.AppendLine($"[{i}] BLOCKED: '{cmd}' skipped during compilation");
-                    if (AtomicFail(i)) break; else continue;
-                }
-
-                // ReadOnly guard
-                if (CommandRouter.IsReadOnly() && CommandRegistry.IsMutating(cmd, argsJson))
-                {
-                    sb.AppendLine($"[{i}] err: READ_ONLY_BLOCKED: '{cmd}' is a mutating command — this worker is read-only");
-                    if (AtomicFail(i)) break; else continue;
-                }
-
-                // Tool enabled check
-                if (!CommandRouter.IsAlwaysAllowed(cmd) && !MCPSettings.IsToolEnabled(cmd))
-                {
-                    sb.AppendLine($"[{i}] err: Tool '{cmd}' disabled");
-                    if (AtomicFail(i)) break; else continue;
-                }
-
-                // Registry guard: during domain reload, Clear() empties _commands before
-                // RegisterAll() completes — reject early so callers get a clear retry message.
-                if (!CommandRegistry.Ready)
-                {
-                    sb.AppendLine($"[{i}] err: registry not ready — retry after domain reload");
+                    sb.AppendLine($"[{i}] " + GuardText(verdict, cmd));
                     if (AtomicFail(i)) break; else continue;
                 }
 
@@ -183,7 +174,7 @@ namespace UnityMCP.Editor
                     }
 
                     okCount++;
-                    if (CommandRegistry.IsMutating(cmd, argsJson))
+                    if (CommandRegistry.IsMutating(cmd, argsJson) && !CommandRegistry.IsNoUndo(cmd))
                     {
                         ChangeWatcher.RecordMutation($"MCP_BATCH_{cmd.ToUpper()}");
                         _batchRootMutationCount++;
@@ -216,7 +207,7 @@ namespace UnityMCP.Editor
                     UndoGroupStack.Push(gid, _batchRootMutationCount);
 
                 // Only the outermost batch flushes physics — once, after all nested ops settle.
-                if (--_batchDepth == 0 && !IsPlayMode())
+                if (BatchState.Exit() == 0 && !IsPlayMode())
                 {
                     Physics.SyncTransforms();
                     Physics2D.SyncTransforms();

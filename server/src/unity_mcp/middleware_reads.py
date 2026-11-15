@@ -2,6 +2,17 @@
 
 import time as _time
 
+from .decisions.generated.confidence_logic import (
+    ConfidenceBandInput,
+    ConfidenceBandValues,
+    confidence_band,
+)
+from .decisions.generated.consolehint_logic import (
+    ConsoleHintInput,
+    ConsoleHintValues,
+    console_hint,
+)
+from .generated.timing_constants import TIMING_ROWS as _TR
 from .middleware_types import is_write
 from .tools.editor_state import (
     is_paused as _is_paused,
@@ -13,7 +24,7 @@ from .tools.editor_state import (
     parse_editor_field as _parse_editor_field,
 )
 
-_NON_EDITOR_PLAY_TTL = 5.0  # seconds
+_NON_EDITOR_PLAY_TTL = _TR[0].playModeCacheTtlS  # seconds
 
 
 class MiddlewareReadsMixin:
@@ -35,14 +46,18 @@ class MiddlewareReadsMixin:
     # ── Feature 2: Confidence Decay ───────────────────────────────────────
 
     def update_confidence(self, cmd: str, args: dict, result: str) -> str:
-        if is_write(cmd, args):
+        write = is_write(cmd, args)
+        if write:
             self.confidence = max(0.0, self.confidence - 0.08)
         else:
             self.confidence = min(1.0, self.confidence + 0.15)
-        if self.confidence >= 0.5:
+        band = confidence_band(ConfidenceBandInput(
+            conf_is_write=write, conf_updated_value=self.confidence,
+        ))
+        if band == ConfidenceBandValues.OK:
             return result
         suffix = f"\n[confidence: {self.confidence:.2f}]"
-        if self.confidence < 0.3:
+        if band == ConfidenceBandValues.LOW:
             suffix += " [LOW CONFIDENCE: re-read state before writing]"
         return result + suffix
 
@@ -106,11 +121,19 @@ class MiddlewareReadsMixin:
 
     def categorize_console_errors(self, result: str) -> str:
         """Parse console errors in result, append categorized hints."""
-        if "NullReferenceException" in result:
+        hint = console_hint(ConsoleHintInput(
+            con_has_null_ref="NullReferenceException" in result,
+            con_has_missing_component="MissingComponentException" in result,
+            con_has_format_error=(
+                "FormatException" in result
+                or "Input string was not in a correct format" in result
+            ),
+        ))
+        if hint == ConsoleHintValues.NULL_REF:
             return result + "\n[HINT: NullRef — likely broken reference. Use validate_references to check.]"
-        if "MissingComponentException" in result:
+        if hint == ConsoleHintValues.MISSING_COMPONENT:
             return result + "\n[HINT: Missing component — was it removed? Use get_components_list to check.]"
-        if "FormatException" in result or "Input string was not in a correct format" in result:
+        if hint == ConsoleHintValues.FORMAT_ERROR:
             return result + "\n[HINT: Format error — check value format. Use get_schema for field types.]"
         return result
 

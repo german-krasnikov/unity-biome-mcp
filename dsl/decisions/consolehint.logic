@@ -1,0 +1,8 @@
+# consoleHint: which hint category to append for a console error (middleware_reads.py:109-116, categorize_console_errors()).
+# The host scans the result string for well-known exception substrings and passes booleans.
+# First match wins (lowest AT); none when no known exception is present.
+DECISION consoleHint DEFAULT none
+  nullRef AT 10 WHEN con.hasNullRef -> null_ref
+  missingComp AT 20 WHEN con.hasMissingComponent -> missing_component
+  formatErr AT 30 WHEN con.hasFormatError -> format_error
+END

@@ -22,11 +22,10 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void FindDependents_IsValidAction()
         {
-            var field = typeof(AssetDatabaseHelper).GetField("ValidActions",
-                BindingFlags.NonPublic | BindingFlags.Static);
-            Assert.IsNotNull(field, "ValidActions field not found");
-            var actions = (string[])field.GetValue(null);
-            CollectionAssert.Contains(actions, "find_dependents");
+            // AssetDatabaseHelper's hand ValidActions field was replaced by the catalog-generated
+            // ToolActions.Names("asset") in dsl-bottlenecks-2026-11 Part A -- that is now the one
+            // source of truth for the tool's valid action vocabulary.
+            CollectionAssert.Contains(ToolActions.Names("asset"), "find_dependents");
         }
 
         [Test]

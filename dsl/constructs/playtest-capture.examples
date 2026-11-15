@@ -1,0 +1,94 @@
+EXAMPLE CAPTURE reads a label and a query (the rest of the line), ASSERT_CHANGED a label (PlaytestParserTests.cs:929, :974; Runtime/PlaytestParserTests.cs:332; PlaytestCaptureStringTests.cs:16; AI/playtest-dsl.md:288, :346)
+  SOURCE CAPTURE hp /Player|Health|current
+  SOURCE CAPTURE money /Money|CurrencyComp|Value
+  SOURCE CAPTURE $hp /Player|Health|hp
+  SOURCE CAPTURE gold /My Player|Wallet|Gold
+  SOURCE ASSERT_CHANGED $hp
+  SOURCE ASSERT_CHANGED status_before
+
+EXAMPLE CAPTURE refuses a label without a query (INTENDED I10: the step validator of the composer refuses it too, PlaytestStepValidator.cs:40), ASSERT_CHANGED a missing label and a token too many (INTENDED I1)
+  SOURCE CAPTURE
+  SOURCE CAPTURE hp
+  SOURCE ASSERT_CHANGED
+  SOURCE ASSERT_CHANGED $hp $mp
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_SYNTAX at 2:9
+  EXPECT diagnostic DECLARE_SYNTAX at 3:1
+  EXPECT diagnostic DECLARE_SYNTAX at 4:20
+
+EXAMPLE a label is a word; a word with a blank is written in quotes and is one token (the hand parser strips the quotes: PlaytestParser.Subroutines.cs:503-523)
+  SOURCE CAPTURE "my label" /Player|Health|hp
+  SOURCE ASSERT_CHANGED "my label"
+  SOURCE ASSERT_CAPTURED "my label" INCREASED
+  SOURCE ASSERT_FRAMES_DIFFER "my clip"
+  SOURCE ASSERT_FRAMES_STATIC "my clip"
+
+EXAMPLE CAPTURE_MIN and CAPTURE_MAX read a name, a query and an optional OVER (PlaytestParserTests.cs:823, :835, :853, :863; PlaytestParser.Internals.cs:604-629; CHANGELOG.md:975)
+  SOURCE CAPTURE_MIN $speed /Player|Rb|speed
+  SOURCE CAPTURE_MIN $minFps /Stats|Fps|v OVER 3.5
+  SOURCE CAPTURE_MIN speed /Player|Rb|speed
+  SOURCE CAPTURE_MAX $topScore /Game|Score|total
+  SOURCE CAPTURE_MAX $maxHp /Player|Health|hp OVER 5
+
+EXAMPLE CAPTURE_MIN and CAPTURE_MAX refuse a missing name or query (PlaytestParserTests.cs:845), a name no $sigil spells (INTENDED I9), a query with a blank inside [..] (INTENDED I8), an OVER without a number or with a word, and a token too many (INTENDED I1)
+  SOURCE CAPTURE_MIN
+  SOURCE CAPTURE_MIN $speed
+  SOURCE CAPTURE_MIN $my-speed /p|C|f
+  SOURCE CAPTURE_MAX $my-speed /p|C|f
+  SOURCE CAPTURE_MIN $s /[My Obj]/X|C|f
+  SOURCE CAPTURE_MAX $s /[My Obj]/X|C|f
+  SOURCE CAPTURE_MAX $speed /p|C|f OVER
+  SOURCE CAPTURE_MIN $speed /p|C|f OVER abc
+  SOURCE CAPTURE_MAX $speed /p|C|f OVER abc
+  SOURCE CAPTURE_MAX $speed /p|C|f 5
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_SYNTAX at 2:13
+  EXPECT diagnostic DECLARE_SYNTAX at 3:13
+  EXPECT diagnostic DECLARE_SYNTAX at 4:13
+  EXPECT diagnostic DECLARE_SYNTAX at 5:16
+  EXPECT diagnostic DECLARE_SYNTAX at 6:16
+  EXPECT diagnostic DECLARE_SYNTAX at 7:27
+  EXPECT diagnostic DECLARE_NUMBER at 8:32
+  EXPECT diagnostic DECLARE_NUMBER at 9:32
+  EXPECT diagnostic DECLARE_SYNTAX at 10:27
+
+EXAMPLE ASSERT_CAPTURED reads a label, a mode and for the BY modes an operator and a value; ASSERT_MIN and ASSERT_MAX a name, an operator and a value; the frame assertions a label (PlaytestParserTests.cs:874, :887, :1030, :1041; Runtime/PlaytestParserTests.cs:342, :353; PlaytestFrameCaptureTests.cs:63, :72; PlaytestParser.Internals.cs:631-651; AI/playtest-dsl.md:272, :316)
+  SOURCE ASSERT_CAPTURED money INCREASED
+  SOURCE ASSERT_CAPTURED money DECREASED
+  SOURCE ASSERT_CAPTURED money UNCHANGED
+  SOURCE ASSERT_CAPTURED money INCREASED_BY >= 50
+  SOURCE ASSERT_CAPTURED money DECREASED_BY == 10
+  SOURCE ASSERT_MIN $speed >= 30
+  SOURCE ASSERT_MAX $topScore <= 9999
+  SOURCE ASSERT_MIN minFps > 20.5
+  SOURCE ASSERT_FRAMES_DIFFER myClip
+  SOURCE ASSERT_FRAMES_STATIC idle
+
+EXAMPLE ASSERT_CAPTURED refuses a mode the runner throws on (INTENDED I9: PlaytestState.cs:95 throws on it, AI/playtest-dsl.md:279 and :353 write one), a value for a mode that has none (INTENDED I1); a lower-case mode now reads via CASEFOLD (PT-8/Q22, closes INTENDED I4); ASSERT_MIN and ASSERT_MAX a missing value or an operator the runner throws on (INTENDED I9); the frame assertions a missing label and a token too many
+  SOURCE ASSERT_CAPTURED
+  SOURCE ASSERT_CAPTURED money
+  SOURCE ASSERT_CAPTURED initial_pos != 100,100,0
+  SOURCE ASSERT_CAPTURED money INCREASED 50
+  SOURCE ASSERT_CAPTURED money increased
+  SOURCE ASSERT_CAPTURED money INCREASED_BY ~ 5
+  SOURCE ASSERT_MIN $speed
+  SOURCE ASSERT_MIN $speed ~ 30
+  SOURCE ASSERT_MIN $my-speed >= 3
+  SOURCE ASSERT_MAX $topScore <=
+  SOURCE ASSERT_MAX $topScore ~ 1
+  SOURCE ASSERT_MAX $my-top <= 3
+  SOURCE ASSERT_FRAMES_DIFFER
+  SOURCE ASSERT_FRAMES_STATIC a b
+  EXPECT diagnostic DECLARE_SYNTAX at 1:1
+  EXPECT diagnostic DECLARE_SYNTAX at 2:17
+  EXPECT diagnostic DECLARE_SYNTAX at 3:29
+  EXPECT diagnostic DECLARE_SYNTAX at 4:33
+  EXPECT diagnostic DECLARE_SYNTAX at 6:36
+  EXPECT diagnostic DECLARE_SYNTAX at 7:12
+  EXPECT diagnostic DECLARE_SYNTAX at 8:19
+  EXPECT diagnostic DECLARE_SYNTAX at 9:12
+  EXPECT diagnostic DECLARE_SYNTAX at 10:22
+  EXPECT diagnostic DECLARE_SYNTAX at 11:22
+  EXPECT diagnostic DECLARE_SYNTAX at 12:12
+  EXPECT diagnostic DECLARE_SYNTAX at 13:1
+  EXPECT diagnostic DECLARE_SYNTAX at 14:24

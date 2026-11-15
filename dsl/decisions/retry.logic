@@ -1,0 +1,18 @@
+# Why a failed send retries or stops. Cheap facts decide first (retryGate); only when it says observe does the host read the probes (state file, pid, Editor.log) and ask retryReason.
+# Lower AT wins. The order is the order of RetryPolicy.decide at 86eca971, with the SENT boundary of _send_with_retry folded in as its first rule.
+DECISION retryGate DEFAULT observe
+  unsafeSent AT 5 WHEN retry.deliverySent AND NOT retry.retrySafe -> unsafe_sent
+  maxRetries AT 10 WHEN retry.attempt >= retry.maxRetries -> max_retries
+  deadline AT 20 WHEN retry.deadlinePassed -> deadline
+  identity AT 30 WHEN retry.errorKind == identityMismatch -> identity_mismatch
+  capacity AT 40 WHEN retry.errorKind == capacityBusy -> capacity_busy
+  reload AT 50 WHEN retry.errorKind == domainReload -> domain_reload
+  reloadWindow AT 60 WHEN retry.reloadActive -> busy
+END
+
+DECISION retryReason DEFAULT grace_expired
+  compiling AT 60 WHEN retry.probeBusy -> busy
+  processDead AT 70 WHEN retry.errorKind == connectionRefused AND retry.processDead -> process_dead
+  refused AT 80 WHEN retry.errorKind == connectionRefused -> connection_refused
+  transient AT 90 WHEN retry.attempt < 1 -> transient
+END

@@ -92,6 +92,178 @@ registration does not receive isolated category gating.
 
 **Other TIER1 tools:** Run `discover_tools(enable=False, structured=True)` and look for entries tagged `tier1`. This keeps the reference aligned with the installed version.
 
+## Cataloged Tools
+
+These tools are declared once in the repository's tool catalog (`dsl/tools.biome`), and this table is printed from it. **Plane** is
+where the tool runs: `unity` (the Editor handles the command) or `python` (the MCP server alone). **Effect**: `RO` read-only, `RW`
+writes, `RW_IDEM` writes and is safe to repeat, `DEL` destructive. `discover_tools(enable=False, structured=True)` stays the live
+reference for every tool.
+
+<!-- biome:begin catalog -->
+| Tool | Plane | Category | Effect |
+|---|---|---|---|
+| `alias_status` | unity | SYSTEM | RO |
+| `analyze_lod_culling` | unity | MEDIA | RO |
+| `animation` | unity | MEDIA | RW |
+| `animator` | unity | MEDIA | RW |
+| `animator_intent` | python | SYSTEM | RW |
+| `apply_scene_change` | python | SCENE | RW |
+| `apply_template` | python | SYSTEM | RW |
+| `ask` | python | SYSTEM | RO |
+| `ask_user` | unity | SYSTEM | RO |
+| `asset` | unity | ASSETS | RW |
+| `attach_uitk` | unity | UITOOLKIT | RW |
+| `auto_fix` | python | SYSTEM | RO |
+| `auto_wire` | unity | COMPONENTS | RW |
+| `autofit_collider` | unity | SCENE | RW |
+| `await_compile` | python | VERIFY | RO |
+| `bake` | unity | ASSETS | RW |
+| `batch` | unity | CORE | RW |
+| `brief_build` | python | SYSTEM | RO |
+| `budget_status` | python | SYSTEM | RO |
+| `build` | unity | SYSTEM | RW |
+| `cancel_test_run` | unity | TESTS | RW_IDEM |
+| `check_colliders` | unity | SCENE | RO |
+| `checkpoint` | unity | SYSTEM | RW |
+| `checkpoint_create` | python | SYSTEM | RW |
+| `checkpoint_restore` | python | SYSTEM | DEL |
+| `compile_preflight` | unity | VERIFY | RO |
+| `configure_objects` | python | SCENE | RW |
+| `console_mark` | python | RUNTIME | RO |
+| `create_object` | unity | CORE | RW |
+| `create_ui` | unity | UGUI | RW |
+| `debug` | python | RUNTIME | RO |
+| `debug_animator` | unity | RUNTIME | RO |
+| `debug_physics` | unity | RUNTIME | RO |
+| `delete_object` | unity | SCENE | DEL |
+| `diagnose` | unity | VERIFY | RO |
+| `discover_tools` | python | SYSTEM | RO |
+| `do` | python | SYSTEM | RW |
+| `doctor` | python | SYSTEM | RW |
+| `editor` | unity | CORE | RW |
+| `execute_code` | unity | SYSTEM | RW |
+| `export_playtest_aliases_to_defs` | unity | TESTS | RW |
+| `find_objects` | unity | SCENE | RO |
+| `fingerprint` | unity | SYSTEM | RO |
+| `get_capabilities` | unity | SYSTEM | RO |
+| `get_changes` | unity | SYSTEM | RW |
+| `get_changeset` | python | VERIFY | RO |
+| `get_compile_errors` | unity | CORE | RO |
+| `get_component` | unity | CORE | RO |
+| `get_components_list` | unity | SCENE | RO |
+| `get_console` | unity | CORE | RO |
+| `get_console_since` | python | RUNTIME | RO |
+| `get_enabled_tools` | unity | SYSTEM | RO |
+| `get_frame_stats` | unity | RUNTIME | RO |
+| `get_hierarchy` | unity | CORE | RO |
+| `get_memory` | unity | RUNTIME | RO |
+| `get_metrics` | python | RUNTIME | RW |
+| `get_object_detail` | unity | SCENE | RO |
+| `get_schema` | unity | SYSTEM | RO |
+| `get_selection` | unity | SCENE | RO |
+| `get_spatial_context` | unity | SCENE | RO |
+| `get_test_count` | unity | TESTS | RO |
+| `get_test_progress` | unity | TESTS | RO |
+| `get_test_results` | unity | TESTS | RO |
+| `get_test_run` | unity | TESTS | RO |
+| `get_unity_events` | unity | SCENE | RO |
+| `get_watches` | unity | RUNTIME | RO |
+| `inspect` | unity | CORE | RO |
+| `inspect_uitk` | unity | UITOOLKIT | RO |
+| `invoke_method` | unity | RUNTIME | RW |
+| `lint_playtest` | unity | TESTS | RO |
+| `lint_playtest_suite` | python | TESTS | RO |
+| `lint_scene_refs` | unity | VERIFY | RO |
+| `lint_ugui` | unity | UGUI | RO |
+| `lint_uitk` | unity | UITOOLKIT | RO |
+| `list_connections` | python | SYSTEM | RO |
+| `list_events` | unity | COMPONENTS | RO |
+| `list_skills` | python | SYSTEM | RO |
+| `list_templates` | python | SYSTEM | RO |
+| `list_test_runs` | unity | TESTS | RO |
+| `load_session` | python | SYSTEM | RO |
+| `manage_component` | unity | CORE | RW |
+| `material` | unity | ASSETS | RW |
+| `material_audit` | unity | ASSETS | RO |
+| `mcp_status` | python | SYSTEM | RO |
+| `menu` | unity | SYSTEM | RW |
+| `move_to` | unity | RUNTIME | RW |
+| `navmesh_query` | python | SCENE | RW |
+| `object_diff` | unity | SCENE | RO |
+| `package` | unity | ASSETS | RW |
+| `particle` | unity | MEDIA | RW |
+| `permission_prompt` | python | SYSTEM | RO |
+| `ping_object` | unity | SCENE | RO |
+| `prefab` | unity | ASSETS | RW |
+| `profile` | unity | RUNTIME | RW |
+| `project_settings` | unity | ASSETS | RW_IDEM |
+| `query_state` | unity | RUNTIME | RO |
+| `recompile` | unity | SYSTEM | RW |
+| `reconnect_unity` | python | SYSTEM | RO |
+| `references` | unity | COMPONENTS | RW |
+| `region_clear` | unity | SCENE | RW |
+| `release_smoke` | python | SYSTEM | RO |
+| `rename_object` | unity | SCENE | RW_IDEM |
+| `render_analyze` | unity | MEDIA | RO |
+| `resolve_scene_refs` | unity | VERIFY | RO |
+| `resolve_test_request` | unity | TESTS | RO |
+| `resolve_tool_schema` | python | SYSTEM | RO |
+| `run_playtest` | unity | TESTS | RW |
+| `run_playtest_suite` | python | TESTS | RW |
+| `run_tests` | unity | TESTS | RW_IDEM |
+| `run_tests_wait` | python | TESTS | RW |
+| `runtime_snapshot` | unity | RUNTIME | RO |
+| `save_session` | python | SYSTEM | RW |
+| `save_skill` | python | SYSTEM | RW |
+| `save_template` | python | SYSTEM | RW_IDEM |
+| `scan_scene` | unity | VERIFY | RO |
+| `scene` | unity | SCENE | DEL |
+| `scene_change_plan` | python | SCENE | RW |
+| `scene_diff` | unity | SCENE | RO |
+| `scene_environment` | unity | SCENE | RW |
+| `scene_health` | unity | VERIFY | RO |
+| `screenshot` | unity | MEDIA | RW |
+| `screenshot_baseline` | python | MEDIA | RW |
+| `screenshot_compare` | python | MEDIA | RW |
+| `scriptable_object` | unity | ASSETS | RW |
+| `search_scene` | unity | SCENE | RO |
+| `serialized_field_rename_audit` | unity | VERIFY | RO |
+| `set_active` | unity | SCENE | RW_IDEM |
+| `set_llm_config` | python | SYSTEM | RW_IDEM |
+| `set_material` | unity | SCENE | RW_IDEM |
+| `set_parent` | unity | SCENE | RW_IDEM |
+| `set_properties` | python | SCENE | RW |
+| `set_property` | unity | CORE | RW_IDEM |
+| `set_property_delta` | unity | SCENE | RW |
+| `set_rect` | unity | UGUI | RW_IDEM |
+| `set_sibling_index` | unity | SCENE | RW |
+| `setup_objects` | python | SCENE | RW |
+| `shader` | unity | ASSETS | RW |
+| `smart_build` | python | SYSTEM | RW |
+| `snapshot` | python | RUNTIME | RO |
+| `spatial_query` | unity | SCENE | RO |
+| `sync_playtest_aliases_from_defs` | unity | TESTS | RW |
+| `sync_unity` | python | SYSTEM | RW |
+| `test_step` | unity | TESTS | RW |
+| `timeline` | unity | MEDIA | RW |
+| `transfer_object` | unity | SCENE | RW |
+| `ui_intent` | python | UGUI | RW |
+| `uitk_element` | unity | UITOOLKIT | RW |
+| `uitk_file` | unity | UITOOLKIT | RW |
+| `uitk_intent` | python | UITOOLKIT | RW |
+| `undo_last` | unity | SYSTEM | RW |
+| `unwire_event` | unity | COMPONENTS | DEL |
+| `use_skill` | python | SYSTEM | RW |
+| `validate_playtest_aliases` | unity | TESTS | RO |
+| `validate_references` | unity | VERIFY | RO |
+| `validate_triggers` | unity | SCENE | RO |
+| `verify_after_change` | python | VERIFY | RW |
+| `vfx_intent` | python | MEDIA | RW |
+| `wait_until` | unity | RUNTIME | RW_IDEM |
+| `watch` | python | RUNTIME | RW |
+| `wire_event` | unity | COMPONENTS | RW |
+<!-- biome:end catalog -->
+
 ## Enabling Tools by Category
 
 To unlock advanced tools, enable the category:

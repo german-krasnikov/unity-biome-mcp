@@ -1,32 +1,22 @@
 """Strip default values from component read responses to save tokens."""
 
-_FIELD_ALIASES = {
-    "position": "m_localposition", "localposition": "m_localposition",
-    "rotation": "m_localrotation", "localrotation": "m_localrotation",
-    "scale": "m_localscale", "localscale": "m_localscale",
-    "mass": "m_mass", "enabled": "m_enabled", "active": "m_isactive",
-    "name": "m_name", "tag": "m_tagstring", "layer": "m_layer",
-}
+from .generated.field_aliases import FIELD_ALIAS_ROWS
+from .generated.strip_defaults import FIELD_SPECIFIC_DEFAULT_ROWS, STRIP_DEFAULT_ROWS
 
-_DEFAULTS = frozenset({
-    "0", "0.0", "false", "null", "None", '""',
-    "(0, 0, 0)", "(0.0, 0.0, 0.0)",
-    "(0, 0, 0, 1)", "(0.0, 0.0, 0.0, 1.0)",
-    "(1, 1, 1)", "(1.0, 1.0, 1.0)",
-    "[]", "#00000000",
-    # F08: additional common Unity defaults. "Default"/"Untagged" are context-dependent
-    # (layer vs tag field); use _no_strip=True escape hatch if a real value collides.
-    "Untagged", "Default",
-    "(0, 0)", "(0, 0, 0, 0)", "#FFFFFFFF",
-})
+# Built from dsl/data/fieldaliases.core-data via FIELD_ALIAS_ROWS.
+_FIELD_ALIASES: dict[str, str] = {row.alias: row.canonical for row in FIELD_ALIAS_ROWS}
+
+# Built from dsl/data/stripdefaults-global.core-data via STRIP_DEFAULT_ROWS.
+_DEFAULTS: frozenset[str] = frozenset(row.value for row in STRIP_DEFAULT_ROWS)
 
 # Item 22: "1"/"1.0" only stripped for known Unity internal fields that default to 1.
 # Prevents false-positive stripping of user fields like "mass: 1" on Rigidbody.
-_FIELD_DEFAULTS: dict[str, frozenset[str]] = {
-    "m_mass": frozenset({"1", "1.0"}),
-    "m_layer": frozenset({"0"}),
-    "m_isstatic": frozenset({"false", "False"}),
-}
+# Built from dsl/data/stripdefaults-field.core-data via FIELD_SPECIFIC_DEFAULT_ROWS.
+_field_defaults_tmp: dict[str, set[str]] = {}
+for _row in FIELD_SPECIFIC_DEFAULT_ROWS:
+    _field_defaults_tmp.setdefault(_row.fieldKey, set()).add(_row.value)
+_FIELD_DEFAULTS: dict[str, frozenset[str]] = {k: frozenset(v) for k, v in _field_defaults_tmp.items()}
+del _field_defaults_tmp, _row
 
 
 def project_fields(text: str, fields: str) -> str:

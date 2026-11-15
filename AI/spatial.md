@@ -251,7 +251,7 @@ navmesh_query(action="raycast", from_pos="5,0,0", to="5,0,10")
 
 ## Tests
 
-- Python: `server/tests/test_spatial_center.py`, `test_spatial_polygon.py`,
+- Python: `server/tests/tools/test_spatial_center.py`, `test_spatial_polygon.py`,
   `test_spatial_scan.py`, `test_region_clear.py`, and `test_navmesh.py`.
 - C#: `unity-plugin/Editor/Tests/SpatialHelperCenterTests.cs`,
   `SpatialHelperSyncTests.cs`, `RegionClearTests.cs`, and `NavMeshHelperTests.cs`.

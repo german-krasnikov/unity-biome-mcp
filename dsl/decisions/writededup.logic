@@ -1,0 +1,11 @@
+# writeDedupWarn: should a duplicate-write warning be returned (middleware_guards.py:45-66, check_retry()).
+# Screenshots are always allowed to repeat (observing a later frame). Reads are not cached at all.
+# The host hashes (cmd, sorted-json(args)) and checks whether that hash exists within TTL with the same generation.
+# First match wins (lowest AT); early exits permit the call when it is clearly safe.
+DECISION writeDedupWarn DEFAULT ok
+  notWrite AT 10 WHEN NOT dedup.isWrite -> ok
+  screenshot AT 11 WHEN dedup.isScreenshot -> ok
+  ttlExpired AT 20 WHEN NOT dedup.withinTtl -> ok
+  newGeneration AT 21 WHEN NOT dedup.sameGeneration -> ok
+  duplicate AT 30 WHEN dedup.isWrite AND NOT dedup.isScreenshot AND dedup.withinTtl AND dedup.sameGeneration -> warn
+END

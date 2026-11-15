@@ -1,0 +1,10 @@
+# The per-project MCP config file targets (T1/Q10): one typed row set instead of the two hand-written,
+# parity-tested-by-regex copies — server/src/unity_mcp/config/merger.py's PROJECT_CONFIG_TARGETS tuple and
+# unity-plugin/Editor/Wizard/ProjectConfigTargets.cs's ProjectConfigTarget[] All. rootKey is OPTIONAL: Codex
+# (TOML) has none, same meaning as the C# source's null and Python's "" fallback at the call site.
+RECORD ProjectConfigTarget KEY key COUNT 6
+  key: string
+  relativePath: string
+  isToml: bool
+  rootKey: string OPTIONAL
+END

@@ -83,7 +83,7 @@ including Settings, Setup Wizard, diagnostics, plugin settings, and chat.
 
 - Add EditMode tests for visual-tree contracts, focusability, preset refresh,
   state gating, motion-disabled behavior, and navigation lifecycle.
-- Keep `server/tests/test_editor_ui_styles.py` green; it guards unsupported USS
+- Keep `server/tests/boundary/test_editor_ui_styles.py` green; it guards unsupported USS
   animation syntax and stylesheet-class drift.
 - Verify Settings at narrow and normal widths and Wizard at its declared minimum.
 - Check both Unity Editor skins through the native theme.

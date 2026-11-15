@@ -1,0 +1,42 @@
+# Hand-written from test_wedge_detection.py (P13/P14, G28, G33, C2); not generated from the logic or the code.
+EXAMPLES failureCurrency
+  id                            | logFailureOffset | logSuccessOffset -> expected
+  no-failure-terminal           | -1  | 500 -> stale   # test_wedge_detection.py:112
+  no-failure-no-success         | -1  | -1  -> stale   # test_wedge_detection.py:112
+  failure-without-success       | 300 | -1  -> current # test_wedge_detection.py:104
+  failure-after-success         | 900 | 500 -> current # test_wedge_detection.py:157 (G28)
+  success-after-failure         | 300 | 900 -> stale   # test_wedge_detection.py:120
+  # characterized: equal offsets cannot happen; > is strict
+  characterized-equal-offsets   | 400 | 400 -> stale
+END
+
+EXAMPLES logPick
+  id                            | logHasPrimary | logHasPrev | logPrimaryCurrency | logPrevCurrency | logPrevNewer -> expected
+  only-prev                     | false | true  | stale   | stale   | false -> prev
+  only-primary                  | true  | false | stale   | stale   | true  -> primary
+  only-prev-beats-only-primary  | false | true  | current | current | false -> prev
+  primary-current               | true  | true  | current | stale   | false -> primary
+  prev-current                  | true  | true  | stale   | current | false -> prev
+  both-current-primary-wins     | true  | true  | current | current | true  -> primary
+  neither-current-newer-prev    | true  | true  | stale   | stale   | true  -> prev
+  neither-current-older-prev    | true  | true  | stale   | stale   | false -> primary
+END
+
+EXAMPLES wedgeKind
+  id                    | logCurrency | wedgeCsErrors | wedgeUnparsable | wedgeStillMissing -> expected
+  stale-log-is-clean    | stale   | 3 | 0 | 0 -> clean
+  current-no-errors     | current | 0 | 0 | 0 -> buildFailedWedge
+  all-stale-on-disk     | current | 3 | 0 | 0 -> staleCache
+  one-unparsable        | current | 3 | 1 | 0 -> buildFailedWedge
+  one-still-missing     | current | 3 | 0 | 1 -> buildFailedWedge
+  mixed                 | current | 3 | 1 | 2 -> buildFailedWedge
+END
+
+EXAMPLES errorOnDisk
+  id                     | errComplete | errFileReadable | errTypeFound | errMemberInCode -> expected
+  member-on-disk         | true  | true  | true  | true  -> staleOnDisk # test_wedge_detection.py:210
+  incomplete-error       | false | true  | true  | true  -> matches
+  file-unreadable        | true  | false | true  | true  -> matches     # test_wedge_detection.py:257
+  type-not-found         | true  | true  | false | true  -> matches     # test_wedge_detection.py:279
+  member-not-in-scope    | true  | true  | true  | false -> matches     # test_wedge_detection.py:232 (C2)
+END

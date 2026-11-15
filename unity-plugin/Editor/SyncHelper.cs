@@ -142,12 +142,20 @@ namespace UnityMCP.Editor
             return scope;
         }
 
+        // Task 1.3: thin adapter — SyncHelper is a static class and cannot implement
+        // IReloadLifecycleSink itself. OnAfterReload() body is unchanged.
+        private sealed class ReloadSink : IReloadLifecycleSink
+        {
+            public void OnAfterReload() => SyncHelper.OnAfterReload();
+        }
+        private static readonly ReloadSink _reloadSink = new ReloadSink();
+
         static SyncHelper()
         {
             CompilationPipeline.compilationStarted          += _ => OnCompileStarted();
             CompilationPipeline.compilationFinished         += _ => OnCompileFinished();
             CompilationPipeline.assemblyCompilationFinished += OnAsmCompilationFinished;
-            AssemblyReloadEvents.afterAssemblyReload        += OnAfterReload;
+            ReloadLifecycleCoordinator.Register(_reloadSink);
 
             // Bootstrap: seed stamp on first load — afterAssemblyReload does not fire on Unity startup.
             if (string.IsNullOrEmpty(SessionState.GetString(StampKey, "")))
@@ -227,7 +235,7 @@ namespace UnityMCP.Editor
                 SessionState.SetBool(CleanKey, true);
                 CompileNotifier.ClearFailed();
             }
-            return $"sync_ack|epoch={epoch}|will_compile={willCompile.ToString().ToLower()}";
+            return WireRecords.FormatSyncAck(epoch: epoch, will_compile: willCompile);
         }
 
         // Facade entry point: dispatches to the bound Algorithm, mirroring TriggerSync.
@@ -242,7 +250,7 @@ namespace UnityMCP.Editor
             if (state == "failed")
             {
                 var err = SessionState.GetString(ErrKey, "");
-                return $"epoch={epoch}|state=failed|err={err}|stamp={stamp}";
+                return WireRecords.FormatSyncStatus(epoch: epoch, state: "failed", err: err, stamp: stamp);
             }
             if (state == "compiling")
             {
@@ -259,7 +267,7 @@ namespace UnityMCP.Editor
                     SessionState.SetString(StateKey, "ready");
                     SessionState.SetBool(CleanKey, true);
                     CompileNotifier.ClearFailed();
-                    return $"epoch={epoch}|state=ready|stamp={stamp}";
+                    return WireRecords.FormatSyncStatus(epoch: epoch, state: "ready", stamp: stamp);
                 }
                 // Stamp self-heal: if domain stamp changed since TriggerSync AND no real
                 // compile is in progress, a reload happened without our epoch callback firing.
@@ -272,18 +280,18 @@ namespace UnityMCP.Editor
                     SessionState.SetString(StateKey, "ready");
                     SessionState.SetBool(CleanKey, true);
                     CompileNotifier.ClearFailed();
-                    return $"epoch={epoch}|state=ready|stamp={stamp}";
+                    return WireRecords.FormatSyncStatus(epoch: epoch, state: "ready", stamp: stamp);
                 }
                 var dur = CompileNotifier.ElapsedSeconds;
                 // C2: wedge fingerprint — four discriminators for Python 3-way classifier + diagnose
                 bool isCompiling  = Ops.IsCompiling;
                 bool cnActive     = CompileNotifier.IsCompiling;
                 bool stampFrozen  = (CurrentDomainStamp == stampAtTrigger);
-                return $"epoch={epoch}|state=compiling|dur={dur.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)}|stamp={stamp}" +
-                       $"|iscompiling={isCompiling.ToString().ToLower()}|cn_active={cnActive.ToString().ToLower()}" +
-                       $"|started={started.ToString().ToLower()}|stamp_frozen={stampFrozen.ToString().ToLower()}";
+                return WireRecords.FormatSyncStatus(
+                    epoch: epoch, state: "compiling", dur: dur, stamp: stamp,
+                    iscompiling: isCompiling, cn_active: cnActive, started: started, stamp_frozen: stampFrozen);
             }
-            return $"epoch={epoch}|state={state}|stamp={stamp}";
+            return WireRecords.FormatSyncStatus(epoch: epoch, state: state, stamp: stamp);
         }
 
         // --- Test seams (called from tests; in production, called via Unity events) ---

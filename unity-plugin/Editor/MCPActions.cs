@@ -22,7 +22,7 @@ namespace UnityMCP.Editor
 
         internal static void RestartRelay()
         {
-            InvokeRelay("Stop");
+            ChatHostBridge.Current?.StopRelay();
             EditorApplication.delayCall += () => {
                 try { InvokeRelay("EnsureRunning"); }
                 catch { /* status bar reflects result on next PulseTick */ }
@@ -43,7 +43,7 @@ namespace UnityMCP.Editor
                 var (k, s) = KillLockFile(f);
                 if (k) killed++; if (s) stale++;
             }
-            InvokeRelay("Stop");
+            ChatHostBridge.Current?.StopRelay();
             UnityEngine.Debug.Log($"{BiomeLabel.Tag} Kill current: {killed} killed, {stale} stale");
         }
 
@@ -54,7 +54,7 @@ namespace UnityMCP.Editor
             foreach (var f in Directory.GetFiles(dir, $"server-{port}-*.lock"))
                 KillLockFile(f);
             CleanPortDiscoveryFiles(port);
-            if (port == MCPServer.ServerPort) InvokeRelay("Stop");
+            if (port == MCPServer.ServerPort) ChatHostBridge.Current?.StopRelay();
         }
 
         internal static TerminateResult TerminateByPid(int port, int pid)
@@ -65,7 +65,7 @@ namespace UnityMCP.Editor
             if (CountBridgesOnPort(port) == 0)
             {
                 CleanPortDiscoveryFiles(port);
-                if (port == MCPServer.ServerPort) InvokeRelay("Stop");
+                if (port == MCPServer.ServerPort) ChatHostBridge.Current?.StopRelay();
             }
             return killed ? TerminateResult.Killed : TerminateResult.Stale;
         }
@@ -99,7 +99,7 @@ namespace UnityMCP.Editor
             foreach (var f in Directory.GetFiles(dir, $"server-{port}-*.lock"))
                 KillLockFile(f);
             CleanPortDiscoveryFiles(port);
-            if (port == MCPServer.ServerPort) InvokeRelay("Stop");
+            if (port == MCPServer.ServerPort) ChatHostBridge.Current?.StopRelay();
         }
 
         internal static void KillAll()
@@ -118,7 +118,7 @@ namespace UnityMCP.Editor
                 var (k, s) = KillLockFile(f);
                 if (k) killed++; if (s) stale++;
             }
-            InvokeRelay("Stop");
+            ChatHostBridge.Current?.StopRelay();
             UnityEngine.Debug.Log($"{BiomeLabel.Tag} Kill All: {killed} killed, {stale} stale cleaned");
         }
 
@@ -148,6 +148,9 @@ namespace UnityMCP.Editor
         }
 
         // Reflection bridge: Chat.CLI assembly depends on Editor, so we can't depend back.
+        // Stop() calls migrated to ChatHostBridge.Current?.StopRelay() (Task 3.1) — this
+        // helper now only serves RestartRelay's "EnsureRunning" call, which has no
+        // IChatHostBridge equivalent (out of scope for the settings/relay-stop seam).
         private static void InvokeRelay(string method)
         {
             const string typeName = "UnityMCP.Editor.Chat.RelaySpawner, UnityMCP.Editor.Chat.CLI";

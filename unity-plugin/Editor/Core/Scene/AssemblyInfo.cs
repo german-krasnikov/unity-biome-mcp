@@ -1,0 +1,18 @@
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("UnityMCP.Editor")]
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Chat.CLI")]
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Chat.View")]
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Chat.Tests")]
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Chat.Tests.CLI")]
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Chat.Tests.View")]
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Tests")]
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Tests.TestRuns")]
+[assembly: InternalsVisibleTo("UnityMCP.Editor.TestSupport")]
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Wizard")]
+// PlaytestRunner.Steps.cs (ValueParser.ParseBool) and PlaytestPositionResolver.cs
+// (ValueParser.ParseFloats) use ValueParser.internal methods (Phase 5.3 extraction).
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Playtest")]
+[assembly: InternalsVisibleTo("UnityMCP.Editor.Wizard.Tests")]
+[assembly: InternalsVisibleTo("UnityMCP.TestProject")]
+[assembly: InternalsVisibleTo("UnityMCP.TestProject.PlayMode")]

@@ -1,0 +1,28 @@
+# terminalError: the stable fail-closed protocol reason for a terminal run's evidence, or `ok` when the snapshot is trustworthy.
+# First match wins. Characterized from _terminal_snapshot_error's if-ladder (testing.py), extracted because an order-sensitive
+# ladder this long is exactly the shape that breaks silently when a branch is inserted, reordered, or merged by hand.
+DECISION terminalError DEFAULT ok
+  lifecycleMismatch AT 10 WHEN NOT terminal.lifecycleOk -> lifecycleMismatch
+  intentMismatch AT 20 WHEN NOT terminal.intentMatches -> requestIntentMismatch
+  healthNoProgress AT 30 WHEN terminal.healthNoProgress -> healthNoProgress
+  healthUnresponsive AT 31 WHEN terminal.healthUnresponsive -> healthUnresponsive
+  terminalFlagMissing AT 40 WHEN NOT terminal.isTerminalFlag -> terminalFlagMissing
+  executionBoundaryMissing AT 41 WHEN NOT terminal.executionFinished -> executionBoundaryMissing
+  cleanupBoundaryMissing AT 42 WHEN NOT terminal.cleanupComplete -> cleanupBoundaryMissing
+  runStartBoundaryMissing AT 43 WHEN NOT terminal.runStartedObserved -> runStartBoundaryMissing
+  manifestBoundaryMissing AT 44 WHEN NOT terminal.manifestComplete -> manifestBoundaryMissing
+  runFinishBoundaryMissing AT 45 WHEN NOT terminal.runFinishedObserved -> runFinishBoundaryMissing
+  buildIncoherent AT 46 WHEN NOT terminal.buildCoherent -> buildIncoherent
+  invalidOutcome AT 50 WHEN NOT terminal.outcomeValid -> invalidTerminalOutcome
+  utfGuidMissing AT 60 WHEN NOT terminal.utfGuidPresent -> utfGuidMissing
+  utfXmlScopeMissing AT 70 WHEN NOT terminal.utfXmlScopeValid -> utfXmlScopeMissing
+  expectedInvalidType AT 80 WHEN terminal.hasExpected AND terminal.expectedCountCase == invalidType -> expectedCountInvalid
+  zeroMatchMetachar AT 81 WHEN terminal.hasExpected AND terminal.expectedCountCase == zero AND terminal.filterHasMetachar -> runZeroMatchMetachar
+  zeroMatchFilter AT 82 WHEN terminal.hasExpected AND terminal.expectedCountCase == zero -> runZeroMatchFilter
+  expectedNegative AT 83 WHEN terminal.hasExpected AND terminal.expectedCountCase == negative -> expectedCountInvalid
+  countInvariantBroken AT 84 WHEN terminal.hasExpected AND terminal.expectedCountCase == invariantBroken -> terminalCountInvariant
+  statusCountInvalid AT 90 WHEN NOT terminal.statusCountsValid -> terminalStatusCountInvalid
+  statusTotalMismatch AT 100 WHEN terminal.hasExpected AND terminal.statusTotal != terminal.expectedCountValue -> terminalStatusTotalMismatch
+  issuesInvalid AT 110 WHEN NOT terminal.issuesValid -> issuesEvidenceInvalid
+  infrastructureError AT 111 WHEN terminal.hasInfrastructureError -> infrastructureErrors
+END

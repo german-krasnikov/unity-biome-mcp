@@ -1,0 +1,14 @@
+# confidenceBand: how to annotate the result given the new confidence value (middleware_reads.py:43-48).
+# The host computes updatedValue = max(0, cur - 0.08) for writes, min(1, cur + 0.15) for reads.
+# First match wins (lowest AT).
+DECISION confidenceBand DEFAULT ok
+  okBand AT 10 WHEN conf.updatedValue >= 0.5 -> ok
+  lowBand AT 20 WHEN conf.updatedValue < 0.3 -> low
+  warnBand AT 30 WHEN conf.updatedValue >= 0.3 -> warn
+END
+
+# shouldVerify: should a visual verification probe run after this call (middleware_async.py:56-59).
+# Verification is expensive; skip it when confidence is adequate.
+DECISION shouldVerify DEFAULT verify
+  skip AT 10 WHEN conf.updatedValue >= 0.5 -> skip
+END

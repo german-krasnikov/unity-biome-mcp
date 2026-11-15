@@ -1,0 +1,36 @@
+{
+  "generated": "from editorlog.examples by npm run logic -- examples; do not edit",
+  "failureCurrency": [
+    { "id": "no-failure-terminal", "facts": { "logFailureOffset": -1, "logSuccessOffset": 500 }, "expected": "stale", "provenance": "test_wedge_detection.py:112" },
+    { "id": "no-failure-no-success", "facts": { "logFailureOffset": -1, "logSuccessOffset": -1 }, "expected": "stale", "provenance": "test_wedge_detection.py:112" },
+    { "id": "failure-without-success", "facts": { "logFailureOffset": 300, "logSuccessOffset": -1 }, "expected": "current", "provenance": "test_wedge_detection.py:104" },
+    { "id": "failure-after-success", "facts": { "logFailureOffset": 900, "logSuccessOffset": 500 }, "expected": "current", "provenance": "test_wedge_detection.py:157 (G28)" },
+    { "id": "success-after-failure", "facts": { "logFailureOffset": 300, "logSuccessOffset": 900 }, "expected": "stale", "provenance": "test_wedge_detection.py:120" },
+    { "id": "characterized-equal-offsets", "facts": { "logFailureOffset": 400, "logSuccessOffset": 400 }, "expected": "stale" }
+  ],
+  "logPick": [
+    { "id": "only-prev", "facts": { "logHasPrimary": false, "logHasPrev": true, "logPrimaryCurrency": "stale", "logPrevCurrency": "stale", "logPrevNewer": false }, "expected": "prev" },
+    { "id": "only-primary", "facts": { "logHasPrimary": true, "logHasPrev": false, "logPrimaryCurrency": "stale", "logPrevCurrency": "stale", "logPrevNewer": true }, "expected": "primary" },
+    { "id": "only-prev-beats-only-primary", "facts": { "logHasPrimary": false, "logHasPrev": true, "logPrimaryCurrency": "current", "logPrevCurrency": "current", "logPrevNewer": false }, "expected": "prev" },
+    { "id": "primary-current", "facts": { "logHasPrimary": true, "logHasPrev": true, "logPrimaryCurrency": "current", "logPrevCurrency": "stale", "logPrevNewer": false }, "expected": "primary" },
+    { "id": "prev-current", "facts": { "logHasPrimary": true, "logHasPrev": true, "logPrimaryCurrency": "stale", "logPrevCurrency": "current", "logPrevNewer": false }, "expected": "prev" },
+    { "id": "both-current-primary-wins", "facts": { "logHasPrimary": true, "logHasPrev": true, "logPrimaryCurrency": "current", "logPrevCurrency": "current", "logPrevNewer": true }, "expected": "primary" },
+    { "id": "neither-current-newer-prev", "facts": { "logHasPrimary": true, "logHasPrev": true, "logPrimaryCurrency": "stale", "logPrevCurrency": "stale", "logPrevNewer": true }, "expected": "prev" },
+    { "id": "neither-current-older-prev", "facts": { "logHasPrimary": true, "logHasPrev": true, "logPrimaryCurrency": "stale", "logPrevCurrency": "stale", "logPrevNewer": false }, "expected": "primary" }
+  ],
+  "wedgeKind": [
+    { "id": "stale-log-is-clean", "facts": { "logCurrency": "stale", "wedgeCsErrors": 3, "wedgeUnparsable": 0, "wedgeStillMissing": 0 }, "expected": "clean" },
+    { "id": "current-no-errors", "facts": { "logCurrency": "current", "wedgeCsErrors": 0, "wedgeUnparsable": 0, "wedgeStillMissing": 0 }, "expected": "buildFailedWedge" },
+    { "id": "all-stale-on-disk", "facts": { "logCurrency": "current", "wedgeCsErrors": 3, "wedgeUnparsable": 0, "wedgeStillMissing": 0 }, "expected": "staleCache" },
+    { "id": "one-unparsable", "facts": { "logCurrency": "current", "wedgeCsErrors": 3, "wedgeUnparsable": 1, "wedgeStillMissing": 0 }, "expected": "buildFailedWedge" },
+    { "id": "one-still-missing", "facts": { "logCurrency": "current", "wedgeCsErrors": 3, "wedgeUnparsable": 0, "wedgeStillMissing": 1 }, "expected": "buildFailedWedge" },
+    { "id": "mixed", "facts": { "logCurrency": "current", "wedgeCsErrors": 3, "wedgeUnparsable": 1, "wedgeStillMissing": 2 }, "expected": "buildFailedWedge" }
+  ],
+  "errorOnDisk": [
+    { "id": "member-on-disk", "facts": { "errComplete": true, "errFileReadable": true, "errTypeFound": true, "errMemberInCode": true }, "expected": "staleOnDisk", "provenance": "test_wedge_detection.py:210" },
+    { "id": "incomplete-error", "facts": { "errComplete": false, "errFileReadable": true, "errTypeFound": true, "errMemberInCode": true }, "expected": "matches" },
+    { "id": "file-unreadable", "facts": { "errComplete": true, "errFileReadable": false, "errTypeFound": true, "errMemberInCode": true }, "expected": "matches", "provenance": "test_wedge_detection.py:257" },
+    { "id": "type-not-found", "facts": { "errComplete": true, "errFileReadable": true, "errTypeFound": false, "errMemberInCode": true }, "expected": "matches", "provenance": "test_wedge_detection.py:279" },
+    { "id": "member-not-in-scope", "facts": { "errComplete": true, "errFileReadable": true, "errTypeFound": true, "errMemberInCode": false }, "expected": "matches", "provenance": "test_wedge_detection.py:232 (C2)" }
+  ]
+}

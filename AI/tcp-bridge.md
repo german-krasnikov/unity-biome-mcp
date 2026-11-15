@@ -80,7 +80,7 @@ Columns:
 
 ## Implementation Notes (for Developer)
 
-### Python Client (bridge.py + bridge_heartbeat.py + bridge_reload_state.py)
+### Python Client (bridge/__init__.py + bridge/heartbeat.py)
 
 **UnityBridge** — single TCP connection to one Unity instance.
 
@@ -99,7 +99,11 @@ Current invariants:
 - `RetryPolicy` permits retries only for commands classified retry-safe. Busy or
   connection-refused attempts use bounded 2/4/8-second delays; an ordinary
   transient failure receives one grace retry. `SESSION_TIMEOUT` bounds the
-  complete request lifecycle.
+  complete request lifecycle. A frame the writer has accepted (SENT) is never
+  resent for a command that is not retry-safe. Why a failed send retries or
+  stops is the generated decisions `retryGate` and `retryReason`
+  (`dsl/decisions/retry.logic`); `bridge/retry.py` reads the facts and keeps the
+  delays.
 - Connected bridges ping every 15 seconds with a 5-second ping timeout. The
   connection lock serializes ping and request write/read cycles. Protocol
   mismatch or a dead socket closes immediately; repeated timeouts from a live
@@ -180,7 +184,7 @@ Append-only JSONL crash log for unhandled exceptions:
 - Integrated into `main()`: outer try/except catches `BaseException` → calls `log_crash()` → re-raises (preserves clean shutdown for `KeyboardInterrupt`, `SystemExit`, EPIPE)
 - **CrashLogger class**: JSONL append-only logger with rotation (500 entries max, 15MB size limit) — logs disconnect, reconnect events (older feature). Separate from module-level `log_crash()` used for unhandled server exceptions.
 
-### Parent PID Monitoring (bridge_heartbeat.py)
+### Parent PID Monitoring (bridge/heartbeat.py)
 
 The heartbeat compares the current parent PID with the value captured at import.
 On mismatch it reads `GlobalConfig`: permanent-bridge mode keeps running, while
@@ -283,14 +287,14 @@ uncorrelated latest result is never acceptance evidence.
 
 ## Code Locations
 
-- Python bridge: `server/src/unity_mcp/bridge.py` (UnityBridge TCP client, BridgeState enum, should_retry() v0.36.0, RuntimeError raising v0.57.0)
-- Python bridge heartbeat: `server/src/unity_mcp/bridge_heartbeat.py` (HeartbeatMixin, 15s ping loop, startup grace deadline, hard deadline timer separation v0.57.0)
-- Python domain reload tracker: `server/src/unity_mcp/bridge_reload_state.py` (DomainReloadTracker v0.36.0, 90s expiry as of v0.42.1, increased from 30s for 9-assembly window)
-- Python connection slot: `server/src/unity_mcp/connection_slot.py`
-- Python compile probe: `server/src/unity_mcp/compile_state.py`
-- Python unity state: `server/src/unity_mcp/unity_state.py`
-- Python lockfile: `server/src/unity_mcp/lockfile.py` (with v0.23.0 zombie detection)
-- Python crash log: `server/src/unity_mcp/crash_log.py`
+- Python bridge: `server/src/unity_mcp/bridge/__init__.py` (UnityBridge TCP client, BridgeState enum, should_retry() v0.36.0, RuntimeError raising v0.57.0)
+- Python bridge heartbeat: `server/src/unity_mcp/bridge/heartbeat.py` (HeartbeatMixin, 15s ping loop, startup grace deadline, hard deadline timer separation v0.57.0)
+- Python domain reload tracker: `server/src/unity_mcp/reload/reload_state.py` (DomainReloadTracker v0.36.0, 90s expiry as of v0.42.1, increased from 30s for 9-assembly window)
+- Python connection slot: `server/src/unity_mcp/bridge/connection_slot.py`
+- Python compile probe: `server/src/unity_mcp/reload/compile_state.py`
+- Python unity state: `server/src/unity_mcp/bridge/unity_state.py`
+- Python lockfile: `server/src/unity_mcp/bridge/lockfile.py` (with v0.23.0 zombie detection)
+- Python crash log: `server/src/unity_mcp/bridge/crash_log.py`
 - Python server filtering: `server/src/unity_mcp/server_filtering.py` (with v0.23.0 TCP probe)
 - Python server wrapper: `server/src/unity_mcp/server.py` (main() crash handler)
 - C#: `unity-plugin/Editor/CommandRouter.cs`, `unity-plugin/Editor/MCPServer.cs` (bind-retry with cached paths, SO_LINGER(0), SubState tracking), `unity-plugin/Editor/PortFileManager.cs` (thread-safe SaveRuntimePorts overload), `unity-plugin/Editor/BatchHelper.cs` (atomic timeout rollback v0.57.0), `unity-plugin/Editor/MCPSettings.cs` (OnWantsToQuit flush v0.57.0)
@@ -336,9 +340,10 @@ _heartbeat_loop():
 
 ## Tests
 
-Python coverage is split by responsibility under `server/tests/test_bridge*.py`,
-with focused lifecycle coverage in `test_connection_slot.py`, `test_heartbeat.py`,
-`test_lockfile.py`, and `test_parent_death.py`. Unity-side framing, connection,
+Python coverage is split by responsibility under `server/tests/bridge/test_bridge*.py`,
+with focused lifecycle coverage in `server/tests/bridge/test_connection_slot.py`,
+`server/tests/bridge/test_heartbeat.py`, `server/tests/config/test_lockfile.py`, and
+`server/tests/bridge/test_parent_death.py`. Unity-side framing, connection,
 and startup behavior is covered by `unity-plugin/Editor/Tests/ClientConnectionHandlerTests.cs`,
 `MCPServerSplitTests.cs`, and `MCPServerStartGuardTests.cs`.
 

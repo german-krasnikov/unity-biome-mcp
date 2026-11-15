@@ -110,18 +110,8 @@ async def _rule_create_object(
     return None
 
 
-# ── delete_object ─────────────────────────────────────────────────────────────
-
-@register_rule("delete_object")
-async def _rule_delete_object(
-    args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
-) -> Mismatch | None:
-    # C# ExecDeleteObject takes id (int) and returns "Deleted #12345" — path never echoed.
-    if _has_error(response):
-        return Mismatch(f"delete_object: error in response: {response[:80]!r}")
-    if "deleted" not in response.lower():
-        return Mismatch("delete_object: response does not confirm deletion")
-    return None
+# ── delete_object: catalog EXPECT row (token "deleted" STRICT) — SV5,
+# reflect/rules_catalog.py ───────────────────────────────────────────────────
 
 
 # ── manage_component ──────────────────────────────────────────────────────────
@@ -149,13 +139,5 @@ async def _rule_manage_component(
     return None
 
 
-# ── wire_event ────────────────────────────────────────────────────────────────
-
-@register_rule("wire_event")
-async def _rule_wire_event(
-    args: dict, response: str, send_fn: Callable[..., Awaitable[str]]
-) -> Mismatch | None:
-    low = response.lower()
-    if "wired" not in low and "connected" not in low:
-        return Mismatch("wire_event: no 'wired'/'connected' confirmation in response")
-    return None
+# ── wire_event: catalog EXPECT row (token "wired|connected" STRICT) — SV5,
+# reflect/rules_catalog.py ───────────────────────────────────────────────────

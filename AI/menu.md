@@ -40,7 +40,7 @@ the emoji or `Biome` according to the Editor preference.
 - **State polling:** 900 ms scheduled tick reads server, client, and chat-backend state
 - **Dynamic label:** Maps state → pill text via MCPStatusModel.GetPill()
 - **Breathing animation:** Dot/halo scale and opacity reflect connected, listening, chat-active, and down states
-- **Click menu:** Restart server/relay, reimport, kill current/all/phantom servers, or open Status
+- **Click menu:** Restart, Restart Relay, Reimport, Kill (this server), Kill All Servers, Kill Phantoms (when phantoms exist), or Open Status
 - **Defensive fallback:** Reflection steps are guarded; if `AppStatusBar` is unavailable, the widget retries and logs a warning instead of assuming injection succeeded
 
 ## API
@@ -82,7 +82,7 @@ menu action=list  # lists all root menus
 - `Menu.GetEnabled(path)` — public API, checks if item is enabled
 
 ## Tests
-- Python: `server/tests/test_server_menu.py`
+- Python: `server/tests/tools/test_server_menu.py`
 - C#: `unity-test-project/Assets/Tests/Editor/Server/MenuTests.cs` covers menu
   helper behavior; `unity-plugin/Editor/Tests/BiomeMenuPathTests.cs` covers
   plugin label and status-menu paths

@@ -1,0 +1,2 @@
+SYNCSTATEORIGIN {state: idle origin: "SyncHelper.cs (default SessionState)"}
+SYNCSTATEORIGIN {state: compiling origin: "SyncHelper.cs (RequestScriptCompilation)"}

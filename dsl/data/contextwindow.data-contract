@@ -1,0 +1,7 @@
+# Model context window lookup: one ordered table instead of a Contains-ladder in C# and a future Python copy.
+# Rows are evaluated top-to-bottom; first match wins. The host does case-insensitive Contains (or StartsWith for mode=starts).
+RECORD ContextWindowRule KEY pattern
+  pattern: string
+  mode: string
+  window: int
+END

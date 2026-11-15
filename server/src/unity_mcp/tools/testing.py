@@ -9,14 +9,31 @@ import uuid
 from pathlib import Path  # noqa: TC003 — get_type_hints() requires runtime (test_python314_compat)
 from typing import Any
 
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..compile_state import CompileStateProbe
+from ..decisions.generated.terminalerror_logic import (
+    TerminalErrorInput,
+    TerminalErrorValues,
+    terminal_error,
+)
+from ..generated.testrun_enums import Lifecycle, RunOutcome
 from . import run_disk_fallback
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
-from ._annotations import RW_IDEM as _RW_IDEM
 from ._common import bind
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import (  # noqa: F401
+    cancel_test_run,
+    get_test_count,
+    get_test_progress,
+    get_test_results,
+    get_test_run,
+    list_test_runs,
+    resolve_test_request,
+    run_tests,
+    run_tests_wait,
+    tools,
+)
 from .run_handle import TestRunRegistry
 
 _send = None
@@ -34,10 +51,9 @@ _BLOCK_STARTS = (
 _STARTED = "tests-started"
 _REQUEST_STATUS = "test-request"
 _START_UNKNOWN = "START-UNKNOWN"
-_RUN_STATES = {"prepared", "dispatched", "running", "finalizing", "terminal"}
-_TERMINAL_OUTCOMES = {
-    "passed", "failed", "cancelled", "incomplete", "invalid", "dispatch_failed",
-}
+# PT-9: generated from dsl/data/testrun.data-contract -- the single source for these two word sets.
+_RUN_STATES = frozenset(Lifecycle)
+_TERMINAL_OUTCOMES = frozenset(RunOutcome)
 _IDENTITY_RE = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
 # Mirrors bridge_heartbeat.py's _ping_failures threshold (3): gates a
 # diagnostic TIMEOUT suffix only, never control flow.
@@ -209,99 +225,142 @@ def _filter_has_regex_metachar(filter_name: str) -> bool:
     return any(ch in _REGEX_METACHARS for ch in filter_name)
 
 
-def _zero_match_reason(filter_name: str) -> str:
-    if _filter_has_regex_metachar(filter_name):
-        return "run-zero-match-metachar"
-    return "run-zero-match-filter"
+# The reason string each terminalError DECISION outcome prints on the wire (unchanged by
+# the extraction -- callers and tests match these exact kebab-case strings). `ok` has no
+# entry: `.get()` returns None for it, which is the "no error" contract of this function.
+_TERMINAL_ERROR_REASONS = {
+    TerminalErrorValues.LIFECYCLE_MISMATCH: "lifecycle-mismatch",
+    TerminalErrorValues.REQUEST_INTENT_MISMATCH: "request-intent-mismatch",
+    TerminalErrorValues.HEALTH_NO_PROGRESS: "run-health-no-test-progress",
+    TerminalErrorValues.HEALTH_UNRESPONSIVE: "run-health-editor-unresponsive",
+    TerminalErrorValues.TERMINAL_FLAG_MISSING: "terminal-flag-missing",
+    TerminalErrorValues.EXECUTION_BOUNDARY_MISSING: "execution-boundary-missing",
+    TerminalErrorValues.CLEANUP_BOUNDARY_MISSING: "cleanup-boundary-missing",
+    TerminalErrorValues.RUN_START_BOUNDARY_MISSING: "run-start-boundary-missing",
+    TerminalErrorValues.MANIFEST_BOUNDARY_MISSING: "manifest-boundary-missing",
+    TerminalErrorValues.RUN_FINISH_BOUNDARY_MISSING: "run-finish-boundary-missing",
+    TerminalErrorValues.BUILD_INCOHERENT: "build-incoherent",
+    TerminalErrorValues.INVALID_TERMINAL_OUTCOME: "invalid-terminal-outcome",
+    TerminalErrorValues.UTF_GUID_MISSING: "utf-guid-missing",
+    TerminalErrorValues.UTF_XML_SCOPE_MISSING: "utf-xml-scope-missing",
+    TerminalErrorValues.EXPECTED_COUNT_INVALID: "expected-count-invalid",
+    TerminalErrorValues.RUN_ZERO_MATCH_METACHAR: "run-zero-match-metachar",
+    TerminalErrorValues.RUN_ZERO_MATCH_FILTER: "run-zero-match-filter",
+    TerminalErrorValues.TERMINAL_COUNT_INVARIANT: "terminal-count-invariant",
+    TerminalErrorValues.TERMINAL_STATUS_COUNT_INVALID: "terminal-status-count-invalid",
+    TerminalErrorValues.TERMINAL_STATUS_TOTAL_MISMATCH: "terminal-status-total-mismatch",
+    TerminalErrorValues.ISSUES_EVIDENCE_INVALID: "issues-evidence-invalid",
+    TerminalErrorValues.INFRASTRUCTURE_ERRORS: "infrastructure-errors",
+}
+
+
+def _expected_count_facts(
+    snapshot: dict[str, Any], expected: int | None
+) -> tuple[bool, str, int]:
+    """(hasExpected, expectedCountCase, expectedCountValue) for the terminalError DECISION.
+
+    ARC-17 X1 (DEV-16 review): an old plugin's terminal snapshot may omit
+    `expected_count` entirely -- absence must be inert, not fail-closed (ARC-17 §4).
+    Only a *present but corrupted* value (bool, non-int, negative, or an honest zero)
+    still produces a non-"ok" case.
+    """
+    if expected is None:
+        return False, "ok", 0
+    if isinstance(expected, bool) or not isinstance(expected, int):
+        return True, "invalidType", 0
+    if expected == 0:
+        return True, "zero", 0
+    if expected < 0:
+        return True, "negative", 0
+
+    invariant_fields = (
+        "declared_expected_count", "readable_manifest_count",
+        "completed_expected_count", "unique_terminal_count",
+    )
+    zero_fields = (
+        "unmaterialized_expected_count", "missing_count",
+        "unexpected_count", "conflict_count",
+    )
+    broken = any(
+        isinstance(snapshot.get(f), bool) or not isinstance(snapshot.get(f), int)
+        or snapshot.get(f) != expected
+        for f in invariant_fields
+    ) or any(
+        isinstance(snapshot.get(f), bool) or not isinstance(snapshot.get(f), int)
+        or snapshot.get(f) != 0
+        for f in zero_fields
+    )
+    return True, "invariantBroken" if broken else "ok", expected
+
+
+def _status_total_facts(snapshot: dict[str, Any]) -> tuple[bool, int]:
+    """(statusCountsValid, statusTotal) for the terminalError DECISION."""
+    total = 0
+    for field in ("passed", "failed", "skipped", "inconclusive", "cancelled", "invalid"):
+        value = snapshot.get(field)
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            return False, 0
+        total += value
+    return True, total
+
+
+def _gather_terminal_facts(
+    snapshot: dict[str, Any], *, mode: str, filter_name: str
+) -> TerminalErrorInput:
+    """Facts for the terminalError DECISION, read from the same fields the original
+    if-ladder read (no new I/O; these are all cheap dict reads)."""
+    health = snapshot.get("health")
+    has_expected, expected_count_case, expected_count_value = _expected_count_facts(
+        snapshot, snapshot.get("expected_count")
+    )
+    status_counts_valid, status_total = _status_total_facts(snapshot)
+    issues = snapshot.get("issues")
+    issues_valid = isinstance(issues, list) and all(
+        isinstance(issue, dict) for issue in issues
+    )
+
+    return TerminalErrorInput(
+        terminal_lifecycle_ok=snapshot.get("state") == "terminal"
+        and snapshot.get("lifecycle") == "terminal",
+        terminal_intent_matches=_snapshot_matches_intent(
+            snapshot, mode=mode, filter_name=filter_name
+        ),
+        terminal_health_no_progress=health == "no_test_progress",
+        terminal_health_unresponsive=health == "editor_unresponsive",
+        terminal_is_terminal_flag=snapshot.get("is_terminal") is True,
+        terminal_execution_finished=snapshot.get("execution_finished") is True,
+        terminal_cleanup_complete=snapshot.get("cleanup_complete") is True,
+        terminal_run_started_observed=snapshot.get("run_started_observed") is True,
+        terminal_manifest_complete=snapshot.get("manifest_complete") is True,
+        terminal_run_finished_observed=snapshot.get("run_finished_observed") is True,
+        terminal_build_coherent=snapshot.get("build_coherent") is True,
+        terminal_outcome_valid=snapshot.get("outcome") in _TERMINAL_OUTCOMES,
+        terminal_utf_guid_present=bool(snapshot.get("utf_guid")),
+        terminal_utf_xml_scope_valid=snapshot.get("utf_xml_scope") in {"complete", "partial"},
+        terminal_has_expected=has_expected,
+        terminal_expected_count_case=expected_count_case,
+        terminal_filter_has_metachar=_filter_has_regex_metachar(filter_name),
+        terminal_status_counts_valid=status_counts_valid,
+        terminal_status_total=status_total,
+        terminal_expected_count_value=expected_count_value,
+        terminal_issues_valid=issues_valid,
+        terminal_has_infrastructure_error=issues_valid
+        and any(issue.get("severity") == "error" for issue in issues),
+    )
 
 
 def _terminal_snapshot_error(
     snapshot: dict[str, Any], *, mode: str, filter_name: str
 ) -> str | None:
-    """Return a stable fail-closed protocol reason for terminal evidence."""
-    if snapshot.get("state") != "terminal" or snapshot.get("lifecycle") != "terminal":
-        return "lifecycle-mismatch"
-    if not _snapshot_matches_intent(snapshot, mode=mode, filter_name=filter_name):
-        return "request-intent-mismatch"
+    """Return a stable fail-closed protocol reason for terminal evidence.
 
-    health = snapshot.get("health")
-    if health == "no_test_progress":
-        return "run-health-no-test-progress"
-    if health == "editor_unresponsive":
-        return "run-health-editor-unresponsive"
-
-    required_flags = (
-        ("is_terminal", "terminal-flag-missing"),
-        ("execution_finished", "execution-boundary-missing"),
-        ("cleanup_complete", "cleanup-boundary-missing"),
-        ("run_started_observed", "run-start-boundary-missing"),
-        ("manifest_complete", "manifest-boundary-missing"),
-        ("run_finished_observed", "run-finish-boundary-missing"),
-        ("build_coherent", "build-incoherent"),
-    )
-    for field, reason in required_flags:
-        if snapshot.get(field) is not True:
-            return reason
-
-    if snapshot.get("outcome") not in _TERMINAL_OUTCOMES:
-        return "invalid-terminal-outcome"
-    if not snapshot.get("utf_guid"):
-        return "utf-guid-missing"
-    if snapshot.get("utf_xml_scope") not in {"complete", "partial"}:
-        return "utf-xml-scope-missing"
-
-    # ARC-17 X1 (DEV-16 review): an old plugin's terminal snapshot may omit
-    # `expected_count` entirely -- absence must be inert, not fail-closed
-    # (ARC-17 §4). Only a *present but corrupted* value (bool, non-int,
-    # negative, or an honest zero) still triggers a reason below.
-    expected = snapshot.get("expected_count")
-    has_expected = expected is not None
-    if has_expected:
-        if isinstance(expected, bool) or not isinstance(expected, int):
-            return "expected-count-invalid"
-        if expected == 0:
-            return _zero_match_reason(filter_name)
-        if expected < 0:
-            return "expected-count-invalid"
-        for field in (
-            "declared_expected_count",
-            "readable_manifest_count",
-            "completed_expected_count",
-            "unique_terminal_count",
-        ):
-            value = snapshot.get(field)
-            if isinstance(value, bool) or not isinstance(value, int) or value != expected:
-                return "terminal-count-invariant"
-        for field in (
-            "unmaterialized_expected_count",
-            "missing_count",
-            "unexpected_count",
-            "conflict_count",
-        ):
-            value = snapshot.get(field)
-            if isinstance(value, bool) or not isinstance(value, int) or value != 0:
-                return "terminal-count-invariant"
-
-    statuses = (
-        "passed", "failed", "skipped", "inconclusive", "cancelled", "invalid",
-    )
-    status_total = 0
-    for field in statuses:
-        value = snapshot.get(field)
-        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-            return "terminal-status-count-invalid"
-        status_total += value
-    if has_expected and status_total != expected:
-        return "terminal-status-total-mismatch"
-
-    issues = snapshot.get("issues")
-    if not isinstance(issues, list) or any(
-        not isinstance(issue, dict) for issue in issues
-    ):
-        return "issues-evidence-invalid"
-    if any(issue.get("severity") == "error" for issue in issues):
-        return "infrastructure-errors"
-    return None
+    The branch order is the DECISION terminalError of dsl/decisions/terminalerror.logic
+    (generated into decisions/generated/terminalerror_logic.py), extracted because this
+    first-match-wins ladder is exactly the shape that breaks silently when a branch is
+    inserted, reordered, or merged by hand (see busySignal/retryGate).
+    """
+    facts = _gather_terminal_facts(snapshot, mode=mode, filter_name=filter_name)
+    return _TERMINAL_ERROR_REASONS.get(terminal_error(facts))
 
 
 async def _preflight() -> str | None:
@@ -332,10 +391,14 @@ async def _preflight() -> str | None:
     return None
 
 
-async def run_tests(
+async def _run_tests_body(
     mode: str = "EditMode",
     filter: str | None = None,
     request_id: str | None = None,
+    assemblies: str | None = None,
+    categories: str | None = None,
+    group: str | None = None,
+    tests: str | None = None,
 ) -> str:
     """Dispatch Unity tests and return their durable identity immediately.
 
@@ -344,6 +407,10 @@ async def run_tests(
     If transport fails after dispatch may have happened, the result is
     ``START-UNKNOWN`` with the same request_id; resolve it instead of retrying
     with a new identity.
+
+    assemblies/categories/tests: comma-separated selection lists narrowing
+    the run (assembly names, NUnit categories, fully-qualified test names).
+    group: a named test group to restrict the run to.
     """
     caller_supplied_request = request_id is not None
     if caller_supplied_request and not _valid_identity(request_id):
@@ -406,6 +473,14 @@ async def run_tests(
     args = {"mode": mode, "request_id": stable_request_id}
     if filter:
         args["filter"] = filter
+    if assemblies:
+        args["assemblies"] = assemblies
+    if categories:
+        args["categories"] = categories
+    if group:
+        args["group"] = group
+    if tests:
+        args["tests"] = tests
 
     try:
         result = await _send("run_tests", args)
@@ -437,7 +512,7 @@ async def run_tests(
     return _unknown_start(stable_request_id, "invalid-ack")
 
 
-async def run_tests_wait(
+async def _run_tests_wait_body(
     mode: str = "EditMode",
     filter: str = "",
     timeout: float = 900.0,
@@ -635,7 +710,7 @@ async def run_tests_wait(
     )
 
 
-async def resolve_test_request(request_id: str) -> str:
+async def _resolve_test_request_body(request_id: str) -> str:
     """Resolve a possibly lost start ACK without dispatching another test run."""
     return await _send("resolve_test_request", {"request_id": request_id})
 
@@ -687,7 +762,7 @@ async def _fetch_test_run_json(run_id: str, *, compact: bool = False) -> str:
     return result
 
 
-async def get_test_run(run_id: str) -> str:
+async def _get_test_run_body(run_id: str, compact: bool = False) -> str:
     """Return the durable JSON snapshot for one exact test run.
 
     Fails closed on terminal-invalid evidence: a snapshot claiming
@@ -697,8 +772,11 @@ async def get_test_run(run_id: str) -> str:
     ``PROTOCOL-ERROR|run_id=...|reason=...|snapshot=...`` instead of the raw
     snapshot -- closes the direct-poll path around ``run_tests_wait``'s own
     validation.
+
+    compact=True trims leaf-detail arrays on a non-terminal snapshot (A27) --
+    use for a tight-cadence poll loop; a terminal snapshot is unaffected.
     """
-    result = await _fetch_test_run_json(run_id)
+    result = await _fetch_test_run_json(run_id, compact=compact)
     try:
         data = json.loads(result)
     except (TypeError, ValueError, json.JSONDecodeError):
@@ -716,17 +794,12 @@ async def get_test_run(run_id: str) -> str:
     )
 
 
-async def cancel_test_run(run_id: str) -> str:
-    """Request cancellation of one exact test run; cancellation is asynchronous."""
-    return await _send("cancel_test_run", {"run_id": run_id})
-
-
-async def list_test_runs(limit: int = 20) -> str:
+async def _list_test_runs_body(limit: int = 20) -> str:
     """List recent durable test runs as JSON, newest first."""
     return await _send("list_test_runs", {"limit": max(1, min(int(limit), 100))})
 
 
-async def get_test_results(run_id: str | None = None) -> str:
+async def _get_test_results_body(run_id: str | None = None) -> str:
     """Legacy result facade. Pass run_id to prevent reading a stale latest run."""
     args = {"run_id": run_id} if run_id else {}
     try:
@@ -735,18 +808,13 @@ async def get_test_results(run_id: str | None = None) -> str:
         return "pending"
 
 
-async def get_test_progress(run_id: str | None = None) -> str:
+async def _get_test_progress_body(run_id: str | None = None) -> str:
     """Legacy progress facade. Pass run_id to correlate the response."""
     args = {"run_id": run_id} if run_id else {}
     try:
         return await _send("get_test_progress", args)
     except Exception:
         return "pending"
-
-
-async def get_test_count() -> str:
-    """Number of edit-mode and play-mode tests in the project."""
-    return await _send("get_test_count", {})
 
 
 def _resolve_project_path() -> Path | None:
@@ -803,14 +871,3 @@ def register(mcp, send, args, *, get_slot=None):
     bind(globals(), send, args)
     global _get_slot
     _get_slot = get_slot
-    # The bridge may retry run_tests only because every retry carries the same
-    # durable request_id. run_tests_wait is a composite operation, not idempotent.
-    mcp.tool(annotations=_RW_IDEM)(run_tests)
-    mcp.tool(annotations=_RW)(run_tests_wait)
-    mcp.tool(annotations=_RO)(resolve_test_request)
-    mcp.tool(annotations=_RO)(get_test_run)
-    mcp.tool(annotations=_RW_IDEM)(cancel_test_run)
-    mcp.tool(annotations=_RO)(list_test_runs)
-    mcp.tool(annotations=_RO)(get_test_results)
-    mcp.tool(annotations=_RO)(get_test_progress)
-    mcp.tool(annotations=_RO)(get_test_count)

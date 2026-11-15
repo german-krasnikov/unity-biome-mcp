@@ -1,0 +1,35 @@
+{
+  "generated": "from retry.examples by npm run logic -- examples; do not edit",
+  "provenance": "characterized-* rows state what the code does today and are not endorsed (owner question Q-R1); the others are hand-written from AI/tcp-bridge.md (Timeout Layers, RetryPolicy paragraph), the comments of bridge_retry.py and bridge.py, and server/tests/test_bridge_retry_policy.py, test_bridge_send_retry_gate.py; not generated from the logic or from the Python code.",
+  "retryGate": [
+    { "id": "fresh-error-needs-the-probes", "facts": { "retryErrorKind": "other", "retryAttempt": 0, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": false }, "expected": "observe" },
+    { "id": "refused-needs-the-probes", "facts": { "retryErrorKind": "connectionRefused", "retryAttempt": 1, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": false }, "expected": "observe" },
+    { "id": "sent-unsafe-is-uncertain", "facts": { "retryErrorKind": "domainReload", "retryAttempt": 0, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": true, "retryRetrySafe": false, "retryReloadActive": false }, "expected": "unsafe_sent" },
+    { "id": "sent-unsafe-beats-identity", "facts": { "retryErrorKind": "identityMismatch", "retryAttempt": 0, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": true, "retryRetrySafe": false, "retryReloadActive": false }, "expected": "unsafe_sent" },
+    { "id": "sent-unsafe-beats-budget", "facts": { "retryErrorKind": "other", "retryAttempt": 3, "retryMaxRetries": 3, "retryDeadlinePassed": true, "retryDeliverySent": true, "retryRetrySafe": false, "retryReloadActive": false }, "expected": "unsafe_sent" },
+    { "id": "sent-but-safe-still-retries", "facts": { "retryErrorKind": "domainReload", "retryAttempt": 0, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": true, "retryRetrySafe": true, "retryReloadActive": false }, "expected": "domain_reload" },
+    { "id": "unsent-unsafe-is-transport-recovery", "facts": { "retryErrorKind": "domainReload", "retryAttempt": 0, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": false, "retryRetrySafe": false, "retryReloadActive": false }, "expected": "domain_reload" },
+    { "id": "deadline-beats-identity", "facts": { "retryErrorKind": "identityMismatch", "retryAttempt": 0, "retryMaxRetries": 3, "retryDeadlinePassed": true, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": false }, "expected": "deadline" },
+    { "id": "budget-is-inclusive", "facts": { "retryErrorKind": "other", "retryAttempt": 3, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": false }, "expected": "max_retries" },
+    { "id": "one-below-budget-goes-on", "facts": { "retryErrorKind": "other", "retryAttempt": 2, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": false }, "expected": "observe" },
+    { "id": "budget-beats-reload", "facts": { "retryErrorKind": "domainReload", "retryAttempt": 3, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": false }, "expected": "max_retries" },
+    { "id": "budget-before-deadline", "facts": { "retryErrorKind": "domainReload", "retryAttempt": 3, "retryMaxRetries": 3, "retryDeadlinePassed": true, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": false }, "expected": "max_retries" },
+    { "id": "deadline-beats-capacity", "facts": { "retryErrorKind": "capacityBusy", "retryAttempt": 0, "retryMaxRetries": 3, "retryDeadlinePassed": true, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": false }, "expected": "deadline" },
+    { "id": "identity-never-retries", "facts": { "retryErrorKind": "identityMismatch", "retryAttempt": 0, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": false }, "expected": "identity_mismatch" },
+    { "id": "capacity-waits-for-unity", "facts": { "retryErrorKind": "capacityBusy", "retryAttempt": 0, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": false }, "expected": "capacity_busy" },
+    { "id": "going-away-is-a-reload", "facts": { "retryErrorKind": "domainReload", "retryAttempt": 0, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": false }, "expected": "domain_reload" },
+    { "id": "reload-error-beats-reload-window", "facts": { "retryErrorKind": "domainReload", "retryAttempt": 1, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": true }, "expected": "domain_reload" },
+    { "id": "reload-window-is-busy", "facts": { "retryErrorKind": "other", "retryAttempt": 1, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": true }, "expected": "busy" },
+    { "id": "reload-window-beats-refused", "facts": { "retryErrorKind": "connectionRefused", "retryAttempt": 0, "retryMaxRetries": 3, "retryDeadlinePassed": false, "retryDeliverySent": false, "retryRetrySafe": true, "retryReloadActive": true }, "expected": "busy" }
+  ],
+  "retryReason": [
+    { "id": "compile-state-busy", "facts": { "retryErrorKind": "other", "retryAttempt": 1, "retryProbeBusy": true, "retryProcessDead": false }, "expected": "busy" },
+    { "id": "refused-retries-with-backoff", "facts": { "retryErrorKind": "connectionRefused", "retryAttempt": 1, "retryProbeBusy": false, "retryProcessDead": false }, "expected": "connection_refused" },
+    { "id": "refused-and-process-dead-bails", "facts": { "retryErrorKind": "connectionRefused", "retryAttempt": 1, "retryProbeBusy": false, "retryProcessDead": true }, "expected": "process_dead" },
+    { "id": "refused-beats-the-first-grace-retry", "facts": { "retryErrorKind": "connectionRefused", "retryAttempt": 0, "retryProbeBusy": false, "retryProcessDead": false }, "expected": "connection_refused" },
+    { "id": "characterized-busy-beats-dead-process", "facts": { "retryErrorKind": "connectionRefused", "retryAttempt": 1, "retryProbeBusy": true, "retryProcessDead": true }, "expected": "busy" },
+    { "id": "one-grace-retry", "facts": { "retryErrorKind": "other", "retryAttempt": 0, "retryProbeBusy": false, "retryProcessDead": false }, "expected": "transient" },
+    { "id": "grace-is-spent", "facts": { "retryErrorKind": "other", "retryAttempt": 1, "retryProbeBusy": false, "retryProcessDead": false }, "expected": "grace_expired" },
+    { "id": "dead-process-of-another-error", "facts": { "retryErrorKind": "other", "retryAttempt": 1, "retryProbeBusy": false, "retryProcessDead": true }, "expected": "grace_expired" }
+  ]
+}

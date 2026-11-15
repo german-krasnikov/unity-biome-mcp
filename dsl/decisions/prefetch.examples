@@ -1,0 +1,17 @@
+PROVENANCE "Transcribed from server/tests/test_scenario_trust.py's N0a-2 section; two rows characterized from middleware_pipeline.py's own guard conditions (cache disabled / command not in the cacheable set)."
+
+EXAMPLES prefetchServe
+  id | pfCacheConfigured | pfCmdCacheable | pfScenarioUncertain -> expected
+  bypassed-while-uncertain | true | true | true -> skip  # test_scenario_trust.py:117 (test_cache_bypassed_while_uncertain)
+  served-when-not-uncertain | true | true | false -> serve  # test_scenario_trust.py:131 (test_cache_served_when_not_uncertain)
+  not-configured-skips | false | true | false -> skip  # middleware_pipeline.py:86 (mw._prefetch_cache is None)
+  not-cacheable-skips | true | false | false -> skip  # middleware_pipeline.py:86 (cmd not in _READ_CACHEABLE)
+END
+
+EXAMPLES prefetchFire
+  id | pfCacheConfigured | pfScenarioUncertain | pfCmdIsWrite | pfCmdSceneNeutral -> expected
+  suppressed-while-uncertain | true | true | true | false -> skip  # test_scenario_trust.py:143 (test_background_prefetch_suppressed_while_uncertain)
+  fires-for-eligible-write | true | false | true | false -> fire  # middleware_pipeline.py:266 (_maybe_prefetch_background, set_property+GATE_PRIORS)
+  scene-neutral-write-skips | true | false | true | true -> skip  # middleware_pipeline.py:270 (cmd in SCENE_STATE_NEUTRAL_WRITES)
+  read-cmd-skips | true | false | false | false -> skip  # middleware_pipeline.py:270 (cmd not in WRITE_CMDS)
+END

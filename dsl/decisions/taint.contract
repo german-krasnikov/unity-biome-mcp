@@ -1,0 +1,15 @@
+# Facts of the taint check (middleware_guards.check_taint).
+# isSetProperty: cmd == "set_property".
+# propEndsWithReference: args["prop"].endswith("Reference").
+# valueIsNull: not value or value == "null".
+# valueIsSpecial: value.startswith("#") or value.startswith("&").
+# valueIsClean: value in self._clean_paths (was read by a prior get_hierarchy / get_component).
+CONTRACT unitymcp.taint
+COVERAGE declared-scope
+MODULE taint_facts
+FACT taint.isSetProperty bool
+FACT taint.propEndsWithReference bool
+FACT taint.valueIsNull bool
+FACT taint.valueIsSpecial bool
+FACT taint.valueIsClean bool
+INPUT taintWarn taint.isSetProperty taint.propEndsWithReference taint.valueIsNull taint.valueIsSpecial taint.valueIsClean

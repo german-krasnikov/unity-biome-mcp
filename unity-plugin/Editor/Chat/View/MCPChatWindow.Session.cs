@@ -2,6 +2,7 @@
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityMCP.Editor.Chat.Turn;
 
 namespace UnityMCP.Editor.Chat
 {
@@ -15,7 +16,7 @@ namespace UnityMCP.Editor.Chat
         // Shared reset: kills backend, clears transcript/state, then creates backend with optional resume ID.
         private void ResetSession(string resumeId)
         {
-            ReloadGuard.OnTurnFinished();
+            _turn.Dispatch(ChatTurnIntent.ResetSession()); // an open turn leaves first: unlock, asks, undo group, transcript (D5: the group is closed before Invalidate)
             _backend?.Stop();
             if (resumeId == null) CreateBackend();
             else                  CreateBackendWithSession(resumeId);
@@ -28,7 +29,6 @@ namespace UnityMCP.Editor.Chat
             _sessionAllowlist.ClearSession();
             _autoFix.Disarm();
             ResetTurnFlags();
-            if (_activity.Phase != ActivityPhase.Idle) { _activity.Done(); OnActivityChanged(); }
             ResetTokenCounters();
             _undoTracker.Invalidate();
         }

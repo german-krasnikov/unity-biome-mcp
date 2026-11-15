@@ -1,0 +1,20 @@
+# hitRateOk: is a feature's prediction hit rate good enough to keep spending on it. Below 50 samples nothing is judged. One threshold for the router and for speculation.
+DECISION hitRateOk DEFAULT true
+  warmup AT 10 WHEN hit.total < 50 -> true
+  tooLow AT 20 WHEN hit.ratio < 0.40 -> false
+END
+
+# budgetRoute: why a Haiku feature is skipped, or ok. First match wins (lowest AT); the order is the order of BudgetRouter.should_run.
+DECISION budgetRoute DEFAULT ok
+  disabled AT 10 WHEN budget.disabled -> ok_disabled
+  lowHitRate AT 20 WHEN NOT budget.hitOk AND budget.priority != critical -> low_hit_rate
+  dayCap AT 30 WHEN budget.dayCapExceeded -> day_cap_exceeded
+  criticalAt95 AT 40 WHEN budget.sessionPct >= 0.95 AND budget.priority == critical -> critical_at_95
+  skipAt95 AT 41 WHEN budget.sessionPct >= 0.95 -> budget_95_skipped
+  lowAt80 AT 50 WHEN budget.sessionPct >= 0.80 AND budget.priority == low -> budget_80_low_skipped
+  lowAt50 AT 60 WHEN budget.sessionPct >= 0.50 AND budget.priority == low AND budget.feature IN {"watchdog", "summarize"} -> budget_50_low_skipped
+END
+
+DECISION budgetRun DEFAULT false
+  runs AT 10 WHEN budget.route IN {ok, ok_disabled, critical_at_95} -> true
+END

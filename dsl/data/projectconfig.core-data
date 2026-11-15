@@ -1,0 +1,6 @@
+PROJECTCONFIGTARGET {key: claude-code relativePath: ".mcp.json" rootKey: mcpServers isToml: false}
+PROJECTCONFIGTARGET {key: cursor relativePath: ".cursor/mcp.json" rootKey: mcpServers isToml: false}
+PROJECTCONFIGTARGET {key: vscode relativePath: ".vscode/mcp.json" rootKey: servers isToml: false}
+PROJECTCONFIGTARGET {key: windsurf relativePath: ".windsurf/mcp.json" rootKey: mcpServers isToml: false}
+PROJECTCONFIGTARGET {key: codex relativePath: ".codex/config.toml" isToml: true}
+PROJECTCONFIGTARGET {key: junie relativePath: ".junie/mcp/mcp.json" rootKey: mcpServers isToml: false}

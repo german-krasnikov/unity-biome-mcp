@@ -2,11 +2,11 @@
 import json as _json
 
 from ..metrics import METRICS
-from ._annotations import RW as _RW
 from ._common import _guard_read_only, bind
+from .generated.catalog_tools import get_metrics, tools  # noqa: F401
 
 
-async def get_metrics(format: str = "text", reset: bool = False) -> str:
+async def _get_metrics_body(format: str = "text", reset: bool = False) -> str:
     """Returns telemetry snapshot. Clears counters when reset=True. No confirmation required. format: text|json."""
     if reset:
         _guard_read_only("get_metrics")
@@ -33,4 +33,3 @@ def _format_snapshot(snap: dict) -> str:
 
 def register(mcp, send, args):
     bind(globals(), send, args)
-    mcp.tool(annotations=_RW)(get_metrics)

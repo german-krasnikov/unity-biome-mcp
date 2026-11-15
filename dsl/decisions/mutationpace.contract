@@ -1,0 +1,13 @@
+# Facts of the periodic verification nudge (middleware_guards.check_verification_needed).
+# isWrite: is_write(cmd, args) — from registry + catalog.
+# isNeutral: cmd in VERIFICATION_NUDGE_NEUTRAL_WRITES.
+# isBatchReadonly: cmd == "batch" AND _is_batch_readonly(args["commands"]).
+# atCheckpoint: mutation_count > 0 AND mutation_count % 10 == 0 (host computes after increment).
+CONTRACT unitymcp.mutationpace
+COVERAGE declared-scope
+MODULE mutationpace_facts
+FACT mupace.isWrite bool
+FACT mupace.isNeutral bool
+FACT mupace.isBatchReadonly bool
+FACT mupace.atCheckpoint bool
+INPUT mutationPace mupace.isWrite mupace.isNeutral mupace.isBatchReadonly mupace.atCheckpoint

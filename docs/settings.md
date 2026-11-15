@@ -45,6 +45,15 @@ The current relay start request does not forward that deny-set to CLI backends. 
 
 Use the **Minimal**, **Full**, and **No visuals** presets as starting points, then adjust individual categories. Use **Allow All** or **Deny All** on the Permissions page only when you intend to change the complete Chat deny-set.
 
+### Hide the six GD-themed categories
+
+Set `UNITY_MCP_GD_TOOLS=0` in the environment that starts the Python MCP server to
+stop advertising and registering the tools in the `SCENE`, `COMPONENTS`, `ASSETS`,
+`MEDIA`, `UITOOLKIT` and `UGUI` categories. All other categories are unchanged. The
+variable is read when the server starts, so restart the MCP client to apply it.
+This is a discoverability control, not a permission: the Unity-side handlers stay
+registered, and the **Tools** page still controls dispatch.
+
 ## Plugins
 
 The **Plugins** page appears when at least one registered plugin contributes a

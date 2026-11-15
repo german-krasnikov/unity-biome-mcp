@@ -1,0 +1,5 @@
+FIELDSPECIFICDEFAULT {fieldKey: m_mass value: "1"}
+FIELDSPECIFICDEFAULT {fieldKey: m_mass value: "1.0"}
+FIELDSPECIFICDEFAULT {fieldKey: m_layer value: "0"}
+FIELDSPECIFICDEFAULT {fieldKey: m_isstatic value: "false"}
+FIELDSPECIFICDEFAULT {fieldKey: m_isstatic value: "False"}

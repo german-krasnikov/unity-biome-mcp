@@ -3,6 +3,8 @@ import os
 from collections.abc import Callable  # noqa: TC003
 from dataclasses import dataclass
 
+from ..decisions.budget_facts import Route, budget_route, budget_run
+
 
 @dataclass
 class RouteDecision:
@@ -18,40 +20,25 @@ class BudgetRouter:
 
     def should_run(self, feature: str, difficulty: float,
                    confidence_hint: float | None = None) -> RouteDecision:
-        if os.environ.get("UNITY_MCP_BUDGET_DISABLED") == "1":
-            return RouteDecision(True, "ok_disabled")
-
         from .registry import get_feature
-        meta = get_feature(feature)
-
-        # Hit rate gate: if provider says <40%, skip non-critical
+        priority = get_feature(feature).priority
         hit_rate = self._hit_rate(feature)
-        if hit_rate is not None and hit_rate < 0.40 and meta.priority != "critical":
+        disabled = os.environ.get("UNITY_MCP_BUDGET_DISABLED") == "1"
+        facts = {
+            "disabled": disabled, "priority": priority, "feature": feature, "hit_rate": hit_rate,
+            "day_cap_exceeded": False if disabled else self._tracker.day_cap_exceeded(),
+            "session_pct": 0.0 if disabled else self._tracker.session_pct(),
+        }
+        route = budget_route(**facts)
+        run = budget_run(**facts)
+        if not run:
             self._tracker.record_skip(feature)
-            return RouteDecision(False, f"low_hit_rate_{hit_rate:.2f}")
+        return RouteDecision(run, _reason(route, priority, hit_rate))
 
-        # Day cap hard stop
-        if self._tracker.day_cap_exceeded():
-            self._tracker.record_skip(feature)
-            return RouteDecision(False, "day_cap_exceeded")
 
-        pct = self._tracker.session_pct()
-
-        # 95%+: only critical
-        if pct >= 0.95:
-            if meta.priority != "critical":
-                self._tracker.record_skip(feature)
-                return RouteDecision(False, f"budget_95_{meta.priority}_skipped")
-            return RouteDecision(True, "critical_at_95")
-
-        # 80-95%: kill low-priority
-        if pct >= 0.80 and meta.priority == "low":
-            self._tracker.record_skip(feature)
-            return RouteDecision(False, "budget_80_low_skipped")
-
-        # 50-80%: skip low priority watchdog + summarize
-        if pct >= 0.50 and meta.priority == "low" and feature in ("watchdog", "summarize"):
-            self._tracker.record_skip(feature)
-            return RouteDecision(False, "budget_50_low_skipped")
-
-        return RouteDecision(True, "ok")
+def _reason(route: str, priority: str, hit_rate: float | None) -> str:
+    if route == Route.LOW_HIT_RATE:
+        return f"low_hit_rate_{hit_rate:.2f}"
+    if route == Route.BUDGET_95_SKIPPED:
+        return f"budget_95_{priority}_skipped"
+    return route

@@ -6,17 +6,18 @@ namespace UnityMCP.Editor
     // Port of server/src/unity_mcp/compressor.py project_fields().
     // Keeps only lines whose key matches a requested field (exact or dotted-prefix,
     // case-insensitive). Always preserves blank, headers, separators, err: lines.
+    // Alias data sourced from dsl/data/fieldaliases.core-data via FieldAliasRows.
     internal static class FieldProjector
     {
-        private static readonly Dictionary<string, string> Aliases = new Dictionary<string, string>
+        private static readonly Dictionary<string, string> Aliases = BuildAliases();
+
+        private static Dictionary<string, string> BuildAliases()
         {
-            { "position",      "m_localposition" }, { "localposition", "m_localposition" },
-            { "rotation",      "m_localrotation" }, { "localrotation", "m_localrotation" },
-            { "scale",         "m_localscale"    }, { "localscale",    "m_localscale"    },
-            { "mass",          "m_mass"          }, { "enabled",       "m_enabled"       },
-            { "active",        "m_isactive"      }, { "name",          "m_name"          },
-            { "tag",           "m_tagstring"     }, { "layer",         "m_layer"         },
-        };
+            var d = new Dictionary<string, string>(FieldAliasRows.All.Length);
+            foreach (var row in FieldAliasRows.All)
+                d[row.Alias] = row.Canonical;
+            return d;
+        }
 
         public static string Project(string text, string fields)
         {

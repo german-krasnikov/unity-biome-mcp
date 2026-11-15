@@ -36,7 +36,7 @@ namespace UnityMCP.Editor
                     PollUntilComplete(removeReq, () => "ok", inner);
                     break;
                 default:
-                    inner.TrySetResult($"err:invalid action '{action}'");
+                    inner.TrySetResult($"err:{ErrorHelper.InvalidAction(action, ToolActions.Names("package"))}");
                     break;
             }
         }

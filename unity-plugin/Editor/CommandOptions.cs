@@ -35,5 +35,11 @@ namespace UnityMCP.Editor
         // legacy CommandRegistry cascades unchanged (see CommandRegistry.IsMutating/IsBatchable).
         public Func<string, bool> MutatingArgsPolicy;
         public bool NotBatchable;
+        // Step 7.2 (M3.0): two behaviors of the router that `mutating` used to drag along, as registration data. PlayOk: Play Mode may run this
+        // mutating command (it acts on the live Play Mode context, or touches no scene data), so the "changes will be lost" guard lets it
+        // through. NoUndo: a call opens no Undo group, records no mutation and carries no console-error suffix. Neither is an authorization:
+        // the read-only, ask-mode and compile guards go by `mutating` alone.
+        public bool PlayOk;
+        public bool NoUndo;
     }
 }

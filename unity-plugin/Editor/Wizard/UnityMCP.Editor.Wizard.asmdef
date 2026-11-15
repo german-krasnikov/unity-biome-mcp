@@ -2,7 +2,9 @@
     "name": "UnityMCP.Editor.Wizard",
     "rootNamespace": "UnityMCP.Editor.Wizard",
     "references": [
-        "UnityMCP.Editor"
+        "UnityMCP.Editor",
+        "UnityMCP.Editor.Primitives",
+        "UnityMCP.Editor.Transport"
     ],
     "includePlatforms": ["Editor"],
     "excludePlatforms": [],

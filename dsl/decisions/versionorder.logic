@@ -1,0 +1,7 @@
+# Lower AT wins. Today: UpdateChecker.IsNewer, ChangelogReader.IsNewerThan, ReleaseDiff.IsNewer (C#: a pre-release on either side is "not newer") and _update_check._is_newer (Python: the suffix is dropped).
+DECISION isNewer DEFAULT false
+  unparsed AT 5 WHEN NOT ver.parsed -> false
+  stableUserNeverSeesRc AT 10 WHEN ver.candPre AND NOT ver.curPre -> false
+  higher AT 20 WHEN ver.triple == greater -> true
+  releaseOverItsRc AT 30 WHEN ver.triple == equal AND ver.curPre AND NOT ver.candPre -> true
+END

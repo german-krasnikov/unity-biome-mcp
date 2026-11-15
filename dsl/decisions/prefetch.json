@@ -1,0 +1,16 @@
+{
+  "generated": "from prefetch.examples by npm run logic -- examples; do not edit",
+  "provenance": "Transcribed from server/tests/test_scenario_trust.py's N0a-2 section; two rows characterized from middleware_pipeline.py's own guard conditions (cache disabled / command not in the cacheable set).",
+  "prefetchServe": [
+    { "id": "bypassed-while-uncertain", "facts": { "pfCacheConfigured": true, "pfCmdCacheable": true, "pfScenarioUncertain": true }, "expected": "skip", "provenance": "test_scenario_trust.py:117 (test_cache_bypassed_while_uncertain)" },
+    { "id": "served-when-not-uncertain", "facts": { "pfCacheConfigured": true, "pfCmdCacheable": true, "pfScenarioUncertain": false }, "expected": "serve", "provenance": "test_scenario_trust.py:131 (test_cache_served_when_not_uncertain)" },
+    { "id": "not-configured-skips", "facts": { "pfCacheConfigured": false, "pfCmdCacheable": true, "pfScenarioUncertain": false }, "expected": "skip", "provenance": "middleware_pipeline.py:86 (mw._prefetch_cache is None)" },
+    { "id": "not-cacheable-skips", "facts": { "pfCacheConfigured": true, "pfCmdCacheable": false, "pfScenarioUncertain": false }, "expected": "skip", "provenance": "middleware_pipeline.py:86 (cmd not in _READ_CACHEABLE)" }
+  ],
+  "prefetchFire": [
+    { "id": "suppressed-while-uncertain", "facts": { "pfCacheConfigured": true, "pfScenarioUncertain": true, "pfCmdIsWrite": true, "pfCmdSceneNeutral": false }, "expected": "skip", "provenance": "test_scenario_trust.py:143 (test_background_prefetch_suppressed_while_uncertain)" },
+    { "id": "fires-for-eligible-write", "facts": { "pfCacheConfigured": true, "pfScenarioUncertain": false, "pfCmdIsWrite": true, "pfCmdSceneNeutral": false }, "expected": "fire", "provenance": "middleware_pipeline.py:266 (_maybe_prefetch_background, set_property+GATE_PRIORS)" },
+    { "id": "scene-neutral-write-skips", "facts": { "pfCacheConfigured": true, "pfScenarioUncertain": false, "pfCmdIsWrite": true, "pfCmdSceneNeutral": true }, "expected": "skip", "provenance": "middleware_pipeline.py:270 (cmd in SCENE_STATE_NEUTRAL_WRITES)" },
+    { "id": "read-cmd-skips", "facts": { "pfCacheConfigured": true, "pfScenarioUncertain": false, "pfCmdIsWrite": false, "pfCmdSceneNeutral": false }, "expected": "skip", "provenance": "middleware_pipeline.py:270 (cmd not in WRITE_CMDS)" }
+  ]
+}

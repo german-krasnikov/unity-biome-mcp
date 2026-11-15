@@ -1,0 +1,14 @@
+# Facts of the two UNITY_MCP_REFLECT call sites in middleware_pipeline.py: _apply_state_tracking
+# (the verify_snapshot fallback) and _apply_reflection_and_hinter (the async reflect() rule engine).
+# Both sites previously re-read os.environ.get("UNITY_MCP_REFLECT", "1") independently -- a literal
+# duplicate whose default could drift between the two copies. One decision, one source of truth.
+CONTRACT unitymcp.reflectgate
+COVERAGE declared-scope
+MODULE reflectgate_facts
+FACT reflect.envOn bool
+FACT reflect.resultDegraded bool
+FACT reflect.noReflectFlag bool
+FACT reflect.cmdIsWrite bool
+FACT reflect.cmdIsSetProperty bool
+FACT reflect.hasPropAndValue bool
+INPUT reflectGate reflect.envOn reflect.resultDegraded reflect.noReflectFlag reflect.cmdIsWrite reflect.cmdIsSetProperty reflect.hasPropAndValue

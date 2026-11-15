@@ -1,0 +1,7 @@
+DECISION canSend DEFAULT false
+  idle AT 10 WHEN chatTurn.phase == idle -> true
+END
+
+DECISION active DEFAULT true
+  idle AT 10 WHEN chatTurn.phase == idle -> false
+END

@@ -1,0 +1,15 @@
+PROVENANCE "Transcribed from SourcePatchReadinessTests.ReloadAdmission_OnlyOffOrOwnedExplicitDisableIsAllowed and SuccessfulPatch_RemainsActiveAfterActualLeaseRelease in unity-plugin/Tests~/SourcePatchReadiness/SourcePatchReadinessTests.cs."
+
+EXAMPLES sourcePatchBlock
+  id | patchState | patchPatchesMayBeActive | patchLeaseHeld | patchExplicitOwnedDisable | patchMatchingDisableReceipt | patchStateIsOff | patchStateIsUnavailable -> expected
+  off-no-patches | Off | false | false | false | false | true | false -> allow
+  unavailable | Unavailable | false | false | false | false | false | true -> allow
+  onready-active | OnReady | false | false | false | false | false | false -> blocked
+  patches-active-off | Off | true | false | false | false | true | false -> blocked
+  lease-held-off | Off | false | true | false | false | true | false -> blocked
+  disabling-owned-match | Disabling | false | false | true | true | false | false -> allow
+  disabling-owned-no-match | Disabling | false | false | true | false | false | false -> disableNotOwned
+  disabling-owned-lease-held | Disabling | false | true | true | true | false | false -> disableNotOwned
+  onready-explicit-disable | OnReady | false | false | true | true | false | false -> disableNotOwned
+  recovery-no-disable | Recovery | false | false | false | false | false | false -> blocked
+END

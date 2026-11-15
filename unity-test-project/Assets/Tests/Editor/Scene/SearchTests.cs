@@ -131,10 +131,14 @@ namespace UnityMCP.TestProject.Scene
         [Test]
         public void SearchScene_EmptyQuery_ReturnsError()
         {
-            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("query is required"));
+            // ArgContract.Check (CommandValidator.Validate) rejects the missing required
+            // "query" param before ExecuteCommand/SearchHelper.Search ever runs, so no
+            // exception is thrown and nothing is logged — this is the same silent,
+            // pre-execution contract every other ArgContract-gated command uses.
             var json = "{\"id\":\"s106\",\"cmd\":\"search_scene\",\"args\":{}}";
             var result = CommandRouter.Process(json);
             StringAssert.Contains("\"ok\":false", result);
+            StringAssert.Contains("!query", result);
         }
 
         [Test]

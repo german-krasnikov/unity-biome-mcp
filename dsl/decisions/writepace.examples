@@ -1,0 +1,12 @@
+PROVENANCE "Transcribed from server/tests/middleware/test_consecutive_write_guard.py. consecutiveWrites is the value after the host increments (or resets); changesSceneState=false means the host already reset the counter."
+
+EXAMPLES writePace
+  id | paceChangesSceneState | paceConsecutiveWrites -> expected
+  read-resets | false | 0 -> none  # test_consecutive_write_guard.py:9 run_playtest does not increment
+  playtest-no-increment | false | 0 -> none  # test_consecutive_write_guard.py:17 5 playtests still 0
+  suite-no-increment | false | 0 -> none  # test_consecutive_write_guard.py:26 run_playtest_suite → 0
+  one-write | true | 1 -> none  # test_consecutive_write_guard.py:34 first write, no nudge
+  two-writes | true | 2 -> none  # second write, still below threshold
+  three-writes | true | 3 -> nudge  # test_consecutive_write_guard.py:43 3rd write triggers guard
+  four-writes | true | 4 -> nudge  # 4th write still nudges
+END

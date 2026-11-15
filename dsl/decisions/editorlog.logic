@@ -1,0 +1,28 @@
+# failureCurrency (A3): current iff the last reload-terminal is a failure and no Mono-success follows it. Offsets are rfind positions (-1 = none).
+DECISION failureCurrency DEFAULT stale
+  noFailure AT 10 WHEN log.failureOffset < 0 -> stale
+  noSuccess AT 20 WHEN log.successOffset < 0 -> current
+  failureLast AT 30 WHEN log.failureOffset > log.successOffset -> current
+END
+
+# logPick: which of Editor.log / Editor-prev.log is judged. Unity writes -prev first, so mtime is only the tiebreaker; content wins.
+DECISION logPick DEFAULT primary
+  onlyPrev AT 10 WHEN NOT log.hasPrimary AND log.hasPrev -> prev
+  onlyPrimary AT 11 WHEN NOT log.hasPrev -> primary
+  primaryCurrent AT 20 WHEN log.primaryCurrency == current -> primary
+  prevCurrent AT 21 WHEN log.prevCurrency == current -> prev
+  prevNewer AT 30 WHEN log.prevNewer -> prev
+END
+
+# wedgeKind: clean | staleCache | buildFailedWedge. staleCache only when there are errors and EVERY one crosschecks as staleOnDisk. Any doubt = a real error.
+DECISION wedgeKind DEFAULT staleCache
+  clean AT 10 WHEN log.currency == stale -> clean
+  noErrors AT 20 WHEN wedge.csErrors == 0 -> buildFailedWedge
+  unparsable AT 30 WHEN wedge.unparsable > 0 -> buildFailedWedge
+  stillMissing AT 40 WHEN wedge.stillMissing > 0 -> buildFailedWedge
+END
+
+# errorOnDisk: is the member a CS error complains about already in the file. Real error wins (never hide a live error): that is the DEFAULT.
+DECISION errorOnDisk DEFAULT matches
+  fixedOnDisk AT 10 WHEN err.complete AND err.fileReadable AND err.typeFound AND err.memberInCode -> staleOnDisk
+END

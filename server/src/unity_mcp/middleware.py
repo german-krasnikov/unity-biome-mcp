@@ -8,6 +8,8 @@ import os
 import time
 from collections import OrderedDict, deque
 
+from .generated.limits_constants import LIMITS_ROWS as _LR
+from .generated.timing_constants import TIMING_ROWS as _TR
 from .middleware_async import MiddlewareAsyncMixin
 from .middleware_guards import MiddlewareGuardsMixin
 from .middleware_paths import PathResolverMixin
@@ -38,8 +40,8 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self._retry_cache: OrderedDict = OrderedDict()  # h -> (timestamp, retry_gen)
         self._retry_generation: int = 0
         self._scene_generation: int = 0
-        self._RETRY_TTL = float(os.environ.get("UNITY_MCP_RETRY_TTL", "5.0"))
-        self._RETRY_MAX = 32
+        self._RETRY_TTL = float(os.environ.get("UNITY_MCP_RETRY_TTL", str(_TR[0].retryDedupTtlS)))
+        self._RETRY_MAX = _LR[0].retryMax
         self.confidence: float = 1.0
         self.sampling: SamplingService | None = None  # type: ignore[name-defined]  # noqa: F821
         self._mutation_log = None
@@ -49,7 +51,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
             self._mutation_log = open(os.path.join(log_dir, "mutations.jsonl"), "a", encoding="utf-8")  # noqa: SIM115
             atexit.register(lambda: self._mutation_log.close() if self._mutation_log else None)
         self._clean_paths: OrderedDict = OrderedDict()
-        self._MAX_PATHS = 256
+        self._MAX_PATHS = _LR[0].maxPaths
         self.call_count: int = 0
         self._last_hierarchy_call: int = 0
         self.known_paths: set = set()
@@ -60,7 +62,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self._play_state_known: bool = False
         self._play_state_ts: float = 0.0  # timestamp of last non-editor play state update
         self._last_writes: OrderedDict = OrderedDict()
-        self._MAX_WRITES = 128
+        self._MAX_WRITES = _LR[0].maxWrites
         self._circuit_ready_fn = None
         self.circuit: CircuitBreaker = CircuitBreaker(
             is_ready_fn=lambda: self._circuit_ready_fn and self._circuit_ready_fn()
@@ -74,7 +76,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self._consecutive_writes: int = 0
         self.scene_brief: SceneBrief | None = None  # type: ignore[name-defined]  # noqa: F821
         self._component_cache: OrderedDict = OrderedDict()  # path -> {component_names}
-        self._MAX_COMPONENTS = 256
+        self._MAX_COMPONENTS = _LR[0].maxComponents
         # Tier C features
         self.speculation = None
         self.lessons = None
@@ -88,7 +90,7 @@ class Middleware(MiddlewareGuardsMixin, MiddlewareReadsMixin, MiddlewareAsyncMix
         self._distiller_enabled: bool = os.environ.get("UNITY_MCP_DISTILL", "0") == "1"
         self._distiller = None  # lazy init
         self._distill_cache: OrderedDict = OrderedDict()
-        self._MAX_DISTILL_CACHE = 64
+        self._MAX_DISTILL_CACHE = _LR[0].maxDistillCache
         self._haiku_in_flight: set = set()
         self._bg_tasks: set = set()  # prevent GC of fire-and-forget tasks
         # N0a: True while a dispatched playtest may still be mutating the

@@ -1,0 +1,9 @@
+# Blast-radius policy thresholds (Wave 1A-4): the two sentinel values that
+# classify a write as HIGH or DANGEROUS blast radius, extracted from
+# middleware_types.py:20 where they were a bare tuple assignment.
+# blastHigh: threshold at which a write is flagged HIGH BLAST RADIUS (check_blast_radius, watchdog).
+# blastDangerous: threshold at which a write is denied outright in agent mode (permission_broker).
+RECORD BlastPolicy COUNT 1
+  blastHigh: int
+  blastDangerous: int
+END

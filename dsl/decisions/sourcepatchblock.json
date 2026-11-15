@@ -1,0 +1,16 @@
+{
+  "generated": "from sourcepatchblock.examples by npm run logic -- examples; do not edit",
+  "provenance": "Transcribed from SourcePatchReadinessTests.ReloadAdmission_OnlyOffOrOwnedExplicitDisableIsAllowed and SuccessfulPatch_RemainsActiveAfterActualLeaseRelease in unity-plugin/Tests~/SourcePatchReadiness/SourcePatchReadinessTests.cs.",
+  "sourcePatchBlock": [
+    { "id": "off-no-patches", "facts": { "patchState": "Off", "patchPatchesMayBeActive": false, "patchLeaseHeld": false, "patchExplicitOwnedDisable": false, "patchMatchingDisableReceipt": false, "patchStateIsOff": true, "patchStateIsUnavailable": false }, "expected": "allow" },
+    { "id": "unavailable", "facts": { "patchState": "Unavailable", "patchPatchesMayBeActive": false, "patchLeaseHeld": false, "patchExplicitOwnedDisable": false, "patchMatchingDisableReceipt": false, "patchStateIsOff": false, "patchStateIsUnavailable": true }, "expected": "allow" },
+    { "id": "onready-active", "facts": { "patchState": "OnReady", "patchPatchesMayBeActive": false, "patchLeaseHeld": false, "patchExplicitOwnedDisable": false, "patchMatchingDisableReceipt": false, "patchStateIsOff": false, "patchStateIsUnavailable": false }, "expected": "blocked" },
+    { "id": "patches-active-off", "facts": { "patchState": "Off", "patchPatchesMayBeActive": true, "patchLeaseHeld": false, "patchExplicitOwnedDisable": false, "patchMatchingDisableReceipt": false, "patchStateIsOff": true, "patchStateIsUnavailable": false }, "expected": "blocked" },
+    { "id": "lease-held-off", "facts": { "patchState": "Off", "patchPatchesMayBeActive": false, "patchLeaseHeld": true, "patchExplicitOwnedDisable": false, "patchMatchingDisableReceipt": false, "patchStateIsOff": true, "patchStateIsUnavailable": false }, "expected": "blocked" },
+    { "id": "disabling-owned-match", "facts": { "patchState": "Disabling", "patchPatchesMayBeActive": false, "patchLeaseHeld": false, "patchExplicitOwnedDisable": true, "patchMatchingDisableReceipt": true, "patchStateIsOff": false, "patchStateIsUnavailable": false }, "expected": "allow" },
+    { "id": "disabling-owned-no-match", "facts": { "patchState": "Disabling", "patchPatchesMayBeActive": false, "patchLeaseHeld": false, "patchExplicitOwnedDisable": true, "patchMatchingDisableReceipt": false, "patchStateIsOff": false, "patchStateIsUnavailable": false }, "expected": "disableNotOwned" },
+    { "id": "disabling-owned-lease-held", "facts": { "patchState": "Disabling", "patchPatchesMayBeActive": false, "patchLeaseHeld": true, "patchExplicitOwnedDisable": true, "patchMatchingDisableReceipt": true, "patchStateIsOff": false, "patchStateIsUnavailable": false }, "expected": "disableNotOwned" },
+    { "id": "onready-explicit-disable", "facts": { "patchState": "OnReady", "patchPatchesMayBeActive": false, "patchLeaseHeld": false, "patchExplicitOwnedDisable": true, "patchMatchingDisableReceipt": true, "patchStateIsOff": false, "patchStateIsUnavailable": false }, "expected": "disableNotOwned" },
+    { "id": "recovery-no-disable", "facts": { "patchState": "Recovery", "patchPatchesMayBeActive": false, "patchLeaseHeld": false, "patchExplicitOwnedDisable": false, "patchMatchingDisableReceipt": false, "patchStateIsOff": false, "patchStateIsUnavailable": false }, "expected": "blocked" }
+  ]
+}

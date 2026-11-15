@@ -70,7 +70,7 @@ namespace UnityMCP.Editor
                     EditorApplication.isPlaying = false;
                     return "ok";
                 case "select":
-                    var paths = argsJson != null ? JsonHelper.ExtractString(argsJson, "paths") : null;
+                    var paths = argsJson != null ? EditorArgs.Paths(argsJson) : null;
                     if (!string.IsNullOrEmpty(paths))
                         return SelectMulti(paths);
                     if (string.IsNullOrEmpty(path))
@@ -84,7 +84,7 @@ namespace UnityMCP.Editor
                     return System.IO.Path.GetDirectoryName(Application.dataPath);
                 default:
                     throw new System.ArgumentException(
-                        ErrorHelper.InvalidAction(action, new[] { "state", "play", "pause", "stop", "select", "project_path" }));
+                        ErrorHelper.InvalidAction(action, ToolActions.Names("editor")));
             }
         }
 

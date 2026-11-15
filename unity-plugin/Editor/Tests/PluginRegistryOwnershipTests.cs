@@ -42,6 +42,10 @@ namespace UnityMCP.Editor.Tests
         [SetUp]
         public void SetUp()
         {
+            // See PluginRegistryTests.SetUp: a real production plugin now registers via
+            // [InitializeOnLoad], so Clear() without restore would wipe it for the rest of
+            // the EditMode session.
+            RegisterCleanup(PluginRegistry.PreserveStateForTests().Dispose);
             PluginRegistry.Clear();
             CommandRegistry.Clear();
         }

@@ -1,0 +1,1 @@
+KINDNOTE {note: "tool_args_complete and auto_reply are internal protocol signals; all other values correspond to UI factory names in events.biome"}

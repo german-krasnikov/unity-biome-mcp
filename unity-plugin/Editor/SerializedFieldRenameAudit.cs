@@ -14,13 +14,10 @@ namespace UnityMCP.Editor
     {
         internal static string Execute(string argsJson)
         {
-            var typeName = JsonHelper.ExtractString(argsJson, "type")
-                ?? throw new ArgumentException("'type' is required");
-            var oldField = JsonHelper.ExtractString(argsJson, "old_field")
-                ?? throw new ArgumentException("'old_field' is required");
-            var newField = JsonHelper.ExtractString(argsJson, "new_field")
-                ?? throw new ArgumentException("'new_field' is required");
-            var include = JsonHelper.ExtractString(argsJson, "include") ?? "prefabs,scenes,scriptable_objects";
+            var typeName = SerializedFieldRenameAuditArgs.Type(argsJson);
+            var oldField = SerializedFieldRenameAuditArgs.OldField(argsJson);
+            var newField = SerializedFieldRenameAuditArgs.NewField(argsJson);
+            var include = SerializedFieldRenameAuditArgs.Include(argsJson) ?? "prefabs,scenes,scriptable_objects";
 
             var type = FindType(typeName)
                 ?? throw new ArgumentException($"Type not found: '{typeName}'");

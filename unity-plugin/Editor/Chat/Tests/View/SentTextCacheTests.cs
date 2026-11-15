@@ -8,6 +8,7 @@ using System.Reflection;
 using NUnit.Framework;
 using UnityEngine;
 using UnityMCP.Editor.Chat;
+using UnityMCP.Editor.Chat.Turn;
 
 namespace UnityMCP.Editor.Chat.Tests
 {
@@ -154,11 +155,8 @@ namespace UnityMCP.Editor.Chat.Tests
                 var textCache = (SentTextCache)textCacheField.GetValue(w);
                 textCache.Set("@/Env/Player");
 
-                // Put activity in Sending phase (non-idle) via reflection
-                var actField = typeof(MCPChatWindow)
-                    .GetField("_activity", BindingFlags.NonPublic | BindingFlags.Instance);
-                var activity = (ChatActivityState)actField.GetValue(w);
-                activity.Send();
+                // Put activity in Sending phase (non-idle)
+                w._turn.Dispatch(ChatTurnIntent.Send());
 
                 // Invoke SaveStateBeforeReload
                 typeof(MCPChatWindow)

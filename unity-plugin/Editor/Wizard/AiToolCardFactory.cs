@@ -1,6 +1,3 @@
-using System;
-using System.IO;
-
 namespace UnityMCP.Editor.Wizard
 {
     public enum CardAction { CopyText, WriteConfig, CopyPort }
@@ -77,39 +74,18 @@ namespace UnityMCP.Editor.Wizard
             };
         }
 
-        // ── Platform-aware config paths (mirrors Python clients.py) ──────────
+        // ── Platform-aware config paths (dsl/data/clientconfigpath.data-contract, P1 #5) ──
 
         public static string ClaudeCodePath()
-            => Path.Combine(Home(), ".claude.json");
+            => ClientConfigPathTable.Resolve("claude-code");
 
         public static string ClaudeDesktopPath()
-        {
-#if UNITY_EDITOR_WIN
-            var appdata = Environment.GetEnvironmentVariable("APPDATA")
-                ?? Path.Combine(Home(), "AppData", "Roaming");
-            return Path.Combine(appdata, "Claude", "claude_desktop_config.json");
-#elif UNITY_EDITOR_OSX
-            return Path.Combine(Home(), "Library", "Application Support", "Claude", "claude_desktop_config.json");
-#else
-            return Path.Combine(Home(), ".config", "Claude", "claude_desktop_config.json");
-#endif
-        }
+            => ClientConfigPathTable.Resolve("claude-desktop");
 
         public static string CursorPath()
-            => Path.Combine(Home(), ".cursor", "mcp.json");
+            => ClientConfigPathTable.Resolve("cursor");
 
         public static string WindsurfPath()
-        {
-#if UNITY_EDITOR_WIN
-            var appdata = Environment.GetEnvironmentVariable("APPDATA")
-                ?? Path.Combine(Home(), "AppData", "Roaming");
-            return Path.Combine(appdata, "Codeium", "windsurf", "mcp_config.json");
-#else
-            return Path.Combine(Home(), ".codeium", "windsurf", "mcp_config.json");
-#endif
-        }
-
-        private static string Home()
-            => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            => ClientConfigPathTable.Resolve("windsurf");
     }
 }

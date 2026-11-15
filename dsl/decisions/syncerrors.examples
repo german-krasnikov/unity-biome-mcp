@@ -1,0 +1,16 @@
+PROVENANCE "Characterized from _get_errors branches in server/src/unity_mcp/reload/sync.py:44-75 and server/tests/bridge/test_sync.py error-observation tests."
+
+EXAMPLES syncErrors
+  id | syncState | syncHasCsErrors | syncHasErrors | syncIsWarnOnly | syncDiagnosticIssue | syncHasStaleDlls -> expected
+  idle-clean | idle | false | false | false | false | false -> clean
+  idle-failed-with-cs | idleFailed | true | true | false | false | false -> errors
+  idle-failed-no-cs | idleFailed | false | false | false | false | false -> failedNoDetails
+  idle-failed-warn-only | idleFailed | false | true | true | false | false -> failedNoDetails
+  errors-warn-only | idle | false | true | true | false | false -> unknown
+  errors-real | idle | true | true | false | false | false -> errors
+  compiling-no-errors | other | false | false | false | false | false -> unknownState
+  idle-diagnostic-fail | idle | false | false | false | true | false -> verdict
+  idle-stale-dlls | idle | false | false | false | false | true -> failStaleDll
+  idle-both-issues | idle | false | false | false | true | true -> verdict
+  compiling-stale-dlls | other | false | false | false | false | true -> unknownState
+END

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using UnityEditor;
 
-namespace UnityMCP.Editor
+namespace UnityMCP.Editor.Roslyn
 {
     /// <summary>In-process Roslyn compilation workspace for dry-compile diagnostics.
     /// Caches reference list; drops cache on domain reload.</summary>

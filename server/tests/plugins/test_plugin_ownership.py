@@ -11,7 +11,7 @@ back (_atomic._restore).
 import importlib
 
 import pytest
-from test_plugins import _DictMcp
+from ..core.test_plugins import _DictMcp
 
 from tests.plugins.conftest import (
     _declare_dsl_tools_typo,

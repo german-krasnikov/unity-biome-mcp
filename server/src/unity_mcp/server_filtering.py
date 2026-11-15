@@ -19,15 +19,13 @@ from .paths import ports_dir as _ports_dir
 from .tools.gating import _CORE_TOOLS, TIER1, filter_by_tier, get_catalog
 from .tools.schema_registry import STUB_SCHEMA
 from .tools.schema_registry import _registry as _schema_registry
+from .tools.tags import tagged
 
 # All TIER1/core tools get full schemas (auto-derived from _SPECS — no manual drift).
-# Only non-tier1 exceptions need explicit listing here.
-_SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = frozenset({
-    # B3: MEDIA tools with required params (path, action) not yet promoted to tier1
-    "timeline", "animation", "animator",
-    # B4: SYSTEM tool with label param; sub-agents need full schema to construct calls
-    "checkpoint",
-})
+# Non-tier1 exceptions (schema_keep_full tag): B3 MEDIA tools with required
+# params not yet promoted to tier1 (timeline/animation/animator), B4 SYSTEM
+# tool whose sub-agents need full schema to construct calls (checkpoint).
+_SCHEMA_KEEP_FULL_EXTRA: frozenset[str] = tagged("schema_keep_full")
 _SCHEMA_KEEP_FULL: frozenset[str] = frozenset(TIER1) | _SCHEMA_KEEP_FULL_EXTRA
 
 # Non-core tool descriptions are truncated to this length in the initial
@@ -57,8 +55,8 @@ def _strip_deferred_schemas(tools: list) -> list:
     UNITY_MCP_FULL_SCHEMAS=1.
 
     Safe: these are ListTools *response* objects, separate from mcp._tool_manager._tools
-    which holds the callable fn. FastMCP dispatches via _tool_manager (validate_input=False
-    path), so stripping inputSchema here cannot block tool execution.
+    which holds the callable fn. MCPServer dispatches tool calls via _tool_manager
+    (validate_input=False path), so stripping inputSchema here cannot block tool execution.
 
     Full description is captured into _schema_registry BEFORE this runs (see
     install_list_tools_filter), so resolve_tool_schema still serves the untruncated text.
@@ -67,7 +65,7 @@ def _strip_deferred_schemas(tools: list) -> list:
         return tools
     for t in tools:
         if t.name not in _SCHEMA_KEEP_FULL:
-            t.inputSchema = STUB_SCHEMA
+            t.input_schema = STUB_SCHEMA
             t.description = _short_description(t.description)
     return tools
 
@@ -111,27 +109,6 @@ def filter_tools(tools: list, disabled: set | None) -> list:
         result = [t for t in result if t.name not in disabled or t.name in _CORE_TOOLS]
     _strip_deferred_schemas(result)
     return result
-
-
-
-def cleanup_stale_port_files() -> int:
-    """Delete *.reload-port files whose PID is no longer alive. Returns count cleaned."""
-    ports_dir = _ports_dir()
-    if not ports_dir.exists():
-        return 0
-    cleaned = 0
-    for f in ports_dir.glob("*.reload-port"):
-        try:
-            pid = int(f.stem)
-        except ValueError:
-            continue
-        if not _is_pid_alive(pid):
-            try:
-                f.unlink()
-                cleaned += 1
-            except OSError:
-                pass
-    return cleaned
 
 
 def _tcp_probe(port: int, timeout: float = 0.2) -> bool:
@@ -265,30 +242,27 @@ def get_active_session():
 
 
 def install_list_tools_filter(mcp_server, get_disabled_cache_fn, get_slot=None):
-    """Patch mcp._mcp_server.request_handlers to inject filtering + schema capture."""
-    import mcp.types as mcp_types
+    """Patch mcp._lowlevel_server's tools/list handler to inject filtering + schema capture."""
+    entry = mcp_server._lowlevel_server.get_request_handler("tools/list")
+    original_handler, params_type = entry.handler, entry.params_type
 
-    original_handler = mcp_server._mcp_server.request_handlers[mcp_types.ListToolsRequest]
-
-    async def _filtered_tools_handler(req):
+    async def _filtered_tools_handler(ctx, params):
         global _active_session
-        session = None
-        with contextlib.suppress(LookupError):
-            session = mcp_server._mcp_server.request_context.session
-            _active_session = session
+        session = ctx.session
+        _active_session = session
         if session is not None:
             _schedule_client_label(session, get_slot)
-        result = await original_handler(req)
+        result = await original_handler(ctx, params)
         # Capture full schemas into registry BEFORE stripping
-        for t in result.root.tools:
-            schema = getattr(t, "inputSchema", None) or {}
+        for t in result.tools:
+            schema = getattr(t, "input_schema", None) or {}
             desc = getattr(t, "description", "") or ""
             ann = getattr(t, "annotations", None)
             _schema_registry.capture(t.name, schema, desc, annotations=ann)
-        result.root.tools = filter_tools(result.root.tools, get_disabled_cache_fn())
+        result.tools = filter_tools(result.tools, get_disabled_cache_fn())
         return result
 
-    mcp_server._mcp_server.request_handlers[mcp_types.ListToolsRequest] = _filtered_tools_handler
+    mcp_server._lowlevel_server.add_request_handler("tools/list", params_type, _filtered_tools_handler)
 
 
 _DEFAULT_CLIENT_LABEL = "Claude Code"
@@ -299,7 +273,7 @@ def _schedule_client_label(session, get_slot) -> None:
     if get_slot is None or session in _labeled_sessions:
         return
     client_params = session.client_params
-    name = client_params.clientInfo.name if client_params else None
+    name = client_params.client_info.name if client_params else None
     if not name or name == _DEFAULT_CLIENT_LABEL:
         return
     bridge = get_slot()

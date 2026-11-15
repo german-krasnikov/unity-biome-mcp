@@ -1,0 +1,6 @@
+INSTALLDIR {key: claude-code dir: "~/.claude"}
+INSTALLDIR {key: claude-desktop dir: "~/.config/Claude" dirMac: "~/Library/Application Support/Claude" dirWin: "{appdata}/Claude"}
+INSTALLDIR {key: cursor dir: "~/.cursor"}
+INSTALLDIR {key: windsurf dir: "~/.codeium" dirWin: "{appdata}/Codeium/windsurf"}
+INSTALLDIR {key: vscode dir: "~/.config/Code" dirMac: "~/Library/Application Support/Code" dirWin: "{appdata}/Code"}
+INSTALLDIR {key: codex dir: "~/.codex"}

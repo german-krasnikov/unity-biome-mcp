@@ -14,7 +14,11 @@ namespace UnityMCP.Editor
 
         internal static void InvokeConnection(VisualElement root)
         {
-            try { OnBuildConnection?.Invoke(root); }
+            try
+            {
+                OnBuildConnection?.Invoke(root);               // back-compat: event has no real subscribers in production
+                ChatHostBridge.Current?.BuildSettingsUI(root);  // real path: Chat.View's ChatHostBridgeImpl
+            }
             catch (System.Exception ex)
             {
                 UnityEngine.Debug.LogWarning($"[Biome] ChatSettingsHook.Connection: {ex.GetType().Name}");
@@ -63,14 +67,9 @@ namespace UnityMCP.Editor
             catch { }
         }
 
-        // Owned status probe: Chat.CLI wires this via [InitializeOnLoad] (ChatBinaryResolver's
-        // static ctor) on every domain reload. Absent Chat.CLI => provider stays null => false,
-        // same fallback as the reflection lookup this replaces (PR-05 Finding 1).
-        internal static Func<bool> IsChatBinaryAvailableProvider { get; set; }
-
         public static bool IsChatBinaryAvailable()
         {
-            try { return IsChatBinaryAvailableProvider?.Invoke() ?? false; }
+            try { return ChatHostBridge.Current?.IsBinaryAvailable() ?? false; }
             catch (System.Exception ex)
             {
                 UnityEngine.Debug.LogWarning($"[Biome] ChatSettingsHook.BinaryAvailable: {ex.GetType().Name}");

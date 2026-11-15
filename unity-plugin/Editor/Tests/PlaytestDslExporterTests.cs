@@ -342,7 +342,11 @@ namespace UnityMCP.Editor.Tests
             StepType.Click => new VisualStep { type = type, path = "/UI/Button" },
             StepType.Invariant => new VisualStep { type = type, query = "q", op = ">=", value = "0" },
             StepType.Capture => new VisualStep { type = type, message = "capture", query = "q" },
-            StepType.AssertCaptured => new VisualStep { type = type, message = "capture", op = "DELTA" },
+            // PT-8/Q22: the grammar validates ASSERT_CAPTURED's mode vocabulary at parse
+            // time (INCREASED|DECREASED|UNCHANGED|INCREASED_BY|DECREASED_BY); "DELTA" was
+            // never a real mode (the hand parser never checked it, deferring to
+            // PlaytestState.cs at runtime), so this round-trip needs a real one.
+            StepType.AssertCaptured => new VisualStep { type = type, message = "capture", op = "INCREASED" },
             StepType.AssertNear => new VisualStep { type = type, path = "/A", value = "/B", delay = 1f },
             _ => throw new System.ArgumentOutOfRangeException(nameof(type), type, null),
         };
@@ -484,18 +488,21 @@ namespace UnityMCP.Editor.Tests
             Assert.AreEqual("/Player|Health|hp", parsed[0].Query);
         }
 
+        // PT-8/Q22: "DELTA" was never a real ASSERT_CAPTURED mode (the hand parser never
+        // validated it, deferring to PlaytestState.cs at runtime); the grammar now checks
+        // the mode vocabulary at parse time, so this round-trip needs a real mode value.
         [Test]
         public void Roundtrip_AssertCaptured_BasicMode_PreservesFields()
         {
             var steps = new List<VisualStep>
             {
-                new VisualStep { type = StepType.AssertCaptured, message = "hp_snap", op = "DELTA" }
+                new VisualStep { type = StepType.AssertCaptured, message = "hp_snap", op = "INCREASED" }
             };
             var parsed = PlaytestParser.Parse(PlaytestDslExporter.Export(steps, false));
             Assert.AreEqual(1, parsed.Count);
             Assert.AreEqual(StepType.AssertCaptured, parsed[0].Type);
             Assert.AreEqual("hp_snap", parsed[0].Message);
-            Assert.AreEqual("DELTA", parsed[0].Op);
+            Assert.AreEqual("INCREASED", parsed[0].Op);
         }
 
         [Test]

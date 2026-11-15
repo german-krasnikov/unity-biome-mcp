@@ -10,6 +10,7 @@ on:
       - "unity-plugin/ClientSkills/**"
       - "unity-plugin/Editor/**"
       - "unity-plugin-reload/Editor/**"
+      - "dsl/**"
       - ".jscpd.json"
       - ".github/workflows/ci-python.yml"
   pull_request:
@@ -253,7 +254,7 @@ jobs:
       # Pinned commit, never a floating branch ref (plan: "Baseline не
       # обновлять автоматически на каждом CI"). Bumping this is itself a
       # reviewed PR that states which new duplication is being accepted.
-      JSCPD_BASELINE_REF: 0e06aa2e
+      JSCPD_BASELINE_REF: 84264c31
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:

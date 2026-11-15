@@ -1,0 +1,13 @@
+{
+  "generated": "from writepace.examples by npm run logic -- examples; do not edit",
+  "provenance": "Transcribed from server/tests/middleware/test_consecutive_write_guard.py. consecutiveWrites is the value after the host increments (or resets); changesSceneState=false means the host already reset the counter.",
+  "writePace": [
+    { "id": "read-resets", "facts": { "paceChangesSceneState": false, "paceConsecutiveWrites": 0 }, "expected": "none", "provenance": "test_consecutive_write_guard.py:9 run_playtest does not increment" },
+    { "id": "playtest-no-increment", "facts": { "paceChangesSceneState": false, "paceConsecutiveWrites": 0 }, "expected": "none", "provenance": "test_consecutive_write_guard.py:17 5 playtests still 0" },
+    { "id": "suite-no-increment", "facts": { "paceChangesSceneState": false, "paceConsecutiveWrites": 0 }, "expected": "none", "provenance": "test_consecutive_write_guard.py:26 run_playtest_suite → 0" },
+    { "id": "one-write", "facts": { "paceChangesSceneState": true, "paceConsecutiveWrites": 1 }, "expected": "none", "provenance": "test_consecutive_write_guard.py:34 first write, no nudge" },
+    { "id": "two-writes", "facts": { "paceChangesSceneState": true, "paceConsecutiveWrites": 2 }, "expected": "none", "provenance": "second write, still below threshold" },
+    { "id": "three-writes", "facts": { "paceChangesSceneState": true, "paceConsecutiveWrites": 3 }, "expected": "nudge", "provenance": "test_consecutive_write_guard.py:43 3rd write triggers guard" },
+    { "id": "four-writes", "facts": { "paceChangesSceneState": true, "paceConsecutiveWrites": 4 }, "expected": "nudge", "provenance": "4th write still nudges" }
+  ]
+}

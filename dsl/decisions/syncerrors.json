@@ -1,0 +1,17 @@
+{
+  "generated": "from syncerrors.examples by npm run logic -- examples; do not edit",
+  "provenance": "Characterized from _get_errors branches in server/src/unity_mcp/reload/sync.py:44-75 and server/tests/bridge/test_sync.py error-observation tests.",
+  "syncErrors": [
+    { "id": "idle-clean", "facts": { "syncState": "idle", "syncHasCsErrors": false, "syncHasErrors": false, "syncIsWarnOnly": false, "syncDiagnosticIssue": false, "syncHasStaleDlls": false }, "expected": "clean" },
+    { "id": "idle-failed-with-cs", "facts": { "syncState": "idleFailed", "syncHasCsErrors": true, "syncHasErrors": true, "syncIsWarnOnly": false, "syncDiagnosticIssue": false, "syncHasStaleDlls": false }, "expected": "errors" },
+    { "id": "idle-failed-no-cs", "facts": { "syncState": "idleFailed", "syncHasCsErrors": false, "syncHasErrors": false, "syncIsWarnOnly": false, "syncDiagnosticIssue": false, "syncHasStaleDlls": false }, "expected": "failedNoDetails" },
+    { "id": "idle-failed-warn-only", "facts": { "syncState": "idleFailed", "syncHasCsErrors": false, "syncHasErrors": true, "syncIsWarnOnly": true, "syncDiagnosticIssue": false, "syncHasStaleDlls": false }, "expected": "failedNoDetails" },
+    { "id": "errors-warn-only", "facts": { "syncState": "idle", "syncHasCsErrors": false, "syncHasErrors": true, "syncIsWarnOnly": true, "syncDiagnosticIssue": false, "syncHasStaleDlls": false }, "expected": "unknown" },
+    { "id": "errors-real", "facts": { "syncState": "idle", "syncHasCsErrors": true, "syncHasErrors": true, "syncIsWarnOnly": false, "syncDiagnosticIssue": false, "syncHasStaleDlls": false }, "expected": "errors" },
+    { "id": "compiling-no-errors", "facts": { "syncState": "other", "syncHasCsErrors": false, "syncHasErrors": false, "syncIsWarnOnly": false, "syncDiagnosticIssue": false, "syncHasStaleDlls": false }, "expected": "unknownState" },
+    { "id": "idle-diagnostic-fail", "facts": { "syncState": "idle", "syncHasCsErrors": false, "syncHasErrors": false, "syncIsWarnOnly": false, "syncDiagnosticIssue": true, "syncHasStaleDlls": false }, "expected": "verdict" },
+    { "id": "idle-stale-dlls", "facts": { "syncState": "idle", "syncHasCsErrors": false, "syncHasErrors": false, "syncIsWarnOnly": false, "syncDiagnosticIssue": false, "syncHasStaleDlls": true }, "expected": "failStaleDll" },
+    { "id": "idle-both-issues", "facts": { "syncState": "idle", "syncHasCsErrors": false, "syncHasErrors": false, "syncIsWarnOnly": false, "syncDiagnosticIssue": true, "syncHasStaleDlls": true }, "expected": "verdict" },
+    { "id": "compiling-stale-dlls", "facts": { "syncState": "other", "syncHasCsErrors": false, "syncHasErrors": false, "syncIsWarnOnly": false, "syncDiagnosticIssue": false, "syncHasStaleDlls": true }, "expected": "unknownState" }
+  ]
+}

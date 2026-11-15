@@ -4,16 +4,25 @@ Moved out of server.py's composition root (M2) into the standard
 register(mcp, send, args) pattern used by every other tools/*.py module.
 """
 
-from mcp.server.fastmcp import Context  # noqa: TC002 — fastmcp eval_str=True requires runtime
-from mcp.server.fastmcp.exceptions import ToolError
+from mcp.server.mcpserver import Context  # noqa: TC002 — fastmcp eval_str=True requires runtime
+from mcp.server.mcpserver.exceptions import ToolError
 
 from ..doctor import format_report, run_doctor
 from ..llm_config import apply_config, parse_tcp_config
 from . import code_intel as _ci
-from ._annotations import RO as _RO
-from ._annotations import RW as _RW
 from ._common import _guard_read_only, bind
 from .gating import discover_tools as _discover_tools_impl
+
+# Wrappers the tool catalog (dsl/tools.biome) generates; server.py and the tests import them from here.
+from .generated.catalog_tools import (  # noqa: F401
+    alias_status,
+    doctor,
+    mcp_status,
+    release_smoke,
+    resolve_tool_schema,
+    set_llm_config,
+    tools,
+)
 from .schema_registry import _registry as _schema_registry
 
 _send = None
@@ -35,6 +44,8 @@ _LIVENESS_STALLED = "connected-stalled"
 async def discover_tools(category: str | None = None, enable: bool = True,
                          include_legacy: bool = False, structured: bool = False,
                          ctx: Context = None) -> str:
+    # ctx's annotation must stay a real Context (not catalog Any) -- see
+    # codegen.py's auto_fix/smart_build comment for why (stays hand-written, SV8).
     """Find and enable tools by category.
     Canonical 10: SCENE, COMPONENTS, ASSETS, UGUI, UITOOLKIT, MEDIA,
     VERIFY, RUNTIME, TESTS, SYSTEM.
@@ -51,7 +62,7 @@ async def discover_tools(category: str | None = None, enable: bool = True,
     return result
 
 
-async def doctor(fix: bool = False) -> str:
+async def _doctor_body(fix: bool = False) -> str:
     """Run health diagnostics. fix=True removes safe stale port/lock files."""
     if fix:
         _guard_read_only("doctor")
@@ -59,7 +70,7 @@ async def doctor(fix: bool = False) -> str:
     return format_report(results)
 
 
-async def resolve_tool_schema(tools: str) -> str:
+async def _resolve_tool_schema_body(tools: str) -> str:  # noqa: F811 -- param name must match the catalog ARG the generated wrapper calls by keyword
     """Return full parameter schemas for deferred tools. tools=comma-separated names."""
     names = [n.strip() for n in tools.split(",") if n.strip()]
     text = _schema_registry.format_text(names)
@@ -69,7 +80,7 @@ async def resolve_tool_schema(tools: str) -> str:
     return text
 
 
-async def set_llm_config(config: str) -> str:
+async def _set_llm_config_body(config: str) -> str:
     """Override LLM profiles for sampling features. Format: feature:model,turns,timeout,max_tokens (one per line).
     Features: visual_verify, screenshot_describe, visual_diff, do_intent, ui_intent, vfx_intent, animator_intent, summarize, distiller."""
     parsed = parse_tcp_config(config)
@@ -77,11 +88,6 @@ async def set_llm_config(config: str) -> str:
         return "err: no valid entries parsed"
     apply_config(parsed)
     return f"ok: updated {', '.join(parsed)}"
-
-
-async def alias_status() -> str:
-    """Check alias table health: loaded/empty/stale, sources, and total alias count."""
-    return await _send("alias_status", {})
 
 
 def _fmt_num(val) -> str:
@@ -101,7 +107,7 @@ def _fmt_bool(val) -> str:
     return "true" if val is True else "false" if val is False else "n/a"
 
 
-async def mcp_status() -> str:
+async def _mcp_status_body() -> str:
     """Compact MCP status: scene, dirty, play/compile state, port, alias count,
     version — plus Python-side liveness diagnostics (ARC-7 T3) that answer
     honestly, never raising, when Unity itself is unreachable.
@@ -148,7 +154,7 @@ async def mcp_status() -> str:
     return "\n".join(x for x in lines if x)
 
 
-async def release_smoke() -> str:
+async def _release_smoke_body() -> str:
     """Run release readiness checks: status, aliases, compile. Returns PASS/FAIL summary."""
     results = []
 
@@ -169,12 +175,4 @@ def register(mcp, send, args, *, get_slot=None):
     global _get_slot
     bind(globals(), send, args)
     _get_slot = get_slot
-    mcp.tool()(discover_tools)
-    # Conservative annotation: fix=True may remove stale local files. Runtime
-    # read-only enforcement remains argument-aware in doctor() itself.
-    mcp.tool(annotations=_RW)(doctor)
-    mcp.tool()(resolve_tool_schema)
-    mcp.tool()(set_llm_config)
-    mcp.tool(annotations=_RO)(alias_status)
-    mcp.tool(annotations=_RO)(mcp_status)
-    mcp.tool(annotations=_RO)(release_smoke)
+    tools.register(mcp, discover_tools)

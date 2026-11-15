@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
-namespace UnityMCP.Editor
+namespace UnityMCP.Editor.Roslyn
 {
     internal enum RoslynPairSelection { None, Valid, Invalid }
     internal sealed class RoslynAssemblySnapshot
@@ -37,10 +37,19 @@ namespace UnityMCP.Editor
         internal static Assembly RoslynCore => _core;
         internal static Assembly RoslynCompiler => _compiler;
 
+#if UNITYMCP_DISABLE_ROSLYN
+        internal const bool IsKillSwitchActiveForTests = true;
+#else
+        internal const bool IsKillSwitchActiveForTests = false;
+#endif
+
         internal static bool EnsureRoslyn()
         {
             lock (Gate)
             {
+#if UNITYMCP_DISABLE_ROSLYN
+                return FailClosed();
+#else
                 RoslynAssemblySnapshot core, compiler;
                 var selection = SelectLoadedPair(GetLoadedSnapshots(), out core, out compiler);
                 string fallbackDirectory = null;
@@ -79,6 +88,7 @@ namespace UnityMCP.Editor
                 _core = core.Assembly; _compiler = compiler.Assembly;
                 _coreMvid = core.Mvid; _compilerMvid = compiler.Mvid;
                 return true;
+#endif
             }
         }
         internal static RoslynPairSelection SelectLoadedPair(

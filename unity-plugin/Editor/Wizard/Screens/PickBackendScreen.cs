@@ -140,7 +140,8 @@ namespace UnityMCP.Editor.Wizard.Screens
                 && BinaryExistsOnPath(d.BinaryName, cancellation))
                 return true;
             if (cancellation.IsCancellationRequested) return false;
-            if (!string.IsNullOrEmpty(d.ConfigDir) && ConfigDirExists(d.ConfigDir)) return true;
+            var installDir = InstallDirTable.Resolve(d.Key);
+            if (!string.IsNullOrEmpty(installDir) && InstallDirExists(installDir)) return true;
             return false;
         }
 
@@ -172,13 +173,9 @@ namespace UnityMCP.Editor.Wizard.Screens
             catch { return false; }
         }
 
-        private static bool ConfigDirExists(string path)
+        private static bool InstallDirExists(string resolvedPath)
         {
-            try
-            {
-                var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-                return Directory.Exists(path.Replace("~", home));
-            }
+            try { return Directory.Exists(resolvedPath); }
             catch { return false; }
         }
 

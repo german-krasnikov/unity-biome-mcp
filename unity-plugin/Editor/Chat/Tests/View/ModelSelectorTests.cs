@@ -300,7 +300,6 @@ namespace UnityMCP.Editor.Chat.Tests
             src.Claude.Model = "old";
             var cloned = src.WithModel(BackendKind.Claude, "new-model");
             Assert.AreEqual("new-model", cloned.Claude.Model);
-            Assert.AreEqual(src.Claude.ExtraArgs, cloned.Claude.ExtraArgs);
         }
 
         [Test]
@@ -310,16 +309,6 @@ namespace UnityMCP.Editor.Chat.Tests
             src.Claude.Model = "same";
             var result = src.WithModel(BackendKind.Claude, "same");
             Assert.AreSame(src, result);
-        }
-
-        [Test]
-        public void CloneWithModel_PreservesPermissionMode()
-        {
-            var src = new BackendConfigStore();
-            src.Claude.PermissionMode = "acceptEdits";
-            src.Claude.Model = "old";
-            var cloned = src.WithModel(BackendKind.Claude, "new-model");
-            Assert.AreEqual("acceptEdits", cloned.Claude.PermissionMode);
         }
     }
 }

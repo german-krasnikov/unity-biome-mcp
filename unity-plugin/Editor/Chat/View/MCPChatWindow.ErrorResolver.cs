@@ -10,7 +10,7 @@ namespace UnityMCP.Editor.Chat
         /// </summary>
         public void InjectMessage(string prompt)
         {
-            if (!_activity.CanSend) return;
+            if (!_turn.CanSend) return;
             DispatchTurn(UserTurnBuilder.Build(prompt), prompt);
         }
     }

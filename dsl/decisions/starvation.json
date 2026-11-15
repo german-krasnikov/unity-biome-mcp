@@ -1,0 +1,10 @@
+{
+  "generated": "from starvation.examples by npm run logic -- examples; do not edit",
+  "provenance": "Characterized from middleware_guards.check_starvation at middleware_guards.py:175-179. No dedicated test exists yet; rows cover all four bool combinations.",
+  "starvationWarn": [
+    { "id": "window-not-full-not-same", "facts": { "starvWindowFull": false, "starvAllSame": false }, "expected": "ok", "provenance": "less than 5 calls, no warning" },
+    { "id": "window-not-full-same", "facts": { "starvWindowFull": false, "starvAllSame": true }, "expected": "ok", "provenance": "impossible in practice but contract is clear: need full window" },
+    { "id": "window-full-not-same", "facts": { "starvWindowFull": true, "starvAllSame": false }, "expected": "ok", "provenance": "5 different results, no starvation" },
+    { "id": "window-full-all-same", "facts": { "starvWindowFull": true, "starvAllSame": true }, "expected": "warn", "provenance": "5 identical results → starvation" }
+  ]
+}

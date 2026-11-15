@@ -469,7 +469,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void TrySaveAllPorts_UsesSharedAtomicSwap_NotDeleteThenMove()
         {
-            var src = ReadRequiredPackageSource(typeof(PortResolver), "Editor/PortResolver.cs");
+            var src = ReadRequiredPackageSource(typeof(PortResolver), "Editor/Transport/PortResolver.cs");
             Assert.That(src, Does.Contain("AtomicFile.Swap(tmp, filePath)"),
                 "TrySaveAllPorts/TrySavePorts must swap the port file via the shared AtomicFile.Swap " +
                 "helper — a delete-then-move can leave MCP_Port.json missing on a locked path (C1 r6 #1)");

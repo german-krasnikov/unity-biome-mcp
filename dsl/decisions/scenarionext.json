@@ -1,0 +1,20 @@
+{
+  "generated": "from scenarionext.examples by npm run logic -- examples; do not edit",
+  "provenance": "Transcribed from server/tests/test_scenario_trust.py and test_middleware.py's F2 scene-cache-invalidation section (lines 1229-1333).",
+  "scenarioUncertainNext": [
+    { "id": "start-playtest-ack-marks-uncertain", "facts": { "scnCmdIsStartPlaytest": true, "scnResultIsRunIdAck": true, "scnResultIsTerminal": false }, "expected": "markUncertain", "provenance": "test_scenario_trust.py:22 (test_start_playtest_ack_sets_uncertain)" },
+    { "id": "start-playtest-error-keeps", "facts": { "scnCmdIsStartPlaytest": true, "scnResultIsRunIdAck": false, "scnResultIsTerminal": false }, "expected": "keep", "provenance": "test_scenario_trust.py:30 (test_start_playtest_error_does_not_set_uncertain)" },
+    { "id": "terminal-run-playtest-clears", "facts": { "scnCmdIsStartPlaytest": false, "scnResultIsRunIdAck": false, "scnResultIsTerminal": true }, "expected": "clearUncertain", "provenance": "test_scenario_trust.py:41 (test_terminal_run_playtest_clears_uncertain)" },
+    { "id": "terminal-get-playtest-run-clears", "facts": { "scnCmdIsStartPlaytest": false, "scnResultIsRunIdAck": false, "scnResultIsTerminal": true }, "expected": "clearUncertain", "provenance": "test_scenario_trust.py:50 (test_terminal_get_playtest_run_clears_uncertain)" },
+    { "id": "running-phase-keeps", "facts": { "scnCmdIsStartPlaytest": false, "scnResultIsRunIdAck": false, "scnResultIsTerminal": false }, "expected": "keep", "provenance": "test_scenario_trust.py:59 (test_running_phase_preserves_uncertain)" },
+    { "id": "force-invalidate-keeps-uncertain", "facts": { "scnCmdIsStartPlaytest": false, "scnResultIsRunIdAck": false, "scnResultIsTerminal": false }, "expected": "keep", "provenance": "test_scenario_trust.py:170 (test_force_invalidate_preserves_uncertain, N0a-3)" }
+  ],
+  "sceneInvalidateGate": [
+    { "id": "terminal-ok-invalidates", "facts": { "scnResultIsTerminal": true, "scnForceInvalidateFlag": false }, "expected": "invalidate", "provenance": "test_middleware.py:1229 (test_run_playtest_terminal_response_invalidates_scene_caches)" },
+    { "id": "terminal-fail-invalidates", "facts": { "scnResultIsTerminal": true, "scnForceInvalidateFlag": false }, "expected": "invalidate", "provenance": "test_middleware.py:1244 (test_run_playtest_failure_also_invalidates_scene_caches)" },
+    { "id": "running-phase-preserved", "facts": { "scnResultIsTerminal": false, "scnForceInvalidateFlag": false }, "expected": "skip", "provenance": "test_middleware.py:1258 (test_get_playtest_run_running_phase_preserves_scene_caches)" },
+    { "id": "start-playtest-ack-preserved", "facts": { "scnResultIsTerminal": false, "scnForceInvalidateFlag": false }, "expected": "skip", "provenance": "test_middleware.py:1284 (test_start_playtest_ack_preserves_scene_caches)" },
+    { "id": "force-invalidate-mid-run", "facts": { "scnResultIsTerminal": false, "scnForceInvalidateFlag": true }, "expected": "invalidate", "provenance": "test_middleware.py:1333 (test_force_scene_invalidate_flag_invalidates_without_terminal_text)" },
+    { "id": "force-invalidate-circuit-open", "facts": { "scnResultIsTerminal": false, "scnForceInvalidateFlag": true }, "expected": "invalidate", "provenance": "test_middleware.py:1394 (test_force_scene_invalidate_invalidates_even_when_circuit_open)" }
+  ]
+}

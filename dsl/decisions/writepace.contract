@@ -1,0 +1,9 @@
+# Facts of the consecutive-write pace guard (middleware_guards.transition).
+# changesSceneState = is_write(cmd, args) AND cmd NOT IN SCENE_STATE_NEUTRAL_WRITES AND NOT (cmd=="batch" AND batch_readonly).
+# consecutiveWrites is the counter value AFTER the host increments it (or 0 if this call resets it).
+CONTRACT unitymcp.writepace
+COVERAGE declared-scope
+MODULE writepace_facts
+FACT pace.changesSceneState bool
+FACT pace.consecutiveWrites number min=0 max=1000000 integer
+INPUT writePace pace.changesSceneState pace.consecutiveWrites

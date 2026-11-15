@@ -1,0 +1,6 @@
+# C#-to-Python response format contract (Wave 3B): the "err: <message>" prefix that
+# 121 C# command-handler sites return and Python code checks with startswith("err:").
+# errPrefix: the literal prefix before the space and message text.
+RECORD ErrorFormat COUNT 1
+  errPrefix: string
+END

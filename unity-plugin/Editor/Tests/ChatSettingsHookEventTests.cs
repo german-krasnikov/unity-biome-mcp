@@ -7,6 +7,28 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class ChatSettingsHookEventTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        private sealed class FakeChatHostBridge : IChatHostBridge
+        {
+            private readonly bool _available;
+            private readonly System.Exception _throws;
+
+            internal FakeChatHostBridge(bool available = false, System.Exception throws = null)
+            {
+                _available = available;
+                _throws = throws;
+            }
+
+            public void BuildSettingsUI(VisualElement root) { }
+            public void StopRelay() { }
+            public void OnAnalyzeInChatRequested(string sessionId) { }
+
+            public bool IsBinaryAvailable()
+            {
+                if (_throws != null) throw _throws;
+                return _available;
+            }
+        }
+
         [SetUp]
         public void SetUp()
         {
@@ -56,14 +78,14 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void IsChatBinaryAvailable_ProviderRegistered_ReturnsProviderValue()
+        public void IsChatBinaryAvailable_HostBridgeRegistered_ReturnsBridgeValue()
         {
             // Discriminates "correctly false" from "permanently broken" (PR-05 Finding 1):
-            // this must go green only once IsChatBinaryAvailable delegates to an owned
-            // provider instead of a dead Type.GetType("...UnityMCP.Editor.Chat") lookup.
-            var previous = ChatSettingsHook.IsChatBinaryAvailableProvider;
-            RegisterCleanup(() => ChatSettingsHook.IsChatBinaryAvailableProvider = previous);
-            ChatSettingsHook.IsChatBinaryAvailableProvider = () => true;
+            // this must go green only once IsChatBinaryAvailable delegates to the registered
+            // ChatHostBridge.Current instead of a dead Type.GetType("...UnityMCP.Editor.Chat") lookup.
+            var previous = ChatHostBridge.Current;
+            RegisterCleanup(() => ChatHostBridge.Current = previous);
+            ChatHostBridge.Current = new FakeChatHostBridge(available: true);
 
             Assert.IsTrue(ChatSettingsHook.IsChatBinaryAvailable());
         }
@@ -88,15 +110,15 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void IsChatBinaryAvailable_ThrowingProvider_ReturnsFalse()
+        public void IsChatBinaryAvailable_ThrowingHostBridge_ReturnsFalse()
         {
-            var previous = ChatSettingsHook.IsChatBinaryAvailableProvider;
-            RegisterCleanup(() => ChatSettingsHook.IsChatBinaryAvailableProvider = previous);
-            ChatSettingsHook.IsChatBinaryAvailableProvider =
-                () => throw new System.InvalidOperationException("boom");
+            var previous = ChatHostBridge.Current;
+            RegisterCleanup(() => ChatHostBridge.Current = previous);
+            ChatHostBridge.Current =
+                new FakeChatHostBridge(throws: new System.InvalidOperationException("boom"));
 
             Assert.IsFalse(ChatSettingsHook.IsChatBinaryAvailable(),
-                "throwing provider must fail soft and return false");
+                "throwing bridge must fail soft and return false");
         }
 
         [Test]

@@ -186,7 +186,7 @@ non-digit characters are stripped. An empty label falls back to `gd_<id>`.
 Region fixtures must use isolated persistence paths and restore SessionState;
 they must never clear the production region store. Follow `AI/testing.md`.
 Coverage lives under `unity-plugin/Editor/Tests/RegionTool/`, chat CLI tests,
-and `server/tests/test_region.py` / `test_spatial_polygon.py`.
+and `server/tests/tools/test_region.py` / `test_spatial_polygon.py`.
 
 Review changes for:
 

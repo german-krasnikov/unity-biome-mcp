@@ -20,6 +20,13 @@ namespace UnityMCP.Editor
         // Rate-limit window for the unrecognized-desync warning path (ARC-15 T2).
         private const int DesyncWarnWindowSeconds = 30;
 
+        // Phase 2.3 (boundary-hardening): injectable seam over CommandRouter — decouples this
+        // transport-layer class from the static command dispatcher. Production default is
+        // CommandRouterDispatcher.Instance (zero behavior change); tests substitute a fake to
+        // prove the two call sites below route through the interface. Mirrors the
+        // ShellHelper.RunOverride / CommandRouter.IsCompiling test-seam pattern used elsewhere.
+        internal static ICommandDispatcher Dispatcher = CommandRouterDispatcher.Instance;
+
         internal static async Task RunAcceptLoop(TcpListener listener, ClientSlot slot, string label,
             CancellationTokenSource masterCts, CancellationToken token)
         {
@@ -212,11 +219,11 @@ namespace UnityMCP.Editor
         // helloVersion:2 is the Python discriminant: present → fast-path (1 RTT), absent → 3-RTT fallback.
         // T19: projectId added (cloudProjectId or sha256[:12]) — stable across path moves.
         internal static string BuildClientHelloResponse(string msgId, string ver, string projPath) =>
-            $"{{\"id\":\"{JsonHelper.EscapeJson(msgId)}\",\"ok\":true," +
-            $"\"data\":\"pong\",\"helloVersion\":2," +
-            $"\"version\":\"{JsonHelper.EscapeJson(ver)}\"," +
-            $"\"projectPath\":\"{JsonHelper.EscapeJson(projPath)}\"," +
-            $"\"projectId\":\"{JsonHelper.EscapeJson(MCPServer._cachedProjectId)}\"}}";
+            JsonHelper.FormatResponseExtra(msgId, true,
+                "\"data\":\"pong\",\"helloVersion\":2," +
+                $"\"version\":\"{JsonHelper.EscapeJson(ver)}\"," +
+                $"\"projectPath\":\"{JsonHelper.EscapeJson(projPath)}\"," +
+                $"\"projectId\":\"{JsonHelper.EscapeJson(MCPServer._cachedProjectId)}\"");
 
         // MCP-CAP-025: typed rejection sent to clients that arrive when all slots are full.
         // Python discriminant: error == "CLIENT_CAPACITY_BUSY" → raises CapacityBusyError → retried.
@@ -377,7 +384,7 @@ namespace UnityMCP.Editor
                         }
                         if (cmdName == "get_enabled_tools")
                         {
-                            var tools = CommandRouter.ExecGetEnabledToolsCached();
+                            var tools = Dispatcher.ExecGetEnabledToolsCached();
                             await SendAsync(stream, JsonHelper.FormatResponse(msgId, true, tools, null), clientToken).ConfigureAwait(false);
                             continue;
                         }
@@ -403,7 +410,7 @@ namespace UnityMCP.Editor
                             if (needsInvalidate) { RefManager.Invalidate(); refInvalidated = true; }
                             try
                             {
-                                CommandRouter.ProcessAsync(json, tcs, slotChatMode);
+                                Dispatcher.ProcessAsync(json, tcs, slotChatMode);
                             }
                             catch (Exception e)
                             {
@@ -422,8 +429,8 @@ namespace UnityMCP.Editor
                             if (MCPServer._shuttingDown || clientToken.IsCancellationRequested)
                                 tcs.TrySetCanceled();
                             else
-                                tcs.TrySetResult(
-                                    $"{{\"id\":\"{JsonHelper.EscapeJson(msgId)}\",\"ok\":false,\"err\":\"Command '{JsonHelper.EscapeJson(cmdName)}' timed out after {timeoutSec}s (Unity main thread blocked). Retry.\",\"retry\":2000}}");
+                                tcs.TrySetResult(JsonHelper.FormatBusyResponse(msgId,
+                                    $"Command '{cmdName}' timed out after {timeoutSec}s (Unity main thread blocked). Retry.", 2000));
                         });
                         var result = await tcs.Task.ConfigureAwait(false);
                         slot.EndCommand(index, generation);

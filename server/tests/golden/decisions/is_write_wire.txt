@@ -1,0 +1,319 @@
+# The calls of the is_write golden that a Unity command can receive, for the C# side: what middleware_types.is_write answered at bef8bb80
+# (read out of is_write.txt, not asked of the code) and the registry state it answered under. One line per call, tab-separated: the base of
+# the command (read, write or unknown: _KNOWN_SAFE_READS and READ_CMDS are read, WRITE_CMDS write, anything else unknown), the command,
+# its arguments as JSON (the Python values that go on the wire are strings), the answer. Left out: unknown_is_write=True (a Python
+# authorization caller's question, C# has none), doctor (the tool is Python-only, and its fix is read by truthiness), and a call
+# with a value that no tool wrapper sends (a boolean, a number, None).
+read	alias_status	{}	false
+read	analyze_lod_culling	{}	false
+write	animation	{}	true
+write	animator	{}	true
+write	animator_intent	{}	true
+write	apply_scene_change	{}	true
+write	apply_template	{}	true
+read	ask	{}	false
+read	ask_user	{}	false
+write	asset	{}	true
+write	attach_uitk	{}	true
+read	auto_fix	{}	false
+write	auto_wire	{}	true
+write	autofit_collider	{}	true
+read	await_compile	{}	false
+write	bake	{}	true
+write	batch	{}	true
+read	brief_build	{}	false
+read	budget_status	{}	false
+write	build	{}	true
+write	cancel_test_run	{}	true
+read	check_colliders	{}	false
+write	checkpoint	{}	true
+write	checkpoint_create	{}	true
+write	checkpoint_restore	{}	true
+unknown	checkpoint_undo_restore	{}	false
+unknown	clear_console	{}	false
+read	compile_preflight	{}	false
+read	compile_status	{}	false
+write	configure_objects	{}	true
+unknown	console_clear_buffer	{}	false
+read	console_mark	{}	false
+write	create_object	{}	true
+write	create_ui	{}	true
+read	debug	{}	false
+read	debug_animator	{}	false
+read	debug_physics	{}	false
+write	delete_object	{}	true
+read	diagnose	{}	false
+read	discover_tools	{}	false
+write	do	{}	true
+write	editor	{}	true
+write	execute_code	{}	true
+write	export_package	{}	true
+write	export_playtest_aliases_to_defs	{}	true
+read	find_objects	{}	false
+read	fingerprint	{}	false
+unknown	force_play_stop	{}	false
+unknown	force_refresh	{}	false
+read	get_aliases	{}	false
+read	get_capabilities	{}	false
+write	get_changes	{}	true
+read	get_changeset	{}	false
+read	get_compile_errors	{}	false
+read	get_component	{}	false
+read	get_components_list	{}	false
+read	get_console	{}	false
+read	get_console_since	{}	false
+unknown	get_disabled_tools	{}	false
+read	get_enabled_tools	{}	false
+read	get_frame_stats	{}	false
+read	get_hierarchy	{}	false
+read	get_memory	{}	false
+write	get_metrics	{}	false
+read	get_object_detail	{}	false
+read	get_playtest_run	{}	false
+unknown	get_profile_context	{}	false
+read	get_schema	{}	false
+read	get_selection	{}	false
+read	get_spatial_context	{}	false
+read	get_status	{}	false
+read	get_test_count	{}	false
+read	get_test_progress	{}	false
+read	get_test_results	{}	false
+read	get_test_run	{}	false
+read	get_unity_events	{}	false
+read	get_version	{}	false
+read	get_watches	{}	false
+write	import_package	{}	true
+read	inspect	{}	false
+read	inspect_uitk	{}	false
+write	invoke_method	{}	true
+read	lint_playtest	{}	false
+read	lint_playtest_suite	{}	false
+read	lint_scene_refs	{}	false
+read	lint_ugui	{}	false
+read	lint_uitk	{}	false
+read	list_connections	{}	false
+read	list_events	{}	false
+read	list_playtest_files	{}	false
+read	list_skills	{}	false
+read	list_templates	{}	false
+read	list_test_runs	{}	false
+read	load_session	{}	false
+write	manage_component	{}	true
+write	material	{}	true
+read	material_audit	{}	false
+read	mcp_status	{}	false
+write	menu	{}	true
+write	move_to	{}	true
+write	navmesh	{}	true
+write	navmesh_query	{}	true
+read	object_diff	{}	false
+write	package	{}	true
+write	particle	{}	true
+read	permission_prompt	{}	false
+read	ping	{}	false
+read	ping_object	{}	false
+write	prefab	{}	true
+write	profile	{}	true
+write	project_settings	{}	true
+read	query_state	{}	false
+write	recompile	{}	true
+read	reconnect_unity	{}	false
+write	references	{}	true
+write	region_clear	{}	true
+read	release_smoke	{}	false
+write	rename_object	{}	true
+read	render_analyze	{}	false
+read	resolve_scene_refs	{}	false
+read	resolve_test_request	{}	false
+read	resolve_tool_schema	{}	false
+write	run_playtest	{}	true
+write	run_playtest_suite	{}	true
+write	run_tests	{}	true
+write	run_tests_wait	{}	true
+read	runtime_snapshot	{}	false
+write	save_session	{}	true
+write	save_skill	{}	true
+write	save_template	{}	true
+read	scan_scene	{}	false
+write	scene	{}	true
+write	scene_change_plan	{}	true
+read	scene_diff	{}	false
+write	scene_environment	{}	true
+read	scene_health	{}	false
+write	screenshot	{}	true
+write	screenshot_baseline	{}	true
+write	screenshot_compare	{}	true
+write	scriptable_object	{}	true
+unknown	search_context	{}	false
+read	search_scene	{}	false
+read	serialized_field_rename_audit	{}	false
+write	set_active	{}	true
+unknown	set_client_label	{}	false
+write	set_llm_config	{}	true
+write	set_material	{}	true
+write	set_parent	{}	true
+write	set_properties	{}	true
+write	set_property	{}	true
+write	set_property_delta	{}	true
+write	set_rect	{}	true
+write	set_runtime_property	{}	true
+write	set_sibling_index	{}	true
+unknown	set_tool_catalog	{}	false
+write	setup_objects	{}	true
+write	shader	{}	true
+write	smart_build	{}	true
+read	snapshot	{}	false
+write	source_patch_write	{}	true
+read	spatial_query	{}	false
+write	start_playtest	{}	true
+unknown	sync	{}	false
+write	sync_playtest_aliases_from_defs	{}	true
+read	sync_status	{}	false
+write	sync_unity	{}	true
+write	test_step	{}	true
+write	timeline	{}	true
+write	transfer_object	{}	true
+write	ui_intent	{}	true
+write	uitk_element	{}	true
+write	uitk_file	{}	true
+write	uitk_intent	{}	true
+write	undo_last	{}	true
+write	unwire_event	{}	true
+write	use_skill	{}	true
+read	validate_playtest_aliases	{}	false
+read	validate_references	{}	false
+read	validate_triggers	{}	false
+write	verify_after_change	{}	true
+write	vfx_intent	{}	true
+write	wait_until	{}	false
+unknown	warm_type_cache	{}	false
+write	watch	{}	true
+unknown	watch_add	{}	false
+unknown	watch_clear	{}	false
+unknown	watch_remove	{}	false
+unknown	watch_reset	{}	false
+write	wire_event	{}	true
+write	animation	{"action": "get"}	false
+write	animation	{"action": "get_clip_path"}	false
+write	animation	{"action": "get_events"}	false
+write	animation	{"action": "GET"}	true
+write	animation	{"action": "zz_write"}	true
+write	animator	{"action": "get"}	false
+write	animator	{"action": "get_blend_tree"}	false
+write	animator	{"action": "GET"}	true
+write	animator	{"action": "zz_write"}	true
+write	asset	{"action": "find"}	false
+write	asset	{"action": "find_dependents"}	false
+write	asset	{"action": "get_dependencies"}	false
+write	asset	{"action": "get_info"}	false
+write	asset	{"action": "validate_move"}	false
+write	asset	{"action": "FIND"}	true
+write	asset	{"action": "zz_write"}	true
+write	bake	{"action": "settings"}	false
+write	bake	{"action": "status"}	false
+write	bake	{"action": "SETTINGS"}	true
+write	bake	{"action": "zz_write"}	true
+write	editor	{"action": "project_path"}	false
+write	editor	{"action": "state"}	false
+write	editor	{"action": "PROJECT_PATH"}	true
+write	editor	{"action": "zz_write"}	true
+write	material	{"action": "get"}	false
+write	material	{"action": "get_errors"}	false
+write	material	{"action": "list_properties"}	false
+write	material	{"action": "list_shaders"}	false
+write	material	{"action": "list_slots"}	false
+write	material	{"action": "GET"}	true
+write	material	{"action": "zz_write"}	true
+write	menu	{"action": "list"}	false
+write	menu	{"action": "LIST"}	true
+write	menu	{"action": "zz_write"}	true
+write	navmesh	{"action": "get_settings"}	false
+write	navmesh	{"action": "path"}	false
+write	navmesh	{"action": "raycast"}	false
+write	navmesh	{"action": "sample"}	false
+write	navmesh	{"action": "status"}	false
+write	navmesh	{"action": "GET_SETTINGS"}	true
+write	navmesh	{"action": "zz_write"}	true
+write	navmesh_query	{"action": "get_settings"}	false
+write	navmesh_query	{"action": "path"}	false
+write	navmesh_query	{"action": "raycast"}	false
+write	navmesh_query	{"action": "sample"}	false
+write	navmesh_query	{"action": "status"}	false
+write	navmesh_query	{"action": "GET_SETTINGS"}	true
+write	navmesh_query	{"action": "zz_write"}	true
+write	package	{"action": "list"}	false
+write	package	{"action": "search"}	false
+write	package	{"action": "LIST"}	true
+write	package	{"action": "zz_write"}	true
+write	particle	{"action": "get"}	false
+write	particle	{"action": "GET"}	true
+write	particle	{"action": "zz_write"}	true
+write	prefab	{"action": "get_overrides"}	false
+write	prefab	{"action": "GET_OVERRIDES"}	true
+write	prefab	{"action": "zz_write"}	true
+write	profile	{"action": "analyze"}	false
+write	profile	{"action": "compare"}	false
+write	profile	{"action": "list_sessions"}	false
+write	profile	{"action": "status"}	false
+write	profile	{"action": "ANALYZE"}	true
+write	profile	{"action": "zz_write"}	true
+write	project_settings	{"action": "get"}	false
+write	project_settings	{"action": "GET"}	true
+write	project_settings	{"action": "zz_write"}	true
+write	scene	{"action": "list"}	false
+write	scene	{"action": "LIST"}	true
+write	scene	{"action": "zz_write"}	true
+write	scene_environment	{"action": "get"}	false
+write	scene_environment	{"action": "GET"}	true
+write	scene_environment	{"action": "zz_write"}	true
+write	scriptable_object	{"action": "find"}	false
+write	scriptable_object	{"action": "get"}	false
+write	scriptable_object	{"action": "list_types"}	false
+write	scriptable_object	{"action": "FIND"}	true
+write	scriptable_object	{"action": "zz_write"}	true
+write	shader	{"action": "get"}	false
+write	shader	{"action": "graph_get"}	false
+write	shader	{"action": "GET"}	true
+write	shader	{"action": "zz_write"}	true
+write	timeline	{"action": "get"}	false
+write	timeline	{"action": "get_bindings"}	false
+write	timeline	{"action": "GET"}	true
+write	timeline	{"action": "zz_write"}	true
+write	uitk_file	{"action": "read"}	false
+write	uitk_file	{"action": "READ"}	true
+write	uitk_file	{"action": "zz_write"}	true
+write	wait_until	{}	false
+write	wait_until	{"abort_on_fail": "false"}	false
+write	wait_until	{"abort_on_fail": "true"}	true
+write	wait_until	{"abort_on_fail": "future"}	true
+write	wait_until	{"abort_on_fail": ""}	true
+write	wait_until	{"abort_on_fail": "False"}	true
+write	wait_until	{"abort_on_fail": "0"}	true
+write	wait_until	{"abort_on_fail": "1"}	true
+write	get_changes	{}	true
+write	get_changes	{"clear": "false"}	false
+write	get_changes	{"clear": "true"}	true
+write	get_changes	{"clear": "future"}	true
+write	get_changes	{"clear": ""}	true
+write	get_changes	{"clear": "False"}	true
+write	get_changes	{"clear": "0"}	true
+write	get_changes	{"clear": "1"}	true
+write	get_metrics	{}	false
+write	get_metrics	{"reset": "false"}	false
+write	get_metrics	{"reset": "true"}	true
+write	get_metrics	{"reset": "future"}	true
+write	get_metrics	{"reset": ""}	true
+write	get_metrics	{"reset": "False"}	true
+write	get_metrics	{"reset": "0"}	true
+write	get_metrics	{"reset": "1"}	true
+write	editor	{"action": "mutation_mode"}	false
+write	editor	{"action": "mutation_mode", "enable": "true"}	true
+write	editor	{"action": "mutation_mode", "enable": "false"}	true
+write	editor	{"action": "mutation_mode", "enable": ""}	true
+read	inspect	{"paths": "/Foo"}	false
+write	set_property	{"path": "/Foo", "value": "1"}	true
+write	run_playtest	{"script": "ASSERT_CONSOLE_CLEAN"}	true
+write	batch	{"commands": "get_hierarchy"}	true
+write	execute_code	{}	true
+unknown	totally_unregistered_xyz	{}	false
+unknown	nonexistent_cmd	{}	false

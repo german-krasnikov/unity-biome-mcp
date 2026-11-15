@@ -85,7 +85,7 @@ fixture with C# components (FixtureState, FixtureMover, FixtureReceiver, Fixture
 
 - **EditMode carrier** (`PlaytestCorpusEditModeTests.cs`): Runs 9 Edit-capable files (F, I1, I2, I3 independent pass tests; A/B/C shared-state chain; INVOKE args; L long pass; MOVEMENT profiles) via `PlaytestRunner.Run(..., requiresPlayMode: false)` — tests DSL execution, EditMode MCP dispatch, and shared state persistence within a session
 - **PlayMode carrier** (`PlaytestCorpusPlayModeTests.cs`): Runs 3 Play-bound-only files (C_shared_finish with coroutine callbacks, DSL_types, I3_independent_pass) via `PlaytestRunner.Run(..., requiresPlayMode: true)` — tests runtime coroutines, Play-only MonoBehaviour tick, and DSL type assertions
-- **Python .suite lane** (`tests/live/test_playtest_suite.py`): Stress-tests both carriers via `run_playtest_suite()` with `--tag @suite-only` filter on A/B/C (stateful chain), verifying restart semantics and cumulative state across suite runs
+- **Python .suite lane** (`server/tests/live/test_playtest_suite_corpus.py`): Stress-tests both carriers via `run_playtest_suite()` with `--tag @suite-only` filter on A/B/C (stateful chain), verifying restart semantics and cumulative state across suite runs
 
 Use this fixture as the MCP + DSL protocol compliance baseline.
 
@@ -115,6 +115,14 @@ the runner. Never save user scenes, clear their dirty state, close ambient
 windows or previews, call `Undo.ClearAll()`, or delete unregistered assets.
 Editor-window tests use `CreateOwnedEditorWindow<T>()`, not `GetWindow<T>()`,
 `GetWindowWithRect<T>()`, or a production `ShowWindow()` entry point.
+
+Exception: Unity can create assets that a test cannot name in advance. The
+default UI Toolkit theme appears under `Assets/UI Toolkit/`, outside
+`Assets/TestsTemp/`, the first time a UXML or USS asset is touched. A fixture
+that touches it snapshots the directories and files under that root before the
+test and registers a cleanup that removes only the entries absent from the
+snapshot. It never deletes a pre-existing directory or asset. Example:
+`UnknownActionErrorTextCharacterizationTests`, `RegisterUiToolkitCleanup`.
 
 ## Asynchronous Tests
 
@@ -185,6 +193,10 @@ run. Consumer agents use `run_tests_wait` and do not reproduce this protocol.
 
 ## Python Tests
 
+Python tests live in subsystem folders under `server/tests/` (for example `bridge/`,
+`boundary/`, `dsl/`, `middleware/`, `plugins/`, `playtest/`, `tools/`, `wire/` and `live/`).
+Import-boundary and hygiene guards are in `boundary/`.
+
 Keep unit tests hermetic and restore module state with pytest fixtures or
 `monkeypatch`. Every live-Unity pytest uses the shared per-test
 `unity_state_owner` fixture. It records exact owned state, registers restoration
@@ -219,7 +231,7 @@ Do not duplicate a category already applied by an attribute such as
 The repository uses specialized test layers to verify protocol contracts and
 conformance invariants:
 
-**Regression guard tests** (`server/tests/test_regression_guards.py` and v1.46+ audit
+**Regression guard tests** (`server/tests/boundary/test_regression_guards.py` and v1.46+ audit
 coverage suite) — Named guards RG-01 through RG-11 prevent specific confirmed bugs from
 reoccurring; each guard documents the prior break and its fix. Audit coverage tests
 validate protocol lifecycle fences (session identity, command durability, Play Mode
@@ -251,7 +263,7 @@ The playtest DSL now supports EditMode execution through the `# @needs editmode`
 
 ## Policy Vector Tests (PR-04)
 
-36 C# policy-vector tests cover command read/write, batch eligibility, retry-safety,
+The C# and Python policy-vector tests cover command read/write, batch eligibility, retry-safety,
 and metadata classification for 5 representative commands (e.g., `set_property`,
 `get_component`, `run_playtest`). Each command's registration site declares
 `MutatingArgsPolicy` delegate (for argument-aware classification) and `NotBatchable`
@@ -262,7 +274,8 @@ bool. Vectors validate parity between:
 - Retry-safety guarantees (e.g., `move_to` is retriable even if mutating)
 - Metadata (timeout, category, required/optional params)
 
-These tests live in `unity-plugin/Editor/Tests/CommandRegistryPolicyTests.cs` and
+The Python vectors are in `server/tests/boundary/test_pr04_policy_vectors.py`, and the C#
+vectors are the `Pr04_*` tests in `unity-plugin/Editor/Tests/CommandRouterTests.cs`. They
 ensure that central lists are no longer needed for new commands; metadata is
 purely declarative at registration.
 
@@ -270,7 +283,7 @@ purely declarative at registration.
 
 Two suites verify that failed plugin registration leaves zero callable state:
 
-**Python tests** (`server/tests/test_atomic_plugin_registration.py`):
+**Python tests** (`server/tests/plugins/test_plugin_atomicity.py`):
 - Snapshots all registries (tools, READ/WRITE_CMDS, dsl_tools, gating, budget)
 - Exercises `register()` that throws during command addition
 - Validates zero tools, zero gating entries, zero budget features remain
@@ -288,7 +301,7 @@ state that would execute in subsequent runs.
 Player and Editor tests validate that `PlayerProfilePreflight.Validate()` correctly
 rejects unsupported DSL constructs before execution:
 
-**Pure Dotnet tests** (runs in `Unity-MCP.Playtest.Core.Tests.csproj`):
+**Pure Dotnet tests** (runs in `UnityMCP.Playtest.Core.Tests.csproj`):
 - Detects `# @needs editmode` header
 - Detects SETUP/TEARDOWN blocks
 - Detects EXPECT_FAIL modifier
@@ -310,13 +323,27 @@ Two C# contract tests prove SourcePatch module boundary isolation:
 - Concurrent-sync epoch drift resolves to Recovery (not false-Off)
 - `ForceUnreconciledForTests()` seam enables controlled test timing
 
-**Python boundary scan** (`scripts/tests/test_source_patch_reload_control_boundary.py`):
+**Python boundary scan** (`server/tests/boundary/test_source_patch_reload_control_boundary.py`):
 - Locks `SyncHelper.TriggerSync` out of SourcePatch control files
 - Allows only sanctioned FSR adapter import
 - CI enforces: violation = build failure
 
 Invariant: SourcePatch Off leaves normal writes and domain reload unintercepted;
 algorithm swaps happen via composition, not core edits.
+
+## Characterization Fixture Before a Handler Migration
+
+Before a C# handler reads its arguments through `ToolArgs.g.cs`, add an EditMode fixture that dispatches the command through
+`CommandRouter` and asserts what it returns. Run it on the hand-written code first: it must pass there. The migration is complete when the
+same fixture passes unchanged after the swap. Examples: `AnimationHandlerArgsCharacterizationTests` and
+`TimelineHandlerArgsCharacterizationTests` in `unity-plugin/Editor/Tests/`.
+
+The same pattern pins an error text. Assert the full message, not a substring, and
+run the fixture on the old text before the change. An intended change of the text
+is a separate change; its commit message states the old and the new text. Example:
+`UnknownActionErrorTextCharacterizationTests` (the unknown-action text of 21 of the
+23 action-dispatched tools; `build` and `package` are not pinned there; see
+[`dsl/README.md`](../dsl/README.md#actions)).
 
 ## Pure Dotnet Lane for Parser Core
 
@@ -370,7 +397,29 @@ Run with:
 dotnet test unity-plugin/Tests~/MutationAdapterContract/AdapterContract.Tests.csproj -c Release
 ```
 
-All three projects use the `~` folder convention to stay invisible to the Editor. They validate implementation-critical runtime invariants that cannot be observed through Editor UI alone. CI gates all three before running live mutation tests.
+**`unity-plugin/Tests~/Decisions/UnityMCP.Decisions.Tests.csproj`**
+- Compiles the C# printed from `dsl/` (`Editor/Generated/*.g.cs`, except `ToolBindings.g.cs`, which needs UnityEditor) with the real `CommandRegistry.cs`, `CommandOptions.cs`, `JsonHelper.cs`, `Wire.cs` and `Editor/Decisions/*.cs` at LangVersion 9 with warnings as errors (`UnityStubs.cs` stands for the few Unity symbols they touch)
+- `ToolArgsAccessorTests` and `ToolArgsPascalCaseTests` check the typed accessors of `ToolArgs.g.cs` against the catalog (see [dsl/README.md](../dsl/README.md#c-arguments))
+- `RowsTests` runs the machine rows of the examples (`dsl/decisions/<module>.json`) through the generated policies; `MutabilityWireTests`, `GuardsOracleTests` and `PlaytestOracleTests` compare the registry, the guard facts and `PlaytestFacts` with the old hand-written code (`Oracle/`) or the golden of the Python side (`server/tests/golden/decisions`)
+- Python tier 0 is `server/tests/dsl/test_decisions_examples.py`: the rows of every decision module run through its generated Python. The C# lane above runs only the modules printed to C#
+- Does not run `CommandRouter` or `BatchHelper` (they need Unity): their guards and texts are covered by the EditMode tests only
+
+Run with:
+```bash
+dotnet test unity-plugin/Tests~/Decisions/UnityMCP.Decisions.Tests.csproj -c Release
+```
+
+**`unity-plugin/Tests~/ChatTurn/ChatTurn.Tests.csproj`**
+- Compiles the reducer printed from `dsl/chat/chatturn.feature` (`Editor/Chat/CLI/Generated/ChatTurn/*.cs`) and `Editor/Chat/CLI/ChatTurnDriver.cs` at LangVersion 9 with warnings as errors; a use of `UnityEngine` in either fails the build
+- `Generated/ChatTurn.Examples.cs` is printed from `dsl/chat/chatturn.examples`: the 19 examples of how a chat turn ends (the order of the effects of each exit, the inert repeat, the count of asks) and the 2 tests the generator adds; `ChatTurnDriverTests` (7) cover the queue, the redraw that throws and `Dispose`
+- Does not run the ports or the window (they need Unity): `ChatTurnPortsTests` (the 16 bodies) and `ChatTurnWiringTests` (what the window does around the FEATURE) are EditMode tests
+
+Run with:
+```bash
+dotnet test unity-plugin/Tests~/ChatTurn/ChatTurn.Tests.csproj -c Release
+```
+
+All five projects use the `~` folder convention to stay invisible to the Editor. They validate implementation-critical runtime invariants that cannot be observed through Editor UI alone. CI gates all five before running live mutation tests.
 
 ## Test Taxonomy and Lanes
 
@@ -392,11 +441,11 @@ Test organization is data-driven via two canonical JSON files:
 2. Every lane filter field references a known taxonomy dimension
 3. Every `.playtest` `@needs` value has a matching taxonomy-map dimension
 
-**Python test-lane directory convention:** ~446 root-level `server/tests/test_*.py` files are NOT migrated to per-lane subdirectories (unlike per-lane pytest markers). Each test file carries its own marker set. The lane filter configuration generates pytest `-m` expressions that CI lanes use to select tests at runtime.
+**Python test-lane directory convention:** Python tests live in topic subdirectories under `server/tests/` (for example `bridge/`, `tools/`, `live/`, `wire/`, `mutation/`); no test file sits at the `server/tests/` root. Each test file carries its own marker set. The lane filter configuration generates pytest `-m` expressions that CI lanes use to select tests at runtime.
 
 ## Why No C# .suite Driver
 
-C# EditMode tests cannot enter Play Mode mid-test (would require domain reload), so a suite fixture in C# cannot coordinate stateful PlayMode runs (A→B→C without reset). The Python `.suite` lane (`tests/live/test_playtest_suite.py`) bridges this by calling `run_playtest_suite(pattern="Assets/MCPFeedbackFixture/PlayTests/*.playtest")` with `--tag @suite-only` to select A/B/C (marked `# @suite-only` in their headers). Python's async/await model lets it orchestrate multiple runs with shared state recovery between them.
+C# EditMode tests cannot enter Play Mode mid-test (would require domain reload), so a suite fixture in C# cannot coordinate stateful PlayMode runs (A→B→C without reset). The Python `.suite` lane (`server/tests/live/test_playtest_suite_corpus.py`) bridges this by calling `run_playtest_suite(pattern="Assets/MCPFeedbackFixture/PlayTests/*.playtest")` with `--tag @suite-only` to select A/B/C (marked `# @suite-only` in their headers). Python's async/await model lets it orchestrate multiple runs with shared state recovery between them.
 
 ## Source Patch (Mutation Mode) Qualification
 
@@ -430,11 +479,11 @@ for the locked Unity window, platform attestation, and evidence structure.
 
 Several Python tests read C# source text directly (regex/substring scan) to
 pin a wire-format literal, constant, or timeout value to its C# emitter —
-e.g. `test_sync_compile_guard.py::test_sync_compile_guard_text_matches_csharp_compile_branch`,
+e.g. `server/tests/bridge/test_sync_compile_guard.py::test_sync_compile_guard_text_matches_csharp_compile_branch`,
 `test_editor_control_tools.py::test_noop_recovery_result_matches_csharp_constant`,
 `test_reload_module_boundary.py`, `test_source_patch_reload_control_boundary.py`,
 the C#-parity test in `test_tool_specs.py`, `test_timing_invariants.py`,
-the C#-source-scan tests in `test_mvid_tracking.py`, and the C#-scanning tests
+the C#-source-scan tests in `test_mvid_tracking.py`, `test_action_vocabulary_parity.py` (the action dispatch arms and error lists), and the C#-scanning tests
 in `test_playtest_async.py`. These run in CI, but a developer working only the
 C# side and running `run_unity_tests.py EditMode` would not naturally trigger
 them, so drift can land unnoticed until the next full Python CI pass. After
@@ -489,7 +538,7 @@ Review the affected instructions against the live tool and product contracts.
 - Python suite (`server/tests/mutation`) with pytest marker `mutation_live`; run via `scripts/run_mutation_regression_cell.py --mode full` (driver, 1800 s budget per job)
 - Requires a disposable provider worker: `BIOME_FINAL_PORT_A`, `BIOME_WORKER_A` with FastScriptReload package installed and marked disposable
 - Stories S11–S16c: explicit disable (S14), source restore (S15), provider absence (S16), isolation (S16), remove (S16b), re-add (S16c)
-- Supersedes legacy `fsr-qualification.yml`; CI-gated by pure dotnet projects (`AssemblyFreshness`, `SourcePatchReadiness`, `MutationAdapterContract`) in `ci-pure-dotnet.yml`
+- Supersedes legacy `fsr-qualification.yml`; CI-gated by pure dotnet projects (`AssemblyFreshness`, `SourcePatchReadiness`, `MutationAdapterContract`, `Decisions`, `ChatTurn`) in `ci-pure-dotnet.yml`
 
 **Player fan-out runner** (v0.81.4+):
 ```bash

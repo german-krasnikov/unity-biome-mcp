@@ -52,15 +52,15 @@ namespace UnityMCP.Editor.Tests
             Assert.IsTrue(keys.Contains("cursor"));
         }
 
-        // ── DEV-32 (ARC-14 T1 / ARC-0b T2): ConfigDir gating + DI seam ──────────
+        // ── DEV-32 (ARC-14 T1 / ARC-0b T2): InstallDir row gating + DI seam ─────
 
         [Test]
-        public void DetectInstalled_DescriptorWithEmptyConfigDir_NeverAutoEnabled()
+        public void DetectInstalled_DescriptorWithNoInstallDirRow_NeverAutoEnabled()
         {
             var descriptors = new[]
             {
-                new BackendDescriptor { Key = "claude-code", AutoProjectConfig = true, ConfigDir = "~/.claude" },
-                new BackendDescriptor { Key = "synthetic-no-dir", AutoProjectConfig = true, ConfigDir = "" },
+                new BackendDescriptor { Key = "claude-code", AutoProjectConfig = true },
+                new BackendDescriptor { Key = "synthetic-no-dir", AutoProjectConfig = true },
             };
             // dirExists always true — proves exclusion isn't a dirExists coincidence.
             var result = AgentConfigPrefs.DetectInstalled(descriptors, _ => true);
@@ -68,7 +68,7 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void DetectInstalled_RealDescriptors_AllConfigDirsAbsent_ReturnsOnlyClaudeCodeFallback()
+        public void DetectInstalled_RealDescriptors_AllInstallDirsAbsent_ReturnsOnlyClaudeCodeFallback()
         {
             var result = AgentConfigPrefs.DetectInstalled(dirExists: _ => false);
             CollectionAssert.AreEquivalent(new[] { "claude-code" }, result);

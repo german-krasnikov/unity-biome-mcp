@@ -13,17 +13,28 @@ namespace UnityMCP.Editor.Tests
     [TestFixture]
     public class CommandRouterRegistrationTests : UnityMCP.Editor.Testing.UnityMcpTestBase
     {
+        // A5: "ping", "get_status", "get_capabilities" and "get_enabled_tools" moved to
+        // ToolBindings.g.cs (HANDLER DSL item) — RegisterMetaCommands() alone no longer
+        // registers them, only CommandRouter.RegisterAll() does (via ToolBindings.RegisterAll()).
         private static readonly string[] MetaCommands =
         {
-            "ping", "get_capabilities", "get_enabled_tools", "get_disabled_tools",
-            "set_tool_catalog", "set_client_label", "screenshot", "diagnose", "force_play_stop",
-            "get_status",
+            "get_disabled_tools",
+            "set_tool_catalog", "set_client_label", "screenshot", "force_play_stop",
         };
 
-        private static readonly string[] AsyncCommands =
+        // A5: these three have a HANDLER line in dsl/tools.biome as a TOOL block — ToolBindings.RegisterAll()
+        // generates their Register* calls; RegisterAsyncCommands() alone registers none of them.
+        private static readonly string[] GeneratedAsyncCommands =
         {
-            "run_tests", "ask_user", "wait_until", "move_to", "test_step", "run_playtest",
-            "start_playtest", "get_playtest_run", "build", "package", "source_patch_write",
+            "run_tests", "ask_user", "run_playtest",
+        };
+
+        // P0-50/E02/E03: these three are declared INTERNAL (not TOOL) in dsl/tools.biome — the
+        // generator does not emit a Register* call for an INTERNAL block, so RegisterAsyncCommands()
+        // still hand-registers them (see CommandRouter.Registration.cs).
+        private static readonly string[] HandRegisteredAsyncCommands =
+        {
+            "start_playtest", "get_playtest_run", "source_patch_write",
         };
 
         [TearDown]
@@ -46,9 +57,13 @@ namespace UnityMCP.Editor.Tests
         {
             CommandRegistry.Clear();
             CommandRouter.RegisterAsyncCommands();
+            CollectionAssert.AreEquivalent(HandRegisteredAsyncCommands, CommandRegistry.GetAllCommands());
+            foreach (var cmd in HandRegisteredAsyncCommands)
+                Assert.IsTrue(CommandRegistry.HasAsyncHandler(cmd, out _), $"{cmd} should be async-registered");
 
-            CollectionAssert.AreEquivalent(AsyncCommands, CommandRegistry.GetAllCommands());
-            foreach (var cmd in AsyncCommands)
+            CommandRegistry.Clear();
+            ToolBindings.RegisterAll();
+            foreach (var cmd in GeneratedAsyncCommands)
                 Assert.IsTrue(CommandRegistry.HasAsyncHandler(cmd, out _), $"{cmd} should be async-registered");
         }
 
@@ -59,7 +74,7 @@ namespace UnityMCP.Editor.Tests
         public void RegisterAsyncCommands_RunPlaytest_NotFlaggedRuntime()
         {
             CommandRegistry.Clear();
-            CommandRouter.RegisterAsyncCommands();
+            ToolBindings.RegisterAll();
             Assert.IsFalse(CommandRegistry.IsRuntime("run_playtest"),
                 "run_playtest's Play-mode gate moved into AsyncRunPlaytest's header check (B05) — " +
                 "registration must not pre-block Edit-mode scripts before the header is read");
@@ -70,8 +85,12 @@ namespace UnityMCP.Editor.Tests
         {
             Assert.IsTrue(CommandRegistry.TryGetContract(
                 "run_tests", out _, out var optional, out _));
-            CollectionAssert.AreEqual(
-                new[] { "mode", "filter", "group", "categories", "assemblies", "tests" },
+            // A5: optional order now comes from ToolBindings.g.cs (HANDLER DSL item), which
+            // buckets DEFAULT None ARGs before DEFAULT_TEXT ones — an incidental codegen
+            // ordering, not a functional contract (JSON args are key-based). Only the set
+            // of accepted selection args is load-bearing here.
+            CollectionAssert.AreEquivalent(
+                new[] { "request_id", "mode", "filter", "group", "categories", "assemblies", "tests" },
                 optional);
         }
 
@@ -103,11 +122,15 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ForcePlayStop_DoesNotDependOnDelayCall()
         {
+            // A5 prep: the inline force_play_stop lambda was extracted to the named
+            // ExecForcePlayStop handler further down in this file — the registration call
+            // itself is now just `CommandRegistry.Register("force_play_stop", ExecForcePlayStop, ...)`,
+            // so the logic this guard checks must be found in the handler body instead.
             var src = ReadRequiredPackageSource(typeof(CommandRouter), "Editor/CommandRouter.Registration.cs");
-            var start = src.IndexOf("CommandRegistry.Register(\"force_play_stop\"");
-            Assert.That(start, Is.GreaterThanOrEqualTo(0), "force_play_stop registration not found");
-            var end = src.IndexOf("CommandRegistry.Register(\"set_client_label\"", start);
-            Assert.That(end, Is.GreaterThan(start), "set_client_label registration not found after force_play_stop");
+            var start = src.IndexOf("private static string ExecForcePlayStop(string args)");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "ExecForcePlayStop handler not found");
+            var end = src.IndexOf("private static string ExecSetClientLabel(string args)", start);
+            Assert.That(end, Is.GreaterThan(start), "ExecSetClientLabel handler not found after ExecForcePlayStop");
             var body = src.Substring(start, end - start);
 
             StringAssert.Contains("EnterPlayModeWithPendingStop", body,
@@ -128,11 +151,16 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ForceRefresh_SchedulesReloadViaMainThreadDispatcher_NotDelayCall()
         {
+            // A5 prep: the inline force_refresh lambda was extracted to the named
+            // ExecForceRefresh handler further down in this file — the registration call
+            // itself is now just `CommandRegistry.Register("force_refresh", ExecForceRefresh, ...)`,
+            // so the logic this guard checks must be found in the handler body instead.
+            // ExecSearchScene is the next handler immediately after ExecForceRefresh in source.
             var src = ReadRequiredPackageSource(typeof(CommandRouter), "Editor/CommandRouter.Registration.cs");
-            var start = src.IndexOf("CommandRegistry.Register(\"force_refresh\"");
-            Assert.That(start, Is.GreaterThanOrEqualTo(0), "force_refresh registration not found");
-            var end = src.IndexOf("CommandRegistry.Register(\"search_scene\"", start);
-            Assert.That(end, Is.GreaterThan(start), "search_scene registration not found after force_refresh");
+            var start = src.IndexOf("private static string ExecForceRefresh(string args)");
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), "ExecForceRefresh handler not found");
+            var end = src.IndexOf("internal static string ExecSearchScene(string args)", start);
+            Assert.That(end, Is.GreaterThan(start), "ExecSearchScene handler not found after ExecForceRefresh");
             var body = src.Substring(start, end - start);
 
             StringAssert.Contains("MainThreadDispatcher.Enqueue", body,
