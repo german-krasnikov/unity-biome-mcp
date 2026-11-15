@@ -3861,7 +3861,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v3.0.0...HEAD
+[v3.0.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.1.0...v3.0.0
 [v2.1.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.0.0...v2.1.0
 [v2.0.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.54.0...v2.0.0
 [v1.54.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.53.0...v1.54.0
