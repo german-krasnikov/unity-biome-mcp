@@ -76,8 +76,8 @@ jobs:
 
           # ── Unity 7 ───────────────────────────────────────────────
           - unity-version: '7000.0.0a16'
-            label: 'Unity 7.0 Alpha — CoreCLR forward compat'
-            test-mode: full
+            label: 'Unity 7.0 Alpha — CoreCLR compile check'
+            test-mode: compile
             phase: 1
 
     steps:

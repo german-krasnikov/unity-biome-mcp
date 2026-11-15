@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.0.0] — 2026-11-15
+
 ### Added
 
 - **`UNITY_MCP_GD_TOOLS=0` hides six tool categories:** with this variable set to `0` in the environment that starts the Python server, the tools of `SCENE`, `COMPONENTS`, `ASSETS`, `MEDIA`, `UITOOLKIT` and `UGUI` are neither advertised nor registered. Other categories are unchanged, and any other value, or no value, keeps every category. The Unity-side handlers stay registered. See the settings page for the procedure.
