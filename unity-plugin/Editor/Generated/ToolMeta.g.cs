@@ -40,9 +40,9 @@ namespace UnityMCP.Editor
                         Mutating = true,
                         Required = string.Join(",", new string[] {
                             "action",
-                            "path",
                         }),
                         Optional = string.Join(",", new string[] {
+                            "path",
                             "clip",
                             "clip_name",
                             "property",
@@ -912,9 +912,9 @@ namespace UnityMCP.Editor
                         Mutating = true,
                         Required = string.Join(",", new string[] {
                             "action",
-                            "path",
                         }),
                         Optional = string.Join(",", new string[] {
+                            "path",
                             "name",
                             "module",
                             "prop",
@@ -1488,10 +1488,10 @@ namespace UnityMCP.Editor
                     {
                         Mutating = true,
                         Required = string.Join(",", new string[] {
-                            "path",
                             "action",
                         }),
                         Optional = string.Join(",", new string[] {
+                            "path",
                             "track",
                             "track_type",
                             "clip",

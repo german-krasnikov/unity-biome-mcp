@@ -197,7 +197,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void PortResolver_SoReusePortOnlyMacOS()
         {
-            var src = ReadRequiredPackageSource(typeof(PortResolver), "Editor/PortResolver.cs");
+            var src = ReadRequiredPackageSource(typeof(PortResolver), "Editor/Transport/PortResolver.cs");
             Assert.That(src, Does.Not.Contain("UNITY_EDITOR_OSX || UNITY_EDITOR_LINUX"),
                 "SO_REUSEPORT (0x0200) is the macOS value; Linux uses 15 — guard must be macOS-only");
         }

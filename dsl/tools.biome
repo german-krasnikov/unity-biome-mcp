@@ -49,7 +49,7 @@ TOOL animation MEDIA RW "Animate GameObject properties via AnimationClip. Use wh
   ACTION add_event "function_name: method name; int_param/float_param/string_param: event parameters"
   ACTION remove_event
   ARG action str EXAMPLE "get"
-  ARG path str EXAMPLE "/Main Camera"
+  ARG path ostr DEFAULT None EXAMPLE "/Main Camera"
   ARG clip ostr DEFAULT None
   ARG clip_name ostr DEFAULT None
   ARG property ostr DEFAULT None
@@ -1208,7 +1208,7 @@ TOOL particle MEDIA RW "Particle System. module=main|emission|shape|colorOverLif
   ACTION stop
   ACTION pause
   ARG action str
-  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG name ostr DEFAULT None
   ARG module ostr DEFAULT None
   ARG prop ostr DEFAULT None
@@ -2094,7 +2094,7 @@ TOOL timeline MEDIA RW "Unity Timeline (PlayableDirector / TimelineAsset). Use f
   ACTION get_bindings READ
   ACTION preview
   DOC "track=track name."
-  ARG path str EXAMPLE "/__seam_nonexistent"
+  ARG path ostr DEFAULT None EXAMPLE "/__seam_nonexistent"
   ARG action str
   ARG track ostr DEFAULT None
   ARG track_type ostr DEFAULT None

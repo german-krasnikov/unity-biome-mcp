@@ -18,7 +18,7 @@ internal static class AnalyzeLodCullingArgs
 internal static class AnimationArgs
 {
     internal static string Action(string args) => JsonHelper.RequireString(args, "action");
-    internal static string Path(string args) => JsonHelper.RequireString(args, "path");
+    internal static string Path(string args) => JsonHelper.ExtractString(args, "path");
     internal static string Clip(string args) => JsonHelper.ExtractString(args, "clip");
     internal static string ClipName(string args) => JsonHelper.ExtractString(args, "clip_name");
     internal static string Property(string args) => JsonHelper.ExtractString(args, "property");
@@ -557,7 +557,7 @@ internal static class PackageArgs
 internal static class ParticleArgs
 {
     internal static string Action(string args) => JsonHelper.RequireString(args, "action");
-    internal static string Path(string args) => JsonHelper.RequireString(args, "path");
+    internal static string Path(string args) => JsonHelper.ExtractString(args, "path");
     internal static string Name(string args) => JsonHelper.ExtractString(args, "name");
     internal static string Module(string args) => JsonHelper.ExtractString(args, "module");
     internal static string Prop(string args) => JsonHelper.ExtractString(args, "prop");
@@ -980,7 +980,7 @@ internal static class TestStepArgs
 }
 internal static class TimelineArgs
 {
-    internal static string Path(string args) => JsonHelper.RequireString(args, "path");
+    internal static string Path(string args) => JsonHelper.ExtractString(args, "path");
     internal static string Action(string args) => JsonHelper.RequireString(args, "action");
     internal static string Track(string args) => JsonHelper.ExtractString(args, "track");
     internal static string TrackType(string args) => JsonHelper.ExtractString(args, "track_type");
