@@ -16,6 +16,15 @@ Moving a `.cs` file (e.g. `Editor/JsonHelper.cs` → `Editor/Primitives/JsonHelp
 grep -rn "Editor/OldName.cs" unity-plugin/Tests~/ server/tests/ scripts/tests/ AI/ .claude/ --include="*.py" --include="*.cs" --include="*.csproj" --include="*.md"
 ```
 
+## 1b. Python scripts in scripts/ may be test-imported via sys.path
+
+`scripts/decisions_golden.py`, `dsl_golden.py`, `dsl_content_lock.py`, `playtest_oracle.py` are imported by `server/tests/` via `conftest.py` sys.path injection. They look like orphans (no YAML reference) but are NOT movable.
+
+**Before moving any script, also check:**
+```bash
+grep -rn "import <module_name>\|from <module_name>" server/tests/ scripts/tests/ --include="*.py"
+```
+
 ## 2. Editing generated files requires banner + content-lock update
 
 Generated files (from `dsl/tools.biome`) carry a `source-sha256` banner. Editing either the source or the generated file without updating both breaks 3 test gates:
