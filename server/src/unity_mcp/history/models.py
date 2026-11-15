@@ -2,6 +2,8 @@
 
 from dataclasses import dataclass
 
+from unity_mcp.agent_event_excluded import EXCLUDED_KINDS as EXCLUDED_KINDS  # noqa: F401
+
 
 @dataclass(frozen=True)
 class ConversationHeader:

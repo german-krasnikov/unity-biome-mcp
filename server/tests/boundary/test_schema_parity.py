@@ -110,7 +110,11 @@ def _extract_cs_commands() -> set[str]:
     for cs in _EDITOR.rglob("*.cs"):
         if "Tests" in cs.parts or "Generated" in cs.parts:
             continue
-        result |= set(_REGISTER_CALL.findall(cs.read_text(encoding="utf-8")))
+        for line in cs.read_text(encoding="utf-8").splitlines():
+            stripped = line.lstrip()
+            if stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            result |= set(_REGISTER_CALL.findall(line))
     return result
 
 

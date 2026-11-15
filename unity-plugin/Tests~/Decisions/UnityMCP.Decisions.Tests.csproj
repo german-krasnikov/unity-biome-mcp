@@ -29,9 +29,10 @@
          above; excluded for the same reason (dsl-bottlenecks-2026-11 S3). -->
     <Compile Remove="../../Editor/Generated/ToolDispatch.g.cs" />
     <!-- the real files under test; the Unity-only symbols they touch are in UnityStubs.cs -->
+    <Compile Include="../../Editor/Primitives/ToolActions.g.cs" />
     <Compile Include="../../Editor/CommandRegistry.cs" />
     <Compile Include="../../Editor/CommandOptions.cs" />
-    <Compile Include="../../Editor/JsonHelper.cs" />
+    <Compile Include="../../Editor/Primitives/JsonHelper.cs" />
     <!-- Wire.cs: the pure wire-encoding helpers WireRecords.g.cs calls (w_int/w_float1/w_bool/...); no UnityEngine/UnityEditor dependency. -->
     <Compile Include="../../Editor/Wire.cs" />
     <Compile Include="../../Editor/Decisions/*.cs" />
