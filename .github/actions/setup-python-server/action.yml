@@ -1,5 +1,5 @@
 name: Setup Python + Server
-description: Install Python and server[dev] dependencies
+description: Install Python, uv, and server[dev] dependencies
 
 inputs:
   python-version:
@@ -13,5 +13,8 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7  # v10.2.0
+
     - shell: bash
-      run: pip install -e "server[dev]"
+      working-directory: server
+      run: uv sync --frozen

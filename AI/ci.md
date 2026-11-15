@@ -25,6 +25,12 @@ grep -rn "Editor/OldName.cs" unity-plugin/Tests~/ server/tests/ scripts/tests/ A
 grep -rn "import <module_name>\|from <module_name>" server/tests/ scripts/tests/ --include="*.py"
 ```
 
+## 1c. scripts/dev/ convention
+
+`scripts/dev/` holds true orphan scripts — not referenced by CI YAML, not imported by tests, not in sys.path. Currently: `check_relay_schema.py`, `create_sonar_sln.py`, `dedup_sln.py`, `export_agent_schema.py`.
+
+A script referenced only in a test error message string (not an import) counts as orphan.
+
 ## 2. Editing generated files requires banner + content-lock update
 
 Generated files (from `dsl/tools.biome`) carry a `source-sha256` banner. Editing either the source or the generated file without updating both breaks 3 test gates:

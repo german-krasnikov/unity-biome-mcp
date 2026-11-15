@@ -9,15 +9,12 @@ Usage:
     nox -l                 # list all sessions
 """
 import functools
-import os
-import re
 import subprocess
 from pathlib import Path
 
 import nox
 
 nox.options.reuse_existing_virtualenvs = True
-nox.options.error_on_external_run = False
 
 ROOT = Path(__file__).parent
 SERVER = ROOT / "server"
@@ -33,7 +30,7 @@ def _ruff_pin() -> str:
          "--no-header", "--no-emit-project"],
         capture_output=True, text=True, cwd=str(SERVER), check=True,
     )
-    pins = [l for l in result.stdout.splitlines() if l.startswith("ruff==")]
+    pins = [line for line in result.stdout.splitlines() if line.startswith("ruff==")]
     if len(pins) != 1:
         raise RuntimeError(f"expected 1 ruff pin in server/uv.lock, found {len(pins)}")
     return pins[0]
@@ -155,44 +152,44 @@ _DOTNET_PROJECTS = {
 }
 
 
-def _dotnet_test(session: nox.Session, name: str, csproj: Path) -> None:
+def _dotnet_test(session: nox.Session, csproj: Path) -> None:
     session.run("dotnet", "test", str(csproj), "-c", "Release", "--nologo", external=True)
 
 
 @nox.session(python=False, name="dotnet_playtest_core")
 def dotnet_playtest_core(session: nox.Session) -> None:
     """Pure .NET: PlaytestCore."""
-    _dotnet_test(session, "playtest_core", _DOTNET_PROJECTS["playtest_core"])
+    _dotnet_test(session, _DOTNET_PROJECTS["playtest_core"])
 
 
 @nox.session(python=False, name="dotnet_assembly_freshness")
 def dotnet_assembly_freshness(session: nox.Session) -> None:
     """Pure .NET: AssemblyFreshness."""
-    _dotnet_test(session, "assembly_freshness", _DOTNET_PROJECTS["assembly_freshness"])
+    _dotnet_test(session, _DOTNET_PROJECTS["assembly_freshness"])
 
 
 @nox.session(python=False, name="dotnet_source_patch")
 def dotnet_source_patch(session: nox.Session) -> None:
     """Pure .NET: SourcePatchReadiness."""
-    _dotnet_test(session, "source_patch", _DOTNET_PROJECTS["source_patch"])
+    _dotnet_test(session, _DOTNET_PROJECTS["source_patch"])
 
 
 @nox.session(python=False, name="dotnet_decisions")
 def dotnet_decisions(session: nox.Session) -> None:
     """Pure .NET: Decisions."""
-    _dotnet_test(session, "decisions", _DOTNET_PROJECTS["decisions"])
+    _dotnet_test(session, _DOTNET_PROJECTS["decisions"])
 
 
 @nox.session(python=False, name="dotnet_chat_turn")
 def dotnet_chat_turn(session: nox.Session) -> None:
     """Pure .NET: ChatTurn."""
-    _dotnet_test(session, "chat_turn", _DOTNET_PROJECTS["chat_turn"])
+    _dotnet_test(session, _DOTNET_PROJECTS["chat_turn"])
 
 
 @nox.session(python=False, name="dotnet_playtest_grammar")
 def dotnet_playtest_grammar(session: nox.Session) -> None:
     """Pure .NET: PlaytestGrammar."""
-    _dotnet_test(session, "playtest_grammar", _DOTNET_PROJECTS["playtest_grammar"])
+    _dotnet_test(session, _DOTNET_PROJECTS["playtest_grammar"])
 
 
 # ── Composite sessions ──────────────────────────────────────────────────────
@@ -213,7 +210,7 @@ def dotnet(session: nox.Session) -> None:
 
 @nox.session(python=False)
 def preflight(session: nox.Session) -> None:
-    """Full local preflight: lint + tests + doc checks."""
+    """Full local preflight: lint + tests + version/readme checks (excludes docs_build for speed)."""
     for s in ("lint", "test_server", "test_install", "test_scripts",
               "readme_check", "version_check", "skills_check"):
         session.notify(s)
