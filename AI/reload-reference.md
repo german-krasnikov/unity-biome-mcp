@@ -260,7 +260,7 @@ RELOADING ─▶ RELOADED (new code live)                         in-process: In
 
 The public agent API is
 `sync_unity(resolve=False, bump=False, timeout=SESSION_TIMEOUT)` in
-`server/src/unity_mcp/tools/sync.py`. Agents should call it after external C#
+`server/src/unity_mcp/reload/sync.py`. Agents should call it after external C#
 or package changes; they should not call internal recovery commands directly.
 
 1. When `bump=True`, Python increments the source checkout's plugin patch
@@ -291,7 +291,7 @@ a compile failure stays terminal for that epoch.
 
 ## §14 Recovery Boundary
 
-`server/src/unity_mcp/tools/reload_ladder.py` is internal recovery plumbing.
+`server/src/unity_mcp/reload/reload_ladder.py` is internal recovery plumbing.
 It may use the main listener or the independent reload listener to diagnose the
 domain, request refresh/recompile, resolve package state, or return an actionable
 manual result. Platform focus automation is optional. The play-stop tier requires
@@ -306,7 +306,7 @@ command alone is not proof that new code is live.
 
 - Treat §§1–§12 as dated research. Re-verify a cited Unity version or platform
   before extending a claim beyond its stated range.
-- Update §13 when `tools/sync.py` or `SyncHelper.cs` changes the public
+- Update §13 when `reload/sync.py` or `SyncHelper.cs` changes the public
   handshake. Update §14 when the internal ladder or reload package changes.
 - Keep shipped work and release history in `CHANGELOG.md`, tests and evidence in
   `AI/testing.md`, and user recovery instructions in `docs/`.

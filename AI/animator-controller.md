@@ -94,7 +94,7 @@ Output format uses ` & ` separator between conditions.
 | `unity-plugin/Editor/CommandRouter.MediaHandlers.cs` | C# action dispatch |
 | `server/src/unity_mcp/tools/animation.py` | Public `animator` wrapper |
 | `server/src/unity_mcp/tools/animator_intent_tool.py` | Intent DSL parsing and batch construction |
-| `server/tests/test_server_animator.py` | Python contract tests |
+| `server/tests/tools/test_server_animator.py` | Python contract tests |
 | `unity-plugin/Editor/Tests/SerializerTests.cs` and `BlendTreeTests.cs` | C# serializer and blend-tree tests |
 
 ## Text Output Format

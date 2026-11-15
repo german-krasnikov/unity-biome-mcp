@@ -125,13 +125,13 @@ public callers must use a concrete action. See
   - `unity-plugin/Editor/TimelineHelper.cs` — create/edit/sample
   - `unity-plugin/Editor/CommandRouter.MediaHandlers.cs` — action dispatch
 - **Tests**:
-  - `server/tests/test_server_timeline.py`
+  - `server/tests/tools/test_server_timeline.py`
   - `unity-plugin/Editor/Tests/SerializerTests.cs`
   - `unity-plugin/Editor/Tests/HelperTests.cs`
 
 ## Tests
 
-- `server/tests/test_server_timeline.py` verifies Python wrapper actions and
+- `server/tests/tools/test_server_timeline.py` verifies Python wrapper actions and
   argument forwarding.
 - `unity-plugin/Editor/Tests/SerializerTests.cs` and `HelperTests.cs` cover the
   Unity serializer/helper behavior.

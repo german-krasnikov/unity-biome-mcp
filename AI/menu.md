@@ -82,7 +82,7 @@ menu action=list  # lists all root menus
 - `Menu.GetEnabled(path)` — public API, checks if item is enabled
 
 ## Tests
-- Python: `server/tests/test_server_menu.py`
+- Python: `server/tests/tools/test_server_menu.py`
 - C#: `unity-test-project/Assets/Tests/Editor/Server/MenuTests.cs` covers menu
   helper behavior; `unity-plugin/Editor/Tests/BiomeMenuPathTests.cs` covers
   plugin label and status-menu paths

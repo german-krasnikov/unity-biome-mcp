@@ -65,7 +65,7 @@ parameters instead of duplicating the full signature here.
 - C#: `unity-plugin/Editor/ShaderSerializer.cs`, `ShaderHelper.cs`, `ShaderGraphHelper.cs`, `ShaderGraphHelper.Mutations.cs`
 - C# Material: `unity-plugin/Editor/MaterialHelper.cs`
 - Router: `unity-plugin/Editor/CommandRouter.MediaHandlers.cs`
-- Tests: `server/tests/test_server_shader.py`, `server/tests/test_server_material.py`,
+- Tests: `server/tests/tools/test_server_shader.py`, `server/tests/tools/test_server_material.py`,
   and `unity-plugin/Editor/Tests/ShaderGraphLayoutTests.cs`
 
 ## Review Checklist (for Reviewer)

@@ -51,18 +51,19 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/src/unity_mcp/server.py` | FastMCP composition root, lifespan, built-in registration, resources, and plugin loading. |
 | `server/src/unity_mcp/tools/` | Typed MCP wrappers and Python-side orchestration. |
 | `server/src/unity_mcp/tools/__init__.py` | Built-in tool-module registration. |
-| `server/src/unity_mcp/tools/tool_specs.py` | `ToolSpec` and the merge of the tool metadata (category, mutability, timeout, visibility, runtime, direct-only): generated from `dsl/tools.biome`, provided by the watch and sync modules, written by hand for six tools whose annotation and ToolSpec disagree. |
+| `server/src/unity_mcp/tools/tool_specs.py` | `ToolSpec` and the merge of the tool metadata (category, mutability, timeout, visibility, runtime, direct-only): generated from `dsl/tools.biome` (the `_SPECS` literal is empty; the merge fills it). |
 | `server/src/unity_mcp/tools/generated/` | Generated from `dsl/tools.biome`, never edited by hand: ToolSpec kwargs, schema descriptions, the MCP wrappers of the catalog's tools, and the declared actions of an `action`-dispatched tool (`catalog_actions.py`). |
 | `server/src/unity_mcp/decisions/` | The decisions printed from `dsl/decisions` (`generated/`, never edited by hand) and the native readers of their facts (`verdict_facts.py`, `guard_facts.py`). A leaf: it imports nothing else of `unity_mcp` (import-linter). |
 | `server/src/unity_mcp/tools/_catalog_runtime.py` | Mechanical runtime of the generated wrappers: wire encoders and the `ToolSet` that checks a function against the catalog and registers it. |
-| `server/src/unity_mcp/tools/sync_spec.py` | SyncModule ToolSpec metadata and owned wire-command mapping (N1b): decouples `tool_specs.py` from importing `sync.py` to prevent circular dependencies. |
-| `server/src/unity_mcp/tools/sync_algorithm.py` | Reload algorithm facade with replaceable swappable interface (N2): narrow `IReloadAlgorithm` abstraction and `Bind` composition seam beneath the public sync surface. |
-| `server/src/unity_mcp/tools/sync_module.py` | Second self-owned Python module pilot (N1b): owns public `sync_unity` MCP tool with instance-scoped send/state, delegating the poll/recovery algorithm to `sync.py`'s legacy implementations. |
+| `server/src/unity_mcp/reload/sync_spec.py` | SyncModule ToolSpec metadata and owned wire-command mapping (N1b): decouples `tool_specs.py` from importing `sync.py` to prevent circular dependencies. |
+| `server/src/unity_mcp/reload/sync_algorithm.py` | Reload algorithm facade with replaceable swappable interface (N2): narrow `IReloadAlgorithm` abstraction and `Bind` composition seam beneath the public sync surface. |
+| `server/src/unity_mcp/reload/sync_module.py` | Second self-owned Python module pilot (N1b): owns public `sync_unity` MCP tool with instance-scoped send/state, delegating the poll/recovery algorithm to `sync.py`'s legacy implementations. |
 | `server/src/unity_mcp/tools/gating.py` | Session visibility categories and plugin category registration. |
 | `server/src/unity_mcp/tools/schema_registry.py` | Deferred public schema lookup. |
 | `server/src/unity_mcp/tools/run_handle.py` | Durable test run metadata (TestRunHandle, TestRunRegistry); persists across transport disconnect. |
-| `server/src/unity_mcp/bridge.py` | TCP request lifecycle, reconnect behavior, CommandLedger, and EditorIdentity. |
-| `server/src/unity_mcp/connection_slot.py` | Active Unity connection ownership. |
+| `server/src/unity_mcp/bridge/` | TCP request lifecycle, reconnect, heartbeat, retry, lockfile and phantom-cleaner handling, the active connection slot (`connection_slot.py`), `CommandLedger` (`command_ledger.py`) and `EditorIdentity` (`editor_identity.py`). `bridge/compile_state.py` and `bridge/reload_state.py` are shims for the reload package. |
+| `server/src/unity_mcp/reload/` | Reload and sync package: compile and domain-reload detection (`compile_state.py`), reload state (`reload_state.py`), the sync algorithm (`sync_algorithm.py`, `reload_ladder.py`), the SyncModule spec and module (`sync_spec.py`, `sync_module.py`) and the `sync` orchestration (`sync.py`). An import-linter contract limits its imports, with reviewed exceptions listed in `server/pyproject.toml`. |
+| `server/src/unity_mcp/*.py`, `bridge/*.py` and `tools/sync*.py` shims | Old import paths of moved modules (for example `bridge_cassette.py`, `lockfile.py`, `unity_state.py`, and the reload modules `tools/sync.py`, `tools/sync_module.py`, `tools/reload_ladder.py`). Each shim makes its own module name the real module object in `sys.modules`. Add code to the real module only. |
 | `server/src/unity_mcp/play_state.py` | Play Mode readiness tracking (PlayReadinessTracker) with epoch and world_ready handshake. |
 | `server/src/unity_mcp/suite_verdict.py` | Test suite verdict separation (inner assertion verdicts vs. outer lifecycle verdicts). |
 | `server/src/unity_mcp/middleware.py` | Middleware state and feature composition. |
@@ -80,8 +81,8 @@ The installable package lives under `server/src/unity_mcp/`.
 | `server/tests/seams/` | Live conformance seam tests (round-trip, batch, surface, differential). |
 | `server/tests/wire/` | Protocol-level wire tests (no Unity, FakeServer, MITM, cassettes). |
 | `server/tests/mutation/` | Mutation regression suite (stories S11–S16c): explicit disable, source restore, provider absence, re-add/remove workflows. Uses shared helpers in `_canary.py` and `_provider_lifecycle.py`. Marker: `mutation_live`. Requires disposable provider worker; run via `pytest tests/mutation -m mutation_live` or `scripts/run_mutation_regression_cell.py --mode full`. |
-| `server/tests/test_sync_compile_guard.py` | Offline tests for compile-guard absorption in `sync_unity` (ade3bde7): guard→ready, guard→errors, foreign error text, guard→timeout. Validates constant `SYNC_COMPILE_GUARD_TEXT` parity with C# CommandRouter. |
-| `server/tests/test_docstring_hygiene.py` | Hygiene guard: prevents production module docstrings from containing ticket codes (which would leak internal identifiers into public tools and errors). Repository and production modules scanned. |
+| `server/tests/bridge/test_sync_compile_guard.py` | Offline tests for compile-guard absorption in `sync_unity` (ade3bde7): guard→ready, guard→errors, foreign error text, guard→timeout. Validates constant `SYNC_COMPILE_GUARD_TEXT` parity with C# CommandRouter. |
+| `server/tests/boundary/test_docstring_hygiene.py` | Hygiene guard: prevents production module docstrings from containing ticket codes (which would leak internal identifiers into public tools and errors). Repository and production modules scanned. |
 | `scripts/gauntlet/mutation_regression.py` | Mutation regression lane orchestrator: dispatches Python mutation suite (`pytest tests/mutation`) and receives receipt validation from `validate_mutation_regression_receipts.py`. CI job budget tracked via constant. |
 | `scripts/gauntlet/fetch_adapter_sources.py` | Fetch pinned provider adapter sources with SHA256 atomic lock (fail-closed, malformed-input guards). Adapter used by `MutationAdapterContract` offline tests. |
 | `scripts/run_mutation_regression_cell.py` | Mutation regression cell driver: Python-side orchestration; reads `BIOME_FINAL_PORT_A`, `BIOME_WORKER_A` and runs mutation suite with 1800 s budget. Supersedes legacy FSR-qualification driver. |
@@ -107,20 +108,20 @@ by runtime boundary:
 | Path | Primary responsibility |
 |---|---|
 | `unity-plugin/Editor/MCPServer.cs` | Unity listener lifecycle, connection ownership, and dispatch scheduling. |
-| `unity-plugin/Editor/MainThreadDispatcher.cs` | Single queueing point for non-network Editor API calls; subscribed to `EditorApplication.update` to survive focus loss and domain reload. Replaces `EditorTickOnce`. |
-| `unity-plugin/Editor/AtomicFile.cs` | Atomic file writes via temp + `File.Replace` for configuration, state, and test-run store files to prevent data loss under file-locking (Windows OneDrive/AV). |
+| `unity-plugin/Editor/Primitives/MainThreadDispatcher.cs` | Single queueing point for non-network Editor API calls; subscribed to `EditorApplication.update` to survive focus loss and domain reload. Replaces `EditorTickOnce`. |
+| `unity-plugin/Editor/Primitives/AtomicFile.cs` | Atomic file writes via temp + `File.Replace` for configuration, state, and test-run store files to prevent data loss under file-locking (Windows OneDrive/AV). |
 | `unity-plugin/Editor/CommandRouter.cs` and `CommandRouter.*.cs` | Guarded command dispatch and domain registrations. |
 | `unity-plugin/Editor/CommandRegistry.cs` | Command handlers and their mutability, runtime, validation, dispatch, and trust metadata. |
 | `unity-plugin/Editor/CommandOptions.cs` | Internal structured registration options behind the public bool overloads. |
-| `unity-plugin/Editor/Generated/` | Printed from `dsl/`, never edited by hand: the decisions (`Mutability.g.cs`, `Verdict.g.cs`, `Guards.g.cs`, C# 9, depend on nothing but the BCL) `ActionReads.g.cs` (the read actions of the catalog's tools), `ToolActions.g.cs` (the declared actions of each `action`-dispatched tool: `Names`, `IsKnown`) and `ToolArgs.g.cs` (one `{Tool}Args` accessor class per catalog tool, the argument reads of migrated handlers). |
+| `unity-plugin/Editor/Generated/` | Printed from `dsl/`, never edited by hand: the decisions (`Mutability.g.cs`, `Verdict.g.cs`, `Guards.g.cs`, C# 9, depend on nothing but the BCL) `ActionReads.g.cs` (the read actions of the catalog's tools), `Primitives/ToolActions.g.cs` (the declared actions of each `action`-dispatched tool: `Names`, `IsKnown`) and `ToolArgs.g.cs` (one `{Tool}Args` accessor class per catalog tool, the argument reads of migrated handlers). |
 | `unity-plugin/Editor/Chat/CLI/Generated/ChatTurn/` | Printed from `dsl/chat/chatturn.feature`, never edited by hand: the reducer of the exits of a chat turn (C# 9, the BCL only) with its `.biome-files` manifest. `Chat/CLI/ChatTurnDriver.cs` is its door and `Chat/View/MCPChatWindow.TurnPorts.cs` holds the bodies of its 16 effects. |
 | `unity-plugin/Editor/Decisions/` | The native readers of the facts of those decisions (`MutabilityFacts.cs`, `PlaytestFacts.cs`, `GuardFacts.cs`); they decide nothing. `CommandRegistry`, `CommandRouter` and `BatchHelper` call the decisions through them. |
 | `unity-plugin/Editor/PluginRegistry.cs` and `IMCPPlugin.cs` | C# plugin discovery and registration contract. |
 | `unity-plugin/Editor/SyncHelper.cs` | Epoch-based compile/reload state machine used by `sync_unity`. |
-| `unity-plugin/Editor/ObjectIdCompat.cs` | Platform compat bridge for Unity 6.0–6.3 (instance-ID) and 6.4+ (EntityId) object identity APIs. |
+| `unity-plugin/Editor/Primitives/ObjectIdCompat.cs` | Platform compat bridge for Unity 6.0–6.3 (instance-ID) and 6.4+ (EntityId) object identity APIs. |
 | `unity-plugin/Editor/UIPanelHost.cs` | Compat layer for `UIDocument` (Unity 6.0) and `PanelRenderer` (Unity 6.4+); used by playtest UI commands and intent tools. |
 | `unity-plugin/Runtime/Playtest/Core/` | Engine-free playtest parser core (v1.53.0+): `PlaytestParser.cs` and split files (Directives, Internals, Mcp, Subroutines), `PlaytestHeaderScanner`, utility types (`Float3`, `NumericParsing`, `StringDistance`), `IAliasSource` interface, and `PlayerProfilePreflight` (F1: pre-flight validation of Player script support). Assembly definition includes `noEngineReferences: true` to prevent Editor imports. Consumed by both Editor runner and Player runtime. |
-| `unity-plugin/Editor/PlaytestRunner*.cs` | PlayMode and EditMode DSL execution with support for MCP step dispatch and stateful DSL playtest corpus. `PreparedPlaytest` (PR-07) exists as an immutable snapshot type with pure dotnet tests (Tests~/Pure/PreparedPlaytestTests.cs); integration with PlaytestRunner pending. |
+| `unity-plugin/Editor/Playtest/` (assembly `UnityMCP.Editor.Playtest`, `PlaytestRunner*.cs`) | PlayMode and EditMode DSL execution with support for MCP step dispatch through `ICommandDispatcher` and stateful DSL playtest corpus. `PreparedPlaytest` (PR-07) exists as an immutable snapshot type with pure dotnet tests (Tests~/Pure/PreparedPlaytestTests.cs); integration with PlaytestRunner pending. |
 | `unity-plugin/Editor/Tests/DelayCallSourceHygieneTests.cs` | Hygiene guard: prevents non-GUI modules from using `delayCall` (which silently fails when Editor loses focus). Allowlist: GUI-only contexts (Chat, Wizard, menus, status bar). |
 | `unity-plugin/Editor/Tests/DesyncWarnLimiterTests.cs` | Hygiene guard: HTTP/TLS probes on the TCP port classified as known foreign protocol and throttled to one warning per 30 seconds. |
 | `unity-plugin/Editor/Tests/HttpGarbageProbeTests.cs` | Protocol resilience: recognizes HTTP GET and TLS handshakes misrouted to TCP listener and classifies as recoverable desync, not fatal errors. |
@@ -132,6 +133,10 @@ by runtime boundary:
 | `unity-plugin/Editor/SourcePatchHost.cs` (`GuardLegacyCsWrite`) | Guard invoked from the legacy `.cs` write path when the provider is off/absent. |
 | `unity-plugin/Editor/MutationModeToggle.cs` | MCP Settings Hub UI shell for the "Mutation Mode (experimental)" checkbox (P2-04). Polls `SourcePatchHost`/`SourcePatchModePolicy` every 600ms; forwards clicks to `SetMutationIntent`. |
 | `unity-plugin/Editor/MutationModeToggleState.cs` | Pure view-model mapping (state, intentOn, providerPresent, isPlaying) → (Checked, Enabled, Tooltip, ShowRecoveryWarning). Zero side effects. |
+| `unity-plugin/Editor/Primitives/` (assembly `UnityMCP.Editor.Primitives`) | Dependency-free base: `ICommandDispatcher` (the seam through which `ClientConnectionHandler` and `PlaytestRunner` dispatch), `UndoGroupHelper`, `MainThreadDispatcher`, `AtomicFile`, `ObjectIdCompat`, `JsonHelper`, `BatchState` and `ToolActions.g.cs`. |
+| `unity-plugin/Editor/CommandRouterDispatcher.cs` | `ICommandDispatcher` adapter over the static `CommandRouter`. `MCPServer.cs` assigns it to the transport and playtest consumers. |
+| `unity-plugin/Editor/Transport/` (assembly `UnityMCP.Editor.Transport`) | Client slot, port resolver and connection snapshot. Depends only on Primitives. |
+| `unity-plugin/Editor/Core/Scene/` (assembly `UnityMCP.Editor.Core.Scene`) | Scene object model: `SceneContext`, `ObjectManager` (lookup, events, properties, transfer), component and hierarchy serialization, value parsing and `RefManager`. Depends on Primitives and `UnityMCP.Playtest.Core`. |
 | `unity-plugin/Editor/Chat/` | In-Unity chat presentation and relay integration. |
 | `unity-plugin/Editor/Tests/` | EditMode and PlayMode implementation fixtures. |
 | `unity-plugin/Runtime/` | Runtime/player assemblies and test helpers. |
@@ -175,7 +180,7 @@ See [`reload-reference.md`](reload-reference.md).
 | Unity command contract | `CommandRegistry` registration, handler, validation and guard tests, then the owning `AI/` domain reference. |
 | Read/write or runtime classification | `ToolSpec`, conditional rules in `middleware_types.py`, C# registry metadata, and cross-language parity tests. |
 | TCP lifecycle | Bridge/server code, Unity listener code, and [`tcp-bridge.md`](tcp-bridge.md). |
-| Compile or reload behavior | `tools/sync.py`, `SyncHelper.cs`, reload package when applicable, and [`reload-reference.md`](reload-reference.md). |
+| Compile or reload behavior | `reload/sync.py`, `SyncHelper.cs`, reload package when applicable, and [`reload-reference.md`](reload-reference.md). |
 | Playtest DSL | Parser, runner, focused Unity tests, and [`playtest-dsl.md`](playtest-dsl.md). |
 | Client skill or agent | `unity-plugin/ClientSkills/` plus its conversion/freshness checks. |
 | User workflow | The smallest canonical page under `docs/`; link from secondary pages. |

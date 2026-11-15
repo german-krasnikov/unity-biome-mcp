@@ -185,7 +185,7 @@ must not introduce a second path grammar.
 
 ## Tests
 
-- Python: `server/tests/test_uitk.py`, `test_uitk_element.py`,
+- Python: `server/tests/tools/test_uitk.py`, `test_uitk_element.py`,
   `test_uitk_file_tool.py`, `test_uitk_intent.py`, and the uGUI server tests.
 - C#: `unity-plugin/Editor/Tests/UIToolkit/` and the UI helper fixtures under
   `unity-plugin/Editor/Tests/`.

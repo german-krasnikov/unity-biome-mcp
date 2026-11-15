@@ -179,8 +179,8 @@ the profile model.
 
 ## Tests and Ownership
 
-- shared pipeline: `server/tests/test_intent_common.py` and sampling tests;
-- `do`: `server/tests/test_do_intent.py`;
+- shared pipeline: `server/tests/llm/test_intent_common.py` and sampling tests;
+- `do`: `server/tests/chat/test_do_intent.py`;
 - `ask`: ask router/executor/summarizer tests;
 - domain tools: `test_animator_intent.py`, `test_vfx_intent.py`,
   `test_ui_intent.py`, and `test_uitk_intent.py`.

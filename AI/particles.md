@@ -125,7 +125,7 @@ renderer: Billboard
 
 ## Tests
 
-- `server/tests/test_server_particle.py` verifies the Python wrapper contract.
+- `server/tests/tools/test_server_particle.py` verifies the Python wrapper contract.
 - `unity-plugin/Editor/Tests/SerializerTests.cs` covers particle serialization.
 - `unity-plugin/Editor/Tests/BiomeParticleBurstTests.cs` covers the separate Editor UI particle system below.
 

@@ -268,7 +268,7 @@ Two paths for labeling the active connection slot:
 | Path | Mechanism | When used |
 |------|-----------|-----------|
 | MCP hook | `install_initialized_hook` reads `clientInfo.name`, calls `set_client_label` | Cursor, Windsurf, Claude Desktop (any non-"Claude Code" MCP client) |
-| Env var | `UNITY_MCP_CLIENT` read in `bridge.py:_reconnect()`, sent as ping `role` field | Codex and other non-MCP tools that launch bridge directly |
+| Env var | `UNITY_MCP_CLIENT` read in `bridge/__init__.py` (`_reconnect()`), sent as ping `role` field | Codex and other non-MCP tools that launch bridge directly |
 
 **`UNITY_MCP_CLIENT` flow:**
 ```bash

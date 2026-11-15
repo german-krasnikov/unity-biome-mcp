@@ -150,7 +150,7 @@ inspect paths=/Player,/Enemy components=Rigidbody compress=true
 - String matching: `unity-plugin/Editor/StringDistance.cs` (Levenshtein, ClosestMatch)
 - Command registry: `unity-plugin/Editor/CommandRegistry.cs` (Register/RegisterAction — declares required/optional params via CSV, contract source of truth)
 - Command dispatch: `unity-plugin/Editor/CommandRouter.cs` (batch case, timeout_ms support)
-- Python tests: `server/tests/test_batch.py`, `test_batch_conflict.py`, `test_batch_timeout.py`, `test_autobatch.py`
+- Python tests: `server/tests/tools/test_batch.py`, `server/tests/middleware/test_batch_conflict.py`, `server/tests/tools/test_batch_timeout.py`, `server/tests/tools/test_autobatch.py`
 - C# tests: `unity-plugin/Editor/Tests/MCPBatchAtomicTests.cs`, `BatchHelperParserTests.cs`, and `BatchHelperReadOnlyTests.cs`
 - Batch rejection tests: `unity-plugin/Editor/Tests/BatchRejectionTests.cs` (async, specialDispatch, runtime-only, atomic rollback)
 - Validation tests: `unity-plugin/Editor/Tests/CommandValidatorOptionalParamsTests.cs`

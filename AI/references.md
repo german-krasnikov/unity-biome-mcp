@@ -73,12 +73,12 @@ set_property ObjectReference inputs:
 - C# Router: `unity-plugin/Editor/CommandRouter.MediaHandlers.cs` (`ExecReferencesConsolidated`)
 - C# ObjectManager: `unity-plugin/Editor/ObjectManager.cs` (set_property enhanced)
 - C# ComponentSerializer: `unity-plugin/Editor/ComponentSerializer.cs` (ObjectReference output)
-- Tests Python: `server/tests/test_server_references.py`
+- Tests Python: `server/tests/tools/test_server_references.py`
 - Tests C#: `unity-plugin/Editor/Tests/ReferenceHelperTests.cs` and `ValidateReferencesHelperTests.cs`
 
 ## Tests
 
-- `server/tests/test_server_references.py` verifies the public wrappers.
+- `server/tests/tools/test_server_references.py` verifies the public wrappers.
 - `unity-plugin/Editor/Tests/ReferenceHelperTests.cs` covers traversal and
   multi-scene relation classification.
 - `unity-plugin/Editor/Tests/ValidateReferencesHelperTests.cs` covers integrity

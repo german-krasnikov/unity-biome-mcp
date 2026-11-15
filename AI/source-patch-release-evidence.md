@@ -186,8 +186,8 @@ errors** — two distinct, unrelated root causes, both fixed since (§3.1):
   probe now ends with `;` (the actual CS1002 root cause — a
   missing-semicolon snippet compiles fine against the mocked
   `execute_code` in unit tests but is invalid C# against a live Roslyn
-  compile). Regression tests: `server/tests/test_reload_stability.py`,
-  `server/tests/test_strip_markers.py`.
+  compile). Regression tests: `server/tests/bridge/test_reload_stability.py`,
+  `server/tests/boundary/test_strip_markers.py`.
 - `7875430f` `fix(live): settle domain reload before state capture in
   teardown` — new bounded, read-only `_wait_compile_idle()`
   `compile_status` poll in `server/tests/live/conftest.py` (never
@@ -197,7 +197,7 @@ errors** — two distinct, unrelated root causes, both fixed since (§3.1):
   lease-renew/state-capture read; `test_sync_live.py` gets its own
   `pytest.mark.timeout(120)` (domain reload can legitimately run up to
   90s) plus explicit `_wait_compile_idle()` calls after each sync
-  assertion. New tests: `server/tests/test_live_unity_state_owner.py`.
+  assertion. New tests: `server/tests/boundary/test_live_unity_state_owner.py`.
 
 ### 3.2 Live-lane re-run after the fixes (this evidence-update pass)
 
