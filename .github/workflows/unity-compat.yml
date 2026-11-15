@@ -33,12 +33,12 @@ jobs:
       matrix:
         include:
           # ── Phase 1: boundary versions ──────────────────────────
-          - unity-version: '6000.0.83f1'
+          - unity-version: '6000.0.86f1'
             label: 'Unity 6.0 — baseline (#else branches)'
             test-mode: full
             phase: 1
 
-          # ── All minor versions (latest patch from unity.com/releases) ─
+          # ── All minor versions (latest patch from unity.com/releases, Nov 2026) ─
           - unity-version: '6000.1.17f1'
             label: 'Unity 6.1 — compile check'
             test-mode: compile
@@ -49,28 +49,28 @@ jobs:
             test-mode: compile
             phase: 1
 
-          - unity-version: '6000.3'
+          - unity-version: '6000.3.27f2'
             label: 'Unity 6.3 LTS — compile check'
             test-mode: compile
             phase: 1
 
-          - unity-version: '6000.4'
+          - unity-version: '6000.4.12f1'
             label: 'Unity 6.4 — deprecation boundary'
             test-mode: targeted
             phase: 1
 
-          - unity-version: '6000.5'
+          - unity-version: '6000.5.11f1'
             label: 'Unity 6.5 — EntityId hard error (#if branches)'
             test-mode: full
             phase: 1
 
-          - unity-version: '6000.6.0f1'
+          - unity-version: '6000.6.7f1'
             label: 'Unity 6.6 — compile check'
             test-mode: compile
             phase: 1
 
-          - unity-version: '6000.7.0a6'
-            label: 'Unity 6.7 Alpha — forward compat'
+          - unity-version: '6000.7.0b9'
+            label: 'Unity 6.7 Beta — forward compat'
             test-mode: compile
             phase: 1
 
