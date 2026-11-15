@@ -1,23 +1,23 @@
 # Quality Report
 
-> Auto-generated on **2026-09-25** from commit `86eca97` (v2.1.0)
+> Auto-generated on **2026-11-15** from commit `4de339f` (v3.0.0)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v2.1.0 |
-| Commit | `86eca97` |
-| Date | 2026-09-25 |
+| Version | v3.0.0 |
+| Commit | `4de339f` |
+| Date | 2026-11-15 |
 | MCP Tools | 160 |
 
 ## Test Results
 
 | Suite | Passed | Failed | Skipped | Total | Status |
 |-------|--------|--------|---------|-------|--------|
-| Python Server (3.14) | 6644 | 0 | 3 | 6647 | ✅ |
-| Python Install | 90 | 0 | 0 | 90 | ✅ |
-| Python Scripts | 1578 | 0 | 1 | 1579 | ✅ |
+| Python Server (3.14) | 7186 | 0 | 3 | 7189 | ✅ |
+| Python Install | 93 | 0 | 0 | 93 | ✅ |
+| Python Scripts | 1607 | 0 | 1 | 1608 | ✅ |
 | C# EditMode (Linux) | 9479 | 0 | 188 | 9667 | ✅ |
 | C# EditMode (Windows) | 9364 | 0 | 303 | 9667 | ✅ |
 | C# EditMode (macOS) | 9479 | 0 | 188 | 9667 | ✅ |
@@ -26,7 +26,7 @@
 
 | Linter | Errors | Warnings | Score |
 |--------|--------|----------|-------|
-| mcp-tool-card-linter | 1 | 417 | 83.51/100 |
+| mcp-tool-card-linter | 0 | 434 | 82.69/100 |
 
 ### Per-Tool Scores
 
@@ -35,165 +35,165 @@
 
 | Tool | Score | Errors | Warnings | Risk |
 |------|-------|--------|----------|------|
+| `animator` | 55 | 0 | 5 | high |
 | `verify_after_change` | 57 | 0 | 6 | high |
 | `shader` | 59 | 0 | 4 | high |
-| `animator` | 60 | 0 | 4 | high |
 | `run_playtest_suite` | 61 | 0 | 6 | high |
-| `timeline` | 64 | 0 | 4 | medium |
 | `create_ui` | 65 | 0 | 5 | medium |
 | `screenshot` | 65 | 0 | 7 | medium |
 | `uitk_file` | 67 | 0 | 5 | high |
-| `get_test_run` | 68 | 1 | 3 | high |
 | `run_tests_wait` | 68 | 0 | 6 | high |
 | `screenshot_compare` | 68 | 0 | 5 | medium |
 | `watch` | 68 | 0 | 4 | high |
 | `profile` | 69 | 0 | 4 | low |
+| `timeline` | 69 | 0 | 3 | medium |
 | `wait_until` | 69 | 0 | 5 | medium |
+| `animation` | 70 | 0 | 3 | medium |
 | `navmesh_query` | 70 | 0 | 4 | high |
-| `animation` | 71 | 0 | 3 | medium |
 | `test_step` | 71 | 0 | 4 | medium |
+| `set_property` | 72 | 0 | 5 | medium |
 | `set_rect` | 72 | 0 | 4 | medium |
 | `run_playtest` | 73 | 0 | 5 | high |
-| `asset` | 74 | 0 | 3 | high |
+| `validate_triggers` | 73 | 0 | 5 | medium |
 | `run_tests` | 74 | 0 | 5 | medium |
 | `set_sibling_index` | 74 | 0 | 5 | medium |
 | `vfx_intent` | 74 | 0 | 4 | medium |
+| `get_hierarchy` | 75 | 0 | 5 | high |
 | `screenshot_baseline` | 75 | 0 | 4 | medium |
 | `set_property_delta` | 75 | 0 | 4 | medium |
 | `attach_uitk` | 76 | 0 | 4 | high |
+| `get_console` | 76 | 0 | 4 | low |
 | `particle` | 76 | 0 | 4 | medium |
-| `permission_prompt` | 76 | 0 | 4 | low |
 | `set_material` | 76 | 0 | 4 | medium |
-| `set_property` | 76 | 0 | 4 | medium |
 | `editor` | 77 | 0 | 4 | medium |
-| `get_console` | 77 | 0 | 4 | low |
 | `manage_component` | 77 | 0 | 4 | high |
 | `set_properties` | 77 | 0 | 4 | medium |
 | `wire_event` | 77 | 0 | 2 | high |
 | `checkpoint` | 78 | 0 | 4 | medium |
 | `checkpoint_create` | 78 | 0 | 4 | medium |
+| `console_mark` | 78 | 0 | 4 | medium |
 | `material` | 78 | 0 | 3 | medium |
 | `references` | 78 | 0 | 3 | medium |
+| `asset` | 79 | 0 | 2 | high |
+| `debug` | 79 | 0 | 3 | medium |
 | `doctor` | 79 | 0 | 4 | medium |
 | `get_changes` | 79 | 0 | 4 | medium |
+| `get_test_progress` | 79 | 0 | 4 | medium |
+| `get_test_results` | 79 | 0 | 4 | medium |
 | `set_active` | 79 | 0 | 4 | medium |
 | `set_parent` | 79 | 0 | 4 | medium |
 | `uitk_intent` | 79 | 0 | 3 | high |
-| `debug` | 80 | 0 | 3 | medium |
+| `object_diff` | 80 | 0 | 3 | medium |
+| `permission_prompt` | 80 | 0 | 3 | low |
+| `prefab` | 80 | 0 | 2 | high |
+| `render_analyze` | 80 | 0 | 3 | medium |
 | `uitk_element` | 80 | 0 | 3 | high |
 | `animator_intent` | 81 | 0 | 3 | medium |
+| `brief_build` | 81 | 0 | 3 | high |
 | `move_to` | 81 | 0 | 3 | medium |
-| `object_diff` | 81 | 0 | 3 | medium |
-| `prefab` | 81 | 0 | 2 | high |
 | `scene_change_plan` | 81 | 0 | 3 | medium |
+| `unwire_event` | 81 | 0 | 3 | high |
+| `validate_references` | 81 | 0 | 3 | medium |
 | `autofit_collider` | 82 | 0 | 3 | medium |
-| `brief_build` | 82 | 0 | 3 | high |
+| `debug_physics` | 82 | 0 | 3 | medium |
+| `get_component` | 82 | 0 | 3 | medium |
 | `get_metrics` | 82 | 0 | 3 | high |
+| `get_spatial_context` | 82 | 0 | 3 | medium |
 | `region_clear` | 82 | 0 | 3 | high |
+| `serialized_field_rename_audit` | 82 | 0 | 2 | low |
 | `sync_unity` | 82 | 0 | 3 | medium |
 | `ui_intent` | 82 | 0 | 3 | medium |
-| `validate_references` | 82 | 0 | 3 | medium |
+| `await_compile` | 83 | 0 | 3 | low |
 | `batch` | 83 | 0 | 3 | high |
 | `cancel_test_run` | 83 | 0 | 3 | medium |
-| `debug_physics` | 83 | 0 | 3 | medium |
 | `do` | 83 | 0 | 3 | medium |
 | `execute_code` | 83 | 0 | 3 | high |
-| `get_component` | 83 | 0 | 3 | medium |
-| `get_spatial_context` | 83 | 0 | 3 | medium |
+| `get_console_since` | 83 | 0 | 2 | low |
+| `get_test_run` | 83 | 0 | 3 | high |
 | `invoke_method` | 83 | 0 | 2 | medium |
 | `reconnect_unity` | 83 | 0 | 3 | low |
-| `serialized_field_rename_audit` | 83 | 0 | 2 | low |
+| `resolve_test_request` | 83 | 0 | 3 | medium |
 | `set_llm_config` | 83 | 0 | 3 | medium |
 | `setup_objects` | 83 | 0 | 3 | medium |
 | `undo_last` | 83 | 0 | 3 | medium |
 | `use_skill` | 83 | 0 | 3 | medium |
-| `validate_triggers` | 83 | 0 | 3 | medium |
 | `apply_scene_change` | 84 | 0 | 2 | high |
-| `await_compile` | 84 | 0 | 3 | low |
 | `create_object` | 84 | 0 | 3 | medium |
-| `get_console_since` | 84 | 0 | 2 | low |
-| `lint_playtest` | 84 | 0 | 3 | high |
+| `fingerprint` | 84 | 0 | 3 | medium |
+| `list_test_runs` | 84 | 0 | 3 | low |
 | `menu` | 84 | 0 | 3 | medium |
 | `scene_environment` | 84 | 0 | 3 | medium |
 | `scriptable_object` | 84 | 0 | 3 | medium |
+| `snapshot` | 84 | 0 | 2 | medium |
+| `spatial_query` | 84 | 0 | 1 | medium |
+| `compile_preflight` | 85 | 0 | 2 | medium |
+| `delete_object` | 85 | 0 | 3 | high |
 | `discover_tools` | 85 | 0 | 2 | low |
 | `export_playtest_aliases_to_defs` | 85 | 0 | 2 | medium |
-| `fingerprint` | 85 | 0 | 3 | medium |
-| `get_hierarchy` | 85 | 0 | 3 | high |
-| `list_test_runs` | 85 | 0 | 3 | low |
+| `lint_playtest` | 85 | 0 | 3 | high |
+| `list_events` | 85 | 0 | 2 | medium |
 | `recompile` | 85 | 0 | 3 | medium |
-| `snapshot` | 85 | 0 | 2 | medium |
-| `spatial_query` | 85 | 0 | 1 | medium |
+| `release_smoke` | 85 | 0 | 3 | medium |
 | `sync_playtest_aliases_from_defs` | 85 | 0 | 2 | medium |
 | `transfer_object` | 85 | 0 | 2 | medium |
-| `compile_preflight` | 86 | 0 | 2 | medium |
-| `list_events` | 86 | 0 | 2 | medium |
+| `validate_playtest_aliases` | 85 | 0 | 2 | medium |
+| `diagnose` | 86 | 0 | 2 | low |
+| `inspect_uitk` | 86 | 0 | 2 | medium |
 | `project_settings` | 86 | 0 | 2 | high |
-| `unwire_event` | 86 | 0 | 2 | high |
-| `validate_playtest_aliases` | 86 | 0 | 2 | medium |
-| `diagnose` | 87 | 0 | 2 | low |
-| `inspect_uitk` | 87 | 0 | 2 | medium |
+| `find_objects` | 87 | 0 | 2 | medium |
+| `get_frame_stats` | 87 | 0 | 2 | low |
+| `get_memory` | 87 | 0 | 2 | low |
+| `lint_playtest_suite` | 87 | 0 | 2 | medium |
+| `material_audit` | 87 | 0 | 2 | low |
 | `rename_object` | 87 | 0 | 2 | medium |
-| `console_mark` | 88 | 0 | 2 | low |
-| `find_objects` | 88 | 0 | 2 | medium |
-| `get_frame_stats` | 88 | 0 | 2 | low |
-| `get_memory` | 88 | 0 | 2 | low |
-| `lint_playtest_suite` | 88 | 0 | 2 | medium |
-| `material_audit` | 88 | 0 | 2 | low |
+| `scene_health` | 87 | 0 | 2 | low |
+| `analyze_lod_culling` | 88 | 0 | 2 | low |
+| `debug_animator` | 88 | 0 | 2 | medium |
+| `get_schema` | 88 | 0 | 2 | low |
+| `lint_scene_refs` | 88 | 0 | 2 | high |
+| `lint_uitk` | 88 | 0 | 2 | medium |
 | `package` | 88 | 0 | 2 | high |
 | `ping_object` | 88 | 0 | 2 | medium |
+| `runtime_snapshot` | 88 | 0 | 2 | low |
 | `scene` | 88 | 0 | 2 | medium |
-| `scene_health` | 88 | 0 | 2 | low |
-| `analyze_lod_culling` | 89 | 0 | 2 | low |
+| `search_scene` | 88 | 0 | 2 | medium |
 | `auto_wire` | 89 | 0 | 2 | high |
-| `debug_animator` | 89 | 0 | 2 | medium |
-| `get_schema` | 89 | 0 | 2 | low |
-| `get_test_progress` | 89 | 0 | 2 | low |
-| `get_test_results` | 89 | 0 | 2 | low |
-| `lint_scene_refs` | 89 | 0 | 2 | high |
-| `lint_uitk` | 89 | 0 | 2 | medium |
-| `runtime_snapshot` | 89 | 0 | 2 | low |
-| `search_scene` | 89 | 0 | 2 | medium |
+| `check_colliders` | 89 | 0 | 2 | medium |
+| `get_components_list` | 89 | 0 | 2 | low |
+| `get_object_detail` | 89 | 0 | 2 | low |
+| `get_unity_events` | 89 | 0 | 2 | medium |
+| `inspect` | 89 | 0 | 2 | low |
+| `lint_ugui` | 89 | 0 | 2 | medium |
 | `build` | 90 | 0 | 1 | medium |
-| `check_colliders` | 90 | 0 | 2 | medium |
-| `delete_object` | 90 | 0 | 2 | high |
-| `get_components_list` | 90 | 0 | 2 | low |
-| `get_object_detail` | 90 | 0 | 2 | low |
-| `get_unity_events` | 90 | 0 | 2 | medium |
-| `inspect` | 90 | 0 | 2 | low |
-| `lint_ugui` | 90 | 0 | 2 | medium |
-| `render_analyze` | 90 | 0 | 1 | medium |
 | `save_skill` | 90 | 0 | 1 | medium |
 | `checkpoint_restore` | 91 | 0 | 1 | medium |
 | `apply_template` | 92 | 0 | 1 | medium |
+| `ask` | 92 | 0 | 1 | low |
+| `ask_user` | 92 | 0 | 1 | low |
 | `bake` | 92 | 0 | 1 | low |
 | `configure_objects` | 92 | 0 | 1 | medium |
+| `query_state` | 92 | 0 | 1 | medium |
+| `resolve_scene_refs` | 92 | 0 | 1 | medium |
 | `resolve_tool_schema` | 92 | 0 | 1 | low |
 | `save_template` | 92 | 0 | 1 | medium |
 | `smart_build` | 92 | 0 | 1 | low |
-| `ask` | 93 | 0 | 1 | low |
-| `ask_user` | 93 | 0 | 1 | low |
-| `query_state` | 93 | 0 | 1 | medium |
-| `resolve_scene_refs` | 93 | 0 | 1 | medium |
-| `resolve_test_request` | 93 | 0 | 1 | low |
+| `alias_status` | 94 | 0 | 1 | low |
+| `auto_fix` | 94 | 0 | 1 | low |
+| `budget_status` | 94 | 0 | 1 | low |
+| `get_capabilities` | 94 | 0 | 1 | low |
+| `get_changeset` | 94 | 0 | 1 | low |
+| `get_compile_errors` | 94 | 0 | 1 | medium |
+| `get_enabled_tools` | 94 | 0 | 1 | low |
+| `get_selection` | 94 | 0 | 1 | medium |
+| `get_test_count` | 94 | 0 | 1 | low |
+| `get_watches` | 94 | 0 | 1 | low |
+| `list_connections` | 94 | 0 | 1 | low |
+| `list_skills` | 94 | 0 | 1 | low |
+| `list_templates` | 94 | 0 | 1 | low |
+| `load_session` | 94 | 0 | 1 | low |
+| `mcp_status` | 94 | 0 | 1 | low |
 | `save_session` | 94 | 0 | 1 | low |
-| `alias_status` | 95 | 0 | 1 | low |
-| `auto_fix` | 95 | 0 | 1 | low |
-| `budget_status` | 95 | 0 | 1 | low |
-| `get_capabilities` | 95 | 0 | 1 | low |
-| `get_changeset` | 95 | 0 | 1 | low |
-| `get_compile_errors` | 95 | 0 | 1 | medium |
-| `get_enabled_tools` | 95 | 0 | 1 | low |
-| `get_selection` | 95 | 0 | 1 | medium |
-| `get_test_count` | 95 | 0 | 1 | low |
-| `get_watches` | 95 | 0 | 1 | low |
-| `list_connections` | 95 | 0 | 1 | low |
-| `list_skills` | 95 | 0 | 1 | low |
-| `list_templates` | 95 | 0 | 1 | low |
-| `load_session` | 95 | 0 | 1 | low |
-| `mcp_status` | 95 | 0 | 1 | low |
-| `release_smoke` | 95 | 0 | 1 | low |
-| `scan_scene` | 95 | 0 | 1 | low |
-| `scene_diff` | 95 | 0 | 1 | low |
+| `scan_scene` | 94 | 0 | 1 | low |
+| `scene_diff` | 94 | 0 | 1 | low |
 
 </details>
