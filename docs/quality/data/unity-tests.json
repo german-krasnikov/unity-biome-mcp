@@ -1,24 +1,6 @@
 {
   "suites": [
     {
-      "name": "C# EditMode (Linux)",
-      "platform": "Linux",
-      "passed": 9479,
-      "failed": 0,
-      "skipped": 188,
-      "total": 9667,
-      "duration": 143.359006
-    },
-    {
-      "name": "C# EditMode (Windows)",
-      "platform": "Windows",
-      "passed": 9364,
-      "failed": 0,
-      "skipped": 303,
-      "total": 9667,
-      "duration": 184.743391
-    },
-    {
       "name": "C# EditMode (macOS)",
       "platform": "macOS",
       "passed": 9479,
@@ -26,6 +8,24 @@
       "skipped": 188,
       "total": 9667,
       "duration": 171.376742
+    },
+    {
+      "name": "C# EditMode (Linux)",
+      "platform": "Linux",
+      "passed": 9499,
+      "failed": 0,
+      "skipped": 190,
+      "total": 9689,
+      "duration": 132.157197
+    },
+    {
+      "name": "C# EditMode (Windows)",
+      "platform": "Windows",
+      "passed": 9383,
+      "failed": 2,
+      "skipped": 304,
+      "total": 9689,
+      "duration": 152.572733
     }
   ]
 }
