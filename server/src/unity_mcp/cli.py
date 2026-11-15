@@ -1,6 +1,6 @@
 """unity-biome-mcp CLI — thin layer over biome-mcp.
 
-Ships inside the uvx package (unlike install/, which is dev-repo-only), so these
+Ships inside the uvx package (unlike install/, which is dev-repo-only), so
 subcommands work even for users who never cloned the repo. Zero-argv invocation
 starts the MCP server.
 """
@@ -10,10 +10,23 @@ from unity_mcp.constants import DEFAULT_PORT
 from unity_mcp.paths import unity_mcp_dir
 
 _SUBCOMMANDS = ("configure", "doctor", "version", "uninstall")
-_LEGACY_SUBCOMMANDS = ("configure", "doctor", "version", "uninstall", "port")
 
 # Module-level cache so _build_cli() is cheap after first call
 _cli_instance = None
+
+
+# ─── Profile factory ─────────────────────────────────────────────────────────
+
+def _make_profile():
+    from biome_mcp.cli import AppProfile
+    return AppProfile(
+        app_name="unity-biome-mcp",
+        protocol="tcp",
+        default_port=DEFAULT_PORT,
+        default_host="127.0.0.1",
+        data_dir=unity_mcp_dir(),
+        env_aliases=(("UNITY_MCP_PORT", "port"), ("UNITY_MCP_HOST", "host")),
+    )
 
 
 # ─── Handshake helpers ───────────────────────────────────────────────────────
@@ -41,41 +54,96 @@ def _build_hello() -> bytes:
 
 async def _on_connect(reader, writer):
     """Send client_hello handshake after TCP connect."""
-    from biome_mcp.transport.framing import frame_write, frame_read_with_timeout
+    from biome_mcp.transport.framing import frame_read_with_timeout, frame_write
     frame_write(writer, _build_hello())
     await writer.drain()
     await frame_read_with_timeout(reader, timeout=5.0)
 
 
+# ─── FollowPolicy helpers ────────────────────────────────────────────────────
+
+def _is_done(result) -> bool:
+    """True when result signals a terminal test-run state.
+
+    Handles both pipe-delimited text (state=terminal) and JSON ({"state": "terminal"}).
+    """
+    text = result.text or ""
+    if "state=terminal" in text:
+        return True
+    try:
+        import json
+        return json.loads(text).get("state") == "terminal"
+    except (json.JSONDecodeError, AttributeError):
+        return False
+
+
+# ─── Port extraction ─────────────────────────────────────────────────────────
+
+def _extract_port(argv: list[str]) -> tuple[int | None, list[str]]:
+    """Extract --port N or --port=N from argv.
+
+    Returns (port_or_None, filtered_argv_without_port_args).
+    """
+    out: list[str] = []
+    port: int | None = None
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--port" and i + 1 < len(argv):
+            try:
+                port = int(argv[i + 1])
+                i += 2
+                continue
+            except ValueError:
+                pass
+        elif a.startswith("--port="):
+            try:
+                port = int(a[7:])
+                i += 1
+                continue
+            except ValueError:
+                pass
+        out.append(a)
+        i += 1
+    return port, out
+
+
 # ─── BiomeCLI factory ────────────────────────────────────────────────────────
 
-def _build_cli():
-    """Build a configured BiomeCLI instance (cached).
+def _build_cli(cli_port: int | None = None):
+    """Build a configured BiomeCLI instance (cached when cli_port is None).
 
     Reuses the server's already-registered MCP instance so that calling
     register_all again with noop functions does not corrupt module-level
     _send/_args/_default globals shared by all tool modules.
     """
     global _cli_instance
-    if _cli_instance is not None:
+    if _cli_instance is not None and cli_port is None:
         return _cli_instance
 
-    from biome_mcp.cli import AppProfile, BiomeCLI
-    from biome_mcp.cli.provider import MCPToolProvider
+    from biome_mcp.cli import BiomeCLI
     from biome_mcp.cli.follow_policy import FollowPolicy
+    from biome_mcp.cli.provider import MCPToolProvider
+    from biome_mcp.cli.resolver import ConnectionResolver
+    import biome_mcp.transport.persistent as _persistent
     from unity_mcp import __version__
-    # Use the server's already-registered MCP — avoids a second register_all
-    # that would overwrite module-level _send/_args/_default in every tool module.
     from unity_mcp.server import mcp as server_mcp
 
-    profile = AppProfile(
-        app_name="unity-biome-mcp",
-        protocol="tcp",
-        default_port=DEFAULT_PORT,
-        default_host="127.0.0.1",
-        data_dir=unity_mcp_dir(),
-        env_aliases=(("UNITY_MCP_PORT", "port"), ("UNITY_MCP_HOST", "host")),
-    )
+    profile = _make_profile()
+    spec = ConnectionResolver(profile).resolve(cli_port=cli_port)
+
+    # Wire _on_connect into TcpSession for persistent --follow connections.
+    # Idempotent: skip if already patched (prevents double-wrap in test suites).
+    if not getattr(_persistent.TcpSession, "_unity_patched", False):
+        _orig = _persistent.TcpSession
+
+        class _TcpSessionWithHello(_orig):
+            def __init__(self, host, port, **kw):
+                kw.setdefault("on_connect", _on_connect)
+                super().__init__(host, port, **kw)
+
+        _TcpSessionWithHello._unity_patched = True
+        _persistent.TcpSession = _TcpSessionWithHello
 
     provider = MCPToolProvider(server_mcp)
 
@@ -83,14 +151,12 @@ def _build_cli():
         from unity_mcp.server import main as _server_main
         _server_main()
 
-    def _is_done(result):
-        return "state=terminal" in (result.text or "")
-
     cli = BiomeCLI(
         provider,
         name="unity-biome-mcp",
         version=__version__,
         serve=_serve,
+        spec=spec,
         follow=FollowPolicy(
             is_done=_is_done,
             interval_bounds=(3.0, 15.0),
@@ -99,29 +165,22 @@ def _build_cli():
         ),
     )
 
-    cli.add("configure", lambda rest: _cmd_configure(rest))
-    cli.add("doctor", lambda rest: _cmd_doctor(rest))
-    cli.add("version", lambda rest: _cmd_version(rest))
-    cli.add("uninstall", lambda rest: _cmd_uninstall(rest))
-    cli.add("port", lambda rest: _cmd_port(rest))
+    cli.add("configure", _cmd_configure)
+    cli.add("doctor", _cmd_doctor)
+    cli.add("version", _cmd_version)
+    cli.add("uninstall", _cmd_uninstall)
+    cli.add("port", _cmd_port)
 
-    _cli_instance = cli
+    if cli_port is None:
+        _cli_instance = cli
     return cli
 
 
 # ─── Legacy subcommand handlers ──────────────────────────────────────────────
 
 def _cmd_port(argv):
-    from biome_mcp.cli import AppProfile
     from biome_mcp.cli.resolver import ConnectionResolver
-    profile = AppProfile(
-        app_name="unity-biome-mcp",
-        default_port=DEFAULT_PORT,
-        default_host="127.0.0.1",
-        data_dir=unity_mcp_dir(),
-        env_aliases=(("UNITY_MCP_PORT", "port"),),
-    )
-    spec = ConnectionResolver(profile).resolve()
+    spec = ConnectionResolver(_make_profile()).resolve()
     print(spec.port)
     return 0
 
@@ -240,8 +299,9 @@ def main() -> None:
         from unity_mcp.server import main as _server_main
         _server_main()
         return
+    cli_port, argv = _extract_port(argv)
     try:
-        cli = _build_cli()
+        cli = _build_cli(cli_port=cli_port)
         cli.dispatch(argv)  # NoReturn — calls sys.exit
     except SystemExit:
         raise
