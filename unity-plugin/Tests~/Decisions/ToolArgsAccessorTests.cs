@@ -49,18 +49,18 @@ namespace UnityMCP.Decisions.Tests
         [Test]
         public void RequiredStr_accessor_throws_like_RequireString_oracle_when_missing_or_empty()
         {
-            Assert.Throws<ArgumentException>(() => AnimationArgs.Path("{}"));
-            Assert.Throws<ArgumentException>(() => AnimationArgs.Path("{\"path\":null}"));
-            Assert.Throws<ArgumentException>(() => AnimationArgs.Path("{\"path\":\"\"}"));
+            Assert.Throws<ArgumentException>(() => AnimationArgs.Action("{}"));
+            Assert.Throws<ArgumentException>(() => AnimationArgs.Action("{\"action\":null}"));
+            Assert.Throws<ArgumentException>(() => AnimationArgs.Action("{\"action\":\"\"}"));
         }
 
         [Test]
         public void RequiredStr_accessor_matches_RequireString_oracle_when_present()
         {
             AssertMatchesOracle(
-                j => JsonHelper.RequireString(j, "path"),
-                j => AnimationArgs.Path(j),
-                "{\"path\":\"/Player\"}", "{\"path\":\"Box\\\"Collider\"}");
+                j => JsonHelper.RequireString(j, "action"),
+                j => AnimationArgs.Action(j),
+                "{\"action\":\"get\"}", "{\"action\":\"create\"}");
         }
 
         // Any: set_property's "value" (ARG value Any) -- confirmed by every current C# caller using ExtractString.
