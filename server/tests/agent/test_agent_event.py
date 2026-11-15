@@ -235,7 +235,7 @@ def test_schema_drift():
     generated = AgentEvent.model_json_schema()
     committed = json.loads(_SCHEMA_PATH.read_text(encoding="utf-8"))
     assert generated == committed, (
-        "Schema drift detected. Run: python scripts/export_agent_schema.py --write"
+        "Schema drift detected. Run: python scripts/dev/export_agent_schema.py --write"
     )
 
 
