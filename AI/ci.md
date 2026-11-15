@@ -101,3 +101,5 @@ SonarCloud Code Analysis is an external quality gate. It fails independently of 
 ## 8. jscpd baseline is pinned
 
 `JSCPD_BASELINE_REF` in `ci-python.yml` is a pinned commit SHA. After bulk file moves or extractions that increase duplication count, bump the baseline to the commit that introduced the new clones.
+
+**After squash merge:** the baseline SHA from the feature branch disappears from master history. Update `JSCPD_BASELINE_REF` to the squash merge commit SHA on master immediately after merge.
