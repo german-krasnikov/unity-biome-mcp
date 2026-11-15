@@ -1,0 +1,17 @@
+name: Setup Python + Server
+description: Install Python and server[dev] dependencies
+
+inputs:
+  python-version:
+    description: Python version to install
+    default: "3.14"
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - shell: bash
+      run: pip install -e "server[dev]"

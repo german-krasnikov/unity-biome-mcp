@@ -62,9 +62,31 @@ permissions:
 
 jobs:
   test:
-    name: Pure dotnet test (PlaytestCore)
+    name: Pure dotnet test (${{ matrix.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: PlaytestCore
+            dir: Pure
+            csproj: UnityMCP.Playtest.Core.Tests.csproj
+          - name: AssemblyFreshness
+            dir: AssemblyFreshness
+            csproj: UnityMCP.AssemblyFreshness.Tests.csproj
+          - name: SourcePatchReadiness
+            dir: SourcePatchReadiness
+            csproj: UnityMCP.SourcePatchReadiness.Tests.csproj
+          - name: Decisions
+            dir: Decisions
+            csproj: UnityMCP.Decisions.Tests.csproj
+          - name: ChatTurn
+            dir: ChatTurn
+            csproj: ChatTurn.Tests.csproj
+          - name: PlaytestGrammar
+            dir: PlaytestGrammar
+            csproj: UnityMCP.Playtest.Grammar.Tests.csproj
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
@@ -73,38 +95,8 @@ jobs:
           dotnet-version: "6.0.x"
 
       - name: dotnet test
-        working-directory: unity-plugin/Tests~/Pure
-        run: dotnet test UnityMCP.Playtest.Core.Tests.csproj -c Release
-
-  assembly-freshness:
-    name: Pure dotnet test (AssemblyFreshness)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
-        with:
-          dotnet-version: "6.0.x"
-
-      - name: dotnet test
-        working-directory: unity-plugin/Tests~/AssemblyFreshness
-        run: dotnet test UnityMCP.AssemblyFreshness.Tests.csproj -c Release
-
-  source-patch-readiness:
-    name: Pure dotnet test (SourcePatchReadiness)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
-        with:
-          dotnet-version: "6.0.x"
-
-      - name: dotnet test
-        working-directory: unity-plugin/Tests~/SourcePatchReadiness
-        run: dotnet test UnityMCP.SourcePatchReadiness.Tests.csproj -c Release
+        working-directory: unity-plugin/Tests~/${{ matrix.dir }}
+        run: dotnet test ${{ matrix.csproj }} -c Release
 
   mutation-adapter-contract:
     name: Pure dotnet test (MutationAdapterContract)
@@ -137,48 +129,3 @@ jobs:
 
       - name: Seam-drift negative control
         run: python -m pytest scripts/tests/test_adapter_contract_seam_drift.py -v
-
-  decisions:
-    name: Pure dotnet test (Decisions)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
-        with:
-          dotnet-version: "6.0.x"
-
-      - name: dotnet test
-        working-directory: unity-plugin/Tests~/Decisions
-        run: dotnet test UnityMCP.Decisions.Tests.csproj -c Release
-
-  chat-turn:
-    name: Pure dotnet test (ChatTurn)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
-        with:
-          dotnet-version: "6.0.x"
-
-      - name: dotnet test
-        working-directory: unity-plugin/Tests~/ChatTurn
-        run: dotnet test ChatTurn.Tests.csproj -c Release
-
-  playtest-grammar:
-    name: Pure dotnet test (PlaytestGrammar)
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68  # v6.0.0
-        with:
-          dotnet-version: "6.0.x"
-
-      - name: dotnet test
-        working-directory: unity-plugin/Tests~/PlaytestGrammar
-        run: dotnet test UnityMCP.Playtest.Grammar.Tests.csproj -c Release
