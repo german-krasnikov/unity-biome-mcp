@@ -192,7 +192,9 @@ def _tool_signatures(repo_root: Path) -> dict[str, ToolSignature]:
     names = _tool_names(repo_root)
     signatures: dict[str, ToolSignature] = {}
     tools_root = repo_root / "server" / "src" / "unity_mcp" / "tools"
+    reload_root = repo_root / "server" / "src" / "unity_mcp" / "reload"
     source_paths = [*tools_root.glob("*.py"), *tools_root.glob("generated/*.py"),
+                    *reload_root.glob("*.py"),
                     repo_root / "server" / "src" / "unity_mcp" / "debug" / "snapshots.py"]
     for path in source_paths:
         tree = ast.parse(path.read_text(encoding="utf-8"))

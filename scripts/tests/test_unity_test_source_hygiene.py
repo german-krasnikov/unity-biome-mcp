@@ -578,7 +578,7 @@ def test_scene_region_tests_use_transactional_state_isolation() -> None:
 def test_client_slot_liveness_never_probes_handler_owned_socket_readiness() -> None:
     """Poll/Available races the handler read and can reset a live connection."""
     source = (
-        REPO_ROOT / "unity-plugin" / "Editor" / "ClientSlot.cs"
+        REPO_ROOT / "unity-plugin" / "Editor" / "Transport" / "ClientSlot.cs"
     ).read_text(encoding="utf-8")
 
     assert ".Poll(" not in source
