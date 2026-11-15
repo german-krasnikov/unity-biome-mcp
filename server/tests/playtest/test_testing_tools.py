@@ -180,7 +180,7 @@ async def test_resolve_test_request_sends_identity(testing_mod, _patch_send):
 
 
 async def test_get_test_run_sends_identity(testing_mod, _patch_send):
-    await testing_mod.get_test_run("run-1")
+    await testing_mod._fetch_test_run_json("run-1")
     _patch_send.assert_awaited_once_with("get_test_run", {"run_id": "run-1"})
 
 
@@ -188,7 +188,7 @@ async def test_get_test_run_tool_defaults_to_full_detail(testing_mod, _patch_sen
     """A27: only run_tests_wait's internal poll loop opts into compact=True
     (test_run_tests_wait_polls_with_compact_true). The human-facing get_test_run
     tool must keep sending full detail -- no "compact" key at all."""
-    await testing_mod.get_test_run("run-1")
+    await testing_mod._fetch_test_run_json("run-1")
     _patch_send.assert_awaited_once_with("get_test_run", {"run_id": "run-1"})
 
 
