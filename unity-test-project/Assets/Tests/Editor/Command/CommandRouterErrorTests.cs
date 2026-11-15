@@ -187,7 +187,7 @@ namespace UnityMCP.TestProject.Command
         [Test]
         public void FindObject_EmptyPath_ReturnsError()
         {
-            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("required"));
+            LogAssert.Expect(LogType.Warning, new System.Text.RegularExpressions.Regex("required", System.Text.RegularExpressions.RegexOptions.IgnoreCase));
             var json = "{\"id\":\"p2\",\"cmd\":\"get_component\",\"args\":{\"path\":\"\",\"type\":\"Transform\"}}";
             var result = CommandRouter.Process(json);
             StringAssert.Contains("\"ok\":false", result);
