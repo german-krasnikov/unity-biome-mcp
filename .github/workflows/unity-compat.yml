@@ -33,7 +33,7 @@ jobs:
       matrix:
         include:
           # ── Phase 1: boundary versions ──────────────────────────
-          - unity-version: '6000.0.86f1'
+          - unity-version: '6000.0.83f1'
             label: 'Unity 6.0 — baseline (#else branches)'
             test-mode: full
             phase: 1

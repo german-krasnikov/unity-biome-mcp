@@ -134,7 +134,7 @@ jobs:
         if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 30
         with:
-          unity-version: 6000.0.86f1
+          unity-version: 6000.0.83f1
           build-targets: ${{ matrix.build-target }}
           cache-installation: ${{ runner.os != 'Windows' }}
           hub-version: ${{ matrix.hub-version }}
