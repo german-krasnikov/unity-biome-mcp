@@ -185,15 +185,28 @@ Update the canonical page that owns a fact and link to it elsewhere. User
 guides should explain prerequisites, a copyable example, expected result, and
 recovery without duplicating the generated parameter reference.
 
-After editing the changelog, synchronize the package mirror from the repository
-root:
+### Using nox (preferred)
+
+```bash
+pip install nox                    # once
+nox -s preflight                   # lint + tests + readme/version checks
+nox -s docs_build                  # mkdocs build --strict
+nox -s readme_update               # regenerate README stats, badges, SVGs
+nox -s changelog_sync              # mirror CHANGELOG → unity-plugin/
+nox -s dotnet                      # all pure .NET test projects
+nox -l                             # list all sessions
+```
+
+### Manual equivalents
+
+After editing the changelog, synchronize the package mirror:
 
 ```bash
 server/.venv/bin/python scripts/sync_changelog.py
 server/.venv/bin/python scripts/sync_changelog.py --check
 ```
 
-Before committing generated facts, run:
+Before committing generated facts:
 
 ```bash
 server/.venv/bin/python scripts/update_readme.py --check-facts
