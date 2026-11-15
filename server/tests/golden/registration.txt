@@ -8,7 +8,7 @@
 #   always=0|1 compile=0|1 notbatch=0|1 playok=0|1 noundo=0|1 policy=0|1 max=<int> required=a,b optional=c,d
 alias_status kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=1 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=
 analyze_lod_culling kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=focus
-animation kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action,path optional=binding_path,clip,clip_name,compact,component_type,float_param,function_name,int_param,keys,property,string_param,tangent,time
+animation kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action optional=binding_path,clip,clip_name,compact,component_type,float_param,function_name,int_param,keys,path,property,string_param,tangent,time
 animator kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action,path optional=avatar_path,blend_type,blending,children,conditions,duration,edit_action,exit_time,has_exit_time,layer,name,param,param_y,params,source,state,states,target,type,value,weight
 ask_user kind=RegisterAsync mutating=0 runtime=0 special=0 filehandler=0 always=1 compile=1 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=questions
 asset kind=RegisterAction mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action optional=class,content,dest,folder,include_deps,labels,name,output,path,prop,recursive,source,type,value
@@ -82,7 +82,7 @@ move_to kind=RegisterAsync mutating=1 runtime=1 special=0 filehandler=0 always=0
 navmesh kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action optional=agentClimb,agentHeight,agentRadius,agentSlope,area_mask,center,from,max_distance,to
 object_diff kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=path_a,path_b optional=
 package kind=RegisterAsync mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=1 noundo=0 policy=0 max=0 required=action optional=name,query,version
-particle kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action,path optional=module,name,preset,prop,value
+particle kind=Register mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action optional=module,name,path,preset,prop,value
 ping kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=1 compile=1 notbatch=0 playok=0 noundo=0 policy=0 max=0 required= optional=
 ping_object kind=Register mutating=0 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=path optional=
 prefab kind=RegisterAction mutating=1 runtime=0 special=0 filehandler=0 always=0 compile=0 notbatch=0 playok=0 noundo=0 policy=0 max=0 required=action optional=add_component,asset_path,base_path,child_path,component,format,mode,parent,path,prop,recursive,remove_component,scope,value,variant_path

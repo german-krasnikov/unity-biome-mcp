@@ -54,7 +54,7 @@ KNOWN_DIVERGENT: dict[str, dict[str, str]] = {}
 # only in the hand-written C# literal (test_catalog_vs_csharp's concern); the catalog's own ARG shape (no DEFAULT ->
 # required) was already correct and unchanged, so it keeps disagreeing with this frozen golden regardless.
 for _name in ["ask_user", "get_component", "get_schema", "references", "render_analyze",
-              "run_tests", "scene_environment", "set_material", "timeline",
+              "run_tests", "scene_environment", "set_material",
               "validate_playtest_aliases"]:
     KNOWN_DIVERGENT.setdefault(_name, {})["required"] = "A1-DESIGN.md Sec 4: pre-existing ARG-name drift, A3's scope"
 # A3-DESIGN.md Sec 3 #16/#17/#25: profile/get_frame_stats/batch's remaining gaps (threshold_ms/include not generated
@@ -64,7 +64,7 @@ for _name in ["ask_user", "get_component", "get_schema", "references", "render_a
 for _name in ["ask_user", "asset", "batch", "get_component", "get_frame_stats",
               "get_schema", "inspect", "profile", "references", "render_analyze",
               "scene_environment", "set_material", "shader",
-              "timeline", "validate_playtest_aliases"]:
+              "validate_playtest_aliases"]:
     KNOWN_DIVERGENT.setdefault(_name, {})["optional"] = "A1-DESIGN.md Sec 4: pre-existing ARG-name drift, A3's scope"
 # A3-DESIGN.md Sec 3 #8/#9/#14/#29: catalog already declared these ARGs (DEFAULT-based, so always generated as
 # Optional); golden is a frozen pre-A1 C# snapshot that never listed them at all -- stays divergent regardless
