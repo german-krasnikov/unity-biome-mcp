@@ -200,3 +200,4 @@ unity-test-project-ro/Assets/InitTestScene*.unity*
 .tmp_top100_live.md
 reports/
 .nox/
+__pycache__.meta
