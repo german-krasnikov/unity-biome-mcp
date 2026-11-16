@@ -46,9 +46,10 @@ await reconnect_unity(port=9500)
 **Port discovery waterfall:**
 1. Explicit `port` param (if > 0)
 2. `UNITY_MCP_PORT` env var
-3. Live `.port` file whose project path best matches `UNITY_MCP_PROJECT_DIR`, `CLAUDE_PROJECT_DIR`, or the current working directory
-4. Newest live `.port` file
-5. Default: 9500
+3. `port` in `~/.unity-biome-mcp/cli-config.json`, when set
+4. Live `.port` file whose project path is the longest prefix of `UNITY_MCP_PROJECT_DIR`, `CLAUDE_PROJECT_DIR`, or the current working directory
+5. Otherwise the first live `.port` file in file-name order
+6. Default: 9500
 
 **Returns:** Connection status message or error.
 
@@ -214,7 +215,7 @@ await reconnect_unity()
    ```bash
    # Lists all active instances with ports
    ls -la ~/.unity-biome-mcp/ports/
-   cat ~/.unity-biome-mcp/ports/{PID}.port  # see port
+   cat ~/.unity-biome-mcp/ports/*.port  # file name = port; line 1 = Unity PID; line 2 = project path
    ```
 
 3. **Then reconnect:**

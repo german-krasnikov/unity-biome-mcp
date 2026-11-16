@@ -128,6 +128,25 @@ A successful turn shows a hierarchy tool call and a summary in the transcript.
 The Chat relay configures its own temporary MCP connection; it does not require
 an external client configuration. Continue with [Using MCP Chat](../chat/index.md).
 
+## Call Tools from a Terminal
+
+Use the CLI for quick checks and scripts. Keep the Unity project open with the plugin running. The examples assume `unity-biome-mcp` is on your `PATH`; otherwise use the `uvx --from ...` form shown above.
+
+```bash
+unity-biome-mcp port                                  # print the active Unity port
+unity-biome-mcp list --grep hierarchy                 # find tools by name or description
+unity-biome-mcp describe get_hierarchy                # show one tool's parameters
+unity-biome-mcp call get_hierarchy depth=1 summary=true
+unity-biome-mcp --port 9500 call get_compile_errors   # target a specific port
+```
+
+- Arguments are `key=value`. `true`, `false`, integers, and decimals are converted automatically.
+- `call --follow 10s` repeats the call at an interval (clamped to 3–15 seconds) until the response reports `state=terminal`, for example a finished test run. `--max-polls N` limits the number of polls.
+- `unity-biome-mcp help <command>` prints the usage for one command.
+- A call without a tool name exits with code 3.
+
+If `call` fails with `Connect call failed`, no Unity editor is listening on that port. Check that the project is open, then compare with `unity-biome-mcp port`.
+
 ## Diagnose a Failure
 
 Start in Unity:

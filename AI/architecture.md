@@ -304,7 +304,7 @@ Editor loses focus (e.g., Task Manager interaction) or during domain reload cycl
 restricted to GUI-only contexts (Chat/UI, Wizard, menu callbacks) via allowlist tests.
 
 **Atomic file writes:** Configuration, state, and test-run persistence files
-(`MCP_Port.json`, `{pid}.port`, editor state, wizard config, test-run store) use
+(`MCP_Port.json`, `{port}.port`, editor state, wizard config, test-run store) use
 `AtomicFile.Swap(path, content)` to atomically replace files via temp + `File.Replace`.
 This prevents data loss under concurrent file-locking scenarios (Windows OneDrive,
 antivirus, network paths). The atomic pattern is standard and maintains durability

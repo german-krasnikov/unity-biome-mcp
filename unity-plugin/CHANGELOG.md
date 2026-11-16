@@ -14,14 +14,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **CLI thin layer over biome-mcp:** `BiomeCLI`, `ConnectionResolver`, and `MCPToolProvider` from biome-mcp back the `unity-biome-mcp` CLI subcommands; no duplicate dispatch logic.
-- **Persistent `TcpSession` for CLI calls:** `call` and `--follow` reuse a single connection with auto-reconnect and `client_hello` handshake instead of connecting per call.
+- **CLI subcommands `list`, `describe`, `call`, `batch`, `port`, `help`, and `serve`:** `unity-biome-mcp call <tool> key=value ...` calls a Unity tool; `call --follow 10s` repeats the call until the result is terminal (interval clamped to 3–15 s). A global `--port N` flag selects the Unity port. The commands run on `BiomeCLI`, `MCPToolProvider`, and `ConnectionResolver` from biome-mcp; no duplicate dispatch logic.
+- **Persistent `TcpSession` for CLI calls:** `call`, `batch`, and `--follow` polling share one connection per process, with auto-reconnect and a `client_hello` handshake on each connect.
 
 ### Changed
 
-- **Port file format migrated to `{port}.port` with `pid\nproject_path` content:** `write_port_file` in biome-mcp accepts an optional `project_path` and writes it on line 2; `ConnectionResolver` uses it for project-path matching.
+- **Port file format migrated to `{port}.port`:** the file name is the Unity port. Line 1 is the Unity PID and line 2 is the project path; the Unity writer also appends the project name on line 3. `{port}.chat-port` is keyed by the chat port.
+- **Port discovery order:** env var, then the CLI config port, then the live `.port` file whose project path is the longest prefix of `UNITY_MCP_PROJECT_DIR`, `CLAUDE_PROJECT_DIR`, or the working directory, then the first live `.port` file in file-name order, then 9500. Earlier releases chose the newest `.port` file by modification time.
 - **Lockfile primitives delegated to biome-mcp:** `acquire_lock`, `release_lock`, `write_lock_metadata`, and `read_lock_metadata` are now thin wrappers or re-exports from `biome_mcp.lockfile`.
-- **C# stale-file cleanup delegated to Python `phantom_cleaner`:** Unity-side `.lock`/`.port` removal moved to the Python layer.
+- **Stale peer port-file cleanup moved to Python `phantom_cleaner`:** Unity no longer removes peer `.port` and `.chat-port` files at startup or every 30 seconds; the Python sweep owns that. Unity still cleans stale `.lock` files.
 - **`ConnectionResolver` project-path matching replaces `read_unity_port` internals:** port discovery now goes through `biome_mcp.cli.resolver.ConnectionResolver`.
 
 ## [v3.0.0] — 2026-11-15
