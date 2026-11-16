@@ -147,44 +147,41 @@ def _build_cli(cli_port: int | None = None):
         _persistent.TcpSession = _TcpSessionWithHello
 
     class _UnityProvider(MCPToolProvider):
-        """MCPToolProvider that routes call/batch via direct TCP to Unity.
+        """MCPToolProvider that routes call/batch via persistent TCP to Unity.
 
         list_tools/get_tool use the MCP catalog (metadata only).
-        call_tool_sync/async bypass the MCP pipeline and send commands
-        directly over TCP with client_hello handshake (P4: transport = native).
+        call_tool_sync/async use a persistent TcpSession with auto-reconnect
+        and client_hello handshake on each (re)connect (P4: transport = native).
         """
         def __init__(self, mcp, spec):
             super().__init__(mcp)
             self._spec = spec
+            self._session: _persistent.TcpSession | None = None
+
+        async def _ensure_session(self) -> _persistent.TcpSession:
+            w = self._session._writer if self._session else None
+            if w is None or w.is_closing():
+                if self._session:
+                    await self._session._close()
+                self._session = _persistent.TcpSession(
+                    self._spec.host, self._spec.port, on_connect=_on_connect,
+                )
+                await self._session._connect()
+            return self._session
 
         async def _call_async(self, name, args):
-            import asyncio
             import json
             import uuid
 
-            from biome_mcp.transport.framing import frame_read_with_timeout, frame_write
-            r, w = await asyncio.wait_for(
-                asyncio.open_connection(self._spec.host, self._spec.port), timeout=5.0
-            )
-            try:
-                frame_write(w, _build_hello())
-                await w.drain()
-                await frame_read_with_timeout(r, timeout=5.0)
-                msg_id = f"cli-{uuid.uuid4().hex[:8]}"
-                payload = json.dumps({"id": msg_id, "cmd": name, "args": args},
-                                     ensure_ascii=False).encode("utf-8")
-                frame_write(w, payload)
-                await w.drain()
-                raw = await frame_read_with_timeout(r, timeout=30.0)
-                resp = json.loads(raw)
-                if not resp.get("ok"):
-                    raise RuntimeError(resp.get("err", "unknown error"))
-                return resp.get("data", "")
-            finally:
-                w.close()
-                import contextlib
-                with contextlib.suppress(Exception):
-                    await w.wait_closed()
+            session = await self._ensure_session()
+            msg_id = f"cli-{uuid.uuid4().hex[:8]}"
+            payload = json.dumps({"id": msg_id, "cmd": name, "args": args},
+                                 ensure_ascii=False).encode("utf-8")
+            raw = await session.call(payload, timeout=30.0)
+            resp = json.loads(raw)
+            if not resp.get("ok"):
+                raise RuntimeError(resp.get("err", "unknown error"))
+            return resp.get("data", "")
 
     provider = _UnityProvider(server_mcp, spec)
 
