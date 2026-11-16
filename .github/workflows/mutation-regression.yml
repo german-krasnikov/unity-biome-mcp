@@ -54,13 +54,8 @@ jobs:
         include:
           - cell: min-macos-arm64
             runner: macos-15
-            hub-version: ''
           - cell: min-linux-x64
             runner: ubuntu-24.04
-            # pin: 3.20.0 regresses /opt/unityhub/unityhub path on Linux
-            # (issue #57) -- same pin already proven by unity-tests.yml /
-            # unity-compat.yml / ci-conformance.yml / fsr-qualification.yml.
-            hub-version: '3.19.5'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
@@ -111,7 +106,7 @@ jobs:
           restore-keys: |
             mutation-regression-upm-${{ matrix.cell }}-
 
-      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
+      - uses: buildalon/unity-setup@18c7d51d061b76c0a24598b6d422e7e9b770d9bb  # v3.0.4
         id: unity-setup
         # 75 min: launch ~7 min + Python lane ~25 min (measured 1485s live, see
         # PYTHON_LANE_TIMEOUT_SECONDS) + C# EditMode lanes + margin.
@@ -119,7 +114,6 @@ jobs:
         with:
           unity-version: ${{ steps.cell-version.outputs.unity_version }}
           cache-installation: true
-          hub-version: ${{ matrix.hub-version }}
 
       - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
         id: license

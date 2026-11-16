@@ -88,7 +88,7 @@ def test_workflow_cell_job_reuses_pinned_actions_from_fsr_qualification() -> Non
         "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
         "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
         "actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
-        "buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b",
+        "buildalon/unity-setup@18c7d51d061b76c0a24598b6d422e7e9b770d9bb",
         "buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af",
         "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
         "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
@@ -130,11 +130,11 @@ def test_workflow_unity_version_resolved_from_fsr_lock_u_min_window() -> None:
     assert 'lock["cells"]["u_min"]' in text
 
 
-def test_workflow_pins_linux_hub_version_matching_working_ci_lanes() -> None:
+def test_workflow_uses_buildalon_v3_without_hub_version() -> None:
+    """buildalon/unity-setup v3 uses unity-cli instead of Unity Hub."""
     data = _parsed()
     cells = data["jobs"]["cell"]["strategy"]["matrix"]["include"]
     for entry in cells:
-        if entry["runner"].startswith("macos"):
-            assert entry["hub-version"] == "", entry["cell"]
-        else:
-            assert entry["hub-version"] == "3.19.5", entry["cell"]
+        assert "hub-version" not in entry, f"{entry['cell']} still has hub-version"
+    text = _text()
+    assert "hub-version" not in text

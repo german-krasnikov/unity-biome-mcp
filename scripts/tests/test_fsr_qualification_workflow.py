@@ -111,7 +111,7 @@ def test_workflow_reuses_pinned_actions_from_existing_ci():
     for pinned in (
         "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1",
         "actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
-        "buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b",
+        "buildalon/unity-setup@18c7d51d061b76c0a24598b6d422e7e9b770d9bb",
         "buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af",
         "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
         "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
@@ -136,24 +136,15 @@ def test_workflow_license_secrets_reference_existing_repo_secrets():
     assert "secrets.UNITY_PASSWORD" in text
 
 
-def test_workflow_pins_linux_hub_version_matching_working_ci_lanes():
-    """Regression guard: the first matrix run failed 6x
-    INFRASTRUCTURE_BLOCKED on Linux with buildalon/unity-setup unable to
-    find /opt/unityhub/unityhub. unity-tests.yml/unity-compat.yml/
-    ci-conformance.yml all already work around this by pinning
-    hub-version: '3.19.5' on Linux only (3.20.0+ regresses that path,
-    issue #57) — this workflow must repeat that exact working pattern."""
+def test_workflow_uses_buildalon_v3_without_hub_version():
+    """buildalon/unity-setup v3 uses unity-cli instead of Unity Hub.
+    hub-version matrix entries must not exist (removed in the v2→v3 upgrade)."""
     data = _parsed()
     cells = data["jobs"]["cell"]["strategy"]["matrix"]["include"]
     for entry in cells:
-        if entry["runner"].startswith("macos"):
-            assert entry["hub-version"] == "", entry["cell"]
-        else:
-            assert entry["hub-version"] == "3.19.5", entry["cell"]
-    unity_setup = next(
-        step for step in data["jobs"]["cell"]["steps"] if step.get("id") == "unity-setup"
-    )
-    assert unity_setup["with"]["hub-version"] == "${{ matrix.hub-version }}"
+        assert "hub-version" not in entry, f"{entry['cell']} still has hub-version"
+    text = _text()
+    assert "hub-version" not in text
 
 
 def test_workflow_checkout_steps_fetch_full_history():

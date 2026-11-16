@@ -109,7 +109,7 @@ jobs:
           restore-keys: |
             upm-compat-${{ matrix.unity-version }}-
 
-      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
+      - uses: buildalon/unity-setup@18c7d51d061b76c0a24598b6d422e7e9b770d9bb  # v3.0.4
         id: unity-setup
         if: env.HAS_UNITY_SECRETS == 'true'
         timeout-minutes: 30
@@ -118,7 +118,6 @@ jobs:
           unity-version: ${{ matrix.unity-version }}
           build-targets: StandaloneLinux64
           cache-installation: true
-          hub-version: '3.19.5'  # pin: 3.20.0 regresses /opt/unityhub/unityhub path on Linux (issue #57)
 
       - name: Skip if Unity setup failed
         if: steps.unity-setup.outcome == 'failure'
