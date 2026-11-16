@@ -155,38 +155,30 @@ def test_read_reload_port_multiple_candidates_picks_newest_alive(tmp_path):
 # TC-7 — read_unity_port: CWD prefix match beats newer mtime
 # ---------------------------------------------------------------------------
 
-def test_read_unity_port_cwd_prefix_wins_over_mtime(tmp_path):
-    """Two Unity instances: one with newer mtime, one matching CWD → CWD wins."""
-    ports_dir = tmp_path / "ports"
-    ports_dir.mkdir()
+def test_read_unity_port_cwd_prefix_wins_over_alphabetical(tmp_path):
+    """Two Unity instances: second alphabetically but CWD-matching → CWD wins."""
+    from pathlib import Path
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
 
-    # New format: stem=port, content[0]=pid
-    # Newer mtime but different project path
+    # 9500 comes first alphabetically but doesn't match CWD
     other = ports_dir / "9500.port"
     other.write_text("11111\n/other/project\nOther\n", encoding="utf-8")
-    os.utime(other, (200, 200))
 
-    # Older mtime but CWD-matching path
+    # 9501 comes second alphabetically but matches CWD
     mine = ports_dir / "9501.port"
     mine.write_text("22222\n/my/project\nMy\n", encoding="utf-8")
-    os.utime(mine, (100, 100))
 
-    def is_alive(pid):
-        return True
-
-    with patch("unity_mcp.server_filtering._ports_dir", return_value=ports_dir), \
-         patch("unity_mcp.server_filtering._iter_port_files",
-               side_effect=lambda p, d: d.glob(p)), \
-         patch("unity_mcp.server_filtering._is_pid_alive", side_effect=is_alive), \
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("biome_mcp.cli.resolver.is_pid_alive", return_value=True), \
          patch.dict(os.environ, {}, clear=False), \
          patch("os.getcwd", return_value="/my/project/subdir"):
-        # Remove env overrides that could bypass CWD selection
         os.environ.pop("UNITY_MCP_PORT", None)
         os.environ.pop("UNITY_MCP_PROJECT_DIR", None)
         os.environ.pop("CLAUDE_PROJECT_DIR", None)
         result = read_unity_port()
 
-    assert result == 9501, "CWD-matching project must be selected over newer mtime"
+    assert result == 9501, "CWD-matching project must be selected over alphabetically first"
 
 
 # ---------------------------------------------------------------------------
@@ -198,14 +190,13 @@ def test_read_unity_port_skip_probe_returns_none_no_candidates(tmp_path):
 
     Bridge uses skip_probe=True during reconnect to avoid spurious port drift.
     """
-    ports_dir = tmp_path / "ports"
-    ports_dir.mkdir()
+    from pathlib import Path
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
     (ports_dir / "99999.port").write_text("9500\n/proj\n", encoding="utf-8")
 
-    with patch("unity_mcp.server_filtering._ports_dir", return_value=ports_dir), \
-         patch("unity_mcp.server_filtering._iter_port_files",
-               side_effect=lambda p, d: d.glob(p)), \
-         patch("unity_mcp.server_filtering._is_pid_alive", return_value=False), \
+    with patch.object(Path, "home", return_value=tmp_path), \
+         patch("biome_mcp.cli.resolver.is_pid_alive", return_value=False), \
          patch.dict(os.environ, {}, clear=False):
         os.environ.pop("UNITY_MCP_PORT", None)
         result = read_unity_port(skip_probe=True)

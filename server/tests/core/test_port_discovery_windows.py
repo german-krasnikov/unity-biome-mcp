@@ -92,7 +92,7 @@ def test_read_unity_port_windows_forward_slash_project_path(monkeypatch, tmp_pat
 
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     # mock at abstraction level — works on all platforms (Windows uses ctypes, not os.kill)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     # getcwd returns native-sep path (normpath handles either form on same OS)
     monkeypatch.setattr("os.getcwd", lambda: str(tmp_path / "MyProject" / "Assets"))
 

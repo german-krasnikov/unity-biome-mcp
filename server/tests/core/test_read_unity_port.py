@@ -18,20 +18,18 @@ def _mock_tcp_probe():
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _make_port_file(ports_dir, pid: int, port: int, project: str = "MyProject", mtime: float = 1000.0):
-    """Write a <port>.port file (new format: stem=port, content[0]=pid)."""
+def _make_port_file(ports_dir, pid: int, port: int, project: str = "MyProject"):
+    """Write a <port>.port file (stem=port, content[0]=pid)."""
     f = ports_dir / f"{port}.port"
     f.write_text(f"{pid}\n\n{project}\n", encoding="utf-8")
-    os.utime(f, (mtime, mtime))
     return f
 
 
 def _make_port_file_with_path(ports_dir, pid: int, port: int, project_path: str,
-                               project: str = "MyProject", mtime: float = 1000.0):
-    """Write a <port>.port file with project path on line 2 (new format: stem=port, content[0]=pid)."""
+                               project: str = "MyProject"):
+    """Write a <port>.port file with project path on line 2."""
     f = ports_dir / f"{port}.port"
     f.write_text(f"{pid}\n{project_path}\n{project}\n", encoding="utf-8")
-    os.utime(f, (mtime, mtime))
     return f
 
 
@@ -41,7 +39,6 @@ def _make_port_file_with_path(ports_dir, pid: int, port: int, project_path: str,
 
 def test_env_override_returns_that_port(monkeypatch, tmp_path):
     monkeypatch.setenv("UNITY_MCP_PORT", "9999")
-    # Even if ports_dir exists with valid files, env wins
     assert _read_unity_port() == 9999
 
 
@@ -63,7 +60,6 @@ def test_env_override_non_numeric_falls_through(monkeypatch, tmp_path):
 
 def test_fallback_default_when_no_dir(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    # Point home to tmp_path so ~/.unity-biome-mcp/ports never exists
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     assert _read_unity_port() == 9500
 
@@ -86,80 +82,43 @@ def test_single_live_lockfile_returns_port(monkeypatch, tmp_path):
     ports_dir.mkdir(parents=True)
     _make_port_file(ports_dir, pid=1234, port=9501, project="Game")
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    # mock at the abstraction level so it works on all platforms (Windows uses ctypes, not os.kill)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    result = _read_unity_port()
-    assert result == 9501
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
+    assert _read_unity_port() == 9501
 
 
 # ---------------------------------------------------------------------------
-# mtime sort: newest lockfile wins
+# Stale PID — skipped (file not removed by shim; phantom_cleaner handles that)
 # ---------------------------------------------------------------------------
 
-def test_newest_lockfile_wins(monkeypatch, tmp_path):
+def test_dead_pid_skipped_returns_default(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    _make_port_file(ports_dir, pid=100, port=9600, mtime=500.0)   # older
-    _make_port_file(ports_dir, pid=200, port=9700, mtime=1500.0)  # newer
+    _make_port_file(ports_dir, pid=9999, port=9501)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    assert _read_unity_port() == 9700
-
-
-def test_oldest_lockfile_loses(monkeypatch, tmp_path):
-    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    _make_port_file(ports_dir, pid=100, port=9600, mtime=2000.0)  # newer
-    _make_port_file(ports_dir, pid=200, port=9700, mtime=100.0)   # older
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    assert _read_unity_port() == 9600
-
-
-# ---------------------------------------------------------------------------
-# Stale PID — ProcessLookupError → file removed, skipped
-# ---------------------------------------------------------------------------
-
-def test_dead_pid_process_lookup_error_skips_and_removes(monkeypatch, tmp_path):
-    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    f = _make_port_file(ports_dir, pid=9999, port=9501)
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    # is_pid_alive returns False → dead PID → file removed, port skipped
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: False)
-    result = _read_unity_port()
-    assert result == 9500        # fell through to default
-    assert not f.exists()        # file was cleaned up
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: False)
+    assert _read_unity_port() == 9500
 
 
 def test_permission_error_keeps_file_as_live_candidate(monkeypatch, tmp_path):
-    """is_pid_alive returns True (alive, different user) — keep file."""
+    """is_pid_alive returns True (alive, different user) — port is valid candidate."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    f = _make_port_file(ports_dir, pid=9998, port=9502)
+    _make_port_file(ports_dir, pid=9998, port=9502)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    # is_pid_alive returns True → process alive → port is valid candidate
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    result = _read_unity_port()
-    assert result == 9502  # process alive — port is valid candidate
-    assert f.exists()      # file NOT deleted
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
+    assert _read_unity_port() == 9502
 
 
-def test_dead_pid_os_error_skips_and_removes(monkeypatch, tmp_path):
+def test_dead_pid_all_gone_returns_default(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    f = _make_port_file(ports_dir, pid=9997, port=9503)
+    _make_port_file(ports_dir, pid=9997, port=9503)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    # is_pid_alive returns False → dead PID → file removed, port skipped
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: False)
-    result = _read_unity_port()
-    assert result == 9500
-    assert not f.exists()
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: False)
+    assert _read_unity_port() == 9500
 
 
 # ---------------------------------------------------------------------------
@@ -170,19 +129,15 @@ def test_mixed_dead_and_live_returns_live_port(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    dead_file = _make_port_file(ports_dir, pid=7777, port=9800, mtime=2000.0)
-    _make_port_file(ports_dir, pid=8888, port=9801, mtime=1000.0)
-
+    _make_port_file(ports_dir, pid=7777, port=9800)
+    _make_port_file(ports_dir, pid=8888, port=9801)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    # 7777 is dead, 8888 is alive — works on all platforms (no os.kill)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: pid != 7777)
-    result = _read_unity_port()
-    assert result == 9801        # only live candidate
-    assert not dead_file.exists()
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: pid != 7777)
+    assert _read_unity_port() == 9801
 
 
 # ---------------------------------------------------------------------------
-# Malformed file: ValueError on int parse → skipped/removed
+# Malformed file: non-integer stem → skipped
 # ---------------------------------------------------------------------------
 
 def test_malformed_port_file_skipped(monkeypatch, tmp_path):
@@ -192,103 +147,12 @@ def test_malformed_port_file_skipped(monkeypatch, tmp_path):
     bad = ports_dir / "notanint.port"
     bad.write_text("broken\n", encoding="utf-8")
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    # int(lines[0]) where lines[0]="broken" → ValueError → skip
-    assert _read_unity_port() == 9500
-
-
-def test_malformed_blank_second_line_does_not_shift_fields(monkeypatch, tmp_path):
-    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    cwd = tmp_path / "GoodProject"
-    cwd_matches = cwd / "Assets"
-    bad = ports_dir / "9600.port"
-    bad.write_text(f"1111\n\n{cwd}\nProjectName\n", encoding="utf-8")
-    _make_port_file_with_path(ports_dir, pid=2222, port=9601, project_path=str(tmp_path / "OtherProject"), mtime=2000.0)
-    os.utime(bad, (1000.0, 1000.0))
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("os.getcwd", lambda: str(cwd_matches))
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    # Without index shifting, the malformed file should lose cwd matching and fallback to 9601.
-    assert _read_unity_port() == 9601
-
-
-def test_blank_second_line_with_project_dir_falls_back_to_latest_valid_port(monkeypatch, tmp_path):
-    """Project-aware selection never uses a blank second line as a real project path."""
-    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
-    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-
-    bad_project = str(tmp_path / "ExpectedProject")
-    good_project = str(tmp_path / "FreshProject")
-    bad = ports_dir / "9600.port"
-    good = ports_dir / "9601.port"
-
-    bad.write_text(f"1111\n\n{bad_project}\nBadProject\n", encoding="utf-8")
-    good.write_text(f"2222\n{good_project}\nGoodProject\n", encoding="utf-8")
-    os.utime(bad, (1000.0, 1000.0))
-    os.utime(good, (2000.0, 2000.0))
-
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("os.getcwd", lambda: bad_project)
-    monkeypatch.setenv("UNITY_MCP_PROJECT_DIR", good_project)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-
-    # Blank 2nd line should be treated as invalid; fallback must pick 9601.
-    assert _read_unity_port() == 9601
-
-
-def test_empty_port_line_is_skipped(monkeypatch, tmp_path):
-    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    bad = ports_dir / "1234.port"
-    bad.write_text(f"\n{tmp_path / 'Project'}\nMyProject\n", encoding="utf-8")
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    assert _read_unity_port() == 9500
-
-
-def test_oversized_port_line_is_skipped(monkeypatch, tmp_path):
-    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    oversized = "9" * 80
-    bad = ports_dir / "1234.port"
-    bad.write_text(f"{oversized}\n/some/project\nMyProject\n", encoding="utf-8")
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    assert _read_unity_port() == 9500
-
-
-def test_partial_port_file_is_skipped(monkeypatch, tmp_path):
-    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    bad = ports_dir / "1234.port"
-    bad.write_bytes(("9500\n" + ("x" * 9000)).encode("utf-8"))
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    assert _read_unity_port() == 9500
-
-
-def test_malformed_port_content_skipped(monkeypatch, tmp_path):
-    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
-    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
-    ports_dir.mkdir(parents=True)
-    bad = ports_dir / "1234.port"
-    bad.write_text("notaport\n", encoding="utf-8")
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    # int("notaport") → ValueError → skip
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     assert _read_unity_port() == 9500
 
 
 # ---------------------------------------------------------------------------
-# project field: missing third line falls back to "?"
-# (doesn't affect port selection, just verify no crash)
+# project field: missing third line doesn't crash
 # ---------------------------------------------------------------------------
 
 def test_lockfile_without_project_line(monkeypatch, tmp_path):
@@ -296,9 +160,9 @@ def test_lockfile_without_project_line(monkeypatch, tmp_path):
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     f = ports_dir / "9505.port"
-    f.write_text("5555\n", encoding="utf-8")  # stem=port=9505, content[0]=pid=5555
+    f.write_text("5555\n", encoding="utf-8")
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     assert _read_unity_port() == 9505
 
 
@@ -307,51 +171,48 @@ def test_lockfile_without_project_line(monkeypatch, tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_cwd_exact_match_project_root(monkeypatch, tmp_path):
-    """CWD is exactly the project root (not a subdir) — still matches."""
+    """CWD is exactly the project root — still matches."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_a = str(tmp_path / "ProjectA")
     project_b = str(tmp_path / "ProjectB")
-    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_a, mtime=500.0)
-    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_b, mtime=2000.0)
+    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_a)
+    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_b)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     monkeypatch.setattr("os.getcwd", lambda: project_a)
     assert _read_unity_port() == 9500
 
 
 def test_cwd_match_returns_matching_project_port(monkeypatch, tmp_path):
-    """CWD inside project dir → returns that port even if another has newer mtime."""
+    """CWD inside project dir → returns that port even if another port file exists."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_a = str(tmp_path / "ProjectA")
     project_b = str(tmp_path / "ProjectB")
-    # Project B has newer mtime — would win without CWD matching
-    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_a, mtime=500.0)
-    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_b, mtime=2000.0)
+    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_a)
+    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_b)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    # CWD is inside project A
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     monkeypatch.setattr("os.getcwd", lambda: project_a + "/Assets/Scripts")
     assert _read_unity_port() == 9500
 
 
-def test_cwd_no_match_falls_back_to_mtime(monkeypatch, tmp_path):
-    """CWD doesn't match any project → falls back to newest mtime."""
+def test_cwd_no_match_returns_first_alphabetically(monkeypatch, tmp_path):
+    """CWD doesn't match any project → first alphabetically alive port file wins."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_a = str(tmp_path / "ProjectA")
     project_b = str(tmp_path / "ProjectB")
-    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_a, mtime=500.0)
-    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_b, mtime=2000.0)
+    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_a)
+    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_b)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    # CWD is somewhere unrelated
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     monkeypatch.setattr("os.getcwd", lambda: str(tmp_path / "OtherDir"))
-    assert _read_unity_port() == 9501  # newest mtime wins
+    assert _read_unity_port() == 9500  # first alphabetically
 
 
 def test_cwd_nested_projects_prefers_longest_match(monkeypatch, tmp_path):
@@ -360,32 +221,27 @@ def test_cwd_nested_projects_prefers_longest_match(monkeypatch, tmp_path):
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     project_root = str(tmp_path / "Workspace")
-    project_sub  = str(tmp_path / "Workspace" / "SubProject")
-    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_root, mtime=2000.0)
-    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_sub,  mtime=500.0)
+    project_sub = str(tmp_path / "Workspace" / "SubProject")
+    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_root)
+    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_sub)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    # CWD is inside the sub-project (both match, longest wins)
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     monkeypatch.setattr("os.getcwd", lambda: project_sub + "/Assets")
     assert _read_unity_port() == 9501
 
 
 # ---------------------------------------------------------------------------
-# RC-4: skip_probe bypasses TCP check
+# skip_probe: does not call TCP probe in either mode
 # ---------------------------------------------------------------------------
 
-def test_skip_probe_true_returns_port_without_tcp_check(monkeypatch, tmp_path):
-    """skip_probe: PID-alive candidate always included — _tcp_probe removed to stop Unity console spam.
-    Previously skip_probe=False caused the candidate to be TCP-probed and skipped on failure.
-    Now the probe is gone; PID liveness is the only gate in both modes.
-    skip_probe=False still controls the no-candidates fallback (None vs 9500).
-    """
+def test_skip_probe_does_not_call_tcp_probe(monkeypatch, tmp_path):
+    """TCP probe is never called — PID liveness is the only gate."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     _make_port_file(ports_dir, pid=1111, port=9510)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     probe_calls = []
 
     def fail_probe(port, timeout=0.2):
@@ -393,14 +249,20 @@ def test_skip_probe_true_returns_port_without_tcp_check(monkeypatch, tmp_path):
         return False
 
     monkeypatch.setattr("unity_mcp.server_filtering._tcp_probe", fail_probe)
-    # Probe is never called — candidate included in both modes
     assert _read_unity_port(skip_probe=False) == 9510
     assert _read_unity_port(skip_probe=True) == 9510
-    assert not probe_calls  # probe was never called
+    assert not probe_calls
+
+
+def test_skip_probe_true_returns_none_when_no_candidates(monkeypatch, tmp_path):
+    """skip_probe=True returns None when no port files found (no silent 9500 drift)."""
+    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    assert _read_unity_port(skip_probe=True) is None
 
 
 # ---------------------------------------------------------------------------
-# Phase 3: UNITY_MCP_PROJECT_DIR / CLAUDE_PROJECT_DIR env vars
+# UNITY_MCP_PROJECT_DIR / CLAUDE_PROJECT_DIR env vars
 # ---------------------------------------------------------------------------
 
 def test_read_unity_port_uses_unity_mcp_project_dir(monkeypatch, tmp_path):
@@ -411,12 +273,10 @@ def test_read_unity_port_uses_unity_mcp_project_dir(monkeypatch, tmp_path):
     ports_dir.mkdir(parents=True)
     project_a = str(tmp_path / "ProjectA")
     project_b = str(tmp_path / "ProjectB")
-    # ProjectA has older mtime — would lose without project dir matching
-    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_a, mtime=500.0)
-    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_b, mtime=2000.0)
+    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_a)
+    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_b)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    # CWD is unrelated, but UNITY_MCP_PROJECT_DIR points to ProjectA
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     monkeypatch.setattr("os.getcwd", lambda: str(tmp_path / "SomeOtherDir"))
     monkeypatch.setenv("UNITY_MCP_PROJECT_DIR", project_a)
     assert _read_unity_port() == 9500
@@ -430,17 +290,17 @@ def test_read_unity_port_falls_back_to_claude_project_dir(monkeypatch, tmp_path)
     ports_dir.mkdir(parents=True)
     project_a = str(tmp_path / "ProjectA")
     project_b = str(tmp_path / "ProjectB")
-    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_a, mtime=500.0)
-    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_b, mtime=2000.0)
+    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_a)
+    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_b)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     monkeypatch.setattr("os.getcwd", lambda: str(tmp_path / "SomeOtherDir"))
     monkeypatch.setenv("CLAUDE_PROJECT_DIR", project_a)
     assert _read_unity_port() == 9500
 
 
 def test_read_unity_port_falls_back_to_cwd(monkeypatch, tmp_path):
-    """Neither env var set → uses getcwd() as before (backward compat)."""
+    """Neither env var set → uses getcwd() (backward compat)."""
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     monkeypatch.delenv("UNITY_MCP_PROJECT_DIR", raising=False)
     monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
@@ -448,11 +308,10 @@ def test_read_unity_port_falls_back_to_cwd(monkeypatch, tmp_path):
     ports_dir.mkdir(parents=True)
     project_a = str(tmp_path / "ProjectA")
     project_b = str(tmp_path / "ProjectB")
-    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_a, mtime=500.0)
-    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_b, mtime=2000.0)
+    _make_port_file_with_path(ports_dir, pid=100, port=9500, project_path=project_a)
+    _make_port_file_with_path(ports_dir, pid=200, port=9501, project_path=project_b)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
-    # CWD inside ProjectA → should match ProjectA despite older mtime
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     monkeypatch.setattr("os.getcwd", lambda: project_a + "/Assets")
     assert _read_unity_port() == 9500
 
@@ -466,14 +325,13 @@ def test_read_unity_port_project_dir_matches_correct_of_three(monkeypatch, tmp_p
     proj_a = str(tmp_path / "ProjA")
     proj_b = str(tmp_path / "ProjB")
     proj_c = str(tmp_path / "ProjC")
-    _make_port_file_with_path(ports_dir, pid=101, port=9600, project_path=proj_a, mtime=3000.0)
-    _make_port_file_with_path(ports_dir, pid=102, port=9601, project_path=proj_b, mtime=2000.0)
-    _make_port_file_with_path(ports_dir, pid=103, port=9602, project_path=proj_c, mtime=1000.0)
+    _make_port_file_with_path(ports_dir, pid=101, port=9600, project_path=proj_a)
+    _make_port_file_with_path(ports_dir, pid=102, port=9601, project_path=proj_b)
+    _make_port_file_with_path(ports_dir, pid=103, port=9602, project_path=proj_c)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     monkeypatch.setattr("os.getcwd", lambda: str(tmp_path / "Unrelated"))
     monkeypatch.setenv("UNITY_MCP_PROJECT_DIR", proj_b)
-    # ProjectB is middle — newest is A (9600), but env var selects B (9601)
     assert _read_unity_port() == 9601
 
 
@@ -484,13 +342,13 @@ def test_read_unity_port_empty_unity_mcp_project_dir_falls_through(monkeypatch, 
     ports_dir.mkdir(parents=True)
     proj_a = str(tmp_path / "ProjA")
     proj_b = str(tmp_path / "ProjB")
-    _make_port_file_with_path(ports_dir, pid=101, port=9600, project_path=proj_a, mtime=2000.0)
-    _make_port_file_with_path(ports_dir, pid=102, port=9601, project_path=proj_b, mtime=1000.0)
+    _make_port_file_with_path(ports_dir, pid=101, port=9600, project_path=proj_a)
+    _make_port_file_with_path(ports_dir, pid=102, port=9601, project_path=proj_b)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     monkeypatch.setattr("os.getcwd", lambda: str(tmp_path / "Unrelated"))
-    monkeypatch.setenv("UNITY_MCP_PROJECT_DIR", "")   # empty → falls through
-    monkeypatch.setenv("CLAUDE_PROJECT_DIR", proj_b)  # next level picks this up
+    monkeypatch.setenv("UNITY_MCP_PROJECT_DIR", "")
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", proj_b)
     assert _read_unity_port() == 9601
 
 
@@ -501,12 +359,29 @@ def test_read_unity_port_unity_mcp_project_dir_priority_over_claude(monkeypatch,
     ports_dir.mkdir(parents=True)
     proj_a = str(tmp_path / "ProjA")
     proj_b = str(tmp_path / "ProjB")
-    _make_port_file_with_path(ports_dir, pid=101, port=9600, project_path=proj_a, mtime=2000.0)
-    _make_port_file_with_path(ports_dir, pid=102, port=9601, project_path=proj_b, mtime=1000.0)
+    _make_port_file_with_path(ports_dir, pid=101, port=9600, project_path=proj_a)
+    _make_port_file_with_path(ports_dir, pid=102, port=9601, project_path=proj_b)
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     monkeypatch.setattr("os.getcwd", lambda: str(tmp_path / "Unrelated"))
-    monkeypatch.setenv("UNITY_MCP_PROJECT_DIR", proj_b)  # B: older, lower port
-    monkeypatch.setenv("CLAUDE_PROJECT_DIR", proj_a)      # A: newer, higher mtime
-    # UNITY_MCP_PROJECT_DIR wins → 9601 (ProjB)
+    monkeypatch.setenv("UNITY_MCP_PROJECT_DIR", proj_b)
+    monkeypatch.setenv("CLAUDE_PROJECT_DIR", proj_a)
+    assert _read_unity_port() == 9601
+
+
+def test_blank_second_line_project_dir_selects_valid_port(monkeypatch, tmp_path):
+    """UNITY_MCP_PROJECT_DIR selects port whose project_path matches; blank line loses."""
+    monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
+    monkeypatch.delenv("CLAUDE_PROJECT_DIR", raising=False)
+    ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
+    ports_dir.mkdir(parents=True)
+    good_project = str(tmp_path / "FreshProject")
+    bad = ports_dir / "9600.port"
+    good = ports_dir / "9601.port"
+    bad.write_text("1111\n\nBadProject\n", encoding="utf-8")   # blank line 2 → no project_path
+    good.write_text(f"2222\n{good_project}\nGoodProject\n", encoding="utf-8")
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
+    monkeypatch.setattr("os.getcwd", lambda: str(tmp_path / "Unrelated"))
+    monkeypatch.setenv("UNITY_MCP_PROJECT_DIR", good_project)
     assert _read_unity_port() == 9601

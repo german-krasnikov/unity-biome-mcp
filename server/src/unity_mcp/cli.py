@@ -25,7 +25,7 @@ def _make_profile():
         default_port=DEFAULT_PORT,
         default_host="127.0.0.1",
         data_dir=unity_mcp_dir(),
-        env_aliases=(("UNITY_MCP_PORT", "port"), ("UNITY_MCP_HOST", "host")),
+        env_aliases=(("UNITY_MCP_PORT", "PORT"), ("UNITY_MCP_HOST", "HOST")),
     )
 
 

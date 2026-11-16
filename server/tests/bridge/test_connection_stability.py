@@ -361,26 +361,25 @@ async def test_pin_bypass_when_pid_none():
 # B3: No silent 9500 from read_unity_port(skip_probe=True)
 # ---------------------------------------------------------------------------
 
-def test_read_unity_port_skip_probe_returns_none_when_no_candidates():
+def test_read_unity_port_skip_probe_returns_none_when_no_candidates(tmp_path):
     """B3: skip_probe=True + zero live candidates → None (not 9500)."""
+    from pathlib import Path
     from unity_mcp.server_filtering import read_unity_port
 
-    # No port files at all
-    with patch("unity_mcp.server_filtering._ports_dir") as mock_dir:
-        mock_dir.glob.return_value = []
+    # No port files — point home to empty tmp_path
+    with patch.object(Path, "home", return_value=tmp_path):
         result = read_unity_port(skip_probe=True)
 
     assert result is None, \
         f"Expected None when no candidates, got {result}"
 
 
-def test_read_unity_port_cold_start_returns_9500():
+def test_read_unity_port_cold_start_returns_9500(tmp_path):
     """B3: cold-start (skip_probe=False) → fallback to 9500 (backward compat)."""
+    from pathlib import Path
     from unity_mcp.server_filtering import read_unity_port
 
-    with patch("unity_mcp.server_filtering._ports_dir") as mock_dir, \
-         patch("unity_mcp.server_filtering._tcp_probe", return_value=False):
-        mock_dir.glob.return_value = []
+    with patch.object(Path, "home", return_value=tmp_path):
         result = read_unity_port(skip_probe=False)
 
     assert result == 9500, \
@@ -435,9 +434,7 @@ def test_doctor_resolve_port_returns_9500_on_none():
     from unity_mcp import doctor
 
     # read_unity_port is imported lazily inside _resolve_port, patch at source module
-    with patch("unity_mcp.server_filtering.read_unity_port", return_value=None), \
-         patch("unity_mcp.server_filtering._ports_dir") as mock_dir:
-        mock_dir.glob.return_value = []
+    with patch("unity_mcp.server_filtering.read_unity_port", return_value=None):
         result = doctor._resolve_port(0)
 
     assert result == 9500, \
