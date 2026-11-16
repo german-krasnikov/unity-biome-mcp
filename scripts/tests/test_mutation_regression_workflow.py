@@ -134,7 +134,7 @@ def test_workflow_pins_linux_hub_version_matching_working_ci_lanes() -> None:
     data = _parsed()
     cells = data["jobs"]["cell"]["strategy"]["matrix"]["include"]
     for entry in cells:
-        if entry["runner"].startswith("ubuntu-"):
-            assert entry["hub-version"] == "3.19.5", entry["cell"]
-        else:
+        if entry["runner"].startswith("macos"):
             assert entry["hub-version"] == "", entry["cell"]
+        else:
+            assert entry["hub-version"] == "3.19.5", entry["cell"]

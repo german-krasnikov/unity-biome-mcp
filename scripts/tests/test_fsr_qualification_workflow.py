@@ -146,10 +146,10 @@ def test_workflow_pins_linux_hub_version_matching_working_ci_lanes():
     data = _parsed()
     cells = data["jobs"]["cell"]["strategy"]["matrix"]["include"]
     for entry in cells:
-        if entry["runner"].startswith("ubuntu-"):
-            assert entry["hub-version"] == "3.19.5", entry["cell"]
-        else:
+        if entry["runner"].startswith("macos"):
             assert entry["hub-version"] == "", entry["cell"]
+        else:
+            assert entry["hub-version"] == "3.19.5", entry["cell"]
     unity_setup = next(
         step for step in data["jobs"]["cell"]["steps"] if step.get("id") == "unity-setup"
     )
