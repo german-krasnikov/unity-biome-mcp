@@ -222,7 +222,7 @@ Codex synchronization.
 The values below are generated from registrations, pytest collection, Unity test discovery or source scanning, and package metadata. They are discovery counts, not a claim that every test was executed in the current checkout.
 
 <!-- README_STATS_START -->
-<img src="docs/assets/stats.svg" width="100%" alt="160 registered MCP tools. Test inventory: 17606 entries: 7196 regular Python, 511 Python stress, 658 live Python, and 9241 Unity source attributes. Unity count source: static source scan. Server package version: v4.0.0.">
+<img src="docs/assets/stats.svg" width="100%" alt="160 registered MCP tools. Test inventory: 17617 entries: 7207 regular Python, 511 Python stress, 658 live Python, and 9241 Unity source attributes. Unity count source: static source scan. Server package version: v4.0.0.">
 <!-- README_STATS_END -->
 
 ## Unity MCP Product Comparison
