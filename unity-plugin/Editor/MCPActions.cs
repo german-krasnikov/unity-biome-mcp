@@ -81,14 +81,25 @@ namespace UnityMCP.Editor
         {
             var portsDir = Path.Combine(GetLockDir(), "ports");
             if (!Directory.Exists(portsDir)) return;
-            foreach (var pf in Directory.GetFiles(portsDir, "*.port"))
+            // New format: filename = port, content = pid
+            var portFile = Path.Combine(portsDir, $"{port}.port");
+            if (!File.Exists(portFile)) return;
+            string content;
+            try { content = File.ReadAllText(portFile).Split('\n')[0].Trim(); }
+            catch { TryDelete(portFile); return; }
+            TryDelete(portFile);
+            if (!int.TryParse(content, out _)) return;
+            // Delete companion files (chat-port, reload-port) for the same pid
+            foreach (var file in Directory.GetFiles(portsDir))
             {
-                var content = File.ReadAllText(pf).Split('\n')[0].Trim();
-                if (!int.TryParse(content, out var p) || p != port) continue;
-                var name = Path.GetFileNameWithoutExtension(pf);
-                TryDelete(pf);
-                TryDelete(Path.Combine(portsDir, name + ".chat-port"));
-                TryDelete(Path.Combine(portsDir, name + ".reload-port"));
+                var stem = Path.GetFileNameWithoutExtension(file);
+                if (!int.TryParse(stem, out _)) continue;
+                try
+                {
+                    var fc = File.ReadAllText(file).Split('\n')[0].Trim();
+                    if (fc == content) TryDelete(file);
+                }
+                catch { }
             }
         }
 

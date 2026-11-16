@@ -57,14 +57,14 @@ namespace UnityMCP.Editor
             var results = new List<UnityServerInfo>();
             foreach (var portFile in Directory.GetFiles(scanDir, "*.port"))
             {
-                var firstLine = File.ReadAllText(portFile).Split('\n')[0].Trim();
-                if (!int.TryParse(firstLine, out var port)) continue;
+                var fileName = Path.GetFileNameWithoutExtension(portFile);
+                if (!int.TryParse(fileName, out var port)) continue;
 
                 var connections = FindConnections(lockDir, port);
                 var isCurrent = port == MCPServer.ServerPort;
                 int unityPid = 0;
-                var fileName = Path.GetFileNameWithoutExtension(portFile);
-                if (int.TryParse(fileName, out var filePid)) unityPid = filePid;
+                var firstLine = File.ReadAllText(portFile).Split('\n')[0].Trim();
+                int.TryParse(firstLine, out unityPid);
                 var liveTcp = isCurrent ? GetLiveTcpCount(port) : 0;
                 results.Add(new UnityServerInfo(port, unityPid, isCurrent, connections, liveTcp));
             }
@@ -102,15 +102,17 @@ namespace UnityMCP.Editor
 
             if (Directory.Exists(scanDir))
             {
-                foreach (var portFile in Directory.GetFiles(scanDir, "*.port"))
+                // New format: filename = port, content = pid
+                foreach (var file in Directory.GetFiles(scanDir))
                 {
-                    var name = Path.GetFileNameWithoutExtension(portFile);
-                    if (!int.TryParse(name, out var pid)) continue;
+                    var stem = Path.GetFileNameWithoutExtension(file);
+                    if (!int.TryParse(stem, out _)) continue;
+                    string content;
+                    try { content = File.ReadAllText(file).Trim(); }
+                    catch { continue; }
+                    if (!int.TryParse(content, out var pid)) continue;
                     if (IsProcessAlive(pid)) continue;
-
-                    TryDelete(portFile);
-                    TryDelete(Path.Combine(scanDir, name + ".chat-port"));
-                    TryDelete(Path.Combine(scanDir, name + ".reload-port"));
+                    TryDelete(file);
                 }
             }
 

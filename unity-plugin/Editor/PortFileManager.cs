@@ -194,7 +194,11 @@ namespace UnityMCP.Editor
                     var name = Path.GetFileName(file);
                     var dot = name.IndexOf('.');
                     if (dot < 0) continue;
-                    if (!int.TryParse(name.Substring(0, dot), out var pid) || pid == currentPid) continue;
+                    if (!int.TryParse(name.Substring(0, dot), out _)) continue;
+                    string content;
+                    try { content = File.ReadAllText(file).Trim(); }
+                    catch { continue; }
+                    if (!int.TryParse(content, out var pid) || pid == currentPid) continue;
                     if (IsProcessAlive(pid)) continue;
                     try { File.Delete(file); } catch { }
                 }
@@ -255,14 +259,12 @@ namespace UnityMCP.Editor
             try
             {
                 Directory.CreateDirectory(discoveryDirectory);
-                var info = $"{port}\n{projectPath}\n{projectName}";
-                writeAllText(Path.Combine(discoveryDirectory, $"{processId}.port"), info);
+                writeAllText(Path.Combine(discoveryDirectory, $"{port}.port"), processId.ToString());
                 if (chatPort > 0)
                 {
-                    var chatInfo = $"{chatPort}\n{projectPath}\n{projectName}";
                     writeAllText(
-                        Path.Combine(discoveryDirectory, $"{processId}.chat-port"),
-                        chatInfo);
+                        Path.Combine(discoveryDirectory, $"{chatPort}.chat-port"),
+                        processId.ToString());
                 }
             }
             catch (Exception e)
@@ -284,10 +286,9 @@ namespace UnityMCP.Editor
                 var dir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     ".unity-biome-mcp", "ports");
-                var pid = System.Diagnostics.Process.GetCurrentProcess().Id;
-                var path = Path.Combine(dir, $"{pid}.port");
+                var path = Path.Combine(dir, $"{Port}.port");
                 if (File.Exists(path)) File.Delete(path);
-                var chatPath = Path.Combine(dir, $"{pid}.chat-port");
+                var chatPath = Path.Combine(dir, $"{ChatPort}.chat-port");
                 if (File.Exists(chatPath)) File.Delete(chatPath);
             }
             catch { }

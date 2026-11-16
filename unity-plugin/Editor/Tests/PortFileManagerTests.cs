@@ -32,8 +32,8 @@ namespace UnityMCP.Editor.Tests
             const int deadPid = 99999;
             Assume.That(!IsProcessAlive(deadPid), "PID 99999 must not be a live process for this test");
 
-            var portFile = Path.Combine(_tempDir, $"{deadPid}.port");
-            File.WriteAllText(portFile, "9514");
+            var portFile = Path.Combine(_tempDir, "9514.port");
+            File.WriteAllText(portFile, deadPid.ToString());
 
             PortFileManager.CleanStalePeerPortFiles(_tempDir);
 
@@ -46,10 +46,10 @@ namespace UnityMCP.Editor.Tests
             const int deadPid = 99999;
             Assume.That(!IsProcessAlive(deadPid));
 
-            var portFile     = Path.Combine(_tempDir, $"{deadPid}.port");
-            var chatPortFile = Path.Combine(_tempDir, $"{deadPid}.chat-port");
-            File.WriteAllText(portFile, "9514");
-            File.WriteAllText(chatPortFile, "9515");
+            var portFile     = Path.Combine(_tempDir, "9514.port");
+            var chatPortFile = Path.Combine(_tempDir, "9515.chat-port");
+            File.WriteAllText(portFile, deadPid.ToString());
+            File.WriteAllText(chatPortFile, deadPid.ToString());
 
             PortFileManager.CleanStalePeerPortFiles(_tempDir);
 
@@ -61,8 +61,8 @@ namespace UnityMCP.Editor.Tests
         {
             // Current process is guaranteed alive
             var currentPid = System.Diagnostics.Process.GetCurrentProcess().Id;
-            var portFile = Path.Combine(_tempDir, $"{currentPid}.port");
-            File.WriteAllText(portFile, "9514");
+            var portFile = Path.Combine(_tempDir, "9514.port");
+            File.WriteAllText(portFile, currentPid.ToString());
 
             PortFileManager.CleanStalePeerPortFiles(_tempDir);
 
@@ -100,9 +100,8 @@ namespace UnityMCP.Editor.Tests
             var portJsonPath = Path.Combine(_tempDir, "Library", "MCP_Port.json");
             var temporaryCachePath = Path.Combine(_tempDir, "Temp", "mcp_port.txt");
             var discoveryDirectory = Path.Combine(_tempDir, "discovery");
-            var discoveryPath = Path.Combine(discoveryDirectory, $"{processId}.port");
-            var chatDiscoveryPath = Path.Combine(
-                discoveryDirectory, $"{processId}.chat-port");
+            var discoveryPath = Path.Combine(discoveryDirectory, "9999.port");
+            var chatDiscoveryPath = Path.Combine(discoveryDirectory, "10000.chat-port");
             Directory.CreateDirectory(Path.GetDirectoryName(settingsPath));
             File.WriteAllText(settingsPath, "{\"port\":9500,\"chatPort\":9501}");
             var before = File.ReadAllText(settingsPath);
@@ -126,12 +125,8 @@ namespace UnityMCP.Editor.Tests
                 PortResolver.ResolveChatPort(
                     null, null, File.ReadAllText(portJsonPath), 9999, 0));
             Assert.AreEqual("9999", File.ReadAllText(temporaryCachePath));
-            Assert.AreEqual(
-                "9999\n/tmp/isolated-project\nisolated-project",
-                File.ReadAllText(discoveryPath));
-            Assert.AreEqual(
-                "10000\n/tmp/isolated-project\nisolated-project",
-                File.ReadAllText(chatDiscoveryPath));
+            Assert.AreEqual(processId.ToString(), File.ReadAllText(discoveryPath));
+            Assert.AreEqual(processId.ToString(), File.ReadAllText(chatDiscoveryPath));
         }
 
         [Test]
@@ -161,7 +156,7 @@ namespace UnityMCP.Editor.Tests
         {
             const int processId = 4242;
             var discoveryDirectory = Path.Combine(_tempDir, "discovery");
-            var discoveryPath = Path.Combine(discoveryDirectory, $"{processId}.port");
+            var discoveryPath = Path.Combine(discoveryDirectory, "9999.port");
             var committed = false;
             UnityEngine.TestTools.LogAssert.Expect(
                 UnityEngine.LogType.Warning,
