@@ -8,6 +8,8 @@ from biome_mcp.lockfile import (
     _unlock,  # noqa: F401  # re-exported; used by tests/config/test_lockfile.py
     is_pid_alive,
     read_lock_metadata,
+    release_lock,
+    write_lock_metadata,
 )
 from biome_mcp.lockfile import (
     acquire_lock as _biome_acquire_lock,
