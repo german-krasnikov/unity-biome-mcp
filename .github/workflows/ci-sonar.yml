@@ -43,7 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@v7.1.0
         with:
           python-version: '3.14'
 
@@ -124,7 +124,7 @@ jobs:
           key: jb-cache-${{ hashFiles('unity-plugin/**/*.cs') }}
           restore-keys: jb-cache-
 
-      - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b
+      - uses: buildalon/unity-setup@18c7d51d061b76c0a24598b6d422e7e9b770d9bb
         if: steps.ic-cache.outputs.cache-hit != 'true' && env.HAS_UNITY_SECRETS == 'true'
         id: unity-setup
         timeout-minutes: 60
@@ -134,7 +134,7 @@ jobs:
           cache-installation: true
           hub-version: '3.19.5'
 
-      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af
+      - uses: buildalon/activate-unity-license@6f45c821251dd3f15b68c1947fa19dd164fb26e6
         if: steps.ic-cache.outputs.cache-hit != 'true' && env.HAS_UNITY_SECRETS == 'true'
         with:
           license: 'Personal'
@@ -143,7 +143,7 @@ jobs:
 
       - name: Generate .sln
         if: steps.ic-cache.outputs.cache-hit != 'true' && env.HAS_UNITY_SECRETS == 'true'
-        uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a
+        uses: buildalon/unity-action@a9d19e1bc9e9881dae7e2fb33895384c22858e4c
         with:
           build-target: StandaloneLinux64
           editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
