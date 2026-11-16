@@ -63,7 +63,7 @@ jobs:
               -enableCodeCoverage
               -coverageOptions assemblyFilters:+UnityMCP*,-*Tests*,-*TestSupport*,-*TestHelpers*;generateAdditionalMetrics
           - name: macOS
-            runner: macos-latest
+            runner: macos-14
             build-target: StandaloneOSX
             build-output: artifacts/player-smoke/UnityMCP.app
             hub-version: ''

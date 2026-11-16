@@ -76,7 +76,7 @@ jobs:
             build-output: artifacts/player-smoke/UnityMCP
             hub-version: "3.19.5"
           - name: macOS
-            runner: macos-latest
+            runner: macos-14
             build-target: StandaloneOSX
             build-output: artifacts/player-smoke/UnityMCP.app
             hub-version: ""
