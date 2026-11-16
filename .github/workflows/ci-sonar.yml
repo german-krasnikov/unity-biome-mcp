@@ -133,7 +133,7 @@ jobs:
           build-targets: StandaloneLinux64
           cache-installation: true
 
-      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af
+      - uses: buildalon/activate-unity-license@6f45c821251dd3f15b68c1947fa19dd164fb26e6  # v3.0.2
         if: steps.ic-cache.outputs.cache-hit != 'true' && env.HAS_UNITY_SECRETS == 'true'
         with:
           license: 'Personal'

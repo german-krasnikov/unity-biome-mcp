@@ -89,7 +89,7 @@ def test_workflow_cell_job_reuses_pinned_actions_from_fsr_qualification() -> Non
         "actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97",
         "actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9",
         "buildalon/unity-setup@18c7d51d061b76c0a24598b6d422e7e9b770d9bb",
-        "buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af",
+        "buildalon/activate-unity-license@6f45c821251dd3f15b68c1947fa19dd164fb26e6",
         "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
         "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
     ):

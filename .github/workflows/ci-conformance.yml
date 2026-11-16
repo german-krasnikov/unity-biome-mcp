@@ -170,7 +170,7 @@ jobs:
           build-targets: ${{ matrix.build-target }}
           cache-installation: ${{ runner.os != 'Windows' }}
 
-      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
+      - uses: buildalon/activate-unity-license@6f45c821251dd3f15b68c1947fa19dd164fb26e6  # v3.0.2
         if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
         with:
           license: 'Personal'
