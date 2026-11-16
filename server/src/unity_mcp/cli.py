@@ -9,7 +9,7 @@ import sys
 from unity_mcp.constants import DEFAULT_PORT
 from unity_mcp.paths import unity_mcp_dir
 
-_SUBCOMMANDS = ("configure", "doctor", "version", "uninstall")
+_SUBCOMMANDS = ("configure", "doctor", "version", "uninstall", "port")
 
 # Module-level cache so _build_cli() is cheap after first call
 _cli_instance = None
@@ -53,7 +53,7 @@ def _build_hello() -> bytes:
 
 async def _on_connect(reader, writer):
     """Send client_hello handshake after TCP connect."""
-    from biome_mcp.transport.framing import frame_read_with_timeout, frame_write
+    from unity_mcp.bridge.socket_io import frame_read_with_timeout, frame_write
     frame_write(writer, _build_hello())
     await writer.drain()
     await frame_read_with_timeout(reader, timeout=5.0)
@@ -324,6 +324,7 @@ def dispatch(argv: list[str]) -> int | None:
     handlers = {
         "configure": _cmd_configure, "doctor": _cmd_doctor,
         "version": _cmd_version, "uninstall": _cmd_uninstall,
+        "port": _cmd_port,
     }
     return handlers[sub](rest)
 

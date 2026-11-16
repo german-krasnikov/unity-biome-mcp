@@ -100,8 +100,8 @@ def test_on_connect_sends_framed_hello_and_reads_response():
         written_args.append((writer, payload))
 
     # Patch at definition site (local imports inside _on_connect)
-    with patch("biome_mcp.transport.framing.frame_write", capture_frame_write), \
-         patch("biome_mcp.transport.framing.frame_read_with_timeout", fake_frame_read):
+    with patch("unity_mcp.bridge.socket_io.frame_write", capture_frame_write), \
+         patch("unity_mcp.bridge.socket_io.frame_read_with_timeout", fake_frame_read):
         asyncio.run(_on_connect(MagicMock(), mock_writer))
 
     assert len(written_args) == 1

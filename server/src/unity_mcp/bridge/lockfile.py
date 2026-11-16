@@ -168,10 +168,10 @@ def read_port_for_pid(
             continue
         if expected_project is not None:
             if len(lines) < 2:
-                return None
+                continue
             project_line = lines[1].strip()
             if not project_line or _canonical_project_path(project_line) != expected_project:
-                return None
+                continue
         return port
     return None
 

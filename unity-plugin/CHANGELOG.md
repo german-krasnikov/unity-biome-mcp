@@ -12,6 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **CLI thin layer over biome-mcp:** `BiomeCLI`, `ConnectionResolver`, and `MCPToolProvider` from biome-mcp back the `unity-biome-mcp` CLI subcommands; no duplicate dispatch logic.
+- **Persistent `TcpSession` for CLI calls:** `call` and `--follow` reuse a single connection with auto-reconnect and `client_hello` handshake instead of connecting per call.
+
+### Changed
+
+- **Port file format migrated to `{port}.port` with `pid\nproject_path` content:** `write_port_file` in biome-mcp accepts an optional `project_path` and writes it on line 2; `ConnectionResolver` uses it for project-path matching.
+- **Lockfile primitives delegated to biome-mcp:** `acquire_lock`, `release_lock`, `write_lock_metadata`, and `read_lock_metadata` are now thin wrappers or re-exports from `biome_mcp.lockfile`.
+- **C# stale-file cleanup delegated to Python `phantom_cleaner`:** Unity-side `.lock`/`.port` removal moved to the Python layer.
+- **`ConnectionResolver` project-path matching replaces `read_unity_port` internals:** port discovery now goes through `biome_mcp.cli.resolver.ConnectionResolver`.
+
 ## [v3.0.0] — 2026-11-15
 
 ### Added

@@ -17,13 +17,6 @@ from .tools.schema_registry import STUB_SCHEMA
 from .tools.schema_registry import _registry as _schema_registry
 from .tools.tags import tagged
 
-def _is_path_prefix(cwd: str, prefix: str) -> bool:
-    """True if prefix is a parent of (or equal to) cwd. Handles Windows normcase."""
-    cwd_n = os.path.normcase(os.path.normpath(cwd))
-    pre_n = os.path.normcase(os.path.normpath(prefix))
-    return cwd_n == pre_n or cwd_n.startswith(pre_n + os.path.normcase(os.sep))
-
-
 # All TIER1/core tools get full schemas (auto-derived from _SPECS — no manual drift).
 # Non-tier1 exceptions (schema_keep_full tag): B3 MEDIA tools with required
 # params not yet promoted to tier1 (timeline/animation/animator), B4 SYSTEM
