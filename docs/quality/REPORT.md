@@ -1,13 +1,13 @@
 # Quality Report
 
-> Auto-generated on **2026-11-16** from commit `a250021` (v3.0.1)
+> Auto-generated on **2026-11-16** from commit `a3979a0` (v3.0.1)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
 | Version | v3.0.1 |
-| Commit | `a250021` |
+| Commit | `a3979a0` |
 | Date | 2026-11-16 |
 | MCP Tools | 160 |
 
@@ -20,7 +20,7 @@
 | Python Scripts | 1607 | 0 | 1 | 1608 | ✅ |
 | C# EditMode (macOS) | 9479 | 0 | 188 | 9667 | ✅ |
 | C# EditMode (Linux) | 9491 | 0 | 190 | 9681 | ✅ |
-| C# EditMode (Windows) | 9375 | 2 | 304 | 9681 | ❌ |
+| C# EditMode (Windows) | 9377 | 0 | 304 | 9681 | ✅ |
 
 ## Tool Quality
 
