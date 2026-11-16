@@ -72,7 +72,7 @@ jobs:
           # base and fails closed with exit 128 on every cell.
           fetch-depth: 0
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: '3.14'
 
@@ -135,7 +135,7 @@ jobs:
           unity-version: ${{ steps.cell.outputs.unity_version }}
           cache-installation: true
 
-      - uses: buildalon/activate-unity-license@e0d245d0787b7b9931b56ccbde3b508f6b70f1af  # v2
+      - uses: buildalon/activate-unity-license@6f45c821251dd3f15b68c1947fa19dd164fb26e6  # v3.0.2
         id: license
         if: steps.unity-setup.outcome == 'success'
         continue-on-error: true
@@ -254,7 +254,7 @@ jobs:
           # base and fails closed with exit 128 on every cell.
           fetch-depth: 0
 
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
           python-version: '3.14'
 
