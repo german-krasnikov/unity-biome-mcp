@@ -12,20 +12,20 @@
     {
       "name": "C# EditMode (Linux)",
       "platform": "Linux",
-      "passed": 9499,
-      "failed": 0,
+      "passed": 9479,
+      "failed": 12,
       "skipped": 190,
-      "total": 9689,
-      "duration": 131.344389
+      "total": 9681,
+      "duration": 156.850759
     },
     {
       "name": "C# EditMode (Windows)",
       "platform": "Windows",
-      "passed": 9383,
-      "failed": 2,
+      "passed": 9363,
+      "failed": 14,
       "skipped": 304,
-      "total": 9689,
-      "duration": 203.356798
+      "total": 9681,
+      "duration": 192.564743
     }
   ]
 }
