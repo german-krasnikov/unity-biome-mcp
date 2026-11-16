@@ -10,15 +10,6 @@
       "duration": 171.376742
     },
     {
-      "name": "C# EditMode (Linux)",
-      "platform": "Linux",
-      "passed": 9479,
-      "failed": 12,
-      "skipped": 190,
-      "total": 9681,
-      "duration": 126.659499
-    },
-    {
       "name": "C# EditMode (Windows)",
       "platform": "Windows",
       "passed": 9363,
@@ -26,6 +17,15 @@
       "skipped": 304,
       "total": 9681,
       "duration": 192.564743
+    },
+    {
+      "name": "C# EditMode (Linux)",
+      "platform": "Linux",
+      "passed": 9479,
+      "failed": 12,
+      "skipped": 190,
+      "total": 9681,
+      "duration": 156.773168
     }
   ]
 }
