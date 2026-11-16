@@ -888,7 +888,7 @@ wheels = [
 
 [[package]]
 name = "unity-biome-mcp"
-version = "4.0.0"
+version = "3.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "biome-mcp", extra = ["mcp"] },
