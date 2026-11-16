@@ -378,7 +378,8 @@ def test_read_reload_port_returns_port_for_alive_pid(tmp_path):
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     pid = os.getpid()
-    (ports_dir / f"{pid}.reload-port").write_text("9600", encoding="utf-8")
+    # New format: filename = port, content[0] = pid
+    (ports_dir / "9600.reload-port").write_text(str(pid), encoding="utf-8")
     with patch.object(Path, "home", return_value=tmp_path):
         assert read_reload_port() == 9600
 
@@ -408,7 +409,8 @@ def test_read_reload_port_cwd_disambiguation(tmp_path):
     ports_dir.mkdir(parents=True)
     pid = os.getpid()
     proj_a = str(tmp_path / "ProjectA")
-    (ports_dir / f"{pid}.reload-port").write_text(f"9601\n{proj_a}\nProjectA", encoding="utf-8")
+    # New format: filename = port, content[0] = pid, content[1] = project
+    (ports_dir / "9601.reload-port").write_text(f"{pid}\n{proj_a}\nProjectA", encoding="utf-8")
     with patch("os.getcwd", return_value=proj_a), \
          patch.object(Path, "home", return_value=tmp_path):
         assert read_reload_port() == 9601
@@ -419,8 +421,9 @@ def test_read_reload_port_multiline_backward_compat(tmp_path):
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     pid = os.getpid()
-    (ports_dir / f"{pid}.reload-port").write_text(
-        "9605\n/some/project/path\nMyProject", encoding="utf-8"
+    # New format: filename = port, content[0] = pid, content[1+] = project/extra
+    (ports_dir / "9605.reload-port").write_text(
+        f"{pid}\n/some/project/path\nMyProject", encoding="utf-8"
     )
     with patch.object(Path, "home", return_value=tmp_path):
         assert read_reload_port() == 9605

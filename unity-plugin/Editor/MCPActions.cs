@@ -88,7 +88,6 @@ namespace UnityMCP.Editor
             try { content = File.ReadAllText(portFile).Split('\n')[0].Trim(); }
             catch { TryDelete(portFile); return; }
             TryDelete(portFile);
-            if (!int.TryParse(content, out _)) return;
             // Delete companion files (chat-port, reload-port) for the same pid
             foreach (var file in Directory.GetFiles(portsDir))
             {

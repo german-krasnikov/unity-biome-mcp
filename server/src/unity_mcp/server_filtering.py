@@ -12,11 +12,17 @@ from pathlib import Path  # noqa: F401  # re-exported; tests mock unity_mcp.serv
 from .constants import DEFAULT_PORT
 from .lockfile import is_pid_alive as _is_pid_alive  # noqa: F401  # re-exported for phantom_cleaner compat
 from .bridge.phantom_cleaner import _tcp_probe  # noqa: F401  # re-exported; tests mock server_filtering._tcp_probe
-from biome_mcp.cli.resolver import _is_path_prefix  # noqa: F401  # re-exported; tests access server_filtering._is_path_prefix
 from .tools.gating import _CORE_TOOLS, TIER1, filter_by_tier, get_catalog
 from .tools.schema_registry import STUB_SCHEMA
 from .tools.schema_registry import _registry as _schema_registry
 from .tools.tags import tagged
+
+def _is_path_prefix(cwd: str, prefix: str) -> bool:
+    """True if prefix is a parent of (or equal to) cwd. Handles Windows normcase."""
+    cwd_n = os.path.normcase(os.path.normpath(cwd))
+    pre_n = os.path.normcase(os.path.normpath(prefix))
+    return cwd_n == pre_n or cwd_n.startswith(pre_n + os.path.normcase(os.sep))
+
 
 # All TIER1/core tools get full schemas (auto-derived from _SPECS — no manual drift).
 # Non-tier1 exceptions (schema_keep_full tag): B3 MEDIA tools with required
@@ -118,22 +124,8 @@ def _resolve_project_path() -> str:
 
 
 def _make_unity_profile():
-    """Build the AppProfile for unity-biome-mcp without importing unity_mcp.cli.
-
-    unity_mcp.cli imports unity_mcp.server (lazy), which would violate the
-    import-linter 'tools must not import server' contract when server_filtering
-    is reachable from tools. We inline the profile here using only constants+paths.
-    """
-    from biome_mcp.cli import AppProfile
-    from .paths import unity_mcp_dir
-    return AppProfile(
-        app_name="unity-biome-mcp",
-        protocol="tcp",
-        default_port=DEFAULT_PORT,
-        default_host="127.0.0.1",
-        data_dir=unity_mcp_dir(),
-        env_aliases=(("UNITY_MCP_PORT", "PORT"), ("UNITY_MCP_HOST", "HOST")),
-    )
+    from .paths import make_app_profile
+    return make_app_profile()
 
 
 def read_unity_port(skip_probe: bool = False) -> int | None:

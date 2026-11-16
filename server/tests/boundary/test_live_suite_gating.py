@@ -62,10 +62,9 @@ def test_live_port_discovery_uses_exact_project_and_rejects_collisions(
     foreign = _unity_project(tmp_path / "foreign")
     ports = tmp_path / "ports"
     ports.mkdir()
-    (ports / "22924.port").write_text(
-        f"54170\n{worker}\nworker\n", encoding="utf-8"
-    )
-    (ports / "76084.port").write_text(
+    # New format: stem = port, content[0] = pid, content[1] = project
+    # Only a foreign project port file → no match for worker → RuntimeError
+    (ports / "9500.port").write_text(
         f"54170\n{foreign}\nforeign\n", encoding="utf-8"
     )
     monkeypatch.setattr(live_conftest, "LIVE_PROJECT", str(worker))
@@ -74,10 +73,11 @@ def test_live_port_discovery_uses_exact_project_and_rejects_collisions(
     with pytest.raises(RuntimeError, match="no port file"):
         live_conftest.current_worker_port()
 
-    (ports / "22924.port").write_text(
+    # Add a worker project port file → discovery succeeds
+    (ports / "9501.port").write_text(
         f"54171\n{worker}\nworker\n", encoding="utf-8"
     )
-    assert live_conftest.current_worker_port() == 54171
+    assert live_conftest.current_worker_port() == 9501
 
 
 def test_live_bridge_factory_pins_project_and_dynamic_discovery(

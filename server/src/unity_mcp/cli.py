@@ -15,18 +15,17 @@ _SUBCOMMANDS = ("configure", "doctor", "version", "uninstall")
 _cli_instance = None
 
 
+def _reset_cli() -> None:
+    """Reset cached CLI instance. Call in test tearDown to avoid cross-test pollution."""
+    global _cli_instance
+    _cli_instance = None
+
+
 # ─── Profile factory ─────────────────────────────────────────────────────────
 
 def _make_profile():
-    from biome_mcp.cli import AppProfile
-    return AppProfile(
-        app_name="unity-biome-mcp",
-        protocol="tcp",
-        default_port=DEFAULT_PORT,
-        default_host="127.0.0.1",
-        data_dir=unity_mcp_dir(),
-        env_aliases=(("UNITY_MCP_PORT", "PORT"), ("UNITY_MCP_HOST", "HOST")),
-    )
+    from unity_mcp.paths import make_app_profile
+    return make_app_profile()
 
 
 # ─── Handshake helpers ───────────────────────────────────────────────────────
@@ -159,7 +158,7 @@ def _build_cli(cli_port: int | None = None):
             self._session: _persistent.TcpSession | None = None
 
         async def _ensure_session(self) -> _persistent.TcpSession:
-            w = self._session._writer if self._session else None
+            w = getattr(self._session, '_writer', None) if self._session else None
             if w is None or w.is_closing():
                 if self._session:
                     await self._session._close()
@@ -340,10 +339,11 @@ def main() -> None:
     cli_port, argv = _extract_port(argv)
     try:
         cli = _build_cli(cli_port=cli_port)
-        cli.dispatch(argv)  # NoReturn — calls sys.exit
-    except SystemExit:
-        raise
     except ImportError:
         # biome_mcp.cli not available — fallback to legacy dispatch
         code = dispatch(argv)
         sys.exit(code if code is not None else 0)
+        return
+    except SystemExit:
+        raise
+    cli.dispatch(argv)  # NoReturn — calls sys.exit

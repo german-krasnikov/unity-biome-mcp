@@ -129,16 +129,17 @@ def test_read_reload_port_multiple_candidates_picks_newest_alive(tmp_path):
     ports_dir = tmp_path / "ports"
     ports_dir.mkdir()
 
-    dead = ports_dir / "11111.reload-port"
-    dead.write_text("9601\n/other\n", encoding="utf-8")
+    # New format: filename = port, content[0] = pid
+    dead = ports_dir / "9601.reload-port"
+    dead.write_text("11111\n/other\n", encoding="utf-8")
     os.utime(dead, (100, 100))
 
-    alive_new = ports_dir / "22222.reload-port"
-    alive_new.write_text("9602\n/proj\n", encoding="utf-8")
+    alive_new = ports_dir / "9602.reload-port"
+    alive_new.write_text("22222\n/proj\n", encoding="utf-8")
     os.utime(alive_new, (200, 200))
 
-    alive_old = ports_dir / "33333.reload-port"
-    alive_old.write_text("9603\n/proj2\n", encoding="utf-8")
+    alive_old = ports_dir / "9603.reload-port"
+    alive_old.write_text("33333\n/proj2\n", encoding="utf-8")
     os.utime(alive_old, (50, 50))
 
     def is_alive(pid):
@@ -246,14 +247,15 @@ def test_read_reload_port_cwd_match_beats_mtime(tmp_path):
     ports_dir = tmp_path / "ports"
     ports_dir.mkdir()
 
+    # New format: filename = port, content[0] = pid
     # Newer mtime, different project
-    newer = ports_dir / "11111.reload-port"
-    newer.write_text("9610\n/other\n", encoding="utf-8")
+    newer = ports_dir / "9610.reload-port"
+    newer.write_text("11111\n/other\n", encoding="utf-8")
     os.utime(newer, (300, 300))
 
     # Older mtime, but CWD matches
-    cwd_match = ports_dir / "22222.reload-port"
-    cwd_match.write_text("9611\n/my/project\n", encoding="utf-8")
+    cwd_match = ports_dir / "9611.reload-port"
+    cwd_match.write_text("22222\n/my/project\n", encoding="utf-8")
     os.utime(cwd_match, (100, 100))
 
     with patch("unity_mcp.lockfile._ports_dir", return_value=ports_dir), \

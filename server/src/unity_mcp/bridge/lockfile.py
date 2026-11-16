@@ -4,9 +4,8 @@ import os
 from pathlib import Path
 
 from biome_mcp.lockfile import (
-    _lock_nb,
-    _unlock,
-    _write_pid,
+    _lock_nb,  # noqa: F401  # re-exported; used by tests/config/test_lockfile.py
+    _unlock,   # noqa: F401  # re-exported; used by tests/config/test_lockfile.py
     acquire_lock as _biome_acquire_lock,
     is_pid_alive,
     read_lock_metadata,
@@ -178,7 +177,7 @@ def read_port_for_pid(
 
 
 def read_reload_port() -> int | None:
-    """Discover reload mini-server port from ~/.unity-biome-mcp/ports/{pid}.reload-port."""
+    """Discover reload mini-server port from ~/.unity-biome-mcp/ports/{port}.reload-port."""
     ports_dir = _ports_dir()
     if not ports_dir.exists():
         return None
@@ -186,13 +185,13 @@ def read_reload_port() -> int | None:
     candidates = []
     for f in ports_dir.glob("*.reload-port"):
         try:
-            pid = int(f.stem)
-            if not is_pid_alive(pid):
-                continue
+            port = int(f.stem)
             lines = _read_port_file_lines(f, max_lines=2)
             if not lines:
                 continue
-            port = int(lines[0])
+            pid = int(lines[0])
+            if not is_pid_alive(pid):
+                continue
             project_path = lines[1].strip() if len(lines) > 1 else ""
             candidates.append((f.stat().st_mtime, port, project_path))
         except (ValueError, OSError):
