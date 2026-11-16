@@ -54,7 +54,7 @@ jobs:
         include:
           - cell: min-macos-arm64
             runner: macos-15
-            hub-version: ''
+            hub-version: '3.19.5'
           - cell: min-linux-x64
             runner: ubuntu-24.04
             # pin: 3.20.0 regresses /opt/unityhub/unityhub path on Linux

@@ -66,13 +66,13 @@ jobs:
             runner: macos-latest
             build-target: StandaloneOSX
             build-output: artifacts/player-smoke/UnityMCP.app
-            hub-version: ''
+            hub-version: '3.19.5'
             coverage-args: ''
           - name: Windows
             runner: windows-2022
             build-target: StandaloneWindows64
             build-output: artifacts/player-smoke/UnityMCP.exe
-            hub-version: ''
+            hub-version: '3.19.5'
             coverage-args: ''
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
@@ -148,6 +148,20 @@ jobs:
           license: 'Personal'
           username: ${{ secrets.UNITY_EMAIL }}
           password: ${{ secrets.UNITY_PASSWORD }}
+
+      - uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
+        name: Open Unity project (compile + UPM warmup)
+        if: (github.event_name != 'pull_request' || matrix.name == 'Linux') && env.HAS_UNITY_SECRETS == 'true'
+        timeout-minutes: 20
+        with:
+          build-target: ${{ matrix.build-target }}
+          editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
+          project-path: unity-test-project
+          args: >
+            -batchmode
+            -nographics
+            -quit
+            -logFile ${{ github.workspace }}/artifacts/unity-warmup.log
 
       - uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
         name: Run EditMode Tests

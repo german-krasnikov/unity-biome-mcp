@@ -51,13 +51,13 @@ jobs:
             runner: macos-15
             os_name: macOS
             arch: arm64
-            hub-version: ''
+            hub-version: '3.19.5'
           - cell: min-windows-x64
             window: u_min
             runner: windows-2022
             os_name: Windows
             arch: x64
-            hub-version: ''
+            hub-version: '3.19.5'
           - cell: min-linux-x64
             window: u_min
             runner: ubuntu-24.04
