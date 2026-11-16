@@ -258,16 +258,21 @@ def test_cleanup_stale_port_files_no_tcp_probe_by_default(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_port_file_golden_format_matches_unity_contract(tmp_path):
-    """Pin the exact literal PortFileManager.WriteRuntimePortFiles() produces
-    (unity-plugin/Editor/PortFileManager.cs: `$"{port}\\n{projectPath}\\n{projectName}"`)
-    and assert lockfile._read_port_file_lines parses it byte-for-byte."""
+    """Pin the exact literal PortFileManager.WriteRuntimePortFiles() produces.
+
+    New C# format (PortFileManager.cs WriteRuntimePortFiles):
+      filename = {port}.port  (stem = port)
+      content  = $"{processId}\\n{projectPath}\\n{projectName}"
+                 line 0 = pid, line 1 = project_path, line 2 = project_name
+    """
     from unity_mcp.lockfile import _read_port_file_lines
 
-    f = tmp_path / "12345.port"
-    f.write_text("9500\n/fake/Project\nProject", encoding="utf-8")
+    # stem=port=9500, content[0]=pid=12345
+    f = tmp_path / "9500.port"
+    f.write_text("12345\n/fake/Project\nProject", encoding="utf-8")
 
     lines = _read_port_file_lines(f, max_lines=3)
 
-    assert lines[0] == "9500"
+    assert lines[0] == "12345"   # pid
     assert lines[1] == "/fake/Project"
     assert lines[2] == "Project"

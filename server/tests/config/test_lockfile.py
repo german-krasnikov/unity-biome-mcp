@@ -189,7 +189,8 @@ def test_read_pid_from_port_file(tmp_path):
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     pid = 12345
-    (ports_dir / f"{pid}.port").write_text("9500\n/path/to/project\nMyProject", encoding="utf-8")
+    # New format: filename = port, content[0] = pid
+    (ports_dir / "9500.port").write_text(f"{pid}\n/path/to/project\nMyProject", encoding="utf-8")
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
         assert read_pid_from_port_file(9500) == pid
@@ -202,7 +203,8 @@ def test_read_pid_returns_none_for_missing():
 def test_read_pid_from_port_file_corrupt_json(tmp_path):
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    (ports_dir / "12345.port").write_text("not-a-port\n/path/to/project", encoding="utf-8")
+    # New format: stem=port, content[0]=pid — test corrupt pid content
+    (ports_dir / "9500.port").write_text("not-a-pid\n/path/to/project", encoding="utf-8")
     with patch.object(Path, "home", return_value=tmp_path):
         assert read_pid_from_port_file(9500) is None
 
@@ -218,7 +220,8 @@ def test_read_pid_from_port_file_non_integer_stem(tmp_path):
 def test_read_pid_from_port_file_cyrillic_path_does_not_crash(tmp_path):
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    (ports_dir / "99999.port").write_bytes("9500\n/Users/Иван/МойПроект\nМойПроект\n".encode("utf-8"))
+    # New format: stem=port=9500, content[0]=pid=99999
+    (ports_dir / "9500.port").write_bytes("99999\n/Users/Иван/МойПроект\nМойПроект\n".encode("utf-8"))
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
         assert read_pid_from_port_file(9500) == 99999
@@ -230,14 +233,14 @@ def test_read_pid_from_port_file_ignores_blank_project_path(tmp_path):
     expected_project = tmp_path / "ExpectedProject"
     expected_project.mkdir()
 
-    # C# format with empty ProjectPath line must never be treated as a match for project-aware lookup.
-    (ports_dir / "1111.port").write_text(
-        "9600\n\nExpectedProject\n",
+    # New format: stem=port, content[0]=pid. Blank ProjectPath must still be rejected.
+    (ports_dir / "9600.port").write_text(
+        "1111\n\nExpectedProject\n",
         encoding="utf-8",
     )
     # Keep a valid alternative so caller-side port fallback still has a deterministic target.
-    (ports_dir / "2222.port").write_text(
-        "9601\n/some/other/project\nOtherProject\n",
+    (ports_dir / "9601.port").write_text(
+        "2222\n/some/other/project\nOtherProject\n",
         encoding="utf-8",
     )
 
@@ -252,12 +255,13 @@ def test_read_pid_from_port_file_ignores_blank_project_path(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_read_port_for_pid_returns_current_port(tmp_path):
-    """pid->port mirror of read_pid_from_port_file: reads {pid}.port by filename."""
+    """pid->port: finds *.port where content[0]==pid, returns int(stem) as port."""
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     pid = 12345
-    (ports_dir / f"{pid}.port").write_text(
-        "9501\n/path/to/project\nProj", encoding="utf-8"
+    # New format: stem=port=9501, content[0]=pid=12345
+    (ports_dir / "9501.port").write_text(
+        f"{pid}\n/path/to/project\nProj", encoding="utf-8"
     )
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
@@ -265,16 +269,16 @@ def test_read_port_for_pid_returns_current_port(tmp_path):
 
 
 def test_read_port_for_pid_matches_by_pid_not_any_port(tmp_path):
-    """Keyed by the pid's own filename — a stale port on another pid's file
-    must never leak into this pid's result."""
+    """Keyed by content[0]==pid — another pid's file must never leak."""
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     pid, other_pid = 12345, 67890
-    (ports_dir / f"{pid}.port").write_text(
-        "9501\n/path/to/project\nProj", encoding="utf-8"
+    # New format: stem=port, content[0]=pid
+    (ports_dir / "9501.port").write_text(
+        f"{pid}\n/path/to/project\nProj", encoding="utf-8"
     )
-    (ports_dir / f"{other_pid}.port").write_text(
-        "9500\n/path/to/other\nOther", encoding="utf-8"
+    (ports_dir / "9500.port").write_text(
+        f"{other_pid}\n/path/to/other\nOther", encoding="utf-8"
     )
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
@@ -285,8 +289,9 @@ def test_read_port_for_pid_dead_pid_returns_none(tmp_path):
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
     pid = 12345
-    (ports_dir / f"{pid}.port").write_text(
-        "9501\n/path/to/project\nProj", encoding="utf-8"
+    # New format: stem=port=9501, content[0]=pid=12345
+    (ports_dir / "9501.port").write_text(
+        f"{pid}\n/path/to/project\nProj", encoding="utf-8"
     )
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=False):
@@ -309,7 +314,8 @@ def test_read_port_for_pid_project_path_mismatch_returns_none(tmp_path):
     expected_project = tmp_path / "ExpectedProject"
     expected_project.mkdir()
     pid = 12345
-    (ports_dir / f"{pid}.port").write_text("9501\n\nProj\n", encoding="utf-8")
+    # New format: stem=port=9501, content[0]=pid=12345, content[1]=blank project
+    (ports_dir / "9501.port").write_text(f"{pid}\n\nProj\n", encoding="utf-8")
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
         assert read_port_for_pid(pid, project_path=expected_project) is None
@@ -325,7 +331,8 @@ def test_read_project_path_from_port_file_returns_path(tmp_path):
     ports_dir.mkdir(parents=True)
     project_dir = tmp_path / "MyProject"
     project_dir.mkdir()
-    (ports_dir / "12345.port").write_text(f"9500\n{project_dir}\nMyProject\n", encoding="utf-8")
+    # New format: stem=port=9500, content[0]=pid=12345
+    (ports_dir / "9500.port").write_text(f"12345\n{project_dir}\nMyProject\n", encoding="utf-8")
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
         assert read_project_path_from_port_file(9500) == project_dir
@@ -337,7 +344,8 @@ def test_read_project_path_dead_pid_skipped(tmp_path):
     ports_dir.mkdir(parents=True)
     project_dir = tmp_path / "MyProject"
     project_dir.mkdir()
-    (ports_dir / "99999.port").write_text(f"9500\n{project_dir}\nMyProject\n", encoding="utf-8")
+    # New format: stem=port=9500, content[0]=pid=99999
+    (ports_dir / "9500.port").write_text(f"99999\n{project_dir}\nMyProject\n", encoding="utf-8")
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=False):
         assert read_project_path_from_port_file(9500) is None
@@ -349,7 +357,8 @@ def test_read_project_path_from_port_file_wrong_port(tmp_path):
     ports_dir.mkdir(parents=True)
     project_dir = tmp_path / "MyProject"
     project_dir.mkdir()
-    (ports_dir / "12345.port").write_text(f"9501\n{project_dir}\nMyProject\n", encoding="utf-8")
+    # New format: stem=port=9501 (not 9500), content[0]=pid=12345
+    (ports_dir / "9501.port").write_text(f"12345\n{project_dir}\nMyProject\n", encoding="utf-8")
     with patch.object(Path, "home", return_value=tmp_path):
         assert read_project_path_from_port_file(9500) is None
 

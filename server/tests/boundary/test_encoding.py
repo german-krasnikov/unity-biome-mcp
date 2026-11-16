@@ -188,9 +188,9 @@ def test_server_filtering_read_utf8(tmp_path):
 
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    # PID in stem; port=19999, project_path with Cyrillic, project_name with Cyrillic
-    port_file = ports_dir / "99999.port"
-    content = f"19999\n/home/user/Проект\n{CYR}\n"
+    # New format: port in stem=19999, pid=99999 in content[0], Cyrillic project path
+    port_file = ports_dir / "19999.port"
+    content = f"99999\n/home/user/Проект\n{CYR}\n"
     port_file.write_bytes(content.encode("utf-8"))
 
     # Patch _ports_dir seam so read_unity_port resolves to tmp ports_dir.
@@ -228,9 +228,9 @@ def test_lockfile_read_pid_from_port_file_cyrillic_path(tmp_path):
     ports_dir.mkdir(parents=True)
     pid = 77777
     port = 19501
-    # Project path and name both contain Cyrillic — tests that read_text encoding is correct
-    content = f"{port}\n/home/Пользователь/МойПроект\n{CYR}\n"
-    port_file = ports_dir / f"{pid}.port"
+    # New format: port in stem, pid in content[0]; Cyrillic in project path/name
+    content = f"{pid}\n/home/Пользователь/МойПроект\n{CYR}\n"
+    port_file = ports_dir / f"{port}.port"
     port_file.write_bytes(content.encode("utf-8"))
 
     with patch.object(Path, "home", return_value=tmp_path), \

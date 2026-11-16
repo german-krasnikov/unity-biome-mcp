@@ -51,8 +51,9 @@ async def check_port_file(fix: bool = False) -> CheckResult:
     stale, live = [], []
     for f in port_files:
         try:
-            pid = int(f.stem)
-        except ValueError:
+            # New format: stem=port, content[0]=pid
+            pid = int(f.read_text(encoding="utf-8").split('\n')[0].strip())
+        except (ValueError, OSError):
             stale.append(f)
             continue
         (live if is_pid_alive(pid) else stale).append(f)

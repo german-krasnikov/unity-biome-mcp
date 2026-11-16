@@ -86,8 +86,9 @@ def test_read_unity_port_windows_forward_slash_project_path(monkeypatch, tmp_pat
     ports_dir.mkdir(parents=True)
     # Unity writes forward-slash paths via Application.dataPath
     project_path = (tmp_path / "MyProject").as_posix()  # always forward slashes
-    f = ports_dir / "1234.port"
-    f.write_text(f"9502\n{project_path}\nMyProject\n", encoding="utf-8")
+    # New format: stem=port=9502, content[0]=pid=1234
+    f = ports_dir / "9502.port"
+    f.write_text(f"1234\n{project_path}\nMyProject\n", encoding="utf-8")
 
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     # mock at abstraction level — works on all platforms (Windows uses ctypes, not os.kill)

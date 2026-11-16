@@ -125,8 +125,8 @@ namespace UnityMCP.Editor.Tests
                 PortResolver.ResolveChatPort(
                     null, null, File.ReadAllText(portJsonPath), 9999, 0));
             Assert.AreEqual("9999", File.ReadAllText(temporaryCachePath));
-            Assert.AreEqual(processId.ToString(), File.ReadAllText(discoveryPath));
-            Assert.AreEqual(processId.ToString(), File.ReadAllText(chatDiscoveryPath));
+            Assert.AreEqual("4242\n/tmp/isolated-project\nisolated-project", File.ReadAllText(discoveryPath));
+            Assert.AreEqual("4242\n/tmp/isolated-project\nisolated-project", File.ReadAllText(chatDiscoveryPath));
         }
 
         [Test]

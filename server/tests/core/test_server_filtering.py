@@ -312,8 +312,8 @@ def test_read_unity_port_pid_alive_candidate_always_included(tmp_path):
 
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    port_file = ports_dir / "12345.port"
-    port_file.write_text("9501\n/some/project\nMyProject", encoding="utf-8")
+    port_file = ports_dir / "9501.port"
+    port_file.write_text("12345\n/some/project\nMyProject", encoding="utf-8")
 
     with (
         patch("unity_mcp.server_filtering.Path") as mock_path_cls,
@@ -341,9 +341,9 @@ def test_read_unity_port_cyrillic_project_path_parses_correctly(tmp_path):
 
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    port_file = ports_dir / "12345.port"
+    port_file = ports_dir / "9501.port"
     # Write file as raw UTF-8 bytes — bypasses EncodingWarning gate on test side
-    port_file.write_bytes("9501\n/Users/Иван/MyProject\nМойПроект\n".encode("utf-8"))
+    port_file.write_bytes("12345\n/Users/Иван/MyProject\nМойПроект\n".encode("utf-8"))
 
     with (
         patch("unity_mcp.server_filtering._tcp_probe", return_value=True),

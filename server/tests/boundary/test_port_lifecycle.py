@@ -160,14 +160,15 @@ def test_read_unity_port_cwd_prefix_wins_over_mtime(tmp_path):
     ports_dir = tmp_path / "ports"
     ports_dir.mkdir()
 
+    # New format: stem=port, content[0]=pid
     # Newer mtime but different project path
-    other = ports_dir / "11111.port"
-    other.write_text("9500\n/other/project\nOther\n", encoding="utf-8")
+    other = ports_dir / "9500.port"
+    other.write_text("11111\n/other/project\nOther\n", encoding="utf-8")
     os.utime(other, (200, 200))
 
     # Older mtime but CWD-matching path
-    mine = ports_dir / "22222.port"
-    mine.write_text("9501\n/my/project\nMy\n", encoding="utf-8")
+    mine = ports_dir / "9501.port"
+    mine.write_text("22222\n/my/project\nMy\n", encoding="utf-8")
     os.utime(mine, (100, 100))
 
     def is_alive(pid):
@@ -217,18 +218,21 @@ def test_read_unity_port_skip_probe_returns_none_no_candidates(tmp_path):
 # ---------------------------------------------------------------------------
 
 def test_cleanup_all_patterns_mixed_live_dead(tmp_path):
-    """Dead PID: all 3 file types removed. Alive PID: both files kept."""
+    """Dead PID: all 3 file types removed. Alive PID: both files kept.
+
+    New format: stem=port, content[0]=pid (for .port, .chat-port, .reload-port).
+    """
     ports_dir = tmp_path / "ports"
     ports_dir.mkdir()
 
-    # Dead PID — all three patterns
-    (ports_dir / "11111.port").write_text("9500\n/proj\n", encoding="utf-8")
-    (ports_dir / "11111.chat-port").write_text("9510\n/proj\n", encoding="utf-8")
-    (ports_dir / "11111.reload-port").write_text("9600\n/proj\n", encoding="utf-8")
+    # Dead PID (11111) — all three patterns; new format: content[0]=pid
+    (ports_dir / "9500.port").write_text("11111\n/proj\n", encoding="utf-8")
+    (ports_dir / "9510.chat-port").write_text("11111\n/proj\n", encoding="utf-8")
+    (ports_dir / "9600.reload-port").write_text("11111\n/proj\n", encoding="utf-8")
 
-    # Alive PID — two patterns
-    (ports_dir / "22222.port").write_text("9501\n/proj\n", encoding="utf-8")
-    (ports_dir / "22222.reload-port").write_text("9601\n/proj\n", encoding="utf-8")
+    # Alive PID (22222) — two patterns; content[0]=alive pid
+    (ports_dir / "9501.port").write_text("22222\n/proj\n", encoding="utf-8")
+    (ports_dir / "9601.reload-port").write_text("22222\n/proj\n", encoding="utf-8")
 
     def is_alive(pid):
         return pid == 22222
@@ -239,7 +243,7 @@ def test_cleanup_all_patterns_mixed_live_dead(tmp_path):
 
     assert count == 3, "Three dead-PID files must be removed"
     remaining = {f.name for f in ports_dir.iterdir()}
-    assert remaining == {"22222.port", "22222.reload-port"}
+    assert remaining == {"9501.port", "9601.reload-port"}
 
 
 # ---------------------------------------------------------------------------

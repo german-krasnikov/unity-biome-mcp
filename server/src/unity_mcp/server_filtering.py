@@ -155,8 +155,9 @@ def read_unity_port(skip_probe: bool = False) -> int | None:
             if not lines:
                 # Transient-empty or malformed — skip safely without deleting.
                 continue
-            port = int(lines[0])
-            pid = int(f.stem)
+            # New format: stem=port, content[0]=pid
+            pid = int(lines[0])
+            port = int(f.stem)
             if not _is_pid_alive(pid):
                 with contextlib.suppress(OSError): f.unlink()
                 continue

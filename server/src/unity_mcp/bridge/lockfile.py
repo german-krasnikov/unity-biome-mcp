@@ -234,16 +234,19 @@ def read_pid_from_port_file(
     candidates: list[tuple[float, int]] = []
     for f in _iter_port_files("*.port", _ports_dir()):
         try:
-            lines = _read_port_file_lines(f, max_lines=2)
-            if len(lines) < 1 or int(lines[0]) != port:
+            # New format: stem=port, content[0]=pid, content[1]=project_path
+            if int(f.stem) != port:
                 continue
+            lines = _read_port_file_lines(f, max_lines=2)
+            if not lines:
+                continue
+            pid = int(lines[0])
             if expected_project is not None:
                 if len(lines) < 2:
                     continue
                 project_line = lines[1].strip()
                 if not project_line or _canonical_project_path(project_line) != expected_project:
                     continue
-            pid = int(f.stem)
             if is_pid_alive(pid):
                 candidates.append((f.stat().st_mtime, pid))
         except (ValueError, IndexError, OSError):
@@ -260,28 +263,24 @@ def read_port_for_pid(
 ) -> int | None:
     """Read the current port for a given PID directly from its port file.
 
-    pid->port mirror of read_pid_from_port_file's port->pid lookup. Reads
-    {pid}.port by filename (checks both ~/.unity-biome-mcp/ports and legacy
-    ~/.unity-mcp/ports via iter_port_files), so a same-process port rebind
-    (Unity falling back to a new port after a bind conflict) is visible the
-    instant SaveRuntimePorts rewrites the file — no failed TCP connect
-    needed to notice it. Returns None if the pid is dead, no matching file
-    exists, the port field is not an integer, or project_path is supplied
-    but doesn't match line 2 (same semantics as read_pid_from_port_file).
+    pid->port mirror of read_pid_from_port_file's port->pid lookup. Iterates
+    *.port files and matches by content[0]==pid (new format: stem=port,
+    content[0]=pid). Returns None if the pid is dead, no matching file exists,
+    or project_path is supplied but doesn't match line 2.
     """
     if not is_pid_alive(pid):
         return None
     expected_project = (
         _canonical_project_path(project_path) if project_path is not None else None
     )
-    for f in _iter_port_files(f"{pid}.port", _ports_dir()):
+    for f in _iter_port_files("*.port", _ports_dir()):
         try:
             lines = _read_port_file_lines(f, max_lines=2)
-            if len(lines) < 1:
-                return None
-            port = int(lines[0])
+            if not lines or int(lines[0]) != pid:
+                continue
+            port = int(f.stem)
         except (ValueError, IndexError, OSError):
-            return None
+            continue
         if expected_project is not None:
             if len(lines) < 2:
                 return None
@@ -340,10 +339,13 @@ def read_project_path_from_port_file(port: int) -> Path | None:
     """
     for f in _iter_port_files("*.port", _ports_dir()):
         try:
-            pid = int(f.stem)
-            lines = _read_port_file_lines(f, max_lines=2)
-            if len(lines) < 2 or int(lines[0]) != port:
+            # New format: stem=port, content[0]=pid, content[1]=project_path
+            if int(f.stem) != port:
                 continue
+            lines = _read_port_file_lines(f, max_lines=2)
+            if len(lines) < 2:
+                continue
+            pid = int(lines[0])
             if not is_pid_alive(pid):
                 continue
             project_path = lines[1].strip()

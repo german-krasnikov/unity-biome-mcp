@@ -18,8 +18,9 @@ from unity_mcp.phantom_cleaner import cleanup_stale_port_files
 
 
 def _make_port_file(ports_dir: Path, pid: int, port: int, project: str) -> Path:
-    f = ports_dir / f"{pid}.port"
-    f.write_text(f"{port}\n{project}\n", encoding="utf-8")
+    """New format: stem=port, content[0]=pid, content[1]=project_path."""
+    f = ports_dir / f"{port}.port"
+    f.write_text(f"{pid}\n{project}\n", encoding="utf-8")
     return f
 
 
@@ -28,21 +29,26 @@ def _make_port_file(ports_dir: Path, pid: int, port: int, project: str) -> Path:
 # ---------------------------------------------------------------------------
 
 def test_port_file_project_path_filter(tmp_path):
-    """Two port files on same port but different projects → filter returns the matching PID."""
+    """Two port files for different projects → project_path filter returns the matching PID.
+
+    In new format (stem=port) each process uses a unique port, so no filename collision.
+    project_path filter still identifies the correct PID per project.
+    """
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
 
     proj_a = str(tmp_path / "ProjectA")
     proj_b = str(tmp_path / "ProjectB")
     pid_a, pid_b = 11111, 22222
+    port_a, port_b = 9500, 9501
 
-    _make_port_file(ports_dir, pid_a, 9500, proj_a)
-    _make_port_file(ports_dir, pid_b, 9500, proj_b)
+    _make_port_file(ports_dir, pid_a, port_a, proj_a)
+    _make_port_file(ports_dir, pid_b, port_b, proj_b)
 
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
-        assert read_pid_from_port_file(9500, project_path=proj_a) == pid_a
-        assert read_pid_from_port_file(9500, project_path=proj_b) == pid_b
+        assert read_pid_from_port_file(port_a, project_path=proj_a) == pid_a
+        assert read_pid_from_port_file(port_b, project_path=proj_b) == pid_b
 
 
 # ---------------------------------------------------------------------------

@@ -19,18 +19,18 @@ def _mock_tcp_probe():
 # ---------------------------------------------------------------------------
 
 def _make_port_file(ports_dir, pid: int, port: int, project: str = "MyProject", mtime: float = 1000.0):
-    """Write a <pid>.port file and set its mtime."""
-    f = ports_dir / f"{pid}.port"
-    f.write_text(f"{port}\n\n{project}\n", encoding="utf-8")
+    """Write a <port>.port file (new format: stem=port, content[0]=pid)."""
+    f = ports_dir / f"{port}.port"
+    f.write_text(f"{pid}\n\n{project}\n", encoding="utf-8")
     os.utime(f, (mtime, mtime))
     return f
 
 
 def _make_port_file_with_path(ports_dir, pid: int, port: int, project_path: str,
                                project: str = "MyProject", mtime: float = 1000.0):
-    """Write a <pid>.port file with a real project path on line 1 (C# format)."""
-    f = ports_dir / f"{pid}.port"
-    f.write_text(f"{port}\n{project_path}\n{project}\n", encoding="utf-8")
+    """Write a <port>.port file with project path on line 2 (new format: stem=port, content[0]=pid)."""
+    f = ports_dir / f"{port}.port"
+    f.write_text(f"{pid}\n{project_path}\n{project}\n", encoding="utf-8")
     os.utime(f, (mtime, mtime))
     return f
 
@@ -203,8 +203,8 @@ def test_malformed_blank_second_line_does_not_shift_fields(monkeypatch, tmp_path
     ports_dir.mkdir(parents=True)
     cwd = tmp_path / "GoodProject"
     cwd_matches = cwd / "Assets"
-    bad = ports_dir / "1111.port"
-    bad.write_text(f"9600\n\n{cwd}\nProjectName\n", encoding="utf-8")
+    bad = ports_dir / "9600.port"
+    bad.write_text(f"1111\n\n{cwd}\nProjectName\n", encoding="utf-8")
     _make_port_file_with_path(ports_dir, pid=2222, port=9601, project_path=str(tmp_path / "OtherProject"), mtime=2000.0)
     os.utime(bad, (1000.0, 1000.0))
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
@@ -223,11 +223,11 @@ def test_blank_second_line_with_project_dir_falls_back_to_latest_valid_port(monk
 
     bad_project = str(tmp_path / "ExpectedProject")
     good_project = str(tmp_path / "FreshProject")
-    bad = ports_dir / "1111.port"
-    good = ports_dir / "2222.port"
+    bad = ports_dir / "9600.port"
+    good = ports_dir / "9601.port"
 
-    bad.write_text(f"9600\n\n{bad_project}\nBadProject\n", encoding="utf-8")
-    good.write_text(f"9601\n{good_project}\nGoodProject\n", encoding="utf-8")
+    bad.write_text(f"1111\n\n{bad_project}\nBadProject\n", encoding="utf-8")
+    good.write_text(f"2222\n{good_project}\nGoodProject\n", encoding="utf-8")
     os.utime(bad, (1000.0, 1000.0))
     os.utime(good, (2000.0, 2000.0))
 
@@ -295,8 +295,8 @@ def test_lockfile_without_project_line(monkeypatch, tmp_path):
     monkeypatch.delenv("UNITY_MCP_PORT", raising=False)
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    f = ports_dir / "5555.port"
-    f.write_text("9505\n", encoding="utf-8")  # only one line — no project
+    f = ports_dir / "9505.port"
+    f.write_text("5555\n", encoding="utf-8")  # stem=port=9505, content[0]=pid=5555
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
     assert _read_unity_port() == 9505

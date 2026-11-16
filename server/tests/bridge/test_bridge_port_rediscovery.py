@@ -547,15 +547,17 @@ def test_pid_lookup_filters_reused_port_by_canonical_project(tmp_path):
     expected_alias = tmp_path / "expected-alias"
     expected_alias.symlink_to(expected_project, target_is_directory=True)
 
-    foreign_record = tmp_path / "111.port"
-    expected_record = tmp_path / "222.port"
-    foreign_record.write_text(f"9500\n{foreign_project}\nforeign\n", encoding="utf-8")
-    expected_record.write_text(f"9500\n{expected_alias}\nexpected\n", encoding="utf-8")
+    # New format: stem=port, content[0]=pid, content[1]=project_path.
+    # Port collision (same filename) is impossible, so foreign uses a different port.
+    foreign_record = tmp_path / "9500.port"
+    expected_record = tmp_path / "9501.port"
+    foreign_record.write_text(f"111\n{foreign_project}\nforeign\n", encoding="utf-8")
+    expected_record.write_text(f"222\n{expected_alias}\nexpected\n", encoding="utf-8")
 
     with patch(
         "unity_mcp.lockfile._iter_port_files",
         return_value=[foreign_record, expected_record],
     ), patch("unity_mcp.lockfile.is_pid_alive", return_value=True):
-        pid = read_pid_from_port_file(9500, project_path=expected_project)
+        pid = read_pid_from_port_file(9501, project_path=expected_project)
 
     assert pid == 222

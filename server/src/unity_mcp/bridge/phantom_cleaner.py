@@ -114,17 +114,18 @@ def cleanup_stale_port_files(tcp_probe: bool = False, now_fn=time.monotonic) -> 
         for f in ports_dir.glob(pattern):
             key = str(f)
             try:
-                pid = int(f.stem)
+                # New format: stem=port, content[0]=pid
+                lines = _read_port_file_lines(f, max_lines=1)
+                if not lines:
+                    continue
+                pid = int(lines[0])
                 if not is_pid_alive(pid):
                     f.unlink()
                     cleaned += 1
                     _tcp_probe_fail_since.pop(key, None)
                     continue
                 if tcp_probe:
-                    lines = _read_port_file_lines(f, max_lines=1)
-                    if not lines:
-                        continue
-                    port = int(lines[0])
+                    port = int(f.stem)
                     if _tcp_probe(port):
                         _tcp_probe_fail_since.pop(key, None)
                         continue

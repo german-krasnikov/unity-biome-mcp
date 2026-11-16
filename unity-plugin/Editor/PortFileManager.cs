@@ -196,7 +196,7 @@ namespace UnityMCP.Editor
                     if (dot < 0) continue;
                     if (!int.TryParse(name.Substring(0, dot), out _)) continue;
                     string content;
-                    try { content = File.ReadAllText(file).Trim(); }
+                    try { content = File.ReadAllText(file).Split('\n')[0].Trim(); }
                     catch { continue; }
                     if (!int.TryParse(content, out var pid) || pid == currentPid) continue;
                     if (IsProcessAlive(pid)) continue;
@@ -259,12 +259,12 @@ namespace UnityMCP.Editor
             try
             {
                 Directory.CreateDirectory(discoveryDirectory);
-                writeAllText(Path.Combine(discoveryDirectory, $"{port}.port"), processId.ToString());
+                writeAllText(Path.Combine(discoveryDirectory, $"{port}.port"), $"{processId}\n{projectPath}\n{projectName}");
                 if (chatPort > 0)
                 {
                     writeAllText(
                         Path.Combine(discoveryDirectory, $"{chatPort}.chat-port"),
-                        processId.ToString());
+                        $"{processId}\n{projectPath}\n{projectName}");
                 }
             }
             catch (Exception e)
