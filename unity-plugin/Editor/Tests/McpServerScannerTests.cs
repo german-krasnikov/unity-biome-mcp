@@ -40,7 +40,7 @@ namespace UnityMCP.Editor.Tests
         {
             const int deadPid = 99999999;
             Assume.That(!IsProcessAlive(deadPid), "PID must not be alive for this test");
-            File.WriteAllText(Path.Combine(_scope.Path, $"{deadPid}.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), $"{deadPid}\n");
 
             var result = McpServerScanner.Scan();
 
@@ -55,7 +55,7 @@ namespace UnityMCP.Editor.Tests
             Assume.That(!IsProcessAlive(deadPid), "PID 99999999 must not be alive for this test");
 
             // Port file in scan dir, lock in lock dir (separate directories)
-            File.WriteAllText(Path.Combine(_scope.Path, $"{deadPid}.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), $"{deadPid}\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, $"server-9500-{deadPid}.lock"), $"{deadPid}\n");
 
             var result = McpServerScanner.Scan();
@@ -68,7 +68,7 @@ namespace UnityMCP.Editor.Tests
         public void Scan_CurrentPortMarked_IsCurrentProject()
         {
             var port = MCPServer.ServerPort;
-            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), $"{port}\n");
+            File.WriteAllText(Path.Combine(_scope.Path, $"{port}.port"), "99999999\n");
 
             var result = McpServerScanner.Scan();
 
@@ -80,7 +80,7 @@ namespace UnityMCP.Editor.Tests
         public void Scan_DifferentPort_NotCurrentProject()
         {
             const int differentPort = 29999;
-            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), $"{differentPort}\n");
+            File.WriteAllText(Path.Combine(_scope.Path, $"{differentPort}.port"), "99999999\n");
 
             var result = McpServerScanner.Scan();
 
@@ -93,10 +93,10 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void Scan_LockInRootDir_ReportsAlive()
         {
-            // Use PID 0 in filename so the PID-fallback can't produce alive=true on its own.
-            // Only a lock file found in lockDir can produce alive=true here.
+            // Port file in {port}.port format; PID 0 in content so the PID-fallback can't
+            // produce alive=true on its own — only a lock file can.
             var selfPid = System.Diagnostics.Process.GetCurrentProcess().Id;
-            File.WriteAllText(Path.Combine(_scope.Path, "0.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), "0\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, $"server-9500-{selfPid}.lock"), "");
 
             var result = McpServerScanner.Scan();
@@ -107,11 +107,11 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void Scan_NoLock_FallbackToPidFromFileName()
+        public void Scan_NoLock_FallbackToPidFromContent()
         {
-            // No lockfile — scanner must fall back to PID extracted from the filename.
+            // No lockfile — scanner must fall back to PID from file content (line 1).
             var selfPid = System.Diagnostics.Process.GetCurrentProcess().Id;
-            File.WriteAllText(Path.Combine(_scope.Path, $"{selfPid}.port"), "9600\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9600.port"), $"{selfPid}\n");
 
             var result = McpServerScanner.Scan();
 
@@ -162,7 +162,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ScanDetailed_MultipleLocksForSamePort_ReturnsAllConnections()
         {
-            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), "99999999\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, "server-9500-1001.lock"), "1001\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, "server-9500-1002.lock"), "1002\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, "server-9500-1003.lock"), "1003\n");
@@ -180,7 +180,7 @@ namespace UnityMCP.Editor.Tests
             var selfPid = System.Diagnostics.Process.GetCurrentProcess().Id;
             Assume.That(!IsProcessAlive(deadPid), "PID 99999999 must not be alive for this test");
 
-            File.WriteAllText(Path.Combine(_scope.Path, "0.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), "0\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, $"server-9500-{deadPid}.lock"), $"{deadPid}\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, $"server-9500-{selfPid}.lock"), $"{selfPid}\n");
 
@@ -203,7 +203,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ScanDetailed_NoLocks_EmptyConnections()
         {
-            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), "99999999\n");
 
             var result = McpServerScanner.ScanDetailed();
 
@@ -212,9 +212,9 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void ScanDetailed_UnityPidFromFilename()
+        public void ScanDetailed_UnityPidFromContent()
         {
-            File.WriteAllText(Path.Combine(_scope.Path, "83782.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), "83782\n");
 
             var result = McpServerScanner.ScanDetailed();
 
@@ -225,8 +225,8 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ScanDetailed_MultiplePortFiles_MultipleEntries()
         {
-            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), "9500\n");
-            File.WriteAllText(Path.Combine(_scope.Path, "88888888.port"), "9501\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), "99999999\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9501.port"), "88888888\n");
 
             var result = McpServerScanner.ScanDetailed();
 
@@ -237,7 +237,7 @@ namespace UnityMCP.Editor.Tests
         public void ScanDetailed_LiveTcpCountInjected()
         {
             var port = MCPServer.ServerPort;
-            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), $"{port}\n");
+            File.WriteAllText(Path.Combine(_scope.Path, $"{port}.port"), "99999999\n");
             McpServerScanner.OverrideLiveTcpCountGetter = _ => 3;
 
             var result = McpServerScanner.ScanDetailed();
@@ -251,7 +251,7 @@ namespace UnityMCP.Editor.Tests
         public void ScanDetailed_NonCurrentProject_LiveTcpCountZero()
         {
             const int differentPort = 29999;
-            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), $"{differentPort}\n");
+            File.WriteAllText(Path.Combine(_scope.Path, $"{differentPort}.port"), "99999999\n");
             McpServerScanner.OverrideLiveTcpCountGetter = _ => 99;
 
             var result = McpServerScanner.ScanDetailed();
@@ -268,7 +268,7 @@ namespace UnityMCP.Editor.Tests
             var selfPid = System.Diagnostics.Process.GetCurrentProcess().Id;
             Assume.That(!IsProcessAlive(deadPid), "PID 99999999 must not be alive for this test");
 
-            File.WriteAllText(Path.Combine(_scope.Path, "0.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), "0\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, $"server-9500-{deadPid}.lock"), $"{deadPid}\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, $"server-9500-{selfPid}.lock"), $"{selfPid}\n");
 
@@ -292,7 +292,7 @@ namespace UnityMCP.Editor.Tests
                 if (!IsProcessAlive(c)) deadPid = c;
             Assume.That(deadPid > 0, "Could not find a dead PID < selfPid on this machine");
 
-            File.WriteAllText(Path.Combine(_scope.Path, "0.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), "0\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, $"server-9500-{deadPid}.lock"), "");
             File.WriteAllText(Path.Combine(_lockScope.Path, $"server-9500-{selfPid}.lock"), "");
 
@@ -308,7 +308,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ScanDetailed_EightLocks_AllReturned()
         {
-            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), "99999999\n");
             for (int i = 1; i <= 8; i++)
                 File.WriteAllText(Path.Combine(_lockScope.Path, $"server-9500-{1000 + i}.lock"), $"{1000 + i}\n");
 
@@ -323,7 +323,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ScanDetailed_MalformedLockFilename_Skipped()
         {
-            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), "99999999\n");
             // Malformed: empty PID segment — int.TryParse("") fails
             File.WriteAllText(Path.Combine(_lockScope.Path, "server-9500-.lock"), "bad\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, "server-9500-1001.lock"), "1001\n");
@@ -337,7 +337,7 @@ namespace UnityMCP.Editor.Tests
         [Test]
         public void ScanDetailed_NonNumericPid_Skipped()
         {
-            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), "99999999\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, "server-9500-abc.lock"), "abc\n");
             File.WriteAllText(Path.Combine(_lockScope.Path, "server-9500-1001.lock"), "1001\n");
 
@@ -353,7 +353,7 @@ namespace UnityMCP.Editor.Tests
             // Lock dir that doesn't exist → FindConnections returns empty
             McpServerScanner.OverrideLockDir = Path.Combine(
                 Path.GetTempPath(), $"no_such_{System.Guid.NewGuid():N}");
-            File.WriteAllText(Path.Combine(_scope.Path, "99999999.port"), "9500\n");
+            File.WriteAllText(Path.Combine(_scope.Path, "9500.port"), "99999999\n");
 
             var result = McpServerScanner.ScanDetailed();
 
