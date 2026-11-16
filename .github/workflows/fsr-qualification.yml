@@ -51,7 +51,7 @@ jobs:
             runner: macos-15
             os_name: macOS
             arch: arm64
-            hub-version: '3.19.5'
+            hub-version: ''
           - cell: min-windows-x64
             window: u_min
             runner: windows-2022

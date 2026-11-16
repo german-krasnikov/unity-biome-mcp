@@ -79,7 +79,7 @@ jobs:
             runner: macos-latest
             build-target: StandaloneOSX
             build-output: artifacts/player-smoke/UnityMCP.app
-            hub-version: "3.19.5"
+            hub-version: ""
           - name: Windows
             runner: windows-2022
             build-target: StandaloneWindows64
