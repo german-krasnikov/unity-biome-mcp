@@ -16,7 +16,7 @@
       "failed": 12,
       "skipped": 190,
       "total": 9681,
-      "duration": 160.224334
+      "duration": 129.764406
     },
     {
       "name": "C# EditMode (Windows)",
@@ -25,7 +25,7 @@
       "failed": 14,
       "skipped": 304,
       "total": 9681,
-      "duration": 186.469159
+      "duration": 213.15355
     }
   ]
 }
