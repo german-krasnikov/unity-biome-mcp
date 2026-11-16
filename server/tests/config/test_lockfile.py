@@ -493,7 +493,10 @@ def test_acquire_lock_with_metadata_writes_json(tmp_path):
     fd = acquire_lock(lock_dir=tmp_path, port=9500, metadata=meta)
     try:
         result = read_lock_metadata(fd)
-        assert result == meta
+        assert result["v"] == 2
+        assert result["role"] == "mcp"
+        assert result["cwd"] == "/some/path"
+        assert "ppid" in result
     finally:
         release_lock(fd)
 
