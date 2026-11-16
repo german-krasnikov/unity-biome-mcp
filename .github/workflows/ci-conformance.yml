@@ -26,7 +26,7 @@ on:
 
 concurrency:
   group: ci-conformance-${{ github.head_ref || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 permissions:
   contents: read

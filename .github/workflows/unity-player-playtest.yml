@@ -42,7 +42,7 @@ on:
 
 concurrency:
   group: unity-player-playtest-${{ github.head_ref || github.ref }}-${{ github.event_name == 'workflow_call' && github.run_id || 'default' }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
 
 permissions:
   contents: read
