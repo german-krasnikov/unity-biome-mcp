@@ -152,9 +152,9 @@ Used by `list_connections` to replace the binary connected/disconnected boolean.
 
 ### Port Discovery & TCP Probe (server_filtering.py) — v0.23.0, v0.36.0
 
-Port discovery reads `~/.unity-biome-mcp/ports/{pid}.port` files. **v0.23.0:** Adds `_tcp_probe(port, timeout=0.2)` — quick TCP handshake to verify port actually listens before returning. Filters out stale discovery files (port written but server not yet bound, or server crashed leaving orphan file). Candidates prioritized: env UNITY_MCP_PORT → CWD project path match → newest mtime → default 9500.
+Port discovery reads `~/.unity-biome-mcp/ports/{port}.port` files (line 1 = Unity PID, line 2 = project path). `read_unity_port()` delegates to biome-mcp `ConnectionResolver`; the candidate order is the waterfall in [connection-tools.md](connection-tools.md#reconnect_unity). Discovery does not TCP-probe candidates; liveness is the PID check. `_tcp_probe` is used only by the 30-second phantom sweep (`heartbeat.py` → `cleanup_stale_port_files(tcp_probe=True)`).
 
-**v0.36.0:** `_is_pid_alive(pid)` cross-platform check (Windows: OpenProcess/CloseHandle, Unix: os.kill(pid,0)) replaces naive kill check. C# MCPServer writes `{pid}.port` discovery files.
+**v0.36.0:** `_is_pid_alive(pid)` cross-platform check (Windows: OpenProcess/CloseHandle, Unix: os.kill(pid,0)) replaces naive kill check. C# MCPServer writes `{port}.port` discovery files.
 
 **v0.96.1 Legacy fallback (`paths.py`):** `iter_port_files(pattern, primary_dir)` yields port files from primary `~/.unity-biome-mcp/ports/` AND legacy `~/.unity-mcp/ports/`. Deduplicates by filename (new dir wins). `config/resolver.py:find_port()` uses this iterator so port discovery works for users who haven't migrated to the new path yet.
 
@@ -172,7 +172,7 @@ Each MCP session owns
 `~/.unity-biome-mcp/server-{port}-{pid}.lock`:
 - Multiple sessions can coexist on the same Unity port.
 - The process takes a non-blocking lock on its own presence file.
-- `cleanup_stale_locks()` deletes files whose PID is no longer alive.
+- `phantom_cleaner.cleanup_stale_locks()` deletes files whose PID is no longer alive.
 - No process is signaled or terminated by lock acquisition or cleanup.
 - Windows locks a sentinel byte; POSIX uses `flock`.
 
@@ -228,7 +228,8 @@ slot lock. It does not scan PID lockfiles or run automatically at startup.
 - Re-registered in StartAsync() after bind succeeds
 
 **Port discovery:**
-- Writes `~/.unity-biome-mcp/ports/{pid}.port` (port, project path, project name)
+- Writes `~/.unity-biome-mcp/ports/{port}.port` (line 1 PID, line 2 project path, line 3 project name) and `{chatPort}.chat-port`
+- Does not delete peer port files; the Python phantom sweep (every 30 s, `PORT_SWEEP_INTERVAL_S`) removes those whose PID is dead
 - Python auto-discovers port from these files
 
 **State file:**

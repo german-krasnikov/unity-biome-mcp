@@ -188,16 +188,16 @@ def test_server_filtering_read_utf8(tmp_path):
 
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    # PID in stem; port=19999, project_path with Cyrillic, project_name with Cyrillic
-    port_file = ports_dir / "99999.port"
-    content = f"19999\n/home/user/Проект\n{CYR}\n"
+    # New format: port in stem=19999, pid=99999 in content[0], Cyrillic project path
+    port_file = ports_dir / "19999.port"
+    content = f"99999\n/home/user/Проект\n{CYR}\n"
     port_file.write_bytes(content.encode("utf-8"))
 
-    # Patch _ports_dir seam so read_unity_port resolves to tmp ports_dir.
-    # Patch os.kill so pid=99999 is "alive" (no exception).
-    # Patch _tcp_probe so port 19999 appears open.
-    with mock.patch("unity_mcp.server_filtering._ports_dir", return_value=ports_dir), \
-         mock.patch("unity_mcp.server_filtering._is_pid_alive", return_value=True), \
+    # Path.home() → tmp_path so ports_dir resolves to tmp_path/.unity-biome-mcp/ports.
+    # Mock is_pid_alive so pid=99999 is "alive".
+    from pathlib import Path
+    with mock.patch.object(Path, "home", return_value=tmp_path), \
+         mock.patch("biome_mcp.cli.resolver.is_pid_alive", return_value=True), \
          mock.patch("unity_mcp.server_filtering._tcp_probe", return_value=True), \
          mock.patch.dict("os.environ", {}, clear=False):
 
@@ -228,9 +228,9 @@ def test_lockfile_read_pid_from_port_file_cyrillic_path(tmp_path):
     ports_dir.mkdir(parents=True)
     pid = 77777
     port = 19501
-    # Project path and name both contain Cyrillic — tests that read_text encoding is correct
-    content = f"{port}\n/home/Пользователь/МойПроект\n{CYR}\n"
-    port_file = ports_dir / f"{pid}.port"
+    # New format: port in stem, pid in content[0]; Cyrillic in project path/name
+    content = f"{pid}\n/home/Пользователь/МойПроект\n{CYR}\n"
+    port_file = ports_dir / f"{port}.port"
     port_file.write_bytes(content.encode("utf-8"))
 
     with patch.object(Path, "home", return_value=tmp_path), \

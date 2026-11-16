@@ -103,7 +103,7 @@ async def test_full_playmode_exit_reconnect_sequence():
 
     with patch.object(bridge_mod.asyncio, "open_connection",
                       new=AsyncMock(return_value=(mock_reader, mock_writer))), \
-         patch("unity_mcp.bridge._apply_socket_options"), \
+         patch("unity_mcp.bridge.apply_socket_options"), \
          patch("unity_mcp.lockfile.read_pid_from_port_file", return_value=None), \
          patch.object(bridge, "start_heartbeat"):
         await bridge._reconnect()

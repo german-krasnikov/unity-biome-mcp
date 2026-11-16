@@ -307,26 +307,21 @@ def test_read_unity_port_pid_alive_candidate_always_included(tmp_path):
     Previously this test checked that tcp_probe=False skipped the candidate; that behavior
     is gone — PID liveness is the only gate.
     """
-    from unittest.mock import patch, MagicMock
+    from unittest.mock import patch
     from pathlib import Path
 
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    port_file = ports_dir / "12345.port"
-    port_file.write_text("9501\n/some/project\nMyProject", encoding="utf-8")
+    port_file = ports_dir / "9501.port"
+    port_file.write_text("12345\n/some/project\nMyProject", encoding="utf-8")
 
     with (
-        patch("unity_mcp.server_filtering.Path") as mock_path_cls,
-        patch("unity_mcp.server_filtering._is_pid_alive", return_value=True),  # all platforms
+        patch("biome_mcp.cli.resolver.is_pid_alive", return_value=True),  # all platforms
+        patch.object(Path, "home", return_value=tmp_path),
         patch.dict("os.environ", {}, clear=False),
     ):
-        mock_home = MagicMock()
-        mock_path_cls.home.return_value = mock_home
-        mock_home.__truediv__ = lambda self, x: tmp_path / x if x == ".unity-biome-mcp" else MagicMock()
-
         from unity_mcp import server_filtering
-        with patch.object(Path, "home", return_value=tmp_path):
-            result = server_filtering.read_unity_port()
+        result = server_filtering.read_unity_port()
 
     assert result == 9501  # candidate included — no probe skipping
 
@@ -341,13 +336,13 @@ def test_read_unity_port_cyrillic_project_path_parses_correctly(tmp_path):
 
     ports_dir = tmp_path / ".unity-biome-mcp" / "ports"
     ports_dir.mkdir(parents=True)
-    port_file = ports_dir / "12345.port"
+    port_file = ports_dir / "9501.port"
     # Write file as raw UTF-8 bytes — bypasses EncodingWarning gate on test side
-    port_file.write_bytes("9501\n/Users/Иван/MyProject\nМойПроект\n".encode("utf-8"))
+    port_file.write_bytes("12345\n/Users/Иван/MyProject\nМойПроект\n".encode("utf-8"))
 
     with (
         patch("unity_mcp.server_filtering._tcp_probe", return_value=True),
-        patch("unity_mcp.server_filtering._is_pid_alive", return_value=True),  # all platforms
+        patch("biome_mcp.cli.resolver.is_pid_alive", return_value=True),  # all platforms
         patch.object(Path, "home", return_value=tmp_path),
     ):
         from unity_mcp import server_filtering

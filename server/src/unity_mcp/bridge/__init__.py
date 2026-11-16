@@ -45,7 +45,7 @@ from .socket_io import (
     _TCP_KEEPALIVE_DARWIN,
     _TCP_KEEPINTVL_DARWIN,
     DomainReloadError,
-    _apply_socket_options,
+    apply_socket_options,
     frame_read_with_timeout,
     frame_write,
 )
@@ -55,7 +55,7 @@ __all__ = [
     "UnityBridge", "DomainReloadError", "BridgeState", "DeliveryState",
     "CommandStatus", "CommandLedger", "EditorIdentity",
     "MIN_RECONNECT_INTERVAL", "DOMAIN_RELOAD_EXPIRY_S",
-    "_apply_socket_options",
+    "apply_socket_options",
     "_TCP_KEEPALIVE_DARWIN", "_TCP_KEEPINTVL_DARWIN",
     "PROTOCOL_VERSION", "VersionInfo", "parse_version_string", "check_protocol_version",
 ]
@@ -335,7 +335,7 @@ class UnityBridge(HeartbeatMixin):
             asyncio.open_connection(self._host, self._port),
             timeout=CONNECT_TIMEOUT,
         )
-        _apply_socket_options(writer.get_extra_info("socket"))
+        apply_socket_options(writer.get_extra_info("socket"))
         try:
             await self._verify_candidate_project(reader, writer, self._port)
             # DEV-60: negotiate protocol version on the very first connect too —
@@ -808,7 +808,7 @@ class UnityBridge(HeartbeatMixin):
             asyncio.open_connection(self._host, port),
             timeout=CONNECT_TIMEOUT,
         )
-        _apply_socket_options(writer.get_extra_info("socket"))
+        apply_socket_options(writer.get_extra_info("socket"))
         try:
             self._counter += 1
             hello_id = f"rc{self._counter:04x}"

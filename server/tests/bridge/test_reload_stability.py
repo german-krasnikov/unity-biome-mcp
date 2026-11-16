@@ -80,13 +80,13 @@ def test_cleanup_removes_10_dead_port_files(tmp_path):
 
 
 def test_cleanup_keeps_alive_removes_dead(tmp_path):
-    """3 dead + 2 alive: 3 deleted, 2 kept."""
+    """3 dead + 2 alive: 3 deleted, 2 kept. New format: stem=port, content[0]=pid."""
     ports_dir = tmp_path / "ports"
     ports_dir.mkdir()
-    for pid in [111, 222, 333]:
-        (ports_dir / f"{pid}.port").write_text("9500\n", encoding="utf-8")
-    for pid in [444, 555]:
-        (ports_dir / f"{pid}.port").write_text("9501\n", encoding="utf-8")
+    for i, pid in enumerate([111, 222, 333]):
+        (ports_dir / f"{9500 + i}.port").write_text(f"{pid}\n", encoding="utf-8")
+    for i, pid in enumerate([444, 555]):
+        (ports_dir / f"{9510 + i}.port").write_text(f"{pid}\n", encoding="utf-8")
 
     def is_alive(pid):
         return pid in (444, 555)
@@ -95,7 +95,7 @@ def test_cleanup_keeps_alive_removes_dead(tmp_path):
          patch("unity_mcp.phantom_cleaner.is_pid_alive", side_effect=is_alive):
         assert cleanup_stale_port_files() == 3
     remaining = {f.name for f in ports_dir.iterdir()}
-    assert remaining == {"444.port", "555.port"}
+    assert remaining == {"9510.port", "9511.port"}
 
 
 def test_cleanup_handles_all_port_patterns(tmp_path):
@@ -112,12 +112,18 @@ def test_cleanup_handles_all_port_patterns(tmp_path):
 
 
 def test_read_pid_skips_dead_returns_alive(tmp_path):
-    """2 dead + 1 alive port files for same port — returns alive PID only."""
+    """Port file for alive PID returns that PID; dead-PID port files for other ports skipped.
+
+    New format: stem=port, content[0]=pid. Each port maps to exactly one file,
+    so "same port, multiple dead PIDs" is impossible — one write wins.
+    """
     ports_dir = tmp_path / "ports"
     ports_dir.mkdir()
-    for pid in [11111, 22222]:
-        (ports_dir / f"{pid}.port").write_text("9500\n/proj\n", encoding="utf-8")
-    (ports_dir / "33333.port").write_text("9500\n/proj\n", encoding="utf-8")
+    # Dead PIDs on other ports (skipped by port-mismatch, not by liveness)
+    (ports_dir / "9498.port").write_text("11111\n/proj\n", encoding="utf-8")
+    (ports_dir / "9499.port").write_text("22222\n/proj\n", encoding="utf-8")
+    # Alive PID on the target port
+    (ports_dir / "9500.port").write_text("33333\n/proj\n", encoding="utf-8")
 
     def is_alive(pid):
         return pid == 33333
@@ -470,9 +476,7 @@ def test_watchdog_registered_before_port_file_manager():
     ctor_end = src.find("\n        public static async void StartAsync()", ctor_start)
     ctor = src[ctor_start:ctor_end]
     idx_register = ctor.find("RegisterLifecycleCallbacks()")
-    idx_clean = ctor.find("PortFileManager.CleanStalePeerPortFiles()")
     idx_save = ctor.find("PortFileManager.SavePorts(")
-    assert idx_register < idx_clean, "Lifecycle callbacks must be registered before CleanStalePeerPortFiles()"
     assert idx_register < idx_save, "Lifecycle callbacks must be registered before SavePorts()"
 
     # TICK-DISPATCHER: MainThreadDispatcher.Drain is no longer registered here — it

@@ -71,6 +71,21 @@ def history_dir(fingerprint: str) -> Path:
     return unity_mcp_dir() / "projects" / fingerprint / "history"
 
 
+def make_app_profile():
+    """Build the AppProfile for unity-biome-mcp. Shared by cli.py and server_filtering.py."""
+    from biome_mcp.cli import AppProfile
+
+    from .constants import DEFAULT_PORT
+    return AppProfile(
+        app_name="unity-biome-mcp",
+        protocol="tcp",
+        default_port=DEFAULT_PORT,
+        default_host="127.0.0.1",
+        data_dir=unity_mcp_dir(),
+        env_aliases=(("UNITY_MCP_PORT", "PORT"), ("UNITY_MCP_HOST", "HOST")),
+    )
+
+
 def iter_port_files(pattern: str, primary_dir: Path | None = None) -> Iterator[Path]:
     """Yield port files from primary + legacy ~/.unity-mcp/ports. Dedup by filename.
 

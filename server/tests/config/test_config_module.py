@@ -680,7 +680,7 @@ def test_validate_ok_report(tmp_path, monkeypatch):
     cfg.write_text(json.dumps({"mcpServers": {SERVER_NAME: {"command": "uvx", "args": ["unity-biome-mcp"]}}}), encoding="utf-8")
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-desktop"], "config_path", cfg)
     # patch port check to skip network
-    with patch("unity_mcp.config.validator._port_reachable", return_value=False):
+    with patch("unity_mcp.config.validator._tcp_probe", return_value=False):
         report = validator.validate_config("claude-desktop")
     assert SERVER_NAME in report.lower()
 
@@ -698,7 +698,7 @@ def test_validate_config_uses_read_unity_port_not_naive_find_port(tmp_path, monk
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-desktop"], "config_path", cfg)
     monkeypatch.setattr("unity_mcp.config.resolver.find_port", lambda: 1111)
     monkeypatch.setattr("unity_mcp.config.validator.read_unity_port", lambda skip_probe=False: 2222)
-    with patch("unity_mcp.config.validator._port_reachable", return_value=False):
+    with patch("unity_mcp.config.validator._tcp_probe", return_value=False):
         report = validator.validate_config("claude-desktop")
     assert "2222" in report
     assert "1111" not in report
@@ -715,7 +715,7 @@ def test_validate_config_falls_back_to_default_port_when_read_unity_port_returns
     cfg.write_text(json.dumps({"mcpServers": {SERVER_NAME: {"command": "uvx", "args": ["unity-biome-mcp"]}}}), encoding="utf-8")
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-desktop"], "config_path", cfg)
     monkeypatch.setattr("unity_mcp.config.validator.read_unity_port", lambda skip_probe=False: None)
-    with patch("unity_mcp.config.validator._port_reachable", return_value=False):
+    with patch("unity_mcp.config.validator._tcp_probe", return_value=False):
         report = validator.validate_config("claude-desktop")
     assert str(DEFAULT_PORT) in report
     assert "None" not in report
@@ -735,7 +735,7 @@ def test_validate_config_key_matches_server_name(tmp_path, monkeypatch):
         encoding="utf-8",
     )
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-desktop"], "config_path", cfg)
-    with patch("unity_mcp.config.validator._port_reachable", return_value=False):
+    with patch("unity_mcp.config.validator._tcp_probe", return_value=False):
         report = validator.validate_config("claude-desktop")
     assert "probe-doctor" in report
     assert "not configured" not in report.lower()

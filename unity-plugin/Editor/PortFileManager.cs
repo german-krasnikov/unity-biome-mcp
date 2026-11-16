@@ -171,50 +171,6 @@ namespace UnityMCP.Editor
             _portsResolved = true;
         }
 
-        // Removes port files from dead PIDs to prevent stale discovery entries accumulating
-        // after hard crashes. Called once at startup before WritePortFile().
-        internal static void CleanStalePeerPortFiles()
-        {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".unity-biome-mcp", "ports");
-            CleanStalePeerPortFiles(dir);
-        }
-
-        // Testable overload: accepts the ports directory so tests can pass a temp path.
-        // Iterates all files — handles *.port, *.reload-port, *.chat-port from dead PIDs.
-        internal static void CleanStalePeerPortFiles(string dir)
-        {
-            try
-            {
-                if (!Directory.Exists(dir)) return;
-                var currentPid = System.Diagnostics.Process.GetCurrentProcess().Id;
-                foreach (var file in Directory.GetFiles(dir))
-                {
-                    var name = Path.GetFileName(file);
-                    var dot = name.IndexOf('.');
-                    if (dot < 0) continue;
-                    if (!int.TryParse(name.Substring(0, dot), out var pid) || pid == currentPid) continue;
-                    if (IsProcessAlive(pid)) continue;
-                    try { File.Delete(file); } catch { }
-                }
-            }
-            catch { }
-        }
-
-        private static bool IsProcessAlive(int pid)
-        {
-            try
-            {
-                using (var process = System.Diagnostics.Process.GetProcessById(pid))
-                    return !process.HasExited;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
         internal static void WritePortFile(int port)
         {
             var projectPath = Path.GetDirectoryName(Application.dataPath);
@@ -255,14 +211,12 @@ namespace UnityMCP.Editor
             try
             {
                 Directory.CreateDirectory(discoveryDirectory);
-                var info = $"{port}\n{projectPath}\n{projectName}";
-                writeAllText(Path.Combine(discoveryDirectory, $"{processId}.port"), info);
+                writeAllText(Path.Combine(discoveryDirectory, $"{port}.port"), $"{processId}\n{projectPath}\n{projectName}");
                 if (chatPort > 0)
                 {
-                    var chatInfo = $"{chatPort}\n{projectPath}\n{projectName}";
                     writeAllText(
-                        Path.Combine(discoveryDirectory, $"{processId}.chat-port"),
-                        chatInfo);
+                        Path.Combine(discoveryDirectory, $"{chatPort}.chat-port"),
+                        $"{processId}\n{projectPath}\n{projectName}");
                 }
             }
             catch (Exception e)
@@ -284,10 +238,9 @@ namespace UnityMCP.Editor
                 var dir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     ".unity-biome-mcp", "ports");
-                var pid = System.Diagnostics.Process.GetCurrentProcess().Id;
-                var path = Path.Combine(dir, $"{pid}.port");
+                var path = Path.Combine(dir, $"{Port}.port");
                 if (File.Exists(path)) File.Delete(path);
-                var chatPath = Path.Combine(dir, $"{pid}.chat-port");
+                var chatPath = Path.Combine(dir, $"{ChatPort}.chat-port");
                 if (File.Exists(chatPath)) File.Delete(chatPath);
             }
             catch { }

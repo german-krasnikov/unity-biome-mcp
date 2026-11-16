@@ -57,14 +57,14 @@ namespace UnityMCP.Editor
             var results = new List<UnityServerInfo>();
             foreach (var portFile in Directory.GetFiles(scanDir, "*.port"))
             {
-                var firstLine = File.ReadAllText(portFile).Split('\n')[0].Trim();
-                if (!int.TryParse(firstLine, out var port)) continue;
+                var fileName = Path.GetFileNameWithoutExtension(portFile);
+                if (!int.TryParse(fileName, out var port)) continue;
 
                 var connections = FindConnections(lockDir, port);
                 var isCurrent = port == MCPServer.ServerPort;
                 int unityPid = 0;
-                var fileName = Path.GetFileNameWithoutExtension(portFile);
-                if (int.TryParse(fileName, out var filePid)) unityPid = filePid;
+                var firstLine = File.ReadAllText(portFile).Split('\n')[0].Trim();
+                int.TryParse(firstLine, out unityPid);
                 var liveTcp = isCurrent ? GetLiveTcpCount(port) : 0;
                 results.Add(new UnityServerInfo(port, unityPid, isCurrent, connections, liveTcp));
             }
@@ -96,23 +96,11 @@ namespace UnityMCP.Editor
             return results;
         }
 
+        // Port-file cleanup is delegated to Python phantom_cleaner (runs every 30s).
+        // C# only cleans lock files, which are unique to the C# bridge.
         internal static void CleanPhantomFiles()
         {
-            var (scanDir, lockDir) = GetDirs();
-
-            if (Directory.Exists(scanDir))
-            {
-                foreach (var portFile in Directory.GetFiles(scanDir, "*.port"))
-                {
-                    var name = Path.GetFileNameWithoutExtension(portFile);
-                    if (!int.TryParse(name, out var pid)) continue;
-                    if (IsProcessAlive(pid)) continue;
-
-                    TryDelete(portFile);
-                    TryDelete(Path.Combine(scanDir, name + ".chat-port"));
-                    TryDelete(Path.Combine(scanDir, name + ".reload-port"));
-                }
-            }
+            var (_, lockDir) = GetDirs();
 
             if (Directory.Exists(lockDir))
             {

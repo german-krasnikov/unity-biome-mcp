@@ -35,7 +35,7 @@ wheels = [
 [[package]]
 name = "biome-mcp"
 version = "0.1.0"
-source = { git = "https://github.com/german-krasnikov/biome-mcp.git#ae520d62675bc5671a0bd075eb4e3d0e79a59264" }
+source = { git = "https://github.com/german-krasnikov/biome-mcp.git#d4d59f2ba51a5cb1336c052318ebad4697e0736f" }
 
 [package.optional-dependencies]
 mcp = [
@@ -888,7 +888,7 @@ wheels = [
 
 [[package]]
 name = "unity-biome-mcp"
-version = "3.0.0"
+version = "3.0.1"
 source = { editable = "." }
 dependencies = [
     { name = "biome-mcp", extra = ["mcp"] },

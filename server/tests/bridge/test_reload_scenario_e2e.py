@@ -265,7 +265,7 @@ async def test_port_file_stale_unity_restart_new_port_discovered():
          patch("unity_mcp.bridge.frame_read_with_timeout",
                new=AsyncMock(side_effect=[ping_bytes, ver_bytes])), \
          patch("unity_mcp.lockfile.read_pid_from_port_file", return_value=2000), \
-         patch("unity_mcp.bridge._apply_socket_options"), \
+         patch("unity_mcp.bridge.apply_socket_options"), \
          patch.object(bridge, "close", new=AsyncMock()), \
          patch.object(bridge, "start_heartbeat"):
         await bridge._reconnect(fire_callbacks=False)

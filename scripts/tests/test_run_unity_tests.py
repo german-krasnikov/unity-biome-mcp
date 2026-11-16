@@ -144,8 +144,8 @@ def test_port_discovery_is_project_correlated(
     ports.mkdir()
     project.mkdir()
     other.mkdir()
-    (ports / "one.port").write_text(f"9501\n{other}\n", encoding="utf-8")
-    (ports / "two.port").write_text(f"9502\n{project}\n", encoding="utf-8")
+    (ports / "9501.port").write_text(f"1001\n{other}\n", encoding="utf-8")
+    (ports / "9502.port").write_text(f"1002\n{project}\n", encoding="utf-8")
     monkeypatch.setattr(runner, "PORTS_DIR", ports)
 
     assert runner.advertised_ports(project, None) == [9502]

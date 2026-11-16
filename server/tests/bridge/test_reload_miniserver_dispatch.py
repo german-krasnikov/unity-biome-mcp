@@ -72,14 +72,15 @@ def test_read_reload_port_newest_mtime_wins_when_no_cwd_match(tmp_path):
     pid = os.getpid()
     ppid = os.getppid()
 
+    # New format: filename = port, content[0] = pid
     # older file (force ancient mtime)
-    old_file = ports_dir / f"{pid}.reload-port"
-    old_file.write_text("9701\n/other/proj\nOther", encoding="utf-8")
+    old_file = ports_dir / "9701.reload-port"
+    old_file.write_text(f"{pid}\n/other/proj\nOther", encoding="utf-8")
     os.utime(old_file, (1_000_000, 1_000_000))
 
     # newer file (default mtime = now)
-    new_file = ports_dir / f"{ppid}.reload-port"
-    new_file.write_text("9702\n/other/proj2\nOther2", encoding="utf-8")
+    new_file = ports_dir / "9702.reload-port"
+    new_file.write_text(f"{ppid}\n/other/proj2\nOther2", encoding="utf-8")
 
     with patch.object(Path, "home", return_value=tmp_path), \
          patch("unity_mcp.lockfile.is_pid_alive", return_value=True), \

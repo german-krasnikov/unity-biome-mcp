@@ -1,73 +1,14 @@
 """Tests for Windows path fix (A5) and startup race fix (A2).
 
-A5: _is_path_prefix uses normcase+normpath for cross-platform separator handling.
+A5: ConnectionResolver._canonical_project_path uses normcase+normpath for
+    cross-platform separator handling (_is_path_prefix removed as dead code).
 A2: discover_port_with_retry retries with backoff when no port file exists yet.
 """
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from unity_mcp.server_filtering import _is_path_prefix, read_unity_port as _read_unity_port
-
-
-# ---------------------------------------------------------------------------
-# Group A — _is_path_prefix pure unit tests
-# ---------------------------------------------------------------------------
-
-def test_is_path_prefix_exact_match():
-    assert _is_path_prefix("/foo/bar", "/foo/bar")
-
-
-def test_is_path_prefix_child():
-    assert _is_path_prefix("/foo/bar/baz", "/foo/bar")
-
-
-def test_is_path_prefix_no_partial_name():
-    """/foo/bar2 must NOT match prefix /foo/bar."""
-    assert not _is_path_prefix("/foo/bar2", "/foo/bar")
-
-
-def test_is_path_prefix_prefix_longer_than_cwd():
-    assert not _is_path_prefix("/foo/bar", "/foo/bar/baz")
-
-
-def test_is_path_prefix_trailing_slash_normalized():
-    """Trailing slash in prefix gets normalized away by normpath."""
-    assert _is_path_prefix("/foo/bar/baz", "/foo/bar/")
-
-
-# ---------------------------------------------------------------------------
-# Group B — Windows slash normalization via normcase mock
-# ---------------------------------------------------------------------------
-
-def test_is_path_prefix_windows_forward_slash_in_pp():
-    """Simulate Windows: pp uses '/', cwd uses os.sep='\\'.
-    normcase on Windows converts both to '\\' and lowercases.
-    """
-    def fake_normcase(p: str) -> str:
-        return p.replace("/", "\\").lower()
-
-    with patch("os.path.normcase", side_effect=fake_normcase), \
-         patch("os.sep", "\\"):
-        from unity_mcp import server_filtering
-        assert server_filtering._is_path_prefix(
-            r"C:\Users\User\Project\Assets",
-            "C:/Users/User/Project",
-        )
-
-
-def test_is_path_prefix_windows_no_false_match_partial_name():
-    """Windows: 'C:/Users/ProjectAB' must not match prefix 'C:/Users/Project'."""
-    def fake_normcase(p: str) -> str:
-        return p.replace("/", "\\").lower()
-
-    with patch("os.path.normcase", side_effect=fake_normcase), \
-         patch("os.sep", "\\"):
-        from unity_mcp import server_filtering
-        assert not server_filtering._is_path_prefix(
-            r"C:\Users\ProjectAB\Assets",
-            "C:/Users/Project",
-        )
+from unity_mcp.server_filtering import read_unity_port as _read_unity_port
 
 
 # ---------------------------------------------------------------------------
@@ -86,12 +27,13 @@ def test_read_unity_port_windows_forward_slash_project_path(monkeypatch, tmp_pat
     ports_dir.mkdir(parents=True)
     # Unity writes forward-slash paths via Application.dataPath
     project_path = (tmp_path / "MyProject").as_posix()  # always forward slashes
-    f = ports_dir / "1234.port"
-    f.write_text(f"9502\n{project_path}\nMyProject\n", encoding="utf-8")
+    # New format: stem=port=9502, content[0]=pid=1234
+    f = ports_dir / "9502.port"
+    f.write_text(f"1234\n{project_path}\nMyProject\n", encoding="utf-8")
 
     monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     # mock at abstraction level — works on all platforms (Windows uses ctypes, not os.kill)
-    monkeypatch.setattr("unity_mcp.server_filtering._is_pid_alive", lambda pid: True)
+    monkeypatch.setattr("biome_mcp.cli.resolver.is_pid_alive", lambda pid: True)
     # getcwd returns native-sep path (normpath handles either form on same OS)
     monkeypatch.setattr("os.getcwd", lambda: str(tmp_path / "MyProject" / "Assets"))
 

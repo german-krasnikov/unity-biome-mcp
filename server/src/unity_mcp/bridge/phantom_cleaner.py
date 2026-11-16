@@ -50,8 +50,8 @@ def cleanup_stale_locks(port: int, lock_dir: Path = None) -> int:
 # Cadence for the idle-heartbeat stale-port sweep (bridge_heartbeat throttles
 # _maybe_sweep_stale_ports to at most once per this interval), and therefore
 # the minimum real-world spacing between two tcp_probe=True calls from that
-# caller. Mirrored independently in C# as MCPServer.PortSweepIntervalSeconds
-# — not auto-synced across languages; update both definition sites together.
+# caller. C# MCPServer.PortSweepIntervalSeconds was removed — Python is the
+# sole owner of periodic port-file cleanup.
 PORT_SWEEP_INTERVAL_S: float = 30.0
 
 # C1 #11: a single failed tcp_probe must NOT delete a live-PID port file.
@@ -114,17 +114,18 @@ def cleanup_stale_port_files(tcp_probe: bool = False, now_fn=time.monotonic) -> 
         for f in ports_dir.glob(pattern):
             key = str(f)
             try:
-                pid = int(f.stem)
+                # New format: stem=port, content[0]=pid
+                lines = _read_port_file_lines(f, max_lines=1)
+                if not lines:
+                    continue
+                pid = int(lines[0])
                 if not is_pid_alive(pid):
                     f.unlink()
                     cleaned += 1
                     _tcp_probe_fail_since.pop(key, None)
                     continue
                 if tcp_probe:
-                    lines = _read_port_file_lines(f, max_lines=1)
-                    if not lines:
-                        continue
-                    port = int(lines[0])
+                    port = int(f.stem)
                     if _tcp_probe(port):
                         _tcp_probe_fail_since.pop(key, None)
                         continue

@@ -8,7 +8,7 @@ from pathlib import Path  # noqa: TC003
 from .bridge_socket import frame_read_with_timeout, frame_write
 from .constants import DEFAULT_PORT
 from .doctor_report import USER_MESSAGES, CheckResult, format_report  # re-exported
-from .lockfile import is_pid_alive
+from .lockfile import _read_port_file_lines, is_pid_alive
 from .paths import ports_dir as _ports_dir_canonical
 from .paths import unity_mcp_dir
 
@@ -51,8 +51,12 @@ async def check_port_file(fix: bool = False) -> CheckResult:
     stale, live = [], []
     for f in port_files:
         try:
-            pid = int(f.stem)
-        except ValueError:
+            # New format: stem=port, content[0]=pid
+            lines = _read_port_file_lines(f, max_lines=1)
+            pid = int(lines[0]) if lines else None
+            if pid is None:
+                raise ValueError
+        except (ValueError, OSError):
             stale.append(f)
             continue
         (live if is_pid_alive(pid) else stale).append(f)

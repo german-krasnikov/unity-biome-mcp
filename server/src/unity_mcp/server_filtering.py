@@ -4,18 +4,14 @@ Pure, stateless helpers. State (_disabled_tools_cache, _refresh_tools_lock)
 lives in server.py so tests can mutate srv._disabled_tools_cache directly.
 """
 import asyncio  # noqa: TC003
-import contextlib
 import logging
 import os
-import socket
 import weakref
 from pathlib import Path  # noqa: F401  # re-exported; tests mock unity_mcp.server_filtering.Path
 
+from .bridge.phantom_cleaner import _tcp_probe  # noqa: F401  # re-exported; tests mock server_filtering._tcp_probe
 from .constants import DEFAULT_PORT
-from .lockfile import _read_port_file_lines
-from .lockfile import is_pid_alive as _is_pid_alive
-from .paths import iter_port_files as _iter_port_files
-from .paths import ports_dir as _ports_dir
+from .lockfile import is_pid_alive as _is_pid_alive  # noqa: F401  # re-exported for phantom_cleaner compat
 from .tools.gating import _CORE_TOOLS, TIER1, filter_by_tier, get_catalog
 from .tools.schema_registry import STUB_SCHEMA
 from .tools.schema_registry import _registry as _schema_registry
@@ -111,87 +107,35 @@ def filter_tools(tools: list, disabled: set | None) -> list:
     return result
 
 
-def _tcp_probe(port: int, timeout: float = 0.2) -> bool:
-    """Return True if TCP port accepts connections."""
-    try:
-        with socket.create_connection(("127.0.0.1", port), timeout=timeout):
-            return True
-    except OSError:
-        return False
+def _resolve_project_path() -> str:
+    """Priority: UNITY_MCP_PROJECT_DIR > CLAUDE_PROJECT_DIR > CWD."""
+    return (
+        os.environ.get("UNITY_MCP_PROJECT_DIR")
+        or os.environ.get("CLAUDE_PROJECT_DIR")
+        or os.getcwd()
+    )
 
 
-def _is_path_prefix(cwd: str, prefix: str) -> bool:
-    """Return True if prefix is a parent of (or equal to) cwd.
-
-    Uses normcase + normpath to handle Windows forward/backslash mismatch:
-    Unity port files use '/' (Application.dataPath), os.getcwd() uses '\\'.
-    On POSIX normcase is a no-op.
-    """
-    cwd_n = os.path.normcase(os.path.normpath(cwd))
-    pre_n = os.path.normcase(os.path.normpath(prefix))
-    sep = os.path.normcase(os.sep)
-    return cwd_n == pre_n or cwd_n.startswith(pre_n + sep)
+def _make_unity_profile():
+    from .paths import make_app_profile
+    return make_app_profile()
 
 
 def read_unity_port(skip_probe: bool = False) -> int | None:
-    """Discover Unity Biome MCP port from discovery files, env var, or default 9500.
+    """Discover Unity Biome MCP port from port files, env var, or default 9500.
 
     Returns None when skip_probe=True and no live candidates found (no silent 9500 drift).
     Returns 9500 when skip_probe=False and no candidates (cold-start backward compat).
-    Priority: env var → CWD project match → newest mtime → 9500.
+    Priority: env var → CWD project match (longest prefix) → first alphabetical → 9500.
     skip_probe: if True, skip TCP connectivity check (useful during reconnect
                 when port may be transiently down due to domain reload).
     """
-    if os.environ.get("UNITY_MCP_PORT"):
-        try:
-            return int(os.environ["UNITY_MCP_PORT"])
-        except ValueError:
-            pass
-    glob_pattern = "*.port"
-    candidates = []
-    for f in _iter_port_files(glob_pattern, _ports_dir()):
-        try:
-            lines = _read_port_file_lines(f, max_lines=3)
-            if not lines:
-                # Transient-empty or malformed — skip safely without deleting.
-                continue
-            port = int(lines[0])
-            pid = int(f.stem)
-            if not _is_pid_alive(pid):
-                with contextlib.suppress(OSError): f.unlink()
-                continue
-            project_path = lines[1] if len(lines) > 1 else ""
-            project = lines[2] if len(lines) > 2 else "?"
-            candidates.append((f.stat().st_mtime, port, project, pid, project_path))
-        except (ValueError, OSError):
-            with contextlib.suppress(OSError): f.unlink()
-
-    if not candidates:
-        # B3: skip_probe reconnect → no live targets → None (caller preserves self._port).
-        # Cold-start (skip_probe=False) → fallback 9500 for backward compat.
+    from biome_mcp.cli.resolver import ConnectionResolver
+    spec = ConnectionResolver(_make_unity_profile()).resolve(project_path=_resolve_project_path())
+    if spec.source == "default":
         return None if skip_probe else DEFAULT_PORT
-
-    # CWD-based selection: prefer project whose path is a prefix of cwd.
-    # Waterfall: UNITY_MCP_PROJECT_DIR > CLAUDE_PROJECT_DIR > CWD.
-    # If multiple match (nested), prefer longest path.
-    cwd = (os.environ.get("UNITY_MCP_PROJECT_DIR")
-           or os.environ.get("CLAUDE_PROJECT_DIR")
-           or os.getcwd())
-    cwd_matches = [
-        (len(os.path.normpath(pp)), mtime, port, proj, pid)
-        for mtime, port, proj, pid, pp in candidates
-        if pp and _is_path_prefix(cwd, pp)
-    ]
-    if cwd_matches:
-        cwd_matches.sort(reverse=True)  # longest path first, then newest mtime
-        _, _, port, project, pid = cwd_matches[0]
-    else:
-        candidates.sort(reverse=True)  # newest mtime first
-        _, port, project, pid, _ = candidates[0]
-
-    logging.getLogger("unity_mcp").info(
-        "Auto-discovered Unity MCP on port %d (pid %d)", port, pid)
-    return port
+    logging.getLogger("unity_mcp").info("Auto-discovered Unity MCP on port %d", spec.port)
+    return spec.port
 
 
 async def discover_port_with_retry(

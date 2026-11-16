@@ -77,7 +77,7 @@ async def test_reconnect_starts_heartbeat(bridge):
 
     with patch("asyncio.open_connection", new=AsyncMock(return_value=(AsyncMock(), fake_writer))), \
          patch("unity_mcp.bridge.frame_read_with_timeout", new=AsyncMock(side_effect=[ping_pay, ver_pay])), \
-         patch("unity_mcp.bridge._apply_socket_options"), \
+         patch("unity_mcp.bridge.apply_socket_options"), \
          patch("unity_mcp.bridge.frame_write"), \
          patch("unity_mcp.lockfile.read_pid_from_port_file", return_value=None):
         await bridge._reconnect()

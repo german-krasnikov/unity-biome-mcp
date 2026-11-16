@@ -45,8 +45,9 @@ async def test_check_port_file_no_files(tmp_path):
 @pytest.mark.asyncio
 async def test_check_port_file_stale_pid(tmp_path):
     """Port file with non-existent PID → auto_fixable=True."""
-    port_file = tmp_path / "99999999.port"
-    port_file.write_text("9500\n/some/path", encoding="utf-8")
+    # New format: stem=port, content[0]=pid
+    port_file = tmp_path / "9500.port"
+    port_file.write_text("99999999\n/some/path", encoding="utf-8")
     with patch("unity_mcp.doctor._ports_dir", lambda: tmp_path):
         result = await check_port_file()
     assert result.auto_fixable is True
@@ -56,8 +57,9 @@ async def test_check_port_file_stale_pid(tmp_path):
 @pytest.mark.asyncio
 async def test_check_port_file_live_pid(tmp_path):
     """Port file with own PID → healthy."""
-    port_file = tmp_path / f"{os.getpid()}.port"
-    port_file.write_text("9500\n/some/path", encoding="utf-8")
+    # New format: stem=port, content[0]=pid
+    port_file = tmp_path / "9500.port"
+    port_file.write_text(f"{os.getpid()}\n/some/path", encoding="utf-8")
     with patch("unity_mcp.doctor._ports_dir", lambda: tmp_path):
         result = await check_port_file()
     assert result.ok is True
@@ -66,8 +68,9 @@ async def test_check_port_file_live_pid(tmp_path):
 @pytest.mark.asyncio
 async def test_check_port_file_autofix_deletes_stale(tmp_path):
     """run_doctor(fix=True) removes stale port files but reports no Unity running."""
-    port_file = tmp_path / "99999999.port"
-    port_file.write_text("9500\n/some/path", encoding="utf-8")
+    # New format: stem=port, content[0]=pid
+    port_file = tmp_path / "9500.port"
+    port_file.write_text("99999999\n/some/path", encoding="utf-8")
     with patch("unity_mcp.doctor._ports_dir", lambda: tmp_path):
         result = await check_port_file(fix=True)
     assert not port_file.exists()
@@ -79,10 +82,11 @@ async def test_check_port_file_autofix_deletes_stale(tmp_path):
 @pytest.mark.asyncio
 async def test_check_port_file_autofix_with_live_pid_ok(tmp_path):
     """run_doctor(fix=True) with stale + live → ok=True after cleanup."""
-    stale_file = tmp_path / "99999999.port"
-    stale_file.write_text("9500\n/some/path", encoding="utf-8")
-    live_file = tmp_path / f"{os.getpid()}.port"
-    live_file.write_text("9501\n/some/path", encoding="utf-8")
+    # New format: stem=port, content[0]=pid
+    stale_file = tmp_path / "9500.port"
+    stale_file.write_text("99999999\n/some/path", encoding="utf-8")
+    live_file = tmp_path / "9501.port"
+    live_file.write_text(f"{os.getpid()}\n/some/path", encoding="utf-8")
     with patch("unity_mcp.doctor._ports_dir", lambda: tmp_path):
         result = await check_port_file(fix=True)
     assert not stale_file.exists()
@@ -178,8 +182,9 @@ def test_user_messages_all_keys():
 @pytest.mark.asyncio
 async def test_doctor_autofix_stale_port(tmp_path):
     """run_doctor(fix=True) with only stale port file → file deleted, no Unity running."""
-    port_file = tmp_path / "99999999.port"
-    port_file.write_text("9500\n/some/path", encoding="utf-8")
+    # New format: stem=port, content[0]=pid
+    port_file = tmp_path / "9500.port"
+    port_file.write_text("99999999\n/some/path", encoding="utf-8")
     with patch("unity_mcp.doctor._ports_dir", lambda: tmp_path):
         results = await run_doctor(fix=True)
     port_check = next(r for r in results if r.name == "port_file")

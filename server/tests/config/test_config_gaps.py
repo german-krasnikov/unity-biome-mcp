@@ -17,7 +17,7 @@ def test_validator_uses_root_key(tmp_path, monkeypatch):
 
     monkeypatch.setattr(c.CLIENT_REGISTRY["vscode"], "config_path", cfg)
     # patch port probe so test doesn't need Unity running
-    monkeypatch.setattr(validator, "_port_reachable", lambda _: False)
+    monkeypatch.setattr(validator, "_tcp_probe", lambda *a, **kw: False)
 
     result = validator.validate_config("vscode")
     assert "not configured" not in result
@@ -32,7 +32,7 @@ def test_validator_hardcoded_mcpservers_regression(tmp_path, monkeypatch):
     cfg.write_text(json.dumps({"mcpServers": {"unity-biome-mcp": {"command": "uvx"}}}), encoding="utf-8")
 
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "config_path", cfg)
-    monkeypatch.setattr(validator, "_port_reachable", lambda _: False)
+    monkeypatch.setattr(validator, "_tcp_probe", lambda *a, **kw: False)
 
     result = validator.validate_config("claude-code")
     assert "not configured" not in result
@@ -47,7 +47,7 @@ def test_validator_opencode_uses_mcp_root_key(tmp_path, monkeypatch):
     cfg.write_text(json.dumps({"mcp": {"unity-biome-mcp": {"command": "uvx"}}}), encoding="utf-8")
 
     monkeypatch.setattr(c.CLIENT_REGISTRY["opencode"], "config_path", cfg)
-    monkeypatch.setattr(validator, "_port_reachable", lambda _: False)
+    monkeypatch.setattr(validator, "_tcp_probe", lambda *a, **kw: False)
 
     result = validator.validate_config("opencode")
     assert "not configured" not in result
@@ -68,7 +68,7 @@ def test_validator_reads_bom_prefixed_config(tmp_path, monkeypatch):
     cfg.write_bytes(b"\xef\xbb\xbf" + payload)
 
     monkeypatch.setattr(c.CLIENT_REGISTRY["claude-code"], "config_path", cfg)
-    monkeypatch.setattr(validator, "_port_reachable", lambda _: False)
+    monkeypatch.setattr(validator, "_tcp_probe", lambda *a, **kw: False)
 
     result = validator.validate_config("claude-code")
     assert "invalid JSON" not in result

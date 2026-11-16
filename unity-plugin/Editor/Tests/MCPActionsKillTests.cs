@@ -128,13 +128,13 @@ namespace UnityMCP.Editor.Tests
         {
             var portsDir = Path.Combine(_scope.Path, "ports");
             Directory.CreateDirectory(portsDir);
-            File.WriteAllText(Path.Combine(portsDir, "12345.port"), "9500\n");
-            File.WriteAllText(Path.Combine(portsDir, "12345.chat-port"), "data");
-            File.WriteAllText(Path.Combine(portsDir, "12345.reload-port"), "data");
+            File.WriteAllText(Path.Combine(portsDir, "9500.port"), "12345");
+            File.WriteAllText(Path.Combine(portsDir, "9501.chat-port"), "12345");
+            File.WriteAllText(Path.Combine(portsDir, "9502.reload-port"), "12345");
             MCPActions.KillByPort(9500);
-            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.port")));
-            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.chat-port")));
-            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.reload-port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "9500.port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "9501.chat-port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "9502.reload-port")));
         }
 
         // M17: RestartRelay must not thread-hop via Task.Run — SessionState (used deep in
@@ -217,15 +217,15 @@ namespace UnityMCP.Editor.Tests
             File.WriteAllText(Path.Combine(_scope.Path, "server-9500-99999.lock"), "99999\n");
             var portsDir = Path.Combine(_scope.Path, "ports");
             Directory.CreateDirectory(portsDir);
-            File.WriteAllText(Path.Combine(portsDir, "12345.port"), "9500\n");
-            File.WriteAllText(Path.Combine(portsDir, "12345.chat-port"), "data");
-            File.WriteAllText(Path.Combine(portsDir, "12345.reload-port"), "data");
+            File.WriteAllText(Path.Combine(portsDir, "9500.port"), "12345");
+            File.WriteAllText(Path.Combine(portsDir, "9501.chat-port"), "12345");
+            File.WriteAllText(Path.Combine(portsDir, "9502.reload-port"), "12345");
 
             MCPActions.TerminateByPid(9500, 99999);
 
-            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.port")));
-            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.chat-port")));
-            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.reload-port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "9500.port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "9501.chat-port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "9502.reload-port")));
         }
 
         [Test]
@@ -237,12 +237,12 @@ namespace UnityMCP.Editor.Tests
             File.WriteAllText(lock2, "99999\n");
             var portsDir = Path.Combine(_scope.Path, "ports");
             Directory.CreateDirectory(portsDir);
-            File.WriteAllText(Path.Combine(portsDir, "12345.port"), "9500\n");
+            File.WriteAllText(Path.Combine(portsDir, "9500.port"), "12345");
 
             MCPActions.TerminateByPid(9500, 99999);
 
             Assert.IsTrue(File.Exists(lock1), "Other bridge lock must survive");
-            Assert.IsTrue(File.Exists(Path.Combine(portsDir, "12345.port")),
+            Assert.IsTrue(File.Exists(Path.Combine(portsDir, "9500.port")),
                 "Port file must survive when another bridge still exists");
         }
 
@@ -272,14 +272,14 @@ namespace UnityMCP.Editor.Tests
             File.WriteAllText(lockFile, $"{proc.Id}\n");
             var portsDir = Path.Combine(_scope.Path, "ports");
             Directory.CreateDirectory(portsDir);
-            File.WriteAllText(Path.Combine(portsDir, "12345.port"), "9500\n");
+            File.WriteAllText(Path.Combine(portsDir, "9500.port"), "12345");
 
             var result = MCPActions.TerminateByPid(9500, proc.Id);
 
             Assert.AreEqual(MCPActions.TerminateResult.Killed, result);
             Assert.IsFalse(File.Exists(lockFile),
                 "Lock file must be deleted after force-killing a live process");
-            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.port")),
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "9500.port")),
                 "Port discovery file must be cleaned when the last bridge is killed");
         }
 
@@ -315,17 +315,17 @@ namespace UnityMCP.Editor.Tests
             File.WriteAllText(lock2, "99999\n");
             var portsDir = Path.Combine(_scope.Path, "ports");
             Directory.CreateDirectory(portsDir);
-            File.WriteAllText(Path.Combine(portsDir, "12345.port"), "9500\n");
-            File.WriteAllText(Path.Combine(portsDir, "12345.chat-port"), "data");
-            File.WriteAllText(Path.Combine(portsDir, "12345.reload-port"), "data");
+            File.WriteAllText(Path.Combine(portsDir, "9500.port"), "12345");
+            File.WriteAllText(Path.Combine(portsDir, "9501.chat-port"), "12345");
+            File.WriteAllText(Path.Combine(portsDir, "9502.reload-port"), "12345");
 
             MCPActions.StopAllOnPort(9500);
 
             Assert.IsFalse(File.Exists(lock1), "First lock must be cleaned");
             Assert.IsFalse(File.Exists(lock2), "Second lock must be cleaned");
-            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.port")));
-            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.chat-port")));
-            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "12345.reload-port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "9500.port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "9501.chat-port")));
+            Assert.IsFalse(File.Exists(Path.Combine(portsDir, "9502.reload-port")));
         }
 
         [Test]
@@ -333,7 +333,7 @@ namespace UnityMCP.Editor.Tests
         {
             var portsDir = Path.Combine(_scope.Path, "ports");
             Directory.CreateDirectory(portsDir);
-            File.WriteAllText(Path.Combine(portsDir, "12345.port"), "9500\n");
+            File.WriteAllText(Path.Combine(portsDir, "9500.port"), "12345");
             File.WriteAllText(Path.Combine(_scope.Path, "server-9500-99998.lock"), "99998\n");
             File.WriteAllText(Path.Combine(_scope.Path, "server-9500-99999.lock"), "99999\n");
 
