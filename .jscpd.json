@@ -1,7 +1,7 @@
 {
   "minTokens": 80,
   "minLines": 5,
-  "ignore": ["**/tests/**", "**/Tests~/**", "**/*generated*/**", "**/third-party/**", "**/node_modules/**"],
+  "ignore": ["**/tests/**", "**/Tests/**", "**/Tests~/**", "**/*generated*/**", "**/third-party/**", "**/node_modules/**"],
   "format": ["python", "csharp"],
   "reporters": ["consoleFull", "json"],
   "output": "./reports/jscpd"
