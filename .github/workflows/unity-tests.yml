@@ -129,8 +129,6 @@ jobs:
             unity-test-project/Library/ScriptAssemblies
             unity-test-project/Library/StateCache
           key: unity-library-${{ runner.os }}-${{ hashFiles('unity-test-project/Packages/packages-lock.json', 'unity-test-project/ProjectSettings/**', 'unity-plugin/Editor/**/*.cs', 'unity-test-project/Assets/**/*.cs') }}
-          restore-keys: |
-            unity-library-${{ runner.os }}-
 
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
@@ -301,8 +299,6 @@ jobs:
             unity-test-project/Library/ScriptAssemblies
             unity-test-project/Library/StateCache
           key: unity-library-${{ runner.os }}-${{ hashFiles('unity-test-project/Packages/packages-lock.json', 'unity-test-project/ProjectSettings/**', 'unity-plugin/Editor/**/*.cs', 'unity-test-project/Assets/**/*.cs') }}
-          restore-keys: |
-            unity-library-${{ runner.os }}-
 
       - uses: buildalon/unity-setup@30fcbcb56c10ea5d64298e970d952b8d29bc268b  # v2
         id: unity-setup
