@@ -475,7 +475,7 @@ async def test_bridge_schedules_update_task_when_plugin_newer():
     with patch("unity_mcp.server_updater._updater", FakeUpdater()):
         with patch("asyncio.open_connection", return_value=(reader, writer)):
             with patch("unity_mcp.bridge.frame_write"):
-                with patch("unity_mcp.bridge._apply_socket_options"):
+                with patch("unity_mcp.bridge.apply_socket_options"):
                     bridge = UnityBridge.__new__(UnityBridge)
                     bridge._host = "127.0.0.1"
                     bridge._port = 9500

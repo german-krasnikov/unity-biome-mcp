@@ -6,9 +6,6 @@ starts the MCP server.
 """
 import sys
 
-from unity_mcp.constants import DEFAULT_PORT
-from unity_mcp.paths import unity_mcp_dir
-
 _SUBCOMMANDS = ("configure", "doctor", "version", "uninstall", "port")
 
 # Module-level cache so _build_cli() is cheap after first call

@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v4.0.0] — 2026-11-16
+
 ### Added
 
 - **CLI subcommands `list`, `describe`, `call`, `batch`, `port`, `help`, and `serve`:** `unity-biome-mcp call <tool> key=value ...` calls a Unity tool; `call --follow 10s` repeats the call until the result is terminal (interval clamped to 3–15 s). A global `--port N` flag selects the Unity port. The commands run on `BiomeCLI`, `MCPToolProvider`, and `ConnectionResolver` from biome-mcp; no duplicate dispatch logic.
@@ -3874,7 +3876,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v4.0.0...HEAD
+[v4.0.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v3.0.0...v4.0.0
 [v3.0.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.1.0...v3.0.0
 [v2.1.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.0.0...v2.1.0
 [v2.0.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v1.54.0...v2.0.0

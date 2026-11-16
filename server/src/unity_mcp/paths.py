@@ -74,6 +74,7 @@ def history_dir(fingerprint: str) -> Path:
 def make_app_profile():
     """Build the AppProfile for unity-biome-mcp. Shared by cli.py and server_filtering.py."""
     from biome_mcp.cli import AppProfile
+
     from .constants import DEFAULT_PORT
     return AppProfile(
         app_name="unity-biome-mcp",

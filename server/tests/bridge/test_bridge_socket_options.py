@@ -52,6 +52,6 @@ async def test_keepalive_values_standard(mock_unity_server):
 
 # no-assert: crash guard
 def test_socket_options_no_extra_info_socket_safe():
-    """Verifies _apply_socket_options does not raise when passed None."""
-    from unity_mcp.bridge import _apply_socket_options
-    _apply_socket_options(None)  # must not raise
+    """Verifies apply_socket_options does not raise when passed None."""
+    from unity_mcp.bridge import apply_socket_options
+    apply_socket_options(None)  # must not raise

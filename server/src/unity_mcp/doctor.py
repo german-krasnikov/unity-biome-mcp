@@ -8,7 +8,7 @@ from pathlib import Path  # noqa: TC003
 from .bridge_socket import frame_read_with_timeout, frame_write
 from .constants import DEFAULT_PORT
 from .doctor_report import USER_MESSAGES, CheckResult, format_report  # re-exported
-from .lockfile import is_pid_alive, _read_port_file_lines
+from .lockfile import _read_port_file_lines, is_pid_alive
 from .paths import ports_dir as _ports_dir_canonical
 from .paths import unity_mcp_dir
 

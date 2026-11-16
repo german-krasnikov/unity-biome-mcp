@@ -9,9 +9,9 @@ import os
 import weakref
 from pathlib import Path  # noqa: F401  # re-exported; tests mock unity_mcp.server_filtering.Path
 
+from .bridge.phantom_cleaner import _tcp_probe  # noqa: F401  # re-exported; tests mock server_filtering._tcp_probe
 from .constants import DEFAULT_PORT
 from .lockfile import is_pid_alive as _is_pid_alive  # noqa: F401  # re-exported for phantom_cleaner compat
-from .bridge.phantom_cleaner import _tcp_probe  # noqa: F401  # re-exported; tests mock server_filtering._tcp_probe
 from .tools.gating import _CORE_TOOLS, TIER1, filter_by_tier, get_catalog
 from .tools.schema_registry import STUB_SCHEMA
 from .tools.schema_registry import _registry as _schema_registry
