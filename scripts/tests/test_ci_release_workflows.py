@@ -55,7 +55,7 @@ def test_conformance_workflow_runs_hosted_disposable_unity_workers() -> None:
     hosted_block = text[text.index("hosted-disposable-unity:") :]
     assert "runs-on: ${{ matrix.runner }}" in hosted_block[:500]
     assert "runner: ubuntu-latest" in hosted_block
-    assert "runner: macos-14" in hosted_block
+    assert "runner: macos-15" in hosted_block
     assert "runner: windows-2022" in hosted_block
     assert "buildalon/unity-setup" in hosted_block
     assert "buildalon/activate-unity-license" in hosted_block
