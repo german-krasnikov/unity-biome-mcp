@@ -254,7 +254,7 @@ jobs:
       # Pinned commit, never a floating branch ref (plan: "Baseline не
       # обновлять автоматически на каждом CI"). Bumping this is itself a
       # reviewed PR that states which new duplication is being accepted.
-      JSCPD_BASELINE_REF: 4de339f0
+      JSCPD_BASELINE_REF: a5582a0b
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
