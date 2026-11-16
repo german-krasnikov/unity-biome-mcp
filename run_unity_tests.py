@@ -264,8 +264,10 @@ def advertised_ports(project: Path, requested_port: int | None) -> list[int]:
     matches: list[tuple[float, int]] = []
     for port_file in PORTS_DIR.glob("*.port"):
         try:
+            port = int(port_file.stem)
             lines = port_file.read_text(encoding="utf-8").splitlines()
-            port = int(lines[0])
+            if len(lines) < 2:
+                continue
             advertised_project = Path(lines[1]).resolve()
             if advertised_project == project.resolve():
                 matches.append((port_file.stat().st_mtime, port))
