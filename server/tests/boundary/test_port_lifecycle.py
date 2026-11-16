@@ -35,16 +35,16 @@ _SERVER = _PROJECT / "server"
 # TC-5 — source verification: C# gap + Python coverage
 # ---------------------------------------------------------------------------
 
-def test_csharp_port_manager_cleans_reload_port_files():
-    """PortFileManager.cs CleanStalePeerPortFiles covers *.reload-port — TC-5 gap resolved.
+def test_csharp_port_manager_has_no_duplicate_cleanup():
+    """PortFileManager.cs must not contain CleanStalePeerPortFiles — delegated to Python phantom_cleaner.
 
-    C# now globs both *.port and *.reload-port from dead PIDs.
-    Python cleanup_stale_port_files() is still the primary cleanup path,
-    but C# no longer leaves stale *.reload-port files accumulating.
+    Port-file cleanup is a Python phantom_cleaner responsibility (runs every 30s).
+    C# duplicate was removed to avoid duplication with biome-mcp infrastructure.
     """
     src = (_PLUGIN / "Editor/PortFileManager.cs").read_text(encoding="utf-8")
-    assert "*.reload-port" in src, (
-        "C# cleanup must include *.reload-port — TC-5 gap was resolved; keep it"
+    assert "CleanStalePeerPortFiles" not in src, (
+        "C# port-file cleanup was removed — Python phantom_cleaner owns this; "
+        "do not re-add CleanStalePeerPortFiles to PortFileManager"
     )
 
 

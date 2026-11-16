@@ -7,7 +7,6 @@ import asyncio  # noqa: TC003
 import contextlib
 import logging
 import os
-import socket
 import weakref
 from pathlib import Path  # noqa: F401  # re-exported; tests mock unity_mcp.server_filtering.Path
 
@@ -16,6 +15,7 @@ from .lockfile import _read_port_file_lines
 from .lockfile import is_pid_alive as _is_pid_alive
 from .paths import iter_port_files as _iter_port_files
 from .paths import ports_dir as _ports_dir
+from .bridge.phantom_cleaner import _tcp_probe  # noqa: F401  # re-exported; tests mock server_filtering._tcp_probe
 from .tools.gating import _CORE_TOOLS, TIER1, filter_by_tier, get_catalog
 from .tools.schema_registry import STUB_SCHEMA
 from .tools.schema_registry import _registry as _schema_registry
@@ -109,15 +109,6 @@ def filter_tools(tools: list, disabled: set | None) -> list:
         result = [t for t in result if t.name not in disabled or t.name in _CORE_TOOLS]
     _strip_deferred_schemas(result)
     return result
-
-
-def _tcp_probe(port: int, timeout: float = 0.2) -> bool:
-    """Return True if TCP port accepts connections."""
-    try:
-        with socket.create_connection(("127.0.0.1", port), timeout=timeout):
-            return True
-    except OSError:
-        return False
 
 
 def _is_path_prefix(cwd: str, prefix: str) -> bool:

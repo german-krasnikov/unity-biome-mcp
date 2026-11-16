@@ -171,54 +171,6 @@ namespace UnityMCP.Editor
             _portsResolved = true;
         }
 
-        // Removes port files from dead PIDs to prevent stale discovery entries accumulating
-        // after hard crashes. Called once at startup before WritePortFile().
-        internal static void CleanStalePeerPortFiles()
-        {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                ".unity-biome-mcp", "ports");
-            CleanStalePeerPortFiles(dir);
-        }
-
-        // Testable overload: accepts the ports directory so tests can pass a temp path.
-        // Iterates all files — handles *.port, *.reload-port, *.chat-port from dead PIDs.
-        internal static void CleanStalePeerPortFiles(string dir)
-        {
-            try
-            {
-                if (!Directory.Exists(dir)) return;
-                var currentPid = System.Diagnostics.Process.GetCurrentProcess().Id;
-                foreach (var file in Directory.GetFiles(dir))
-                {
-                    var name = Path.GetFileName(file);
-                    var dot = name.IndexOf('.');
-                    if (dot < 0) continue;
-                    if (!int.TryParse(name.Substring(0, dot), out _)) continue;
-                    string content;
-                    try { content = File.ReadAllText(file).Split('\n')[0].Trim(); }
-                    catch { continue; }
-                    if (!int.TryParse(content, out var pid) || pid == currentPid) continue;
-                    if (IsProcessAlive(pid)) continue;
-                    try { File.Delete(file); } catch { }
-                }
-            }
-            catch { }
-        }
-
-        private static bool IsProcessAlive(int pid)
-        {
-            try
-            {
-                using (var process = System.Diagnostics.Process.GetProcessById(pid))
-                    return !process.HasExited;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
         internal static void WritePortFile(int port)
         {
             var projectPath = Path.GetDirectoryName(Application.dataPath);

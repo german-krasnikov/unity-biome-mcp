@@ -1,7 +1,7 @@
 """Validate MCP config files for known clients."""
 import json
-import socket
 
+from unity_mcp.bridge.phantom_cleaner import _tcp_probe
 from unity_mcp.config.clients import CLIENT_REGISTRY
 from unity_mcp.config.merger import READ_ENCODING, SERVER_NAME
 from unity_mcp.constants import DEFAULT_PORT
@@ -12,15 +12,6 @@ from unity_mcp.server_filtering import read_unity_port
 # the two sides can't silently desync if the wording changes.
 REPORT_NOT_CONFIGURED = "not configured"
 REPORT_NOT_FOUND = "not found"
-
-
-def _port_reachable(port: int) -> bool:
-    """Quick TCP probe — returns True if something is listening."""
-    try:
-        with socket.create_connection(("127.0.0.1", port), timeout=1):
-            return True
-    except OSError:
-        return False
 
 
 def validate_config(client_key: str) -> str:
@@ -64,6 +55,6 @@ def validate_config(client_key: str) -> str:
     lines.append(f"{SERVER_NAME} entry: {entry}")
 
     port = read_unity_port(skip_probe=True) or DEFAULT_PORT
-    reachable = _port_reachable(port)
+    reachable = _tcp_probe(port, timeout=1.0)
     lines.append(f"Port {port}: {'reachable' if reachable else 'not reachable (Unity not running?)'}")
     return "\n".join(lines)

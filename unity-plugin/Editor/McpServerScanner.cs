@@ -96,25 +96,11 @@ namespace UnityMCP.Editor
             return results;
         }
 
+        // Port-file cleanup is delegated to Python phantom_cleaner (runs every 30s).
+        // C# only cleans lock files, which are unique to the C# bridge.
         internal static void CleanPhantomFiles()
         {
-            var (scanDir, lockDir) = GetDirs();
-
-            if (Directory.Exists(scanDir))
-            {
-                // New format: filename = port, content = pid
-                foreach (var file in Directory.GetFiles(scanDir))
-                {
-                    var stem = Path.GetFileNameWithoutExtension(file);
-                    if (!int.TryParse(stem, out _)) continue;
-                    string content;
-                    try { content = File.ReadAllText(file).Trim(); }
-                    catch { continue; }
-                    if (!int.TryParse(content, out var pid)) continue;
-                    if (IsProcessAlive(pid)) continue;
-                    TryDelete(file);
-                }
-            }
+            var (_, lockDir) = GetDirs();
 
             if (Directory.Exists(lockDir))
             {

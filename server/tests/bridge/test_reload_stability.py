@@ -476,9 +476,7 @@ def test_watchdog_registered_before_port_file_manager():
     ctor_end = src.find("\n        public static async void StartAsync()", ctor_start)
     ctor = src[ctor_start:ctor_end]
     idx_register = ctor.find("RegisterLifecycleCallbacks()")
-    idx_clean = ctor.find("PortFileManager.CleanStalePeerPortFiles()")
     idx_save = ctor.find("PortFileManager.SavePorts(")
-    assert idx_register < idx_clean, "Lifecycle callbacks must be registered before CleanStalePeerPortFiles()"
     assert idx_register < idx_save, "Lifecycle callbacks must be registered before SavePorts()"
 
     # TICK-DISPATCHER: MainThreadDispatcher.Drain is no longer registered here — it

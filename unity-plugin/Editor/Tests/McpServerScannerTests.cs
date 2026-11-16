@@ -122,40 +122,28 @@ namespace UnityMCP.Editor.Tests
         }
 
         [Test]
-        public void CleanPhantomFiles_RemovesDeadPidFiles()
+        public void CleanPhantomFiles_RemovesDeadPidLockFile()
         {
             const int deadPid = 99999999;
             Assume.That(!IsProcessAlive(deadPid), "PID 99999999 must not be alive for this test");
 
-            var portFile = Path.Combine(_scope.Path, $"{deadPid}.port");
-            var chatPort = Path.Combine(_scope.Path, $"{deadPid}.chat-port");
-            var reloadPort = Path.Combine(_scope.Path, $"{deadPid}.reload-port");
             var lockFile = Path.Combine(_lockScope.Path, $"server-9600-{deadPid}.lock");
-            File.WriteAllText(portFile, "9600\n");
-            File.WriteAllText(chatPort, "9601\n");
-            File.WriteAllText(reloadPort, "9602\n");
             File.WriteAllText(lockFile, $"{deadPid}\n");
 
             McpServerScanner.CleanPhantomFiles();
 
-            Assert.That(File.Exists(portFile), Is.False);
-            Assert.That(File.Exists(chatPort), Is.False, ".chat-port sibling must be cleaned");
-            Assert.That(File.Exists(reloadPort), Is.False, ".reload-port sibling must be cleaned");
             Assert.That(File.Exists(lockFile), Is.False);
         }
 
         [Test]
-        public void CleanPhantomFiles_KeepsAliveFiles()
+        public void CleanPhantomFiles_KeepsAliveLockFile()
         {
             var selfPid = System.Diagnostics.Process.GetCurrentProcess().Id;
-            var portFile = Path.Combine(_scope.Path, $"{selfPid}.port");
             var lockFile = Path.Combine(_lockScope.Path, $"server-9500-{selfPid}.lock");
-            File.WriteAllText(portFile, "9500\n");
             File.WriteAllText(lockFile, $"{selfPid}\n");
 
             McpServerScanner.CleanPhantomFiles();
 
-            Assert.That(File.Exists(portFile), Is.True);
             Assert.That(File.Exists(lockFile), Is.True);
         }
 
