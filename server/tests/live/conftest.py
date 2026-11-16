@@ -55,9 +55,9 @@ def _worker_port_candidates() -> list[int]:
     records: list[tuple[float, int, Path]] = []
     for port_file in REAL_PORTS_DIR.glob("*.port"):
         try:
+            port = int(port_file.stem)
             lines = port_file.read_text(encoding="utf-8").splitlines()
-            port = int(lines[0])
-            if 1 <= port <= 65535:
+            if 1 <= port <= 65535 and len(lines) >= 2:
                 records.append((port_file.stat().st_mtime, port, Path(lines[1]).resolve()))
         except (OSError, ValueError, IndexError):
             continue
