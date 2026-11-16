@@ -1,6 +1,4 @@
 """Verify bridge modules re-export every symbol declared in biome-mcp surfaces (P7)."""
-from __future__ import annotations
-
 import importlib
 from pathlib import Path
 
