@@ -639,7 +639,7 @@ namespace UnityMCP.Editor.Testing
                 $"Package source path escapes package root: {packageRelativePath}");
             Assert.That(File.Exists(sourcePath), Is.True,
                 $"Required package source does not exist: {sourcePath}");
-            return File.ReadAllText(sourcePath);
+            return File.ReadAllText(sourcePath).Replace("\r\n", "\n");
         }
 
         protected Scene TrackOwnedScene(Scene ownedScene)
