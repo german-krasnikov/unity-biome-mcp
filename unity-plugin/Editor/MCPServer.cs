@@ -565,7 +565,7 @@ namespace UnityMCP.Editor
         // ── Tier 4b: status response format ──────────────────────────────────
 
         // synced by sync_versions.py — do not edit manually
-        internal static string PluginVersion => "3.0.2";
+        internal static string PluginVersion => "3.0.3";
 
         internal static string BuildVersionString(string stamp, string pluginVersion)
         {
