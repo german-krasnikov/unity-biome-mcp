@@ -1,13 +1,13 @@
 # Quality Report
 
-> Auto-generated on **2026-11-17** from commit `fd7fdd4` (v3.0.1)
+> Auto-generated on **2026-11-17** from commit `fc7d3ff` (v3.0.2)
 
 ## Project Overview
 
 | Metric | Value |
 |--------|-------|
-| Version | v3.0.1 |
-| Commit | `fd7fdd4` |
+| Version | v3.0.2 |
+| Commit | `fc7d3ff` |
 | Date | 2026-11-17 |
 | MCP Tools | 160 |
 
