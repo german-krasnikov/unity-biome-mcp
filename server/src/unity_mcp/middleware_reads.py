@@ -99,9 +99,8 @@ class MiddlewareReadsMixin:
                         self._component_cache[current_path] = set()
                         if len(self._component_cache) > self._MAX_COMPONENTS:
                             self._component_cache.popitem(last=False)
-                elif stripped.startswith("[") and stripped.endswith("]") and current_path:
-                    if current_path in self._component_cache:
-                        self._component_cache[current_path].add(stripped[1:-1])
+                elif stripped.startswith("[") and stripped.endswith("]") and current_path and current_path in self._component_cache:
+                    self._component_cache[current_path].add(stripped[1:-1])
 
     def check_component_exists(self, path: str, component: str) -> str | None:
         """Return warning if component definitely not on object (from cache). None = ok/unknown."""
