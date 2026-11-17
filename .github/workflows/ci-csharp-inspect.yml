@@ -80,7 +80,7 @@ jobs:
 
       - name: Generate .sln and .csproj
         if: env.HAS_UNITY_SECRETS == 'true'
-        uses: buildalon/unity-action@2d420bea0f47fbe01377601fa3231bcf4de04f3a  # v3
+        uses: buildalon/unity-action@a9d19e1bc9e9881dae7e2fb33895384c22858e4c  # v4.0.2
         with:
           build-target: StandaloneLinux64
           editor-path: ${{ steps.unity-setup.outputs.unity-editor-path }}
