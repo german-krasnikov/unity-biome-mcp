@@ -12,6 +12,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v3.0.2] — 2026-11-17
+
+### Fixed
+
+- **CI: macOS runner `macos-14` → `macos-15`** — `macos-14` retired by GitHub on 2026-11-02; jobs queued indefinitely.
+- **CI: `buildalon/unity-setup` v2 → v3.0.4** — v2 depended on Unity Hub, whose DMG 404s on macOS 15. v3 uses `unity-cli` instead.
+- **CI: `buildalon/activate-unity-license` v2 → v3.0.2** — v2 required Hub for license activation; v3 uses Unity CLI.
+- **Scanner tests aligned to v3.0.1 port-file format** — 12 Linux test failures: tests still created `{pid}.port` files but `ScanDetailed` reads port from filename (`{port}.port`).
+- **CRLF normalization in `ReadRequiredPackageSource`** — 2 Windows source-snapshot test failures caused by `File.ReadAllText` returning CRLF.
+- **`SIM102` nested-if in `middleware_reads.py`** — flagged by ruff 0.17.5.
+
+### Changed
+
+- **Dependency bumps:** ruff 0.16.8 → 0.17.5, pytest 9.1.1 → 9.2.0, pytest-asyncio patch.
+- **GitHub Actions bumps:** `actions/setup-python` v7.1.0, `buildalon/unity-action` v4.0.2, `astral-sh/setup-uv` v10.3.3, `actions/setup-node` v7.1.0, `github/codeql-action` v4.39.3, `dorny/test-reporter` v3.2.0, `softprops/action-gh-release` v3.0.4.
+
 ## [v3.0.1] — 2026-11-16
 
 ### Added
@@ -3876,7 +3892,8 @@ Created modular plugin architecture: C# (IMCPPlugin + PluginRegistry) and Python
 - TCP Connection Lifecycle Hardening (CLOSE_WAIT fix, reconnect race fix)
 - feat: set_parent tool (fixes duplication bug)
 
-[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v3.0.1...HEAD
+[Unreleased]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v3.0.2...HEAD
+[v3.0.2]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v3.0.1...v3.0.2
 [v3.0.1]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v3.0.0...v3.0.1
 [v3.0.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.1.0...v3.0.0
 [v2.1.0]: https://github.com/german-krasnikov/unity-biome-mcp/compare/v2.0.0...v2.1.0
