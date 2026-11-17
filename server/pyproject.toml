@@ -17,7 +17,7 @@ dependencies = [
     "mcp>=2.3.0,<3",
     "pydantic>=2.0",
     "Pillow>=10.0",
-    "biome-mcp[mcp] @ git+https://github.com/german-krasnikov/biome-mcp.git@9902586",
+    "biome-mcp[mcp] @ git+https://github.com/german-krasnikov/biome-mcp.git@140bf18",
 ]
 
 [project.urls]

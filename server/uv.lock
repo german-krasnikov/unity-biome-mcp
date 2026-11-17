@@ -35,7 +35,7 @@ wheels = [
 [[package]]
 name = "biome-mcp"
 version = "0.1.0"
-source = { git = "https://github.com/german-krasnikov/biome-mcp.git?rev=9902586#99025861e1bc77ef8edbf9a77643a7470c9ca976" }
+source = { git = "https://github.com/german-krasnikov/biome-mcp.git?rev=140bf18#140bf187e14038d28a14722ec377d3a7a4493e30" }
 
 [package.optional-dependencies]
 mcp = [
@@ -919,7 +919,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "biome-mcp", extras = ["mcp"], git = "https://github.com/german-krasnikov/biome-mcp.git?rev=9902586" },
+    { name = "biome-mcp", extras = ["mcp"], git = "https://github.com/german-krasnikov/biome-mcp.git?rev=140bf18" },
     { name = "grimp", marker = "extra == 'dev'", specifier = "<3.17" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.1" },
     { name = "import-linter", marker = "extra == 'dev'", specifier = ">=2.14,<2.15" },
