@@ -136,13 +136,24 @@ Use the CLI for quick checks and scripts. Keep the Unity project open with the p
 unity-biome-mcp port                                  # print the active Unity port
 unity-biome-mcp list --grep hierarchy                 # find tools by name or description
 unity-biome-mcp describe get_hierarchy                # show one tool's parameters
+unity-biome-mcp get_hierarchy --help                  # same parameters, plus an example
 unity-biome-mcp call get_hierarchy depth=1 summary=true
+unity-biome-mcp call get_hierarchy depth=1 --dry-run  # print the parsed arguments only
+unity-biome-mcp uitk                                  # list every uitk_* tool
+printf 'get_hierarchy depth=1\nget_compile_errors\n' | unity-biome-mcp batch --stdin
+unity-biome-mcp shell                                 # interactive prompt with tab completion
 unity-biome-mcp --port 9500 call get_compile_errors   # target a specific port
 ```
 
 - Arguments are `key=value`. `true`, `false`, integers, and decimals are converted automatically.
 - `call --follow 10s` repeats the call at an interval (clamped to 3–15 seconds) until the response reports `state=terminal`, for example a finished test run. `--max-polls N` limits the number of polls.
-- `unity-biome-mcp help <command>` prints the usage for one command.
+- `unity-biome-mcp help` prints the top-level usage, and `unity-biome-mcp help <command>` prints the usage for one command.
+- `ubiome` is a short alias for `unity-biome-mcp` and accepts the same commands.
+- `batch --stdin` reads the batch commands from standard input. `batch --file FILE` reads them from a file.
+- `shell` starts an interactive prompt. Type `help` for commands and `exit`, or press Ctrl-D, to leave.
+- An unknown tool name exits with code 2. When a close match exists, the error adds `Did you mean: <tool>`.
+- A call with missing required arguments lists them, prints an example, and exits with code 3.
+- A prefix that is also a tool name runs that tool. For example, `unity-biome-mcp scene` runs the `scene` tool. Use a longer prefix such as `uitk` to list a namespace.
 - A call without a tool name exits with code 3.
 
 If `call` fails with `Connect call failed`, no Unity editor is listening on that port. Check that the project is open, then compare with `unity-biome-mcp port`.

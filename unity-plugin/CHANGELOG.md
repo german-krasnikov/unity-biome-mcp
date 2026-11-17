@@ -10,7 +10,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v3.0.3] — 2026-11-17
+
+### Added
+
+- **CLI discovery UX:** an unknown tool name gets a `Did you mean:` suggestion. `<tool> --help` prints the tool's parameters and an example. A namespace prefix such as `uitk` lists every tool in that namespace when two or more tools match. A call with missing required arguments names them, prints an example, and exits with code 3.
+- **`--dry-run` on `call`:** prints the parsed arguments without calling Unity. Works with the implicit form (`<tool> ... --dry-run`).
+- **`batch --stdin`:** reads the batch DSL from standard input.
+- **`shell` subcommand:** interactive REPL with tab completion for subcommands and tool names. The completion binding is set for the macOS `editline` backend.
+- **`ubiome` alias:** a second console entrypoint for `unity-biome-mcp` with the same behavior.
+
+### Changed
+
+- **biome-mcp pinned to `140bf18`:** the dependency previously tracked an unpinned branch head. The CLI features above come from that revision.
 
 ## [v3.0.2] — 2026-11-17
 

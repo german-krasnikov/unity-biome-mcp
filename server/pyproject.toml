@@ -1,6 +1,6 @@
 [project]
 name = "unity-biome-mcp"
-version = "3.0.2"
+version = "3.0.3"
 description = "MCP server for Unity Editor control"
 license = {text = "MIT"}
 authors = [{name = "German Krasnikov", email = "german.krasnikov@gmail.com"}]
@@ -17,7 +17,7 @@ dependencies = [
     "mcp>=2.3.0,<3",
     "pydantic>=2.0",
     "Pillow>=10.0",
-    "biome-mcp[mcp] @ git+https://github.com/german-krasnikov/biome-mcp.git",
+    "biome-mcp[mcp] @ git+https://github.com/german-krasnikov/biome-mcp.git@140bf18",
 ]
 
 [project.urls]
@@ -54,6 +54,7 @@ dev = [
 
 [project.scripts]
 unity-biome-mcp = "unity_mcp.cli:main"
+ubiome = "unity_mcp.cli:main"
 unity-biome-mcp-relay = "unity_mcp.chat_relay:main"
 
 [tool.pytest.ini_options]
