@@ -49,7 +49,7 @@ The installable package lives under `server/src/unity_mcp/`.
 | Path | Primary responsibility |
 |---|---|
 | `server/src/unity_mcp/server.py` | FastMCP composition root, lifespan, built-in registration, resources, and plugin loading. |
-| `server/src/unity_mcp/cli.py` | `unity-biome-mcp` entrypoint. Thin layer over biome-mcp `BiomeCLI`: `configure`, `doctor`, `version`, `uninstall`, `port`, `list`, `describe`, `call`, `batch`, `help`, `serve`. No argument starts the stdio server. |
+| `server/src/unity_mcp/cli.py` | `unity-biome-mcp` entrypoint. Thin layer over biome-mcp `BiomeCLI`: `configure`, `doctor`, `version`, `uninstall`, `port`, `list`, `describe`, `call`, `batch` (`--file`, `--stdin`), `shell`, `help`, `serve`. `ubiome` is a second console script for the same entrypoint. Discovery UX (suggestions, `--help`, namespace prefixes, `call --dry-run`) comes from biome-mcp `BiomeCLI`. No argument starts the stdio server. |
 | `server/src/unity_mcp/tools/` | Typed MCP wrappers and Python-side orchestration. |
 | `server/src/unity_mcp/tools/__init__.py` | Built-in tool-module registration. |
 | `server/src/unity_mcp/tools/tool_specs.py` | `ToolSpec` and the merge of the tool metadata (category, mutability, timeout, visibility, runtime, direct-only): generated from `dsl/tools.biome` (the `_SPECS` literal is empty; the merge fills it). |
