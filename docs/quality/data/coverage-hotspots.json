@@ -1,12 +1,32 @@
 {
   "meta": {
-    "source_sha": "24fc18d32280c0e4e0b0aa6285aec35e13362bda",
+    "source_sha": "5baeee2e67e594f2c1d69bb09dc59feaad0c2626",
     "lane": "Linux",
     "unity_version": "6000.0.83f1",
-    "generated_for_sha": "24fc18d32280c0e4e0b0aa6285aec35e13362bda",
+    "generated_for_sha": "5baeee2e67e594f2c1d69bb09dc59feaad0c2626",
     "stale": false
   },
   "rows": [
+    {
+      "class_name": "UnityMCP.Editor.MCPServer",
+      "method_name": "get_PluginVersion",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/MCPServer.cs",
+      "changed": true,
+      "cyclomatic_complexity": 1,
+      "coverage_fraction": 0.0,
+      "score": 1.0,
+      "scenario_ref": "unknown"
+    },
+    {
+      "class_name": "UnityMCP.Editor.MCPServer",
+      "method_name": "get_PluginVersion",
+      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/MCPServer.cs",
+      "changed": true,
+      "cyclomatic_complexity": 1,
+      "coverage_fraction": 1.0,
+      "score": 0.0,
+      "scenario_ref": "unknown"
+    },
     {
       "class_name": "UnityMCP.Editor.ToolMeta",
       "method_name": "Get",
@@ -185,26 +205,6 @@
       "cyclomatic_complexity": 48,
       "coverage_fraction": 0.0,
       "score": 48.0,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.PlaytestRunner/<>c__DisplayClass23_0",
-      "method_name": "<Run>g__Tick|3",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/Playtest/PlaytestRunner.cs",
-      "changed": false,
-      "cyclomatic_complexity": 73,
-      "coverage_fraction": 0.3492063492063492,
-      "score": 47.507936507936506,
-      "scenario_ref": "unknown"
-    },
-    {
-      "class_name": "UnityMCP.Editor.ComponentSerializer",
-      "method_name": "AppendUnityEvent",
-      "file": "/home/runner/work/unity-biome-mcp/unity-biome-mcp/unity-plugin/Editor/Core/Scene/ComponentSerializer.cs",
-      "changed": false,
-      "cyclomatic_complexity": 46,
-      "coverage_fraction": 0.0,
-      "score": 46.0,
       "scenario_ref": "unknown"
     }
   ]
